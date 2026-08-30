@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# Push each completed commit when this clone has an origin remote.
+branch=$(git symbolic-ref --quiet --short HEAD) || exit 0
+
+if ! git remote get-url origin >/dev/null 2>&1; then
+    exit 0
+fi
+
+git push origin "$branch"
