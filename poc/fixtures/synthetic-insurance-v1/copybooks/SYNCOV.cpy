@@ -1,0 +1,6 @@
+000100 01 SYN-COVERAGE-RECORD.
+000200    05 COV-POLICY-ID                PIC X(12).
+000300    05 COV-COVER-CODE               PIC X(06).
+000400    05 COV-COVER-TYPE               PIC X(01).
+000500    05 COV-STATUS                   PIC X(01).
+000600    05 COV-SUM-ASSURED              PIC 9(09)V99.

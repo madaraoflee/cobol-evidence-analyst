@@ -1,0 +1,5 @@
+repo-inventory*.json
+repo-inventory*.md
+.poc-data/
+__pycache__/
+tests/__pycache__/

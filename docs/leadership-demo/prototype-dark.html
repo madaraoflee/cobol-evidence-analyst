@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>COBOL Lens — Leadership Demo</title>
+  <style>
+    :root {
+      --bg: #070812;
+      --panel: rgba(15, 17, 33, 0.82);
+      --panel-strong: rgba(18, 21, 40, 0.96);
+      --line: rgba(255, 255, 255, 0.085);
+      --line-strong: rgba(142, 123, 255, 0.30);
+      --text: #f6f7fb;
+      --muted: #999fb6;
+      --muted-2: #6f758d;
+      --violet: #9b87ff;
+      --violet-2: #7054ee;
+      --cyan: #57e7d9;
+      --blue: #68a6ff;
+      --amber: #ffca6b;
+      --green: #69e1b3;
+      --red: #ff879a;
+      --shadow: 0 28px 90px rgba(0, 0, 0, 0.38);
+      --radius-xl: 26px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      color: var(--text);
+      background: var(--bg);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display",
+        "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      border-radius: 999px;
+      filter: blur(90px);
+      pointer-events: none;
+      opacity: .54;
+    }
+
+    body::before {
+      width: 620px;
+      height: 620px;
+      top: -280px;
+      right: 5%;
+      background: radial-gradient(circle, rgba(116, 81, 255, .34), transparent 68%);
+    }
+
+    body::after {
+      width: 520px;
+      height: 520px;
+      left: 11%;
+      bottom: -310px;
+      background: radial-gradient(circle, rgba(58, 219, 204, .20), transparent 68%);
+    }
+
+    .dot-field {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .18;
+      background-image: radial-gradient(rgba(255,255,255,.34) .7px, transparent .7px);
+      background-size: 23px 23px;
+      mask-image: linear-gradient(to bottom, black, transparent 78%);
+    }
+
+    .app-shell {
+      position: relative;
+      z-index: 1;
+      width: calc(100vw - 34px);
+      height: calc(100vh - 34px);
+      margin: 17px;
+      display: grid;
+      grid-template-columns: 244px minmax(0, 1fr);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 30px;
+      background: rgba(8, 10, 21, .80);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(30px);
+      overflow: hidden;
+    }
+
+    .sidebar {
+      padding: 24px 18px 18px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.025), transparent 26%),
+        rgba(9, 11, 24, .72);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 2px 6px 24px;
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, #b09dff 0%, #7657f5 52%, #53e5d7 100%);
+      box-shadow: 0 0 28px rgba(142, 111, 255, .42);
+    }
+
+    .brand-mark::before,
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      border: 1px solid rgba(255,255,255,.75);
+      border-radius: 50%;
+    }
+
+    .brand-mark::before { inset: 8px 10px; }
+    .brand-mark::after { inset: 12px 7px; }
+
+    .brand-title { font-size: 15px; font-weight: 760; letter-spacing: .2px; }
+    .brand-sub { margin-top: 2px; font-size: 10px; color: var(--muted-2); letter-spacing: .9px; text-transform: uppercase; }
+
+    .section-label {
+      margin: 8px 10px 8px;
+      color: var(--muted-2);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .nav { display: grid; gap: 5px; }
+    .nav-item {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      color: #9299b0;
+      font-size: 13px;
+      font-weight: 620;
+    }
+
+    .nav-item.active {
+      color: #fff;
+      border-color: rgba(155,135,255,.22);
+      background: linear-gradient(90deg, rgba(119,85,242,.18), rgba(87,231,217,.05));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.015);
+    }
+
+    .nav-icon {
+      width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      border: 1px solid rgba(255,255,255,.12);
+      color: #bcb6ff;
+      font-size: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .nav-spacer { flex: 1; }
+
+    .repo-card {
+      position: relative;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.028);
+      overflow: hidden;
+    }
+
+    .repo-card::before {
+      content: "";
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      right: -65px;
+      top: -65px;
+      border-radius: 50%;
+      background: rgba(87,231,217,.10);
+      filter: blur(25px);
+    }
+
+    .repo-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .repo-name { font-size: 12px; font-weight: 700; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 12px rgba(105,225,179,.8); }
+    .repo-path { margin: 7px 0 11px; color: var(--muted-2); font: 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .repo-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .repo-stat { padding: 8px; border-radius: 10px; background: rgba(255,255,255,.035); }
+    .repo-stat b { display: block; font-size: 12px; }
+    .repo-stat span { color: var(--muted-2); font-size: 9px; }
+
+    .workspace { min-width: 0; display: flex; flex-direction: column; }
+
+    .topbar {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 0 26px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(11, 13, 27, .58);
+    }
+
+    .crumb { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .crumb-title { font-size: 13px; font-weight: 700; }
+    .crumb-divider { color: #4d5369; }
+    .crumb-meta { font-size: 11px; color: var(--muted-2); }
+
+    .top-actions { display: flex; align-items: center; gap: 9px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 31px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #aeb4c7;
+      background: rgba(255,255,255,.025);
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: .2px;
+    }
+    .pill.green { color: #9aefcd; border-color: rgba(105,225,179,.18); background: rgba(105,225,179,.06); }
+    .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
+
+    .progress-strip {
+      height: 53px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 26px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(10,12,25,.50);
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #656b82;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+    }
+
+    .step-num {
+      width: 23px;
+      height: 23px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.10);
+      font-size: 9px;
+      color: #747a90;
+    }
+    .step-line { width: 54px; height: 1px; background: rgba(255,255,255,.08); }
+    .step.active { color: #e8e5ff; }
+    .step.active .step-num { color: white; border-color: rgba(155,135,255,.58); background: rgba(126,89,244,.26); box-shadow: 0 0 20px rgba(126,89,244,.25); }
+    .step.done { color: #a8e8db; }
+    .step.done .step-num { color: #07120f; border-color: transparent; background: var(--cyan); }
+
+    .screen { display: none; flex: 1; min-height: 0; padding: 22px 26px 24px; }
+    body[data-state="ask"] .screen-ask,
+    body[data-state="analysis"] .screen-analysis,
+    body[data-state="answer"] .screen-answer { display: block; }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 780;
+      letter-spacing: 1.7px;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before { content: ""; width: 22px; height: 1px; background: currentColor; box-shadow: 0 0 12px currentColor; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { margin-top: 13px; font-size: 34px; line-height: 1.12; letter-spacing: -1.1px; }
+    h2 { font-size: 20px; line-height: 1.25; letter-spacing: -.35px; }
+    h3 { font-size: 12px; line-height: 1.35; }
+    .lead { margin-top: 11px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+    .glass-card {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background:
+        linear-gradient(140deg, rgba(255,255,255,.045), rgba(255,255,255,.012) 55%),
+        rgba(16,18,35,.72);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+      overflow: hidden;
+    }
+
+    .glow-card::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(155,135,255,.55), transparent 30%, transparent 70%, rgba(87,231,217,.30));
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    /* ASK */
+    .ask-grid { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; }
+    .ask-main { min-width: 0; display: flex; flex-direction: column; }
+    .ask-hero { flex: 1; display: grid; place-items: center; padding: 8px 32px 20px; }
+    .ask-inner { width: min(790px, 100%); }
+    .ask-title-gradient { background: linear-gradient(90deg, #fff 0%, #d7d0ff 48%, #a6f6ee 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+    .composer {
+      position: relative;
+      margin-top: 26px;
+      padding: 17px 18px 13px;
+      border: 1px solid rgba(155,135,255,.38);
+      border-radius: 22px;
+      background: rgba(13,15,31,.90);
+      box-shadow: 0 0 0 1px rgba(255,255,255,.02), 0 22px 65px rgba(0,0,0,.26), 0 0 45px rgba(122,91,245,.10);
+    }
+
+    .composer::after {
+      content: "";
+      position: absolute;
+      left: 10%; right: 10%; bottom: -1px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--violet), var(--cyan), transparent);
+      opacity: .6;
+    }
+    .composer-label { color: #747b93; font-size: 10px; font-weight: 700; letter-spacing: .4px; }
+    .composer-text { margin: 10px 0 17px; min-height: 30px; font-size: 17px; font-weight: 650; letter-spacing: -.15px; }
+    .composer-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .composer-tools { display: flex; gap: 7px; }
+    .mini-chip { padding: 7px 9px; border-radius: 9px; border: 1px solid var(--line); color: #858ca3; background: rgba(255,255,255,.02); font-size: 9px; }
+    .primary-button { display: inline-flex; align-items: center; gap: 9px; padding: 10px 14px; border-radius: 11px; background: linear-gradient(135deg, #9c87ff, #6f54e9); color: #fff; font-size: 11px; font-weight: 780; box-shadow: 0 10px 28px rgba(112,84,238,.28); }
+
+    .suggestions { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .suggestion { padding: 8px 10px; border-radius: 999px; border: 1px solid var(--line); color: #80879e; background: rgba(255,255,255,.018); font-size: 9px; }
+
+    .capability-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .capability { min-height: 106px; padding: 15px; }
+    .capability-index { color: #696f86; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .capability h3 { margin-top: 13px; color: #e7e8ef; }
+    .capability p { margin-top: 6px; color: #777e95; font-size: 9.5px; line-height: 1.55; }
+
+    .ask-side { display: flex; flex-direction: column; gap: 12px; }
+    .snapshot-card { padding: 18px; }
+    .card-topline { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .card-kicker { color: #7f869c; font-size: 9px; font-weight: 750; letter-spacing: 1.1px; text-transform: uppercase; }
+    .ready-badge { color: var(--green); font-size: 9px; font-weight: 720; }
+    .snapshot-title { margin-top: 9px; font-size: 16px; font-weight: 760; }
+    .snapshot-path { margin-top: 5px; color: #696f86; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .metric-grid { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .metric { padding: 11px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.045); }
+    .metric-value { font-size: 16px; font-weight: 780; }
+    .metric-label { margin-top: 3px; color: #70768c; font-size: 9px; }
+    .coverage { margin-top: 14px; }
+    .coverage-head { display: flex; justify-content: space-between; color: #7d849a; font-size: 9px; }
+    .bar { height: 5px; margin-top: 8px; border-radius: 99px; background: rgba(255,255,255,.06); overflow: hidden; }
+    .bar-fill { width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--violet), var(--cyan)); box-shadow: 0 0 12px rgba(87,231,217,.3); }
+
+    .privacy-card { padding: 17px; }
+    .privacy-row { display: flex; gap: 11px; }
+    .privacy-icon { flex: 0 0 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; background: rgba(87,231,217,.08); color: var(--cyan); border: 1px solid rgba(87,231,217,.14); font-size: 14px; }
+    .privacy-card p { margin-top: 6px; color: #7d8399; font-size: 9.5px; line-height: 1.6; }
+
+    .scope-card { flex: 1; padding: 17px; }
+    .scope-list { margin-top: 13px; display: grid; gap: 9px; }
+    .scope-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 10px; color: #a5aabc; }
+    .scope-state { color: #6f758b; font-size: 9px; }
+    .scope-state.on { color: #8ee9c4; }
+    .scope-divider { height: 1px; margin: 12px 0; background: var(--line); }
+    .scope-note { color: #777e93; font-size: 9px; line-height: 1.65; }
+
+    /* ANALYSIS */
+    .analysis-grid { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 14px; }
+    .analysis-left { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+    .analysis-header { padding: 17px 19px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .question-line { margin-top: 6px; font-size: 16px; font-weight: 720; }
+    .runtime { flex: 0 0 auto; text-align: right; }
+    .runtime strong { display: block; font: 21px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--cyan); }
+    .runtime span { color: #6f758b; font-size: 9px; }
+
+    .investigation-card { flex: 1; min-height: 0; padding: 17px 19px; }
+    .investigation-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .investigation-head p { margin-top: 4px; color: #71788e; font-size: 9px; }
+    .progress-value { color: #c7c1ff; font-size: 10px; font-weight: 750; }
+
+    .task-list { margin-top: 14px; display: grid; gap: 8px; }
+    .task-row {
+      display: grid;
+      grid-template-columns: 31px 1fr auto;
+      align-items: center;
+      gap: 11px;
+      min-height: 53px;
+      padding: 8px 11px;
+      border-radius: 13px;
+      border: 1px solid rgba(255,255,255,.05);
+      background: rgba(255,255,255,.018);
+    }
+    .task-row.active { border-color: rgba(155,135,255,.32); background: linear-gradient(90deg, rgba(119,85,242,.13), rgba(87,231,217,.025)); }
+    .task-status { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 9px; border: 1px solid rgba(255,255,255,.10); color: #666d83; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .task-row.done .task-status { color: #04120e; background: var(--green); border-color: transparent; }
+    .task-row.active .task-status { color: #fff; border-color: rgba(155,135,255,.55); box-shadow: 0 0 18px rgba(155,135,255,.22); }
+    .task-copy b { display: block; font-size: 10.5px; }
+    .task-copy span { display: block; margin-top: 4px; color: #6f758c; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .task-time { color: #646b81; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .task-row.active .task-time { color: #afa6ff; }
+
+    .trace-card { height: 125px; padding: 14px 17px; }
+    .trace-title { display: flex; align-items: center; justify-content: space-between; color: #8b91a6; font-size: 9px; font-weight: 700; }
+    .trace-title span:last-child { color: #5e657a; font-weight: 500; }
+    .trace-lines { margin-top: 10px; display: grid; gap: 7px; font: 9px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .trace-line { display: grid; grid-template-columns: 62px 1fr; gap: 8px; }
+    .trace-time { color: #575e73; }
+    .trace-message { color: #8a91a7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trace-message b { color: #bbb5ff; font-weight: 650; }
+
+    .analysis-right { display: flex; flex-direction: column; gap: 12px; }
+    .graph-card { height: 360px; padding: 17px; }
+    .graph-wrap { position: relative; height: 280px; margin-top: 10px; border-radius: 16px; background: radial-gradient(circle at 52% 46%, rgba(123,89,244,.12), transparent 42%), rgba(5,7,17,.42); border: 1px solid rgba(255,255,255,.045); overflow: hidden; }
+    .graph-wrap::before { content: ""; position: absolute; inset: 0; opacity: .14; background-image: radial-gradient(rgba(255,255,255,.38) .65px, transparent .65px); background-size: 18px 18px; }
+    .edge { position: absolute; height: 1px; transform-origin: left center; background: linear-gradient(90deg, rgba(155,135,255,.65), rgba(87,231,217,.40)); }
+    .edge.e1 { width: 108px; left: 85px; top: 74px; transform: rotate(18deg); }
+    .edge.e2 { width: 114px; left: 189px; top: 108px; transform: rotate(-20deg); }
+    .edge.e3 { width: 116px; left: 188px; top: 109px; transform: rotate(34deg); }
+    .edge.e4 { width: 92px; left: 91px; top: 198px; transform: rotate(-49deg); }
+    .edge.e5 { width: 104px; left: 187px; top: 144px; transform: rotate(35deg); }
+    .graph-node { position: absolute; z-index: 2; min-width: 88px; padding: 9px 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,.10); background: rgba(16,19,38,.94); box-shadow: 0 10px 28px rgba(0,0,0,.30); }
+    .graph-node strong { display: block; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .graph-node span { display: block; margin-top: 3px; color: #666d82; font-size: 8px; }
+    .graph-node.primary { border-color: rgba(155,135,255,.45); box-shadow: 0 0 24px rgba(126,89,244,.18); }
+    .n1 { left: 28px; top: 45px; }
+    .n2 { left: 150px; top: 92px; }
+    .n3 { right: 20px; top: 47px; }
+    .n4 { right: 25px; bottom: 37px; }
+    .n5 { left: 35px; bottom: 27px; }
+    .graph-legend { position: absolute; left: 12px; bottom: 10px; display: flex; gap: 10px; color: #52596f; font-size: 7px; }
+
+    .evidence-card { flex: 1; padding: 16px 17px; }
+    .evidence-list { margin-top: 10px; display: grid; gap: 7px; }
+    .evidence-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 9px 10px; border-radius: 11px; border: 1px solid rgba(255,255,255,.045); background: rgba(255,255,255,.018); }
+    .evidence-row b { display: block; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .evidence-row span { display: block; margin-top: 3px; color: #666d82; font-size: 8px; }
+    .evidence-tag { align-self: center; color: var(--green); font-size: 8px; }
+
+    .boundary-flow { height: 92px; padding: 13px 15px; display: grid; grid-template-columns: 1fr 28px 1fr; align-items: center; gap: 5px; }
+    .boundary-box { min-width: 0; }
+    .boundary-box b { display: block; font-size: 9px; }
+    .boundary-box span { display: block; margin-top: 4px; color: #666d82; font-size: 8px; line-height: 1.4; }
+    .flow-arrow { color: var(--cyan); text-align: center; font-size: 14px; }
+
+    /* ANSWER */
+    .answer-grid { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 14px; }
+    .answer-left { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+    .answer-head { padding: 15px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .answer-head p { margin-top: 5px; color: #6f768b; font-size: 9.5px; }
+    .answer-metrics { display: flex; gap: 8px; }
+    .answer-metric { min-width: 86px; padding: 9px 11px; border-radius: 11px; border: 1px solid var(--line); background: rgba(255,255,255,.022); }
+    .answer-metric b { display: block; font-size: 13px; color: #d9d5ff; }
+    .answer-metric span { color: #696f84; font-size: 8px; }
+
+    .conclusion-card { padding: 18px 20px; }
+    .conclusion-label { color: var(--cyan); font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+    .formula { margin-top: 11px; padding: 15px 17px; border-radius: 14px; background: linear-gradient(90deg, rgba(119,85,242,.15), rgba(87,231,217,.055)); border: 1px solid rgba(155,135,255,.21); font-size: 18px; font-weight: 760; letter-spacing: -.25px; }
+    .answer-summary { margin-top: 12px; color: #a3a9bb; font-size: 10.5px; line-height: 1.65; }
+
+    .calc-card { flex: 1; min-height: 0; padding: 16px 18px; }
+    .calc-head { display: flex; align-items: center; justify-content: space-between; }
+    .calc-head span { color: #666d82; font-size: 8px; }
+    .calc-flow { margin-top: 13px; display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 7px; }
+    .calc-node { min-height: 70px; padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,.06); background: rgba(255,255,255,.022); }
+    .calc-node span { display: block; color: #6b7287; font-size: 8px; }
+    .calc-node b { display: block; margin-top: 9px; font-size: 9.5px; line-height: 1.35; }
+    .calc-eq { margin-top: 8px; color: #6f768c; font: 8px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .calc-final { border-color: rgba(87,231,217,.26); background: rgba(87,231,217,.055); }
+    .calc-final b { color: #baf6ef; }
+
+    .logic-grid { margin-top: 11px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .logic-box { padding: 11px 13px; border-radius: 12px; border: 1px solid rgba(255,255,255,.055); background: rgba(255,255,255,.018); }
+    .logic-box h3 { display: flex; align-items: center; gap: 7px; }
+    .logic-box h3::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 9px rgba(105,225,179,.6); }
+    .logic-box.warn h3::before { background: var(--amber); box-shadow: 0 0 9px rgba(255,202,107,.5); }
+    .logic-box p { margin-top: 7px; color: #777e94; font-size: 8.8px; line-height: 1.55; }
+
+    .followup { height: 58px; padding: 0 13px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .followup span { color: #686f84; font-size: 9px; }
+    .followup b { color: #a9afc0; font-size: 9px; }
+    .followup-button { padding: 8px 10px; border-radius: 9px; border: 1px solid rgba(155,135,255,.22); color: #c7c1ff; background: rgba(119,85,242,.08); font-size: 8px; }
+
+    .answer-right { display: flex; flex-direction: column; gap: 12px; }
+    .source-card { flex: 1; min-height: 0; padding: 16px 17px; }
+    .source-card-head { display: flex; justify-content: space-between; align-items: center; }
+    .source-card-head span { color: var(--green); font-size: 8px; }
+    .source-list { margin-top: 11px; display: grid; gap: 8px; }
+    .source-item { padding: 10px 11px; border-radius: 12px; border: 1px solid rgba(255,255,255,.055); background: rgba(255,255,255,.018); }
+    .source-top { display: flex; justify-content: space-between; gap: 10px; }
+    .source-top b { font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .source-top span { color: #8a83cf; font: 8px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .code-line { margin-top: 7px; color: #747b91; font: 7.6px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .source-action { margin-top: 7px; color: var(--blue); font-size: 8px; }
+
+    .confidence-card { padding: 15px 17px; }
+    .confidence-score { margin-top: 10px; display: flex; align-items: end; gap: 7px; }
+    .confidence-score b { font: 28px ui-monospace, SFMono-Regular, Menlo, monospace; color: #dcd8ff; }
+    .confidence-score span { padding-bottom: 4px; color: #6c7388; font-size: 8px; }
+    .support-list { margin-top: 12px; display: grid; gap: 7px; }
+    .support-row { display: flex; justify-content: space-between; gap: 8px; color: #7b8297; font-size: 8.5px; }
+    .support-row b { color: #aeb4c5; font-weight: 650; }
+
+    .boundary-card { padding: 13px 15px; border-color: rgba(255,202,107,.18); background: rgba(255,202,107,.035); }
+    .boundary-card b { color: #ffd78d; font-size: 9px; }
+    .boundary-card p { margin-top: 6px; color: #8f8269; font-size: 8px; line-height: 1.55; }
+
+    .demo-note {
+      position: fixed;
+      z-index: 10;
+      right: 28px;
+      bottom: 25px;
+      color: rgba(255,255,255,.26);
+      font-size: 8px;
+      letter-spacing: .7px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body data-state="ask">
+  <div class="dot-field"></div>
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div>
+          <div class="brand-title">COBOL Lens</div>
+          <div class="brand-sub">Business Intelligence Agent</div>
+        </div>
+      </div>
+
+      <div class="section-label">Workspace</div>
+      <nav class="nav">
+        <div class="nav-item active"><span class="nav-icon">?</span><span>业务问答</span></div>
+        <div class="nav-item"><span class="nav-icon">↗</span><span>调查记录</span></div>
+        <div class="nav-item"><span class="nav-icon">{ }</span><span>源码证据</span></div>
+        <div class="nav-item"><span class="nav-icon">#</span><span>索引快照</span></div>
+      </nav>
+
+      <div class="section-label" style="margin-top:20px">Governance</div>
+      <nav class="nav">
+        <div class="nav-item"><span class="nav-icon">✓</span><span>评测中心</span></div>
+        <div class="nav-item"><span class="nav-icon">⌁</span><span>数据边界</span></div>
+      </nav>
+
+      <div class="nav-spacer"></div>
+      <div class="repo-card">
+        <div class="repo-row"><span class="repo-name">原创保险演示库</span><span class="status-dot"></span></div>
+        <div class="repo-path">poc\fixtures\synthetic-insurance-v1</div>
+        <div class="repo-stats">
+          <div class="repo-stat"><b>8</b><span>COBOL</span></div>
+          <div class="repo-stat"><b>5</b><span>COPYBOOK</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <div class="crumb">
+          <span class="crumb-title">Premium Investigation</span>
+          <span class="crumb-divider">/</span>
+          <span class="crumb-meta">Snapshot 2026.08.30 · P1-B verified</span>
+        </div>
+        <div class="top-actions">
+          <span class="pill">Private POC</span>
+          <span class="pill">只读模式</span>
+          <span class="pill green"><i class="pill-dot"></i>本地事实层已就绪</span>
+        </div>
+      </header>
+
+      <div class="progress-strip">
+        <div class="step step-ask active"><span class="step-num">01</span><span>Ask</span></div>
+        <span class="step-line"></span>
+        <div class="step step-analysis"><span class="step-num">02</span><span>Investigate</span></div>
+        <span class="step-line"></span>
+        <div class="step step-answer"><span class="step-num">03</span><span>Answer with evidence</span></div>
+      </div>
+
+      <section class="screen screen-ask">
+        <div class="ask-grid">
+          <div class="ask-main">
+            <div class="ask-hero">
+              <div class="ask-inner">
+                <div class="eyebrow">Evidence-first code intelligence</div>
+                <h1 class="ask-title-gradient">从源码中，找出业务答案。</h1>
+                <p class="lead">用业务语言提问。Agent 会在本地定位程序、字段和调用关系，只把最小证据发送给公司 API。</p>
+
+                <div class="composer glow-card">
+                  <div class="composer-label">向保险核心系统提问</div>
+                  <div class="composer-text">分期保费最终是怎样计算出来的？</div>
+                  <div class="composer-footer">
+                    <div class="composer-tools">
+                      <span class="mini-chip">全库调查</span>
+                      <span class="mini-chip">最多 6 个工具步骤</span>
+                      <span class="mini-chip">必须引用源码</span>
+                    </div>
+                    <span class="primary-button">开始调查 <b>→</b></span>
+                  </div>
+                </div>
+
+                <div class="suggestions">
+                  <span class="suggestion">这个金额由哪些字段组成？</span>
+                  <span class="suggestion">什么条件会改变最终结果？</span>
+                  <span class="suggestion">执行路径经过哪些程序？</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="capability-row">
+              <div class="glass-card capability"><span class="capability-index">01 / LOCATE</span><h3>先定位事实</h3><p>精确符号、全文检索和可选向量召回共同寻找候选代码。</p></div>
+              <div class="glass-card capability"><span class="capability-index">02 / TRACE</span><h3>再追踪关系</h3><p>沿 CALL、PERFORM、字段读写和计算关系建立最小逻辑闭包。</p></div>
+              <div class="glass-card capability"><span class="capability-index">03 / EXPLAIN</span><h3>最后解释业务</h3><p>每个事实回到文件与行号；证据不足时明确缩小结论。</p></div>
+            </div>
+          </div>
+
+          <aside class="ask-side">
+            <div class="glass-card snapshot-card glow-card">
+              <div class="card-topline"><span class="card-kicker">Source snapshot</span><span class="ready-badge">● Ready</span></div>
+              <div class="snapshot-title">2026.08.30 / CALC-01</div>
+              <div class="snapshot-path">SHA A083…83B · local index</div>
+              <div class="metric-grid">
+                <div class="metric"><div class="metric-value">13</div><div class="metric-label">源码文件</div></div>
+                <div class="metric"><div class="metric-value">100%</div><div class="metric-label">成功解码</div></div>
+                <div class="metric"><div class="metric-value">104</div><div class="metric-label">Symbols</div></div>
+                <div class="metric"><div class="metric-value">416</div><div class="metric-label">Relations</div></div>
+              </div>
+              <div class="coverage"><div class="coverage-head"><span>Fixture 索引完成</span><b>100%</b></div><div class="bar"><div class="bar-fill"></div></div></div>
+            </div>
+
+            <div class="glass-card privacy-card">
+              <div class="privacy-row"><div class="privacy-icon">⌁</div><div><h3>私密代码留在本地</h3><p>索引、路径追踪和源码读取在本机完成；公司 API 只接收问题所需的最小证据包。</p></div></div>
+            </div>
+
+            <div class="glass-card scope-card">
+              <div class="card-topline"><span class="card-kicker">Current scope</span><span class="scope-state on">2 / 6 可用</span></div>
+              <div class="scope-list">
+                <div class="scope-row"><span>COBOL Programs</span><span class="scope-state on">已索引</span></div>
+                <div class="scope-row"><span>COPYBOOK</span><span class="scope-state on">已索引</span></div>
+                <div class="scope-row"><span>DDL / DDS</span><span class="scope-state">未提供</span></div>
+                <div class="scope-row"><span>Job Schedule</span><span class="scope-state">未提供</span></div>
+                <div class="scope-row"><span>DB File / Item Table</span><span class="scope-state">未提供</span></div>
+              </div>
+              <div class="scope-divider"></div>
+              <p class="scope-note">回答会自动带上资料覆盖声明，不把缺失配置或运行数据猜成事实。</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen screen-analysis">
+        <div class="analysis-grid">
+          <div class="analysis-left">
+            <div class="glass-card analysis-header glow-card">
+              <div><div class="eyebrow">Investigation in progress</div><div class="question-line">分期保费最终是怎样计算出来的？</div></div>
+              <div class="runtime"><strong>05.8s</strong><span>本地调查持续时间</span></div>
+            </div>
+
+            <div class="glass-card investigation-card">
+              <div class="investigation-head"><div><h2>调查轨迹</h2><p>展示工具、证据和状态，不展示模型私有思维链</p></div><span class="progress-value">3 / 5 · 64%</span></div>
+              <div class="task-list">
+                <div class="task-row done"><span class="task-status">✓</span><div class="task-copy"><b>理解问题与锚定结果字段</b><span>识别“分期保费”为结果概念，映射到 INSTALMENT-PREMIUM</span></div><span class="task-time">0.7s</span></div>
+                <div class="task-row done"><span class="task-status">✓</span><div class="task-copy"><b>混合检索候选代码</b><span>精确符号 + FTS5；命中 25 个有序候选并显式截断</span></div><span class="task-time">0.02s</span></div>
+                <div class="task-row active"><span class="task-status">03</span><div class="task-copy"><b>追踪调用关系与字段数据流</b><span>沿 WRITES / READS / CALL / PERFORM 扩展到第 2 跳</span></div><span class="task-time">running</span></div>
+                <div class="task-row"><span class="task-status">04</span><div class="task-copy"><b>核对计算、条件与错误路径</b><span>等待：检查舍入、状态条件与外部控制表边界</span></div><span class="task-time">queued</span></div>
+                <div class="task-row"><span class="task-status">05</span><div class="task-copy"><b>生成有证据的业务回答</b><span>等待：逐项绑定 EvidenceSpan 并执行支持性检查</span></div><span class="task-time">queued</span></div>
+              </div>
+            </div>
+
+            <div class="glass-card trace-card">
+              <div class="trace-title"><span>LIVE TOOL TRACE</span><span>只读 · 最大 6 步</span></div>
+              <div class="trace-lines">
+                <div class="trace-line"><span class="trace-time">00.018</span><span class="trace-message"><b>search_code</b> 25 candidates → PARTIAL / budget reached</span></div>
+                <div class="trace-line"><span class="trace-time">00.031</span><span class="trace-message"><b>inspect_symbol</b> OUT-INSTALMENT-PREMIUM → 2 个写入点</span></div>
+                <div class="trace-line"><span class="trace-time">00.057</span><span class="trace-message"><b>trace_relations</b> SYNP000 → 15 条关系 / 10 项边界</span></div>
+              </div>
+            </div>
+          </div>
+
+          <aside class="analysis-right">
+            <div class="glass-card graph-card glow-card">
+              <div class="card-topline"><div><span class="card-kicker">Evidence graph</span><h3 style="margin-top:5px">当前最小逻辑闭包</h3></div><span class="ready-badge">15 relations</span></div>
+              <div class="graph-wrap">
+                <span class="edge e1"></span><span class="edge e2"></span><span class="edge e3"></span><span class="edge e4"></span><span class="edge e5"></span>
+                <div class="graph-node n1"><strong>SYNP000</strong><span>orchestrator</span></div>
+                <div class="graph-node n2 primary"><strong>SYNP040</strong><span>calculation</span></div>
+                <div class="graph-node n3"><strong>MODE-FACTOR</strong><span>data item</span></div>
+                <div class="graph-node n4"><strong>INSTALMENT</strong><span>result field</span></div>
+                <div class="graph-node n5"><strong>SYNPRM.cpy</strong><span>parameter map</span></div>
+                <div class="graph-legend"><span>— CALLS</span><span>— READS</span><span>— WRITES</span></div>
+              </div>
+            </div>
+
+            <div class="glass-card evidence-card">
+              <div class="card-topline"><span class="card-kicker">Evidence bundle</span><span class="ready-badge">12 spans</span></div>
+              <div class="evidence-list">
+                <div class="evidence-row"><div><b>SYNP040.cbl · L59–67</b><span>年化组成、最终乘法与舍入</span></div><span class="evidence-tag">VALID</span></div>
+                <div class="evidence-row"><div><b>SYNPRM.cpy · L24–32</b><span>缴费因子、累计金额与结果字段</span></div><span class="evidence-tag">VALID</span></div>
+                <div class="evidence-row"><div><b>SYNP000.cbl · L22–31</b><span>动态产品调用与后续调整调用</span></div><span class="evidence-tag">BOUNDARY</span></div>
+              </div>
+            </div>
+
+            <div class="glass-card boundary-flow">
+              <div class="boundary-box"><b>本地事实层</b><span>全库索引、关系追踪、源码原文</span></div>
+              <div class="flow-arrow">→</div>
+              <div class="boundary-box"><b>公司模型 API</b><span>下一阶段接入，仅发送最小证据包</span></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen screen-answer">
+        <div class="answer-grid">
+          <div class="answer-left">
+            <div class="glass-card answer-head glow-card">
+              <div><div class="eyebrow">Executable answer preview</div><h2 style="margin-top:7px">分期保费最终是怎样计算出来的？</h2><p>基于源码快照 2026.08.30 · CALC-01 · 公司 API 尚未接入</p></div>
+              <div class="answer-metrics"><div class="answer-metric"><b>12</b><span>有效证据</span></div><div class="answer-metric"><b>6 / 6</b><span>工具步骤</span></div></div>
+            </div>
+
+            <div class="glass-card conclusion-card">
+              <div class="conclusion-label">业务结论</div>
+              <div class="formula">分期保费 = 年化应缴保费 × 缴费频率因子，最终四舍五入至 2 位</div>
+              <p class="answer-summary">代码先汇总基础保费、职业风险加费、有效附加保障保费、折扣和年度保单费用，再按缴费模式应用频率因子。任何必需配置不能唯一解析时，流程返回错误，不产生有效分期金额。</p>
+            </div>
+
+            <div class="glass-card calc-card">
+              <div class="calc-head"><h3>计算路径</h3><span>从源码写入点反向重建</span></div>
+              <div class="calc-flow">
+                <div class="calc-node"><span>STEP 01</span><b>基础保费</b><div class="calc-eq">保额 ÷ 1,000 × 基础费率</div></div>
+                <div class="calc-node"><span>STEP 02</span><b>加费与附加保障</b><div class="calc-eq">+ 职业加费 + Rider</div></div>
+                <div class="calc-node"><span>STEP 03</span><b>折扣与保单费用</b><div class="calc-eq">− 折扣 + 年度费用</div></div>
+                <div class="calc-node"><span>STEP 04</span><b>年化应缴保费</b><div class="calc-eq">ROUND(..., 2)</div></div>
+                <div class="calc-node calc-final"><span>STEP 05</span><b>分期保费</b><div class="calc-eq">× MODE-FACTOR</div></div>
+              </div>
+              <div class="logic-grid">
+                <div class="logic-box"><h3>源码能够确认</h3><p>计算顺序、参与字段、适用状态、舍入规则、调用路径与错误传播均有直接源码证据。</p></div>
+                <div class="logic-box warn"><h3>当前不能确认</h3><p>缴费因子的实际配置值、费率商业原因和生产时点值依赖未提供的控制表与运行数据。</p></div>
+              </div>
+            </div>
+
+            <div class="glass-card followup"><div><b>继续追问</b><span>　例如：什么条件会触发高保额折扣？</span></div><span class="followup-button">基于本次证据继续调查 →</span></div>
+          </div>
+
+          <aside class="answer-right">
+            <div class="glass-card source-card glow-card">
+              <div class="source-card-head"><div><span class="card-kicker">Source evidence</span><h3 style="margin-top:5px">可复核源码</h3></div><span>12 spans validated</span></div>
+              <div class="source-list">
+                <div class="source-item"><div class="source-top"><b>SYNP040.cbl</b><span>L59–67</span></div><div class="code-line">COMPUTE WS-ANNUAL-PREMIUM ROUNDED = ...</div><div class="code-line">COMPUTE OUT-INSTALMENT-PREMIUM ROUNDED = WS-ANNUAL-PREMIUM * WS-MODE-FACTOR</div><div class="source-action">打开源码与上下文 →</div></div>
+                <div class="source-item"><div class="source-top"><b>SYNPRM.cpy</b><span>L24–32</span></div><div class="code-line">05 WS-MODE-FACTOR PIC 9(01)V9(06).</div><div class="code-line">05 OUT-INSTALMENT-PREMIUM PIC S9(09)V99 COMP-3.</div><div class="source-action">打开字段定义 →</div></div>
+                <div class="source-item"><div class="source-top"><b>SYNP000.cbl</b><span>L22–31</span></div><div class="code-line">CALL LK-CALCULATOR-PROGRAM USING SYN-PREMIUM-PARAMETERS</div><div class="code-line">CALL 'SYNP040' USING SYN-PREMIUM-PARAMETERS</div><div class="source-action">打开调用边界 →</div></div>
+              </div>
+            </div>
+
+            <div class="glass-card confidence-card">
+              <div class="card-topline"><span class="card-kicker">Support status</span><span class="ready-badge">WITH BOUNDARIES</span></div>
+              <div class="confidence-score"><b>12 / 12</b><span>已读取证据通过 Hash 校验</span></div>
+              <div class="support-list">
+                <div class="support-row"><span>程序与字段存在</span><b>Confirmed</b></div>
+                <div class="support-row"><span>计算表达式</span><b>Confirmed</b></div>
+                <div class="support-row"><span>调用与错误路径</span><b>Confirmed</b></div>
+                <div class="support-row"><span>外部配置实际值</span><b style="color:#ffcf79">Unavailable</b></div>
+              </div>
+            </div>
+
+            <div class="glass-card boundary-card"><b>证据边界</b><p>当前快照只包含 COBOL 与 COPYBOOK，不包含 DDL/DDS、Job Schedule、DB File、Item Table 实际内容。Agent 不会推测缺失资料。</p></div>
+          </aside>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="demo-note">ARCHIVED DARK CONCEPT · EXECUTABLE SYNTHETIC FIXTURE · COMPANY API NOT CONNECTED</div>
+  <script>
+    const state = new URLSearchParams(window.location.search).get('state') || 'ask';
+    document.body.dataset.state = ['ask','analysis','answer'].includes(state) ? state : 'ask';
+    const order = ['ask','analysis','answer'];
+    order.forEach((name, index) => {
+      const el = document.querySelector('.step-' + name);
+      const current = order.indexOf(document.body.dataset.state);
+      el.classList.toggle('active', index === current);
+      el.classList.toggle('done', index < current);
+      if (index < current) el.querySelector('.step-num').textContent = '✓';
+    });
+  </script>
+</body>
+</html>

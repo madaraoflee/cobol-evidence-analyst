@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "spec-miner": {
+      "source": "Jeffallan/claude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/spec-miner/SKILL.md",
+      "computedHash": "91822456789ffa6f5641d4f586df7533757fbc02629b76cb6e68cce5e369b13a"
+    }
+  }
+}
