@@ -26,4 +26,4 @@
 4. [金标准案例模板](./03-gold-case-template.md)
 5. [首个案例：CALC-01 分期保费计算解释](./cases/CALC-01-instalment-premium.md)
 
-`CALC-01` 已能被真实扫描、检索、调查和引用，结果见 [P1-B 可执行演示](../leadership-demo/p1b-executable-demo.md)。下一步接入公司 API 的受控 Agent 循环，再从其余问题中选择三个标注问题、一个未预写问题和一个拒答问题。
+`CALC-01` 已能被真实扫描、检索、调查和引用，结果见 [P1-B 可执行演示](../leadership-demo/p1b-executable-demo.md)。P3-A 受控 Agent 骨架已在离线假传输和真实结构索引上通过；下一步在公司批准环境连接真实 API，再从其余问题中选择三个标注问题、一个未预写问题和一个拒答问题。

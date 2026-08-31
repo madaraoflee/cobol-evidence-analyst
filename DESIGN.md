@@ -8,6 +8,8 @@
 当前实施基线：[可演示 POC](./docs/09-demonstrable-poc.md)  
 适用范围：IBM i / AS400、通用 COBOL，以及后续在公司内适配的 DXC Smart COBOL 香港保险系统
 
+> 实施快照（2026-08-31）：P3-A 已实现公司 API 能力探测、四工具白名单、最多六步的单 Agent 循环、Evidence 范围/Hash/快照核验和固定四段回答。真实公司 API 与独立 Claim 语义支持核验尚未完成，因此当前实现会把只通过引用完整性和词面锚定的回答限制为 `PARTIAL`。执行细节见 [P3-A 进度报告](./docs/reports/2026-08-31-p3a-progress-report.md)。
+
 ## 1. 设计结论
 
 这个 Agent 可以实现，但可信版本不能只靠 LLM，也不能只靠向量数据库。系统必须组合四种能力：
@@ -411,7 +413,7 @@ UNDERSTAND
 - LangGraph、Qdrant、Neo4j、Qwen3/BGE-M3 的候选选型；
 - 解析器 Bake-off 与分层评测策略。
 
-统一 IR 与完整 Agent 工具契约保留为未来演进边界，不作为 POC 前置条件。公开侧现已完成离线画像、SQLite/FTS5 结构索引、四个受限调查工具和 CALC-01 六步证据演示；22 项自动测试全部通过。下一切片是公司 OpenAI-compatible API capability probe、最多六步的单 Agent 循环和引用核验。真实公司代码画像、DXC 方言适配和业务金标准只能在公司批准环境内执行。DDL/DDS、Job Schedule、DB File、Item Table 和运行数据未下载，必须作为回答边界；Embedding、图服务与 LangGraph 继续暂缓。
+统一 IR 与完整 Agent 工具契约保留为未来演进边界，不作为 POC 前置条件。公开侧现已完成离线画像、SQLite/FTS5 结构索引、四个受限调查工具、公司 API capability probe 和最多六步的 Agent 骨架；CALC-01 已在 4 次真实工具调用内完成离线闭环，70 项自动测试全部通过。下一切片是在公司批准环境验收真实 API 并接入独立 Claim 语义支持核验。真实公司代码画像、DXC 方言适配和业务金标准只能在公司批准环境内执行。DDL/DDS、Job Schedule、DB File、Item Table 和运行数据未下载，必须作为回答边界；Embedding、图服务与 LangGraph 继续暂缓。
 
 ## 17. 详细设计索引
 

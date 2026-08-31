@@ -5,11 +5,13 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 POC_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(POC_ROOT))
 
+import agent_loop as agent_loop_module  # noqa: E402
 from agent_loop import (  # noqa: E402
     BoundedAgentLoop,
     MAX_TOOL_CALLS,
@@ -80,11 +82,33 @@ class FakeTools:
 
     @staticmethod
     def _base(tool: str) -> dict[str, object]:
-        return {
+        result: dict[str, object] = {
             "tool": tool,
+            "contract_version": "0.1",
             "snapshot_id": "snapshot-test",
             "status": "OK",
+            "truncated": False,
             "boundaries": [],
+            "diagnostics": [],
+        }
+        if tool == "search_code":
+            result.update({"hits": [], "evidence_refs": []})
+        elif tool == "inspect_symbol":
+            result["matches"] = []
+        elif tool == "trace_relations":
+            result.update({"edges": [], "visited_entities": []})
+        elif tool == "read_evidence":
+            result["spans"] = []
+        return result
+
+    @staticmethod
+    def snapshot_coverage() -> dict[str, object]:
+        return {
+            "type": "snapshot_coverage",
+            "snapshot_id": "snapshot-test",
+            "indexed_artifact_kinds": ["cobol_program", "copybook"],
+            "missing_artifacts": [],
+            "runtime_state_indexed": False,
         }
 
     def search_code(self, query: str, *, limit: int = 10) -> dict[str, object]:
@@ -166,6 +190,7 @@ class FakeTools:
                 "relative_path": "programs/TEST.cbl",
                 "start_line": 10,
                 "end_line": 12,
+                "source_sha256": "0" * 64,
                 "integrity": "VALID",
                 "content_type": "UNTRUSTED_SOURCE_TEXT",
                 "source_text": "COMPUTE OUT-AMOUNT = IN-AMOUNT",
@@ -192,6 +217,7 @@ class AgentLoopTests(unittest.TestCase):
                             {
                                 "claim": "OUT-AMOUNT is computed from IN-AMOUNT.",
                                 "kind": "code_fact",
+                                "code_anchors": ["OUT-AMOUNT", "IN-AMOUNT"],
                                 "evidence_ids": ["ev_OUT-AMOUNT"],
                                 "support_status": "supported",
                             }
@@ -206,10 +232,10 @@ class AgentLoopTests(unittest.TestCase):
 
         result = BoundedAgentLoop(client, tools).run("How is OUT-AMOUNT computed?")
 
-        self.assertEqual(result["status"], "SUPPORTED")
+        self.assertEqual(result["status"], "PARTIAL")
         self.assertEqual(result["tool_calls_used"], 2)
         self.assertEqual(result["evidence_ids"], ["ev_OUT-AMOUNT"])
-        self.assertEqual(result["claims"][0]["support_status"], "supported")
+        self.assertEqual(result["claims"][0]["support_status"], "partial")
         self.assertIn("## 结论", result["answer"])
         self.assertIn("programs/TEST.cbl:10-12", result["answer"])
         self.assertEqual(
@@ -223,6 +249,10 @@ class AgentLoopTests(unittest.TestCase):
         third_turn_messages = client.requests[2]["messages"]
         self.assertEqual(third_turn_messages[-2]["role"], "assistant")
         self.assertEqual(third_turn_messages[-1]["role"], "tool")
+        self.assertNotIn(
+            "COMPUTE OUT-AMOUNT",
+            json.dumps(result["tool_trace"], ensure_ascii=False),
+        )
 
     def test_unauthorized_tool_and_extra_argument_are_never_executed(self) -> None:
         cases = [
@@ -284,8 +314,11 @@ class AgentLoopTests(unittest.TestCase):
                     {
                         "claims": [
                             {
-                                "claim": "Unsupported citation.",
+                                "claim": "OUT-AMOUNT has an unsupported citation.",
+                                "kind": "code_fact",
+                                "code_anchors": ["OUT-AMOUNT"],
                                 "evidence_ids": ["ev_OTHER"],
+                                "support_status": "supported",
                             }
                         ],
                         "evidence_ids": ["ev_OTHER"],
@@ -356,7 +389,10 @@ class AgentLoopTests(unittest.TestCase):
                         "claims": [
                             {
                                 "claim": "OUT-AMOUNT is assigned in the indexed code.",
+                                "kind": "code_fact",
+                                "code_anchors": ["OUT-AMOUNT"],
                                 "evidence_ids": ["ev_OUT-AMOUNT"],
+                                "support_status": "supported",
                             }
                         ],
                         "evidence_ids": ["ev_OUT-AMOUNT"],
@@ -368,9 +404,10 @@ class AgentLoopTests(unittest.TestCase):
 
         result = BoundedAgentLoop(client, FakeTools()).run("Explain OUT-AMOUNT")
 
-        self.assertEqual(result["status"], "SUPPORTED")
+        self.assertEqual(result["status"], "PARTIAL")
         self.assertNotIn("HALLUCINATED-RUNTIME-VALUE", result["answer"])
-        self.assertIn("HALLUCINATED-RUNTIME-VALUE", result["model_answer"])
+        self.assertNotIn("model_answer", result)
+        self.assertFalse(result["model_answer_recorded"])
 
     def test_runtime_determines_support_status_without_model_upgrade(self) -> None:
         def run_with(claim_status: str, boundaries: list[object]) -> dict[str, object]:
@@ -387,7 +424,9 @@ class AgentLoopTests(unittest.TestCase):
                                 "status": "SUPPORTED",
                                 "claims": [
                                     {
-                                        "claim": "A checked claim.",
+                                        "claim": "OUT-AMOUNT is checked.",
+                                        "kind": "code_fact",
+                                        "code_anchors": ["OUT-AMOUNT"],
                                         "evidence_ids": ["ev_OUT-AMOUNT"],
                                         "support_status": claim_status,
                                     }
@@ -401,12 +440,12 @@ class AgentLoopTests(unittest.TestCase):
                 FakeTools(),
             ).run("Check status")
 
-        partial = run_with("partial", [])
+        partial = run_with("partial", ["The complete value flow is unavailable."])
         bounded = run_with("supported", ["Runtime configuration is absent."])
         unsupported = run_with("unsupported", [])
 
         self.assertEqual(partial["status"], "PARTIAL")
-        self.assertEqual(bounded["status"], "SUPPORTED_WITH_BOUNDARIES")
+        self.assertEqual(bounded["status"], "PARTIAL")
         self.assertEqual(unsupported["status"], "ABSTAINED")
         self.assertEqual(unsupported["stop_reason"], "unsupported_claim")
 
@@ -454,6 +493,217 @@ class AgentLoopTests(unittest.TestCase):
 
         with self.assertRaises(ModelProtocolError):
             normalize_model_output(response)
+
+    def test_semantically_contradictory_claim_is_never_fully_supported(self) -> None:
+        result = BoundedAgentLoop(
+            FakeClient(
+                [
+                    json_action("search_code", {"query": "OUT-AMOUNT"}),
+                    json_action(
+                        "read_evidence", {"evidence_ids": ["ev_OUT-AMOUNT"]}
+                    ),
+                    json_action(
+                        "final_answer",
+                        {
+                            "claims": [
+                                {
+                                    "claim": (
+                                        "OUT-AMOUNT is never computed from IN-AMOUNT."
+                                    ),
+                                    "kind": "code_fact",
+                                    "code_anchors": ["OUT-AMOUNT", "IN-AMOUNT"],
+                                    "evidence_ids": ["ev_OUT-AMOUNT"],
+                                    "support_status": "supported",
+                                }
+                            ],
+                            "evidence_ids": ["ev_OUT-AMOUNT"],
+                            "boundaries": [],
+                        },
+                    ),
+                ]
+            ),
+            FakeTools(),
+        ).run("Is the amount computed?")
+
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertFalse(result["verification"]["semantic_claim_support_checked"])
+        self.assertTrue(
+            any(
+                boundary.get("reason") == "semantic_claim_support_not_checked"
+                for boundary in result["boundaries"]
+                if isinstance(boundary, dict)
+            )
+        )
+
+    def test_undeclared_program_identifier_is_rejected(self) -> None:
+        result = BoundedAgentLoop(
+            FakeClient(
+                [
+                    json_action("search_code", {"query": "OUT-AMOUNT"}),
+                    json_action(
+                        "read_evidence", {"evidence_ids": ["ev_OUT-AMOUNT"]}
+                    ),
+                    json_action(
+                        "final_answer",
+                        {
+                            "claims": [
+                                {
+                                    "claim": "SYNP999 writes OUT-AMOUNT.",
+                                    "kind": "code_fact",
+                                    "code_anchors": ["OUT-AMOUNT"],
+                                    "evidence_ids": ["ev_OUT-AMOUNT"],
+                                    "support_status": "supported",
+                                }
+                            ],
+                            "evidence_ids": ["ev_OUT-AMOUNT"],
+                            "boundaries": [],
+                        },
+                    ),
+                ]
+            ),
+            FakeTools(),
+        ).run("Explain it")
+
+        self.assertEqual(result["stop_reason"], "unsupported_claim_content")
+
+    def test_tool_result_contract_version_is_required(self) -> None:
+        class MissingContractTools(FakeTools):
+            def search_code(
+                self, query: str, *, limit: int = 10
+            ) -> dict[str, object]:
+                result = super().search_code(query, limit=limit)
+                result.pop("contract_version")
+                return result
+
+        client = FakeClient([json_action("search_code", {"query": "OUT-AMOUNT"})])
+        result = BoundedAgentLoop(client, MissingContractTools()).run("Find it")
+
+        self.assertEqual(result["stop_reason"], "tool_contract_mismatch")
+        self.assertEqual(result["tool_trace"][0]["outcome"], "POLICY_REJECTED")
+
+    def test_non_read_tool_cannot_smuggle_source_to_model(self) -> None:
+        secret = "SECRET SOURCE BODY"
+
+        class SourceSmugglingTools(FakeTools):
+            def search_code(
+                self, query: str, *, limit: int = 10
+            ) -> dict[str, object]:
+                result = super().search_code(query, limit=limit)
+                result["source_text"] = secret
+                return result
+
+        client = FakeClient([json_action("search_code", {"query": "OUT-AMOUNT"})])
+        result = BoundedAgentLoop(client, SourceSmugglingTools()).run("Find it")
+
+        self.assertEqual(result["stop_reason"], "tool_contract_mismatch")
+        self.assertNotIn(secret, json.dumps(result, ensure_ascii=False))
+        self.assertEqual(len(client.requests), 1)
+
+    def test_read_ok_requires_complete_well_formed_spans(self) -> None:
+        class EmptyReadTools(FakeTools):
+            def read_evidence(
+                self, evidence_ids: list[str], *, max_chars: int = 16_000
+            ) -> dict[str, object]:
+                result = super().read_evidence(
+                    evidence_ids, max_chars=max_chars
+                )
+                result["spans"] = []
+                return result
+
+        result = BoundedAgentLoop(
+            FakeClient(
+                [
+                    json_action("search_code", {"query": "OUT-AMOUNT"}),
+                    json_action(
+                        "read_evidence", {"evidence_ids": ["ev_OUT-AMOUNT"]}
+                    ),
+                ]
+            ),
+            EmptyReadTools(),
+        ).run("Explain it")
+
+        self.assertEqual(result["stop_reason"], "tool_contract_mismatch")
+        self.assertEqual(result["verified_evidence_ids"], [])
+
+    def test_scope_violation_redacts_rejected_result_metadata(self) -> None:
+        class ExtraEvidenceTools(FakeTools):
+            def read_evidence(
+                self, evidence_ids: list[str], *, max_chars: int = 16_000
+            ) -> dict[str, object]:
+                result = super().read_evidence(
+                    evidence_ids, max_chars=max_chars
+                )
+                result["spans"].append(
+                    {
+                        "evidence_id": "ev_secret",
+                        "relative_path": "secret/PAYROLL.cbl",
+                        "start_line": 1,
+                        "end_line": 1,
+                        "source_sha256": "1" * 64,
+                        "integrity": "VALID",
+                        "content_type": "UNTRUSTED_SOURCE_TEXT",
+                        "source_text": "SECRET",
+                        "span_truncated": False,
+                    }
+                )
+                return result
+
+        result = BoundedAgentLoop(
+            FakeClient(
+                [
+                    json_action("search_code", {"query": "OUT-AMOUNT"}),
+                    json_action(
+                        "read_evidence", {"evidence_ids": ["ev_OUT-AMOUNT"]}
+                    ),
+                ]
+            ),
+            ExtraEvidenceTools(),
+        ).run("Explain it")
+        rendered = json.dumps(result["tool_trace"], ensure_ascii=False)
+
+        self.assertEqual(result["stop_reason"], "evidence_scope_violation")
+        self.assertNotIn("ev_secret", rendered)
+        self.assertNotIn("PAYROLL.cbl", rendered)
+        self.assertNotIn("SECRET", rendered)
+
+    def test_multiple_choices_and_mixed_protocols_are_rejected(self) -> None:
+        multiple_choices = json_action("search_code", {"query": "A"})
+        multiple_choices["choices"].append(
+            json_action("search_code", {"query": "B"})["choices"][0]
+        )
+        mixed = {
+            "output": [
+                {
+                    "type": "function_call",
+                    "call_id": "call_1",
+                    "name": "search_code",
+                    "arguments": '{"query":"A"}',
+                }
+            ],
+            "choices": json_action("search_code", {"query": "B"})["choices"],
+        }
+
+        for response in (multiple_choices, mixed):
+            with self.subTest(response=response):
+                with self.assertRaises(ModelProtocolError):
+                    normalize_model_output(response)
+
+    def test_empty_tool_calls_field_is_not_json_fallback(self) -> None:
+        response = json_action("search_code", {"query": "A"})
+        response["choices"][0]["message"]["tool_calls"] = []
+
+        with self.assertRaises(ModelProtocolError):
+            normalize_model_output(response)
+
+    def test_duplicate_registry_definition_is_rejected(self) -> None:
+        definitions = agent_loop_module.tool_definitions()
+        with mock.patch.object(
+            agent_loop_module,
+            "tool_definitions",
+            return_value=[*definitions, copy.deepcopy(definitions[0])],
+        ):
+            with self.assertRaises(RuntimeError):
+                BoundedAgentLoop(FakeClient([]), FakeTools())
 
 
 if __name__ == "__main__":

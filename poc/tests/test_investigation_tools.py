@@ -44,6 +44,25 @@ class InvestigationToolsTests(unittest.TestCase):
         )
         self.assertFalse(self.build_report["privacy"]["network_calls"])
 
+    def test_snapshot_coverage_is_explicit_about_missing_runtime_artifacts(self) -> None:
+        coverage = self.tools.snapshot_coverage()
+
+        self.assertEqual(coverage["snapshot_id"], self.build_report["snapshot_id"])
+        self.assertEqual(
+            set(coverage["indexed_artifact_kinds"]),
+            {"cobol_program", "copybook"},
+        )
+        self.assertFalse(coverage["runtime_state_indexed"])
+        for missing in (
+            "DDL/DDS/database definitions",
+            "job/JCL/command definitions",
+            "database records",
+            "control-table values",
+            "runtime parameters",
+            "runtime logs",
+        ):
+            self.assertIn(missing, coverage["missing_artifacts"])
+
     def test_search_prioritizes_exact_symbols_without_leaking_source(self) -> None:
         result = self.tools.search_code(
             "OUT-INSTALMENT-PREMIUM WS-MODE-FACTOR", limit=8
@@ -230,6 +249,17 @@ class InvestigationToolsTests(unittest.TestCase):
         )
         self.assertNotIn("path", read_schema["properties"])
         self.assertFalse(read_schema["additionalProperties"])
+        self.assertTrue(
+            read_schema["properties"]["evidence_ids"]["uniqueItems"]
+        )
+        trace_schema = next(
+            definition["function"]["parameters"]
+            for definition in definitions
+            if definition["function"]["name"] == "trace_relations"
+        )
+        self.assertEqual(
+            trace_schema["properties"]["relation_types"]["minItems"], 1
+        )
 
     def test_six_step_demo_builds_a_supported_evidence_package(self) -> None:
         demo_database = Path(self.temporary.name) / "demo.sqlite"

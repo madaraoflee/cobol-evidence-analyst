@@ -13,8 +13,9 @@ import json
 import re
 import sqlite3
 from collections import deque
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable, Iterator, Sequence
 from urllib.parse import quote
 
 
@@ -58,14 +59,18 @@ class InvestigationTools:
         if not self.database_path.is_file():
             raise ValueError(f"Structural index does not exist: {database_path}")
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
         encoded_path = quote(self.database_path.as_posix(), safe="/:")
         connection = sqlite3.connect(
             f"file:{encoded_path}?mode=ro", uri=True
         )
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA query_only = ON")
-        return connection
+        try:
+            yield connection
+        finally:
+            connection.close()
 
     @staticmethod
     def _snapshot_id(connection: sqlite3.Connection) -> str:
@@ -89,6 +94,45 @@ class InvestigationTools:
             "boundaries": [],
             "diagnostics": [],
         }
+
+    def snapshot_coverage(self) -> dict[str, object]:
+        """Describe what the bound structural snapshot can and cannot prove.
+
+        This is local orchestrator metadata, intentionally not a fifth model
+        tool.  Runtime records and logs are never implied by source indexing.
+        """
+
+        with self._connect() as connection:
+            kinds = [
+                str(row["artifact_kind"])
+                for row in connection.execute(
+                    """
+                    SELECT DISTINCT artifact_kind
+                      FROM source_files
+                     ORDER BY artifact_kind
+                    """
+                )
+            ]
+            kind_set = set(kinds)
+            missing = [
+                "database records",
+                "control-table values",
+                "runtime parameters",
+                "runtime logs",
+            ]
+            if not kind_set.intersection(
+                {"ddl_or_db_file_definition", "sql_or_ddl"}
+            ):
+                missing.insert(0, "DDL/DDS/database definitions")
+            if "job_or_command" not in kind_set:
+                missing.insert(1, "job/JCL/command definitions")
+            return {
+                "type": "snapshot_coverage",
+                "snapshot_id": self._snapshot_id(connection),
+                "indexed_artifact_kinds": kinds,
+                "missing_artifacts": missing,
+                "runtime_state_indexed": False,
+            }
 
     @staticmethod
     def _search_tokens(query: str) -> list[str]:
@@ -882,7 +926,11 @@ def tool_definitions() -> list[dict[str, object]]:
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "query": {"type": "string"},
+                        "query": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1024,
+                        },
                         "limit": {"type": "integer", "minimum": 1, "maximum": MAX_SEARCH_RESULTS},
                     },
                     "required": ["query"],
@@ -898,9 +946,22 @@ def tool_definitions() -> list[dict[str, object]]:
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "name": {"type": "string"},
-                        "program_name": {"type": "string"},
-                        "symbol_type": {"type": "string"},
+                        "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_$#@.-]+$",
+                        },
+                        "program_name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_$#@.-]+$",
+                        },
+                        "symbol_type": {
+                            "type": "string",
+                            "enum": ["Program", "Paragraph", "Field", "Copybook"],
+                        },
                         "max_relations": {"type": "integer", "minimum": 1, "maximum": MAX_RELATIONS_PER_INSPECTION},
                     },
                     "required": ["name"],
@@ -916,12 +977,28 @@ def tool_definitions() -> list[dict[str, object]]:
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "start_name": {"type": "string"},
-                        "program_name": {"type": "string"},
-                        "symbol_type": {"type": "string"},
+                        "start_name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_$#@.-]+$",
+                        },
+                        "program_name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_$#@.-]+$",
+                        },
+                        "symbol_type": {
+                            "type": "string",
+                            "enum": ["Program", "Paragraph", "Field", "Copybook"],
+                        },
                         "relation_types": {
                             "type": "array",
                             "items": {"type": "string", "enum": sorted(ALLOWED_RELATION_TYPES)},
+                            "minItems": 1,
+                            "maxItems": len(ALLOWED_RELATION_TYPES),
+                            "uniqueItems": True,
                         },
                         "direction": {"type": "string", "enum": ["outgoing", "incoming"]},
                         "max_depth": {"type": "integer", "minimum": 1, "maximum": MAX_TRACE_DEPTH},
@@ -942,9 +1019,14 @@ def tool_definitions() -> list[dict[str, object]]:
                     "properties": {
                         "evidence_ids": {
                             "type": "array",
-                            "items": {"type": "string"},
+                            "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 128,
+                            },
                             "minItems": 1,
                             "maxItems": MAX_EVIDENCE_SPANS,
+                            "uniqueItems": True,
                         },
                         "max_chars": {"type": "integer", "minimum": 200, "maximum": MAX_EVIDENCE_CHARS},
                     },

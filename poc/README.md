@@ -1,6 +1,6 @@
-# POC 离线代码库构建工具
+# POC 运行说明
 
-当前 POC 有三个完全离线的阶段。它们都只使用 Python 标准库，不调用公司 API，也不需要 API Key。
+当前 POC 已包含三个完全离线的事实构建阶段，以及一个显式授权才会联网的 P3-A Agent 阶段。离线工具只使用 Python 标准库；`company_api.py` 和 `run_agent.py` 默认也不发送任何网络请求，只有显式传入 `--allow-network` 才会连接公司 API。
 
 ## P0：聚合代码库画像
 
@@ -77,6 +77,30 @@ Windows 可执行演示：
 
 源码文本只会由 `read_evidence` 返回，并标记为 `UNTRUSTED_SOURCE_TEXT`。搜索、符号检查和关系追踪只返回结构事实及 Evidence 引用。
 
+## P3-A：公司 API 探测与受控 Agent
+
+先在公司批准的终端中设置环境变量，不要把 Key 写入代码、命令行参数、SQLite 或输出文件：
+
+    set COMPANY_API_BASE_URL=https://approved-company-gateway.example/v1
+    set COMPANY_API_KEY=...
+    set COMPANY_CHAT_MODEL=approved-chat-model
+
+第一步只做能力探测：
+
+    python company_api.py --allow-network
+
+探测会实际验证基本 Chat、指定工具调用及 `role=tool` 回传、严格 JSON。`/models` 只是信息项，网关不暴露它不会阻断 Agent。Embedding 默认不探测；只在已批准嵌入模型时使用 `--embedding-model ... --probe-embeddings`。生产地址必须是 HTTPS；HTTP 只能在显式加上 `--allow-insecure-localhost` 时用于本机测试。
+
+探测通过后，执行一次最多 6 步的调查：
+
+    run_agent.bat "D:\poc-output\structural-index.sqlite" ^
+      "分期保费最终是怎样计算出来的？" ^
+      --allow-network
+
+运行器会每次先重新探测，然后选择原生 Tool Calling 或经本地校验的 JSON fallback。模型只能选择 `search_code`、`inspect_symbol`、`trace_relations`、`read_evidence`；工具参数仍由应用校验，`read_evidence` 只能使用当次调查先前已发现的 ID。连续两步没有新证据或达到 6 次工具预算时立即停止。
+
+当前回答层会校验快照一致性、工具契约、Evidence 范围、源文件 Hash、行号、引用和代码锚点。这些还不等于独立的语义 Claim Support Checker，所以已引用的自然语言 claim 暂时最高只返回 `PARTIAL`。这是故意的安全降级，不是测试失败。
+
 ### 重要隐私差异
 
 repo_inventory 的默认报告是去标识符聚合结果。
@@ -87,4 +111,4 @@ structural-index.sqlite 为了支持源码检索与证据引用，会保存相�
 
     python -m unittest discover -s poc/tests -v
 
-当前 22 项测试覆盖聚合报告隐私、CP950、快照 Hash、结构抽取、CALL/PERFORM/COPY 解析、多行计算、IF 控制依赖、FTS5、增量重建、四工具契约、关系白名单、预算截断、动态调用边界、Evidence Hash 和六步演示闭环。
+当前 70 项测试全部通过。除原有的聚合隐私、CP950、快照 Hash、结构抽取、FTS5、四工具和六步演示外，现在还覆盖 API 离线默认、HTTPS/重定向、Key 隔离、Tool Calling 完整回传、JSON fallback、六步上限、无进展停止、Evidence 越权、快照不一致、源码夹带、引用幻觉、CALC-01 四步真实工具闭环和两类拒答。所有 API 测试使用注入的本地假传输，本项目环境尚未调用真实公司端点。

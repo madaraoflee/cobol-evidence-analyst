@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -28,6 +29,8 @@ PROBE_SCHEMA_VERSION = "company-api-capability-probe/v1"
 DEFAULT_API_KEY_ENV = "COMPANY_API_KEY"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_RESPONSE_BYTES = 1_000_000
+MAX_REQUEST_BYTES = 256_000
+DEFAULT_MAX_OUTPUT_TOKENS = 1_024
 SUPPORTED_API_STYLE = "openai_compatible"
 
 _SAFE_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
@@ -76,7 +79,12 @@ class CompanyAPIConfig:
     embedding_model: str | None = field(default=None, repr=False, compare=False)
     api_style: str = SUPPORTED_API_STYLE
     api_key_env: str = field(default=DEFAULT_API_KEY_ENV, repr=False, compare=False)
+    api_key_source_hint: str | None = field(
+        default=None, repr=False, compare=False
+    )
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
+    max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS
+    allow_insecure_localhost: bool = False
 
     def __repr__(self) -> str:
         return (
@@ -86,7 +94,9 @@ class CompanyAPIConfig:
             f"chat_model_configured={bool(self.chat_model.strip())}, "
             f"embedding_model_configured={bool((self.embedding_model or '').strip())}, "
             f"api_key_source={self.api_key_source!r}, "
-            f"timeout_seconds={self.timeout_seconds!r})"
+            f"timeout_seconds={self.timeout_seconds!r}, "
+            f"max_output_tokens={self.max_output_tokens!r}, "
+            f"allow_insecure_localhost={self.allow_insecure_localhost!r})"
         )
 
     @property
@@ -95,6 +105,8 @@ class CompanyAPIConfig:
 
     @property
     def api_key_source(self) -> str:
+        if self.api_key_source_hint in {"EXPLICIT", "ENVIRONMENT", "MISSING"}:
+            return self.api_key_source_hint
         if self.api_key is not None and self.api_key.strip():
             return "EXPLICIT"
         if os.environ.get(self.api_key_env, "").strip():
@@ -104,6 +116,10 @@ class CompanyAPIConfig:
     def resolve_api_key(self) -> str | None:
         if self.api_key is not None and self.api_key.strip():
             return self.api_key.strip()
+        # ``from_env(environ=...)`` is an isolation boundary.  When it records
+        # a source hint, do not silently fall back to the process environment.
+        if self.api_key_source_hint is not None:
+            return None
         candidate = os.environ.get(self.api_key_env, "")
         return candidate.strip() or None
 
@@ -112,9 +128,18 @@ class CompanyAPIConfig:
             raise APIConfigurationError("API_STYLE_UNSUPPORTED")
         if not self.base_url.strip():
             raise APIConfigurationError("BASE_URL_MISSING")
-        parsed = urllib.parse.urlsplit(self.base_url.strip())
+        try:
+            parsed = urllib.parse.urlsplit(self.base_url.strip())
+            hostname = parsed.hostname
+        except ValueError:
+            raise APIConfigurationError("BASE_URL_INVALID") from None
+        localhost_http = (
+            parsed.scheme == "http"
+            and hostname in {"localhost", "127.0.0.1", "::1"}
+            and self.allow_insecure_localhost
+        )
         if (
-            parsed.scheme not in {"http", "https"}
+            (parsed.scheme != "https" and not localhost_http)
             or not parsed.netloc
             or parsed.username is not None
             or parsed.password is not None
@@ -128,6 +153,12 @@ class CompanyAPIConfig:
             0 < float(self.timeout_seconds) <= 300
         ):
             raise APIConfigurationError("TIMEOUT_INVALID")
+        if (
+            not isinstance(self.max_output_tokens, int)
+            or isinstance(self.max_output_tokens, bool)
+            or not 1 <= self.max_output_tokens <= 8192
+        ):
+            raise APIConfigurationError("MAX_OUTPUT_TOKENS_INVALID")
         if require_key and self.resolve_api_key() is None:
             raise APIConfigurationError("API_KEY_MISSING")
 
@@ -143,6 +174,8 @@ class CompanyAPIConfig:
             ),
             "api_key_source": self.api_key_source,
             "timeout_seconds": float(self.timeout_seconds),
+            "max_output_tokens": self.max_output_tokens,
+            "allow_insecure_localhost": self.allow_insecure_localhost,
         }
 
     @classmethod
@@ -156,6 +189,8 @@ class CompanyAPIConfig:
         embedding_model: str | None = None,
         api_style: str | None = None,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+        max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
+        allow_insecure_localhost: bool = False,
     ) -> "CompanyAPIConfig":
         """Build validated configuration from explicit values and environment.
 
@@ -164,17 +199,23 @@ class CompanyAPIConfig:
         """
 
         source = os.environ if environ is None else environ
+        resolved_key = (
+            api_key
+            if api_key is not None
+            else source.get(DEFAULT_API_KEY_ENV, "")
+        )
+        if api_key is not None:
+            key_source = "EXPLICIT" if api_key.strip() else "MISSING"
+        else:
+            key_source = "ENVIRONMENT" if resolved_key.strip() else "MISSING"
         config = cls(
             base_url=(
                 base_url
                 if base_url is not None
                 else source.get("COMPANY_API_BASE_URL", "")
             ),
-            api_key=(
-                api_key
-                if api_key is not None
-                else source.get("COMPANY_API_KEY", "")
-            ),
+            api_key=resolved_key,
+            api_key_source_hint=key_source,
             chat_model=(
                 chat_model
                 if chat_model is not None
@@ -191,6 +232,8 @@ class CompanyAPIConfig:
                 else source.get("COMPANY_API_STYLE", SUPPORTED_API_STYLE)
             ),
             timeout_seconds=timeout_seconds,
+            max_output_tokens=max_output_tokens,
+            allow_insecure_localhost=allow_insecure_localhost,
         )
         config.validate(require_key=True)
         return config
@@ -241,8 +284,26 @@ HTTPResponse = TransportResponse
 Transport = Callable[[TransportRequest], TransportResponse]
 
 
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Reject redirects so an Authorization header never crosses origins."""
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: object,
+        code: int,
+        msg: str,
+        headers: object,
+        newurl: str,
+    ) -> None:
+        return None
+
+
 class UrllibTransport:
     """Network transport created only after explicit caller authorization."""
+
+    def __init__(self) -> None:
+        self._opener = urllib.request.build_opener(_NoRedirectHandler())
 
     def __call__(self, request: TransportRequest) -> TransportResponse:
         raw_request = urllib.request.Request(
@@ -252,7 +313,7 @@ class UrllibTransport:
             method=request.method,
         )
         try:
-            with urllib.request.urlopen(  # noqa: S310 - explicit opt-in only
+            with self._opener.open(  # noqa: S310 - explicit opt-in only
                 raw_request, timeout=request.timeout_seconds
             ) as response:
                 body = response.read(MAX_RESPONSE_BYTES + 1)
@@ -337,6 +398,7 @@ class OpenAICompatibleChatClient:
         payload: dict[str, object] = {
             "model": self.config.chat_model,
             "messages": normalized_messages,
+            "max_tokens": self.config.max_output_tokens,
         }
         if tools is not None:
             try:
@@ -381,6 +443,8 @@ class OpenAICompatibleChatClient:
                 ).encode("utf-8")
             except (TypeError, ValueError, OverflowError):
                 raise APIClientError("REQUEST_PAYLOAD_INVALID") from None
+            if len(request_body) > MAX_REQUEST_BYTES:
+                raise APIClientError("REQUEST_TOO_LARGE")
 
         base_url = self.config.base_url.strip().rstrip("/")
         safe_endpoint = endpoint.strip("/")
@@ -463,6 +527,7 @@ def _error_capability(
         "BASE_URL_INVALID",
         "CHAT_MODEL_MISSING",
         "TIMEOUT_INVALID",
+        "MAX_OUTPUT_TOKENS_INVALID",
     }:
         return _capability("NOT_RUN", error.code)
     if error.code == "HTTP_ERROR":
@@ -607,7 +672,14 @@ class CapabilityProbe:
                     "NOT_RUN", "EMBEDDING_MODEL_MISSING"
                 )
 
-        statuses = {item["status"] for item in capabilities.values()}
+        readiness_capabilities = [
+            capabilities["chat"],
+            capabilities["tool_calling"],
+            capabilities["strict_json"],
+        ]
+        if self.probe_embeddings:
+            readiness_capabilities.append(capabilities["embeddings"])
+        statuses = {item["status"] for item in readiness_capabilities}
         overall = "COMPLETED" if statuses <= {"SUPPORTED", "UNSUPPORTED"} else "PARTIAL"
         return self._report(overall, capabilities)
 
@@ -649,17 +721,26 @@ class CapabilityProbe:
                 "messages": [
                     {"role": "user", "content": "Reply with exactly OK."}
                 ],
+                "max_tokens": 16,
             },
         )
         if isinstance(outcome, APIClientError):
             return _error_capability(outcome, feature_request=False)
         data, status = outcome
         message = _first_message(data)
-        if message is None:
+        role = message.get("role") if message is not None else None
+        content = message.get("content") if message is not None else None
+        if role != "assistant" or not isinstance(content, str) or content.strip() != "OK":
             return _capability(
-                "UNSUPPORTED",
-                "CHAT_MESSAGE_NOT_OBSERVED",
-                evidence={"http_status": status, "request_accepted": True},
+                "INDETERMINATE",
+                "EXPECTED_CHAT_CONTENT_NOT_OBSERVED",
+                evidence={
+                    "http_status": status,
+                    "request_accepted": True,
+                    "assistant_role_observed": role == "assistant",
+                    "nonempty_content_observed": isinstance(content, str)
+                    and bool(content.strip()),
+                },
             )
         return _capability(
             "SUPPORTED",
@@ -673,46 +754,52 @@ class CapabilityProbe:
 
     def _probe_tool_calling(self) -> dict[str, object]:
         tool_name = "capability_probe"
+        user_message = {
+            "role": "user",
+            "content": "Call capability_probe with ok set to true.",
+        }
+        tool_definition = {
+            "type": "function",
+            "function": {
+                "name": tool_name,
+                "description": "Confirm tool calling support.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"ok": {"type": "boolean"}},
+                    "required": ["ok"],
+                    "additionalProperties": False,
+                },
+            },
+        }
+        forced_choice = {
+            "type": "function",
+            "function": {"name": tool_name},
+        }
         outcome = self._request(
             "tool_calling",
             "POST",
             "chat/completions",
             {
                 "model": self.config.chat_model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": "Call capability_probe with ok set to true.",
-                    }
-                ],
-                "tools": [
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": tool_name,
-                            "description": "Confirm tool calling support.",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {"ok": {"type": "boolean"}},
-                                "required": ["ok"],
-                                "additionalProperties": False,
-                            },
-                        },
-                    }
-                ],
-                "tool_choice": {
-                    "type": "function",
-                    "function": {"name": tool_name},
-                },
+                "messages": [user_message],
+                "tools": [tool_definition],
+                "tool_choice": forced_choice,
+                "max_tokens": 64,
             },
         )
         if isinstance(outcome, APIClientError):
             return _error_capability(outcome, feature_request=True)
         data, status = outcome
         message = _first_message(data)
-        valid_call = False
-        if message is not None and isinstance(message.get("tool_calls"), list):
-            for call in message["tool_calls"]:
+        call_id: str | None = None
+        calls = message.get("tool_calls") if message is not None else None
+        if (
+            message is not None
+            and message.get("role") == "assistant"
+            and isinstance(calls, list)
+            and len(calls) == 1
+        ):
+            for call in calls:
                 if not isinstance(call, Mapping):
                     continue
                 function = call.get("function")
@@ -725,10 +812,15 @@ class CapabilityProbe:
                     parsed_arguments = json.loads(arguments)
                 except json.JSONDecodeError:
                     continue
-                if parsed_arguments == {"ok": True}:
-                    valid_call = True
+                candidate_id = call.get("id")
+                if (
+                    parsed_arguments == {"ok": True}
+                    and isinstance(candidate_id, str)
+                    and 1 <= len(candidate_id) <= 256
+                ):
+                    call_id = candidate_id
                     break
-        if not valid_call:
+        if call_id is None:
             return _capability(
                 "UNSUPPORTED",
                 "VALID_TOOL_CALL_NOT_OBSERVED",
@@ -738,13 +830,68 @@ class CapabilityProbe:
                     "expected_behavior_observed": False,
                 },
             )
+
+        canonical_call = {
+            "id": call_id,
+            "type": "function",
+            "function": {"name": tool_name, "arguments": '{"ok":true}'},
+        }
+        round_trip = self._request(
+            "tool_calling",
+            "POST",
+            "chat/completions",
+            {
+                "model": self.config.chat_model,
+                "messages": [
+                    user_message,
+                    {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [canonical_call],
+                    },
+                    {
+                        "role": "tool",
+                        "tool_call_id": call_id,
+                        "name": tool_name,
+                        "content": '{"ok":true}',
+                    },
+                ],
+                "tools": [tool_definition],
+                "tool_choice": "auto",
+                "max_tokens": 64,
+            },
+        )
+        if isinstance(round_trip, APIClientError):
+            return _error_capability(round_trip, feature_request=True)
+        final_data, final_status = round_trip
+        final_message = _first_message(final_data)
+        final_content = (
+            final_message.get("content") if final_message is not None else None
+        )
+        if (
+            final_message is None
+            or final_message.get("role") != "assistant"
+            or not isinstance(final_content, str)
+            or not final_content.strip()
+        ):
+            return _capability(
+                "UNSUPPORTED",
+                "TOOL_RESULT_ROUND_TRIP_NOT_OBSERVED",
+                evidence={
+                    "http_status": final_status,
+                    "tool_call_observed": True,
+                    "tool_result_accepted": True,
+                    "final_assistant_message_observed": False,
+                },
+            )
         return _capability(
             "SUPPORTED",
-            "VALID_TOOL_CALL_OBSERVED",
+            "TOOL_RESULT_ROUND_TRIP_OBSERVED",
             evidence={
-                "http_status": status,
+                "http_status": final_status,
                 "forced_named_tool": True,
                 "arguments_valid_json": True,
+                "tool_result_round_trip": True,
                 "response_body_recorded": False,
             },
         )
@@ -775,6 +922,7 @@ class CapabilityProbe:
                         },
                     },
                 },
+                "max_tokens": 32,
             },
         )
         if isinstance(outcome, APIClientError):
@@ -829,7 +977,12 @@ class CapabilityProbe:
         valid = (
             isinstance(vector, list)
             and bool(vector)
-            and all(isinstance(value, (int, float)) for value in vector)
+            and all(
+                isinstance(value, (int, float))
+                and not isinstance(value, bool)
+                and (isinstance(value, int) or math.isfinite(value))
+                for value in vector
+            )
         )
         if not valid:
             return _capability(
@@ -852,6 +1005,18 @@ class CapabilityProbe:
         overall_status: str,
         capabilities: Mapping[str, Mapping[str, object]],
     ) -> dict[str, object]:
+        chat_supported = (
+            capabilities.get("chat", {}).get("status") == "SUPPORTED"
+        )
+        tool_supported = (
+            capabilities.get("tool_calling", {}).get("status") == "SUPPORTED"
+        )
+        if chat_supported and tool_supported:
+            readiness_mode = "NATIVE_TOOL_CALLING"
+        elif chat_supported:
+            readiness_mode = "VALIDATED_JSON_FALLBACK"
+        else:
+            readiness_mode = "UNAVAILABLE"
         return {
             "schema_version": PROBE_SCHEMA_VERSION,
             "overall_status": overall_status,
@@ -863,6 +1028,14 @@ class CapabilityProbe:
             },
             "capabilities": {
                 name: dict(value) for name, value in capabilities.items()
+            },
+            "agent_readiness": {
+                "ready": readiness_mode != "UNAVAILABLE",
+                "mode": readiness_mode,
+                "provider_strict_json": capabilities.get("strict_json", {}).get(
+                    "status"
+                )
+                == "SUPPORTED",
             },
             "audit": list(self._audit),
             "privacy": {
@@ -877,7 +1050,7 @@ class CapabilityProbe:
 
 def _first_message(data: Mapping[str, object]) -> Mapping[str, object] | None:
     choices = data.get("choices")
-    if not isinstance(choices, list) or not choices:
+    if not isinstance(choices, list) or len(choices) != 1:
         return None
     first = choices[0]
     if not isinstance(first, Mapping):
@@ -925,6 +1098,11 @@ def _configuration_failure_report(error: APIConfigurationError) -> dict[str, obj
             )
             for name in capability_names
         },
+        "agent_readiness": {
+            "ready": False,
+            "mode": "UNAVAILABLE",
+            "provider_strict_json": False,
+        },
         "audit": [],
         "privacy": {
             "api_key_recorded": False,
@@ -948,6 +1126,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--embedding-model")
     parser.add_argument("--api-style")
     parser.add_argument("--timeout-seconds", type=float, default=DEFAULT_TIMEOUT_SECONDS)
+    parser.add_argument(
+        "--max-output-tokens", type=int, default=DEFAULT_MAX_OUTPUT_TOKENS
+    )
+    parser.add_argument("--allow-insecure-localhost", action="store_true")
     parser.add_argument("--probe-embeddings", action="store_true")
     parser.add_argument("--allow-network", action="store_true")
     return parser
@@ -962,6 +1144,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             embedding_model=args.embedding_model,
             api_style=args.api_style,
             timeout_seconds=args.timeout_seconds,
+            max_output_tokens=args.max_output_tokens,
+            allow_insecure_localhost=args.allow_insecure_localhost,
         )
     except APIConfigurationError as exc:
         report = _configuration_failure_report(exc)
@@ -974,7 +1158,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         probe_embeddings=args.probe_embeddings,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
-    return 0 if report["overall_status"] in {"COMPLETED", "NOT_RUN"} else 1
+    if report["overall_status"] == "COMPLETED" and report["agent_readiness"][
+        "ready"
+    ]:
+        return 0
+    return 2 if report["overall_status"] == "NOT_RUN" else 1
 
 
 __all__ = [

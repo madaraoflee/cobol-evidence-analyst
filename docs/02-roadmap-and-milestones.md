@@ -82,4 +82,4 @@ flowchart LR
 7. 每个回答显示当前只有 COBOL/COPYBOOK，以及缺失 DDL/DDS、Job、DB File、Item Table 和运行数据的边界；
 8. 加入界面、源码证据、一个未预写问题和一个拒答问题，并完成 Windows 彩排。
 
-截至 2026-08-30，公开侧已经完成 `repo_inventory`、SQLite/FTS5 结构索引、四个只读调查工具、CALC-01 原创 fixture 和六步可执行证据演示；22 项自动测试全部通过。当前进入 P3 前半段：公司 API capability probe、受控 Agent 循环、回答与引用核验。真实公司代码库聚合画像和 DXC 适配仍只能在公司批准环境内执行。
+截至 2026-08-31，公开侧已完成 `repo_inventory`、SQLite/FTS5 结构索引、四个只读调查工具、公司 API capability probe 和最多六步的受控 Agent 骨架。CALC-01 已在 4 次真实工具调用内完成离线端到端闭环，70 项自动测试全部通过。P3 仍未宣布完成：真实公司 API 尚未在批准环境中进行能力和 CALC-01 验收，独立 Claim 语义支持核验也尚未接入；因此当前 Agent 回答最高为 `PARTIAL`。真实代码库聚合画像和 DXC 适配仍只能在公司批准环境内执行。

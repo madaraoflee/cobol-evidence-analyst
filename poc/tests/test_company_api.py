@@ -17,9 +17,11 @@ from company_api import (  # noqa: E402
     APIClientError,
     APIConfigurationError,
     CompanyAPIConfig,
+    MAX_REQUEST_BYTES,
     OpenAICompatibleChatClient,
     TransportRequest,
     TransportResponse,
+    _NoRedirectHandler,
     main,
     probe_capabilities,
 )
@@ -59,6 +61,24 @@ class SuccessfulTransport:
             return json_response(
                 200,
                 {"data": [{"embedding": [0.25, -0.5, 0.75], "index": 0}]},
+            )
+        if any(
+            isinstance(message, dict) and message.get("role") == "tool"
+            for message in payload.get("messages", [])
+        ):
+            return json_response(
+                200,
+                {
+                    "id": "chat-tool-result",
+                    "choices": [
+                        {
+                            "message": {
+                                "role": "assistant",
+                                "content": "DONE",
+                            }
+                        }
+                    ],
+                },
             )
         if "tools" in payload:
             return json_response(
@@ -125,6 +145,7 @@ class CompanyAPIConfigTests(unittest.TestCase):
         config = CompanyAPIConfig.from_env(environ=environment)
 
         self.assertEqual(config.resolve_api_key(), API_KEY)
+        self.assertEqual(config.api_key_source, "ENVIRONMENT")
         self.assertEqual(config.embedding_model, "internal-embedding-model")
         safe_repr = repr(config)
         self.assertNotIn(API_KEY, safe_repr)
@@ -142,6 +163,47 @@ class CompanyAPIConfigTests(unittest.TestCase):
         self.assertEqual(config.resolve_api_key(), API_KEY)
         self.assertEqual(config.api_key_source, "EXPLICIT")
 
+    def test_custom_environment_never_falls_back_to_process_key(self) -> None:
+        environment = {
+            "COMPANY_API_BASE_URL": BASE_URL,
+            "COMPANY_CHAT_MODEL": CHAT_MODEL,
+        }
+        with mock.patch.dict(
+            os.environ, {"COMPANY_API_KEY": "ambient-key"}, clear=True
+        ):
+            with self.assertRaises(APIConfigurationError) as raised:
+                CompanyAPIConfig.from_env(environ=environment)
+
+        self.assertEqual(raised.exception.code, "API_KEY_MISSING")
+
+    def test_http_requires_explicit_localhost_exception(self) -> None:
+        with self.assertRaises(APIConfigurationError) as raised:
+            CompanyAPIConfig(
+                base_url="http://company.example/v1",
+                chat_model=CHAT_MODEL,
+                api_key=API_KEY,
+            ).validate()
+        self.assertEqual(raised.exception.code, "BASE_URL_INVALID")
+
+        CompanyAPIConfig(
+            base_url="http://127.0.0.1:8080/v1",
+            chat_model=CHAT_MODEL,
+            api_key=API_KEY,
+            allow_insecure_localhost=True,
+        ).validate()
+
+    def test_redirect_handler_rejects_all_redirects(self) -> None:
+        self.assertIsNone(
+            _NoRedirectHandler().redirect_request(
+                mock.Mock(),
+                mock.Mock(),
+                302,
+                "Found",
+                mock.Mock(),
+                "https://other.example/v1",
+            )
+        )
+
     def test_missing_and_invalid_configuration_errors_are_safe(self) -> None:
         with self.assertRaises(APIConfigurationError) as missing:
             CompanyAPIConfig.from_env(environ={})
@@ -156,6 +218,14 @@ class CompanyAPIConfigTests(unittest.TestCase):
             config.validate()
         self.assertEqual(str(invalid.exception), "BASE_URL_INVALID")
         self.assertNotIn(API_KEY, str(invalid.exception))
+
+        with self.assertRaises(APIConfigurationError) as malformed:
+            CompanyAPIConfig(
+                base_url="https://[invalid/v1",
+                chat_model=CHAT_MODEL,
+                api_key=API_KEY,
+            ).validate()
+        self.assertEqual(str(malformed.exception), "BASE_URL_INVALID")
 
 
 class ChatClientTests(unittest.TestCase):
@@ -213,7 +283,24 @@ class ChatClientTests(unittest.TestCase):
         payload = json.loads((request.body or b"{}").decode("utf-8"))
         self.assertEqual(payload["tool_choice"], "auto")
         self.assertEqual(payload["tools"], [tool])
+        self.assertEqual(payload["max_tokens"], 1024)
         self.assertNotIn(API_KEY, payload)
+
+    def test_request_size_limit_rejects_before_transport(self) -> None:
+        transport = SuccessfulTransport()
+        client = OpenAICompatibleChatClient(
+            self.make_config(), transport=transport
+        )
+
+        with self.assertRaises(APIClientError) as raised:
+            client.complete(
+                messages=[
+                    {"role": "user", "content": "x" * (MAX_REQUEST_BYTES + 1)}
+                ]
+            )
+
+        self.assertEqual(raised.exception.code, "REQUEST_TOO_LARGE")
+        self.assertEqual(transport.requests, [])
 
     def test_remote_http_error_never_echoes_body_url_or_key(self) -> None:
         remote_body = {
@@ -293,7 +380,7 @@ class CapabilityProbeTests(unittest.TestCase):
         self.assertEqual(report["overall_status"], "COMPLETED")
         self.assertEqual(report["execution"]["transport_mode"], "INJECTED")  # type: ignore[index]
         self.assertFalse(report["execution"]["urllib_network_allowed"])  # type: ignore[index]
-        self.assertEqual(report["execution"]["request_count"], 4)  # type: ignore[index]
+        self.assertEqual(report["execution"]["request_count"], 5)  # type: ignore[index]
         for name in ("models", "chat", "tool_calling", "strict_json"):
             self.assertEqual(report["capabilities"][name]["status"], "SUPPORTED")  # type: ignore[index]
         serialized = json.dumps(report, ensure_ascii=False)
@@ -306,6 +393,94 @@ class CapabilityProbeTests(unittest.TestCase):
         ):
             self.assertNotIn(sensitive, serialized)
         self.assertTrue(report["privacy"]["api_key_recorded"] is False)  # type: ignore[index]
+        self.assertEqual(
+            report["agent_readiness"]["mode"], "NATIVE_TOOL_CALLING"  # type: ignore[index]
+        )
+        tool_requests = [
+            json.loads(request.body or b"{}")
+            for request in transport.requests
+            if request.endpoint == "chat/completions"
+            and request.body
+            and "tools" in json.loads(request.body)
+        ]
+        self.assertEqual(len(tool_requests), 2)
+        self.assertEqual(tool_requests[1]["messages"][-1]["role"], "tool")
+        self.assertEqual(
+            tool_requests[1]["messages"][-1]["tool_call_id"], "call-probe"
+        )
+
+    def test_empty_chat_message_is_not_reported_as_supported(self) -> None:
+        successful = SuccessfulTransport()
+
+        def transport(request: TransportRequest) -> TransportResponse:
+            if request.endpoint == "chat/completions":
+                payload = json.loads(request.body or b"{}")
+                if "tools" not in payload and "response_format" not in payload:
+                    return json_response(200, {"choices": [{"message": {}}]})
+            return successful(request)
+
+        report = probe_capabilities(self.make_config(), transport=transport)
+
+        self.assertEqual(
+            report["capabilities"]["chat"]["status"], "INDETERMINATE"  # type: ignore[index]
+        )
+        self.assertEqual(report["agent_readiness"]["mode"], "UNAVAILABLE")  # type: ignore[index]
+
+        def ambiguous_transport(request: TransportRequest) -> TransportResponse:
+            if request.endpoint == "chat/completions":
+                payload = json.loads(request.body or b"{}")
+                if "tools" not in payload and "response_format" not in payload:
+                    choice = {"message": {"role": "assistant", "content": "OK"}}
+                    return json_response(200, {"choices": [choice, choice]})
+            return successful(request)
+
+        ambiguous_report = probe_capabilities(
+            self.make_config(), transport=ambiguous_transport
+        )
+        self.assertEqual(
+            ambiguous_report["capabilities"]["chat"]["status"],  # type: ignore[index]
+            "INDETERMINATE",
+        )
+
+    def test_tool_result_round_trip_failure_uses_json_fallback(self) -> None:
+        successful = SuccessfulTransport()
+
+        def transport(request: TransportRequest) -> TransportResponse:
+            if request.endpoint == "chat/completions" and request.body:
+                payload = json.loads(request.body)
+                if any(
+                    message.get("role") == "tool"
+                    for message in payload.get("messages", [])
+                ):
+                    return json_response(400, {"error": {"message": "rejected"}})
+            return successful(request)
+
+        report = probe_capabilities(self.make_config(), transport=transport)
+
+        self.assertEqual(
+            report["capabilities"]["tool_calling"]["status"], "UNSUPPORTED"  # type: ignore[index]
+        )
+        self.assertEqual(
+            report["agent_readiness"]["mode"], "VALIDATED_JSON_FALLBACK"  # type: ignore[index]
+        )
+
+    def test_models_endpoint_is_informational_for_agent_readiness(self) -> None:
+        successful = SuccessfulTransport()
+
+        def transport(request: TransportRequest) -> TransportResponse:
+            if request.endpoint == "models":
+                return json_response(404, {"error": {"message": "not exposed"}})
+            return successful(request)
+
+        report = probe_capabilities(self.make_config(), transport=transport)
+
+        self.assertEqual(report["overall_status"], "COMPLETED")
+        self.assertEqual(
+            report["capabilities"]["models"]["status"], "UNSUPPORTED"  # type: ignore[index]
+        )
+        self.assertEqual(
+            report["agent_readiness"]["mode"], "NATIVE_TOOL_CALLING"  # type: ignore[index]
+        )
 
     def test_strict_json_rejection_is_explicitly_unsupported(self) -> None:
         successful = SuccessfulTransport()
@@ -341,6 +516,26 @@ class CapabilityProbeTests(unittest.TestCase):
         self.assertEqual(embedding["status"], "SUPPORTED")
         self.assertEqual(embedding["evidence"]["vector_dimensions"], 3)
         self.assertNotIn("internal-embedding-model", json.dumps(report))
+
+    def test_embedding_rejects_bool_and_non_finite_values(self) -> None:
+        for vector in ([True], [float("nan")], [float("inf")], [float("-inf")]):
+            with self.subTest(vector=vector):
+                successful = SuccessfulTransport()
+
+                def transport(request: TransportRequest) -> TransportResponse:
+                    if request.endpoint == "embeddings":
+                        return json_response(200, {"data": [{"embedding": vector}]})
+                    return successful(request)
+
+                report = probe_capabilities(
+                    self.make_config(embedding_model="embedding-model"),
+                    transport=transport,
+                    probe_embeddings=True,
+                )
+                self.assertNotEqual(
+                    report["capabilities"]["embeddings"]["status"],  # type: ignore[index]
+                    "SUPPORTED",
+                )
 
     def test_transport_exception_text_is_never_recorded(self) -> None:
         def failing_transport(_: TransportRequest) -> TransportResponse:
@@ -387,7 +582,7 @@ class CapabilityProbeTests(unittest.TestCase):
                 exit_code = main([])
 
         rendered = output.getvalue()
-        self.assertEqual(exit_code, 0)
+        self.assertEqual(exit_code, 2)
         self.assertEqual(json.loads(rendered)["overall_status"], "NOT_RUN")
         self.assertNotIn(API_KEY, rendered)
         self.assertNotIn(BASE_URL, rendered)

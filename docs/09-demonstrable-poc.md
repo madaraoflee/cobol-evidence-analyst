@@ -263,6 +263,8 @@ Windows COBOL/COPYBOOK 文件夹
   → 只含聚合数据的 JSON/Markdown 画像报告
 ```
 
-P1-A 结构索引与 P1-B 四个只读调查工具也已完成。原创 CALC-01 fixture 包含 13 个 COBOL/COPYBOOK 文件，当前索引产生 261 个 CodeUnit、104 个 Symbol、416 条 Relation 和 241 个 EvidenceSpan；六步离线演示读取 12 段通过 Hash 校验的源码证据，返回 `SUPPORTED_WITH_BOUNDARIES`。22 项自动测试全部通过，过程不调用网络。
+P1-A 结构索引与 P1-B 四个只读调查工具也已完成。原创 CALC-01 fixture 包含 13 个 COBOL/COPYBOOK 文件，当前索引产生 261 个 CodeUnit、104 个 Symbol、416 条 Relation 和 241 个 EvidenceSpan；六步离线演示读取 12 段通过 Hash 校验的源码证据，返回 `SUPPORTED_WITH_BOUNDARIES`。
 
-下一步实现公司 OpenAI-compatible API capability probe 与最多六步的单 Agent 循环。用户仍需在公司允许的本地环境运行真实下载目录画像；真实源码、文件内容、程序名称和 API Key 不进入本项目或外部对话。详见 [P1-B 项目进度报告](./reports/2026-08-30-p1b-progress-report.md)。
+P3-A 可运行骨架已于 2026-08-31 完成：公司 OpenAI-compatible API capability probe 会验证 Chat、Tool Calling 回传和严格 JSON；运行器根据结果选择原生工具或本地校验 JSON fallback。Agent 最多调用 6 次四个只读工具，两次无进展后停止，并强制快照、Evidence 范围、Hash 和引用校验。CALC-01 在 4 次真实工具调用内完成离线闭环，两类越过源码证据的问题会拒答，当前 70 项自动测试全部通过。
+
+下一步是在公司批准环境对真实 API 执行 capability probe 和 CALC-01 验收，并增加独立 Claim 语义支持核验。现有完整性与词面锚定不能证明任意自然语言 claim 的语义，所以 Agent 暂时最高返回 `PARTIAL`。用户仍需在公司允许的本地环境运行真实下载目录画像；真实源码、文件内容、程序名称和 API Key 不进入本项目或外部对话。详见 [P3-A 项目进度报告](./reports/2026-08-31-p3a-progress-report.md)。
