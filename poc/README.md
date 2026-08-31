@@ -2,6 +2,8 @@
 
 当前 POC 已包含三个完全离线的事实构建阶段，以及一个显式授权才会联网的 P3-A Agent 阶段。离线工具只使用 Python 标准库；`company_api.py` 和 `run_agent.py` 默认也不发送任何网络请求，只有显式传入 `--allow-network` 才会连接公司 API。
 
+办公室电脑从零开始的完整操作请看：[办公室电脑使用手册](../docs/11-office-usage-guide.md)。本手册按当前命令行实现编写，包含安装、同步仓库、离线自检、源码清单、结构索引、四个调查工具、接口探测、Agent 提问和故障排查。
+
 ## P0：聚合代码库画像
 
 repo_inventory.py 用于在公司允许的 Windows 本地环境统计已下载的 COBOL/COPYBOOK。

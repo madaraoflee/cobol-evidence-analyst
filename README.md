@@ -26,6 +26,7 @@
 - [2026-08-31 P3-A 项目进度报告](./docs/reports/2026-08-31-p3a-progress-report.md)
 - [P1-B 领导审阅 Word 报告](./docs/reports/COBOL-Agent-P1B-Progress-Report.docx)
 - [POC 实现：离线代码库画像工具](./poc/README.md)
+- [办公室电脑使用手册：从安装到 Agent 调查](./docs/11-office-usage-guide.md)
 - [2026 RAG、向量与图框架选型报告](./docs/research/2026-rag-vector-framework-review.md)
 - [M0 架构复检记录](./docs/reviews/2026-08-28-m0-architecture-recheck.md)
 - [解析器验证计划](./docs/research/parser-bakeoff-plan.md)
