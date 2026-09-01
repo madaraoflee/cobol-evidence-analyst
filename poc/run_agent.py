@@ -94,10 +94,14 @@ def run_investigation(
         native_tool_calling=native_tool_calling,
         strict_json=(not native_tool_calling and provider_strict_json),
     ).run(question.strip())
+    stop_reason = result.get("stop_reason")
+    normally_completed = stop_reason in {"completed", "model_abstained"}
     return {
         "schema_version": RUNNER_SCHEMA_VERSION,
-        "runner_status": "COMPLETED",
-        "reason_code": "AGENT_RUN_COMPLETED",
+        "runner_status": "COMPLETED" if normally_completed else "SAFE_STOP",
+        "reason_code": (
+            "AGENT_RUN_COMPLETED" if normally_completed else "AGENT_SAFETY_STOPPED"
+        ),
         "selected_mode": mode,
         "capability_report": capability_report,
         "agent_result": result,
@@ -153,7 +157,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         allow_network=args.allow_network,
     )
     print(json.dumps(output, ensure_ascii=False, indent=2, sort_keys=True))
-    return 0 if output["runner_status"] == "COMPLETED" else 2
+    if output["runner_status"] == "COMPLETED":
+        return 0
+    return 3 if output["runner_status"] == "SAFE_STOP" else 2
 
 
 __all__ = [

@@ -17,6 +17,7 @@ import math
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -305,6 +306,33 @@ class UrllibTransport:
     def __init__(self) -> None:
         self._opener = urllib.request.build_opener(_NoRedirectHandler())
 
+    @staticmethod
+    def _apply_remaining_socket_timeout(response: object, remaining: float) -> None:
+        """Best-effort CPython urllib socket deadline tightening.
+
+        The post-read monotonic check remains authoritative.  Tightening the
+        underlying socket prevents a late read from consuming the original
+        full timeout after most of the request budget has already elapsed.
+        """
+
+        current: object | None = response
+        for _ in range(4):
+            if current is None:
+                return
+            candidates = [
+                getattr(current, "_sock", None),
+                getattr(getattr(current, "raw", None), "_sock", None),
+            ]
+            for candidate in candidates:
+                setter = getattr(candidate, "settimeout", None)
+                if callable(setter):
+                    try:
+                        setter(max(0.001, remaining))
+                    except (OSError, ValueError):
+                        pass
+                    return
+            current = getattr(current, "fp", None)
+
     def __call__(self, request: TransportRequest) -> TransportResponse:
         raw_request = urllib.request.Request(
             request.url,
@@ -312,11 +340,31 @@ class UrllibTransport:
             headers=dict(request.headers),
             method=request.method,
         )
+        deadline = time.monotonic() + request.timeout_seconds
         try:
             with self._opener.open(  # noqa: S310 - explicit opt-in only
                 raw_request, timeout=request.timeout_seconds
             ) as response:
-                body = response.read(MAX_RESPONSE_BYTES + 1)
+                chunks: list[bytes] = []
+                body_size = 0
+                read_chunk = getattr(response, "read1", None)
+                if not callable(read_chunk):
+                    read_chunk = response.read
+                while body_size <= MAX_RESPONSE_BYTES:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise APIClientError("REQUEST_TIMEOUT")
+                    self._apply_remaining_socket_timeout(response, remaining)
+                    chunk = read_chunk(
+                        min(65_536, MAX_RESPONSE_BYTES + 1 - body_size)
+                    )
+                    if time.monotonic() >= deadline:
+                        raise APIClientError("REQUEST_TIMEOUT")
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                    body_size += len(chunk)
+                body = b"".join(chunks)
                 return TransportResponse(
                     status_code=int(response.status),
                     body=body,
@@ -326,7 +374,11 @@ class UrllibTransport:
             # Do not read or preserve an error body; corporate gateways often
             # include request details that are unsafe to surface.
             return TransportResponse(status_code=int(exc.code), body=b"")
-        except (urllib.error.URLError, TimeoutError, OSError):
+        except APIClientError:
+            raise
+        except TimeoutError:
+            raise APIClientError("REQUEST_TIMEOUT") from None
+        except (urllib.error.URLError, OSError):
             raise APIClientError("TRANSPORT_ERROR") from None
 
 
@@ -421,6 +473,8 @@ class OpenAICompatibleChatClient:
         method: str,
         endpoint: str,
         payload: Mapping[str, object] | None = None,
+        *,
+        timeout_seconds: float | None = None,
     ) -> tuple[dict[str, object], int]:
         if self._transport is None:
             raise APIClientError("NETWORK_DISABLED")
@@ -448,6 +502,11 @@ class OpenAICompatibleChatClient:
 
         base_url = self.config.base_url.strip().rstrip("/")
         safe_endpoint = endpoint.strip("/")
+        effective_timeout = float(self.config.timeout_seconds)
+        if timeout_seconds is not None:
+            if not isinstance(timeout_seconds, (int, float)) or timeout_seconds <= 0:
+                raise APIClientError("REQUEST_TIMEOUT")
+            effective_timeout = min(effective_timeout, float(timeout_seconds))
         request = TransportRequest(
             method=method.upper(),
             url=f"{base_url}/{safe_endpoint}",
@@ -457,7 +516,7 @@ class OpenAICompatibleChatClient:
                 "Authorization": f"Bearer {secret}",
             },
             body=request_body,
-            timeout_seconds=float(self.config.timeout_seconds),
+            timeout_seconds=effective_timeout,
             endpoint=safe_endpoint,
         )
         try:
@@ -485,11 +544,17 @@ class OpenAICompatibleChatClient:
                 raw_body.decode("utf-8") if isinstance(raw_body, bytes) else raw_body
             )
             parsed = json.loads(text_body)
-        except (UnicodeDecodeError, json.JSONDecodeError):
+        except (UnicodeDecodeError, ValueError, RecursionError):
             raise APIClientError("INVALID_JSON_RESPONSE", http_status=status) from None
         if not isinstance(parsed, dict):
             raise APIClientError("INVALID_RESPONSE_SHAPE", http_status=status)
-        return _redact_secret(parsed, secret), status
+        try:
+            redacted = _redact_secret(parsed, secret)
+        except RecursionError:
+            raise APIClientError(
+                "RESPONSE_NESTING_TOO_DEEP", http_status=status
+            ) from None
+        return redacted, status
 
 
 def _capability(
@@ -574,6 +639,7 @@ class CapabilityProbe:
         )
         self.probe_embeddings = bool(probe_embeddings)
         self._audit: list[dict[str, object]] = []
+        self._deadline: float | None = None
 
     def _record_success(
         self, capability: str, method: str, endpoint: str, status: int
@@ -614,11 +680,27 @@ class CapabilityProbe:
         endpoint: str,
         payload: Mapping[str, object] | None = None,
     ) -> tuple[dict[str, object], int] | APIClientError:
+        remaining: float | None = None
+        if self._deadline is not None:
+            remaining = self._deadline - time.monotonic()
+            if remaining <= 0:
+                error = APIClientError("PROBE_TIMEOUT")
+                self._record_error(capability, method, endpoint, error)
+                return error
         try:
-            data, status = self.client._request_json(method, endpoint, payload)
+            data, status = self.client._request_json(
+                method,
+                endpoint,
+                payload,
+                timeout_seconds=remaining,
+            )
         except APIClientError as exc:
             self._record_error(capability, method, endpoint, exc)
             return exc
+        if self._deadline is not None and time.monotonic() > self._deadline:
+            error = APIClientError("PROBE_TIMEOUT")
+            self._record_error(capability, method, endpoint, error)
+            return error
         self._record_success(capability, method, endpoint, status)
         return data, status
 
@@ -651,6 +733,12 @@ class CapabilityProbe:
                 for name in capability_names
             }
             return self._report("NOT_RUN", capabilities)
+
+        # The configured timeout is one application-level deadline budget for
+        # the complete probe, not a fresh allowance for each request.  Late
+        # results are rejected and urllib sockets receive the remaining time;
+        # synchronous DNS and injected transports cannot be forcibly cancelled.
+        self._deadline = time.monotonic() + float(self.config.timeout_seconds)
 
         capabilities: dict[str, dict[str, object]] = {}
         capabilities["models"] = self._probe_models()
@@ -802,6 +890,8 @@ class CapabilityProbe:
             for call in calls:
                 if not isinstance(call, Mapping):
                     continue
+                if call.get("type", "function") != "function":
+                    continue
                 function = call.get("function")
                 if not isinstance(function, Mapping) or function.get("name") != tool_name:
                     continue
@@ -810,7 +900,7 @@ class CapabilityProbe:
                     continue
                 try:
                     parsed_arguments = json.loads(arguments)
-                except json.JSONDecodeError:
+                except (ValueError, RecursionError):
                     continue
                 candidate_id = call.get("id")
                 if (
@@ -934,7 +1024,7 @@ class CapabilityProbe:
         if isinstance(content, str):
             try:
                 conforms = json.loads(content) == {"ok": True}
-            except json.JSONDecodeError:
+            except (ValueError, RecursionError):
                 conforms = False
         if not conforms:
             return _capability(
@@ -1011,9 +1101,12 @@ class CapabilityProbe:
         tool_supported = (
             capabilities.get("tool_calling", {}).get("status") == "SUPPORTED"
         )
+        strict_json_supported = (
+            capabilities.get("strict_json", {}).get("status") == "SUPPORTED"
+        )
         if chat_supported and tool_supported:
             readiness_mode = "NATIVE_TOOL_CALLING"
-        elif chat_supported:
+        elif chat_supported and strict_json_supported:
             readiness_mode = "VALIDATED_JSON_FALLBACK"
         else:
             readiness_mode = "UNAVAILABLE"

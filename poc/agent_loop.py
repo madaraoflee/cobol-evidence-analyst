@@ -10,7 +10,9 @@ It deliberately has no network client of its own; callers inject one.
 from __future__ import annotations
 
 import json
+import math
 import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Sequence
 
@@ -50,6 +52,17 @@ KNOWN_TOOL_STATUSES = frozenset(
     }
 )
 MAX_EVIDENCE_EXCERPT_CHARS = 800
+MAX_FINAL_CLAIMS = 4
+MAX_CLAIM_TEXT_CHARS = 320
+MAX_MODEL_BOUNDARIES = 6
+MAX_BOUNDARY_TEXT_CHARS = 240
+MAX_MODEL_AUTHORED_CHARS = 1_200
+MAX_TOOL_DIAGNOSTICS = 16
+MAX_TOOL_BOUNDARIES = 200
+MAX_TOOL_STRING_CHARS = 512
+MAX_RELATIONS_PER_RESULT = 200
+MAX_VISITED_ENTITIES = 500
+MAX_SNAPSHOT_COVERAGE_ITEMS = 32
 
 _CODE_ANCHOR_RE = re.compile(
     r"(?<![A-Z0-9_$#@_-])[A-Z][A-Z0-9_$#@_-]{1,127}(?![A-Z0-9_$#@_-])"
@@ -58,6 +71,148 @@ _NUMERIC_LITERAL_RE = re.compile(
     r"(?<![A-Z0-9_.-])[-+]?\d+(?:\.\d+)?(?![A-Z0-9_.-])",
     re.IGNORECASE,
 )
+_TOOL_CALL_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,255}")
+_MODEL_ACTION_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,127}")
+_STRUCTURAL_NAME_RE = re.compile(r"[A-Za-z0-9_$#@.-]{1,128}")
+_QUALIFIED_NAME_RE = re.compile(
+    r"(?:[A-Za-z0-9_$#@.-]+|<NONE>)(?:::[A-Za-z0-9_$#@.-]+)?"
+)
+_DIAGNOSTIC_CODE_RE = re.compile(r"[A-Z][A-Z0-9_]{0,63}")
+
+_COMMON_TOOL_RESULT_FIELDS = frozenset(
+    {
+        "tool",
+        "contract_version",
+        "snapshot_id",
+        "status",
+        "truncated",
+        "boundaries",
+        "diagnostics",
+    }
+)
+_TOOL_RESULT_FIELDS = {
+    "search_code": _COMMON_TOOL_RESULT_FIELDS
+    | {"query", "tokens", "hits", "evidence_refs", "result_count"},
+    "inspect_symbol": _COMMON_TOOL_RESULT_FIELDS
+    | {"query", "matches", "match_count"},
+    "trace_relations": _COMMON_TOOL_RESULT_FIELDS
+    | {
+        "query",
+        "edges",
+        "visited_entities",
+        "start_candidates",
+        "start_entity",
+        "edge_count",
+        "visited_entity_count",
+    },
+    "read_evidence": _COMMON_TOOL_RESULT_FIELDS
+    | {
+        "spans",
+        "span_count",
+        "missing_evidence_ids",
+        "returned_characters",
+    },
+}
+_INDEXED_ARTIFACT_KINDS = frozenset(
+    {
+        "cobol_program",
+        "copybook",
+        "ddl_or_db_file_definition",
+        "job_or_command",
+        "cobol_fragment_or_copybook",
+        "sql_or_ddl",
+        "unclassified_text",
+    }
+)
+_MISSING_ARTIFACT_KINDS = frozenset(
+    {
+        "database records",
+        "control-table values",
+        "runtime parameters",
+        "runtime logs",
+        "DDL/DDS/database definitions",
+        "job/JCL/command definitions",
+    }
+)
+_RELATION_TYPES = frozenset(
+    {
+        "CALLS",
+        "CALL_TARGET_FROM",
+        "PERFORMS",
+        "PERFORMS_THRU",
+        "INCLUDES_COPY",
+        "READS",
+        "WRITES",
+        "CONTROL_DEPENDS_ON",
+        "READS_FILE",
+        "WRITES_FILE",
+        "SELECTS_FROM",
+        "UPDATES",
+    }
+)
+_RELATION_STATUSES = frozenset({"confirmed", "candidate", "unresolved"})
+_UNIT_TYPES = frozenset(
+    {
+        "Program",
+        "Section",
+        "Paragraph",
+        "Statement",
+        "Condition",
+        "DataItem",
+        "Copybook",
+    }
+)
+_SYMBOL_TYPES = frozenset(
+    {"Program", "Section", "Paragraph", "Field", "ConditionName", "Copybook"}
+)
+_ENTITY_TYPES = _UNIT_TYPES | _SYMBOL_TYPES
+_TOOL_DIAGNOSTIC_CODES = {
+    "search_code": frozenset({"NO_CODE_ANCHOR", "RESULT_LIMIT_REACHED"}),
+    "inspect_symbol": frozenset(
+        {"AMBIGUOUS_SYMBOL", "INSPECTION_LIMIT_REACHED"}
+    ),
+    "trace_relations": frozenset(
+        {"AMBIGUOUS_START_SYMBOL", "TRACE_BUDGET_EXHAUSTED"}
+    ),
+    "read_evidence": frozenset(
+        {"SOURCE_HASH_MISMATCH", "EVIDENCE_NOT_FOUND", "EVIDENCE_BUDGET_REACHED"}
+    ),
+}
+_BOUNDARY_REASONS = frozenset(
+    {
+        "ambiguous_symbol",
+        "database_definition_not_indexed",
+        "file_definition_not_indexed",
+        "runtime_target_requires_value_flow",
+        "target_not_found",
+        "unresolved",
+    }
+)
+
+_SAFE_STOP_MESSAGES = {
+    "model_protocol_error": "The model response did not match the bounded action contract.",
+    "model_client_error": "The model client failed without exposing remote details.",
+    "unauthorized_tool": "The model requested an action outside the approved tool set.",
+    "tool_budget_exhausted": "The investigation reached its tool-call budget.",
+    "invalid_tool_arguments": "The requested tool arguments failed local policy validation.",
+    "evidence_phase_closed": "The evidence phase is closed; only finish or abstain is allowed.",
+    "tool_execution_error": "A local tool failed without exposing internal details.",
+    "tool_contract_mismatch": "A local tool result failed its result contract.",
+    "tool_status_invalid": "A local tool returned an unsupported status.",
+    "snapshot_missing": "A local tool result had no valid snapshot identifier.",
+    "snapshot_mismatch": "Tool results did not belong to the bound snapshot.",
+    "snapshot_integrity_error": "Evidence integrity validation failed.",
+    "tool_policy_denied": "A local tool result crossed an application policy boundary.",
+    "tool_capability_unavailable": "The required investigation capability is unavailable.",
+    "evidence_scope_violation": "Evidence crossed the current investigation scope.",
+    "invalid_final_answer": "The final response failed the bounded answer contract.",
+    "invalid_evidence_reference": "The final response cited evidence outside the verified set.",
+    "unsupported_claim_content": "A candidate claim failed lexical grounding checks.",
+    "model_output_budget_exceeded": "Model-authored output exceeded its safe local budget.",
+    "unsupported_claim": "An unsupported candidate claim cannot enter the answer.",
+    "no_progress": "The investigation stopped after two calls without new bounded facts.",
+    "model_turn_budget_exhausted": "The investigation reached its model-turn budget.",
+}
 
 
 class ModelProtocolError(ValueError):
@@ -74,6 +229,965 @@ class ToolResultPolicyError(ValueError):
     def __init__(self, reason: str, message: str) -> None:
         super().__init__(message)
         self.reason = reason
+
+
+def _tool_result_error(
+    message: str = "Tool result did not match the bounded result contract.",
+    *,
+    reason: str = "tool_contract_mismatch",
+) -> None:
+    raise ToolResultPolicyError(reason, message)
+
+
+def _exact_tool_mapping(
+    value: object,
+    *,
+    allowed: set[str] | frozenset[str],
+    required: set[str] | frozenset[str] = frozenset(),
+) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        _tool_result_error()
+    keys = set(value)
+    if keys - set(allowed) or set(required) - keys:
+        _tool_result_error()
+    return value
+
+
+def _tool_string(
+    value: object,
+    *,
+    maximum: int = MAX_TOOL_STRING_CHARS,
+    pattern: re.Pattern[str] | None = None,
+    allow_none: bool = False,
+) -> str | None:
+    if value is None and allow_none:
+        return None
+    if not isinstance(value, str) or not value or len(value) > maximum:
+        _tool_result_error()
+    if value != value.strip() or any(ord(character) < 32 or ord(character) == 127 for character in value):
+        _tool_result_error()
+    if pattern is not None and pattern.fullmatch(value) is None:
+        _tool_result_error()
+    return str(value)
+
+
+def _tool_int(
+    value: object,
+    *,
+    minimum: int = 0,
+    maximum: int = 1_000_000_000,
+) -> int:
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or value < minimum
+        or value > maximum
+    ):
+        _tool_result_error()
+    return value
+
+
+def _tool_enum(value: object, allowed: frozenset[str]) -> str:
+    if not isinstance(value, str) or value not in allowed:
+        _tool_result_error()
+    return str(value)
+
+
+def _safe_relative_path(value: object) -> str:
+    path = _tool_string(value, maximum=1_024)
+    assert isinstance(path, str)
+    normalized = path.replace("\\", "/")
+    if path.startswith(("/", "\\")) or ".." in normalized.split("/"):
+        _tool_result_error()
+    return path
+
+
+def _project_evidence_ref(value: object) -> dict[str, Any]:
+    raw = _exact_tool_mapping(
+        value,
+        allowed={"evidence_id", "relative_path", "start_line", "end_line"},
+        required={"evidence_id"},
+    )
+    evidence_id = _tool_string(
+        raw["evidence_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+    )
+    projected: dict[str, Any] = {"evidence_id": evidence_id}
+    location_fields = {"relative_path", "start_line", "end_line"}
+    present_location_fields = location_fields.intersection(raw)
+    if present_location_fields and present_location_fields != location_fields:
+        _tool_result_error()
+    if present_location_fields:
+        start_line = _tool_int(raw["start_line"], minimum=1)
+        end_line = _tool_int(raw["end_line"], minimum=start_line)
+        projected.update(
+            {
+                "relative_path": _safe_relative_path(raw["relative_path"]),
+                "start_line": start_line,
+                "end_line": end_line,
+            }
+        )
+    return projected
+
+
+def _project_diagnostics(action: str, value: object) -> list[dict[str, str]]:
+    if not isinstance(value, list) or len(value) > MAX_TOOL_DIAGNOSTICS:
+        _tool_result_error()
+    projected: list[dict[str, str]] = []
+    for item in value:
+        raw = _exact_tool_mapping(
+            item,
+            allowed={"code", "message"},
+            required={"code", "message"},
+        )
+        code = _tool_string(
+            raw["code"], maximum=64, pattern=_DIAGNOSTIC_CODE_RE
+        )
+        if code not in _TOOL_DIAGNOSTIC_CODES[action]:
+            _tool_result_error()
+        _tool_string(raw["message"], maximum=MAX_TOOL_STRING_CHARS)
+        assert isinstance(code, str)
+        projected.append({"code": code})
+    return projected
+
+
+def _project_symbol(value: object) -> dict[str, Any]:
+    raw = _exact_tool_mapping(
+        value,
+        allowed={
+            "symbol_id",
+            "symbol_type",
+            "name",
+            "program_name",
+            "qualified_name",
+        },
+        required={
+            "symbol_id",
+            "symbol_type",
+            "name",
+            "program_name",
+            "qualified_name",
+        },
+    )
+    return {
+        "symbol_id": _tool_string(
+            raw["symbol_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+        ),
+        "symbol_type": _tool_enum(raw["symbol_type"], _SYMBOL_TYPES),
+        "name": _tool_string(
+            raw["name"], maximum=128, pattern=_STRUCTURAL_NAME_RE
+        ),
+        "program_name": _tool_string(
+            raw["program_name"],
+            maximum=128,
+            pattern=_STRUCTURAL_NAME_RE,
+            allow_none=True,
+        ),
+        "qualified_name": _tool_string(
+            raw["qualified_name"], maximum=260, pattern=_QUALIFIED_NAME_RE
+        ),
+    }
+
+
+def _project_relation_metadata(value: object) -> dict[str, Any]:
+    raw = _exact_tool_mapping(
+        value,
+        allowed={
+            "boundary",
+            "call_form",
+            "candidate_count",
+            "condition",
+            "control_kind",
+            "expression",
+            "operation",
+            "outcome",
+            "range_end",
+            "resolution_reason",
+            "rounded",
+        },
+    )
+    projected: dict[str, Any] = {}
+
+    # These fields are source-derived prose.  Validate their size, then discard
+    # them so a structural lookup cannot become an implicit source read.
+    for source_field in ("condition", "expression", "outcome"):
+        if source_field in raw:
+            _tool_string(raw[source_field], maximum=4_096)
+
+    if "boundary" in raw:
+        projected["boundary"] = _tool_enum(raw["boundary"], _BOUNDARY_REASONS)
+    if "call_form" in raw:
+        projected["call_form"] = _tool_enum(
+            raw["call_form"], frozenset({"literal", "identifier"})
+        )
+    if "candidate_count" in raw:
+        projected["candidate_count"] = _tool_int(
+            raw["candidate_count"], minimum=1, maximum=500
+        )
+    if "control_kind" in raw:
+        projected["control_kind"] = _tool_enum(
+            raw["control_kind"],
+            frozenset({"IF", "EVALUATE", "EVALUATE_WHEN"}),
+        )
+    if "operation" in raw:
+        projected["operation"] = _tool_enum(
+            raw["operation"],
+            frozenset({"ADD", "DIVIDE", "MOVE", "MULTIPLY", "SUBTRACT"}),
+        )
+    if "range_end" in raw:
+        projected["range_end"] = _tool_string(
+            raw["range_end"], maximum=128, pattern=_STRUCTURAL_NAME_RE
+        )
+    if "resolution_reason" in raw:
+        projected["resolution_reason"] = _tool_enum(
+            raw["resolution_reason"], _BOUNDARY_REASONS
+        )
+    if "rounded" in raw:
+        if not isinstance(raw["rounded"], bool):
+            _tool_result_error()
+        projected["rounded"] = raw["rounded"]
+    return projected
+
+
+def _project_relation(value: object, *, allow_depth: bool) -> dict[str, Any]:
+    allowed = {
+        "relation_id",
+        "relation_type",
+        "status",
+        "source",
+        "target",
+        "metadata",
+        "evidence_ref",
+    }
+    if allow_depth:
+        allowed.add("depth")
+    raw = _exact_tool_mapping(value, allowed=allowed, required=allowed - {"depth"})
+    source = _exact_tool_mapping(
+        raw["source"],
+        allowed={"entity_id", "unit_type", "name", "program_name"},
+        required={"entity_id", "unit_type", "name", "program_name"},
+    )
+    target = _exact_tool_mapping(
+        raw["target"],
+        allowed={"entity_id", "name", "scope"},
+        required={"entity_id", "name", "scope"},
+    )
+    projected: dict[str, Any] = {
+        "relation_id": _tool_string(
+            raw["relation_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+        ),
+        "relation_type": _tool_enum(raw["relation_type"], _RELATION_TYPES),
+        "status": _tool_enum(raw["status"], _RELATION_STATUSES),
+        "source": {
+            "entity_id": _tool_string(
+                source["entity_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+            ),
+            "unit_type": _tool_enum(source["unit_type"], _UNIT_TYPES),
+            "name": _tool_string(
+                source["name"], maximum=128, pattern=_STRUCTURAL_NAME_RE
+            ),
+            "program_name": _tool_string(
+                source["program_name"],
+                maximum=128,
+                pattern=_STRUCTURAL_NAME_RE,
+                allow_none=True,
+            ),
+        },
+        "target": {
+            "entity_id": _tool_string(
+                target["entity_id"],
+                maximum=128,
+                pattern=_TOOL_CALL_ID_RE,
+                allow_none=True,
+            ),
+            "name": _tool_string(
+                target["name"],
+                maximum=128,
+                pattern=_STRUCTURAL_NAME_RE,
+                allow_none=True,
+            ),
+            "scope": _tool_string(
+                target["scope"],
+                maximum=128,
+                pattern=_STRUCTURAL_NAME_RE,
+                allow_none=True,
+            ),
+        },
+        "metadata": _project_relation_metadata(raw["metadata"]),
+        "evidence_ref": _project_evidence_ref(raw["evidence_ref"]),
+    }
+    if "depth" in raw:
+        projected["depth"] = _tool_int(raw["depth"], minimum=1, maximum=3)
+    return projected
+
+
+def _project_search_hit(value: object) -> dict[str, Any]:
+    raw = _exact_tool_mapping(
+        value,
+        allowed={
+            "match_type",
+            "unit_id",
+            "unit_type",
+            "name",
+            "program_name",
+            "symbol_id",
+            "symbol_type",
+            "qualified_name",
+            "fts_score",
+            "evidence_ref",
+        },
+        required={
+            "match_type",
+            "unit_id",
+            "unit_type",
+            "name",
+            "program_name",
+            "evidence_ref",
+        },
+    )
+    match_type = _tool_enum(
+        raw["match_type"], frozenset({"exact_symbol", "full_text"})
+    )
+    required_variant = (
+        {"symbol_id", "symbol_type", "qualified_name"}
+        if match_type == "exact_symbol"
+        else {"fts_score"}
+    )
+    forbidden_variant = (
+        {"fts_score"}
+        if match_type == "exact_symbol"
+        else {"symbol_id", "symbol_type", "qualified_name"}
+    )
+    if required_variant - set(raw) or forbidden_variant.intersection(raw):
+        _tool_result_error()
+    projected: dict[str, Any] = {
+        "match_type": match_type,
+        "unit_id": _tool_string(
+            raw["unit_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+        ),
+        "unit_type": _tool_enum(raw["unit_type"], _UNIT_TYPES),
+        "name": _tool_string(
+            raw["name"], maximum=128, pattern=_STRUCTURAL_NAME_RE
+        ),
+        "program_name": _tool_string(
+            raw["program_name"],
+            maximum=128,
+            pattern=_STRUCTURAL_NAME_RE,
+            allow_none=True,
+        ),
+        "evidence_ref": _project_evidence_ref(raw["evidence_ref"]),
+    }
+    if match_type == "exact_symbol":
+        projected.update(
+            {
+                "symbol_id": _tool_string(
+                    raw["symbol_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+                ),
+                "symbol_type": _tool_enum(raw["symbol_type"], _SYMBOL_TYPES),
+                "qualified_name": _tool_string(
+                    raw["qualified_name"],
+                    maximum=260,
+                    pattern=_QUALIFIED_NAME_RE,
+                ),
+            }
+        )
+    else:
+        score = raw["fts_score"]
+        if (
+            not isinstance(score, (int, float))
+            or isinstance(score, bool)
+            or not math.isfinite(float(score))
+        ):
+            _tool_result_error()
+        projected["fts_score"] = float(score)
+    return projected
+
+
+def _project_inspection_match(value: object) -> dict[str, Any]:
+    raw = _exact_tool_mapping(
+        value,
+        allowed={
+            "symbol",
+            "definition",
+            "scope_unit_count",
+            "outgoing_relations",
+            "incoming_relations",
+        },
+        required={
+            "symbol",
+            "definition",
+            "scope_unit_count",
+            "outgoing_relations",
+            "incoming_relations",
+        },
+    )
+    definition = _exact_tool_mapping(
+        raw["definition"],
+        allowed={"unit_id", "unit_type", "evidence_ref"},
+        required={"unit_id", "unit_type", "evidence_ref"},
+    )
+    outgoing = raw["outgoing_relations"]
+    incoming = raw["incoming_relations"]
+    if (
+        not isinstance(outgoing, list)
+        or not isinstance(incoming, list)
+        or len(outgoing) > 100
+        or len(incoming) > 100
+    ):
+        _tool_result_error()
+    return {
+        "symbol": _project_symbol(raw["symbol"]),
+        "definition": {
+            "unit_id": _tool_string(
+                definition["unit_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+            ),
+            "unit_type": _tool_enum(definition["unit_type"], _UNIT_TYPES),
+            "evidence_ref": _project_evidence_ref(definition["evidence_ref"]),
+        },
+        "scope_unit_count": _tool_int(
+            raw["scope_unit_count"], minimum=1, maximum=500
+        ),
+        "outgoing_relations": [
+            _project_relation(item, allow_depth=False) for item in outgoing
+        ],
+        "incoming_relations": [
+            _project_relation(item, allow_depth=False) for item in incoming
+        ],
+    }
+
+
+def _project_trace_entity(value: object) -> dict[str, Any]:
+    raw = _exact_tool_mapping(
+        value,
+        allowed={
+            "entity_id",
+            "entity_type",
+            "name",
+            "program_name",
+            "definition_unit_id",
+        },
+        required={
+            "entity_id",
+            "entity_type",
+            "name",
+            "program_name",
+            "definition_unit_id",
+        },
+    )
+    return {
+        "entity_id": _tool_string(
+            raw["entity_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+        ),
+        "entity_type": _tool_enum(raw["entity_type"], _ENTITY_TYPES),
+        "name": _tool_string(
+            raw["name"], maximum=128, pattern=_STRUCTURAL_NAME_RE
+        ),
+        "program_name": _tool_string(
+            raw["program_name"],
+            maximum=128,
+            pattern=_STRUCTURAL_NAME_RE,
+            allow_none=True,
+        ),
+        "definition_unit_id": _tool_string(
+            raw["definition_unit_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+        ),
+    }
+
+
+def _project_trace_boundary(value: object) -> dict[str, Any]:
+    raw = _exact_tool_mapping(
+        value,
+        allowed={"relation_id", "relation_type", "target_name", "status", "reason"},
+        required={"relation_id", "relation_type", "target_name", "status", "reason"},
+    )
+    return {
+        "relation_id": _tool_string(
+            raw["relation_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+        ),
+        "relation_type": _tool_enum(raw["relation_type"], _RELATION_TYPES),
+        "target_name": _tool_string(
+            raw["target_name"],
+            maximum=128,
+            pattern=_STRUCTURAL_NAME_RE,
+            allow_none=True,
+        ),
+        "status": _tool_enum(raw["status"], _RELATION_STATUSES),
+        "reason": _tool_enum(raw["reason"], _BOUNDARY_REASONS),
+    }
+
+
+def _canonical_snapshot_coverage(value: object) -> dict[str, Any]:
+    raw = _exact_tool_mapping(
+        value,
+        allowed={
+            "type",
+            "snapshot_id",
+            "indexed_artifact_kinds",
+            "missing_artifacts",
+            "runtime_state_indexed",
+        },
+        required={
+            "type",
+            "snapshot_id",
+            "indexed_artifact_kinds",
+            "missing_artifacts",
+            "runtime_state_indexed",
+        },
+    )
+    if raw["type"] != "snapshot_coverage":
+        _tool_result_error()
+    snapshot_id = _tool_string(
+        raw["snapshot_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+    )
+    if snapshot_id == "unknown":
+        _tool_result_error(reason="snapshot_missing")
+    indexed = raw["indexed_artifact_kinds"]
+    missing = raw["missing_artifacts"]
+    if (
+        not isinstance(indexed, list)
+        or not isinstance(missing, list)
+        or len(indexed) > MAX_SNAPSHOT_COVERAGE_ITEMS
+        or len(missing) > MAX_SNAPSHOT_COVERAGE_ITEMS
+        or not all(isinstance(item, str) for item in indexed)
+        or not all(isinstance(item, str) for item in missing)
+    ):
+        _tool_result_error()
+    if (
+        len(indexed) != len(set(indexed))
+        or len(missing) != len(set(missing))
+        or any(item not in _INDEXED_ARTIFACT_KINDS for item in indexed)
+        or any(item not in _MISSING_ARTIFACT_KINDS for item in missing)
+        or raw["runtime_state_indexed"] is not False
+    ):
+        _tool_result_error()
+    return {
+        "type": "snapshot_coverage",
+        "snapshot_id": snapshot_id,
+        "indexed_artifact_kinds": list(indexed),
+        "missing_artifacts": list(missing),
+        "runtime_state_indexed": False,
+    }
+
+
+def _canonical_tool_result(
+    action: str,
+    value: object,
+    *,
+    requested_evidence_ids: set[str] | None = None,
+    requested_max_chars: int = 16_000,
+) -> dict[str, Any]:
+    required_by_action = {
+        "search_code": {"query", "tokens", "hits", "evidence_refs"},
+        "inspect_symbol": {"query", "matches", "match_count"},
+        "trace_relations": {"query", "edges", "visited_entities"},
+        "read_evidence": {
+            "spans",
+            "span_count",
+            "missing_evidence_ids",
+            "returned_characters",
+        },
+    }
+    raw = _exact_tool_mapping(
+        value,
+        allowed=_TOOL_RESULT_FIELDS[action],
+        required=_COMMON_TOOL_RESULT_FIELDS | required_by_action[action],
+    )
+    if raw["tool"] != action or raw["contract_version"] != TOOL_CONTRACT_VERSION:
+        _tool_result_error()
+    snapshot_id = _tool_string(
+        raw["snapshot_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+    )
+    if snapshot_id == "unknown":
+        _tool_result_error(reason="snapshot_missing")
+    if raw["status"] not in KNOWN_TOOL_STATUSES:
+        _tool_result_error(reason="tool_status_invalid")
+    status = str(raw["status"])
+    if status in HARD_FAILURE_STATUSES:
+        _tool_result_error(
+            reason=(
+                "snapshot_integrity_error"
+                if status in {"INTEGRITY_ERROR", "INVALID_SNAPSHOT"}
+                else "tool_policy_denied"
+            )
+        )
+    if status == "CAPABILITY_UNAVAILABLE":
+        _tool_result_error(reason="tool_capability_unavailable")
+    if not isinstance(raw["truncated"], bool):
+        _tool_result_error()
+    diagnostics = _project_diagnostics(action, raw["diagnostics"])
+    raw_boundaries = raw["boundaries"]
+    if not isinstance(raw_boundaries, list) or len(raw_boundaries) > MAX_TOOL_BOUNDARIES:
+        _tool_result_error()
+    if action != "trace_relations" and raw_boundaries:
+        _tool_result_error()
+
+    projected: dict[str, Any] = {
+        "tool": action,
+        "contract_version": TOOL_CONTRACT_VERSION,
+        "snapshot_id": snapshot_id,
+        "status": status,
+        "truncated": raw["truncated"],
+        "boundaries": [],
+        "diagnostics": diagnostics,
+    }
+
+    if action == "search_code":
+        if status not in {"OK", "PARTIAL", "NOT_FOUND"}:
+            _tool_result_error()
+        _tool_string(raw["query"], maximum=1_024)
+        tokens = raw["tokens"]
+        hits = raw["hits"]
+        evidence_refs = raw["evidence_refs"]
+        if (
+            not isinstance(tokens, list)
+            or len(tokens) > 32
+            or not isinstance(hits, list)
+            or len(hits) > 25
+            or not isinstance(evidence_refs, list)
+            or len(evidence_refs) > 25
+        ):
+            _tool_result_error()
+        canonical_tokens = [
+            _tool_string(item, maximum=128, pattern=_STRUCTURAL_NAME_RE)
+            for item in tokens
+        ]
+        if len(canonical_tokens) != len(set(canonical_tokens)):
+            _tool_result_error()
+        canonical_hits = [_project_search_hit(item) for item in hits]
+        canonical_refs = [_project_evidence_ref(item) for item in evidence_refs]
+        hit_refs = [item["evidence_ref"] for item in canonical_hits]
+        if canonical_refs != hit_refs:
+            _tool_result_error()
+        if "result_count" in raw:
+            count = _tool_int(raw["result_count"], maximum=25)
+            if count != len(canonical_hits):
+                _tool_result_error()
+        elif canonical_tokens:
+            _tool_result_error()
+        if (
+            (status == "NOT_FOUND" and (canonical_hits or raw["truncated"]))
+            or (status in {"OK", "PARTIAL"} and not canonical_hits)
+            or (status == "OK" and raw["truncated"])
+            or (status == "PARTIAL" and not raw["truncated"])
+        ):
+            _tool_result_error()
+        projected.update(
+            {
+                "hits": canonical_hits,
+                "evidence_refs": canonical_refs,
+                "result_count": len(canonical_hits),
+            }
+        )
+
+    elif action == "inspect_symbol":
+        if status not in {"OK", "PARTIAL", "NOT_FOUND", "AMBIGUOUS"}:
+            _tool_result_error()
+        query = _exact_tool_mapping(
+            raw["query"],
+            allowed={"name", "program_name", "symbol_type"},
+            required={"name", "program_name", "symbol_type"},
+        )
+        _tool_string(query["name"], maximum=128, pattern=_STRUCTURAL_NAME_RE)
+        _tool_string(
+            query["program_name"],
+            maximum=128,
+            pattern=_STRUCTURAL_NAME_RE,
+            allow_none=True,
+        )
+        if query["symbol_type"] is not None:
+            _tool_enum(query["symbol_type"], _SYMBOL_TYPES)
+        matches = raw["matches"]
+        if not isinstance(matches, list) or len(matches) > 10:
+            _tool_result_error()
+        canonical_matches = [_project_inspection_match(item) for item in matches]
+        if _tool_int(raw["match_count"], maximum=10) != len(canonical_matches):
+            _tool_result_error()
+        if (
+            (status == "NOT_FOUND" and canonical_matches)
+            or (status in {"OK", "PARTIAL"} and len(canonical_matches) != 1)
+            or (status == "AMBIGUOUS" and len(canonical_matches) < 2)
+            or (status == "OK" and raw["truncated"])
+            or (status == "PARTIAL" and not raw["truncated"])
+        ):
+            _tool_result_error()
+        projected.update(
+            {"matches": canonical_matches, "match_count": len(canonical_matches)}
+        )
+
+    elif action == "trace_relations":
+        if status not in {"OK", "PARTIAL", "NOT_FOUND", "AMBIGUOUS"}:
+            _tool_result_error()
+        query = _exact_tool_mapping(
+            raw["query"],
+            allowed={
+                "start_name",
+                "program_name",
+                "symbol_type",
+                "relation_types",
+                "direction",
+                "max_depth",
+                "max_edges",
+            },
+            required={
+                "start_name",
+                "program_name",
+                "symbol_type",
+                "relation_types",
+                "direction",
+                "max_depth",
+                "max_edges",
+            },
+        )
+        _tool_string(
+            query["start_name"], maximum=128, pattern=_STRUCTURAL_NAME_RE
+        )
+        _tool_string(
+            query["program_name"],
+            maximum=128,
+            pattern=_STRUCTURAL_NAME_RE,
+            allow_none=True,
+        )
+        if query["symbol_type"] is not None:
+            _tool_enum(query["symbol_type"], _SYMBOL_TYPES)
+        relation_types = query["relation_types"]
+        if (
+            not isinstance(relation_types, list)
+            or not relation_types
+            or len(relation_types) > len(_RELATION_TYPES)
+        ):
+            _tool_result_error()
+        if (
+            not all(isinstance(item, str) for item in relation_types)
+            or any(item not in _RELATION_TYPES for item in relation_types)
+            or relation_types != sorted(set(relation_types))
+            or query["direction"] not in {"outgoing", "incoming"}
+        ):
+            _tool_result_error()
+        _tool_int(query["max_depth"], minimum=1, maximum=3)
+        _tool_int(query["max_edges"], minimum=1, maximum=200)
+        edges = raw["edges"]
+        visited = raw["visited_entities"]
+        if (
+            not isinstance(edges, list)
+            or len(edges) > MAX_RELATIONS_PER_RESULT
+            or not isinstance(visited, list)
+            or len(visited) > MAX_VISITED_ENTITIES
+        ):
+            _tool_result_error()
+        canonical_edges = [
+            _project_relation(item, allow_depth=True) for item in edges
+        ]
+        if any("depth" not in item for item in canonical_edges):
+            _tool_result_error()
+        canonical_visited = [_project_trace_entity(item) for item in visited]
+        canonical_boundaries = [
+            _project_trace_boundary(item) for item in raw_boundaries
+        ]
+        expected_boundaries = [
+            {
+                "relation_id": edge["relation_id"],
+                "relation_type": edge["relation_type"],
+                "target_name": edge["target"]["name"],
+                "status": edge["status"],
+                "reason": edge["metadata"].get(
+                    "resolution_reason",
+                    edge["metadata"].get("boundary", "unresolved"),
+                ),
+            }
+            for edge in canonical_edges
+            if edge["status"] != "confirmed" or "boundary" in edge["metadata"]
+        ]
+        if canonical_boundaries != expected_boundaries:
+            _tool_result_error()
+
+        branch_fields = {
+            "start_candidates",
+            "start_entity",
+            "edge_count",
+            "visited_entity_count",
+        }.intersection(raw)
+        if status == "NOT_FOUND":
+            if (
+                branch_fields
+                or canonical_edges
+                or canonical_visited
+                or canonical_boundaries
+                or raw["truncated"]
+            ):
+                _tool_result_error()
+        elif status == "AMBIGUOUS":
+            if branch_fields != {"start_candidates"}:
+                _tool_result_error()
+            candidates = raw["start_candidates"]
+            if not isinstance(candidates, list) or not candidates or len(candidates) > 10:
+                _tool_result_error()
+            projected["start_candidates"] = [
+                _project_symbol(item) for item in candidates
+            ]
+            if canonical_edges or canonical_visited or canonical_boundaries:
+                _tool_result_error()
+        else:
+            expected_branch = {"start_entity", "edge_count", "visited_entity_count"}
+            if branch_fields != expected_branch:
+                _tool_result_error()
+            start_entity = _project_trace_entity(raw["start_entity"])
+            if (
+                _tool_int(raw["edge_count"], maximum=200) != len(canonical_edges)
+                or _tool_int(raw["visited_entity_count"], maximum=500)
+                != len(canonical_visited)
+                or not canonical_visited
+                or start_entity != canonical_visited[0]
+            ):
+                _tool_result_error()
+            projected.update(
+                {
+                    "start_entity": start_entity,
+                    "edge_count": len(canonical_edges),
+                    "visited_entity_count": len(canonical_visited),
+                }
+            )
+            if (status == "OK" and raw["truncated"]) or (
+                status == "PARTIAL" and not raw["truncated"]
+            ):
+                _tool_result_error()
+        projected.update(
+            {
+                "edges": canonical_edges,
+                "visited_entities": canonical_visited,
+                "boundaries": canonical_boundaries,
+            }
+        )
+
+    else:
+        if status not in {"OK", "PARTIAL"}:
+            _tool_result_error()
+        spans = raw["spans"]
+        missing = raw["missing_evidence_ids"]
+        if (
+            not isinstance(spans, list)
+            or len(spans) > 12
+            or not isinstance(missing, list)
+            or len(missing) > 12
+        ):
+            _tool_result_error()
+        allowed_ids = requested_evidence_ids or set()
+        canonical_spans: list[dict[str, Any]] = []
+        returned_ids: set[str] = set()
+        returned_characters = 0
+        for item in spans:
+            span = _exact_tool_mapping(
+                item,
+                allowed={
+                    "evidence_id",
+                    "relative_path",
+                    "start_line",
+                    "end_line",
+                    "source_sha256",
+                    "integrity",
+                    "content_type",
+                    "source_text",
+                    "span_truncated",
+                },
+                required={
+                    "evidence_id",
+                    "relative_path",
+                    "start_line",
+                    "end_line",
+                    "source_sha256",
+                    "integrity",
+                    "content_type",
+                    "source_text",
+                    "span_truncated",
+                },
+            )
+            evidence_id = _tool_string(
+                span["evidence_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+            )
+            if evidence_id in returned_ids:
+                _tool_result_error()
+            returned_ids.add(str(evidence_id))
+            if evidence_id not in allowed_ids:
+                _tool_result_error(reason="evidence_scope_violation")
+            start_line = _tool_int(span["start_line"], minimum=1)
+            end_line = _tool_int(span["end_line"], minimum=start_line)
+            source_hash = _tool_string(span["source_sha256"], maximum=64)
+            if re.fullmatch(r"[0-9a-f]{64}", str(source_hash)) is None:
+                _tool_result_error()
+            if span["integrity"] != "VALID":
+                _tool_result_error(reason="snapshot_integrity_error")
+            if span["content_type"] != "UNTRUSTED_SOURCE_TEXT":
+                _tool_result_error()
+            source_text = span["source_text"]
+            if not isinstance(source_text, str):
+                _tool_result_error()
+            source_text = str(source_text)
+            if not isinstance(span["span_truncated"], bool):
+                _tool_result_error()
+            returned_characters += len(source_text)
+            canonical_spans.append(
+                {
+                    "evidence_id": evidence_id,
+                    "relative_path": _safe_relative_path(span["relative_path"]),
+                    "start_line": start_line,
+                    "end_line": end_line,
+                    "source_sha256": source_hash,
+                    "integrity": "VALID",
+                    "content_type": "UNTRUSTED_SOURCE_TEXT",
+                    "source_text": source_text,
+                    "span_truncated": span["span_truncated"],
+                }
+            )
+        canonical_missing = [
+            _tool_string(item, maximum=128, pattern=_TOOL_CALL_ID_RE)
+            for item in missing
+        ]
+        missing_ids = {str(item) for item in canonical_missing}
+        if (
+            len(missing_ids) != len(canonical_missing)
+            or not missing_ids <= allowed_ids
+            or missing_ids.intersection(returned_ids)
+        ):
+            _tool_result_error(reason="evidence_scope_violation")
+        if _tool_int(raw["span_count"], maximum=12) != len(canonical_spans):
+            _tool_result_error()
+        if (
+            _tool_int(raw["returned_characters"], maximum=50_000)
+            != returned_characters
+            or returned_characters > requested_max_chars
+        ):
+            _tool_result_error()
+        if status == "OK" and (
+            returned_ids != allowed_ids
+            or missing_ids
+            or raw["truncated"]
+            or any(item["span_truncated"] for item in canonical_spans)
+        ):
+            _tool_result_error()
+        if status == "PARTIAL" and not (
+            missing_ids
+            or raw["truncated"]
+            or any(item["span_truncated"] for item in canonical_spans)
+        ):
+            _tool_result_error()
+        projected.update(
+            {
+                "spans": canonical_spans,
+                "span_count": len(canonical_spans),
+                "missing_evidence_ids": canonical_missing,
+                "returned_characters": returned_characters,
+            }
+        )
+
+    try:
+        canonical_size = len(
+            json.dumps(projected, ensure_ascii=False, separators=(",", ":")).encode(
+                "utf-8"
+            )
+        )
+    except (TypeError, ValueError, RecursionError):
+        _tool_result_error()
+    if canonical_size > 256_000:
+        _tool_result_error()
+    return projected
 
 
 @dataclass(frozen=True)
@@ -97,8 +1211,8 @@ def _json_object(value: object, *, label: str) -> dict[str, Any]:
     if isinstance(value, str):
         try:
             value = json.loads(value)
-        except json.JSONDecodeError as exc:
-            raise ModelProtocolError(f"{label} is not valid JSON: {exc.msg}") from exc
+        except (ValueError, RecursionError):
+            raise ModelProtocolError(f"{label} is not valid bounded JSON.") from None
     if not isinstance(value, Mapping):
         raise ModelProtocolError(f"{label} must be a JSON object.")
     return {str(key): item for key, item in value.items()}
@@ -196,14 +1310,22 @@ def normalize_model_output(
         if function is None:
             raise ModelProtocolError("Tool call contains no function payload.")
         action = _get(function, "name")
-        if not isinstance(action, str) or not action.strip():
+        if (
+            not isinstance(action, str)
+            or _MODEL_ACTION_RE.fullmatch(action) is None
+        ):
             raise ModelProtocolError("Tool call function name must be a non-empty string.")
+        action = str(action)
         arguments = _json_object(
             _get(function, "arguments", {}), label="Tool call arguments"
         )
         call_id = _get(raw_call, "id") or fallback_call_id
-        if not isinstance(call_id, str):
-            call_id = str(call_id)
+        if (
+            not isinstance(call_id, str)
+            or _TOOL_CALL_ID_RE.fullmatch(call_id) is None
+        ):
+            raise ModelProtocolError("Tool call ID is outside the bounded format.")
+        call_id = str(call_id)
         canonical_call = {
             "id": call_id,
             "type": "function",
@@ -234,8 +1356,12 @@ def normalize_model_output(
             "Fallback response must contain exactly 'action' and 'arguments'."
         )
     action = envelope["action"]
-    if not isinstance(action, str) or not action.strip():
+    if (
+        not isinstance(action, str)
+        or _MODEL_ACTION_RE.fullmatch(action) is None
+    ):
         raise ModelProtocolError("action must be a non-empty string.")
+    action = str(action)
     arguments = _json_object(envelope["arguments"], label="Action arguments")
     canonical_content = json.dumps(envelope, ensure_ascii=False, separators=(",", ":"))
     return ModelDecision(
@@ -439,18 +1565,6 @@ def _collect_action_ids(
     return _collect_ids(payload)
 
 
-def _contains_source_body(value: object) -> bool:
-    if isinstance(value, Mapping):
-        return any(
-            key in {"source_text", "normalized_text"}
-            or _contains_source_body(child)
-            for key, child in value.items()
-        )
-    if isinstance(value, list):
-        return any(_contains_source_body(child) for child in value)
-    return False
-
-
 def _deduplicate(items: Sequence[object]) -> list[object]:
     output: list[object] = []
     seen: set[str] = set()
@@ -522,6 +1636,107 @@ def _boundary_text(boundary: object) -> str:
     return str(boundary)
 
 
+def _bounded_single_line(value: object, *, label: str, maximum: int) -> str:
+    if not isinstance(value, str):
+        raise ModelProtocolError(f"{label} must be a string.")
+    normalized = " ".join(value.split())
+    if not normalized:
+        raise ModelProtocolError(f"{label} must not be empty.")
+    if len(normalized) > maximum:
+        raise ModelProtocolError(f"{label} exceeds its output budget.")
+    return normalized
+
+
+def _normalize_model_boundary(value: object, *, index: int) -> str:
+    label = f"Boundary {index + 1}"
+    if isinstance(value, str):
+        return _bounded_single_line(
+            value,
+            label=label,
+            maximum=MAX_BOUNDARY_TEXT_CHARS,
+        )
+    if not isinstance(value, Mapping):
+        raise ModelProtocolError(f"{label} must be a string or bounded object.")
+    allowed = {"reason", "reason_code", "message", "required_artifact"}
+    unknown = set(value) - allowed
+    if unknown:
+        raise ModelProtocolError(f"{label} contains unsupported fields.")
+    primary = value.get("message", value.get("reason", value.get("reason_code")))
+    text = _bounded_single_line(
+        primary,
+        label=label,
+        maximum=MAX_BOUNDARY_TEXT_CHARS,
+    )
+    required_artifact = value.get("required_artifact")
+    if required_artifact is not None:
+        artifact = _bounded_single_line(
+            required_artifact,
+            label=f"{label} required_artifact",
+            maximum=120,
+        )
+        text = f"{text} Required artifact: {artifact}."
+        if len(text) > MAX_BOUNDARY_TEXT_CHARS:
+            raise ModelProtocolError(f"{label} exceeds its output budget.")
+    return text
+
+
+def _markdown_inline(value: object) -> str:
+    """Render model-controlled one-line text without creating Markdown blocks."""
+
+    text = " ".join(str(value).split())
+    for character in ("\\", "`", "[", "]", "<", ">", "*", "_"):
+        text = text.replace(character, f"\\{character}")
+    return text
+
+
+def _copies_source_text(
+    value: str,
+    verified_evidence: Mapping[str, Mapping[str, Any]],
+) -> bool:
+    """Reject long verbatim source pasted into model-authored output fields."""
+
+    normalized = _source_copy_normal_form(value)
+    if len(normalized) < 40:
+        return False
+    return any(
+        normalized in _source_copy_normal_form(str(span.get("source_text", "")))
+        for span in verified_evidence.values()
+    )
+
+
+def _source_copy_normal_form(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value).casefold()
+    return "".join(
+        character
+        for character in normalized
+        if character.isalnum() or character in "_$#@-+*/=<>"
+    )
+
+
+def _split_copies_source_text(
+    fields: Sequence[str],
+    verified_evidence: Mapping[str, Mapping[str, Any]],
+) -> bool:
+    """Catch source split across several individually short output fields."""
+
+    for start in range(len(fields)):
+        combined = ""
+        for field in fields[start:]:
+            combined += field
+            if _copies_source_text(combined, verified_evidence):
+                return True
+
+    compact_fields = [_source_copy_normal_form(field) for field in fields]
+    for span in verified_evidence.values():
+        source = _source_copy_normal_form(str(span.get("source_text", "")))
+        copied_characters = sum(
+            len(field) for field in compact_fields if field and field in source
+        )
+        if copied_characters >= 40:
+            return True
+    return False
+
+
 def _claim_grounding_error(
     claim: Mapping[str, Any],
     verified_evidence: Mapping[str, Mapping[str, Any]],
@@ -575,14 +1790,14 @@ def _render_answer(
 ) -> str:
     """Render only validated structured fields; never reuse model prose."""
 
-    claim_lines = [
-        f"- {'[部分支持] ' if claim.get('support_status') == 'partial' else ''}"
-        f"{claim['claim']}"
-        for claim in claims
-    ]
+    claim_lines = (
+        ["- 当前仅完成引用完整性与词面锚定，没有经过语义核验的结论。"]
+        if claims
+        else []
+    )
     implementation_lines = [
-        f"- {'[部分支持] ' if claim.get('support_status') == 'partial' else ''}"
-        f"{claim['claim']}"
+        "- [候选陈述；仅引用有效，语义未核验] "
+        f"{_markdown_inline(claim['claim'])}"
         for claim in claims
         if claim.get("kind") == "code_fact"
     ]
@@ -597,7 +1812,9 @@ def _render_answer(
             location = f" — {path}:{start}"
             if end is not None and end != start:
                 location += f"-{end}"
-        evidence_lines.append(f"- [{evidence_id}]{location}")
+        evidence_lines.append(
+            f"- [{_markdown_inline(evidence_id)}]{_markdown_inline(location)}"
+        )
         excerpt = ref.get("source_excerpt")
         if isinstance(excerpt, str) and excerpt:
             longest_fence = max(
@@ -606,7 +1823,9 @@ def _render_answer(
             )
             fence = "`" * max(3, longest_fence + 1)
             evidence_lines.extend([f"{fence}cobol", excerpt, fence])
-    boundary_lines = [f"- {_boundary_text(item)}" for item in boundaries]
+    boundary_lines = [
+        f"- {_markdown_inline(_boundary_text(item))}" for item in boundaries
+    ]
 
     if not claim_lines:
         claim_lines = ["- 当前证据不足，不能形成可验证结论。"]
@@ -677,13 +1896,18 @@ class BoundedAgentLoop:
         }
         self.allowed_tool_names = APPROVED_TOOL_NAMES
 
-    def _complete(self, messages: list[dict[str, Any]]) -> object:
+    def _complete(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        allow_tools: bool = True,
+    ) -> object:
         kwargs: dict[str, Any] = {"messages": messages}
-        if self.native_tool_calling:
+        if self.native_tool_calling and allow_tools:
             kwargs["tools"] = self.tool_schemas
         if self.strict_json:
             kwargs["response_format"] = _strict_action_response_format(
-                sorted(self.allowed_tool_names)
+                sorted(self.allowed_tool_names) if allow_tools else []
             )
 
         complete = getattr(self.model_client, "complete", None)
@@ -729,168 +1953,14 @@ class BoundedAgentLoop:
         result: Mapping[str, Any],
         *,
         requested_evidence_ids: set[str] | None = None,
-    ) -> None:
-        if result.get("tool") != action:
-            raise ToolResultPolicyError(
-                "tool_contract_mismatch",
-                "Tool result name does not match the requested action.",
-            )
-        if result.get("contract_version") != TOOL_CONTRACT_VERSION:
-            raise ToolResultPolicyError(
-                "tool_contract_mismatch",
-                "Tool result contract version is missing or unsupported.",
-            )
-        snapshot_id = result.get("snapshot_id")
-        if (
-            not isinstance(snapshot_id, str)
-            or not snapshot_id
-            or snapshot_id == "unknown"
-        ):
-            raise ToolResultPolicyError(
-                "snapshot_missing", "Tool result contains no snapshot identifier."
-            )
-        status = result.get("status")
-        if status not in KNOWN_TOOL_STATUSES:
-            raise ToolResultPolicyError(
-                "tool_status_invalid", "Tool result returned an unknown status."
-            )
-        if status in HARD_FAILURE_STATUSES:
-            raise ToolResultPolicyError(
-                "snapshot_integrity_error"
-                if status in {"INTEGRITY_ERROR", "INVALID_SNAPSHOT"}
-                else "tool_policy_denied",
-                f"Tool result failed closed with status {status}.",
-            )
-        if status == "CAPABILITY_UNAVAILABLE":
-            raise ToolResultPolicyError(
-                "tool_capability_unavailable",
-                "The requested investigation capability is unavailable.",
-            )
-        if not isinstance(result.get("truncated"), bool):
-            raise ToolResultPolicyError(
-                "tool_contract_mismatch",
-                "Tool result must declare whether it was truncated.",
-            )
-        if not isinstance(result.get("boundaries"), list):
-            raise ToolResultPolicyError(
-                "tool_contract_mismatch",
-                "Tool result boundaries must be an array.",
-            )
-
-        expected_arrays = {
-            "search_code": ("hits", "evidence_refs"),
-            "inspect_symbol": ("matches",),
-            "trace_relations": ("edges", "visited_entities"),
-            "read_evidence": ("spans",),
-        }
-        for field in expected_arrays[action]:
-            if not isinstance(result.get(field), list):
-                raise ToolResultPolicyError(
-                    "tool_contract_mismatch",
-                    f"Tool result field {field} must be an array.",
-                )
-
-        if action != "read_evidence" and _contains_source_body(result):
-            raise ToolResultPolicyError(
-                "tool_contract_mismatch",
-                "Only read_evidence may return source bodies.",
-            )
-
-        if action != "read_evidence":
-            return
-        spans = result.get("spans", [])
-        if not isinstance(spans, list):
-            raise ToolResultPolicyError(
-                "tool_contract_mismatch", "Evidence result spans must be an array."
-            )
-        allowed = requested_evidence_ids or set()
-        returned: set[str] = set()
-        for span in spans:
-            if not isinstance(span, Mapping):
-                raise ToolResultPolicyError(
-                    "tool_contract_mismatch", "Evidence span must be an object."
-                )
-            evidence_id = span.get("evidence_id")
-            if not isinstance(evidence_id, str) or not evidence_id:
-                raise ToolResultPolicyError(
-                    "tool_contract_mismatch", "Evidence span has no evidence ID."
-                )
-            if evidence_id in returned:
-                raise ToolResultPolicyError(
-                    "tool_contract_mismatch",
-                    "Evidence result contains a duplicate evidence ID.",
-                )
-            returned.add(evidence_id)
-            if span.get("content_type") != "UNTRUSTED_SOURCE_TEXT":
-                raise ToolResultPolicyError(
-                    "tool_contract_mismatch",
-                    "Evidence span is not labelled as untrusted source text.",
-                )
-            source_text = span.get("source_text")
-            relative_path = span.get("relative_path")
-            start_line = span.get("start_line")
-            end_line = span.get("end_line")
-            source_sha256 = span.get("source_sha256")
-            if not isinstance(source_text, str):
-                raise ToolResultPolicyError(
-                    "tool_contract_mismatch", "Evidence source text must be a string."
-                )
-            if (
-                not isinstance(relative_path, str)
-                or not relative_path
-                or relative_path.startswith(("/", "\\"))
-                or ".." in relative_path.replace("\\", "/").split("/")
-            ):
-                raise ToolResultPolicyError(
-                    "tool_contract_mismatch",
-                    "Evidence path must be a safe snapshot-relative path.",
-                )
-            if (
-                not isinstance(start_line, int)
-                or isinstance(start_line, bool)
-                or not isinstance(end_line, int)
-                or isinstance(end_line, bool)
-                or start_line < 1
-                or end_line < start_line
-            ):
-                raise ToolResultPolicyError(
-                    "tool_contract_mismatch", "Evidence line range is invalid."
-                )
-            if (
-                not isinstance(source_sha256, str)
-                or re.fullmatch(r"[0-9a-f]{64}", source_sha256) is None
-            ):
-                raise ToolResultPolicyError(
-                    "tool_contract_mismatch", "Evidence source hash is invalid."
-                )
-            if not isinstance(span.get("span_truncated"), bool):
-                raise ToolResultPolicyError(
-                    "tool_contract_mismatch",
-                    "Evidence span must declare whether it was truncated.",
-                )
-            if span.get("integrity") != "VALID":
-                raise ToolResultPolicyError(
-                    "snapshot_integrity_error",
-                    "At least one returned evidence span failed integrity validation.",
-                )
-        unexpected = returned - allowed
-        if unexpected:
-            raise ToolResultPolicyError(
-                "evidence_scope_violation",
-                "read_evidence returned an ID outside the requested investigation scope.",
-            )
-        if status == "OK" and returned != allowed:
-            raise ToolResultPolicyError(
-                "tool_contract_mismatch",
-                "An OK evidence result must return every requested evidence ID.",
-            )
-        if status == "OK" and any(
-            bool(span.get("span_truncated")) for span in spans
-        ):
-            raise ToolResultPolicyError(
-                "tool_contract_mismatch",
-                "An OK evidence result cannot contain a truncated span.",
-            )
+        requested_max_chars: int = 16_000,
+    ) -> dict[str, Any]:
+        return _canonical_tool_result(
+            action,
+            result,
+            requested_evidence_ids=requested_evidence_ids,
+            requested_max_chars=requested_max_chars,
+        )
 
     @staticmethod
     def _verified_from_read(
@@ -917,6 +1987,8 @@ class BoundedAgentLoop:
     def _normalize_claims(claims: object) -> tuple[list[dict[str, Any]], set[str]]:
         if not isinstance(claims, list):
             raise ModelProtocolError("Final claims must be an array.")
+        if len(claims) > MAX_FINAL_CLAIMS:
+            raise ModelProtocolError("Final claims exceed the bounded claim count.")
         normalized: list[dict[str, Any]] = []
         cited: set[str] = set()
         allowed = {
@@ -925,7 +1997,6 @@ class BoundedAgentLoop:
             "kind",
             "code_anchors",
             "evidence_ids",
-            "proof_obligation_ids",
             "support_status",
         }
         for index, raw_claim in enumerate(claims):
@@ -943,12 +2014,21 @@ class BoundedAgentLoop:
                     f"Claim {index + 1} is missing required fields: "
                     + ", ".join(sorted(missing_fields))
                 )
-            text = raw_claim.get("claim", raw_claim.get("text"))
-            if not isinstance(text, str) or not text.strip():
-                raise ModelProtocolError(f"Claim {index + 1} has no claim text.")
+            text = _bounded_single_line(
+                raw_claim.get("claim", raw_claim.get("text")),
+                label=f"Claim {index + 1}",
+                maximum=MAX_CLAIM_TEXT_CHARS,
+            )
             ids = raw_claim.get("evidence_ids")
-            if not isinstance(ids, list) or not ids or not all(
-                isinstance(item, str) and item for item in ids
+            if (
+                not isinstance(ids, list)
+                or not ids
+                or len(ids) > 12
+                or not all(
+                    isinstance(item, str)
+                    and _TOOL_CALL_ID_RE.fullmatch(item) is not None
+                    for item in ids
+                )
             ):
                 raise ModelProtocolError(
                     f"Claim {index + 1} must cite at least one evidence ID."
@@ -972,6 +2052,10 @@ class BoundedAgentLoop:
                     f"Claim {index + 1} code_anchors must be an array of strings."
                 )
             anchors = list(dict.fromkeys(raw_anchors))
+            if len(anchors) > 16:
+                raise ModelProtocolError(
+                    f"Claim {index + 1} has too many code anchors."
+                )
             if kind == "code_fact":
                 if not anchors:
                     raise ModelProtocolError(
@@ -995,21 +2079,12 @@ class BoundedAgentLoop:
                 )
 
             item: dict[str, Any] = {
-                "claim": text.strip(),
+                "claim": text,
                 "kind": kind,
                 "code_anchors": anchors,
                 "evidence_ids": unique_ids,
                 "support_status": support_status,
             }
-            if "proof_obligation_ids" in raw_claim:
-                obligations = raw_claim["proof_obligation_ids"]
-                if not isinstance(obligations, list) or not all(
-                    isinstance(obligation, str) for obligation in obligations
-                ):
-                    raise ModelProtocolError(
-                        f"Claim {index + 1} proof_obligation_ids must be strings."
-                    )
-                item["proof_obligation_ids"] = list(dict.fromkeys(obligations))
             normalized.append(item)
         return normalized, cited
 
@@ -1049,8 +2124,14 @@ class BoundedAgentLoop:
             )
         evidence = arguments["evidence_ids"]
         boundaries = arguments["boundaries"]
-        if not isinstance(evidence, list) or not all(
-            isinstance(item, str) and item for item in evidence
+        if (
+            not isinstance(evidence, list)
+            or len(evidence) > 12
+            or not all(
+                isinstance(item, str)
+                and _TOOL_CALL_ID_RE.fullmatch(item) is not None
+                for item in evidence
+            )
         ):
             return self._stopped_result(
                 "invalid_final_answer",
@@ -1063,11 +2144,40 @@ class BoundedAgentLoop:
         ):
             return self._stopped_result(
                 "invalid_final_answer",
-                "Final boundaries must be an array of strings or objects.",
+                "Model-supplied boundaries must be bounded strings or objects.",
+                collected_boundaries=collected_boundaries,
+                common=common,
+            )
+        if len(boundaries) > MAX_MODEL_BOUNDARIES:
+            return self._stopped_result(
+                "invalid_final_answer",
+                "Final boundaries exceed the bounded boundary count.",
+                collected_boundaries=collected_boundaries,
+                common=common,
+            )
+        try:
+            normalized_boundaries = [
+                _normalize_model_boundary(
+                    item,
+                    index=index,
+                )
+                for index, item in enumerate(boundaries)
+            ]
+        except ModelProtocolError as exc:
+            return self._stopped_result(
+                "invalid_final_answer",
+                str(exc),
                 collected_boundaries=collected_boundaries,
                 common=common,
             )
         evidence_ids = list(dict.fromkeys(evidence))
+        if len(evidence_ids) > 12:
+            return self._stopped_result(
+                "invalid_final_answer",
+                "Final evidence IDs exceed the bounded evidence count.",
+                collected_boundaries=collected_boundaries,
+                common=common,
+            )
         stated = set(evidence_ids)
         invalid = (stated | claim_evidence) - set(verified_evidence)
         omitted = claim_evidence - stated
@@ -1102,7 +2212,39 @@ class BoundedAgentLoop:
                 common=common,
             )
 
-        all_boundaries = _deduplicate([*collected_boundaries, *boundaries])
+        model_authored_chars = sum(len(claim["claim"]) for claim in claims) + sum(
+            len(boundary) for boundary in normalized_boundaries
+        )
+        model_authored_fields = [claim["claim"] for claim in claims] + list(
+            normalized_boundaries
+        )
+        copied_fields = [
+            claim["claim"]
+            for claim in claims
+            if _copies_source_text(claim["claim"], verified_evidence)
+        ] + [
+            boundary
+            for boundary in normalized_boundaries
+            if _copies_source_text(boundary, verified_evidence)
+        ]
+        if (
+            model_authored_chars > MAX_MODEL_AUTHORED_CHARS
+            or copied_fields
+            or _split_copies_source_text(model_authored_fields, verified_evidence)
+        ):
+            return self._stopped_result(
+                "model_output_budget_exceeded",
+                (
+                    "Model-authored claim or boundary text exceeded the safe output "
+                    "budget or copied a long source passage."
+                ),
+                collected_boundaries=collected_boundaries,
+                common=common,
+            )
+
+        all_boundaries = _deduplicate(
+            [*collected_boundaries, *normalized_boundaries]
+        )
         if decision.action == "final_answer" and claims:
             # Hash, scope and lexical checks establish provenance, but they do
             # not prove the semantics of arbitrary natural-language claims.
@@ -1121,22 +2263,23 @@ class BoundedAgentLoop:
                     },
                 ]
             )
-            claims = [
-                {
-                    **claim,
-                    "support_status": (
-                        "partial"
-                        if claim["support_status"] == "supported"
-                        else claim["support_status"]
-                    ),
-                }
-                for claim in claims
-            ]
+        claims = [
+            {
+                **claim,
+                "support_status": (
+                    "unsupported"
+                    if claim["support_status"] == "unsupported"
+                    else "citation_verified_only"
+                ),
+            }
+            for claim in claims
+        ]
         requested_status = arguments.get("status")
         if requested_status is not None and requested_status not in {
             "SUPPORTED",
             "SUPPORTED_WITH_BOUNDARIES",
             "PARTIAL",
+            "CITATION_VERIFIED_ONLY",
             "ABSTAINED",
         }:
             return self._stopped_result(
@@ -1157,10 +2300,8 @@ class BoundedAgentLoop:
             )
         if decision.action == "abstain":
             status = "ABSTAINED"
-        elif any(claim["support_status"] == "partial" for claim in claims):
-            status = "PARTIAL"
         elif claims:
-            status = "SUPPORTED_WITH_BOUNDARIES" if all_boundaries else "SUPPORTED"
+            status = "CITATION_VERIFIED_ONLY"
         else:
             status = "ABSTAINED"
         if status == "ABSTAINED" and not all_boundaries:
@@ -1170,15 +2311,15 @@ class BoundedAgentLoop:
                 collected_boundaries=collected_boundaries,
                 common=common,
             )
-        if status == "PARTIAL" and not all_boundaries:
+        if status == "CITATION_VERIFIED_ONLY" and not all_boundaries:
             return self._stopped_result(
                 "invalid_final_answer",
-                "A partially supported answer must state at least one boundary.",
+                "A citation-only answer must state its semantic verification boundary.",
                 collected_boundaries=collected_boundaries,
                 common=common,
             )
         model_answer = arguments.get("answer", "")
-        if not isinstance(model_answer, str):
+        if not isinstance(model_answer, str) or len(model_answer) > 2_000:
             return self._stopped_result(
                 "invalid_final_answer",
                 "Final answer must be a string.",
@@ -1195,6 +2336,7 @@ class BoundedAgentLoop:
             "answer": _render_answer(claims, evidence_refs, all_boundaries),
             "model_answer_recorded": False,
             "claims": claims,
+            "claims_semantically_verified": False,
             "evidence_ids": evidence_ids,
             "evidence_refs": evidence_refs,
             "boundaries": all_boundaries,
@@ -1203,6 +2345,7 @@ class BoundedAgentLoop:
             "verification": {
                 "scope": "reference_integrity_and_lexical_grounding",
                 "semantic_claim_support_checked": False,
+                "claim_disposition": "CITATION_VERIFIED_ONLY",
                 "verified_evidence_count": len(evidence_ids),
             },
         }
@@ -1210,15 +2353,19 @@ class BoundedAgentLoop:
     @staticmethod
     def _stopped_result(
         stop_reason: str,
-        message: str,
+        _message: str,
         *,
         collected_boundaries: list[object],
         common: dict[str, Any],
     ) -> dict[str, Any]:
+        safe_message = _SAFE_STOP_MESSAGES.get(
+            stop_reason,
+            "The investigation stopped at a bounded application safety control.",
+        )
         boundary = {
             "type": "agent_control",
             "reason": stop_reason,
-            "message": message,
+            "message": safe_message,
         }
         boundaries = _deduplicate([*collected_boundaries, boundary])
         evidence_refs = common.get("verified_evidence_refs", [])
@@ -1232,7 +2379,9 @@ class BoundedAgentLoop:
             "evidence_refs": evidence_refs,
             "boundaries": boundaries,
             "stop_reason": stop_reason,
-            "diagnostics": [{"code": stop_reason.upper(), "message": message}],
+            "diagnostics": [
+                {"code": stop_reason.upper(), "message": safe_message}
+            ],
             "verification": {
                 "scope": "reference_integrity_and_lexical_grounding",
                 "semantic_claim_support_checked": False,
@@ -1260,6 +2409,7 @@ class BoundedAgentLoop:
         collected_boundaries: list[object] = []
         no_progress_streak = 0
         model_turns = 0
+        evidence_phase_closed = False
         snapshot_id: str | None = None
         snapshot_coverage: dict[str, Any] | None = None
 
@@ -1268,41 +2418,18 @@ class BoundedAgentLoop:
             try:
                 coverage = coverage_reader()
             except Exception:
-                coverage = {
-                    "type": "snapshot_coverage",
-                    "reason": "coverage_unavailable",
-                    "message": "Snapshot coverage could not be read safely.",
-                }
+                coverage = None
         else:
-            coverage = {
-                "type": "snapshot_coverage",
-                "reason": "coverage_unavailable",
-                "message": "The tool adapter does not expose snapshot coverage.",
-            }
+            coverage = None
 
-        valid_coverage = (
-            isinstance(coverage, Mapping)
-            and coverage.get("type") == "snapshot_coverage"
-            and isinstance(coverage.get("snapshot_id"), str)
-            and bool(coverage.get("snapshot_id"))
-            and coverage.get("snapshot_id") != "unknown"
-            and isinstance(coverage.get("indexed_artifact_kinds"), list)
-            and all(
-                isinstance(item, str)
-                for item in coverage.get("indexed_artifact_kinds", [])
-            )
-            and isinstance(coverage.get("missing_artifacts"), list)
-            and all(
-                isinstance(item, str)
-                for item in coverage.get("missing_artifacts", [])
-            )
-            and isinstance(coverage.get("runtime_state_indexed"), bool)
-        )
-        if valid_coverage:
-            snapshot_coverage = dict(coverage)
-            snapshot_id = str(coverage["snapshot_id"])
-            if coverage["missing_artifacts"]:
-                collected_boundaries.append(dict(coverage))
+        try:
+            snapshot_coverage = _canonical_snapshot_coverage(coverage)
+        except Exception:
+            snapshot_coverage = None
+        if snapshot_coverage is not None:
+            snapshot_id = str(snapshot_coverage["snapshot_id"])
+            if snapshot_coverage["missing_artifacts"]:
+                collected_boundaries.append(dict(snapshot_coverage))
         else:
             snapshot_coverage = {
                 "type": "snapshot_coverage",
@@ -1341,7 +2468,10 @@ class BoundedAgentLoop:
         while model_turns < self.max_tool_calls + 2:
             model_turns += 1
             try:
-                response = self._complete(messages)
+                response = self._complete(
+                    messages,
+                    allow_tools=not evidence_phase_closed,
+                )
                 decision = normalize_model_output(
                     response, fallback_call_id=f"agent_call_{model_turns}"
                 )
@@ -1361,9 +2491,28 @@ class BoundedAgentLoop:
                 )
 
             if decision.action in FINAL_ACTIONS:
-                return self._final_result(
-                    decision,
-                    verified_evidence=verified_evidence,
+                try:
+                    return self._final_result(
+                        decision,
+                        verified_evidence=verified_evidence,
+                        collected_boundaries=collected_boundaries,
+                        common=common(),
+                    )
+                except Exception:
+                    return self._stopped_result(
+                        "invalid_final_answer",
+                        "The final response failed the bounded answer contract.",
+                        collected_boundaries=collected_boundaries,
+                        common=common(),
+                    )
+
+            if evidence_phase_closed:
+                return self._stopped_result(
+                    "evidence_phase_closed",
+                    (
+                        "After read_evidence, the model must finish or abstain; "
+                        "no further investigation action is allowed."
+                    ),
                     collected_boundaries=collected_boundaries,
                     common=common(),
                 )
@@ -1395,11 +2544,19 @@ class BoundedAgentLoop:
                     collected_boundaries=collected_boundaries,
                     common=common(),
                 )
+            except Exception:
+                return self._stopped_result(
+                    "invalid_tool_arguments",
+                    "Tool arguments failed local policy validation.",
+                    collected_boundaries=collected_boundaries,
+                    common=common(),
+                )
 
-            call_id = decision.tool_call_id or f"agent_call_{model_turns}"
+            protocol_call_id = decision.tool_call_id or f"agent_call_{model_turns}"
+            audit_call_id = f"tool_call_{len(tool_trace) + 1}"
             if self.native_tool_calling:
                 canonical_call = {
-                    "id": call_id,
+                    "id": protocol_call_id,
                     "type": "function",
                     "function": {
                         "name": decision.action,
@@ -1435,9 +2592,17 @@ class BoundedAgentLoop:
                     }
                 )
             trace_item: dict[str, Any] = {
-                "call_id": call_id,
+                "call_id": audit_call_id,
                 "tool": decision.action,
-                "arguments": dict(decision.arguments),
+                "arguments": {
+                    "values_recorded": False,
+                    "field_names": sorted(decision.arguments),
+                    "evidence_id_count": (
+                        len(decision.arguments.get("evidence_ids", []))
+                        if decision.action == "read_evidence"
+                        else 0
+                    ),
+                },
                 "outcome": "ATTEMPTED",
                 "result": None,
                 "new_evidence_ids": [],
@@ -1471,10 +2636,37 @@ class BoundedAgentLoop:
                 else None
             )
             try:
-                self._validate_tool_result(
+                raw_result_snapshot = dict.get(result, "snapshot_id")
+            except Exception:
+                raw_result_snapshot = None
+            if (
+                snapshot_id is not None
+                and type(raw_result_snapshot) is str
+                and len(raw_result_snapshot) <= 128
+                and _TOOL_CALL_ID_RE.fullmatch(raw_result_snapshot) is not None
+                and raw_result_snapshot != snapshot_id
+            ):
+                trace_item["outcome"] = "SNAPSHOT_REJECTED"
+                trace_item["result"] = {
+                    "omitted": True,
+                    "reason": "SNAPSHOT_REJECTED",
+                }
+                return self._stopped_result(
+                    "snapshot_mismatch",
+                    "Tool results came from more than one structural snapshot.",
+                    collected_boundaries=collected_boundaries,
+                    common=common(),
+                )
+            try:
+                result = self._validate_tool_result(
                     decision.action,
                     result,
                     requested_evidence_ids=requested_ids,
+                    requested_max_chars=(
+                        int(decision.arguments.get("max_chars", 16_000))
+                        if decision.action == "read_evidence"
+                        else 16_000
+                    ),
                 )
             except ToolResultPolicyError as exc:
                 trace_item["outcome"] = "POLICY_REJECTED"
@@ -1488,20 +2680,36 @@ class BoundedAgentLoop:
                     collected_boundaries=collected_boundaries,
                     common=common(),
                 )
+            except Exception:
+                trace_item["outcome"] = "POLICY_REJECTED"
+                trace_item["result"] = {
+                    "omitted": True,
+                    "reason": "POLICY_REJECTED",
+                }
+                return self._stopped_result(
+                    "tool_contract_mismatch",
+                    "Tool result did not match the bounded result contract.",
+                    collected_boundaries=collected_boundaries,
+                    common=common(),
+                )
 
-            trace_item["outcome"] = "SUCCEEDED"
-            trace_item["result"] = _audit_safe_tool_result(result)
             result_snapshot = str(result["snapshot_id"])
             if snapshot_id is None:
                 snapshot_id = result_snapshot
             elif snapshot_id != result_snapshot:
                 trace_item["outcome"] = "SNAPSHOT_REJECTED"
+                trace_item["result"] = {
+                    "omitted": True,
+                    "reason": "SNAPSHOT_REJECTED",
+                }
                 return self._stopped_result(
                     "snapshot_mismatch",
                     "Tool results came from more than one structural snapshot.",
                     collected_boundaries=collected_boundaries,
                     common=common(),
                 )
+            trace_item["outcome"] = "SUCCEEDED"
+            trace_item["result"] = _audit_safe_tool_result(result)
 
             output_evidence, output_entities = _collect_action_ids(
                 decision.action, result
@@ -1515,6 +2723,7 @@ class BoundedAgentLoop:
                 read_verified = self._verified_from_read(result, requested_ids or set())
                 new_evidence = set(read_verified) - set(verified_evidence)
                 verified_evidence.update(read_verified)
+                evidence_phase_closed = True
 
             boundaries = result.get("boundaries", [])
             if isinstance(boundaries, list):
@@ -1541,7 +2750,7 @@ class BoundedAgentLoop:
                 messages.append(
                     {
                         "role": "tool",
-                        "tool_call_id": call_id,
+                        "tool_call_id": protocol_call_id,
                         "name": decision.action,
                         "content": json.dumps(
                             result, ensure_ascii=False, separators=(",", ":")

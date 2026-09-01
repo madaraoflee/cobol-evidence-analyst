@@ -115,22 +115,35 @@ class FakeTools:
         arguments = {"query": query, "limit": limit}
         self.calls.append(("search_code", arguments))
         result = self._base("search_code")
+        result.update({"query": query, "tokens": [query], "result_count": 0})
         if query == "NONE":
             result.update({"status": "NOT_FOUND", "hits": [], "evidence_refs": []})
             return result
         suffix = query.replace(" ", "_")
         evidence_id = f"ev_{suffix}"
+        evidence_ref = {
+            "evidence_id": evidence_id,
+            "relative_path": "programs/TEST.cbl",
+            "start_line": 10,
+            "end_line": 12,
+        }
         result.update(
             {
                 "hits": [
                     {
+                        "match_type": "exact_symbol",
                         "unit_id": f"unit_{suffix}",
+                        "unit_type": "DataItem",
                         "symbol_id": f"symbol_{suffix}",
+                        "symbol_type": "Field",
                         "name": query,
-                        "evidence_ref": {"evidence_id": evidence_id},
+                        "program_name": "TESTPROG",
+                        "qualified_name": f"TESTPROG::{query}",
+                        "evidence_ref": evidence_ref,
                     }
                 ],
-                "evidence_refs": [{"evidence_id": evidence_id}],
+                "evidence_refs": [evidence_ref],
+                "result_count": 1,
             }
         )
         return result
@@ -150,7 +163,19 @@ class FakeTools:
             "max_relations": max_relations,
         }
         self.calls.append(("inspect_symbol", arguments))
-        return self._base("inspect_symbol")
+        result = self._base("inspect_symbol")
+        result.update(
+            {
+                "status": "NOT_FOUND",
+                "query": {
+                    "name": name,
+                    "program_name": program_name,
+                    "symbol_type": symbol_type,
+                },
+                "match_count": 0,
+            }
+        )
+        return result
 
     def trace_relations(
         self,
@@ -173,7 +198,38 @@ class FakeTools:
             "max_edges": max_edges,
         }
         self.calls.append(("trace_relations", arguments))
-        return self._base("trace_relations")
+        result = self._base("trace_relations")
+        result.update(
+            {
+                "status": "NOT_FOUND",
+                "query": {
+                    "start_name": start_name,
+                    "program_name": program_name,
+                    "symbol_type": symbol_type,
+                    "relation_types": sorted(
+                        relation_types
+                        or [
+                            "CALLS",
+                            "CALL_TARGET_FROM",
+                            "CONTROL_DEPENDS_ON",
+                            "INCLUDES_COPY",
+                            "PERFORMS",
+                            "PERFORMS_THRU",
+                            "READS",
+                            "READS_FILE",
+                            "SELECTS_FROM",
+                            "UPDATES",
+                            "WRITES",
+                            "WRITES_FILE",
+                        ]
+                    ),
+                    "direction": direction,
+                    "max_depth": max_depth,
+                    "max_edges": max_edges,
+                },
+            }
+        )
+        return result
 
     def read_evidence(
         self,
@@ -198,6 +254,16 @@ class FakeTools:
             }
             for evidence_id in evidence_ids
         ]
+        result.update(
+            {
+                "span_count": len(result["spans"]),
+                "missing_evidence_ids": [],
+                "returned_characters": sum(
+                    len(span["source_text"])
+                    for span in result["spans"]  # type: ignore[union-attr]
+                ),
+            }
+        )
         return result
 
 
@@ -232,10 +298,12 @@ class AgentLoopTests(unittest.TestCase):
 
         result = BoundedAgentLoop(client, tools).run("How is OUT-AMOUNT computed?")
 
-        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["status"], "CITATION_VERIFIED_ONLY")
         self.assertEqual(result["tool_calls_used"], 2)
         self.assertEqual(result["evidence_ids"], ["ev_OUT-AMOUNT"])
-        self.assertEqual(result["claims"][0]["support_status"], "partial")
+        self.assertEqual(
+            result["claims"][0]["support_status"], "citation_verified_only"
+        )
         self.assertIn("## 结论", result["answer"])
         self.assertIn("programs/TEST.cbl:10-12", result["answer"])
         self.assertEqual(
@@ -249,10 +317,134 @@ class AgentLoopTests(unittest.TestCase):
         third_turn_messages = client.requests[2]["messages"]
         self.assertEqual(third_turn_messages[-2]["role"], "assistant")
         self.assertEqual(third_turn_messages[-1]["role"], "tool")
+        self.assertNotIn("tools", client.requests[2])
         self.assertNotIn(
             "COMPUTE OUT-AMOUNT",
             json.dumps(result["tool_trace"], ensure_ascii=False),
         )
+
+    def test_read_evidence_closes_investigation_scope(self) -> None:
+        client = FakeClient(
+            [
+                json_action("search_code", {"query": "OUT-AMOUNT"}),
+                json_action("read_evidence", {"evidence_ids": ["ev_OUT-AMOUNT"]}),
+                native_action("search_code", {"query": "SECRET-PAYROLL"}),
+            ]
+        )
+        tools = FakeTools()
+
+        result = BoundedAgentLoop(client, tools).run("How is OUT-AMOUNT computed?")
+
+        self.assertEqual(result["stop_reason"], "evidence_phase_closed")
+        self.assertEqual(
+            [name for name, _ in tools.calls], ["search_code", "read_evidence"]
+        )
+        self.assertNotIn("tools", client.requests[2])
+        self.assertNotIn("SECRET-PAYROLL", json.dumps(result["tool_trace"]))
+
+    def test_snapshot_mismatch_redacts_rejected_result_metadata(self) -> None:
+        class MismatchedSnapshotTools(FakeTools):
+            def search_code(
+                self, query: str, *, limit: int = 10
+            ) -> dict[str, object]:
+                result = super().search_code(query, limit=limit)
+                result["snapshot_id"] = "snapshot-other"
+                result["hits"] = [
+                    {
+                        "name": "SECRET-PAYROLL",
+                        "relative_path": "programs/PAYROLL.cbl",
+                        "evidence_ref": {"evidence_id": "ev_secret"},
+                    }
+                ]
+                result["evidence_refs"] = [{"evidence_id": "ev_secret"}]
+                return result
+
+        result = BoundedAgentLoop(
+            FakeClient([json_action("search_code", {"query": "OUT-AMOUNT"})]),
+            MismatchedSnapshotTools(),
+        ).run("How is OUT-AMOUNT computed?")
+
+        rendered = json.dumps(result["tool_trace"], ensure_ascii=False)
+        self.assertEqual(result["stop_reason"], "snapshot_mismatch")
+        self.assertNotIn("SECRET-PAYROLL", rendered)
+        self.assertNotIn("PAYROLL.cbl", rendered)
+        self.assertNotIn("ev_secret", rendered)
+        self.assertEqual(
+            result["tool_trace"][0]["result"],
+            {"omitted": True, "reason": "SNAPSHOT_REJECTED"},
+        )
+
+    def test_model_cannot_copy_source_or_overrun_output_fields(self) -> None:
+        copied_source = (
+            "COMPUTE OUT-AMOUNT = IN-AMOUNT "
+            + "calculation-source-fragment " * 8
+        ).strip()
+
+        class LongSourceTools(FakeTools):
+            def read_evidence(
+                self,
+                evidence_ids: list[str],
+                *,
+                max_chars: int = 16_000,
+            ) -> dict[str, object]:
+                result = super().read_evidence(
+                    evidence_ids,
+                    max_chars=max_chars,
+                )
+                for span in result["spans"]:  # type: ignore[index]
+                    span["source_text"] = copied_source
+                result["returned_characters"] = sum(
+                    len(span["source_text"])
+                    for span in result["spans"]  # type: ignore[union-attr]
+                )
+                return result
+
+        copied_claim = {
+            "answer": "ignored",
+            "claims": [
+                {
+                    "claim": copied_source,
+                    "kind": "code_fact",
+                    "code_anchors": ["COMPUTE", "OUT-AMOUNT", "IN-AMOUNT"],
+                    "evidence_ids": ["ev_OUT-AMOUNT"],
+                    "support_status": "supported",
+                }
+            ],
+            "evidence_ids": ["ev_OUT-AMOUNT"],
+            "boundaries": [],
+        }
+        result = BoundedAgentLoop(
+            FakeClient(
+                [
+                    json_action("search_code", {"query": "OUT-AMOUNT"}),
+                    json_action(
+                        "read_evidence", {"evidence_ids": ["ev_OUT-AMOUNT"]}
+                    ),
+                    json_action("final_answer", copied_claim),
+                ]
+            ),
+            LongSourceTools(),
+        ).run("How is OUT-AMOUNT computed?")
+
+        self.assertEqual(result["stop_reason"], "model_output_budget_exceeded")
+        self.assertEqual(result["claims"], [])
+
+        oversized_boundary = BoundedAgentLoop(
+            FakeClient(
+                [
+                    json_action(
+                        "abstain",
+                        {
+                            "claims": [],
+                            "evidence_ids": [],
+                            "boundaries": ["x" * 241],
+                        },
+                    )
+                ]
+            ),
+            FakeTools(),
+        ).run("What happened in production?")
+        self.assertEqual(oversized_boundary["stop_reason"], "invalid_final_answer")
 
     def test_unauthorized_tool_and_extra_argument_are_never_executed(self) -> None:
         cases = [
@@ -404,7 +596,7 @@ class AgentLoopTests(unittest.TestCase):
 
         result = BoundedAgentLoop(client, FakeTools()).run("Explain OUT-AMOUNT")
 
-        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["status"], "CITATION_VERIFIED_ONLY")
         self.assertNotIn("HALLUCINATED-RUNTIME-VALUE", result["answer"])
         self.assertNotIn("model_answer", result)
         self.assertFalse(result["model_answer_recorded"])
@@ -444,8 +636,8 @@ class AgentLoopTests(unittest.TestCase):
         bounded = run_with("supported", ["Runtime configuration is absent."])
         unsupported = run_with("unsupported", [])
 
-        self.assertEqual(partial["status"], "PARTIAL")
-        self.assertEqual(bounded["status"], "PARTIAL")
+        self.assertEqual(partial["status"], "CITATION_VERIFIED_ONLY")
+        self.assertEqual(bounded["status"], "CITATION_VERIFIED_ONLY")
         self.assertEqual(unsupported["status"], "ABSTAINED")
         self.assertEqual(unsupported["stop_reason"], "unsupported_claim")
 
@@ -453,6 +645,9 @@ class AgentLoopTests(unittest.TestCase):
         client = FakeClient(
             [
                 json_action("search_code", {"query": "OUT-AMOUNT"}),
+                json_action(
+                    "read_evidence", {"evidence_ids": ["ev_OUT-AMOUNT"]}
+                ),
                 json_action(
                     "abstain",
                     {
@@ -483,6 +678,14 @@ class AgentLoopTests(unittest.TestCase):
         self.assertEqual(json.loads(history[-1]["content"])["type"], "TOOL_RESULT")
         self.assertFalse(any(message.get("role") == "tool" for message in history))
         self.assertFalse(any("tool_calls" in message for message in history))
+        final_schema = client.requests[2]["response_format"]["json_schema"][
+            "schema"
+        ]
+        self.assertEqual(
+            final_schema["properties"]["action"]["enum"],
+            ["final_answer", "abstain"],
+        )
+        self.assertNotIn("tools", client.requests[2])
 
     def test_multiple_native_tool_calls_are_rejected(self) -> None:
         response = native_action("search_code", {"query": "A"})
@@ -525,7 +728,7 @@ class AgentLoopTests(unittest.TestCase):
             FakeTools(),
         ).run("Is the amount computed?")
 
-        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["status"], "CITATION_VERIFIED_ONLY")
         self.assertFalse(result["verification"]["semantic_claim_support_checked"])
         self.assertTrue(
             any(
@@ -704,6 +907,331 @@ class AgentLoopTests(unittest.TestCase):
         ):
             with self.assertRaises(RuntimeError):
                 BoundedAgentLoop(FakeClient([]), FakeTools())
+
+    def test_model_controlled_identifiers_are_not_reflected_on_rejection(self) -> None:
+        secret = "SECRET_PAYROLL_DO_NOT_ECHO"
+        cases = [
+            (
+                FakeClient(
+                    [
+                        native_action(
+                            "search_code",
+                            {"query": "OUT-AMOUNT"},
+                            call_id=secret * 20,
+                        )
+                    ]
+                ),
+                "model_protocol_error",
+            ),
+            (
+                FakeClient([json_action(secret, {})]),
+                "unauthorized_tool",
+            ),
+            (
+                FakeClient(
+                    [
+                        json_action("search_code", {"query": "OUT-AMOUNT"}),
+                        json_action(
+                            "read_evidence", {"evidence_ids": [f"ev_{secret}"]}
+                        ),
+                    ]
+                ),
+                "invalid_tool_arguments",
+            ),
+        ]
+
+        for client, reason in cases:
+            with self.subTest(reason=reason):
+                result = BoundedAgentLoop(client, FakeTools()).run("Inspect amount")
+                self.assertEqual(result["stop_reason"], reason)
+                self.assertNotIn(secret, json.dumps(result, ensure_ascii=False))
+
+    def test_non_read_result_extras_and_boundaries_are_rejected_without_echo(self) -> None:
+        secret = "SECRET SOURCE FRAGMENT"
+        diagnostic_secret = "SECRET_SOURCE_FRAGMENT"
+        type_secret = "SECRET_TYPE_VALUE"
+
+        class ExtraFieldTools(FakeTools):
+            def search_code(
+                self, query: str, *, limit: int = 10
+            ) -> dict[str, object]:
+                result = super().search_code(query, limit=limit)
+                result["source_excerpt"] = secret
+                return result
+
+        class BoundaryTools(FakeTools):
+            def search_code(
+                self, query: str, *, limit: int = 10
+            ) -> dict[str, object]:
+                result = super().search_code(query, limit=limit)
+                result["boundaries"] = [{"message": secret}]
+                return result
+
+        class NestedExtraTools(FakeTools):
+            def search_code(
+                self, query: str, *, limit: int = 10
+            ) -> dict[str, object]:
+                result = super().search_code(query, limit=limit)
+                result["hits"][0]["source_excerpt"] = secret  # type: ignore[index]
+                return result
+
+        class ExplodingSnapshot(str):
+            def __len__(self) -> int:
+                raise RuntimeError(secret)
+
+        class ExceptionalValueTools(FakeTools):
+            def search_code(
+                self, query: str, *, limit: int = 10
+            ) -> dict[str, object]:
+                result = super().search_code(query, limit=limit)
+                result["snapshot_id"] = ExplodingSnapshot("snapshot-test")
+                return result
+
+        class DiagnosticCodeTools(FakeTools):
+            def search_code(
+                self, query: str, *, limit: int = 10
+            ) -> dict[str, object]:
+                result = super().search_code(query, limit=limit)
+                result["diagnostics"] = [
+                    {"code": diagnostic_secret, "message": secret}
+                ]
+                return result
+
+        class InvalidTypeTools(FakeTools):
+            def search_code(
+                self, query: str, *, limit: int = 10
+            ) -> dict[str, object]:
+                result = super().search_code(query, limit=limit)
+                result["hits"][0]["unit_type"] = type_secret  # type: ignore[index]
+                return result
+
+        class StatusMismatchTools(FakeTools):
+            def search_code(
+                self, query: str, *, limit: int = 10
+            ) -> dict[str, object]:
+                result = super().search_code(query, limit=limit)
+                result["status"] = "NOT_FOUND"
+                return result
+
+        for tools in (
+            ExtraFieldTools(),
+            BoundaryTools(),
+            NestedExtraTools(),
+            ExceptionalValueTools(),
+            DiagnosticCodeTools(),
+            InvalidTypeTools(),
+            StatusMismatchTools(),
+        ):
+            with self.subTest(adapter=type(tools).__name__):
+                result = BoundedAgentLoop(
+                    FakeClient([json_action("search_code", {"query": "OUT-AMOUNT"})]),
+                    tools,
+                ).run("Inspect amount")
+                rendered = json.dumps(result, ensure_ascii=False)
+                self.assertEqual(result["stop_reason"], "tool_contract_mismatch")
+                self.assertNotIn(secret, rendered)
+                self.assertNotIn(diagnostic_secret, rendered)
+                self.assertNotIn(type_secret, rendered)
+                self.assertEqual(
+                    result["tool_trace"][0]["result"],
+                    {"omitted": True, "reason": "POLICY_REJECTED"},
+                )
+
+    def test_snapshot_coverage_requires_exact_known_fields(self) -> None:
+        secret = "SECRET COVERAGE PAYLOAD"
+
+        class ExtraCoverageTools(FakeTools):
+            @staticmethod
+            def snapshot_coverage() -> dict[str, object]:
+                coverage = FakeTools.snapshot_coverage()
+                coverage["source_excerpt"] = secret
+                return coverage
+
+        result = BoundedAgentLoop(
+            FakeClient(
+                [
+                    json_action(
+                        "abstain",
+                        {
+                            "claims": [],
+                            "evidence_ids": [],
+                            "boundaries": ["No verified snapshot coverage is available."],
+                        },
+                    )
+                ]
+            ),
+            ExtraCoverageTools(),
+        ).run("What is covered?")
+
+        self.assertEqual(result["snapshot_coverage"]["status"], "UNAVAILABLE")
+        self.assertNotIn(secret, json.dumps(result, ensure_ascii=False))
+
+    def test_trace_boundaries_must_exactly_match_boundary_edges(self) -> None:
+        expected_boundary = {
+            "relation_id": "rel_1",
+            "relation_type": "CALL_TARGET_FROM",
+            "target_name": "TARGET-FIELD",
+            "status": "confirmed",
+            "reason": "runtime_target_requires_value_flow",
+        }
+
+        class TraceBoundaryTools(FakeTools):
+            def __init__(self, boundaries: list[dict[str, object]]) -> None:
+                super().__init__()
+                self.boundaries = boundaries
+
+            def trace_relations(
+                self,
+                start_name: str,
+                *,
+                program_name: str | None = None,
+                symbol_type: str | None = None,
+                relation_types: list[str] | None = None,
+                direction: str = "outgoing",
+                max_depth: int = 3,
+                max_edges: int = 80,
+            ) -> dict[str, object]:
+                start_entity = {
+                    "entity_id": "sym_start",
+                    "entity_type": "Program",
+                    "name": start_name,
+                    "program_name": "TESTPROG",
+                    "definition_unit_id": "unit_start",
+                }
+                return {
+                    "tool": "trace_relations",
+                    "contract_version": "0.1",
+                    "snapshot_id": "snapshot-test",
+                    "status": "OK",
+                    "truncated": False,
+                    "boundaries": self.boundaries,
+                    "diagnostics": [],
+                    "query": {
+                        "start_name": start_name,
+                        "program_name": program_name,
+                        "symbol_type": symbol_type,
+                        "relation_types": sorted(
+                            relation_types or ["CALL_TARGET_FROM"]
+                        ),
+                        "direction": direction,
+                        "max_depth": max_depth,
+                        "max_edges": max_edges,
+                    },
+                    "start_entity": start_entity,
+                    "edges": [
+                        {
+                            "relation_id": "rel_1",
+                            "relation_type": "CALL_TARGET_FROM",
+                            "status": "confirmed",
+                            "source": {
+                                "entity_id": "unit_call",
+                                "unit_type": "Statement",
+                                "name": "CALL",
+                                "program_name": "TESTPROG",
+                            },
+                            "target": {
+                                "entity_id": "sym_target",
+                                "name": "TARGET-FIELD",
+                                "scope": "TESTPROG",
+                            },
+                            "metadata": {
+                                "call_form": "identifier",
+                                "boundary": "runtime_target_requires_value_flow",
+                            },
+                            "evidence_ref": {
+                                "evidence_id": "ev_call",
+                                "relative_path": "programs/TESTPROG.cbl",
+                                "start_line": 20,
+                                "end_line": 20,
+                            },
+                            "depth": 1,
+                        }
+                    ],
+                    "edge_count": 1,
+                    "visited_entities": [start_entity],
+                    "visited_entity_count": 1,
+                }
+
+        invalid_boundaries = (
+            [],
+            [expected_boundary, expected_boundary],
+            [{**expected_boundary, "reason": "unresolved"}],
+        )
+        for boundaries in invalid_boundaries:
+            with self.subTest(boundaries=boundaries):
+                result = BoundedAgentLoop(
+                    FakeClient(
+                        [
+                            json_action(
+                                "trace_relations",
+                                {
+                                    "start_name": "TESTPROG",
+                                    "symbol_type": "Program",
+                                    "relation_types": ["CALL_TARGET_FROM"],
+                                    "max_depth": 1,
+                                },
+                            )
+                        ]
+                    ),
+                    TraceBoundaryTools(boundaries),
+                ).run("Trace the configured call")
+
+                self.assertEqual(result["stop_reason"], "tool_contract_mismatch")
+                self.assertEqual(
+                    result["tool_trace"][0]["result"],
+                    {"omitted": True, "reason": "POLICY_REJECTED"},
+                )
+
+    def test_source_cannot_be_split_across_short_model_boundaries(self) -> None:
+        source = "".join(f"fragment{index:02d}abcdefghij" for index in range(10))
+        chunks = [source[index : index + 15] for index in range(0, 180, 30)]
+        self.assertEqual(len(chunks), 6)
+        self.assertTrue(all(len(chunk) < 40 for chunk in chunks))
+
+        class SplitSourceTools(FakeTools):
+            def read_evidence(
+                self,
+                evidence_ids: list[str],
+                *,
+                max_chars: int = 16_000,
+            ) -> dict[str, object]:
+                result = super().read_evidence(evidence_ids, max_chars=max_chars)
+                result["spans"][0]["source_text"] = source  # type: ignore[index]
+                result["returned_characters"] = len(source)
+                return result
+
+        zero_width_copy = "\u200b".join(source[:100])
+        for boundaries in (chunks, [zero_width_copy]):
+            with self.subTest(boundaries=len(boundaries)):
+                result = BoundedAgentLoop(
+                    FakeClient(
+                        [
+                            json_action("search_code", {"query": "OUT-AMOUNT"}),
+                            json_action(
+                                "read_evidence",
+                                {"evidence_ids": ["ev_OUT-AMOUNT"]},
+                            ),
+                            json_action(
+                                "abstain",
+                                {
+                                    "claims": [],
+                                    "evidence_ids": [],
+                                    "boundaries": boundaries,
+                                },
+                            ),
+                        ]
+                    ),
+                    SplitSourceTools(),
+                ).run("Inspect amount")
+
+                self.assertEqual(
+                    result["stop_reason"], "model_output_budget_exceeded"
+                )
+                rendered_boundaries = json.dumps(
+                    result["boundaries"], ensure_ascii=False
+                )
+                for boundary in boundaries:
+                    self.assertNotIn(boundary, rendered_boundaries)
 
 
 if __name__ == "__main__":

@@ -91,7 +91,7 @@ Windows 可执行演示：
 
     python company_api.py --allow-network
 
-探测会实际验证基本 Chat、指定工具调用及 `role=tool` 回传、严格 JSON。`/models` 只是信息项，网关不暴露它不会阻断 Agent。Embedding 默认不探测；只在已批准嵌入模型时使用 `--embedding-model ... --probe-embeddings`。生产地址必须是 HTTPS；HTTP 只能在显式加上 `--allow-insecure-localhost` 时用于本机测试。
+探测会实际验证基本 Chat、指定函数工具调用及 `role=tool` 回传、严格 JSON。只有工具完整闭环或严格 JSON 行为探测通过，运行器才会选择对应模式；普通 Chat 成功不再足以宣布 JSON fallback 可用。`/models` 只是信息项，网关不暴露它不会阻断 Agent。`--timeout-seconds` 是整次 capability probe 的应用层总预算，单个网络响应也使用有界分块读取并把剩余时间下发到 socket；同步 DNS 或自定义 transport 若自身阻塞，仍需要未来用进程级 watchdog 才能提供绝对墙钟截止。Embedding 默认不探测；只在已批准嵌入模型时使用 `--embedding-model ... --probe-embeddings`。生产地址必须是 HTTPS；HTTP 只能在显式加上 `--allow-insecure-localhost` 时用于本机测试。
 
 探测通过后，执行一次最多 6 步的调查：
 
@@ -99,9 +99,9 @@ Windows 可执行演示：
       "分期保费最终是怎样计算出来的？" ^
       --allow-network
 
-运行器会每次先重新探测，然后选择原生 Tool Calling 或经本地校验的 JSON fallback。模型只能选择 `search_code`、`inspect_symbol`、`trace_relations`、`read_evidence`；工具参数仍由应用校验，`read_evidence` 只能使用当次调查先前已发现的 ID。连续两步没有新证据或达到 6 次工具预算时立即停止。
+运行器会每次先重新探测，然后选择原生 Tool Calling 或严格 JSON fallback。模型只能选择 `search_code`、`inspect_symbol`、`trace_relations`、`read_evidence`；工具参数仍由应用校验，`read_evidence` 只能使用当次调查先前已发现的 ID。源码一旦返回，下一轮请求不再携带工具，模型只能完成回答或拒答，避免不可信源码诱导 Agent 扩张调查范围。连续两步没有新证据、达到 6 次工具预算或触发安全门禁时立即停止；安全硬停在运行器层标记为 `SAFE_STOP`，不会伪装成成功。
 
-当前回答层会校验快照一致性、工具契约、Evidence 范围、源文件 Hash、行号、引用和代码锚点。这些还不等于独立的语义 Claim Support Checker，所以已引用的自然语言 claim 暂时最高只返回 `PARTIAL`。这是故意的安全降级，不是测试失败。
+当前回答层会校验快照一致性、工具契约、Evidence 范围、源文件 Hash、行号、引用和代码锚点。模型写入 claim 与 boundary 的数量、长度、Markdown 结构和长源码复制也受本地预算限制。这些还不等于独立的语义 Claim Support Checker，所以自然语言 claim 暂时只返回 `CITATION_VERIFIED_ONLY`，并显示为“候选陈述；仅引用有效，语义未核验”。它不表示部分语义支持。
 
 ### 重要隐私差异
 
@@ -113,4 +113,4 @@ structural-index.sqlite 为了支持源码检索与证据引用，会保存相�
 
     python -m unittest discover -s poc/tests -v
 
-当前 70 项测试全部通过。除原有的聚合隐私、CP950、快照 Hash、结构抽取、FTS5、四工具和六步演示外，现在还覆盖 API 离线默认、HTTPS/重定向、Key 隔离、Tool Calling 完整回传、JSON fallback、六步上限、无进展停止、Evidence 越权、快照不一致、源码夹带、引用幻觉、CALC-01 四步真实工具闭环和两类拒答。所有 API 测试使用注入的本地假传输，本项目环境尚未调用真实公司端点。
+当前 84 项测试全部通过。除原有的聚合隐私、CP950、快照 Hash、结构抽取、FTS5、四工具和六步演示外，现在还覆盖 API 离线默认、HTTPS/重定向、Key 隔离、总超时、深层 JSON、Tool 类型和完整回传、严格 JSON fallback、六步上限、无进展停止、Evidence 越权、读取后范围关闭、快照异常脱敏、结果严格投影、调用 ID/诊断脱敏、拆分源码复制拦截、引用幻觉、CALC-01 四步真实工具闭环和两类拒答。新增的完整链路测试会让真实 API 客户端驱动真实调查工具，并验证模型在读到源码后无法再搜索新的敏感符号。所有 API 测试使用注入的本地假传输，本项目环境尚未调用真实公司端点。

@@ -144,6 +144,110 @@ class AgentReadyTransport:
         )
 
 
+class PostEvidenceExpansionTransport(AgentReadyTransport):
+    """Exercise the real client/loop boundary with a hostile post-read action."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.agent_requests: list[dict[str, object]] = []
+
+    def __call__(self, request: TransportRequest) -> TransportResponse:
+        if request.endpoint == "chat/completions" and request.body:
+            payload = json.loads(request.body)
+            messages = payload.get("messages", [])
+            if any(message.get("role") == "system" for message in messages):
+                self.requests.append(request)
+                self.agent_requests.append(payload)
+                tool_messages = [
+                    message
+                    for message in messages
+                    if message.get("role") == "tool"
+                    and message.get("name")
+                    in {"search_code", "inspect_symbol", "trace_relations", "read_evidence"}
+                ]
+                if not tool_messages:
+                    return response(
+                        200,
+                        {
+                            "choices": [
+                                {
+                                    "message": {
+                                        "role": "assistant",
+                                        "tool_calls": [
+                                            {
+                                                "id": "agent-search",
+                                                "type": "function",
+                                                "function": {
+                                                    "name": "search_code",
+                                                    "arguments": json.dumps(
+                                                        {
+                                                            "query": "OUT-INSTALMENT-PREMIUM",
+                                                            "limit": 3,
+                                                        }
+                                                    ),
+                                                },
+                                            }
+                                        ],
+                                    }
+                                }
+                            ]
+                        },
+                    )
+                latest = tool_messages[-1]
+                if latest.get("name") == "search_code":
+                    tool_result = json.loads(latest.get("content", "{}"))
+                    evidence_id = tool_result["evidence_refs"][0]["evidence_id"]
+                    return response(
+                        200,
+                        {
+                            "choices": [
+                                {
+                                    "message": {
+                                        "role": "assistant",
+                                        "tool_calls": [
+                                            {
+                                                "id": "agent-read",
+                                                "type": "function",
+                                                "function": {
+                                                    "name": "read_evidence",
+                                                    "arguments": json.dumps(
+                                                        {"evidence_ids": [evidence_id]}
+                                                    ),
+                                                },
+                                            }
+                                        ],
+                                    }
+                                }
+                            ]
+                        },
+                    )
+                return response(
+                    200,
+                    {
+                        "choices": [
+                            {
+                                "message": {
+                                    "role": "assistant",
+                                    "tool_calls": [
+                                        {
+                                            "id": "agent-expand",
+                                            "type": "function",
+                                            "function": {
+                                                "name": "search_code",
+                                                "arguments": json.dumps(
+                                                    {"query": "SECRET-PAYROLL"}
+                                                ),
+                                            },
+                                        }
+                                    ],
+                                }
+                            }
+                        ]
+                    },
+                )
+        return super().__call__(request)
+
+
 class RunAgentTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -197,6 +301,29 @@ class RunAgentTests(unittest.TestCase):
         agent_request = json.loads(transport.requests[-1].body or b"{}")
         self.assertNotIn("tools", agent_request)
         self.assertEqual(agent_request["response_format"]["type"], "json_schema")
+
+    def test_real_client_and_tools_stop_scope_expansion_after_source_read(self) -> None:
+        transport = PostEvidenceExpansionTransport()
+
+        output = run_investigation(
+            "How is OUT-INSTALMENT-PREMIUM calculated?",
+            self.database,
+            self.config(),
+            transport=transport,
+        )
+
+        self.assertEqual(output["runner_status"], "SAFE_STOP")
+        self.assertEqual(output["reason_code"], "AGENT_SAFETY_STOPPED")
+        self.assertEqual(output["selected_mode"], "NATIVE_TOOL_CALLING")
+        agent_result = output["agent_result"]
+        self.assertEqual(agent_result["stop_reason"], "evidence_phase_closed")
+        self.assertEqual(agent_result["tool_calls_used"], 2)
+        self.assertEqual(len(transport.agent_requests), 3)
+        self.assertNotIn("tools", transport.agent_requests[-1])
+        self.assertNotIn(
+            "SECRET-PAYROLL",
+            json.dumps(agent_result["tool_trace"], ensure_ascii=False),
+        )
 
     def test_cli_remains_offline_without_explicit_network_flag(self) -> None:
         environment = {

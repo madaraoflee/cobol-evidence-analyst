@@ -21,6 +21,7 @@ from company_api import (  # noqa: E402
     OpenAICompatibleChatClient,
     TransportRequest,
     TransportResponse,
+    UrllibTransport,
     _NoRedirectHandler,
     main,
     probe_capabilities,
@@ -246,6 +247,57 @@ class ChatClientTests(unittest.TestCase):
 
         self.assertEqual(raised.exception.code, "NETWORK_DISABLED")
 
+    def test_urllib_response_read_uses_one_total_deadline(self) -> None:
+        class FakeSocket:
+            def __init__(self) -> None:
+                self.timeouts: list[float] = []
+
+            def settimeout(self, value: float) -> None:
+                self.timeouts.append(value)
+
+        class DripResponse:
+            status = 200
+            headers: dict[str, str] = {}
+
+            def __init__(self) -> None:
+                self.socket = FakeSocket()
+                raw = type("FakeRaw", (), {})()
+                raw._sock = self.socket
+                self.fp = type("FakeFP", (), {"raw": raw})()
+
+            def __enter__(self) -> "DripResponse":
+                return self
+
+            def __exit__(self, *_: object) -> None:
+                return None
+
+            @staticmethod
+            def read1(_: int) -> bytes:
+                return b""
+
+        transport = UrllibTransport()
+        transport._opener = mock.Mock()  # type: ignore[attr-defined]
+        drip_response = DripResponse()
+        transport._opener.open.return_value = drip_response  # type: ignore[attr-defined]
+        request = TransportRequest(
+            method="GET",
+            url="https://example.test/v1/models",
+            headers={},
+            timeout_seconds=1.0,
+            endpoint="models",
+        )
+
+        with mock.patch(
+            "company_api.time.monotonic",
+            side_effect=[0.0, 0.5, 1.1],
+        ):
+            with self.assertRaises(APIClientError) as raised:
+                transport(request)
+
+        self.assertEqual(raised.exception.code, "REQUEST_TIMEOUT")
+        self.assertEqual(len(drip_response.socket.timeouts), 1)
+        self.assertAlmostEqual(drip_response.socket.timeouts[0], 0.5)
+
     def test_complete_preserves_tool_calls_and_builds_expected_request(self) -> None:
         transport = SuccessfulTransport()
         tool = {
@@ -323,6 +375,27 @@ class ChatClientTests(unittest.TestCase):
         self.assertNotIn(API_KEY, rendered)
         self.assertNotIn(BASE_URL, rendered)
         self.assertNotIn("bad credential", rendered)
+
+    def test_deep_or_oversized_integer_json_becomes_safe_client_error(self) -> None:
+        bodies = [
+            b'{"nested":' + (b"[" * 2_000) + b"0" + (b"]" * 2_000) + b"}",
+            b'{"integer":' + (b"9" * 10_000) + b"}",
+        ]
+        for body in bodies:
+            with self.subTest(body_size=len(body)):
+                client = OpenAICompatibleChatClient(
+                    self.make_config(),
+                    transport=lambda request, body=body: TransportResponse(
+                        status_code=200,
+                        body=body,
+                    ),
+                )
+                with self.assertRaises(APIClientError) as raised:
+                    client.complete(messages=[{"role": "user", "content": "hello"}])
+                self.assertIn(
+                    raised.exception.code,
+                    {"INVALID_JSON_RESPONSE", "RESPONSE_NESTING_TOO_DEEP"},
+                )
 
     def test_echoed_key_is_redacted_from_success_result(self) -> None:
         def transport(_: TransportRequest) -> TransportResponse:
@@ -464,6 +537,51 @@ class CapabilityProbeTests(unittest.TestCase):
             report["agent_readiness"]["mode"], "VALIDATED_JSON_FALLBACK"  # type: ignore[index]
         )
 
+    def test_tool_probe_rejects_non_function_call_type(self) -> None:
+        successful = SuccessfulTransport()
+
+        def transport(request: TransportRequest) -> TransportResponse:
+            if request.endpoint == "chat/completions" and request.body:
+                payload = json.loads(request.body)
+                if "tools" in payload and not any(
+                    message.get("role") == "tool"
+                    for message in payload.get("messages", [])
+                ):
+                    return json_response(
+                        200,
+                        {
+                            "choices": [
+                                {
+                                    "message": {
+                                        "role": "assistant",
+                                        "tool_calls": [
+                                            {
+                                                "id": "custom-call",
+                                                "type": "custom",
+                                                "function": {
+                                                    "name": "capability_probe",
+                                                    "arguments": '{"ok":true}',
+                                                },
+                                            }
+                                        ],
+                                    }
+                                }
+                            ]
+                        },
+                    )
+            return successful(request)
+
+        report = probe_capabilities(self.make_config(), transport=transport)
+
+        self.assertEqual(
+            report["capabilities"]["tool_calling"]["status"],  # type: ignore[index]
+            "UNSUPPORTED",
+        )
+        self.assertEqual(
+            report["agent_readiness"]["mode"],  # type: ignore[index]
+            "VALIDATED_JSON_FALLBACK",
+        )
+
     def test_models_endpoint_is_informational_for_agent_readiness(self) -> None:
         successful = SuccessfulTransport()
 
@@ -501,7 +619,52 @@ class CapabilityProbeTests(unittest.TestCase):
         self.assertEqual(strict["status"], "UNSUPPORTED")
         self.assertEqual(strict["reason_code"], "FEATURE_REQUEST_REJECTED")
         self.assertEqual(strict["evidence"]["http_status"], 400)
+        self.assertEqual(
+            report["agent_readiness"]["mode"], "NATIVE_TOOL_CALLING"  # type: ignore[index]
+        )
         self.assertNotIn(API_KEY, json.dumps(report))
+
+        def no_safe_mode_transport(
+            request: TransportRequest,
+        ) -> TransportResponse:
+            if request.endpoint == "chat/completions" and request.body:
+                payload = json.loads(request.body.decode("utf-8"))
+                if "response_format" in payload or any(
+                    message.get("role") == "tool"
+                    for message in payload.get("messages", [])
+                ):
+                    return json_response(400, {"error": {"message": "rejected"}})
+            return successful(request)
+
+        no_safe_mode = probe_capabilities(
+            self.make_config(), transport=no_safe_mode_transport
+        )
+        self.assertFalse(no_safe_mode["agent_readiness"]["ready"])  # type: ignore[index]
+        self.assertEqual(
+            no_safe_mode["agent_readiness"]["mode"], "UNAVAILABLE"  # type: ignore[index]
+        )
+
+    def test_probe_timeout_is_a_total_budget(self) -> None:
+        successful = SuccessfulTransport()
+        with mock.patch(
+            "company_api.time.monotonic",
+            side_effect=[0.0, 0.1, 2.0, 2.0, 2.0],
+        ):
+            report = probe_capabilities(
+                self.make_config(timeout_seconds=1.0),
+                transport=successful,
+            )
+
+        self.assertEqual(len(successful.requests), 1)
+        self.assertEqual(
+            report["capabilities"]["models"]["reason_code"],  # type: ignore[index]
+            "PROBE_TIMEOUT",
+        )
+        self.assertEqual(
+            report["capabilities"]["chat"]["reason_code"],  # type: ignore[index]
+            "PROBE_TIMEOUT",
+        )
+        self.assertFalse(report["agent_readiness"]["ready"])  # type: ignore[index]
 
     def test_embedding_probe_is_optional_and_records_only_dimensions(self) -> None:
         transport = SuccessfulTransport()

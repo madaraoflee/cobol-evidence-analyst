@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -209,7 +210,7 @@ class RealAgentIntegrationTests(unittest.TestCase):
             strict_json=True,
         ).run("分期保费最终是怎样计算出来的？")
 
-        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["status"], "CITATION_VERIFIED_ONLY")
         self.assertEqual(result["stop_reason"], "completed")
         self.assertEqual(result["tool_calls_used"], 4)
         self.assertEqual(
@@ -228,6 +229,14 @@ class RealAgentIntegrationTests(unittest.TestCase):
         self.assertFalse(
             result["verification"]["semantic_claim_support_checked"]
         )
+        non_read_payload = json.dumps(planner.results[:3], ensure_ascii=False)
+        self.assertNotIn('"condition"', non_read_payload)
+        self.assertNotIn('"expression"', non_read_payload)
+        self.assertNotIn('"outcome"', non_read_payload)
+        self.assertNotIn(
+            "WS-ANNUAL-PREMIUM * WS-MODE-FACTOR", non_read_payload
+        )
+        self.assertNotIn("source_text", non_read_payload)
 
     def test_business_reason_and_production_value_questions_abstain(self) -> None:
         questions = (
@@ -249,6 +258,52 @@ class RealAgentIntegrationTests(unittest.TestCase):
                 self.assertEqual(result["stop_reason"], "model_abstained")
                 self.assertEqual(result["tool_calls_used"], 0)
                 self.assertIn("Production table values", result["answer"])
+
+    def test_every_fixture_symbol_shape_passes_canonical_projection(self) -> None:
+        with sqlite3.connect(self.database) as connection:
+            symbols = list(
+                connection.execute(
+                    """
+                    SELECT DISTINCT name, program_name, symbol_type
+                      FROM symbols
+                     ORDER BY name, program_name, symbol_type
+                    """
+                )
+            )
+
+        checked = 0
+        for name, program_name, symbol_type in symbols:
+            search = self.tools.search_code(name, limit=25)
+            BoundedAgentLoop._validate_tool_result("search_code", search)
+            checked += 1
+
+            inspection = self.tools.inspect_symbol(
+                name,
+                program_name=program_name,
+                symbol_type=symbol_type,
+                max_relations=100,
+            )
+            BoundedAgentLoop._validate_tool_result(
+                "inspect_symbol", inspection
+            )
+            checked += 1
+
+            for direction in ("outgoing", "incoming"):
+                trace = self.tools.trace_relations(
+                    name,
+                    program_name=program_name,
+                    symbol_type=symbol_type,
+                    direction=direction,
+                    max_depth=3,
+                    max_edges=200,
+                )
+                BoundedAgentLoop._validate_tool_result(
+                    "trace_relations", trace
+                )
+                checked += 1
+
+        self.assertGreater(len(symbols), 0)
+        self.assertEqual(checked, len(symbols) * 4)
 
 
 if __name__ == "__main__":
