@@ -1,0 +1,598 @@
+{
+  "fixture_id": "complex-business-v2",
+  "source_root": "main",
+  "root_program": "TXNENTRY",
+  "fixture_kind": "original_synthetic_business_source",
+  "execution_status": "not_compiled_or_executed",
+  "scenario_scope": "hand_calculated_examples_and_source_derived_error_expectations",
+  "contracts": [
+    {
+      "program_name": "TXNENTRY",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": [
+        "RESULT-AMOUNT",
+        "RESULT-ANNUAL"
+      ]
+    },
+    {
+      "program_name": "TXNCORE",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "BASECALC",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "RATELOOK",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "DATECHK",
+      "status_fields": [
+        "DATE-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "ITEMSUM",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "ITEMCALC",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "ADJUST",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "FACTORLK",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "FEELOOK",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "ROUTESEL",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "CALCSTD",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "CALCALT",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "RESULTMP",
+      "status_fields": [
+        "PROCESS-STATUS"
+      ],
+      "output_fields": [
+        "RESULT-AMOUNT",
+        "RESULT-ANNUAL"
+      ]
+    }
+  ],
+  "static_spine": [
+    "TXNENTRY",
+    "TXNCORE",
+    "BASECALC",
+    "RATELOOK",
+    "DATECHK"
+  ],
+  "dynamic_call": {
+    "caller": "TXNCORE",
+    "field": "CALC-ROUTE-PROGRAM",
+    "writer_program": "ROUTESEL",
+    "writer_field": "ROUTE-OUTPUT",
+    "table": "ROUTE_CONFIG",
+    "configured_example_targets": [
+      "CALCSTD",
+      "CALCALT"
+    ],
+    "target_confirmation": "requires_runtime_configuration_snapshot"
+  },
+  "baseline": {
+    "request": {
+      "product": "PROD-A",
+      "mode": "M",
+      "status": "P",
+      "date": 20260701,
+      "sum": "100000.00",
+      "load_percent": "10.00",
+      "discount_percent": "5.00",
+      "discount_limit": "100000.00",
+      "items": [
+        {
+          "status": "A",
+          "amount": "20.00"
+        },
+        {
+          "status": "I",
+          "amount": "1000.00"
+        },
+        {
+          "status": "A",
+          "amount": "8.00"
+        }
+      ]
+    },
+    "lookup_values": {
+      "base_rate": "2.400000",
+      "mode_factor": "0.090000",
+      "annual_fee": "12.00",
+      "route_program": "CALCSTD"
+    },
+    "component_expectations": {
+      "base": "240.00",
+      "active_item_total": "35.00",
+      "loading": "24.00",
+      "discount": "12.00",
+      "annual": "299.00",
+      "instalment": "26.91"
+    }
+  },
+  "scenarios": [
+    {
+      "scenario_id": "standard-positive",
+      "trigger": "baseline",
+      "expected": {
+        "status": 0,
+        "annual": "299.00",
+        "amount": "26.91"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "alternate-positive",
+      "trigger": "baseline with route_program CALCALT",
+      "expected": {
+        "status": 0,
+        "annual": "304.74",
+        "amount": "27.43"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "below-discount-limit",
+      "trigger": "baseline with input sum 50000.00",
+      "expected": {
+        "status": 0,
+        "annual": "179.00",
+        "amount": "16.11"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "invalid-status",
+      "trigger": "INPUT-STATUS = X",
+      "expected": {
+        "status": 11,
+        "error_stage": "INPUT",
+        "error_code": "INVALID-STATUS",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "invalid-count",
+      "trigger": "INPUT-ITEM-COUNT = 7",
+      "expected": {
+        "status": 12,
+        "error_stage": "INPUT",
+        "error_code": "INVALID-AMOUNT-OR-COUNT",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "invalid-percent",
+      "trigger": "INPUT-LOAD-PERCENT = 101",
+      "expected": {
+        "status": 13,
+        "error_stage": "INPUT",
+        "error_code": "INVALID-PERCENT",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "date-range",
+      "trigger": "INPUT-DATE = 19991231",
+      "expected": {
+        "status": 21,
+        "error_stage": "RATE-DATE",
+        "error_code": "DATE-OUTSIDE-RANGE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "rate-missing",
+      "trigger": "RATELOOK SQLCODE = 100",
+      "expected": {
+        "status": 31,
+        "error_stage": "RATE-LOOKUP",
+        "error_code": "RATE-MISSING",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "rate-ambiguous",
+      "trigger": "RATELOOK SQLCODE = -811",
+      "expected": {
+        "status": 32,
+        "error_stage": "RATE-LOOKUP",
+        "error_code": "RATE-AMBIGUOUS",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "rate-database",
+      "trigger": "RATELOOK SQLCODE = -911",
+      "expected": {
+        "status": 33,
+        "error_stage": "RATE-LOOKUP",
+        "error_code": "RATE-DATABASE-ERROR",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "rate-zero",
+      "trigger": "RATELOOK succeeds with RATE-OUTPUT = 0",
+      "expected": {
+        "status": 34,
+        "error_stage": "RATE-LOOKUP",
+        "error_code": "RATE-NOT-POSITIVE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "active-item-zero",
+      "trigger": "first active item amount = 0",
+      "expected": {
+        "status": 41,
+        "error_stage": "ITEM-CALC",
+        "error_code": "ACTIVE-ITEM-ZERO",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "factor-missing",
+      "trigger": "FACTORLK SQLCODE = 100",
+      "expected": {
+        "status": 51,
+        "error_stage": "FACTOR-LOOKUP",
+        "error_code": "FACTOR-MISSING",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "factor-ambiguous",
+      "trigger": "FACTORLK SQLCODE = -811",
+      "expected": {
+        "status": 52,
+        "error_stage": "FACTOR-LOOKUP",
+        "error_code": "FACTOR-AMBIGUOUS",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "factor-database",
+      "trigger": "FACTORLK SQLCODE = -911",
+      "expected": {
+        "status": 53,
+        "error_stage": "FACTOR-LOOKUP",
+        "error_code": "FACTOR-DATABASE-ERROR",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "factor-zero",
+      "trigger": "FACTORLK succeeds with FACTOR-OUTPUT = 0",
+      "expected": {
+        "status": 54,
+        "error_stage": "FACTOR-LOOKUP",
+        "error_code": "FACTOR-NOT-POSITIVE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "fee-missing",
+      "trigger": "FEELOOK SQLCODE = 100",
+      "expected": {
+        "status": 61,
+        "error_stage": "FEE-LOOKUP",
+        "error_code": "FEE-MISSING",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "fee-ambiguous",
+      "trigger": "FEELOOK SQLCODE = -811",
+      "expected": {
+        "status": 62,
+        "error_stage": "FEE-LOOKUP",
+        "error_code": "FEE-AMBIGUOUS",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "fee-database",
+      "trigger": "FEELOOK SQLCODE = -911",
+      "expected": {
+        "status": 63,
+        "error_stage": "FEE-LOOKUP",
+        "error_code": "FEE-DATABASE-ERROR",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "route-missing",
+      "trigger": "ROUTESEL SQLCODE = 100",
+      "expected": {
+        "status": 71,
+        "error_stage": "ROUTE-LOOKUP",
+        "error_code": "ROUTE-MISSING",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "route-ambiguous",
+      "trigger": "ROUTESEL SQLCODE = -811",
+      "expected": {
+        "status": 72,
+        "error_stage": "ROUTE-LOOKUP",
+        "error_code": "ROUTE-AMBIGUOUS",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "route-database",
+      "trigger": "ROUTESEL SQLCODE = -911",
+      "expected": {
+        "status": 73,
+        "error_stage": "ROUTE-LOOKUP",
+        "error_code": "ROUTE-DATABASE-ERROR",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "route-blank",
+      "trigger": "ROUTESEL succeeds with blank ROUTE-OUTPUT",
+      "expected": {
+        "status": 74,
+        "error_stage": "ROUTE-LOOKUP",
+        "error_code": "ROUTE-PROGRAM-BLANK",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "route-unavailable",
+      "trigger": "configured program cannot be loaded",
+      "expected": {
+        "status": 92,
+        "error_stage": "ROUTE-CALL",
+        "error_code": "PROGRAM-UNAVAILABLE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "core-unavailable",
+      "trigger": "TXNENTRY -> TXNCORE literal program cannot be loaded",
+      "expected": {
+        "status": 91,
+        "error_stage": "CORE-CALL",
+        "error_code": "PROGRAM-UNAVAILABLE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "mapper-unavailable",
+      "trigger": "TXNENTRY -> RESULTMP literal program cannot be loaded",
+      "expected": {
+        "status": 93,
+        "error_stage": "RESULT-CALL",
+        "error_code": "MAPPER-UNAVAILABLE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "base-unavailable",
+      "trigger": "TXNCORE -> BASECALC literal program cannot be loaded",
+      "expected": {
+        "status": 91,
+        "error_stage": "BASE-CALL",
+        "error_code": "PROGRAM-UNAVAILABLE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "item-sum-unavailable",
+      "trigger": "TXNCORE -> ITEMSUM literal program cannot be loaded",
+      "expected": {
+        "status": 91,
+        "error_stage": "ITEM-SUM-CALL",
+        "error_code": "PROGRAM-UNAVAILABLE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "adjust-unavailable",
+      "trigger": "TXNCORE -> ADJUST literal program cannot be loaded",
+      "expected": {
+        "status": 91,
+        "error_stage": "ADJUST-CALL",
+        "error_code": "PROGRAM-UNAVAILABLE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "route-selector-unavailable",
+      "trigger": "TXNCORE -> ROUTESEL literal program cannot be loaded",
+      "expected": {
+        "status": 91,
+        "error_stage": "ROUTE-SELECT",
+        "error_code": "PROGRAM-UNAVAILABLE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "rate-lookup-unavailable",
+      "trigger": "BASECALC -> RATELOOK literal program cannot be loaded",
+      "expected": {
+        "status": 91,
+        "error_stage": "RATE-CALL",
+        "error_code": "PROGRAM-UNAVAILABLE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "date-check-unavailable",
+      "trigger": "RATELOOK -> DATECHK literal program cannot be loaded",
+      "expected": {
+        "status": 91,
+        "error_stage": "DATE-CALL",
+        "error_code": "PROGRAM-UNAVAILABLE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "item-calculator-unavailable",
+      "trigger": "ITEMSUM -> ITEMCALC literal program cannot be loaded",
+      "expected": {
+        "status": 91,
+        "error_stage": "ITEM-CALL",
+        "error_code": "PROGRAM-UNAVAILABLE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "factor-lookup-unavailable",
+      "trigger": "ADJUST -> FACTORLK literal program cannot be loaded",
+      "expected": {
+        "status": 91,
+        "error_stage": "FACTOR-CALL",
+        "error_code": "PROGRAM-UNAVAILABLE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    },
+    {
+      "scenario_id": "fee-lookup-unavailable",
+      "trigger": "ADJUST -> FEELOOK literal program cannot be loaded",
+      "expected": {
+        "status": 91,
+        "error_stage": "FEE-CALL",
+        "error_code": "PROGRAM-UNAVAILABLE",
+        "annual": "0.00",
+        "amount": "0.00"
+      },
+      "execution_status": "not_executed"
+    }
+  ],
+  "boundaries": [
+    "Embedded SQL needs a database precompiler and controlled configuration snapshot; no compiler or database execution has been performed.",
+    "Configured example target names are scenario inputs, not evidence resolving the dynamic CALL.",
+    "Local OCCURS and subscripted MOVEs in ITEMSUM require element-sensitive dataflow; scalar call mappings do not establish complete item coverage.",
+    "DATECHK checks numeric range, month 1..12 and day 1..31 only, not calendar validity or numeric-class validity.",
+    "ON SIZE ERROR source branches are present but their reachability has not been proven for all declared field ranges.",
+    "Copy-based request layouts are fixed scalar groups; negative fixtures exercise unsupported layouts and calls separately.",
+    "Every literal and dynamic CALL has a source-level ON EXCEPTION handler, including direct result-clearing fallback if RESULTMP cannot load. Platform call ABI, SQL nullability, transaction isolation, external entry validation and asynchronous failures remain outside this fixture's acceptance claims."
+  ]
+}

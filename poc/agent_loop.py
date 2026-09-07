@@ -17,12 +17,14 @@ from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Sequence
 
 try:  # Support both ``python poc/...`` and package-style imports.
+    from .claim_support import CHECKER_VERSION, check_claim_support, normalize_assertion
     from .investigation_tools import (
         TOOL_CONTRACT_VERSION,
         InvestigationTools,
         tool_definitions,
     )
 except ImportError:  # pragma: no cover - exercised by the repository test style.
+    from claim_support import CHECKER_VERSION, check_claim_support, normalize_assertion
     from investigation_tools import (  # type: ignore[no-redef]
         TOOL_CONTRACT_VERSION,
         InvestigationTools,
@@ -63,6 +65,10 @@ MAX_TOOL_STRING_CHARS = 512
 MAX_RELATIONS_PER_RESULT = 200
 MAX_VISITED_ENTITIES = 500
 MAX_SNAPSHOT_COVERAGE_ITEMS = 32
+QUESTION_COVERAGE_MESSAGE = (
+    "问题完整性尚未核验：以下陈述是否切合原问题、是否覆盖完整业务链路，"
+    "目前均未经过独立检查。单条公式核对通过不代表业务问题已经答完整。"
+)
 
 _CODE_ANCHOR_RE = re.compile(
     r"(?<![A-Z0-9_$#@_-])[A-Z][A-Z0-9_$#@_-]{1,127}(?![A-Z0-9_$#@_-])"
@@ -138,6 +144,8 @@ _RELATION_TYPES = frozenset(
     {
         "CALLS",
         "CALL_TARGET_FROM",
+        "PASSES_AS",
+        "MAY_WRITE_BACK",
         "PERFORMS",
         "PERFORMS_THRU",
         "INCLUDES_COPY",
@@ -154,6 +162,7 @@ _RELATION_STATUSES = frozenset({"confirmed", "candidate", "unresolved"})
 _UNIT_TYPES = frozenset(
     {
         "Program",
+        "ProcedureSignature",
         "Section",
         "Paragraph",
         "Statement",
@@ -181,9 +190,16 @@ _TOOL_DIAGNOSTIC_CODES = {
 _BOUNDARY_REASONS = frozenset(
     {
         "ambiguous_symbol",
+        "call_parameter_binding_incomplete",
+        "condition_syntax_not_supported",
+        "copy_context_not_supported",
+        "copy_form_not_supported",
+        "copy_scope_incomplete",
         "database_definition_not_indexed",
         "file_definition_not_indexed",
         "runtime_target_requires_value_flow",
+        "runtime_writeback_not_proven",
+        "sql_column_lineage_not_resolved",
         "target_not_found",
         "unresolved",
     }
@@ -210,6 +226,7 @@ _SAFE_STOP_MESSAGES = {
     "unsupported_claim_content": "A candidate claim failed lexical grounding checks.",
     "model_output_budget_exceeded": "Model-authored output exceeded its safe local budget.",
     "unsupported_claim": "An unsupported candidate claim cannot enter the answer.",
+    "claim_checker_error": "The local claim checker failed; no candidate claim was accepted.",
     "no_progress": "The investigation stopped after two calls without new bounded facts.",
     "model_turn_budget_exhausted": "The investigation reached its model-turn budget.",
 }
@@ -403,6 +420,11 @@ def _project_relation_metadata(value: object) -> dict[str, Any]:
             "range_end",
             "resolution_reason",
             "rounded",
+            "parameter_position",
+            "passing_mode",
+            "callsite_id",
+            "group_member_index",
+            "supporting_evidence_refs",
         },
     )
     projected: dict[str, Any] = {}
@@ -431,7 +453,7 @@ def _project_relation_metadata(value: object) -> dict[str, Any]:
     if "operation" in raw:
         projected["operation"] = _tool_enum(
             raw["operation"],
-            frozenset({"ADD", "DIVIDE", "MOVE", "MULTIPLY", "SUBTRACT"}),
+            frozenset({"ADD", "DIVIDE", "EXEC_SQL", "MOVE", "MULTIPLY", "SUBTRACT"}),
         )
     if "range_end" in raw:
         projected["range_end"] = _tool_string(
@@ -445,6 +467,29 @@ def _project_relation_metadata(value: object) -> dict[str, Any]:
         if not isinstance(raw["rounded"], bool):
             _tool_result_error()
         projected["rounded"] = raw["rounded"]
+    if "parameter_position" in raw:
+        projected["parameter_position"] = _tool_int(
+            raw["parameter_position"], minimum=1, maximum=64
+        )
+    if "passing_mode" in raw:
+        projected["passing_mode"] = _tool_enum(
+            raw["passing_mode"], frozenset({"REFERENCE", "CONTENT", "VALUE"})
+        )
+    if "callsite_id" in raw:
+        projected["callsite_id"] = _tool_string(
+            raw["callsite_id"], maximum=128, pattern=_TOOL_CALL_ID_RE
+        )
+    if "group_member_index" in raw:
+        projected["group_member_index"] = _tool_int(
+            raw["group_member_index"], minimum=1, maximum=256
+        )
+    if "supporting_evidence_refs" in raw:
+        refs = raw["supporting_evidence_refs"]
+        if not isinstance(refs, list) or not 1 <= len(refs) <= 8:
+            _tool_result_error()
+        projected["supporting_evidence_refs"] = [_project_evidence_ref(ref) for ref in refs]
+        if len({ref["evidence_id"] for ref in projected["supporting_evidence_refs"]}) != len(refs):
+            _tool_result_error()
     return projected
 
 
@@ -517,6 +562,28 @@ def _project_relation(value: object, *, allow_depth: bool) -> dict[str, Any]:
     }
     if "depth" in raw:
         projected["depth"] = _tool_int(raw["depth"], minimum=1, maximum=3)
+    if projected["relation_type"] in {"PASSES_AS", "MAY_WRITE_BACK"}:
+        metadata = projected["metadata"]
+        required = {"parameter_position", "passing_mode", "callsite_id", "supporting_evidence_refs"}
+        if (
+            not required.issubset(metadata)
+            or projected["source"]["unit_type"] != "DataItem"
+            or projected["target"]["entity_id"] is None
+            or projected["target"]["scope"] is None
+            or projected["evidence_ref"]["evidence_id"] not in {
+                ref["evidence_id"] for ref in metadata["supporting_evidence_refs"]
+            }
+        ):
+            _tool_result_error()
+        if projected["relation_type"] == "MAY_WRITE_BACK":
+            if (
+                projected["status"] != "candidate"
+                or metadata["passing_mode"] != "REFERENCE"
+                or metadata.get("boundary") != "runtime_writeback_not_proven"
+            ):
+                _tool_result_error()
+        elif projected["status"] != "confirmed":
+            _tool_result_error()
     return projected
 
 
@@ -602,6 +669,21 @@ def _project_search_hit(value: object) -> dict[str, Any]:
     return projected
 
 
+def _project_copy_binding(value: object) -> dict[str, Any]:
+    raw = _exact_tool_mapping(
+        value,
+        allowed={"kind", "inclusion_evidence_refs"},
+        required={"kind", "inclusion_evidence_refs"},
+    )
+    refs = raw["inclusion_evidence_refs"]
+    if not isinstance(refs, list) or not 1 <= len(refs) <= 8:
+        _tool_result_error()
+    return {
+        "kind": _tool_enum(raw["kind"], frozenset({"copybook_expansion"})),
+        "inclusion_evidence_refs": [_project_evidence_ref(ref) for ref in refs],
+    }
+
+
 def _project_inspection_match(value: object) -> dict[str, Any]:
     raw = _exact_tool_mapping(
         value,
@@ -622,7 +704,7 @@ def _project_inspection_match(value: object) -> dict[str, Any]:
     )
     definition = _exact_tool_mapping(
         raw["definition"],
-        allowed={"unit_id", "unit_type", "evidence_ref"},
+        allowed={"unit_id", "unit_type", "evidence_ref", "copy_binding"},
         required={"unit_id", "unit_type", "evidence_ref"},
     )
     outgoing = raw["outgoing_relations"]
@@ -634,7 +716,7 @@ def _project_inspection_match(value: object) -> dict[str, Any]:
         or len(incoming) > 100
     ):
         _tool_result_error()
-    return {
+    projected = {
         "symbol": _project_symbol(raw["symbol"]),
         "definition": {
             "unit_id": _tool_string(
@@ -653,6 +735,11 @@ def _project_inspection_match(value: object) -> dict[str, Any]:
             _project_relation(item, allow_depth=False) for item in incoming
         ],
     }
+    if "copy_binding" in definition:
+        projected["definition"]["copy_binding"] = _project_copy_binding(
+            definition["copy_binding"]
+        )
+    return projected
 
 
 def _project_trace_entity(value: object) -> dict[str, Any]:
@@ -1436,10 +1523,24 @@ def _system_prompt(schemas: Sequence[dict[str, Any]], *, native: bool) -> str:
         f"{mode} If emitting JSON, output only this envelope: {fallback_contract}. "
         f"Finish with this structured contract: {final_contract}. Every claim must cite "
         "evidence discovered in this investigation and successfully read with valid "
-        "integrity. A code_fact must declare every uppercase COBOL identifier used in "
+        "integrity. A free-text code_fact must declare every uppercase COBOL identifier used in "
         "its claim as code_anchors, and every declared anchor must occur verbatim in both "
         "the claim and cited source. This is lexical grounding, not permission to infer "
-        "runtime values or business intent. Use action=abstain with empty or limited "
+        "runtime values or business intent. For a single complete COMPUTE statement, "
+        "prefer a structured claim with exactly these fields: "
+        '{"kind":"code_fact","assertion":{"predicate":"compute_statement",'
+        '"target":"OUT-AMOUNT","expression":["IN-AMOUNT","*","WS-FACTOR"],'
+        '"rounded":true},"evidence_ids":["one successfully read evidence id"]}. '
+        "Copy the exact target, ordered arithmetic tokens and ROUNDED presence from "
+        "that one span. The local checker supports a narrow arithmetic grammar and "
+        "requires a complete statement ending with a period or END-COMPUTE. "
+        "Do not include claim, text, code_anchors or support_status with an assertion: "
+        "the application verifies and renders it. This proves only the cited statement "
+        "syntax, not execution, final output, numeric precision or business intent. "
+        "The application does not independently assess question relevance or full "
+        "business coverage. A final_answer action ends the investigation loop only; "
+        "it cannot certify that the user's business question is completely answered. "
+        "Use action=abstain with empty or limited "
         "supported claims and explicit boundaries when the snapshot cannot answer. Tool schemas: "
         + json.dumps(schemas, ensure_ascii=False, separators=(",", ":"))
     )
@@ -1743,7 +1844,7 @@ def _claim_grounding_error(
 ) -> str | None:
     """Perform a conservative lexical check, not semantic claim verification."""
 
-    if claim.get("kind") != "code_fact":
+    if claim.get("kind") != "code_fact" or "assertion" in claim:
         return None
     evidence_ids = claim.get("evidence_ids", [])
     source = "\n".join(
@@ -1783,6 +1884,24 @@ def _claim_grounding_error(
     return None
 
 
+def _question_coverage() -> dict[str, Any]:
+    """Report the missing question-level check, never infer it from claim support.
+
+    No independent question-to-proof-obligation checker exists yet. Even a true
+    statement can answer a different question, so it cannot establish partial or
+    complete business-question coverage. This metadata is application-owned and
+    is emitted for successful finishes and safety stops alike.
+    """
+
+    return {
+        "status": "not_assessed",
+        "reason_code": "QUESTION_COVERAGE_NOT_CHECKED",
+        "question_relevance_checked": False,
+        "business_completeness_checked": False,
+        "message": QUESTION_COVERAGE_MESSAGE,
+    }
+
+
 def _render_answer(
     claims: Sequence[Mapping[str, Any]],
     evidence_refs: Sequence[Mapping[str, Any]],
@@ -1790,16 +1909,33 @@ def _render_answer(
 ) -> str:
     """Render only validated structured fields; never reuse model prose."""
 
-    claim_lines = (
-        ["- 当前仅完成引用完整性与词面锚定，没有经过语义核验的结论。"]
-        if claims
-        else []
-    )
+    if any(claim.get("support_status") == "supported" for claim in claims):
+        claim_lines = [
+            "- 已核验所引源码中的单条计算语句；实际执行路径与最终输出仍需补充证据。"
+        ]
+    elif claims:
+        claim_lines = ["- 当前只核对了引用；自由文本仍是未经独立语义核验的候选陈述。"]
+    else:
+        claim_lines = []
     implementation_lines = [
-        "- [候选陈述；仅引用有效，语义未核验] "
-        f"{_markdown_inline(claim['claim'])}"
+        (
+            "- [已支持；单条语句范围] "
+            if claim.get("support_status") == "supported"
+            else "- [候选陈述；仅引用有效，语义未核验] "
+        )
+        + _markdown_inline(claim["claim"])
         for claim in claims
         if claim.get("kind") == "code_fact"
+    ]
+    inference_lines = [
+        "- [业务推测；语义未核验] " + _markdown_inline(claim["claim"])
+        for claim in claims
+        if claim.get("kind") == "business_inference"
+    ]
+    question_lines = [
+        "- [待确认问题；未形成结论] " + _markdown_inline(claim["claim"])
+        for claim in claims
+        if claim.get("kind") == "open_question"
     ]
     evidence_lines: list[str] = []
     for ref in evidence_refs:
@@ -1835,20 +1971,20 @@ def _render_answer(
         evidence_lines = ["- 未取得通过完整性检查的源码引用。"]
     if not boundary_lines:
         boundary_lines = ["- 当前调查未识别到额外边界。"]
-    return "\n".join(
-        [
-            "## 结论",
-            *claim_lines,
-            "",
-            "## 代码怎样实现",
-            *implementation_lines,
-            "",
-            "## 源码依据",
-            *evidence_lines,
-            "",
-            "## 不能确认",
-            *boundary_lines,
-        ]
+    sections = [
+        ("结论", [f"- {QUESTION_COVERAGE_MESSAGE}", *claim_lines]),
+        ("代码怎样实现", implementation_lines),
+    ]
+    if inference_lines:
+        sections.append(("业务推测（未核验）", inference_lines))
+    if question_lines:
+        sections.append(("待确认问题", question_lines))
+    sections.extend([
+        ("源码依据", evidence_lines),
+        ("不能确认", boundary_lines),
+    ])
+    return "\n\n".join(
+        f"## {title}\n\n" + "\n".join(lines) for title, lines in sections
     )
 
 
@@ -2002,6 +2138,43 @@ class BoundedAgentLoop:
         for index, raw_claim in enumerate(claims):
             if not isinstance(raw_claim, Mapping):
                 raise ModelProtocolError(f"Claim {index + 1} must be an object.")
+            if "assertion" in raw_claim:
+                if set(raw_claim) != {"kind", "assertion", "evidence_ids"}:
+                    raise ModelProtocolError(
+                        "Structured claims cannot carry model prose or status."
+                    )
+                if raw_claim["kind"] != "code_fact":
+                    raise ModelProtocolError(
+                        "Only code facts can carry a COMPUTE assertion."
+                    )
+                ids = raw_claim["evidence_ids"]
+                if (
+                    not isinstance(ids, list)
+                    or len(ids) != 1
+                    or not isinstance(ids[0], str)
+                    or _TOOL_CALL_ID_RE.fullmatch(ids[0]) is None
+                ):
+                    raise ModelProtocolError(
+                        "A structured claim requires exactly one evidence ID."
+                    )
+                try:
+                    assertion = normalize_assertion(raw_claim["assertion"])
+                except ValueError:
+                    raise ModelProtocolError(
+                        "Invalid structured claim assertion."
+                    ) from None
+                normalized.append(
+                    {
+                        "kind": "code_fact",
+                        "assertion": assertion,
+                        "evidence_ids": list(ids),
+                        "claim": "",
+                        "code_anchors": [],
+                        "support_status": "pending",
+                    }
+                )
+                cited.update(ids)
+                continue
             unknown = set(raw_claim) - allowed
             if unknown:
                 raise ModelProtocolError(
@@ -2212,15 +2385,16 @@ class BoundedAgentLoop:
                 common=common,
             )
 
-        model_authored_chars = sum(len(claim["claim"]) for claim in claims) + sum(
+        prose_claims = [claim for claim in claims if "assertion" not in claim]
+        model_authored_chars = sum(len(claim["claim"]) for claim in prose_claims) + sum(
             len(boundary) for boundary in normalized_boundaries
         )
-        model_authored_fields = [claim["claim"] for claim in claims] + list(
+        model_authored_fields = [claim["claim"] for claim in prose_claims] + list(
             normalized_boundaries
         )
         copied_fields = [
             claim["claim"]
-            for claim in claims
+            for claim in prose_claims
             if _copies_source_text(claim["claim"], verified_evidence)
         ] + [
             boundary
@@ -2245,11 +2419,44 @@ class BoundedAgentLoop:
         all_boundaries = _deduplicate(
             [*collected_boundaries, *normalized_boundaries]
         )
-        if decision.action == "final_answer" and claims:
-            # Hash, scope and lexical checks establish provenance, but they do
-            # not prove the semantics of arbitrary natural-language claims.
-            # Until a deterministic or independently evaluated claim checker
-            # is injected, never upgrade those claims to fully supported.
+        claim_checks: list[dict[str, Any]] = []
+        for index, claim in enumerate(claims):
+            if "assertion" not in claim:
+                if claim["support_status"] != "unsupported":
+                    claim["support_status"] = "citation_verified_only"
+                continue
+            try:
+                checked = check_claim_support(
+                    claim["assertion"], claim["evidence_ids"], verified_evidence
+                )
+                if (
+                    checked["support_status"] not in {"supported", "unsupported"}
+                    or checked["checker_version"] != CHECKER_VERSION
+                    or not isinstance(checked["reason_code"], str)
+                    or _DIAGNOSTIC_CODE_RE.fullmatch(checked["reason_code"]) is None
+                ):
+                    raise ValueError("Invalid local checker result.")
+                if checked["support_status"] == "supported":
+                    claim["claim"] = _bounded_single_line(
+                        checked["claim_text"],
+                        label="Local COMPUTE statement description",
+                        maximum=MAX_CLAIM_TEXT_CHARS,
+                    )
+                claim["support_status"] = checked["support_status"]
+                claim_checks.append({
+                    "claim_index": index + 1,
+                    "support_status": checked["support_status"],
+                    "reason_code": checked["reason_code"],
+                    "checker_version": CHECKER_VERSION,
+                })
+            except Exception:
+                return self._stopped_result(
+                    "claim_checker_error",
+                    "The independent checker failed.",
+                    collected_boundaries=all_boundaries,
+                    common=common,
+                )
+        if prose_claims:
             all_boundaries = _deduplicate(
                 [
                     *all_boundaries,
@@ -2263,17 +2470,31 @@ class BoundedAgentLoop:
                     },
                 ]
             )
-        claims = [
-            {
-                **claim,
-                "support_status": (
-                    "unsupported"
-                    if claim["support_status"] == "unsupported"
-                    else "citation_verified_only"
-                ),
-            }
-            for claim in claims
-        ]
+        if claim_checks:
+            all_boundaries = _deduplicate([
+                *all_boundaries,
+                {
+                    "type": "verification_boundary",
+                    "reason": "statement_scope_only",
+                    "message": (
+                        "核验仅覆盖所引单条 COMPUTE 语句的目标、表达式与 ROUNDED 标记；"
+                        "未核验执行条件、其他写入、最终输出、数值精度或业务原因。"
+                    ),
+                },
+            ])
+        all_supported = bool(claims) and all(
+            claim["support_status"] == "supported" for claim in claims
+        )
+        verification = {
+            "scope": (
+                "reference_integrity_and_structured_compute"
+                if claim_checks else "reference_integrity_and_lexical_grounding"
+            ),
+            "semantic_claim_support_checked": bool(claim_checks),
+            "checker_version": CHECKER_VERSION if claim_checks else None,
+            "claim_checks": claim_checks,
+            "verified_evidence_count": len(evidence_ids),
+        }
         requested_status = arguments.get("status")
         if requested_status is not None and requested_status not in {
             "SUPPORTED",
@@ -2292,14 +2513,18 @@ class BoundedAgentLoop:
             claim for claim in claims if claim["support_status"] == "unsupported"
         ]
         if unsupported_claims:
-            return self._stopped_result(
+            stopped = self._stopped_result(
                 "unsupported_claim",
-                "The model marked at least one claim unsupported; it cannot enter the answer.",
+                "At least one claim lacks support; no claims entered the answer.",
                 collected_boundaries=all_boundaries,
                 common=common,
             )
+            stopped["verification"] = {**verification, "claim_disposition": "ABSTAINED"}
+            return stopped
         if decision.action == "abstain":
             status = "ABSTAINED"
+        elif all_supported:
+            status = "SUPPORTED_WITH_BOUNDARIES"
         elif claims:
             status = "CITATION_VERIFIED_ONLY"
         else:
@@ -2333,20 +2558,20 @@ class BoundedAgentLoop:
         return {
             **common,
             "status": status,
+            "question_coverage": _question_coverage(),
             "answer": _render_answer(claims, evidence_refs, all_boundaries),
             "model_answer_recorded": False,
             "claims": claims,
-            "claims_semantically_verified": False,
+            "claims_semantically_verified": all_supported,
             "evidence_ids": evidence_ids,
             "evidence_refs": evidence_refs,
             "boundaries": all_boundaries,
             "stop_reason": "model_abstained" if status == "ABSTAINED" else "completed",
+            "stop_reason_scope": "investigation_loop",
             "diagnostics": [],
             "verification": {
-                "scope": "reference_integrity_and_lexical_grounding",
-                "semantic_claim_support_checked": False,
-                "claim_disposition": "CITATION_VERIFIED_ONLY",
-                "verified_evidence_count": len(evidence_ids),
+                **verification,
+                "claim_disposition": status,
             },
         }
 
@@ -2372,13 +2597,16 @@ class BoundedAgentLoop:
         return {
             **common,
             "status": "ABSTAINED",
+            "question_coverage": _question_coverage(),
             "answer": _render_answer([], evidence_refs, boundaries),
             "model_answer_recorded": False,
             "claims": [],
+            "claims_semantically_verified": False,
             "evidence_ids": sorted(common.get("verified_evidence_ids", [])),
             "evidence_refs": evidence_refs,
             "boundaries": boundaries,
             "stop_reason": stop_reason,
+            "stop_reason_scope": "investigation_loop",
             "diagnostics": [
                 {"code": stop_reason.upper(), "message": safe_message}
             ],

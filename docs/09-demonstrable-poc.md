@@ -263,8 +263,10 @@ Windows COBOL/COPYBOOK 文件夹
   → 只含聚合数据的 JSON/Markdown 画像报告
 ```
 
-P1-A 结构索引与 P1-B 四个只读调查工具也已完成。原创 CALC-01 fixture 包含 13 个 COBOL/COPYBOOK 文件，当前索引产生 261 个 CodeUnit、104 个 Symbol、416 条 Relation 和 241 个 EvidenceSpan；六步离线演示读取 12 段通过 Hash 校验的源码证据，返回 `SUPPORTED_WITH_BOUNDARIES`。
+P1-A 结构索引与 P1-B 四个只读调查工具已经可运行。原创 CALC-01 fixture 包含 13 个 COBOL/COPYBOOK 文件，六步演示读取 12 段通过 Hash 校验的源码证据。P3-C 增加 COPY 程序范围定义绑定、多行条件与 SQL 宿主读写，索引数量随派生绑定更新，以实际构建报告为准。演示现在返回 `PARTIAL`：独立来源事实检查为 16 项覆盖、3 项业务缺失、4 项边界，不把运行成功当作完整业务通过。
 
-P3-A 可运行骨架已于 2026-08-31 完成：公司 OpenAI-compatible API capability probe 会验证 Chat、Tool Calling 回传和严格 JSON；运行器只在原生工具闭环或严格 JSON 探测通过时启动。Agent 最多调用 6 次四个只读工具，两次无进展后停止，并强制快照、Evidence 范围、Hash 和引用校验；非 Evidence 工具结果先经过严格字段投影，`read_evidence` 后不再允许调用工具。CALC-01 在 4 次真实工具调用内完成离线闭环，两类越过源码证据的问题会拒答，当前 84 项自动测试全部通过。
+P3-A 可运行骨架已于 2026-08-31 完成：公司 OpenAI-compatible API capability probe 会验证 Chat、Tool Calling 回传和严格 JSON；运行器只在原生工具闭环或严格 JSON 探测通过时启动。Agent 最多调用 6 次四个只读工具，两次无进展后停止，并强制快照、Evidence 范围、Hash 和引用校验；非 Evidence 工具结果先经过严格字段投影，`read_evidence` 后不再允许调用工具。CALC-01 在 4 次真实工具调用内完成离线闭环，两类越过源码证据的问题会拒答。
 
-下一步是在公司批准环境对真实 API 执行 capability probe 和 CALC-01 验收，并增加独立 Claim 语义支持核验。现有完整性与词面锚定不能证明任意自然语言 claim 的语义，所以 Agent 暂时最高返回 `CITATION_VERIFIED_ONLY`，候选陈述不会被称为“部分支持”。用户仍需在公司允许的本地环境运行真实下载目录画像；真实源码、文件内容、程序名称和 API Key 不进入本项目或外部对话。详见 [P3-A 项目进度报告](./reports/2026-08-31-p3a-progress-report.md)。
+P3-B 于 2026-09-07 接入独立 Claim 核验的窄范围切片。模型可以提交 `compute_statement` 结构化断言，本地核验器从单段完整且 Hash 有效的证据独立解析 `COMPUTE`，精确比较目标字段、算式 token 顺序与 `ROUNDED`，再由本地模板生成中文陈述。CALC-01 的四步 Agent 测试已走通这一核验路径；通过的回答可返回 `SUPPORTED_WITH_BOUNDARIES`，只确认该源码语句的写法，不确认最终结果、实际执行或精度。普通自然语言 claim 仍为 `CITATION_VERIFIED_ONLY`；不匹配或超出支持语法的断言会保留原因并拒绝升级。
+
+P3-C 将问题完整性与单条语句支持分开：所有 Agent 结果明确 `question_coverage=not_assessed`。下一步补跨程序参数值流、错误传播与完整业务案例，再在批准环境验收真实模型检索和回答，最后接通界面。任意自然语言 claim 的完整语义核验仍未实现，也未调用或校准 LLM judge。真实源码、文件内容、程序名称和 API Key 不进入本项目或外部对话。当前状态见 [P3-C 报告](./reports/2026-09-08-p3c-business-chain-progress.md)，P3-A/P3-B 报告保留历史切片范围。

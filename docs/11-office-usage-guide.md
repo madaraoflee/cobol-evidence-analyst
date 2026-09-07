@@ -90,12 +90,20 @@
 
 - network_calls 是 false；
 - tool_calls 不超过 6；
-- support_status 通常是 SUPPORTED_WITH_BOUNDARIES；
+- support_status 是 PARTIAL，source_fact_coverage 为 16 项覆盖、3 项缺失、4 项边界；
 - 输出目录中出现 structural-index.sqlite、calc-01.json 和 calc-01.md。
 
-这个演示只索引项目内的 synthetic-insurance-v1 合成夹具。它成功不代表已经读到了公司源码，也不代表公司接口可用；它只说明离线事实层可以运行。
+这个演示只索引项目内的 synthetic-insurance-v1 合成夹具。PARTIAL 是保留的业务验收结果：全部附加保障遍历、每次调整查询失败处理和基础费率生效日期尚未证明。程序运行成功不代表业务通过，也不代表读到了公司源码或接口可用。
+
+可单独执行 `python poc\business_acceptance.py "D:\cobol-output\demo\structural-index.sqlite"` 查看逐项证据。有缺项时返回退出码 1；此离线扫描不属于六步调查，也不验证模型回答。
 
 ## 4. P0：生成源码清单
+
+### 补充：先用复杂程序组验收跨程序分析
+
+从项目根目录执行 `poc\run_complex_demo.bat "D:\cobol-output\complex-v2"`，输出 `result.md`、`result.json` 与本地索引。该演示有 14 个主程序、4 个 COPY、五层调用链、配置型动态调用和每个调用点的异常处理；独立反例目录不会混入主场景。
+
+当前应看到 205 条参数/成员对应、92 条候选回写及未决动态目标。查看报告中的配置来源、查询错误处理和委托清零，不能把它当成实际交易已执行。35 个案例期望均标为未执行。CONTENT/VALUE 不回写，REFERENCE 也只是可能回写；复杂布局和调用上下文仍有边界。升级后重跑索引命令即可更新旧解析事实。
 
 清单阶段只统计候选文件、编码、行数、程序定义、COPY、CALL、PERFORM 和 EXEC SQL 等摘要。默认报告不放源码文本、绝对路径、相对路径或程序名，适合先做范围确认。
 
@@ -324,13 +332,16 @@ Embedding 不是 run_agent.py 的必需项。只有拿到批准的嵌入模型�
 
 - runner_status：COMPLETED 表示受控流程正常结束；SAFE_STOP 表示安全停止；NOT_READY 表示没有满足运行条件；
 - selected_mode：实际使用 NATIVE_TOOL_CALLING 或 VALIDATED_JSON_FALLBACK；
-- agent_result.status：常见为 CITATION_VERIFIED_ONLY 或 ABSTAINED；
+- agent_result.status：已核验的结构化计算语句可为 SUPPORTED_WITH_BOUNDARIES；普通自然语言陈述为 CITATION_VERIFIED_ONLY；无法形成可接受回答时为 ABSTAINED；
 - agent_result.answer：带边界的回答文本；
 - agent_result.evidence_refs / evidence_ids：回答引用的本地证据；
 - agent_result.boundaries：未覆盖的内容、候选关系或安全边界；
+- agent_result.question_coverage：当前为 not_assessed，问题相关性与完整性未核验；stop_reason_scope 只描述调查循环；
 - diagnostics：停止原因及可操作线索。
 
-当前实现会校验快照、Evidence 范围、文件 Hash、行号和词面锚点，但没有独立的语义 Claim 支持核验。因此即使引用完整，正常回答也会标为 CITATION_VERIFIED_ONLY，不能把它写成“生产规则已证明”。模型没有足够证据时应返回 ABSTAINED；这是预期的安全结果。
+当前实现会校验快照、Evidence 范围、文件 Hash、行号和词面锚点。P3-B 还会独立核验一种结构化断言：从单段完整证据解析 COMPUTE，比较目标字段、算式 token 顺序和 ROUNDED，再由本地模板生成陈述。全部陈述都通过该核验时可返回 SUPPORTED_WITH_BOUNDARIES；它仅证明这条语句的写法，仍不能写成“生产规则、最终值或精度已证明”。
+
+普通自然语言陈述仍为 CITATION_VERIFIED_ONLY，表示引用有效、语义未核验。结构化断言与源码不匹配，或源码语法超出当前核验范围时，会保留拒绝原因；没有足够可用证据时可返回 ABSTAINED。这些结果说明此次调查的实际边界，不应人工改成支持状态。
 
 ### 9.2 什么问题适合问
 
@@ -419,6 +430,8 @@ commit 成功后，.githooks/post-commit 会自动执行 git push origin 当前�
 - [ ] 已保存 runner_status、agent_result.status、evidence_refs 和 boundaries。
 - [ ] 已区分 confirmed、candidate、unresolved。
 - [ ] 没有把 CITATION_VERIFIED_ONLY 写成已完成语义证明。
+- [ ] 若返回 SUPPORTED_WITH_BOUNDARIES，已阅读范围说明，没有把语句写法核验扩展成最终值、实际执行或精度证明。
+- [ ] 已查看 question_coverage，没有把循环 COMPLETED 或单条公式支持当作完整业务分析通过。
 - [ ] 没有把源码、SQLite、报告或 Key git add。
 - [ ] 代码/文档有改动时已通过测试、提交并推送；无公开改动时保持工作区干净。
 
@@ -428,11 +441,14 @@ commit 成功后，.githooks/post-commit 会自动执行 git push origin 当前�
 
 - 未显式传 --allow-network 时，company_api.py 和 run_agent.py 不创建真实网络请求。
 - 结构索引建立在本地 SQLite/FTS5 上，并保存快照 Hash 与 EvidenceSpan，便于后续检查引用是否仍对应原文件。
-- 对未变化文件使用 Hash 跳过重复解析；源码变化后会更新对应索引记录。
+- 未变化文件只有在解析器版本也未变化时才跳过；升级后重跑索引命令即可重建，COPY 变化会重绑消费程序。
+- 普通数据 COPY 字段按程序隔离；同名字段宜指定 program_name，定义与 COPY 引用链可回溯，但不代表 CALL 参数值流。
+- 多行显式 IF 保留完整条件，受支持 SQL 返回宿主变量读写，复杂或未支持语法保留边界。
 - Agent 只能使用 search_code、inspect_symbol、trace_relations、read_evidence 四个只读工具；一次调查最多 6 次工具调用，并在连续无新进展时停止。
 - Evidence ID、快照、文件 Hash、行号或工具结果契约不通过时，流程会安全停止或拒答。
 - 读取源码证据后，调查范围会关闭；后续只能完成回答或拒答，不能继续无界搜索。
-- 代码事实和引用完整性可以由当前实现检查；自然语言结论的独立语义支持仍是边界。
+- 结构化 COMPUTE 断言会独立核对单段源码中的目标、算式 token 顺序和 ROUNDED；通过后由本地模板生成陈述，并强制保留范围边界。
+- 普通自然语言结论只做引用和词面锚定校验，完整语义支持仍是边界。
 
 对应实现位置：
 
@@ -441,7 +457,8 @@ commit 成功后，.githooks/post-commit 会自动执行 git push origin 当前�
 - poc/repo_inventory.py：离线清单；
 - poc/structural_index.py：SQLite/FTS5 结构索引；
 - poc/investigation_tools.py：四个只读调查工具；
-- poc/agent_loop.py：工具白名单、预算、Evidence 范围和回答校验。
+- poc/agent_loop.py：工具白名单、预算、Evidence 范围和回答校验；
+- poc/claim_support.py：独立 COMPUTE 断言核验与本地陈述生成。
 
 ## 15. 仍需要人工确认的事项
 

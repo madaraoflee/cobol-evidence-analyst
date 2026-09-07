@@ -21,6 +21,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from statement_facts import (
+    condition_syntax_supported,
+    sentence_terminated,
+    sql_code_only,
+    sql_host_access,
+)
+
+from copy_expansion import clear_copy_expansions, rebuild_copy_expansions
+from call_bindings import clear_call_bindings, ensure_call_binding_schema, rebuild_call_bindings
+
 from repo_inventory import (
     DEFAULT_EXTENSIONS,
     classify_artifact,
@@ -31,7 +41,8 @@ from repo_inventory import (
 )
 
 
-SCHEMA_VERSION = "0.1"
+SCHEMA_VERSION = "0.3"
+PARSER_VERSION = "source-facts-v0.3"
 
 PROGRAM_ID_RE = re.compile(
     r"\bPROGRAM-ID\s*\.\s*([A-Z0-9_$#@-]+)", re.IGNORECASE
@@ -51,7 +62,7 @@ DATA_ITEM_RE = re.compile(
     re.IGNORECASE,
 )
 COPY_RE = re.compile(
-    r"\bCOPY\s+([A-Z0-9_$#@.-]+)", re.IGNORECASE
+    r"\bCOPY\s+['\"]?([A-Z0-9_$#@.-]+)", re.IGNORECASE
 )
 LITERAL_CALL_RE = re.compile(
     r"\bCALL\s+(['\"])([^'\"]+)\1", re.IGNORECASE
@@ -316,6 +327,7 @@ class ControlFrame:
     kind: str
     condition_id: str
     outcome: str
+    parse_status: str = "complete"
 
 
 def _stable_id(prefix: str, *parts: object) -> str:
@@ -343,7 +355,7 @@ def normalize_cobol_lines(text: str) -> tuple[tuple[NormalizedLine, ...], str]:
         looks_fixed = (
             len(expanded) >= 7
             and (
-                first_six.strip().isdigit()
+                first_six.isdigit()
                 or (not first_six.strip() and expanded[6] in " */-Dd")
             )
         )
@@ -756,6 +768,7 @@ def parse_document(document: SourceDocument) -> ParsedFile:
         line: NormalizedLine,
         *,
         parse_status: str = "complete",
+        closes_sentence: bool | None = None,
     ) -> CodeUnit:
         parent = (
             current_paragraph_id
@@ -772,6 +785,11 @@ def parse_document(document: SourceDocument) -> ParsedFile:
             parse_status=parse_status,
         )
         for frame in control_stack:
+            control_metadata: dict[str, object] = {
+                "outcome": frame.outcome, "control_kind": frame.kind,
+            }
+            if frame.parse_status != "complete":
+                control_metadata["boundary"] = "condition_syntax_not_supported"
             add_relation(
                 statement.unit_id,
                 "CONTROL_DEPENDS_ON",
@@ -779,9 +797,18 @@ def parse_document(document: SourceDocument) -> ParsedFile:
                 target_scope=current_program_name,
                 target_entity_id=frame.condition_id,
                 evidence_id=statement.evidence_id,
-                status="confirmed",
-                metadata={"outcome": frame.outcome, "control_kind": frame.kind},
+                status=(
+                    "confirmed" if frame.parse_status == "complete"
+                    else "unresolved"
+                ),
+                metadata=control_metadata,
             )
+        should_close = (
+            closes_sentence if closes_sentence is not None
+            else sentence_terminated(line.text)
+        )
+        if should_close:
+            control_stack.clear()
         return statement
 
     def add_field_relations(
@@ -824,6 +851,35 @@ def parse_document(document: SourceDocument) -> ParsedFile:
             current_section_id = None
             current_paragraph_id = None
             control_stack.clear()
+            if current_division == "PROCEDURE":
+                header_lines = [line]
+                cursor = index + 1
+                while not sentence_terminated(header_lines[-1].text) and cursor < len(document.lines):
+                    candidate = document.lines[cursor]
+                    candidate_upper = candidate.text.strip().upper()
+                    if (
+                        len(header_lines) >= 64
+                        or DIVISION_RE.match(candidate_upper)
+                        or SECTION_RE.match(candidate_upper)
+                        or PROGRAM_ID_RE.search(candidate_upper)
+                        or _statement_kind(candidate_upper) != "OTHER"
+                    ):
+                        break
+                    header_lines.append(candidate)
+                    cursor += 1
+                signature_line = NormalizedLine(
+                    start_line=line.start_line,
+                    end_line=header_lines[-1].end_line,
+                    text=" ".join(item.text.strip() for item in header_lines),
+                )
+                add_unit(
+                    "ProcedureSignature", "PROCEDURE", signature_line,
+                    parent_unit_id=current_program_id,
+                    program_name=current_program_name,
+                    parse_status=("complete" if sentence_terminated(signature_line.text) else "partial"),
+                )
+                index = cursor
+                continue
             index += 1
             continue
 
@@ -903,6 +959,28 @@ def parse_document(document: SourceDocument) -> ParsedFile:
         ):
             data_match = DATA_ITEM_RE.match(upper)
             if data_match:
+                declaration_lines = [line]
+                cursor = index + 1
+                while not sentence_terminated(declaration_lines[-1].text) and cursor < len(document.lines):
+                    candidate = document.lines[cursor]
+                    candidate_upper = candidate.text.strip().upper()
+                    if (
+                        len(declaration_lines) >= 64
+                        or DATA_ITEM_RE.match(candidate_upper)
+                        or DIVISION_RE.match(candidate_upper)
+                        or SECTION_RE.match(candidate_upper)
+                        or PROGRAM_ID_RE.search(candidate_upper)
+                        or _statement_kind(candidate_upper) != "OTHER"
+                    ):
+                        break
+                    declaration_lines.append(candidate)
+                    cursor += 1
+                if len(declaration_lines) > 1:
+                    line = NormalizedLine(
+                        start_line=line.start_line,
+                        end_line=declaration_lines[-1].end_line,
+                        text=" ".join(item.text.strip() for item in declaration_lines),
+                    )
                 level = data_match.group(1).zfill(2)
                 field_name = data_match.group(2).upper()
                 field_type = "ConditionName" if level == "88" else "Field"
@@ -924,28 +1002,50 @@ def parse_document(document: SourceDocument) -> ParsedFile:
                         f"{current_program_name or '<NONE>'}::{field_name}"
                     ),
                 )
-                index += 1
+                index = cursor
                 continue
 
-        if EXEC_SQL_START_RE.search(upper):
+        if EXEC_SQL_START_RE.match(upper):
             sql_lines = [line]
             cursor = index + 1
-            while cursor < len(document.lines):
+            terminated = bool(EXEC_SQL_END_RE.search(sql_code_only(upper)[0]))
+            while not terminated and cursor < len(document.lines):
+                candidate_upper = document.lines[cursor].text.strip().upper()
+                if (
+                    DIVISION_RE.match(candidate_upper)
+                    or SECTION_RE.match(candidate_upper)
+                    or PROGRAM_ID_RE.search(candidate_upper)
+                    or re.match(r"^(?:GOBACK|END-IF|ELSE)\b", candidate_upper)
+                ):
+                    break
                 sql_lines.append(document.lines[cursor])
-                if EXEC_SQL_END_RE.search(document.lines[cursor].text):
+                if EXEC_SQL_END_RE.search(sql_code_only("\n".join(
+                    item.text for item in sql_lines
+                ))[0]):
+                    terminated = True
                     cursor += 1
                     break
                 cursor += 1
             sql_line = NormalizedLine(
                 start_line=sql_lines[0].start_line,
                 end_line=sql_lines[-1].end_line,
-                text=" ".join(item.text.strip() for item in sql_lines),
+                text="\n".join(item.text.strip() for item in sql_lines),
             )
-            statement = add_statement("EXEC_SQL", sql_line)
-            sql_upper = sql_line.text.upper()
+            sql_upper, lexical_complete = sql_code_only(sql_line.text)
+            reads, writes, host_supported = sql_host_access(sql_upper)
+            statement = add_statement(
+                "EXEC_SQL", sql_line,
+                parse_status=(
+                    "complete" if terminated and lexical_complete and host_supported
+                    else "partial"
+                ),
+                closes_sentence=(
+                    terminated and lexical_complete and sentence_terminated(sql_upper)
+                ),
+            )
             for table_name in re.findall(
                 r"\b(?:FROM|JOIN)\s+([A-Z0-9_$#@.-]+)", sql_upper
-            ):
+            ) if terminated and lexical_complete else []:
                 add_relation(
                     statement.unit_id,
                     "SELECTS_FROM",
@@ -958,7 +1058,7 @@ def parse_document(document: SourceDocument) -> ParsedFile:
                 r"\b(?:UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+"
                 r"([A-Z0-9_$#@.-]+)",
                 sql_upper,
-            ):
+            ) if terminated and lexical_complete else []:
                 add_relation(
                     statement.unit_id,
                     "UPDATES",
@@ -966,6 +1066,14 @@ def parse_document(document: SourceDocument) -> ParsedFile:
                     target_scope=None,
                     evidence_id=statement.evidence_id,
                     metadata={"boundary": "database_definition_not_indexed"},
+                )
+            if terminated and lexical_complete and host_supported:
+                add_field_relations(
+                    statement, reads, writes,
+                    {
+                        "operation": "EXEC_SQL",
+                        "boundary": "sql_column_lineage_not_resolved",
+                    },
                 )
             index = cursor
             continue
@@ -1027,20 +1135,57 @@ def parse_document(document: SourceDocument) -> ParsedFile:
                     target_scope=current_program_name,
                     evidence_id=when_unit.evidence_id,
                 )
+            if sentence_terminated(line.text):
+                control_stack.clear()
             index += 1
             continue
 
         if re.match(r"^IF\b", upper):
-            statement = add_statement("IF", line)
-            condition_text = re.sub(r"^IF\s+", "", upper).rstrip(".")
+            collected = [line]
+            cursor = index + 1
+            while cursor < len(document.lines) and not collected[-1].text.rstrip().endswith("."):
+                candidate = document.lines[cursor]
+                candidate_upper = candidate.text.strip().upper()
+                first_word = candidate_upper.split(None, 1)[0].rstrip(".")
+                if (
+                    first_word in PARAGRAPH_EXCLUSIONS
+                    or first_word == "EXEC"
+                    or DIVISION_RE.match(candidate_upper)
+                    or SECTION_RE.match(candidate_upper)
+                    or PROGRAM_ID_RE.search(candidate_upper)
+                    or PARAGRAPH_RE.match(candidate_upper)
+                ):
+                    break
+                collected.append(candidate)
+                cursor += 1
+            condition_line = NormalizedLine(
+                start_line=collected[0].start_line,
+                end_line=collected[-1].end_line,
+                text=" ".join(item.text.strip() for item in collected),
+            )
+            condition_text = re.sub(
+                r"^IF\s+", "", condition_line.text.strip().upper()
+            )
+            condition_status = (
+                "complete" if condition_syntax_supported(
+                    condition_text, PARAGRAPH_EXCLUSIONS | {"EXEC"}
+                ) else "partial"
+            )
+            statement = add_statement(
+                "IF", condition_line, parse_status=condition_status,
+            )
             condition_unit = add_unit(
                 "Condition",
                 "IF",
-                line,
+                condition_line,
                 parent_unit_id=statement.unit_id,
                 program_name=current_program_name,
+                parse_status=condition_status,
             )
-            for field_name in _unique_identifiers(condition_text):
+            for field_name in (
+                _unique_identifiers(condition_text)
+                if condition_status == "complete" else []
+            ):
                 add_relation(
                     condition_unit.unit_id,
                     "READS",
@@ -1050,11 +1195,17 @@ def parse_document(document: SourceDocument) -> ParsedFile:
                     metadata={"condition": condition_text},
                 )
             control_stack.append(
-                ControlFrame("IF", condition_unit.unit_id, "true")
+                ControlFrame(
+                    "IF", condition_unit.unit_id, "true", condition_status,
+                )
             )
-            if "END-IF" in upper:
+            if re.search(r"\bEND-IF\b", re.sub(
+                r"'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"", " ", condition_text,
+            )):
                 control_stack.pop()
-            index += 1
+            if sentence_terminated(condition_line.text):
+                control_stack.clear()
+            index = cursor
             continue
 
         if re.match(r"^EVALUATE\b", upper):
@@ -1079,6 +1230,8 @@ def parse_document(document: SourceDocument) -> ParsedFile:
             control_stack.append(
                 ControlFrame("EVALUATE", condition_unit.unit_id, "selector")
             )
+            if sentence_terminated(line.text):
+                control_stack.clear()
             index += 1
             continue
 
@@ -1147,15 +1300,21 @@ def parse_document(document: SourceDocument) -> ParsedFile:
         parse_status = "complete" if statement_kind != "OTHER" else "partial"
         statement = add_statement(statement_kind, line, parse_status=parse_status)
 
-        copy_match = COPY_RE.search(upper)
-        if copy_match:
-            copy_target = copy_match.group(1).rstrip(".").upper()
+        copy_match = COPY_RE.match(upper)
+        if copy_match or re.match(r"^COPY\b", upper):
+            copy_target = copy_match.group(1).rstrip(".").upper() if copy_match else None
+            copy_metadata: dict[str, object] = {}
+            if not re.fullmatch(r"COPY\s+[A-Z0-9_$#@-]+\s*\.", upper):
+                copy_metadata["boundary"] = "copy_form_not_supported"
+            elif current_division != "DATA" and root_unit_id is None:
+                copy_metadata["boundary"] = "copy_context_not_supported"
             add_relation(
                 statement.unit_id,
                 "INCLUDES_COPY",
                 target_name=copy_target,
                 target_scope=None,
                 evidence_id=statement.evidence_id,
+                metadata=copy_metadata,
             )
 
         literal_calls = [
@@ -1228,6 +1387,28 @@ def parse_document(document: SourceDocument) -> ParsedFile:
         reads, writes, expression_metadata = _extract_data_access(upper)
         add_field_relations(statement, reads, writes, expression_metadata)
         index = next_index
+
+    # Group evidence covers every subordinate declaration, including intervening
+    # source text. Parameter layout checks can cite this complete physical span.
+    data_units = [item for item in units if item.unit_type == "DataItem"]
+    for offset, item in enumerate(data_units):
+        match = DATA_ITEM_RE.match(item.normalized_text)
+        if match is None or match.group(3).strip().rstrip("."):
+            continue
+        level = int(match.group(1))
+        descendants: list[CodeUnit] = []
+        for candidate in data_units[offset + 1:]:
+            next_match = DATA_ITEM_RE.match(candidate.normalized_text)
+            if (
+                candidate.program_name != item.program_name
+                or candidate.parent_unit_id != item.parent_unit_id
+                or next_match is None
+                or int(next_match.group(1)) <= level
+            ):
+                break
+            descendants.append(candidate)
+        if descendants:
+            ensure_evidence(NormalizedLine(item.start_line, descendants[-1].end_line, ""))
 
     return ParsedFile(
         document=document,
@@ -1324,8 +1505,23 @@ def _ensure_schema(connection: sqlite3.Connection) -> None:
             ON relations(from_entity_id, relation_type);
         CREATE INDEX IF NOT EXISTS idx_relations_target
             ON relations(target_entity_id, relation_type);
+
+        CREATE TABLE IF NOT EXISTS copy_expansions (
+            symbol_id TEXT PRIMARY KEY,
+            unit_id TEXT NOT NULL UNIQUE,
+            source_symbol_id TEXT NOT NULL,
+            program_symbol_id TEXT NOT NULL,
+            inclusion_relation_ids_json TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS copy_scope_boundaries (
+            program_name TEXT NOT NULL,
+            relative_path TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            evidence_id TEXT NOT NULL
+        );
         """
     )
+    ensure_call_binding_schema(connection)
     try:
         connection.execute(
             """
@@ -1540,6 +1736,11 @@ def _symbol_maps(
 
 def _resolve_relations(connection: sqlite3.Connection) -> None:
     programs, copybooks, paragraphs, fields = _symbol_maps(connection)
+    incomplete_copy_scopes = {
+        row["program_name"] for row in connection.execute(
+            "SELECT DISTINCT program_name FROM copy_scope_boundaries"
+        )
+    }
 
     placeholders = ",".join("?" for _ in RESOLVABLE_RELATION_TYPES)
     rows = list(
@@ -1559,6 +1760,7 @@ def _resolve_relations(connection: sqlite3.Connection) -> None:
         target_name = row["target_name"]
         target_scope = row["target_scope"]
         metadata = json.loads(row["metadata_json"])
+        metadata.pop("candidate_count", None)
         candidates: list[str] = []
 
         if target_name is None:
@@ -1572,7 +1774,14 @@ def _resolve_relations(connection: sqlite3.Connection) -> None:
         elif relation_type in {"READS", "WRITES", "CALL_TARGET_FROM"} and target_scope:
             candidates = fields.get((target_scope, target_name), [])
 
-        if len(candidates) == 1:
+        if (
+            relation_type in {"READS", "WRITES", "CALL_TARGET_FROM"}
+            and target_scope in incomplete_copy_scopes
+        ):
+            status = "unresolved"
+            target_entity_id = None
+            metadata["resolution_reason"] = "copy_scope_incomplete"
+        elif len(candidates) == 1:
             status = "confirmed"
             target_entity_id = candidates[0]
             metadata.pop("resolution_reason", None)
@@ -1646,6 +1855,10 @@ def build_structural_index(
     connection = _connect(database)
     try:
         _ensure_schema(connection)
+        parser_row = connection.execute(
+            "SELECT value FROM metadata WHERE key = 'parser_version'"
+        ).fetchone()
+        parser_changed = parser_row is None or parser_row["value"] != PARSER_VERSION
         existing_hashes = {
             row["relative_path"]: row["sha256"]
             for row in connection.execute(
@@ -1678,12 +1891,14 @@ def build_structural_index(
         changed_documents = [
             document
             for document in documents
-            if existing_hashes.get(document.relative_path)
+            if parser_changed or existing_hashes.get(document.relative_path)
             != document.source_sha256
         ]
         skipped_count = len(documents) - len(changed_documents)
 
         with connection:
+            clear_call_bindings(connection)
+            clear_copy_expansions(connection)
             for relative_path in removed_paths:
                 _delete_file_facts(connection, relative_path)
 
@@ -1693,7 +1908,9 @@ def build_structural_index(
                 parsed = parse_document(document)
                 _insert_parsed_file(connection, parsed)
 
+            copy_report = rebuild_copy_expansions(connection)
             _resolve_relations(connection)
+            call_report = rebuild_call_bindings(connection, normalize_cobol_lines)
             snapshot_id = _snapshot_id(documents)
             connection.execute(
                 """
@@ -1701,6 +1918,13 @@ def build_structural_index(
                 ON CONFLICT(key) DO UPDATE SET value = excluded.value
                 """,
                 (SCHEMA_VERSION,),
+            )
+            connection.execute(
+                """
+                INSERT INTO metadata(key, value) VALUES('parser_version', ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (PARSER_VERSION,),
             )
             connection.execute(
                 """
@@ -1737,6 +1961,8 @@ def build_structural_index(
         }
         report: dict[str, object] = {
             "schema_version": SCHEMA_VERSION,
+            "parser_version": PARSER_VERSION,
+            "parser_rebuild_required": bool(existing_hashes) and parser_changed,
             "snapshot_id": _snapshot_id(documents),
             "privacy": {
                 "network_calls": False,
@@ -1753,6 +1979,8 @@ def build_structural_index(
             },
             "database_counts": _database_counts(connection),
             "relation_statuses": relation_statuses,
+            "copy_expansion": copy_report,
+            "call_bindings": call_report,
             "database_path": str(database),
         }
         return report
@@ -1778,6 +2006,7 @@ def search_code(
               FROM code_units_fts
               JOIN code_units AS c ON c.unit_id = code_units_fts.unit_id
              WHERE code_units_fts MATCH ?
+               AND c.unit_id NOT LIKE 'copy_unit_%'
              ORDER BY score
              LIMIT ?
             """,

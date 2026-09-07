@@ -25,6 +25,8 @@ ALLOWED_RELATION_TYPES = frozenset(
     {
         "CALLS",
         "CALL_TARGET_FROM",
+        "PASSES_AS",
+        "MAY_WRITE_BACK",
         "PERFORMS",
         "PERFORMS_THRU",
         "INCLUDES_COPY",
@@ -314,6 +316,7 @@ class InvestigationTools:
                       JOIN code_units AS c
                         ON c.unit_id = s.definition_unit_id
                      WHERE s.name IN ({placeholders})
+                       AND c.unit_id NOT LIKE 'copy_unit_%'
                      ORDER BY CASE s.symbol_type
                                   WHEN 'Program' THEN 0
                                   WHEN 'Paragraph' THEN 1
@@ -339,6 +342,7 @@ class InvestigationTools:
                       JOIN code_units AS c
                         ON c.unit_id = code_units_fts.unit_id
                      WHERE code_units_fts MATCH ?
+                       AND c.unit_id NOT LIKE 'copy_unit_%'
                      ORDER BY score, c.relative_path, c.start_line
                      LIMIT ?
                     """,
@@ -465,6 +469,10 @@ class InvestigationTools:
                                OR (
                                    r.target_entity_id IS NULL
                                    AND r.target_name = ?
+                                   AND (r.target_scope = ? OR (
+                                       ? IN ('Program', 'Copybook')
+                                       AND r.target_scope IS NULL
+                                   ))
                                )
                            )
                          ORDER BY e.relative_path, e.start_line,
@@ -474,6 +482,8 @@ class InvestigationTools:
                         (
                             symbol["symbol_id"],
                             symbol["name"],
+                            symbol["program_name"],
+                            symbol["symbol_type"],
                             safe_relation_limit + 1,
                         ),
                     )
@@ -511,6 +521,9 @@ class InvestigationTools:
                         "incoming_relations": incoming,
                     }
                 )
+                binding = self._copy_binding(connection, symbol["symbol_id"])
+                if binding:
+                    matches[-1]["definition"]["copy_binding"] = binding
 
             result["matches"] = matches
             result["match_count"] = len(matches)
@@ -535,6 +548,32 @@ class InvestigationTools:
                     }
                 )
             return result
+
+    @staticmethod
+    def _copy_binding(
+        connection: sqlite3.Connection, symbol_id: str
+    ) -> dict[str, object] | None:
+        # Old snapshots remain readable; rebuilding upgrades their parser facts.
+        if not connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'copy_expansions'"
+        ).fetchone():
+            return None
+        row = connection.execute(
+            "SELECT inclusion_relation_ids_json FROM copy_expansions WHERE symbol_id = ?",
+            (symbol_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        refs = []
+        for relation_id in json.loads(row["inclusion_relation_ids_json"]):
+            evidence = connection.execute(
+                "SELECT e.* FROM relations r JOIN evidence_spans e "
+                "ON e.evidence_id = r.evidence_id WHERE r.relation_id = ?",
+                (relation_id,),
+            ).fetchone()
+            if evidence:
+                refs.append(InvestigationTools._evidence_ref(evidence))
+        return {"kind": "copybook_expansion", "inclusion_evidence_refs": refs}
 
     @staticmethod
     def _entity_for_id(
@@ -584,6 +623,18 @@ class InvestigationTools:
             (row["program_name"],),
         ).fetchone()
         return dict(program) if program else None
+
+    @staticmethod
+    def _source_field_entity(
+        connection: sqlite3.Connection, unit_id: str
+    ) -> dict[str, object] | None:
+        rows = list(connection.execute(
+            "SELECT symbol_id AS entity_id, symbol_type AS entity_type, "
+            "name, program_name, definition_unit_id FROM symbols "
+            "WHERE definition_unit_id = ? AND symbol_type = 'Field' LIMIT 2",
+            (unit_id,),
+        ))
+        return dict(rows[0]) if len(rows) == 1 else None
 
     def trace_relations(
         self,
@@ -717,6 +768,10 @@ class InvestigationTools:
                                        OR (
                                            r.target_entity_id IS NULL
                                            AND r.target_name = ?
+                                           AND (r.target_scope = ? OR (
+                                               ? IN ('Program', 'Copybook')
+                                               AND r.target_scope IS NULL
+                                           ))
                                        )
                                    )
                                  ORDER BY e.relative_path, e.start_line,
@@ -727,6 +782,8 @@ class InvestigationTools:
                                     *sorted_types,
                                     entity["entity_id"],
                                     entity["name"],
+                                    entity["program_name"],
+                                    entity["entity_type"],
                                     safe_edges + 1,
                                 ),
                             )
@@ -764,6 +821,10 @@ class InvestigationTools:
                                 )
                                 if row["target_entity_id"]
                                 else None
+                            )
+                        elif row["relation_type"] in {"PASSES_AS", "MAY_WRITE_BACK"}:
+                            next_entity = self._source_field_entity(
+                                connection, row["from_entity_id"]
                             )
                         else:
                             next_entity = self._owner_program_entity(

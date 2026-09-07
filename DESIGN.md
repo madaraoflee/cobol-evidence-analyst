@@ -8,9 +8,13 @@
 当前实施基线：[可演示 POC](./docs/09-demonstrable-poc.md)  
 适用范围：IBM i / AS400、通用 COBOL，以及后续在公司内适配的 DXC Smart COBOL 香港保险系统
 
-> 实施快照（2026-08-31）：P3-A 已实现公司 API 能力探测、四工具白名单、最多六步的单 Agent 循环、Evidence 范围/Hash/快照核验和固定四段回答。读取 Evidence 后工具阶段立即终止，快照异常结果不会进入审计轨迹。真实公司 API 与独立 Claim 语义支持核验尚未完成，因此当前实现只返回 `CITATION_VERIFIED_ONLY`，不把词面锚定误称为部分语义支持。执行细节见 [P3-A 进度报告](./docs/reports/2026-08-31-p3a-progress-report.md)。
+> 实施快照（2026-09-07）：P3-A 已实现公司 API 能力探测、四工具白名单、最多六步的单 Agent 循环、Evidence 范围/Hash/快照核验和固定四段回答。P3-B 增加独立的 `COMPUTE` 结构化断言核验：从单段完整有效证据解析语句，核对目标、算式 token 顺序和 `ROUNDED`，再本地生成中文事实。通过的回答可为 `SUPPORTED_WITH_BOUNDARIES`，范围仅限语句写法；普通自然语言仍为 `CITATION_VERIFIED_ONLY`。真实公司 API 验收和任意自然语言的完整语义支持核验尚未完成。下文的完整 Claim Support Checker 仍属于目标架构，当前切片见 [P3-B 进度报告](./docs/reports/2026-09-07-p3b-progress-report.md)。
 
 ## 1. 设计结论
+
+> 最新 P3-D 实施状态：受支持的 CALL USING/LINKAGE 位置与布局对应已实现，REFERENCE 候选回写与 CONTENT/VALUE 无回写分别处理；新增复杂调用链及错误传播审查。配置动态目标、完整控制流、循环值流和模型完整回答仍未证明。当前边界以 [P3-D 报告](./docs/reports/2026-09-08-p3d-cross-program-error-flow.md)为准，P3-C 记录保留为历史切片。
+
+> 2026-09-08 实施更新：P3-C 已补多行条件、COPY 程序范围定义绑定和 SQL 宿主变量读写，并把“单条陈述正确”与“问题答完整”分开。CALC-01 来源事实覆盖为 16 项覆盖、3 项业务缺口、4 项边界，演示为 `PARTIAL`；Agent 明确 `question_coverage=not_assessed`。完整值流、错误路径、模型回答和界面仍未整体验收。以 [P3-C 报告](./docs/reports/2026-09-08-p3c-business-chain-progress.md)作为最新实施状态，下文完整架构继续属于目标。
 
 这个 Agent 可以实现，但可信版本不能只靠 LLM，也不能只靠向量数据库。系统必须组合四种能力：
 
@@ -413,7 +417,7 @@ UNDERSTAND
 - LangGraph、Qdrant、Neo4j、Qwen3/BGE-M3 的候选选型；
 - 解析器 Bake-off 与分层评测策略。
 
-统一 IR 与完整 Agent 工具契约保留为未来演进边界，不作为 POC 前置条件。公开侧现已完成离线画像、SQLite/FTS5 结构索引、四个受限调查工具、公司 API capability probe 和最多六步的 Agent 骨架；CALC-01 已在 4 次真实工具调用内完成离线闭环，84 项自动测试全部通过。下一切片是在公司批准环境验收真实 API 并接入独立 Claim 语义支持核验。真实公司代码画像、DXC 方言适配和业务金标准只能在公司批准环境内执行。DDL/DDS、Job Schedule、DB File、Item Table 和运行数据未下载，必须作为回答边界；Embedding、图服务与 LangGraph 继续暂缓。
+统一 IR 与完整 Agent 工具契约保留为未来演进边界，不作为 POC 前置条件。公开侧现已完成离线画像、SQLite/FTS5 结构索引、四个受限调查工具、公司 API capability probe 和最多六步的 Agent 骨架；P3-B 已把独立 `COMPUTE` 断言核验接入 CALC-01 的 4 次真实工具调用离线闭环。当前可证明目标字段、算式 token 顺序和舍入关键字与单段源码一致，不能据此证明执行路径、最终值或任意自然语言结论。下一退出门槛是在公司批准环境验收真实 API，并以评测样本约束后续断言类型扩展。真实公司代码画像、DXC 方言适配和业务金标准只能在公司批准环境内执行。DDL/DDS、Job Schedule、DB File、Item Table 和运行数据未下载，必须作为回答边界；Embedding、图服务与 LangGraph 继续暂缓。
 
 ## 17. 详细设计索引
 

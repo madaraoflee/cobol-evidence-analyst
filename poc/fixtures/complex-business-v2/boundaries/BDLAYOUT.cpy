@@ -1,0 +1,1 @@
+01 OLD-VALUE PIC 9(4).

@@ -24,6 +24,9 @@
 - [CALC-01 P1-B 可执行演示结果](./docs/leadership-demo/p1b-executable-demo.md)
 - [2026-08-30 P1-B 项目进度报告](./docs/reports/2026-08-30-p1b-progress-report.md)
 - [2026-08-31 P3-A 项目进度报告](./docs/reports/2026-08-31-p3a-progress-report.md)
+- [2026-09-07 P3-B 项目进度报告](./docs/reports/2026-09-07-p3b-progress-report.md)
+- [2026-09-08 P3-C 业务链事实与完整性检查](./docs/reports/2026-09-08-p3c-business-chain-progress.md)
+- [2026-09-08 P3-D 复杂调用链与错误传播](./docs/reports/2026-09-08-p3d-cross-program-error-flow.md)
 - [P1-B 领导审阅 Word 报告](./docs/reports/COBOL-Agent-P1B-Progress-Report.docx)
 - [POC 实现：离线代码库画像工具](./poc/README.md)
 - [办公室电脑使用手册：从安装到 Agent 调查](./docs/11-office-usage-guide.md)
@@ -42,6 +45,12 @@
 
 ## 当前状态与下一步
 
-P3-A 的可运行骨架已完成：公司 OpenAI-compatible API 能力探测会验证 Chat、Tool Calling 完整回传、严格 JSON 和可选 Embedding；只有原生工具闭环或严格 JSON 探测通过，运行器才会启动 Agent。Agent 只能调用四个只读工具，最多 6 次，并强制快照、Evidence ID 范围、Hash、引用和结果包契约；非 Evidence 结果还会先被重建为安全投影，不向模型传递源码派生文本或未声明字段。读取源码后调查范围立即关闭，只能完成回答或拒答。CALC-01 已在 4 次真实工具调用内完成离线端到端闭环，两类超出源码快照的问题会明确拒答；当前 84 项自动测试全部通过。
+P3-A 的可运行骨架已完成：公司 OpenAI-compatible API 能力探测会验证 Chat、Tool Calling 完整回传、严格 JSON 和可选 Embedding；只有原生工具闭环或严格 JSON 探测通过，运行器才会启动 Agent。Agent 只能调用四个只读工具，最多 6 次，并强制快照、Evidence ID 范围、Hash、引用和结果包契约；非 Evidence 结果会被重建为安全投影。读取源码后调查范围立即关闭，只能完成回答或拒答。
 
-下一步不是扩张工具，而是在公司批准环境对真实 API 执行 capability probe 和 CALC-01 验收，然后增加独立的 Claim 语义支持核验。在该核验完成前，系统即使通过引用完整性与词面锚定，也只返回 `CITATION_VERIFIED_ONLY`，把模型陈述标为“候选陈述；语义未核验”，不称为部分支持或已证明结论。真实公司 API 尚未在本项目环境中调用。
+P3-B 已接入独立 Claim 核验的第一个可执行切片：模型提交结构化 `COMPUTE` 断言，本地核验器直接解析单段完整、Hash 有效的源码，逐项核对目标字段、算式 token 顺序和 `ROUNDED`，再由本地模板生成中文陈述。通过核验的回答可返回 `SUPPORTED_WITH_BOUNDARIES`；它只证明该语句的写法，不证明最终值、实际执行或精度规则。CALC-01 的四次真实工具调用离线闭环已接入这条路径；普通自然语言陈述仍为 `CITATION_VERIFIED_ONLY`，不匹配或超出支持语法的结构化断言会保留原因并拒绝升级。
+
+P3-C 已补齐多行条件、程序范围内的 COPY 字段定义绑定，以及 SQL 宿主变量的直接读写。字段现在能沿“声明位置 → SQL 写入 → 公式读取”追踪，同名字段不会跨程序混绑；这仍不等于 CALL 参数传递或完整值流证明。旧索引重新运行构建命令时会按解析器版本自动更新。
+
+P3-D 已实现受支持的 CALL USING/LINKAGE 位置与布局对应，区分 REFERENCE、CONTENT、VALUE，并提供错误状态、查询分支、委托清零和后续覆写审查。新增复杂样例含 14 个主程序、4 个 COPY、五层调用链及配置型动态调用；主场景得到 205 条参数/成员对应与 92 条可能回写关系。另有独立反例和 35 个明确未执行的业务案例期望。配置目标仍未确认，完整控制流与业务回答仍未证明。
+
+完整业务分析仍是最终目标。原 CALC-01 保留缺口作为回归反例，Agent 始终另行标明问题完整性未核验。下一步补调用上下文、异常/溢出控制流、数组循环和值流，再以获准配置和真实模型验收完整回答。当前未调用公司 API、未执行 COBOL，也未接通界面。详见 [P3-D 报告](./docs/reports/2026-09-08-p3d-cross-program-error-flow.md)。

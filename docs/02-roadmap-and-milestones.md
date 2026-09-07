@@ -28,6 +28,10 @@ flowchart LR
 
 ## 2. 完整产品推进顺序（POC 后）
 
+最新 P3-D 更新：已实现受支持的 CALL USING/LINKAGE 参数及固定组成员对应，并加入只读错误路径审查与 14 程序复杂夹具。主样例有 205 条参数对应、92 条候选回写；配置目标和完整控制流仍未证明。下一退出门槛是调用上下文、异常与循环值流，再验收真实模型完整回答；详见 [P3-D 报告](./reports/2026-09-08-p3d-cross-program-error-flow.md)。下方 P3-C 为先前切片记录。
+
+2026-09-08 实施更新：P3-C 已修复多行 IF、COPY 程序范围绑定与 SQL 宿主读写，并增加问题完整性分离和 CALC-01 来源事实覆盖检查。当前为 16 项覆盖、3 项业务缺口、4 项边界，演示明确 `PARTIAL`。接下来优先补跨程序参数值流与完整错误路径证据，再验收模型检索、完整回答和界面；单条公式核验不能关闭 P2/P3 退出门槛。详见 [P3-C 报告](./reports/2026-09-08-p3c-business-chain-progress.md)。
+
 ```mermaid
 flowchart LR
     M0["M0 Agent 框架与设计契约"] --> M1["M1 代码库画像与问题基线"]
@@ -82,4 +86,6 @@ flowchart LR
 7. 每个回答显示当前只有 COBOL/COPYBOOK，以及缺失 DDL/DDS、Job、DB File、Item Table 和运行数据的边界；
 8. 加入界面、源码证据、一个未预写问题和一个拒答问题，并完成 Windows 彩排。
 
-截至 2026-08-31，公开侧已完成 `repo_inventory`、SQLite/FTS5 结构索引、四个只读调查工具、公司 API capability probe 和最多六步的受控 Agent 骨架。CALC-01 已在 4 次真实工具调用内完成离线端到端闭环，84 项自动测试全部通过。P3 仍未宣布完成：真实公司 API 尚未在批准环境中进行能力和 CALC-01 验收，独立 Claim 语义支持核验也尚未接入；因此当前 Agent 回答最高为 `CITATION_VERIFIED_ONLY`，只表示引用与词面锚定有效。真实代码库聚合画像和 DXC 适配仍只能在公司批准环境内执行。
+截至 2026-09-07，公开侧已完成 `repo_inventory`、SQLite/FTS5 结构索引、四个只读调查工具、公司 API capability probe、最多六步的受控 Agent，以及 P3-B 独立 `COMPUTE` 结构化断言核验。CALC-01 的 4 次真实工具调用离线闭环已接入新核验路径：只有单段完整证据中的目标字段、算式 token 顺序和 `ROUNDED` 全部匹配，才由本地模板生成已支持陈述；回答仍必须保留范围边界，状态为 `SUPPORTED_WITH_BOUNDARIES`。普通自然语言陈述继续为 `CITATION_VERIFIED_ONLY`。
+
+P3 仍未宣布完成：真实公司 API 尚未在批准环境中进行能力和 CALC-01 验收，完整自然语言语义核验也未实现。下一步先验收真实 API，再按正向与对抗评测扩展断言类型；当前语句核验不代表执行路径、最终值或精度已证明。真实代码库聚合画像和 DXC 适配仍只能在公司批准环境内执行。详见 [P3-B 进度报告](./reports/2026-09-07-p3b-progress-report.md)。

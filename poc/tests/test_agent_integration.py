@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import closing
 import sqlite3
 import sys
 import tempfile
@@ -51,10 +52,11 @@ def relation_evidence(
 class DynamicCalcPlanner:
     """Offline planner that derives every later argument from real tool output."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, structured_claim: bool = True) -> None:
         self.results: list[dict[str, Any]] = []
         self.formula_evidence_id: str | None = None
         self.requested_evidence_ids: list[str] = []
+        self.structured_claim = structured_claim
 
     def complete(self, **kwargs: object) -> dict[str, object]:
         messages = kwargs["messages"]
@@ -144,25 +146,36 @@ class DynamicCalcPlanner:
 
         if stage == 4:
             assert self.formula_evidence_id is not None
+            claim: dict[str, Any] = {
+                "kind": "code_fact",
+                "evidence_ids": [self.formula_evidence_id],
+            }
+            if self.structured_claim:
+                claim["assertion"] = {
+                    "predicate": "compute_statement",
+                    "target": "OUT-INSTALMENT-PREMIUM",
+                    "expression": [
+                        "WS-ANNUAL-PREMIUM", "*", "WS-MODE-FACTOR"
+                    ],
+                    "rounded": True,
+                }
+            else:
+                claim.update({
+                    "claim": (
+                        "OUT-INSTALMENT-PREMIUM is computed from "
+                        "WS-ANNUAL-PREMIUM and WS-MODE-FACTOR."
+                    ),
+                    "code_anchors": [
+                        "OUT-INSTALMENT-PREMIUM",
+                        "WS-ANNUAL-PREMIUM",
+                        "WS-MODE-FACTOR",
+                    ],
+                    "support_status": "supported",
+                })
             return json_action(
                 "final_answer",
                 {
-                    "claims": [
-                        {
-                            "claim": (
-                                "OUT-INSTALMENT-PREMIUM is computed from "
-                                "WS-ANNUAL-PREMIUM and WS-MODE-FACTOR."
-                            ),
-                            "kind": "code_fact",
-                            "code_anchors": [
-                                "OUT-INSTALMENT-PREMIUM",
-                                "WS-ANNUAL-PREMIUM",
-                                "WS-MODE-FACTOR",
-                            ],
-                            "evidence_ids": [self.formula_evidence_id],
-                            "support_status": "supported",
-                        }
-                    ],
+                    "claims": [claim],
                     "evidence_ids": [self.formula_evidence_id],
                     "boundaries": [],
                 },
@@ -210,8 +223,12 @@ class RealAgentIntegrationTests(unittest.TestCase):
             strict_json=True,
         ).run("分期保费最终是怎样计算出来的？")
 
-        self.assertEqual(result["status"], "CITATION_VERIFIED_ONLY")
+        self.assertEqual(result["status"], "SUPPORTED_WITH_BOUNDARIES")
         self.assertEqual(result["stop_reason"], "completed")
+        self.assertEqual(result["stop_reason_scope"], "investigation_loop")
+        self.assertEqual(result["question_coverage"]["status"], "not_assessed")
+        self.assertFalse(result["question_coverage"]["question_relevance_checked"])
+        self.assertFalse(result["question_coverage"]["business_completeness_checked"])
         self.assertEqual(result["tool_calls_used"], 4)
         self.assertEqual(
             [item["tool"] for item in result["tool_trace"]],
@@ -226,7 +243,9 @@ class RealAgentIntegrationTests(unittest.TestCase):
         self.assertIn("OUT-INSTALMENT-PREMIUM", result["answer"])
         self.assertIn("ROUNDED", result["answer"])
         self.assertIn("control-table values", result["answer"])
-        self.assertFalse(
+        self.assertTrue(result["claims_semantically_verified"])
+        self.assertEqual(result["claims"][0]["support_status"], "supported")
+        self.assertTrue(
             result["verification"]["semantic_claim_support_checked"]
         )
         non_read_payload = json.dumps(planner.results[:3], ensure_ascii=False)
@@ -237,6 +256,39 @@ class RealAgentIntegrationTests(unittest.TestCase):
             "WS-ANNUAL-PREMIUM * WS-MODE-FACTOR", non_read_payload
         )
         self.assertNotIn("source_text", non_read_payload)
+        dynamic_binding = next(
+            edge for edge in planner.results[2]["edges"]
+            if edge["relation_type"] == "CALL_TARGET_FROM"
+        )
+        # COPY proves which field supplies the dynamic call, not which program
+        # its runtime value selects. The boundary must survive projection.
+        self.assertEqual(dynamic_binding["status"], "confirmed")
+        self.assertEqual(
+            dynamic_binding["metadata"]["boundary"],
+            "runtime_target_requires_value_flow",
+        )
+        self.assertTrue(any(
+            isinstance(boundary, dict)
+            and boundary.get("reason") == "runtime_target_requires_value_flow"
+            for boundary in result["boundaries"]
+        ))
+
+    def test_real_tool_legacy_claim_remains_citation_only(self) -> None:
+        result = BoundedAgentLoop(
+            DynamicCalcPlanner(structured_claim=False),
+            self.tools,
+            native_tool_calling=False,
+            strict_json=True,
+        ).run("分期保费最终是怎样计算出来的？")
+
+        self.assertEqual(result["status"], "CITATION_VERIFIED_ONLY")
+        self.assertEqual(result["stop_reason"], "completed")
+        self.assertEqual(result["question_coverage"]["status"], "not_assessed")
+        self.assertFalse(result["claims_semantically_verified"])
+        self.assertFalse(result["verification"]["semantic_claim_support_checked"])
+        self.assertEqual(
+            result["claims"][0]["support_status"], "citation_verified_only"
+        )
 
     def test_business_reason_and_production_value_questions_abstain(self) -> None:
         questions = (
@@ -260,7 +312,7 @@ class RealAgentIntegrationTests(unittest.TestCase):
                 self.assertIn("Production table values", result["answer"])
 
     def test_every_fixture_symbol_shape_passes_canonical_projection(self) -> None:
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection:
             symbols = list(
                 connection.execute(
                     """

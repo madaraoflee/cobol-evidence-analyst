@@ -85,8 +85,11 @@ class InvestigationToolsTests(unittest.TestCase):
     def test_inspect_field_finds_formula_and_error_reset_writers(self) -> None:
         result = self.tools.inspect_symbol("OUT-INSTALMENT-PREMIUM")
 
-        self.assertEqual(result["status"], "OK")
-        incoming = result["matches"][0]["incoming_relations"]
+        self.assertEqual(result["status"], "AMBIGUOUS")
+        incoming = [
+            relation for match in result["matches"]
+            for relation in match["incoming_relations"]
+        ]
         writers = [
             relation
             for relation in incoming
@@ -167,11 +170,15 @@ class InvestigationToolsTests(unittest.TestCase):
             if edge["relation_type"] == "CALL_TARGET_FROM"
         ]
         self.assertEqual(len(dynamic), 1)
-        self.assertEqual(dynamic[0]["status"], "unresolved")
+        self.assertEqual(dynamic[0]["status"], "confirmed")
         self.assertEqual(
             dynamic[0]["target"]["name"], "LK-CALCULATOR-PROGRAM"
         )
-        self.assertEqual(result["boundaries"][0]["status"], "unresolved")
+        self.assertTrue(any(
+            boundary["relation_type"] == "CALL_TARGET_FROM"
+            and boundary["reason"] == "runtime_target_requires_value_flow"
+            for boundary in result["boundaries"]
+        ))
 
     def test_table_trace_reports_missing_database_definitions_as_boundaries(self) -> None:
         result = self.tools.trace_relations(
@@ -261,7 +268,9 @@ class InvestigationToolsTests(unittest.TestCase):
             trace_schema["properties"]["relation_types"]["minItems"], 1
         )
 
-    def test_six_step_demo_builds_a_supported_evidence_package(self) -> None:
+    def test_six_step_demo_keeps_business_coverage_partial(self) -> None:
+        from run_demo import render_markdown
+
         demo_database = Path(self.temporary.name) / "demo.sqlite"
         bundle = build_demo_bundle(FIXTURE_ROOT, demo_database)
 
@@ -269,7 +278,7 @@ class InvestigationToolsTests(unittest.TestCase):
         self.assertFalse(bundle["privacy"]["network_calls"])
         self.assertEqual(
             bundle["answer_preview"]["support_status"],
-            "SUPPORTED_WITH_BOUNDARIES",
+            "PARTIAL",
         )
         self.assertEqual(
             bundle["answer_preview"]["instalment_expression"],
@@ -281,6 +290,32 @@ class InvestigationToolsTests(unittest.TestCase):
         )
         self.assertTrue(bundle["answer_preview"]["dynamic_call_boundaries"])
         self.assertEqual(bundle["answer_preview"]["evidence_span_count"], 12)
+        self.assertEqual(len(bundle["tool_trace"]), 6)
+        self.assertEqual(bundle["tool_trace"][-1]["tool"], "read_evidence")
+        coverage = bundle["source_fact_coverage"]
+        self.assertEqual(coverage["summary"], {"covered": 16, "missing": 3, "boundary": 4})
+        self.assertEqual(coverage["status"], "PARTIAL")
+        self.assertEqual(coverage["snapshot_id"], bundle["build_report"]["snapshot_id"])
+        self.assertFalse(coverage["full_business_analysis_verified"])
+        self.assertFalse(coverage["answer_completeness_tested"])
+        self.assertFalse(bundle["answer_preview"]["full_business_analysis_verified"])
+        self.assertEqual(bundle["source_fact_coverage_execution"], {
+            "mode": "local_offline_snapshot_evaluation",
+            "included_in_agent_tool_trace": False,
+            "model_calls": 0,
+        })
+        self.assertEqual(
+            bundle["answer_preview"]["source_fact_coverage_summary"], coverage["summary"]
+        )
+        markdown = render_markdown(bundle)
+        self.assertIn("已覆盖 16 项，缺失 3 项，保留边界 4 项", markdown)
+        self.assertIn("全部有效附加保障的遍历和累计", markdown)
+        self.assertIn("每个必要调整查询的失败处理", markdown)
+        self.assertIn("基础费率按计算基准日生效", markdown)
+        self.assertIn("COPY 字段定义绑定", markdown)
+        self.assertIn("CALL USING 到 LINKAGE", markdown)
+        self.assertNotIn("下一阶段接入公司", markdown)
+        self.assertNotIn("SUPPORTED_WITH_BOUNDARIES", markdown)
 
 
 if __name__ == "__main__":
