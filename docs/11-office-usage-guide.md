@@ -97,13 +97,19 @@
 
 可单独执行 `python poc\business_acceptance.py "D:\cobol-output\demo\structural-index.sqlite"` 查看逐项证据。有缺项时返回退出码 1；此离线扫描不属于六步调查，也不验证模型回答。
 
-## 4. P0：生成源码清单
-
 ### 补充：先用复杂程序组验收跨程序分析
 
 从项目根目录执行 `poc\run_complex_demo.bat "D:\cobol-output\complex-v2"`，输出 `result.md`、`result.json` 与本地索引。该演示有 14 个主程序、4 个 COPY、五层调用链、配置型动态调用和每个调用点的异常处理；独立反例目录不会混入主场景。
 
 当前应看到 205 条参数/成员对应、92 条候选回写及未决动态目标。查看报告中的配置来源、查询错误处理和委托清零，不能把它当成实际交易已执行。35 个案例期望均标为未执行。CONTENT/VALUE 不回写，REFERENCE 也只是可能回写；复杂布局和调用上下文仍有边界。升级后重跑索引命令即可更新旧解析事实。
+
+重复调用的独立验收可运行 `poc\run_context_demo.bat "D:\cobol-output\context-v3"`。当前应看到 `source_context_acceptance: PASS`、48 项源码检查通过、12 个静态上下文。报告中，同一 SHAREDWK 的两条状态链分别对应 STATUS-A/B；它不证明实际运行状态隔离或错误一定到达入口。该验收失败时退出码为 1，12 个业务案例仍未执行。
+
+局部异常与溢出验收可运行 `poc\run_exception_demo.bat "D:\cobol-output\exception-v4"`。当前应看到 8 个静态上下文、4 项模型预期通过，以及 EXWRAP 状态 91/24、EXJOIN 状态 25 对应事件的模型退出输出为零。详细报告包含分支路径；它不是交易运行记录，子程序正常返回值、循环和隐式作用域等仍有限制。独立覆写反例的运行方法见 [P3-F 报告](./reports/2026-09-08-p3f-exception-path-feasibility.md)。
+
+跨程序错误返回使用 `poc\run_error_return_demo.bat "D:\cobol-output\error-return-v5"`。本次应看到主样例 30 项预期通过，报告按六步实参记录把子程序状态 21 传到入口和汇总；另有复制隔断与调用方覆写 7 的反例。此工具分析受支持源码模型，不执行 COBOL；正常金额仍未知，也不连接问答界面。源码假设、反例命令与退出码说明见 [T01 报告](./reports/2026-09-08-t01-interprogram-error-returns.md)。Windows 入口脚本已提供，本轮未在 Windows 实机验收。
+
+## 4. P0：生成源码清单
 
 清单阶段只统计候选文件、编码、行数、程序定义、COPY、CALL、PERFORM 和 EXEC SQL 等摘要。默认报告不放源码文本、绝对路径、相对路径或程序名，适合先做范围确认。
 

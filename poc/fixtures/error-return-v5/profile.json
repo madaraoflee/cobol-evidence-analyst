@@ -1,0 +1,345 @@
+{
+  "profile_version": "error-return-v5.1",
+  "task_id": "T01",
+  "source_root": "../exception-flow-v4/main",
+  "source_root_base": "profile_directory",
+  "root_program": "EXENTRY",
+  "contracts": [
+    {
+      "program_name": "EXENTRY",
+      "status_fields": [
+        "STATUS-A",
+        "STATUS-B",
+        "CODE-A",
+        "CODE-B",
+        "SUMMARY-STATUS"
+      ],
+      "output_fields": [
+        "OUTPUT-A",
+        "OUTPUT-B",
+        "TOTAL-AMOUNT"
+      ]
+    },
+    {
+      "program_name": "EXWRAP",
+      "status_fields": [
+        "WRAP-STATUS"
+      ],
+      "output_fields": [
+        "WRAP-OUTPUT"
+      ]
+    },
+    {
+      "program_name": "EXLEAF",
+      "status_fields": [
+        "LEAF-CODE"
+      ],
+      "output_fields": [
+        "LEAF-OUTPUT"
+      ]
+    },
+    {
+      "program_name": "EXFINAL",
+      "status_fields": [
+        "FINAL-STATUS",
+        "FINAL-CODE"
+      ],
+      "output_fields": [
+        "FINAL-OUTPUT"
+      ]
+    },
+    {
+      "program_name": "EXJOIN",
+      "status_fields": [
+        "LEFT-STATUS",
+        "RIGHT-STATUS",
+        "JOIN-STATUS"
+      ],
+      "output_fields": [
+        "JOIN-OUTPUT"
+      ]
+    }
+  ],
+  "description": "Independent expectations for business error status returned normally through actual interprogram model calls.",
+  "cases": [
+    {
+      "case_id": "T01-BOTH-ZERO",
+      "call_policy": "normal_return_only",
+      "no_call_exception_events": true,
+      "execution_scope": "static_interprogram_model_not_cobol_execution",
+      "runtime_execution_status": "NOT_EXECUTED",
+      "initial_values": {
+        "INPUT-A": "0",
+        "INPUT-B": "0"
+      },
+      "expected_root_values": {
+        "OUTPUT-A": "0",
+        "CODE-A": "21",
+        "OUTPUT-B": "0",
+        "CODE-B": "21",
+        "TOTAL-AMOUNT": "0",
+        "SUMMARY-STATUS": "21"
+      },
+      "expected_root_value_sets": {},
+      "expected_conditional_exits": [],
+      "expected_return_chains": [
+        {
+          "branch": "A",
+          "program_chain": [
+            "EXENTRY",
+            "EXWRAP",
+            "EXLEAF"
+          ],
+          "entry_input_field": "INPUT-A",
+          "origin_program": "EXLEAF",
+          "origin_status_field": "LEAF-CODE",
+          "status_value": "21",
+          "return_to_program": "EXWRAP",
+          "return_to_status_field": "LEAF-STATUS",
+          "wrapper_status_field": "WRAP-STATUS",
+          "entry_work_status_field": "STATUS-A",
+          "finalizer_program": "EXFINAL",
+          "finalizer_status_input": "FINAL-STATUS",
+          "finalizer_status_output": "FINAL-CODE",
+          "expected_root_status_field": "CODE-A",
+          "join_program": "EXJOIN",
+          "join_input_status_field": "LEFT-STATUS",
+          "join_status_field": "JOIN-STATUS",
+          "expected_root_summary_status_field": "SUMMARY-STATUS",
+          "expected_model_summary_value": "21",
+          "expected_root_status_value": "21",
+          "expected_root_outputs": {
+            "OUTPUT-A": "0",
+            "TOTAL-AMOUNT": "0"
+          },
+          "scope": "Source-selected business status return and downstream parameter path; not a runtime trace."
+        },
+        {
+          "branch": "B",
+          "program_chain": [
+            "EXENTRY",
+            "EXWRAP",
+            "EXLEAF"
+          ],
+          "entry_input_field": "INPUT-B",
+          "origin_program": "EXLEAF",
+          "origin_status_field": "LEAF-CODE",
+          "status_value": "21",
+          "return_to_program": "EXWRAP",
+          "return_to_status_field": "LEAF-STATUS",
+          "wrapper_status_field": "WRAP-STATUS",
+          "entry_work_status_field": "STATUS-B",
+          "finalizer_program": "EXFINAL",
+          "finalizer_status_input": "FINAL-STATUS",
+          "finalizer_status_output": "FINAL-CODE",
+          "expected_root_status_field": "CODE-B",
+          "join_program": "EXJOIN",
+          "join_input_status_field": "RIGHT-STATUS",
+          "join_status_field": "JOIN-STATUS",
+          "expected_root_summary_status_field": "SUMMARY-STATUS",
+          "expected_model_summary_value": "21",
+          "expected_root_status_value": "21",
+          "expected_root_outputs": {
+            "OUTPUT-B": "0",
+            "TOTAL-AMOUNT": "0"
+          },
+          "scope": "Source-selected business status return and downstream parameter path; not a runtime trace."
+        }
+      ]
+    },
+    {
+      "case_id": "T01-A-ERROR",
+      "call_policy": "normal_return_only",
+      "no_call_exception_events": true,
+      "execution_scope": "static_interprogram_model_not_cobol_execution",
+      "runtime_execution_status": "NOT_EXECUTED",
+      "initial_values": {
+        "INPUT-A": "0",
+        "INPUT-B": "1"
+      },
+      "expected_root_values": {
+        "OUTPUT-A": "0",
+        "CODE-A": "21",
+        "TOTAL-AMOUNT": "0",
+        "SUMMARY-STATUS": "21"
+      },
+      "expected_root_value_sets": {
+        "CODE-B": [
+          "0",
+          "24"
+        ]
+      },
+      "expected_conditional_exits": [
+        {
+          "when": {
+            "CODE-B": "24"
+          },
+          "then": {
+            "OUTPUT-B": "0"
+          }
+        },
+        {
+          "when": {
+            "CODE-B": "0"
+          },
+          "then": {
+            "SUMMARY-STATUS": "21"
+          }
+        }
+      ],
+      "expected_return_chains": [
+        {
+          "branch": "A",
+          "program_chain": [
+            "EXENTRY",
+            "EXWRAP",
+            "EXLEAF"
+          ],
+          "entry_input_field": "INPUT-A",
+          "origin_program": "EXLEAF",
+          "origin_status_field": "LEAF-CODE",
+          "status_value": "21",
+          "return_to_program": "EXWRAP",
+          "return_to_status_field": "LEAF-STATUS",
+          "wrapper_status_field": "WRAP-STATUS",
+          "entry_work_status_field": "STATUS-A",
+          "finalizer_program": "EXFINAL",
+          "finalizer_status_input": "FINAL-STATUS",
+          "finalizer_status_output": "FINAL-CODE",
+          "expected_root_status_field": "CODE-A",
+          "join_program": "EXJOIN",
+          "join_input_status_field": "LEFT-STATUS",
+          "join_status_field": "JOIN-STATUS",
+          "expected_root_summary_status_field": "SUMMARY-STATUS",
+          "expected_model_summary_value": "21",
+          "expected_root_status_value": "21",
+          "expected_root_outputs": {
+            "OUTPUT-A": "0",
+            "TOTAL-AMOUNT": "0"
+          },
+          "scope": "Source-selected business status return and downstream parameter path; not a runtime trace."
+        }
+      ]
+    },
+    {
+      "case_id": "T01-B-ERROR",
+      "call_policy": "normal_return_only",
+      "no_call_exception_events": true,
+      "execution_scope": "static_interprogram_model_not_cobol_execution",
+      "runtime_execution_status": "NOT_EXECUTED",
+      "initial_values": {
+        "INPUT-A": "1",
+        "INPUT-B": "0"
+      },
+      "expected_root_values": {
+        "OUTPUT-B": "0",
+        "CODE-B": "21",
+        "TOTAL-AMOUNT": "0"
+      },
+      "expected_root_value_sets": {
+        "CODE-A": [
+          "0",
+          "24"
+        ],
+        "SUMMARY-STATUS": [
+          "21",
+          "24"
+        ]
+      },
+      "expected_conditional_exits": [
+        {
+          "when": {
+            "CODE-A": "0"
+          },
+          "then": {
+            "SUMMARY-STATUS": "21"
+          }
+        },
+        {
+          "when": {
+            "CODE-A": "24"
+          },
+          "then": {
+            "OUTPUT-A": "0",
+            "SUMMARY-STATUS": "24"
+          }
+        }
+      ],
+      "expected_return_chains": [
+        {
+          "branch": "B",
+          "program_chain": [
+            "EXENTRY",
+            "EXWRAP",
+            "EXLEAF"
+          ],
+          "entry_input_field": "INPUT-B",
+          "origin_program": "EXLEAF",
+          "origin_status_field": "LEAF-CODE",
+          "status_value": "21",
+          "return_to_program": "EXWRAP",
+          "return_to_status_field": "LEAF-STATUS",
+          "wrapper_status_field": "WRAP-STATUS",
+          "entry_work_status_field": "STATUS-B",
+          "finalizer_program": "EXFINAL",
+          "finalizer_status_input": "FINAL-STATUS",
+          "finalizer_status_output": "FINAL-CODE",
+          "expected_root_status_field": "CODE-B",
+          "join_program": "EXJOIN",
+          "join_input_status_field": "RIGHT-STATUS",
+          "join_status_field": "JOIN-STATUS",
+          "expected_root_summary_status_field": "SUMMARY-STATUS",
+          "expected_model_summary_value": "21",
+          "expected_root_status_value": "21",
+          "expected_root_outputs": {
+            "OUTPUT-B": "0",
+            "TOTAL-AMOUNT": "0"
+          },
+          "scope": "Source-selected business status return and downstream parameter path; not a runtime trace."
+        }
+      ]
+    }
+  ],
+  "mutation_expectations": [
+    {
+      "mutation_id": "T01-CALLER-OVERWRITE",
+      "source_program": "EXENTRY",
+      "mutation": "Insert MOVE 7 TO OUTPUT-A after the A finalizer returns.",
+      "base_case": "T01-BOTH-ZERO",
+      "expected": "root_output_nonzero_after_error_return",
+      "expected_root_values": {
+        "CODE-A": "21",
+        "OUTPUT-A": "7",
+        "TOTAL-AMOUNT": "0",
+        "SUMMARY-STATUS": "21"
+      }
+    },
+    {
+      "mutation_id": "T01-LEAF-STATUS-CHANGED",
+      "source_program": "EXLEAF",
+      "mutation": "Change MOVE 21 TO LEAF-CODE to MOVE 22 TO LEAF-CODE, then reindex the same database.",
+      "base_case": "T01-BOTH-ZERO",
+      "expected": "new_snapshot_and_changed_returned_status",
+      "expected_root_values": {
+        "CODE-A": "22",
+        "CODE-B": "22",
+        "SUMMARY-STATUS": "22",
+        "OUTPUT-A": "0",
+        "OUTPUT-B": "0",
+        "TOTAL-AMOUNT": "0"
+      }
+    }
+  ],
+  "separate_profiles": {
+    "copy_parameter_boundary": "copy-boundary/profile.json"
+  },
+  "limitations": [
+    "normal_return_only is an explicit model policy that excludes call-level exceptions; it does not prove calls can be loaded or completed.",
+    "Arithmetic normal results may remain unknown, and size-error alternatives may be infeasible; value-set assertions do not claim concrete runtime coverage.",
+    "Business status 21 is returned by EXLEAF normally; CALL ON EXCEPTION must not be used as the catch for this status.",
+    "Two EXLEAF invocations share source code but have distinct caller contexts and return destinations.",
+    "A context alone is not proof of fresh runtime storage, no aliasing, reentrancy safety, or actual compiler behavior.",
+    "All cases are static interprogram model expectations and are NOT_EXECUTED as COBOL.",
+    "The original v4 source remains unchanged; mutation tests patch temporary copies only."
+  ]
+}

@@ -1,0 +1,589 @@
+{
+  "profile_version": "call-context-v3.1",
+  "description": "Independent source-context oracle; expected structure is not an execution trace.",
+  "source_root": "main",
+  "root_program": "PAIRMAIN",
+  "contracts": [
+    {
+      "program_name": "PAIRMAIN",
+      "status_fields": [
+        "STATUS-A",
+        "STATUS-B",
+        "CODE-A",
+        "CODE-B",
+        "SUMMARY-STATUS"
+      ],
+      "output_fields": [
+        "OUTPUT-A",
+        "OUTPUT-B",
+        "TOTAL-AMOUNT"
+      ]
+    },
+    {
+      "program_name": "CALCWRAP",
+      "status_fields": [
+        "WRAP-STATUS"
+      ],
+      "output_fields": [
+        "WRAP-RESULT"
+      ]
+    },
+    {
+      "program_name": "SHAREDWK",
+      "status_fields": [
+        "WORK-STATUS"
+      ],
+      "output_fields": [
+        "WORK-RESULT"
+      ]
+    },
+    {
+      "program_name": "INPUTCHK",
+      "status_fields": [
+        "CHECK-STATUS"
+      ],
+      "output_fields": []
+    },
+    {
+      "program_name": "RATESTEP",
+      "status_fields": [
+        "RATE-STATUS"
+      ],
+      "output_fields": [
+        "RATE-RESULT"
+      ]
+    },
+    {
+      "program_name": "RESULTFN",
+      "status_fields": [
+        "FINAL-STATUS",
+        "FINAL-CODE"
+      ],
+      "output_fields": [
+        "FINAL-OUTPUT"
+      ]
+    },
+    {
+      "program_name": "PAIRJOIN",
+      "status_fields": [
+        "LEFT-CODE",
+        "RIGHT-CODE",
+        "COMBINED-STATUS"
+      ],
+      "output_fields": [
+        "COMBINED-AMOUNT"
+      ]
+    }
+  ],
+  "expected_context_counts": {
+    "PAIRMAIN": 1,
+    "CALCWRAP": 2,
+    "SHAREDWK": 2,
+    "INPUTCHK": 2,
+    "RATESTEP": 2,
+    "RESULTFN": 2,
+    "PAIRJOIN": 1
+  },
+  "expected_totals": {
+    "programs": 7,
+    "source_callsites": 8,
+    "contexts": 12,
+    "expanded_call_occurrences": 11,
+    "static_confirmed_bindings": 43,
+    "static_writeback_candidates": 19
+  },
+  "expected_entry_mappings": [
+    {
+      "callee_program": "CALCWRAP",
+      "caller_field": "REQUEST-A",
+      "callee_field": "WRAP-REQUEST",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "callee_program": "CALCWRAP",
+      "caller_field": "AMOUNT-A",
+      "callee_field": "WRAP-AMOUNT",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "callee_program": "CALCWRAP",
+      "caller_field": "COUNT-A",
+      "callee_field": "WRAP-COUNT",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "callee_program": "CALCWRAP",
+      "caller_field": "RATE-A",
+      "callee_field": "WRAP-RATE",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "callee_program": "CALCWRAP",
+      "caller_field": "WORK-A",
+      "callee_field": "WRAP-RESULT",
+      "passing_mode": "REFERENCE"
+    },
+    {
+      "callee_program": "CALCWRAP",
+      "caller_field": "STATUS-A",
+      "callee_field": "WRAP-STATUS",
+      "passing_mode": "REFERENCE"
+    },
+    {
+      "callee_program": "RESULTFN",
+      "caller_field": "WORK-A",
+      "callee_field": "FINAL-INPUT",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "callee_program": "RESULTFN",
+      "caller_field": "STATUS-A",
+      "callee_field": "FINAL-STATUS",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "callee_program": "RESULTFN",
+      "caller_field": "OUTPUT-A",
+      "callee_field": "FINAL-OUTPUT",
+      "passing_mode": "REFERENCE"
+    },
+    {
+      "callee_program": "RESULTFN",
+      "caller_field": "CODE-A",
+      "callee_field": "FINAL-CODE",
+      "passing_mode": "REFERENCE"
+    },
+    {
+      "callee_program": "CALCWRAP",
+      "caller_field": "REQUEST-B",
+      "callee_field": "WRAP-REQUEST",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "callee_program": "CALCWRAP",
+      "caller_field": "AMOUNT-B",
+      "callee_field": "WRAP-AMOUNT",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "callee_program": "CALCWRAP",
+      "caller_field": "COUNT-B",
+      "callee_field": "WRAP-COUNT",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "callee_program": "CALCWRAP",
+      "caller_field": "RATE-B",
+      "callee_field": "WRAP-RATE",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "callee_program": "CALCWRAP",
+      "caller_field": "WORK-B",
+      "callee_field": "WRAP-RESULT",
+      "passing_mode": "REFERENCE"
+    },
+    {
+      "callee_program": "CALCWRAP",
+      "caller_field": "STATUS-B",
+      "callee_field": "WRAP-STATUS",
+      "passing_mode": "REFERENCE"
+    },
+    {
+      "callee_program": "RESULTFN",
+      "caller_field": "WORK-B",
+      "callee_field": "FINAL-INPUT",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "callee_program": "RESULTFN",
+      "caller_field": "STATUS-B",
+      "callee_field": "FINAL-STATUS",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "callee_program": "RESULTFN",
+      "caller_field": "OUTPUT-B",
+      "callee_field": "FINAL-OUTPUT",
+      "passing_mode": "REFERENCE"
+    },
+    {
+      "callee_program": "RESULTFN",
+      "caller_field": "CODE-B",
+      "callee_field": "FINAL-CODE",
+      "passing_mode": "REFERENCE"
+    }
+  ],
+  "expected_nested_branches": [
+    {
+      "branch_id": "A",
+      "root_status_field": "STATUS-A",
+      "root_request_field": "REQUEST-A",
+      "program_chain": ["PAIRMAIN", "CALCWRAP", "SHAREDWK"],
+      "leaf_status_field": "WORK-STATUS",
+      "entry_call": {
+        "caller_program": "PAIRMAIN",
+        "callee_program": "CALCWRAP",
+        "caller_field": "REQUEST-A",
+        "callee_field": "WRAP-REQUEST",
+        "position": 1
+      },
+      "program_path": [
+        "PAIRMAIN",
+        "CALCWRAP",
+        "SHAREDWK"
+      ],
+      "entry_output_field": "WORK-A",
+      "entry_status_field": "STATUS-A",
+      "shared_worker_callsite_count": 1,
+      "shared_worker_parameters": [
+        {
+          "caller_field": "WRAP-REQUEST",
+          "callee_field": "WORK-REQUEST",
+          "passing_mode": "REFERENCE",
+          "position": 1,
+          "member_index": 0
+        },
+        {
+          "caller_field": "WRAP-AMOUNT",
+          "callee_field": "INPUT-AMOUNT",
+          "passing_mode": "REFERENCE",
+          "position": 1,
+          "member_index": 1
+        },
+        {
+          "caller_field": "WRAP-COUNT",
+          "callee_field": "INPUT-COUNT",
+          "passing_mode": "REFERENCE",
+          "position": 1,
+          "member_index": 2
+        },
+        {
+          "caller_field": "WRAP-RATE",
+          "callee_field": "INPUT-RATE",
+          "passing_mode": "REFERENCE",
+          "position": 1,
+          "member_index": 3
+        },
+        {
+          "caller_field": "WRAP-RESULT",
+          "callee_field": "WORK-RESULT",
+          "passing_mode": "REFERENCE",
+          "position": 2,
+          "member_index": 0
+        },
+        {
+          "caller_field": "WRAP-STATUS",
+          "callee_field": "WORK-STATUS",
+          "passing_mode": "REFERENCE",
+          "position": 3,
+          "member_index": 0
+        }
+      ],
+      "descendant_programs": [
+        "INPUTCHK",
+        "RATESTEP"
+      ],
+      "must_not_share_context_with": "B",
+      "ancestor_writeback_policy": "Entry request uses CONTENT; downstream REFERENCE maps only the per-call copy, not the original request."
+    },
+    {
+      "branch_id": "B",
+      "root_status_field": "STATUS-B",
+      "root_request_field": "REQUEST-B",
+      "program_chain": ["PAIRMAIN", "CALCWRAP", "SHAREDWK"],
+      "leaf_status_field": "WORK-STATUS",
+      "entry_call": {
+        "caller_program": "PAIRMAIN",
+        "callee_program": "CALCWRAP",
+        "caller_field": "REQUEST-B",
+        "callee_field": "WRAP-REQUEST",
+        "position": 1
+      },
+      "program_path": [
+        "PAIRMAIN",
+        "CALCWRAP",
+        "SHAREDWK"
+      ],
+      "entry_output_field": "WORK-B",
+      "entry_status_field": "STATUS-B",
+      "shared_worker_callsite_count": 1,
+      "shared_worker_parameters": [
+        {
+          "caller_field": "WRAP-REQUEST",
+          "callee_field": "WORK-REQUEST",
+          "passing_mode": "REFERENCE",
+          "position": 1,
+          "member_index": 0
+        },
+        {
+          "caller_field": "WRAP-AMOUNT",
+          "callee_field": "INPUT-AMOUNT",
+          "passing_mode": "REFERENCE",
+          "position": 1,
+          "member_index": 1
+        },
+        {
+          "caller_field": "WRAP-COUNT",
+          "callee_field": "INPUT-COUNT",
+          "passing_mode": "REFERENCE",
+          "position": 1,
+          "member_index": 2
+        },
+        {
+          "caller_field": "WRAP-RATE",
+          "callee_field": "INPUT-RATE",
+          "passing_mode": "REFERENCE",
+          "position": 1,
+          "member_index": 3
+        },
+        {
+          "caller_field": "WRAP-RESULT",
+          "callee_field": "WORK-RESULT",
+          "passing_mode": "REFERENCE",
+          "position": 2,
+          "member_index": 0
+        },
+        {
+          "caller_field": "WRAP-STATUS",
+          "callee_field": "WORK-STATUS",
+          "passing_mode": "REFERENCE",
+          "position": 3,
+          "member_index": 0
+        }
+      ],
+      "descendant_programs": [
+        "INPUTCHK",
+        "RATESTEP"
+      ],
+      "must_not_share_context_with": "A",
+      "ancestor_writeback_policy": "Entry request uses CONTENT; downstream REFERENCE maps only the per-call copy, not the original request."
+    }
+  ],
+  "expected_leaf_mappings": [
+    {
+      "caller_program": "SHAREDWK",
+      "callee_program": "INPUTCHK",
+      "caller_field": "INPUT-AMOUNT",
+      "callee_field": "CHECK-AMOUNT",
+      "passing_mode": "CONTENT"
+    },
+    {
+      "caller_program": "SHAREDWK",
+      "callee_program": "INPUTCHK",
+      "caller_field": "INPUT-COUNT",
+      "callee_field": "CHECK-COUNT",
+      "passing_mode": "VALUE"
+    },
+    {
+      "caller_program": "SHAREDWK",
+      "callee_program": "INPUTCHK",
+      "caller_field": "WORK-STATUS",
+      "callee_field": "CHECK-STATUS",
+      "passing_mode": "REFERENCE"
+    }
+  ],
+  "baseline": {
+    "request_a": {
+      "amount": "100.00",
+      "count": 2,
+      "rate": "1.25"
+    },
+    "request_b": {
+      "amount": "80.00",
+      "count": 3,
+      "rate": "0.50"
+    },
+    "formula": "amount * count * rate, rounded to two decimal places; combine only when both result codes are zero"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "CTX-OK",
+      "trigger": "Both baseline requests valid.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "left_amount": "250.00",
+        "left_status": 0,
+        "right_amount": "120.00",
+        "right_status": 0,
+        "total": "370.00",
+        "summary_status": 0
+      }
+    },
+    {
+      "scenario_id": "CTX-A-ZERO",
+      "trigger": "Request A amount is zero; B remains baseline.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "left_amount": "0.00",
+        "left_status": 21,
+        "right_amount": "120.00",
+        "right_status": 0,
+        "total": "0.00",
+        "summary_status": 21
+      }
+    },
+    {
+      "scenario_id": "CTX-B-COUNT",
+      "trigger": "Request B count is 13; A remains baseline.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "left_amount": "250.00",
+        "left_status": 0,
+        "right_amount": "0.00",
+        "right_status": 22,
+        "total": "0.00",
+        "summary_status": 22
+      }
+    },
+    {
+      "scenario_id": "CTX-BOTH-ERROR",
+      "trigger": "A amount is zero; B count is 13; left status has explicit priority.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "left_amount": "0.00",
+        "left_status": 21,
+        "right_amount": "0.00",
+        "right_status": 22,
+        "total": "0.00",
+        "summary_status": 21
+      }
+    },
+    {
+      "scenario_id": "CTX-A-RATE",
+      "trigger": "Request A rate is zero; B remains baseline.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "left_amount": "0.00",
+        "left_status": 23,
+        "right_amount": "120.00",
+        "right_status": 0,
+        "total": "0.00",
+        "summary_status": 23
+      }
+    },
+    {
+      "scenario_id": "CTX-A-SIZE",
+      "trigger": "Request A amount 9999999.99, count 12, rate 9.99 exceeds RATE-RESULT PIC capacity; compiler behavior is not tested.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "left_amount": "0.00",
+        "left_status": 24,
+        "right_amount": "120.00",
+        "right_status": 0,
+        "total": "0.00",
+        "summary_status": 24
+      }
+    },
+    {
+      "scenario_id": "CTX-A-WRAP-LOAD",
+      "trigger": "Only the A invocation of CALCWRAP cannot be loaded.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "left_amount": "0.00",
+        "left_status": 91,
+        "right_amount": "120.00",
+        "right_status": 0,
+        "total": "0.00",
+        "summary_status": 91
+      }
+    },
+    {
+      "scenario_id": "CTX-B-WORKER-LOAD",
+      "trigger": "Only the nested B invocation of SHAREDWK cannot be loaded.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "left_amount": "250.00",
+        "left_status": 0,
+        "right_amount": "0.00",
+        "right_status": 92,
+        "total": "0.00",
+        "summary_status": 92
+      }
+    },
+    {
+      "scenario_id": "CTX-A-CHECK-LOAD",
+      "trigger": "Only INPUTCHK in branch A cannot be loaded.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "left_amount": "0.00",
+        "left_status": 95,
+        "right_amount": "120.00",
+        "right_status": 0,
+        "total": "0.00",
+        "summary_status": 95
+      }
+    },
+    {
+      "scenario_id": "CTX-B-RATE-LOAD",
+      "trigger": "Only RATESTEP in branch B cannot be loaded.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "left_amount": "250.00",
+        "left_status": 0,
+        "right_amount": "0.00",
+        "right_status": 96,
+        "total": "0.00",
+        "summary_status": 96
+      }
+    },
+    {
+      "scenario_id": "CTX-A-FINALIZE-LOAD",
+      "trigger": "Only RESULTFN for A cannot be loaded; direct entry fallback clears A.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "left_amount": "0.00",
+        "left_status": 93,
+        "right_amount": "120.00",
+        "right_status": 0,
+        "total": "0.00",
+        "summary_status": 93
+      }
+    },
+    {
+      "scenario_id": "CTX-JOIN-LOAD",
+      "trigger": "PAIRJOIN cannot be loaded after both successful branch finalizers.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "left_amount": "250.00",
+        "left_status": 0,
+        "right_amount": "120.00",
+        "right_status": 0,
+        "total": "0.00",
+        "summary_status": 94
+      }
+    }
+  ],
+  "boundary_cases": [
+    {
+      "root_program": "CONTEXTREC",
+      "expected_boundary": "recursive_call_context",
+      "reason": "A repeated program along its own call chain must be reported or bounded, not expanded forever."
+    },
+    {
+      "root_program": "CONTEXTDYN",
+      "expected_boundary": "dynamic_target_not_resolved",
+      "reason": "An input program-name field is not a literal target or a verified configuration snapshot."
+    },
+    {
+      "root_program": "ALIASCALL",
+      "expected_boundary": "same_actual_argument_alias",
+      "reason": "Two REFERENCE parameters share SHARED-AMOUNT; syntactic bindings must not imply independent cells."
+    },
+    {
+      "root_program": "LOOPCALL",
+      "expected_boundary": "loop_iteration_context_not_modeled",
+      "reason": "One static callsite inside a three-iteration loop must not be presented as three verified runtime invocations."
+    }
+  ],
+  "limitations": [
+    "All runtime scenarios are NOT_EXECUTED; no COBOL compiler, loader, database, or model is used.",
+    "Call contexts denote bounded static callsite chains, not reachable paths or chronological executions.",
+    "The two shared-worker contexts reuse one source callsite and one static symbol; only context-qualified field identities separate them.",
+    "No ancestor values or automatic transitive writebacks are asserted. CONTENT blocks writes back to the original root request.",
+    "Program WORKING-STORAGE can persist across invocations; context labels alone do not prove separate runtime storage.",
+    "ON EXCEPTION and ON SIZE ERROR are source clauses, not a complete exception control-flow graph.",
+    "PAIRJOIN's defensive size-error arm is not proven reachable within the declared input layouts.",
+    "Main excludes boundaries; negative cases are indexed separately."
+  ]
+}

@@ -1,0 +1,266 @@
+{
+  "profile_version": "exception-flow-v4.1",
+  "source_root": "main",
+  "root_program": "EXENTRY",
+  "contracts": [
+    {
+      "program_name": "EXENTRY",
+      "status_fields": [
+        "STATUS-A",
+        "STATUS-B",
+        "CODE-A",
+        "CODE-B",
+        "SUMMARY-STATUS"
+      ],
+      "output_fields": [
+        "OUTPUT-A",
+        "OUTPUT-B",
+        "TOTAL-AMOUNT"
+      ]
+    },
+    {
+      "program_name": "EXWRAP",
+      "status_fields": [
+        "WRAP-STATUS"
+      ],
+      "output_fields": [
+        "WRAP-OUTPUT"
+      ]
+    },
+    {
+      "program_name": "EXLEAF",
+      "status_fields": [
+        "LEAF-CODE"
+      ],
+      "output_fields": [
+        "LEAF-OUTPUT"
+      ]
+    },
+    {
+      "program_name": "EXFINAL",
+      "status_fields": [
+        "FINAL-STATUS",
+        "FINAL-CODE"
+      ],
+      "output_fields": [
+        "FINAL-OUTPUT"
+      ]
+    },
+    {
+      "program_name": "EXJOIN",
+      "status_fields": [
+        "LEFT-STATUS",
+        "RIGHT-STATUS",
+        "JOIN-STATUS"
+      ],
+      "output_fields": [
+        "JOIN-OUTPUT"
+      ]
+    }
+  ],
+  "expected_context_counts": {
+    "EXENTRY": 1,
+    "EXWRAP": 2,
+    "EXLEAF": 2,
+    "EXFINAL": 2,
+    "EXJOIN": 1
+  },
+  "expected_totals": {
+    "programs": 5,
+    "source_callsites": 6,
+    "contexts": 8,
+    "expanded_call_occurrences": 7,
+    "static_confirmed_bindings": 23,
+    "static_writeback_candidates": 12
+  },
+  "local_exceptional_expectations": [
+    {
+      "expectation_id": "WRAP-CALL-FAIL",
+      "program_name": "EXWRAP",
+      "event_kind": "exception",
+      "status_field": "WRAP-STATUS",
+      "output_field": "WRAP-OUTPUT",
+      "status_value": 91,
+      "expected": "zero_on_all_modeled_exits",
+      "anchor": {
+        "relative_path": "programs/EXWRAP.cbl",
+        "statement_name": "CALL",
+        "source_text_contains": "CALL 'EXLEAF'"
+      },
+      "evaluation_scope": "local_source_event_branch_and_modeled_continuations_not_runtime_execution"
+    },
+    {
+      "expectation_id": "WRAP-SIZE-FAIL",
+      "program_name": "EXWRAP",
+      "event_kind": "size_error",
+      "status_field": "WRAP-STATUS",
+      "output_field": "WRAP-OUTPUT",
+      "status_value": 24,
+      "expected": "zero_on_all_modeled_exits",
+      "anchor": {
+        "relative_path": "programs/EXWRAP.cbl",
+        "statement_name": "COMPUTE",
+        "source_text_contains": "COMPUTE WRAP-OUTPUT ROUNDED = BASE-AMOUNT * 2"
+      },
+      "evaluation_scope": "local_source_event_branch_and_modeled_continuations_not_runtime_execution"
+    },
+    {
+      "expectation_id": "JOIN-SIZE-FAIL",
+      "program_name": "EXJOIN",
+      "event_kind": "size_error",
+      "status_field": "JOIN-STATUS",
+      "output_field": "JOIN-OUTPUT",
+      "status_value": 25,
+      "expected": "zero_on_all_modeled_exits",
+      "anchor": {
+        "relative_path": "programs/EXJOIN.cbl",
+        "statement_name": "COMPUTE",
+        "source_text_contains": "COMPUTE JOIN-OUTPUT = LEFT-AMOUNT + RIGHT-AMOUNT"
+      },
+      "evaluation_scope": "local_source_event_branch_and_modeled_continuations_not_runtime_execution"
+    }
+  ],
+  "expected_branch_mappings": [
+    {
+      "caller_program": "EXENTRY",
+      "callee_program": "EXWRAP",
+      "input_field": "INPUT-A",
+      "output_field": "WORK-A",
+      "status_field": "STATUS-A"
+    },
+    {
+      "caller_program": "EXENTRY",
+      "callee_program": "EXWRAP",
+      "input_field": "INPUT-B",
+      "output_field": "WORK-B",
+      "status_field": "STATUS-B"
+    }
+  ],
+  "baseline": {
+    "input_a": "100.00",
+    "input_b": "80.00",
+    "formula": "Each successful wrapper doubles its input; join adds successful branch outputs.",
+    "expected_output_a": "200.00",
+    "expected_output_b": "160.00",
+    "expected_total": "360.00"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "EX-OK",
+      "trigger": "Both baseline inputs are positive.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "output_a": "200.00",
+        "code_a": 0,
+        "output_b": "160.00",
+        "code_b": 0,
+        "total": "360.00",
+        "summary_status": 0
+      }
+    },
+    {
+      "scenario_id": "EX-A-INPUT",
+      "trigger": "A input is zero; EXLEAF returns business status 21 normally, without CALL exception.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "output_a": "0.00",
+        "code_a": 21,
+        "output_b": "160.00",
+        "code_b": 0,
+        "total": "0.00",
+        "summary_status": 21
+      }
+    },
+    {
+      "scenario_id": "EX-A-WRAP-SIZE",
+      "trigger": "A input is 60000.00; doubling exceeds WRAP-OUTPUT PIC 9(5)V99; runtime arithmetic behavior remains untested.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "output_a": "0.00",
+        "code_a": 24,
+        "output_b": "160.00",
+        "code_b": 0,
+        "total": "0.00",
+        "summary_status": 24
+      }
+    },
+    {
+      "scenario_id": "EX-JOIN-SIZE",
+      "trigger": "Both inputs are 30000.00; outputs each 60000.00 fit individually but their total exceeds JOIN-OUTPUT PIC 9(5)V99.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "output_a": "60000.00",
+        "code_a": 0,
+        "output_b": "60000.00",
+        "code_b": 0,
+        "total": "0.00",
+        "summary_status": 25
+      }
+    },
+    {
+      "scenario_id": "EX-A-LEAF-LOAD",
+      "trigger": "Fault injection selects CALL exception for EXLEAF only in A; this is not a generic catch of a business error returned by EXLEAF.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "output_a": "0.00",
+        "code_a": 91,
+        "output_b": "160.00",
+        "code_b": 0,
+        "total": "0.00",
+        "summary_status": 91
+      }
+    },
+    {
+      "scenario_id": "EX-B-WRAP-LOAD",
+      "trigger": "Fault injection selects CALL exception for the B invocation of EXWRAP.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "output_a": "200.00",
+        "code_a": 0,
+        "output_b": "0.00",
+        "code_b": 90,
+        "total": "0.00",
+        "summary_status": 90
+      }
+    },
+    {
+      "scenario_id": "EX-A-FINAL-LOAD",
+      "trigger": "Fault injection selects CALL exception for the A result finalizer; the entry clears A directly.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "output_a": "0.00",
+        "code_a": 93,
+        "output_b": "160.00",
+        "code_b": 0,
+        "total": "0.00",
+        "summary_status": 93
+      }
+    },
+    {
+      "scenario_id": "EX-JOIN-LOAD",
+      "trigger": "Fault injection selects CALL exception for EXJOIN; the entry clears the total directly.",
+      "execution_status": "NOT_EXECUTED",
+      "expected": {
+        "output_a": "200.00",
+        "code_a": 0,
+        "output_b": "160.00",
+        "code_b": 0,
+        "total": "0.00",
+        "summary_status": 94
+      }
+    }
+  ],
+  "separately_selected_profiles": {
+    "unsafe_overwrite": "regressions/profile.json",
+    "unsupported_boundaries": "boundaries/profile.json"
+  },
+  "limitations": [
+    "Local modeled failure exits are not evidence that the corresponding event is reachable at runtime.",
+    "CALL ON EXCEPTION is a call-level exception clause, not a generic catch for nonzero business status from a callee.",
+    "NOT ON EXCEPTION success still requires LEAF-STATUS checking; a normal return may report business failure.",
+    "NOT ON SIZE ERROR is the arithmetic success alternative, not a statement that runs after a size-error handler.",
+    "Cross-program contexts and local exceptional graphs do not imply full interprocedural execution semantics.",
+    "All actual business scenarios are NOT_EXECUTED; no compiler or runtime has been used.",
+    "Main excludes unsafe regression and unsupported-boundary source directories."
+  ]
+}

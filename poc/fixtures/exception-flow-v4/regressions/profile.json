@@ -1,0 +1,49 @@
+{
+  "profile_version": "exception-flow-v4.1-regression",
+  "source_root": "programs",
+  "root_program": "EXBAD",
+  "contracts": [
+    {
+      "program_name": "EXBAD",
+      "status_fields": [
+        "RESULT-STATUS"
+      ],
+      "output_fields": [
+        "RESULT-AMOUNT"
+      ]
+    }
+  ],
+  "local_exceptional_expectations": [
+    {
+      "expectation_id": "OVERWRITE-AFTER-CLEAR",
+      "program_name": "EXBAD",
+      "event_kind": "size_error",
+      "status_field": "RESULT-STATUS",
+      "output_field": "RESULT-AMOUNT",
+      "status_value": 24,
+      "expected": "nonzero_exit_possible",
+      "anchor": {
+        "relative_path": "EXBAD.cbl",
+        "statement_name": "COMPUTE",
+        "source_text_contains": "COMPUTE RESULT-AMOUNT = SOURCE-AMOUNT * 2"
+      },
+      "evaluation_scope": "local_source_event_branch_and_modeled_continuations_not_runtime_execution"
+    }
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "EX-BAD-OVERWRITE",
+      "execution_status": "NOT_EXECUTED",
+      "trigger": "Input 60000.00 selects the expected arithmetic failure, clears the result, then unconditional MOVE 7 overwrites it.",
+      "expected": {
+        "status": 24,
+        "output": "7.00",
+        "safe_error_output": false
+      }
+    }
+  ],
+  "limitations": [
+    "This intentionally unsafe program is selected separately from the main positive fixture.",
+    "Expected nonzero exit is a source-path counterexample, not a recorded runtime result."
+  ]
+}

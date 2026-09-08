@@ -1,0 +1,51 @@
+{
+  "profile_version": "exception-flow-v4.1-boundaries",
+  "source_root": "programs",
+  "contracts": [
+    {
+      "program_name": "EXDYNAMIC",
+      "status_fields": [
+        "DYNAMIC-STATUS"
+      ],
+      "output_fields": [
+        "DYNAMIC-OUTPUT"
+      ]
+    },
+    {
+      "program_name": "EXLOOP",
+      "status_fields": [
+        "LOOP-STATUS"
+      ],
+      "output_fields": [
+        "LOOP-OUTPUT"
+      ]
+    },
+    {
+      "program_name": "EXUNKNOWN",
+      "status_fields": [
+        "UNKNOWN-STATUS"
+      ],
+      "output_fields": [
+        "UNKNOWN-OUTPUT"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "root_program": "EXDYNAMIC",
+      "semantic_boundary": "dynamic_target",
+      "detail": "The local CALL clause is visible but the actual called program is unknown."
+    },
+    {
+      "root_program": "EXLOOP",
+      "semantic_boundary": "loop_iterations",
+      "detail": "The three-iteration loop cannot be treated as a single verified arithmetic event or fully enumerated runtime trace."
+    },
+    {
+      "root_program": "EXUNKNOWN",
+      "semantic_boundary": "unsupported_write_after_clear",
+      "detail": "ACCEPT can change the output after it is cleared; treating the statement as a no-op would produce a false safe-exit result."
+    }
+  ],
+  "runtime_execution_tested": false
+}

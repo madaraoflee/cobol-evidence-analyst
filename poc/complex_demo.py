@@ -15,6 +15,8 @@ import sqlite3
 from typing import Sequence
 from urllib.parse import quote
 
+from call_contexts import audit_call_contexts
+from context_paths import contextualize_errors
 from error_paths import ErrorContract, audit_error_paths
 from structural_index import build_structural_index
 
@@ -188,6 +190,8 @@ def build_complex_demo(
         error_audit = audit_error_paths(database_path, root_program, contracts)
         if error_audit["snapshot_id"] != snapshot:
             raise ValueError("Snapshot changed between call and error audits.")
+        context_audit = audit_call_contexts(database_path, root_program)
+        context_error_view = contextualize_errors(context_audit, error_audit)
         return {
             "demo_id": "COMPLEX-BUSINESS-V2", "mode": "offline_source_analysis", "root_program": root_program,
             "snapshot_id": snapshot, "build_report": build, "programs": programs,
@@ -196,6 +200,7 @@ def build_complex_demo(
             "dynamic_calls_truncated": len(dynamic_rows) > MAX_DYNAMIC_CALLS,
             "parameter_bindings": {"counts": counts, "boundary_counts": reasons, "records": bindings, "truncated": len(binding_rows) > MAX_REPORTED_BINDINGS},
             "error_audit": error_audit,
+            "context_audit": context_audit, "context_error_view": context_error_view,
             "full_business_analysis_verified": False, "runtime_execution_tested": False,
             "model_called": False, "network_calls": False,
         }
@@ -259,7 +264,12 @@ def render_markdown(bundle: dict[str, object]) -> str:
         else:
             continue
         lines.append(f"| `{observation['program_name']}` | {text} | {status} |")
-    lines.extend(["", f"另保留 {summary['boundaries']} 项分析边界；完整观察、来源引用及边界保存在配套 JSON 的 error_audit 中。", "", "## 保留的边界", "",
+    contexts = bundle["context_audit"]
+    lines.extend(["", f"另保留 {summary['boundaries']} 项分析边界；完整观察、来源引用及边界保存在配套 JSON 的 error_audit 中。", "",
+                  "## 调用上下文", "",
+                  f"按完整静态调用点链展开 {contexts['summary']['contexts']} 个上下文；参数映射和本地错误观察分别绑定到当前链。动态目标不展开，因此源码程序总数不等于上下文数量。",
+                  "上下文标识不表示独立运行存储，也不代表一次真实调用；循环次数、共享工作区和条件可达性仍未证明。", "",
+                  "## 保留的边界", "",
                   "- BY CONTENT/BY VALUE 不生成对调用方的引用回写；BY REFERENCE 只生成可能回写关系。",
                   "- 配置记录、实际输入和执行日志未提供，动态目标和业务金额未核实。",
                   "- 调用链是静态连通路径，不等于一次交易的实际执行顺序；完整控制流、全部错误路径与后续覆写仍以审查边界为准。",

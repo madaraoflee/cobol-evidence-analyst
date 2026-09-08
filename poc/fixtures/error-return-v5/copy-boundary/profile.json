@@ -1,0 +1,98 @@
+{
+  "profile_version": "error-return-v5.1-copy-boundary",
+  "task_id": "T01",
+  "source_root": "programs",
+  "source_root_base": "profile_directory",
+  "root_program": "COPYROOT",
+  "contracts": [
+    {
+      "program_name": "COPYROOT",
+      "status_fields": [
+        "ROOT-CONTENT-STATUS",
+        "ROOT-VALUE-STATUS"
+      ],
+      "output_fields": [
+        "ROOT-CONTENT-STATUS",
+        "ROOT-VALUE-STATUS"
+      ]
+    },
+    {
+      "program_name": "MIDCONTENT",
+      "status_fields": [
+        "MIDDLE-CONTENT-STATUS"
+      ],
+      "output_fields": [
+        "MIDDLE-CONTENT-STATUS"
+      ]
+    },
+    {
+      "program_name": "MIDVALUE",
+      "status_fields": [
+        "MIDDLE-VALUE-STATUS"
+      ],
+      "output_fields": [
+        "MIDDLE-VALUE-STATUS"
+      ]
+    },
+    {
+      "program_name": "LEAFCONTENT",
+      "status_fields": [
+        "LEAF-CONTENT-STATUS"
+      ],
+      "output_fields": [
+        "LEAF-CONTENT-STATUS"
+      ]
+    },
+    {
+      "program_name": "LEAFVALUE",
+      "status_fields": [
+        "LEAF-VALUE-STATUS"
+      ],
+      "output_fields": [
+        "LEAF-VALUE-STATUS"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "T01-COPY-DOES-NOT-RETURN",
+      "call_policy": "normal_return_only",
+      "no_call_exception_events": true,
+      "execution_scope": "static_interprogram_model_not_cobol_execution",
+      "runtime_execution_status": "NOT_EXECUTED",
+      "initial_values": {
+        "ROOT-CONTENT-STATUS": "7",
+        "ROOT-VALUE-STATUS": "8"
+      },
+      "expected_root_values": {
+        "ROOT-CONTENT-STATUS": "7",
+        "ROOT-VALUE-STATUS": "8"
+      },
+      "expected_root_value_sets": {},
+      "expected_conditional_exits": [],
+      "expected_local_leaf_returns": [
+        {
+          "program_name": "LEAFCONTENT",
+          "status_field": "LEAF-CONTENT-STATUS",
+          "value": "21",
+          "passing_mode": "CONTENT",
+          "root_field": "ROOT-CONTENT-STATUS",
+          "root_value": "7"
+        },
+        {
+          "program_name": "LEAFVALUE",
+          "status_field": "LEAF-VALUE-STATUS",
+          "value": "21",
+          "passing_mode": "VALUE",
+          "root_field": "ROOT-VALUE-STATUS",
+          "root_value": "8"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Status cells intentionally double as observable output fields for this isolated parameter-mode test.",
+    "A leaf changes its own copy to 21. The middle caller still contains 7/8, so its outer REFERENCE return must not leak leaf 21.",
+    "This test does not assert allocation, numeric ABI, runtime completion, or business safety of status 7/8."
+  ]
+}

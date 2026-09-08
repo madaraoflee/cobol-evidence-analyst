@@ -12,9 +12,11 @@
 
 ## 1. 设计结论
 
-> 最新 P3-D 实施状态：受支持的 CALL USING/LINKAGE 位置与布局对应已实现，REFERENCE 候选回写与 CONTENT/VALUE 无回写分别处理；新增复杂调用链及错误传播审查。配置动态目标、完整控制流、循环值流和模型完整回答仍未证明。当前边界以 [P3-D 报告](./docs/reports/2026-09-08-p3d-cross-program-error-flow.md)为准，P3-C 记录保留为历史切片。
+> 最新 T01 实施状态：已新增上下文敏感的跨程序错误返回模型，带入参数、进入子程序源码控制流、普通返回时逐层处理引用回写，再检查入口最终值。五程序样例的六步参数记录、A/B 隔离、复制隔断与调用方覆写反例通过；全量 438 项测试通过。正常 COMPUTE 结果仍未知，未绑定 LINKAGE 使用、别名、共享存储、动态目标及递归等停在边界。T01 仅在受支持源码模型内通过，P2 未完成；当前范围见 [T01 报告](./docs/reports/2026-09-08-t01-interprogram-error-returns.md)及[进度总表](./docs/12-task-plan-and-progress.md)。
 
-> 2026-09-08 实施更新：P3-C 已补多行条件、COPY 程序范围定义绑定和 SQL 宿主变量读写，并把“单条陈述正确”与“问题答完整”分开。CALC-01 来源事实覆盖为 16 项覆盖、3 项业务缺口、4 项边界，演示为 `PARTIAL`；Agent 明确 `question_coverage=not_assessed`。完整值流、错误路径、模型回答和界面仍未整体验收。以 [P3-C 报告](./docs/reports/2026-09-08-p3c-business-chain-progress.md)作为最新实施状态，下文完整架构继续属于目标。
+> P3-F 历史切片：局部异常接口区分正常/失败和正常/溢出，检查错误后输出及覆写；其正常 CALL 仍只将引用输出置为未知。它保留为局部工具，T01 通过独立接口完成跨程序组合，而不是将旧报告自动升级为完整业务证明。详见 [P3-F 报告](./docs/reports/2026-09-08-p3f-exception-path-feasibility.md)。
+
+> 2026-09-08 P3-C 历史切片：已补多行条件、COPY 程序范围定义绑定和 SQL 宿主变量读写，并把“单条陈述正确”与“问题答完整”分开。CALC-01 来源事实覆盖为 16 项覆盖、3 项业务缺口、4 项边界，演示为 `PARTIAL`；Agent 明确 `question_coverage=not_assessed`。完整值流、错误路径、模型回答和界面仍未整体验收。详见 [P3-C 报告](./docs/reports/2026-09-08-p3c-business-chain-progress.md)，下文完整架构继续属于目标。
 
 这个 Agent 可以实现，但可信版本不能只靠 LLM，也不能只靠向量数据库。系统必须组合四种能力：
 

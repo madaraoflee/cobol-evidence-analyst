@@ -1,6 +1,6 @@
 # POC 运行说明
 
-当前 POC 包含离线事实索引、受控 Agent、单条 Claim 核验、业务覆盖检查，以及 P3-D 跨程序参数与错误路径审查。离线工具只使用 Python 标准库；`company_api.py` 和 `run_agent.py` 默认不发送网络请求，只有显式传入 `--allow-network` 才会连接公司 API。
+当前 POC 包含离线事实索引、受控 Agent、单条 Claim 核验、业务覆盖检查、P3-D 跨程序错误审查、P3-E 静态调用点链上下文、P3-F 局部异常控制流，以及 T01 跨程序错误返回组合。离线工具只使用 Python 标准库；`company_api.py` 和 `run_agent.py` 默认不发送网络请求，只有显式传入 `--allow-network` 才会连接公司 API。
 
 办公室电脑从零开始的完整操作请看：[办公室电脑使用手册](../docs/11-office-usage-guide.md)。本手册按当前命令行实现编写，包含安装、同步仓库、离线自检、源码清单、结构索引、四个调查工具、接口探测、Agent 提问和故障排查。
 
@@ -155,6 +155,38 @@ Windows 从项目根目录也可执行 `poc\run_complex_demo.bat "D:\cobol-outpu
 
 `error_paths.audit_error_paths` 根据显式字段约定检查查询错误分支、段落调用门禁、状态转交、异常清零、委托清零及后续覆盖。它不是第五个模型工具，也不是完整控制流引擎。报告始终保留未证明的运行行为、配置值、循环与不支持语法；复杂演示亦未调用模型。详见 [P3-D 报告](../docs/reports/2026-09-08-p3d-cross-program-error-flow.md)。
 
+## P3-E：重复调用上下文可行性验收
+
+`call_contexts.audit_call_contexts` 按完整静态调用点链区分同一子程序的多次使用，而不是按程序名或最后一个调用点合并。`context_paths.contextualize_errors` 绑定本地错误观察引用，并组合父子参数对应；只有全程 REFERENCE 且完整追到入口的链，才标为入口候选回写。CONTENT/VALUE、缺失映射和预算截断不能恢复或证明入口回写。
+
+    python poc/context_demo.py --database .poc-data/context-v3/structural-index.sqlite --json-output .poc-data/context-v3/result.json --markdown-output .poc-data/context-v3/result.md
+
+以上命令从项目根目录运行。Windows 也可执行 `poc\run_context_demo.bat "D:\cobol-output\context-v3"`。正例含 7 个程序、8 个源码调用点和 12 个静态上下文，48 项显式源码身份/映射验收通过。修改第二条状态连线、传参方式或删除调用，会使相应验收失败；退出码 0 只代表该源码验收通过。
+
+静态上下文不是运行实例，也不证明工作区独立、别名不存在、条件可达或循环次数。12 个业务案例均未执行；程序完整错误路径、数值和模型回答仍须另行验收。v2 复杂演示同时输出上下文分析，但不会把动态配置目标展开为已确认程序。详见 [P3-E 报告](../docs/reports/2026-09-08-p3e-call-context-feasibility.md)。
+
+## P3-F：局部异常与溢出路径验收
+
+`exception_cfg.build_exception_cfg` 为显式 CALL/COMPUTE/IF 与受限 PERFORM/THRU 建立有界局部控制流，未知语法和预算耗尽停在边界。`exception_paths.audit_exception_paths` 区分正常/失败分支，跟踪可容纳的 MOVE 常量或未知值，检查错误发生后的模型退出输出，并提供非零覆写路径。该局部接口的 CALL 正常返回只使引用参数变未知；跨程序组合由下述 T01 独立接口提供，不改变旧局部报告的证明范围。
+
+从项目根目录运行：
+
+    python poc/exception_demo.py --database .poc-data/exception-v4/structural-index.sqlite --json-output .poc-data/exception-v4/result.json --markdown-output .poc-data/exception-v4/result.md
+
+Windows 也可运行 `poc\run_exception_demo.bat "D:\cobol-output\exception-v4"`。主样例应得到 8 个静态上下文和 4 项预期验收通过：上下文数量，以及状态 91/24/25 对应事件的模型退出输出为零。独立 regressions 配置用于检查清零后覆写为 7；它的 PASS 表示检出风险，不表示程序正确。
+
+不能把“全部已建模退出为零”当作全部真实路径通过。受支持的数值比较中未知输入保留两侧，正常算术结果保持未知；隐式句点作用域、不支持的条件、循环、SQL、EVALUATE 和别名等仍有限制。主 8 个业务案例与反例 1 个案例均未执行。来源规则、反例命令与精确范围见 [P3-F 报告](../docs/reports/2026-09-08-p3f-exception-path-feasibility.md)。
+
+## T01：跨程序错误返回闭环
+
+`interprogram_paths.audit_interprogram_paths` 在有限状态与调用深度内进入子程序源码路径，通过确认的位置/布局映射传参，普通返回时仅 REFERENCE 回写，继续调用方并记录入口终态。正常返回的非零业务状态不等于 CALL 调用异常。重复 CALL 与 PERFORM 中的调用实例分别保留上下文；正常 COMPUTE 数值仍未知，未知控制条件保留备选。
+
+    python poc/error_return_demo.py --database .poc-data/error-return-v5/structural-index.sqlite --json-output .poc-data/error-return-v5/result.json --markdown-output .poc-data/error-return-v5/result.md
+
+主样例复用 v4 原源码，30 项显式预期通过；包含 4 组各六步的参数路径检查。Windows 入口为 `poc\run_error_return_demo.bat "D:\cobol-output\error-return-v5"`，本轮未在 Windows 实机验收。另有 CONTENT/VALUE 隔断 6 项检查和 `--caller-overwrite` 临时变体；后者原安全验收预期 FAIL、退出码 1，不能把它误当工具故障。完整命令见 [T01 报告](../docs/reports/2026-09-08-t01-interprogram-error-returns.md)。
+
+演示三个业务错误案例显式选择 `normal_return_only`，假设调用可用但仍保留算术异常备选；默认分析接口则探索调用失败。未绑定 LINKAGE 的使用、callee STOP RUN、别名、共享状态、递归、动态目标或缺失契约/证据不会略过后给出成功。`root_exits`、`events`、`witnesses` 分别保留终态、事件后逐字段观察和连续模型路径，展示截断与探索截断分开；不自动推断事件与所有输出的因果关系。所有真实运行和完整业务验收标记仍为 false。
+
 ### 重要隐私差异
 
 repo_inventory 的默认报告是去标识符聚合结果。
@@ -165,6 +197,6 @@ structural-index.sqlite 为了支持源码检索与证据引用，会保存相�
 
     python -m unittest discover -s poc/tests -v
 
-当前 237 项测试全部通过，其中保留 48 个 COMPUTE 源码金标子案例（10 个支持、38 个不支持）；子案例不与测试方法数相加。P3-D 新增参数位置/布局/模式、调用点隔离、增量重绑、复杂夹具、错误路径变异、字段级追踪、严格投影和报告预算回归；业务案例账本仍未编译执行。
+当前 438 项测试全部通过，其中保留 48 个 COMPUTE 源码金标子案例（10 个支持、38 个不支持）；子案例不与测试方法数相加。T01 新增 61 项，覆盖跨程序返回记录、正确的父上下文、复制隔断、业务错误与调用异常区分、未绑定 LINKAGE、覆写、重索引及预算边界；此前局部异常、调用上下文、索引一致性和原有工具回归均保留。业务案例账本仍未编译执行。
 
 测试覆盖聚合隐私、CP950、快照 Hash、结构抽取、FTS5、四工具、六步演示、API 离线默认、HTTPS/重定向、Key 隔离、总超时、严格 JSON fallback、Evidence 越权、读取后范围关闭、结果严格投影、诊断脱敏、源码复制拦截、引用幻觉、CALC-01 四步真实工具闭环和拒答。P3-B 增加确定性断言的正向与对抗金标用例，覆盖算式、目标字段、舍入标记以及不支持语法的拒绝升级，并验证自由文本不会被升级为语义已支持。完整链路测试让真实 API 客户端驱动真实调查工具；API 响应均由本地假传输提供，本项目环境尚未调用真实公司端点。最新验收结果见 [P3-B 进度报告](../docs/reports/2026-09-07-p3b-progress-report.md)。
