@@ -11,3 +11,7 @@
 
 .dependency-gaps{margin-top:22px}
 .trace-details{font-size:10px;color:var(--muted);margin-top:10px}.trace-details summary{cursor:pointer}.trace-details pre{overflow:auto;background:var(--canvas);padding:12px;border-radius:4px;line-height:1.7}
+
+.language-select{display:block;max-width:125px;border:1px solid var(--border);border-radius:5px;padding:7px 9px;background:var(--surface);font-size:11px;cursor:pointer}
+html[lang="en"] .brand small{font-size:7px}html[lang="en"] .entry-choice{flex-wrap:wrap}html[lang="en"] .question-bottom{flex-wrap:wrap}html[lang="en"] .answer-tabs{gap:18px}html[lang="en"] .project-strip{flex-wrap:wrap}html[lang="en"] .snapshot-info{white-space:normal}html[lang="en"] .badge{white-space:normal;line-height:1.5}html[lang="en"] .form-progress{gap:8px}html[lang="en"] .privacy-card small{line-height:1.7}
+@media(max-width:760px){.language-select{max-width:108px;font-size:11px}.connection-status{max-width:115px;font-size:10px;text-align:left}html[lang="en"] .answer-tabs{gap:12px;padding:0 12px}html[lang="en"] .answer-tabs button{font-size:11px}html[lang="en"] .source-stats{grid-template-columns:1fr}html[lang="en"] .project-info{min-width:180px}}

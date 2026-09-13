@@ -32,7 +32,7 @@ class WebAppTests(unittest.TestCase):
         self.web = self.root / "web"
         self.web.mkdir()
         for name, contents in (("index.html", "<!doctype html><title>Source workbench</title>"),
-                               ("app.js", "'use strict';"), ("styles.css", "body { color: black; }")):
+                               ("app.js", "'use strict';"), ("i18n.js", "'use strict';"), ("styles.css", "body { color: black; }")):
             (self.web / name).write_text(contents, encoding="utf-8")
         self.config = CompanyAPIConfig(base_url=TEST_ENDPOINT, chat_model=TEST_MODEL, api_key=TEST_KEY)
         self.app = WorkbenchState(config_provider=lambda: self.config)
@@ -111,7 +111,7 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(headers["Cache-Control"], "no-store")
         self.assertEqual(headers["Cross-Origin-Resource-Policy"], "same-origin")
         self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
-        for path in ("/", "/index.html", "/app.js", "/styles.css"):
+        for path in ("/", "/index.html", "/app.js", "/i18n.js", "/styles.css"):
             self.assertEqual(self.request("GET", path)[0], 200)
         for path in ("/../company_api.py", "/%2e%2e/company_api.py", "/web_app.py", "/api/state?token=anything"):
             self.assertEqual(self.request("GET", path)[0], 404)

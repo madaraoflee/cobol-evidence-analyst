@@ -26,7 +26,7 @@ from repo_inventory import parse_extensions
 
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
-STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/styles.css": "styles.css"}
+STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/i18n.js": "i18n.js", "/styles.css": "styles.css"}
 MAX_REQUEST_BYTES = 32_768
 MAX_GRAPH_EDGES = 200
 OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, "structural-index.sqlite-wal", "structural-index.sqlite-shm"))
