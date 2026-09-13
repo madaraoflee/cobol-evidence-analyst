@@ -1,16 +1,18 @@
 # 办公室电脑使用手册
 
-这份手册是办公室电脑上的实际操作入口。当前版本是命令行 POC：先在本地把 COBOL/COPYBOOK 源码做成事实索引，再用受限工具检索证据；只有在公司批准的接口已经通过能力探测后，才允许 Agent 组织回答。它不是图形界面，也不会自动连接生产系统。
+公司源码必须经过“指定真实目录 → 更新索引 → 确认实际程序 → 提问”这条链。API Key 配好只解决模型连接；替换演示夹具不会让固定样例调查自动变成公司业务分析，直接运行旧 `run_agent.py --database ...` 也不会读取新换的源码文件夹。
 
-阅读顺序不要跳过：第一次使用按“准备电脑 → 下载项目 → 离线自检 → 清单 → 索引 → 查询 →（可选）接口与 Agent → 日常同步”执行。以后每天从“日常开始”执行即可。
+本手册以 `analyze_source.py` 为实际使用入口。第一次按第 1～3 节准备并检查真实源码，再按第 8～9 节配置接口、提问；第 4～7 节是需要深入排查时才使用的底层工具。合成样例自检移到文末附录。当前为命令行实现，演示网页未接通真实源码和 API。
+
+2026-09-12 新增不依赖固定金额样例的[通用框架审查入口](./13-framework-alignment.md)：可一次选择获准源码目录、入口和版本配置，生成原始索引与控制 COPY 来源报告。它不会自动回答业务问题，也尚未将派生控制接入 Agent；第一次自检成功后可以用它替代分别建清单/索引的步骤。Windows 包装脚本已提供，实际公司 Windows 环境仍待验收。
 
 ## 1. 先明确哪些东西放在哪里
 
 建议把三类内容分开：
 
 - 项目代码：D:\cobol-work\cobol-evidence-analyst
-- 公司批准的源码：D:\cobol-data\premium-source
-- 本地结果：D:\cobol-output\premium-2026-08-31
+- 公司批准的源码：D:\cobol-data\source
+- 本地结果：D:\cobol-output\analysis
 
 源码、结构索引数据库、包含相对路径或程序名的报告，都应留在公司批准的电脑或目录内。不要把 structural-index.sqlite、源码片段、带标识符的报告、API Key 或 Agent 输出提交到 GitHub；GitHub 只保存本项目的代码和公开文档。路径包含空格时必须用双引号包住，优先使用本机磁盘，不要直接在不稳定的网络共享盘上建立索引。
 
@@ -68,82 +70,96 @@
     git switch main
     git pull --ff-only origin main
 
-如果 git pull 提示本地有改动，先不要强行覆盖。把第 13 节的“保留本地改动”步骤做完，再决定是否提交或暂存。
+如果 git pull 提示本地有改动，先用 git status 和 git diff 确认内容，再决定是否提交或暂存经确认的公开改动；不要强行覆盖本地文件。
 
-## 3. 第一次运行：只使用合成样例做离线自检
+## 3. 第一次运行：接入公司的真实源码
 
-这一步不会读取公司的源码，也不会访问网络。它用于确认 Python、SQLite、项目路径和四个受限工具都能正常工作。
+不要覆盖 `poc\fixtures`。把取得的程序、COPYBOOK 和相关源码放在独立目录，`--source` 指向同时包含它们的共同上级目录。若只给入口程序而缺少被调用程序或 COPY，工具只能报告已取得部分及缺口。输出目录必须独立于源码目录。
 
-先从项目根目录执行：
+### 3.1 先离线检查，暂时不用 API
 
-    cd /d D:\cobol-work\cobol-evidence-analyst
-    python poc\run_demo.py ^
-      --database "D:\cobol-output\demo\structural-index.sqlite" ^
-      --json-output "D:\cobol-output\demo\calc-01.json" ^
-      --markdown-output "D:\cobol-output\demo\calc-01.md"
+从项目根目录执行，替换两个路径：
 
-也可以使用 Windows 包装脚本：
+    python poc\analyze_source.py ^
+      --source "D:\cobol-data\source" ^
+      --output "D:\cobol-output\analysis"
 
-    poc\run_demo.bat "D:\cobol-output\demo"
+或使用等价的 Windows 包装脚本：
 
-命令成功时会打印 JSON 摘要，重点检查：
+    poc\run_analyze.bat ^
+      --source "D:\cobol-data\source" ^
+      --output "D:\cobol-output\analysis"
 
-- network_calls 是 false；
-- tool_calls 不超过 6；
-- support_status 是 PARTIAL，source_fact_coverage 为 16 项覆盖、3 项缺失、4 项边界；
-- 输出目录中出现 structural-index.sqlite、calc-01.json 和 calc-01.md。
+`--source` 和 `--output` 都是必填项；这个入口没有默认样例目录。每次调用先按当前源目录更新本地结构索引，再生成本次诊断与程序清单。未变化文件可以增量复用；换目录、删除文件或修改源码后，需要重新运行同一条命令。不要依靠修改文件夹后继续查看旧报告来判断本次效果。
 
-这个演示只索引项目内的 synthetic-insurance-v1 合成夹具。PARTIAL 是保留的业务验收结果：全部附加保障遍历、每次调整查询失败处理和基础费率生效日期尚未证明。程序运行成功不代表业务通过，也不代表读到了公司源码或接口可用。
+新入口默认纳入无扩展名的成员；如果无扩展名文件与源码无关，加 `--exclude-extensionless`。自定义扩展名加 `--extensions ".cbl,.cpy,.member"`，它会替换默认允许列表，因此要包含这批源码实际需要的所有后缀。
 
-可单独执行 `python poc\business_acceptance.py "D:\cobol-output\demo\structural-index.sqlite"` 查看逐项证据。有缺项时返回退出码 1；此离线扫描不属于六步调查，也不验证模型回答。
+### 3.2 先看“读到了什么”，再判断能否提问
 
-### 补充：先用复杂程序组验收跨程序分析
+输出目录中重点查看：
 
-从项目根目录执行 `poc\run_complex_demo.bat "D:\cobol-output\complex-v2"`，输出 `result.md`、`result.json` 与本地索引。该演示有 14 个主程序、4 个 COPY、五层调用链、配置型动态调用和每个调用点的异常处理；独立反例目录不会混入主场景。
+| 文件 | 用途 |
+| --- | --- |
+| `diagnosis.md` / `diagnosis.json` | 本次源目录、快照、文件和程序覆盖情况、编码及解析问题。先打开 Markdown 阅读。 |
+| `programs.json` | 实际发现的程序及其来源，后续 `--entry` 从这里选择。 |
+| `structural-index.sqlite` | 本次源目录的本地事实索引，供调查工具使用。 |
+| `agent-result.json` / `agent-result.md` | 本次问答状态与结果；未提问时为 `NOT_REQUESTED`，没有开启联网时为 `NETWORK_DISABLED`，不会用上一次的回答充当新结果。 |
 
-当前应看到 205 条参数/成员对应、92 条候选回写及未决动态目标。查看报告中的配置来源、查询错误处理和委托清零，不能把它当成实际交易已执行。35 个案例期望均标为未执行。CONTENT/VALUE 不回写，REFERENCE 也只是可能回写；复杂布局和调用上下文仍有边界。升级后重跑索引命令即可更新旧解析事实。
+`diagnosis.runner_status` 为 `INDEX_READY` 表示已具备本地调查入口；`NEEDS_ATTENTION` 表示存在需要核对的覆盖或解析问题；`BLOCKED` 表示本次不能继续。零文件、零程序，或指定的入口不存在/不唯一时会阻断模型调用。不要用 API 探测成功覆盖这些问题。
 
-重复调用的独立验收可运行 `poc\run_context_demo.bat "D:\cobol-output\context-v3"`。当前应看到 `source_context_acceptance: PASS`、48 项源码检查通过、12 个静态上下文。报告中，同一 SHAREDWK 的两条状态链分别对应 STATUS-A/B；它不证明实际运行状态隔离或错误一定到达入口。该验收失败时退出码为 1，12 个业务案例仍未执行。
+先核对报告中确实出现自己的程序名与预期文件量。只有部分程序出现时，先补文件或修正读取参数；“解码成功”不代表 COBOL 结构已识别，更不代表业务含义已证明。报告及程序清单含本地路径和源码标识符，应保留在公司批准的位置。
 
-局部异常与溢出验收可运行 `poc\run_exception_demo.bat "D:\cobol-output\exception-v4"`。当前应看到 8 个静态上下文、4 项模型预期通过，以及 EXWRAP 状态 91/24、EXJOIN 状态 25 对应事件的模型退出输出为零。详细报告包含分支路径；它不是交易运行记录，子程序正常返回值、循环和隐式作用域等仍有限制。独立覆写反例的运行方法见 [P3-F 报告](./reports/2026-09-08-p3f-exception-path-feasibility.md)。
+### 3.3 编码与源码格式不对时
 
-跨程序错误返回使用 `poc\run_error_return_demo.bat "D:\cobol-output\error-return-v5"`。本次应看到主样例 30 项预期通过，报告按六步实参记录把子程序状态 21 传到入口和汇总；另有复制隔断与调用方覆写 7 的反例。此工具分析受支持源码模型，不执行 COBOL；正常金额仍未知，也不连接问答界面。源码假设、反例命令与退出码说明见 [T01 报告](./reports/2026-09-08-t01-interprogram-error-returns.md)。Windows 入口脚本已提供，本轮未在 Windows 实机验收。
+若知道导出编码，直接指定，避免自动检测把文件当成另一种可解码文本。例如简体中文 Windows 导出：
 
-## 4. P0：生成源码清单
+    python poc\analyze_source.py ^
+      --source "D:\cobol-data\source" ^
+      --output "D:\cobol-output\analysis" ^
+      --encoding gb18030 ^
+      --source-format fixed
+
+`--encoding` 默认 `auto`；实际为 CP950 时用 `--encoding cp950`，其他编码须用导出工具确认的名称。不要因为文件能打开就假定编码正确。EBCDIC 成员应按实际字符集和记录布局导出或转换成文本后再核对，直接给二进制文件改扩展名无法解决。
+
+`--source-format` 可为 `auto`、`fixed`、`free`。固定格式的序号列、指示列及有效代码区会影响解析；自由格式导出应使用 `free`。这里的选项适用于本次目录，混合格式可先尝试 `auto`，再根据诊断拆分处理。第二次提问必须保留已经确认的编码、格式和扩展名选项。
+
+看到真实目标程序后直接进入第 8～9 节。接下来的第 4～7 节用于独立检查底层索引和证据，正常使用不必重复执行一遍。
+
+## 4. 底层工具：独立生成源码清单（可选）
 
 清单阶段只统计候选文件、编码、行数、程序定义、COPY、CALL、PERFORM 和 EXEC SQL 等摘要。默认报告不放源码文本、绝对路径、相对路径或程序名，适合先做范围确认。
 
 ### 4.1 推荐命令
 
     cd /d D:\cobol-work\cobol-evidence-analyst
-    mkdir D:\cobol-output\premium-2026-08-31
+    mkdir D:\cobol-output\analysis
     python poc\repo_inventory.py ^
-      "D:\cobol-data\premium-source" ^
-      --output "D:\cobol-output\premium-2026-08-31\repo-inventory.json" ^
-      --markdown-output "D:\cobol-output\premium-2026-08-31\repo-inventory.md"
+      "D:\cobol-data\source" ^
+      --output "D:\cobol-output\analysis\repo-inventory.json" ^
+      --markdown-output "D:\cobol-output\analysis\repo-inventory.md"
 
 也可以使用：
 
     poc\run_inventory.bat ^
-      "D:\cobol-data\premium-source" ^
-      --output "D:\cobol-output\premium-2026-08-31\repo-inventory.json" ^
-      --markdown-output "D:\cobol-output\premium-2026-08-31\repo-inventory.md"
+      "D:\cobol-data\source" ^
+      --output "D:\cobol-output\analysis\repo-inventory.json" ^
+      --markdown-output "D:\cobol-output\analysis\repo-inventory.md"
 
 ### 4.2 处理特殊文件
 
 AS400 导出成员若没有扩展名，增加：
 
     python poc\repo_inventory.py ^
-      "D:\cobol-data\premium-source" ^
+      "D:\cobol-data\source" ^
       --include-extensionless ^
-      --output "D:\cobol-output\premium-2026-08-31\repo-inventory.json"
+      --output "D:\cobol-output\analysis\repo-inventory.json"
 
 公司使用自定义扩展名时，显式加入扩展名（逗号分隔）：
 
     python poc\repo_inventory.py ^
-      "D:\cobol-data\premium-source" ^
+      "D:\cobol-data\source" ^
       --extensions ".cbl,.cpy,.smartcob" ^
-      --output "D:\cobol-output\premium-2026-08-31\repo-inventory.json"
+      --output "D:\cobol-output\analysis\repo-inventory.json"
 
 只有在公司批准目录内查看时，才使用 --include-identifiers。这个开关会把程序名、COPY 目标、CALL 目标和相对文件名写入报告；不要把这类报告复制到项目目录、聊天窗口或外部服务。
 
@@ -159,22 +175,22 @@ AS400 导出成员若没有扩展名，增加：
 
 如果大量文件不可读，先处理编码或导出方式，再建结构索引。不要把“解析成功”当成“业务完整”。
 
-## 5. P1-A：建立本地结构索引
+## 5. 底层工具：独立建立结构索引（可选）
 
 结构索引会保存源码相对路径、文件 Hash、程序/段落/字段/关系和必要 EvidenceSpan。它是后续检索的本地数据库，必须留在公司批准环境。
 
 ### 5.1 推荐命令
 
     python poc\structural_index.py ^
-      "D:\cobol-data\premium-source" ^
-      --database "D:\cobol-output\premium-2026-08-31\structural-index.sqlite" ^
-      --report-output "D:\cobol-output\premium-2026-08-31\structural-index-report.json"
+      "D:\cobol-data\source" ^
+      --database "D:\cobol-output\analysis\structural-index.sqlite" ^
+      --report-output "D:\cobol-output\analysis\structural-index-report.json"
 
 也可以使用包装脚本：
 
     poc\run_index.bat ^
-      "D:\cobol-data\premium-source" ^
-      "D:\cobol-output\premium-2026-08-31\structural-index.sqlite"
+      "D:\cobol-data\source" ^
+      "D:\cobol-output\analysis\structural-index.sqlite"
 
 成员没有扩展名时增加 --include-extensionless。自定义扩展名时增加 --extensions ".cbl,.cpy,.smartcob"。
 
@@ -193,17 +209,19 @@ AS400 导出成员若没有扩展名，增加：
 
 ### 5.3 编码边界
 
-当前读取器支持常见 UTF-8、UTF-16、CP950/Big5、cp1252 及 Latin-1 回退。EBCDIC 二进制成员不能直接当作文本分析；先按公司批准流程转换成可读文本，再重新执行清单和索引。不要为了让计数变好看而把二进制文件强行改名为 .cbl。
+底层清单与索引也可显式指定 `--encoding` 与 `--source-format`。自动检测或回退只能说明文本可解码，不能保证所选字符集就是原始导出编码；诊断显示回退、乱码或零程序时，应按第 3.3 节核对。清单与索引必须使用同一组读取参数。
 
-## 6. P1-B：直接查询四个只读工具
+## 6. 底层工具：直接查询证据（可选）
 
 所有调查都必须从已建立的本地 SQLite 开始。工具不接受任意文件路径读取源码；在 Agent 调查中，read-evidence 只能使用本次调查前面步骤已经返回的 Evidence ID。手工调用时也应遵守同一顺序，不要从数据库中猜 ID。
 
 ### 6.1 搜索代码
 
+下面命令中的“实际字段名”“实际的PROGRAM-ID”都是占位值，须从本次程序清单与源码中选择并替换，不能原样执行。
+
     python poc\investigation_tools.py ^
-      --database "D:\cobol-output\premium-2026-08-31\structural-index.sqlite" ^
-      search-code OUT-INSTALMENT-PREMIUM ^
+      --database "D:\cobol-output\analysis\structural-index.sqlite" ^
+      search-code "实际字段名" ^
       --limit 20
 
 先从精确的 Program、Field、COPY 或 CALL 名称开始，再用业务术语或字段片段做全文检索。结果中的 status、evidence_ref、relative_path 和行号要一起保留。
@@ -211,23 +229,23 @@ AS400 导出成员若没有扩展名，增加：
 ### 6.2 检查一个符号
 
     python poc\investigation_tools.py ^
-      --database "D:\cobol-output\premium-2026-08-31\structural-index.sqlite" ^
-      inspect-symbol OUT-INSTALMENT-PREMIUM ^
+      --database "D:\cobol-output\analysis\structural-index.sqlite" ^
+      inspect-symbol "实际字段名" ^
       --max-relations 80
 
 如果同名符号很多，增加程序名或类型：
 
     python poc\investigation_tools.py ^
-      --database "D:\cobol-output\premium-2026-08-31\structural-index.sqlite" ^
-      inspect-symbol SYNP040 ^
+      --database "D:\cobol-output\analysis\structural-index.sqlite" ^
+      inspect-symbol "实际的PROGRAM-ID" ^
       --symbol-type Program ^
       --max-relations 80
 
 ### 6.3 沿关系追踪
 
     python poc\investigation_tools.py ^
-      --database "D:\cobol-output\premium-2026-08-31\structural-index.sqlite" ^
-      trace-relations SYNP000 ^
+      --database "D:\cobol-output\analysis\structural-index.sqlite" ^
+      trace-relations "实际的PROGRAM-ID" ^
       --relation-type CALLS ^
       --relation-type CALL_TARGET_FROM ^
       --relation-type SELECTS_FROM ^
@@ -242,7 +260,7 @@ AS400 导出成员若没有扩展名，增加：
 把上一步输出中真实出现的 evidence_id 原样带入：
 
     python poc\investigation_tools.py ^
-      --database "D:\cobol-output\premium-2026-08-31\structural-index.sqlite" ^
+      --database "D:\cobol-output\analysis\structural-index.sqlite" ^
       read-evidence "sha256:填入前一步返回的EvidenceID" ^
       --max-chars 12000
 
@@ -299,42 +317,30 @@ API 根地址必须包含版本前缀（例如 /v1），生产地址必须使用
 
 Embedding 不是 run_agent.py 的必需项。只有拿到批准的嵌入模型时，才额外设置 COMPANY_EMBEDDING_MODEL 或传 --embedding-model，并执行 --probe-embeddings。
 
-## 9. 用 Agent 提一个源代码问题
+## 9. 选择实际程序，用 Agent 提问
 
-先确保：
+在第 3 节输出的 `programs.json` 中选择一个实际程序，把下面 `实际的PROGRAM-ID` 换成其名称；也可使用报告里的相对路径或文件名。仅文件名相同时可用相对路径明确范围；同一 `PROGRAM-ID` 存在多个版本时，须把版本分开索引，路径不能消除程序身份歧义。不要照抄演示中的 `SYNP040` 或保费字段；如果报告里根本没有目标程序，先处理接入问题。
 
-1. structural-index.sqlite 对应本次源码批次；
-2. 第 8 节能力探测 ready 为 true；
-3. 当前终端仍保留三个接口环境变量；
-4. 你明确知道本次会把哪些最小必要证据发给公司批准的接口。
+确认第 8 节接口可用，并在同一个保留 API 环境变量的终端执行：
 
-然后执行：
-
-    python poc\run_agent.py ^
-      --database "D:\cobol-output\premium-2026-08-31\structural-index.sqlite" ^
-      --question "分期保费最终是怎样计算出来的？" ^
+    python poc\analyze_source.py ^
+      --source "D:\cobol-data\source" ^
+      --output "D:\cobol-output\analysis" ^
+      --entry "实际的PROGRAM-ID" ^
+      --question "请解释该程序的主要处理步骤、输入输出和调用，并引用源码行号。" ^
       --allow-network
 
-批处理包装脚本：
+也可以把第一行换成 `poc\run_analyze.bat`，后续参数不变。首次离线读取时如果指定过编码、格式或扩展名，这里也必须带上相同参数。
 
-    poc\run_agent.bat ^
-      "D:\cobol-output\premium-2026-08-31\structural-index.sqlite" ^
-      "分期保费最终是怎样计算出来的？" ^
-      --allow-network
+这条命令会先更新当前源目录的索引、检查入口，再做 API 能力探测及问答。`--entry` 和 `--question` 可以按需要使用，但首次调查建议同时给出真实入口与具体问题；仅有抽象中文业务词，未必能命中没有业务注释的 COBOL 标识符。`--entry` 确定调查起点，不代表整个调用链已完整解析。
 
-包装脚本只转发一个可选参数；若要同时使用 --timeout-seconds、--max-output-tokens 或 --allow-insecure-localhost，请直接运行 python poc\run_agent.py。
+问题与 `--allow-network` 分开控制：写了问题但未开启联网时会保存 `NETWORK_DISABLED`，不会调用模型；只有接口能力满足受控调查要求后才进入模型。普通 Chat 能返回一句话不代表 Tool Calling 或严格 JSON 已满足。
 
-建议把完整结果保存到公司批准的输出目录，而不是项目目录：
-
-    python poc\run_agent.py ^
-      --database "D:\cobol-output\premium-2026-08-31\structural-index.sqlite" ^
-      --question "请列出最终分期公式及其源码证据。" ^
-      --allow-network ^
-      > "D:\cobol-output\premium-2026-08-31\agent-answer.json"
+直接打开输出目录的 `agent-result.md` 读回答，`agent-result.json` 查看完整状态、证据和诊断。此结果始终属于这一次运行；源码有更新时重跑本命令。`run_agent.py` 仍作为底层接口保留，它只读取指定数据库，不会自动重新扫描源目录，日常使用优先走本节入口。
 
 ### 9.1 结果怎么判断
 
-顶层字段重点看：
+在 `agent-result.json` 中，实际进入 Agent 后重点看以下字段（没有进入时先看 `NOT_REQUESTED` / `NETWORK_DISABLED` 等运行状态）：
 
 - runner_status：COMPLETED 表示受控流程正常结束；SAFE_STOP 表示安全停止；NOT_READY 表示没有满足运行条件；
 - selected_mode：实际使用 NATIVE_TOOL_CALLING 或 VALIDATED_JSON_FALLBACK；
@@ -353,9 +359,9 @@ Embedding 不是 run_agent.py 的必需项。只有拿到批准的嵌入模型�
 
 适合问“源码快照能直接回答”的问题，例如：
 
-- 哪个程序写入 OUT-INSTALMENT-PREMIUM？
-- SYNP040 调用了哪些已确认的程序？
-- 分期公式中的字段读写顺序是什么？
+- 当前入口程序的主要处理步骤是什么？
+- 当前入口程序调用了哪些已确认的程序？
+- 指定真实字段在哪里被赋值，相关条件和算式是什么？
 - 哪些 CALL 目标在当前快照中仍是动态或未解析？
 
 不适合要求它凭源码猜测生产事实的问题，例如实际费率值、控制表当前记录、运行时动态 CALL 的真实目标、Job Schedule、DB2/DDS 定义或某次生产输入的结果。对于这类问题，看到 ABSTAINED、candidate、unresolved 或 boundaries 应当停止扩展，不要用常识补答案。
@@ -369,7 +375,7 @@ Embedding 不是 run_agent.py 的必需项。只有拿到批准的嵌入模型�
     git pull --ff-only origin main
     git status
 
-然后确认源码目录、输出目录和数据库路径没有写错。源码有新增或变更时，重新执行第 4 节和第 5 节；不要直接拿旧数据库回答新源码问题。
+然后按第 3 节重跑离线检查，或直接按第 9 节用同一组参数提问。新入口会在每次提问前更新索引；仍须核对报告里的源目录和实际入口，避免命令仍指向旧文件夹。
 
 ### 10.2 结束工作
 
@@ -405,7 +411,13 @@ commit 成功后，.githooks/post-commit 会自动执行 git push origin 当前�
 | python 不是内部或外部命令 | Python 未安装或 PATH 未生效 | 重新打开 cmd，试 py -3；仍失败就修复 Python 安装。 |
 | git 不是内部或外部命令 | Git for Windows 未安装或 PATH 未生效 | 安装 Git for Windows，重新打开终端。 |
 | FTS5 support 错误 | 当前 Python 的 SQLite 没有 FTS5 | 改用公司批准的完整 Python 发行版，不要改成猜测式全文搜索。 |
-| candidate_file_count 很高但 decoded_file_count 很低 | 扩展名、编码或二进制成员不匹配 | 检查 --extensions、--include-extensionless 和导出编码，先处理不可读文件。 |
+| 新入口发现零文件或零程序 | 指错目录、后缀过滤、编码/格式错误，或只有 COPYBOOK | 打开 diagnosis.md；核对源目录、--extensions、--encoding 与 --source-format，确认 programs.json 中出现真实程序后再联网。 |
+| 文件可解码但中文乱码或没有程序 | 自动检测选中了错误编码或源码列格式 | 指定实际导出编码与 fixed/free，重跑；可解码不等于可正确解析。 |
+| 修改源文件后回答仍是旧内容 | 使用了旧数据库或旧结果文件 | 改用 analyze_source.py --source ... --output ...，核对本次快照与程序清单。 |
+| 报告仍出现 SYNP040 或固定保费演示 | 运行了 demo 脚本/演示网页，或源路径仍指向 fixtures | 使用第 3 节新入口；不要替换样例夹具。 |
+| 指定入口不存在或有歧义 | 名称不在本次清单，或存在多个同名定义 | 从 programs.json 选择入口；同文件名用相对路径，同 PROGRAM-ID 多版本需分开索引。 |
+| NETWORK_DISABLED / NOT_REQUESTED | 本次没有启用网络或没有提出问题 | 需要问答时按第 9 节传问题和 --allow-network；离线诊断本身不需要 Key。 |
+| candidate_file_count 很高但 decoded_file_count 很低 | 编码或二进制成员不匹配 | 检查导出编码与不可读文件，显式 --encoding 后重跑。 |
 | COMPANY_API_NOT_READY | 能力探测未通过或数据库打不开 | 先单独运行 company_api.py；检查 API 配置、网络授权和 SQLite 路径。 |
 | BASE_URL_MISSING / BASE_URL_INVALID | URL 未设置、缺 /v1、使用了不允许的 HTTP 或含账号密码 | 按第 8 节重新设置，生产网关使用 HTTPS。 |
 | API_KEY_MISSING | 当前终端没有 Key | 从批准的密码管理器重新设置当前会话变量，不要把 Key 写进脚本。 |
@@ -425,8 +437,8 @@ commit 成功后，.githooks/post-commit 会自动执行 git push origin 当前�
 - [ ] 已进入 D:\cobol-work\cobol-evidence-analyst。
 - [ ] 已 git pull --ff-only origin main。
 - [ ] 源码来自公司批准位置，且本次数据库对应同一批源码。
-- [ ] 已查看 inventory 报告的不可读文件和编码统计。
-- [ ] 已查看 structural-index-report.json 的 snapshot_id 和 coverage_boundary。
+- [ ] 已查看 diagnosis.md 的源码范围、编码、解析问题和快照。
+- [ ] 已在 programs.json 找到本次要分析的真实程序，未照抄演示符号。
 - [ ] 若要联网，已确认公司批准的网关、模型、权限和当前会话 Key。
 - [ ] 问题是源码证据问题，不是要求猜生产运行数据。
 
@@ -445,7 +457,8 @@ commit 成功后，.githooks/post-commit 会自动执行 git push origin 当前�
 
 下面这些不是宣传口径，而是当前代码可观察到的边界：
 
-- 未显式传 --allow-network 时，company_api.py 和 run_agent.py 不创建真实网络请求。
+- 未显式传 --allow-network 时，新入口、company_api.py 和 run_agent.py 不创建真实网络请求。
+- analyze_source.py 要求显式源目录，每次先更新索引并核对真实程序；零文件、零程序或无效入口不会继续调用模型。
 - 结构索引建立在本地 SQLite/FTS5 上，并保存快照 Hash 与 EvidenceSpan，便于后续检查引用是否仍对应原文件。
 - 未变化文件只有在解析器版本也未变化时才跳过；升级后重跑索引命令即可重建，COPY 变化会重绑消费程序。
 - 普通数据 COPY 字段按程序隔离；同名字段宜指定 program_name，定义与 COPY 引用链可回溯，但不代表 CALL 参数值流。
@@ -458,7 +471,8 @@ commit 成功后，.githooks/post-commit 会自动执行 git push origin 当前�
 
 对应实现位置：
 
-- poc/run_agent.py：一次受控 Agent 运行和退出码；
+- poc/analyze_source.py：真实源码接入、更新索引、诊断、程序清单与可选问答；
+- poc/run_agent.py：对已有数据库进行一次受控 Agent 运行和退出码；
 - poc/company_api.py：接口配置、HTTPS 校验、能力探测和安全审计摘要；
 - poc/repo_inventory.py：离线清单；
 - poc/structural_index.py：SQLite/FTS5 结构索引；
@@ -477,3 +491,45 @@ commit 成功后，.githooks/post-commit 会自动执行 git push origin 当前�
 5. 生产控制表、DDL/DDS、Job Schedule、DB/File 定义和运行日志是否另有可信来源。
 
 只要这些条件没有确认，先完成离线自检、清单和结构索引，不要把 Agent 的候选回答当作生产结论。
+
+## 附录：可选的合成样例离线自检
+
+这一步不会读取公司的源码，也不会访问网络。它用于确认 Python、SQLite、项目路径和四个受限工具都能正常工作。
+
+先从项目根目录执行：
+
+    cd /d D:\cobol-work\cobol-evidence-analyst
+    python poc\run_demo.py ^
+      --database "D:\cobol-output\demo\structural-index.sqlite" ^
+      --json-output "D:\cobol-output\demo\calc-01.json" ^
+      --markdown-output "D:\cobol-output\demo\calc-01.md"
+
+也可以使用 Windows 包装脚本：
+
+    poc\run_demo.bat "D:\cobol-output\demo"
+
+命令成功时会打印 JSON 摘要，重点检查：
+
+- network_calls 是 false；
+- tool_calls 不超过 6；
+- support_status 是 PARTIAL，source_fact_coverage 为 16 项覆盖、3 项缺失、4 项边界；
+- 输出目录中出现 structural-index.sqlite、calc-01.json 和 calc-01.md。
+
+这个演示只索引项目内的 synthetic-insurance-v1 合成夹具。PARTIAL 是保留的业务验收结果：全部附加保障遍历、每次调整查询失败处理和基础费率生效日期尚未证明。程序运行成功不代表业务通过，也不代表读到了公司源码或接口可用。
+
+可单独执行 `python poc\business_acceptance.py "D:\cobol-output\demo\structural-index.sqlite"` 查看逐项证据。有缺项时返回退出码 1；此离线扫描不属于六步调查，也不验证模型回答。
+
+### 复杂程序组回归演示
+
+从项目根目录执行 `poc\run_complex_demo.bat "D:\cobol-output\complex-v2"`，输出 `result.md`、`result.json` 与本地索引。该演示有 14 个主程序、4 个 COPY、五层调用链、配置型动态调用和每个调用点的异常处理；独立反例目录不会混入主场景。
+
+当前应看到 205 条参数/成员对应、92 条候选回写及未决动态目标。查看报告中的配置来源、查询错误处理和委托清零，不能把它当成实际交易已执行。35 个案例期望均标为未执行。CONTENT/VALUE 不回写，REFERENCE 也只是可能回写；复杂布局和调用上下文仍有边界。升级后重跑索引命令即可更新旧解析事实。
+
+重复调用的独立验收可运行 `poc\run_context_demo.bat "D:\cobol-output\context-v3"`。当前应看到 `source_context_acceptance: PASS`、48 项源码检查通过、12 个静态上下文。报告中，同一 SHAREDWK 的两条状态链分别对应 STATUS-A/B；它不证明实际运行状态隔离或错误一定到达入口。该验收失败时退出码为 1，12 个业务案例仍未执行。
+
+局部异常与溢出验收可运行 `poc\run_exception_demo.bat "D:\cobol-output\exception-v4"`。当前应看到 8 个静态上下文、4 项模型预期通过，以及 EXWRAP 状态 91/24、EXJOIN 状态 25 对应事件的模型退出输出为零。详细报告包含分支路径；它不是交易运行记录，子程序正常返回值、循环和隐式作用域等仍有限制。独立覆写反例的运行方法见 [P3-F 报告](./reports/2026-09-08-p3f-exception-path-feasibility.md)。
+
+跨程序错误返回使用 `poc\run_error_return_demo.bat "D:\cobol-output\error-return-v5"`。本次应看到主样例 30 项预期通过，报告按六步实参记录把子程序状态 21 传到入口和汇总；另有复制隔断与调用方覆写 7 的反例。此工具分析受支持源码模型，不执行 COBOL；正常金额仍未知，也不连接问答界面。源码假设、反例命令与退出码说明见 [T01 报告](./reports/2026-09-08-t01-interprogram-error-returns.md)。Windows 入口脚本已提供，本轮未在 Windows 实机验收。
+
+
+这些演示的源文件、程序名、调查顺序或业务验收条件是预设的。即使某个演示提供 `--source` 参数，也不意味着它支持任意源码；不要用公司的源码覆盖夹具。当前项目尚未用你的公司源码、真实公司 API 或 Windows 实机完成此次验收。

@@ -9,6 +9,7 @@ names unless --include-identifiers is explicitly supplied.
 from __future__ import annotations
 
 import argparse
+import codecs
 import hashlib
 import json
 import os
@@ -32,6 +33,8 @@ DEFAULT_EXTENSIONS = frozenset(
         ".sqlcblle",
         ".cpy",
         ".copy",
+        ".cpb",
+        ".inc",
         ".pco",
         ".sqb",
         ".src",
@@ -65,7 +68,7 @@ IGNORED_DIRECTORIES = frozenset(
 )
 
 PROGRAM_ID_RE = re.compile(
-    r"\bPROGRAM-ID\s*\.\s*([A-Z0-9_$#@-]+)", re.IGNORECASE
+    r"\bPROGRAM-ID\s*\.\s*['\"]?([A-Z0-9_$#@-]+)", re.IGNORECASE
 )
 COPY_RE = re.compile(
     r"\bCOPY\s+([A-Z0-9_$#@.-]+)", re.IGNORECASE
@@ -80,6 +83,10 @@ PERFORM_RE = re.compile(r"\bPERFORM\b", re.IGNORECASE)
 EXEC_SQL_RE = re.compile(r"\bEXEC\s+SQL\b", re.IGNORECASE)
 DATA_DIVISION_RE = re.compile(r"\bDATA\s+DIVISION\b", re.IGNORECASE)
 PROCEDURE_DIVISION_RE = re.compile(r"\bPROCEDURE\s+DIVISION\b", re.IGNORECASE)
+SOURCE_FORMAT_RE = re.compile(
+    r"^(?:[0-9]{6})?\s*>>\s*SOURCE\s+(?:FORMAT\s+)?(?:IS\s+)?(FREE|FIXED)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -136,8 +143,21 @@ def iter_source_files(
     root: Path,
     extensions: frozenset[str],
     include_extensionless: bool,
+    *,
+    scan_summary: dict[str, object] | None = None,
 ) -> Iterable[Path]:
-    for directory, dirnames, filenames in os.walk(root, followlinks=False):
+    def traversal_error(error: OSError) -> None:
+        raise error
+
+    if scan_summary is not None:
+        scan_summary.update(
+            selected_file_count=0,
+            excluded_extensionless_file_count=0,
+            excluded_extensions={},
+        )
+    for directory, dirnames, filenames in os.walk(
+        root, followlinks=False, onerror=traversal_error
+    ):
         dirnames[:] = sorted(
             [
                 name
@@ -153,7 +173,15 @@ def iter_source_files(
                 continue
             suffix = path.suffix.lower()
             if suffix in extensions or (include_extensionless and not suffix):
+                if scan_summary is not None:
+                    scan_summary["selected_file_count"] += 1
                 yield path
+            elif scan_summary is not None:
+                if not suffix:
+                    scan_summary["excluded_extensionless_file_count"] += 1
+                else:
+                    excluded = scan_summary["excluded_extensions"]
+                    excluded[suffix] = excluded.get(suffix, 0) + 1
 
 
 def _looks_binary(data: bytes) -> bool:
@@ -171,7 +199,24 @@ def _looks_binary(data: bytes) -> bool:
     return null_ratio > 0.01 or controls / len(sample) > 0.05
 
 
-def decode_source(data: bytes) -> DecodedSource | None:
+def validate_source_options(encoding: str, source_format: str) -> None:
+    if encoding != "auto":
+        try:
+            codecs.lookup(encoding)
+            b"".decode(encoding)
+        except (LookupError, TypeError) as exc:
+            raise ValueError(f"Unknown text encoding: {encoding}") from exc
+    if source_format not in {"auto", "fixed", "free"}:
+        raise ValueError("Source format must be auto, fixed, or free.")
+
+
+def decode_source(data: bytes, encoding: str = "auto") -> DecodedSource | None:
+    if encoding != "auto":
+        validate_source_options(encoding, "auto")
+        try:
+            return DecodedSource(data.decode(encoding).lstrip("\ufeff"), encoding)
+        except UnicodeDecodeError:
+            return None
     if _looks_binary(data):
         return None
 
@@ -200,26 +245,35 @@ def decode_source(data: bytes) -> DecodedSource | None:
     return DecodedSource(data.decode("latin-1"), "latin-1-fallback", True)
 
 
-def normalize_cobol_text(text: str) -> tuple[str, str]:
+def normalize_cobol_text(
+    text: str, source_format: str = "auto"
+) -> tuple[str, str]:
+    validate_source_options("auto", source_format)
     cleaned: list[str] = []
     fixed_votes = 0
     free_votes = 0
+    active_format = source_format
 
     for raw_line in text.splitlines():
         line = raw_line.expandtabs(8)
+        directive = SOURCE_FORMAT_RE.search(line)
+        if directive:
+            if source_format == "auto":
+                active_format = directive.group(1).lower()
+            continue
         candidate = line
         first_six = line[:6] if len(line) >= 6 else ""
-        looks_fixed = (
+        looks_fixed = active_format == "fixed" or (active_format == "auto" and (
             len(line) >= 7
             and (
                 first_six.strip().isdigit()
                 or (not first_six.strip() and line[6] in " */-Dd")
             )
-        )
+        ))
 
         if looks_fixed:
             fixed_votes += 1
-            indicator = line[6]
+            indicator = line[6] if len(line) >= 7 else " "
             if indicator in "*/":
                 continue
             candidate = line[7:72]
@@ -233,7 +287,11 @@ def normalize_cobol_text(text: str) -> tuple[str, str]:
             candidate = candidate.split("*>", 1)[0]
         cleaned.append(candidate.rstrip())
 
-    if fixed_votes > max(5, free_votes // 3):
+    if source_format != "auto":
+        format_hint = source_format
+    elif active_format == "free" and not fixed_votes:
+        format_hint = "free"
+    elif fixed_votes > max(5, free_votes // 3):
         format_hint = "fixed"
     elif fixed_votes and free_votes:
         format_hint = "mixed"
@@ -247,7 +305,7 @@ def classify_artifact(
     program_ids: Sequence[str],
     normalized_text: str,
 ) -> str:
-    if suffix in {".cpy", ".copy"}:
+    if suffix in {".cpy", ".copy", ".cpb"}:
         return "copybook"
     if suffix in {".ddl", ".dds", ".pf", ".lf"}:
         return "ddl_or_db_file_definition"
@@ -257,18 +315,22 @@ def classify_artifact(
         return "cobol_program"
     if DATA_DIVISION_RE.search(normalized_text):
         return "cobol_fragment_or_copybook"
+    if re.search(r"^\s*(?:01|77|78)\s+[A-Z0-9_$#@-]+\b", normalized_text, re.I | re.M):
+        return "cobol_fragment_or_copybook"
     if suffix == ".sql":
         return "sql_or_ddl"
     return "unclassified_text"
 
 
-def observe_file(path: Path, root: Path) -> FileObservation | None:
+def observe_file(
+    path: Path, root: Path, *, encoding: str = "auto", source_format: str = "auto"
+) -> FileObservation | None:
     data = path.read_bytes()
-    decoded = decode_source(data)
+    decoded = decode_source(data, encoding)
     if decoded is None:
         return None
 
-    normalized_text, format_hint = normalize_cobol_text(decoded.text)
+    normalized_text, format_hint = normalize_cobol_text(decoded.text, source_format)
     program_ids = tuple(
         match.upper() for match in PROGRAM_ID_RE.findall(normalized_text)
     )
@@ -316,20 +378,28 @@ def build_inventory(
     extensions: frozenset[str] = DEFAULT_EXTENSIONS,
     include_extensionless: bool = False,
     include_identifiers: bool = False,
+    encoding: str = "auto",
+    source_format: str = "auto",
     progress_every: int = 500,
     quiet: bool = False,
 ) -> dict[str, object]:
     root = source_root.expanduser().resolve()
     if not root.is_dir():
         raise ValueError(f"Source root is not a directory: {source_root}")
+    validate_source_options(encoding, source_format)
 
     observations: list[FileObservation] = []
     unreadable_count = 0
-    candidate_files = list(iter_source_files(root, extensions, include_extensionless))
+    discovery: dict[str, object] = {}
+    candidate_files = list(iter_source_files(
+        root, extensions, include_extensionless, scan_summary=discovery
+    ))
 
     for index, path in enumerate(candidate_files, start=1):
         try:
-            observation = observe_file(path, root)
+            observation = observe_file(
+                path, root, encoding=encoding, source_format=source_format
+            )
         except OSError:
             observation = None
         if observation is None:
@@ -376,9 +446,32 @@ def build_inventory(
     unresolved_literal_calls = sorted(
         set(all_literal_call_targets) - available_programs
     )
+    warnings: list[str] = []
+    if not candidate_files:
+        warnings.append(
+            "No source files selected. Check the source directory, --extensions, "
+            "and --include-extensionless."
+        )
+    elif not observations:
+        warnings.append("No files could be decoded. Check --encoding and read permissions.")
+    if not program_locations:
+        warnings.append("No PROGRAM-ID definitions found. Check --encoding and --source-format.")
+    if unreadable_count:
+        warnings.append(f"{unreadable_count} selected files were unreadable or binary.")
 
     report: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
+        "source_options": {
+            "encoding": encoding,
+            "source_format": source_format,
+            "include_extensionless": include_extensionless,
+            "extensions": sorted(extensions),
+        },
+        "discovery": discovery,
+        "diagnostics": {
+            "status": "needs_attention" if warnings else "ready",
+            "warnings": warnings,
+        },
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "privacy": {
             "network_calls": False,
@@ -556,6 +649,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Also inspect files without an extension",
     )
     parser.add_argument(
+        "--encoding",
+        default="auto",
+        help="Source text encoding: auto, utf-8, cp950, gb18030, cp037, etc.",
+    )
+    parser.add_argument(
+        "--source-format",
+        choices=("auto", "fixed", "free"),
+        default="auto",
+        help="COBOL source layout; use free to retain code beyond column 72",
+    )
+    parser.add_argument(
         "--include-identifiers",
         action="store_true",
         help=(
@@ -581,6 +685,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             extensions=extensions,
             include_extensionless=args.include_extensionless,
             include_identifiers=args.include_identifiers,
+            encoding=args.encoding,
+            source_format=args.source_format,
             quiet=args.quiet,
         )
         write_report(report, args.output, args.markdown_output)

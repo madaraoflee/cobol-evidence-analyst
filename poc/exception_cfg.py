@@ -19,13 +19,16 @@ from call_contexts import _Facts, _id
 
 
 CFG_VERSION = "bounded-exception-cfg-v0.1"
+FRAMEWORK_CFG_VERSION = "bounded-framework-cfg-v0.1"
 MAX_TOKENS = 100_000
 MAX_SYNTAX_DEPTH = 64
 MAX_STATEMENTS = 20_000
 MAX_BUILD_DEPTH = 128
 _NAME = re.compile(r"[A-Z][A-Z0-9_$#@-]{0,63}\Z")
+_PROCEDURE_NAME = re.compile(r"(?:[A-Z][A-Z0-9_$#@-]*|[0-9]+-[A-Z0-9_$#@-]*[A-Z][A-Z0-9_$#@-]*)\Z")
 _NUMBER = re.compile(r"[+-]?\d+(?:\.\d+)?\Z")
 _LEXER = re.compile(r"\s+|'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|\d+(?:\.\d+)?|[A-Z][A-Z0-9_$#@-]*|\*\*|<>|>=|<=|[=<>+*/().,-]", re.I)
+_FRAMEWORK_LEXER = re.compile(r"\s+|'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|[0-9]+-[A-Z0-9_$#@-]*[A-Z][A-Z0-9_$#@-]*|\d+(?:\.\d+)?|[A-Z][A-Z0-9_$#@-]*|\*\*|<>|>=|<=|[=<>+*/().,-]", re.I)
 _VERBS = frozenset({"MOVE", "IF", "ELSE", "END-IF", "CALL", "END-CALL", "COMPUTE", "END-COMPUTE",
     "PERFORM", "END-PERFORM", "GOBACK", "STOP", "EXIT", "CONTINUE", "EVALUATE", "END-EVALUATE",
     "WHEN", "EXEC", "END-EXEC", "GO", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE", "INITIALIZE", "SET",
@@ -47,13 +50,14 @@ class _SyntaxBoundary(ValueError):
         self.token = token
 
 
-def _tokenize(units: list[dict]) -> list[_Token]:
+def _tokenize(units: list[dict], *, framework_mode: bool = False) -> list[_Token]:
     tokens: list[_Token] = []
+    lexer = _FRAMEWORK_LEXER if framework_mode else _LEXER
     for unit in units:
         source = unit["normalized_text"]
         offset = 0
         while offset < len(source):
-            match = _LEXER.match(source, offset)
+            match = lexer.match(source, offset)
             if match is None:
                 tokens.append(_Token("@UNSUPPORTED", unit, offset))
                 # Preserve the first unknown position and stop interpreting the
@@ -69,9 +73,10 @@ def _tokenize(units: list[dict]) -> list[_Token]:
 
 
 class _Parser:
-    def __init__(self, tokens: list[_Token], fields: set[str]):
+    def __init__(self, tokens: list[_Token], fields: set[str], *, framework_mode: bool = False):
         self.tokens = tokens
         self.fields = fields
+        self.framework_mode = framework_mode
         self.position = 0
 
     def at(self, *words: str) -> bool:
@@ -100,11 +105,30 @@ class _Parser:
                 self.error("incomplete_numeric_operand", token)
             token = self.tokens[self.position]
         value = sign + token.text
+        text_scalar = self.framework_mode and not sign and (
+            token.text in {"SPACE", "SPACES"} or token.text[:1] in {"'", '"'})
         if (field_only and value not in self.fields) or (not field_only and not (
-                value in self.fields or _NUMBER.fullmatch(value) or value in {"ZERO", "ZEROS", "ZEROES"})):
+                value in self.fields or _NUMBER.fullmatch(value) or value in {"ZERO", "ZEROS", "ZEROES"} or text_scalar)):
             self.error("operand_form_or_field_not_supported", token)
         self.position += 1
         return value
+
+    def condition(self, token: _Token) -> dict:
+        field = self.scalar(field_only=True)
+        if self.framework_mode:
+            self.take("IS")
+        negate = self.take("NOT")
+        if self.take("EQUAL"):
+            self.take("TO")
+            operator = "="
+        elif self.position < len(self.tokens) and self.tokens[self.position].text in {"=", "<>", ">", ">=", "<", "<="}:
+            operator = self.tokens[self.position].text
+            self.position += 1
+        else:
+            self.error("condition_form_not_supported", token)
+        if negate:
+            operator = {"=": "<>", "<>": "=", ">": "<=", ">=": "<", "<": ">=", "<=": ">"}[operator]
+        return {"field": field, "operator": operator, "value": self.scalar()}
 
     def sequence(self, stops: tuple[tuple[str, ...], ...] = (), depth: int = 0) -> list[dict]:
         result: list[dict] = []
@@ -147,38 +171,37 @@ class _Parser:
                 self.error("move_form_not_supported", token)
             return node | {"source": source, "targets": targets}
         if kind == "IF":
-            field = self.scalar(field_only=True)
-            negate = self.take("NOT")
-            if self.take("EQUAL"):
-                self.take("TO")
-                operator = "="
-            elif self.position < len(self.tokens) and self.tokens[self.position].text in {"=", "<>", ">", ">=", "<", "<="}:
-                operator = self.tokens[self.position].text
-                self.position += 1
-            else:
-                self.error("condition_form_not_supported", token)
-            if negate:
-                operator = {"=": "<>", "<>": "=", ">": "<=", ">=": "<", "<": ">=", "<=": ">"}[operator]
-            value = self.scalar()
+            condition = self.condition(token)
             self.take("THEN")
             true_body = self.branch_body((("ELSE",), ("END-IF",)), depth)
             false_body = self.branch_body((("END-IF",),), depth) if self.take("ELSE") else []
             if not self.take("END-IF"):
                 self.error("if_explicit_terminator_missing", token)
-            return node | {"field": field, "operator": operator, "value": value,
-                           "true_body": true_body, "false_body": false_body}
+            return node | condition | {"true_body": true_body, "false_body": false_body}
         if kind in {"CALL", "COMPUTE"}:
             return self.exception_statement(node, depth)
         if kind == "PERFORM":
             if token.unit["name"] != "PERFORM" or token.offset != 0 or self.position >= len(self.tokens):
                 self.error("perform_form_not_supported", token)
+            if self.framework_mode and (self.at("UNTIL") or self.at("WITH") or self.at("TEST")):
+                if not self.take("UNTIL"):
+                    self.take("WITH")
+                    if not self.take("TEST", "BEFORE", "UNTIL"):
+                        self.error("perform_loop_form_not_supported", token)
+                condition = self.condition(token)
+                body = self.branch_body((("END-PERFORM",),), depth)
+                if not self.take("END-PERFORM"):
+                    self.error("perform_explicit_terminator_missing", token)
+                return node | condition | {"kind": "LOOP_TEST", "test_position": "before", "body": body}
             target = self.tokens[self.position].text
-            if not _NAME.fullmatch(target) or target in _VERBS:
+            name_pattern = _PROCEDURE_NAME if self.framework_mode else _NAME
+            if len(target) > 64 or not name_pattern.fullmatch(target) or target in _VERBS:
                 self.error("perform_form_not_supported", token)
             self.position += 1
             end = target
             if self.take("THRU") or self.take("THROUGH"):
-                if self.position >= len(self.tokens) or not _NAME.fullmatch(self.tokens[self.position].text):
+                if (self.position >= len(self.tokens) or len(self.tokens[self.position].text) > 64
+                        or not name_pattern.fullmatch(self.tokens[self.position].text)):
                     self.error("perform_range_not_supported", token)
                 end = self.tokens[self.position].text
                 self.position += 1
@@ -314,9 +337,10 @@ class _BudgetBoundary(ValueError):
 
 class _Builder:
     def __init__(self, facts: _Facts, program: str, blocks: list[dict], *, max_nodes: int,
-                 max_edges: int, max_perform_depth: int):
+                 max_edges: int, max_perform_depth: int, framework_mode: bool = False):
         self.facts, self.program, self.blocks = facts, program, blocks
         self.max_nodes, self.max_edges, self.max_perform_depth = max_nodes, max_edges, max_perform_depth
+        self.framework_mode = framework_mode
         self.nodes: list[dict] = []
         self.edges: list[dict] = []
         self.boundaries: list[dict] = []
@@ -324,6 +348,14 @@ class _Builder:
         for index, block in enumerate(blocks):
             if block["name"]:
                 self.paragraphs.setdefault(block["name"], []).append(index)
+
+    def procedure_end(self, index: int) -> int:
+        if not self.framework_mode or self.blocks[index].get("kind") != "Section":
+            return index
+        for following in range(index + 1, len(self.blocks)):
+            if self.blocks[following].get("kind") == "Section":
+                return following - 1
+        return len(self.blocks) - 1
 
     def node(self, kind: str, token: _Token | None, chain: tuple[str, ...], **details: object) -> str:
         if len(self.nodes) >= self.max_nodes:
@@ -367,7 +399,7 @@ class _Builder:
                 if len(starts) != 1 or len(ends) != 1 or starts[0] > ends[0]:
                     tails = self.boundary("perform_range_not_uniquely_resolved", tails, token, chain)
                     continue
-                start, end = starts[0], ends[0]
+                start, end = starts[0], self.procedure_end(ends[0])
                 if len(chain) >= self.max_perform_depth:
                     tails = self.boundary("perform_depth_budget_exhausted", tails, token, chain)
                     continue
@@ -375,7 +407,9 @@ class _Builder:
                     tails = self.boundary("recursive_or_overlapping_perform_not_expanded", tails, token, chain)
                     continue
                 entry = self.node("JOIN", token, chain, role="perform_entry",
-                                  target_paragraph=statement["target_paragraph"], end_paragraph=statement["end_paragraph"])
+                                  target_paragraph=statement["target_paragraph"], end_paragraph=statement["end_paragraph"],
+                                  **({"target_kind": self.blocks[start]["kind"],
+                                      "end_kind": self.blocks[ends[0]]["kind"]} if self.framework_mode else {}))
                 self.connect(tails, entry)
                 child_chain = (*chain, token.unit["unit_id"])
                 tails = [(entry, "next")]
@@ -389,7 +423,7 @@ class _Builder:
                     tails = [(returned, "next")]
                 continue
             details = {key: value for key, value in statement.items()
-                       if key not in {"kind", "token", "true_body", "false_body", "error_body", "normal_body"}}
+                       if key not in {"kind", "token", "true_body", "false_body", "error_body", "normal_body", "body"}}
             node_id = self.node(kind, token, chain, **details)
             self.connect(tails, node_id)
             if kind == "GOBACK":
@@ -398,6 +432,11 @@ class _Builder:
                 first = self.sequence(statement["true_body"], [(node_id, "true")], chain, active, build_depth + 1)
                 second = self.sequence(statement["false_body"], [(node_id, "false")], chain, active, build_depth + 1)
                 tails = self.join(first + second, token, chain, "if_join")
+            elif kind == "LOOP_TEST":
+                self.nodes[-1]["loop_id"] = node_id
+                body_tails = self.sequence(statement["body"], [(node_id, "false")], chain, active, build_depth + 1)
+                self.connect([(tail, "loop_back") for tail, _ in body_tails], node_id)
+                tails = self.join([(node_id, "true")], token, chain, "loop_exit")
             elif kind in {"CALL", "COMPUTE"}:
                 outcome = "exception" if kind == "CALL" else "size_error"
                 normal = self.sequence(statement["normal_body"] or [], [(node_id, "normal")], chain, active, build_depth + 1)
@@ -432,10 +471,13 @@ class _Builder:
 
 
 def build_exception_cfg(database_path: Path, program_name: str, *, max_nodes: int = 1000,
-                        max_edges: int = 3000, max_perform_depth: int = 8) -> dict[str, object]:
+                        max_edges: int = 3000, max_perform_depth: int = 8,
+                        framework_mode: bool = False) -> dict[str, object]:
     """Build source alternatives for supported explicit local control structures."""
     if not isinstance(program_name, str) or not _NAME.fullmatch(program_name):
         raise ValueError("Program name must be an uppercase, unqualified identifier.")
+    if type(framework_mode) is not bool:
+        raise ValueError("framework_mode must be a boolean.")
     if any(type(value) is not int or not minimum <= value <= maximum for value, minimum, maximum in (
             (max_nodes, 1, 20_000), (max_edges, 0, 60_000), (max_perform_depth, 0, 32))):
         raise ValueError("CFG budgets are outside supported bounds.")
@@ -452,7 +494,7 @@ def build_exception_cfg(database_path: Path, program_name: str, *, max_nodes: in
         blocks: list[dict] = [{"name": None, "statements": []}]
         if scope_reason:
             builder = _Builder(facts, program_name, [], max_nodes=max_nodes, max_edges=max_edges,
-                               max_perform_depth=max_perform_depth)
+                               max_perform_depth=max_perform_depth, framework_mode=framework_mode)
             builder.boundary(scope_reason, [], None, ())
             entry = builder.nodes[0]["node_id"]
         else:
@@ -472,25 +514,29 @@ def build_exception_cfg(database_path: Path, program_name: str, *, max_nodes: in
             field_counts = Counter(symbol["name"] for symbol in facts.symbols.values()
                                    if symbol["program_name"] == program_name and symbol["symbol_type"] == "Field")
             fields = {name for name, count in field_counts.items() if count == 1}
-            raw_blocks: list[dict] = [{"name": None, "units": []}]
+            raw_blocks: list[dict] = [{"name": None, "kind": "Entry", "units": []}]
             for unit in units:
                 facts.verify_unit(unit)
                 if unit["unit_type"] == "Paragraph":
-                    raw_blocks.append({"name": unit["name"], "units": []})
+                    raw_blocks.append({"name": unit["name"], "kind": "Paragraph", "units": []})
                 elif unit["unit_type"] == "Section":
-                    raw_blocks[-1]["units"].append(unit | {"normalized_text": "@UNSUPPORTED"})
+                    if framework_mode:
+                        raw_blocks.append({"name": unit["name"], "kind": "Section", "units": []})
+                    else:
+                        raw_blocks[-1]["units"].append(unit | {"normalized_text": "@UNSUPPORTED"})
                 else:
                     raw_blocks[-1]["units"].append(unit)
             total_tokens = 0
             blocks = []
             for block in raw_blocks:
-                tokens = _tokenize(block["units"])
+                tokens = _tokenize(block["units"], framework_mode=framework_mode)
                 total_tokens += len(tokens)
                 if total_tokens > MAX_TOKENS:
                     raise ValueError("Procedure exceeds the bounded CFG token budget.")
-                blocks.append({"name": block["name"], "statements": _Parser(tokens, fields).parse()})
+                blocks.append({"name": block["name"], "kind": block["kind"],
+                               "statements": _Parser(tokens, fields, framework_mode=framework_mode).parse()})
             builder = _Builder(facts, program_name, blocks, max_nodes=max_nodes, max_edges=max_edges,
-                               max_perform_depth=max_perform_depth)
+                               max_perform_depth=max_perform_depth, framework_mode=framework_mode)
             try:
                 entry = builder.build()
             except _BudgetBoundary as error:
@@ -504,7 +550,9 @@ def build_exception_cfg(database_path: Path, program_name: str, *, max_nodes: in
                 entry = builder.nodes[0]["node_id"]
         counts = Counter(node["kind"] for node in builder.nodes)
         reasons = Counter(boundary["reason"] for boundary in builder.boundaries)
-        return {"cfg_version": CFG_VERSION, "snapshot_id": facts.snapshot_id, "program_name": program_name,
+        return {"cfg_version": FRAMEWORK_CFG_VERSION if framework_mode else CFG_VERSION,
+            "cfg_mode": "framework_control" if framework_mode else "numeric_exception",
+            "snapshot_id": facts.snapshot_id, "program_name": program_name,
             "entry_node_id": entry, "nodes": builder.nodes, "edges": builder.edges, "boundaries": builder.boundaries,
             "status": "PARTIAL_SOURCE_CFG", "complete": False, "runtime_execution_tested": False,
             "evaluation_scope": "bounded_structured_intraprogram_source_alternatives",
@@ -519,9 +567,15 @@ def build_exception_cfg(database_path: Path, program_name: str, *, max_nodes: in
                 "CALL exception describes invocation failure, not a nonzero business status returned by a callee.",
                 "Normal CALL does not model callee effects; reference arguments require conservative external effect handling.",
                 "Handled single-target COMPUTE size error preserves the receiver; normal numeric precision is not proven.",
-                "Explicit IF/CALL/COMPUTE scopes and bounded paragraph PERFORM ranges are modeled; unsupported forms terminate at boundaries.",
+                ("Explicit scalar IF, section/paragraph PERFORM ranges and inline TEST BEFORE PERFORM UNTIL are modeled; unsupported forms terminate at boundaries."
+                 if framework_mode else
+                 "Explicit IF/CALL/COMPUTE scopes and bounded paragraph PERFORM ranges are modeled; unsupported forms terminate at boundaries."),
                 "Plain EXIT is a no-op; only reaching the end of a performed range returns to its caller.",
-                "Loop, SQL, EVALUATE, GO, external ABI, alias, data-layout and runtime storage semantics are outside this CFG subset.",
+                ("Loop backedges require an independently bounded executor; text comparison, movement, padding and storage compatibility are not proven by this CFG."
+                 if framework_mode else
+                 "Loop, SQL, EVALUATE, GO, external ABI, alias, data-layout and runtime storage semantics are outside this CFG subset."),
+                *(["SQL, EVALUATE, GO, external ABI, alias and runtime storage semantics are outside this CFG subset."]
+                  if framework_mode else []),
             ]}
     finally:
         connection.close()

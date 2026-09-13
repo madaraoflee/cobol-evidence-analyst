@@ -77,6 +77,12 @@ class _Facts:
         if len(metadata_rows) > 32:
             raise ValueError("Index metadata exceeds the call-context budget.")
         metadata = dict(metadata_rows)
+        source_options = json.loads(metadata.get("source_options", "{}"))
+        if not isinstance(source_options, dict):
+            raise ValueError("Invalid source options in the structural index.")
+        self.source_format = source_options.get("source_format", "auto")
+        if self.source_format not in ("auto", "fixed", "free"):
+            raise ValueError("Invalid source format in the structural index.")
         self.snapshot_id = metadata.get("snapshot_id", "")
         self.files = {row["relative_path"]: dict(row) for row in connection.execute(
             "SELECT relative_path, sha256, line_count FROM source_files ORDER BY relative_path")}
@@ -186,6 +192,9 @@ class _Facts:
     def refs(self, *evidence_ids: str) -> list[dict]:
         return [self.ref(value) for value in sorted(set(evidence_ids))]
 
+    def normalize_source(self, text: str) -> tuple:
+        return normalize_cobol_lines(text, self.source_format)
+
     def verify_unit(self, unit: dict) -> None:
         if unit["unit_id"] in self._verified_units:
             return
@@ -193,7 +202,7 @@ class _Facts:
         if hashlib.sha256(unit["normalized_text"].encode("utf-8")).hexdigest() != unit["content_hash"]:
             raise ValueError("Indexed unit text does not match its content hash.")
         evidence = self.evidence[unit["evidence_id"]]
-        lines, _ = normalize_cobol_lines(evidence["text"])
+        lines, _ = self.normalize_source(evidence["text"])
         source_text = _compact(" ".join(line.text for line in lines))
         normalized = _compact(unit["normalized_text"])
         # Conditions can occupy only a portion of their physical source span.
@@ -223,7 +232,7 @@ class _Facts:
             return self._member_cache[key]
         if self._binding_context is None:
             # The full tables this read-only helper consumes were bounded above.
-            self._binding_context = BindingContext(self.connection, normalize_cobol_lines)
+            self._binding_context = BindingContext(self.connection, self.normalize_source)
         verifier = self._binding_context
         if call["program_name"] in verifier.incomplete or callee_program in verifier.incomplete:
             raise ValueError("Confirmed parameter binding crosses an incomplete COPY scope.")

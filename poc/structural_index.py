@@ -15,7 +15,7 @@ import json
 import re
 import sqlite3
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,19 +33,21 @@ from call_bindings import clear_call_bindings, ensure_call_binding_schema, rebui
 
 from repo_inventory import (
     DEFAULT_EXTENSIONS,
+    SOURCE_FORMAT_RE,
     classify_artifact,
     decode_source,
     iter_source_files,
     parse_extensions,
     sha256_bytes,
+    validate_source_options,
 )
 
 
 SCHEMA_VERSION = "0.3"
-PARSER_VERSION = "source-facts-v0.3"
+PARSER_VERSION = "source-facts-v0.4"
 
 PROGRAM_ID_RE = re.compile(
-    r"\bPROGRAM-ID\s*\.\s*([A-Z0-9_$#@-]+)", re.IGNORECASE
+    r"\bPROGRAM-ID\s*\.\s*['\"]?([A-Z0-9_$#@-]+)", re.IGNORECASE
 )
 DIVISION_RE = re.compile(
     r"^\s*(IDENTIFICATION|ENVIRONMENT|DATA|PROCEDURE)\s+DIVISION\b",
@@ -340,29 +342,38 @@ def _content_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def normalize_cobol_lines(text: str) -> tuple[tuple[NormalizedLine, ...], str]:
+def normalize_cobol_lines(
+    text: str, source_format: str = "auto"
+) -> tuple[tuple[NormalizedLine, ...], str]:
     """Normalize fixed/free COBOL while retaining physical source line ranges."""
 
+    validate_source_options("auto", source_format)
     normalized: list[NormalizedLine] = []
     fixed_votes = 0
     free_votes = 0
+    active_format = source_format
 
     for line_number, raw_line in enumerate(text.splitlines(), start=1):
         expanded = raw_line.expandtabs(8)
+        directive = SOURCE_FORMAT_RE.search(expanded)
+        if directive:
+            if source_format == "auto":
+                active_format = directive.group(1).lower()
+            continue
         code = expanded
         indicator = " "
         first_six = expanded[:6] if len(expanded) >= 6 else ""
-        looks_fixed = (
+        looks_fixed = active_format == "fixed" or (active_format == "auto" and (
             len(expanded) >= 7
             and (
                 first_six.isdigit()
                 or (not first_six.strip() and expanded[6] in " */-Dd")
             )
-        )
+        ))
 
         if looks_fixed:
             fixed_votes += 1
-            indicator = expanded[6]
+            indicator = expanded[6] if len(expanded) >= 7 else " "
             if indicator in "*/":
                 continue
             code = expanded[7:72]
@@ -387,6 +398,19 @@ def normalize_cobol_lines(text: str) -> tuple[tuple[NormalizedLine, ...], str]:
             )
             continue
 
+        if (
+            normalized
+            and re.fullmatch(r"\s*PROGRAM-ID\s*\.\s*", normalized[-1].text, re.I)
+            and re.fullmatch(r"\s*['\"]?[A-Z0-9_$#@-]+['\"]?\s*\.?\s*", code, re.I)
+        ):
+            previous = normalized[-1]
+            normalized[-1] = NormalizedLine(
+                start_line=previous.start_line,
+                end_line=line_number,
+                text=f"{previous.text.rstrip()} {code.lstrip()}",
+            )
+            continue
+
         normalized.append(
             NormalizedLine(
                 start_line=line_number,
@@ -395,7 +419,11 @@ def normalize_cobol_lines(text: str) -> tuple[tuple[NormalizedLine, ...], str]:
             )
         )
 
-    if fixed_votes > max(5, free_votes // 3):
+    if source_format != "auto":
+        format_hint = source_format
+    elif active_format == "free" and not fixed_votes:
+        format_hint = "free"
+    elif fixed_votes > max(5, free_votes // 3):
         format_hint = "fixed"
     elif fixed_votes and free_votes:
         format_hint = "mixed"
@@ -404,13 +432,15 @@ def normalize_cobol_lines(text: str) -> tuple[tuple[NormalizedLine, ...], str]:
     return tuple(normalized), format_hint
 
 
-def read_source_document(path: Path, root: Path) -> SourceDocument | None:
+def read_source_document(
+    path: Path, root: Path, *, encoding: str = "auto", source_format: str = "auto"
+) -> SourceDocument | None:
     data = path.read_bytes()
-    decoded = decode_source(data)
+    decoded = decode_source(data, encoding)
     if decoded is None:
         return None
 
-    lines, format_hint = normalize_cobol_lines(decoded.text)
+    lines, format_hint = normalize_cobol_lines(decoded.text, source_format)
     normalized_text = "\n".join(line.text for line in lines)
     suffix = path.suffix.lower()
     program_ids = tuple(
@@ -1843,6 +1873,8 @@ def build_structural_index(
     *,
     extensions: frozenset[str] = DEFAULT_EXTENSIONS,
     include_extensionless: bool = False,
+    encoding: str = "auto",
+    source_format: str = "auto",
     quiet: bool = False,
 ) -> dict[str, object]:
     """Incrementally build the local structural index."""
@@ -1850,6 +1882,48 @@ def build_structural_index(
     root = source_root.expanduser().resolve()
     if not root.is_dir():
         raise ValueError(f"Source root is not a directory: {source_root}")
+    validate_source_options(encoding, source_format)
+
+    discovery: dict[str, object] = {}
+    source_files = list(iter_source_files(
+        root, extensions, include_extensionless, scan_summary=discovery
+    ))
+    if not source_files:
+        raise ValueError(
+            "No source files selected. Check the source directory, --extensions, "
+            "and --include-extensionless. The existing index was not changed."
+        )
+    documents: list[SourceDocument] = []
+    unreadable_count = 0
+    for file_index, path in enumerate(source_files, start=1):
+        try:
+            document = read_source_document(
+                path, root, encoding=encoding, source_format=source_format
+            )
+        except OSError:
+            document = None
+        if document is None:
+            unreadable_count += 1
+        else:
+            documents.append(document)
+        if not quiet and file_index % 500 == 0:
+            print(
+                f"Prepared {file_index}/{len(source_files)} files...",
+                file=sys.stderr,
+            )
+    if not documents:
+        raise ValueError(
+            "No source files could be decoded. Check read permissions, binary "
+            "exports, and --encoding (for example cp950, gb18030, or cp037). "
+            "The existing index was not changed."
+        )
+    source_options = {
+        "encoding": encoding,
+        "source_format": source_format,
+        "include_extensionless": include_extensionless,
+        "extensions": sorted(extensions),
+    }
+    options_json = json.dumps(source_options, sort_keys=True)
 
     database = database_path.expanduser().resolve()
     connection = _connect(database)
@@ -1859,6 +1933,10 @@ def build_structural_index(
             "SELECT value FROM metadata WHERE key = 'parser_version'"
         ).fetchone()
         parser_changed = parser_row is None or parser_row["value"] != PARSER_VERSION
+        options_row = connection.execute(
+            "SELECT value FROM metadata WHERE key = 'source_options'"
+        ).fetchone()
+        options_changed = options_row is None or options_row["value"] != options_json
         existing_hashes = {
             row["relative_path"]: row["sha256"]
             for row in connection.execute(
@@ -1866,32 +1944,12 @@ def build_structural_index(
             )
         }
 
-        documents: list[SourceDocument] = []
-        unreadable_count = 0
-        source_files = list(
-            iter_source_files(root, extensions, include_extensionless)
-        )
-        for file_index, path in enumerate(source_files, start=1):
-            try:
-                document = read_source_document(path, root)
-            except OSError:
-                document = None
-            if document is None:
-                unreadable_count += 1
-            else:
-                documents.append(document)
-            if not quiet and file_index % 500 == 0:
-                print(
-                    f"Prepared {file_index}/{len(source_files)} files...",
-                    file=sys.stderr,
-                )
-
         current_paths = {document.relative_path for document in documents}
         removed_paths = sorted(set(existing_hashes) - current_paths)
         changed_documents = [
             document
             for document in documents
-            if parser_changed or existing_hashes.get(document.relative_path)
+            if parser_changed or options_changed or existing_hashes.get(document.relative_path)
             != document.source_sha256
         ]
         skipped_count = len(documents) - len(changed_documents)
@@ -1910,7 +1968,10 @@ def build_structural_index(
 
             copy_report = rebuild_copy_expansions(connection)
             _resolve_relations(connection)
-            call_report = rebuild_call_bindings(connection, normalize_cobol_lines)
+            call_report = rebuild_call_bindings(
+                connection,
+                lambda text: normalize_cobol_lines(text, source_format),
+            )
             snapshot_id = _snapshot_id(documents)
             connection.execute(
                 """
@@ -1942,6 +2003,13 @@ def build_structural_index(
             )
             connection.execute(
                 """
+                INSERT INTO metadata(key, value) VALUES('source_options', ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (options_json,),
+            )
+            connection.execute(
+                """
                 INSERT INTO metadata(key, value) VALUES('indexed_at_utc', ?)
                 ON CONFLICT(key) DO UPDATE SET value = excluded.value
                 """,
@@ -1959,10 +2027,72 @@ def build_structural_index(
                 """
             )
         }
+        symbol_counts = dict(connection.execute(
+            "SELECT symbol_type, COUNT(*) FROM symbols GROUP BY symbol_type"
+        ).fetchall())
+        files_without_symbols = connection.execute(
+            "SELECT COUNT(*) FROM source_files WHERE relative_path NOT IN "
+            "(SELECT relative_path FROM symbols)"
+        ).fetchone()[0]
+        warnings: list[str] = []
+        if not symbol_counts.get("Program", 0):
+            warnings.append(
+                "No PROGRAM-ID definitions were indexed. Check --encoding, "
+                "--source-format, source exports, and the selected directory."
+            )
+        if files_without_symbols:
+            warnings.append(
+                f"{files_without_symbols} decoded files produced no symbols; "
+                "they may be support files or use unsupported source layouts."
+            )
+        if unreadable_count:
+            warnings.append(
+                f"{unreadable_count} selected files were unreadable or binary. "
+                "Check source encoding and read permissions."
+            )
+        if discovery["excluded_extensionless_file_count"]:
+            warnings.append("Some extensionless files were excluded; use --include-extensionless if they are source members.")
+        if any(document.used_fallback_encoding for document in documents):
+            warnings.append("Some files required a fallback encoding; confirm --encoding before interpreting their text.")
+        if encoding == "auto" and any(
+            not document.encoding.startswith("utf-") for document in documents
+        ):
+            warnings.append(
+                "Legacy encodings were selected automatically. If comments or "
+                "literals look incorrect, set --encoding explicitly."
+            )
+        if source_format == "auto" and any(
+            len(line.expandtabs(8)) > 72
+            and not line[:6].strip()
+            and line[6:7] in {" ", "D", "d", "-"}
+            and line[72:].strip()
+            for document in documents if document.format_hint != "free"
+            for line in document.raw_lines
+        ):
+            warnings.append(
+                "Indented lines contain text beyond column 72. Check the source "
+                "layout and use --source-format free when that text is code."
+            )
         report: dict[str, object] = {
             "schema_version": SCHEMA_VERSION,
             "parser_version": PARSER_VERSION,
             "parser_rebuild_required": bool(existing_hashes) and parser_changed,
+            "source_options_rebuild_required": bool(existing_hashes) and options_changed,
+            "source_options": source_options,
+            "discovery": discovery,
+            "diagnostics": {
+                "status": "needs_attention" if warnings else "ready",
+                "warnings": warnings,
+                "program_count": symbol_counts.get("Program", 0),
+                "copybook_count": symbol_counts.get("Copybook", 0),
+                "files_without_symbols": files_without_symbols,
+                "unreadable_or_binary_file_count": unreadable_count,
+            },
+            "distributions": {
+                "encodings": dict(Counter(document.encoding for document in documents)),
+                "format_hints": dict(Counter(document.format_hint for document in documents)),
+                "artifact_kinds": dict(Counter(document.artifact_kind for document in documents)),
+            },
             "snapshot_id": _snapshot_id(documents),
             "privacy": {
                 "network_calls": False,
@@ -2046,6 +2176,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Also inspect source members without an extension",
     )
     parser.add_argument(
+        "--encoding",
+        default="auto",
+        help="Source text encoding: auto, utf-8, cp950, gb18030, cp037, etc.",
+    )
+    parser.add_argument(
+        "--source-format",
+        choices=("auto", "fixed", "free"),
+        default="auto",
+        help="COBOL source layout; use free to retain code beyond column 72",
+    )
+    parser.add_argument(
         "--quiet",
         action="store_true",
         help="Suppress progress output",
@@ -2063,6 +2204,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.database,
             extensions=extensions,
             include_extensionless=args.include_extensionless,
+            encoding=args.encoding,
+            source_format=args.source_format,
             quiet=args.quiet,
         )
         rendered = json.dumps(

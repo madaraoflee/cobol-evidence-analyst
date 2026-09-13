@@ -1,0 +1,10 @@
+{
+  "records": [
+    {"ID": "A001", "TYPE": "SERVICE", "STATE": "PENDING"},
+    {"ID": "A002", "TYPE": "OTHER", "STATE": "PENDING"},
+    {"ID": "A003", "TYPE": "SERVICE", "STATE": "REVIEW"},
+    {"ID": "A004", "TYPE": "SERVICE", "STATE": "PENDING"}
+  ],
+  "external_locks": [{"key": ["A001"], "owner": "OTHER-SESSION"}],
+  "faults": []
+}

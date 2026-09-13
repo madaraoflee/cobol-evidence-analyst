@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "contract_id": "request-path-synthetic",
+  "contract_version": "2.0",
+  "provenance": {
+    "kind": "synthetic",
+    "reference": "poc/fixtures/framework-path-v2/README.md",
+    "target_version": "request-fixture-v2"
+  },
+  "dataset": {
+    "id": "REQUESTS",
+    "fields": {"ID": "string", "TYPE": "string", "STATE": "string"},
+    "primary_key": ["ID"]
+  },
+  "access_paths": [
+    {"id": "REQUEST-SERVICE", "key_fields": ["ID"], "select": {"TYPE": "SERVICE"}, "join": false}
+  ],
+  "services": [
+    {
+      "program": "DATAACCESS",
+      "argument": "ACCESS-AREA",
+      "function_field": "ACCESS-FUNCTION",
+      "status_field": "ACCESS-STATUS",
+      "session": "REQUEST-SESSION",
+      "access_path": "REQUEST-SERVICE",
+      "key_fields": {"ID": "REQUEST-ID"},
+      "record_fields": {"ID": "REQUEST-ID", "TYPE": "REQUEST-TYPE", "STATE": "REQUEST-STATE"},
+      "operations": [
+        {"value": "FIRST", "action": "first", "reads_record": true},
+        {"value": "NEXT", "action": "next"},
+        {"value": "GET", "action": "get"},
+        {"value": "SAVE", "action": "save"},
+        {"value": "CLOSE", "action": "close"},
+        {"value": "COMMIT", "action": "commit"},
+        {"value": "ROLLBACK", "action": "rollback"},
+        {"value": "CHECKPOINT", "action": "checkpoint"},
+        {"value": "RESUME", "action": "resume"}
+      ]
+    }
+  ],
+  "statuses": {"ok": "OK", "eof": "END", "not_found": "MISS", "locked": "HELD", "invalid": "INVL"},
+  "locking": {"read": "none", "save_requires_lock": false, "release_on_advance": true, "release_on_close": true},
+  "transaction": {
+    "mode": "explicit",
+    "scope": "all_services",
+    "read_visibility": "own_pending",
+    "commit_cursor": "preserve",
+    "rollback_cursor": "close",
+    "commit_locks": "release",
+    "rollback_locks": "release"
+  },
+  "restart": {"enabled": true, "checkpoint": "committed_key", "resume": "strictly_after"}
+}

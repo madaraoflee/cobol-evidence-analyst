@@ -17,7 +17,6 @@ from call_bindings import BindingContext
 from call_contexts import _Facts, audit_call_contexts
 from error_paths import ErrorContract
 from exception_cfg import build_exception_cfg
-from structural_index import normalize_cobol_lines
 
 
 _NUMBER = re.compile(r"[+-]?\d{1,18}(?:\.\d{1,9})?\Z")
@@ -305,7 +304,7 @@ def audit_exception_paths(database_path: Path, program_name: str, contract: Erro
         facts = _Facts(connection)
         if cfg["snapshot_id"] != contexts["snapshot_id"] or cfg["snapshot_id"] != facts.snapshot_id:
             raise ValueError("The source snapshot changed between exceptional-path analyses.")
-        binder = BindingContext(connection, normalize_cobol_lines)
+        binder = BindingContext(connection, facts.normalize_source)
         layouts = {}
         for (scope, name), symbols in binder.fields.items():
             if scope != program_name or len(symbols) != 1:

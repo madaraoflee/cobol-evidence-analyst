@@ -1,6 +1,18 @@
 # COBOL Evidence Analyst
 
-**当前产品进度：P2 单业务流程深分析进行中，尚未完成完整业务问答和界面交付。[任务计划与进度总表](./docs/12-task-plan-and-progress.md)已更新：T01 跨程序错误返回在受支持源码模型内通过，下一项 T02 正常业务计算待开始。**
+**真实源码请从 `poc/analyze_source.py` 开始：显式指定源码目录，先生成当前源码的索引、程序清单与诊断，再选择程序提问。替换样例文件夹、配置 API Key 或打开演示网页，都不会自动把公司源码接入问答。**
+
+在项目根目录执行（Windows 命令提示符）：
+
+    python poc\analyze_source.py ^
+      --source "D:\cobol-data\source" ^
+      --output "D:\cobol-output\analysis"
+
+先打开输出目录的 `diagnosis.md` 与 `programs.json`，核对实际文件数量、程序名和解析边界；程序名必须来自这次清单，不能照抄演示中的 `SYNP040`。配置公司接口后，在同一命令上增加 `--entry "实际的PROGRAM-ID" --question "请解释该程序的主要处理步骤并引用源码" --allow-network`。每次执行都会先更新指定源目录的索引；不带 `--allow-network` 时只做本地分析。编码与文件格式设置、联网和故障排查见[办公室电脑使用手册](./docs/11-office-usage-guide.md)。
+
+`run_demo.py`、其他 `*_demo.py` 和 `business_acceptance.py` 是固定合成案例的演示或回归验收，不能用来验收任意公司的代码；[交互式演示网页](./docs/leadership-demo/prototype.html)尚未接通源码索引和 API。当前能力是受限的源码事实检索与带证据的回答，不保证任意 COBOL 方言或完整业务流程都能自动解释。公司真实源码、实际公司 API 和 Windows 实机效果需在公司环境验收；合成案例与本地模拟接口测试不代替这一步。
+
+**当前产品进度：P2 单业务流程深分析进行中，尚未完成完整业务问答和界面交付。框架主线已从 F01 结构审查推进到 F02 控制路径接线及 F03 可执行契约子集；15 个批处理/联机场景、92 项独立预期通过。真实资料适配与后续步骤见[进度总表](./docs/12-task-plan-and-progress.md)。T01 保持原验收范围，T02 正常计算暂后置。**
 
 核心判断：本项目首先要做成一个“以源码证据为底座的 COBOL 业务逆向分析 Agent”，而不是普通代码聊天机器人，也不是一步到位的自动化 SDLC 平台。
 
@@ -9,6 +21,8 @@
 ## 项目文档
 
 - [任务计划与进度总表（当前进度入口）](./docs/12-task-plan-and-progress.md)
+- [Smart Developer 框架对齐与通用 POC 使用](./docs/13-framework-alignment.md)
+- [框架路径、文件筛选、游标、锁、事务与重启契约](./docs/14-framework-paths-and-runtime-contracts.md)
 - [总设计说明书](./DESIGN.md)
 - [领域语言](./CONTEXT.md)
 - [产品章程](./docs/00-product-charter.md)
@@ -67,4 +81,6 @@ P3-F 已实现显式语法子集的局部异常控制流与有界状态路径：
 
 T01 已在明确支持范围内组合实际子程序源码路径与调用方返回：状态 21 经六步参数记录到达入口和汇总；30 项主检查、6 项复制隔断检查通过，调用方覆写 7 的副本触发 5 项安全预期失败。未绑定 LINKAGE、别名、递归和未决目标不伪装成完整结果；全量 438 项测试通过。可查看 [T01 报告](./docs/reports/2026-09-08-t01-interprogram-error-returns.md)或 [本地案例结果](./.poc-data/error-return-v5/result.md)。
 
-完整业务分析仍是最终目标。原 CALC-01 保留缺口作为回归反例，Agent 始终另行标明问题完整性未核验。下一项是 T02 正常业务计算闭环，尚未开始；随后补数组循环、共享工作区、配置与真实模型完整回答。当前未调用公司 API、未执行 COBOL，也未接通界面。
+F01 增加以任意源码目录、入口和版本 profile 驱动的离线结构审查；F02 进一步把控制 COPY 接入现有 CFG 的框架模式，沿实际子程序与参数回写推进。F03 子集以版本契约模拟文件等值筛选、游标、锁、提交/回滚和检查点恢复。15 个场景的 92 项独立预期通过，当前全库 675 项测试通过；这些是合成源码模型结果，不是实际 I/O 或全部业务路径证明。见[本轮验收报告](./docs/reports/2026-09-12-framework-control-paths.md)及[运行方式与边界](./docs/14-framework-paths-and-runtime-contracts.md)。
+
+完整业务分析仍是最终目标。原 CALC-01 保留缺口作为回归反例，Agent 始终另行标明问题完整性未核验。接下来补目标流程所需的真实版本化文件定义、生成接口与配置路由，逐项扩展 F03；T02 正常计算仍待开始。新路径工具尚未接入 Agent 或界面；本轮未调用公司 API，未执行 COBOL 或真实数据库事务。

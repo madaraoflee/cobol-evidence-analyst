@@ -76,11 +76,91 @@ class InvestigationToolsTests(unittest.TestCase):
         self.assertTrue(result["evidence_refs"])
         self.assertNotIn("source_text", str(result))
 
-    def test_search_requires_a_code_anchor(self) -> None:
-        result = self.tools.search_code("分期保费是怎样计算的？")
+    def test_chinese_question_discovers_catalog_without_inventing_code_anchors(self) -> None:
+        result = self.tools.search_code("这套程序的主要流程是什么？")
 
-        self.assertEqual(result["status"], "NOT_FOUND")
+        self.assertIn(result["status"], {"OK", "PARTIAL"})
         self.assertEqual(result["diagnostics"][0]["code"], "NO_CODE_ANCHOR")
+        self.assertTrue(result["hits"])
+        self.assertTrue(all(hit["match_type"] == "program_catalog" for hit in result["hits"]))
+        self.assertEqual(result["hits"][0]["unit_type"], "Program")
+        self.assertTrue(all(hit["unit_type"] in {"Program", "Copybook"} for hit in result["hits"]))
+        self.assertNotIn("source_text", str(result))
+
+    def test_file_search_and_preflight_resolve_names_from_replacement_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "source"
+            (root / "batch").mkdir(parents=True)
+            (root / "batch" / "inventory_job.cob").write_text(
+                "       IDENTIFICATION DIVISION.\n"
+                "       PROGRAM-ID. STOCK-UPDATE.\n"
+                "       PROCEDURE DIVISION.\n"
+                "           STOP RUN.\n",
+                encoding="utf-8",
+            )
+            database = Path(temporary) / "index.sqlite"
+            build_structural_index(root, database, quiet=True)
+            tools = InvestigationTools(database)
+            for entry in ("inventory_job.cob", "batch/inventory_job.cob", "batch\\inventory_job.cob"):
+                with self.subTest(entry=entry):
+                    result = tools.search_code(entry)
+                    self.assertEqual(result["hits"][0]["match_type"], "exact_file")
+                    self.assertEqual(result["hits"][0]["name"], "STOCK-UPDATE")
+                    self.assertTrue(tools.resolve_entry(entry)["ready"])
+            self.assertTrue(tools.resolve_entry("stock-update")["ready"])
+            self.assertEqual(tools.resolve_entry("MISSING-PROGRAM")["reason_code"], "ENTRY_NOT_FOUND")
+            self.assertEqual(tools.resolve_entry()["program_count"], 1)
+
+    def test_duplicate_filename_requires_relative_path_before_running(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "source"
+            for folder, program in (("first", "STOCK-READ"), ("second", "STOCK-WRITE")):
+                (root / folder).mkdir(parents=True)
+                (root / folder / "job.cbl").write_text(
+                    "       IDENTIFICATION DIVISION.\n"
+                    f"       PROGRAM-ID. {program}.\n"
+                    "       PROCEDURE DIVISION.\n"
+                    "           STOP RUN.\n",
+                    encoding="utf-8",
+                )
+            database = Path(temporary) / "index.sqlite"
+            build_structural_index(root, database, quiet=True)
+            tools = InvestigationTools(database)
+            self.assertEqual(tools.resolve_entry("job.cbl")["reason_code"], "ENTRY_AMBIGUOUS")
+            self.assertEqual(tools.resolve_entry("first/job.cbl")["entries"], [
+                {"name": "STOCK-READ", "relative_path": "first/job.cbl"}
+            ])
+
+    def test_entry_resolution_prioritizes_program_name_and_rejects_duplicate_versions(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "source"
+            definitions = (
+                ("named.cbl", "BATCH-ENTRY"),
+                ("BATCH-ENTRY", "OTHER-ENTRY"),
+                ("first/job.cbl", "SHARED-ENTRY"),
+                ("second/job.cbl", "SHARED-ENTRY"),
+            )
+            for filename, program in definitions:
+                path = root / filename
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(
+                    "       IDENTIFICATION DIVISION.\n"
+                    f"       PROGRAM-ID. {program}.\n"
+                    "       PROCEDURE DIVISION.\n"
+                    "           STOP RUN.\n",
+                    encoding="utf-8",
+                )
+            database = Path(temporary) / "index.sqlite"
+            build_structural_index(root, database, include_extensionless=True, quiet=True)
+            tools = InvestigationTools(database)
+            result = tools.resolve_entry("BATCH-ENTRY")
+            self.assertTrue(result["ready"])
+            self.assertEqual(result["entries"], [{"name": "BATCH-ENTRY", "relative_path": "named.cbl"}])
+            hit = tools.search_code("BATCH-ENTRY")["hits"][0]
+            self.assertEqual(hit["name"], "BATCH-ENTRY")
+            self.assertEqual(hit["evidence_ref"]["relative_path"], "named.cbl")
+            for entry in ("SHARED-ENTRY", "first/job.cbl"):
+                self.assertEqual(tools.resolve_entry(entry)["reason_code"], "ENTRY_AMBIGUOUS")
 
     def test_inspect_field_finds_formula_and_error_reset_writers(self) -> None:
         result = self.tools.inspect_symbol("OUT-INSTALMENT-PREMIUM")

@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "profile_id": "synthetic-control",
+  "profile_version": "1",
+  "provenance": {
+    "kind": "synthetic",
+    "reference": "Original neutral request-processing fixture; declarations are not runtime verification.",
+    "target_version": "synthetic-v1"
+  },
+  "entries": [
+    {
+      "program": "BATCHJOB",
+      "mode": "batch",
+      "control_copy": "BATCHCTL",
+      "sections": [
+        { "name": "1000-INITIALISE", "role": "initialize" },
+        { "name": "2000-PRIMARY-READ", "role": "read one request" },
+        { "name": "2500-VALIDATE", "role": "decide whether to process" },
+        { "name": "3000-UPDATE", "role": "request a state update" },
+        { "name": "4000-CLOSE", "role": "request access cleanup" }
+      ]
+    },
+    {
+      "program": "SCREENJOB",
+      "mode": "online",
+      "control_copy": "SCREENCTL",
+      "sections": [
+        { "name": "1000-INITIALISE", "role": "initialize" },
+        { "name": "2000-FETCH-REQUEST", "role": "fetch the selected request" },
+        { "name": "2500-VALIDATE", "role": "decide whether to process" },
+        { "name": "3000-SAVE", "role": "request a state update" },
+        { "name": "4000-NEXT-SCREEN", "role": "select the next screen" }
+      ]
+    }
+  ],
+  "io_contracts": [
+    {
+      "program": "DATAACCESS",
+      "function_field": "ACCESS-FUNCTION",
+      "status_field": "ACCESS-STATUS",
+      "operations": [
+        { "value": "FIRST", "meaning": "position and read the first record", "reads_record": true },
+        { "value": "NEXT", "meaning": "read the next record", "reads_record": true },
+        { "value": "GET", "meaning": "read the request identified by its key", "reads_record": true },
+        { "value": "SAVE", "meaning": "request persistence of the target state", "reads_record": false },
+        { "value": "CLOSE", "meaning": "request access cleanup", "reads_record": false }
+      ]
+    }
+  ],
+  "record_decisions": [
+    {
+      "program": "BATCHJOB",
+      "field": "RECORD-DECISION",
+      "values": [
+        { "value": "OK", "meaning": "process the current request" },
+        { "value": "SKIP", "meaning": "do not update the current request" }
+      ]
+    },
+    {
+      "program": "SCREENJOB",
+      "field": "RECORD-DECISION",
+      "values": [
+        { "value": "OK", "meaning": "allow the requested update" },
+        { "value": "SKIP", "meaning": "route the request for review" }
+      ]
+    }
+  ],
+  "artifact_requirements": [
+    { "kind": "logical_file", "relative_path": "definitions/REQUESTS.lf" }
+  ]
+}

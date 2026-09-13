@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from contextlib import closing
 import sqlite3
 import sys
@@ -183,6 +184,52 @@ class DynamicCalcPlanner:
         raise AssertionError("Planner received an unexpected model turn")
 
 
+class SourceDiscoveryPlanner:
+    """Derive a non-arithmetic explanation from an unfamiliar snapshot."""
+
+    def __init__(self, entry: str | None) -> None:
+        self.entry = entry
+        self.results: list[dict[str, Any]] = []
+
+    def complete(self, **kwargs: object) -> dict[str, object]:
+        last = kwargs["messages"][-1]
+        try:
+            envelope = json.loads(last["content"])
+        except (TypeError, json.JSONDecodeError):
+            envelope = {}
+        if envelope.get("type") == "TOOL_RESULT":
+            self.results.append(envelope["result"])
+        stage = len(self.results)
+        if stage == 0:
+            return json_action("search_code", {"query": self.entry or "*"})
+        if stage == 1:
+            program = next(hit for hit in self.results[-1]["hits"] if hit["unit_type"] == "Program")
+            return json_action("inspect_symbol", {"name": program["name"], "symbol_type": "Program"})
+        if stage == 2:
+            call = next(
+                item for item in self.results[-1]["matches"][0]["outgoing_relations"]
+                if item["relation_type"] == "CALLS"
+            )
+            return json_action("read_evidence", {"evidence_ids": [call["evidence_ref"]["evidence_id"]]})
+        if stage == 3:
+            span = self.results[-1]["spans"][0]
+            match = re.search(r"CALL\s+'([A-Z-]+)'\s+USING\s+([A-Z-]+)", span["source_text"])
+            assert match is not None
+            target, argument = match.groups()
+            return json_action("final_answer", {
+                "claims": [{
+                    "kind": "code_fact",
+                    "claim": f"程序调用 {target}，并传入 {argument}。",
+                    "code_anchors": [target, argument],
+                    "evidence_ids": [span["evidence_id"]],
+                    "support_status": "supported",
+                }],
+                "evidence_ids": [span["evidence_id"]],
+                "boundaries": [],
+            })
+        raise AssertionError("Unexpected planner turn")
+
+
 class RefusalPlanner:
     def complete(self, **_: object) -> dict[str, object]:
         return json_action(
@@ -213,6 +260,42 @@ class RealAgentIntegrationTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         cls.temporary.cleanup()
+
+    def test_replaced_source_can_be_discovered_and_explained_without_demo_symbols(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "source"
+            root.mkdir()
+            (root / "inventory_job.cob").write_text(
+                "       IDENTIFICATION DIVISION.\n"
+                "       PROGRAM-ID. STOCK-UPDATE.\n"
+                "       DATA DIVISION.\n"
+                "       WORKING-STORAGE SECTION.\n"
+                "       01 WS-COUNT PIC 9 VALUE 0.\n"
+                "       PROCEDURE DIVISION.\n"
+                "       MAIN.\n"
+                "           ADD 1 TO WS-COUNT.\n"
+                "           CALL 'STOCK-WRITER' USING WS-COUNT.\n"
+                "           STOP RUN.\n",
+                encoding="utf-8",
+            )
+            database = Path(temporary) / "index.sqlite"
+            build_structural_index(root, database, quiet=True)
+            for entry in (None, "inventory_job.cob"):
+                with self.subTest(entry=entry):
+                    result = BoundedAgentLoop(
+                        SourceDiscoveryPlanner(entry), InvestigationTools(database),
+                        native_tool_calling=False, strict_json=True,
+                    ).run("请解释程序的调用关系。", entry_program=entry)
+                    self.assertEqual(result["stop_reason"], "completed")
+                    self.assertEqual(result["tool_calls_used"], 3)
+                    self.assertIn("STOCK-WRITER", result["answer"])
+                    self.assertNotIn("SYNP", result["answer"])
+                    self.assertEqual(result["claims"][0]["support_status"], "citation_verified_only")
+                    self.assertFalse(result["claims_semantically_verified"])
+                    self.assertTrue(all(
+                        ref["relative_path"] == "inventory_job.cob"
+                        for ref in result["verified_evidence_refs"]
+                    ))
 
     def test_calc_01_closes_with_four_real_tool_calls_and_dynamic_evidence(self) -> None:
         planner = DynamicCalcPlanner()

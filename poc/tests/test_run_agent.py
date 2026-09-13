@@ -286,6 +286,50 @@ class RunAgentTests(unittest.TestCase):
         self.assertNotIn(BASE_URL, serialized)
         self.assertNotIn(CHAT_MODEL, serialized)
 
+    def test_unknown_entry_stops_before_any_network_request(self) -> None:
+        transport = AgentReadyTransport()
+        output = run_investigation(
+            "请解释这个程序", self.database, self.config(),
+            transport=transport, entry_program="MISSING-PROGRAM",
+        )
+        self.assertEqual(output["reason_code"], "ENTRY_NOT_FOUND")
+        self.assertEqual(transport.requests, [])
+
+    def test_invalid_database_stops_before_any_network_request(self) -> None:
+        transport = AgentReadyTransport()
+        output = run_investigation(
+            "请解释这个程序", self.database.with_name("missing.sqlite"),
+            self.config(), transport=transport,
+        )
+        self.assertEqual(output["reason_code"], "STRUCTURAL_INDEX_INVALID")
+        self.assertEqual(transport.requests, [])
+
+    def test_empty_snapshot_stops_before_any_network_request(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "source"
+            root.mkdir()
+            (root / "record.cpy").write_text("       01 STOCK-COUNT PIC 9.\n", encoding="utf-8")
+            database = Path(temporary) / "index.sqlite"
+            build_structural_index(root, database, quiet=True)
+            transport = AgentReadyTransport()
+            output = run_investigation(
+                "请解释这个程序", database, self.config(), transport=transport,
+            )
+            self.assertEqual(output["reason_code"], "STRUCTURAL_INDEX_EMPTY")
+            self.assertEqual(transport.requests, [])
+
+    def test_selected_entry_reaches_model_and_local_budget_is_visible(self) -> None:
+        transport = AgentReadyTransport()
+        output = run_investigation(
+            "请解释这个程序", self.database, self.config(),
+            transport=transport, entry_program="SYNP040",
+        )
+        self.assertEqual(output["runner_status"], "COMPLETED")
+        request = json.loads(transport.requests[-1].body)
+        self.assertIn('"user_selected_source_entry": "SYNP040"', request["messages"][1]["content"])
+        self.assertIn("Remaining tool calls: 6", request["messages"][0]["content"])
+        self.assertIn("After the first read_evidence", request["messages"][0]["content"])
+
     def test_probe_falls_back_to_validated_json_mode(self) -> None:
         transport = AgentReadyTransport(reject_tool_result=True)
 
@@ -324,6 +368,26 @@ class RunAgentTests(unittest.TestCase):
             "SECRET-PAYROLL",
             json.dumps(agent_result["tool_trace"], ensure_ascii=False),
         )
+
+    def test_windows_positional_arguments_preserve_all_following_options(self) -> None:
+        environment = {
+            "COMPANY_API_BASE_URL": BASE_URL,
+            "COMPANY_API_KEY": API_KEY,
+            "COMPANY_CHAT_MODEL": CHAT_MODEL,
+        }
+        with mock.patch.dict(os.environ, environment, clear=True):
+            with mock.patch("run_agent.run_investigation", return_value={"runner_status": "COMPLETED"}) as run:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    exit_code = main([
+                        str(self.database), "请解释这个程序",
+                        "--entry", "SYNP040", "--allow-network", "--timeout-seconds", "30",
+                    ])
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(run.call_args.args[0], "请解释这个程序")
+        self.assertEqual(run.call_args.args[1], self.database)
+        self.assertEqual(run.call_args.kwargs["entry_program"], "SYNP040")
+        self.assertTrue(run.call_args.kwargs["allow_network"])
+        self.assertEqual(run.call_args.args[2].timeout_seconds, 30)
 
     def test_cli_remains_offline_without_explicit_network_flag(self) -> None:
         environment = {

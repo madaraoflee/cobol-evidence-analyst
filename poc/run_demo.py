@@ -318,7 +318,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run the CALC-01 six-step offline evidence demonstration."
     )
     parser.add_argument(
-        "--source", type=Path, default=DEFAULT_FIXTURE
+        "--source", type=Path, default=DEFAULT_FIXTURE,
+        help="Only the bundled demonstration source is accepted. Use analyze_source.py for another repository."
     )
     parser.add_argument(
         "--database",
@@ -332,6 +333,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.source.expanduser().resolve() != DEFAULT_FIXTURE.resolve():
+        print(json.dumps({
+            "runner_status": "NOT_READY",
+            "reason_code": "DEMO_SOURCE_ONLY",
+            "message": "This command uses fixed demonstration symbols. For your source use: python poc/analyze_source.py --source SOURCE --output OUTPUT",
+        }, indent=2))
+        return 2
     bundle = build_demo_bundle(args.source, args.database)
     if args.json_output:
         args.json_output.parent.mkdir(parents=True, exist_ok=True)

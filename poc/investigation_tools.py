@@ -97,6 +97,72 @@ class InvestigationTools:
             "diagnostics": [],
         }
 
+    def resolve_entry(self, entry: str | None = None) -> dict[str, object]:
+        """Validate the local program inventory before any API request.
+
+        This orchestrator-only preflight performs no source reads. A selected
+        source file must resolve to one program. Duplicate program names must
+        be separated into independent snapshots because structural inspection
+        resolves by program name. An omitted entry permits catalog discovery.
+        """
+
+        if entry is not None and (
+            not isinstance(entry, str) or not entry.strip() or len(entry) > 1024
+        ):
+            raise ValueError("entry must be a non-empty string of at most 1024 characters")
+        with self._connect() as connection:
+            program_count = int(connection.execute(
+                "SELECT COUNT(*) FROM symbols WHERE symbol_type = 'Program'"
+            ).fetchone()[0])
+            snapshot_id = self._snapshot_id(connection)
+            result: dict[str, object] = {
+                "ready": program_count > 0 and snapshot_id != "unknown",
+                "reason_code": "READY" if program_count else "STRUCTURAL_INDEX_EMPTY",
+                "snapshot_id": snapshot_id,
+                "program_count": program_count,
+                "entries": [],
+            }
+            if snapshot_id == "unknown":
+                result.update(ready=False, reason_code="STRUCTURAL_INDEX_INVALID")
+            if not result["ready"] or entry is None:
+                return result
+            value = entry.strip().replace("\\", "/")
+            if value.startswith("./"):
+                value = value[2:]
+            escaped = value.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            base_query = """
+                SELECT name, relative_path FROM symbols
+                 WHERE symbol_type = 'Program' AND
+            """
+            candidates = [
+                ("UPPER(name) = ?", (value.upper(),)),
+                ("LOWER(relative_path) = ?", (value.lower(),)),
+            ]
+            if "/" not in value:
+                candidates.append(("LOWER(relative_path) LIKE ? ESCAPE '\\'", ("%/" + escaped,)))
+            rows = []
+            for clause, parameters in candidates:
+                rows = list(connection.execute(
+                    base_query + clause + " ORDER BY relative_path, name LIMIT 2",
+                    parameters,
+                ))
+                if rows:
+                    break
+            entries = [dict(row) for row in rows]
+            result["entries"] = entries
+            if not entries:
+                result.update(ready=False, reason_code="ENTRY_NOT_FOUND")
+            elif len(entries) > 1:
+                result.update(ready=False, reason_code="ENTRY_AMBIGUOUS")
+            else:
+                same_name_count = int(connection.execute(
+                    "SELECT COUNT(*) FROM symbols WHERE symbol_type = 'Program' AND UPPER(name) = ?",
+                    (str(entries[0]["name"]).upper(),),
+                ).fetchone()[0])
+                if same_name_count != 1:
+                    result.update(ready=False, reason_code="ENTRY_AMBIGUOUS")
+            return result
+
     def snapshot_coverage(self) -> dict[str, object]:
         """Describe what the bound structural snapshot can and cannot prove.
 
@@ -280,7 +346,12 @@ class InvestigationTools:
     def search_code(
         self, query: str, *, limit: int = 10
     ) -> dict[str, object]:
-        """Find exact symbols first, then bounded FTS candidates."""
+        """Find symbols or files, or list program candidates for discovery.
+
+        A question without a code identifier produces a bounded program catalog,
+        explicitly distinguished from a semantic match. This lets an unfamiliar
+        snapshot be explored without guessing identifiers from a demo project.
+        """
 
         safe_limit = max(1, min(int(limit), MAX_SEARCH_RESULTS))
         tokens = self._search_tokens(query)
@@ -288,21 +359,53 @@ class InvestigationTools:
             result = self._base_result(connection, "search_code", "OK")
             result["query"] = query
             result["tokens"] = tokens
-            if not tokens:
-                result["status"] = "NOT_FOUND"
-                result["hits"] = []
-                result["evidence_refs"] = []
+            path_query = query.strip().replace("\\", "/")
+            if path_query.startswith("./"):
+                path_query = path_query[2:]
+            escaped_path = path_query.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            file_rows = list(
+                connection.execute(
+                    """
+                    SELECT c.unit_id, c.unit_type, c.name, c.program_name,
+                           c.relative_path, c.start_line, c.end_line, c.evidence_id
+                      FROM code_units AS c
+                     WHERE c.unit_type IN ('Program', 'Copybook')
+                       AND c.unit_id NOT LIKE 'copy_unit_%'
+                       AND (LOWER(c.relative_path) = ?
+                            OR LOWER(c.relative_path) LIKE ? ESCAPE '\\')
+                     ORDER BY c.relative_path, c.start_line
+                     LIMIT ?
+                    """,
+                    (path_query.lower(), "%/" + escaped_path, safe_limit + 1),
+                )
+            )
+            catalog_rows = []
+            if not tokens and not file_rows:
+                catalog_rows = list(
+                    connection.execute(
+                        """
+                        SELECT c.unit_id, c.unit_type, c.name, c.program_name,
+                               c.relative_path, c.start_line, c.end_line, c.evidence_id
+                          FROM code_units AS c
+                         WHERE c.unit_type IN ('Program', 'Copybook')
+                           AND c.unit_id NOT LIKE 'copy_unit_%'
+                         ORDER BY CASE c.unit_type WHEN 'Program' THEN 0 ELSE 1 END,
+                                  c.relative_path, c.start_line
+                         LIMIT ?
+                        """,
+                        (safe_limit + 1,),
+                    )
+                )
                 result["diagnostics"].append(
                     {
                         "code": "NO_CODE_ANCHOR",
                         "message": (
-                            "No COBOL-style identifier was found. The Agent "
-                            "should translate the business question into one or "
-                            "more code anchors before retrying."
+                            "No code identifier was supplied. Returned entries are "
+                            "program catalog candidates, not semantic matches. Inspect "
+                            "a listed program or search an exact source filename."
                         ),
                     }
                 )
-                return result
 
             placeholders = ",".join("?" for _ in tokens)
             exact_rows = list(
@@ -328,7 +431,7 @@ class InvestigationTools:
                     """,
                     (*tokens, safe_limit + 1),
                 )
-            )
+            ) if tokens else []
 
             match_expression = " OR ".join(f'"{token}"' for token in tokens)
             fts_rows = list(
@@ -348,7 +451,7 @@ class InvestigationTools:
                     """,
                     (match_expression, safe_limit * 3 + 1),
                 )
-            )
+            ) if tokens else []
 
             hits: list[dict[str, object]] = []
             seen_units: set[str] = set()
@@ -369,6 +472,28 @@ class InvestigationTools:
                         "evidence_ref": self._evidence_ref(row),
                     }
                 )
+
+            for match_type, rows in (("exact_file", file_rows), ("program_catalog", catalog_rows)):
+                for row in rows:
+                    if row["unit_id"] in seen_units:
+                        continue
+                    seen_units.add(row["unit_id"])
+                    hits.append(
+                        {
+                            "match_type": match_type,
+                            "unit_id": row["unit_id"],
+                            "unit_type": row["unit_type"],
+                            "name": row["name"],
+                            "program_name": row["program_name"],
+                            "evidence_ref": self._evidence_ref(row),
+                        }
+                    )
+            exact_program_entry = any(
+                row["symbol_type"] == "Program" and row["name"].upper() == query.strip().upper()
+                for row in exact_rows
+            )
+            if file_rows and not exact_program_entry:
+                hits.sort(key=lambda hit: 0 if hit["match_type"] == "exact_file" else 1)
 
             for row in fts_rows:
                 if row["unit_id"] in seen_units:
@@ -983,7 +1108,12 @@ def tool_definitions() -> list[dict[str, object]]:
             "type": "function",
             "function": {
                 "name": "search_code",
-                "description": "Locate bounded COBOL code candidates by exact symbol and full text.",
+                "description": (
+                    "Locate code by exact symbol, source relative path or filename, "
+                    "then full text. Use query='*' to list bounded program catalog "
+                    "candidates when no code identifiers are known. Catalog entries "
+                    "are discovery hints, not semantic matches or source evidence."
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": {

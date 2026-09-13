@@ -1,0 +1,652 @@
+{
+  "schema_version": "1.0",
+  "cases": [
+    {
+      "id": "batch-normal",
+      "entry": "BATCHRUN",
+      "scenario": "scenarios/base.json",
+      "initial_values": {
+        "RESTART-FLAG": 0
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "JOB-STATUS": "OK",
+          "RESULT-FLAG": 1,
+          "ERROR-CAUSE": "NONE"
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "DONE"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "DONE"
+          }
+        ],
+        "pending_writes": []
+      },
+      "output_fields": [
+        "JOB-STATUS",
+        "RESULT-FLAG",
+        "ERROR-CAUSE"
+      ]
+    },
+    {
+      "id": "batch-filtered-empty",
+      "entry": "BATCHRUN",
+      "scenario": "scenarios/empty.json",
+      "initial_values": {
+        "RESTART-FLAG": 0
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "JOB-STATUS": "OK",
+          "RESULT-FLAG": 0
+        },
+        "committed_records": [
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          }
+        ],
+        "pending_writes": []
+      },
+      "output_fields": [
+        "JOB-STATUS",
+        "RESULT-FLAG"
+      ]
+    },
+    {
+      "id": "batch-business-skip",
+      "entry": "BATCHRUN",
+      "scenario": "scenarios/review-only.json",
+      "initial_values": {
+        "RESTART-FLAG": 0
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "JOB-STATUS": "OK",
+          "RESULT-FLAG": 0,
+          "RECORD-DECISION": "SKIP"
+        },
+        "committed_records": [
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          }
+        ],
+        "pending_writes": []
+      },
+      "output_fields": [
+        "JOB-STATUS",
+        "RESULT-FLAG",
+        "RECORD-DECISION"
+      ]
+    },
+    {
+      "id": "batch-lock",
+      "entry": "BATCHRUN",
+      "scenario": "scenarios/locked.json",
+      "initial_values": {
+        "RESTART-FLAG": 0
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "JOB-STATUS": "LOCK",
+          "ERROR-CAUSE": "LOCK",
+          "RESULT-FLAG": 0
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          }
+        ],
+        "pending_writes": []
+      },
+      "output_fields": [
+        "JOB-STATUS",
+        "ERROR-CAUSE",
+        "RESULT-FLAG"
+      ]
+    },
+    {
+      "id": "batch-commit-failed",
+      "entry": "BATCHRUN",
+      "scenario": "scenarios/commit-failed.json",
+      "initial_values": {
+        "RESTART-FLAG": 0
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "JOB-STATUS": "CMER",
+          "ERROR-CAUSE": "CMER",
+          "RESULT-FLAG": 0
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          }
+        ],
+        "pending_writes": []
+      },
+      "output_fields": [
+        "JOB-STATUS",
+        "ERROR-CAUSE",
+        "RESULT-FLAG"
+      ]
+    },
+    {
+      "id": "batch-rollback-failed",
+      "entry": "BATCHRUN",
+      "scenario": "scenarios/commit-rollback-failed.json",
+      "initial_values": {
+        "RESTART-FLAG": 0
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "JOB-STATUS": "RBER",
+          "ERROR-CAUSE": "CMER",
+          "RESULT-FLAG": 0
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          }
+        ],
+        "pending_writes": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "DONE"
+          }
+        ]
+      },
+      "output_fields": [
+        "JOB-STATUS",
+        "ERROR-CAUSE",
+        "RESULT-FLAG"
+      ]
+    },
+    {
+      "id": "batch-checkpoint-failed",
+      "entry": "BATCHRUN",
+      "scenario": "scenarios/checkpoint-failed.json",
+      "initial_values": {
+        "RESTART-FLAG": 0
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "JOB-STATUS": "CKPE",
+          "ERROR-CAUSE": "CKPE",
+          "RESULT-FLAG": 1
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "DONE"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          }
+        ],
+        "pending_writes": []
+      },
+      "output_fields": [
+        "JOB-STATUS",
+        "ERROR-CAUSE",
+        "RESULT-FLAG"
+      ]
+    },
+    {
+      "id": "batch-post-checkpoint-read-failed",
+      "entry": "BATCHRUN",
+      "scenario": "scenarios/interrupt-after-checkpoint.json",
+      "initial_values": {
+        "RESTART-FLAG": 0
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "JOB-STATUS": "IOER",
+          "ERROR-CAUSE": "IOER",
+          "RESULT-FLAG": 1
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "DONE"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          }
+        ],
+        "pending_writes": []
+      },
+      "output_fields": [
+        "JOB-STATUS",
+        "ERROR-CAUSE",
+        "RESULT-FLAG"
+      ]
+    },
+    {
+      "id": "online-normal",
+      "entry": "SCREENRUN",
+      "scenario": "scenarios/base.json",
+      "initial_values": {
+        "REQUEST-ID": "A001"
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "SCREEN-STATUS": "OK",
+          "SCREEN-VIEW": "SUMMARY",
+          "RESULT-FLAG": 1
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "DONE"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          }
+        ],
+        "pending_writes": []
+      },
+      "output_fields": [
+        "SCREEN-STATUS",
+        "SCREEN-VIEW",
+        "RESULT-FLAG"
+      ]
+    },
+    {
+      "id": "online-review",
+      "entry": "SCREENRUN",
+      "scenario": "scenarios/base.json",
+      "initial_values": {
+        "REQUEST-ID": "A003"
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "SCREEN-STATUS": "OK",
+          "SCREEN-VIEW": "REVIEW",
+          "RESULT-FLAG": 0
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          }
+        ],
+        "pending_writes": []
+      },
+      "output_fields": [
+        "SCREEN-STATUS",
+        "SCREEN-VIEW",
+        "RESULT-FLAG"
+      ]
+    },
+    {
+      "id": "online-filtered-missing",
+      "entry": "SCREENRUN",
+      "scenario": "scenarios/base.json",
+      "initial_values": {
+        "REQUEST-ID": "A002"
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "SCREEN-STATUS": "IOER",
+          "SCREEN-VIEW": "ERROR",
+          "RESULT-FLAG": 0
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          }
+        ],
+        "pending_writes": []
+      },
+      "output_fields": [
+        "SCREEN-STATUS",
+        "SCREEN-VIEW",
+        "RESULT-FLAG"
+      ]
+    },
+    {
+      "id": "online-lock",
+      "entry": "SCREENRUN",
+      "scenario": "scenarios/locked.json",
+      "initial_values": {
+        "REQUEST-ID": "A001"
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "SCREEN-STATUS": "LOCK",
+          "ERROR-CAUSE": "LOCK",
+          "SCREEN-VIEW": "ERROR",
+          "RESULT-FLAG": 0
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          }
+        ],
+        "pending_writes": []
+      },
+      "output_fields": [
+        "SCREEN-STATUS",
+        "ERROR-CAUSE",
+        "SCREEN-VIEW",
+        "RESULT-FLAG"
+      ]
+    },
+    {
+      "id": "online-commit-failed",
+      "entry": "SCREENRUN",
+      "scenario": "scenarios/commit-failed.json",
+      "initial_values": {
+        "REQUEST-ID": "A001"
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "SCREEN-STATUS": "CMER",
+          "ERROR-CAUSE": "CMER",
+          "SCREEN-VIEW": "ERROR",
+          "RESULT-FLAG": 0
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          }
+        ],
+        "pending_writes": []
+      },
+      "output_fields": [
+        "SCREEN-STATUS",
+        "ERROR-CAUSE",
+        "SCREEN-VIEW",
+        "RESULT-FLAG"
+      ]
+    },
+    {
+      "id": "online-rollback-failed",
+      "entry": "SCREENRUN",
+      "scenario": "scenarios/commit-rollback-failed.json",
+      "initial_values": {
+        "REQUEST-ID": "A001"
+      },
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "SCREEN-STATUS": "RBER",
+          "ERROR-CAUSE": "CMER",
+          "SCREEN-VIEW": "ERROR",
+          "RESULT-FLAG": 0
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "PENDING"
+          }
+        ],
+        "pending_writes": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "DONE"
+          }
+        ]
+      },
+      "output_fields": [
+        "SCREEN-STATUS",
+        "ERROR-CAUSE",
+        "SCREEN-VIEW",
+        "RESULT-FLAG"
+      ]
+    },
+    {
+      "id": "batch-resume",
+      "entry": "BATCHRUN",
+      "scenario": "scenarios/base.json",
+      "resume_from": "batch-post-checkpoint-read-failed",
+      "initial_values": {
+        "RESTART-FLAG": 1
+      },
+      "output_fields": [
+        "JOB-STATUS",
+        "ERROR-CAUSE",
+        "RESULT-FLAG"
+      ],
+      "expected": {
+        "model_path_complete": true,
+        "values": {
+          "JOB-STATUS": "OK",
+          "ERROR-CAUSE": "NONE",
+          "RESULT-FLAG": 1
+        },
+        "committed_records": [
+          {
+            "ID": "A001",
+            "TYPE": "SERVICE",
+            "STATE": "DONE"
+          },
+          {
+            "ID": "A002",
+            "TYPE": "OTHER",
+            "STATE": "PENDING"
+          },
+          {
+            "ID": "A003",
+            "TYPE": "SERVICE",
+            "STATE": "REVIEW"
+          },
+          {
+            "ID": "A004",
+            "TYPE": "SERVICE",
+            "STATE": "DONE"
+          }
+        ],
+        "pending_writes": []
+      }
+    }
+  ]
+}

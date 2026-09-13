@@ -21,7 +21,6 @@ from call_contexts import _Facts, _id, audit_call_contexts
 from error_paths import ErrorContract
 from exception_cfg import build_exception_cfg
 from exception_paths import _fits, _layout, _number
-from structural_index import normalize_cobol_lines
 
 
 AUDITOR_VERSION = "bounded-interprogram-paths-v0.1"
@@ -178,7 +177,7 @@ def audit_interprogram_paths(
         facts = _Facts(connection)
         if facts.snapshot_id != context_audit["snapshot_id"]:
             raise ValueError("Source snapshot changed between parameter and path analyses.")
-        binder = BindingContext(connection, normalize_cobol_lines)
+        binder = BindingContext(connection, facts.normalize_source)
         models: dict[str, _Model] = {}
 
         def model(program: str) -> _Model:
