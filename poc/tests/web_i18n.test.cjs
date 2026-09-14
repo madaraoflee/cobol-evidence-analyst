@@ -48,3 +48,44 @@ test('default sample question follows locale, but edited sample drafts are prese
   assert.equal(h.run('state.question'),'How is the instalment premium calculated?');
   h.run("state.question='自訂問題';");h.change('zh-CN');assert.equal(h.run('state.question'),'自訂問題');
 });
+test('progress uses real counters, handles unknown totals, and translates all stages',()=>{
+  const h=harness('en');h.run("state.mode='real';state.busy=true;state.jobId='job';rememberProgress({phase:'catalog',completed:250,total:1000,unit:'files',elapsed_seconds:12,eta_seconds:36,bytes_completed:1024,eta_scope:'current_phase'});");
+  assert.match(h.run('progressPanel()'),/25\.0%/);assert.match(h.run('progressPanel()'),/250 \/ 1,000 files/);
+  assert.match(h.run('progressPanel()'),/750 files/);assert.match(h.run('progressPanel()'),/00:36/);
+  for(const phase of ['preparing','discovery','catalog','scope','discovering','reading','parsing','writing','indexing','expanding_copy','resolving_relations','binding_calls','removing','finalizing','verifying','investigating']){
+    h.run(`state.progress.phase='${phase}'`);assert.doesNotMatch(h.run('progressPanel()'),/[\u3400-\u9fff]/,phase);
+  }
+  h.run("rememberProgress({phase:'parsing',completed:0,total:1,unit:'files',file_completed:512,file_total:80000,eta_scope:'current_file',eta_seconds:30});");
+  assert.match(h.run('progressPanel()'),/512 \/ 80,000 lines/);assert.match(h.run('progressPanel()'),/left for this file/);
+  h.run("rememberProgress({phase:'discovery',completed:100,total:null,unit:'files'});");
+  assert.equal(h.run('progressViewModel().known'),false);assert.doesNotMatch(h.run('progressPanel()'),/<progress[^>]*value=/);assert.match(h.run('progressPanel()'),/Estimating/);
+  h.run("state.cancelRequested=true");assert.match(h.run('progressPanel()'),/id="cancel-job"[^>]*disabled/);
+});
+test('large catalogs page and search without expanding all entries; selected path stays stable',()=>{
+  const h=harness('en');h.run("state.mode='real';state.project={programs:Array.from({length:12000},(_,i)=>({program_name:'PROGRAM-'+i,relative_path:'folder/member-'+i+'.cbl',entry_key:'folder/member-'+i+'.cbl',name_origin:'program_id'})),diagnosis:{catalog_ready:true,catalog_report:{files:{candidate:12000,cached:11999}},build_report:{files:{candidate:1}}}};state.entry='folder/member-11999.cbl';");
+  assert.equal((h.run('sourceRows()').match(/data-program=/g)||[]).length,100);
+  assert.ok((h.run('entryOptions()').match(/<option/g)||[]).length<=102);assert.match(h.run('entryOptions()'),/member-11999.cbl.*selected/);
+  assert.equal(h.run('sourceFiles().candidate'),12000);
+  h.run("state.filter='member-11999.cbl';state.entryFilter='member-11999.cbl'");
+  assert.equal((h.run('sourceRows()').match(/data-program=/g)||[]).length,1);
+  assert.match(h.run('sourcePagination()'),/1–1 \/ 1/);assert.match(h.run('entryOptions()'),/PROGRAM-11999/);
+});
+test('scoped answers keep catalog navigation and canonical entry identity after a failed entry',()=>{
+ const h=harness('en');h.run("state.mode='real';state.project={snapshot_id:'sha256:test',programs:[{entry_key:'member.cbl::PROGRAM::2',program_name:'PROGRAM',relative_path:'member.cbl'}],diagnosis:{runner_status:'BLOCKED',catalog_ready:true,entry_requested:'member.cbl',selected_entry:{entry_key:'member.cbl::PROGRAM::2'},scope:{detail_file_count:1,max_files:24,max_scope_bytes:16777216,total_scope_bytes:500,truncated:true},unresolved_dependencies:[{},{}]}};");
+ assert.equal(h.run('sourceUsable()'),true);assert.equal(h.run('selectedEntryValue(diagnosis())'),'member.cbl::PROGRAM::2');
+ assert.doesNotMatch(h.run('scopeNotice()'),/[\u3400-\u9fff]/);assert.match(h.run('scopeNotice()'),/2 unresolved dependencies/);assert.match(h.run('scopeNotice()'),/16.0 MiB/);
+});
+test('configuration errors explain local setup in three languages without echoing service values',()=>{
+ const h=harness('en');
+ for(const code of ['BASE_URL_MISSING','CHAT_MODEL_MISSING','API_KEY_MISSING','BASE_URL_INVALID','API_STYLE_UNSUPPORTED','ENV_FILE_INVALID','ENV_FILE_UNREADABLE','ENV_FILE_TOO_LARGE','CONFIGURATION_INVALID']){
+  h.run(`state.apiConfigurationError='${code}'`);
+  assert.doesNotMatch(h.run('apiConfigurationMessage()'),/[\u3400-\u9fff]/,code);
+  assert.ok(h.run('apiConfigurationMessage().length')>20);
+ }
+ h.run("state.apiConfigurationError='ENV_FILE_INVALID';selectInterfaceLocale('zh-CN')");
+ assert.match(h.run('apiConfigurationMessage()'),/格式无效/);
+ h.run("selectInterfaceLocale('zh-HK')");assert.match(h.run('apiConfigurationMessage()'),/格式無效/);
+ h.run("state.apiConfigurationError='secret-response-canary'");
+ assert.doesNotMatch(h.run('apiConfigurationMessage()'),/secret-response-canary/);
+ h.run('state.apiConfigurationError=null');assert.equal(h.run('apiConfigurationMessage()'),'');
+});

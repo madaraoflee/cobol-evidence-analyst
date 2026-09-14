@@ -100,10 +100,11 @@ class WebAppTests(unittest.TestCase):
             threading.Event().wait(0.01)
         self.fail("Analysis job did not finish")
 
-    def test_state_has_only_configuration_boolean_and_static_routes_are_bounded(self) -> None:
+    def test_state_has_only_safe_configuration_metadata_and_static_routes_are_bounded(self) -> None:
         status, state, headers = self.request("GET", "/api/state")
         self.assertEqual(status, 200)
         self.assertTrue(state["api_configured"])
+        self.assertIsNone(state["api_configuration_error"])
         self.assertIsNone(state["project"]["agent"])
         self.assertIsNone(state["project"]["snapshot_id"])
         for secret in (TEST_KEY, TEST_ENDPOINT, TEST_MODEL):
@@ -113,7 +114,9 @@ class WebAppTests(unittest.TestCase):
         self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
         for path in ("/", "/index.html", "/app.js", "/i18n.js", "/styles.css"):
             self.assertEqual(self.request("GET", path)[0], 200)
-        for path in ("/../company_api.py", "/%2e%2e/company_api.py", "/web_app.py", "/api/state?token=anything"):
+        (self.web / ".env").write_text("COMPANY_API_KEY=" + TEST_KEY, encoding="utf-8")
+        for path in ("/../company_api.py", "/%2e%2e/company_api.py", "/web_app.py", "/api/state?token=anything",
+                     "/.env", "/../.env", "/%2eenv", "/.env.example"):
             self.assertEqual(self.request("GET", path)[0], 404)
         self.assertNotIn("Access-Control-Allow-Origin", headers)
         self.assertEqual(self.server.server_address[0], "127.0.0.1")
@@ -183,7 +186,7 @@ class WebAppTests(unittest.TestCase):
     def test_refresh_clears_old_answers_and_evidence_while_only_one_job_runs(self) -> None:
         first = self.source("first", "STOCK-READ")
         second = self.source("second", "STOCK-WRITE")
-        initial_id = self.submit(first, self.root / "output")
+        initial_id = self.submit(first, self.root / "output", entry="STOCK-READ")
         initial = self.finish(initial_id)["result"]
         old_evidence = initial["programs"][0]["evidence_id"]
         started, release = threading.Event(), threading.Event()
@@ -194,7 +197,7 @@ class WebAppTests(unittest.TestCase):
             return analyze_source(*args, **kwargs)
 
         self.app.analyzer = delayed_analyzer
-        job_id = self.submit(second, self.root / "output")
+        job_id = self.submit(second, self.root / "output", entry="STOCK-WRITE")
         self.assertTrue(started.wait(1))
         try:
             state = self.request("GET", "/api/state")[1]
@@ -214,7 +217,7 @@ class WebAppTests(unittest.TestCase):
 
     def test_failed_refresh_cannot_expose_preserved_old_sqlite(self) -> None:
         source = self.source("source", "STOCK-READ")
-        initial_id = self.submit(source, self.root / "output")
+        initial_id = self.submit(source, self.root / "output", entry="STOCK-READ")
         initial = self.finish(initial_id)["result"]
         evidence_id = initial["programs"][0]["evidence_id"]
         empty = self.root / "empty"
@@ -230,7 +233,7 @@ class WebAppTests(unittest.TestCase):
 
     def test_invalid_new_source_submission_clears_previous_browser_authority(self) -> None:
         source = self.source("source", "STOCK-READ")
-        old_job = self.submit(source, self.root / "output")
+        old_job = self.submit(source, self.root / "output", entry="STOCK-READ")
         old = self.finish(old_job)["result"]
         evidence_id = old["programs"][0]["evidence_id"]
         status, _, _ = self.request("POST", "/api/analyze", {

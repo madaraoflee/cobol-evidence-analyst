@@ -527,6 +527,41 @@ class AgentLoopTests(unittest.TestCase):
         self.assertEqual(result["claims"], [])
         self.assertIn("ev_OUT-AMOUNT", result["verified_evidence_ids"])
 
+    def test_stalled_dependency_discovery_can_read_existing_evidence_and_finish(self) -> None:
+        client = FakeClient([
+            json_action("search_code", {"query": "OUT-AMOUNT"}),
+            json_action("search_code", {"query": "NONE"}),
+            json_action("search_code", {"query": "NONE"}),
+            json_action("read_evidence", {"evidence_ids": ["ev_OUT-AMOUNT"]}),
+            json_action("final_answer", {
+                "status": "PARTIAL",
+                "claims": [{"claim": "OUT-AMOUNT is assigned in the visible code.",
+                            "kind": "code_fact", "code_anchors": ["OUT-AMOUNT"],
+                            "evidence_ids": ["ev_OUT-AMOUNT"], "support_status": "partial"}],
+                "evidence_ids": ["ev_OUT-AMOUNT"],
+                "boundaries": ["Dependent source is unavailable."],
+            }),
+        ])
+        result = BoundedAgentLoop(client, FakeTools()).run("Explain the visible program")
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["stop_reason"], "completed")
+        self.assertEqual(result["tool_calls_used"], 4)
+        self.assertEqual(len(result["claims"]), 1)
+        self.assertIn("Only read_evidence", client.requests[3]["messages"][0]["content"])
+        self.assertEqual([item["function"]["name"] for item in client.requests[3]["tools"]],
+                         ["read_evidence"])
+
+    def test_stalled_dependency_recovery_cannot_restart_unbounded_search(self) -> None:
+        tools = FakeTools()
+        result = BoundedAgentLoop(FakeClient([
+            json_action("search_code", {"query": "OUT-AMOUNT"}),
+            json_action("search_code", {"query": "NONE"}),
+            json_action("search_code", {"query": "NONE"}),
+            json_action("search_code", {"query": "SHOULD-NOT-RUN"}),
+        ]), tools).run("Explain the program")
+        self.assertEqual(result["stop_reason"], "no_progress")
+        self.assertEqual(len(tools.calls), 3)
+
     def test_read_evidence_cannot_escape_current_investigation(self) -> None:
         tools = FakeTools()
         client = FakeClient(

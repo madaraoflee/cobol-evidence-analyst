@@ -2,36 +2,48 @@
 
 ## 真实源码入口：先确认读到了哪些程序，再问问题
 
-从**项目根目录**执行下面的命令，把两个路径换成办公室电脑上的真实目录；源码目录应包含分析所需的程序与 COPYBOOK。输出目录与源码目录分开，且保留在公司批准的本地位置。
+从**项目根目录**执行下面的命令，把两个路径换成办公室电脑上的真实目录；把已取得的程序放入源码目录；COPYBOOK 与被调用程序可逐步补充，闭源对象不会成为解释当前文件的前置条件。输出目录与源码目录分开，且保留在公司批准的本地位置。
 
     python poc\analyze_source.py ^
+      --index-mode catalog ^
       --source "D:\cobol-data\source" ^
       --output "D:\cobol-output\analysis"
 
 Windows 包装脚本接受相同参数：
 
-    poc\run_analyze.bat --source "D:\cobol-data\source" --output "D:\cobol-output\analysis"
+    poc\run_analyze.bat --index-mode catalog --source "D:\cobol-data\source" --output "D:\cobol-output\analysis"
 
-这个入口要求显式提供源目录，不默认读取 `fixtures`；每次先为当前目录更新索引，再输出实际发现的程序和诊断。不需要 API Key，也不会联网。先打开 `diagnosis.md` 和 `programs.json`，核对文件数量、程序名、编码和未解决的 COPY/CALL。零文件、零程序或指定入口找不到时会阻断模型调用；`INDEX_READY` 只说明可开始源码调查，`NEEDS_ATTENTION` 表示仍有诊断项需要核对，均不证明业务已经分析完整。
+这个入口要求显式提供源目录，不默认读取 `fixtures`；公司大库应显式保留 `--index-mode catalog`（CLI 默认仍为 `full`，供兼容研发用途）；先更新轻量目录，再按入口建立局部索引。不需要 API Key，也不会联网。先打开 `diagnosis.md` 和 `programs.json`，核对文件数量、程序名、编码和未解决的 COPY/CALL。`INDEX_READY` / `SOURCE_CATALOG_READY` 只表示目录可选，`NEEDS_ATTENTION` 表示要阅读边界，缺少依赖并不一概阻断。没有可读或可明确识别的入口、证据不一致和接口配置错误仍会明确停止。
 
 无扩展名成员默认纳入新入口，可用 `--exclude-extensionless` 排除；自定义扩展名加 `--extensions ".cbl,.cpy,.member"`，它是完整的允许扩展名列表。已知导出编码时显式加 `--encoding gb18030` 或 `--encoding cp950` 等；格式识别不对时加 `--source-format fixed` 或 `--source-format free`。编码与格式默认均为 `auto`，自动解码成功也应检查中文和 `PROGRAM-ID` 是否正确。
 
-把 `实际的PROGRAM-ID` 换成这次报告中的程序名，在已配置公司接口的同一终端执行：
+先将项目根目录的 `.env.example` 复制为 `.env`，填写 `COMPANY_API_BASE_URL`、`COMPANY_API_KEY` 和 `COMPANY_CHAT_MODEL`；这份本机文件会自动读取，不需要每次配置终端。把 `实际的PROGRAM-ID` 换成这次报告中的程序名，从项目根目录执行：
 
     python poc\analyze_source.py ^
+      --index-mode catalog ^
       --source "D:\cobol-data\source" ^
       --output "D:\cobol-output\analysis" ^
       --entry "实际的PROGRAM-ID" ^
       --question "请解释该程序的主要处理步骤、输入输出和调用，并引用源码行号。" ^
       --allow-network
 
-`--entry` 也接受报告中的相对路径或文件名。仅文件名相同时可用相对路径明确范围；同一 `PROGRAM-ID` 存在多个版本时，必须把版本分开索引，路径本身不能消除程序身份歧义。第二次及以后的问题也从这一入口执行，并保留第一次用到的编码和扩展名参数。这样换目录或改文件之后会先更新事实索引，不会误用上一次演示数据库。`--allow-network` 允许本次调查把必要源码证据发送给已配置的接口；只有 API 能力探测通过才进入模型问答。输出中的 `agent-result.json` 和 `agent-result.md` 保存本次问答状态与结果；未提问或未开启联网时会明确显示 `NOT_REQUESTED` 或 `NETWORK_DISABLED`。
+`--entry` 也接受报告中的唯一相对路径或 `entry_key`。存在同名程序时从网页选择具体文件或复制对应 `entry_key`；详细解析仍不能明确入口时再按版本拆分。第二次及以后的问题也从这一入口执行，并保留第一次用到的编码和扩展名参数。这样换目录或改文件之后会先更新事实索引，不会误用上一次演示数据库。`--allow-network` 允许本次调查把必要源码证据发送给已配置的接口；只有 API 能力探测通过才进入模型问答。输出中的 `agent-result.json` 和 `agent-result.md` 保存本次问答状态与结果；未提问或未开启联网时会明确显示 `NOT_REQUESTED` 或 `NETWORK_DISABLED`。
 
-**下文是底层工具及固定案例的研发说明。** `run_demo.py`、其他 `*_demo.py` 和 `business_acceptance.py` 依赖预设样例符号与验收条件；替换它们的夹具不等于分析公司源码。演示网页也尚未连接真实索引和 Agent。API 连通、样例 PASS、工具流程 COMPLETED 都不能单独证明公司业务已经被解释完整。
+**下文是底层工具及固定案例的研发说明。** `run_demo.py`、其他 `*_demo.py` 和 `business_acceptance.py` 依赖预设样例符号与验收条件；替换它们的夹具不等于分析公司源码。当前 `poc/web_app.py` 工作台已连接真实源码、索引和 Agent；历史静态原型不再作为操作入口。API 连通、样例 PASS、工具流程 COMPLETED 都不能单独证明公司业务已经被解释完整。
 
 当前 POC 包含离线事实索引、受控 Agent、单条 Claim 核验、业务覆盖检查、P3-D 跨程序错误审查、P3-E 静态调用点链上下文、P3-F 局部异常控制流，以及 T01 跨程序错误返回组合。离线工具只使用 Python 标准库；`company_api.py` 和 `run_agent.py` 默认不发送网络请求，只有显式传入 `--allow-network` 才会连接公司 API。
 
-办公室电脑从零开始的最新完整操作请看：[系统使用手册（2026-09-14）](../docs/15-system-user-manual.md)。旧版参考仍保留在[办公室电脑使用手册（历史版本）](../docs/11-office-usage-guide.md)。
+办公室电脑从零开始的最新完整操作请看：[系统使用手册（2026-09-14）](../docs/15-system-user-manual.md)。详细排查参考在[办公室电脑使用手册](../docs/11-office-usage-guide.md)。
+
+## 大源码目录与网页进度
+
+完成一次项目根目录 `.env` 配置后，双击 `poc\run_web.bat`，或从项目根目录运行 `python poc\web_app.py --port 8765`。打开 `http://127.0.0.1:8765`，切到本机源码，选择独立源码/输出目录。网页默认轻量目录，提供简体、繁體和 English；导入显示阶段、当前文件、完成计数、已用时间和可用时的剩余估时。尚无总数或模型仍在响应时不伪造进度；取消在处理边界生效。重跑保留同一输出目录可复用已完成检查点。
+
+`source_catalog.py` 通常每文件先读 16 KiB，未找到 PROGRAM-ID 时最多探测 256 KiB。未变文件按 size/mtime/ctime/inode 复用头部缓存，新增/修改重扫、删除清除。目录不会发现所有尾部嵌套程序；`name_origin=path` 的名字仅是待解析文件入口。`catalog-sha256:` 是目录指纹，不是全库内容核验。`--verify-content` 会强制逐文件流式读取全文计算摘要，可能很慢，但不会进行全库语句索引。
+
+选定入口后，默认最多纳入 24 个文件、两层依赖、16 MiB 源文件总量。依赖发现每文件只扫描前 2 MiB，所选文件的详细解析使用完整文件；截断、缺少 COPY/CALL、闭源对象和动态目标均形成明确边界。单入口超过 16 MiB 时保留可用目录并返回 `SCOPE_LIMIT`。8–16 GB 内存的本地 SSD/硬盘电脑应按此范围处理，不先全库深解析。
+
+局部解释可以是 `PARTIAL`：保留当前源码中的可引用事实，把缺失框架、闭源对象内部实现和实际运行值列为未知。连续两次调查无进展后，已有证据且预算允许时转入证据读取并尝试局部回答；没有证据或完整性失败时仍停止。不能把执行路径验证器因未知对象停止，误解为业务说明必须抛弃全部已知源码。
 
 ## F01：通用项目入口与框架源码审查
 
@@ -81,7 +93,7 @@ Windows 运行：
 
 ## P1-A：SQLite/FTS5 结构索引
 
-structural_index.py 读取同一个本地源码文件夹，建立用于后续 Agent 调查的确定性事实层。
+structural_index.py 是小范围研发工具，详细解析输入目录并建立后续 Agent 调查的事实层；它不是一万多个大程序的首次导入入口，公司大库使用前述 --index-mode catalog。
 
 Windows 运行：
 
@@ -137,11 +149,17 @@ Windows 固定合成案例演示（以下命令在 `poc` 目录执行，不能�
 
 ## P3-A：公司 API 探测与受控 Agent
 
-先在公司批准的终端中设置环境变量，不要把 Key 写入代码、命令行参数、SQLite 或输出文件：
+从 GitHub 下载源码后，把项目根目录的 `.env.example` 复制为 `.env`，填写以下三项；这是配置文件内容，不是要在终端执行的命令：
 
-    set COMPANY_API_BASE_URL=https://approved-company-gateway.example/v1
-    set COMPANY_API_KEY=...
-    set COMPANY_CHAT_MODEL=approved-chat-model
+```dotenv
+COMPANY_API_BASE_URL=https://approved-gateway.example/v1
+COMPANY_API_KEY=填入自己的接口密钥
+COMPANY_CHAT_MODEL=填入公司的模型名或部署别名
+```
+
+`COMPANY_API_STYLE` 默认 `openai_compatible`，`COMPANY_EMBEDDING_MODEL` 可留空。支持 UTF-8 BOM、Windows 换行和单/双引号包住的字面值，不展开变量或执行命令。确认文件名是 `.env`，不是 `.env.txt`。
+
+API 配置始终从项目根目录的 `.env` 读取，与启动所在目录无关；优先级为显式命令行参数、进程环境变量、`.env`。修改后重启服务；已有环境变量会覆盖文件中的同名设置。`.env` 已被 Git 忽略，更新代码时保留它，新建项目目录时自行复制过去。Key 不写入代码、命令行参数、SQLite、输出文件或浏览器。
 
 第一步只做能力探测：
 
@@ -194,7 +212,7 @@ Windows 固定合成案例演示（以下命令在 `poc` 目录执行，不能�
 
 有缺失项时命令返回退出码 1，这是业务覆盖未达标，不是程序崩溃。这个检查不增加 Agent 工具，不替代模型检索、答案完整性或 COBOL 运行验收。实现范围见 [P3-C 报告](../docs/reports/2026-09-08-p3c-business-chain-progress.md)。
 
-现有四步 Agent 集成测试仍由本地脚本提供模型响应，用于验证真实调查工具与核验器的接线；它不能证明模型理解了用户问题。六步演示也使用预设调查顺序，界面原型尚未接通运行器。
+现有四步 Agent 集成测试仍由本地脚本提供模型响应，用于验证真实调查工具与核验器的接线；它不能证明模型理解了用户问题。六步演示仍使用预设调查顺序；当前网页工作台已接通实际运行器，历史静态原型不作为公司操作入口。
 
 ## P3-D：复杂跨程序与错误路径演示
 

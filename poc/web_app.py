@@ -15,11 +15,12 @@ import re
 import secrets
 import sqlite3
 import threading
+import time
 from typing import Callable, Sequence
 from urllib.parse import parse_qs, urlsplit
 import webbrowser
 
-from analyze_source import ARTIFACT_NAMES, _paths, analyze_source
+from analyze_source import ARTIFACT_NAMES, AnalysisCancelled, _paths, analyze_source
 from company_api import APIConfigurationError, CompanyAPIConfig
 from investigation_tools import InvestigationTools
 from repo_inventory import parse_extensions
@@ -29,7 +30,7 @@ WEB_ROOT = Path(__file__).resolve().parent / "web"
 STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/i18n.js": "i18n.js", "/styles.css": "styles.css"}
 MAX_REQUEST_BYTES = 32_768
 MAX_GRAPH_EDGES = 200
-OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, "structural-index.sqlite-wal", "structural-index.sqlite-shm"))
+OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm"))
 EVIDENCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}")
 
 
@@ -43,7 +44,7 @@ def _project(source: str | None = None, output: str | None = None, run_id: str |
     return {
         "run_id": run_id, "source": source, "output": output,
         "diagnosis": None, "programs": [], "agent": None, "snapshot_id": None,
-        "relations": {"edges": [], "truncated": False},
+        "relations": {"edges": [], "truncated": False}, "catalog_snapshot_id": None,
     }
 
 
@@ -57,7 +58,7 @@ def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 102
 
 
 def _validate_options(payload: object) -> dict:
-    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions"}
+    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content"}
     if not isinstance(payload, dict) or set(payload) - fields:
         raise RequestError("INVALID_OPTIONS", "请求包含未知设置。")
     source_text, output_text = _text(payload, "source", required=True), _text(payload, "output", required=True)
@@ -89,6 +90,12 @@ def _validate_options(payload: object) -> dict:
     allow_network = payload.get("allow_network", False)
     if type(allow_network) is not bool:
         raise RequestError("INVALID_OPTIONS", "allow_network 必须为布尔值。")
+    index_mode = _text(payload, "index_mode", maximum=16) or "catalog"
+    if index_mode not in {"catalog", "full"}:
+        raise RequestError("INVALID_OPTIONS", "index_mode 必须是 catalog 或 full。")
+    verify_content = payload.get("verify_content", False)
+    if type(verify_content) is not bool:
+        raise RequestError("INVALID_OPTIONS", "verify_content 必须为布尔值。")
     extension_text = _text(payload, "extensions", maximum=256)
     try:
         extensions = parse_extensions(extension_text)
@@ -97,7 +104,7 @@ def _validate_options(payload: object) -> dict:
     return {
         "source": source, "output": output, "encoding": encoding, "source_format": source_format,
         "entry": _text(payload, "entry"), "question": _text(payload, "question", maximum=8000),
-        "allow_network": allow_network, "extensions": extensions,
+        "allow_network": allow_network, "extensions": extensions, "index_mode": index_mode, "verify_content": verify_content,
     }
 
 
@@ -141,20 +148,30 @@ class WorkbenchState:
         self.lock = threading.RLock()
         self.project = _project()
         self.job: dict | None = None
+        self.cancel_event = threading.Event()
+        self.started_at = self.updated_at = self.phase_started_at = 0.0
+        self.phase_start_completed = 0.0
 
     def state(self) -> dict:
+        configuration_error = None
         try:
             config = self.config_provider()
             config.validate()
             configured = True
-        except (APIConfigurationError, TypeError, ValueError):
+        except APIConfigurationError as exc:
             configured = False
+            configuration_error = exc.code
+        except (TypeError, ValueError):
+            configured = False
+            configuration_error = "CONFIGURATION_INVALID"
         with self.lock:
             return {
                 "session_token": self.session_token,
                 "api_configured": configured,
+                "api_configuration_error": configuration_error,
                 "active_job_id": self.job["job_id"] if self.job and self.job["status"] == "RUNNING" else None,
                 "project": copy.deepcopy(self.project),
+                "job": self._job_snapshot() if self.job else None,
             }
 
     def start(self, payload: object) -> dict:
@@ -176,9 +193,63 @@ class WorkbenchState:
             # Clear answers, graph and evidence authority before the worker can
             # read an older output directory or fail while refreshing it.
             self.project = _project(str(options["source"]), str(options["output"]), job_id)
-            self.job = {"job_id": job_id, "status": "RUNNING", "result": None, "error": None}
+            self.cancel_event = threading.Event()
+            self.started_at = self.updated_at = self.phase_started_at = time.monotonic()
+            self.phase_start_completed = 0.0
+            self.job = {"job_id": job_id, "status": "RUNNING", "result": None, "error": None,
+                        "cancel_requested": False, "progress": {"phase": "preparing", "completed": 0,
+                        "total": None, "unit": "files", "current_file": None,
+                        "bytes_completed": 0, "bytes_total": None}}
             threading.Thread(target=self._run, args=(job_id, options), daemon=True).start()
             return {"job_id": job_id, "status": "RUNNING"}
+
+    def _job_snapshot(self) -> dict:
+        result = copy.deepcopy(self.job)
+        now = time.monotonic()
+        progress = result["progress"]
+        progress["elapsed_seconds"] = round((now if result["status"] == "RUNNING" else self.updated_at) - self.started_at, 2)
+        progress["last_update_seconds"] = round(max(0.0, now - self.updated_at), 2)
+        phase_elapsed = max(0.0, self.updated_at - self.phase_started_at)
+        completed, total = progress.get("completed", 0), progress.get("total")
+        delta = completed - self.phase_start_completed
+        progress["eta_seconds"] = (round(max(0.0, (total - completed) * phase_elapsed / delta), 1)
+            if total and delta > 0 and phase_elapsed >= 0.25 and result["status"] == "RUNNING" else None)
+        progress["eta_scope"] = "current_phase"
+        file_completed, file_total = progress.get("file_completed", 0), progress.get("file_total")
+        if file_total and file_completed > 0 and phase_elapsed >= 0.25 and result["status"] == "RUNNING":
+            progress["eta_seconds"] = round(max(0.0, (file_total - file_completed) * phase_elapsed / file_completed), 1)
+            progress["eta_scope"] = "current_file"
+        return result
+
+    def _check_cancel(self) -> None:
+        if self.cancel_event.is_set():
+            raise AnalysisCancelled("Cancelled by the user.")
+
+    def _progress(self, job_id: str, event: dict) -> None:
+        self._check_cancel()
+        with self.lock:
+            if not self.job or self.job["job_id"] != job_id:
+                raise AnalysisCancelled("The current job was replaced.")
+            previous = self.job["progress"]
+            if event.get("phase") != previous.get("phase") or event.get("total") != previous.get("total"):
+                self.phase_started_at = time.monotonic()
+                self.phase_start_completed = event.get("completed", 0)
+            # Stage-specific counters are replaced, never inherited from a prior
+            # stage with a different denominator or measurement unit.
+            self.job["progress"] = {"phase": event.get("phase", "working"), "completed": event.get("completed", 0),
+                "total": event.get("total"), "unit": event.get("unit", "files"), "current_file": event.get("current_file"),
+                "bytes_completed": event.get("bytes_completed", 0), "bytes_total": event.get("bytes_total"),
+                **{key: value for key, value in event.items() if key in {"file_completed", "file_total", "file_unit"}}}
+            self.updated_at = time.monotonic()
+
+    def cancel(self, job_id: str) -> dict:
+        with self.lock:
+            if not self.job or self.job["job_id"] != job_id:
+                raise RequestError("JOB_NOT_FOUND", "任务不存在或已被替换。", 404)
+            if self.job["status"] == "RUNNING":
+                self.job["cancel_requested"] = True
+                self.cancel_event.set()
+            return self._job_snapshot()
 
     def _run(self, job_id: str, options: dict) -> None:
         try:
@@ -190,9 +261,13 @@ class WorkbenchState:
                 except APIConfigurationError:
                     # The core workflow records a safe configuration reason.
                     pass
+            arguments["progress"] = lambda event: self._progress(job_id, event)
+            arguments["check_cancel"] = self._check_cancel
             report = self.analyzer(source, output, **arguments)
+            self._check_cancel()
             project = _project(str(source), str(output), job_id)
             project["diagnosis"] = report
+            project["catalog_snapshot_id"] = report.get("catalog_snapshot_id")
             program_report = _read_json(output / "programs.json")
             agent = _read_json(output / "agent-result.json")
             snapshot = (report.get("build_report") or {}).get("snapshot_id")
@@ -208,24 +283,34 @@ class WorkbenchState:
                     programs=program_report["programs"], agent=agent, snapshot_id=snapshot,
                     relations=_relationships(output / "structural-index.sqlite", snapshot),
                 )
+            elif report.get("catalog_ready") is True:
+                project.update(programs=program_report["programs"], agent=agent)
             else:
                 project["agent"] = {"runner_status": "NOT_READY", "reason_code": report.get("reason_code"), "agent_result": None}
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
                     self.project = project
+                    self.updated_at = time.monotonic()
                     self.job.update(status="COMPLETED", result=copy.deepcopy(project))
+        except AnalysisCancelled:
+            with self.lock:
+                if self.job and self.job["job_id"] == job_id:
+                    self.updated_at = time.monotonic()
+                    self.project = _project(str(options["source"]), str(options["output"]), job_id)
+                    self.job.update(status="CANCELLED", result=None)
         except Exception:
             # Never serialize raw adapter errors, environment values or remote
             # responses. Failed work leaves no current evidence authority.
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
+                    self.updated_at = time.monotonic()
                     self.job.update(status="FAILED", error={"code": "ANALYSIS_FAILED", "message": "本次分析未完成。请检查输入路径和源码格式后重试。"})
 
     def get_job(self, job_id: str) -> dict:
         with self.lock:
             if not self.job or self.job["job_id"] != job_id:
                 raise RequestError("JOB_NOT_FOUND", "任务不存在或已由新的源码分析替换。", 404)
-            return copy.deepcopy(self.job)
+            return self._job_snapshot()
 
     def evidence(self, evidence_id: str) -> dict:
         if EVIDENCE_ID.fullmatch(evidence_id) is None:
@@ -333,7 +418,8 @@ class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         try:
             self._guard(token=True)
-            if self.path != "/api/analyze":
+            cancel_match = re.fullmatch(r"/api/jobs/([a-f0-9]{32})/cancel", self.path)
+            if self.path != "/api/analyze" and cancel_match is None:
                 raise RequestError("NOT_FOUND", "请求的操作不存在。", 404)
             if self.headers.get_content_type() != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise RequestError("INVALID_CONTENT_TYPE", "只接受 JSON 请求。", 415)
@@ -347,7 +433,12 @@ class RequestHandler(BaseHTTPRequestHandler):
                 payload = json.loads(self.rfile.read(length).decode("utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 raise RequestError("INVALID_JSON", "请求内容不是有效 JSON。") from None
-            self._json(202, self.server.app.start(payload))
+            if cancel_match:
+                if payload != {}:
+                    raise RequestError("INVALID_OPTIONS", "取消任务请求须为空对象。")
+                self._json(202, self.server.app.cancel(cancel_match.group(1)))
+            else:
+                self._json(202, self.server.app.start(payload))
         except RequestError as exc:
             self._error(exc)
         except Exception:

@@ -1526,7 +1526,15 @@ def _system_prompt(schemas: Sequence[dict[str, Any]], *, native: bool) -> str:
         "Answer in the user's language with a useful explanation of the requested "
         "program's role, main flow, inputs, outputs and conditions that the evidence "
         "actually supports. General code explanations are allowed as citation-verified "
-        "free-text claims; you are not limited to COMPUTE statements. Keep at most "
+        "free-text claims even when only one program is supplied. Missing copybooks, "
+        "called program sources, database definitions, or runtime configuration are "
+        "local explanation boundaries, not a reason to abandon visible code. Explain "
+        "visible calculations and branches, and distinguish those observations from "
+        "business inferences and questions about unavailable dependencies. A call to "
+        "an unavailable object proves only the visible callsite and arguments; never "
+        "invent its implementation, returned values, or side effects. Do not keep "
+        "searching for an unavailable dependency after it is reported missing. "
+        "You are not limited to COMPUTE statements. Keep at most "
         "four claims of 320 characters each and six boundaries of 240 characters each, "
         "with at most 1200 model-authored characters total. "
         "Plan before reading: search an entry program or exact filename, inspect its "
@@ -1560,8 +1568,9 @@ def _system_prompt(schemas: Sequence[dict[str, Any]], *, native: bool) -> str:
         "The application does not independently assess question relevance or full "
         "business coverage. A final_answer action ends the investigation loop only; "
         "it cannot certify that the user's business question is completely answered. "
-        "Use action=abstain with empty or limited "
-        "supported claims and explicit boundaries when the snapshot cannot answer. Tool schemas: "
+        "Return a PARTIAL final answer with the useful cited observations when part "
+        "of the question crosses unavailable source. Use action=abstain with empty "
+        "claims only when no useful cited observation can be made. Tool schemas: "
         + json.dumps(schemas, ensure_ascii=False, separators=(",", ":"))
     )
 
@@ -1741,6 +1750,13 @@ def _boundary_text(boundary: object) -> str:
     if isinstance(boundary, str):
         return boundary
     if isinstance(boundary, Mapping):
+        if boundary.get("relation_type") and boundary.get("target_name"):
+            return (
+                f"{boundary['relation_type']} → {boundary['target_name']}: "
+                f"{boundary.get('reason', 'unresolved')}. "
+                "Only the visible source reference is available; target behavior "
+                "and runtime effects are not established."
+            )
         if boundary.get("type") == "snapshot_coverage":
             indexed = ", ".join(
                 str(item) for item in boundary.get("indexed_artifact_kinds", [])
@@ -1922,6 +1938,97 @@ def _question_coverage() -> dict[str, Any]:
     }
 
 
+def _project_analysis_scope(value: Mapping[str, object] | None) -> dict[str, Any]:
+    """Project application-owned scope without injecting source names or text."""
+
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ValueError("analysis_scope must be a mapping or None.")
+    projected: dict[str, Any] = {}
+    mode = value.get("mode", value.get("kind"))
+    if isinstance(mode, str) and mode in {"entry_neighborhood", "selected_sources", "full_directory"}:
+        projected["mode"] = mode
+    for key in {
+        "max_files", "max_depth", "max_dependency_scan_bytes_per_file",
+        "max_total_source_bytes", "max_scope_bytes", "selected_source_bytes",
+        "total_scope_bytes", "selected_file_count", "detail_file_count",
+        "catalog_file_count", "catalogue_program_count", "file_count",
+    }:
+        number = value.get(key)
+        if type(number) is int and 0 <= number <= 2**63 - 1:
+            projected[key] = number
+    if type(value.get("truncated")) is bool:
+        projected["truncated"] = value["truncated"]
+    known_statuses = {
+        "MISSING_SOURCE", "AMBIGUOUS_SOURCE", "DYNAMIC_TARGET", "DEPTH_LIMIT",
+        "FILE_LIMIT", "SOURCE_BYTE_LIMIT", "ENTRY_EXCEEDS_BYTE_BUDGET",
+        "DEPENDENCY_SCAN_TRUNCATED", "UNAVAILABLE", "UNREADABLE",
+        "CHANGED_DURING_SCAN", "DECODE_FAILED",
+    }
+    counts: dict[str, int] = {}
+    scope_boundaries = value.get("boundaries", [])
+    if isinstance(scope_boundaries, list):
+        for item in scope_boundaries[:10_000]:
+            if isinstance(item, Mapping) and isinstance(item.get("status"), str) and item["status"] in known_statuses:
+                status = str(item["status"])
+                counts[status] = counts.get(status, 0) + 1
+        if len(scope_boundaries) > 10_000:
+            projected["boundary_counts_truncated"] = True
+    projected["boundary_status_counts"] = counts
+    projected["dependency_discovery_incomplete"] = bool(
+        counts or projected.get("truncated") or value.get("complete_dependency_closure") is False
+    )
+    projected["full_repository_verified"] = False
+    return projected
+
+
+def _analysis_scope(boundaries: Sequence[object], supplied: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Describe observed source gaps without claiming business completeness."""
+
+    dependency_ids = {
+        str(item["relation_id"])
+        for item in boundaries
+        if isinstance(item, Mapping)
+        and item.get("relation_id")
+        and item.get("relation_type") in {"CALLS", "CALL_TARGET_FROM", "INCLUDES_COPY"}
+    }
+    return {
+        **(supplied or {}),
+        "source_scope": "visible_source_only",
+        "dependency_completeness": "incomplete" if (
+            dependency_ids or (supplied or {}).get("dependency_discovery_incomplete")
+        ) else "not_assessed",
+        "unresolved_dependency_count": len(dependency_ids),
+        "runtime_state_verified": False,
+        "whole_program_semantics_verified": False,
+    }
+
+
+def _inspection_boundaries(result: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Derive local boundaries only from already validated inspection relations."""
+
+    boundaries = []
+    for match in result.get("matches", []):
+        for edge in [*match["outgoing_relations"], *match["incoming_relations"]]:
+            if edge["relation_type"] not in {
+                "CALLS", "CALL_TARGET_FROM", "INCLUDES_COPY", "SELECTS_FROM",
+                "UPDATES", "READS_FILE", "WRITES_FILE",
+            }:
+                continue
+            metadata = edge["metadata"]
+            if edge["status"] == "confirmed" and "boundary" not in metadata:
+                continue
+            boundaries.append({
+                "relation_id": edge["relation_id"],
+                "relation_type": edge["relation_type"],
+                "target_name": edge["target"]["name"],
+                "status": edge["status"],
+                "reason": metadata.get("resolution_reason", metadata.get("boundary", "unresolved")),
+            })
+    return boundaries
+
+
 def _render_answer(
     claims: Sequence[Mapping[str, Any]],
     evidence_refs: Sequence[Mapping[str, Any]],
@@ -2057,13 +2164,19 @@ class BoundedAgentLoop:
         messages: list[dict[str, Any]],
         *,
         allow_tools: bool = True,
+        evidence_only: bool = False,
     ) -> object:
         kwargs: dict[str, Any] = {"messages": messages}
+        available_schemas = [
+            schema for schema in self.tool_schemas
+            if not evidence_only or schema["function"]["name"] == "read_evidence"
+        ]
         if self.native_tool_calling and allow_tools:
-            kwargs["tools"] = self.tool_schemas
+            kwargs["tools"] = available_schemas
         if self.strict_json:
             kwargs["response_format"] = _strict_action_response_format(
-                sorted(self.allowed_tool_names) if allow_tools else []
+                sorted(schema["function"]["name"] for schema in available_schemas)
+                if allow_tools else []
             )
 
         complete = getattr(self.model_client, "complete", None)
@@ -2392,18 +2505,14 @@ class BoundedAgentLoop:
                 common=common,
             )
 
-        grounding_errors = [
-            error
-            for claim in claims
-            if (error := _claim_grounding_error(claim, verified_evidence))
-        ]
-        if grounding_errors:
-            return self._stopped_result(
-                "unsupported_claim_content",
-                "; ".join(grounding_errors),
-                collected_boundaries=collected_boundaries,
-                common=common,
-            )
+        # A bad candidate must not erase independent, valid observations. The
+        # citation set and output envelope above remain all-or-nothing checks;
+        # only claim support is evaluated and discarded per individual claim.
+        rejected_claims: dict[int, str] = {
+            index: "unsupported_claim_content"
+            for index, claim in enumerate(claims)
+            if _claim_grounding_error(claim, verified_evidence)
+        }
 
         prose_claims = [claim for claim in claims if "assertion" not in claim]
         model_authored_chars = sum(len(claim["claim"]) for claim in prose_claims) + sum(
@@ -2441,8 +2550,12 @@ class BoundedAgentLoop:
         )
         claim_checks: list[dict[str, Any]] = []
         for index, claim in enumerate(claims):
+            if index in rejected_claims:
+                continue
             if "assertion" not in claim:
-                if claim["support_status"] != "unsupported":
+                if claim["support_status"] == "unsupported":
+                    rejected_claims[index] = "unsupported_claim"
+                else:
                     claim["support_status"] = "citation_verified_only"
                 continue
             try:
@@ -2469,13 +2582,10 @@ class BoundedAgentLoop:
                     "reason_code": checked["reason_code"],
                     "checker_version": CHECKER_VERSION,
                 })
+                if checked["support_status"] == "unsupported":
+                    rejected_claims[index] = "unsupported_claim"
             except Exception:
-                return self._stopped_result(
-                    "claim_checker_error",
-                    "The independent checker failed.",
-                    collected_boundaries=all_boundaries,
-                    common=common,
-                )
+                rejected_claims[index] = "claim_checker_error"
         if prose_claims:
             all_boundaries = _deduplicate(
                 [
@@ -2502,6 +2612,20 @@ class BoundedAgentLoop:
                     ),
                 },
             ])
+        claims = [claim for index, claim in enumerate(claims) if index not in rejected_claims]
+        if rejected_claims:
+            all_boundaries = _deduplicate([
+                *all_boundaries,
+                {
+                    "type": "verification_boundary",
+                    "reason": "unsupported_claims_omitted",
+                    "message": (
+                        "Some candidate statements did not pass their local checks and "
+                        "were omitted. Remaining statements retain their individual "
+                        "verification level; the full business question is not certified."
+                    ),
+                },
+            ])
         all_supported = bool(claims) and all(
             claim["support_status"] == "supported" for claim in claims
         )
@@ -2514,6 +2638,11 @@ class BoundedAgentLoop:
             "checker_version": CHECKER_VERSION if claim_checks else None,
             "claim_checks": claim_checks,
             "verified_evidence_count": len(evidence_ids),
+            "accepted_claim_count": len(claims),
+            "rejected_claims": [
+                {"claim_index": index + 1, "reason_code": reason.upper()}
+                for index, reason in sorted(rejected_claims.items())
+            ],
         }
         requested_status = arguments.get("status")
         if requested_status is not None and requested_status not in {
@@ -2529,20 +2658,24 @@ class BoundedAgentLoop:
                 collected_boundaries=collected_boundaries,
                 common=common,
             )
-        unsupported_claims = [
-            claim for claim in claims if claim["support_status"] == "unsupported"
-        ]
-        if unsupported_claims:
+        if rejected_claims and not claims:
+            reason = next(iter(rejected_claims.values()))
             stopped = self._stopped_result(
-                "unsupported_claim",
-                "At least one claim lacks support; no claims entered the answer.",
+                reason,
+                "No candidate statement passed its local checks.",
                 collected_boundaries=all_boundaries,
                 common=common,
             )
             stopped["verification"] = {**verification, "claim_disposition": "ABSTAINED"}
             return stopped
-        if decision.action == "abstain":
-            status = "ABSTAINED"
+        analysis_scope = _analysis_scope(all_boundaries, common.get("analysis_scope"))
+        if claims and (
+            rejected_claims
+            or decision.action == "abstain"
+            or requested_status == "PARTIAL"
+            or analysis_scope["dependency_completeness"] == "incomplete"
+        ):
+            status = "PARTIAL"
         elif all_supported:
             status = "SUPPORTED_WITH_BOUNDARIES"
         elif claims:
@@ -2579,6 +2712,7 @@ class BoundedAgentLoop:
             **common,
             "status": status,
             "question_coverage": _question_coverage(),
+            "analysis_scope": analysis_scope,
             "answer": _render_answer(claims, evidence_refs, all_boundaries),
             "model_answer_recorded": False,
             "claims": claims,
@@ -2618,6 +2752,7 @@ class BoundedAgentLoop:
             **common,
             "status": "ABSTAINED",
             "question_coverage": _question_coverage(),
+            "analysis_scope": _analysis_scope(boundaries, common.get("analysis_scope")),
             "answer": _render_answer([], evidence_refs, boundaries),
             "model_answer_recorded": False,
             "claims": [],
@@ -2638,7 +2773,8 @@ class BoundedAgentLoop:
         }
 
     def run(
-        self, question: str, *, entry_program: str | None = None
+        self, question: str, *, entry_program: str | None = None,
+        analysis_scope: Mapping[str, object] | None = None,
     ) -> dict[str, Any]:
         if not isinstance(question, str) or not question.strip():
             raise ValueError("question must be a non-empty string.")
@@ -2648,6 +2784,7 @@ class BoundedAgentLoop:
             or len(entry_program) > 1024
         ):
             raise ValueError("entry_program must be a non-empty string of at most 1024 characters.")
+        supplied_scope = _project_analysis_scope(analysis_scope)
         user_context = question.strip()
         if entry_program is not None:
             user_context += "\n" + json.dumps(
@@ -2669,9 +2806,21 @@ class BoundedAgentLoop:
         discovered_evidence_ids: set[str] = set()
         verified_evidence: dict[str, dict[str, Any]] = {}
         collected_boundaries: list[object] = []
+        if supplied_scope.get("mode") in {"entry_neighborhood", "selected_sources"}:
+            collected_boundaries.append({
+                "type": "source_scope",
+                "reason": "bounded_source_selection",
+                "message": (
+                    "Only the selected entry and its bounded available source neighborhood "
+                    "were indexed. Other repository files and unscanned dependencies were "
+                    "not verified; absence from this selection is not proof of absence "
+                    "from the full repository."
+                ),
+            })
         no_progress_streak = 0
         model_turns = 0
         evidence_phase_closed = False
+        recovery_read_required = False
         snapshot_id: str | None = None
         snapshot_coverage: dict[str, Any] | None = None
 
@@ -2711,6 +2860,7 @@ class BoundedAgentLoop:
                 "question": question.strip(),
                 "snapshot_id": snapshot_id,
                 "snapshot_coverage": snapshot_coverage,
+                "analysis_scope": supplied_scope,
                 "tool_calls_used": len(tool_trace),
                 "max_tool_calls": self.max_tool_calls,
                 "tool_budget": {
@@ -2734,6 +2884,12 @@ class BoundedAgentLoop:
                 "Evidence phase closed. Only final_answer or abstain is allowed."
                 if evidence_phase_closed
                 else (
+                    "Dependency discovery made no further progress. Read the already "
+                    "discovered evidence now, then explain the visible code with "
+                    "explicit unavailable-source boundaries. Only read_evidence, "
+                    "final_answer or abstain is allowed; do not search again."
+                ) if recovery_read_required
+                else (
                     f"Remaining tool calls: {remaining_calls}. "
                     "Gather structural evidence before the single read_evidence call; "
                     "reserve your last tool call for that read."
@@ -2743,10 +2899,22 @@ class BoundedAgentLoop:
                 _system_prompt(self.tool_schemas, native=self.native_tool_calling)
                 + "\nLocal investigation budget: " + phase_instruction
             )
+            if supplied_scope:
+                messages[0]["content"] += (
+                    "\nApplication analysis scope: "
+                    + json.dumps(supplied_scope, sort_keys=True, separators=(",", ":"))
+                    + ". This describes only the current indexed source selection. "
+                    "For entry_neighborhood or selected_sources, the tools see the "
+                    "selected entry and bounded available neighbors, not the whole "
+                    "repository. Do not claim whole-repository analysis or that "
+                    "an absent target does not exist elsewhere. File, depth, byte "
+                    "and dependency-scan limits are explanation boundaries."
+                )
             try:
                 response = self._complete(
                     messages,
                     allow_tools=not evidence_phase_closed,
+                    evidence_only=recovery_read_required,
                 )
                 decision = normalize_model_output(
                     response, fallback_call_id=f"agent_call_{model_turns}"
@@ -2789,6 +2957,14 @@ class BoundedAgentLoop:
                         "After read_evidence, the model must finish or abstain; "
                         "no further investigation action is allowed."
                     ),
+                    collected_boundaries=collected_boundaries,
+                    common=common(),
+                )
+
+            if recovery_read_required and decision.action != "read_evidence":
+                return self._stopped_result(
+                    "no_progress",
+                    "After stalled discovery, only the existing evidence may be read.",
                     collected_boundaries=collected_boundaries,
                     common=common(),
                 )
@@ -3005,6 +3181,9 @@ class BoundedAgentLoop:
             if isinstance(boundaries, list):
                 collected_boundaries.extend(boundaries)
                 collected_boundaries[:] = _deduplicate(collected_boundaries)
+            if decision.action == "inspect_symbol":
+                collected_boundaries.extend(_inspection_boundaries(result))
+                collected_boundaries[:] = _deduplicate(collected_boundaries)
             if result.get("status") != "OK" or result.get("truncated") is True:
                 collected_boundaries.append(
                     {
@@ -3050,6 +3229,21 @@ class BoundedAgentLoop:
                 )
 
             if no_progress_streak >= NO_PROGRESS_LIMIT:
+                if (
+                    discovered_evidence_ids
+                    and not evidence_phase_closed
+                    and len(tool_trace) < self.max_tool_calls
+                ):
+                    recovery_read_required = True
+                    collected_boundaries.append({
+                        "type": "agent_control",
+                        "reason": "dependency_discovery_exhausted",
+                        "message": (
+                            "Further discovery produced no new source evidence. "
+                            "The answer is limited to the evidence already found."
+                        ),
+                    })
+                    continue
                 return self._stopped_result(
                     "no_progress",
                     "Two consecutive tool calls found no new entity or evidence ID.",

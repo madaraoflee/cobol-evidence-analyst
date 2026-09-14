@@ -1,20 +1,23 @@
 # 可演示 POC：从 Windows 代码文件夹到有证据的业务回答
 
-> 核心判断：第一版不实现完整企业架构，只做一条真实、可复核的纵向闭环——选择一个 Windows 源码文件夹，建立本地索引，用户用中文提问，单个 Agent 调查代码后给出业务回答和精确源码引用。
+> 核心判断：真实源码先快速接入目录，再按所选程序建立局部索引；Agent 尽可能解释已有源码并引用证据，缺少 COPY 或闭源框架对象时保留边界，不把全库解析完成或源码齐全作为开始使用的前提。
 
 状态：`Accepted direction / implementation plan proposed`  
-日期：2026-08-29  
+初始日期：2026-08-29；运行流程更新：2026-09-14
+
 目标观众：项目发起人、技术领导、业务分析人员  
 目标形态：一台 Windows 电脑可运行的只读单机演示
+
+当前已实现入口是 `poc/web_app.py`（简体、繁體、English）与 `poc/analyze_source.py`。本文中的早期路线保留设计背景；实际公司大库按[系统使用手册](./15-system-user-manual.md)的目录模式操作，不能用旧全库 L1 计划估算导入时间。
 
 ## 1. POC 最终要演示什么
 
 领导看到的不是架构图，而是下面这段五分钟流程：
 
 1. 在界面输入或选择一个 Windows 源码文件夹，例如 `D:\insurance-source\premium`；
-2. 点击“建立索引”，界面显示识别出的 Program、Paragraph、Field、COPY、CALL 和 PERFORM 数量；
+2. 接入真实目录，界面显示阶段、当前文件、已完成/总量、已用时间和可用的剩余估时；轻量目录就绪后选择具体程序；
 3. 提问“分期保费最终怎样计算？”；
-4. Agent 自动检索候选代码、追踪相关字段和调用，再用业务语言回答；
+4. 系统按入口及可用依赖建立有界局部索引；Agent 检索相关代码并用业务语言回答，缺失的 COPY、调用或封装对象明确列出；
 5. 回答中的每个关键结论都能展开到“相对文件路径 + 行号 + 原始源码”；
 6. 再问一个代码无法解释的商业原因，Agent 明确说明源码能证明什么、不能证明什么。
 
@@ -113,18 +116,23 @@ POC 不声称获得完整控制流和数据流。能够确定的关系标记为 
 
 这些对象足以完成演示，也能在后续无损映射到完整统一 IR。
 
-### 4.4 数千程序的分层索引
+### 4.4 大程序目录与按入口索引
 
-POC 接受全部已下载 COBOL 和 COPYBOOK，而不是先人工复制 5–30 个文件。为了避免全库深解析拖垮首次演示，索引分四层：
+初次接入不再对全库执行详细结构解析。对于约 12,000 个、每个约 70,000–80,000 行的程序，8–16 GB 内存电脑先建立轻量目录，选定入口后再投入详细分析成本。
 
-| 层级 | 覆盖范围 | 处理内容 | 是否调用公司 API |
+| 阶段 | 范围 | 实际行为 | 联网 |
 | --- | --- | --- | --- |
-| `L0 Inventory` | 全部文件 | Hash、大小、编码、扩展名、Program-ID、COPY/CALL/PERFORM/SQL 计数和重复名 | 否 |
-| `L1 Structural` | 全部文件 | Program、Section、Paragraph、Data Item、COPY、字面量 CALL、PERFORM 和源码行号；建立 SQLite FTS5 | 否 |
-| `L2 Semantic Retrieval` | 全部 Program/Paragraph 或受控范围 | 仅在公司批准 Embedding API 后批量生成向量；结果本地缓存并按内容 Hash 复用 | 可选 |
-| `L3 Deep Analysis` | 本次问题命中的候选程序及其直接依赖 | 计算操作数、字段读写、条件和最多三跳关系；按需建立，不预先扫描所有 Statement | 只有最终调查和回答调用 Chat API |
+| 发现文件 | 指定目录 | 枚举允许后缀与无扩展名成员，显示已发现数量；总数未知时不显示伪百分比 | 否 |
+| 轻量目录 | 候选文件 | 通常先读 16 KiB，未找到 PROGRAM-ID 时最多探测 256 KiB；保存文件大小、时间戳、身份、入口及编码线索 | 否 |
+| 增量刷新 | 当前目录 | 未变文件复用 stat 缓存、正文零读取；新改文件重扫、删除同步、每文件检查点可恢复 | 否 |
+| 局部详细索引 | 所选入口与可用 COPY/CALL 邻域 | 默认最多 24 文件、两层依赖、16 MiB 总量；所选文件完整解析并核验内容 | 否 |
+| 业务问答 | 当前局部索引与有限证据 | 调查并引用可见源码，缺失部分以 PARTIAL 与边界保留 | 公司 Chat API |
 
-L0/L1 必须能够中断后重跑，并按文件 Hash 跳过未变化文件。索引阶段不生成 LLM 代码摘要；Embedding 只用于候选召回，不成为代码事实。领导演示前只预热被选业务流程的 L3 结果，但搜索范围仍是完整下载快照。
+依赖发现每文件最多扫描前 2 MiB，因此尾部依赖可能未进入本次范围；截断不是完整调用闭包。轻量头部也不保证发现所有嵌套 PROGRAM-ID；没有识别到名称的候选文件以 `name_origin=path` 标明待解析入口。单入口超过 16 MiB 时保留可用目录，本次详细问答返回 `SCOPE_LIMIT`；用户可选择较小入口或按业务范围重新导出。
+
+`catalog-sha256:` 目录指纹不是全库内容 Hash 证明。导出工具可能保留元数据时使用 `--verify-content`，会逐文件流式读取全文并计算摘要，可能很慢，但不做全库逐语句索引。实际证据内容核验只针对本次详细分析范围；不声称整库已解析或快照原子化。
+
+网页默认目录模式；CLI 为兼容研发仍默认 `full`，公司大库命令必须加 `--index-mode catalog`。保留相同输出目录才能复用缓存。取消在处理边界生效；重新接入可复用已经保存的目录检查点。Embedding 和 LLM 批量摘要不是首次目录接入的要求。
 
 ## 5. 检索不是纯向量搜索
 
@@ -155,7 +163,7 @@ POC 只给模型四个工具：
 | `trace_relations` | 沿批准的关系类型做最多三跳追踪 |
 | `read_evidence` | 读取已经发现的 EvidenceSpan，不接受任意文件路径 |
 
-Agent 每个问题最多调用 6 次工具；连续两次没有发现新实体或证据就停止。模型不能执行 Shell、任意文件读取、数据库查询或修改源码。
+Agent 保留有界工具预算。连续两次没有发现新实体或证据时，若已经发现可读证据且预算仍足够，就结束扩展，转去读取已有证据并尝试形成 PARTIAL 回答；没有可用证据、完整性失败或预算耗尽时才明确停止。模型不能执行 Shell、任意文件读取、数据库查询或修改源码。
 
 这仍然是真 Agent：模型根据当前证据决定下一步搜索字段、检查符号还是追踪关系；只是它的行动范围小、成本可预测，而且失败时能够解释。
 
@@ -172,27 +180,38 @@ Agent 每个问题最多调用 6 次工具；连续两次没有发现新实体�
 
 ## 8. Windows 运行与模型边界
 
-交付物提供 `run_poc.bat`，启动本地聊天界面。Streamlit 作为应用内部依赖随 POC 环境交付，不安装后台服务；其标准聊天组件适合快速演示，见 [Streamlit Chat Elements](https://docs.streamlit.io/develop/api-reference/chat)。若公司电脑禁止 `pip install`，则在获准构建环境中打包成便携式 Windows 应用目录，用户无需管理员权限安装软件。
+当前用 `poc\run_web.bat` 或 `python poc\web_app.py --port 8765` 启动本机工作台，仅依赖 Python 标准库，支持 Python 3.10+；本次目录基准使用 Python 3.14.4。浏览器访问 `http://127.0.0.1:8765`，选择真实源码目录后操作。界面提供简体、繁體和 English，切换不改写源码、模型回答或证据。
+
+命令行等价接入：
+
+```bat
+python poc\analyze_source.py ^
+  --index-mode catalog ^
+  --source "D:\cobol-data\source" ^
+  --output "D:\cobol-output\analysis"
+```
+
+工作台进度使用实际阶段、文件计数、已用时间和阶段估时；未知总量或模型响应无法预测时明确显示未知。时间预估不是完成承诺。源码与输出放在本机 SSD/硬盘，更新源码后保持输出目录以复用缓存。
 
 大模型只有一个允许通道：公司提供的 API。POC 不安装 Ollama、其他本地模型运行时或模型文件。
 
-运行时只配置以下信息：
+首次使用时，将项目根目录的 `.env.example` 复制为 `.env` 并填入以下信息。后续直接启动 `poc/run_web.bat`；更新代码时保留本机 `.env`。显式参数和启动进程已有环境变量优先于 `.env`，浏览器不收集 Key。
 
 - `COMPANY_API_BASE_URL`：公司 API 地址；
-- `COMPANY_API_KEY`：只从 Windows 环境变量或当前 UI Session 读取；
+- `COMPANY_API_KEY`：从项目根目录 `.env` 或启动进程的环境变量读取，浏览器不接收或保存 Key；
 - `COMPANY_CHAT_MODEL`：公司批准的聊天模型；
 - `COMPANY_EMBEDDING_MODEL`：可选且默认关闭；只有公司允许批量源码调用 Embedding 时才启用；
 - `COMPANY_API_STYLE`：默认 `openai_compatible`，非兼容接口通过一个小型 Adapter 转换。
 
 OpenAI-compatible Adapter 以 `POST /v1/chat/completions` 为首版基线，并在启动时分别探测普通 Chat、`tools/tool_choice/tool_calls`、严格 JSON 和可选 `POST /v1/embeddings`；不能因为“兼容 OpenAI”就假定所有能力都存在。Chat Completions 的工具字段结构参考 [OpenAI 官方 API 文档](https://developers.openai.com/api/reference/cli/resources/chat/subresources/completions)。
 
-公司 API 支持原生 Tool Calling 时，Agent 直接使用；如果只支持普通 Chat Completion，模型返回严格的 `action + arguments` JSON，由应用校验后执行同样的四个工具。API Key 不写入项目文件、SQLite、Prompt、日志或错误信息。源码仍先在本地检索，每轮只把当前问题所需的少量证据片段发送给公司 API。
+公司 API 支持原生 Tool Calling 时，Agent 直接使用；如果只支持普通 Chat Completion，模型返回严格的 `action + arguments` JSON，由应用校验后执行同样的四个工具。API Key 可保存在已被 Git 忽略的本机 `.env` 中，不写入受版本管理的源码、SQLite、Prompt、日志或错误信息。源码仍先在本地检索，每轮只把当前问题所需的少量证据片段发送给公司 API。
 
 ## 9. 演示语料与问题
 
 POC 对全部已下载 COBOL/COPYBOOK 建立 L0/L1 索引，保证搜索和跨程序入口发现不被人工文件选择截断；但回答正确性只对一个经过人工标注的业务流程作承诺。该流程可以从少量种子程序开始，实际调查允许沿 COPY、CALL 和 PERFORM 进入全库其他文件。
 
-当前源码快照只包含 COBOL 与 COPYBOOK。DDL/DDS、Job Schedule、DB File 定义与数据、Item/Control Table 内容、运行参数和生产日志都不在快照中。Agent 可以从 EXEC SQL、SELECT/FD 和调用代码识别外部对象名称，但不能证明其字段定义、调度时间、生产值或商业配置。每个回答必须显示“已索引制品”和“缺失制品”覆盖说明。
+当前入口支持实际取得的 COBOL 与 COPYBOOK 子集；即使没有 COPYBOOK 或某些程序只有封装对象，也应先解释可见源文件。DDL/DDS、Job Schedule、DB File 定义与数据、Item/Control Table 内容、运行参数和生产日志都不在快照中。Agent 可以从 EXEC SQL、SELECT/FD 和调用代码识别外部对象名称，但不能证明缺失定义、调度时间、生产值或商业配置。缺失框架对象的实现未知，不妨碍说明调用前后的条件、参数及可见计算；有界路径验证器仍可在未知执行行为处停止，它与业务源码解释的局部回答是不同结论。每个回答必须显示“已索引制品”和“缺失制品”覆盖说明。
 
 演示至少包含六个问题：
 
@@ -215,15 +234,15 @@ POC 对全部已下载 COBOL/COPYBOOK 建立 L0/L1 索引，保证搜索和跨�
 | 业务效果 | 4 个已标注问题均得到业务人员认可的核心结论和必要证据 |
 | 泛化 | 1 个未预写问题能找到相关代码，或诚实说明缺口 |
 | 拒答 | 1 个商业原因或缺少运行数据的问题不被模型猜测回答 |
-| 规模 | 全部下载文件完成 L0/L1，支持断点重跑并按 Hash 跳过未变化文件 |
-| 体验 | 首次全库索引时间由真实画像后确定；预热业务流程的单问目标不超过 30 秒 |
+| 规模 | 全部候选完成有界目录接入；未变文件零正文读取，变化增量更新；局部分析明确文件、深度与字节预算 |
+| 体验 | 显示实际阶段、计数、已用时间与可用估时；可取消并复用目录检查点；真实公司目录和 API 的耗时单独验收 |
 | 隐私 | 只读源码；只向公司 API 发送最小必要证据；API Key 不落盘、不入日志、不进入 Prompt |
 
-性能目标只约束已下载源码快照和预热演示流程，不代表 AS400 全系统 SLA。
+目录性能与完整业务问答性能分别验收。合成宽度/大文件基准不代表 12,000 个全部 80,000 行的公司全量，也不代表 AS400 全系统 SLA；真实 Windows、磁盘、编码、调用范围和接口耗时以公司环境为准。
 
 ## 11. 十至十五个工作日实施里程碑
 
-以一名工程师和一名兼职业务复核者为基准；首次 L0 画像完成后再锁定最终日期：
+以下保留 2026-08-29 的早期排期作为历史；运行流程已由 2026-09-14 的轻量目录与局部索引替代，不再以全库 L1 完成作为可用前提：
 
 | 里程碑 | 时间目标 | 可见结果 |
 | --- | --- | --- |
@@ -265,8 +284,8 @@ Windows COBOL/COPYBOOK 文件夹
 
 P1-A 结构索引与 P1-B 四个只读调查工具已经可运行。原创 CALC-01 fixture 包含 13 个 COBOL/COPYBOOK 文件，六步演示读取 12 段通过 Hash 校验的源码证据。P3-C 增加 COPY 程序范围定义绑定、多行条件与 SQL 宿主读写，索引数量随派生绑定更新，以实际构建报告为准。演示现在返回 `PARTIAL`：独立来源事实检查为 16 项覆盖、3 项业务缺失、4 项边界，不把运行成功当作完整业务通过。
 
-P3-A 可运行骨架已于 2026-08-31 完成：公司 OpenAI-compatible API capability probe 会验证 Chat、Tool Calling 回传和严格 JSON；运行器只在原生工具闭环或严格 JSON 探测通过时启动。Agent 最多调用 6 次四个只读工具，两次无进展后停止，并强制快照、Evidence 范围、Hash 和引用校验；非 Evidence 工具结果先经过严格字段投影，`read_evidence` 后不再允许调用工具。CALC-01 在 4 次真实工具调用内完成离线闭环，两类越过源码证据的问题会拒答。
+P3-A 可运行骨架已于 2026-08-31 完成：公司 OpenAI-compatible API capability probe 会验证 Chat、Tool Calling 回传和严格 JSON；运行器只在原生工具闭环或严格 JSON 探测通过时启动。该历史切片的 Agent 最多调用 6 次四个只读工具，两次无进展后停止（2026-09-14 已增加有证据时转入局部回答的回收流程），并强制快照、Evidence 范围、Hash 和引用校验；非 Evidence 工具结果先经过严格字段投影，`read_evidence` 后不再允许调用工具。CALC-01 在 4 次真实工具调用内完成离线闭环，两类越过源码证据的问题会拒答。
 
 P3-B 于 2026-09-07 接入独立 Claim 核验的窄范围切片。模型可以提交 `compute_statement` 结构化断言，本地核验器从单段完整且 Hash 有效的证据独立解析 `COMPUTE`，精确比较目标字段、算式 token 顺序与 `ROUNDED`，再由本地模板生成中文陈述。CALC-01 的四步 Agent 测试已走通这一核验路径；通过的回答可返回 `SUPPORTED_WITH_BOUNDARIES`，只确认该源码语句的写法，不确认最终结果、实际执行或精度。普通自然语言 claim 仍为 `CITATION_VERIFIED_ONLY`；不匹配或超出支持语法的断言会保留原因并拒绝升级。
 
-P3-C 将问题完整性与单条语句支持分开：所有 Agent 结果明确 `question_coverage=not_assessed`。下一步补跨程序参数值流、错误传播与完整业务案例，再在批准环境验收真实模型检索和回答，最后接通界面。任意自然语言 claim 的完整语义核验仍未实现，也未调用或校准 LLM judge。真实源码、文件内容、程序名称和 API Key 不进入本项目或外部对话。当前状态见 [P3-C 报告](./reports/2026-09-08-p3c-business-chain-progress.md)，P3-A/P3-B 报告保留历史切片范围。
+P3-C 将问题完整性与单条语句支持分开：所有 Agent 结果明确 `question_coverage=not_assessed`。下一步补跨程序参数值流、错误传播与完整业务案例，再在批准环境验收真实模型检索和回答。界面现已通过 `poc/web_app.py` 接通真实目录与 Agent，见当前系统使用手册。任意自然语言 claim 的完整语义核验仍未实现，也未调用或校准 LLM judge。真实源码、文件内容、程序名称和 API Key 不进入本项目或外部对话。当前状态见 [P3-C 报告](./reports/2026-09-08-p3c-business-chain-progress.md)，P3-A/P3-B 报告保留历史切片范围。

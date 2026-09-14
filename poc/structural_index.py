@@ -19,7 +19,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 from statement_facts import (
     condition_syntax_supported,
@@ -595,7 +595,7 @@ def _extract_data_access(text: str) -> tuple[list[str], list[str], dict[str, obj
     return reads, writes, metadata
 
 
-def parse_document(document: SourceDocument) -> ParsedFile:
+def parse_document(document: SourceDocument, *, progress: Callable[[int, int], None] | None = None) -> ParsedFile:
     evidence: dict[str, EvidenceSpan] = {}
     units: list[CodeUnit] = []
     symbols: list[Symbol] = []
@@ -671,17 +671,15 @@ def parse_document(document: SourceDocument) -> ParsedFile:
             line.start_line,
             line.end_line,
         )
-        evidence.setdefault(
-            evidence_id,
-            EvidenceSpan(
+        if evidence_id not in evidence:
+            evidence[evidence_id] = EvidenceSpan(
                 evidence_id=evidence_id,
                 relative_path=document.relative_path,
                 start_line=line.start_line,
                 end_line=line.end_line,
                 source_sha256=document.source_sha256,
                 text=_span_text(document, line.start_line, line.end_line),
-            ),
-        )
+            )
         return evidence_id
 
     def add_unit(
@@ -868,6 +866,8 @@ def parse_document(document: SourceDocument) -> ParsedFile:
 
     index = 0
     while index < len(document.lines):
+        if progress is not None and index % 256 == 0:
+            progress(index, len(document.lines))
         line = document.lines[index]
         stripped = line.text.strip()
         upper = stripped.upper()
@@ -1427,7 +1427,8 @@ def parse_document(document: SourceDocument) -> ParsedFile:
             continue
         level = int(match.group(1))
         descendants: list[CodeUnit] = []
-        for candidate in data_units[offset + 1:]:
+        for candidate_index in range(offset + 1, len(data_units)):
+            candidate = data_units[candidate_index]
             next_match = DATA_ITEM_RE.match(candidate.normalized_text)
             if (
                 candidate.program_name != item.program_name
@@ -1570,17 +1571,13 @@ def _ensure_schema(connection: sqlite3.Connection) -> None:
 
 
 def _delete_file_facts(connection: sqlite3.Connection, relative_path: str) -> None:
-    unit_ids = [
-        row["unit_id"]
-        for row in connection.execute(
-            "SELECT unit_id FROM code_units WHERE relative_path = ?",
-            (relative_path,),
-        )
-    ]
-    for unit_id in unit_ids:
-        connection.execute(
-            "DELETE FROM code_units_fts WHERE unit_id = ?", (unit_id,)
-        )
+    # Scan the FTS table once. Deleting once per statement made refresh time
+    # quadratic because unit_id is an UNINDEXED FTS column.
+    connection.execute(
+        "DELETE FROM code_units_fts WHERE rowid IN ("
+        "SELECT f.rowid FROM code_units_fts f JOIN code_units u ON u.unit_id=f.unit_id "
+        "WHERE u.relative_path=?)", (relative_path,),
+    )
     connection.execute(
         "DELETE FROM relations WHERE relative_path = ?", (relative_path,)
     )
@@ -1876,244 +1873,199 @@ def build_structural_index(
     encoding: str = "auto",
     source_format: str = "auto",
     quiet: bool = False,
+    include_paths: Sequence[str] | None = None,
+    progress: Callable[[dict], None] | None = None,
+    check_cancel: Callable[[], None] | None = None,
+    verify_content: bool = False,
+    max_source_bytes: int | None = None,
 ) -> dict[str, object]:
-    """Incrementally build the local structural index."""
+    """Build a bounded source scope, reusing unchanged files before decoding.
 
+    File metadata is a fast change detector, not cryptographic proof of the live
+    directory. Stored evidence keeps content hashes; the runner verifies the
+    selected scope again before authorizing a model answer.
+    """
     root = source_root.expanduser().resolve()
     if not root.is_dir():
         raise ValueError(f"Source root is not a directory: {source_root}")
     validate_source_options(encoding, source_format)
 
-    discovery: dict[str, object] = {}
-    source_files = list(iter_source_files(
-        root, extensions, include_extensionless, scan_summary=discovery
-    ))
-    if not source_files:
-        raise ValueError(
-            "No source files selected. Check the source directory, --extensions, "
-            "and --include-extensionless. The existing index was not changed."
-        )
-    documents: list[SourceDocument] = []
-    unreadable_count = 0
-    for file_index, path in enumerate(source_files, start=1):
-        try:
-            document = read_source_document(
-                path, root, encoding=encoding, source_format=source_format
-            )
-        except OSError:
-            document = None
-        if document is None:
-            unreadable_count += 1
-        else:
-            documents.append(document)
-        if not quiet and file_index % 500 == 0:
-            print(
-                f"Prepared {file_index}/{len(source_files)} files...",
-                file=sys.stderr,
-            )
-    if not documents:
-        raise ValueError(
-            "No source files could be decoded. Check read permissions, binary "
-            "exports, and --encoding (for example cp950, gb18030, or cp037). "
-            "The existing index was not changed."
-        )
-    source_options = {
-        "encoding": encoding,
-        "source_format": source_format,
-        "include_extensionless": include_extensionless,
-        "extensions": sorted(extensions),
-    }
-    options_json = json.dumps(source_options, sort_keys=True)
+    def emit(phase: str, completed: int = 0, total: int | None = None, **extra: object) -> None:
+        if check_cancel:
+            check_cancel()
+        if progress:
+            progress({"phase": phase, "completed": completed, "total": total, "unit": "files", **extra})
 
+    emit("discovering")
+    discovery: dict[str, object] = {}
+    if include_paths is None:
+        source_files = list(iter_source_files(root, extensions, include_extensionless, scan_summary=discovery))
+    else:
+        source_files = []
+        for relative in sorted(set(include_paths), key=str.casefold):
+            path = root / relative
+            if path.is_symlink() or root not in path.resolve().parents or not path.is_file():
+                raise ValueError("A selected scope file is missing or outside the source directory.")
+            source_files.append(path)
+        discovery = {"excluded_extensionless_file_count": 0, "scope_limited": True}
+    if not source_files:
+        raise ValueError("No source files selected. Check the source directory, --extensions, and --include-extensionless. The existing index was not changed.")
+    source_options = {"encoding": encoding, "source_format": source_format,
+                      "include_extensionless": include_extensionless, "extensions": sorted(extensions)}
+    options_json = json.dumps(source_options, sort_keys=True)
     database = database_path.expanduser().resolve()
     connection = _connect(database)
     try:
         _ensure_schema(connection)
-        parser_row = connection.execute(
-            "SELECT value FROM metadata WHERE key = 'parser_version'"
-        ).fetchone()
-        parser_changed = parser_row is None or parser_row["value"] != PARSER_VERSION
-        options_row = connection.execute(
-            "SELECT value FROM metadata WHERE key = 'source_options'"
-        ).fetchone()
-        options_changed = options_row is None or options_row["value"] != options_json
-        existing_hashes = {
-            row["relative_path"]: row["sha256"]
-            for row in connection.execute(
-                "SELECT relative_path, sha256 FROM source_files"
-            )
-        }
-
-        current_paths = {document.relative_path for document in documents}
-        removed_paths = sorted(set(existing_hashes) - current_paths)
-        changed_documents = [
-            document
-            for document in documents
-            if parser_changed or options_changed or existing_hashes.get(document.relative_path)
-            != document.source_sha256
-        ]
-        skipped_count = len(documents) - len(changed_documents)
-
+        metadata = dict(connection.execute("SELECT key, value FROM metadata"))
+        parser_changed = metadata.get("parser_version") != PARSER_VERSION
+        options_changed = metadata.get("source_options") != options_json
+        root_changed = metadata.get("source_root_hash") != _content_hash(str(root))
+        old_stats = json.loads(metadata.get("file_stats", "{}")) if not root_changed else {}
+        existing = {row["relative_path"]: dict(row) for row in connection.execute("SELECT * FROM source_files")}
+        stats: dict[str, list[int]] = {}
+        for path in source_files:
+            info = path.stat()
+            stats[path.relative_to(root).as_posix()] = [info.st_size, info.st_mtime_ns, info.st_ctime_ns]
+        total_bytes = sum(value[0] for value in stats.values())
+        if max_source_bytes is not None and total_bytes > max_source_bytes:
+            raise ValueError("Selected source files exceed the detailed analysis byte budget; refresh the catalog and select a smaller entry scope.")
+        bytes_done = changed_count = skipped_count = unreadable_count = 0
+        current_paths: set[str] = set()
+        changed = parser_changed or options_changed or root_changed or set(stats) != set(existing)
+        counts = {"encodings": Counter(), "format_hints": Counter(), "artifact_kinds": Counter()}
+        fallback = legacy = wide_lines = False
+        copy_report = json.loads(metadata.get("copy_report", "{}"))
+        call_report = json.loads(metadata.get("call_report", "{}"))
         with connection:
-            clear_call_bindings(connection)
-            clear_copy_expansions(connection)
-            for relative_path in removed_paths:
-                _delete_file_facts(connection, relative_path)
+            # The previous complete transaction remains usable on cancellation.
+            # Derived facts are rebuilt only when source facts have changed.
+            derived_cleared = False
+            def clear_derived() -> None:
+                nonlocal derived_cleared
+                if not derived_cleared:
+                    clear_call_bindings(connection)
+                    clear_copy_expansions(connection)
+                    derived_cleared = True
 
-            for document in changed_documents:
-                if document.relative_path in existing_hashes:
-                    _delete_file_facts(connection, document.relative_path)
-                parsed = parse_document(document)
-                _insert_parsed_file(connection, parsed)
-
-            copy_report = rebuild_copy_expansions(connection)
-            _resolve_relations(connection)
-            call_report = rebuild_call_bindings(
-                connection,
-                lambda text: normalize_cobol_lines(text, source_format),
-            )
-            snapshot_id = _snapshot_id(documents)
-            connection.execute(
-                """
-                INSERT INTO metadata(key, value) VALUES('schema_version', ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                """,
-                (SCHEMA_VERSION,),
-            )
-            connection.execute(
-                """
-                INSERT INTO metadata(key, value) VALUES('parser_version', ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                """,
-                (PARSER_VERSION,),
-            )
-            connection.execute(
-                """
-                INSERT INTO metadata(key, value) VALUES('snapshot_id', ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                """,
-                (snapshot_id,),
-            )
-            connection.execute(
-                """
-                INSERT INTO metadata(key, value) VALUES('source_root_hash', ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                """,
-                (_content_hash(str(root)),),
-            )
-            connection.execute(
-                """
-                INSERT INTO metadata(key, value) VALUES('source_options', ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                """,
-                (options_json,),
-            )
-            connection.execute(
-                """
-                INSERT INTO metadata(key, value) VALUES('indexed_at_utc', ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                """,
-                (datetime.now(timezone.utc).isoformat(),),
-            )
-
-        relation_statuses = {
-            row["status"]: row["count"]
-            for row in connection.execute(
-                """
-                SELECT status, COUNT(*) AS count
-                  FROM relations
-                 GROUP BY status
-                 ORDER BY status
-                """
-            )
-        }
-        symbol_counts = dict(connection.execute(
-            "SELECT symbol_type, COUNT(*) FROM symbols GROUP BY symbol_type"
-        ).fetchall())
-        files_without_symbols = connection.execute(
-            "SELECT COUNT(*) FROM source_files WHERE relative_path NOT IN "
-            "(SELECT relative_path FROM symbols)"
-        ).fetchone()[0]
+            for file_index, path in enumerate(source_files):
+                relative = path.relative_to(root).as_posix()
+                emit("reading", file_index, len(source_files), current_file=relative,
+                     bytes_completed=bytes_done, bytes_total=total_bytes)
+                previous = existing.get(relative)
+                cached = (not verify_content and previous is not None and not parser_changed and not options_changed
+                          and old_stats.get(relative) == stats[relative])
+                document = None
+                if cached:
+                    skipped_count += 1
+                    row = previous
+                else:
+                    try:
+                        document = read_source_document(path, root, encoding=encoding, source_format=source_format)
+                    except OSError:
+                        document = None
+                    if document is None:
+                        unreadable_count += 1
+                        bytes_done += stats[relative][0]
+                        continue
+                    after = path.stat()
+                    if [after.st_size, after.st_mtime_ns, after.st_ctime_ns] != stats[relative]:
+                        raise ValueError("Source files changed while being read; retry against a stable export.")
+                    row = {"encoding": document.encoding, "format_hint": document.format_hint,
+                           "artifact_kind": document.artifact_kind,
+                           "used_fallback_encoding": document.used_fallback_encoding}
+                    if parser_changed or options_changed or previous is None or previous["sha256"] != document.source_sha256:
+                        changed = True
+                        clear_derived()
+                        if previous:
+                            _delete_file_facts(connection, relative)
+                        emit("parsing", file_index, len(source_files), current_file=relative,
+                             bytes_completed=bytes_done, bytes_total=total_bytes)
+                        parsed = parse_document(document, progress=lambda done, total: emit(
+                            "parsing", file_index, len(source_files), current_file=relative,
+                            file_completed=done, file_total=total, file_unit="lines",
+                            bytes_completed=bytes_done, bytes_total=total_bytes))
+                        emit("writing", file_index, len(source_files), current_file=relative,
+                             bytes_completed=bytes_done, bytes_total=total_bytes)
+                        _insert_parsed_file(connection, parsed)
+                        del parsed
+                        changed_count += 1
+                    else:
+                        skipped_count += 1
+                current_paths.add(relative)
+                for label, field_name in (("encodings", "encoding"), ("format_hints", "format_hint"), ("artifact_kinds", "artifact_kind")):
+                    counts[label][row[field_name]] += 1
+                fallback = fallback or bool(row["used_fallback_encoding"])
+                legacy = legacy or not row["encoding"].startswith("utf-")
+                if document and source_format == "auto" and document.format_hint != "free":
+                    wide_lines = wide_lines or any(len(line.expandtabs(8)) > 72 and not line[:6].strip()
+                        and line[6:7] in {" ", "D", "d", "-"} and line[72:].strip() for line in document.raw_lines)
+                bytes_done += stats[relative][0]
+                del document
+                emit("indexing", file_index + 1, len(source_files), current_file=relative,
+                     bytes_completed=bytes_done, bytes_total=total_bytes)
+            if not current_paths:
+                raise ValueError("No source files could be decoded. Check read permissions, binary exports, and --encoding (for example cp950, gb18030, or cp037). The existing index was not changed.")
+            removed_paths = sorted(set(existing) - current_paths)
+            if removed_paths:
+                changed = True
+                clear_derived()
+                for relative in removed_paths:
+                    emit("removing", current_file=relative)
+                    _delete_file_facts(connection, relative)
+            if changed:
+                clear_derived()
+                emit("expanding_copy", unit="stages")
+                copy_report = rebuild_copy_expansions(connection)
+                emit("resolving_relations", unit="stages")
+                _resolve_relations(connection)
+                emit("binding_calls", unit="stages")
+                call_report = rebuild_call_bindings(connection, lambda text: normalize_cobol_lines(text, source_format))
+            emit("finalizing", unit="stages")
+            hasher = hashlib.sha256()
+            hashes = dict(connection.execute("SELECT relative_path, sha256 FROM source_files"))
+            for relative in sorted(hashes, key=str.casefold):
+                hasher.update(relative.encode("utf-8") + b"\0" + hashes[relative].encode("ascii") + b"\n")
+            snapshot_id = f"sha256:{hasher.hexdigest()}"
+            updates = {"schema_version": SCHEMA_VERSION, "parser_version": PARSER_VERSION,
+                       "snapshot_id": snapshot_id, "source_root_hash": _content_hash(str(root)),
+                       "source_options": options_json, "indexed_at_utc": datetime.now(timezone.utc).isoformat(),
+                       "file_stats": json.dumps({key: stats[key] for key in current_paths}, sort_keys=True),
+                       "copy_report": json.dumps(copy_report), "call_report": json.dumps(call_report)}
+            connection.executemany("INSERT INTO metadata(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", updates.items())
+        symbol_counts = dict(connection.execute("SELECT symbol_type, COUNT(*) FROM symbols GROUP BY symbol_type"))
+        files_without_symbols = connection.execute("SELECT COUNT(*) FROM source_files WHERE relative_path NOT IN (SELECT relative_path FROM symbols)").fetchone()[0]
         warnings: list[str] = []
         if not symbol_counts.get("Program", 0):
-            warnings.append(
-                "No PROGRAM-ID definitions were indexed. Check --encoding, "
-                "--source-format, source exports, and the selected directory."
-            )
+            warnings.append("No PROGRAM-ID definitions were indexed. Check --encoding, --source-format, source exports, and the selected directory.")
         if files_without_symbols:
-            warnings.append(
-                f"{files_without_symbols} decoded files produced no symbols; "
-                "they may be support files or use unsupported source layouts."
-            )
+            warnings.append(f"{files_without_symbols} decoded files produced no symbols; they may be support files or use unsupported source layouts.")
         if unreadable_count:
-            warnings.append(
-                f"{unreadable_count} selected files were unreadable or binary. "
-                "Check source encoding and read permissions."
-            )
-        if discovery["excluded_extensionless_file_count"]:
+            warnings.append(f"{unreadable_count} selected files were unreadable or binary. Check source encoding and read permissions.")
+        if discovery.get("excluded_extensionless_file_count"):
             warnings.append("Some extensionless files were excluded; use --include-extensionless if they are source members.")
-        if any(document.used_fallback_encoding for document in documents):
+        if fallback:
             warnings.append("Some files required a fallback encoding; confirm --encoding before interpreting their text.")
-        if encoding == "auto" and any(
-            not document.encoding.startswith("utf-") for document in documents
-        ):
-            warnings.append(
-                "Legacy encodings were selected automatically. If comments or "
-                "literals look incorrect, set --encoding explicitly."
-            )
-        if source_format == "auto" and any(
-            len(line.expandtabs(8)) > 72
-            and not line[:6].strip()
-            and line[6:7] in {" ", "D", "d", "-"}
-            and line[72:].strip()
-            for document in documents if document.format_hint != "free"
-            for line in document.raw_lines
-        ):
-            warnings.append(
-                "Indented lines contain text beyond column 72. Check the source "
-                "layout and use --source-format free when that text is code."
-            )
-        report: dict[str, object] = {
-            "schema_version": SCHEMA_VERSION,
-            "parser_version": PARSER_VERSION,
-            "parser_rebuild_required": bool(existing_hashes) and parser_changed,
-            "source_options_rebuild_required": bool(existing_hashes) and options_changed,
-            "source_options": source_options,
-            "discovery": discovery,
-            "diagnostics": {
-                "status": "needs_attention" if warnings else "ready",
-                "warnings": warnings,
-                "program_count": symbol_counts.get("Program", 0),
-                "copybook_count": symbol_counts.get("Copybook", 0),
-                "files_without_symbols": files_without_symbols,
-                "unreadable_or_binary_file_count": unreadable_count,
-            },
-            "distributions": {
-                "encodings": dict(Counter(document.encoding for document in documents)),
-                "format_hints": dict(Counter(document.format_hint for document in documents)),
-                "artifact_kinds": dict(Counter(document.artifact_kind for document in documents)),
-            },
-            "snapshot_id": _snapshot_id(documents),
-            "privacy": {
-                "network_calls": False,
-                "source_stored_locally": True,
-                "absolute_source_paths_stored": False,
-            },
-            "files": {
-                "candidate": len(source_files),
-                "decoded": len(documents),
-                "unreadable_or_binary": unreadable_count,
-                "indexed_or_updated": len(changed_documents),
-                "skipped_unchanged": skipped_count,
-                "removed": len(removed_paths),
-            },
-            "database_counts": _database_counts(connection),
-            "relation_statuses": relation_statuses,
-            "copy_expansion": copy_report,
-            "call_bindings": call_report,
-            "database_path": str(database),
-        }
-        return report
+        if encoding == "auto" and legacy:
+            warnings.append("Legacy encodings were selected automatically. If comments or literals look incorrect, set --encoding explicitly.")
+        if wide_lines:
+            warnings.append("Indented lines contain text beyond column 72. Check the source layout and use --source-format free when that text is code.")
+        return {"schema_version": SCHEMA_VERSION, "parser_version": PARSER_VERSION,
+                "parser_rebuild_required": bool(existing) and parser_changed,
+                "source_options_rebuild_required": bool(existing) and options_changed,
+                "source_options": source_options, "discovery": discovery,
+                "diagnostics": {"status": "needs_attention" if warnings else "ready", "warnings": warnings,
+                    "program_count": symbol_counts.get("Program", 0), "copybook_count": symbol_counts.get("Copybook", 0),
+                    "files_without_symbols": files_without_symbols, "unreadable_or_binary_file_count": unreadable_count},
+                "distributions": {key: dict(value) for key, value in counts.items()}, "snapshot_id": snapshot_id,
+                "privacy": {"network_calls": False, "source_stored_locally": True, "absolute_source_paths_stored": False},
+                "files": {"candidate": len(source_files), "decoded": len(current_paths), "unreadable_or_binary": unreadable_count,
+                          "indexed_or_updated": changed_count, "skipped_unchanged": skipped_count, "removed": len(removed_paths)},
+                "scope": {"kind": "selected_sources" if include_paths is not None else "full_directory", "file_count": len(current_paths)},
+                "change_detection": "size_mtime_ctime", "source_stat_manifest": {key: stats[key] for key in current_paths},
+                "database_counts": _database_counts(connection),
+                "relation_statuses": dict(connection.execute("SELECT status, COUNT(*) FROM relations GROUP BY status")),
+                "copy_expansion": copy_report, "call_bindings": call_report, "database_path": str(database)}
     finally:
         connection.close()
 

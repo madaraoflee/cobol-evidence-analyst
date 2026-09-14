@@ -1,18 +1,25 @@
 # COBOL Evidence Analyst
 
-**真实源码请从 `poc/analyze_source.py` 开始：显式指定源码目录，先生成当前源码的索引、程序清单与诊断，再选择程序提问。替换样例文件夹、配置 API Key 或打开演示网页，都不会自动把公司源码接入问答。**
+**公司源码现在可以直接在本机网页中接入：先快速建立程序目录，再选入口提问，按需解析相关源码。未改文件复用缓存；缺 COPY 或闭源对象会保留为解释边界，不会因此清空已有源码的分析。**
 
-在项目根目录执行（Windows 命令提示符）：
+在项目根目录启动 `python poc/web_app.py`，或 Windows 双击 `poc/run_web.bat`，进入浏览器显示的本机地址。界面支持简体中文、繁体中文和 English，导入显示阶段、完成/剩余、耗时、当前文件与可计算时的预计剩余时间，并可停止。源码与结果目录由你指定，实际程序清单来自该目录。
 
-    python poc\analyze_source.py ^
-      --source "D:\cobol-data\source" ^
-      --output "D:\cobol-output\analysis"
+**API 只需配置一次：** 从 GitHub 下载代码后，把项目根目录的 [`.env.example`](./.env.example) 复制为同目录的 `.env`，填入 `COMPANY_API_BASE_URL`、`COMPANY_API_KEY` 和 `COMPANY_CHAT_MODEL`。之后双击 `poc/run_web.bat` 会自动读取，不必每次在终端设置。`.env` 已被 Git 忽略，只保留在公司电脑；更新代码时保留它，改配置后重启工作台。已有进程环境变量优先于 `.env`，显式命令行参数优先级最高。
 
-先打开输出目录的 `diagnosis.md` 与 `programs.json`，核对实际文件数量、程序名和解析边界；程序名必须来自这次清单，不能照抄演示中的 `SYNP040`。配置公司接口后，在同一命令上增加 `--entry "实际的PROGRAM-ID" --question "请解释该程序的主要处理步骤并引用源码" --allow-network`。每次执行都会先更新指定源目录的索引；不带 `--allow-network` 时只做本地分析。编码与文件格式设置、联网和故障排查见[办公室电脑使用手册](./docs/11-office-usage-guide.md)。
+命令行接入大源码库时，必须显式选择轻量目录模式：
 
-`run_demo.py`、其他 `*_demo.py` 和 `business_acceptance.py` 是固定合成案例的演示或回归验收，不能用来验收任意公司的代码；[交互式演示网页](./docs/leadership-demo/prototype.html)尚未接通源码索引和 API。当前能力是受限的源码事实检索与带证据的回答，不保证任意 COBOL 方言或完整业务流程都能自动解释。公司真实源码、实际公司 API 和 Windows 实机效果需在公司环境验收；合成案例与本地模拟接口测试不代替这一步。
+```bat
+python poc\analyze_source.py ^
+  --source "D:\cobol-data\source" ^
+  --output "D:\cobol-output\analysis" ^
+  --index-mode catalog
+```
 
-**当前产品进度：P2 单业务流程深分析进行中，尚未完成完整业务问答和界面交付。框架主线已从 F01 结构审查推进到 F02 控制路径接线及 F03 可执行契约子集；15 个批处理/联机场景、92 项独立预期通过。真实资料适配与后续步骤见[进度总表](./docs/12-task-plan-and-progress.md)。T01 保持原验收范围，T02 正常计算暂后置。**
+打开 `diagnosis.md` 和 `programs.json` 核对目录；配置公司接口后，在同一命令增加 `--entry "清单中的相对路径" --question "请解释可见代码的处理步骤和输入输出，标明缺失依赖并引用源码。" --allow-network`。网页默认使用该模式；命令行不加 `--index-mode catalog` 会保留旧的全目录详细索引行为，只适合明确控制过的小范围。
+
+完整操作见[最新系统使用手册](./docs/15-system-user-manual.md)，原理与实测范围见[本次性能和局部分析报告](./docs/reports/2026-09-14-large-source-intake.md)。目录就绪不等于全库语句已解析，局部证据通过也不等于完整业务执行已验证。
+
+`run_demo.py`、其他 `*_demo.py` 和 `business_acceptance.py` 仍是合成案例回归；[旧交互原型](./docs/leadership-demo/prototype.html)仅为历史展示。当前真实界面由 `poc/web_app.py` 提供。本次没有调用真实公司 API，也没有取得公司源码或完成 Windows 实机验收。
 
 核心判断：本项目首先要做成一个“以源码证据为底座的 COBOL 业务逆向分析 Agent”，而不是普通代码聊天机器人，也不是一步到位的自动化 SDLC 平台。
 

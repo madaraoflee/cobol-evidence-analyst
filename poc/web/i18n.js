@@ -3,6 +3,84 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+目前只核對已索引的源碼；資料庫記錄、執行參數與完整執行狀態未核驗。|目前只核对已索引的源码；数据库记录、运行参数与完整运行状态未核验。|Only indexed source has been checked. Database records, runtime parameters and full execution state remain unverified.
+呼叫或 COPY 的實作未提供，相關內部行為仍待確認。|调用或 COPY 的实现未提供，相关内部行为仍待确认。|A call or COPY implementation is unavailable; its internal behaviour remains unknown.
+部分依賴或工具結果不完整，本次回答只涵蓋已有證據。|部分依赖或工具结果不完整，本次回答只涵盖已有证据。|Some dependencies or tool results are incomplete; this answer covers available evidence only.
+
+入口超出本次解析範圍|入口超出本次解析范围|Entry exceeds this analysis scope
+ 項未確認依賴| 项未确认依赖| unresolved dependencies
+已達本次範圍限制，部分依賴未納入。可另選相關入口繼續分析。|已达本次范围限制，部分依赖未纳入。可另选相关入口继续分析。|The scope limit was reached and some dependencies were excluded. Select another related entry to continue.
+
+本檔案預計剩餘|本文件预计剩余|Estimated time left for this file
+移除過期索引|移除过期索引|Removing stale index entries
+整理 COPY 引用|整理 COPY 引用|Resolving COPY references
+整理呼叫參數|整理调用参数|Binding call parameters
+檔案|文件|files
+行|行|lines
+項|项|items
+目前檔案已解析 |当前文件已解析 |Current file: parsed\u0020
+
+局部解讀 · 未知依賴保留為邊界|局部解读 · 未知依赖保留为边界|Partial findings · Unknown dependencies remain bounded
+已取消|已取消|Cancelled
+個目錄入口|个目录入口|catalog entries
+目錄已就緒 · 詳細分析按需建立|目录已就绪 · 详细分析按需建立|Catalog ready · Details built on demand
+搜尋調查入口|搜索调查入口|Search starting programs
+搜尋名稱或路徑，顯示前 100 項|搜索名称或路径，显示前 100 项|Search name or path; showing up to 100 entries
+檔名入口 · 待詳細解析|文件名入口 · 待详细解析|File entry · Detailed parsing pending
+檔名入口|文件名入口|File entry
+目錄已識別 · 按需解析|目录已识别 · 按需解析|Catalogued · Parsed on demand
+沒有符合的入口|没有符合的入口|No matching entries
+上一頁|上一页|Previous
+下一頁|下一页|Next
+目錄檔案|目录文件|Catalog files
+可選入口|可选入口|Available entries
+先建立目錄，提問時解析相關源碼|先建立目录，提问时解析相关源码|Catalog first; parse related source when asked
+本次重用快取|本次复用缓存|Cached files reused
+個檔案已更新|个文件已更新|files updated
+已取消。再次接入會重用已完成的目錄快取。|已取消。再次接入会复用已完成的目录缓存。|Cancelled. Reconnect to reuse completed catalog work.
+進度連線中斷，正在重試；後台工作可能仍在繼續。|进度连接中断，正在重试；后台工作可能仍在继续。|Progress connection lost. Retrying; work may still be running.
+等待開始|等待开始|Waiting to start
+掃描檔案目錄|扫描文件目录|Discovering files
+更新輕量目錄|更新轻量目录|Updating source catalog
+定位相關源碼|定位相关源码|Locating related source
+建立本次詳細索引|建立本次详细索引|Building the analysis index
+讀取當前檔案|读取当前文件|Reading current file
+解析當前檔案|解析当前文件|Parsing current file
+寫入索引|写入索引|Writing index
+整理程式關係|整理程序关系|Resolving relationships
+核對並保存結果|核对并保存结果|Checking and saving results
+核對源碼版本|核对源码版本|Checking source versions
+模型正在調查已有源碼|模型正在调查已有源码|Model investigating available source
+已完成|已完成|Completed
+準備中|准备中|Preparing
+接入進度|接入进度|Source intake progress
+本次執行|本次执行|Current job
+統計中|统计中|Counting
+目前階段進度|当前阶段进度|Current stage progress
+已運行|已运行|Elapsed
+本階段預計剩餘|本阶段预计剩余|Estimated time left in this stage
+本階段已處理資料|本阶段已处理数据|Data processed in this stage
+估算中|估算中|Estimating
+目前處理|当前处理|Current file
+進度按目前階段計算；預估會隨檔案大小及處理速度調整。詳細解析只處理本次問題相關範圍。|进度按当前阶段计算；预估会随文件大小及处理速度调整。详细解析只处理本次问题相关范围。|Progress is measured per stage. Estimates adjust to file sizes and processing speed. Detailed parsing is limited to this question’s scope.
+正在停止，等待目前步驟結束|正在停止，等待当前步骤结束|Stopping after the current step
+停止本次工作|停止本次工作|Stop this job
+停止後可再次接入，重用已完成的目錄快取。|停止后可再次接入，复用已完成的目录缓存。|Reconnect after stopping to reuse completed catalog work.
+位元組|字节|bytes
+剩餘|剩余|remaining
+正在確認總量|正在确认总量|determining total
+目前步驟仍在處理，距上次進度更新 |当前步骤仍在处理，距上次进度更新 |This step is still running. Last progress update:\u0020
+ 秒。| 秒。| seconds ago.
+進度連線正常|进度连接正常|Progress connection active
+本次問題的局部解析|本次问题的局部解析|Scoped analysis for this question
+輕量目錄已就緒|轻量目录已就绪|Source catalog ready
+本次詳細索引包含 |本次详细索引包含 |This detailed index contains\u0020
+ 個檔案。缺失或閉源的依賴會標示邊界，已有源碼仍可分析。| 个文件。缺失或闭源的依赖会标示边界，已有源码仍可分析。| files. Missing or closed-source dependencies are marked as boundaries; available source can still be analysed.
+目錄用於定位程式，不代表全庫已完成語句解析。選擇入口後，系統會按需讀取相關源碼。|目录用于定位程序，不代表全库已完成语句解析。选择入口后，系统会按需读取相关源码。|The catalog locates programs; it is not a fully parsed repository. Select an entry to read related source on demand.
+強制校驗全部檔案內容|强制校验全部文件内容|Verify all file contents
+一般更新會重用未變檔案。強制校驗會完整讀取全部源碼，首次大目錄接入無需勾選。|一般更新会复用未变文件。强制校验会完整读取全部源码，首次大目录接入无需勾选。|Normal updates reuse unchanged files. Forced verification reads all source contents; leave this off for normal intake.
+此步驟只在本機更新輕量目錄，不呼叫模型。|此步骤只在本机更新轻量目录，不调用模型。|This step updates a local source catalog without calling a model.
+
 請使用完整絕對路徑：源碼目錄須存在；輸出須獨立且為空、新目錄或只含分析產物。兩者不可相互嵌套。|请使用完整绝对路径：源码目录须存在；输出须独立且为空、新目录或只含分析产物。两者不可相互嵌套。|Use absolute paths. Source must exist; output must be separate and new, empty or contain analysis artifacts only. Neither folder may contain the other.
 目前已有分析正在執行，請等候完成。|当前已有分析正在执行，请等候完成。|An analysis is already running. Wait for it to finish.
 工作階段已失效，請重新整理頁面。|会话已失效，请刷新页面。|Your session has expired. Reload the page.
@@ -249,7 +327,7 @@ COPYBOOK 定義|COPYBOOK 定义|COPYBOOK definitions
 請先輸入一個業務問題。|请先输入一个业务问题。|Enter a business question first.
 請先成功接入本機源碼。|请先成功接入本机源码。|Connect local source successfully before starting analysis.
 接口設定已提供，發起問答時會進行實際能力探測。|接口配置已提供，发起问答时会进行实际能力检测。|Endpoint settings are available. Capabilities will be checked when you start analysis.
-源碼索引可離線使用。模型問答需要啟動服務時提供接口設定。|源码索引可离线使用。模型问答需要启动服务时提供接口配置。|Source indexing works offline. Model analysis requires endpoint settings when starting the service.
+源碼索引可離線使用。模型問答需要先在項目根目錄的 .env 設定接口。|源码索引可离线使用。模型问答需要先在项目根目录的 .env 配置接口。|Source indexing works offline. Configure the model endpoint in .env at the project root to enable analysis.
 已啟動|已启动|Running
 尚未啟動|尚未启动|Not running
 已提供 · 待實際驗證|已提供 · 待实际验证|Configured · Verification pending
@@ -279,11 +357,22 @@ COPYBOOK 定義|COPYBOOK 定义|COPYBOOK definitions
 取消|取消|Cancel
 關閉|关闭|Close
 模型連線設定|模型连接设置|Model connection settings
+設定需修正|配置需修正|Settings need attention
+尚未填寫接口地址。請在 .env 設定 COMPANY_API_BASE_URL。|尚未填写接口地址。请在 .env 配置 COMPANY_API_BASE_URL。|The endpoint address is missing. Set COMPANY_API_BASE_URL in .env.
+尚未填寫模型。請在 .env 設定 COMPANY_CHAT_MODEL。|尚未填写模型。请在 .env 配置 COMPANY_CHAT_MODEL。|The model is missing. Set COMPANY_CHAT_MODEL in .env.
+尚未填寫密鑰。請在 .env 設定 COMPANY_API_KEY。|尚未填写密钥。请在 .env 配置 COMPANY_API_KEY。|The key is missing. Set COMPANY_API_KEY in .env.
+接口地址格式無效。請核對 COMPANY_API_BASE_URL 與接口要求的版本路徑。|接口地址格式无效。请核对 COMPANY_API_BASE_URL 与接口要求的版本路径。|The endpoint address is invalid. Check COMPANY_API_BASE_URL and the version path required by your endpoint.
+接口風格不受支援。請核對 COMPANY_API_STYLE；預設為 openai_compatible。|接口风格不受支持。请核对 COMPANY_API_STYLE；默认为 openai_compatible。|The endpoint style is unsupported. Check COMPANY_API_STYLE; the default is openai_compatible.
+.env 格式無效。請使用 UTF-8 文字，每行填寫一個「變數名稱=值」，並核對引號。|.env 格式无效。请使用 UTF-8 文本，每行填写一个“变量名称=值”，并核对引号。|The .env format is invalid. Use UTF-8 text with one NAME=value per line, and check the quotes.
+本機服務無法讀取 .env。請檢查檔案是否可由目前使用者讀取。|本机服务无法读取 .env。请检查文件是否可由当前用户读取。|The local service cannot read .env. Check that the current user has permission to read the file.
+.env 檔案過大。請只保留接口設定，不要把源碼或其他內容貼入檔案。|.env 文件过大。请只保留接口配置，不要把源码或其他内容贴入文件。|The .env file is too large. Keep only endpoint settings; remove any source code or unrelated content.
+接口配置無效。請核對 .env 與啟動服務時的環境變數，修改後重新啟動。|接口配置无效。请核对 .env 与启动服务时的环境变量，修改后重新启动。|The endpoint configuration is invalid. Check .env and the service environment variables, then restart.
 本機源碼服務|本机源码服务|Local source service
 模型接口設定|模型接口配置|Model endpoint settings
 API Key 儲存位置|API Key 存储位置|API key location
-啟動服務的環境變數|启动服务的环境变量|Service environment variables
-在啟動服務的終端配置以下變數後重新啟動。頁面不讀取或保存 Key。|在启动服务的终端配置以下变量后重新启动。页面不读取或保存 Key。|Set these variables in the service terminal, then restart. The page does not read or store your key.
+項目根目錄 .env 或服務環境變數|项目根目录 .env 或服务环境变量|Project-root .env or service environment
+首次使用：將項目根目錄的 .env.example 複製為 .env，填入以下三項並儲存。之後雙擊 poc/run_web.bat 即可啟動，無需每次重新輸入。|首次使用：将项目根目录的 .env.example 复制为 .env，填入以下三项并保存。之后双击 poc/run_web.bat 即可启动，无需每次重新输入。|First use: copy .env.example to .env in the project root, fill in these three settings and save. Then double-click poc/run_web.bat to start; no need to enter them again.
+修改 .env 後請重新啟動服務。既有環境變數會優先於 .env。Key 只由本機服務讀取，不回傳或儲存於瀏覽器；請保留本機 .env，不要上傳至 GitHub。|修改 .env 后请重新启动服务。已有环境变量会优先于 .env。Key 只由本机服务读取，不返回或存储于浏览器；请保留本机 .env，不要上传至 GitHub。|Restart the service after editing .env. Existing environment variables override .env. Only the local service reads your key; it is never returned to or stored in the browser. Keep .env locally and out of GitHub.
 已提供設定不代表連線驗證通過。每次發起問答時，系統會檢查接口所需能力。|已提供配置不代表连接验证通过。每次发起问答时，系统会检查接口所需能力。|Configured settings do not mean the connection is verified. Required capabilities are checked for each analysis.
 未連線|未连接|Disconnected
 未提供|未提供|Not configured

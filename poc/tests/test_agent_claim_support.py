@@ -256,14 +256,39 @@ class AgentClaimSupportTests(unittest.TestCase):
         self.assertEqual(result["claims"], [])
         self.assertNotIn("CHECKER-ERROR-CANARY", json.dumps(result))
 
-    def test_one_unsupported_claim_prevents_partial_candidate_release(self) -> None:
+    def test_one_unsupported_claim_preserves_the_independent_valid_statement(self) -> None:
         result = self.run_claims(
             [structured_claim(), structured_claim(target="FORGED-AMOUNT")]
         )
-        self.assertEqual(result["status"], "ABSTAINED")
-        self.assertEqual(result["stop_reason"], "unsupported_claim")
-        self.assertEqual(result["claims"], [])
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["stop_reason"], "completed")
+        self.assertEqual(len(result["claims"]), 1)
+        self.assertEqual(result["claims"][0]["support_status"], "supported")
+        self.assertEqual(result["verification"]["rejected_claims"], [
+            {"claim_index": 2, "reason_code": "UNSUPPORTED_CLAIM"}
+        ])
+        self.assertEqual(result["question_coverage"]["status"], "not_assessed")
         self.assertNotIn("FORGED-AMOUNT", json.dumps(result))
+
+    def test_bad_free_text_claim_does_not_erase_valid_formula(self) -> None:
+        bad = legacy_claim()
+        bad.update(claim="FORGED-AMOUNT determines the result.", code_anchors=["FORGED-AMOUNT"])
+        result = self.run_claims([structured_claim(), bad])
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(len(result["claims"]), 1)
+        self.assertEqual(result["verification"]["rejected_claims"][0]["reason_code"],
+                         "UNSUPPORTED_CLAIM_CONTENT")
+        self.assertNotIn("FORGED-AMOUNT", json.dumps(result))
+
+    def test_unavailable_internal_behavior_does_not_erase_visible_observation(self) -> None:
+        unknown = {
+            "kind": "business_inference", "claim": "The external object may persist the amount.",
+            "code_anchors": [], "evidence_ids": ["ev_OUT-AMOUNT"], "support_status": "unsupported",
+        }
+        result = self.run_claims([structured_claim(), unknown])
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(len(result["claims"]), 1)
+        self.assertNotIn("persist the amount", json.dumps(result))
 
     def test_explicit_abstention_never_claims_semantic_success(self) -> None:
         result = BoundedAgentLoop(

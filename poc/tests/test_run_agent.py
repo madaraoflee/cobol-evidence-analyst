@@ -346,6 +346,30 @@ class RunAgentTests(unittest.TestCase):
         self.assertNotIn("tools", agent_request)
         self.assertEqual(agent_request["response_format"]["type"], "json_schema")
 
+    def test_selected_source_scope_reaches_model_without_source_metadata_text(self) -> None:
+        transport = AgentReadyTransport()
+        output = run_investigation(
+            "Explain the selected program", self.database, self.config(),
+            transport=transport, entry_program="SYNP040", analysis_scope={
+                "mode": "entry_neighborhood", "max_files": 24, "max_depth": 2,
+                "max_scope_bytes": 67108864, "selected_file_count": 3,
+                "truncated": True, "full_repository_verified": True,
+                "boundaries": [{"status": "MISSING_SOURCE", "target_name": "SCOPE-TEXT-CANARY"}],
+                "source_root": "SCOPE-TEXT-CANARY", "message": "SCOPE-TEXT-CANARY",
+            },
+        )
+        system = json.loads(transport.requests[-1].body)["messages"][0]["content"]
+        self.assertIn('"max_files":24', system)
+        self.assertIn('"max_scope_bytes":67108864', system)
+        self.assertIn("not the whole repository", system)
+        self.assertNotIn("SCOPE-TEXT-CANARY", system)
+        scope = output["agent_result"]["analysis_scope"]
+        self.assertEqual(scope["selected_file_count"], 3)
+        self.assertEqual(scope["boundary_status_counts"], {"MISSING_SOURCE": 1})
+        self.assertEqual(scope["dependency_completeness"], "incomplete")
+        self.assertFalse(scope["full_repository_verified"])
+        self.assertNotIn("SCOPE-TEXT-CANARY", json.dumps(output))
+
     def test_real_client_and_tools_stop_scope_expansion_after_source_read(self) -> None:
         transport = PostEvidenceExpansionTransport()
 

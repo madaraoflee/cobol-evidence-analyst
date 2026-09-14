@@ -1,8 +1,8 @@
 # 办公室电脑使用手册
 
-公司源码必须经过“指定真实目录 → 更新索引 → 确认实际程序 → 提问”这条链。API Key 配好只解决模型连接；替换演示夹具不会让固定样例调查自动变成公司业务分析，直接运行旧 `run_agent.py --database ...` 也不会读取新换的源码文件夹。
+公司源码按“快速接入真实目录 → 选择实际程序 → 局部详细索引 → 提问”使用。一万多个大程序不应在首次接入时全部逐语句解析。API Key 配好只解决模型连接；替换演示夹具不会让固定样例调查自动变成公司业务分析，直接运行旧 `run_agent.py --database ...` 也不会读取新换的源码文件夹。
 
-本手册以 `analyze_source.py` 为实际使用入口。第一次按第 1～3 节准备并检查真实源码，再按第 8～9 节配置接口、提问；第 4～7 节是需要深入排查时才使用的底层工具。合成样例自检移到文末附录。当前为命令行实现，演示网页未接通真实源码和 API。
+本手册覆盖已接通真实源码和 API 的 `poc/web_app.py` 工作台，以及等价的 `analyze_source.py` 命令行入口。第一次按第 1～3 节准备，再按第 8～9 节配置接口和提问；第 4～7 节是小范围研发排查工具，会读取更多正文，不是大库首次导入步骤。简版入口见[系统使用手册](./15-system-user-manual.md)。
 
 2026-09-12 新增不依赖固定金额样例的[通用框架审查入口](./13-framework-alignment.md)：可一次选择获准源码目录、入口和版本配置，生成原始索引与控制 COPY 来源报告。它不会自动回答业务问题，也尚未将派生控制接入 Agent；第一次自检成功后可以用它替代分别建清单/索引的步骤。Windows 包装脚本已提供，实际公司 Windows 环境仍待验收。
 
@@ -26,7 +26,7 @@
 2. Git for Windows。
 3. Python 3.10 或更高版本，并在安装时勾选“Add Python to PATH”。
 
-本项目只使用 Python 标准库，不需要执行 pip install。索引依赖 Python 自带的 SQLite FTS5；如果后面出现 “This Python SQLite build does not include FTS5 support.”，按第 12 节处理。
+本项目只使用 Python 标准库，不需要执行 pip install。本次目录性能验证使用 Python 3.14.4；8–16 GB 内存电脑应把源码和结果放在本机 SSD/硬盘，并采用目录接入和按入口分析。索引依赖 Python 自带的 SQLite FTS5；如果后面出现 “This Python SQLite build does not include FTS5 support.”，按第 12 节处理。
 
 打开“命令提示符”（cmd.exe），不要先打开一个带有旧环境变量的长期终端，逐项检查：
 
@@ -74,27 +74,39 @@
 
 ## 3. 第一次运行：接入公司的真实源码
 
-不要覆盖 `poc\fixtures`。把取得的程序、COPYBOOK 和相关源码放在独立目录，`--source` 指向同时包含它们的共同上级目录。若只给入口程序而缺少被调用程序或 COPY，工具只能报告已取得部分及缺口。输出目录必须独立于源码目录。
+不要覆盖 `poc\fixtures`。把取得的程序、COPYBOOK 和相关源码放在独立目录，`--source` 指向同时包含它们的共同上级目录。即使只有入口程序，也可以分析其中可见的条件、计算、参数与调用；缺少被调用程序、COPY 或只有闭源对象时保留未知边界，不要求先补齐整个框架。输出目录必须独立于源码目录。
 
-### 3.1 先离线检查，暂时不用 API
+### 3.1 推荐使用网页快速接入
+
+从项目根目录启动：
+
+    python poc\web_app.py --port 8765
+
+也可以直接双击 `poc\run_web.bat`。打开 `http://127.0.0.1:8765`，切换至“本机源码”，填写独立的源码目录和输出目录后接入。页面支持简体、繁體和 English；示例预览与真实源码模式分开。网页默认 `catalog` 轻量目录，先显示程序与文件清单；选择程序并发起分析时才建立其局部详细索引。接口配置自动读取项目根目录的 `.env`，首次填写方法见第 8 节，以后启动无需重新输入。
+
+进度区域显示当前阶段、当前文件、已完成/总量、已用时间和可估算时的剩余时间。发现文件阶段尚无总数；解析和模型阶段不能可靠估算时会明确显示正在执行，不用假百分比。页面可取消任务；取消在处理边界生效。重新接入时沿用同一输出目录，已完成的目录检查点可以复用。
+
+### 3.2 等价命令行接入，暂时不用 API
 
 从项目根目录执行，替换两个路径：
 
     python poc\analyze_source.py ^
+      --index-mode catalog ^
       --source "D:\cobol-data\source" ^
       --output "D:\cobol-output\analysis"
 
 或使用等价的 Windows 包装脚本：
 
     poc\run_analyze.bat ^
+      --index-mode catalog ^
       --source "D:\cobol-data\source" ^
       --output "D:\cobol-output\analysis"
 
-`--source` 和 `--output` 都是必填项；这个入口没有默认样例目录。每次调用先按当前源目录更新本地结构索引，再生成本次诊断与程序清单。未变化文件可以增量复用；换目录、删除文件或修改源码后，需要重新运行同一条命令。不要依靠修改文件夹后继续查看旧报告来判断本次效果。
+`--source` 和 `--output` 都是必填项；这个入口没有默认样例目录。这里必须明确保留 `--index-mode catalog`，因为 CLI 为兼容研发脚本仍默认 `full`。目录通常先读取每文件 16 KiB，未找到 PROGRAM-ID 时最多探测 256 KiB；不先为全库生成语句索引。未变化文件按大小、mtime/ctime 时间戳和文件身份复用头部缓存，正文读取为零；换目录、删除文件或修改源码后，需要重新运行同一条命令。不要依靠修改文件夹后继续查看旧报告来判断本次效果。
 
 新入口默认纳入无扩展名的成员；如果无扩展名文件与源码无关，加 `--exclude-extensionless`。自定义扩展名加 `--extensions ".cbl,.cpy,.member"`，它会替换默认允许列表，因此要包含这批源码实际需要的所有后缀。
 
-### 3.2 先看“读到了什么”，再判断能否提问
+### 3.3 先看“读到了什么”，再判断能否提问
 
 输出目录中重点查看：
 
@@ -102,18 +114,22 @@
 | --- | --- |
 | `diagnosis.md` / `diagnosis.json` | 本次源目录、快照、文件和程序覆盖情况、编码及解析问题。先打开 Markdown 阅读。 |
 | `programs.json` | 实际发现的程序及其来源，后续 `--entry` 从这里选择。 |
-| `structural-index.sqlite` | 本次源目录的本地事实索引，供调查工具使用。 |
+| `source-catalog.sqlite` | 持久轻量目录与逐文件检查点。保留原输出目录才能增量复用。 |
+| `structural-index.sqlite` | 选择入口后才生成的局部事实索引，供证据调查使用。 |
 | `agent-result.json` / `agent-result.md` | 本次问答状态与结果；未提问时为 `NOT_REQUESTED`，没有开启联网时为 `NETWORK_DISABLED`，不会用上一次的回答充当新结果。 |
 
-`diagnosis.runner_status` 为 `INDEX_READY` 表示已具备本地调查入口；`NEEDS_ATTENTION` 表示存在需要核对的覆盖或解析问题；`BLOCKED` 表示本次不能继续。零文件、零程序，或指定的入口不存在/不唯一时会阻断模型调用。不要用 API 探测成功覆盖这些问题。
+`INDEX_READY` / `SOURCE_CATALOG_READY` 表示目录可选择，尚未完成全库结构分析。清单中的 `name_origin=path` 表示暂按文件名选择，不表示 PROGRAM-ID 已确认；有界头部也可能漏掉尾部嵌套程序。`NEEDS_ATTENTION` 是需要阅读的覆盖诊断，缺 COPY/CALL 并不自动阻止局部问答。无文件、无可明确识别的入口、快照损坏或接口条件不满足时仍会停止。
 
-先核对报告中确实出现自己的程序名与预期文件量。只有部分程序出现时，先补文件或修正读取参数；“解码成功”不代表 COBOL 结构已识别，更不代表业务含义已证明。报告及程序清单含本地路径和源码标识符，应保留在公司批准的位置。
+目录 `catalog-sha256:` 指纹只表示当前目录和缓存状态，不代表全文件内容已 Hash 核验。如果导出工具可能保留原文件元数据，使用 `--verify-content` 强制流式读取每个候选文件全文并计算摘要；这可能很慢，但不会为全库建立逐语句索引。选定入口后，证据内容会另行核验。
 
-### 3.3 编码与源码格式不对时
+先核对报告中确实出现自己的程序名与预期文件量。只有部分程序出现时，检查读取选项和头部覆盖边界；“解码成功”不代表 COBOL 结构已识别，更不代表业务含义已证明。报告及程序清单含本地路径和源码标识符，应保留在公司批准的位置。
+
+### 3.4 编码与源码格式不对时
 
 若知道导出编码，直接指定，避免自动检测把文件当成另一种可解码文本。例如简体中文 Windows 导出：
 
     python poc\analyze_source.py ^
+      --index-mode catalog ^
       --source "D:\cobol-data\source" ^
       --output "D:\cobol-output\analysis" ^
       --encoding gb18030 ^
@@ -127,7 +143,7 @@
 
 ## 4. 底层工具：独立生成源码清单（可选）
 
-清单阶段只统计候选文件、编码、行数、程序定义、COPY、CALL、PERFORM 和 EXEC SQL 等摘要。默认报告不放源码文本、绝对路径、相对路径或程序名，适合先做范围确认。
+本节旧清单工具会读取完整正文以统计编码、行数、程序定义、COPY、CALL、PERFORM 和 EXEC SQL 等摘要；大库快速接入不需要运行它。默认报告不放源码文本、绝对路径、相对路径或程序名，适合先做范围确认。
 
 ### 4.1 推荐命令
 
@@ -177,7 +193,7 @@ AS400 导出成员若没有扩展名，增加：
 
 ## 5. 底层工具：独立建立结构索引（可选）
 
-结构索引会保存源码相对路径、文件 Hash、程序/段落/字段/关系和必要 EvidenceSpan。它是后续检索的本地数据库，必须留在公司批准环境。
+本节直接调用的结构索引工具默认详细解析全部输入文件，仅用于已选定的小范围，不要把一万多个大程序目录直接交给它。结构索引会保存源码相对路径、文件 Hash、程序/段落/字段/关系和必要 EvidenceSpan。它是后续检索的本地数据库，必须留在公司批准环境。
 
 ### 5.1 推荐命令
 
@@ -205,11 +221,11 @@ AS400 导出成员若没有扩展名，增加：
 - encoding_counts 或 parse 状态；
 - coverage_boundary：仅靠源码快照不能证明的内容。
 
-重复运行同一批源码时，未变化文件会按 Hash 跳过；源码发生变化后再次运行会更新对应文件。为了避免回答引用旧源码，每次更换源码批次都应使用新的输出目录或明确覆盖同一数据库后重新查看新的 snapshot_id。
+重复运行同一批选定源码时可增量更新；详细解析与证据引用使用内容 Hash。轻量目录另按文件 stat 复用，二者的验证范围不同。为了避免回答引用旧源码，每次更换源码批次都应使用新的输出目录或明确覆盖同一数据库后重新查看新的 snapshot_id。
 
 ### 5.3 编码边界
 
-底层清单与索引也可显式指定 `--encoding` 与 `--source-format`。自动检测或回退只能说明文本可解码，不能保证所选字符集就是原始导出编码；诊断显示回退、乱码或零程序时，应按第 3.3 节核对。清单与索引必须使用同一组读取参数。
+底层清单与索引也可显式指定 `--encoding` 与 `--source-format`。自动检测或回退只能说明文本可解码，不能保证所选字符集就是原始导出编码；诊断显示回退、乱码或零程序时，应按第 3.4 节核对。清单与索引必须使用同一组读取参数。
 
 ## 6. 底层工具：直接查询证据（可选）
 
@@ -283,25 +299,23 @@ AS400 导出成员若没有扩展名，增加：
 
 这一步只在公司批准的网络、网关、模型和密钥政策下执行。离线清单、索引和直接工具不需要接口。
 
-### 8.1 在当前命令提示符设置变量
+### 8.1 配置一次本机 .env
 
-在同一个 cmd 窗口中执行，示例值必须替换成公司实际批准值：
+从 GitHub 下载源码后，在项目根目录（与 `README.md` 同级）将 `.env.example` 复制为 `.env`，用文本编辑器填写以下三项；这些内容保存在文件中，不是在终端执行的命令：
 
-    set "COMPANY_API_BASE_URL=https://approved-company-gateway.example/v1"
-    set "COMPANY_API_KEY=在批准密码管理器中取得的Key"
-    set "COMPANY_CHAT_MODEL=approved-chat-model"
-    set "COMPANY_API_STYLE=openai_compatible"
+```dotenv
+COMPANY_API_BASE_URL=https://approved-gateway.example/v1
+COMPANY_API_KEY=填入自己的接口密钥
+COMPANY_CHAT_MODEL=填入公司的模型名或部署别名
+```
 
-这些 set 变量只对当前窗口有效。不要把 Key 写进 Python、.bat、Git 配置、SQLite、报告或命令历史；不要用 setx 把长期密钥写进系统环境，除非公司 IT 明确要求并提供安全保管方案。
+三个示例值都需要换成公司实际提供的值。API 根地址应包含接口要求的版本前缀（例如 `/v1`），生产地址使用 HTTPS。`COMPANY_API_STYLE` 默认 `openai_compatible`，一般不必修改；`COMPANY_EMBEDDING_MODEL` 不是问答必需项。
 
-PowerShell 窗口使用：
+文件保存为 UTF-8，支持 Windows 换行和 UTF-8 BOM。请在资源管理器显示扩展名，确认不是 `.env.txt`。值可使用单引号或双引号，`$` 等特殊字符按原样保留，不执行变量展开或命令。不要把密钥填进 Python、`.bat`、Git 配置、SQLite 或输出报告。
 
-    $env:COMPANY_API_BASE_URL = "https://approved-company-gateway.example/v1"
-    $env:COMPANY_API_KEY = "在批准密码管理器中取得的Key"
-    $env:COMPANY_CHAT_MODEL = "approved-chat-model"
-    $env:COMPANY_API_STYLE = "openai_compatible"
+以后双击 `poc\run_web.bat` 即可，网页和命令行分析都自动读取项目根目录的 `.env`，不需要每次配置，也不依赖启动终端当前在哪个目录。修改 `.env` 后重启工作台；已有环境变量优先于 `.env`，显式命令行参数优先于二者。若修改未生效，检查启动进程是否保留旧的同名环境变量。
 
-API 根地址必须包含版本前缀（例如 /v1），生产地址必须使用 HTTPS。HTTP 只允许在明确加 --allow-insecure-localhost 时用于本机测试。
+`.env` 已被 Git 忽略，只保留在公司电脑。使用 `git pull` 更新时保留该文件；如果下载到新的项目目录，把自己的 `.env` 复制到新项目根目录。不要用新的空白 `.env.example` 覆盖已经填好的 `.env`。网页只显示配置是否可用，不接收或保存 API Key。
 
 ### 8.2 先做能力探测
 
@@ -319,11 +333,12 @@ Embedding 不是 run_agent.py 的必需项。只有拿到批准的嵌入模型�
 
 ## 9. 选择实际程序，用 Agent 提问
 
-在第 3 节输出的 `programs.json` 中选择一个实际程序，把下面 `实际的PROGRAM-ID` 换成其名称；也可使用报告里的相对路径或文件名。仅文件名相同时可用相对路径明确范围；同一 `PROGRAM-ID` 存在多个版本时，须把版本分开索引，路径不能消除程序身份歧义。不要照抄演示中的 `SYNP040` 或保费字段；如果报告里根本没有目标程序，先处理接入问题。
+在第 3 节输出的 `programs.json` 中选择一个实际程序，把下面 `实际的PROGRAM-ID` 换成其名称；也可使用报告里的唯一相对路径或 `entry_key`。目录中存在同名程序时从网页选择具体文件，或复制该条目的 `entry_key`；详细解析仍无法明确入口时应按版本拆分。不要照抄演示中的 `SYNP040` 或保费字段；如果报告里根本没有目标程序，先处理接入问题。
 
-确认第 8 节接口可用，并在同一个保留 API 环境变量的终端执行：
+确认第 8 节接口可用后，从项目根目录执行；命令会自动读取 `.env`：
 
     python poc\analyze_source.py ^
+      --index-mode catalog ^
       --source "D:\cobol-data\source" ^
       --output "D:\cobol-output\analysis" ^
       --entry "实际的PROGRAM-ID" ^
@@ -332,7 +347,7 @@ Embedding 不是 run_agent.py 的必需项。只有拿到批准的嵌入模型�
 
 也可以把第一行换成 `poc\run_analyze.bat`，后续参数不变。首次离线读取时如果指定过编码、格式或扩展名，这里也必须带上相同参数。
 
-这条命令会先更新当前源目录的索引、检查入口，再做 API 能力探测及问答。`--entry` 和 `--question` 可以按需要使用，但首次调查建议同时给出真实入口与具体问题；仅有抽象中文业务词，未必能命中没有业务注释的 COBOL 标识符。`--entry` 确定调查起点，不代表整个调用链已完整解析。
+这条命令会先增量刷新目录，再详细解析所选入口与可发现的 COPY/CALL 邻域，检查内容快照后才做 API 能力探测及问答。默认范围最多 24 个文件、两层依赖及 16 MiB 源文件总量；依赖发现每文件最多读前 2 MiB，所选文件随后按完整文件详细解析。未取得的依赖、尾部未扫描区域或达到预算的目标都会列为边界。单个入口超过 16 MiB 时目录继续可用，本次详细问答返回 `SCOPE_LIMIT`；选择较小入口或按业务范围重新导出后继续。`--entry` 和 `--question` 可以按需要使用，但首次调查建议同时给出真实入口与具体问题；仅有抽象中文业务词，未必能命中没有业务注释的 COBOL 标识符。`--entry` 确定调查起点，不代表整个调用链已完整解析。
 
 问题与 `--allow-network` 分开控制：写了问题但未开启联网时会保存 `NETWORK_DISABLED`，不会调用模型；只有接口能力满足受控调查要求后才进入模型。普通 Chat 能返回一句话不代表 Tool Calling 或严格 JSON 已满足。
 
@@ -353,7 +368,9 @@ Embedding 不是 run_agent.py 的必需项。只有拿到批准的嵌入模型�
 
 当前实现会校验快照、Evidence 范围、文件 Hash、行号和词面锚点。P3-B 还会独立核验一种结构化断言：从单段完整证据解析 COMPUTE，比较目标字段、算式 token 顺序和 ROUNDED，再由本地模板生成陈述。全部陈述都通过该核验时可返回 SUPPORTED_WITH_BOUNDARIES；它仅证明这条语句的写法，仍不能写成“生产规则、最终值或精度已证明”。
 
-普通自然语言陈述仍为 CITATION_VERIFIED_ONLY，表示引用有效、语义未核验。结构化断言与源码不匹配，或源码语法超出当前核验范围时，会保留拒绝原因；没有足够可用证据时可返回 ABSTAINED。这些结果说明此次调查的实际边界，不应人工改成支持状态。
+普通自然语言陈述仍为 CITATION_VERIFIED_ONLY，表示引用有效、语义未核验。结构化断言与源码不匹配，或源码语法超出当前核验范围时，会保留拒绝原因；有局部证据且仍有缺口时可返回 PARTIAL；完全没有足够可用证据时可返回 ABSTAINED。这些结果说明此次调查的实际边界，不应人工改成支持状态。
+
+缺少 AS400 Smart DXC 框架源码、COPY 或封装对象时，先解释可见源文件里的业务步骤、条件与传参，闭源实现和运行结果仍为未知。不能为使流程“通过”而假设某个封装对象必定成功。两次无新进展（`no_progress`）后，如果已发现证据且还剩工具预算，Agent 会读取已有证据尝试形成局部回答；无证据、完整性失败或预算耗尽时仍明确停止。
 
 ### 9.2 什么问题适合问
 
@@ -383,7 +400,7 @@ Embedding 不是 run_agent.py 的必需项。只有拿到批准的嵌入模型�
 
     git status --short
 
-如果只看到你打算提交的公开代码或文档改动，才按团队约定提交并推送。若看到源码、数据库、报告或 .env 文件，先移出项目目录或检查 .gitignore，再继续。
+如果只看到你打算提交的公开代码或文档改动，才按团队约定提交并推送。若看到源码、数据库或报告，先移出项目目录或检查 `.gitignore`；本机 `.env` 已被忽略，应留在项目根目录供服务读取。若它仍出现在待提交清单中，先排除提交，不要上传密钥。`.env.example` 是可提交的空白模板。
 
 ## 11. 代码改动如何同步到 GitHub
 
@@ -411,7 +428,7 @@ commit 成功后，.githooks/post-commit 会自动执行 git push origin 当前�
 | python 不是内部或外部命令 | Python 未安装或 PATH 未生效 | 重新打开 cmd，试 py -3；仍失败就修复 Python 安装。 |
 | git 不是内部或外部命令 | Git for Windows 未安装或 PATH 未生效 | 安装 Git for Windows，重新打开终端。 |
 | FTS5 support 错误 | 当前 Python 的 SQLite 没有 FTS5 | 改用公司批准的完整 Python 发行版，不要改成猜测式全文搜索。 |
-| 新入口发现零文件或零程序 | 指错目录、后缀过滤、编码/格式错误，或只有 COPYBOOK | 打开 diagnosis.md；核对源目录、--extensions、--encoding 与 --source-format，确认 programs.json 中出现真实程序后再联网。 |
+| 新入口没有可用目录入口 | 指错目录、后缀过滤、编码/格式错误，或只有 COPYBOOK | 打开 diagnosis.md；核对源目录、--extensions、--encoding 与 --source-format，确认 programs.json 中出现真实程序后再联网。 |
 | 文件可解码但中文乱码或没有程序 | 自动检测选中了错误编码或源码列格式 | 指定实际导出编码与 fixed/free，重跑；可解码不等于可正确解析。 |
 | 修改源文件后回答仍是旧内容 | 使用了旧数据库或旧结果文件 | 改用 analyze_source.py --source ... --output ...，核对本次快照与程序清单。 |
 | 报告仍出现 SYNP040 或固定保费演示 | 运行了 demo 脚本/演示网页，或源路径仍指向 fixtures | 使用第 3 节新入口；不要替换样例夹具。 |
@@ -427,7 +444,10 @@ commit 成功后，.githooks/post-commit 会自动执行 git push origin 当前�
 | inspect-symbol 返回 AMBIGUOUS | 同名符号多个 | 增加 --program-name 或 --symbol-type。 |
 | trace-relations 返回 PARTIAL | 深度、边数或解析边界已触发 | 缩小问题、读取 boundaries；不要把未解析边当成 confirmed。 |
 | read-evidence 被拒绝 | Evidence ID 不在本次调查范围，或快照 Hash 不一致 | 回到 search-code/inspect-symbol 重新发现 ID，并确认数据库与源码批次一致。 |
-| Agent 返回 SAFE_STOP 或 ABSTAINED | 工具契约、证据、快照或语义支持不足 | 保留结果与 diagnostics，补充批准的源码/结构数据后重跑；不要人工填空。 |
+| Agent 返回 PARTIAL | 已有可引用的局部结论，仍有缺依赖或未知运行行为 | 使用已有解释并阅读 boundaries；闭源对象无须伪造源码补齐。 |
+| Agent 返回 SAFE_STOP 或 ABSTAINED | 没有可用证据、快照/契约失败或预算耗尽 | 保留 diagnostics；有证据时 no_progress 可尝试回收局部回答，不能人工填空。 |
+| 导入一直慢 | 使用了 full 或强制内容校验，或大量文件需首次探测 | 网页默认目录模式；CLI 加 --index-mode catalog，保留原输出目录，看阶段、计数和缓存命中。 |
+| SCOPE_LIMIT | 单入口超过 16 MiB 详细预算 | 目录可继续使用；换较小入口或按业务范围重新导出。 |
 | git pull 要求处理冲突 | 本地有未提交改动 | 先 git diff 和 git status，提交或 git stash 经确认的公开改动，再同步。 |
 
 ## 13. 两张操作前后检查表
@@ -458,7 +478,7 @@ commit 成功后，.githooks/post-commit 会自动执行 git push origin 当前�
 下面这些不是宣传口径，而是当前代码可观察到的边界：
 
 - 未显式传 --allow-network 时，新入口、company_api.py 和 run_agent.py 不创建真实网络请求。
-- analyze_source.py 要求显式源目录，每次先更新索引并核对真实程序；零文件、零程序或无效入口不会继续调用模型。
+- analyze_source.py 要求显式源目录；公司大库使用 --index-mode catalog 增量目录与按入口解析，网页默认相同模式。目录复用不代表全文核验；不可识别入口和证据失败仍明确停止。
 - 结构索引建立在本地 SQLite/FTS5 上，并保存快照 Hash 与 EvidenceSpan，便于后续检查引用是否仍对应原文件。
 - 未变化文件只有在解析器版本也未变化时才跳过；升级后重跑索引命令即可重建，COPY 变化会重绑消费程序。
 - 普通数据 COPY 字段按程序隔离；同名字段宜指定 program_name，定义与 COPY 引用链可回溯，但不代表 CALL 参数值流。

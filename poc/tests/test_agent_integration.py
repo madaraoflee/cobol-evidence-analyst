@@ -306,7 +306,8 @@ class RealAgentIntegrationTests(unittest.TestCase):
             strict_json=True,
         ).run("分期保费最终是怎样计算出来的？")
 
-        self.assertEqual(result["status"], "SUPPORTED_WITH_BOUNDARIES")
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["analysis_scope"]["dependency_completeness"], "incomplete")
         self.assertEqual(result["stop_reason"], "completed")
         self.assertEqual(result["stop_reason_scope"], "investigation_loop")
         self.assertEqual(result["question_coverage"]["status"], "not_assessed")
@@ -364,7 +365,8 @@ class RealAgentIntegrationTests(unittest.TestCase):
             strict_json=True,
         ).run("分期保费最终是怎样计算出来的？")
 
-        self.assertEqual(result["status"], "CITATION_VERIFIED_ONLY")
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["claims"][0]["support_status"], "citation_verified_only")
         self.assertEqual(result["stop_reason"], "completed")
         self.assertEqual(result["question_coverage"]["status"], "not_assessed")
         self.assertFalse(result["claims_semantically_verified"])

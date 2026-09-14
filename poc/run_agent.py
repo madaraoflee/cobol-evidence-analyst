@@ -55,6 +55,7 @@ def run_investigation(
     transport: Transport | None = None,
     allow_network: bool = False,
     entry_program: str | None = None,
+    analysis_scope: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     """Validate the local entry, probe the endpoint, then investigate its snapshot."""
 
@@ -99,7 +100,7 @@ def run_investigation(
         tools,
         native_tool_calling=native_tool_calling,
         strict_json=(not native_tool_calling and provider_strict_json),
-    ).run(question.strip(), entry_program=entry_program)
+    ).run(question.strip(), entry_program=entry_program, analysis_scope=analysis_scope)
     stop_reason = result.get("stop_reason")
     normally_completed = stop_reason in {"completed", "model_abstained"}
     return {

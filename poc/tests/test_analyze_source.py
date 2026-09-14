@@ -162,6 +162,7 @@ class AnalyzeSourceTests(unittest.TestCase):
         def investigate(question, database, config, **options):
             self.assertEqual(options["entry_program"], "BATCHENTRY")
             self.assertTrue(options["allow_network"])
+            self.assertEqual(options["analysis_scope"]["kind"], "full_directory")
             self.assertEqual(InvestigationTools(database).inspect_symbol("BATCHENTRY")["status"], "OK")
             return {"runner_status": "COMPLETED", "agent_result": {
                 "status": "CITATION_VERIFIED_ONLY", "answer": "Current source explanation."

@@ -23,6 +23,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 
@@ -33,6 +34,12 @@ MAX_RESPONSE_BYTES = 1_000_000
 MAX_REQUEST_BYTES = 256_000
 DEFAULT_MAX_OUTPUT_TOKENS = 1_024
 SUPPORTED_API_STYLE = "openai_compatible"
+PROJECT_ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
+MAX_ENV_FILE_BYTES = 65_536
+CONFIG_ENV_KEYS = frozenset({
+    "COMPANY_API_BASE_URL", "COMPANY_API_KEY", "COMPANY_CHAT_MODEL",
+    "COMPANY_EMBEDDING_MODEL", "COMPANY_API_STYLE",
+})
 
 _SAFE_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
 
@@ -58,6 +65,49 @@ class SafeAPIError(RuntimeError):
 
 class APIConfigurationError(SafeAPIError):
     """Raised when required local configuration is missing or invalid."""
+
+
+def _read_local_env(path: Path) -> dict[str, str]:
+    """Read literal configuration only; never execute or expand file contents."""
+
+    try:
+        with path.open("rb") as handle:
+            contents = handle.read(MAX_ENV_FILE_BYTES + 1)
+    except FileNotFoundError:
+        return {}
+    except OSError:
+        raise APIConfigurationError("ENV_FILE_UNREADABLE") from None
+    if len(contents) > MAX_ENV_FILE_BYTES:
+        raise APIConfigurationError("ENV_FILE_TOO_LARGE")
+    try:
+        text = contents.decode("utf-8-sig")
+    except UnicodeError:
+        raise APIConfigurationError("ENV_FILE_INVALID") from None
+    if "\x00" in text:
+        raise APIConfigurationError("ENV_FILE_INVALID")
+    values: dict[str, str] = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        match = re.fullmatch(r"(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)", line)
+        if match is None:
+            raise APIConfigurationError("ENV_FILE_INVALID")
+        name, raw = match.groups()
+        if name not in CONFIG_ENV_KEYS:
+            continue
+        if raw.startswith(("'", '"')):
+            end = raw.find(raw[0], 1)
+            if end < 0:
+                raise APIConfigurationError("ENV_FILE_INVALID")
+            tail = raw[end + 1:].strip()
+            if tail and not tail.startswith("#"):
+                raise APIConfigurationError("ENV_FILE_INVALID")
+            value = raw[1:end]
+        else:
+            value = re.split(r"\s+#", raw, maxsplit=1)[0].strip()
+        values[name] = value
+    return values
 
 
 class APIClientError(SafeAPIError):
@@ -106,7 +156,7 @@ class CompanyAPIConfig:
 
     @property
     def api_key_source(self) -> str:
-        if self.api_key_source_hint in {"EXPLICIT", "ENVIRONMENT", "MISSING"}:
+        if self.api_key_source_hint in {"EXPLICIT", "ENVIRONMENT", "LOCAL_FILE", "MISSING"}:
             return self.api_key_source_hint
         if self.api_key is not None and self.api_key.strip():
             return "EXPLICIT"
@@ -184,6 +234,7 @@ class CompanyAPIConfig:
         cls,
         *,
         environ: Mapping[str, str] | None = None,
+        env_file: Path | str | None = None,
         base_url: str | None = None,
         api_key: str | None = None,
         chat_model: str | None = None,
@@ -193,13 +244,17 @@ class CompanyAPIConfig:
         max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
         allow_insecure_localhost: bool = False,
     ) -> "CompanyAPIConfig":
-        """Build validated configuration from explicit values and environment.
+        """Resolve explicit values, process environment, then the project .env.
 
-        Explicit values take precedence.  The environment mapping is copied
-        only for lookup and is never retained in the returned object.
+        No process variables are changed. An explicitly supplied environment
+        is isolated from ambient files unless env_file is also supplied.
         """
 
-        source = os.environ if environ is None else environ
+        environment = os.environ if environ is None else environ
+        local = _read_local_env(Path(env_file)) if env_file is not None else (
+            _read_local_env(PROJECT_ENV_FILE) if environ is None else {}
+        )
+        source = {**local, **{key: environment[key] for key in CONFIG_ENV_KEYS if key in environment}}
         resolved_key = (
             api_key
             if api_key is not None
@@ -208,7 +263,7 @@ class CompanyAPIConfig:
         if api_key is not None:
             key_source = "EXPLICIT" if api_key.strip() else "MISSING"
         else:
-            key_source = "ENVIRONMENT" if resolved_key.strip() else "MISSING"
+            key_source = ("ENVIRONMENT" if DEFAULT_API_KEY_ENV in environment else "LOCAL_FILE") if resolved_key.strip() else "MISSING"
         config = cls(
             base_url=(
                 base_url
