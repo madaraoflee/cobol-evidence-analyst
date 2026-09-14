@@ -17,7 +17,7 @@ python poc\analyze_source.py ^
 
 打开 `diagnosis.md` 和 `programs.json` 核对目录；配置公司接口后，在同一命令增加 `--entry "清单中的相对路径" --question "请解释可见代码的处理步骤和输入输出，标明缺失依赖并引用源码。" --allow-network`。网页默认使用该模式；命令行不加 `--index-mode catalog` 会保留旧的全目录详细索引行为，只适合明确控制过的小范围。
 
-完整操作见[最新系统使用手册](./docs/15-system-user-manual.md)，原理与实测范围见[本次性能和局部分析报告](./docs/reports/2026-09-14-large-source-intake.md)。目录就绪不等于全库语句已解析，局部证据通过也不等于完整业务执行已验证。
+完整操作见[最新系统使用手册](./docs/15-system-user-manual.md)。目录就绪不等于全库语句已解析，局部证据通过也不等于完整业务执行已验证。
 
 `run_demo.py`、其他 `*_demo.py` 和 `business_acceptance.py` 仍是合成案例回归；[旧交互原型](./docs/leadership-demo/prototype.html)仅为历史展示。当前真实界面由 `poc/web_app.py` 提供。本次没有调用真实公司 API，也没有取得公司源码或完成 Windows 实机验收。
 
