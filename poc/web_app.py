@@ -24,9 +24,12 @@ from analyze_source import ARTIFACT_NAMES, AnalysisCancelled, _paths, analyze_so
 from company_api import APIConfigurationError, CompanyAPIConfig
 from investigation_tools import InvestigationTools
 from repo_inventory import parse_extensions
+from framework_knowledge import framework_status
 
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
+FRAMEWORK_DEMO_SOURCE = Path(__file__).resolve().parent / "fixtures" / "framework-workbench" / "source"
+FRAMEWORK_DEMO_OUTPUT = Path(__file__).resolve().parents[1] / ".poc-data" / "framework-runs"
 STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/i18n.js": "i18n.js", "/styles.css": "styles.css"}
 MAX_REQUEST_BYTES = 32_768
 MAX_GRAPH_EDGES = 200
@@ -41,8 +44,10 @@ class RequestError(ValueError):
 
 
 def _project(source: str | None = None, output: str | None = None, run_id: str | None = None) -> dict:
+    synthetic = bool(source and Path(source).resolve() == FRAMEWORK_DEMO_SOURCE.resolve())
     return {
         "run_id": run_id, "source": source, "output": output,
+        "source_origin": "synthetic_framework" if synthetic else "local_source",
         "diagnosis": None, "programs": [], "agent": None, "snapshot_id": None,
         "relations": {"edges": [], "truncated": False}, "catalog_snapshot_id": None,
     }
@@ -58,7 +63,7 @@ def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 102
 
 
 def _validate_options(payload: object) -> dict:
-    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content"}
+    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy"}
     if not isinstance(payload, dict) or set(payload) - fields:
         raise RequestError("INVALID_OPTIONS", "请求包含未知设置。")
     source_text, output_text = _text(payload, "source", required=True), _text(payload, "output", required=True)
@@ -96,6 +101,12 @@ def _validate_options(payload: object) -> dict:
     verify_content = payload.get("verify_content", False)
     if type(verify_content) is not bool:
         raise RequestError("INVALID_OPTIONS", "verify_content 必须为布尔值。")
+    max_source_pages = payload.get("max_source_pages", 12)
+    if type(max_source_pages) is not int or not 1 <= max_source_pages <= 128:
+        raise RequestError("INVALID_OPTIONS", "阅读段数须为 1 到 128 的整数。")
+    reading_strategy = _text(payload, "reading_strategy", maximum=32) or "full_chain"
+    if reading_strategy not in {"focused", "full_chain"}:
+        raise RequestError("INVALID_OPTIONS", "阅读方式须为 focused 或 full_chain。")
     extension_text = _text(payload, "extensions", maximum=256)
     try:
         extensions = parse_extensions(extension_text)
@@ -105,6 +116,7 @@ def _validate_options(payload: object) -> dict:
         "source": source, "output": output, "encoding": encoding, "source_format": source_format,
         "entry": _text(payload, "entry"), "question": _text(payload, "question", maximum=8000),
         "allow_network": allow_network, "extensions": extensions, "index_mode": index_mode, "verify_content": verify_content,
+        "analysis_mode": "business", "max_source_pages": max_source_pages, "reading_strategy": reading_strategy,
     }
 
 
@@ -112,6 +124,25 @@ def _read_json(path: Path) -> object:
     if path.is_symlink() or not path.is_file() or path.stat().st_size > 16_000_000:
         raise ValueError("invalid report")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _unaccepted_agent(agent: dict, reason_code: str) -> dict:
+    """Retain response text for diagnostics without granting citation authority."""
+    rejected = {"runner_status": "NOT_READY", "reason_code": reason_code, "agent_result": None}
+    if isinstance(agent.get("api_diagnostics"), dict):
+        rejected["api_diagnostics"] = agent["api_diagnostics"]
+    response = agent.get("unaccepted_response")
+    answer = agent.get("agent_result")
+    text = response.get("text") if isinstance(response, dict) else None
+    if not isinstance(text, str) or not text.strip():
+        if isinstance(answer, dict) and answer.get("model_answer_recorded") is not False:
+            narrative = answer.get("narrative")
+            text = narrative.get("text") if isinstance(narrative, dict) else None
+            if not isinstance(text, str) or not text.strip():
+                text = answer.get("answer")
+    if isinstance(text, str) and text.strip():
+        rejected["unaccepted_response"] = {"reason_code": reason_code, "text": text}
+    return rejected
 
 
 def _relationships(database: Path, snapshot_id: str) -> dict:
@@ -142,7 +173,8 @@ def _environment_config() -> CompanyAPIConfig:
 class WorkbenchState:
     """One in-memory browser session, one job, and one current source snapshot."""
 
-    def __init__(self, *, analyzer: Callable = analyze_source, config_provider: Callable = _environment_config) -> None:
+    def __init__(self, *, analyzer: Callable = analyze_source, config_provider: Callable = _environment_config,
+                 demo_output_root: Path | None = None) -> None:
         self.session_token = secrets.token_urlsafe(32)
         self.analyzer, self.config_provider = analyzer, config_provider
         self.lock = threading.RLock()
@@ -151,6 +183,39 @@ class WorkbenchState:
         self.cancel_event = threading.Event()
         self.started_at = self.updated_at = self.phase_started_at = 0.0
         self.phase_start_completed = 0.0
+        self.demo_output_root = demo_output_root if demo_output_root is not None else FRAMEWORK_DEMO_OUTPUT
+
+    def framework_demo(self) -> dict:
+        from framework_demo import load_framework_demo
+        try:
+            return load_framework_demo()
+        except (OSError, ValueError):
+            raise RequestError("FRAMEWORK_DEMO_UNAVAILABLE", "框架案例资料不完整或已变化，请更新案例文件后重试。", 409) from None
+
+    def prepare_framework_demo(self, payload: object) -> dict:
+        from framework_demo import select_framework_demo_case
+        if not isinstance(payload, dict) or "case_id" not in payload or set(payload) - {"case_id", "locale"}:
+            raise RequestError("INVALID_OPTIONS", "请选择一个框架案例。")
+        locale = payload.get("locale", "zh-CN")
+        if not isinstance(locale, str) or locale not in {"zh-CN", "zh-HK", "en"}:
+            raise RequestError("INVALID_OPTIONS", "界面语言无效。")
+        demo = self.framework_demo()
+        try:
+            case = select_framework_demo_case(demo, payload["case_id"])
+        except (ValueError, TypeError):
+            raise RequestError("FRAMEWORK_DEMO_CASE_UNKNOWN", "所选框架案例不存在。", 404) from None
+        # Case preparation indexes the bundled source locally. Model requests
+        # still require the ordinary explicit analysis action in the browser.
+        output = self.demo_output_root / secrets.token_hex(16)
+        question = case["question"]
+        if isinstance(question, dict):
+            question = question.get(locale) or question.get("zh-CN")
+        return self.start({
+            "source": demo["source_path"], "output": str(output.resolve()),
+            "entry": case["entry_path"], "question": question,
+            "encoding": "utf-8", "source_format": "free", "index_mode": "catalog",
+            "allow_network": False, "max_source_pages": 12, "reading_strategy": "full_chain",
+        })
 
     def state(self) -> dict:
         configuration_error = None
@@ -169,6 +234,7 @@ class WorkbenchState:
                 "session_token": self.session_token,
                 "api_configured": configured,
                 "api_configuration_error": configuration_error,
+                "framework_knowledge": framework_status(),
                 "active_job_id": self.job["job_id"] if self.job and self.job["status"] == "RUNNING" else None,
                 "project": copy.deepcopy(self.project),
                 "job": self._job_snapshot() if self.job else None,
@@ -256,6 +322,7 @@ class WorkbenchState:
             source, output = options["source"], options["output"]
             arguments = {key: value for key, value in options.items() if key not in {"source", "output"}}
             if options["allow_network"] and options["question"]:
+                arguments["capture_api_responses"] = True
                 try:
                     arguments["config"] = self.config_provider()
                 except APIConfigurationError:
@@ -274,19 +341,31 @@ class WorkbenchState:
             # A failed refresh can deliberately preserve an older SQLite file.
             # It must never authorize that old file as this browser's snapshot.
             if report.get("source_manifest_verified") is True and snapshot:
-                if program_report.get("snapshot_id") != snapshot:
-                    raise ValueError("snapshot report mismatch")
-                agent_snapshot = (agent.get("agent_result") or {}).get("snapshot_id")
-                if agent_snapshot is not None and agent_snapshot != snapshot:
-                    raise ValueError("answer snapshot mismatch")
-                project.update(
-                    programs=program_report["programs"], agent=agent, snapshot_id=snapshot,
-                    relations=_relationships(output / "structural-index.sqlite", snapshot),
-                )
+                try:
+                    if program_report.get("snapshot_id") != snapshot:
+                        raise ValueError("snapshot report mismatch")
+                    relations = _relationships(output / "structural-index.sqlite", snapshot)
+                except (OSError, ValueError, sqlite3.Error):
+                    project["diagnosis"] = {**report, "runner_status": "BLOCKED", "question_status": "NOT_READY",
+                                            "source_manifest_verified": False, "catalog_ready": False,
+                                            "reason_code": "SOURCE_SNAPSHOT_MISMATCH"}
+                    project["agent"] = _unaccepted_agent(agent, "SOURCE_SNAPSHOT_MISMATCH")
+                else:
+                    agent_snapshot = (agent.get("agent_result") or {}).get("snapshot_id")
+                    if agent_snapshot is not None and agent_snapshot != snapshot:
+                        agent = _unaccepted_agent(agent, "ANSWER_SNAPSHOT_MISMATCH")
+                        project["diagnosis"] = {**report, "question_status": "NOT_READY"}
+                    project.update(programs=program_report["programs"], agent=agent,
+                                   snapshot_id=snapshot, relations=relations)
             elif report.get("catalog_ready") is True:
+                # A usable catalog permits another question but does not verify
+                # any model answer or citations from an unverified source scope.
+                if agent.get("agent_result"):
+                    agent = _unaccepted_agent(agent, "SOURCE_SNAPSHOT_UNVERIFIED")
+                    project["diagnosis"] = {**report, "question_status": "NOT_READY"}
                 project.update(programs=program_report["programs"], agent=agent)
             else:
-                project["agent"] = {"runner_status": "NOT_READY", "reason_code": report.get("reason_code"), "agent_result": None}
+                project["agent"] = _unaccepted_agent(agent, report.get("reason_code") or "SOURCE_SNAPSHOT_UNVERIFIED")
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
                     self.project = project
@@ -326,7 +405,7 @@ class WorkbenchState:
             except (OSError, ValueError, sqlite3.Error):
                 raise RequestError("INDEX_UNAVAILABLE", "当前源码索引不可用，请重新分析。", 409) from None
             if result["snapshot_id"] != self.project["snapshot_id"]:
-                raise RequestError("INDEX_CHANGED", "索引快照已变化，请重新分析。", 409)
+                raise RequestError("INDEX_CHANGED", "源码索引已更新，请重新分析。", 409)
             if not result["spans"]:
                 raise RequestError("EVIDENCE_NOT_FOUND", "证据不属于当前源码索引。", 404)
             if result["status"] == "INTEGRITY_ERROR":
@@ -395,6 +474,8 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._guard(token=path.startswith("/api/") and path != "/api/state")
             if path == "/api/state" and not route.query:
                 self._json(200, self.server.app.state())
+            elif path == "/api/framework-demo" and not route.query:
+                self._json(200, self.server.app.framework_demo())
             elif path.startswith("/api/jobs/") and not route.query:
                 self._json(200, self.server.app.get_job(path.removeprefix("/api/jobs/")))
             elif path == "/api/evidence":
@@ -419,7 +500,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             self._guard(token=True)
             cancel_match = re.fullmatch(r"/api/jobs/([a-f0-9]{32})/cancel", self.path)
-            if self.path != "/api/analyze" and cancel_match is None:
+            if self.path not in {"/api/analyze", "/api/framework-demo/prepare"} and cancel_match is None:
                 raise RequestError("NOT_FOUND", "请求的操作不存在。", 404)
             if self.headers.get_content_type() != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise RequestError("INVALID_CONTENT_TYPE", "只接受 JSON 请求。", 415)
@@ -437,6 +518,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                 if payload != {}:
                     raise RequestError("INVALID_OPTIONS", "取消任务请求须为空对象。")
                 self._json(202, self.server.app.cancel(cancel_match.group(1)))
+            elif self.path == "/api/framework-demo/prepare":
+                self._json(202, self.server.app.prepare_framework_demo(payload))
             else:
                 self._json(202, self.server.app.start(payload))
         except RequestError as exc:

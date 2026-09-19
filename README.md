@@ -1,10 +1,18 @@
 # COBOL Evidence Analyst
 
-**公司源码现在可以直接在本机网页中接入：先快速建立程序目录，再选入口提问，按需解析相关源码。未改文件复用缓存；缺 COPY 或闭源对象会保留为解释边界，不会因此清空已有源码的分析。**
+**系统的最终交付是业务分析：解释业务目的、办理条件、决策规则、状态与数据变化，以及异常的业务影响。** 当前手册统一记录“服务申请受理 → 复核 → 夜间生效”主线、框架资料接入和源码证据边界；启动工作台即可选择案例并载入分析。
+
+网页默认完整业务链阅读：业务轻量索引逐文件扫描并追踪可定位的静态调用与 COPY，关联源码连续分批解读、按程序归纳后汇总。实际覆盖和保留的校验以[最新系统使用手册](./docs/15-system-user-manual.md)为准。
+
+**网页默认按源码分段生成业务解释，再汇总长程序。普通聊天返回可以直接显示，不再因不符合旧 Agent 动作协议而丢掉正文；部分失败保留已得到的解释，并显示真实源码引用与阅读覆盖。** 更新和操作见[最新系统使用手册](./docs/15-system-user-manual.md)。
 
 在项目根目录启动 `python poc/web_app.py`，或 Windows 双击 `poc/run_web.bat`，进入浏览器显示的本机地址。界面支持简体中文、繁体中文和 English，导入显示阶段、完成/剩余、耗时、当前文件与可计算时的预计剩余时间，并可停止。源码与结果目录由你指定，实际程序清单来自该目录。
 
 **API 只需配置一次：** 从 GitHub 下载代码后，把项目根目录的 [`.env.example`](./.env.example) 复制为同目录的 `.env`，填入 `COMPANY_API_BASE_URL`、`COMPANY_API_KEY` 和 `COMPANY_CHAT_MODEL`。之后双击 `poc/run_web.bat` 会自动读取，不必每次在终端设置。`.env` 已被 Git 忽略，只保留在公司电脑；更新代码时保留它，改配置后重启工作台。已有进程环境变量优先于 `.env`，显式命令行参数优先级最高。
+
+**遇到 `AGENT_SAFETY_STOPPED`，先看“API 返回”：** 网页分析会保留有大小限制、已遮蔽配置值的响应诊断，区分能力探测、实际调查、协议停止原因与业务证据状态。正文不是已核验结论；更新并重启后重新分析才会产生记录。详见[最新系统使用手册](./docs/15-system-user-manual.md)。
+
+**实际框架资料自动加载：** 公司批准的 Markdown 资料位于本机 `.poc-data/framework/reference.md` 时自动使用；`.env` 中的 `FRAMEWORK_REFERENCE_PATH` 可覆盖路径，显式空值可关闭。系统把与当前源码相关的章节交给模型，保留资料和源码引用。GitHub 下载不会包含私有文件，详细步骤见[最新系统使用手册](./docs/15-system-user-manual.md)。
 
 命令行接入大源码库时，必须显式选择轻量目录模式：
 
@@ -15,11 +23,11 @@ python poc\analyze_source.py ^
   --index-mode catalog
 ```
 
-打开 `diagnosis.md` 和 `programs.json` 核对目录；配置公司接口后，在同一命令增加 `--entry "清单中的相对路径" --question "请解释可见代码的处理步骤和输入输出，标明缺失依赖并引用源码。" --allow-network`。网页默认使用该模式；命令行不加 `--index-mode catalog` 会保留旧的全目录详细索引行为，只适合明确控制过的小范围。
+打开 `diagnosis.md` 和 `programs.json` 核对目录；配置公司接口后，在同一命令增加 `--entry "清单中的相对路径" --question "这项业务处理什么申请，哪些条件决定通过、待处理或拒绝，会改变哪些业务数据，失败后如何处理？请引用依据。" --allow-network`。网页默认使用该模式；命令行不加 `--index-mode catalog` 会保留旧的全目录详细索引行为，只适合明确控制过的小范围。
 
 完整操作见[最新系统使用手册](./docs/15-system-user-manual.md)。目录就绪不等于全库语句已解析，局部证据通过也不等于完整业务执行已验证。
 
-`run_demo.py`、其他 `*_demo.py` 和 `business_acceptance.py` 仍是合成案例回归；[旧交互原型](./docs/leadership-demo/prototype.html)仅为历史展示。当前真实界面由 `poc/web_app.py` 提供。本次没有调用真实公司 API，也没有取得公司源码或完成 Windows 实机验收。
+`run_demo.py`、其他 `*_demo.py` 和 `business_acceptance.py` 仅为历史合成案例回归，不是当前 POC 操作入口。当前界面与三类新案例统一由 `poc/web_app.py` 提供。本地案例演练不等于公司源码、实际 API 与 Windows 实机验收。
 
 核心判断：本项目首先要做成一个“以源码证据为底座的 COBOL 业务逆向分析 Agent”，而不是普通代码聊天机器人，也不是一步到位的自动化 SDLC 平台。
 
@@ -27,6 +35,9 @@ python poc\analyze_source.py ^
 
 ## 项目文档
 
+- [领导演示 Word 文档](./docs/leadership-demo/COBOL业务分析系统POC演示说明.docx)
+
+- [系统使用手册（当前版本）](./docs/15-system-user-manual.md)
 - [任务计划与进度总表（当前进度入口）](./docs/12-task-plan-and-progress.md)
 - [Smart Developer 框架对齐与通用 POC 使用](./docs/13-framework-alignment.md)
 - [框架路径、文件筛选、游标、锁、事务与重启契约](./docs/14-framework-paths-and-runtime-contracts.md)
@@ -43,8 +54,8 @@ python poc\analyze_source.py ^
 - [Agent 调查工具契约](./docs/08-agent-tool-contracts.md)
 - [可演示 POC：Windows 文件夹到业务回答](./docs/09-demonstrable-poc.md)
 - [复杂 COBOL Agent 可行性复核](./docs/10-poc-feasibility-assessment.md)
-- [交互式领导演示 UI](./docs/leadership-demo/prototype.html)
-- [领导演示包说明与三态截图](./docs/leadership-demo/README.md)
+- [业务分析 POC 与操作入口](./docs/09-demonstrable-poc.md)
+- [业务场景演示说明](./docs/leadership-demo/README.md)
 - [CALC-01 P1-B 可执行演示结果](./docs/leadership-demo/p1b-executable-demo.md)
 - [2026-08-30 P1-B 项目进度报告](./docs/reports/2026-08-30-p1b-progress-report.md)
 - [2026-08-31 P3-A 项目进度报告](./docs/reports/2026-08-31-p3a-progress-report.md)
@@ -56,7 +67,7 @@ python poc\analyze_source.py ^
 - [2026-09-08 T01 跨程序错误返回闭环验收](./docs/reports/2026-09-08-t01-interprogram-error-returns.md)
 - [P1-B 领导审阅 Word 报告](./docs/reports/COBOL-Agent-P1B-Progress-Report.docx)
 - [POC 实现：离线代码库画像工具](./poc/README.md)
-- [最新系统使用手册（2026-09-14）](./docs/15-system-user-manual.md)
+- [最新系统使用手册](./docs/15-system-user-manual.md)
 - [办公室电脑使用手册（历史版本）](./docs/11-office-usage-guide.md)
 - [2026 RAG、向量与图框架选型报告](./docs/research/2026-rag-vector-framework-review.md)
 - [M0 架构复检记录](./docs/reviews/2026-08-28-m0-architecture-recheck.md)
@@ -75,7 +86,7 @@ python poc\analyze_source.py ^
 
 以下 P3-A～P3-F 是历史研发切片编号，不等于原 P3 自主业务问答里程碑已完成。用户可见效果、验收门槛与任务顺序以[进度总表](./docs/12-task-plan-and-progress.md)为准。
 
-P3-A 的可运行骨架已完成：公司 OpenAI-compatible API 能力探测会验证 Chat、Tool Calling 完整回传、严格 JSON 和可选 Embedding；只有原生工具闭环或严格 JSON 探测通过，运行器才会启动 Agent。Agent 只能调用四个只读工具，最多 6 次，并强制快照、Evidence ID 范围、Hash、引用和结果包契约；非 Evidence 结果会被重建为安全投影。读取源码后调查范围立即关闭，只能完成回答或拒答。
+旧 `strict` 模式的 P3-A 骨架会探测 Chat、Tool Calling、严格 JSON 和可选 Embedding，通过后才启动受控 Agent；最多 6 次工具调用，读取源码后关闭取证阶段。这些限制仍用于旧流程研发验证。网页和 `analyze_source.py` 命令行已默认切换为独立的源码分段解读流程，不以这些能力探测为问答门槛。
 
 P3-B 已接入独立 Claim 核验的第一个可执行切片：模型提交结构化 `COMPUTE` 断言，本地核验器直接解析单段完整、Hash 有效的源码，逐项核对目标字段、算式 token 顺序和 `ROUNDED`，再由本地模板生成中文陈述。通过核验的回答可返回 `SUPPORTED_WITH_BOUNDARIES`；它只证明该语句的写法，不证明最终值、实际执行或精度规则。CALC-01 的四次真实工具调用离线闭环已接入这条路径；普通自然语言陈述仍为 `CITATION_VERIFIED_ONLY`，不匹配或超出支持语法的结构化断言会保留原因并拒绝升级。
 

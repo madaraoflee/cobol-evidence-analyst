@@ -35,7 +35,7 @@ class WebAppTests(unittest.TestCase):
                                ("app.js", "'use strict';"), ("i18n.js", "'use strict';"), ("styles.css", "body { color: black; }")):
             (self.web / name).write_text(contents, encoding="utf-8")
         self.config = CompanyAPIConfig(base_url=TEST_ENDPOINT, chat_model=TEST_MODEL, api_key=TEST_KEY)
-        self.app = WorkbenchState(config_provider=lambda: self.config)
+        self.app = WorkbenchState(config_provider=lambda: self.config, demo_output_root=self.root / "demo-runs")
         self.server = create_server(0, app=self.app, web_root=self.web)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -131,6 +131,38 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(self.request("OPTIONS", "/api/analyze")[0], 403)
         self.assertIsNone(self.app.job)
 
+    def test_framework_cases_read_actual_sources_and_prepare_offline(self) -> None:
+        self.assertEqual(self.request("GET", "/api/framework-demo", authenticated=False)[0], 403)
+        status, demo, _ = self.request("GET", "/api/framework-demo")
+        self.assertEqual(status, 200, demo)
+        self.assertEqual({case["id"] for case in demo["cases"]}, {"online", "client_server", "batch"})
+        case = next(case for case in demo["cases"] if case["id"] == "batch")
+        self.assertTrue(case["evidence"])
+        self.assertTrue(any("SECTION" in item["source_text"] for item in case["evidence"]))
+        with mock.patch("analyze_source.run_investigation", side_effect=AssertionError("preparation must stay offline")) as model:
+            status, started, _ = self.request("POST", "/api/framework-demo/prepare", {"case_id": "batch", "locale": "en"})
+            self.assertEqual(status, 202, started)
+            job = self.finish(started["job_id"])
+        self.assertFalse(model.called)
+        self.assertEqual(job["status"], "COMPLETED", job.get("error"))
+        project = job["result"]
+        self.assertEqual(project["source_origin"], "synthetic_framework")
+        self.assertEqual(project["diagnosis"]["selected_entry"]["program_name"], "NIGHTBATCH")
+        self.assertEqual(project["agent"]["runner_status"], "NETWORK_DISABLED")
+        question = case["question"]
+        self.assertEqual(project["diagnosis"]["question"], question["en"] if isinstance(question, dict) else question)
+
+    def test_framework_case_requests_reject_unknown_case_and_custom_paths(self) -> None:
+        for payload in ({"case_id": "../outside"}, {"case_id": "unknown"},
+                        {"case_id": "online", "source": "/outside"},
+                        {"case_id": "online", "allow_network": True},
+                        {"case_id": "online", "locale": "invalid"}):
+            with self.subTest(payload=payload):
+                self.assertIn(self.request("POST", "/api/framework-demo/prepare", payload)[0], {400, 404})
+        self.assertEqual(self.request("POST", "/api/framework-demo/prepare", {"case_id": "online"}, authenticated=False)[0], 403)
+        self.assertEqual(self.request("GET", "/api/framework-demo?path=/outside")[0], 404)
+        self.assertIsNone(self.app.job)
+
     def test_actual_source_builds_catalog_graph_and_verifiable_evidence_without_network(self) -> None:
         source = self.source("source", "STOCK-UPDATE")
         with mock.patch("analyze_source.run_investigation", side_effect=AssertionError("network must stay off")) as model:
@@ -166,7 +198,9 @@ class WebAppTests(unittest.TestCase):
 
         def simulated_investigation(question, database, config, **kwargs):
             self.assertTrue(kwargs["allow_network"])
-            self.assertEqual(kwargs["entry_program"], "STOCK-UPDATE")
+            self.assertIn("STOCK-UPDATE", kwargs["entry_program"])
+            self.assertEqual(kwargs["analysis_mode"], "business")
+            self.assertEqual(kwargs["source_root"], source.resolve())
             with sqlite3.connect(database) as connection:
                 snapshot = connection.execute("SELECT value FROM metadata WHERE key='snapshot_id'").fetchone()[0]
             return {"runner_status": "COMPLETED", "reason_code": "AGENT_RUN_COMPLETED", "agent_result": {

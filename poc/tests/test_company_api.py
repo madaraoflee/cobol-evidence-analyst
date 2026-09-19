@@ -338,6 +338,23 @@ class ChatClientTests(unittest.TestCase):
         self.assertEqual(payload["max_tokens"], 1024)
         self.assertNotIn(API_KEY, payload)
 
+    def test_utf8_bom_json_response_is_accepted_without_weakening_http_errors(self) -> None:
+        body = json.dumps({"choices": [{"message": {"role": "assistant", "content": "business explanation"}}]})
+        for raw_body in ("\ufeff" + body, b"\xef\xbb\xbf" + body.encode("utf-8")):
+            with self.subTest(raw_type=type(raw_body).__name__):
+                client = OpenAICompatibleChatClient(
+                    self.make_config(), transport=lambda request: TransportResponse(200, raw_body),
+                )
+                result = client.complete(messages=[{"role": "user", "content": "explain"}])
+                self.assertEqual(result["choices"][0]["message"]["content"], "business explanation")
+                denied = OpenAICompatibleChatClient(
+                    self.make_config(), transport=lambda request: TransportResponse(401, raw_body),
+                )
+                with self.assertRaises(APIClientError) as raised:
+                    denied.complete(messages=[{"role": "user", "content": "explain"}])
+                self.assertEqual(raised.exception.code, "HTTP_ERROR")
+                self.assertEqual(raised.exception.http_status, 401)
+
     def test_request_size_limit_rejects_before_transport(self) -> None:
         transport = SuccessfulTransport()
         client = OpenAICompatibleChatClient(

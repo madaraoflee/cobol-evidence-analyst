@@ -26,72 +26,121 @@ const $ = id => document.getElementById(id);
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const formatNumber = value => Number(value || 0).toLocaleString('en');
 
-const preview = {
-  question:t('分期保費是如何計算出來的？'),
-  snapshot:'illustrative-preview',
-  programs:[
-    {program_name:'POLICY-ENTRY',relative_path:'programs/policy-entry.cbl',start_line:2},
-    {program_name:'BASE-PREMIUM',relative_path:'programs/base-premium.cbl',start_line:2},
-    {program_name:'PREMIUM-CALC',relative_path:'programs/premium-calc.cbl',start_line:2},
-    {program_name:'RIDER-TOTAL',relative_path:'programs/rider-total.cbl',start_line:2},
-    {program_name:'PAYMENT-FACTOR',relative_path:'programs/payment-factor.cbl',start_line:2},
-    {program_name:'RESULT-RETURN',relative_path:'programs/result-return.cbl',start_line:2},
-  ],
-  evidence:[
-    {evidence_id:'preview-01',title:t('分期保費計算'),relative_path:'programs/premium-calc.cbl',start_line:42,end_line:47,integrity:'ILLUSTRATIVE',source_text:'COMPUTE INSTALMENT-PREMIUM\n    ROUNDED =\n    ANNUAL-PREMIUM\n    * PAYMENT-FACTOR\nEND-COMPUTE.\nMOVE INSTALMENT-PREMIUM TO OUT-PREMIUM.'},
-    {evidence_id:'preview-02',title:t('年繳保費組成'),relative_path:'programs/premium-calc.cbl',start_line:30,end_line:35,integrity:'ILLUSTRATIVE',source_text:'COMPUTE ANNUAL-PREMIUM =\n    BASE-PREMIUM\n    + RIDER-PREMIUM\n    - PREMIUM-DISCOUNT\nEND-COMPUTE.\nPERFORM GET-PAYMENT-FACTOR.'},
-    {evidence_id:'preview-03',title:t('繳費係數來源'),relative_path:'programs/payment-factor.cbl',start_line:18,end_line:23,integrity:'ILLUSTRATIVE',source_text:'EXEC SQL\n    SELECT MODE-FACTOR\n    INTO :PAYMENT-FACTOR\n    FROM PAYMENT-OPTIONS\n    WHERE MODE-CODE = :PAYMENT-MODE\nEND-EXEC.'},
-  ],
-  relations:[
-    {source_program:'POLICY-ENTRY',target_name:'PREMIUM-CALC',relation_type:'CALLS',status:'illustrative',evidence_id:'preview-01'},
-    {source_program:'PREMIUM-CALC',target_name:'PAYMENT-FACTOR',relation_type:'CALLS',status:'illustrative',evidence_id:'preview-03'},
-    {source_program:'PREMIUM-CALC',target_name:'RESULT-RETURN',relation_type:'CALLS',status:'illustrative',evidence_id:'preview-02'},
-  ],
-};
+const preview = {catalog:null,selectedCase:null};
 
-const state = {mode:'demo',page:'workbench',tab:'answer',connected:false,token:null,apiConfigured:false,apiConfigurationError:null,
-  project:null,question:preview.question,entry:'PREMIUM-CALC',selectedEvidence:'preview-01',
-  evidence:preview.evidence[0],busy:false,jobId:null,jobKind:null,error:'',history:[],filter:'',sourcePage:0,entryFilter:'',progress:null,progressReceived:0,progressTimer:null,pollError:'',cancelRequested:false,evidenceTicket:0};
+const state = {mode:'demo',page:'workbench',tab:'answer',connected:false,token:null,apiConfigured:false,apiConfigurationError:null,frameworkKnowledge:null,
+  project:null,question:'',entry:'',readingStrategy:'full_chain',maxSourcePages:12,selectedEvidence:null,
+  evidence:null,demoLoading:true,demoError:'',busy:false,jobId:null,jobKind:null,error:'',history:[],filter:'',sourcePage:0,entryFilter:'',progress:null,progressReceived:0,progressTimer:null,pollError:'',cancelRequested:false,evidenceTicket:0};
+
+function demoText(value){return frameworkDemoText(value ?? '');}
+function demoCase(){return preview.catalog?.cases?.find(item=>item.id===preview.selectedCase) || null;}
+function syntheticProject(project=state.project){return project?.source_origin==='synthetic_framework';}
+function demoKind(id){return ({online:t('傳統聯機'),traditional_online:t('傳統聯機'),client_server:t('控制器分段聯機'),screen_controlled_online:t('控制器分段聯機'),batch:t('批處理')})[id] || id || '';}
+function selectDemoCase(id,shouldRender=true){
+  const selected=preview.catalog?.cases?.find(item=>item.id===id);if(!selected)return;
+  preview.selectedCase=id;
+  if(state.mode==='demo'){
+    clearEvidence();state.question=demoText(selected.question);state.entry=selected.entry_path || selected.entry_program || '';
+    state.evidence=selected.evidence?.[0] || null;state.selectedEvidence=state.evidence?.evidence_id || null;
+    state.page='workbench';state.tab='answer';state.filter='';state.sourcePage=0;
+  }
+  if(shouldRender)render();
+}
+function frameworkDemoUnavailable(){
+  return ui`<section class="empty-panel"><div class="empty-icon">${icon('layers')}</div><h2>業務案例工作台</h2><p>${state.demoLoading?t('正在讀取業務案例'):state.connected?t('業務案例暫時無法讀取，請重試或檢查本機演示文件。'):t('請先啟動本機服務，才能讀取業務案例及來源證據。')}</p>${!state.demoLoading && state.connected?ui`<button class="button secondary" data-retry-demo>重新讀取案例</button>`:''}${!state.connected && !state.demoLoading?ui`<p>在項目目錄啟動 poc/run_web.bat，或執行 python poc/web_app.py，再開啟本機服務地址。</p>`:''}</section>`;
+}
+function frameworkCaseSelector(){
+  const cases=preview.catalog?.cases || [];
+  return ui`<section class="framework-demo-selector" aria-label="業務案例"><div class="demo-section-heading"><div><div class="section-eyebrow">一條業務鏈 · 三個業務場景</div><h2>受理、覆核，到夜間生效。</h2></div><span class="badge preview">合成業務案例 · 未呼叫模型</span></div><p class="demo-selector-intro">${escapeHTML(demoText(preview.catalog?.description))}</p><div class="framework-case-cards">${cases.map((item,index)=>`<button class="framework-case-card ${item.id===preview.selectedCase?'selected':''}" data-demo-case="${escapeHTML(item.id)}" aria-pressed="${item.id===preview.selectedCase}"><span class="demo-case-number">${String(index+1).padStart(2,'0')}</span><strong>${escapeHTML(demoText(item.title))}</strong><span class="demo-case-type">${escapeHTML(demoKind(item.kind || item.id))}</span></button>`).join('')}</div></section>`;
+}
+async function loadFrameworkDemo(){
+  state.demoLoading=true;state.demoError='';
+  try{
+    const catalog=await api('/api/framework-demo');
+    if(!catalog || !Array.isArray(catalog.cases) || !catalog.cases.length || !Array.isArray(catalog.programs))throw Error('DEMO_UNAVAILABLE');
+    preview.catalog=catalog;const selected=catalog.cases.find(item=>item.id===preview.selectedCase) || catalog.cases.find(item=>item.id===catalog.default_case) || catalog.cases[0];selectDemoCase(selected.id,false);
+  }catch{preview.catalog=null;preview.selectedCase=null;state.demoError='DEMO_UNAVAILABLE';if(state.mode==='demo')clearEvidence();}
+  state.demoLoading=false;render();
+}
+async function prepareDemo(){
+  const selected=demoCase();if(!selected || !state.connected || state.busy)return;
+  state.error='';state.pollError='';state.cancelRequested=false;state.progress=null;state.jobId=null;state.progressReceived=Date.now();
+  state.mode='real';state.page='workbench';state.tab='answer';state.busy=true;state.jobKind='demo';clearEvidence();startProgressClock();render();
+  try{
+    const response=await api('/api/framework-demo/prepare',{method:'POST',body:JSON.stringify({case_id:selected.id,locale:currentLocale})});
+    state.jobId=response.job_id;rememberProgress(response.progress);await pollJob(response.job_id);
+  }catch(error){state.busy=false;stopProgressClock();state.mode='demo';state.error=error.message;selectDemoCase(selected.id,false);render();}
+}
 
 function decorate(){document.querySelectorAll('[data-icon]').forEach(el => {el.innerHTML=icon(el.dataset.icon);});}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{$('toast').hidden=true;},4500);}
-function currentPrograms(){return state.mode==='demo'?preview.programs:(state.project?.programs || []);}
+function currentPrograms(){return state.mode==='demo'?(preview.catalog?.programs || []):(state.project?.programs || []);}
 function result(){return state.mode==='real'?state.project?.agent?.agent_result:null;}
 function diagnosis(){return state.mode==='real'?state.project?.diagnosis:null;}
 function entryValue(program){return program?.entry_key || program?.program_name || '';}
 function selectedEntryValue(d){return entryValue(d?.selected_entry) || d?.entry_requested || ''; }
 function sourceFiles(){return diagnosis()?.catalog_report?.files || diagnosis()?.build_report?.files || {};}
-function draftChanged(){const d=diagnosis();return state.mode==='real' && Boolean(result()) && (state.question.trim()!==(d?.question || '').trim() || state.entry!==selectedEntryValue(d));}
+function projectReadingStrategy(project=state.project){const strategy=project?.diagnosis?.source_options?.reading_strategy;return ['focused','full_chain'].includes(strategy)?strategy:project?.diagnosis?'focused':'full_chain';}
+function draftChanged(){const d=diagnosis();return state.mode==='real' && Boolean(state.project?.agent) && (state.question.trim()!==(d?.question || '').trim() || state.entry!==selectedEntryValue(d) || state.maxSourcePages!==Number(d?.source_options?.max_source_pages || 12) || state.readingStrategy!==projectReadingStrategy());}
 function currentRefs(){
-  if(state.mode==='demo')return preview.evidence;
-  if(draftChanged())return [];
+  if(state.mode==='demo')return demoCase()?.evidence || [];
+  if(draftChanged() || unacceptedResponse())return [];
   const answer=result();
   if(answer?.evidence_refs?.length)return answer.evidence_refs;
   if(answer?.verified_evidence_refs?.length)return answer.verified_evidence_refs;
   return [];
 }
-function currentRelations(){return state.mode==='demo'?preview.relations:(state.project?.relations?.edges || []);}
-function statusLabel(status){return ({SCOPE_LIMIT:t('入口超出本次解析範圍'),PARTIAL:t('局部解讀 · 未知依賴保留為邊界'),CANCELLED:t('已取消'),SUPPORTED_WITH_BOUNDARIES:t('已核驗局部語句 · 保留邊界'),CITATION_VERIFIED_ONLY:t('引用已核對 · 解釋待核驗'),ABSTAINED:t('證據不足 · 尚未形成結論'),NOT_READY:t('尚未具備分析條件'),SAFE_STOP:t('調查已停止 · 需要處理'),NETWORK_DISABLED:t('尚未啟用模型問答'),NOT_REQUESTED:t('尚未提出業務問題'),BLOCKED:t('接入受阻'),INDEX_READY:t('源碼已就緒'),NEEDS_ATTENTION:t('源碼已接入 · 有待核對'),PREPARING:t('正在接入源碼')})[status] || status || t('尚未分析');}
-function sourceUsable(){const d=diagnosis();return d && (d.catalog_ready || (['INDEX_READY','NEEDS_ATTENTION'].includes(d.runner_status) && d.source_manifest_verified)) && currentPrograms().length>0;}
+function currentRelations(){return state.mode==='demo'?(demoCase()?.relations || []):(state.project?.relations?.edges || []);}
+function statusLabel(status){return ({ANALYZED:t('已生成業務解讀'),SCOPE_LIMIT:t('入口超出本次解析範圍'),PARTIAL:t('部分業務解讀'),CANCELLED:t('已取消'),SUPPORTED_WITH_BOUNDARIES:t('已核驗局部語句 · 保留邊界'),CITATION_VERIFIED_ONLY:t('引用已核對 · 解釋待核驗'),ABSTAINED:t('證據不足 · 尚未形成結論'),NOT_READY:t('尚未具備分析條件'),SAFE_STOP:t('調查已停止 · 需要處理'),NETWORK_DISABLED:t('尚未啟用模型問答'),NOT_REQUESTED:t('尚未提出業務問題'),BLOCKED:t('接入受阻'),INDEX_READY:t('源碼已就緒'),NEEDS_ATTENTION:t('源碼已接入 · 有待核對'),PREPARING:t('正在接入源碼')})[status] || status || t('尚未分析');}
+function sourceUsable(){const d=diagnosis();return Boolean(d && (d.catalog_ready || (d.source_manifest_verified===true && state.project?.snapshot_id)) && currentPrograms().length>0);}
+function frameworkStatusLabel(status){return ({LOADED:t('框架資料已載入'),MATCHED:t('已找到相關框架資料'),NO_MATCH:t('已載入 · 未確認源碼匹配'),UNAVAILABLE:t('框架資料無法讀取'),NOT_CONFIGURED:t('尚未設定框架資料')})[status] || t('尚未設定框架資料');}
+function frameworkConfigurationMessage(reason){
+  if(/TOO_LARGE$/.test(reason || ''))return t('框架資料超過讀取上限。請依使用手冊縮小參考文件，再重新啟動服務。');
+  if(/(INVALID|UNSUPPORTED|ENCODING|EMPTY)$/.test(reason || ''))return t('框架資料格式無效。請使用含有章節標題的 UTF-8 Markdown 文件，並核對本機設定。');
+  return t('請檢查 FRAMEWORK_REFERENCE_PATH 指向的文件是否存在且可讀，修改設定後重新啟動服務。');
+}
+function frameworkContext(){
+  const context=diagnosis()?.framework_context || result()?.framework_context;
+  const summary=state.frameworkKnowledge;
+  const d=diagnosis();const changed=d?.question && (state.question.trim()!==d.question.trim() || state.entry!==selectedEntryValue(d));
+  if(summary && ['UNAVAILABLE','NOT_CONFIGURED'].includes(summary.status))return summary;
+  if(!state.busy && !changed && !draftChanged() && context){
+    if(summary?.document?.sha256 && context.document?.sha256 && summary.document.sha256!==context.document.sha256)return {...summary,document_changed:true};
+    return context;
+  }
+  return summary || {status:'NOT_CONFIGURED'};
+}
+function frameworkAnchor(id){return 'framework-reference-'+encodeURIComponent(String(id));}
+function frameworkCite(id,index){return `<a class="citation framework-citation" href="#${escapeHTML(frameworkAnchor(id))}" data-framework-reference="${escapeHTML(id)}" aria-label="${escapeHTML(t('查看框架引用'))} ${index}">${escapeHTML(t('框架'))} ${index}</a>`;}
+function frameworkKnowledgeCard(){
+  if(state.mode!=='real')return '';
+  const context=frameworkContext();const document=context.document || {};const references=Array.isArray(context.references)?context.references:[];const matches=Array.isArray(context.source_matches)?context.source_matches:[];
+  const unavailable=context.status==='UNAVAILABLE';const loaded=['LOADED','MATCHED','NO_MATCH'].includes(context.status);
+  return ui`<section class="framework-card" id="framework-knowledge" aria-label="框架知識"><div class="framework-heading"><div>${icon('layers')}<h2>框架知識</h2></div><span class="badge ${unavailable?'warning':'neutral'}">${escapeHTML(frameworkStatusLabel(context.status))}</span></div>${loaded?`<div class="framework-document"><strong>${escapeHTML(document.title || t('本機參考文件'))}</strong><small>${escapeHTML(t('文件指紋'))} <code title="${escapeHTML(document.sha256 || '')}">${escapeHTML(String(document.sha256 || '').replace('sha256:','').slice(0,12) || '—')}</code> · ${formatNumber(document.section_count)} ${escapeHTML(t('個資料片段'))}</small></div>`:''}<p class="framework-description">${unavailable?escapeHTML(frameworkConfigurationMessage(context.reason_code)):!loaded?t('將本機框架文件接入後，系統會結合相關章節與源碼證據解讀程式。'):context.document_changed?t('參考文件已更新。請重新分析，讓引用對應目前內容。'):context.status==='MATCHED'?t('下列章節與本次問題或源碼相關；名稱及文字匹配僅是線索，需要結合源碼覆核。'):context.status==='NO_MATCH'?t('本次範圍內未確認框架與源碼的對應，仍可分析已有源碼。依問題選取的章節僅供背景參考。'):context.reason_code==='FRAMEWORK_INDEX_UNAVAILABLE'?t('參考文件已載入，但本次源碼索引未能完成框架匹配。請重新接入或選擇有效入口。'):t('已載入參考文件。開始業務分析後，可查看本次選用的章節和源碼對應。')}</p>${loaded?ui`<p class="framework-boundary">文件知識不等於現場執行驗證；閉源實作、實際配置與執行結果仍可能未知。</p>`:''}${references.length?`<details class="framework-references"><summary>${escapeHTML(t('查看本次框架依據'))} · ${formatNumber(references.length)} ${escapeHTML(t('段框架引用'))} · ${formatNumber(matches.length)} ${escapeHTML(t('處源碼線索'))}</summary>${references.map((ref,i)=>{const bindings=matches.filter(match=>(match.reference_ids || []).includes(ref.reference_id));return `<details class="framework-reference" id="${escapeHTML(frameworkAnchor(ref.reference_id))}"><summary><span class="framework-reference-number">${i+1}</span><span>${escapeHTML(ref.heading || ref.reference_id)}<small>${ref.page!==null && ref.page!==undefined?escapeHTML(t('頁碼'))+' '+Number(ref.page)+' · ':''}L${Number(ref.start_line)}–${Number(ref.end_line)}</small></span></summary><pre>${escapeHTML(ref.text || '')}</pre>${bindings.length?`<div class="framework-source-links"><strong>${escapeHTML(t('對應源碼線索'))}</strong>${bindings.map(match=>`${cite(match.evidence_id,`${match.relative_path || match.program_name || t('源碼引用')} · L${Number(match.start_line)}–${Number(match.end_line)}`)}`).join('')}</div>`:`<p class="framework-unbound">${escapeHTML(t('依問題選取的背景章節；未確認對應源碼。'))}</p>`}</details>`;}).join('')}</details>`:''}${(context.coverage?.truncated || context.coverage?.document_truncated)?ui`<p class="framework-boundary">已達本次框架檢索上限，未涵蓋的章節或源碼不代表不相關。</p>`:''}${!loaded?ui`<button class="framework-settings" data-settings>查看本機設定 ${icon('arrow')}</button>`:''}</section>`;
+}
+function supportingContext(){
+  if(state.mode!=='real')return '';
+  return ui`<details class="supporting-context"><summary>技術與框架依據</summary>${frameworkKnowledgeCard()}</details>`;
+}
 function renderChrome(){
   const demo=state.mode==='demo';const d=diagnosis();const files=sourceFiles();
   document.querySelectorAll('[data-page]').forEach(el=>{el.classList.toggle('active',el.dataset.page===state.page);if(el.dataset.page===state.page)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
   $('demo-mode').classList.toggle('selected',demo);$('real-mode').classList.toggle('selected',!demo);
   $('demo-mode').setAttribute('aria-pressed',String(demo));$('real-mode').setAttribute('aria-pressed',String(!demo));
-  const titles={workbench:[t('分析工作台'),t('讓業務邏輯，清晰可見。'),t('從一個業務問題出發，沿著源碼找到可追溯的答案。')],sources:[t('源碼資料庫'),t('先看清楚，分析了甚麼。'),t('程式、來源與版本，都有跡可尋。')],history:[t('分析記錄'),t('每一次分析，都有依據。'),t('回看本次工作階段的問題、來源快照與結論。')]};
+  const titles={workbench:[t('分析工作台'),t('讓業務邏輯，清晰可見。'),t('從一個業務問題出發，沿著源碼找到可追溯的答案。')],sources:[t('源碼資料庫'),t('先看清楚，分析了甚麼。'),t('程式、來源與讀取狀態，都有跡可尋。')],history:[t('分析記錄'),t('每一次分析，都有依據。'),t('回看本次工作階段的問題、來源快照與結論。')]};
   const [page,title,subtitle]=titles[state.page];$('breadcrumb-page').textContent=page;$('page-title').textContent=title;$('page-subtitle').textContent=subtitle;
   $('connection-status').classList.toggle('live',state.connected);
   $('connection-status').innerHTML=`<i></i>${state.connected?t('本機服務已啟動'):t('介面預覽 · 本機服務未啟動')}`;
   $('config-dot').classList.toggle('ready',state.apiConfigured);
-  $('project-title').textContent=demo?t('保費計算 · 合成示例'):(state.project?.source?.split(/[\\/]/).filter(Boolean).pop() || t('尚未接入本機源碼'));
-  const badge=$('source-badge');badge.textContent=demo?t('示例資料'):(state.busy?t('更新中'):(d?statusLabel(d.runner_status):t('等待接入')));
+  $('project-title').textContent=demo?demoText(preview.catalog?.title || t('業務案例工作台')):((state.project?.source?.split(/[\\/]/).filter(Boolean).pop() || t('尚未接入本機源碼'))+(syntheticProject()?t(' · 合成源碼'):''));
+  const badge=$('source-badge');badge.textContent=demo?t('合成業務案例'):(state.busy?t('更新中'):(d?statusLabel(d.runner_status):t('等待接入')));
   badge.className=`badge ${demo?'preview':d?.runner_status==='BLOCKED'?'warning':sourceUsable()?'positive':'neutral'}`;
-  $('project-description').textContent=demo?t('8 個檔案 · 6 個程式定義 · 2 個 COPYBOOK'):d?ui`${formatNumber(files?.candidate || files?.decoded)} 個檔案 · ${formatNumber(currentPrograms().length)} 個目錄入口`:t('選擇源碼與結果資料夾，建立自己的分析範圍');
-  $('snapshot-info').innerHTML=icon('layers')+(demo?t('介面示例 · 非實際分析'):state.project?.snapshot_id?ui`快照 ${escapeHTML(state.project.snapshot_id.replace('sha256:','').slice(0,8))}`:state.project?.catalog_snapshot_id?t('目錄已就緒 · 詳細分析按需建立'):t('尚未建立快照'));
-  $('nav-count').textContent=demo?'8':formatNumber(files?.candidate || files?.decoded);
-  $('recent-title').innerHTML=demo?t('分期保費計算邏輯<small>合成示例 · 介面預覽</small>'):`${escapeHTML(d?.question || t('尚未建立業務問答'))}<small>${d?t('本機源碼 · 本次工作階段'):t('接入源碼後開始')}</small>`;
-  $('footer-scope').textContent=demo?t('介面示例 · 不代表公司業務結果'):t('本機源碼 · 問題完整性仍需覆核');
-  $('export-button').disabled=state.busy || (!demo && !d);
+  $('project-description').textContent=demo?(preview.catalog?ui`${formatNumber(preview.catalog.file_count)} 個檔案 · ${formatNumber(currentPrograms().length)} 個程式定義`:t('正在讀取業務案例')):d?ui`${formatNumber(files?.candidate || files?.decoded)} 個檔案 · ${formatNumber(currentPrograms().length)} 個目錄入口`:t('選擇源碼與結果資料夾，建立自己的分析範圍');
+  $('snapshot-info').innerHTML=icon('layers')+(demo?t('合成業務案例 · 未呼叫模型'):state.project?.snapshot_id?ui`快照 ${escapeHTML(state.project.snapshot_id.replace('sha256:','').slice(0,8))}`:state.project?.catalog_snapshot_id?t('目錄已就緒 · 詳細分析按需建立'):t('尚未建立快照'));
+  $('nav-count').textContent=demo?formatNumber(preview.catalog?.file_count):formatNumber(files?.candidate || files?.decoded);
+  $('recent-title').innerHTML=demo?`${escapeHTML(demoText(demoCase()?.title || t('業務案例工作台')))}<small>${escapeHTML(t('合成業務案例 · 未呼叫模型'))}</small>`:`${escapeHTML(d?.question || t('尚未建立業務問答'))}<small>${d?t(syntheticProject()?'合成源碼 · 本次工作階段':'本機源碼 · 本次工作階段'):t('接入源碼後開始')}</small>`;
+  $('footer-scope').textContent=demo?t('合成業務案例 · 未呼叫模型'):syntheticProject()?t('合成源碼 · 業務解讀仍需覆核'):t('本機源碼 · 問題完整性仍需覆核');
+  $('export-button').disabled=state.busy || (demo?!demoCase():!d);
   $('connect-button').disabled=state.busy;
   const notice=state.error || (!demo && d?.runner_status==='BLOCKED'?(d.messages || []).join(' '):'');
   $('notice').textContent=notice;$('notice').hidden=!notice;
@@ -104,51 +153,236 @@ function entryOptions(){
   if(selected&&!matches.includes(selected))matches.unshift(selected);
   return ui`<option value="">從程式目錄探索</option>${matches.map(p=>`<option value="${escapeHTML(entryValue(p))}" ${state.entry===entryValue(p)?'selected':''}>${escapeHTML(p.program_name)}${state.mode==='real'?' · '+escapeHTML(p.relative_path || ''):''}${['path','filename'].includes(p.name_origin)?' · '+escapeHTML(t('檔名入口')):''}</option>`).join('')}`;
 }
+function readingDepthControl(){
+  const full=state.readingStrategy==='full_chain';
+  return ui`<div class="reading-depth"><label for="reading-strategy">閱讀方式</label><select id="reading-strategy" ${state.busy?'disabled':''}><option value="full_chain" ${full?'selected':''}>完整業務鏈 · 自動分批閱讀</option><option value="focused" ${!full?'selected':''}>按問題重點閱讀</option></select><label for="reading-depth">${full?t('每批閱讀量'):t('閱讀深度')}</label><select id="reading-depth" ${state.busy?'disabled':''}><option value="12" ${state.maxSourcePages===12?'selected':''}>${full?t('每批 12 段'):t('按問題閱讀 · 最多 12 段')}</option><option value="48" ${state.maxSourcePages===48?'selected':''}>${full?t('每批 48 段'):t('深入閱讀 · 最多 48 段')}</option>${![12,48].includes(state.maxSourcePages)?ui`<option value="${state.maxSourcePages}" selected>${full?ui`每批 ${state.maxSourcePages} 段`:ui`自訂 · 最多 ${state.maxSourcePages} 段`}</option>`:''}</select><small>${full?t('自動分批讀取本次範圍內所有可讀源碼，再整合業務解讀。每批數量不是整次分析的總段數上限。'):t('增加閱讀量會使用更多模型請求。')}</small></div>`;
+}
 function questionCard(){
   const demo=state.mode==='demo';const programs=currentPrograms();
-  return ui`<section class="question-card"><div class="section-eyebrow">本次業務問題</div><form id="question-form"><div class="question-top"><div class="spark-disc">${icon('spark')}</div><div class="question-field"><textarea rows="1" id="question-input" aria-label="業務問題" placeholder="例如：這個程式如何處理輸入、計算與異常？" ${state.busy?'disabled':''}>${escapeHTML(state.question)}</textarea></div></div><div class="question-bottom"><label class="entry-choice" for="entry-select">${icon('branch')}調查起點${programs.length>100?ui`<input id="entry-filter" aria-label="搜尋調查入口" placeholder="搜尋名稱或路徑，顯示前 100 項" value="${escapeHTML(state.entryFilter)}">`:''}<select id="entry-select" ${state.busy?'disabled':''}>${entryOptions()}</select></label><button class="button primary" type="submit" ${state.busy || (!demo&&!sourceUsable())?'disabled':''}>${icon(demo?'arrow':'spark')}${demo?t('預覽示例解讀'):t('開始業務分析')}</button></div>${!demo?t('<p class="model-notice">發起分析將使用已設定的模型接口，傳送問題及有限源碼證據。</p>'):''}</form><div class="question-chips ${demo?'hidden':''}"><button data-question="請解釋這個程式的主要處理步驟和輸入輸出。">${icon('document')} 主要處理流程</button><button data-question="哪些程式會被呼叫？請引用對應的源碼。">${icon('branch')} 呼叫與依賴</button><button data-question="發生錯誤時，狀態如何傳回呼叫方？">${icon('shield')} 異常處理</button></div></section>`;
+  if(demo)return ui`<section class="question-card demo-question-card"><div class="section-eyebrow">建議業務問題</div><p class="demo-question">${escapeHTML(demoText(demoCase()?.question))}</p><div class="demo-question-actions"><p>載入案例後可自由修改問題，再按「開始業務分析」呼叫模型。</p><button class="button primary" data-prepare-demo ${state.busy || !state.connected || !demoCase()?'disabled':''}>${icon('folder')}載入此案例</button></div><p class="model-notice">載入只建立本機目錄與源碼索引，不呼叫模型。</p></section>`;
+  return ui`<section class="question-card"><div class="section-eyebrow">本次業務問題</div><form id="question-form"><div class="question-top"><div class="spark-disc">${icon('spark')}</div><div class="question-field"><textarea rows="1" id="question-input" aria-label="業務問題" placeholder="例如：哪些申請可以通過？狀態如何變化，失敗會有甚麼影響？" ${state.busy?'disabled':''}>${escapeHTML(state.question)}</textarea></div></div><div class="question-bottom"><label class="entry-choice" for="entry-select">${icon('branch')}調查起點${programs.length>100?ui`<input id="entry-filter" aria-label="搜尋調查入口" placeholder="搜尋名稱或路徑，顯示前 100 項" value="${escapeHTML(state.entryFilter)}">`:''}<select id="entry-select" ${state.busy?'disabled':''}>${entryOptions()}</select></label><button class="button primary" type="submit" ${state.busy || !sourceUsable()?'disabled':''}>${icon('spark')}開始業務分析</button></div>${readingDepthControl()}<p class="model-notice">發起分析將使用已設定的模型接口，傳送問題、有限源碼證據及相關框架文件節錄。</p></form><div class="question-chips"><button data-question="請用業務語言說明這項業務從受理到完成的處理過程與結果。">${icon('document')} 業務處理過程</button><button data-question="哪些條件會允許或拒絕處理？會產生甚麼狀態與業務結果？">${icon('branch')} 准入與狀態</button><button data-question="哪些異常會中止、退回或延後處理？對目前業務與後續處理有甚麼影響？">${icon('shield')} 異常與影響</button></div></section>`;
 }
 
-function answerTabs(){const count=state.mode==='demo'?3:(draftChanged()?0:result()?.tool_trace?.length || 0);return ui`<div class="answer-tabs" role="tablist" aria-label="分析檢視"><button data-tab="answer" role="tab" aria-selected="${state.tab==='answer'}" class="${state.tab==='answer'?'selected':''}">業務解讀</button><button data-tab="relations" role="tab" aria-selected="${state.tab==='relations'}" class="${state.tab==='relations'?'selected':''}">程式關係</button><button data-tab="trace" role="tab" aria-selected="${state.tab==='trace'}" class="${state.tab==='trace'?'selected':''}">調查記錄<span class="tab-count">${count}</span></button></div>`;}
+function answerTabs(){const count=state.mode==='demo'?0:(draftChanged()?0:result()?.tool_trace?.length || 0);return ui`<div class="answer-tabs" role="tablist" aria-label="分析檢視"><button data-tab="answer" role="tab" aria-selected="${state.tab==='answer'}" class="${state.tab==='answer'?'selected':''}">${state.mode==='demo'?t('業務說明'):t('業務解讀')}</button><button data-tab="relations" role="tab" aria-selected="${state.tab==='relations'}" class="${state.tab==='relations'?'selected':''}">程式關係</button>${state.mode==='real'?ui`<button data-tab="trace" role="tab" aria-selected="${state.tab==='trace'}" class="${state.tab==='trace'?'selected':''}">調查記錄<span class="tab-count">${count}</span></button><button data-tab="api" role="tab" aria-selected="${state.tab==='api'}" class="${state.tab==='api'?'selected':''}">API 返回</button>`:''}</div>`;}
+
 function cite(id,label){return ui`<button class="citation" data-evidence="${escapeHTML(id)}" aria-label="查看證據 ${escapeHTML(label)}">${escapeHTML(label)}</button>`;}
 
-function previewAnswer(){return ui`<div class="answer-state-row"><span class="badge neutral">${icon('document')} 解讀示例 · 未執行模型分析</span><small>3 段示例證據</small></div><h2>先計算年繳保費，<br>再套用繳費係數。</h2><p class="answer-intro">這個示例展示如何把分散在程式中的計算步驟，整理成可逐項回查的業務解讀。</p><div class="formula-box"><span class="formula-label">計算摘要</span><strong>分期保費<span class="formula-operator">=</span>年繳保費<span class="formula-operator">×</span>繳費係數</strong>${cite('preview-01','1')}</div><div class="steps"><div class="business-step"><span class="step-number">01</span><div><h3>彙總年繳保費 ${cite('preview-02','2')}</h3><p>將基本保費及附加保障保費加總，再扣除適用折扣，形成計算基礎。</p></div></div><div class="business-step"><span class="step-number">02</span><div><h3>取得對應的繳費係數 ${cite('preview-03','3')}</h3><p>以繳費方式查詢係數。源碼顯示查詢來源；實際設定值需要配置資料確認。</p></div></div><div class="business-step"><span class="step-number">03</span><div><h3>計算並回傳分期保費 ${cite('preview-01','1')}</h3><p>年繳保費乘以繳費係數，使用 ROUNDED，並將結果寫入輸出欄位。</p></div></div></div><div class="boundary-box">${icon('alert')}<div><strong>尚待確認</strong><p>實際係數、折扣適用條件與完整異常路徑，需要同版本配置及進一步源碼核對。</p></div></div><div class="process-heading">處理流程概覽<span>示例路徑</span></div><div class="mini-flow">${[[t('接收請求'),'POLICY-ENTRY'],[t('計算年繳保費'),'PREMIUM-CALC'],[t('取得繳費係數'),'PAYMENT-FACTOR'],[t('回傳結果'),'RESULT-RETURN']].map((n,i)=>`${i?`<span class="flow-arrow">${icon('arrow')}</span>`:''}<div class="flow-node"><strong>${n[0]}</strong><small>${n[1]}</small></div>`).join('')}</div><div class="answer-footnote">${icon('info')}以上為介面設計示例；本機模式只呈現實際分析結果。</div>`;}
+function previewAnswer(){
+  const selected=demoCase();if(!selected)return frameworkDemoUnavailable();
+  const evidence=selected.evidence || [];const known=new Set(evidence.map(ref=>ref.evidence_id));
+  return ui`<article class="framework-guide business-guide"><div class="answer-state-row"><span class="badge preview">合成業務案例 · 未呼叫模型</span><small>${evidence.length} 段引用</small></div><h2>${escapeHTML(demoText(selected.title))}</h2><p class="answer-intro">${escapeHTML(demoText(selected.purpose))}</p>
+    <h3 class="guide-section-title">業務處理過程</h3><p class="field-hint">以下說明由合成源碼整理，不代表已執行程式或模型分析。</p><div class="steps">${(selected.steps || []).map((step,index)=>`<div class="business-step"><span class="step-number">${String(index+1).padStart(2,'0')}</span><div><h3>${escapeHTML(demoText(step.title))}${known.has(step.evidence_id)?cite(step.evidence_id,String(evidence.findIndex(ref=>ref.evidence_id===step.evidence_id)+1)):''}</h3><p>${escapeHTML(demoText(step.description))}</p></div></div>`).join('')}</div>
+    ${selected.metadata?.length?ui`<section class="guide-metadata"><h3 class="guide-section-title">業務規則與影響</h3><dl>${selected.metadata.map(item=>`<div><dt>${escapeHTML(demoText(item.label))}</dt><dd>${escapeHTML(demoText(item.value))}</dd></div>`).join('')}</dl><p class="field-hint">業務設定為案例中的合成聲明，不代表已匯入生產配置或執行記錄。</p></section>`:''}
+    ${selected.boundaries?.length?ui`<details class="narrative-boundaries"><summary>案例範圍與待確認事項</summary>${selected.boundaries.map(item=>`<p>${escapeHTML(demoText(item))}</p>`).join('')}</details>`:''}
+    <details class="guide-technical"><summary>技術與框架依據</summary><dl><div><dt>框架類型</dt><dd>${escapeHTML(demoKind(selected.kind || selected.id))}</dd></div><div><dt>來源程式</dt><dd><code>${escapeHTML(selected.entry_program || '')}</code></dd></div><div><dt>來源路徑</dt><dd><code>${escapeHTML(selected.entry_path || '')}</code></dd></div></dl><button class="button secondary" data-tab="relations">查看程式關係 ${icon('arrow')}</button></details>
+    <div class="answer-footnote">${icon('info')}點選引用可查看演示文件中的實際源碼；自由問題需載入案例後分析。</div></article>`;
+}
 
 function boundaryText(value){
   if(typeof value==='string')return value;
+  if(value?.type==='framework_reference_boundary' && value?.reason==='document_rules_are_conditional')return t('框架解讀結合可見源碼與文件規則；現場配置、生成或閉源實作及執行效果尚未獨立核驗。');
   if(value?.type==='snapshot_coverage')return t('目前只核對已索引的源碼；資料庫記錄、執行參數與完整執行狀態未核驗。');
   if(value?.reason==='target_not_found')return t('呼叫或 COPY 的實作未提供，相關內部行為仍待確認。');
   if(value?.reason==='bounded_or_incomplete_tool_result')return t('部分依賴或工具結果不完整，本次回答只涵蓋已有證據。');
   return value?.message || value?.detail || value?.reason || JSON.stringify(value);
 }
+function investigationStop(){
+  const agent=state.project?.agent;const reason=agent?.stop_detail?.reason || result()?.stop_reason || '';
+  const stopped=agent?.runner_status==='SAFE_STOP' || agent?.reason_code==='AGENT_SAFETY_STOPPED' || result()?.status==='SAFE_STOP' || (reason && !['completed','model_abstained'].includes(reason));
+  return stopped?{reason,code:agent?.stop_detail?.code || (reason?reason.toUpperCase():agent?.reason_code || 'SAFE_STOP')}:null;
+}
+function stopExplanation(reason){
+  const messages={
+    model_protocol_error:'模型回應未符合 Agent 動作協議，請先查看 API 返回。',
+    invalid_final_answer:'模型的最終答案未符合答案協議，請先查看 API 返回。',
+    model_client_error:'模型請求或回應處理失敗，請查看 HTTP 狀態與 API 返回。',
+    tool_budget_exhausted:'已達本次工具呼叫上限，調查尚未完成。',
+    model_turn_budget_exhausted:'已達本次模型輪次上限，調查尚未完成。',
+    no_progress:'連續調查未取得新的可用事實，流程已停止。',
+    model_output_budget_exceeded:'模型輸出超過本次處理上限。',
+    output_truncated:'模型輸出尚未完成，已保留取得的解讀。',
+    unauthorized_tool:'模型請求了未開放的工具。',
+    invalid_tool_arguments:'模型提供的工具參數未通過核對。',
+    evidence_phase_closed:'證據讀取階段已結束，模型仍請求繼續讀取。',
+    tool_execution_error:'本機調查工具執行失敗。',
+    tool_contract_mismatch:'本機工具的返回資料未符合工具協議。',
+    tool_status_invalid:'本機工具返回了不支援的狀態。',
+    snapshot_missing:'工具結果缺少有效的源碼快照。',
+    snapshot_mismatch:'工具結果與本次源碼快照不一致。',
+    snapshot_integrity_error:'源碼證據完整性核對失敗。',
+    tool_policy_denied:'工具結果超出本次允許的處理範圍。',
+    tool_capability_unavailable:'本次需要的調查工具能力不可用。',
+    evidence_scope_violation:'模型引用超出本次調查範圍的證據。',
+    invalid_evidence_reference:'模型引用了尚未核驗的證據。',
+    unsupported_claim_content:'候選結論與源碼內容未能對應。',
+    unsupported_claim:'候選結論未獲現有證據支持。',
+    claim_checker_error:'本機結論核對程序執行失敗。',
+  };
+  return t(messages[reason] || '分析流程因下列原因停止；請查看診斷與 API 返回。');
+}
+function apiExchanges(){
+  if(state.mode!=='real' || draftChanged())return [];
+  const exchanges=state.project?.agent?.api_diagnostics?.exchanges;
+  return Array.isArray(exchanges)?exchanges.filter(item=>item && typeof item==='object'):[];
+}
+function apiMessage(exchange){
+  try{const body=JSON.parse(exchange.body_text);const message=body?.choices?.[0]?.message;return message && typeof message==='object'?message:null;}catch{return null;}
+}
+function apiBodyOmission(reason){
+  return t(({
+    HTTP_ERROR_BODY_NOT_COLLECTED:'接口返回 HTTP 錯誤；本次傳輸未收集錯誤正文。',
+    NO_RESPONSE:'請求未收到回應，因此沒有返回正文。',
+    RESPONSE_BODY_INVALID:'收到的返回正文格式無效，無法保存為文字。',
+    TRANSPORT_RESPONSE_INVALID:'傳輸返回資料無效，無法取得可展示的正文。',
+  })[reason] || '未記錄返回內容。');
+}
+function unacceptedResponse(){
+  const response=state.project?.agent?.unaccepted_response;
+  return response && typeof response.text==='string' && response.text.trim()?response:null;
+}
+function unacceptedResponseView(){
+  const response=unacceptedResponse();if(!response)return '';
+  return ui`<section class="api-exchange api-unaccepted"><h3>未接受的模型正文</h3><p class="api-privacy-note">以下文字已保留供診斷，但未通過本次源碼或結果核對，不能作為目前業務結論或引用依據。</p><p class="api-exchange-meta"><code>${escapeHTML(response.reason_code || state.project?.agent?.reason_code || '')}</code></p><pre class="api-raw-text">${escapeHTML(response.text)}</pre></section>`;
+}
+function apiSummary(){
+  const agent=state.project?.agent;const exchanges=apiExchanges();const answer=result();const stopped=investigationStop();
+  const received=exchanges.some(item=>Number.isInteger(item.http_status) && item.http_status>=100);
+  const chatReceived=exchanges.some(item=>{
+    if(!/(^|\/)chat\/completions\/?$/.test(item.endpoint || '') || item.http_status<200 || item.http_status>=300 || !Number.isInteger(item.http_status))return false;
+    const message=apiMessage(item);return message?.role==='assistant' && (typeof message.content==='string' && Boolean(message.content.trim()) || Array.isArray(message.tool_calls) && message.tool_calls.length>0);
+  });
+  const probeChat=agent?.capability_report?.capabilities?.chat?.status==='SUPPORTED';
+  const investigationReceived=exchanges.some(item=>item.phase==='investigation');
+  const transport=chatReceived || probeChat?t('聊天回應已收到'):received?t('已收到 HTTP 回應；聊天回應尚未確認'):exchanges.length?t('未收到 HTTP 回應'):t('尚無本次請求記錄');
+  const flow=stopped?stopExplanation(stopped.reason):['SOURCE_ANALYSIS_FAILED','SOURCE_SNAPSHOT_MISMATCH','ANSWER_SNAPSHOT_MISMATCH','SOURCE_SNAPSHOT_UNVERIFIED'].includes(agent?.reason_code)?t('源碼核對或分析失敗，本次業務結果未獲接受。'):agent?.reason_code==='COMPANY_API_NOT_READY'?t('能力探測未通過，業務調查尚未開始。'):answer?.stop_reason==='completed' || answer?.stop_reason==='model_abstained'?t('Agent 流程已完成；業務證據需另行核對。'):investigationReceived?t('已發起業務調查；完成狀態尚未確認。'):probeChat?t('聊天能力探測已通過；尚無業務調查結果。'):t('尚無 Agent 完成記錄。');
+  const evidence=unacceptedResponse()?t('已保留未接受正文，不能作為目前業務結論'):narrativeText(answer)?t('已有模型解讀，業務含義尚待覆核'):stopped?t('流程中斷，尚未形成業務結論'):answer?.claims?.length?statusLabel(answer.status):answer?.status==='ABSTAINED'?t('證據不足 · 尚未形成結論'):t('尚未形成業務結論');
+  return ui`<div class="api-summary"><div><span>API 連線</span><strong>${escapeHTML(transport)}</strong></div><div><span>Agent 流程</span><strong>${escapeHTML(flow)}</strong>${stopped?`<code>${escapeHTML(stopped.code)}</code>`:''}</div><div><span>業務證據</span><strong>${escapeHTML(evidence)}</strong></div></div>`;
+}
+function apiResponseView(){
+  if(state.mode!=='real')return '';
+  if(draftChanged())return ui`<div class="answer-empty">${icon('clock')}<h2>新問題尚未取得 API 返回</h2><p>問題、調查起點或閱讀方式已更改。發起分析後，這裡會顯示本次請求的返回資料。</p></div>`;
+  const diagnostic=state.project?.agent?.api_diagnostics;const exchanges=apiExchanges();
+  const ordered=exchanges.map((item,index)=>({item,sequence:Number.isInteger(item.sequence)?item.sequence:index+1})).sort((a,b)=>Number(b.item.phase==='investigation')-Number(a.item.phase==='investigation') || b.sequence-a.sequence);
+  return ui`<div class="api-response-view"><div class="answer-state-row"><span class="badge warning">未核驗的 API 返回</span><small>${exchanges.length} 次請求</small></div><h2>先確認接口返回，再核對分析結果。</h2><p class="answer-intro">這裡展示接口實際返回的文字，用於核對連線與返回格式；不代表已通過業務證據核驗。${exchanges.some(item=>item.phase==='capability_probe')?t('能力探測成功不代表業務分析已完成。'):''}</p>${apiSummary()}${unacceptedResponseView()}<p class="api-privacy-note">API 請求記錄已遮蔽配置值，內容可能因大小限制而截斷。保留的模型正文可能包含源碼或業務內容，請在分享前核對。</p>${diagnostic?.truncated || diagnostic?.omitted_exchange_count>0?ui`<p class="api-truncated">已達診斷保存上限，部分返回內容或請求記錄未保存。${diagnostic.omitted_exchange_count>0?ui` 未保存的請求記錄：${formatNumber(diagnostic.omitted_exchange_count)}`:''}</p>`:''}${exchanges.length?ui`<p class="field-hint">業務調查優先；各階段的最新請求優先，序號保留實際呼叫順序。</p>`:''}${ordered.length?ordered.map(({item,sequence})=>{
+    const message=apiMessage(item);const content=message?.content;
+    const contentText=typeof content==='string'?content:content===null || content===undefined?'':JSON.stringify(content,null,2);
+    const phase=item.phase==='capability_probe'?t('能力探測'):item.phase==='investigation'?t('業務調查'):t('未知階段');
+    const http=Number.isInteger(item.http_status)?'HTTP '+item.http_status:t('未收到 HTTP 回應');
+    return ui`<section class="api-exchange"><div class="api-exchange-heading"><h3>${sequence} · ${escapeHTML(phase)}</h3><span class="badge ${item.http_status>=200 && item.http_status<300?'neutral':'warning'}">${escapeHTML(http)}</span></div><p class="api-exchange-meta"><code>${escapeHTML(item.endpoint || '—')}</code> · ${escapeHTML(item.outcome_code || t('狀態未提供'))}${Number.isFinite(item.elapsed_ms)?' · '+formatNumber(item.elapsed_ms)+' ms':''}${Number.isFinite(item.body_bytes)?' · '+formatBytes(item.body_bytes):''}</p>${item.body_truncated?ui`<p class="api-truncated">返回內容已截斷；未顯示部分不能作為缺失資料判斷。</p>`:''}${item.body_omitted_reason?`<p class="api-truncated">${escapeHTML(apiBodyOmission(item.body_omitted_reason))}</p>`:''}${contentText?ui`<div class="api-message"><h4>模型返回文字 · 未核驗</h4><pre class="api-raw-text">${escapeHTML(contentText)}</pre></div>`:ui`<p class="field-hint">未提取到 message.content；請查看下方原始返回（可能是工具呼叫、錯誤或截斷內容）。</p>`}<details class="api-raw-body" open><summary>原始返回內容 · 已遮蔽配置值</summary><pre class="api-raw-text">${escapeHTML(typeof item.body_text==='string' && item.body_text?item.body_text:t('未記錄返回內容。'))}</pre></details></section>`;
+  }).join(''):ui`<div class="answer-empty"><p>${state.project?.agent?.runner_status==='NETWORK_DISABLED'?t('尚未發起模型分析；接入源碼本身不會呼叫模型。'):diagnostic?.captured?t('本次尚未發出接口請求，請先處理接入或配置問題。'):state.project?.agent?t('這份分析未保存 API 返回原文。重新發起分析後，可在這裡查看。'):t('尚未發起模型分析；接入源碼本身不會呼叫模型。')}</p></div>`}</div>`;
+}
+function narrativeText(answer){
+  if(answer?.status==='ABSTAINED' || answer?.model_answer_recorded===false)return '';
+  if(typeof answer?.narrative?.text==='string' && answer.narrative.text.trim())return answer.narrative.text;
+  return answer?.analysis_mode==='source_reading' && typeof answer.answer==='string' && answer.answer.trim()?answer.answer:'';
+}
+function narrativeMarkup(text,refs,frameworkRefs,allowedSourceIds=null){
+  const sourceIds=new Map(refs.filter(ref=>typeof ref?.evidence_id==='string').map((ref,index)=>[ref.evidence_id,index+1]).filter(([id])=>!allowedSourceIds || allowedSourceIds.has(id)));
+  const frameworkIds=new Map(frameworkRefs.filter(ref=>typeof ref?.reference_id==='string').map((ref,index)=>[ref.reference_id,index+1]));
+  const inline=value=>{
+    let rendered='',start=0;
+    for(const match of value.matchAll(/\[([^\[\]\r\n]{1,256})\]/g)){
+      rendered+=escapeHTML(value.slice(start,match.index));const id=match[1];
+      rendered+=sourceIds.has(id)?cite(id,String(sourceIds.get(id))):frameworkIds.has(id)?frameworkCite(id,frameworkIds.get(id)):escapeHTML(match[0]);
+      start=match.index+match[0].length;
+    }
+    return rendered+escapeHTML(value.slice(start));
+  };
+  const blocks=[];let paragraph=[];
+  const flush=()=>{if(paragraph.length){blocks.push(`<p>${inline(paragraph.join('\n'))}</p>`);paragraph=[];}};
+  for(const line of String(text).replace(/\r\n?/g,'\n').split('\n')){
+    const heading=line.match(/^#{1,4}\s+(.+?)\s*#*$/);
+    if(heading){flush();blocks.push(`<h3>${inline(heading[1])}</h3>`);}
+    else if(!line.trim())flush();
+    else paragraph.push(line);
+  }
+  flush();return blocks.join('');
+}
+function readingCoverageText(coverage){
+  if(!coverage || typeof coverage!=='object')return '';
+  const known=value=>Number.isFinite(value) && value>=0;const items=[];
+  if(known(coverage.summarized_pages) && known(coverage.total_pages))items.push(ui`已解讀 ${formatNumber(coverage.summarized_pages)} / ${formatNumber(coverage.total_pages)} 頁（本次源碼範圍）`);
+  else if(known(coverage.selected_pages) && known(coverage.total_pages))items.push(ui`已讀 ${formatNumber(coverage.selected_pages)} / ${formatNumber(coverage.total_pages)} 頁（本次源碼範圍）`);
+  if(known(coverage.sent_pages))items.push(ui`已發送 ${formatNumber(coverage.sent_pages)} 頁`);
+  if(known(coverage.planned_pages))items.push(ui`本次選取 ${formatNumber(coverage.planned_pages)} 頁`);
+  const lines=known(coverage.summarized_lines)?coverage.summarized_lines:coverage.selected_lines;
+  if(known(lines) && known(coverage.total_lines))items.push(ui`${formatNumber(lines)} / ${formatNumber(coverage.total_lines)} 行`);
+  if(known(coverage.total_files))items.push(ui`${formatNumber(coverage.total_files)} 個檔案`);
+  if(coverage.reading_strategy==='full_chain')items.push(t('完整業務鏈 · 分批閱讀'));
+  if(known(coverage.completed_batches) && known(coverage.total_batches))items.push(ui`已完成批次 ${formatNumber(coverage.completed_batches)} / ${formatNumber(coverage.total_batches)}`);
+  return items.join(' · ');
+}
+function programSummaries(answer){return Array.isArray(answer?.program_summaries)?answer.program_summaries.filter(item=>typeof item?.text==='string' && item.text.trim()):[];}
+function programSummariesView(answer,refs,frameworkRefs){
+  const summaries=programSummaries(answer);if(!summaries.length)return '';
+  return ui`<details class="narrative-sources program-summaries"><summary>各來源的業務解讀 · ${summaries.length}</summary><p class="field-hint">按來源保留的模型解讀，可補充上方業務摘要；仍需業務覆核。</p>${summaries.map(item=>{
+    const names=Array.isArray(item.program_names)?item.program_names.filter(name=>typeof name==='string'):[];
+    const label=names.join(', ') || item.program_name || item.relative_path || t('源碼引用');
+    const allowed=new Set(Array.isArray(item.evidence_ids)?item.evidence_ids:[]);
+    return `<details class="program-summary"><summary>${escapeHTML(label)}${item.complete===false?` <span class="badge neutral">${escapeHTML(t('部分解讀'))}</span>`:''}<small>${escapeHTML(item.relative_path || '')}</small></summary><div class="narrative-body">${narrativeMarkup(item.text,refs,frameworkRefs,allowed)}</div></details>`;
+  }).join('')}</details>`;
+}
+function callChainCoverageText(coverage){
+  const chain=coverage?.call_chain;
+  if(!chain || !['covered_calls','resolved_calls','uncovered_calls'].every(key=>Number.isFinite(chain[key]) && chain[key]>=0))return '';
+  return ui`已選入相關片段的呼叫：${formatNumber(chain.covered_calls)} / ${formatNumber(chain.resolved_calls)} 個已定位目標的呼叫 · ${formatNumber(chain.uncovered_calls)} 個尚未覆蓋${Number.isFinite(chain.unresolved_calls) && chain.unresolved_calls>0?ui` · 另有 ${formatNumber(chain.unresolved_calls)} 個呼叫目標未確認`:''}`;
+}
+function callChainCoverageNote(){return t('這是本次入口閱讀計劃的資料覆蓋，只表示呼叫位置、被呼叫程式入口與介面片段已選入；不代表模型已讀完、整條呼叫鏈完整或業務結果已驗證。');}
+function narrativeNotes(answer,project=state.project){
+  const coverage=answer?.reading_coverage || {};const notes=[];
+  const read=Number.isFinite(coverage.sent_pages)?coverage.sent_pages:coverage.selected_pages;
+  if(Number.isFinite(coverage.total_pages) && Number.isFinite(read) && coverage.total_pages>read)notes.push(ui`尚有 ${formatNumber(coverage.total_pages-read)} 頁未讀，本次解讀先涵蓋已讀內容。`);
+  const failed=Number(coverage.failed_pages || coverage.failed_requests || 0);
+  if(failed>0 || (answer?.stop_reason && !['completed','model_abstained','output_truncated'].includes(answer.stop_reason)))notes.push(t('部分分析請求未完成，已保留取得的解讀；詳情可查看 API 返回。'));
+  const truncated=Array.isArray(coverage.truncated_response_pages)?coverage.truncated_response_pages.length:Number(coverage.truncated_response_pages || 0);
+  if(truncated>0 || answer?.stop_reason==='output_truncated')notes.push(t('部分模型回應尚未完整輸出，已保留可用的解讀內容。'));
+  const missing=answer?.analysis_scope?.unresolved_dependency_count ?? project?.diagnosis?.unresolved_dependencies?.length ?? 0;
+  if(missing>0)notes.push(ui`${formatNumber(missing)} 項依賴尚缺實作，相關內部行為仍需補充源碼確認。`);
+  if(answer?.status==='PARTIAL' && !notes.length)notes.push(t('目前呈現已取得的解讀，尚未完成的範圍可繼續分析。'));
+  return notes;
+}
+function narrativeAnswer(answer){
+  const refs=currentRefs();const frameworkRefs=answer.framework_context?.references || diagnosis()?.framework_context?.references || [];
+  const coverage=answer.reading_coverage;const coverageText=readingCoverageText(coverage);const chainText=callChainCoverageText(coverage);const notes=narrativeNotes(answer);
+  const boundaries=(answer.boundaries || []).filter(item=>!['framework_reference_boundary','snapshot_coverage'].includes(item?.type));
+  return ui`<article class="narrative-answer"><div class="answer-state-row"><span class="badge neutral">模型解讀 · 需業務覆核</span><small>${answer.status==='PARTIAL'?t('部分解讀'):t('業務解讀')}</small></div><div class="narrative-body">${narrativeMarkup(narrativeText(answer),refs,frameworkRefs)}</div>${notes.length?`<div class="narrative-notes">${notes.map(note=>`<p>${escapeHTML(note)}</p>`).join('')}</div>`:''}<footer class="narrative-provenance">${coverageText?ui`<div class="reading-coverage"><strong>閱讀覆蓋</strong><p>${escapeHTML(coverageText)}</p><small>${coverage.complete?t('本次源碼範圍已讀完；閱讀完整不等於業務結論已驗證。'):t('閱讀覆蓋描述本次讀取範圍，不代表已驗證所有業務路徑。')}</small></div>`:''}${chainText?ui`<details class="narrative-boundaries call-chain-coverage"><summary>${escapeHTML(chainText)}</summary><p>${escapeHTML(callChainCoverageNote())}</p></details>`:''}${programSummariesView(answer,refs,frameworkRefs)}${refs.length?ui`<details class="narrative-sources"><summary>閱讀來源 · ${refs.length} 頁</summary><div>${refs.map((ref,index)=>cite(ref.evidence_id,`${index+1} · ${ref.relative_path || ref.path || t('源碼引用')} · L${Number(ref.start_line)}–${Number(ref.end_line)}`)).join('')}</div></details>`:''}${boundaries.length?ui`<details class="narrative-boundaries"><summary>補充上下文</summary>${boundaries.map(item=>`<p>${escapeHTML(boundaryText(item))}</p>`).join('')}</details>`:''}</footer></article>`;
+}
 function actualAnswer(){
   const answer=result();const d=diagnosis();const status=answer?.status || d?.question_status;
-  if(draftChanged())return ui`<div class="answer-empty">${icon('spark')}<h2>準備分析新的問題</h2><p>問題或調查起點已更改。發起分析後，這裡會呈現新問題的結果。<br>上一題摘要保留在分析記錄中。</p></div>`;
+  if(syntheticProject() && sourceUsable() && state.project?.agent?.runner_status==='NETWORK_DISABLED'){
+    const files=sourceFiles();const gaps=d?.unresolved_dependencies || [];
+    return ui`<article class="prepared-case"><div class="answer-state-row"><span class="badge positive">${icon('check')}案例已載入</span><small>合成源碼</small></div><h2>案例已載入，尚未呼叫模型</h2><p class="answer-intro">可修改問題並按「開始業務分析」，從目前源碼生成自己的業務解讀。</p><div class="guide-type"><span>調查起點</span><strong>${escapeHTML(state.entry)}</strong></div><p class="source-note">${formatNumber(files.candidate || files.decoded)} 個檔案 · ${formatNumber(currentPrograms().length)} 個目錄入口</p>${gaps.length?ui`<details class="narrative-boundaries"><summary>${formatNumber(gaps.length)} 項未確認依賴</summary><p>部分產生式或閉源依賴未提供，仍可先分析已有源碼。</p>${dependencyGaps()}</details>`:''}</article>`;
+  }
+  if(draftChanged())return ui`<div class="answer-empty">${icon('spark')}<h2>準備分析新的問題</h2><p>問題、調查起點或閱讀方式已更改。發起分析後，這裡會呈現新問題的結果。<br>上一題摘要保留在分析記錄中。</p></div>`;
+  if(unacceptedResponse())return ui`<div class="answer-empty">${icon('info')}<h2>本次業務結果未獲接受</h2><p>源碼或結果核對未通過，已保留收到的模型文字供診斷。</p><button class="button secondary" data-tab="api">查看 API 返回 ${icon('arrow')}</button></div>`;
+  if(narrativeText(answer))return narrativeAnswer(answer);
+  const stopped=investigationStop();
+  if(stopped)return ui`<div class="answer-empty">${icon('alert')}<h2>分析流程中斷</h2><p>${escapeHTML(stopExplanation(stopped.reason))}</p><p class="stop-detail"><code>${escapeHTML(stopped.code)}</code></p><button class="button secondary" data-tab="api">查看 API 返回 ${icon('arrow')}</button></div>${apiSummary()}${renderBoundaries(answer?.boundaries || d?.messages || [])}`;
   if(!answer || !answer.claims?.length){
     const failed=answer || ['NOT_READY','SAFE_STOP','BLOCKED','NETWORK_DISABLED','SCOPE_LIMIT'].includes(status);
-    return `<div class="answer-empty">${icon(failed?'info':'spark')}<h2>${escapeHTML(statusLabel(status))}</h2><p>${failed?t('保留現有資料與阻斷原因。處理缺口後，可重新發起分析。'):t('源碼已就緒。選擇調查起點，輸入業務問題，即可從當前源碼開始。')}</p></div>${renderBoundaries(answer?.boundaries || d?.messages || [])}${state.project?.agent?.reason_code?ui`<p class="source-note">診斷代碼：${escapeHTML(state.project.agent.reason_code)}</p>`:''}`;
+    return `<div class="answer-empty">${icon(failed?'info':'spark')}<h2>${escapeHTML(statusLabel(status))}</h2><p>${failed?t('保留現有資料與阻斷原因。處理缺口後，可重新發起分析。'):t('源碼已就緒。選擇調查起點，輸入業務問題，即可從當前源碼開始。')}</p>${state.project?.agent?ui`<button class="button secondary" data-tab="api">查看 API 返回 ${icon('arrow')}</button>`:''}</div>${renderBoundaries(answer?.boundaries || d?.messages || [])}${state.project?.agent?.reason_code?ui`<p class="source-note">診斷代碼：${escapeHTML(state.project.agent.reason_code)}</p>`:''}`;
   }
-  const refs=currentRefs();
-  return ui`<div class="real-answer"><div class="answer-state-row"><span class="badge neutral">${icon('check')}${escapeHTML(statusLabel(answer.status))}</span><small>${refs.length} 段引用</small></div><h2>來自當前源碼的分析結果</h2><p class="answer-intro">以下陳述保留實際核驗狀態。點選引用，可回到本次快照的源碼位置。</p>${scopeNotice()}<div class="steps">${answer.claims.map((claim,i)=>`<div class="business-step"><span class="step-number">${String(i+1).padStart(2,'0')}</span><div><p class="claim-text">${escapeHTML(claim.claim || claim.text || '')}${(claim.evidence_ids || []).map(id=>cite(id,String(Math.max(1,refs.findIndex(r=>r.evidence_id===id)+1)))).join('')}</p><small class="field-hint">${escapeHTML(({code_fact:t('源碼事實'),business_inference:t('業務推測 · 未核驗'),open_question:t('待確認問題 · 未形成結論')})[claim.kind] || t('候選解讀'))} · ${escapeHTML(({supported:t('局部語句已核驗'),citation_verified_only:t('引用已核對，語義待核驗'),unsupported:t('證據尚不支持')})[claim.support_status] || t('語義未核驗'))}</small></div></div>`).join('')}</div>${renderBoundaries(answer.boundaries || [])}<div class="answer-footnote">${icon('info')}問題相關性與完整性尚未核驗；局部語句通過不代表整條業務流程已驗證。</div></div>`;
+  const refs=currentRefs();const frameworkRefs=answer.framework_context?.references || d?.framework_context?.references || [];
+  return ui`<div class="real-answer"><div class="answer-state-row"><span class="badge neutral">${icon('check')}${escapeHTML(statusLabel(answer.status))}</span><small>${refs.length} 段引用</small></div><h2>來自當前源碼的分析結果</h2><p class="answer-intro">以下陳述保留實際核驗狀態。點選引用，可回到本次快照的源碼位置。</p>${scopeNotice()}<div class="steps">${answer.claims.map((claim,i)=>`<div class="business-step"><span class="step-number">${String(i+1).padStart(2,'0')}</span><div><p class="claim-text">${escapeHTML(claim.claim || claim.text || '')}${(claim.evidence_ids || []).map(id=>cite(id,String(Math.max(1,refs.findIndex(r=>r.evidence_id===id)+1)))).join('')}${(claim.framework_reference_ids || []).map(id=>{const index=frameworkRefs.findIndex(ref=>ref.reference_id===id);return index<0?'':frameworkCite(id,index+1);}).join('')}</p><small class="field-hint">${escapeHTML(({code_fact:t('源碼事實'),framework_interpretation:t('框架條件解讀 · 需源碼與現場覆核'),business_inference:t('業務推測 · 未核驗'),open_question:t('待確認問題 · 未形成結論')})[claim.kind] || t('候選解讀'))} · ${escapeHTML(({supported:t('局部語句已核驗'),citation_verified_only:t('引用已核對，語義待核驗'),unsupported:t('證據尚不支持')})[claim.support_status] || t('語義未核驗'))}</small></div></div>`).join('')}</div>${renderBoundaries(answer.boundaries || [])}<div class="answer-footnote">${icon('info')}問題相關性與完整性尚未核驗；局部語句通過不代表整條業務流程已驗證。</div></div>`;
 }
 function renderBoundaries(items){if(!items.length)return '';return ui`<div class="boundary-box">${icon('alert')}<div><strong>待確認與分析邊界</strong>${items.map(b=>`<p>${escapeHTML(boundaryText(b))}</p>`).join('')}</div>`;}
 function relationsView(){
-  const edges=currentRelations();return ui`<h2>沿著程式，回查關係。</h2><p class="graph-subtitle">${state.mode==='demo'?t('此處是預先編排的關係示例。'):t('以下來自當前源碼的靜態呼叫與 COPY 關係，不表示執行順序或實際可達。')}${state.project?.relations?.truncated && state.mode==='real'?t(' 關係數量已達顯示上限。'):''}</p>${edges.length?edges.slice(0,40).map(edge=>`<div class="relation-row"><div class="relation-program">${escapeHTML(edge.source_program || edge.relative_path || t('來源'))}<span class="relation-meta">${escapeHTML(edge.relation_type==='INCLUDES_COPY'?t('引入定義'):t('呼叫來源'))}</span></div><div class="relation-link">${escapeHTML(edge.relation_type)}</div><div class="relation-program">${escapeHTML(edge.target_name || t('未解析目標'))}<span class="relation-meta">${escapeHTML(({confirmed:t('源碼關係已確認'),candidate:t('候選關係'),unresolved:t('未能確認'),illustrative:t('示例關係')})[edge.status] || edge.status)}</span></div>${edge.evidence_id?cite(edge.evidence_id,'↗'):''}</div>`).join(''):t('<div class="answer-empty"><p>本次沒有可展示的呼叫或 COPY 關係；不能據此推斷不存在依賴。</p></div>')}${edges.length>40?t('<p class="source-note">目前顯示前 40 項關係。完整回傳資料可在匯出檔中查看。</p>'):''}`;
+  const edges=currentRelations();return ui`<h2>沿著程式，回查關係。</h2><p class="graph-subtitle">${state.mode==='demo'?t('以下關係來自合成案例源碼中的呼叫語句，不代表實際執行順序。'):t('以下來自當前源碼的靜態呼叫與 COPY 關係，不表示執行順序或實際可達。')}${state.project?.relations?.truncated && state.mode==='real'?t(' 關係數量已達顯示上限。'):''}</p>${edges.length?edges.slice(0,40).map(edge=>`<div class="relation-row"><div class="relation-program">${escapeHTML(edge.source_program || edge.relative_path || t('來源'))}<span class="relation-meta">${escapeHTML(edge.relation_type==='INCLUDES_COPY'?t('引入定義'):t('呼叫來源'))}</span></div><div class="relation-link">${escapeHTML(edge.relation_type)}</div><div class="relation-program">${escapeHTML(edge.target_name || t('未解析目標'))}<span class="relation-meta">${escapeHTML(({confirmed:t('源碼關係已確認'),candidate:t('候選關係'),unresolved:t('未能確認'),illustrative:t('示例關係'),source_observed:t('源碼呼叫已讀取')})[edge.status] || edge.status)}</span></div>${edge.evidence_id && (state.mode!=='demo' || currentRefs().some(ref=>ref.evidence_id===edge.evidence_id))?cite(edge.evidence_id,'↗'):''}</div>`).join(''):t('<div class="answer-empty"><p>本次沒有可展示的呼叫或 COPY 關係；不能據此推斷不存在依賴。</p></div>')}${edges.length>40?t('<p class="source-note">目前顯示前 40 項關係。完整回傳資料可在匯出檔中查看。</p>'):''}`;
 }
 function traceView(){
-  if(draftChanged())return ui`<div class="answer-empty">${icon('clock')}<h2>新問題尚未執行調查</h2><p>問題或調查起點已更改。發起分析後，這裡會顯示新問題的工具記錄。</p></div>`;
-  if(state.mode==='demo')return ui`<h2>每一步，留下可核對的依據。</h2><p class="graph-subtitle">以下是介面呈現方式示例，並非已執行的模型調查記錄。</p>${[[t('定位分析起點'),t('從程式目錄及名稱，選定本次要調查的範圍。')],[t('核對計算與依賴'),t('檢視欄位讀寫及呼叫關係，收集相關源碼引用。')],[t('集中讀取證據'),t('閱讀已發現的源碼片段，逐項綁定結論與未決事項。')]].map(([title,desc])=>ui`<div class="trace-row"><h3>${title}<span class="badge preview">示例步驟</span></h3><p>${desc}</p></div>`).join('')}`;
-  const trace=result()?.tool_trace || [];const labels={search_code:t('定位程式與欄位'),inspect_symbol:t('檢視定義與依賴'),trace_relations:t('追蹤源碼關係'),read_evidence:t('讀取源碼證據')};
+  if(draftChanged())return ui`<div class="answer-empty">${icon('clock')}<h2>新問題尚未執行調查</h2><p>問題、調查起點或閱讀方式已更改。發起分析後，這裡會顯示新問題的工具記錄。</p></div>`;
+  if(state.mode==='demo')return ui`<div class="answer-empty"><h2>尚未發起模型分析</h2><p>合成業務案例不會生成調查記錄。載入案例並開始分析後，才會顯示本次活動。</p></div>`;
+  const trace=result()?.tool_trace || [];const labels={read_source_page:t('逐頁讀取源碼'),read_source_pages:t('逐頁讀取源碼'),analyze_source_pages:t('解讀已讀源碼'),synthesize_analysis:t('整合業務解讀'),search_code:t('定位程式與欄位'),inspect_symbol:t('檢視定義與依賴'),trace_relations:t('追蹤源碼關係'),read_evidence:t('讀取源碼證據')};
   return ui`<h2>本次調查記錄</h2><p class="graph-subtitle">只顯示實際工具活動與狀態，不包含模型私有推理。</p>${trace.length?trace.map((item,i)=>{const name=item.tool || item.action || item.tool_name;const outcome=({SUCCEEDED:t('已執行'),FAILED:t('執行失敗'),REJECTED:t('參數未通過核對'),POLICY_REJECTED:t('調查範圍受限'),SNAPSHOT_REJECTED:t('快照核對失敗'),ATTEMPTED:t('已嘗試')})[item.outcome] || item.outcome || t('狀態未提供');return ui`<div class="trace-row"><h3>${String(i+1).padStart(2,'0')} · ${escapeHTML(labels[name] || name || t('工具活動'))}</h3><p><code>${escapeHTML(name)}</code> · ${escapeHTML(outcome)}${item.result?.status?' · '+escapeHTML(item.result.status):''}</p><details class="trace-details"><summary>查看工具資料</summary><pre>${escapeHTML(JSON.stringify(item.arguments || {},null,2))}</pre></details></div>`;}).join(''):t('<div class="answer-empty"><p>尚未執行模型調查。建立索引不會產生模型工具記錄。</p></div>')}`;
 }
 function codeMarkup(span){
   if(!span)return t('<div class="answer-empty"><p>選擇一段引用，查看源碼內容。</p></div>');
   const lines=String(span.source_text || '').split('\n');
-  return lines.map((line,i)=>{let text=escapeHTML(line);text=text.replace(/\b(COMPUTE|ROUNDED|END-COMPUTE|MOVE|TO|EXEC|SQL|SELECT|INTO|FROM|WHERE|END-EXEC|PERFORM|CALL|IF|END-IF|GOBACK)\b/g,'<span class="code-keyword">$1</span>');return `<div class="code-line ${state.mode==='demo'&&i<5?'highlight':''}"><span class="line-number">${Number(span.start_line || 1)+i}</span><span class="code-text">${text || ' '}</span></div>`;}).join('');
+  return lines.map((line,i)=>{let text=escapeHTML(line);text=text.replace(/\b(COMPUTE|ROUNDED|END-COMPUTE|MOVE|TO|EXEC|SQL|SELECT|INTO|FROM|WHERE|END-EXEC|PERFORM|CALL|IF|END-IF|GOBACK)\b/g,'<span class="code-keyword">$1</span>');return `<div class="code-line"><span class="line-number">${Number(span.start_line || 1)+i}</span><span class="code-text">${text || ' '}</span></div>`;}).join('');
 }
 function evidencePanel(){
   const refs=currentRefs();const span=draftChanged() && state.tab!=='relations'?null:state.evidence;const demo=state.mode==='demo';
-  return ui`<aside class="evidence-panel" aria-label="源碼證據"><div class="evidence-heading"><span>${icon('code')}</span><h2>源碼證據</h2><small>${String(refs.length).padStart(2,'0')}</small></div><div class="evidence-summary"><span>${demo?t('示例引用'):t('本次回答引用')}</span><span>${demo?t('非實際源碼驗收'):t('點選檢視原文')}</span></div><div class="evidence-list">${refs.length?refs.map((ref,i)=>`<button class="evidence-item ${state.selectedEvidence===ref.evidence_id?'selected':''}" data-evidence="${escapeHTML(ref.evidence_id)}"><span class="evidence-number">${String(i+1).padStart(2,'0')}</span><span><strong>${escapeHTML(ref.title || ref.relative_path?.split('/').pop() || t('源碼引用'))}</strong><small>${escapeHTML(ref.relative_path?.split('/').pop() || '')} · L${Number(ref.start_line)}–${Number(ref.end_line)}</small></span>${icon('chevron')}</button>`).join(''):t('<div class="answer-empty"><p>分析結論的引用<br>將在這裡顯示。</p></div>')}</div><div class="code-header"><span>${icon('document')} ${escapeHTML(span?.relative_path?.split('/').pop() || t('尚未選擇證據'))}</span><span>COBOL</span></div><div class="code-body" aria-label="源碼原文">${codeMarkup(span)}</div><div class="evidence-location"><div>${icon('folder')}<span>${escapeHTML(span?.relative_path || t('從引用清單選擇'))}</span></div><div>${icon('layers')}<span>${demo?t('介面示例'):ui`快照 ${(state.project?.snapshot_id || '').replace('sha256:','').slice(0,12) || t('未建立')}`}</span></div>${span?`<span class="badge ${demo?'preview':span.integrity==='VALID'?'positive':'warning'}">${icon(demo?'info':'check')}${demo?t('示例內容'):span.integrity==='VALID'?t('快照證據完整性有效'):t('完整性未確認')}${span.span_truncated?t(' · 已截斷'):''}</span>`:''}</div><div class="evidence-scope"><b>讓結論可被覆核</b><br>${demo?t('選擇本機源碼後，此面板會展示實際文件、行號與證據。'):t('引用有效只表示證據可核對，不代表業務含義或所有執行路徑已獲證明。')}</div></aside>`;
+  return ui`<aside class="evidence-panel" aria-label="源碼證據"><div class="evidence-heading"><span>${icon('code')}</span><h2>源碼證據</h2><small>${String(refs.length).padStart(2,'0')}</small></div><div class="evidence-summary"><span>${demo?t('案例源碼引用'):t('本次回答引用')}</span><span>${demo?t('合成文件原文'):t('點選檢視原文')}</span></div><div class="evidence-list">${refs.length?refs.map((ref,i)=>`<button class="evidence-item ${state.selectedEvidence===ref.evidence_id?'selected':''}" data-evidence="${escapeHTML(ref.evidence_id)}"><span class="evidence-number">${String(i+1).padStart(2,'0')}</span><span><strong>${escapeHTML((demo?demoText(ref.title):ref.title) || ref.relative_path?.split('/').pop() || t('源碼引用'))}</strong><small>${escapeHTML(ref.relative_path?.split('/').pop() || '')} · L${Number(ref.start_line)}–${Number(ref.end_line)}</small></span>${icon('chevron')}</button>`).join(''):t('<div class="answer-empty"><p>分析結論的引用<br>將在這裡顯示。</p></div>')}</div><div class="code-header"><span>${icon('document')} ${escapeHTML(span?.relative_path?.split('/').pop() || t('尚未選擇證據'))}</span><span>COBOL</span></div><div class="code-body" aria-label="源碼原文">${codeMarkup(span)}</div><div class="evidence-location"><div>${icon('folder')}<span>${escapeHTML(span?.relative_path || t('從引用清單選擇'))}</span></div><div>${icon('layers')}<span>${demo?ui`快照 ${escapeHTML((preview.catalog?.snapshot_id || '').replace('sha256:','').slice(0,12) || t('未建立'))}`:ui`快照 ${escapeHTML((state.project?.snapshot_id || '').replace('sha256:','').slice(0,12) || t('未建立'))}`}</span></div>${span?`<span class="badge ${demo?'preview':span.integrity==='VALID'?'positive':'warning'}">${icon(demo?'info':'check')}${demo?t('合成源碼 · 文件內容已讀取'):span.integrity==='VALID'?t('快照證據完整性有效'):t('完整性未確認')}${span.span_truncated?t(' · 已截斷'):''}</span>`:''}</div><div class="evidence-scope"><b>讓結論可被覆核</b><br>${demo?t('這些片段來自隨附的合成源碼，行號與雜湊由本機服務讀取，不是執行結果。'):t('引用有效只表示證據可核對，不代表業務含義或所有執行路徑已獲證明。')}</div></aside>`;
 }
 function formatDuration(seconds){
   if(!Number.isFinite(seconds) || seconds<0)return '—';
@@ -156,7 +390,7 @@ function formatDuration(seconds){
   return (hours?String(hours).padStart(2,'0')+':':'')+String(minutes).padStart(2,'0')+':'+String(rest).padStart(2,'0');
 }
 function formatBytes(bytes){if(!Number.isFinite(bytes))return '—';const units=['B','KiB','MiB','GiB','TiB'];let value=Math.max(0,bytes),unit=0;while(value>=1024 && unit<units.length-1){value/=1024;unit++;}return value.toFixed(unit?1:0)+' '+units[unit];}
-function phaseLabel(phase){return ({preparing:t('準備中'),discovering:t('掃描檔案目錄'),removing:t('移除過期索引'),expanding_copy:t('整理 COPY 引用'),resolving_relations:t('整理程式關係'),binding_calls:t('整理呼叫參數'),investigating:t('模型正在調查已有源碼'),queued:t('等待開始'),discover:t('掃描檔案目錄'),discovery:t('掃描檔案目錄'),catalog:t('更新輕量目錄'),catalog_scan:t('更新輕量目錄'),scope:t('定位相關源碼'),select_scope:t('定位相關源碼'),index:t('建立本次詳細索引'),indexing:t('建立本次詳細索引'),reading:t('讀取當前檔案'),parsing:t('解析當前檔案'),writing:t('寫入索引'),relations:t('整理程式關係'),resolving:t('整理程式關係'),finalizing:t('核對並保存結果'),verifying:t('核對源碼版本'),model:t('模型正在調查已有源碼'),investigation:t('模型正在調查已有源碼'),completed:t('已完成'),cancelled:t('已取消')})[phase] || phase || t('準備中');}
+function phaseLabel(phase){return ({reading_sources:t('逐頁讀取源碼'),analyzing_pages:t('解讀已讀源碼'),synthesizing:t('整合業務解讀'),framework:t('檢索相關框架資料'),preparing:t('準備中'),discovering:t('掃描檔案目錄'),removing:t('移除過期索引'),expanding_copy:t('整理 COPY 引用'),resolving_relations:t('整理程式關係'),binding_calls:t('整理呼叫參數'),investigating:t('模型正在調查已有源碼'),queued:t('等待開始'),discover:t('掃描檔案目錄'),discovery:t('掃描檔案目錄'),catalog:t('更新輕量目錄'),catalog_scan:t('更新輕量目錄'),scope:t('定位相關源碼'),select_scope:t('定位相關源碼'),index:t('建立本次詳細索引'),indexing:t('建立本次詳細索引'),reading:t('讀取當前檔案'),parsing:t('解析當前檔案'),writing:t('寫入索引'),relations:t('整理程式關係'),resolving:t('整理程式關係'),finalizing:t('核對並保存結果'),verifying:t('核對源碼是否更新'),model:t('模型正在調查已有源碼'),investigation:t('模型正在調查已有源碼'),completed:t('已完成'),cancelled:t('已取消')})[phase] || phase || t('準備中');}
 function progressViewModel(){
   const p=state.progress || {};const age=Math.max(0,(Date.now()-state.progressReceived)/1000);
   const known=Number.isFinite(p.total) && p.total>0 && Number.isFinite(p.completed);
@@ -167,7 +401,7 @@ function progressViewModel(){
     idle:Math.max(0,Number(p.last_update_seconds)||0)+age};
 }
 function progressPanel(){const v=progressViewModel();return ui`<section class="answer-card progress-card" aria-label="接入進度"><div class="progress-heading"><div><div class="section-eyebrow">本次執行</div><h2 id="job-phase-name">${escapeHTML(phaseLabel(v.p.phase))}</h2></div><span id="job-percent">${v.known?v.percent.toFixed(1)+'%':t('統計中')}</span></div><progress id="job-progress" max="100" ${v.known?'value="'+v.percent+'"':''} aria-label="目前階段進度"></progress><div class="progress-counts" id="job-counts">${progressCounts(v)}</div><div class="progress-metrics"><div><span>已運行</span><strong id="job-elapsed">${formatDuration(v.elapsed)}</strong></div><div><span id="job-eta-label">${v.p.eta_scope==='current_file'?t('本檔案預計剩餘'):t('本階段預計剩餘')}</span><strong id="job-eta">${v.eta===null?t('估算中'):formatDuration(v.eta)}</strong></div><div><span>本階段已處理資料</span><strong id="job-bytes">${formatBytes(v.p.bytes_completed)}</strong></div></div><div class="progress-file"><span>目前處理</span><code id="job-file">${escapeHTML(v.p.current_file || '—')}</code></div><p id="job-file-lines" class="field-hint">${fileProgress(v)}</p><p class="progress-explanation">進度按目前階段計算；預估會隨檔案大小及處理速度調整。詳細解析只處理本次問題相關範圍。</p><div id="job-health" class="progress-health" role="status">${escapeHTML(progressHealth(v))}</div><div class="progress-actions"><button id="cancel-job" class="button secondary" ${state.cancelRequested || !state.jobId?'disabled':''}>${state.cancelRequested?t('正在停止，等待目前步驟結束'):t('停止本次工作')}</button><small>停止後可再次接入，重用已完成的目錄快取。</small></div></section>`;}
-function progressCounts(v){const unit=v.p.unit==='bytes'?t('位元組'):v.p.unit==='lines'?t('行'):v.p.unit==='files'?t('檔案'):t('項');return v.known?ui`已完成 ${formatNumber(v.completed)} / ${formatNumber(v.p.total)} ${unit} · 剩餘 ${formatNumber(v.remaining)} ${unit}`:ui`已完成 ${formatNumber(v.completed)} ${unit} · 正在確認總量`;}
+function progressCounts(v){const unit=v.p.unit==='pages'?t('頁'):v.p.unit==='bytes'?t('位元組'):v.p.unit==='lines'?t('行'):v.p.unit==='files'?t('檔案'):t('項');return v.known?ui`已完成 ${formatNumber(v.completed)} / ${formatNumber(v.p.total)} ${unit} · 剩餘 ${formatNumber(v.remaining)} ${unit}`:ui`已完成 ${formatNumber(v.completed)} ${unit} · 正在確認總量`;}
 function fileProgress(v){return Number.isFinite(v.p.file_total)?ui`目前檔案已解析 ${formatNumber(v.p.file_completed)} / ${formatNumber(v.p.file_total)} 行`:'';}
 function progressHealth(v){return state.pollError || (v.idle>=15?ui`目前步驟仍在處理，距上次進度更新 ${Math.floor(v.idle)} 秒。`:t('進度連線正常'));}
 function rememberProgress(progress){if(progress){state.progress=progress;state.progressReceived=Date.now();}}
@@ -189,27 +423,33 @@ function scopeNotice(){
 }
 
 function renderWorkbench(){
-  if(state.mode==='real' && state.busy)return progressPanel();
-  if(state.mode==='real'&&!diagnosis())return ui`<section class="empty-panel"><div class="empty-icon">${icon('folder')}</div><div class="eyebrow">YOUR CODE. YOUR CONTEXT.</div><h2>從自己的源碼，開始。</h2><p>接入本機 COBOL 程式與 COPYBOOK，確認分析範圍，<br>再用業務語言提出問題。</p><div class="empty-actions"><button class="button primary" data-connect>${icon('plus')}接入本機源碼</button><button class="button secondary" data-demo>先查看介面示例</button></div></section>`;
-  return `<div class="workspace-grid"><div class="primary-column">${questionCard()}<section class="answer-card">${answerTabs()}<div class="answer-content" role="tabpanel">${state.tab==='relations'?relationsView():state.tab==='trace'?traceView():state.mode==='demo'?previewAnswer():actualAnswer()}</div></section></div>${evidencePanel()}</div>`;
+  if(state.mode==='demo' && !demoCase())return frameworkDemoUnavailable();
+  if(state.mode==='real' && state.busy)return progressPanel()+supportingContext();
+  if(state.mode==='real'&&!diagnosis()&&!state.project?.agent)return ui`<section class="empty-panel"><div class="empty-icon">${icon('folder')}</div><div class="eyebrow">YOUR CODE. YOUR CONTEXT.</div><h2>從自己的源碼，開始。</h2><p>接入本機 COBOL 程式與 COPYBOOK，確認分析範圍，<br>再用業務語言提出問題。</p><div class="empty-actions"><button class="button primary" data-connect>${icon('plus')}接入本機源碼</button><button class="button secondary" data-demo>先查看業務案例</button></div></section>`+supportingContext();
+  return `${state.mode==='demo'?frameworkCaseSelector():''}<div class="workspace-grid"><div class="primary-column">${questionCard()}<section class="answer-card">${answerTabs()}<div class="answer-content" role="tabpanel">${state.tab==='relations'?relationsView():state.tab==='trace'?traceView():state.tab==='api' && state.mode==='real'?apiResponseView():state.mode==='demo'?previewAnswer():actualAnswer()}</div></section>${supportingContext()}</div>${evidencePanel()}</div>`;
 }
 const SOURCE_PAGE_SIZE=100;
 function filteredPrograms(){return currentPrograms().filter(p=>(p.program_name+' '+p.relative_path).toLowerCase().includes(state.filter.toLowerCase()));}
 function sourceRows(){
   const programs=filteredPrograms();state.sourcePage=Math.min(state.sourcePage,Math.max(0,Math.ceil(programs.length/SOURCE_PAGE_SIZE)-1));
   const rows=programs.slice(state.sourcePage*SOURCE_PAGE_SIZE,(state.sourcePage+1)*SOURCE_PAGE_SIZE);
-  return rows.map(p=>ui`<tr><td>${escapeHTML(p.program_name)}</td><td>${escapeHTML(p.relative_path)}</td><td>${p.start_line?'L'+Number(p.start_line):'—'}</td><td><span class="badge ${state.mode==='demo'?'preview':'neutral'}">${state.mode==='demo'?t('介面示例'):['path','filename'].includes(p.name_origin)?t('檔名入口 · 待詳細解析'):t('目錄已識別 · 按需解析')}</span></td><td><button data-program="${escapeHTML(entryValue(p))}" data-program-label="${escapeHTML(p.program_name)}">分析程式 ${icon('arrow')}</button></td></tr>`).join('') || ui`<tr><td colspan="5">沒有符合的入口</td></tr>`;
+  return rows.map(p=>{
+    const selectedCase=state.mode==='demo'?preview.catalog?.cases?.find(item=>item.entry_path===p.relative_path || item.entry_program===p.program_name):null;
+    const action=state.mode==='demo'?(selectedCase?ui`<button data-demo-case="${escapeHTML(selectedCase.id)}">查看業務案例 ${icon('arrow')}</button>`:t('共用程式')):ui`<button data-program="${escapeHTML(entryValue(p))}" data-program-label="${escapeHTML(p.program_name)}">分析程式 ${icon('arrow')}</button>`;
+    return ui`<tr><td>${escapeHTML(p.program_name)}</td><td>${escapeHTML(p.relative_path)}</td><td>${p.start_line?'L'+Number(p.start_line):'—'}</td><td><span class="badge ${state.mode==='demo'?'preview':'neutral'}">${state.mode==='demo'?t('合成文件原文'):['path','filename'].includes(p.name_origin)?t('檔名入口 · 待詳細解析'):t('目錄已識別 · 按需解析')}</span></td><td>${action}</td></tr>`;
+  }).join('') || ui`<tr><td colspan="5">沒有符合的入口</td></tr>`;
 }
+
 function sourcePagination(){const total=filteredPrograms().length;const first=total?state.sourcePage*SOURCE_PAGE_SIZE+1:0;const last=Math.min(total,(state.sourcePage+1)*SOURCE_PAGE_SIZE);return ui`<span>${first}–${last} / ${formatNumber(total)} 個目錄入口</span><div><button data-source-page="previous" ${state.sourcePage===0?'disabled':''}>上一頁</button><button data-source-page="next" ${last>=total?'disabled':''}>下一頁</button></div>`;}
 
 function dependencyGaps(){const gaps=diagnosis()?.unresolved_dependencies || [];if(!gaps.length)return '';return ui`<section class="data-card dependency-gaps"><div class="data-card-heading"><h2>待確認的程式與 COPY 依賴</h2><span class="badge warning">${formatNumber(gaps.length)} 項</span></div><div class="table-wrapper"><table><thead><tr><th>目標名稱</th><th>關係</th><th>來源檔案</th></tr></thead><tbody>${gaps.slice(0,20).map(g=>`<tr><td>${escapeHTML(g.target_name || t('動態目標'))}</td><td>${escapeHTML(g.relation_type)}</td><td>${escapeHTML(g.relative_path)}</td></tr>`).join('')}</tbody></table></div><div class="table-count">${gaps.length>20?t('目前顯示前 20 項；完整清單保留在匯出 JSON。'):t('請補齊對應源碼；動態目標可能仍需設定資料確認。')}</div></section>`;}
 function renderSources(){
-  if(state.mode==='real'&&!diagnosis())return renderWorkbench();
+  if(state.mode==='real'&&!diagnosis() || state.mode==='demo'&&!demoCase())return renderWorkbench();
   const demo=state.mode==='demo';const d=diagnosis();const files=sourceFiles();const programs=currentPrograms();
-  return ui`${scopeNotice()}<div class="source-stats"><div class="source-stat"><span>目錄檔案</span><strong>${demo?'8':formatNumber(files?.candidate || files?.decoded)}</strong><small>${demo?t('介面展示數據'):ui`${formatNumber(files?.candidate)} 個候選檔案`}</small></div><div class="source-stat"><span>可選入口</span><strong>${formatNumber(programs.length)}</strong><small>先建立目錄，提問時解析相關源碼</small></div><div class="source-stat"><span>本次重用快取</span><strong>${demo?'0':formatNumber(files?.cached || files?.skipped_unchanged)}</strong><small>${demo?t('介面展示數據'):ui`${formatNumber(files?.indexed_or_updated)} 個檔案已更新`}</small></div></div><section class="data-card"><div class="data-card-heading"><h2>程式目錄</h2><input id="program-filter" aria-label="搜尋程式名稱或路徑" placeholder="搜尋程式名稱或路徑" value="${escapeHTML(state.filter)}"></div><div class="table-wrapper"><table><thead><tr><th>PROGRAM-ID</th><th>來源路徑</th><th>定義行</th><th>識別狀態</th><th></th></tr></thead><tbody id="program-rows">${sourceRows()}</tbody></table></div><div class="table-count source-pagination" id="source-pagination">${sourcePagination()}</div></section>${!demo?ui`<div class="source-note"><strong>源碼位置</strong><br>${escapeHTML(state.project.source)}<br><strong>本次快照</strong><br>${escapeHTML(state.project.snapshot_id || state.project.catalog_snapshot_id || t('未建立有效快照'))}</div>${renderBoundaries(d?.messages || [])}`:''}`;
+  return ui`${frameworkKnowledgeCard()}${scopeNotice()}<div class="source-stats"><div class="source-stat"><span>目錄檔案</span><strong>${demo?formatNumber(preview.catalog?.file_count):formatNumber(files?.candidate || files?.decoded)}</strong><small>${demo?t('由合成文件實際讀取'):ui`${formatNumber(files?.candidate)} 個候選檔案`}</small></div><div class="source-stat"><span>可選入口</span><strong>${formatNumber(programs.length)}</strong><small>先建立目錄，提問時解析相關源碼</small></div><div class="source-stat"><span>本次重用快取</span><strong>${demo?'—':formatNumber(files?.cached || files?.skipped_unchanged)}</strong><small>${demo?t('由合成文件實際讀取'):ui`${formatNumber(files?.indexed_or_updated)} 個檔案已更新`}</small></div></div><section class="data-card"><div class="data-card-heading"><h2>程式目錄</h2><input id="program-filter" aria-label="搜尋程式名稱或路徑" placeholder="搜尋程式名稱或路徑" value="${escapeHTML(state.filter)}"></div><div class="table-wrapper"><table><thead><tr><th>PROGRAM-ID</th><th>來源路徑</th><th>定義行</th><th>識別狀態</th><th></th></tr></thead><tbody id="program-rows">${sourceRows()}</tbody></table></div><div class="table-count source-pagination" id="source-pagination">${sourcePagination()}</div></section>${!demo?ui`<div class="source-note"><strong>源碼位置</strong><br>${escapeHTML(state.project.source)}<br><strong>本次快照</strong><br>${escapeHTML(state.project.snapshot_id || state.project.catalog_snapshot_id || t('未建立有效快照'))}</div>${renderBoundaries(d?.messages || [])}`:''}`;
 }
 function renderHistory(){
-  if(state.mode==='demo')return ui`<section class="data-card"><div class="data-card-heading"><h2>介面示例記錄</h2><span class="badge preview">非實際分析</span></div><div class="history-card">${icon('document')}<div><h3>${preview.question}</h3><p>預先編排的介面內容 · 3 段示例引用</p></div><button data-demo-result>查看示例 ${icon('arrow')}</button></div></section>`;
+  if(state.mode==='demo')return ui`<section class="empty-panel"><h2>案例尚未產生分析記錄</h2><p>選擇業務案例，載入並開始模型分析後，可在本次工作階段查看記錄。</p><button class="button secondary" data-demo-result>查看業務案例 ${icon('arrow')}</button></section>`;
   return ui`<section class="data-card"><div class="data-card-heading"><h2>本次工作階段</h2><span class="badge neutral">${state.history.length} 項</span></div>${state.history.length?state.history.map((item,i)=>ui`<div class="history-card">${icon('document')}<div><h3>${escapeHTML(item.diagnosis?.question || t('源碼接入'))}</h3><p>${escapeHTML(item.source?.split(/[\\/]/).pop())} · ${escapeHTML(statusLabel(item.agent?.agent_result?.status || item.diagnosis?.question_status))} · ${escapeHTML(item.diagnosis?.generated_at_utc || '')}</p></div><button data-history="${i}">查看摘要</button></div>`).join(''):t('<div class="empty-panel"><h2>尚未有分析記錄</h2><p>本次工作階段完成的分析會列在這裡；完整結果同時保存在你指定的資料夾。</p></div>')}</section>`;
 }
 function render(){renderChrome();$('page-content').innerHTML=state.page==='sources'?renderSources()+dependencyGaps():state.page==='history'?renderHistory():renderWorkbench();decorate();}
@@ -220,7 +460,8 @@ function apiErrorText(error){
   if(code==='JOB_ACTIVE')return t('目前已有分析正在執行，請等候完成。');
   if(code==='INVALID_SESSION')return t('工作階段已失效，請重新整理頁面。');
   if(['INVALID_ENCODING','INVALID_SOURCE_FORMAT','INVALID_EXTENSIONS'].includes(code))return t('請檢查文字編碼、源碼格式與副檔名設定。');
-  if(['NO_CURRENT_INDEX','INDEX_CHANGED','INDEX_UNAVAILABLE','EVIDENCE_NOT_FOUND','EVIDENCE_INTEGRITY_ERROR','INVALID_EVIDENCE_ID'].includes(code))return t('請重新接入源碼，再選取當次快照的引用。');
+  if(['INDEX_CHANGED','EVIDENCE_INTEGRITY_ERROR'].includes(code))return t('源碼或索引已更新，舊引用暫時不可用。請重新分析目前源碼。');
+  if(['NO_CURRENT_INDEX','INDEX_UNAVAILABLE','EVIDENCE_NOT_FOUND','INVALID_EVIDENCE_ID'].includes(code))return t('請重新接入源碼，再選取當次快照的引用。');
   if(['INVALID_OPTIONS','REQUEST_TOO_LARGE','INVALID_JSON','INVALID_QUERY'].includes(code))return t('請檢查輸入欄位及請求大小。');
   return t('本機服務暫時無法完成操作。')+' ('+code+')';
 }
@@ -231,18 +472,19 @@ async function api(path,options={}){
   return value;
 }
 function clearEvidence(){state.selectedEvidence=null;state.evidence=null;state.evidenceTicket++;}
-function applyProject(project){state.project=project;clearEvidence();state.sourcePage=0;state.entryFilter='';const d=project?.diagnosis;state.entry=selectedEntryValue(d) || (d?.question?'':entryValue(project?.programs?.[0])) || '';state.question=d?.question || '';}
+function applyProject(project){state.project=project;clearEvidence();state.sourcePage=0;state.entryFilter='';const d=project?.diagnosis;state.maxSourcePages=Number(d?.source_options?.max_source_pages || 12);state.readingStrategy=projectReadingStrategy(project);state.entry=selectedEntryValue(d) || (d?.question?'':entryValue(project?.programs?.[0])) || '';state.question=d?.question || '';}
 async function initialize(){
-  try{const data=await api('/api/state');state.connected=true;state.token=data.session_token;state.apiConfigured=Boolean(data.api_configured);state.apiConfigurationError=data.api_configuration_error || null;
+  try{const data=await api('/api/state');state.connected=true;state.token=data.session_token;state.apiConfigured=Boolean(data.api_configured);state.apiConfigurationError=data.api_configuration_error || null;state.frameworkKnowledge=data.framework_knowledge || null;
     if(data.project?.source){applyProject(data.project);state.mode='real';if(data.project.diagnosis)state.history=[data.project];}
     if(data.active_job_id){state.mode='real';state.busy=true;state.jobId=data.active_job_id;state.cancelRequested=Boolean(data.job?.cancel_requested);rememberProgress(data.job?.progress);startProgressClock();pollJob(data.active_job_id);}
-  }catch{state.connected=false;}
+  }catch{state.connected=false;state.demoLoading=false;}
+  if(state.connected)await loadFrameworkDemo();
   render();if(state.mode==='real')loadFirstEvidence();
 }
 function setMode(mode){
   state.mode=mode;state.error='';state.filter='';state.sourcePage=0;state.entryFilter='';state.tab='answer';clearEvidence();
-  if(mode==='demo'){state.question=preview.question;state.entry='PREMIUM-CALC';state.selectedEvidence='preview-01';state.evidence=preview.evidence[0];}
-  else{state.question=state.project?.diagnosis?.question || '';state.entry=selectedEntryValue(state.project?.diagnosis) || (state.project?.diagnosis?.question?'':entryValue(state.project?.programs?.[0])) || '';}
+  if(mode==='demo'){selectDemoCase(preview.selectedCase || preview.catalog?.default_case,false);}
+  else{state.readingStrategy=projectReadingStrategy();state.maxSourcePages=Number(state.project?.diagnosis?.source_options?.max_source_pages || 12);state.question=state.project?.diagnosis?.question || '';state.entry=selectedEntryValue(state.project?.diagnosis) || (state.project?.diagnosis?.question?'':entryValue(state.project?.programs?.[0])) || '';}
   render();if(mode==='real')loadFirstEvidence();
 }
 function openSource(){
@@ -254,7 +496,7 @@ function openSource(){
 }
 async function startJob(options){
   state.error='';state.pollError='';state.cancelRequested=false;state.progress=null;state.jobId=null;state.progressReceived=Date.now();state.mode='real';state.page='workbench';state.busy=true;startProgressClock();state.jobKind=options.question?'question':'index';state.tab='answer';clearEvidence();
-  state.project={source:options.source,output:options.output,diagnosis:null,programs:[],agent:null,relations:{edges:[]}};render();
+  state.project={source_origin:state.project?.source===options.source?state.project.source_origin:undefined,source:options.source,output:options.output,diagnosis:null,programs:[],agent:null,relations:{edges:[]}};render();
   try{const response=await api('/api/analyze',{method:'POST',body:JSON.stringify(options)});state.jobId=response.job_id;rememberProgress(response.progress);await pollJob(response.job_id);}
   catch(error){state.busy=false;stopProgressClock();state.error=error.message;render();}
 }
@@ -262,7 +504,7 @@ async function pollJob(jobId){
   try{const job=await api(`/api/jobs/${encodeURIComponent(jobId)}`);if(state.jobId!==jobId)return;
     rememberProgress(job.progress);state.pollError='';state.cancelRequested=Boolean(job.cancel_requested || state.cancelRequested);if(job.status==='RUNNING'){updateProgressPanel();setTimeout(()=>pollJob(jobId),1000);return;}
     state.busy=false;state.jobId=null;stopProgressClock();
-    if(job.result){if(state.mode==='real')applyProject(job.result);else state.project=job.result;if(job.result.diagnosis)state.history.unshift(job.result);}
+    if(job.result){if(state.mode==='real')applyProject(job.result);else state.project=job.result;if(job.result.diagnosis)state.history.unshift(job.result);const context=job.result.diagnosis?.framework_context;if(context)state.frameworkKnowledge={status:['MATCHED','NO_MATCH'].includes(context.status)?'LOADED':context.status,reason_code:context.reason_code,document:context.document,runtime_verified:false};}
     if(job.status==='FAILED')state.error=apiErrorText(job.error);if(job.status==='CANCELLED')state.error=t('已取消。再次接入會重用已完成的目錄快取。');
     if(state.mode==='real' && state.jobKind==='index' && sourceUsable())state.page='sources';
     render();if(state.mode==='real')loadFirstEvidence();
@@ -271,29 +513,45 @@ async function pollJob(jobId){
 async function loadFirstEvidence(){const first=currentRefs()[0];if(first&&!state.evidence&&!state.busy)await loadEvidence(first.evidence_id);}
 async function loadEvidence(id){
   state.selectedEvidence=id;const ticket=++state.evidenceTicket;const runId=state.project?.run_id;
-  if(state.mode==='demo'){state.evidence=preview.evidence.find(s=>s.evidence_id===id) || null;render();return;}
+  if(state.mode==='demo'){state.evidence=currentRefs().find(s=>s.evidence_id===id) || null;render();return;}
   state.evidence=null;render();
   try{const data=await api(`/api/evidence?id=${encodeURIComponent(id)}`);if(ticket!==state.evidenceTicket || state.mode!=='real' || runId!==state.project?.run_id)return;
-    if(data.run_id && runId && data.run_id!==runId)throw new Error(t('源碼快照已更新，請重新選擇本次引用。'));
+    if(data.run_id && runId && data.run_id!==runId)throw new Error(t('源碼已更新，請重新分析後選擇引用。'));
     const span=data.spans?.find(s=>s.evidence_id===id);if(!span || span.integrity!=='VALID')throw new Error(t('這段證據未通過快照完整性核對，暫不展示原文。'));
     state.evidence=span;render();
   }catch(error){if(ticket===state.evidenceTicket){toast(error.message);render();}}
 }
 function markdownSummary(project=state.project){
-  if(state.mode==='demo' && project===state.project)return ui`# COBOL Lens · 介面示例\n\n資料模式：預先編排的合成示例，未執行模型分析。\n\n## ${preview.question}\n\n分期保費 = 年繳保費 × 繳費係數。\n\n本內容用於展示回答、關係與引用的介面，不代表公司業務結果。\n\n## 示例引用\n\n${preview.evidence.map(r=>`- ${r.relative_path}:${r.start_line}–${r.end_line}`).join('\n')}\n\n## 待確認\n\n實際係數、折扣適用條件與完整異常路徑需額外資料核對。\n`;
+  if(state.mode==='demo' && project===state.project){
+    const selected=demoCase();if(!selected)return t('業務案例尚未載入。');
+    return ui`# COBOL Lens · 業務說明\n\n合成業務案例 · 未呼叫模型\n\n## ${demoText(selected.title)}\n\n${demoText(selected.purpose)}\n\n## 建議業務問題\n\n${demoText(selected.question)}\n\n## 業務處理過程\n\n${(selected.steps || []).map((step,index)=>`${index+1}. ${demoText(step.title)} — ${demoText(step.description)} [${step.evidence_id || ''}]`).join('\n')}\n\n## 業務規則與影響\n\n${(selected.metadata || []).map(item=>`- ${demoText(item.label)}: ${demoText(item.value)}`).join('\n')}\n\n業務設定為案例中的合成聲明，不代表已匯入生產配置或執行記錄。\n\n## 技術與框架依據\n\n框架類型： ${demoKind(selected.kind || selected.id)}\n調查起點： ${selected.entry_program || ''} · ${selected.entry_path || ''}\n快照： ${preview.catalog.snapshot_id || ''}\n\n## 案例源碼引用\n\n${(selected.evidence || []).map(ref=>`- ${ref.relative_path}:${ref.start_line}–${ref.end_line} · ${ref.evidence_id} · ${ref.source_sha256 || ''}`).join('\n')}\n\n## 案例範圍與待確認事項\n\n${(selected.boundaries || []).map(item=>'- '+demoText(item)).join('\n')}\n`;
+  }
   const d=project?.diagnosis;const answer=project?.agent?.agent_result;
   const entry=d?.selected_entry;const refs=answer?.evidence_refs || answer?.verified_evidence_refs || [];
-  return ui`# COBOL Lens · 本機源碼分析\n\n資料模式：本機源碼\n匯出時間： ${new Date().toISOString()}\n來源： ${project?.source || ''}\n調查起點： ${entry?.program_name || d?.entry_requested || t('從程式目錄探索')}${entry?.relative_path?' · '+entry.relative_path:''}\n快照： ${project?.snapshot_id || t('未建立')}\n接入狀態： ${d?.runner_status || ''}\n問答狀態： ${answer?.status || d?.question_status || ''}\n\n## 業務問題\n\n${d?.question || t('尚未提出問題')}\n\n${answer?.answer || t('本次沒有生成業務答案。')}\n\n## 本次引用索引\n\n${refs.length?refs.map(r=>`- ${r.relative_path}:${r.start_line}–${r.end_line} · ${r.evidence_id}`).join('\n'):t('本次沒有回答引用。')}\n\n## 接入診斷\n\n${(d?.messages || []).map(m=>'- '+m).join('\n')}\n\n問題相關性與完整性尚未核驗。完整診斷與分析邊界可一併匯出為 JSON。\n`;
+  const framework=d?.framework_context || answer?.framework_context;
+  const frameworkSummary=framework?ui`\n\n## 框架知識\n\n${frameworkStatusLabel(framework.status)}\n\n${framework.document?.title || ''}\n${framework.document?.sha256 || ''}\n\n文件知識不等於現場執行驗證；閉源實作、實際配置與執行結果仍可能未知。\n\n${(framework.references || []).map(ref=>`- ${ref.reference_id} · ${ref.heading || ''} · ${ref.page!==null && ref.page!==undefined?t('頁碼')+' '+ref.page+' · ':''}L${ref.start_line}–${ref.end_line}`).join('\n')}\n\n${(answer?.claims || []).filter(claim=>claim.kind==='framework_interpretation').map(claim=>`- ${t('框架條件解讀 · 需源碼與現場覆核')}: ${claim.claim || claim.text || ''} [${(claim.evidence_ids || []).join(', ')}] [${(claim.framework_reference_ids || []).join(', ')}]`).join('\n')}`:'';
+  const coverageSummary=narrativeText(answer)?ui`\n\n模型解讀 · 需業務覆核\n\n## 閱讀覆蓋\n\n${readingCoverageText(answer.reading_coverage)}${callChainCoverageText(answer.reading_coverage)?'\n\n'+callChainCoverageText(answer.reading_coverage)+'\n'+callChainCoverageNote():''}\n\n${answer.reading_coverage?.complete?t('本次源碼範圍已讀完；閱讀完整不等於業務結論已驗證。'):t('閱讀覆蓋描述本次讀取範圍，不代表已驗證所有業務路徑。')}\n\n${narrativeNotes(answer,project).join('\n')}`:'';
+  const sourceSummaries=narrativeText(answer) && programSummaries(answer).length?ui`\n\n## 各來源的業務解讀\n\n按來源保留的模型解讀，可補充上方業務摘要；仍需業務覆核。\n\n${programSummaries(answer).map(item=>`### ${item.relative_path || item.program_name || t('源碼引用')}\n\n${item.text}${item.complete===false?'\n\n'+t('部分解讀'):''}`).join('\n\n')}`:'';
+  return ui`# COBOL Lens · 業務分析摘要\n\n資料模式：${syntheticProject(project)?t('本機合成源碼'):t('本機源碼')}\n匯出時間： ${new Date().toISOString()}\n來源： ${project?.source || ''}\n調查起點： ${entry?.program_name || d?.entry_requested || t('從程式目錄探索')}${entry?.relative_path?' · '+entry.relative_path:''}\n快照： ${project?.snapshot_id || t('未建立')}\n接入狀態： ${d?.runner_status || ''}\n問答狀態： ${answer?.status || d?.question_status || ''}\n\n## 業務問題\n\n${d?.question || t('尚未提出問題')}\n\n${narrativeText(answer) || answer?.answer || t('本次沒有生成業務答案。')}${coverageSummary}${sourceSummaries}\n\n## 本次引用索引\n\n${refs.length?refs.map(r=>`- ${r.relative_path || r.path}:${r.start_line}–${r.end_line} · ${r.evidence_id}`).join('\n'):t('本次沒有回答引用。')}\n\n${frameworkSummary}\n\n## 接入診斷\n\n${(d?.messages || []).map(m=>'- '+m).join('\n')}\n\n問題相關性與完整性尚未核驗。完整診斷與分析邊界可一併匯出為 JSON。\n`;
 }
 function download(content,type,name){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=name;link.hidden=true;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function exportData(){
+  if(state.mode==='demo')return {mode:'synthetic_source_guide',source_origin:'synthetic_framework',model_called:false,snapshot_id:preview.catalog?.snapshot_id || null,case:demoCase(),file_count:preview.catalog?.file_count || 0,programs:preview.catalog?.programs || []};
+  return {mode:syntheticProject()?'synthetic_source_analysis':'local_source',...state.project};
+}
 
 document.addEventListener('click',event=>{
   const target=event.target.closest('button,a');if(!target)return;
+  if(target.dataset.demoCase){if(state.busy)return;selectDemoCase(target.dataset.demoCase);}
+  if(target.hasAttribute('data-prepare-demo'))prepareDemo();
+  if(target.hasAttribute('data-retry-demo'))loadFrameworkDemo();
   if(target.dataset.page){state.page=target.dataset.page;render();}
   if(target.dataset.tab){state.tab=target.dataset.tab;render();}
   if(target.dataset.evidence)loadEvidence(target.dataset.evidence);
-  if(target.dataset.question){if(state.mode==='demo'){toast(t('這是介面示例。請接入本機源碼，才能調查自己的問題。'));return;}state.question=target.dataset.question;render();$('question-input')?.focus();}
-  if(target.dataset.program){state.entry=target.dataset.program;state.question=state.mode==='demo'?preview.question:ui`請解釋 ${target.dataset.programLabel || target.dataset.program} 的主要處理步驟、輸入輸出及呼叫。`;state.page='workbench';state.tab='answer';render();}
+  if(target.dataset.frameworkReference){event.preventDefault();const ref=$(frameworkAnchor(target.dataset.frameworkReference));if(ref){ref.open=true;const list=ref.closest('.framework-references');if(list)list.open=true;const support=ref.closest('.supporting-context');if(support)support.open=true;ref.scrollIntoView({block:'nearest'});}}
+  if(target.hasAttribute('data-settings'))showSettings();
+  if(target.dataset.question){if(state.mode==='demo'){toast(t('請先載入案例或接入本機源碼，再分析自己的問題。'));return;}state.question=target.dataset.question;render();$('question-input')?.focus();}
+  if(target.dataset.program){state.entry=target.dataset.program;state.question=state.mode==='demo'?demoText(demoCase()?.question):ui`請說明 ${target.dataset.programLabel || target.dataset.program} 支援的業務、受理條件、狀態變化與異常影響。`;state.page='workbench';state.tab='answer';render();}
   if(target.id==='cancel-job')cancelJob();
   if(target.dataset.sourcePage){state.sourcePage+=target.dataset.sourcePage==='next'?1:-1;render();}
   if(target.hasAttribute('data-connect'))openSource();
@@ -303,24 +561,24 @@ document.addEventListener('click',event=>{
   if(target.classList.contains('close-dialog'))target.closest('dialog').close();
 });
 document.addEventListener('input',event=>{
-  if(event.target.id==='question-input'){state.question=event.target.value;if(state.mode==='real'){const count=document.querySelector('.tab-count');if(count)count.textContent=draftChanged()?0:result()?.tool_trace?.length || 0;if(state.tab!=='relations'){const content=document.querySelector('.answer-content');if(content)content.innerHTML=state.tab==='trace'?traceView():actualAnswer();const panel=document.querySelector('.evidence-panel');if(panel)panel.outerHTML=evidencePanel();}}}
+  if(event.target.id==='question-input'){state.question=event.target.value;if(state.mode==='real'){const count=document.querySelector('.tab-count');if(count)count.textContent=draftChanged()?0:result()?.tool_trace?.length || 0;if(state.tab!=='relations'){const content=document.querySelector('.answer-content');if(content)content.innerHTML=state.tab==='trace'?traceView():state.tab==='api'?apiResponseView():actualAnswer();const panel=document.querySelector('.evidence-panel');if(panel)panel.outerHTML=evidencePanel();const framework=document.querySelector('.framework-card');if(framework)framework.outerHTML=frameworkKnowledgeCard();}}}
   if(event.target.id==='program-filter'){state.filter=event.target.value;state.sourcePage=0;$('program-rows').innerHTML=sourceRows();$('source-pagination').innerHTML=sourcePagination();}
   if(event.target.id==='entry-filter'){state.entryFilter=event.target.value;$('entry-select').innerHTML=entryOptions();}
 });
-document.addEventListener('change',event=>{if(event.target.id==='entry-select'){state.entry=event.target.value;render();}});
+document.addEventListener('change',event=>{if(event.target.id==='entry-select'){state.entry=event.target.value;render();}if(event.target.id==='reading-depth'){state.maxSourcePages=Number(event.target.value);render();}if(event.target.id==='reading-strategy'){state.readingStrategy=event.target.value;render();}});
 document.addEventListener('submit',async event=>{
   if(event.target.id==='question-form'){
     event.preventDefault();if(state.busy)return;
-    if(state.mode==='demo'){if(state.question!==preview.question || state.entry!=='PREMIUM-CALC'){toast(t('示例只展示預先編排的保費問題。接入本機源碼後，可分析自己的程式。'));return;}state.tab='answer';render();toast(t('目前為介面示例，未發起模型請求。'));return;}
+    if(state.mode==='demo'){toast(t('請先載入案例或接入本機源碼，再分析自己的問題。'));return;}
     if(!state.question.trim()){toast(t('請先輸入一個業務問題。'));return;}
     if(!sourceUsable()){toast(t('請先成功接入本機源碼。'));return;}
     if(!state.apiConfigured){showSettings();return;}
     const p=state.project;const opts=p.diagnosis.source_options || {};
-    await startJob({source:p.source,output:p.output,encoding:opts.encoding || 'auto',source_format:opts.source_format || 'auto',extensions:opts.extensions?.join(',') || null,entry:state.entry || null,question:state.question.trim(),allow_network:true,index_mode:opts.index_mode || 'catalog'});
+    await startJob({source:p.source,output:p.output,encoding:opts.encoding || 'auto',source_format:opts.source_format || 'auto',extensions:opts.extensions?.join(',') || null,entry:state.entry || null,question:state.question.trim(),max_source_pages:state.maxSourcePages,reading_strategy:state.readingStrategy,allow_network:true,index_mode:opts.index_mode || 'catalog'});
   }
 });
 function pastedPath(value){const text=value.trim();return text.startsWith('"')&&text.endsWith('"')?text.slice(1,-1):text;}
-$('source-form').addEventListener('submit',async event=>{event.preventDefault();if(!state.connected || state.busy)return;const options={source:pastedPath($('source-path').value),output:pastedPath($('output-path').value),encoding:$('source-encoding').value,source_format:$('source-format').value,extensions:$('source-extensions').value.trim() || null,index_mode:'catalog',verify_content:$('verify-content').checked,allow_network:false};$('source-dialog').close();await startJob(options);});
+$('source-form').addEventListener('submit',async event=>{event.preventDefault();if(!state.connected || state.busy)return;const options={source:pastedPath($('source-path').value),output:pastedPath($('output-path').value),encoding:$('source-encoding').value,source_format:$('source-format').value,extensions:$('source-extensions').value.trim() || null,index_mode:'catalog',verify_content:$('verify-content').checked,reading_strategy:state.readingStrategy,max_source_pages:state.maxSourcePages,allow_network:false};$('source-dialog').close();await startJob(options);});
 $('connect-button').addEventListener('click',openSource);
 $('demo-mode').addEventListener('click',()=>setMode('demo'));
 $('real-mode').addEventListener('click',()=>setMode('real'));
@@ -331,7 +589,7 @@ function apiConfigurationMessage(){
     BASE_URL_MISSING:'尚未填寫接口地址。請在 .env 設定 COMPANY_API_BASE_URL。',
     CHAT_MODEL_MISSING:'尚未填寫模型。請在 .env 設定 COMPANY_CHAT_MODEL。',
     API_KEY_MISSING:'尚未填寫密鑰。請在 .env 設定 COMPANY_API_KEY。',
-    BASE_URL_INVALID:'接口地址格式無效。請核對 COMPANY_API_BASE_URL 與接口要求的版本路徑。',
+    BASE_URL_INVALID:'接口地址格式無效。請核對 COMPANY_API_BASE_URL 與接口要求的路徑。',
     API_STYLE_UNSUPPORTED:'接口風格不受支援。請核對 COMPANY_API_STYLE；預設為 openai_compatible。',
     ENV_FILE_INVALID:'.env 格式無效。請使用 UTF-8 文字，每行填寫一個「變數名稱=值」，並核對引號。',
     ENV_FILE_UNREADABLE:'本機服務無法讀取 .env。請檢查檔案是否可由目前使用者讀取。',
@@ -339,18 +597,15 @@ function apiConfigurationMessage(){
   };
   return t(messages[state.apiConfigurationError] || '接口配置無效。請核對 .env 與啟動服務時的環境變數，修改後重新啟動。');
 }
-function showSettings(){$('settings-description').textContent=apiConfigurationMessage() || (state.apiConfigured?t('接口設定已提供，發起問答時會進行實際能力探測。'):t('源碼索引可離線使用。模型問答需要先在項目根目錄的 .env 設定接口。'));$('settings-local').textContent=state.connected?t('已啟動'):t('尚未啟動');$('settings-api').textContent=state.apiConfigurationError?t('設定需修正'):(state.apiConfigured?t('已提供 · 待實際驗證'):t('尚未提供'));$('settings-dialog').showModal();}
+function showSettings(){$('settings-description').textContent=apiConfigurationMessage() || (state.apiConfigured?t('接口設定已提供，發起分析時會使用已設定的接口生成業務解讀。'):t('源碼索引可離線使用。模型問答需要先在項目根目錄的 .env 設定接口。'));$('settings-local').textContent=state.connected?t('已啟動'):t('尚未啟動');$('settings-api').textContent=state.apiConfigurationError?t('設定需修正'):(state.apiConfigured?t('已提供 · 待實際驗證'):t('尚未提供'));$('settings-framework').textContent=frameworkStatusLabel(frameworkContext().status);$('settings-dialog').showModal();}
 $('settings-button').addEventListener('click',showSettings);
 $('connection-status').addEventListener('click',showSettings);
 $('export-button').addEventListener('click',()=>$('export-dialog').showModal());
-$('export-markdown').addEventListener('click',()=>{download(markdownSummary(),'text/markdown;charset=utf-8',state.mode==='demo'?'interface-preview-summary.md':'source-analysis-summary.md');$('export-dialog').close();toast(t('已匯出摘要，包含資料模式與分析邊界。'));});
-$('export-json').addEventListener('click',()=>{download(JSON.stringify(state.mode==='demo'?{mode:'illustrative_preview',model_called:false,...preview}:{mode:'local_source',...state.project},null,2),'application/json;charset=utf-8',state.mode==='demo'?'interface-preview.json':'source-analysis.json');$('export-dialog').close();toast(t('已匯出本次資料。'));});
+$('export-markdown').addEventListener('click',()=>{download(markdownSummary(),'text/markdown;charset=utf-8',state.mode==='demo'?'business-case-guide.md':'source-analysis-summary.md');$('export-dialog').close();toast(t('已匯出摘要，包含資料模式與分析邊界。'));});
+$('export-json').addEventListener('click',()=>{download(JSON.stringify(exportData(),null,2),'application/json;charset=utf-8',state.mode==='demo'?'business-case-guide.json':'source-analysis.json');$('export-dialog').close();toast(t('已匯出本次資料。'));});
 $('language-select').addEventListener('change',event=>{
-  const previousPreviewQuestion=preview.question;
   if(!selectInterfaceLocale(event.target.value))return;
-  preview.question=t('分期保費是如何計算出來的？');
-  [t('分期保費計算'),t('年繳保費組成'),t('繳費係數來源')].forEach((title,i)=>{preview.evidence[i].title=title;});
-  if(state.mode==='demo' && state.question===previousPreviewQuestion)state.question=preview.question;
+  if(state.mode==='demo')state.question=demoText(demoCase()?.question);
   render();
   if($('settings-dialog').open)showSettings();
   $('toast').hidden=true;

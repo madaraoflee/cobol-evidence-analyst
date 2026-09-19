@@ -230,6 +230,31 @@ class SourceCatalogTests(unittest.TestCase):
                 self.assertEqual(result['relative_paths'], ['main.cbl'])
                 self.assertIn(expected, {d['status'] for d in result['missing_dependencies']})
 
+    def test_copy_control_layers_do_not_consume_business_call_depth(self):
+        self.write('main.cbl', program('MAIN', 'COPY CONTROL.\n'))
+        self.write('CONTROL.cpy', 'COPY NESTED.\n')
+        self.write('NESTED.cpy', 'CALL "WORKER".\nCOPY CONTROL.\n')
+        self.write('worker.cbl', program('WORKER'))
+        result = select_related_sources(self.source, self.refresh(), 'MAIN', max_depth=1, copy_depth_cost=0)
+        self.assertEqual(set(result['relative_paths']), {'main.cbl', 'CONTROL.cpy', 'NESTED.cpy', 'worker.cbl'})
+        self.assertNotIn('DEPTH_LIMIT', {d['status'] for d in result['missing_dependencies']})
+        self.assertEqual(result['scope']['copy_depth_cost'], 0)
+
+    def test_quoted_words_are_not_dependencies_and_real_calls_precede_copy_budget(self):
+        self.write('main.cbl', program('MAIN', '''COPY AREA.
+DISPLAY "CALL 'FAKE' COPY LOST".
+DISPLAY 'CALL "ALSO-FAKE"'.
+CALL
+    "WORKER".
+CALL RUNTIME-TARGET.
+'''))
+        self.write('worker.cbl', program('WORKER'))
+        self.write('AREA.cpy', '01 VALUE-COUNT PIC 9.\n')
+        result = select_related_sources(self.source, self.refresh(), 'MAIN', max_files=2)
+        self.assertEqual(result['relative_paths'], ['main.cbl', 'worker.cbl'])
+        targets = {item['target_name'] for item in result['missing_dependencies']}
+        self.assertEqual(targets, {'AREA', 'RUNTIME-TARGET'})
+
     def test_new_source_root_cannot_reuse_previous_root_headers(self):
         self.write('main.cbl', program('FIRST'))
         self.refresh()

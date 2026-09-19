@@ -1,0 +1,459 @@
+{
+  "id": "framework-workbench",
+  "title": {
+    "zh-CN": "服务申请业务案例",
+    "zh-HK": "服務申請業務案例",
+    "en": "Service request business cases"
+  },
+  "description": {
+    "zh-CN": "沿“申请受理→人工复核→夜间生效”理解条件、状态变化和异常处理。以下是依据合成源码预写的案例导读；发起分析后才会生成本次模型回答。",
+    "zh-HK": "沿「申請受理→人工覆核→夜間生效」理解條件、狀態變化及異常處理。以下是依據合成源碼預先編寫的案例導讀；發起分析後才會產生本次模型回答。",
+    "en": "Follow intake, manual review, and nightly activation to understand conditions, state changes, and exception handling. This is a prewritten guide based on synthetic source; a model answer is generated only after analysis is requested."
+  },
+  "default_case": "online",
+  "cases": [
+    {
+      "id": "online",
+      "title": {
+        "zh-CN": "申请受理与金额分流",
+        "zh-HK": "申請受理及金額分流",
+        "en": "Request intake and amount-based routing"
+      },
+      "kind": "traditional_online",
+      "entry_program": "SERVICEENTRY",
+      "entry_path": "programs/service-entry.cbl",
+      "question": {
+        "zh-CN": "申请金额需要满足什么条件？不超过5000和超过5000的申请分别如何处理，取消或保存失败时会怎样？",
+        "zh-HK": "申請金額需要符合甚麼條件？不超過5000及超過5000的申請分別如何處理，取消或儲存失敗時會怎樣？",
+        "en": "What amount is acceptable? How are requests at or below 5000 and above 5000 handled, and what happens on cancellation or a failed save?"
+      },
+      "purpose": {
+        "zh-CN": "说明受理规则：金额须大于零；不超过5000拟设为已批准，超过5000拟转人工复核。区分输入被接受、保存返回成功与后续处理去向。",
+        "zh-HK": "說明受理規則：金額須大於零；不超過5000擬設為已批准，超過5000擬轉人工覆核。區分輸入獲接受、儲存返回成功及後續處理去向。",
+        "en": "Explain the intake rules: the amount must be positive; amounts at or below 5000 are set for approval, while larger amounts are set for manual review. Distinguish accepted input, a successful save response, and the intended next destination."
+      },
+      "steps": [
+        {
+          "title": {
+            "zh-CN": "确认输入后才保存申请",
+            "zh-HK": "確認輸入後才儲存申請",
+            "en": "Save only after input is accepted"
+          },
+          "description": {
+            "zh-CN": "先准备申请，再检查输入；需要修改时继续编辑。只有输入被接受才进入保存处理，取消或出错均跳过保存并决定下一步。",
+            "zh-HK": "先準備申請，再檢查輸入；需要修改時繼續編輯。只有輸入獲接受才進入儲存處理，取消或出錯均略過儲存並決定下一步。",
+            "en": "Prepare the request and check the input, allowing further edits when needed. Only accepted input reaches saving; cancellation or an error skips saving and proceeds to the next-step decision."
+          },
+          "path": "copybooks/online-flow.cpy",
+          "anchor": "ONLINE-CONTROL."
+        },
+        {
+          "title": {
+            "zh-CN": "取得待处理申请",
+            "zh-HK": "取得待處理申請",
+            "en": "Retrieve the request to be handled"
+          },
+          "description": {
+            "zh-CN": "按申请标识请求取得记录；返回成功后带出申请编号和金额，并请求暂存这笔记录，供后续修改使用。",
+            "zh-HK": "按申請標識請求取得記錄；返回成功後帶出申請編號及金額，並請求暫存這筆記錄，供後續修改使用。",
+            "en": "Request the record by its identifier. On a successful response, populate the request number and amount and request a temporary copy for later editing."
+          },
+          "path": "programs/service-entry.cbl",
+          "anchor": "1000-INITIALISE SECTION."
+        },
+        {
+          "title": {
+            "zh-CN": "检查金额并允许取消",
+            "zh-HK": "檢查金額並允許取消",
+            "en": "Check the amount and allow cancellation"
+          },
+          "description": {
+            "zh-CN": "金额必须大于零，否则提示修改并重新输入。取消会结束编辑；页面返回异常时记录错误，不接受本次输入。",
+            "zh-HK": "金額必須大於零，否則提示修改並重新輸入。取消會結束編輯；頁面返回異常時記錄錯誤，不接受本次輸入。",
+            "en": "The amount must be positive; otherwise an error requests another edit. Cancellation ends editing. An unexpected screen response records an error and leaves the input unaccepted."
+          },
+          "path": "programs/service-entry.cbl",
+          "anchor": "2000-SCREEN-EDIT SECTION."
+        },
+        {
+          "title": {
+            "zh-CN": "按金额申请批准或转复核",
+            "zh-HK": "按金額申請批准或轉覆核",
+            "en": "Set approval or review according to the amount"
+          },
+          "description": {
+            "zh-CN": "取回暂存申请成功后，更新金额：不超过5000设为已批准，超过5000设为待复核，再请求保存并检查结果。记录已赋值不等于保存已成功。",
+            "zh-HK": "成功取回暫存申請後，更新金額：不超過5000設為已批准，超過5000設為待覆核，再請求儲存並檢查結果。記錄已賦值不等於儲存已成功。",
+            "en": "After the temporary request is retrieved successfully, update the amount and set it to approved at or below 5000, or awaiting review above 5000. Request a save and check the response; setting a value does not itself mean it was saved."
+          },
+          "path": "programs/service-entry.cbl",
+          "anchor": "3000-UPDATE SECTION."
+        },
+        {
+          "title": {
+            "zh-CN": "决定后续处理去向",
+            "zh-HK": "決定後續處理去向",
+            "en": "Choose the intended next destination"
+          },
+          "description": {
+            "zh-CN": "有错误时指向错误处理，取消时指向申请列表；否则待复核申请指向复核，其余指向申请摘要。这里记录的是下一步去向，未证明页面已经跳转。",
+            "zh-HK": "有錯誤時指向錯誤處理，取消時指向申請列表；否則待覆核申請指向覆核，其餘指向申請摘要。這裡記錄的是下一步去向，未證明頁面已經跳轉。",
+            "en": "An error selects error handling; cancellation selects the request list. Otherwise, requests awaiting review select review and the rest select the request summary. These are intended destinations, not evidence that a page transition occurred."
+          },
+          "path": "programs/service-entry.cbl",
+          "anchor": "4000-WHERE-NEXT SECTION."
+        }
+      ],
+      "metadata": [
+        {
+          "label": {
+            "zh-CN": "金额条件",
+            "zh-HK": "金額條件",
+            "en": "Amount rule"
+          },
+          "value": {
+            "zh-CN": "金额须大于零；不超过5000拟批准，超过5000拟转复核。源码未定义币种。",
+            "zh-HK": "金額須大於零；不超過5000擬批准，超過5000擬轉覆核。源碼未定義幣種。",
+            "en": "The amount must be positive. Up to 5000 is set for approval; above 5000 is set for review. The source defines no currency."
+          }
+        },
+        {
+          "label": {
+            "zh-CN": "数据影响",
+            "zh-HK": "資料影響",
+            "en": "Data affected"
+          },
+          "value": {
+            "zh-CN": "本次保存请求包含编辑后的申请金额与决定后的状态；保存失败会走错误处理。",
+            "zh-HK": "本次儲存請求包含編輯後的申請金額及決定後的狀態；儲存失敗會走錯誤處理。",
+            "en": "The save request contains the edited amount and resulting request state. A failed save leads to error handling."
+          }
+        },
+        {
+          "label": {
+            "zh-CN": "案例来源",
+            "zh-HK": "案例來源",
+            "en": "Case provenance"
+          },
+          "value": {
+            "zh-CN": "预写的合成案例导读，使用示例申请；不是模型分析结论，也未执行真实受理。",
+            "zh-HK": "預先編寫的合成案例導讀，使用示例申請；並非模型分析結論，也未執行真實受理。",
+            "en": "A prewritten guide using a synthetic request, not a model analysis result or an executed intake transaction."
+          }
+        }
+      ],
+      "boundaries": [
+        {
+          "zh-CN": "没有实际存储和页面处理的实现，不能确认申请已经保存、暂存内容能正确取回或页面已进入下一步。",
+          "zh-HK": "沒有實際儲存及頁面處理的實作，不能確認申請已經儲存、暫存內容能正確取回或頁面已進入下一步。",
+          "en": "Storage and screen implementations are absent, so the guide cannot confirm that a request was saved, its temporary copy can be retrieved correctly, or the next page was reached."
+        },
+        {
+          "zh-CN": "这里只解释可见的金额条件与处理去向；完整受理条件和谁有权办理，需要补充业务规则与实际配置。",
+          "zh-HK": "這裡只解釋可見的金額條件及處理去向；完整受理條件及誰有權辦理，需要補充業務規則與實際設定。",
+          "en": "Only the visible amount rule and intended destinations can be explained. Complete acceptance rules and who may handle a request require additional business rules and actual configuration."
+        }
+      ]
+    },
+    {
+      "id": "client_server",
+      "title": {
+        "zh-CN": "人工复核与决定保存",
+        "zh-HK": "人工覆核及決定儲存",
+        "en": "Manual review and saving the decision"
+      },
+      "kind": "screen_controlled_online",
+      "entry_program": "SCREENCONTROL",
+      "entry_path": "programs/screen-control.cbl",
+      "question": {
+        "zh-CN": "复核申请时金额和决定需要满足什么条件？通过、拒绝或取消分别产生什么结果，决定保存失败时会怎样？",
+        "zh-HK": "覆核申請時金額及決定需要符合甚麼條件？通過、拒絕或取消分別產生甚麼結果，決定儲存失敗時會怎樣？",
+        "en": "What amount and decision are required during review? What results follow approval, rejection, or cancellation, and what happens if the decision cannot be saved?"
+      },
+      "purpose": {
+        "zh-CN": "解释同一复核申请如何带出金额、要求明确决定并保存结果：金额须大于零，通过拟设为已批准，拒绝拟设为已拒绝；取消或异常不应视为复核完成。",
+        "zh-HK": "解釋同一覆核申請如何帶出金額、要求明確決定並儲存結果：金額須大於零，通過擬設為已批准，拒絕擬設為已拒絕；取消或異常不應視為覆核完成。",
+        "en": "Explain how a review request supplies its amount, requires an explicit decision, and requests a saved result. The amount must be positive; approval sets an approved state and rejection a rejected state. Cancellation or an error must not be treated as completed review."
+      },
+      "steps": [
+        {
+          "title": {
+            "zh-CN": "准备需要复核的申请",
+            "zh-HK": "準備需要覆核的申請",
+            "en": "Prepare the request for review"
+          },
+          "description": {
+            "zh-CN": "请求取得申请并暂存。任一步返回失败都会记录错误，阻止继续编辑，避免在申请未准备好的情况下进入复核。",
+            "zh-HK": "請求取得申請並暫存。任何一步返回失敗都會記錄錯誤，阻止繼續編輯，避免在申請未準備好的情況下進入覆核。",
+            "en": "Request the application record and a temporary copy. A failed response from either operation records an error and stops editing, so review does not continue with an unprepared request."
+          },
+          "path": "programs/screen-control.cbl",
+          "anchor": "PREPARE-REQUEST."
+        },
+        {
+          "title": {
+            "zh-CN": "带出申请编号和金额",
+            "zh-HK": "帶出申請編號及金額",
+            "en": "Populate the request number and amount"
+          },
+          "description": {
+            "zh-CN": "按当前申请标识请求取回暂存记录；返回成功后才带出申请编号和金额，供复核时查看或修改。",
+            "zh-HK": "按目前申請標識請求取回暫存記錄；返回成功後才帶出申請編號及金額，供覆核時查看或修改。",
+            "en": "Request the temporary record using the current request identifier. Only a successful response populates its number and amount for review or editing."
+          },
+          "path": "programs/service-mainline.cbl",
+          "anchor": "1000-INITIALISE SECTION."
+        },
+        {
+          "title": {
+            "zh-CN": "核对金额并要求明确决定",
+            "zh-HK": "核對金額並要求明確決定",
+            "en": "Check the amount and require an explicit decision"
+          },
+          "description": {
+            "zh-CN": "金额不大于零时要求修改；金额有效后，还须明确选择通过或拒绝，才接受本次复核输入。没有有效决定时提示补充并重新输入。",
+            "zh-HK": "金額不大於零時要求修改；金額有效後，還須明確選擇通過或拒絕，才接受本次覆核輸入。沒有有效決定時提示補充並重新輸入。",
+            "en": "A nonpositive amount requires correction. A valid amount must be accompanied by an explicit approval or rejection before the review input is accepted. A missing valid decision requests another edit."
+          },
+          "path": "programs/service-mainline.cbl",
+          "anchor": "2000-SCREEN-EDIT SECTION."
+        },
+        {
+          "title": {
+            "zh-CN": "保存复核决定和金额",
+            "zh-HK": "儲存覆核決定及金額",
+            "en": "Save the review decision and amount"
+          },
+          "description": {
+            "zh-CN": "先请求锁定申请；返回成功后，把通过决定设为已批准，否则设为已拒绝，并连同当前金额请求保存。每次返回都检查错误，保存失败不能算复核完成。",
+            "zh-HK": "先請求鎖定申請；返回成功後，把通過決定設為已批准，否則設為已拒絕，並連同目前金額請求儲存。每次返回都檢查錯誤，儲存失敗不能算覆核完成。",
+            "en": "First request a lock on the request. On success, set an approval decision to approved, otherwise to rejected, and request a save with the current amount. Each response is checked; a failed save is not completed review."
+          },
+          "path": "programs/service-mainline.cbl",
+          "anchor": "3000-UPDATE SECTION."
+        },
+        {
+          "title": {
+            "zh-CN": "区分完成、取消与错误去向",
+            "zh-HK": "區分完成、取消及錯誤去向",
+            "en": "Distinguish completion, cancellation, and error destinations"
+          },
+          "description": {
+            "zh-CN": "错误优先进入错误处理；没有错误时，取消指向申请列表，其余指向申请摘要。这里设定的是后续去向，不能据此认定页面已切换或申请已实际保存。",
+            "zh-HK": "錯誤優先進入錯誤處理；沒有錯誤時，取消指向申請列表，其餘指向申請摘要。這裡設定的是後續去向，不能據此認定頁面已切換或申請已實際儲存。",
+            "en": "Errors take priority and select error handling. Without an error, cancellation selects the request list and other outcomes select the summary. These are intended destinations, not proof of a page transition or an actual saved request."
+          },
+          "path": "programs/service-mainline.cbl",
+          "anchor": "4000-WHERE-NEXT SECTION."
+        }
+      ],
+      "metadata": [
+        {
+          "label": {
+            "zh-CN": "复核条件",
+            "zh-HK": "覆核條件",
+            "en": "Review requirements"
+          },
+          "value": {
+            "zh-CN": "金额须大于零，并明确选择通过或拒绝；缺少有效决定时需重新输入。",
+            "zh-HK": "金額須大於零，並明確選擇通過或拒絕；缺少有效決定時須重新輸入。",
+            "en": "A positive amount and an explicit approval or rejection are required. Missing a valid decision requires another edit."
+          }
+        },
+        {
+          "label": {
+            "zh-CN": "决定与状态",
+            "zh-HK": "決定及狀態",
+            "en": "Decision and state"
+          },
+          "value": {
+            "zh-CN": "通过拟保存为已批准，拒绝拟保存为已拒绝；取消跳过保存，保存异常进入错误处理。",
+            "zh-HK": "通過擬儲存為已批准，拒絕擬儲存為已拒絕；取消略過儲存，儲存異常進入錯誤處理。",
+            "en": "Approval requests an approved state; rejection requests a rejected state. Cancellation skips saving, while a save error leads to error handling."
+          }
+        },
+        {
+          "label": {
+            "zh-CN": "案例来源",
+            "zh-HK": "案例來源",
+            "en": "Case provenance"
+          },
+          "value": {
+            "zh-CN": "预写的独立合成复核案例；未执行实际复核，也未证明与受理案例是同一笔申请。",
+            "zh-HK": "預先編寫的獨立合成覆核案例；未執行實際覆核，也未證明與受理案例是同一筆申請。",
+            "en": "A prewritten, independent synthetic review case. No actual review was executed, and it is not established as the same request used by the intake case."
+          }
+        }
+      ],
+      "boundaries": [
+        {
+          "zh-CN": "完整表单校验和复核权限未提供，不能确定还有哪些必填条件，也不能指定谁有权通过或拒绝申请。",
+          "zh-HK": "完整表單驗證及覆核權限未提供，不能確定還有哪些必填條件，也不能指定誰有權通過或拒絕申請。",
+          "en": "Complete form validation and review permissions are absent. Additional required conditions and who may approve or reject a request cannot be determined."
+        },
+        {
+          "zh-CN": "实际存储处理未提供，不能确认决定已持久保存，也不能确认多人同时修改时如何避免覆盖。",
+          "zh-HK": "實際儲存處理未提供，不能確認決定已持久儲存，也不能確認多人同時修改時如何避免覆寫。",
+          "en": "The storage implementation is absent, so durable saving and protection against conflicting edits by multiple users cannot be confirmed."
+        }
+      ]
+    },
+    {
+      "id": "batch",
+      "title": {
+        "zh-CN": "已批准申请的夜间生效",
+        "zh-HK": "已批准申請的夜間生效",
+        "en": "Nightly activation of approved requests"
+      },
+      "kind": "batch",
+      "entry_program": "NIGHTBATCH",
+      "entry_path": "programs/night-batch.cbl",
+      "question": {
+        "zh-CN": "哪些申请会在夜间转为生效，哪些会跳过？如何统计处理结果，保存或提交失败、再次运行时怎样判断已完成的范围？",
+        "zh-HK": "哪些申請會在夜間轉為生效，哪些會略過？如何統計處理結果，儲存或提交失敗、再次執行時怎樣判斷已完成的範圍？",
+        "en": "Which requests become active during nightly processing, and which are skipped? How are results counted, and what can be considered complete after a failed save or commit, or on a later run?"
+      },
+      "purpose": {
+        "zh-CN": "解释生效资格与结果：只有服务类别且已批准的申请才拟转为生效，保存成功后计入本轮生效数；提交成功才推进已提交进度，失败时处理撤销并核对恢复范围。",
+        "zh-HK": "解釋生效資格及結果：只有服務類別且已批准的申請才擬轉為生效，儲存成功後計入本輪生效數；提交成功才推進已提交進度，失敗時處理撤銷並核對還原範圍。",
+        "en": "Explain eligibility and results: only service-category requests that are approved are set for activation, and successful saves increase the current applied count. Only a successful commit advances committed progress; failures request reversal and require the recovery scope to be checked."
+      },
+      "steps": [
+        {
+          "title": {
+            "zh-CN": "分组处理并及时保留进度",
+            "zh-HK": "分組處理並及時保留進度",
+            "en": "Process requests in groups and record progress"
+          },
+          "description": {
+            "zh-CN": "逐笔判断申请是否处理；每成功读取两笔就尝试提交本组结果，跳过的申请也计入这两笔。结束时仍有不足两笔的结果也会尝试提交，出错则转入撤销处理。",
+            "zh-HK": "逐筆判斷申請是否處理；每成功讀取兩筆便嘗試提交本組結果，略過的申請也計入這兩筆。結束時仍有不足兩筆的結果也會嘗試提交，出錯則轉入撤銷處理。",
+            "en": "Decide whether to process each request. Attempt to commit after every two successful reads, including requests later skipped. Attempt to commit a smaller remaining group at the end; errors lead to reversal handling."
+          },
+          "path": "copybooks/batch-flow.cpy",
+          "anchor": "BATCH-MAIN."
+        },
+        {
+          "title": {
+            "zh-CN": "再次运行时取回已有统计",
+            "zh-HK": "再次執行時取回已有統計",
+            "en": "Retrieve saved totals on a restart"
+          },
+          "description": {
+            "zh-CN": "重启时请求取回已保存进度；返回成功后恢复已读取、已生效和已跳过数量。这一步只恢复统计，不能单独证明下次从正确申请接续。",
+            "zh-HK": "重新啟動時請求取回已儲存進度；返回成功後還原已讀取、已生效及已略過數量。這一步只還原統計，不能單獨證明下次從正確申請接續。",
+            "en": "On restart, request saved progress. A successful response restores read, applied, and skipped totals. This restores statistics but does not by itself prove that processing resumes at the correct request."
+          },
+          "path": "programs/night-batch.cbl",
+          "anchor": "0900-RESTART SECTION."
+        },
+        {
+          "title": {
+            "zh-CN": "只选择服务类别且已批准的申请",
+            "zh-HK": "只選擇服務類別且已批准的申請",
+            "en": "Select only approved service requests"
+          },
+          "description": {
+            "zh-CN": "类别为服务且状态为已批准，两项同时满足才进入生效处理；其他申请不在这里更新，并增加跳过数量。",
+            "zh-HK": "類別為服務且狀態為已批准，兩項同時符合才進入生效處理；其他申請不在這裡更新，並增加略過數量。",
+            "en": "A service category and an approved state must both be present to proceed to activation. Other requests are not updated here and increase the skipped count."
+          },
+          "path": "programs/night-batch.cbl",
+          "anchor": "2500-EDIT SECTION."
+        },
+        {
+          "title": {
+            "zh-CN": "再次确认资格后申请生效",
+            "zh-HK": "再次確認資格後申請生效",
+            "en": "Recheck eligibility before requesting activation"
+          },
+          "description": {
+            "zh-CN": "请求锁定成功后再次确认服务类别和已批准状态；仍符合条件才改为生效并请求保存，保存成功才增加本轮生效数。条件已改变则跳过并请求释放记录。",
+            "zh-HK": "請求鎖定成功後再次確認服務類別及已批准狀態；仍符合條件才改為生效並請求儲存，儲存成功才增加本輪生效數。條件已改變則略過並請求釋放記錄。",
+            "en": "After a successful lock response, recheck the service category and approved state. If still eligible, set the active state and request a save; only a successful save increases the current applied count. Changed eligibility results in skipping the request and requesting its release."
+          },
+          "path": "programs/night-batch.cbl",
+          "anchor": "3000-UPDATE SECTION."
+        },
+        {
+          "title": {
+            "zh-CN": "提交本组结果并确认进度",
+            "zh-HK": "提交本組結果並確認進度",
+            "en": "Commit the group and confirm its progress"
+          },
+          "description": {
+            "zh-CN": "先请求保存最后读取的申请标识及三类累计数量；返回成功才请求提交本组修改。提交也返回成功后，才更新本次运行中记住的已提交进度。",
+            "zh-HK": "先請求儲存最後讀取的申請標識及三類累計數量；返回成功才請求提交本組修改。提交也返回成功後，才更新本次執行中記住的已提交進度。",
+            "en": "First request storage of the last-read request identifier and the three running totals. Only a successful response leads to a commit request. Update the committed progress held by this run only if that commit also returns success."
+          },
+          "path": "programs/night-batch.cbl",
+          "anchor": "3500-COMMIT SECTION."
+        },
+        {
+          "title": {
+            "zh-CN": "失败时恢复统计并请求撤销",
+            "zh-HK": "失敗時還原統計並請求撤銷",
+            "en": "Restore totals and request reversal after failure"
+          },
+          "description": {
+            "zh-CN": "先把三类数量恢复到上次提交时记住的值，再请求撤销未提交修改；撤销失败会留下错误。统计已恢复不代表申请数据已经成功撤销。",
+            "zh-HK": "先把三類數量還原至上次提交時記住的值，再請求撤銷未提交修改；撤銷失敗會留下錯誤。統計已還原不代表申請資料已經成功撤銷。",
+            "en": "First restore the three totals to values remembered at the last commit, then request reversal of uncommitted changes. A failed reversal leaves an error. Restored totals do not prove the request data was successfully reversed."
+          },
+          "path": "programs/night-batch.cbl",
+          "anchor": "3600-ROLLBACK SECTION."
+        }
+      ],
+      "metadata": [
+        {
+          "label": {
+            "zh-CN": "生效条件与变化",
+            "zh-HK": "生效條件及變化",
+            "en": "Eligibility and state change"
+          },
+          "value": {
+            "zh-CN": "服务类别且已批准的申请拟转为生效；更新前再次确认条件，保存返回成功才增加本轮生效数。",
+            "zh-HK": "服務類別且已批准的申請擬轉為生效；更新前再次確認條件，儲存返回成功才增加本輪生效數。",
+            "en": "Approved service requests are set for an active state. Eligibility is checked again before updating; only a successful save response increases the current applied count."
+          }
+        },
+        {
+          "label": {
+            "zh-CN": "处理数量",
+            "zh-HK": "處理數量",
+            "en": "Processing totals"
+          },
+          "value": {
+            "zh-CN": "分别记录读取、生效、跳过数量；每两笔成功读取尝试提交，不能把提交次数当成生效申请数。",
+            "zh-HK": "分別記錄讀取、生效、略過數量；每兩筆成功讀取嘗試提交，不能把提交次數當成生效申請數。",
+            "en": "Read, applied, and skipped totals are separate. A commit is attempted every two successful reads; the number of commits is not the number of activated requests."
+          }
+        },
+        {
+          "label": {
+            "zh-CN": "案例来源",
+            "zh-HK": "案例來源",
+            "en": "Case provenance"
+          },
+          "value": {
+            "zh-CN": "预写的合成夜间处理案例；未提供实际执行时间、候选申请清单或真实运行结果。生效只指申请状态变化。",
+            "zh-HK": "預先編寫的合成夜間處理案例；未提供實際執行時間、候選申請清單或真實執行結果。生效只指申請狀態變化。",
+            "en": "A prewritten synthetic nightly-processing case. No actual execution time, candidate-request list, or run result is supplied. Activation refers only to the request state."
+          }
+        }
+      ],
+      "boundaries": [
+        {
+          "zh-CN": "待处理清单的形成规则未提供，不能确认是否包含全部符合条件的申请，也不能推断实际服务已经开通或发生资金变化。",
+          "zh-HK": "待處理清單的形成規則未提供，不能確認是否包含全部符合條件的申請，也不能推斷實際服務已經開通或發生資金變化。",
+          "en": "Rules for forming the candidate list are absent. It cannot be confirmed that all eligible requests are included, nor inferred that a real service was enabled or any money moved."
+        },
+        {
+          "zh-CN": "实际保存、提交和进度恢复的实现未提供；重新运行仍从首笔请求读取，不能保证不会重复处理，也不能仅凭统计认定数据已全部提交或撤销。",
+          "zh-HK": "實際儲存、提交及進度還原的實作未提供；重新執行仍從首筆請求讀取，不能保證不會重複處理，也不能僅憑統計認定資料已全部提交或撤銷。",
+          "en": "Saving, commit, and recovery implementations are absent. A restarted run still requests the first record, so duplicate-free processing is not guaranteed, and totals alone cannot prove that all changes were committed or reversed."
+        }
+      ]
+    }
+  ]
+}

@@ -2027,7 +2027,7 @@ def build_structural_index(
             for relative in sorted(hashes, key=str.casefold):
                 hasher.update(relative.encode("utf-8") + b"\0" + hashes[relative].encode("ascii") + b"\n")
             snapshot_id = f"sha256:{hasher.hexdigest()}"
-            updates = {"schema_version": SCHEMA_VERSION, "parser_version": PARSER_VERSION,
+            updates = {"schema_version": SCHEMA_VERSION, "parser_version": PARSER_VERSION, "index_kind": "structural",
                        "snapshot_id": snapshot_id, "source_root_hash": _content_hash(str(root)),
                        "source_options": options_json, "indexed_at_utc": datetime.now(timezone.utc).isoformat(),
                        "file_stats": json.dumps({key: stats[key] for key in current_paths}, sort_keys=True),

@@ -47,7 +47,7 @@ class WorkbenchScopeRecoveryTests(unittest.TestCase):
         return result["job_id"]
 
     def finish(self, job: str) -> dict:
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             snapshot = self.app.get_job(job)
             if snapshot["status"] != "RUNNING":
@@ -55,22 +55,29 @@ class WorkbenchScopeRecoveryTests(unittest.TestCase):
             threading.Event().wait(0.005)
         self.fail("Workbench job did not complete")
 
-    def test_oversized_entry_keeps_catalog_usable_and_next_smaller_entry_works(self) -> None:
-        large = self.write("large.cbl", program("LARGE-ENTRY") + (" " * (256 * 1024)))
-        with large.open("r+b") as handle:
-            handle.truncate(64 * 1024 * 1024 + 1)
+    def test_large_business_entry_is_usable_and_next_smaller_entry_works(self) -> None:
+        large = self.write("large.cbl", program("LARGE-ENTRY", ""))
+        with large.open("a", encoding="utf-8") as handle:
+            chunk = "           CONTINUE.\n" * 4096
+            while handle.tell() <= 16 * 1024 * 1024:
+                handle.write(chunk)
+            handle.write("           GOBACK.\n")
         self.write("small.cbl", program("SMALL-ENTRY"))
-        with mock.patch("analyze_source.build_structural_index", side_effect=AssertionError("oversized entry must not parse")):
+        with mock.patch("analyze_source.build_structural_index", side_effect=AssertionError("business must not build a full statement graph")):
             result = self.finish(self.start(entry="large.cbl", question="Explain this program"))
         self.assertEqual(result["status"], "COMPLETED")
         project = result["result"]
-        self.assertEqual(project["diagnosis"]["question_status"], "SCOPE_LIMIT")
-        self.assertEqual(project["diagnosis"]["reason_code"], "ENTRY_SCOPE_LIMIT")
+        self.assertEqual(project["diagnosis"]["question_status"], "NETWORK_DISABLED")
+        self.assertEqual(project["diagnosis"]["reason_code"], "SOURCE_INDEX_READY")
+        self.assertEqual(project["diagnosis"]["build_report"]["index_kind"], "business_sparse")
+        self.assertTrue(project["diagnosis"]["source_manifest_verified"])
         self.assertTrue(project["diagnosis"]["catalog_ready"])
         self.assertEqual(len(project["programs"]), 2)
-        self.assertIsNone(project["snapshot_id"])
+        self.assertIsNotNone(project["snapshot_id"])
         self.assertEqual(project["relations"]["edges"], [])
-        self.assertFalse((self.output / "structural-index.sqlite").exists())
+        self.assertTrue((self.output / "structural-index.sqlite").exists())
+        selected = next(item for item in project["programs"] if item["relative_path"] == "large.cbl")
+        self.assertEqual(self.app.evidence(selected["evidence_id"])["spans"][0]["integrity"], "VALID")
         next_result = self.finish(self.start(entry="small.cbl"))
         self.assertEqual(next_result["status"], "COMPLETED")
         self.assertIsNotNone(next_result["result"]["snapshot_id"])

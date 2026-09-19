@@ -3,14 +3,229 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+閱讀方式|阅读方式|Reading approach
+完整業務鏈 · 自動分批閱讀|完整业务链 · 自动分批阅读|Full business flow · Automatic batches
+按問題重點閱讀|按问题重点阅读|Focus on the question
+每批閱讀量|每批阅读量|Sections per batch
+每批 12 段|每批 12 段|12 sections per batch
+每批 48 段|每批 48 段|48 sections per batch
+每批 |每批 |Sections per batch:\u0020
+自動分批讀取本次範圍內所有可讀源碼，再整合業務解讀。每批數量不是整次分析的總段數上限。|自动分批读取本次范围内所有可读源码，再整合业务解读。每批数量不是整次分析的总段数上限。|Read all readable source in the current scope in batches, then combine the business explanation. Batch size does not cap the total sections analysed.
+完整業務鏈 · 分批閱讀|完整业务链 · 分批阅读|Full business flow · Batched reading
+已完成批次 |已完成批次 |Completed batches:\u0020
+各來源的業務解讀|各来源的业务解读|Business explanations by source
+按來源保留的模型解讀，可補充上方業務摘要；仍需業務覆核。|按来源保留的模型解读，可补充上方业务摘要；仍需业务复核。|These model explanations supplement the business summary with detail from each source. Business review is still needed.
+源碼或索引已更新，舊引用暫時不可用。請重新分析目前源碼。|源码或索引已更新，旧引用暂时不可用。请重新分析当前源码。|Source or its index has changed, so earlier citations are unavailable. Analyse the current source again.
+已選入相關片段的呼叫：|已选入相关片段的调用：|Calls with related source selected:\u0020
+ 個已定位目標的呼叫 · | 个已定位目标的调用 · | resolved calls ·\u0020
+ 個尚未覆蓋| 个尚未覆盖| not covered
+ · 另有 | · 另有 | · Plus\u0020
+ 個呼叫目標未確認| 个调用目标未确认| calls with unresolved targets
+這是本次入口閱讀計劃的資料覆蓋，只表示呼叫位置、被呼叫程式入口與介面片段已選入；不代表模型已讀完、整條呼叫鏈完整或業務結果已驗證。|这是本次入口阅读计划的资料覆盖，只表示调用位置、被调用程序入口与接口片段已选入；不代表模型已读完、整条调用链完整或业务结果已验证。|This is source coverage in the current entry’s reading plan: call sites, called program entries and interface excerpts are selected. It does not establish completed model reading, full call-chain coverage or verified business outcomes.
+未接受的模型正文|未接受的模型正文|Unaccepted model response
+以下文字已保留供診斷，但未通過本次源碼或結果核對，不能作為目前業務結論或引用依據。|以下文字已保留供诊断，但未通过本次源码或结果核对，不能作为当前业务结论或引用依据。|This text is retained for diagnostics. It did not pass this run's source or result checks and cannot support current business findings or citations.
+已保留未接受正文，不能作為目前業務結論|已保留未接受正文，不能作为当前业务结论|Unaccepted response retained; not a current business finding
+本次業務結果未獲接受|本次业务结果未被接受|Business result not accepted
+源碼或結果核對未通過，已保留收到的模型文字供診斷。|源码或结果核对未通过，已保留收到的模型文字供诊断。|Source or result checks did not pass. The received model text is retained for diagnostics.
+技術與框架依據|技术与框架依据|Technical and framework references
+來源程式|来源程序|Source program
+查看程式關係|查看程序关系|View program relationships
+請說明 |请说明 |Explain\u0020
+ 支援的業務、受理條件、狀態變化與異常影響。| 支持的业务、受理条件、状态变化与异常影响。| in terms of its business purpose, eligibility rules, status changes and exception impact.
+案例已載入，尚未呼叫模型|案例已载入，尚未调用模型|Case loaded; no model call yet
+案例已載入|案例已载入|Case loaded
+可修改問題並按「開始業務分析」，從目前源碼生成自己的業務解讀。|可修改问题并点击“开始业务分析”，从当前源码生成自己的业务解读。|Edit the question and choose Start analysis to generate an explanation from the current source.
+部分產生式或閉源依賴未提供，仍可先分析已有源碼。|部分生成式或闭源依赖未提供，仍可先分析已有源码。|Some generated or closed-source dependencies are not provided. The available source can still be analysed.
+合成源碼 · 本次工作階段|合成源码 · 本次会话|Synthetic source · Current session
+合成源碼|合成源码|Synthetic source
+傳統聯機|传统联机|Traditional online
+控制器分段聯機|控制器分段联机|Controller-based online
+批處理|批处理|Batch processing
+業務案例工作台|业务案例工作台|Business case workbench
+業務案例|业务案例|Business cases
+正在讀取業務案例|正在读取业务案例|Loading business cases
+業務案例暫時無法讀取，請重試或檢查本機演示文件。|业务案例暂时无法读取，请重试或检查本机演示文件。|Business cases could not be loaded. Retry or check the local demo files.
+請先啟動本機服務，才能讀取業務案例及來源證據。|请先启动本机服务，才能读取业务案例及来源证据。|Start the local service to read the business cases and their source evidence.
+重新讀取案例|重新读取案例|Reload cases
+在項目目錄啟動 poc/run_web.bat，或執行 python poc/web_app.py，再開啟本機服務地址。|在项目目录启动 poc/run_web.bat，或运行 python poc/web_app.py，再打开本机服务地址。|Start poc/run_web.bat or run python poc/web_app.py from the project folder, then open the local service address.
+一條業務鏈 · 三個業務場景|一条业务链 · 三个业务场景|One business flow · Three business scenarios
+受理、覆核，到夜間生效。|受理、复核，到夜间生效。|Intake, review, then overnight activation.
+合成業務案例 · 未呼叫模型|合成业务案例 · 未调用模型|Synthetic business case · No model call
+合成業務案例|合成业务案例|Synthetic business case
+ · 合成源碼| · 合成源码| · Synthetic source
+合成源碼 · 業務解讀仍需覆核|合成源码 · 业务解读仍需复核|Synthetic source · Business interpretation needs review
+建議業務問題|建议业务问题|Suggested business question
+載入案例後可自由修改問題，再按「開始業務分析」呼叫模型。|载入案例后可自由修改问题，再按“开始业务分析”调用模型。|Load the case to edit the question, then choose Start analysis to call the model.
+載入此案例|载入此案例|Load this case
+載入只建立本機目錄與源碼索引，不呼叫模型。|载入只建立本机目录与源码索引，不调用模型。|Loading builds the local catalog and source index without calling a model.
+業務說明|业务说明|Business explanation
+框架類型|框架类型|Framework type
+業務處理過程|业务处理过程|Business process
+以下說明由合成源碼整理，不代表已執行程式或模型分析。|以下说明由合成源码整理，不代表已执行程序或模型分析。|This explanation is derived from synthetic source, not from program execution or model analysis.
+業務規則與影響|业务规则与影响|Business rules and impact
+業務設定為案例中的合成聲明，不代表已匯入生產配置或執行記錄。|业务设置为案例中的合成声明，不代表已导入生产配置或运行记录。|Business settings are synthetic declarations for this case. Production settings and execution records have not been imported.
+案例範圍與待確認事項|案例范围与待确认事项|Case scope and open questions
+點選引用可查看演示文件中的實際源碼；自由問題需載入案例後分析。|点击引用可查看演示文件中的实际源码；自由问题需载入案例后分析。|Open a citation to read actual source from the demo files. Load the case to analyse your own question.
+以下關係來自合成案例源碼中的呼叫語句，不代表實際執行順序。|以下关系来自合成案例源码中的调用语句，不代表实际执行顺序。|These relationships come from calls in the synthetic source. They do not establish execution order.
+源碼呼叫已讀取|源码调用已读取|Source call observed
+尚未發起模型分析|尚未发起模型分析|No model analysis has started
+合成業務案例不會生成調查記錄。載入案例並開始分析後，才會顯示本次活動。|合成业务案例不会生成调查记录。载入案例并开始分析后，才会显示本次活动。|A synthetic business case does not generate investigation records. Load the case and start analysis to see actual activity.
+案例源碼引用|案例源码引用|Case source citations
+合成文件原文|合成文件原文|Synthetic source files
+合成源碼 · 文件內容已讀取|合成源码 · 文件内容已读取|Synthetic source · File content read
+這些片段來自隨附的合成源碼，行號與雜湊由本機服務讀取，不是執行結果。|这些片段来自随附的合成源码，行号与哈希由本机服务读取，不是运行结果。|These excerpts come from the bundled synthetic source. The local service reads their lines and hashes; they are not execution results.
+先查看業務案例|先查看业务案例|Explore business cases
+查看業務案例|查看业务案例|View business cases
+共用程式|共用程序|Shared program
+由合成文件實際讀取|由合成文件实际读取|Read from synthetic files
+案例尚未產生分析記錄|案例尚未产生分析记录|No analysis records for this case
+選擇業務案例，載入並開始模型分析後，可在本次工作階段查看記錄。|选择业务案例，载入并开始模型分析后，可在本次会话查看记录。|Choose and load a business case, then start model analysis to see records in this session.
+業務案例尚未載入。|业务案例尚未载入。|Business cases have not loaded yet.
+本機合成源碼|本机合成源码|Local synthetic source
+請先載入案例或接入本機源碼，再分析自己的問題。|请先载入案例或接入本机源码，再分析自己的问题。|Load a case or connect local source before analysing your own question.
+部分業務解讀|部分业务解读|Partial business explanation
+模型輸出尚未完成，已保留取得的解讀。|模型输出尚未完成，已保留取得的解读。|Model output is incomplete; available explanations are preserved.
+部分模型回應尚未完整輸出，已保留可用的解讀內容。|部分模型响应尚未完整输出，已保留可用的解读内容。|Some model responses ended before completion. Available explanations are preserved.
+已生成業務解讀|已生成业务解读|Business explanation generated
+已有模型解讀，業務含義尚待覆核|已有模型解读，业务含义尚待复核|Model explanation available; business meaning needs review
+模型解讀 · 需業務覆核|模型解读 · 需业务复核|Model interpretation · Business review needed
+部分解讀|部分解读|Partial explanation
+閱讀覆蓋|阅读覆盖|Reading coverage
+已讀 |已读 |Read\u0020
+已解讀 |已解读 |Interpreted\u0020
+ 頁（本次源碼範圍）| 页（本次源码范围）| pages (current source scope)
+已發送 |已发送 |Sent\u0020
+本次選取 |本次选取 |Selected for this run:\u0020
+本次源碼範圍已讀完；閱讀完整不等於業務結論已驗證。|本次源码范围已读完；阅读完整不等于业务结论已验证。|The current source scope was fully read. Complete reading does not verify the business conclusions.
+閱讀覆蓋描述本次讀取範圍，不代表已驗證所有業務路徑。|阅读覆盖描述本次读取范围，不代表已验证所有业务路径。|Reading coverage describes this source scope; it does not verify every business path.
+尚有 |尚有 |There are\u0020
+ 頁未讀，本次解讀先涵蓋已讀內容。| 页未读，本次解读先覆盖已读内容。| unread pages. This explanation covers the material read so far.
+部分分析請求未完成，已保留取得的解讀；詳情可查看 API 返回。|部分分析请求未完成，已保留取得的解读；详情可查看 API 返回。|Some analysis requests did not complete. Available explanations are preserved; see API responses for details.
+ 項依賴尚缺實作，相關內部行為仍需補充源碼確認。| 项依赖尚缺实现，相关内部行为仍需补充源码确认。| dependencies are missing implementations; their internal behaviour needs additional source.
+目前呈現已取得的解讀，尚未完成的範圍可繼續分析。|当前呈现已取得的解读，尚未完成的范围可继续分析。|The available explanation is shown. The remaining scope can be analysed further.
+閱讀來源 · |阅读来源 · |Source pages ·\u0020
+補充上下文|补充上下文|Additional context
+逐頁讀取源碼|逐页读取源码|Reading source pages
+解讀已讀源碼|解读已读源码|Interpreting source pages
+整合業務解讀|整合业务解读|Combining the business explanation
+閱讀深度|阅读深度|Reading depth
+按問題閱讀 · 最多 12 段|按问题阅读 · 最多 12 段|Question-focused · Up to 12 sections
+深入閱讀 · 最多 48 段|深入阅读 · 最多 48 段|In-depth · Up to 48 sections
+自訂 · 最多 |自定义 · 最多 |Custom · Up to\u0020
+ 段| 段| sections
+增加閱讀量會使用更多模型請求。|增加阅读量会使用更多模型请求。|Reading more source uses more model requests.
+ 頁| 页| pages
+頁|页|pages
+接口返回 HTTP 錯誤；本次傳輸未收集錯誤正文。|接口返回 HTTP 错误；本次传输未收集错误正文。|The API returned an HTTP error; this transport did not collect the error body.
+請求未收到回應，因此沒有返回正文。|请求未收到响应，因此没有返回正文。|No response was received, so no response body is available.
+收到的返回正文格式無效，無法保存為文字。|收到的返回正文格式无效，无法保存为文本。|The response body was invalid and could not be saved as text.
+傳輸返回資料無效，無法取得可展示的正文。|传输返回数据无效，无法取得可展示的正文。|The transport response was invalid; no displayable body could be obtained.
+源碼核對或分析失敗，本次業務結果未獲接受。|源码核对或分析失败，本次业务结果未获接受。|Source verification or analysis failed; this business result was not accepted.
+已達診斷保存上限，部分返回內容或請求記錄未保存。|已达诊断保存上限，部分返回内容或请求记录未保存。|The diagnostic storage limit was reached. Some response content or request records were not saved.
+ 未保存的請求記錄：| 未保存的请求记录：| Omitted request records:
+業務調查優先；各階段的最新請求優先，序號保留實際呼叫順序。|业务调查优先；各阶段的最新请求优先，序号保留实际调用顺序。|Business investigation responses first; newest requests first in each phase. Numbers preserve the original call order.
+API 返回|API 返回|API response
+查看 API 返回|查看 API 返回|View API response
+分析流程中斷|分析流程中断|Analysis interrupted
+API 連線|API 连接|API connection
+Agent 流程|Agent 流程|Agent workflow
+業務證據|业务证据|Business evidence
+模型回應未符合 Agent 動作協議，請先查看 API 返回。|模型响应不符合 Agent 动作协议，请先查看 API 返回。|The model response did not match the Agent action contract. Check the API response.
+模型的最終答案未符合答案協議，請先查看 API 返回。|模型的最终答案不符合答案协议，请先查看 API 返回。|The final model answer did not match the answer contract. Check the API response.
+模型請求或回應處理失敗，請查看 HTTP 狀態與 API 返回。|模型请求或响应处理失败，请查看 HTTP 状态与 API 返回。|The model request or response processing failed. Check the HTTP status and API response.
+已達本次工具呼叫上限，調查尚未完成。|已达本次工具调用上限，调查尚未完成。|The tool-call limit was reached before the investigation finished.
+已達本次模型輪次上限，調查尚未完成。|已达本次模型轮次上限，调查尚未完成。|The model-turn limit was reached before the investigation finished.
+連續調查未取得新的可用事實，流程已停止。|连续调查未取得新的可用事实，流程已停止。|Repeated investigation calls found no new usable facts, so the workflow stopped.
+模型輸出超過本次處理上限。|模型输出超过本次处理上限。|Model output exceeded the processing limit for this run.
+模型請求了未開放的工具。|模型请求了未开放的工具。|The model requested an unavailable tool.
+模型提供的工具參數未通過核對。|模型提供的工具参数未通过核对。|The model's tool arguments failed validation.
+證據讀取階段已結束，模型仍請求繼續讀取。|证据读取阶段已结束，模型仍请求继续读取。|The model requested more evidence after the evidence-reading phase had closed.
+本機調查工具執行失敗。|本机调查工具执行失败。|A local investigation tool failed.
+本機工具的返回資料未符合工具協議。|本机工具的返回数据不符合工具协议。|A local tool response did not match the tool contract.
+本機工具返回了不支援的狀態。|本机工具返回了不支持的状态。|A local tool returned an unsupported status.
+工具結果缺少有效的源碼快照。|工具结果缺少有效的源码快照。|A tool result was missing a valid source snapshot.
+工具結果與本次源碼快照不一致。|工具结果与本次源码快照不一致。|A tool result did not match the current source snapshot.
+源碼證據完整性核對失敗。|源码证据完整性核对失败。|Source evidence failed its integrity check.
+工具結果超出本次允許的處理範圍。|工具结果超出本次允许的处理范围。|A tool result exceeded the allowed processing scope.
+本次需要的調查工具能力不可用。|本次需要的调查工具能力不可用。|A required investigation tool capability was unavailable.
+模型引用超出本次調查範圍的證據。|模型引用超出本次调查范围的证据。|The model cited evidence outside this investigation's scope.
+模型引用了尚未核驗的證據。|模型引用了尚未核验的证据。|The model cited evidence that had not been verified.
+候選結論與源碼內容未能對應。|候选结论与源码内容未能对应。|A candidate claim could not be matched to source content.
+候選結論未獲現有證據支持。|候选结论未获现有证据支持。|A candidate claim was not supported by the available evidence.
+本機結論核對程序執行失敗。|本机结论核对程序执行失败。|The local claim checker failed.
+分析流程因下列原因停止；請查看診斷與 API 返回。|分析流程因以下原因停止；请查看诊断与 API 返回。|Analysis stopped for the reason below. Check diagnostics and the API response.
+聊天回應已收到|聊天响应已收到|Chat response received
+已收到 HTTP 回應；聊天回應尚未確認|已收到 HTTP 响应；聊天响应尚未确认|HTTP response received; chat response not confirmed
+未收到 HTTP 回應|未收到 HTTP 响应|No HTTP response received
+尚無本次請求記錄|尚无本次请求记录|No request records for this run
+能力探測未通過，業務調查尚未開始。|能力探测未通过，业务调查尚未开始。|Capability checks failed; the business investigation has not started.
+Agent 流程已完成；業務證據需另行核對。|Agent 流程已完成；业务证据需另行核对。|The Agent workflow completed; business evidence requires separate review.
+已發起業務調查；完成狀態尚未確認。|已发起业务调查；完成状态尚未确认。|A business investigation was started; completion has not been confirmed.
+聊天能力探測已通過；尚無業務調查結果。|聊天能力探测已通过；尚无业务调查结果。|Chat capability checks passed; no business investigation result is available.
+尚無 Agent 完成記錄。|尚无 Agent 完成记录。|No Agent completion record is available.
+流程中斷，尚未形成業務結論|流程中断，尚未形成业务结论|Workflow interrupted; no business conclusion reached
+尚未形成業務結論|尚未形成业务结论|No business conclusion reached
+新問題尚未取得 API 返回|新问题尚未取得 API 返回|No API response for the new question
+問題、調查起點或閱讀方式已更改。發起分析後，這裡會顯示本次請求的返回資料。|问题、调查起点或阅读方式已更改。发起分析后，这里会显示本次请求的返回数据。|The question, starting program or reading settings have changed. Run analysis to view responses for the new request.
+未核驗的 API 返回|未核验的 API 返回|Unverified API response
+ 次請求| 次请求| requests
+先確認接口返回，再核對分析結果。|先确认接口返回，再核对分析结果。|Check the API response, then review the analysis.
+這裡展示接口實際返回的文字，用於核對連線與返回格式；不代表已通過業務證據核驗。|这里展示接口实际返回的文本，用于核对连接与返回格式；不代表已通过业务证据核验。|These are actual API responses for checking connections and response formats. They are not verified business evidence.
+能力探測成功不代表業務分析已完成。|能力探测成功不代表业务分析已完成。|Successful capability checks do not mean business analysis is complete.
+API 請求記錄已遮蔽配置值，內容可能因大小限制而截斷。保留的模型正文可能包含源碼或業務內容，請在分享前核對。|API 请求记录已遮蔽配置值，内容可能因大小限制而截断。保留的模型正文可能包含源码或业务内容，请在分享前核对。|Configuration values are masked in API request records, and size limits may truncate content. Retained model text may contain source or business content; review before sharing.
+能力探測|能力探测|Capability check
+業務調查|业务调查|Business investigation
+未知階段|未知阶段|Unknown phase
+返回內容已截斷；未顯示部分不能作為缺失資料判斷。|返回内容已截断；未显示部分不能作为缺失数据判断。|The response was truncated. Omitted content must not be treated as missing data.
+模型返回文字 · 未核驗|模型返回文本 · 未核验|Model response text · Unverified
+未提取到 message.content；請查看下方原始返回（可能是工具呼叫、錯誤或截斷內容）。|未提取到 message.content；请查看下方原始返回（可能是工具调用、错误或截断内容）。|No message.content was extracted. Check the raw response below for tool calls, errors or truncated content.
+原始返回內容 · 已遮蔽配置值|原始返回内容 · 已遮蔽配置值|Raw response body · Configuration values masked
+未記錄返回內容。|未记录返回内容。|No response body was recorded.
+本次尚未發出接口請求，請先處理接入或配置問題。|本次尚未发出接口请求，请先处理接入或配置问题。|No API requests were made for this run. Resolve source intake or configuration issues first.
+這份分析未保存 API 返回原文。重新發起分析後，可在這裡查看。|这份分析未保存 API 返回原文。重新发起分析后，可在这里查看。|This analysis did not save raw API responses. Run analysis again to view them here.
+尚未發起模型分析；接入源碼本身不會呼叫模型。|尚未发起模型分析；接入源码本身不会调用模型。|No model analysis has been started. Source intake alone does not call the model.
+框架知識|框架知识|Framework knowledge
+框架資料已載入|框架资料已载入|Framework reference loaded
+已找到相關框架資料|已找到相关框架资料|Relevant framework references found
+已載入 · 未確認源碼匹配|已载入 · 未确认源码匹配|Loaded · Source match unconfirmed
+框架資料無法讀取|框架资料无法读取|Framework reference unavailable
+尚未設定框架資料|尚未配置框架资料|Framework reference not configured
+框架資料超過讀取上限。請依使用手冊縮小參考文件，再重新啟動服務。|框架资料超过读取上限。请按使用手册缩小参考文件，再重新启动服务。|The framework reference exceeds the reading limit. Reduce the reference document as described in the manual, then restart the service.
+框架資料格式無效。請使用含有章節標題的 UTF-8 Markdown 文件，並核對本機設定。|框架资料格式无效。请使用含有章节标题的 UTF-8 Markdown 文件，并核对本机配置。|The framework reference format is invalid. Use a UTF-8 Markdown document with section headings and check your local settings.
+請檢查 FRAMEWORK_REFERENCE_PATH 指向的文件是否存在且可讀，修改設定後重新啟動服務。|请检查 FRAMEWORK_REFERENCE_PATH 指向的文件是否存在且可读，修改配置后重新启动服务。|Check that FRAMEWORK_REFERENCE_PATH points to an existing, readable document. Restart the service after changing settings.
+查看框架引用|查看框架引用|View framework reference
+框架|框架|Framework
+本機參考文件|本机参考文件|Local reference document
+文件指紋|文件指纹|Document fingerprint
+個資料片段|个资料片段|reference excerpts
+將本機框架文件接入後，系統會結合相關章節與源碼證據解讀程式。|接入本机框架文件后，系统会结合相关章节与源码证据解读程序。|Connect a local framework reference to interpret programs using relevant sections and source evidence.
+參考文件已更新。請重新分析，讓引用對應目前內容。|参考文件已更新。请重新分析，让引用对应当前内容。|The reference document has changed. Run analysis again to align citations with its current contents.
+下列章節與本次問題或源碼相關；名稱及文字匹配僅是線索，需要結合源碼覆核。|下列章节与本次问题或源码相关；名称及文本匹配只是线索，需要结合源码复核。|These sections relate to this question or source. Name and text matches are clues that still require source review.
+本次範圍內未確認框架與源碼的對應，仍可分析已有源碼。依問題選取的章節僅供背景參考。|本次范围内未确认框架与源码的对应，仍可分析已有源码。按问题选取的章节仅供背景参考。|No source match was confirmed within this scope. Available source can still be analysed; sections selected for the question are background only.
+參考文件已載入，但本次源碼索引未能完成框架匹配。請重新接入或選擇有效入口。|参考文件已载入，但本次源码索引未能完成框架匹配。请重新接入或选择有效入口。|The reference is loaded, but the current source index could not be matched. Reconnect source or select a valid entry.
+已載入參考文件。開始業務分析後，可查看本次選用的章節和源碼對應。|已载入参考文件。开始业务分析后，可查看本次选用的章节和源码对应。|The reference is loaded. Start analysis to see selected sections and their source matches.
+文件知識不等於現場執行驗證；閉源實作、實際配置與執行結果仍可能未知。|文件知识不等于现场运行验证；闭源实现、实际配置与运行结果仍可能未知。|Document knowledge does not verify runtime behaviour. Closed-source implementations, live settings and execution results may remain unknown.
+查看本次框架依據|查看本次框架依据|View framework references used
+段框架引用|段框架引用|framework excerpts
+處源碼線索|处源码线索|source matches
+頁碼|页码|Page
+對應源碼線索|对应源码线索|Source matches
+依問題選取的背景章節；未確認對應源碼。|按问题选取的背景章节；未确认对应源码。|Background selected for this question; no source match has been confirmed.
+已達本次框架檢索上限，未涵蓋的章節或源碼不代表不相關。|已达本次框架检索上限，未覆盖的章节或源码不代表不相关。|This framework retrieval reached its limit. Other sections or source may still be relevant.
+查看本機設定|查看本机配置|View local settings
+框架條件解讀 · 需源碼與現場覆核|框架条件解读 · 需源码与现场复核|Conditional framework interpretation · Source and runtime review needed
+框架解讀結合可見源碼與文件規則；現場配置、生成或閉源實作及執行效果尚未獨立核驗。|框架解读结合可见源码与文件规则；现场配置、生成或闭源实现及运行效果尚未独立核验。|Framework interpretations combine visible source and document rules. Live settings, generated or closed-source implementations and runtime effects have not been independently verified.
+檢索相關框架資料|检索相关框架资料|Finding relevant framework references
+發起分析將使用已設定的模型接口，傳送問題、有限源碼證據及相關框架文件節錄。|发起分析将使用已配置的模型接口，发送问题、有限源码证据及相关框架文件节录。|Starting analysis sends your question, limited source evidence and relevant framework excerpts to the configured model endpoint.
+提問時，向已設定的接口|提问时，向已配置的接口|Questions, limited source and
+傳送有限源碼與框架節錄。|发送有限源码与框架节录。|framework excerpts go to your endpoint.
+框架資料：將獲准使用的 Markdown 文件複製至項目的 .poc-data/framework/reference.md，再於 .env 加入以下設定。框架文件與 .env 均不會隨 GitHub 下載，換電腦時需要另外複製。|框架资料：将获准使用的 Markdown 文件复制至项目的 .poc-data/framework/reference.md，再于 .env 加入以下配置。框架文件与 .env 均不会随 GitHub 下载，换电脑时需要另外复制。|Copy the approved Markdown reference to .poc-data/framework/reference.md in the project, then add this setting to .env. The private reference and .env are not included in GitHub downloads; copy them separately when changing computers.
 目前只核對已索引的源碼；資料庫記錄、執行參數與完整執行狀態未核驗。|目前只核对已索引的源码；数据库记录、运行参数与完整运行状态未核验。|Only indexed source has been checked. Database records, runtime parameters and full execution state remain unverified.
 呼叫或 COPY 的實作未提供，相關內部行為仍待確認。|调用或 COPY 的实现未提供，相关内部行为仍待确认。|A call or COPY implementation is unavailable; its internal behaviour remains unknown.
 部分依賴或工具結果不完整，本次回答只涵蓋已有證據。|部分依赖或工具结果不完整，本次回答只涵盖已有证据。|Some dependencies or tool results are incomplete; this answer covers available evidence only.
-
 入口超出本次解析範圍|入口超出本次解析范围|Entry exceeds this analysis scope
  項未確認依賴| 项未确认依赖| unresolved dependencies
 已達本次範圍限制，部分依賴未納入。可另選相關入口繼續分析。|已达本次范围限制，部分依赖未纳入。可另选相关入口继续分析。|The scope limit was reached and some dependencies were excluded. Select another related entry to continue.
-
 本檔案預計剩餘|本文件预计剩余|Estimated time left for this file
 移除過期索引|移除过期索引|Removing stale index entries
 整理 COPY 引用|整理 COPY 引用|Resolving COPY references
@@ -19,7 +234,6 @@ const UI_MESSAGES = `
 行|行|lines
 項|项|items
 目前檔案已解析 |当前文件已解析 |Current file: parsed\u0020
-
 局部解讀 · 未知依賴保留為邊界|局部解读 · 未知依赖保留为边界|Partial findings · Unknown dependencies remain bounded
 已取消|已取消|Cancelled
 個目錄入口|个目录入口|catalog entries
@@ -49,7 +263,7 @@ const UI_MESSAGES = `
 寫入索引|写入索引|Writing index
 整理程式關係|整理程序关系|Resolving relationships
 核對並保存結果|核对并保存结果|Checking and saving results
-核對源碼版本|核对源码版本|Checking source versions
+核對源碼是否更新|核对源码是否更新|Checking for source changes
 模型正在調查已有源碼|模型正在调查已有源码|Model investigating available source
 已完成|已完成|Completed
 準備中|准备中|Preparing
@@ -80,18 +294,16 @@ const UI_MESSAGES = `
 強制校驗全部檔案內容|强制校验全部文件内容|Verify all file contents
 一般更新會重用未變檔案。強制校驗會完整讀取全部源碼，首次大目錄接入無需勾選。|一般更新会复用未变文件。强制校验会完整读取全部源码，首次大目录接入无需勾选。|Normal updates reuse unchanged files. Forced verification reads all source contents; leave this off for normal intake.
 此步驟只在本機更新輕量目錄，不呼叫模型。|此步骤只在本机更新轻量目录，不调用模型。|This step updates a local source catalog without calling a model.
-
 請使用完整絕對路徑：源碼目錄須存在；輸出須獨立且為空、新目錄或只含分析產物。兩者不可相互嵌套。|请使用完整绝对路径：源码目录须存在；输出须独立且为空、新目录或只含分析产物。两者不可相互嵌套。|Use absolute paths. Source must exist; output must be separate and new, empty or contain analysis artifacts only. Neither folder may contain the other.
 目前已有分析正在執行，請等候完成。|当前已有分析正在执行，请等候完成。|An analysis is already running. Wait for it to finish.
 工作階段已失效，請重新整理頁面。|会话已失效，请刷新页面。|Your session has expired. Reload the page.
 請檢查文字編碼、源碼格式與副檔名設定。|请检查文本编码、源码格式与扩展名配置。|Check the encoding, source format and file extensions.
 請重新接入源碼，再選取當次快照的引用。|请重新接入源码，再选择当前快照的引用。|Reconnect the source, then select a citation from the current snapshot.
 請檢查輸入欄位及請求大小。|请检查输入字段及请求大小。|Check the input fields and request size.
-
 讓業務邏輯，清晰可見。|让业务逻辑，清晰可见。|Make business logic clear.
 從一個業務問題出發，沿著源碼找到可追溯的答案。|从一个业务问题出发，沿着源码找到可追溯的答案。|Start with a business question. Find answers you can trace to source.
 先看清楚，分析了甚麼。|先看清楚，分析了什么。|Know what you are analysing.
-程式、來源與版本，都有跡可尋。|程序、来源与版本，都有迹可循。|Identify every program, source file and version.
+程式、來源與讀取狀態，都有跡可尋。|程序、来源与读取状态，都有迹可循。|Identify each program, source file and reading status.
 每一次分析，都有依據。|每一次分析，都有依据。|Keep a record of every analysis.
 回看本次工作階段的問題、來源快照與結論。|回看本次会话的问题、来源快照与结论。|Review questions, source snapshots and findings from this session.
 業務洞察工作台|业务洞察工作台|Business Insight Workspace
@@ -115,20 +327,14 @@ const UI_MESSAGES = `
 匯出摘要|导出摘要|Export summary
 接入源碼|接入源码|Connect source
 當前源碼範圍|当前源码范围|Current source scope
-保費計算 · 合成示例|保费计算 · 合成示例|Premium calculation · Sample
-示例資料|示例数据|Sample data
 資料模式|数据模式|Data mode
-示例預覽|示例预览|Sample preview
 本機源碼|本机源码|Local source
-介面示例 · 非實際分析|界面示例 · 非实际分析|UI sample · Not a live analysis
 選擇源碼與結果資料夾，建立自己的分析範圍|选择源码与结果文件夹，建立自己的分析范围|Choose source and output folders to define your scope
 尚未接入本機源碼|尚未接入本机源码|No local source connected
 尚未建立快照|尚未建立快照|No snapshot yet
 尚未建立業務問答|尚未建立业务问答|No business question yet
-合成示例 · 介面預覽|合成示例 · 界面预览|Synthetic sample · UI preview
 本機源碼 · 本次工作階段|本机源码 · 本次会话|Local source · Current session
 接入源碼後開始|接入源码后开始|Connect source to begin
-介面示例 · 不代表公司業務結果|界面示例 · 不代表公司业务结果|UI sample · Not a company business finding
 本機源碼 · 問題完整性仍需覆核|本机源码 · 问题完整性仍需复核|Local source · Question coverage needs review
 更新中|更新中|Updating
 等待接入|等待接入|Awaiting source
@@ -146,53 +352,23 @@ const UI_MESSAGES = `
 尚未分析|尚未分析|Not analysed
 本次業務問題|本次业务问题|Business question
 業務問題|业务问题|Business question
-例如：這個程式如何處理輸入、計算與異常？|例如：这个程序如何处理输入、计算与异常？|For example: how does this program handle inputs, calculations and errors?
+例如：哪些申請可以通過？狀態如何變化，失敗會有甚麼影響？|例如：哪些申请可以通过？状态如何变化，失败会有什么影响？|For example: which requests qualify, how does their status change, and what happens if they fail?
 調查起點|调查起点|Starting program
 從程式目錄探索|从程序目录探索|Explore the program catalog
-預覽示例解讀|预览示例解读|Preview sample
 開始業務分析|开始业务分析|Start analysis
 發起分析將使用已設定的模型接口，傳送問題及有限源碼證據。|发起分析将使用已配置的模型接口，发送问题及有限源码证据。|Starting analysis sends your question and limited source evidence to the configured model endpoint.
-請解釋這個程式的主要處理步驟和輸入輸出。|请解释这个程序的主要处理步骤和输入输出。|Explain this program’s main processing steps, inputs and outputs.
-哪些程式會被呼叫？請引用對應的源碼。|哪些程序会被调用？请引用对应的源码。|Which programs are called? Cite the relevant source.
-發生錯誤時，狀態如何傳回呼叫方？|发生错误时，状态如何返回调用方？|When an error occurs, how is its status returned to the caller?
-主要處理流程|主要处理流程|Main process
-呼叫與依賴|调用与依赖|Calls and dependencies
-異常處理|异常处理|Error handling
+請用業務語言說明這項業務從受理到完成的處理過程與結果。|请用业务语言说明这项业务从受理到完成的处理过程与结果。|Explain this business process from intake to completion, including its outcomes, in business terms.
+哪些條件會允許或拒絕處理？會產生甚麼狀態與業務結果？|哪些条件会允许或拒绝处理？会产生什么状态与业务结果？|Which conditions allow or reject processing, and what statuses and business outcomes result?
+哪些異常會中止、退回或延後處理？對目前業務與後續處理有甚麼影響？|哪些异常会中止、退回或延后处理？对当前业务与后续处理有什么影响？|Which exceptions stop, return or defer processing, and how do they affect the current business activity and subsequent processing?
+准入與狀態|准入与状态|Eligibility and status
+異常與影響|异常与影响|Exceptions and impact
 分析檢視|分析视图|Analysis views
 業務解讀|业务解读|Business findings
 程式關係|程序关系|Program relationships
 調查記錄|调查记录|Investigation log
 查看證據|查看证据|View evidence
-分期保費是如何計算出來的？|分期保费是如何计算出来的？|How is the instalment premium calculated?
-分期保費計算邏輯|分期保费计算逻辑|Instalment premium calculation
-分期保費計算|分期保费计算|Instalment premium formula
-年繳保費組成|年缴保费组成|Annual premium components
-繳費係數來源|缴费系数来源|Payment factor source
-解讀示例 · 未執行模型分析|解读示例 · 未执行模型分析|Sample findings · No model analysis performed
-先計算年繳保費，|先计算年缴保费，|Calculate the annual premium,
-再套用繳費係數。|再应用缴费系数。|then apply the payment factor.
-這個示例展示如何把分散在程式中的計算步驟，整理成可逐項回查的業務解讀。|这个示例展示如何把分散在程序中的计算步骤，整理成可逐项回查的业务解读。|This sample turns calculations spread across programs into business findings that can be checked individually.
-計算摘要|计算摘要|Calculation summary
-分期保費|分期保费|Instalment premium
-年繳保費|年缴保费|Annual premium
-繳費係數|缴费系数|Payment factor
-彙總年繳保費|汇总年缴保费|Build the annual premium
-將基本保費及附加保障保費加總，再扣除適用折扣，形成計算基礎。|将基本保费及附加保障保费相加，再扣除适用折扣，形成计算基础。|Add the base and rider premiums, then subtract applicable discounts to form the calculation base.
-取得對應的繳費係數|取得对应的缴费系数|Find the applicable payment factor
-以繳費方式查詢係數。源碼顯示查詢來源；實際設定值需要配置資料確認。|按缴费方式查询系数。源码显示查询来源；实际配置值需要配置数据确认。|Look up the factor by payment mode. The source identifies the lookup; configuration data is needed to confirm its value.
-計算並回傳分期保費|计算并返回分期保费|Calculate and return the instalment premium
-年繳保費乘以繳費係數，使用 ROUNDED，並將結果寫入輸出欄位。|年缴保费乘以缴费系数，使用 ROUNDED，并将结果写入输出字段。|Multiply the annual premium by the payment factor using ROUNDED, then write the result to the output field.
-尚待確認|尚待确认|Still to confirm
-實際係數、折扣適用條件與完整異常路徑，需要同版本配置及進一步源碼核對。|实际系数、折扣适用条件与完整异常路径，需要同版本配置及进一步源码核对。|Actual factors, discount conditions and complete error paths need matching configuration and further source review.
-處理流程概覽|处理流程概览|Process overview
-示例路徑|示例路径|Sample path
-接收請求|接收请求|Receive request
-計算年繳保費|计算年缴保费|Calculate annual premium
-取得繳費係數|取得缴费系数|Get payment factor
-回傳結果|返回结果|Return result
-以上為介面設計示例；本機模式只呈現實際分析結果。|以上为界面设计示例；本机模式只呈现实际分析结果。|This is a UI sample. Local mode displays results from your analysis only.
 準備分析新的問題|准备分析新的问题|Ready for a new question
-問題或調查起點已更改。發起分析後，這裡會呈現新問題的結果。|问题或调查起点已更改。发起分析后，这里会呈现新问题的结果。|The question or starting program has changed. Start analysis to see the new result here.
+問題、調查起點或閱讀方式已更改。發起分析後，這裡會呈現新問題的結果。|问题、调查起点或阅读方式已更改。发起分析后，这里会呈现新问题的结果。|The question, starting program or reading settings have changed. Start analysis to see the new result here.
 上一題摘要保留在分析記錄中。|上一题摘要保留在分析记录中。|The previous summary is kept in analysis history.
 保留現有資料與阻斷原因。處理缺口後，可重新發起分析。|保留现有数据与阻断原因。处理缺口后，可重新发起分析。|Available evidence and blocking reasons are retained. Resolve the gaps, then try again.
 源碼已就緒。選擇調查起點，輸入業務問題，即可從當前源碼開始。|源码已就绪。选择调查起点，输入业务问题，即可从当前源码开始。|Source is ready. Choose a starting program and enter a business question.
@@ -210,7 +386,6 @@ const UI_MESSAGES = `
 問題相關性與完整性尚未核驗；局部語句通過不代表整條業務流程已驗證。|问题相关性与完整性尚未核验；局部语句通过不代表整条业务流程已验证。|Question relevance and coverage are not verified. A checked statement does not validate an entire business process.
 待確認與分析邊界|待确认与分析边界|Open issues and limitations
 沿著程式，回查關係。|沿着程序，回查关系。|Trace relationships between programs.
-此處是預先編排的關係示例。|此处是预先编排的关系示例。|These relationships are illustrative samples.
 以下來自當前源碼的靜態呼叫與 COPY 關係，不表示執行順序或實際可達。|以下来自当前源码的静态调用与 COPY 关系，不表示执行顺序或实际可达。|These static call and COPY relationships come from the current source. They do not establish execution order or reachability.
 關係數量已達顯示上限。|关系数量已达显示上限。|The relationship display limit has been reached.
 引入定義|引入定义|Included definition
@@ -223,16 +398,14 @@ const UI_MESSAGES = `
 本次沒有可展示的呼叫或 COPY 關係；不能據此推斷不存在依賴。|本次没有可展示的调用或 COPY 关系；不能据此推断不存在依赖。|No call or COPY relationships are available to display. This does not prove there are no dependencies.
 目前顯示前 40 項關係。完整回傳資料可在匯出檔中查看。|目前显示前 40 项关系。完整返回数据可在导出文件中查看。|Showing the first 40 relationships. Export the data to view the full response.
 新問題尚未執行調查|新问题尚未执行调查|The new question has not been investigated
-問題或調查起點已更改。發起分析後，這裡會顯示新問題的工具記錄。|问题或调查起点已更改。发起分析后，这里会显示新问题的工具记录。|The question or starting program has changed. Start analysis to generate a new investigation log.
+問題、調查起點或閱讀方式已更改。發起分析後，這裡會顯示新問題的工具記錄。|问题、调查起点或阅读方式已更改。发起分析后，这里会显示新问题的工具记录。|The question, starting program or reading settings have changed. Start analysis to generate a new investigation log.
 每一步，留下可核對的依據。|每一步，留下可核对的依据。|Every step leaves a record.
-以下是介面呈現方式示例，並非已執行的模型調查記錄。|以下是界面呈现方式示例，并非已执行的模型调查记录。|This demonstrates the interface; it is not a log of an actual model investigation.
 定位分析起點|定位分析起点|Locate the starting point
 從程式目錄及名稱，選定本次要調查的範圍。|从程序目录及名称，选定本次要调查的范围。|Use the program catalog and names to select the investigation scope.
 核對計算與依賴|核对计算与依赖|Check calculations and dependencies
 檢視欄位讀寫及呼叫關係，收集相關源碼引用。|查看字段读写及调用关系，收集相关源码引用。|Inspect field reads, writes and calls, and collect source citations.
 集中讀取證據|集中读取证据|Read the evidence
 閱讀已發現的源碼片段，逐項綁定結論與未決事項。|阅读已发现的源码片段，逐项绑定结论与未决事项。|Read discovered source spans and link them to findings and open issues.
-示例步驟|示例步骤|Sample step
 定位程式與欄位|定位程序与字段|Locate programs and fields
 檢視定義與依賴|查看定义与依赖|Inspect definitions and dependencies
 追蹤源碼關係|追踪源码关系|Trace source relationships
@@ -250,7 +423,6 @@ const UI_MESSAGES = `
 查看工具資料|查看工具数据|View tool details
 尚未執行模型調查。建立索引不會產生模型工具記錄。|尚未执行模型调查。建立索引不会产生模型工具记录。|No model investigation has run. Indexing does not generate a model tool log.
 源碼證據|源码证据|Source evidence
-示例引用|示例引用|Sample citations
 非實際源碼驗收|非实际源码验收|Not a source acceptance result
 本次回答引用|本次回答引用|Citations for this answer
 點選檢視原文|点击查看原文|Select to view source
@@ -261,10 +433,8 @@ const UI_MESSAGES = `
 源碼原文|源码原文|Original source
 選擇一段引用，查看源碼內容。|选择一段引用，查看源码内容。|Select a citation to view its source.
 從引用清單選擇|从引用清单选择|Select a citation
-介面示例|界面示例|UI sample
 快照證據完整性有效|快照证据完整性有效|Snapshot evidence integrity valid
 完整性未確認|完整性未确认|Integrity unconfirmed
-示例內容|示例内容|Sample content
 已截斷|已截断|Truncated
 讓結論可被覆核|让结论可被复核|Make findings reviewable
 選擇本機源碼後，此面板會展示實際文件、行號與證據。|选择本机源码后，此面板会展示实际文件、行号与证据。|Connect local source to see actual files, line numbers and evidence here.
@@ -279,7 +449,6 @@ const UI_MESSAGES = `
 接入本機 COBOL 程式與 COPYBOOK，確認分析範圍，|接入本机 COBOL 程序与 COPYBOOK，确认分析范围，|Connect local COBOL programs and COPYBOOKs, confirm the scope,
 再用業務語言提出問題。|再用业务语言提出问题。|then ask questions in business terms.
 接入本機源碼|接入本机源码|Connect local source
-先查看介面示例|先查看界面示例|Explore the sample first
 已識別定義|已识别定义|Definition identified
 分析程式|分析程序|Analyse program
 待確認的程式與 COPY 依賴|待确认的程序与 COPY 依赖|Unconfirmed program and COPY dependencies
@@ -298,15 +467,11 @@ COPYBOOK 定義|COPYBOOK 定义|COPYBOOK definitions
 來源路徑|来源路径|Source path
 定義行|定义行|Definition line
 識別狀態|识别状态|Identification status
-合成示例|合成示例|Synthetic sample
 目前源碼快照|当前源码快照|Current source snapshot
 源碼位置|源码位置|Source location
 本次快照|本次快照|Current snapshot
 未建立有效快照|未建立有效快照|No valid snapshot
-介面示例記錄|界面示例记录|Sample history
 非實際分析|非实际分析|Not a live analysis
-預先編排的介面內容 · 3 段示例引用|预先编排的界面内容 · 3 段示例引用|Prebuilt UI sample · 3 illustrative citations
-查看示例|查看示例|View sample
 本次工作階段|本次会话|Current session
 源碼接入|源码接入|Source intake
 查看摘要|查看摘要|View summary
@@ -316,17 +481,13 @@ COPYBOOK 定義|COPYBOOK 定义|COPYBOOK definitions
 本機服務暫時無法完成操作。|本机服务暂时无法完成操作。|The local service could not complete the operation.
 請先以 python poc/web_app.py 啟動本機服務，再透過服務地址開啟此頁。|请先用 python poc/web_app.py 启动本机服务，再通过服务地址打开此页。|Start the local service with python poc/web_app.py, then open this page using its service address.
 接入未完成，請檢查資料範圍及設定。|接入未完成，请检查数据范围及配置。|Source intake did not finish. Check the scope and settings.
-源碼快照已更新，請重新選擇本次引用。|源码快照已更新，请重新选择本次引用。|The source snapshot changed. Select a citation from the current result.
+源碼已更新，請重新分析後選擇引用。|源码已更新，请重新分析后选择引用。|Source has changed. Run analysis again before selecting a citation.
 這段證據未通過快照完整性核對，暫不展示原文。|这段证据未通过快照完整性核对，暂不显示原文。|This evidence failed the snapshot integrity check. Source text cannot be shown.
-這是介面示例。請接入本機源碼，才能調查自己的問題。|这是界面示例。请接入本机源码，才能调查自己的问题。|This is a UI sample. Connect local source to investigate your own questions.
 請解釋 |请解释 |Explain
- 的主要處理步驟、輸入輸出及呼叫。| 的主要处理步骤、输入输出及调用。|: main processing steps, inputs, outputs and calls.
 已匯出該次摘要；目前源碼範圍保持不變。|已导出该次摘要；当前源码范围保持不变。|Summary exported. The current source scope is unchanged.
-示例只展示預先編排的保費問題。接入本機源碼後，可分析自己的程式。|示例只展示预先编排的保费问题。接入本机源码后，可分析自己的程序。|The sample covers a predefined premium question. Connect local source to analyse your own programs.
-目前為介面示例，未發起模型請求。|当前为界面示例，未发起模型请求。|This is a UI sample. No model request was sent.
 請先輸入一個業務問題。|请先输入一个业务问题。|Enter a business question first.
 請先成功接入本機源碼。|请先成功接入本机源码。|Connect local source successfully before starting analysis.
-接口設定已提供，發起問答時會進行實際能力探測。|接口配置已提供，发起问答时会进行实际能力检测。|Endpoint settings are available. Capabilities will be checked when you start analysis.
+接口設定已提供，發起分析時會使用已設定的接口生成業務解讀。|接口配置已提供，发起分析时会使用已配置的接口生成业务解读。|Endpoint settings are available. Starting analysis uses the configured endpoint to generate a business explanation.
 源碼索引可離線使用。模型問答需要先在項目根目錄的 .env 設定接口。|源码索引可离线使用。模型问答需要先在项目根目录的 .env 配置接口。|Source indexing works offline. Configure the model endpoint in .env at the project root to enable analysis.
 已啟動|已启动|Running
 尚未啟動|尚未启动|Not running
@@ -361,7 +522,7 @@ COPYBOOK 定義|COPYBOOK 定义|COPYBOOK definitions
 尚未填寫接口地址。請在 .env 設定 COMPANY_API_BASE_URL。|尚未填写接口地址。请在 .env 配置 COMPANY_API_BASE_URL。|The endpoint address is missing. Set COMPANY_API_BASE_URL in .env.
 尚未填寫模型。請在 .env 設定 COMPANY_CHAT_MODEL。|尚未填写模型。请在 .env 配置 COMPANY_CHAT_MODEL。|The model is missing. Set COMPANY_CHAT_MODEL in .env.
 尚未填寫密鑰。請在 .env 設定 COMPANY_API_KEY。|尚未填写密钥。请在 .env 配置 COMPANY_API_KEY。|The key is missing. Set COMPANY_API_KEY in .env.
-接口地址格式無效。請核對 COMPANY_API_BASE_URL 與接口要求的版本路徑。|接口地址格式无效。请核对 COMPANY_API_BASE_URL 与接口要求的版本路径。|The endpoint address is invalid. Check COMPANY_API_BASE_URL and the version path required by your endpoint.
+接口地址格式無效。請核對 COMPANY_API_BASE_URL 與接口要求的路徑。|接口地址格式无效。请核对 COMPANY_API_BASE_URL 与接口要求的路径。|The endpoint address is invalid. Check COMPANY_API_BASE_URL and the path required by your endpoint.
 接口風格不受支援。請核對 COMPANY_API_STYLE；預設為 openai_compatible。|接口风格不受支持。请核对 COMPANY_API_STYLE；默认为 openai_compatible。|The endpoint style is unsupported. Check COMPANY_API_STYLE; the default is openai_compatible.
 .env 格式無效。請使用 UTF-8 文字，每行填寫一個「變數名稱=值」，並核對引號。|.env 格式无效。请使用 UTF-8 文本，每行填写一个“变量名称=值”，并核对引号。|The .env format is invalid. Use UTF-8 text with one NAME=value per line, and check the quotes.
 本機服務無法讀取 .env。請檢查檔案是否可由目前使用者讀取。|本机服务无法读取 .env。请检查文件是否可由当前用户读取。|The local service cannot read .env. Check that the current user has permission to read the file.
@@ -373,7 +534,7 @@ API Key 儲存位置|API Key 存储位置|API key location
 項目根目錄 .env 或服務環境變數|项目根目录 .env 或服务环境变量|Project-root .env or service environment
 首次使用：將項目根目錄的 .env.example 複製為 .env，填入以下三項並儲存。之後雙擊 poc/run_web.bat 即可啟動，無需每次重新輸入。|首次使用：将项目根目录的 .env.example 复制为 .env，填入以下三项并保存。之后双击 poc/run_web.bat 即可启动，无需每次重新输入。|First use: copy .env.example to .env in the project root, fill in these three settings and save. Then double-click poc/run_web.bat to start; no need to enter them again.
 修改 .env 後請重新啟動服務。既有環境變數會優先於 .env。Key 只由本機服務讀取，不回傳或儲存於瀏覽器；請保留本機 .env，不要上傳至 GitHub。|修改 .env 后请重新启动服务。已有环境变量会优先于 .env。Key 只由本机服务读取，不返回或存储于浏览器；请保留本机 .env，不要上传至 GitHub。|Restart the service after editing .env. Existing environment variables override .env. Only the local service reads your key; it is never returned to or stored in the browser. Keep .env locally and out of GitHub.
-已提供設定不代表連線驗證通過。每次發起問答時，系統會檢查接口所需能力。|已提供配置不代表连接验证通过。每次发起问答时，系统会检查接口所需能力。|Configured settings do not mean the connection is verified. Required capabilities are checked for each analysis.
+已提供設定不代表連線驗證通過。開始分析後，可在「API 返回」查看實際請求結果。|已提供配置不代表连接验证通过。开始分析后，可在“API 返回”查看实际请求结果。|Configured settings do not mean the connection is verified. After starting analysis, view actual request results in API response.
 未連線|未连接|Disconnected
 未提供|未提供|Not configured
 明白|明白|Got it
@@ -383,10 +544,8 @@ API Key 儲存位置|API Key 存储位置|API key location
 Markdown · 適合審閱及分享|Markdown · 适合审阅及分享|Markdown · For review and sharing
 完整分析資料|完整分析数据|Full analysis data
 JSON · 保留本次診斷與分析結果|JSON · 保留本次诊断与分析结果|JSON · Includes diagnostics and results
-資料模式：預先編排的合成示例，未執行模型分析。|数据模式：预先编排的合成示例，未执行模型分析。|Data mode: prebuilt synthetic sample; no model analysis performed.
 本內容用於展示回答、關係與引用的介面，不代表公司業務結果。|本内容用于展示回答、关系与引用的界面，不代表公司业务结果。|This demonstrates findings, relationships and citations. It is not a company business result.
-實際係數、折扣適用條件與完整異常路徑需額外資料核對。|实际系数、折扣适用条件与完整异常路径需额外数据核对。|Actual factors, discount conditions and full error paths need additional evidence.
-本機源碼分析|本机源码分析|Local source analysis
+業務分析摘要|业务分析摘要|Business analysis summary
 匯出時間：|导出时间：|Exported at:
 接入狀態：|接入状态：|Intake status:
 問答狀態：|问答状态：|Answer status:
@@ -405,17 +564,15 @@ JSON · 保留本次診斷與分析結果|JSON · 保留本次诊断与分析结
  個程式定義| 个程序定义| program definitions
  個檔案| 个文件| files
  個 COPYBOOK| 个 COPYBOOK| COPYBOOKs
- 段示例證據| 段示例证据| sample evidence spans
  段引用| 段引用| citations
  項| 项| items
-快照 |快照 |Snapshot
+快照 |快照 |Snapshot\u0020
 關係|关系|Relationship
 來源|来源|Source
 待確認|待确认|Open issues
 未建立|未建立|Not created
 首頁|首页|Home
 `.trim().split('\n').filter(Boolean).map(line => line.split('|'));
-
 const SUPPORTED_LOCALES = ['zh-CN', 'zh-HK', 'en'];
 const LOCALE_STORAGE_KEY = 'cobol-lens.locale';
 let currentLocale = 'zh-HK';
@@ -433,7 +590,13 @@ function t(text) {
 function ui(parts, ...values) {
   return parts.reduce((text, part, index) => text + t(part) + (index < values.length ? values[index] : ''), '');
 }
-
+// Demo guide text is authored in the fixture manifest. Source excerpts and
+// analysis responses never pass through this locale selector.
+function frameworkDemoText(value){
+  if(typeof value==='string')return value;
+  if(!value || typeof value!=='object')return '';
+  return [value[currentLocale],value['zh-HK'],value['zh-CN'],value.en].find(text=>typeof text==='string') || '';
+}
 // Capture only the initial, authored HTML before the application inserts data.
 const staticText = [];
 const staticAttributes = [];

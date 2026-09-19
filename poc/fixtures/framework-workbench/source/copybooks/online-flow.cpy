@@ -1,0 +1,11 @@
+       ONLINE-CONTROL.
+           PERFORM 1000-INITIALISE
+           PERFORM UNTIL EDIT-STATE = "ACCEPT"
+               OR EDIT-STATE = "CANCEL" OR EDIT-STATE = "ERROR"
+               PERFORM 2000-SCREEN-EDIT
+           END-PERFORM
+           IF EDIT-STATE = "ACCEPT"
+               PERFORM 3000-UPDATE
+           END-IF
+           PERFORM 4000-WHERE-NEXT
+           GOBACK.

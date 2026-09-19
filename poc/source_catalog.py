@@ -26,9 +26,7 @@ from repo_inventory import (
 HEADER_BYTES = 256 * 1024
 COPY_EXTENSIONS = frozenset({'.cpy', '.copy', '.cpb', '.inc'})
 PROGRAM_EXTENSIONS = frozenset({'.cbl', '.cob', '.cobol', '.cblle', '.sqlcblle', '.pco', '.sqb', '.src', ''})
-COPY_TARGET_RE = re.compile(r"\bCOPY\s+(?:['\"]([^'\"]+)['\"]|([A-Z0-9_$#@.-]+))", re.I)
-CALL_TARGET_RE = re.compile(r"\bCALL\s+(['\"])([^'\"]+)\1", re.I)
-DYNAMIC_TARGET_RE = re.compile(r"\bCALL\s+(?!['\"])([A-Z0-9_$#@-]+)", re.I)
+DEPENDENCY_TOKEN_RE = re.compile(r"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|[A-Z0-9_$#@-]+(?:\.[A-Z0-9_$#@-]+)*|\.", re.I)
 Progress = Callable[[dict], None]
 
 
@@ -344,11 +342,37 @@ def _entry_matches(programs: list[dict], entry: str) -> list[dict]:
     return [item for item in programs if Path(item['relative_path']).name.casefold() == key]
 
 
+def _dependency_targets(text: str) -> tuple[list[tuple[str, str]], list[str]]:
+    """Find literal dependency hints without interpreting quoted display text."""
+    targets, dynamic = [], []
+    pending = None
+    for match in DEPENDENCY_TOKEN_RE.finditer(text):
+        value = match.group()
+        quoted = value.startswith(("'", '"'))
+        if pending:
+            if value != '.':
+                name = value[1:-1].replace(value[0] * 2, value[0]) if quoted else value
+                if pending == 'COPY':
+                    targets.append(('INCLUDES_COPY', name))
+                elif quoted:
+                    targets.append(('CALLS', name))
+                else:
+                    dynamic.append(name)
+            pending = None
+        elif not quoted and value.upper() in {'COPY', 'CALL'}:
+            pending = value.upper()
+    # When a file budget is reached, direct calls should not lose every slot
+    # merely because data copybooks occur first in a source file.
+    targets.sort(key=lambda item: item[0] != 'CALLS')
+    return targets, dynamic
+
+
 def select_related_sources(
     source: Path, catalog: dict, entry: str, *, encoding: str = 'auto',
     source_format: str = 'auto', max_files: int = 64, max_depth: int = 3,
     max_scan_bytes: int = 2 * 1024 * 1024, max_total_source_bytes: int = 64 * 1024 * 1024,
     progress: Progress | None = None, max_scope_bytes: int | None = None,
+    copy_depth_cost: int = 1,
 ) -> dict:
     """Choose a bounded static COPY/CALL neighborhood without requiring closure.
 
@@ -361,7 +385,7 @@ def select_related_sources(
         max_total_source_bytes = max_scope_bytes
     if source != Path(catalog['source_root']).resolve():
         raise ValueError('Catalog belongs to a different source directory.')
-    if max_files < 1 or max_depth < 0 or max_scan_bytes < 1024 or max_total_source_bytes < 1:
+    if max_files < 1 or max_depth < 0 or max_scan_bytes < 1024 or max_total_source_bytes < 1 or copy_depth_cost not in (0, 1):
         raise ValueError('Invalid related-source limits.')
     matches = _entry_matches(catalog['programs'], entry)
     if len(matches) != 1:
@@ -428,12 +452,11 @@ def select_related_sources(
             boundary(relative, 'SOURCE_FILE', relative, 'DECODE_FAILED')
             continue
         normalized = '\n'.join(line for _, line in _clean_lines(_complete_prefix(text, truncated), source_format))
-        targets = [('INCLUDES_COPY', (match.group(1) or match.group(2)).rstrip('.'), copy_paths)
-                   for match in COPY_TARGET_RE.finditer(normalized)]
-        targets.extend(('CALLS', match.group(2), program_paths) for match in CALL_TARGET_RE.finditer(normalized))
-        for match in DYNAMIC_TARGET_RE.finditer(normalized):
-            boundary(relative, 'CALL_TARGET_FROM', match.group(1), 'DYNAMIC_TARGET')
-        for relation, target, mapping in targets:
+        targets, dynamic = _dependency_targets(normalized)
+        for target in dynamic:
+            boundary(relative, 'CALL_TARGET_FROM', target, 'DYNAMIC_TARGET')
+        for relation, target in targets:
+            mapping = copy_paths if relation == 'INCLUDES_COPY' else program_paths
             candidates = mapping.get(target.casefold(), set())
             if not candidates:
                 boundary(relative, relation, target, 'MISSING_SOURCE')
@@ -443,7 +466,8 @@ def select_related_sources(
                 candidate = next(iter(candidates))
                 if candidate in queued:
                     continue
-                if depth >= max_depth:
+                next_depth = depth + (copy_depth_cost if relation == 'INCLUDES_COPY' else 1)
+                if next_depth > max_depth:
                     boundary(relative, relation, target, 'DEPTH_LIMIT')
                 elif len(queued) >= max_files:
                     boundary(relative, relation, target, 'FILE_LIMIT')
@@ -451,12 +475,13 @@ def select_related_sources(
                     boundary(relative, relation, target, 'SOURCE_BYTE_LIMIT')
                 else:
                     bytes_selected += file_sizes[candidate]
-                    queue.append((candidate, depth + 1))
+                    queue.append((candidate, next_depth))
                     queued.add(candidate)
     unique = {tuple(item.values()): item for item in boundaries}
     return {'selected_entry': selected_entry, 'relative_paths': selected,
             'missing_dependencies': list(unique.values()),
             'scope': {'mode': 'entry_neighborhood', 'max_files': max_files, 'max_depth': max_depth,
+                      'copy_depth_cost': copy_depth_cost,
                       'max_dependency_scan_bytes_per_file': max_scan_bytes,
                       'max_total_source_bytes': max_total_source_bytes, 'selected_source_bytes': bytes_selected,
                       'max_scope_bytes': max_total_source_bytes, 'total_scope_bytes': bytes_selected,

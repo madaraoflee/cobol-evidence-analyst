@@ -26,6 +26,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from api_diagnostics import APIResponseDiagnostics
+
 
 PROBE_SCHEMA_VERSION = "company-api-capability-probe/v1"
 DEFAULT_API_KEY_ENV = "COMPANY_API_KEY"
@@ -39,6 +41,7 @@ MAX_ENV_FILE_BYTES = 65_536
 CONFIG_ENV_KEYS = frozenset({
     "COMPANY_API_BASE_URL", "COMPANY_API_KEY", "COMPANY_CHAT_MODEL",
     "COMPANY_EMBEDDING_MODEL", "COMPANY_API_STYLE",
+    "FRAMEWORK_REFERENCE_PATH",
 })
 
 _SAFE_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
@@ -326,6 +329,7 @@ class TransportResponse:
     status_code: int
     body: bytes | str = field(default=b"", repr=False)
     headers: Mapping[str, str] = field(default_factory=dict, repr=False)
+    body_omitted_reason: str | None = field(default=None, repr=False)
 
     def __repr__(self) -> str:
         body_size = len(self.body) if isinstance(self.body, (bytes, str)) else 0
@@ -428,7 +432,10 @@ class UrllibTransport:
         except urllib.error.HTTPError as exc:
             # Do not read or preserve an error body; corporate gateways often
             # include request details that are unsafe to surface.
-            return TransportResponse(status_code=int(exc.code), body=b"")
+            return TransportResponse(
+                status_code=int(exc.code), body=b"",
+                body_omitted_reason="HTTP_ERROR_BODY_NOT_COLLECTED",
+            )
         except APIClientError:
             raise
         except TimeoutError:
@@ -463,9 +470,13 @@ class OpenAICompatibleChatClient:
         *,
         transport: Transport | None = None,
         allow_network: bool = False,
+        diagnostics: APIResponseDiagnostics | None = None,
+        diagnostic_phase: str = "investigation",
     ) -> None:
         self.config = config
         self.allow_network = bool(allow_network)
+        self._diagnostics = diagnostics
+        self._diagnostic_phase = diagnostic_phase
         self.transport_mode = (
             "INJECTED"
             if transport is not None
@@ -574,13 +585,63 @@ class OpenAICompatibleChatClient:
             timeout_seconds=effective_timeout,
             endpoint=safe_endpoint,
         )
+        started = time.monotonic()
+        response: object = None
+        response_received = False
+        exchange: dict[str, object] | None = None
         try:
-            response = self._transport(request)
-        except APIClientError:
+            try:
+                response = self._transport(request)
+                response_received = True
+            except APIClientError:
+                raise
+            except TimeoutError:
+                raise APIClientError("REQUEST_TIMEOUT") from None
+            except Exception:  # injected transports are untrusted at this boundary
+                raise APIClientError("TRANSPORT_ERROR") from None
+            # Capture before HTTP status, body shape, or JSON validation. The
+            # shared collector redacts first and stores a bounded text preview.
+            if self._diagnostics is not None:
+                exchange = self._capture_response(
+                    response, safe_endpoint, started, "RESPONSE_RECEIVED"
+                )
+            return self._validate_response(response, secret)
+        except APIClientError as exc:
+            if self._diagnostics is not None:
+                if not response_received:
+                    self._capture_response(None, safe_endpoint, started, exc.code)
+                elif exchange is not None:
+                    exchange["outcome_code"] = exc.code
             raise
-        except Exception:  # injected transports are untrusted at this boundary
-            raise APIClientError("TRANSPORT_ERROR") from None
 
+    def _capture_response(
+        self, response: object, endpoint: str, started: float, outcome_code: str
+    ) -> dict[str, object] | None:
+        assert self._diagnostics is not None
+        valid_response = isinstance(response, TransportResponse)
+        omission = None
+        if valid_response:
+            # Omission annotations from injected transports are untrusted.
+            if response.body_omitted_reason == "HTTP_ERROR_BODY_NOT_COLLECTED":
+                omission = "HTTP_ERROR_BODY_NOT_COLLECTED"
+            elif not isinstance(response.body, (bytes, str)):
+                omission = "RESPONSE_BODY_INVALID"
+        else:
+            omission = "NO_RESPONSE" if response is None else "TRANSPORT_RESPONSE_INVALID"
+        return self._diagnostics.record(
+            phase=self._diagnostic_phase,
+            endpoint=endpoint,
+            http_status=response.status_code if valid_response else None,
+            outcome_code=outcome_code,
+            body=response.body if valid_response else None,
+            elapsed_ms=(time.monotonic() - started) * 1000,
+            body_omitted_reason=omission,
+        )
+
+    @staticmethod
+    def _validate_response(
+        response: object, secret: str
+    ) -> tuple[dict[str, object], int]:
         if not isinstance(response, TransportResponse):
             raise APIClientError("TRANSPORT_RESPONSE_INVALID")
         status = response.status_code
@@ -596,7 +657,7 @@ class OpenAICompatibleChatClient:
             raise APIClientError("RESPONSE_TOO_LARGE", http_status=status)
         try:
             text_body = (
-                raw_body.decode("utf-8") if isinstance(raw_body, bytes) else raw_body
+                raw_body.decode("utf-8-sig") if isinstance(raw_body, bytes) else raw_body.removeprefix("\ufeff")
             )
             parsed = json.loads(text_body)
         except (UnicodeDecodeError, ValueError, RecursionError):
@@ -687,10 +748,12 @@ class CapabilityProbe:
         transport: Transport | None = None,
         allow_network: bool = False,
         probe_embeddings: bool = False,
+        diagnostics: APIResponseDiagnostics | None = None,
     ) -> None:
         self.config = config
         self.client = OpenAICompatibleChatClient(
-            config, transport=transport, allow_network=allow_network
+            config, transport=transport, allow_network=allow_network,
+            diagnostics=diagnostics, diagnostic_phase="capability_probe",
         )
         self.probe_embeddings = bool(probe_embeddings)
         self._audit: list[dict[str, object]] = []
@@ -1213,6 +1276,7 @@ def probe_capabilities(
     transport: Transport | None = None,
     allow_network: bool = False,
     probe_embeddings: bool = False,
+    diagnostics: APIResponseDiagnostics | None = None,
 ) -> dict[str, object]:
     """Convenience wrapper around :class:`CapabilityProbe`."""
 
@@ -1221,6 +1285,7 @@ def probe_capabilities(
         transport=transport,
         allow_network=allow_network,
         probe_embeddings=probe_embeddings,
+        diagnostics=diagnostics,
     ).run()
 
 

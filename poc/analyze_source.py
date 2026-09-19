@@ -19,7 +19,9 @@ from company_api import APIConfigurationError, CompanyAPIConfig, Transport
 from repo_inventory import DEFAULT_EXTENSIONS, parse_extensions
 from run_agent import run_investigation
 from structural_index import build_structural_index
+from business_index import build_business_index
 from source_catalog import refresh_source_catalog, select_related_sources
+from framework_knowledge import build_framework_context
 
 
 DEFAULT_SCOPE_SOURCE_BYTES = 16 * 1024 * 1024
@@ -27,6 +29,7 @@ DEFAULT_SCOPE_SOURCE_BYTES = 16 * 1024 * 1024
 ARTIFACT_NAMES = (
     "structural-index.sqlite", "diagnosis.json", "diagnosis.md",
     "programs.json", "agent-result.json", "agent-result.md", "source-catalog.sqlite",
+    "framework-context.json",
 )
 
 
@@ -160,6 +163,22 @@ def _render(report: dict, programs: list[dict]) -> str:
     if report.get("selected_entry"):
         entry = report["selected_entry"]
         lines += [f"已选入口：{_inline(entry['program_name'])}，{_inline(entry['relative_path'])}:{entry['start_line']}。", ""]
+    framework = report.get("framework_context") or {}
+    document = framework.get("document") or {}
+    lines += ["## 框架资料与当前源码", "", f"状态：{_inline(framework.get('status', 'NOT_CONFIGURED'))}。", ""]
+    if document:
+        lines += [f"资料：{_inline(document.get('title', ''))}；SHA256：{_inline(document.get('sha256', ''))}。", ""]
+    for match in framework.get("source_matches", []):
+        lines += [f"- {_inline(match.get('relative_path'))}:{match.get('start_line')}："
+                  f"{_inline(', '.join(match.get('matched_terms', [])))} → "
+                  f"{_inline(', '.join(match.get('reference_ids', [])))}。"]
+    if framework.get("references"):
+        lines += ["", "本次检索的资料章节（完整节选见 framework-context.json）：", ""]
+        for reference in framework["references"]:
+            page = f"第 {reference['page']} 页，" if reference.get("page") else ""
+            lines += [f"- {_inline(reference['reference_id'])}：{_inline(reference['heading'])}；"
+                      f"{page}文字稿 L{reference['start_line']}–L{reference['end_line']}。"]
+    lines += ["", "资料命中是词项匹配线索；框架解释必须另引源码证据。文档约定不证明现场表值、闭源实现或实际运行结果。", ""]
     lines += ["## 需要处理的事项", ""]
     lines += [f"- {_inline(item)}" for item in report["messages"]] or ["当前没有接入阻断项。"]
     if programs:
@@ -189,6 +208,11 @@ def analyze_source(
     verify_content: bool = False,
     progress: Callable[[dict], None] | None = None,
     check_cancel: Callable[[], None] | None = None,
+    framework_reference_path: Path | str | None = None,
+    capture_api_responses: bool = False,
+    analysis_mode: str = "strict",
+    max_source_pages: int = 12,
+    reading_strategy: str = "focused",
 ) -> dict:
     source, output = _paths(source_root, output_root)
     external_progress = progress
@@ -200,6 +224,12 @@ def analyze_source(
     progress = forward_progress
     if index_mode not in {"full", "catalog"}:
         raise ValueError("index_mode must be full or catalog.")
+    if analysis_mode not in {"business", "strict"}:
+        raise ValueError("analysis_mode must be business or strict.")
+    if reading_strategy not in {"focused", "full_chain"}:
+        raise ValueError("reading_strategy must be focused or full_chain.")
+    if type(max_source_pages) is not int or not 1 <= max_source_pages <= 128:
+        raise ValueError("max_source_pages must be an integer from 1 to 128.")
     if entry is not None and not entry.strip():
         raise ValueError("--entry must not be empty.")
     if question is not None and not question.strip():
@@ -213,10 +243,13 @@ def analyze_source(
         "question": question, "question_status": "NOT_REQUESTED" if not question else "PENDING",
         "messages": [], "build_report": None,
         "source_options": {"extensions": sorted(extensions), "include_extensionless": include_extensionless,
-                           "encoding": encoding, "source_format": source_format, "verify_content": verify_content},
+                           "encoding": encoding, "source_format": source_format, "verify_content": verify_content,
+                           "analysis_mode": analysis_mode, "max_source_pages": max_source_pages,
+                           "reading_strategy": reading_strategy},
         "artifacts": {name: str(output / name) for name in ARTIFACT_NAMES},
         "full_business_analysis_verified": False, "index_mode": index_mode,
         "catalog_ready": False, "source_manifest_verified": False,
+        "framework_context": build_framework_context(reference_path=framework_reference_path),
     }
     programs: list[dict] = []
     agent: dict = {"runner_status": "NOT_REQUESTED", "agent_result": None}
@@ -227,6 +260,7 @@ def analyze_source(
         _write(output / "programs.json", {"snapshot_id": (report.get("build_report") or {}).get("snapshot_id"),
             "catalog_snapshot_id": report.get("catalog_snapshot_id"), "scope": report.get("scope"), "programs": programs})
         _write(output / "agent-result.json", agent)
+        _write(output / "framework-context.json", report["framework_context"])
         answer = (agent.get("agent_result") or {}).get("answer")
         _write(output / "agent-result.md", "\n".join([
             "# 本次源码问答", "", f"状态：{report['question_status']}；运行状态：{agent['runner_status']}。", "",
@@ -243,6 +277,7 @@ def analyze_source(
             print("正在读取指定源码并更新索引…", file=sys.stderr)
         catalog = None
         scope = None
+        business_build = None
         indexed: dict[str, str] = {}
         if index_mode == "catalog":
             catalog = refresh_source_catalog(source, output / "source-catalog.sqlite", extensions=extensions,
@@ -269,12 +304,21 @@ def analyze_source(
                     report.update(runner_status="BLOCKED", reason_code="ENTRY_REQUIRED")
                     report["messages"].append("请先从源码目录选择一个入口，再分析该入口与可用依赖。")
                 else:
-                    scope = select_related_sources(source, catalog, chosen_entry, encoding=encoding,
-                        source_format=source_format, max_files=24, max_depth=2,
-                        max_scan_bytes=2097152, max_total_source_bytes=DEFAULT_SCOPE_SOURCE_BYTES, progress=progress)
+                    if analysis_mode == "business":
+                        business_build = build_business_index(source, output / "structural-index.sqlite",
+                            extensions=extensions, include_extensionless=include_extensionless,
+                            encoding=encoding, source_format=source_format, quiet=quiet,
+                            catalog=catalog, entry_program=chosen_entry, progress=progress,
+                            check_cancel=check_cancel, verify_content=verify_content)
+                        scope = business_build
+                    else:
+                        scope = select_related_sources(source, catalog, chosen_entry, encoding=encoding,
+                            source_format=source_format, max_files=24, max_depth=2,
+                            max_scan_bytes=2097152, max_total_source_bytes=DEFAULT_SCOPE_SOURCE_BYTES, progress=progress)
                     report["scope"] = scope["scope"]
                     report["scope"]["boundaries"] = scope.get("missing_dependencies", [])
-                    report["scope"].update(budget_kind="source_input_bytes", memory_usage_bounded=False)
+                    if analysis_mode == "strict":
+                        report["scope"].update(budget_kind="source_input_bytes", memory_usage_bounded=False)
                     if any(item.get("status") == "ENTRY_EXCEEDS_BYTE_BUDGET" for item in scope.get("missing_dependencies", [])):
                         report.update(runner_status="INDEX_READY", reason_code="ENTRY_SCOPE_LIMIT")
                         report["question_status"] = "SCOPE_LIMIT"
@@ -285,7 +329,8 @@ def analyze_source(
                         return report
                     report["selected_entry"] = scope.get("selected_entry")
         if index_mode == "full" or scope is not None:
-            build = build_structural_index(source, output / "structural-index.sqlite", extensions=extensions,
+            builder = build_business_index if analysis_mode == "business" else build_structural_index
+            build = business_build or builder(source, output / "structural-index.sqlite", extensions=extensions,
                 include_extensionless=include_extensionless, encoding=encoding, source_format=source_format,
                 quiet=quiet, include_paths=scope["relative_paths"] if scope else None,
                 progress=progress, check_cancel=check_cancel, verify_content=verify_content,
@@ -323,9 +368,17 @@ def analyze_source(
                 report["messages"].append("当前入口未识别到 PROGRAM-ID。检查编码及 fixed/free 格式；可以选择其他源码继续。")
             elif entry_error:
                 report.update(runner_status="BLOCKED", reason_code=entry_error)
-                report["messages"].append("入口不存在或无法唯一定位。请从目录选择实际入口；重复程序版本应分开分析。")
+                report["messages"].append("入口不存在或无法唯一定位。请从目录选择准确的文件和程序定义位置，并核对是否存在重复入口。")
             else:
                 report.update(runner_status="NEEDS_ATTENTION" if report["messages"] else "INDEX_READY", reason_code="SOURCE_INDEX_READY")
+            if report["runner_status"] != "BLOCKED":
+                progress({"phase": "framework", "completed": 0, "total": None, "unit": "steps"})
+                report["framework_context"] = build_framework_context(
+                    output / "structural-index.sqlite",
+                    entry_program=(report["selected_entry"] or {}).get("program_name"),
+                    question=question or "", reference_path=framework_reference_path,
+                    source_root=source, check_cancel=check_cancel,
+                )
         if report["runner_status"] == "BLOCKED":
             report["question_status"] = "BLOCKED" if question else "NOT_REQUESTED"
             agent = {"runner_status": "NOT_READY", "reason_code": report["reason_code"], "agent_result": None}
@@ -337,16 +390,23 @@ def analyze_source(
             report["question_status"] = "RUNNING"
             save()
             if not quiet:
-                print("正在检查接口能力并调查当前源码…", file=sys.stderr)
+                print("正在生成业务分析…" if analysis_mode == "business" else "正在检查接口能力并调查当前源码…", file=sys.stderr)
             if progress:
                 progress({"phase": "investigating", "completed": 0, "total": None, "unit": "steps"})
             if check_cancel:
                 check_cancel()
             try:
                 selected_config = config or CompanyAPIConfig.from_env(**(api_options or {}))
+                selected_entry = report["selected_entry"] or {}
+                investigation_entry = (selected_entry.get("entry_key") or selected_entry.get("relative_path")) if analysis_mode == "business" else selected_entry.get("program_name")
                 agent = run_investigation(question.strip(), output / "structural-index.sqlite", selected_config,
-                                          entry_program=(report["selected_entry"] or {}).get("program_name"),
-                                          allow_network=True, transport=transport, analysis_scope=report.get("scope"))
+                                          entry_program=investigation_entry,
+                                          allow_network=True, transport=transport, analysis_scope=report.get("scope"),
+                                          framework_context=report["framework_context"],
+                                          capture_api_responses=capture_api_responses,
+                                          analysis_mode=analysis_mode, source_root=source,
+                                          max_source_pages=max_source_pages, reading_strategy=reading_strategy,
+                                          progress=progress, check_cancel=check_cancel)
             except APIConfigurationError as exc:
                 agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
             result = agent.get("agent_result") or {}
@@ -354,11 +414,12 @@ def analyze_source(
                 report["question_status"] = result.get("status", "COMPLETED")
             else:
                 report["question_status"] = agent["runner_status"]
-                report["messages"].append("源码索引已建立，问答未完成。请查看 agent-result.json 的 reason_code、capability_report 和 stop_reason 定位 API 能力或调查限制。")
+                report["messages"].append("源码索引已建立，问答未完成。请查看页面的 API 返回，或 agent-result.json 的 reason_code、capability_report、agent_result.stop_reason，区分接口、协议和调查限制。")
             # Catch edits made while the model was investigating the stored snapshot.
             _verify_scope(source, indexed, progress, check_cancel)
     except AnalysisCancelled:
         report.update(runner_status="CANCELLED", reason_code="USER_CANCELLED", source_manifest_verified=False, catalog_ready=False)
+        report["framework_context"] = build_framework_context(reference_path=framework_reference_path)
         report["question_status"] = "CANCELLED" if question else "NOT_REQUESTED"
         programs = []
         agent = {"runner_status": "CANCELLED", "agent_result": None}
@@ -367,9 +428,25 @@ def analyze_source(
     except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
         report.update(runner_status="BLOCKED", reason_code="SOURCE_ANALYSIS_FAILED")
         report["source_manifest_verified"] = False
+        report["framework_context"] = build_framework_context(reference_path=framework_reference_path)
         report["question_status"] = "BLOCKED" if question else "NOT_REQUESTED"
         report["messages"].append(str(exc))
+        response_diagnostics = agent.get("api_diagnostics")
+        unaccepted_response = agent.get("unaccepted_response")
+        prior_result = agent.get("agent_result") or {}
+        narrative = prior_result.get("narrative") or {}
+        previous_text = narrative.get("text") if isinstance(narrative, dict) else None
+        previous_text = previous_text or prior_result.get("answer")
+        if isinstance(previous_text, str) and previous_text.strip():
+            # Keep the received explanation inspectable after its source
+            # authority expires, without granting it active source references.
+            unaccepted_response = {"reason_code": "SOURCE_ANALYSIS_FAILED", "text": previous_text[:60_000]}
         agent = {"runner_status": "NOT_READY", "reason_code": "SOURCE_ANALYSIS_FAILED", "agent_result": None}
+        if response_diagnostics is not None:
+            # Response receipt remains observable after source authority expires.
+            agent["api_diagnostics"] = response_diagnostics
+        if unaccepted_response:
+            agent["unaccepted_response"] = unaccepted_response
     save()
     return report
 
@@ -380,6 +457,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--entry", help="Actual PROGRAM-ID, relative source path, or unique filename.")
     parser.add_argument("--question")
+    parser.add_argument("--analysis-mode", choices=("business", "strict"), default="business",
+                        help="business: source reading and explanation; strict: legacy action-contract investigation.")
+    parser.add_argument("--max-source-pages", type=int, default=12, help="Focused page budget or full-chain batch size, from 1 to 128.")
+    parser.add_argument("--reading-strategy", choices=("focused", "full_chain"), default="full_chain",
+                        help="full_chain: read all available selected source pages in batches; focused: bounded page selection.")
+    parser.add_argument("--framework-reference", type=Path, help="Private UTF-8 Markdown reference; defaults to FRAMEWORK_REFERENCE_PATH from the project .env.")
     parser.add_argument("--index-mode", choices=("catalog", "full"), default="full", help="catalog: quick inventory, then bounded entry analysis; full: detailed whole-directory index.")
     parser.add_argument("--verify-content", action="store_true", help="Reread content instead of trusting unchanged file metadata.")
     parser.add_argument("--extensions")
@@ -406,6 +489,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                                 extensions=parse_extensions(args.extensions), include_extensionless=args.include_extensionless,
                                 encoding=args.encoding, source_format=args.source_format, allow_network=args.allow_network,
                                 index_mode=args.index_mode, verify_content=args.verify_content,
+                                framework_reference_path=args.framework_reference,
+                                analysis_mode=args.analysis_mode, max_source_pages=args.max_source_pages,
+                                reading_strategy=args.reading_strategy,
                                 api_options={"base_url": args.base_url, "chat_model": args.chat_model, "api_style": args.api_style,
                                              "timeout_seconds": args.timeout_seconds, "max_output_tokens": args.max_output_tokens,
                                              "allow_insecure_localhost": args.allow_insecure_localhost}, quiet=False)

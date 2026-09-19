@@ -152,7 +152,7 @@ class LargeIntakeWorkflowTests(unittest.TestCase):
 
     def test_failed_detail_keeps_catalog_navigation_but_no_evidence(self):
         app = WorkbenchState()
-        with mock.patch("analyze_source.build_structural_index", side_effect=RuntimeError("detail parse failed")):
+        with mock.patch("analyze_source.build_business_index", side_effect=RuntimeError("source indexing failed")):
             job_id = app.start({"source": str(self.source), "output": str(self.output),
                 "entry": "MAIN-PROGRAM", "question": "Explain"})["job_id"]
             deadline = time.monotonic() + 3
