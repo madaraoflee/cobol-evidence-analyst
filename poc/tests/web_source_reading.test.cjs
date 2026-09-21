@@ -28,7 +28,7 @@ test('narrative results display a long explanation before coverage and source de
   setup(h,{narrative:{text,verification:'unverified'}});
   const answer=h.run('actualAnswer()');assert.match(answer,/<h3>Business flow<\/h3>/);assert.match(answer,/Step 119/);assert.match(answer,/Last available paragraph/);assert.doesNotMatch(answer,/Insufficient evidence|No business answer/);
   assert.ok(answer.indexOf('Last available paragraph')<answer.indexOf('Reading coverage'));assert.ok(answer.indexOf('Last available paragraph')<answer.indexOf('Source pages'));
-  assert.match(answer,/Model interpretation · Business review needed/);assert.equal(h.run('result().claims.length'),0);
+  assert.match(answer,/Business findings/);assert.equal(h.run('result().claims.length'),0);
 });
 
 test('model narrative is escaped, remains untranslated and only real source or framework references become links',()=>{
@@ -92,8 +92,8 @@ test('new reading phases, page units and authored narrative controls translate i
     h.run(`state.busy=true;rememberProgress({phase:'${phase}',completed:2,total:8,unit:'pages'})`);const progress=h.run('progressPanel()');assert.match(progress,/2 \/ 8 pages/);assert.doesNotMatch(progress,/[\u3400-\u9fff]/);
   }
   h.run('state.busy=false');assert.doesNotMatch(h.run('actualAnswer()'),/[\u3400-\u9fff]/);assert.doesNotMatch(h.run('questionCard()'),/[\u3400-\u9fff]/);
-  h.run("selectInterfaceLocale('zh-CN')");assert.match(h.run('actualAnswer()'),/模型解读 · 需业务复核/);assert.match(h.run('questionCard()'),/深入阅读/);
-  h.run("selectInterfaceLocale('zh-HK')");assert.match(h.run('actualAnswer()'),/模型解讀 · 需業務覆核/);assert.match(h.run('questionCard()'),/深入閱讀/);
+  h.run("selectInterfaceLocale('zh-CN')");assert.match(h.run('actualAnswer()'),/业务解读/);assert.match(h.run('questionCard()'),/深入阅读/);
+  h.run("selectInterfaceLocale('zh-HK')");assert.match(h.run('actualAnswer()'),/業務解讀/);assert.match(h.run('questionCard()'),/深入閱讀/);
 });
 
 test('verified source availability is independent of business status and keeps partial explanations visible',()=>{
@@ -149,4 +149,64 @@ test('source change messages explain reanalysis rather than a version requiremen
     if(locale==='en'){assert.match(api,/No model analysis has been started/);assert.doesNotMatch(api,/did not save|not captured|version/i);assert.match(h.run("apiErrorText({code:'INDEX_CHANGED'})"),/Source or its index has changed/);assert.doesNotMatch(h.run("apiErrorText({code:'INDEX_CHANGED'})"),/version/i);}
     assert.notEqual(h.run("apiErrorText({code:'INDEX_CHANGED'})"),h.run("apiErrorText({code:'NO_CURRENT_INDEX'})"));
   }
+});
+
+test('a connected multi-program catalog keeps repository scope and sends arbitrary business questions without an entry',async()=>{
+  const h=harness();const p=project();p.programs.push({program_name:'ANOTHER',relative_path:'other.cbl',entry_key:'ANOTHER'});
+  p.diagnosis={catalog_ready:true,question:null,source_options:{reading_strategy:'full_chain'}};p.agent={runner_status:'NETWORK_DISABLED',agent_result:null};
+  h.run(`state.mode='real';applyProject(${JSON.stringify(p)});state.apiConfigured=true;render=()=>{};let submitted=null;startJob=async options=>{submitted=options;};`);
+  assert.equal(h.run('state.entry'),'');assert.match(h.run('entryOptions()'),/value="" selected>Entire repository/);
+  assert.match(h.run('actualAnswer()'),/Enter a business question to find relevant implementations automatically/);
+  assert.doesNotMatch(h.run('actualAnswer()'),/blocked|Choose a starting program|Insufficient evidence/i);
+  h.run("setMode('demo');setMode('real');state.question='How does a returned transfer change the settlement balance?'");
+  assert.equal(h.run('state.entry'),'');
+  await h.events.submit({target:{id:'question-form'},preventDefault:()=>{}});
+  assert.equal(h.run('submitted.entry'),null);
+  assert.equal(h.run('submitted.question'),'How does a returned transfer change the settlement balance?');
+  assert.equal(h.run('submitted.allow_network'),true);
+});
+
+test('explicit historical program selections restore but repository investigations never bind an automatic candidate',()=>{
+  const h=harness();const p=project();p.diagnosis.selected_entry={entry_key:'main.cbl::ENTRY::2'};
+  h.run(`state.mode='real';applyProject(${JSON.stringify(p)})`);assert.equal(h.run('state.entry'),'main.cbl::ENTRY::2');assert.equal(h.run('draftChanged()'),false);
+  p.diagnosis.investigation={mode:'repository'};p.diagnosis.entry_requested=null;
+  h.run(`applyProject(${JSON.stringify(p)})`);assert.equal(h.run('state.entry'),'');assert.equal(h.run('draftChanged()'),false);
+});
+
+test('repository investigations explain actual selected scope and escape search terms and file names',()=>{
+  const h=harness();setup(h,{investigation:{mode:'repository',repository_file_count:800,selected_file_count:9,searches:[{query:'returned transfer <script>alert(1)</script>',matched_file_count:3,matched_files:['source/<img src=x>.cbl']}],selection_reason:'A caller expands the selected scope.'}});
+  const answer=h.run('actualAnswer()');assert.match(answer,/Searches for this question · 9 relevant files/);assert.match(answer,/catalog contains 800 files/);assert.match(answer,/not a complete reading of the repository/);assert.match(answer,/Matching files 3/);
+  assert.match(answer,/&lt;script&gt;/);assert.match(answer,/&lt;img/);assert.doesNotMatch(answer,/<script|<img/);
+  assert.ok(answer.indexOf('The program reads input')<answer.indexOf('Searches for this question'));
+});
+
+test('missing implementations and reference gaps stay in collapsed details after the answer',()=>{
+  const h=harness();setup(h,{status:'PARTIAL',analysis_scope:{unresolved_dependency_count:4},boundaries:[{reason:'target_not_found'},{message:'No framework marker matched.'}],reading_coverage:{total_pages:20,sent_pages:12,summarized_pages:10,failed_pages:2,complete:false}});
+  const answer=h.run('actualAnswer()');assert.match(answer,/<details class="answer-support"><summary>Sources and additional details/);assert.doesNotMatch(answer,/<details class="answer-support"[^>]* open|boundary-box|Analysis interrupted/);
+  assert.ok(answer.indexOf('The program reads input')<answer.indexOf('Sources and additional details'));
+  assert.match(answer,/There are 8 unread pages/);assert.match(answer,/4 dependencies are missing implementations/);assert.match(answer,/No framework marker matched/);
+});
+
+test('repository search results use actual scalar counters and do not show retired source limits',()=>{
+  const h=harness();setup(h,{investigation:{mode:'repository',repository_file_count:10000,selected_file_count:15,selected_paths:['source/settlement.cbl'],deferred_candidates:['source/extra.cbl'],searches:[{query:'transfer settlement',matched_files:8,selected_files:15}]}});
+  h.run("state.project.diagnosis.source_options.analysis_mode='business';state.project.diagnosis.scope={mode:'repository_question',detail_file_count:10000};state.entry=''");
+  const answer=h.run('actualAnswer()');assert.match(answer,/Matching files 8/);assert.match(answer,/1 additional candidate files not selected for reading/);assert.match(answer,/source\/settlement.cbl/);
+  assert.doesNotMatch(h.run('scopeNotice()'),/24 files|16.0 MiB|Select an entry/);
+  assert.match(h.run('scopeNotice()'),/10,000 Indexed files/);
+  assert.match(h.run('markdownSummary()'),/transfer settlement/);
+});
+
+
+test('completed repository indexes show readiness despite missing optional implementations',()=>{
+  const h=harness();setup(h);
+  h.run("state.project.diagnosis.runner_status='NEEDS_ATTENTION';state.project.diagnosis.source_manifest_verified=true;state.project.diagnosis.scope={mode:'repository_index'};state.project.diagnosis.repository_search={full_text_complete:true};state.project.diagnosis.unresolved_dependencies=[{target_name:'EXTERNAL-HELPER'}]");
+  assert.equal(h.run('repositoryIndexReady()'),true);
+  assert.equal(h.run('sourceReadinessLabel()'),'Source indexes ready');
+  assert.match(h.run('sourceRows()'),/Source indexed/);
+  assert.doesNotMatch(h.run('sourceRows()'),/Parsed on demand/);
+  h.run("state.project.diagnosis.repository_search.full_text_complete=false");
+  assert.equal(h.run('repositoryIndexReady()'),false);
+  assert.match(h.run('sourceRows()'),/Parsed on demand/);
+  h.run("state.project.diagnosis.repository_search.full_text_complete=true;state.project.diagnosis.source_manifest_verified=false");
+  assert.equal(h.run('repositoryIndexReady()'),false);
 });

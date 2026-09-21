@@ -150,10 +150,10 @@ test('business scenario titles and process explanations precede optional technic
   assert.equal(h.run('exportData().model_called'),false);assert.equal(h.run('exportData().source_origin'),'synthetic_framework');
 });
 
-test('real analysis suggestions ask about eligibility, state changes and business impact',()=>{
+test('real analysis suggestions cover general business questions without fixed topic categories',()=>{
   const h=harness();h.run(`state.mode='real';applyProject(${JSON.stringify(preparedProject())})`);
-  const card=h.run('questionCard()');assert.match(card,/Eligibility and status/);assert.match(card,/Exceptions and impact/);
-  assert.match(card,/conditions allow or reject processing/);assert.match(card,/affect the current business activity and subsequent processing/);
+  const card=h.run('questionCard()');assert.match(card,/Rules and calculations/);assert.match(card,/Exceptions and impact/);
+  assert.match(card,/business rules and calculations, including inputs, conditions and exceptions/);assert.match(card,/which business outcomes are affected/);
   assert.doesNotMatch(card,/Which programs are called|main processing steps, inputs, outputs|status returned to the caller/);
   h.click({program:'SERVICEENTRY',programLabel:'SERVICEENTRY'});
   assert.equal(h.run('state.question'),'Explain SERVICEENTRY in terms of its business purpose, eligibility rules, status changes and exception impact.');

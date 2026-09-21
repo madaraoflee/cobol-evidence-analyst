@@ -19,6 +19,7 @@ from api_diagnostics import APIResponseDiagnostics
 from company_api import APIClientError, APIConfigurationError, CompanyAPIConfig, OpenAICompatibleChatClient, Transport
 from framework_knowledge import build_framework_context
 from source_reading import prepare_source_reading, read_source_page_batch
+from business_investigation import investigate_repository
 
 
 SCHEMA_VERSION = "bounded-cobol-agent-run/v1"
@@ -37,6 +38,9 @@ _SYSTEM = """你是依据既有 COBOL 源码与框架资料还原业务规则的
 围绕一条业务过程展开：业务目的与触发输入、准入与排除规则、关键业务决策、状态与业务数据变化、异常的业务影响和处理。说明哪些条件允许继续、拒绝或转入另一条路径，金额或日期阈值及计算口径如何改变结果，处理后业务对象处于什么状态；保留影响规则的条件、单位、例外和先后依赖。
 跨程序整合成业务过程，不按文件、SECTION 或 CALL 逐句翻译；没有来源支持时也不能把独立程序强行串成一条流程。框架资料用于理解处理行为和数据流转，正文使用业务含义表达。技术名词仅用于来源追溯，或在用户明确提出技术问题时按需展开，不把程序名和框架阶段名当成业务解释。
 先回答已知业务，再把未知事项单独列明，并说明它们具体影响哪个业务判断。区分源码可见规则、依据框架资料理解的行为和仍需确认的运行时事实。缺少外部实现时仍解释已知触发条件、传入业务数据及后续结果分支，只把该外部实现的效果列为未知；不要整份拒答。不得补造资料未提供的部门、真实产品定义、岗位、审批权限或客户承诺，也不能仅凭状态名推断这些事实。
+用户可以提出任意业务问题，不限定业务主题或问题分类。调查线索与搜索词用于定位资料，不能当作业务事实；围绕用户实际问到的内容组织答案。概念问题说明项目内的含义与用途，规则问题保留计算与条件，功能清单问题按实际发现的功能整理；不要把所有问题机械套成相同的流程模板。
+框架公共程序没有源码是正常的资料形态，不是停止回答的理由。结合调用点、功能码、传入业务字段和返回分支，并按框架资料说明约定行为；清楚区分约定效果和实际执行结果。缺少某个实现时继续说明调用前后的已知业务，不要求先补齐所有依赖或通过完整语义验证。
+正文先直接给业务答案和具体依据，不堆叠技术限制、校验状态或重复的待确认事项。只有实际影响当前问题的缺口才在末尾简短说明，指出缺少哪项规则或数据以及影响哪个判断。没有匹配的框架资料时仍依据源码解释，不泛泛写“证据不足，尚未形成结论”。
 source_scope 给出本次纳入源码的边界；深度、文件数、字节数、动态目标和缺失源码限制均影响可解释范围。call_chain 仅是静态调用线索与阅读计划，selection_complete 不代表整条业务链已读完或运行路径已验证。source_status 为 excluded 的文件未通过当前读取校验，不能把其旧结构当作当前事实。只解释可靠资料支持的部分，不能把这些缺口补成完整业务结论。
 具体业务判断在相关句末用提供的 [evidence_id] 引用源码页，用 [reference_id] 引用框架资料；标识必须逐字复制。框架资料不能代替调用点源码，更不能证明未提供的外部实现。不要编造引用、生产数据、运行结果或未读程序内容。当前索引可能只是代码库的选区，即使已读所有选中页也不等于全库覆盖。引用只代表来源参照，所有业务分析仍属未核验内容，需要人工核对。使用用户问题的语言，正文清楚具体，避免泛泛结论。
 """
@@ -306,6 +310,7 @@ def run_business_analysis(
     entry_program: str | None = None,
     analysis_scope: Mapping[str, object] | None = None,
     framework_context: Mapping[str, object] | None = None,
+    framework_reference_path: Path | str | None = None,
     transport: Transport | None = None,
     allow_network: bool = False,
     capture_api_responses: bool = False,
@@ -328,6 +333,9 @@ def run_business_analysis(
     ))
     diagnostics = redactor if capture_api_responses else None
     unaccepted_response: dict[str, str] | None = None
+    investigation: dict[str, object] | None = None
+    planning_turns = 0
+    planning_fatal: str | None = None
 
     def emit(phase: str, completed: int, total: int | None) -> None:
         if check_cancel:
@@ -346,6 +354,8 @@ def run_business_analysis(
             output["api_diagnostics"] = diagnostics.to_dict()
         if unaccepted_response is not None:
             output["unaccepted_response"] = unaccepted_response
+        if investigation is not None:
+            output["investigation"] = investigation
         return output
 
     def preserve_unaccepted(code: str, text: str) -> None:
@@ -353,12 +363,83 @@ def run_business_analysis(
         if text.strip():
             unaccepted_response = {"reason_code": code, "text": redactor._sanitize(text)[:MAX_ANSWER_CHARACTERS]}
 
+    repository_mode = not entry_program and (analysis_scope or {}).get("mode") in {
+        "repository_question", "repository_index",
+    }
+    included_paths = None
+    client = None
+    if repository_mode:
+        from repository_discovery import ensure_repository_search
+        emit("discovering_business", 0, None)
+        try:
+            overview = ensure_repository_search(database_path, source_root,
+                                                check_cancel=check_cancel, progress=progress)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            code = str(exc) if _SAFE_CODE.fullmatch(str(exc)) else "SOURCE_READING_FAILED"
+            return finish({"runner_status": "NOT_READY", "reason_code": code, "agent_result": None})
+        try:
+            config.validate(require_key=True)
+        except APIConfigurationError as exc:
+            return finish({"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None})
+        if not allow_network and transport is None:
+            return finish({"runner_status": "NOT_READY", "reason_code": "NETWORK_DISABLED", "agent_result": None})
+        client = OpenAICompatibleChatClient(config, transport=transport, allow_network=allow_network,
+                                            diagnostics=diagnostics)
+
+        def ask_search(system: str, payload: dict) -> str:
+            nonlocal planning_turns, planning_fatal
+            if check_cancel:
+                check_cancel()
+            messages = [{"role": "system", "content": system},
+                        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
+            if _prompt_size(config, messages) > MAX_PROMPT_BYTES:
+                payload = dict(payload, repository={key: value for key, value in payload["repository"].items()
+                                                    if key not in {"program_samples", "identifier_samples"}})
+                messages[1]["content"] = json.dumps(payload, ensure_ascii=False)
+            if _prompt_size(config, messages) > MAX_PROMPT_BYTES:
+                raise _TextResponseError("PROMPT_CONTEXT_TOO_LARGE")
+            planning_turns += 1
+            try:
+                reply = _extract_text(client.complete(messages=messages))
+                if reply.refused or reply.filtered:
+                    planning_fatal = "MODEL_REFUSED" if reply.refused else "MODEL_CONTENT_FILTERED"
+                    preserve_unaccepted(planning_fatal, reply.text)
+                    raise _TextResponseError(planning_fatal)
+                return redactor._sanitize(reply.text)
+            except APIClientError as exc:
+                if ((exc.code == "HTTP_ERROR" and exc.http_status is not None
+                     and 400 <= exc.http_status < 500 and exc.http_status not in {408, 429})
+                    or exc.code in {"NETWORK_DISABLED", "API_KEY_MISSING"}):
+                    planning_fatal = exc.code
+                raise
+            except _TextResponseError as exc:
+                preserve_unaccepted(exc.code, getattr(exc, "text", ""))
+                raise
+
+        investigation = investigate_repository(database_path, question.strip(), overview, ask=ask_search,
+                                               framework_context=framework_context,
+                                               check_cancel=check_cancel, progress=progress)
+        if planning_fatal:
+            return finish({"runner_status": "NOT_READY", "reason_code": planning_fatal, "agent_result": None})
+        included_paths = investigation["selected_paths"]
+        scoped = dict(analysis_scope or {})
+        relevant = set(included_paths)
+        scoped_boundaries = [item for item in scoped.get("boundaries", [])
+                             if not isinstance(item, Mapping) or not item.get("relative_path") or item["relative_path"] in relevant]
+        scoped_boundaries.extend(item for item in investigation.get("boundaries", []) if item not in scoped_boundaries)
+        scoped.update(selected_file_count=len(included_paths), boundaries=scoped_boundaries,
+                      repository_file_count=overview.get("indexed_files", 0),
+                      complete_dependency_closure=not scoped_boundaries,
+                      full_repository_verified=False, mode="repository_question")
+        analysis_scope = scoped
+
     emit("reading_sources", 0, None)
     try:
         plan = prepare_source_reading(
             database_path, source_root, entry_program=entry_program, question=question.strip(),
             max_pages=max_pages, page_chars=PAGE_CHARACTERS, check_cancel=check_cancel,
             reading_strategy=reading_strategy, progress=progress,
+            **({"include_paths": included_paths} if included_paths is not None else {}),
         )
     except (OSError, ValueError, sqlite3.Error) as exc:
         code = str(exc) if _SAFE_CODE.fullmatch(str(exc)) else "SOURCE_READING_FAILED"
@@ -368,16 +449,17 @@ def run_business_analysis(
         pages = pages[:max_pages]
     if not pages:
         return finish({"runner_status": "NOT_READY", "reason_code": "SOURCE_INDEX_EMPTY", "agent_result": None})
-    selected_framework = dict(framework_context) if framework_context is not None else build_framework_context(
+    selected_framework = dict(framework_context) if framework_context is not None and not repository_mode else build_framework_context(
         database_path, entry_program=entry_program, question=question.strip(), source_root=source_root,
-        check_cancel=check_cancel,
+        check_cancel=check_cancel, reference_path=framework_reference_path,
+        **({"source_paths": included_paths} if included_paths is not None else {}),
     )
     boundaries = list(plan.get("boundaries", []))
     framework_scope = selected_framework.get("coverage")
     framework_scope = framework_scope if isinstance(framework_scope, Mapping) else {}
     selected_entry = plan.get("entry")
     selected_entry = selected_entry if isinstance(selected_entry, Mapping) else {}
-    wrong_entry = bool(selected_entry and (
+    wrong_entry = bool(not repository_mode and selected_entry and (
         framework_scope.get("entry_program") != selected_entry.get("program_name", selected_entry.get("name"))
         or framework_scope.get("entry_relative_path") != selected_entry.get("relative_path")
     ))
@@ -386,7 +468,7 @@ def run_business_analysis(
     ):
         selected_framework.update(
             status="LOADED" if selected_framework.get("document") else "UNAVAILABLE",
-            reason_code="FRAMEWORK_SOURCE_CONTEXT_STALE", source_matches=[], references=[],
+            reason_code="FRAMEWORK_SOURCE_CONTEXT_STALE", source_matches=[], references=[], external_calls=[],
             boundaries=["Framework source matches refer to another snapshot or source entry."],
         )
         boundaries.append(_boundary("FRAMEWORK_SOURCE_CONTEXT_STALE", "框架资料的源码匹配来自其他快照或入口，本次未使用这些旧匹配。"))
@@ -405,7 +487,7 @@ def run_business_analysis(
     warnings: list[dict[str, object]] = []
     truncated_response_pages: list[str] = []
     filtered_response_pages: list[str] = []
-    model_turns = 0
+    model_turns = planning_turns
     automatic_retries = 0
     final_truncated = False
     final_filtered = False
@@ -421,8 +503,8 @@ def run_business_analysis(
     if not allow_network and transport is None:
         return finish({"runner_status": "NOT_READY", "reason_code": "NETWORK_DISABLED",
                        "source_preflight": source_preflight, "agent_result": None})
-    client = OpenAICompatibleChatClient(config, transport=transport, allow_network=allow_network,
-                                        diagnostics=diagnostics)
+    client = client or OpenAICompatibleChatClient(config, transport=transport, allow_network=allow_network,
+                                                 diagnostics=diagnostics)
     outline = plan.get("outline", [])
     outline = [item for item in outline if isinstance(item, Mapping) and item.get("source_status") != "excluded"]
     outline_text = json.dumps(outline, ensure_ascii=False)[:4_000]
@@ -438,6 +520,43 @@ def run_business_analysis(
         if check_cancel:
             check_cancel()
         prompt_references = [dict(item) for item in references]
+        request_chain = call_chain
+        local_paths = {str(item.get("relative_path")) for item in [*page_group, *(summary_items or [])]
+                       if item.get("relative_path")}
+        all_links = plan.get("all_call_chain_links", [])
+        if local_paths and all_links:
+            local_links = [item for item in all_links if item.get("caller_path") in local_paths
+                           or item.get("target_path") in local_paths]
+            if page_group:
+                local_links = [item for item in local_links if item.get("target_path") in local_paths or any(
+                    item.get("caller_path") == page.get("relative_path")
+                    and int(item.get("start_line", 0)) <= int(page.get("end_line", 0))
+                    and int(item.get("end_line", 0)) >= int(page.get("start_line", 0)) for page in page_group)]
+            _, request_chain = _source_context_for_prompt(analysis_scope or {}, {
+                "call_chain": {"links": local_links, "total_links": len(local_links)}, "boundaries": []})
+        external_calls = []
+        for original in selected_framework.get("external_calls", []):
+            if not isinstance(original, Mapping) or local_paths and original.get("relative_path") not in local_paths:
+                continue
+            item = dict(original)
+            # Reuse a source page actually supplied during this run. Framework
+            # marker ids alone are not source excerpts delivered to the model.
+            matching_page = next((page for page in [*page_group, *sent_pages]
+                                  if page.get("relative_path") == item.get("relative_path")
+                                  and page.get("source_sha256") == item.get("source_sha256")
+                                  and not page.get("span_truncated")
+                                  and page.get("start_line", 0) <= item.get("start_line", -1)
+                                  and page.get("end_line", 0) >= item.get("end_line", 0)), None)
+            item.pop("evidence_id", None)
+            item.pop("nearby_marker_evidence_ids", None)
+            if matching_page:
+                item["evidence_id"] = matching_page["evidence_id"]
+            item["source_text_truncated"] = bool(item.get("source_text_truncated")) or len(str(item.get("source_text", ""))) > 240
+            external_calls.append(item)
+        external_calls, omitted_external = _bounded_records(external_calls, (
+            "target_name", "relative_path", "start_line", "end_line", "evidence_id", "source_text",
+            "reference_ids", "source_text_truncated", "target_resolution", "relation_type",
+            "parameter_binding_verified", "runtime_verified"), maximum=24, byte_limit=12_000)
         payload: dict[str, object] = {
             "question": supplied_question, "task": instruction,
             "scope": {"kind": "indexed_sources", "snapshot_id": plan.get("snapshot_id"), "planned_pages": len(pages),
@@ -447,10 +566,16 @@ def run_business_analysis(
                       "failed_pages": len(errors)},
             "outline": outline_text,
             "source_scope": source_scope,
-            "call_chain": call_chain,
+            "call_chain": request_chain,
             "framework_references": prompt_references,
+            "external_calls": external_calls,
+            "additional_external_calls": omitted_external,
             "source_pages": [{**_reference_metadata(page), "source_text": page["source_text"]} for page in page_group],
         }
+        if investigation is not None:
+            payload["investigation"] = {key: investigation[key] for key in (
+                "mode", "repository_file_count", "selected_file_count", "matched_file_count", "fallback_all"
+            ) if key in investigation}
         if summary_items is not None:
             payload["page_summaries"] = [{key: value for key, value in item.items() if key in {
                 "relative_path", "program_name", "start_line", "end_line", "evidence_id", "source_sha256",
@@ -806,6 +931,10 @@ def run_business_analysis(
         "model_reading_completed": len(summarized_pages) == len(pages) and not (truncated_response_pages or filtered_response_pages or incomplete_page_response),
         "complete": bool(coverage.get("complete")) and len(summarized_pages) == len(pages) and not (truncated_response_pages or filtered_response_pages or incomplete_page_response),
     })
+    if investigation is not None:
+        coverage.update(repository_search_completed=True,
+                        repository_candidate_files_not_read=len(investigation.get("deferred_candidates", [])),
+                        repository_search_expansion_complete=investigation.get("dependency_expansion_complete", False))
     source_scope_incomplete = bool(analysis_scope) and (
         analysis_scope.get("truncated") is True or analysis_scope.get("complete_dependency_closure") is False
     )
@@ -851,6 +980,7 @@ def run_business_analysis(
         "tool_trace": tool_trace, "model_turns": model_turns, "stop_reason": stop_reason,
         "automatic_retries": automatic_retries, "page_summaries": page_summaries,
         "program_summaries": program_summaries,
+        **({"investigation": investigation} if investigation is not None else {}),
         "stop_reason_scope": "source_reading", "boundaries": boundaries,
         "diagnostics": errors + warnings, "model_answer_recorded": bool(usable),
     }

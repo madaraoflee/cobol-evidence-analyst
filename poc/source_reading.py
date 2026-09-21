@@ -197,8 +197,6 @@ def _entry(programs: list[dict], value: str | None) -> dict | None:
     if value is None:
         if len(programs) == 1:
             return programs[0]
-        if programs:
-            raise ValueError("ENTRY_REQUIRED")
         return None
     if not isinstance(value, str) or not value.strip():
         raise ValueError("ENTRY_NOT_FOUND")
@@ -255,10 +253,8 @@ def _outline(connection: sqlite3.Connection, files: list[dict], check: Callable 
     return outlines, programs, paragraphs, relations, interfaces
 
 
-def _priorities(entry, paragraphs, relations, files, verified):
+def _priorities(entry, paragraphs, relations, files, verified, programs=()):
     file_priority, line_priority = {}, defaultdict(set)
-    if entry is None:
-        return file_priority, line_priority, []
     by_paragraph = defaultdict(list)
     for paragraph in paragraphs:
         by_paragraph[(paragraph["relative_path"], paragraph["program_name"], paragraph["name"].upper())].append(paragraph)
@@ -272,7 +268,16 @@ def _priorities(entry, paragraphs, relations, files, verified):
             for alias in {Path(relative).name.upper(), relative.upper()}:
                 copy_paths[alias].append(relative)
     links, visited = [], set()
-    queue = deque([(entry["relative_path"], entry["program_name"], 0)])
+    roots = [entry] if entry else list(programs)
+    if entry is None:
+        known_roots = {(item["relative_path"], item["program_name"]) for item in roots}
+        for relation in relations:
+            key = (relation["relative_path"], relation["program_name"])
+            if key not in known_roots:
+                roots.append({"relative_path": key[0], "program_name": key[1]})
+                known_roots.add(key)
+    queue = deque((item["relative_path"], item["program_name"], 0) for item in roots)
+    allowed = {item["relative_path"] for item in files}
     while queue:
         relative, program_name, depth = queue.popleft()
         if (relative, program_name) in visited or relative not in verified:
@@ -291,7 +296,9 @@ def _priorities(entry, paragraphs, relations, files, verified):
                     matches = copy_paths.get((relation["target_name"] or "").upper(), [])
                     if len(matches) == 1:
                         target, resolution = matches[0], "literal_copy_candidate"
-                target_status = "verified" if target in verified else "excluded" if target else "missing"
+                target_status = ("verified" if target in verified else
+                                 "outside_investigation" if target and target not in allowed else
+                                 "excluded" if target else "missing")
                 links.append({"relation_type": relation["relation_type"], "caller_path": relative,
                               "caller_program": program_name, "start_line": relation["start_line"],
                               "end_line": relation["end_line"], "target_name": relation["target_name"],
@@ -336,7 +343,7 @@ def _link_pages(link, page_lookup, interfaces):
 
 def prepare_source_reading(database_path, source_root, *, entry_program, question,
                            max_pages=12, page_chars=12000, check_cancel=None,
-                           reading_strategy="focused", progress=None) -> dict:
+                           reading_strategy="focused", progress=None, include_paths=None) -> dict:
     """Verify indexed files, select distributed pages, and persist exact citations.
 
     Coverage describes the indexed source selection, never the whole repository.
@@ -373,9 +380,23 @@ def prepare_source_reading(database_path, source_root, *, entry_program, questio
         expected_root = metadata.get("source_root_hash")
         if expected_root and expected_root != hashlib.sha256(str(root).encode()).hexdigest():
             raise ValueError("SOURCE_ROOT_MISMATCH")
-        files = [dict(row) for row in connection.execute("SELECT relative_path,sha256,encoding,line_count FROM source_files ORDER BY relative_path")]
-        if not files:
+        repository_files = [dict(row) for row in connection.execute("SELECT relative_path,sha256,encoding,line_count FROM source_files ORDER BY relative_path")]
+        if not repository_files:
             raise ValueError("SOURCE_INDEX_EMPTY")
+        files = repository_files
+        if include_paths is not None:
+            if isinstance(include_paths, (str, bytes)):
+                raise ValueError("SOURCE_READING_SCOPE_INVALID")
+            requested = set(include_paths)
+            for relative in requested:
+                if not isinstance(relative, str):
+                    raise ValueError("SOURCE_READING_SCOPE_INVALID")
+                _relative_path(relative)
+            if requested - {item["relative_path"] for item in repository_files}:
+                raise ValueError("SOURCE_READING_SCOPE_NOT_INDEXED")
+            files = [item for item in repository_files if item["relative_path"] in requested]
+            if not files:
+                raise ValueError("SOURCE_READING_SCOPE_EMPTY")
         for item in files:
             _relative_path(item["relative_path"])
         outline, programs, paragraphs, relations, interfaces = _outline(connection, files, check_cancel)
@@ -426,7 +447,7 @@ def prepare_source_reading(database_path, source_root, *, entry_program, questio
             connection.execute("RELEASE source_file_pages")
             verified.add(relative)
             truncated_lines += local_truncated
-        file_priority, line_priority, links = _priorities(entry, paragraphs, relations, files, verified)
+        file_priority, line_priority, links = _priorities(entry, paragraphs, relations, files, verified, programs)
         line_priority = {relative: sorted(values) for relative, values in line_priority.items()}
         page_lookup, interface_lookup = {}, defaultdict(list)
         for item in interfaces:
@@ -576,10 +597,16 @@ def prepare_source_reading(database_path, source_root, *, entry_program, questio
         connection.commit()
         return {"snapshot_id": snapshot, "pages": pages, "evidence_refs": refs, "outline": outline,
                 "programs": [program for program in programs if program["relative_path"] in verified],
+                "all_call_chain_links": chain_rows,
                 "call_chain": {"scope": "reading_plan", "links": chain_rows[:MAX_CHAIN_LINKS],
                                "total_links": len(chain_rows), "truncated": len(chain_rows) > MAX_CHAIN_LINKS},
                 "boundaries": boundaries, "entry": entry,
-                "coverage": {"scope": "indexed_sources", "snapshot_kind": "indexed_sources", "total_files": len(files),
+                "coverage": {"scope": "investigation_sources" if include_paths is not None else "indexed_sources", "snapshot_kind": "indexed_sources", "total_files": len(files),
+                             "repository_total_files": len(repository_files),
+                             "repository_total_lines": sum(item["line_count"] for item in repository_files),
+                             "investigation_files": len(files), "investigation_lines": sum(item["line_count"] for item in files),
+                             "omitted_repository_files": len(repository_files) - len(files),
+                             "repository_complete": complete and len(files) == len(repository_files),
                              "total_lines": sum(item["line_count"] for item in files), "total_pages": len(candidates),
                              "verified_files": len(verified), "excluded_files": len(excluded),
                              "excluded_lines": sum(item["line_count"] for item in files if item["relative_path"] in excluded),

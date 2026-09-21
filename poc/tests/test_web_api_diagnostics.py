@@ -41,7 +41,10 @@ class WebAPIDiagnosticsTests(unittest.TestCase):
     def test_source_change_invalidates_findings_but_keeps_received_api_response(self):
         self.exercise_run(change_source=True)
 
-    def exercise_run(self, change_source=False):
+    def test_multi_program_business_question_runs_without_an_entry_and_keeps_missing_implementation(self):
+        self.exercise_run(repository=True)
+
+    def exercise_run(self, change_source=False, repository=False):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = root / "source"
@@ -52,6 +55,10 @@ class WebAPIDiagnosticsTests(unittest.TestCase):
                 "PROCEDURE DIVISION.\nADD 1 TO WS-COUNT.\nGOBACK.\n",
                 encoding="utf-8",
             )
+            if repository:
+                (source / "counter-output.cbl").write_text(
+                    "IDENTIFICATION DIVISION.\nPROGRAM-ID. COUNTER-OUTPUT.\n"
+                    "PROCEDURE DIVISION.\nCALL 'EXTERNAL-OUTPUT'.\nGOBACK.\n", encoding="utf-8")
             config = CompanyAPIConfig(base_url="https://gateway.example.invalid/v1",
                                       chat_model="test-model", api_key="diagnostic-test-key")
             transport = PlainAnswerTransport(on_answer=(lambda: (source / "entry.cbl").write_text(
@@ -64,6 +71,9 @@ class WebAPIDiagnosticsTests(unittest.TestCase):
             app = WorkbenchState(analyzer=analyzer, config_provider=lambda: config)
             options = {"source": str(source), "output": str(root / "output"),
                        "entry": "entry.cbl", "question": "Explain the counter.", "allow_network": True}
+            if repository:
+                options.pop("entry")
+                options["question"] = "Explain how the counter result is made available across this repository."
             job_id = app.start(options)["job_id"]
             job = self.finish(app, job_id)
             self.assertEqual(job["status"], "COMPLETED", job.get("error"))
@@ -80,7 +90,17 @@ class WebAPIDiagnosticsTests(unittest.TestCase):
                 self.assertEqual(agent["agent_result"]["claims"], [])
             exchanges = agent["api_diagnostics"]["exchanges"]
             actual = [item for item in exchanges if item["phase"] == "investigation"]
-            self.assertEqual(len(actual), 1)
+            if repository:
+                self.assertGreaterEqual(len(actual), 2)
+                project = job["result"]
+                self.assertIsNone(project["diagnosis"]["entry_requested"])
+                self.assertIsNone(project["diagnosis"]["selected_entry"])
+                self.assertEqual(project["diagnosis"]["question"], options["question"])
+                self.assertEqual(agent["agent_result"]["investigation"]["mode"], "repository")
+                self.assertEqual(agent["agent_result"]["investigation"]["repository_file_count"], 2)
+                self.assertTrue(project["diagnosis"]["unresolved_dependencies"])
+            else:
+                self.assertEqual(len(actual), 1)
             self.assertEqual(actual[0]["http_status"], 200)
             self.assertIn("increments the counter", actual[0]["body_text"])
             self.assertEqual(app.state()["project"]["agent"], agent)

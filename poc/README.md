@@ -4,7 +4,7 @@
 
 双击 `poc\run_web.bat`，选择申请受理、在线复核或夜间生效案例，查看办理条件、业务规则、状态变化和异常影响。三种框架控制方式用于还原业务过程，源码引用由本机实际文件生成。点击“载入此案例”建立索引，再点击“开始业务分析”调用已配置的公司接口。旧保费预览和独立静态演示已撤下；完整说明见[新版业务分析 POC](../docs/19-framework-type-poc.md)。
 
-## 真实源码入口：先确认读到了哪些程序，再问问题
+## 本地代码库：接入后直接提出业务问题
 
 从**项目根目录**执行下面的命令，把两个路径换成办公室电脑上的真实目录；把已取得的程序放入源码目录；COPYBOOK 与被调用程序可逐步补充，闭源对象不会成为解释当前文件的前置条件。输出目录与源码目录分开，且保留在公司批准的本地位置。
 
@@ -17,21 +17,20 @@ Windows 包装脚本接受相同参数：
 
     poc\run_analyze.bat --index-mode catalog --source "D:\cobol-data\source" --output "D:\cobol-output\analysis"
 
-这个入口要求显式提供源目录，不默认读取 `fixtures`；公司大库应显式保留 `--index-mode catalog`（CLI 默认仍为 `full`，供兼容研发用途）；先更新轻量目录，再按入口建立局部索引。不需要 API Key，也不会联网。先打开 `diagnosis.md` 和 `programs.json`，核对文件数量、程序名、编码和未解决的 COPY/CALL。`INDEX_READY` / `SOURCE_CATALOG_READY` 只表示目录可选，`NEEDS_ATTENTION` 表示要阅读边界，缺少依赖并不一概阻断。没有可读或可明确识别的入口、证据不一致和接口配置错误仍会明确停止。
+这个入口要求显式提供源目录，不默认读取 `fixtures`。业务模式无入口时，建立全库轻量结构与源码全文检索；纯接入不需要 API Key，也不调用模型。`diagnosis.md` 和 `programs.json` 可核对文件与程序数量。首次接入需要读取全文，后续按内容更新索引。被调用对象缺源码时仍可继续解释调用者及框架约定。
 
 无扩展名成员默认纳入新入口，可用 `--exclude-extensionless` 排除；自定义扩展名加 `--extensions ".cbl,.cpy,.member"`，它是完整的允许扩展名列表。已知导出编码时显式加 `--encoding gb18030` 或 `--encoding cp950` 等；格式识别不对时加 `--source-format fixed` 或 `--source-format free`。编码与格式默认均为 `auto`，自动解码成功也应检查中文和 `PROGRAM-ID` 是否正确。
 
-先将项目根目录的 `.env.example` 复制为 `.env`，填写 `COMPANY_API_BASE_URL`、`COMPANY_API_KEY` 和 `COMPANY_CHAT_MODEL`；这份本机文件会自动读取，不需要每次配置终端。把 `实际的PROGRAM-ID` 换成这次报告中的程序名，从项目根目录执行：
+先将项目根目录的 `.env.example` 复制为 `.env`，填写 `COMPANY_API_BASE_URL`、`COMPANY_API_KEY` 和 `COMPANY_CHAT_MODEL`；这份本机文件会自动读取。从项目根目录直接提问，不用先确定程序名：
 
     python poc\analyze_source.py ^
       --index-mode catalog ^
       --source "D:\cobol-data\source" ^
       --output "D:\cobol-output\analysis" ^
-      --entry "实际的PROGRAM-ID" ^
-      --question "请解释该程序的主要处理步骤、输入输出和调用，并引用源码行号。" ^
+      --question "这里输入实际业务问题，不需要指定业务类别" ^
       --allow-network
 
-`--entry` 也接受报告中的唯一相对路径或 `entry_key`。存在同名程序时从网页选择具体文件或复制对应 `entry_key`；同一文件仍有多个同名入口时，按清单中的路径和定义位置明确入口。第二次及以后的问题也从这一入口执行，并保留第一次用到的编码和扩展名参数。这样换目录或改文件之后会先更新事实索引，不会误用上一次演示数据库。`--allow-network` 允许本次调查把必要源码证据发送给已配置的接口；业务模式直接调用普通聊天接口；旧 strict 模式才执行工具与动作协议能力探测。输出中的 `agent-result.json` 和 `agent-result.md` 保存本次问答状态与结果；未提问或未开启联网时会明确显示 `NOT_REQUESTED` 或 `NETWORK_DISABLED`。
+`--entry` 是可选范围限定，接受报告中的程序名、唯一相对路径或 `entry_key`；省略则自动调查全库。每次提问保留原来的编码和扩展名参数，先更新索引再调查。`--allow-network` 允许把问题、有限源码和框架节选发送给已配置接口。业务模式使用普通聊天，检索建议接受文字、列表和常见 JSON 包装；规划格式异常回退本地检索，不以旧动作 Contract 阻断业务正文。`agent-result.json` 和 `agent-result.md` 保存结果；无联网授权时仍可离线接入。
 
 **下文是底层工具及固定案例的研发说明。** `run_demo.py`、其他 `*_demo.py` 和 `business_acceptance.py` 依赖预设样例符号与验收条件；替换它们的夹具不等于分析公司源码。当前 `poc/web_app.py` 工作台已连接真实源码、索引和 Agent；历史静态原型不再作为操作入口。API 连通、样例 PASS、工具流程 COMPLETED 都不能单独证明公司业务已经被解释完整。
 
@@ -41,7 +40,7 @@ Windows 包装脚本接受相同参数：
 
 ## 默认业务解读流程
 
-网页和 `analyze_source.py` 命令行默认使用 `business`：本地核对源码并分段选取，使用普通聊天接口逐段解释，再汇总业务说明。普通文字不会因旧动作协议被丢弃。页面显示正文、可回读的源码引用和实际阅读覆盖，部分失败保留已有解释。具体使用见[业务分析更新](../docs/18-business-analysis-workflow.md)。Python 库与底层 `run_agent.py` 默认 `strict` 以兼容原有调用；下文旧 Agent 的能力探测、工具预算及结构化 Claim 规则仅适用于该模式。
+网页和 `analyze_source.py` 命令行默认使用 `business`。无入口时先全文检索，模型围绕问题和已发现片段最多进行三轮检索细化，再读实际选中的源码并汇总。新增词与原问题词共同查找；无命中时继续全库阅读。通用字段拆词和中文片段索引不包含业务主题词典。页面先显示正文，调查过程和具体资料缺口可展开。详见[系统使用手册](../docs/15-system-user-manual.md)。Python 库与底层 `run_agent.py` 默认 `strict` 兼容旧调用；下文旧 Agent 契约仅适用于该模式。
 
 ## 大源码目录与网页进度
 
@@ -55,7 +54,7 @@ Windows 包装脚本接受相同参数：
 
 ## 实际框架知识与网页问答
 
-项目根目录 `.env` 可设置 `FRAMEWORK_REFERENCE_PATH=.poc-data/framework/reference.md`。先把公司批准的 UTF-8 Markdown 资料复制到该路径，再通过网页选择源码入口。`framework_knowledge.py` 从资料标题、表格及当前入口的索引词项检索有限节选，保留文档 hash、原稿页码、文字行号以及匹配源码位置；不写死供应商或内部程序名。资料和源码的静态匹配无需联网，输出另存 `framework-context.json`。
+项目根目录 `.env` 可设置 `FRAMEWORK_REFERENCE_PATH=.poc-data/framework/reference.md`。把公司批准的 UTF-8 Markdown 资料复制到该路径。`framework_knowledge.py` 从资料标题、表格及调查范围内多个程序和 COPY 的源码词项匹配节选，保留文档 hash、原稿页码、文字行号以及匹配位置；不写死供应商或内部程序名。缺源码调用保留真实调用点与关联手册。资料匹配无需联网，最终实际用于本次答案的上下文另存 `framework-context.json`。
 
 问答运行器将节选作为不可信参考数据传给已配置模型。新增 `framework_interpretation` 必须同时引用已读取的有效源码证据和本次资料 ID，显示为有条件的框架解释；两类 ID 不可互相替代。资料加载或词项命中不等于控制流／数据流证明，不会模拟闭源对象。无资料、资料无匹配或不可读时保留原因，原有源码分析仍可使用。CLI 可用 `--framework-reference` 显式覆盖配置。具体操作见[使用手册](../docs/15-system-user-manual.md)和[设计边界](../docs/16-private-framework-knowledge.md)。
 

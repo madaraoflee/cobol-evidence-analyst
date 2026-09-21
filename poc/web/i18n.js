@@ -3,6 +3,52 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+源碼索引已就緒|源码索引已就绪|Source indexes ready
+源碼已索引|源码已索引|Source indexed
+ 個程式| 个程序| programs
+程式|程序|Programs
+已建立索引，可直接提出業務問題|已建立索引，可直接提出业务问题|Indexed and ready for business questions
+
+選擇源碼資料夾，建立業務查找索引後，即可直接提問。|选择源码文件夹，建立业务查找索引后，即可直接提问。|Choose a source folder, build the business search index, then ask your questions.
+建立索引|建立索引|Build the index
+提出問題|提出问题|Ask a question
+此步驟在本機建立源碼結構與全文查找索引，不呼叫模型。|此步骤在本机建立源码结构与全文查找索引，不调用模型。|This step builds local source structure and full-text search indexes without calling the model.
+本機代碼庫 · 業務問答|本机代码库 · 业务问答|Local repository · Business questions
+建立業務查找索引|建立业务查找索引|Building business search indexes
+進度按目前階段計算。首次接入會建立整個代碼庫的查找索引；提問後再選取相關源碼閱讀。預估會隨檔案大小及處理速度調整。|进度按当前阶段计算。首次接入会建立整个代码库的查找索引；提问后再选取相关源码阅读。预估会随文件大小及处理速度调整。|Progress is measured per stage. Initial setup indexes the repository for search; questions then select relevant source for reading. Estimates adjust to file size and processing speed.
+
+已建立業務查找索引|已建立业务查找索引|Business search index ready
+已讀取源碼結構，可直接提出業務問題；系統會按問題選取相關檔案繼續閱讀。|已读取源码结构，可直接提出业务问题；系统会按问题选取相关文件继续阅读。|Source structure is indexed. Ask a business question to select relevant files for further reading.
+已索引檔案|已索引文件|Indexed files
+呼叫實作未提供|调用实现未提供|Called implementations not supplied
+直接提出業務問題，系統會自動查找相關程式與 COPYBOOK。|直接提出业务问题，系统会自动查找相关程序与 COPYBOOK。|Ask a business question to automatically find relevant programs and copybooks.
+
+本次查找|本次查找|Searches for this question
+本次選入的檔案|本次选入的文件|Files selected for this question
+另有|另有|There are
+ 個候選檔案尚未納入閱讀。| 个候选文件尚未纳入阅读。| additional candidate files not selected for reading.
+
+整個代碼庫 · 自動查找|整个代码库 · 自动查找|Entire repository · Find relevant source
+分析範圍|分析范围|Analysis scope
+用業務語言提問，系統會自動查找相關程式、定義與處理規則。|用业务语言提问，系统会自动查找相关程序、定义与处理规则。|Ask a business question. Relevant programs, definitions and rules will be found automatically.
+這個代碼庫支援哪些業務功能？請整理主要功能、處理過程與業務結果。|这个代码库支持哪些业务功能？请整理主要功能、处理过程与业务结果。|What business functions does this repository support? Explain the main functions, processes and outcomes.
+可辦理的業務|可办理的业务|Business functions
+請找出主要業務規則與計算方式，說明輸入、適用條件和例外。|请找出主要业务规则与计算方式，说明输入、适用条件和例外。|Find the main business rules and calculations, including inputs, conditions and exceptions.
+規則與計算|规则与计算|Rules and calculations
+哪些情況會中止、退回或延後處理？會影響哪些業務結果？|哪些情况会中止、退回或延后处理？会影响哪些业务结果？|What conditions stop, return or defer processing, and which business outcomes are affected?
+直接輸入業務問題，系統會從代碼庫自動查找相關實作。也可以選擇程式縮小範圍。|直接输入业务问题，系统会从代码库自动查找相关实现。也可以选择程序缩小范围。|Enter a business question to find relevant implementations automatically. Optionally choose a program to narrow the scope.
+本次尚未取得業務解讀，請查看 API 返回中的具體原因後重試。|本次尚未取得业务解读，请查看 API 返回中的具体原因后重试。|No business explanation was returned. Check the API response for the specific cause, then retry.
+依據與補充說明|依据与补充说明|Sources and additional details
+本次查找 ·|本次查找 ·|Searches for this question ·
+ 個相關檔案| 个相关文件| relevant files
+目錄共有|目录共有|The catalog contains
+ 個檔案，本次選入| 个文件，本次选入| files; this question selected
+ 個檔案繼續閱讀。這是問題相關範圍，不表示全庫源碼已讀完。| 个文件继续阅读。这是问题相关范围，不表示全库源码已读完。| files for further reading. This is the relevant scope for this question, not a complete reading of the repository.
+匹配檔案|匹配文件|Matching files
+大型結果已按頁面展示量整理。完整逐頁解讀、引用與接口記錄仍保存在結果資料夾。|大型结果已按页面展示量整理。完整逐页解读、引用与接口记录仍保存在结果文件夹。|Large results are condensed for display. Full page explanations, citations and API records remain in the output folder.
+查找相關業務實作|查找相关业务实现|Finding relevant business implementations
+理解問題並展開查找|理解问题并展开查找|Planning the business search
+
 閱讀方式|阅读方式|Reading approach
 完整業務鏈 · 自動分批閱讀|完整业务链 · 自动分批阅读|Full business flow · Automatic batches
 按問題重點閱讀|按问题重点阅读|Focus on the question

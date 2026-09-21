@@ -1,8 +1,8 @@
 # COBOL Evidence Analyst
 
-**系统的最终交付是业务分析：解释业务目的、办理条件、决策规则、状态与数据变化，以及异常的业务影响。** 当前手册统一记录“服务申请受理 → 复核 → 夜间生效”主线、框架资料接入和源码证据边界；启动工作台即可选择案例并载入分析。
+**系统的最终交付是通用业务分析：直接提出业务问题，由系统在本地代码库查找、阅读和解释相关逻辑。** 没有固定业务主题词典或预置问答路线；演示案例只是操作示例。真实作业调度作为后续可选能力，当前聚焦本地 COBOL/COPYBOOK 与用户提供的框架资料。
 
-网页默认完整业务链阅读：业务轻量索引逐文件扫描并追踪可定位的静态调用与 COPY，关联源码连续分批解读、按程序归纳后汇总。实际覆盖和保留的校验以[最新系统使用手册](./docs/15-system-user-manual.md)为准。
+网页默认“整个代码库 · 自动查找”，不用手选入口。首次接入建立全库结构与全文检索索引；提问后先本地搜索，再由模型根据实际片段补充检索词，沿调用者、被调用程序与 COPY 关系继续调查。相关源码连续分批解读并分层汇总；“本次查找”展示实际搜索和选择范围。显式入口仍可用于限定调查。详见[系统使用手册](./docs/15-system-user-manual.md)。
 
 **网页默认按源码分段生成业务解释，再汇总长程序。普通聊天返回可以直接显示，不再因不符合旧 Agent 动作协议而丢掉正文；部分失败保留已得到的解释，并显示真实源码引用与阅读覆盖。** 更新和操作见[最新系统使用手册](./docs/15-system-user-manual.md)。
 
@@ -23,9 +23,9 @@ python poc\analyze_source.py ^
   --index-mode catalog
 ```
 
-打开 `diagnosis.md` 和 `programs.json` 核对目录；配置公司接口后，在同一命令增加 `--entry "清单中的相对路径" --question "这项业务处理什么申请，哪些条件决定通过、待处理或拒绝，会改变哪些业务数据，失败后如何处理？请引用依据。" --allow-network`。网页默认使用该模式；命令行不加 `--index-mode catalog` 会保留旧的全目录详细索引行为，只适合明确控制过的小范围。
+打开 `diagnosis.md` 和 `programs.json` 核对目录；配置公司接口后，在同一命令增加 `--question "这里输入实际业务问题" --allow-network`。业务模式没有入口时建立全库轻量结构和全文搜索索引；`--entry "清单中的相对路径"` 是可选的范围限定。旧 `strict` 分析保留其原有流程。
 
-完整操作见[最新系统使用手册](./docs/15-system-user-manual.md)。目录就绪不等于全库语句已解析，局部证据通过也不等于完整业务执行已验证。
+框架公共对象缺源码时，系统结合调用点、参数、返回分支和实际手册解释已知业务；缺失实现只影响依赖它的具体判断，不整份拒答。完整操作见[系统使用手册](./docs/15-system-user-manual.md)。已索引全库和已阅读全部相关页分别统计，不将静态解释宣称为实际执行验证。
 
 `run_demo.py`、其他 `*_demo.py` 和 `business_acceptance.py` 仅为历史合成案例回归，不是当前 POC 操作入口。当前界面与三类新案例统一由 `poc/web_app.py` 提供。本地案例演练不等于公司源码、实际 API 与 Windows 实机验收。
 
@@ -54,7 +54,6 @@ python poc\analyze_source.py ^
 - [Agent 调查工具契约](./docs/08-agent-tool-contracts.md)
 - [可演示 POC：Windows 文件夹到业务回答](./docs/09-demonstrable-poc.md)
 - [复杂 COBOL Agent 可行性复核](./docs/10-poc-feasibility-assessment.md)
-- [业务分析 POC 与操作入口](./docs/09-demonstrable-poc.md)
 - [业务场景演示说明](./docs/leadership-demo/README.md)
 - [CALC-01 P1-B 可执行演示结果](./docs/leadership-demo/p1b-executable-demo.md)
 - [2026-08-30 P1-B 项目进度报告](./docs/reports/2026-08-30-p1b-progress-report.md)

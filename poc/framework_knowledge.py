@@ -291,7 +291,7 @@ def framework_status(reference_path: Path | str | None = None) -> dict:
 
 
 def _empty_context(summary: dict) -> dict:
-    return {**summary, "references": [], "source_matches": [],
+    return {**summary, "references": [], "source_matches": [], "external_calls": [],
             "coverage": {"units_scanned": 0, "chars_scanned": 0, "truncated": False,
                          "max_units": MAX_SOURCE_UNITS, "max_chars": MAX_SOURCE_CHARS,
                          "source_scope": "selected_entry", "snapshot_id": None},
@@ -311,7 +311,7 @@ def _question_terms(question: str) -> set[str]:
 
 
 def _sparse_source_candidates(connection, selected, next_entry, document, coverage, source_root,
-                              check_cancel=None):
+                              check_cancel=None, *, max_candidates=None, whole_file=False):
     """Match original source with bounded buffers, then retain verified line evidence.
 
     Sparse indexes deliberately omit ordinary statements. Their remaining units
@@ -335,10 +335,15 @@ def _sparse_source_candidates(connection, selected, next_entry, document, covera
     item = dict(row)
     candidates, spans, all_terms = [], [], set()
     per_term = defaultdict(int)
+    retained_limit = MAX_SOURCE_CANDIDATES if max_candidates is None else max_candidates
+    programs = list(connection.execute("SELECT start_line,program_name FROM code_units "
+        "WHERE relative_path=? AND unit_type='Program' ORDER BY start_line", (item["relative_path"],))) if whole_file else []
+    program_position = 0
+    program_name = selected["program_name"]
     source_format = active_format = item.get("format_hint") or "auto"
     coverage.update(source_scan_unit="physical_lines", source_scan_strategy="verified_stream",
                     source_hash_verified=False, max_units=None, max_chars=None,
-                    max_line_chars=MAX_UNIT_CHARS, max_candidates=MAX_SOURCE_CANDIDATES)
+                    max_line_chars=MAX_UNIT_CHARS, max_candidates=retained_limit)
     # Scan all selected-program lines with a bounded line buffer and bounded
     # retained matches. Still exhaust the file after the selected program ends:
     # no partial scan can establish the stored whole-file hash.
@@ -348,6 +353,9 @@ def _sparse_source_candidates(connection, selected, next_entry, document, covera
             active_format = next_format
         if number < selected["start_line"] or (next_entry is not None and number >= next_entry):
             continue
+        while program_position < len(programs) and programs[program_position]["start_line"] <= number:
+            program_name = programs[program_position]["program_name"]
+            program_position += 1
         coverage["units_scanned"] += 1
         inspected = code
         coverage["chars_scanned"] += len(inspected)
@@ -361,7 +369,7 @@ def _sparse_source_candidates(connection, selected, next_entry, document, covera
         all_terms.update(terms)
         if not any(per_term[term] < 3 for term in terms):
             continue
-        if len(candidates) >= MAX_SOURCE_CANDIDATES:
+        if len(candidates) >= retained_limit:
             coverage["truncated"] = True
             coverage["candidates_truncated"] = True
             continue
@@ -371,7 +379,7 @@ def _sparse_source_candidates(connection, selected, next_entry, document, covera
         spans.append((evidence_id, item["relative_path"], number, number, item["sha256"], raw))
         candidates.append({"evidence_id": evidence_id, "relative_path": item["relative_path"],
                            "start_line": number, "end_line": number,
-                           "program_name": selected["program_name"], "source_sha256": item["sha256"],
+                           "program_name": program_name, "source_sha256": item["sha256"],
                            "matched_terms": sorted(terms)})
     coverage["source_hash_verified"] = True
     for span in spans:
@@ -383,8 +391,93 @@ def _sparse_source_candidates(connection, selected, next_entry, document, covera
     return candidates, all_terms, None
 
 
+def _repository_source_candidates(connection, document, coverage, source_root, source_paths,
+                                  check_cancel):
+    """Search selected files independently, retaining a fair share of each file.
+
+    A partial or missing file only removes its own reference evidence. It does
+    not discard reference matches from the other readable source files.
+    """
+    files = [row[0] for row in connection.execute("SELECT relative_path FROM source_files ORDER BY relative_path")]
+    available = set(files)
+    if source_paths is not None:
+        requested = list(dict.fromkeys(str(value).replace("\\", "/").removeprefix("./") for value in source_paths))
+        files = [value for value in requested if value in available]
+        missing = [value for value in requested if value not in available]
+        coverage.update(requested_files=len(requested), unavailable_file_count=len(missing))
+    coverage.update(source_scope="selected_files" if source_paths is not None else "repository",
+                    files_selected=len(files), files_scanned=0, files_with_matches=0,
+                    source_scan_errors=[], source_hash_verified=False)
+    candidates, all_terms = [], set()
+    fair_share = max(1, MAX_SOURCE_CANDIDATES // max(1, len(files)))
+    for relative in files:
+        if check_cancel:
+            check_cancel()
+        local = {"units_scanned": 0, "chars_scanned": 0, "truncated": False}
+        connection.execute("SAVEPOINT framework_file")
+        try:
+            if source_root is not None:
+                selected = {"relative_path": relative, "start_line": 1, "program_name": None}
+                matches, terms, error = _sparse_source_candidates(connection, selected, None, document,
+                    local, source_root, check_cancel, max_candidates=fair_share, whole_file=True)
+                if error:
+                    raise ValueError(error)
+            else:
+                kind = connection.execute("SELECT value FROM metadata WHERE key='index_kind'").fetchone()
+                if kind and kind[0] == "business_sparse":
+                    raise ValueError("FRAMEWORK_SOURCE_ROOT_REQUIRED")
+                matches, terms, per_term = [], set(), defaultdict(int)
+                for row in connection.execute(
+                    "SELECT u.evidence_id,u.relative_path,u.start_line,u.end_line,u.program_name,"
+                    "substr(u.normalized_text,1,?) AS code,length(u.normalized_text) AS text_length,e.source_sha256 "
+                    "FROM code_units u JOIN evidence_spans e ON e.evidence_id=u.evidence_id "
+                    "WHERE u.relative_path=? ORDER BY u.start_line,u.end_line,u.unit_id", (MAX_UNIT_CHARS, relative)):
+                    if check_cancel:
+                        check_cancel()
+                    local["units_scanned"] += 1
+                    local["chars_scanned"] += len(row["code"])
+                    local["truncated"] |= len(row["code"]) < row["text_length"]
+                    hits = {word.upper() for word in _WORD.findall(row["code"])} & document.terms
+                    terms.update(hits)
+                    if not hits or not any(per_term[term] < 3 for term in hits):
+                        continue
+                    if len(matches) >= fair_share:
+                        local.update(truncated=True, candidates_truncated=True)
+                        continue
+                    for term in hits:
+                        per_term[term] += 1
+                    matches.append({key: row[key] for key in ("evidence_id", "relative_path", "start_line",
+                        "end_line", "program_name", "source_sha256")} | {"matched_terms": sorted(hits)})
+            connection.execute("RELEASE framework_file")
+        except (OSError, ValueError):
+            connection.execute("ROLLBACK TO framework_file")
+            connection.execute("RELEASE framework_file")
+            coverage["source_scan_errors"].append({"relative_path": relative,
+                                                  "reason_code": "FRAMEWORK_SOURCE_UNAVAILABLE"})
+            continue
+        coverage["files_scanned"] += 1
+        coverage["files_with_matches"] += bool(terms)
+        coverage["units_scanned"] += local["units_scanned"]
+        coverage["chars_scanned"] += local["chars_scanned"]
+        coverage["truncated"] |= local["truncated"]
+        if local.get("candidates_truncated"):
+            coverage["candidates_truncated"] = True
+        all_terms.update(terms)
+        capacity = max(0, MAX_SOURCE_CANDIDATES - len(candidates))
+        candidates.extend(matches[:capacity])
+        if len(matches) > capacity:
+            coverage.update(truncated=True, candidates_truncated=True)
+    coverage.update(source_scan_unit="physical_lines" if source_root is not None else "indexed_units",
+                    source_scan_strategy="verified_stream" if source_root is not None else "snapshot_index",
+                    source_hash_verified=source_root is not None and bool(files) and not coverage["source_scan_errors"],
+                    max_units=None, max_chars=None, max_candidates=MAX_SOURCE_CANDIDATES)
+    error = "FRAMEWORK_SOURCE_UNAVAILABLE" if files and not coverage["files_scanned"] else None
+    return candidates, all_terms, error
+
+
 def _source_candidates(database_path: Path, entry_program: str | None, document: _Document,
-                       coverage: dict, source_root=None, check_cancel=None) -> tuple[list[dict], set[str], str | None]:
+                       coverage: dict, source_root=None, check_cancel=None,
+                       source_paths=None) -> tuple[list[dict], set[str], str | None]:
     path = Path(database_path).expanduser().resolve()
     if not path.is_file():
         return [], set(), "FRAMEWORK_INDEX_UNAVAILABLE"
@@ -402,6 +495,10 @@ def _source_candidates(database_path: Path, entry_program: str | None, document:
         coverage["snapshot_id"] = snapshot[0] if snapshot else None
         if not snapshot:
             return [], set(), "FRAMEWORK_INDEX_UNAVAILABLE"
+        if source_paths is not None or not entry_program:
+            result = _repository_source_candidates(connection, document, coverage, source_root, source_paths, check_cancel)
+            connection.commit()
+            return result
         if entry_program:
             entry = str(entry_program).strip().replace("\\", "/")
             # Entry keys are emitted by the catalog to distinguish duplicates.
@@ -477,10 +574,84 @@ def _source_candidates(database_path: Path, entry_program: str | None, document:
     return candidates, all_terms, None
 
 
+def _external_call_context(database_path, source_matches, references):
+    """Link absent targets to visible caller evidence without inventing a callee.
+
+    Nearby markers are retrieval hints, not a data-flow or execution proof.
+    They let a model explain a documented operation even when generated source
+    was not supplied with the repository.
+    """
+    by_file = defaultdict(list)
+    for match in source_matches:
+        by_file[match["relative_path"]].append(match)
+    known_references = {item["reference_id"] for item in references}
+    calls = []
+    connection = None
+    try:
+        connection = sqlite3.connect(Path(database_path).resolve().as_uri() + "?mode=ro", uri=True)
+        connection.row_factory = sqlite3.Row
+        for relative, matches in by_file.items():
+            for row in connection.execute(
+                "SELECT r.relation_type,r.target_name,r.evidence_id,u.program_name,e.start_line,e.end_line,"
+                "e.source_sha256,substr(e.text,1,?) AS source_text,length(e.text) AS source_chars "
+                "FROM relations r JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
+                "LEFT JOIN code_units u ON u.unit_id=r.from_entity_id "
+                "WHERE r.relative_path=? AND (r.relation_type='CALL_TARGET_FROM' OR "
+                "(r.relation_type='CALLS' AND NOT EXISTS (SELECT 1 FROM code_units p "
+                "WHERE p.unit_type='Program' AND p.program_name=r.target_name))) ORDER BY e.start_line",
+                (MAX_UNIT_CHARS, relative)):
+                nearby = [match for match in matches if match["source_sha256"] == row["source_sha256"]
+                          and match["program_name"] == row["program_name"]
+                          and match["start_line"] <= row["end_line"] + 4
+                          and match["end_line"] >= row["start_line"] - 12]
+                reference_ids = sorted({ref for match in nearby for ref in match["reference_ids"]} & known_references)
+                if not reference_ids:
+                    continue
+                calls.append({"relative_path": relative, "program_name": row["program_name"],
+                    "target_name": row["target_name"], "relation_type": row["relation_type"],
+                    "target_source_available": False if row["relation_type"] == "CALLS" else None,
+                    "target_resolution": "source_not_supplied" if row["relation_type"] == "CALLS" else "dynamic_target",
+                    "evidence_id": row["evidence_id"], "start_line": row["start_line"], "end_line": row["end_line"],
+                    "source_sha256": row["source_sha256"], "source_text": row["source_text"],
+                    "source_text_truncated": row["source_chars"] > MAX_UNIT_CHARS,
+                    "reference_ids": reference_ids,
+                    "nearby_marker_evidence_ids": [match["evidence_id"] for match in nearby],
+                    "interpretation_basis": "caller_markers_and_documented_conventions",
+                    "parameter_binding_verified": False, "runtime_verified": False})
+    except (OSError, sqlite3.Error, ValueError):
+        return []
+    finally:
+        if connection is not None:
+            connection.close()
+    # Preserve different caller files when the prompt contains many call sites.
+    return _representative_rows(calls, MAX_SOURCE_MATCHES)
+
+
+def _representative_rows(rows, limit):
+    grouped = defaultdict(list)
+    for row in rows:
+        grouped[row["relative_path"]].append(row)
+    selected = []
+    depth = 0
+    while len(selected) < limit:
+        round_rows = [group[depth] for group in grouped.values() if len(group) > depth]
+        if not round_rows:
+            break
+        selected.extend(round_rows[:limit - len(selected)])
+        depth += 1
+    return selected
+
+
 def build_framework_context(database_path: Path | None = None, *, entry_program: str | None = None,
                             question: str = "", reference_path: Path | str | None = None,
-                            source_root: Path | str | None = None, check_cancel=None) -> dict:
-    """Retrieve cited knowledge; only indexed source markers can yield MATCHED."""
+                            source_root: Path | str | None = None, source_paths: list[str] | None = None,
+                            check_cancel=None) -> dict:
+    """Retrieve cited knowledge from an entry, selected files, or the repository.
+
+    ``source_paths`` takes precedence over ``entry_program``. With neither, all
+    indexed files are searched. Only actual source markers can yield MATCHED;
+    references and source availability are optional context, not answer gates.
+    """
     try:
         document = _load_document(reference_path)
     except _ReferenceError as error:
@@ -492,7 +663,8 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
     candidates, source_terms, source_error = [], set(), None
     if database_path is not None:
         candidates, source_terms, source_error = _source_candidates(database_path, entry_program, document,
-                                                                   result["coverage"], source_root, check_cancel)
+                                                                   result["coverage"], source_root, check_cancel,
+                                                                   source_paths)
     query_terms = _question_terms(question)
     technical_query_terms = {term.upper() for term in query_terms} & document.terms
     other_query_terms = query_terms - {term.casefold() for term in technical_query_terms}
@@ -516,10 +688,18 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
     remaining = MAX_REFERENCE_CHARS
     covered_terms: set[str] = set()
     covered_headings: set[str] = set()
+    covered_files: set[str] = set()
+    term_files = defaultdict(set)
+    for candidate in candidates:
+        for term in candidate["matched_terms"]:
+            term_files[term].add(candidate["relative_path"])
+    def matching_files(terms):
+        return {relative for term in terms for relative in term_files[term]}
     # Prefer newly observed constructs and topics before repeated glossary rows.
     while rankings and len(result["references"]) < MAX_REFERENCES:
         best = max(range(len(rankings)), key=lambda position: (
             rankings[position][0]
+            + min(3, len(matching_files(rankings[position][2]) - covered_files)) * 40
             + min(5, len(rankings[position][2] - covered_terms)) * 20
             + (12 if document.sections[rankings[position][1]].heading not in covered_headings else 0)
             - (15 if rankings[position][2] and not rankings[position][2] - covered_terms else 0),
@@ -532,6 +712,7 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
         remaining -= len(section.text)
         covered_terms.update(source_hits)
         covered_headings.add(section.heading)
+        covered_files.update(matching_files(source_hits))
         result["references"].append({
             "reference_id": f"fw:{document.sha256[:16]}:{section.start_line}-{section.end_line}",
             "heading": section.heading, "page": section.page,
@@ -540,6 +721,7 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
             "selection_reason": "source_marker" if source_hits else "question_only",
         })
     seen_evidence: set[str] = set()
+    eligible_matches = []
     # Order by reference relevance first, while retaining different constructs.
     for reference in result["references"]:
         if reference["selection_reason"] != "source_marker":
@@ -547,17 +729,18 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
         for candidate in candidates:
             if candidate["evidence_id"] in seen_evidence or not set(candidate["matched_terms"]) & set(reference["matched_terms"]):
                 continue
-            if len(result["source_matches"]) >= MAX_SOURCE_MATCHES:
-                break
             row = deepcopy(candidate)
             row["reference_ids"] = [item["reference_id"] for item in result["references"]
                                     if item["selection_reason"] == "source_marker"
                                     and set(item["matched_terms"]) & set(row["matched_terms"])]
-            result["source_matches"].append(row)
+            eligible_matches.append(row)
             seen_evidence.add(row["evidence_id"])
+    result["source_matches"] = _representative_rows(eligible_matches, MAX_SOURCE_MATCHES)
+    if database_path is not None and result["source_matches"]:
+        result["external_calls"] = _external_call_context(database_path, result["source_matches"], result["references"])
     if source_error:
         result.update(status="LOADED", reason_code=source_error)
-        result["boundaries"].append("The selected source entry could not be matched to the reference in this index.")
+        result["boundaries"].append("Some selected source could not be matched to the reference; other business evidence remains usable.")
     elif result["source_matches"]:
         result.update(status="MATCHED", reason_code="FRAMEWORK_SOURCE_MATCHED")
     elif database_path is not None:
@@ -567,5 +750,7 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
     result["coverage"].update({"matched_term_count": len(source_terms), "references_selected": len(result["references"]),
                                "reference_chars": MAX_REFERENCE_CHARS - remaining,
                                "references_truncated": bool(rankings),
-                               "source_matches_selected": len(result["source_matches"])})
+                               "source_matches_selected": len(result["source_matches"]),
+                               "source_matches_truncated": len(eligible_matches) > len(result["source_matches"]),
+                               "external_calls_selected": len(result["external_calls"])})
     return result

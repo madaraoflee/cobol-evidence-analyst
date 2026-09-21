@@ -28,3 +28,10 @@ html[lang="en"] .brand small{font-size:7px}html[lang="en"] .entry-choice{flex-wr
 .evidence-panel>*{min-width:0}.guide-type strong{min-width:0;overflow-wrap:anywhere}
 
 .reading-depth small{flex-basis:100%;line-height:1.8}.program-summaries>.field-hint{margin:10px 0}.program-summary{border-top:1px solid var(--border);padding:12px 0}.program-summary>summary{overflow-wrap:anywhere}.program-summary>summary small{display:block;color:var(--muted);font-size:10px;margin-top:3px}.program-summary>.narrative-body{margin-top:14px}
+
+/* Keep the business explanation first; supporting detail opens on demand. */
+.answer-support,.repository-investigation{border-top:1px solid var(--line,#e6e7eb);padding:14px 0;margin-top:12px;font-size:13px;color:var(--muted,#677080)}
+.answer-support>summary,.repository-investigation>summary{cursor:pointer;font-weight:600;color:var(--ink,#253142)}
+.repository-investigation p,.answer-support p{line-height:1.65;overflow-wrap:anywhere}
+.repository-investigation li{margin:10px 0;overflow-wrap:anywhere}
+.repository-investigation li small{display:block;line-height:1.6;margin-top:4px}

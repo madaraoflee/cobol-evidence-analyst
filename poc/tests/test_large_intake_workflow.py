@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 import sys
@@ -165,7 +166,7 @@ class LargeIntakeWorkflowTests(unittest.TestCase):
         self.assertIsNone(project["agent"]["agent_result"])
 
 
-    def test_workbench_default_catalog_can_be_followed_by_scoped_analysis(self):
+    def test_workbench_default_repository_index_can_be_followed_by_scoped_analysis(self):
         app = WorkbenchState()
         def finish(job_id):
             deadline = time.monotonic() + 3
@@ -178,14 +179,26 @@ class LargeIntakeWorkflowTests(unittest.TestCase):
         request = {"source": str(self.source), "output": str(self.output)}
         imported = finish(app.start(request)["job_id"])
         self.assertEqual(imported["status"], "COMPLETED")
-        self.assertTrue(imported["result"]["diagnosis"]["catalog_ready"])
-        self.assertIsNone(imported["result"]["snapshot_id"])
+        diagnosis = imported["result"]["diagnosis"]
+        self.assertTrue(diagnosis["catalog_ready"])
+        self.assertTrue(diagnosis["source_manifest_verified"])
+        self.assertEqual(diagnosis["scope"]["mode"], "repository_index")
+        self.assertEqual(diagnosis["scope"]["repository_file_count"], 2)
+        self.assertEqual(diagnosis["build_report"]["index_kind"], "business_sparse")
+        self.assertEqual(diagnosis["repository_search"]["indexed_files"], 2)
+        self.assertEqual(imported["result"]["snapshot_id"], diagnosis["build_report"]["snapshot_id"])
+        self.assertTrue(imported["result"]["snapshot_id"].startswith("sha256:"))
+        with closing(sqlite3.connect(self.output / "structural-index.sqlite")) as connection:
+            self.assertEqual(connection.execute("SELECT relative_path FROM source_files ORDER BY relative_path").fetchall(),
+                             [("main.cbl",), ("unrelated.cbl",)])
         entry = next(item["entry_key"] for item in imported["result"]["programs"] if item["program_name"] == "MAIN-PROGRAM")
         analyzed = finish(app.start({**request, "entry": entry, "question": "Explain"})["job_id"])
         self.assertEqual(analyzed["status"], "COMPLETED")
         self.assertIsNotNone(analyzed["result"]["snapshot_id"])
+        self.assertNotEqual(analyzed["result"]["snapshot_id"], imported["result"]["snapshot_id"])
         self.assertEqual(len(analyzed["result"]["programs"]), 2)
         self.assertEqual(analyzed["result"]["diagnosis"]["scope"]["detail_file_count"], 1)
+        self.assertEqual(analyzed["result"]["diagnosis"]["scope"]["mode"], "entry_static_closure")
 
 
 if __name__ == "__main__":

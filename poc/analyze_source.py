@@ -22,6 +22,8 @@ from structural_index import build_structural_index
 from business_index import build_business_index
 from source_catalog import refresh_source_catalog, select_related_sources
 from framework_knowledge import build_framework_context
+from repository_discovery import ensure_repository_search
+from report_view import write_report_view
 
 
 DEFAULT_SCOPE_SOURCE_BYTES = 16 * 1024 * 1024
@@ -30,6 +32,7 @@ ARTIFACT_NAMES = (
     "structural-index.sqlite", "diagnosis.json", "diagnosis.md",
     "programs.json", "agent-result.json", "agent-result.md", "source-catalog.sqlite",
     "framework-context.json",
+    "agent-result-view.json", "programs-view.json",
 )
 
 
@@ -234,6 +237,7 @@ def analyze_source(
         raise ValueError("--entry must not be empty.")
     if question is not None and not question.strip():
         raise ValueError("--question must not be empty.")
+    repository_mode = analysis_mode == "business" and entry is None
     output.mkdir(parents=True, exist_ok=True)
     report = {
         "schema_version": "source-analysis/v1",
@@ -257,9 +261,12 @@ def analyze_source(
     def save() -> None:
         _write(output / "diagnosis.json", report)
         _write(output / "diagnosis.md", _render(report, programs), markdown=True)
-        _write(output / "programs.json", {"snapshot_id": (report.get("build_report") or {}).get("snapshot_id"),
-            "catalog_snapshot_id": report.get("catalog_snapshot_id"), "scope": report.get("scope"), "programs": programs})
+        program_report = {"snapshot_id": (report.get("build_report") or {}).get("snapshot_id"),
+            "catalog_snapshot_id": report.get("catalog_snapshot_id"), "scope": report.get("scope"), "programs": programs}
+        _write(output / "programs.json", program_report)
+        write_report_view(output / "programs.json", program_report)
         _write(output / "agent-result.json", agent)
+        write_report_view(output / "agent-result.json", agent)
         _write(output / "framework-context.json", report["framework_context"])
         answer = (agent.get("agent_result") or {}).get("answer")
         _write(output / "agent-result.md", "\n".join([
@@ -279,7 +286,7 @@ def analyze_source(
         scope = None
         business_build = None
         indexed: dict[str, str] = {}
-        if index_mode == "catalog":
+        if index_mode == "catalog" and not repository_mode:
             catalog = refresh_source_catalog(source, output / "source-catalog.sqlite", extensions=extensions,
                 include_extensionless=include_extensionless, encoding=encoding, source_format=source_format,
                 progress=progress, verify_content=verify_content)
@@ -328,7 +335,7 @@ def analyze_source(
                         save()
                         return report
                     report["selected_entry"] = scope.get("selected_entry")
-        if index_mode == "full" or scope is not None:
+        if index_mode == "full" or scope is not None or repository_mode:
             builder = build_business_index if analysis_mode == "business" else build_structural_index
             build = business_build or builder(source, output / "structural-index.sqlite", extensions=extensions,
                 include_extensionless=include_extensionless, encoding=encoding, source_format=source_format,
@@ -357,13 +364,21 @@ def analyze_source(
                     source_verification="selected_sources_content_hash", full_repository_verified=False)
             else:
                 programs = detailed_programs
-                selected, entry_error = _select_entry(programs, entry)
+                selected, entry_error = (None, None) if repository_mode else _select_entry(programs, entry)
                 report["scope"] = build["scope"]
+            if repository_mode:
+                report["scope"].update(mode="repository_question" if question else "repository_index",
+                                       repository_file_count=len(indexed))
+                report["catalog_ready"] = bool(indexed)
+            if analysis_mode == "business":
+                report["repository_search"] = ensure_repository_search(
+                    output / "structural-index.sqlite", source,
+                    check_cancel=check_cancel, progress=progress)
             report["program_count"] = len(programs)
             report["selected_entry"] = selected
             if dependencies:
                 report["messages"].append(f"有 {len(dependencies)} 项调用或 COPY 依赖未确认；将继续解释现有源码，并把闭源对象、缺失源码和动态目标明确列为边界。")
-            if not detailed_programs:
+            if not detailed_programs and not repository_mode:
                 report.update(runner_status="BLOCKED", reason_code="NO_PROGRAMS_RECOGNIZED")
                 report["messages"].append("当前入口未识别到 PROGRAM-ID。检查编码及 fixed/free 格式；可以选择其他源码继续。")
             elif entry_error:
@@ -403,6 +418,7 @@ def analyze_source(
                                           entry_program=investigation_entry,
                                           allow_network=True, transport=transport, analysis_scope=report.get("scope"),
                                           framework_context=report["framework_context"],
+                                          framework_reference_path=framework_reference_path,
                                           capture_api_responses=capture_api_responses,
                                           analysis_mode=analysis_mode, source_root=source,
                                           max_source_pages=max_source_pages, reading_strategy=reading_strategy,
@@ -410,6 +426,14 @@ def analyze_source(
             except APIConfigurationError as exc:
                 agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
             result = agent.get("agent_result") or {}
+            if analysis_mode == "business" and isinstance(result.get("framework_context"), dict):
+                report["framework_context"] = result["framework_context"]
+            investigation = result.get("investigation") or agent.get("investigation")
+            if analysis_mode == "business" and isinstance(investigation, dict):
+                report["investigation"] = {key: investigation[key] for key in (
+                    "mode", "repository_file_count", "selected_file_count", "matched_file_count",
+                    "search_rounds", "fallback_all", "search_stop_reason", "dependency_expansion_complete",
+                ) if key in investigation}
             if agent["runner_status"] == "COMPLETED":
                 report["question_status"] = result.get("status", "COMPLETED")
             else:

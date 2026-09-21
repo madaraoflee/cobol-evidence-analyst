@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+from contextlib import closing
+import sqlite3
 import sys
 import tempfile
 import threading
@@ -83,7 +85,7 @@ class WorkbenchScopeRecoveryTests(unittest.TestCase):
         self.assertIsNotNone(next_result["result"]["snapshot_id"])
         self.assertEqual(next_result["result"]["diagnosis"]["selected_entry"]["program_name"], "SMALL-ENTRY")
 
-    def test_cancellation_keeps_durable_catalog_checkpoints_but_no_current_evidence(self) -> None:
+    def cancel_after_second_file(self, phase: str, **options) -> None:
         for index in range(5):
             self.write(f"{index}.cbl", program(f"WORK-{index}"))
         reached, release = threading.Event(), threading.Event()
@@ -91,7 +93,7 @@ class WorkbenchScopeRecoveryTests(unittest.TestCase):
         def pausing_analyzer(source, output, **kwargs):
             original_progress = kwargs["progress"]
             def pause_at_checkpoint(event):
-                if event["phase"] == "catalog" and event["completed"] == 2:
+                if event["phase"] == phase and event["completed"] == 2:
                     reached.set()
                     if not release.wait(timeout=3):
                         raise AssertionError("Test cancellation was not released")
@@ -100,7 +102,7 @@ class WorkbenchScopeRecoveryTests(unittest.TestCase):
             return analyze_source(source, output, **kwargs)
 
         self.app.analyzer = pausing_analyzer
-        job = self.start()
+        job = self.start(**options)
         try:
             self.assertTrue(reached.wait(timeout=3))
             self.assertTrue(self.app.cancel(job)["cancel_requested"])
@@ -112,8 +114,30 @@ class WorkbenchScopeRecoveryTests(unittest.TestCase):
         with self.assertRaises(RequestError):
             self.app.evidence("ev_previous")
         self.app.analyzer = analyze_source
+
+    def test_repository_search_cancellation_preserves_index_but_invalidates_current_evidence(self) -> None:
+        self.cancel_after_second_file("repository_search")
+        with closing(sqlite3.connect(self.output / "structural-index.sqlite")) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM source_files").fetchone()[0], 5)
+            snapshot_id = connection.execute("SELECT value FROM metadata WHERE key='snapshot_id'").fetchone()[0]
+            self.assertEqual(connection.execute("SELECT value FROM repo_metadata WHERE key='ready'").fetchone()[0], "0")
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM repo_sources").fetchone()[0], 0)
         resumed = self.finish(self.start())
         self.assertEqual(resumed["status"], "COMPLETED")
+        diagnosis = resumed["result"]["diagnosis"]
+        self.assertEqual(diagnosis["scope"]["mode"], "repository_index")
+        self.assertEqual(diagnosis["build_report"]["files"]["skipped_unchanged"], 5)
+        self.assertEqual(diagnosis["repository_search"]["updated_files"], 5)
+        self.assertEqual(resumed["result"]["snapshot_id"], snapshot_id)
+        self.assertTrue(diagnosis["source_manifest_verified"])
+        self.assertEqual(len(resumed["result"]["programs"]), 5)
+
+    def test_explicit_entry_catalog_cancellation_keeps_durable_checkpoints_but_no_current_evidence(self) -> None:
+        self.cancel_after_second_file("catalog", entry="WORK-0")
+        resumed = self.finish(self.start(entry="WORK-0"))
+        self.assertEqual(resumed["status"], "COMPLETED")
+        self.assertIsNotNone(resumed["result"]["snapshot_id"])
+        self.assertEqual(resumed["result"]["diagnosis"]["scope"]["mode"], "entry_static_closure")
         stats = resumed["result"]["diagnosis"]["catalog_report"]["files"]
         self.assertEqual(stats["cached"], 2)
         self.assertEqual(stats["indexed_or_updated"], 3)

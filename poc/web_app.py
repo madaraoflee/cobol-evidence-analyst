@@ -25,6 +25,7 @@ from company_api import APIConfigurationError, CompanyAPIConfig
 from investigation_tools import InvestigationTools
 from repo_inventory import parse_extensions
 from framework_knowledge import framework_status
+from report_view import DIRECT_REPORT_BYTES, VIEW_REPORT_BYTES, report_sha256
 
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
@@ -121,9 +122,18 @@ def _validate_options(payload: object) -> dict:
 
 
 def _read_json(path: Path) -> object:
-    if path.is_symlink() or not path.is_file() or path.stat().st_size > 16_000_000:
+    if path.is_symlink() or not path.is_file():
         raise ValueError("invalid report")
-    return json.loads(path.read_text(encoding="utf-8"))
+    if path.stat().st_size <= DIRECT_REPORT_BYTES:
+        return json.loads(path.read_text(encoding="utf-8"))
+    view_path = path.with_name(f"{path.stem}-view.json")
+    if view_path.is_symlink() or not view_path.is_file() or view_path.stat().st_size > VIEW_REPORT_BYTES:
+        raise ValueError("invalid report view")
+    view = json.loads(view_path.read_text(encoding="utf-8"))
+    projection = view.get("display_projection", {}) if isinstance(view, dict) else {}
+    if projection.get("source_size") != path.stat().st_size or projection.get("source_sha256") != report_sha256(path):
+        raise ValueError("report view does not match complete report")
+    return view
 
 
 def _unaccepted_agent(agent: dict, reason_code: str) -> dict:
@@ -131,6 +141,8 @@ def _unaccepted_agent(agent: dict, reason_code: str) -> dict:
     rejected = {"runner_status": "NOT_READY", "reason_code": reason_code, "agent_result": None}
     if isinstance(agent.get("api_diagnostics"), dict):
         rejected["api_diagnostics"] = agent["api_diagnostics"]
+    if isinstance(agent.get("display_projection"), dict):
+        rejected["display_projection"] = agent["display_projection"]
     response = agent.get("unaccepted_response")
     answer = agent.get("agent_result")
     text = response.get("text") if isinstance(response, dict) else None
@@ -336,6 +348,8 @@ class WorkbenchState:
             project["diagnosis"] = report
             project["catalog_snapshot_id"] = report.get("catalog_snapshot_id")
             program_report = _read_json(output / "programs.json")
+            if program_report.get("display_projection"):
+                project["display_projection"] = program_report["display_projection"]
             agent = _read_json(output / "agent-result.json")
             snapshot = (report.get("build_report") or {}).get("snapshot_id")
             # A failed refresh can deliberately preserve an older SQLite file.

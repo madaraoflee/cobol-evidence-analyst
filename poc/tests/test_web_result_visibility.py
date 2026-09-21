@@ -12,6 +12,7 @@ sys.path.insert(0, str(POC_ROOT))
 
 from analyze_source import analyze_source
 from web_app import RequestError, WorkbenchState, _validate_options
+from report_view import write_report_view
 
 
 class WebResultVisibilityTests(unittest.TestCase):
@@ -44,6 +45,7 @@ class WebResultVisibilityTests(unittest.TestCase):
             change(report, agent, programs)
             (output / "programs.json").write_text(json.dumps(programs), encoding="utf-8")
             (output / "agent-result.json").write_text(json.dumps(agent), encoding="utf-8")
+            write_report_view(output / "agent-result.json", agent)
             return report
 
         app = WorkbenchState(analyzer=analyzer)
@@ -96,6 +98,15 @@ class WebResultVisibilityTests(unittest.TestCase):
         self.assertEqual(project["agent"]["agent_result"]["status"], "PARTIAL")
         self.assertIn("Available business", project["agent"]["agent_result"]["narrative"]["text"])
         self.assertTrue(project["snapshot_id"])
+
+    def test_large_browser_result_keeps_final_answer_and_source_authority(self):
+        def change(report, agent, programs):
+            agent["agent_result"]["page_summaries"] = [{"text": "Repeated page explanation " * 12000}] * 65
+        _, project = self.run_case(change, capture=True)
+        self.assertIn("Available business explanation", project["agent"]["agent_result"]["narrative"]["text"])
+        self.assertEqual(project["agent"]["agent_result"]["snapshot_id"], project["snapshot_id"])
+        self.assertTrue(project["agent"]["display_projection"]["complete_report_on_disk"])
+        self.assertEqual(project["agent"]["api_diagnostics"]["exchanges"][0]["body_text"], "received response")
 
     def test_wrong_answer_snapshot_retains_text_without_accepting_its_citations(self):
         def change(report, agent, programs):

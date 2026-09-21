@@ -55,7 +55,7 @@ test('progress uses real counters, handles unknown totals, and translates all st
   const h=harness('en');h.run("state.mode='real';state.busy=true;state.jobId='job';rememberProgress({phase:'catalog',completed:250,total:1000,unit:'files',elapsed_seconds:12,eta_seconds:36,bytes_completed:1024,eta_scope:'current_phase'});");
   assert.match(h.run('progressPanel()'),/25\.0%/);assert.match(h.run('progressPanel()'),/250 \/ 1,000 files/);
   assert.match(h.run('progressPanel()'),/750 files/);assert.match(h.run('progressPanel()'),/00:36/);
-  for(const phase of ['preparing','discovery','catalog','scope','discovering','reading','parsing','writing','indexing','expanding_copy','resolving_relations','binding_calls','removing','finalizing','verifying','framework','investigating']){
+  for(const phase of ['preparing','discovery','catalog','scope','discovering','reading','parsing','writing','indexing','expanding_copy','resolving_relations','binding_calls','removing','finalizing','verifying','framework','investigating','repository_search','discovering_business','select_scope','planning_search']){
     h.run(`state.progress.phase='${phase}'`);assert.doesNotMatch(h.run('progressPanel()'),/[\u3400-\u9fff]/,phase);
   }
   h.run("rememberProgress({phase:'parsing',completed:0,total:1,unit:'files',file_completed:512,file_total:80000,eta_scope:'current_file',eta_seconds:30});");

@@ -306,11 +306,12 @@ class FrameworkKnowledgeTests(unittest.TestCase):
         self.assertEqual(result["status"], "MATCHED")
         self.assertEqual({row["relative_path"] for row in result["source_matches"]}, {"first.cbl"})
 
-    def test_no_selected_entry_uses_only_unique_program(self):
+    def test_no_selected_entry_uses_all_indexed_programs(self):
         self.build({"first.cbl": source(), "second.cbl": source(name="ENTRYTWO")})
         result = knowledge.build_framework_context(self.database, reference_path=self.reference)
-        self.assertEqual(result["reason_code"], "FRAMEWORK_ENTRY_AMBIGUOUS")
-        self.assertFalse(result["source_matches"])
+        self.assertEqual(result["status"], "MATCHED")
+        self.assertEqual(result["coverage"]["source_scope"], "repository")
+        self.assertEqual({item["relative_path"] for item in result["source_matches"]}, {"first.cbl", "second.cbl"})
 
     def test_generic_language_keywords_do_not_establish_framework_use(self):
         self.reference.write_text("# Reference\n\nCALL COPY COBOL FUNCTION PIC MOVE PROGRAM READ SQL STATUS.\n", encoding="utf-8")
