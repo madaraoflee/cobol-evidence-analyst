@@ -18,21 +18,62 @@ from datetime import datetime, timezone
 
 from repo_inventory import DEFAULT_EXTENSIONS, SOURCE_FORMAT_RE, iter_source_files, validate_source_options, _looks_binary
 from source_catalog import _dependency_targets, _entry_matches
-from statement_facts import sentence_terminated
+from statement_facts import sentence_terminated, sql_host_access
 from structural_index import (
     SCHEMA_VERSION, PROGRAM_ID_RE, SECTION_RE, PARAGRAPH_RE, PARAGRAPH_EXCLUSIONS,
     DATA_ITEM_RE, PERFORM_TARGET_RE, PERFORM_NON_TARGETS, _statement_kind,
+    _extract_data_access, _unique_identifiers,
     _stable_id, _content_hash, _connect, _ensure_schema, _delete_file_facts,
     _resolve_relations, _database_counts,
 )
 
-PARSER_VERSION = "business-sparse-v1.1"
+PARSER_VERSION = "business-sparse-v1.2"
 CHUNK_BYTES = 1024 * 1024
 MAX_PHYSICAL_LINE_CHARS = 65536
 MAX_FACT_CHARS = 131072
 MAX_FACT_LINES = 64
 COPY_EXTENSIONS = {".cpy", ".copy", ".cpb", ".inc"}
 _LINE_END = re.compile(r"\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029]")
+_BUSINESS_RULE_KINDS = frozenset({
+    "ADD", "COMPUTE", "DIVIDE", "EVALUATE", "IF", "INITIALIZE",
+    "MOVE", "MULTIPLY", "READ", "REWRITE", "SET", "SUBTRACT",
+    "WHEN", "WRITE", "DELETE", "START", "UNSTRING", "STRING",
+})
+
+
+def _ensure_business_rules(connection):
+    connection.executescript("""
+        CREATE TABLE IF NOT EXISTS business_rules (
+            rule_id TEXT PRIMARY KEY,
+            relative_path TEXT NOT NULL,
+            program_name TEXT,
+            paragraph_name TEXT,
+            rule_kind TEXT NOT NULL,
+            first_line INTEGER NOT NULL,
+            last_line INTEGER NOT NULL,
+            occurrence_count INTEGER NOT NULL,
+            normalized_text TEXT NOT NULL,
+            reads_json TEXT NOT NULL,
+            writes_json TEXT NOT NULL,
+            condition_json TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_business_rules_path
+            ON business_rules(relative_path,program_name,first_line);
+        CREATE TABLE IF NOT EXISTS business_rule_fields (
+            rule_id TEXT NOT NULL,
+            field_name TEXT NOT NULL,
+            field_role TEXT NOT NULL,
+            PRIMARY KEY(rule_id,field_name,field_role)
+        );
+        CREATE INDEX IF NOT EXISTS idx_business_rule_fields_name
+            ON business_rule_fields(field_name,field_role);
+    """)
+
+
+def _delete_business_rules(connection, relative):
+    connection.execute("DELETE FROM business_rule_fields WHERE rule_id IN "
+                       "(SELECT rule_id FROM business_rules WHERE relative_path=?)", (relative,))
+    connection.execute("DELETE FROM business_rules WHERE relative_path=?", (relative,))
 
 
 def _safe_path(root: Path, relative: str) -> Path:
@@ -177,8 +218,10 @@ class _Facts:
         self.connection, self.relative, self.metadata = connection, relative, metadata
         self.source_format, self.emit = source_format, emit
         self.program, self.program_id, self.section_id, self.paragraph_id = None, None, None, None
-        self.section_name, self.division, self.active_format = None, None, source_format
+        self.section_name, self.paragraph_name = None, None
+        self.division, self.active_format = None, source_format
         self.pending = None
+        self.rule_batch = {}
         self.line_count = 0
         self.boundaries = Counter()
         self.copybook = copybook_hint or Path(relative).suffix.casefold() in COPY_EXTENSIONS
@@ -190,6 +233,46 @@ class _Facts:
         if identity:
             self.connection.execute("UPDATE code_units SET end_line=MAX(start_line,?) WHERE unit_id=?", (end, identity))
             setattr(self, key, None)
+            if kind == "Paragraph":
+                self.paragraph_name = None
+
+    def _business_rule(self, kind, code, start, end):
+        rule_kind = "EXEC_SQL" if kind == "SqlRule" else _statement_kind(code)
+        reads, writes, _ = _extract_data_access(code)
+        if kind == "SqlRule":
+            reads, writes, _ = sql_host_access(code)
+        conditions = _unique_identifiers(code) if rule_kind in {"IF", "EVALUATE", "WHEN"} else []
+        key = _stable_id("rule", self.relative, self.program, self.paragraph_name or self.section_name,
+                         rule_kind, code)
+        row = self.rule_batch.get(key)
+        if row:
+            row[6] = max(row[6], end)
+            row[7] += 1
+        else:
+            self.rule_batch[key] = [key, self.relative, self.program, self.paragraph_name or self.section_name,
+                                    rule_kind, start, end, 1, code,
+                                    json.dumps(reads), json.dumps(writes), json.dumps(conditions)]
+        if len(self.rule_batch) >= 2048:
+            self._flush_rules()
+
+    def _flush_rules(self):
+        if not self.rule_batch:
+            return
+        rows = list(self.rule_batch.values())
+        self.connection.executemany("""
+            INSERT INTO business_rules VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(rule_id) DO UPDATE SET
+                first_line=MIN(first_line,excluded.first_line),
+                last_line=MAX(last_line,excluded.last_line),
+                occurrence_count=occurrence_count+excluded.occurrence_count
+        """, rows)
+        fields = []
+        for row in rows:
+            for role, names in (("read", json.loads(row[9])), ("write", json.loads(row[10])),
+                                ("condition", json.loads(row[11]))):
+                fields.extend((row[0], name, role) for name in names)
+        self.connection.executemany("INSERT OR IGNORE INTO business_rule_fields VALUES (?,?,?)", fields)
+        self.rule_batch.clear()
 
     def _unit(self, kind, name, start, end, text, raw, parse_status="complete", symbol=None):
         evidence = _stable_id("ev", self.relative, self.metadata["sha256"], start, end)
@@ -257,6 +340,8 @@ class _Facts:
                     (_stable_id("rel", self.relative, unit, relation, target.upper()), self.relative, unit,
                      relation, target.upper(), self.program if relation.startswith("PERFORM") or relation == "CALL_TARGET_FROM" else None,
                      None, "unresolved", evidence, json.dumps(metadata)))
+        elif kind in {"BusinessRule", "SqlRule"}:
+            self._business_rule(kind, upper, start, end)
         if not complete:
             self.boundaries["bounded_fact_fragment"] += 1
 
@@ -277,6 +362,18 @@ class _Facts:
         code, next_format, continuation = _clean(raw, self.active_format)
         if self.source_format == "auto":
             self.active_format = next_format
+        if self.pending and self.pending[0] == "SqlRule":
+            if code:
+                self.pending[1].append(code)
+                self.pending[2].append(raw)
+                self.pending[4] = line_number
+            if "END-EXEC" in code.upper():
+                self._flush(complete=True)
+            elif len(self.pending[2]) >= MAX_FACT_LINES or sum(map(len, self.pending[2])) > MAX_FACT_CHARS:
+                self._flush()
+                self.sql = True
+                self.boundaries["embedded_statement_exceeds_fact_budget"] += 1
+            return
         if self.pending:
             kind = self.pending[0]
             parameter_tail = bool(PARAGRAPH_RE.match(code) and (
@@ -290,7 +387,7 @@ class _Facts:
             if kind == "Program":
                 starts_new = not bool(re.fullmatch(r"['\"]?[A-Z0-9_$#@-]+['\"]?\.?", code, re.I)) if code else False
             if starts_new or len(self.pending[2]) >= MAX_FACT_LINES or sum(map(len, self.pending[2])) + len(raw) > MAX_FACT_CHARS:
-                self._flush(complete=starts_new and kind == "Dependency")
+                self._flush(complete=starts_new)
             else:
                 self.pending[1].append(code)
                 self.pending[2].append(raw)
@@ -311,9 +408,10 @@ class _Facts:
         if self.sql:
             self.sql = "END-EXEC" not in upper
             return
-        if upper.startswith("EXEC "):
-            self.sql = "END-EXEC" not in upper
-            self.boundaries["embedded_statement_not_structurally_expanded"] += 1
+        if upper.startswith("EXEC SQL"):
+            self.pending = ["SqlRule", [code], [raw], line_number, line_number, False]
+            if "END-EXEC" in upper:
+                self._flush(complete=True)
             return
         if re.match(r"^END\s+PROGRAM\b", upper):
             self._close("Paragraph", line_number)
@@ -344,6 +442,7 @@ class _Facts:
             return
         elif (self.division == "PROCEDURE" or self.copybook) and (match := PARAGRAPH_RE.match(code)) and match.group(1).upper() not in PARAGRAPH_EXCLUSIONS:
             self._close("Paragraph", line_number - 1)
+            self.paragraph_name = match.group(1).upper()
             self.paragraph_id, _ = self._unit("Paragraph", match.group(1).upper(), line_number, line_number, code, raw, symbol="Paragraph")
             return
         elif (self.copybook or self.section_name == "LINKAGE") and DATA_ITEM_RE.match(code):
@@ -353,6 +452,8 @@ class _Facts:
             unquoted = re.sub(r"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"", " ", upper)
             if targets or dynamic or PERFORM_TARGET_RE.search(unquoted) or re.search(r"\b(?:CALL|COPY)\s*$", unquoted):
                 kind = "Dependency"
+        if kind is None and (self.division == "PROCEDURE" or self.copybook) and _statement_kind(upper) in _BUSINESS_RULE_KINDS:
+            kind = "BusinessRule"
         if kind:
             self.pending = [kind, [code], [raw], line_number, line_number, False]
             if sentence_terminated(code) and not (kind == "Program" and not PROGRAM_ID_RE.match(code)):
@@ -360,6 +461,7 @@ class _Facts:
 
     def finish(self):
         self._flush()
+        self._flush_rules()
         self._close("Paragraph", self.line_count)
         self._close("Section", self.line_count)
         self._close("Program", self.line_count)
@@ -436,6 +538,7 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
     connection = _connect(database.resolve())
     try:
         _ensure_schema(connection)
+        _ensure_business_rules(connection)
         prior = dict(connection.execute("SELECT key,value FROM metadata"))
         prior_boundaries = json.loads(prior.get("business_file_boundaries", "{}"))
         prior_stats = json.loads(prior.get("file_stats", "{}"))
@@ -479,6 +582,7 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                     line_count, artifact = old["line_count"], old["artifact_kind"]
                     file_boundaries[relative] = prior_boundaries.get(relative, {})
                 else:
+                    _delete_business_rules(connection, relative)
                     _delete_file_facts(connection, relative)
                     facts = _Facts(connection, relative, metadata, source_format, lambda done: emit(
                         "parsing", completed=len(selected), total=len(queued), current_file=relative, file_completed=done, file_unit="lines"),
@@ -526,6 +630,7 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                 emit("indexing", completed=len(selected), total=len(queued), current_file=relative)
             removed = set(previous) - set(selected)
             for relative in removed:
+                _delete_business_rules(connection, relative)
                 _delete_file_facts(connection, relative)
             _resolve_relations(connection)
             _resolve_copies(connection)

@@ -32,6 +32,7 @@ html[lang="en"] .brand small{font-size:7px}html[lang="en"] .entry-choice{flex-wr
 /* Keep the business explanation first; supporting detail opens on demand. */
 .answer-support,.repository-investigation{border-top:1px solid var(--line,#e6e7eb);padding:14px 0;margin-top:12px;font-size:13px;color:var(--muted,#677080)}
 .answer-support>summary,.repository-investigation>summary{cursor:pointer;font-weight:600;color:var(--ink,#253142)}
+.message-related{font-size:11px;color:var(--muted);margin-top:14px}.message-related>summary{cursor:pointer}.message-related ul{max-height:240px;overflow:auto;padding-left:20px;margin:10px 0}.message-related li{margin:7px 0;overflow-wrap:anywhere}.message-related small{display:block;color:var(--muted)}
 .repository-investigation p,.answer-support p{line-height:1.65;overflow-wrap:anywhere}
 .repository-investigation li{margin:10px 0;overflow-wrap:anywhere}
 .repository-investigation li small{display:block;line-height:1.6;margin-top:4px}

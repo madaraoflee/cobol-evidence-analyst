@@ -66,6 +66,17 @@ test('historical source links use the message and conversation identity, and sta
   h.respond(()=>({error:{code:'INDEX_CHANGED'}}));await h.run("loadConversationEvidence('assistant-1','ev-1')");assert.match(h.run('conversationEvidenceView()'),/request.cbl/);assert.doesNotMatch(h.run('conversationEvidenceView()'),/MOVE<\/span> REQUEST/);
 });
 
+test('an answer keeps the relevant source map available without protocol status in the conversation',()=>{
+  const h=harness();setup(h,[{id:'assistant-related',role:'assistant',content:'The request is reviewed after the threshold.',status:'PARTIAL',
+    related_sources:[{relative_path:'request.cbl',program_names:['REQUEST']},{relative_path:'review.cbl',program_names:['REVIEW']}]}]);
+  const html=h.run('conversationWorkbench()');
+  assert.match(html,/The request is reviewed after the threshold/);
+  assert.match(html,/review.cbl/);
+  assert.match(html,/Related source · 2/);
+  assert.doesNotMatch(html,/部分解讀/);
+  assert.doesNotMatch(html,/value="full_chain"/);
+});
+
 test('server phase names render compactly without invented percentages and in all three languages',()=>{
   const h=harness();setup(h,firstMessages);h.run("state.busy=true;state.jobId='job';state.jobKind='question'");
   for(const phase of ['using_index','retrieving','answering']){h.run(`rememberProgress({phase:'${phase}',completed:1,total:5,unit:'requests'})`);const html=h.run('conversationProgress()');assert.doesNotMatch(html,/\d+%|Estimating|[\u3400-\u9fff]/);assert.match(h.run('renderWorkbench()'),/A valid request is accepted/);}

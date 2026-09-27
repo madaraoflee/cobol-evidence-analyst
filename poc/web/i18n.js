@@ -3,6 +3,10 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+分析範圍|分析范围|Scope
+從哪個程式開始|从哪个程序开始|Start from a program
+不選擇程式時，系統會在整個代碼庫中查找。|不选择程序时，系统会在整个代码库中查找。|Leave this blank to search the whole codebase.
+查看相關源碼|查看相关源码|Related source
 合成源碼 · 示例起點|合成源码 · 示例起点|Synthetic source · Example starters
 選一個問題，開始對話。|选一个问题，开始对话。|Choose a question to start a conversation.
 案例只提供起始問題。你可以改寫問題，接著自由追問；回答由目前源碼與模型生成。|案例只提供起始问题。你可以改写问题，接着自由追问；回答由当前源码与模型生成。|Examples are starting questions. Edit one and keep asking follow-ups; answers are generated from the current source and model.

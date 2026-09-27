@@ -499,18 +499,25 @@ function scopeNotice(){
 }
 
 function conversationComposer(){
-  return ui`<section class="conversation-composer"><form id="question-form"><label class="sr-only" for="question-input">業務問題</label><textarea id="question-input" rows="3" placeholder="提出業務問題，或接著上一個回答繼續追問…" ${!sourceUsable()?'disabled':''}>${escapeHTML(state.question)}</textarea><div class="composer-bottom"><details class="conversation-options"><summary>分析選項</summary><label for="conversation-strategy">調查方式</label><select id="conversation-strategy" ${state.busy?'disabled':''}><option value="retrieval" ${state.readingStrategy!=='full_chain'?'selected':''}>按問題檢索 · 建議</option><option value="full_chain" ${state.readingStrategy==='full_chain'?'selected':''}>深入閱讀完整業務鏈 · 較慢</option></select><label for="entry-select">分析範圍</label><select id="entry-select" ${state.busy?'disabled':''}>${entryOptions()}</select><small>一般提問會查找相關片段與呼叫關係；只有深入閱讀才逐批處理完整範圍。</small></details><span class="composer-hint">Enter 發送 · Shift + Enter 換行</span><button class="button primary" type="submit" ${state.busy || state.conversationLoading || !sourceUsable()?'disabled':''}>${icon('arrow')}發送</button></div></form></section>`;
+  return ui`<section class="conversation-composer"><form id="question-form"><label class="sr-only" for="question-input">業務問題</label><textarea id="question-input" rows="3" placeholder="提出業務問題，或接著上一個回答繼續追問…" ${!sourceUsable()?'disabled':''}>${escapeHTML(state.question)}</textarea><div class="composer-bottom"><details class="conversation-options"><summary>分析範圍</summary><label for="entry-select">從哪個程式開始</label><select id="entry-select" ${state.busy?'disabled':''}>${entryOptions()}</select><small>不選擇程式時，系統會在整個代碼庫中查找。</small></details><span class="composer-hint">Enter 發送 · Shift + Enter 換行</span><button class="button primary" type="submit" ${state.busy || state.conversationLoading || !sourceUsable()?'disabled':''}>${icon('arrow')}發送</button></div></form></section>`;
 }
 function conversationMessage(message){
-  const user=message.role==='user';const id=String(message.id || '');const status=String(message.status || '').toUpperCase();
-  const refs=Array.isArray(message.evidence_refs)?message.evidence_refs:[];const framework=Array.isArray(message.framework_references)?message.framework_references:[];
-  const text=typeof message.content==='string'?message.content:'';
-  const markup=user?`<p>${escapeHTML(text)}</p>`:narrativeMarkup(text,refs,framework)
+  const user=message.role==='user';
+  const id=String(message.id || '');
+  const status=String(message.status || '').toUpperCase();
+  const refs=Array.isArray(message.evidence_refs)?message.evidence_refs:[];
+  const framework=Array.isArray(message.framework_references)?message.framework_references:[];
+  const related=Array.isArray(message.related_sources)?message.related_sources:[];
+  const answer=typeof message.content==='string'?message.content:'';
+  const markup=user?`<p>${escapeHTML(answer)}</p>`:narrativeMarkup(answer,refs,framework)
     .replace(/data-evidence="/g,`data-message-id="${escapeHTML(id)}" data-turn-evidence="`)
     .replace(/data-framework-reference="/g,`data-message-id="${escapeHTML(id)}" data-turn-framework="`)
     .replace(/href="#framework-reference-([^"]+)"/g,`href="#turn-${escapeHTML(id)}-framework-$1"`);
   const failed=['FAILED','CANCELLED','INTERRUPTED','ABSTAINED','SAFE_STOP','BLOCKED'].includes(status);
-  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}" data-message="${escapeHTML(id)}"><div class="message-author">${user?t('你'):t('業務分析助手')}${status==='PARTIAL'?`<span>${escapeHTML(t('部分解讀'))}</span>`:''}</div><div class="message-content narrative-body">${markup || (failed?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${!user && (refs.length || framework.length)?`<details class="message-references"><summary>${escapeHTML(t('查看回答依據'))} · ${refs.length+framework.length}</summary>${refs.map((ref,index)=>`<button class="citation" data-message-id="${escapeHTML(id)}" data-turn-evidence="${escapeHTML(ref.evidence_id)}">${index+1} · ${escapeHTML(ref.relative_path || ref.path || '')} · L${Number(ref.start_line)}–${Number(ref.end_line)}</button>`).join('')}${framework.map(ref=>`<details id="turn-${escapeHTML(id)}-framework-${escapeHTML(encodeURIComponent(ref.reference_id))}" class="message-framework"><summary>${escapeHTML(ref.heading || ref.reference_id)}</summary><pre>${escapeHTML(ref.text || '')}</pre></details>`).join('')}</details>`:''}${failed?`<button class="message-retry" data-retry-message="${escapeHTML(id)}">${escapeHTML(t('重試這個問題'))}</button>`:''}</article>`;
+  const relatedMarkup=!user && related.length>1?`<details class="message-related"><summary>${escapeHTML(t('查看相關源碼'))} · ${related.length}</summary><ul>${related.map(item=>`<li>${escapeHTML((item.program_names || []).join('、') || item.relative_path)} <small>${escapeHTML(item.relative_path)}</small></li>`).join('')}</ul></details>`:'';
+  const referenceMarkup=!user && (refs.length || framework.length)?`<details class="message-references"><summary>${escapeHTML(t('查看回答依據'))} · ${refs.length+framework.length}</summary>${refs.map((ref,index)=>`<button class="citation" data-message-id="${escapeHTML(id)}" data-turn-evidence="${escapeHTML(ref.evidence_id)}">${index+1} · ${escapeHTML(ref.relative_path || ref.path || '')} · L${Number(ref.start_line)}–${Number(ref.end_line)}</button>`).join('')}${framework.map(ref=>`<details id="turn-${escapeHTML(id)}-framework-${escapeHTML(encodeURIComponent(ref.reference_id))}" class="message-framework"><summary>${escapeHTML(ref.heading || ref.reference_id)}</summary><pre>${escapeHTML(ref.text || '')}</pre></details>`).join('')}</details>`:'';
+  const retryMarkup=failed?`<button class="message-retry" data-retry-message="${escapeHTML(id)}">${escapeHTML(t('重試這個問題'))}</button>`:'';
+  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}" data-message="${escapeHTML(id)}"><div class="message-author">${user?t('你'):t('業務分析助手')}</div><div class="message-content narrative-body">${markup || (failed?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${relatedMarkup}${referenceMarkup}${retryMarkup}</article>`;
 }
 function conversationProgress(){
   const v=progressViewModel();
@@ -782,7 +789,7 @@ document.addEventListener('submit',async event=>{
     if(!sourceUsable()){toast(t('請先成功接入本機源碼。'));return;}
     if(!state.apiConfigured){showSettings();return;}
     const p=state.project;const opts=p.diagnosis.source_options || {};
-    await startJob({source:p.source,output:p.output,encoding:opts.encoding || 'auto',source_format:opts.source_format || 'auto',extensions:opts.extensions?.join(',') || null,entry:state.entry || null,question:state.question.trim(),max_source_pages:state.maxSourcePages,reading_strategy:state.readingStrategy,allow_network:true,index_mode:opts.index_mode || 'catalog',...(conversationMode()?{conversation_id:state.conversation?.id || null}:{})});
+    await startJob({source:p.source,output:p.output,encoding:opts.encoding || 'auto',source_format:opts.source_format || 'auto',extensions:opts.extensions?.join(',') || null,entry:state.entry || null,question:state.question.trim(),max_source_pages:state.maxSourcePages,reading_strategy:conversationMode()?'retrieval':state.readingStrategy,allow_network:true,index_mode:opts.index_mode || 'catalog',...(conversationMode()?{conversation_id:state.conversation?.id || null}:{})});
   }
 });
 function pastedPath(value){const text=value.trim();return text.startsWith('"')&&text.endsWith('"')?text.slice(1,-1):text;}

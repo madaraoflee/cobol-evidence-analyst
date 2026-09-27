@@ -459,6 +459,8 @@ class WorkbenchState:
             details={"evidence_refs": agent.get("evidence_refs", []),
                      "cited_evidence_ids": [r.get("evidence_id") for r in (agent.get("narrative") or {}).get("citations", []) if r.get("evidence_id")],
                      "framework_references": (agent.get("framework_context") or {}).get("references", []),
+                     "related_sources": [{key: item[key] for key in ("relative_path", "program_names", "direct_source_match") if key in item}
+                         for item in ((agent.get("investigation") or {}).get("business_map") or {}).get("programs", [])],
                      "snapshot_id": agent.get("snapshot_id"), "metrics": agent.get("metrics", {}),
                      "diagnostics": agent.get("diagnostics", [])})
         self.conversation = self.conversation_store.get(identifier)

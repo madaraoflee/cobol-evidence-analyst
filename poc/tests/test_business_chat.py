@@ -98,6 +98,97 @@ class BusinessChatTests(unittest.TestCase):
                 self.assertEqual(actual, "\n".join(path.read_text().splitlines()[citation["start_line"] - 1:citation["end_line"]]))
                 self.assertNotIn(self.config.api_key, json.dumps(output))
 
+    def test_entry_question_reaches_a_distant_rule_without_page_by_page_model_calls(self):
+        for index in range(31):
+            body = (f'CALL "ENTRY-{index + 1:03d}".' if index < 30 else
+                    "DISPLAY 'UNCHANGED'.\n" * 1600 +
+                    "IF INPUT-POINTS > 5\nCOMPUTE FINAL-POINTS = INPUT-POINTS * 2\nEND-IF.")
+            self.write(f"node-{index:03d}.cbl", f"ENTRY-{index:03d}", body,
+                       "01 INPUT-POINTS PIC 9(4).\n01 FINAL-POINTS PIC 9(4).")
+        self.build()
+
+        def respond(payload, _envelope):
+            programs = payload["business_map"]["programs"]
+            self.assertEqual(len(programs), 31)
+            self.assertEqual(programs[-1]["relative_path"], "node-030.cbl")
+            rule = next(item for item in payload["business_map"]["rule_leads"]
+                        if item["relative_path"] == "node-030.cbl" and item["rule_kind"] == "COMPUTE")
+            page = next(page for page in source_pages(payload)
+                        if page["relative_path"] == rule["relative_path"] and "FINAL-POINTS" in page["source_text"])
+            self.assertIn("IF INPUT-POINTS > 5", page["source_text"])
+            return reply(f"输入积分大于5时，结果按输入积分的两倍计算。[{page['evidence_id']}]")
+
+        output = self.ask("ENTRY-000 最终怎样决定积分？", respond)
+        self.assertEqual(output["runner_status"], "COMPLETED")
+        self.assertEqual(output["agent_result"]["metrics"]["model_requests"], 1)
+        self.assertIn("node-030.cbl", output["agent_result"]["investigation"]["business_map"]["selected_paths"])
+
+    def test_large_entry_keeps_its_deep_call_and_downstream_calculation_in_one_request(self):
+        filler = "\n".join(f"ADD {index} TO WORK-COUNT." for index in range(1800))
+        self.write("entry.cbl", "ENTRY-RULE", filler + '\nCALL "CALC-RULE".',
+                   "01 WORK-COUNT PIC 9(5).")
+        self.write("calc.cbl", "CALC-RULE", "IF REQUEST-COUNT > 4\n"
+                   "COMPUTE RESULT-COUNT = REQUEST-COUNT * 2\nEND-IF.",
+                   "01 REQUEST-COUNT PIC 9(5).\n01 RESULT-COUNT PIC 9(5).")
+        self.build()
+
+        def respond(payload, _envelope):
+            pages = source_pages(payload)
+            deep = next(page for page in pages if 'CALL "CALC-RULE"' in page["source_text"])
+            leaf = next(page for page in pages if "RESULT-COUNT = REQUEST-COUNT * 2" in page["source_text"])
+            self.assertGreater(deep["start_line"], 1000)
+            self.assertIn("IF REQUEST-COUNT > 4", leaf["source_text"])
+            self.assertEqual({item["relative_path"] for item in payload["business_map"]["programs"]},
+                             {"entry.cbl", "calc.cbl"})
+            return reply(f"请求数量大于4时，结果按两倍计算。[{leaf['evidence_id']}]")
+
+        output = self.ask("ENTRY-RULE 的处理最终如何计算？", respond)
+        self.assertEqual(output["agent_result"]["metrics"]["model_requests"], 1)
+        self.assertIn("两倍计算", output["agent_result"]["answer"])
+
+    def test_impact_question_expands_all_users_of_a_shared_copy(self):
+        (self.source / "sharedset.cpy").write_text("01 RULE-SET-42 PIC 9 VALUE 7.\n", encoding="utf-8")
+        for index in range(12):
+            self.write(f"member-{index:02d}.cbl", f"MEMBER-{index:02d}",
+                       "COPY SHAREDSET.\nIF REQUEST-VALUE > RULE-SET-42\nMOVE 'REVIEW' TO REQUEST-STATE\nEND-IF.")
+        self.build()
+
+        def respond(payload, _envelope):
+            business_map = payload["business_map"]
+            affected = [item for item in business_map["programs"] if item["relative_path"].startswith("member-")]
+            self.assertEqual(len(affected), 12)
+            page = next(page for page in source_pages(payload) if page["relative_path"] == "sharedset.cpy")
+            return reply(f"这项设定被12个处理程序引用；它控制请求进入复核的阈值。[{page['evidence_id']}]")
+
+        output = self.ask("如果改 RULE-SET-42，哪些程序会受到影响？", respond)
+        self.assertEqual(output["runner_status"], "COMPLETED")
+        self.assertEqual(output["agent_result"]["investigation"]["business_map"]["intent"], "impact")
+        self.assertEqual(len(self.requests), 1)
+
+    def test_cross_language_search_refreshes_the_business_map_before_answering(self):
+        for index in range(12):
+            self.write(f"orientation-{index:02d}.cbl", f"ORIENTATION-{index:02d}", "CONTINUE.")
+        self.write("z-score.cbl", "SCORE-RULE", "IF REQUEST-SCORE > POINTS-CAP\n"
+                   "COMPUTE FINAL-SCORE = REQUEST-SCORE * 3\nEND-IF.",
+                   "01 REQUEST-SCORE PIC 9(4).\n01 POINTS-CAP PIC 9(4) VALUE 11.\n"
+                   "01 FINAL-SCORE PIC 9(4).")
+        self.build()
+
+        def respond(payload, _envelope):
+            if len(self.requests) == 1:
+                self.assertFalse(payload["business_map"]["direct_paths"])
+                return reply('{"search":["POINTS-CAP"]}')
+            self.assertIn("z-score.cbl", payload["business_map"]["direct_paths"])
+            self.assertTrue(any(item["rule_kind"] == "COMPUTE"
+                                for item in payload["business_map"]["rule_leads"]))
+            page = next(page for page in source_pages(payload) if page["relative_path"] == "z-score.cbl")
+            return reply(f"超过11分后，最终积分按请求积分的三倍计算。[{page['evidence_id']}]")
+
+        output = self.ask("积分上限之后怎么算？", respond)
+        self.assertEqual(output["runner_status"], "COMPLETED")
+        self.assertEqual(len(self.requests), 2)
+        self.assertIn("超过11分", output["agent_result"]["answer"])
+
     def test_followup_carries_history_and_prior_source_even_with_competing_generic_matches(self):
         self.write_window(path="z-window.cbl")
         for index in range(14):
@@ -113,6 +204,28 @@ class BusinessChatTests(unittest.TestCase):
         output = self.ask("那超过上限会怎样？", respond, history=history)
         self.assertIn("超过9天进入REVIEW", output["agent_result"]["answer"])
         self.assertEqual(output["agent_result"]["metrics"]["history_messages"], 2)
+
+    def test_new_topic_does_not_count_previous_citation_as_a_current_source_match(self):
+        self.write_window(path="window.cbl")
+        self.write("fee.cbl", "FEE-CALC", "COMPUTE TOTAL-FEE = BASE-FEE * FEE-RATE.",
+                   "01 BASE-FEE PIC 9(4).\n01 FEE-RATE PIC 9V99.\n01 TOTAL-FEE PIC 9(5)V99.")
+        self.build()
+        first = self.ask("TIDE-WINDOW", self.grounded_window_reply)["agent_result"]
+        history = [{"role": "user", "content": "TIDE-WINDOW 如何处理？"},
+                   {"role": "assistant", "content": first["answer"], "evidence_refs": first["evidence_refs"]}]
+
+        def respond(payload, _envelope):
+            if len(self.requests) == 2:
+                self.assertFalse(payload["business_map"]["direct_paths"])
+                self.assertIn("当前问题尚未命中源码", payload["task"])
+                return reply('{"search":["FEE-RATE"]}')
+            self.assertIn("fee.cbl", payload["business_map"]["direct_paths"])
+            page = next(page for page in source_pages(payload) if page["relative_path"] == "fee.cbl")
+            return reply(f"总费用按基础费用乘以费率计算。[{page['evidence_id']}]")
+
+        output = self.ask("这笔费用怎么算？", respond, history=history)
+        self.assertEqual(output["agent_result"]["metrics"]["model_requests"], 2)
+        self.assertIn("基础费用乘以费率", output["agent_result"]["answer"])
 
     def test_model_can_search_a_new_business_term_then_answer_from_new_evidence(self):
         for index in range(12):

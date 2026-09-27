@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from contextlib import closing
 from datetime import datetime, timezone
 import json
 import sqlite3
@@ -15,8 +16,9 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
                          encoding, source_format, config, api_options, transport,
                          framework_reference_path, capture_api_responses, history,
                          progress, check_cancel):
-    from repository_discovery import repository_search_overview
+    from repository_discovery import _connect, repository_search_overview
     from business_chat import run_business_chat
+    from business_index import PARSER_VERSION
     from analyze_source import _write
     try:
         path = output / "diagnosis.json"
@@ -35,6 +37,10 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
         overview = repository_search_overview(output / "structural-index.sqlite", source)
         if (previous.get("build_report") or {}).get("snapshot_id") != overview["snapshot_id"]:
             return None
+        with closing(_connect(output / "structural-index.sqlite")) as connection:
+            parser = connection.execute("SELECT value FROM metadata WHERE key='parser_version'").fetchone()
+            if parser is None or parser[0] != PARSER_VERSION:
+                return None
     except (OSError, ValueError, KeyError, sqlite3.Error):
         return None
     if check_cancel:
