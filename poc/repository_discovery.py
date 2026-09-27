@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 import sqlite3
 
-from source_reading import _cancel, _identify_page, _persist_page, _verified_lines, _verified_pages
+from source_reading import _cancel, _identify_page, _persist_page, _relative_path, _safe_file, _verified_lines, _verified_pages
 
 
 SEARCH_VERSION = "repository-text-v1"
@@ -75,6 +75,10 @@ def _schema(connection):
             start_line INTEGER NOT NULL, end_line INTEGER NOT NULL, source_sha256 TEXT NOT NULL,
             span_truncated INTEGER NOT NULL, fallback_text TEXT NOT NULL DEFAULT '');
         CREATE INDEX IF NOT EXISTS repo_pages_path ON repo_pages(relative_path);
+        CREATE TABLE IF NOT EXISTS repo_source_state (
+            relative_path TEXT PRIMARY KEY, sha256 TEXT NOT NULL,
+            size INTEGER NOT NULL, mtime_ns INTEGER NOT NULL, ctime_ns INTEGER NOT NULL);
+        CREATE INDEX IF NOT EXISTS repo_relations_path ON relations(relative_path,relation_type);
         CREATE VIRTUAL TABLE IF NOT EXISTS repo_fts USING fts5(tokens, tokenize='unicode61 remove_diacritics 2');
     """)
 
@@ -83,6 +87,7 @@ def _remove_file(connection, relative):
     connection.execute("DELETE FROM repo_fts WHERE rowid IN (SELECT page_id FROM repo_pages WHERE relative_path=?)", (relative,))
     connection.execute("DELETE FROM repo_pages WHERE relative_path=?", (relative,))
     connection.execute("DELETE FROM repo_sources WHERE relative_path=?", (relative,))
+    connection.execute("DELETE FROM repo_source_state WHERE relative_path=?", (relative,))
 
 
 def ensure_repository_search(database_path, source_root, check_cancel=None, progress=None):
@@ -123,6 +128,7 @@ def ensure_repository_search(database_path, source_root, check_cancel=None, prog
         for offset, item in enumerate(files, 1):
             _cancel(check_cancel)
             relative = item["relative_path"]
+            verified_before = _safe_file(root, relative).stat()
             previous = existing.get(relative, {})
             reusable = prior.get("version") == SEARCH_VERSION and all(previous.get(key) == item[key] for key in ("sha256", "encoding", "line_count"))
             # A structural rebuild may remove old evidence even for unchanged
@@ -149,6 +155,11 @@ def ensure_repository_search(database_path, source_root, check_cancel=None, prog
                     truncated += int(page["span_truncated"])
                 connection.execute("INSERT INTO repo_sources VALUES (?,?,?,?,?,?)", (relative, item["sha256"], item["encoding"], item["line_count"], count, truncated))
                 updated += 1
+            info = _safe_file(root, relative).stat()
+            if (verified_before.st_size, verified_before.st_mtime_ns, verified_before.st_ctime_ns) != (info.st_size, info.st_mtime_ns, info.st_ctime_ns):
+                raise ValueError("SOURCE_HASH_MISMATCH")
+            connection.execute("INSERT OR REPLACE INTO repo_source_state VALUES (?,?,?,?,?)",
+                               (relative, item["sha256"], info.st_size, info.st_mtime_ns, info.st_ctime_ns))
             if progress:
                 progress({"phase": "repository_search", "stage": "indexing", "completed": offset,
                           "total": len(files), "unit": "files", "current_file": relative})
@@ -318,5 +329,372 @@ def discover_repository(database_path, question, *, search_terms=None, check_can
                 "search_terms": terms, "fallback_all": fallback, "deferred_candidates": deferred,
                 "boundaries": boundaries, "selection_is_relevance_proof": False,
                 "all_matching_files_selected": True, "dependency_expansion_complete": not deferred and not unresolved}
+    finally:
+        connection.close()
+
+
+# Interactive questions read persisted evidence, not every source file. Index
+# refresh is an explicit ingestion operation; the snapshot remains identifiable.
+def _fast_snapshot(connection, source_root=None):
+    metadata = dict(connection.execute("SELECT key,value FROM metadata WHERE key IN ('snapshot_id','source_root_hash','indexed_at_utc','index_kind')"))
+    try:
+        search = dict(connection.execute("SELECT key,value FROM repo_metadata"))
+    except sqlite3.OperationalError as exc:
+        raise ValueError("REPOSITORY_SEARCH_NOT_READY") from exc
+    if (search.get("ready") != "1" or search.get("snapshot_id") != metadata.get("snapshot_id")
+            or search.get("version") != SEARCH_VERSION):
+        raise ValueError("REPOSITORY_SEARCH_STALE")
+    if source_root is not None:
+        raw = Path(source_root).expanduser()
+        if raw.is_symlink():
+            raise ValueError("SOURCE_PATH_INVALID")
+        root = raw.resolve()
+        expected = metadata.get("source_root_hash")
+        if expected and expected != hashlib.sha256(str(root).encode()).hexdigest():
+            raise ValueError("SOURCE_ROOT_MISMATCH")
+    else:
+        root = None
+    overview = json.loads(search["overview"])
+    if overview.get("snapshot_id") != metadata.get("snapshot_id"):
+        raise ValueError("REPOSITORY_SEARCH_STALE")
+    return root, {**overview, "indexed_at_utc": metadata.get("indexed_at_utc"),
+                  "cache_reused": True, "source_refresh_performed": False,
+                  "source_state_scope": "indexed_snapshot"}
+
+
+def repository_search_overview(database_path, source_root=None):
+    """Open the existing search snapshot without listing or reading source files."""
+    connection = _connect(database_path)
+    try:
+        connection.execute("BEGIN")
+        return _fast_snapshot(connection, source_root)[1]
+    finally:
+        connection.close()
+
+
+def _state_schema(connection):
+    # Supports a previously built index without asking users to reimport it.
+    connection.execute("CREATE TABLE IF NOT EXISTS repo_source_state (relative_path TEXT PRIMARY KEY, sha256 TEXT NOT NULL, size INTEGER NOT NULL, mtime_ns INTEGER NOT NULL, ctime_ns INTEGER NOT NULL)")
+
+
+def _current_selected_source(connection, root, relative, cache, check_cancel):
+    """Check only a retrieved file; unchanged files need no content I/O."""
+    if relative in cache["states"]:
+        return cache["states"][relative]
+    _cancel(check_cancel)
+    item = connection.execute("SELECT relative_path,sha256,encoding,line_count FROM source_files WHERE relative_path=?", (relative,)).fetchone()
+    state = {"relative_path": relative, "current": False}
+    if item is None:
+        state["reason_code"] = "SOURCE_NOT_INDEXED"
+        cache["states"][relative] = state
+        return state
+    try:
+        info = _safe_file(root, relative).stat()
+        cache["checked_files"] += 1
+        observed = [info.st_size, info.st_mtime_ns, info.st_ctime_ns]
+        saved = connection.execute("SELECT sha256,size,mtime_ns,ctime_ns FROM repo_source_state WHERE relative_path=?", (relative,)).fetchone()
+        expected = list(saved)[1:] if saved and saved["sha256"] == item["sha256"] else None
+        if expected is None:
+            if "legacy_stats" not in cache:
+                row = connection.execute("SELECT value FROM metadata WHERE key='file_stats'").fetchone()
+                cache["legacy_stats"] = json.loads(row[0]) if row else {}
+            expected = cache["legacy_stats"].get(relative)
+        if expected == observed:
+            cache["reused_files"] += 1
+            state.update(current=True, verification="size_mtime_ctime", source_sha256=item["sha256"])
+        else:
+            cache["content_verified_files"] += 1
+            for _ in _verified_lines(root, dict(item), check_cancel, 1):
+                pass
+            after = _safe_file(root, relative).stat()
+            if observed != [after.st_size, after.st_mtime_ns, after.st_ctime_ns]:
+                raise ValueError("SOURCE_HASH_MISMATCH")
+            state.update(current=True, verification="content_hash", source_sha256=item["sha256"])
+        connection.execute("INSERT OR REPLACE INTO repo_source_state VALUES (?,?,?,?,?)", (relative, item["sha256"], *observed))
+    except ValueError as exc:
+        if str(exc) not in {"SOURCE_PATH_INVALID", "SOURCE_HASH_MISMATCH", "SOURCE_LINE_COUNT_MISMATCH", "SOURCE_ENCODING_INVALID"}:
+            raise
+        state["reason_code"] = str(exc)
+    cache["states"][relative] = state
+    return state
+
+
+def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=None):
+    """Crop on physical line boundaries and persist a citation for the crop."""
+    if row["span_truncated"] or not row["evidence_id"]:
+        return None
+    evidence = connection.execute("SELECT relative_path,start_line,end_line,source_sha256,text FROM evidence_spans WHERE evidence_id=?", (row["evidence_id"],)).fetchone()
+    if evidence is None or any(evidence[key] != row[key] for key in ("relative_path", "start_line", "end_line", "source_sha256")):
+        raise ValueError("REPOSITORY_SEARCH_STALE")
+    original = {**dict(evidence), "source_text": evidence["text"], "span_truncated": False}
+    if _identify_page(original) != row["evidence_id"]:
+        raise ValueError("EVIDENCE_ID_CONFLICT")
+    lines = evidence["text"].split("\n")
+    lower = max(0, (start_line or row["start_line"]) - row["start_line"])
+    upper = min(len(lines), (end_line or row["end_line"]) - row["start_line"] + 1)
+    if lower >= upper:
+        return None
+    if start_line is None:
+        folded = [line.casefold() for line in lines]
+        hits = [(sum(min(32, len(term)) for term in terms if term in text), index)
+                for index, text in enumerate(folded)]
+        _, center = max(hits, default=(0, lower), key=lambda pair: (pair[0], -pair[1]))
+        if row.get("focus_line") is not None:
+            center = row["focus_line"] - row["start_line"]
+        center = min(max(center, lower), upper - 1)
+        first, last, used = center, center + 1, len(lines[center])
+        while used <= budget and (first > lower or last < upper):
+            # Keep immediate context on both sides of the matching line.
+            changed = False
+            for direction in (-1, 1):
+                index = first - 1 if direction < 0 else last
+                if lower <= index < upper and used + len(lines[index]) + 1 <= budget:
+                    used += len(lines[index]) + 1
+                    first, last = (index, last) if direction < 0 else (first, index + 1)
+                    changed = True
+            if not changed:
+                break
+    else:
+        first, last, used = lower, lower, 0
+        while last < upper and used + len(lines[last]) + bool(last > first) <= budget:
+            used += len(lines[last]) + bool(last > first)
+            last += 1
+    if first >= last or used > budget:
+        return None
+    page = {"relative_path": row["relative_path"], "start_line": row["start_line"] + first,
+            "end_line": row["start_line"] + last - 1, "source_sha256": row["source_sha256"],
+            "source_text": "\n".join(lines[first:last]), "span_truncated": False}
+    page["evidence_id"] = _identify_page(page)
+    page["source_characters"] = len(page["source_text"])
+    _persist_page(connection, page)
+    return page
+
+
+def _context_relations(connection, paths, limit=64):
+    if not paths:
+        return [], 0
+    slots = ",".join("?" for _ in paths)
+    query = ("SELECT r.relation_id,r.relative_path AS caller_path,r.relation_type,r.target_name,r.status AS resolution,"
+             "r.evidence_id,e.start_line AS caller_start_line,e.end_line AS caller_end_line,"
+             "s.relative_path AS target_path,u.start_line AS target_start_line,u.end_line AS target_end_line "
+             "FROM relations r JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
+             "LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
+             "LEFT JOIN code_units u ON u.unit_id=s.definition_unit_id "
+             f"WHERE r.relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY','PERFORMS') "
+             f"AND (r.relative_path IN ({slots}) OR s.relative_path IN ({slots})) "
+             "ORDER BY r.relation_type='PERFORMS',r.relative_path,e.start_line LIMIT ?")
+    rows = connection.execute(query, (*paths, *paths, limit + 1)).fetchall()
+    result = []
+    for row in rows[:limit]:
+        item = dict(row)
+        if item["relation_type"] == "CALL_TARGET_FROM" or item["resolution"] != "confirmed":
+            item.update(target_path=None, target_start_line=None, target_end_line=None)
+        item["target_source_status"] = "indexed" if item["target_path"] else "unavailable"
+        item["runtime_verified"] = False
+        item["parameter_binding_verified"] = False
+        result.append(item)
+    return result, max(0, len(rows) - limit)
+
+
+def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max_chars,
+                      check_cancel=None, requested_span=None):
+    _state_schema(connection)
+    cache = {"states": {}, "checked_files": 0, "reused_files": 0, "content_verified_files": 0}
+    pages, boundaries, used, seen = [], [], 0, set()
+    per_page = max(512, min(6000, max_chars // max(1, min(max_pages, len(rows)))))
+    for row in rows:
+        if len(pages) >= max_pages or used >= max_chars:
+            break
+        _cancel(check_cancel)
+        state = _current_selected_source(connection, root, row["relative_path"], cache, check_cancel)
+        if not state["current"]:
+            continue
+        kwargs = requested_span or {}
+        budget = max_chars - used if requested_span else min(per_page, max_chars - used)
+        page = _bounded_page(connection, row, terms, budget, **kwargs)
+        if page and page["evidence_id"] not in seen:
+            page["selection_reasons"] = [row.get("selection_reason", "question_match")]
+            page["source_verification"] = state["verification"]
+            seen.add(page["evidence_id"])
+            pages.append(page)
+            used += len(page["source_text"])
+            if requested_span and page["end_line"] < min(row["end_line"], requested_span["end_line"]):
+                break
+    if any(row["span_truncated"] for row in rows):
+        boundaries.append({"reason": "source_line_exceeds_search_page_budget", "message": "An oversized source line has no complete source citation in this index."})
+    selected = list(dict.fromkeys(page["relative_path"] for page in pages))
+    links, omitted = _context_relations(connection, selected)
+    usable = []
+    for link in links:
+        state = _current_selected_source(connection, root, link["caller_path"], cache, check_cancel)
+        if state["current"]:
+            link["caller_evidence_ids"] = [page["evidence_id"] for page in pages
+                if page["relative_path"] == link["caller_path"]
+                and page["start_line"] <= link["caller_start_line"] and page["end_line"] >= link["caller_end_line"]]
+            link["target_evidence_ids"] = [page["evidence_id"] for page in pages
+                if page["relative_path"] == link["target_path"] and page["start_line"] <= link["target_start_line"] <= page["end_line"]]
+            usable.append(link)
+    for state in cache["states"].values():
+        if not state["current"]:
+            boundaries.append({"reason": "source_changed_since_index", "relative_path": state["relative_path"],
+                               "reason_code": state["reason_code"], "needs_refresh": True,
+                               "message": "This retrieved file differs from the indexed snapshot or is unavailable; its old text was not supplied."})
+    outline = []
+    for relative in selected:
+        units = [dict(row) for row in connection.execute("SELECT unit_type,name,start_line,end_line FROM code_units WHERE relative_path=? AND unit_type IN ('Program','Section','Paragraph','ProcedureSignature') ORDER BY start_line LIMIT 24", (relative,))]
+        outline.append({"relative_path": relative, "units": units})
+    connection.commit()
+    cache_report = {key: value for key, value in cache.items() if key not in {"states", "legacy_stats"}}
+    cache_report.update(index_reused=True, source_directory_scanned=False, source_files_reparsed=0)
+    return {"snapshot_id": overview["snapshot_id"], "pages": pages,
+            "evidence_refs": [{key: value for key, value in page.items() if key != "source_text"} for page in pages],
+            "selected_paths": selected, "outline": outline, "boundaries": boundaries,
+            "call_chain": {"scope": "retrieved_sources_and_immediate_neighbours", "links": usable,
+                           "truncated": bool(omitted), "minimum_omitted_links": omitted},
+            "coverage": {"scope": "retrieved_excerpts", "repository_total_files": overview["indexed_files"],
+                         "repository_total_pages": overview["indexed_pages"], "selected_files": len(selected),
+                         "selected_pages": len(pages), "selected_characters": used, "max_pages": max_pages,
+                         "max_characters": max_chars, "repository_complete": False,
+                         "source_state_scope": "selected_files_only", "new_files_checked": False,
+                         "selected_source_hashes_verified": True, "current_content_hashes_recomputed": cache["content_verified_files"]},
+            "cache": cache_report, "needs_refresh": bool(boundaries and any(item.get("needs_refresh") for item in boundaries))}
+
+
+def retrieve_repository_context(database_path, source_root, question, *, search_terms=None,
+                                prior_paths=None, max_pages=8, max_chars=32000, check_cancel=None):
+    """Retrieve a small evidence bundle and neighbouring structure from SQLite.
+
+    No-match questions get representative indexed pages, never a full-repository
+    source read. The agent can search again or request explicit source ranges.
+    """
+    if type(max_pages) is not int or not 1 <= max_pages <= 32 or type(max_chars) is not int or not 512 <= max_chars <= 128000:
+        raise ValueError("RETRIEVAL_BUDGET_INVALID")
+    terms, omitted_terms = _query_terms(question, search_terms)
+    connection = _connect(database_path, True)
+    try:
+        connection.execute("BEGIN")
+        root, overview = _fast_snapshot(connection, source_root)
+        query = " OR ".join('"' + term.replace('"', '""') + '"' for term in terms)
+        ranked, matched_count, matched_files = [], 0, 0
+        if query:
+            matched_count, matched_files = connection.execute("SELECT COUNT(*),COUNT(DISTINCT p.relative_path) FROM repo_fts JOIN repo_pages p ON p.page_id=repo_fts.rowid WHERE repo_fts MATCH ?", (query,)).fetchone()
+            # Explicit follow-up searches take priority over previous-question
+            # terms. A new rare identifier must not lose to repeated old hits.
+            additions, _ = _query_terms("", search_terms)
+            refined_query = " OR ".join('"' + term.replace('"', '""') + '"' for term in additions)
+            seen = set()
+            for active_query in dict.fromkeys(value for value in (refined_query, query) if value):
+                candidates = connection.execute(
+                    "WITH matches AS MATERIALIZED (SELECT p.*,bm25(repo_fts) AS score FROM repo_fts "
+                    "JOIN repo_pages p ON p.page_id=repo_fts.rowid WHERE repo_fts MATCH ?) "
+                    "SELECT *,ROW_NUMBER() OVER (PARTITION BY relative_path ORDER BY score,start_line) AS file_rank "
+                    "FROM matches ORDER BY file_rank,score,relative_path,start_line LIMIT ?", (active_query, max_pages * 16))
+                for row in candidates:
+                    if row["page_id"] not in seen:
+                        ranked.append(dict(row))
+                        seen.add(row["page_id"])
+        # Across-file diversity prevents an enormous matching program from
+        # displacing every other implementation. Extra pages remain searchable.
+        by_path = {}
+        for row in ranked:
+            by_path.setdefault(row["relative_path"], deque()).append(row)
+        queue, rows = deque(by_path.values()), []
+        while queue:
+            group = queue.popleft()
+            rows.append(group.popleft())
+            if group:
+                queue.append(group)
+        preferred, preferred_ids = [], set()
+        for requested in (prior_paths or [])[:max_pages]:
+            if not isinstance(requested, str):
+                continue
+            candidate = requested.split("::", 1)[0]
+            _relative_path(candidate)
+            paths = [row[0] for row in connection.execute("SELECT relative_path FROM source_files WHERE relative_path=? COLLATE NOCASE UNION SELECT relative_path FROM code_units WHERE unit_type='Program' AND name=? COLLATE NOCASE LIMIT 2", (candidate, requested))]
+            for relative in paths:
+                row = None
+                if query:
+                    row = connection.execute("SELECT p.*,bm25(repo_fts) AS score FROM repo_fts JOIN repo_pages p ON p.page_id=repo_fts.rowid WHERE repo_fts MATCH ? AND p.relative_path=? ORDER BY score,p.start_line LIMIT 1", (query, relative)).fetchone()
+                if row is None:
+                    row = connection.execute("SELECT * FROM repo_pages WHERE relative_path=? ORDER BY start_line LIMIT 1", (relative,)).fetchone()
+                if row and row["page_id"] not in preferred_ids:
+                    preferred.append({**dict(row), "selection_reason": "conversation_context"})
+                    preferred_ids.add(row["page_id"])
+        if not rows:
+            rows = preferred or [dict(row, selection_reason="repository_orientation") for row in connection.execute("SELECT p.* FROM repo_pages p JOIN (SELECT relative_path,MIN(start_line) AS first_line FROM repo_pages GROUP BY relative_path) f ON p.relative_path=f.relative_path AND p.start_line=f.first_line ORDER BY p.relative_path LIMIT ?", (max_pages,))]
+        else:
+            reserved = preferred[:min(2, max(1, max_pages // 2))]
+            # Keep the previous turn's source context available for pronouns.
+            # Explicit new search terms still receive the first retrieval slot.
+            initial = rows[:1] if search_terms else []
+            combined = initial + reserved + rows + preferred[len(reserved):]
+            seen_rows, rows = set(), []
+            for row in combined:
+                if row["page_id"] not in seen_rows:
+                    rows.append(row)
+                    seen_rows.add(row["page_id"])
+        # Reserve a small part of the bundle for called interfaces and callers.
+        seeds = list(dict.fromkeys(row["relative_path"] for row in rows[:max(1, max_pages // 2)]))
+        links, _ = _context_relations(connection, seeds)
+        neighbours, neighbour_ids = [], set()
+        for link in links:
+            for relative, line in ((link["caller_path"], link["caller_start_line"]), (link["target_path"], link["target_start_line"])):
+                if not relative or line is None:
+                    continue
+                row = connection.execute("SELECT * FROM repo_pages WHERE relative_path=? AND start_line<=? AND end_line>=? ORDER BY start_line LIMIT 1", (relative, line, line)).fetchone()
+                if row and row["page_id"] not in neighbour_ids and row["page_id"] not in {item["page_id"] for item in rows[:max(1, max_pages // 2)]}:
+                    neighbours.append({**dict(row), "selection_reason": "dependency_context", "focus_line": line})
+                    neighbour_ids.add(row["page_id"])
+                if len(neighbours) >= max(1, max_pages // 3):
+                    break
+            if len(neighbours) >= max(1, max_pages // 3):
+                break
+        cut = max(1, max_pages - len(neighbours))
+        rows = rows[:cut] + neighbours + rows[cut:]
+        result = _assemble_context(connection, root, overview, rows, terms, max_pages=max_pages,
+                                   max_chars=max_chars, check_cancel=check_cancel)
+        result.update(search_terms=terms, omitted_search_terms=omitted_terms,
+                      matched_page_count=matched_count, matched_file_count=matched_files,
+                      fallback_all=False, orientation_only=not matched_count,
+                      omitted_matched_pages=max(0, matched_count - sum("question_match" in page["selection_reasons"] for page in result["pages"])))
+        return result
+    finally:
+        connection.close()
+
+
+def read_repository_context(database_path, source_root, *, relative_path=None, start_line=1,
+                            end_line=None, evidence_id=None, max_chars=12000, check_cancel=None):
+    """Read a requested indexed range or citation without parsing the program."""
+    if type(max_chars) is not int or not 512 <= max_chars <= 128000:
+        raise ValueError("RETRIEVAL_BUDGET_INVALID")
+    connection = _connect(database_path, True)
+    try:
+        connection.execute("BEGIN")
+        root, overview = _fast_snapshot(connection, source_root)
+        if evidence_id is not None:
+            if not isinstance(evidence_id, str):
+                raise ValueError("EVIDENCE_ID_INVALID")
+            evidence = connection.execute("SELECT relative_path,start_line,end_line FROM evidence_spans WHERE evidence_id=?", (evidence_id,)).fetchone()
+            if evidence is None:
+                raise ValueError("EVIDENCE_NOT_FOUND")
+            relative_path, start_line, end_line = tuple(evidence)
+        if not isinstance(relative_path, str):
+            raise ValueError("SOURCE_PATH_INVALID")
+        _relative_path(relative_path)
+        if type(start_line) is not int or start_line < 1 or (end_line is not None and (type(end_line) is not int or end_line < start_line)):
+            raise ValueError("SOURCE_RANGE_INVALID")
+        end_line = end_line if end_line is not None else start_line + 119
+        rows = [dict(row, selection_reason="agent_requested_read") for row in connection.execute("SELECT * FROM repo_pages WHERE relative_path=? AND end_line>=? AND start_line<=? ORDER BY start_line LIMIT 33", (relative_path, start_line, end_line))]
+        result = _assemble_context(connection, root, overview, rows, [], max_pages=32,
+                                   max_chars=max_chars, check_cancel=check_cancel,
+                                   requested_span={"start_line": start_line, "end_line": end_line})
+        last_line = max((page["end_line"] for page in result["pages"]), default=start_line - 1)
+        file_row = connection.execute("SELECT line_count FROM source_files WHERE relative_path=?", (relative_path,)).fetchone()
+        total_lines = file_row[0] if file_row else 0
+        result.update(requested_range={"relative_path": relative_path, "start_line": start_line, "end_line": end_line},
+                      file_total_lines=total_lines, end_of_file=bool(total_lines) and last_line >= total_lines,
+                      range_complete=bool(result["pages"]) and last_line >= min(end_line, total_lines),
+                      next_start_line=last_line + 1 if last_line < min(end_line, total_lines) else None)
+        return result
     finally:
         connection.close()

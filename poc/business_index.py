@@ -438,13 +438,14 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
         _ensure_schema(connection)
         prior = dict(connection.execute("SELECT key,value FROM metadata"))
         prior_boundaries = json.loads(prior.get("business_file_boundaries", "{}"))
+        prior_stats = json.loads(prior.get("file_stats", "{}"))
         previous = {row["relative_path"]: dict(row) for row in connection.execute("SELECT * FROM source_files")}
         options = {"encoding": encoding, "source_format": source_format, "extensions": sorted(extensions),
                    "include_extensionless": include_extensionless}
         options_json = json.dumps(options, sort_keys=True)
         rebuild = (prior.get("parser_version") != PARSER_VERSION or prior.get("source_options") != options_json
                    or prior.get("source_root_hash") != _content_hash(str(root)))
-        updated = skipped = total_bytes = 0
+        updated = skipped = total_bytes = metadata_cached = content_verified = 0
         file_stats, file_boundaries, boundaries, scan_details, distributions = {}, {}, [], [], {key: Counter() for key in ("encodings", "format_hints", "artifact_kinds")}
         selected, queued = [], set(initial)
         queue = deque((relative, 0) for relative in initial)
@@ -457,12 +458,21 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                 relative, depth = queue.popleft()
                 path = _safe_path(root, relative)
                 emit("reading", completed=len(selected), total=len(queued), current_file=relative)
-                metadata = _verify_file(path, root, encoding, lambda done: emit(
-                    "reading", completed=len(selected), total=len(queued), current_file=relative, file_bytes_completed=done))
+                old = previous.get(relative)
+                observed = path.stat()
+                unchanged = (not verify_content and not rebuild and old is not None
+                             and prior_stats.get(relative) == [observed.st_size, observed.st_mtime_ns, observed.st_ctime_ns])
+                if unchanged:
+                    metadata = {"sha256": old["sha256"], "encoding": old["encoding"], "stat": observed,
+                                "used_fallback_encoding": bool(old["used_fallback_encoding"])}
+                    metadata_cached += 1
+                else:
+                    metadata = _verify_file(path, root, encoding, lambda done: emit(
+                        "reading", completed=len(selected), total=len(queued), current_file=relative, file_bytes_completed=done))
+                    content_verified += 1
                 info = metadata["stat"]
                 file_stats[relative] = [info.st_size, info.st_mtime_ns, info.st_ctime_ns]
                 total_bytes += info.st_size
-                old = previous.get(relative)
                 cached = not rebuild and old is not None and old["sha256"] == metadata["sha256"]
                 if cached:
                     skipped += 1
@@ -562,7 +572,8 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                 "relative_paths": selected, "missing_dependencies": boundaries,
                 "source_stat_manifest": file_stats, "database_counts": counts,
                 "files": {"candidate": len(selected), "decoded": len(selected), "unreadable_or_binary": 0,
-                          "indexed_or_updated": updated, "skipped_unchanged": skipped, "removed": len(removed)},
+                          "indexed_or_updated": updated, "skipped_unchanged": skipped, "removed": len(removed),
+                          "metadata_cache_reused": metadata_cached, "content_hash_verified": content_verified},
                 "diagnostics": {"status": "ready", "warnings": [], "program_count": program_count,
                                 "copybook_count": copybook_count, "files_without_symbols": 0},
                 "distributions": {key: dict(value) for key, value in distributions.items()},

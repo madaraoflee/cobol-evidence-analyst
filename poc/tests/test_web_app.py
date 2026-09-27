@@ -16,8 +16,8 @@ POC_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(POC_ROOT))
 
 from analyze_source import analyze_source
-from company_api import CompanyAPIConfig
-from web_app import WorkbenchState, create_server
+from company_api import CompanyAPIConfig, TransportResponse
+from web_app import RequestError, WorkbenchState, _pick_local_folder, create_server
 
 
 TEST_KEY = "local-test-credential-do-not-serialize"
@@ -131,6 +131,107 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(self.request("OPTIONS", "/api/analyze")[0], 403)
         self.assertIsNone(self.app.job)
 
+    def test_model_check_calls_chat_once_without_source_and_returns_only_safe_status(self) -> None:
+        requests = []
+
+        def transport(request):
+            requests.append(request)
+            return TransportResponse(200, json.dumps({"choices": [{"message": {
+                "role": "assistant", "content": "OK"}}]}))
+
+        self.app.model_check_transport = transport
+        status, result, _ = self.request("POST", "/api/model-check", {})
+        self.assertEqual(status, 200)
+        self.assertEqual(result, {"usable": True, "code": "MODEL_REPLY_RECEIVED",
+                                  "http_status": 200, "model_returned": True})
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(requests[0].endpoint, "chat/completions")
+        self.assertEqual(requests[0].timeout_seconds, 15)
+        payload = json.loads(requests[0].body)
+        self.assertEqual(payload["max_tokens"], 32)
+        self.assertEqual(payload["messages"], [{"role": "user", "content": "Reply with the single word OK."}])
+        self.assertNotIn("source", json.dumps(payload).lower())
+        for secret in (TEST_KEY, TEST_ENDPOINT, TEST_MODEL):
+            self.assertNotIn(secret, json.dumps(result))
+        self.assertEqual(self.request("POST", "/api/model-check", {}, authenticated=False)[0], 403)
+        self.assertEqual(self.request("POST", "/api/model-check", {}, headers={"Origin": "https://other.example.invalid"})[0], 403)
+        self.assertEqual(self.request("POST", "/api/model-check", {"prompt": "read source"})[0], 400)
+        self.assertEqual(len(requests), 1)
+
+    def test_model_check_distinguishes_auth_timeout_and_empty_reply(self) -> None:
+        def response(status, body):
+            self.app.model_check_transport = lambda request: TransportResponse(status, body)
+            actual_status, result, _ = self.request("POST", "/api/model-check", {})
+            self.assertEqual(actual_status, 200)
+            return result
+
+        for code in (401, 403):
+            with self.subTest(http_status=code):
+                result = response(code, "{}")
+                self.assertEqual(result["code"], "HTTP_ERROR")
+                self.assertEqual(result["http_status"], code)
+                self.assertFalse(result["usable"])
+        result = response(200, json.dumps({"choices": [{"message": {
+            "role": "assistant", "content": ""}}]}))
+        self.assertEqual(result["code"], "MODEL_TEXT_EMPTY")
+        self.assertFalse(result["model_returned"])
+        self.app.model_check_transport = lambda request: (_ for _ in ()).throw(TimeoutError())
+        result = self.request("POST", "/api/model-check", {})[1]
+        self.assertEqual(result["code"], "REQUEST_TIMEOUT")
+        self.assertIsNone(result["http_status"])
+
+    def test_folder_picker_returns_selected_directory_without_importing_it(self) -> None:
+        folder = self.root / "selected"
+        folder.mkdir()
+        seen = []
+        self.app.folder_picker = lambda initial: seen.append(initial) or str(folder)
+        status, result, _ = self.request("POST", "/api/pick-folder", {"initial_path": str(folder)})
+        self.assertEqual(status, 200)
+        self.assertEqual(result, {"cancelled": False, "path": str(folder.resolve())})
+        self.assertEqual(seen, [folder])
+        self.assertIsNone(self.app.job)
+        self.assertIsNone(self.app.project["source"])
+        self.assertEqual(self.request("POST", "/api/pick-folder", {}, authenticated=False)[0], 403)
+        self.assertEqual(self.request("POST", "/api/pick-folder", {}, headers={"Origin": "https://other.example.invalid"})[0], 403)
+        self.assertEqual(self.request("POST", "/api/pick-folder", {"path": str(folder)})[0], 400)
+        self.app.folder_picker = lambda initial: None
+        self.assertEqual(self.request("POST", "/api/pick-folder", {})[1], {"cancelled": True, "path": None})
+        self.app.folder_picker = lambda initial: (_ for _ in ()).throw(RuntimeError("desktop unavailable"))
+        status, result, _ = self.request("POST", "/api/pick-folder", {})
+        self.assertEqual((status, result["error"]["code"]), (503, "FOLDER_PICKER_UNAVAILABLE"))
+
+    def test_native_folder_picker_runs_a_bounded_child_process(self) -> None:
+        folder = self.root / "selected"
+        folder.mkdir()
+        with mock.patch("web_app.subprocess.run", return_value=mock.Mock(returncode=0, stdout=json.dumps({"path": str(folder)}))) as run:
+            self.assertEqual(_pick_local_folder(self.root), str(folder.resolve()))
+        self.assertEqual(run.call_args.args[0][1], "-c")
+        self.assertEqual(run.call_args.kwargs["timeout"], 300)
+        with mock.patch("web_app.subprocess.run", return_value=mock.Mock(returncode=0, stdout='{"path": null}')):
+            self.assertIsNone(_pick_local_folder(self.root))
+        with mock.patch("web_app.subprocess.run", side_effect=OSError("private local path")):
+            with self.assertRaises(RequestError) as raised:
+                _pick_local_folder(self.root)
+        self.assertEqual(raised.exception.code, "FOLDER_PICKER_UNAVAILABLE")
+
+    def test_native_folder_picker_falls_back_to_macos_system_dialog_without_shell_interpolation(self) -> None:
+        folder = self.root / "selected folder's name"
+        folder.mkdir()
+        unavailable_tk = mock.Mock(returncode=0, stdout='{"error":"FOLDER_PICKER_UNAVAILABLE"}')
+        chosen = mock.Mock(returncode=0, stdout=str(folder) + "\n")
+        with mock.patch("web_app.sys.platform", "darwin"), mock.patch(
+            "web_app.subprocess.run", side_effect=[unavailable_tk, chosen]
+        ) as run:
+            self.assertEqual(_pick_local_folder(self.root), str(folder.resolve()))
+        argv = run.call_args_list[1].args[0]
+        self.assertEqual(argv[:4], ["/usr/bin/osascript", "-l", "JavaScript", "-e"])
+        self.assertEqual(argv[-1], str(self.root))
+        self.assertNotIn(str(self.root), argv[4])
+        with mock.patch("web_app.sys.platform", "darwin"), mock.patch(
+            "web_app.subprocess.run", side_effect=[unavailable_tk, mock.Mock(returncode=0, stdout="__CANCELLED__\n")]
+        ):
+            self.assertIsNone(_pick_local_folder(self.root))
+
     def test_framework_cases_read_actual_sources_and_prepare_offline(self) -> None:
         self.assertEqual(self.request("GET", "/api/framework-demo", authenticated=False)[0], 403)
         status, demo, _ = self.request("GET", "/api/framework-demo")
@@ -147,10 +248,28 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(job["status"], "COMPLETED", job.get("error"))
         project = job["result"]
         self.assertEqual(project["source_origin"], "synthetic_framework")
-        self.assertEqual(project["diagnosis"]["selected_entry"]["program_name"], "NIGHTBATCH")
-        self.assertEqual(project["agent"]["runner_status"], "NETWORK_DISABLED")
+        self.assertIsNone(project["diagnosis"]["selected_entry"])
+        self.assertEqual(project["diagnosis"]["scope"]["mode"], "repository_index")
+        self.assertEqual(project["agent"]["runner_status"], "NOT_REQUESTED")
         question = case["question"]
-        self.assertEqual(project["diagnosis"]["question"], question["en"] if isinstance(question, dict) else question)
+        self.assertIsNone(project["diagnosis"]["question"])
+        self.assertEqual(started["suggested_question"], question["en"] if isinstance(question, dict) else question)
+        status, reused, _ = self.request("POST", "/api/framework-demo/prepare", {"case_id": "online"})
+        self.assertEqual(status, 202)
+        self.assertEqual(reused["status"], "READY")
+        self.assertEqual(reused["project"]["snapshot_id"], project["snapshot_id"])
+        self.assertEqual(reused["project"]["run_id"], started["job_id"])
+        self.assertTrue(reused["project"]["diagnosis"]["repository_search"]["full_text_complete"])
+        self.assertTrue(reused["conversation"]["id"])
+        self.app.conversation_store.append(reused["conversation"]["id"], "user", "What does this branch do?", status="completed")
+        self.app.conversation = self.app.conversation_store.get(reused["conversation"]["id"])
+        self.app.project["run_id"] = "prior-question-run"
+        status, another, _ = self.request("POST", "/api/framework-demo/prepare", {"case_id": "client_server"})
+        self.assertEqual(status, 202)
+        self.assertEqual(another["status"], "READY")
+        self.assertEqual(another["conversation"]["id"], reused["conversation"]["id"])
+        self.assertEqual(another["conversation"]["messages"][0]["content"], "What does this branch do?")
+        self.assertEqual(another["project"]["run_id"], "prior-question-run")
 
     def test_framework_case_requests_reject_unknown_case_and_custom_paths(self) -> None:
         for payload in ({"case_id": "../outside"}, {"case_id": "unknown"},
@@ -192,6 +311,8 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(result["status"], "COMPLETED")
         self.assertEqual(result["result"]["programs"][0]["program_name"], "STOCK-IMPORT")
         self.assertEqual(result["result"]["diagnosis"]["question_status"], "NOT_REQUESTED")
+        self.assertEqual(result["result"]["diagnosis"]["source_options"]["reading_strategy"], "retrieval")
+        self.assertEqual(result["result"]["diagnosis"]["source_options"]["max_source_pages"], 4)
 
     def test_mock_model_is_called_only_with_explicit_network_permission(self) -> None:
         source = self.source("source", "STOCK-UPDATE")
@@ -248,6 +369,26 @@ class WebAppTests(unittest.TestCase):
         result = self.finish(job_id)
         self.assertEqual(result["result"]["programs"][0]["program_name"], "STOCK-WRITE")
         self.assertEqual(self.request("GET", f"/api/evidence?id={old_evidence}")[0], 404)
+
+    def test_conversation_and_framework_routes_use_local_state_and_session_guard(self) -> None:
+        source = self.source("source", "REQUEST-REVIEW")
+        self.finish(self.submit(source, self.root / "output"))
+        status, value, _ = self.request("POST", "/api/conversations", {})
+        self.assertEqual(status, 201)
+        identifier = value["conversation"]["id"]
+        self.assertEqual(value["conversation"]["messages"], [])
+        status, loaded, _ = self.request("GET", f"/api/conversations/{identifier}")
+        self.assertEqual(status, 200)
+        self.assertEqual(loaded["conversation"]["id"], identifier)
+        self.assertEqual(self.request("GET", f"/api/conversations/{identifier}", authenticated=False)[0], 403)
+        folder = self.root / "manuals"
+        folder.mkdir()
+        (folder / "guide.md").write_text("# Request processing\nRequests progress through validation.\n", encoding="utf-8")
+        status, value, _ = self.request("POST", "/api/framework", {"path": str(folder)})
+        self.assertEqual(status, 200)
+        self.assertEqual(value["framework_knowledge"]["loaded_document_count"], 1)
+        self.assertEqual(value["framework_knowledge"]["configured_path"], str(folder))
+        self.assertEqual(self.request("POST", "/api/framework", {"path": str(folder)}, authenticated=False)[0], 403)
 
     def test_failed_refresh_cannot_expose_preserved_old_sqlite(self) -> None:
         source = self.source("source", "STOCK-READ")

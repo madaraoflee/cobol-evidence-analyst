@@ -118,12 +118,13 @@ test('call coverage is explicit selected-source coverage, not completed model re
   const old=harness();setup(old);assert.doesNotMatch(old.run('actualAnswer()'),/call-chain-coverage/);
 });
 
-test('full flow is the new default, uses batch sizing, and restores earlier focused runs honestly',async()=>{
-  const h=harness();assert.equal(h.run('state.readingStrategy'),'full_chain');
+test('focused reading is the new default, keeps a full-flow option, and restores runs honestly',async()=>{
+  const h=harness();assert.equal(h.run('state.readingStrategy'),'focused');assert.equal(h.run('state.maxSourcePages'),4);
   h.run("state.mode='real';render=()=>{};");
-  let control=h.run('readingDepthControl()');assert.match(control,/value="full_chain" selected/);assert.match(control,/12 sections per batch/);assert.doesNotMatch(control,/Up to 12|Up to 48/);assert.match(control,/Batch size does not cap the total/);
-  setup(h);assert.equal(h.run('state.readingStrategy'),'focused');assert.equal(h.run('draftChanged()'),false);assert.match(h.run('readingDepthControl()'),/Up to 12 sections/);
+  let control=h.run('readingDepthControl()');assert.match(control,/value="focused" selected/);assert.match(control,/Quick reading · Up to 4 sections/);assert.match(control,/Up to 12|Up to 48/);
+  setup(h);assert.equal(h.run('state.readingStrategy'),'focused');assert.equal(h.run('draftChanged()'),false);assert.match(h.run('readingDepthControl()'),/Quick reading · Up to 4 sections/);
   h.events.change({target:{id:'reading-strategy',value:'full_chain'}});assert.equal(h.run('state.question'),'Explain flow');assert.equal(h.run('draftChanged()'),true);assert.doesNotMatch(h.run('actualAnswer()'),/The program reads input/);
+  h.events.change({target:{id:'reading-depth',value:'12'}});
   h.run("state.apiConfigured=true;let submitted=null;startJob=async options=>{submitted=options;};");
   await h.events.submit({target:{id:'question-form'},preventDefault:()=>{}});assert.equal(h.run('submitted.reading_strategy'),'full_chain');assert.equal(h.run('submitted.max_source_pages'),12);
   const p=project();p.diagnosis.source_options={max_source_pages:48,reading_strategy:'full_chain'};h.run(`applyProject(${JSON.stringify(p)})`);assert.equal(h.run('draftChanged()'),false);assert.match(h.run('readingDepthControl()'),/48 sections per batch/);

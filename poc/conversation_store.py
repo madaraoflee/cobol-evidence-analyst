@@ -1,0 +1,83 @@
+"""Local durable conversations; browser input never supplies trusted history."""
+
+from __future__ import annotations
+
+from contextlib import closing
+from datetime import datetime, timezone
+import hashlib
+import json
+from pathlib import Path
+import secrets
+import sqlite3
+
+
+def _now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+class ConversationStore:
+    def __init__(self, output, source):
+        self.path = Path(output) / "conversations.sqlite"
+        self.source_key = hashlib.sha256(str(Path(source).resolve()).encode()).hexdigest()
+        if any(Path(str(self.path) + suffix).is_symlink() for suffix in ("", "-wal", "-shm")):
+            raise ValueError("CONVERSATION_PATH_INVALID")
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.executescript("""
+                CREATE TABLE IF NOT EXISTS conversations (
+                  id TEXT PRIMARY KEY, source_key TEXT NOT NULL, title TEXT NOT NULL,
+                  snapshot_id TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS messages (
+                  position INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE NOT NULL,
+                  conversation_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL,
+                  status TEXT NOT NULL, created_at TEXT NOT NULL, run_id TEXT, details TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS conversation_messages ON messages(conversation_id,position);
+            """)
+
+    def create(self, snapshot_id=None):
+        identifier, now = secrets.token_hex(16), _now()
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("INSERT INTO conversations VALUES (?,?,?,?,?,?)",
+                       (identifier, self.source_key, "新对话", snapshot_id, now, now))
+        return self.get(identifier)
+
+    def get(self, identifier):
+        with closing(sqlite3.connect(self.path)) as db:
+            db.row_factory = sqlite3.Row
+            row = db.execute("SELECT * FROM conversations WHERE id=? AND source_key=?", (identifier, self.source_key)).fetchone()
+            if row is None:
+                raise ValueError("CONVERSATION_NOT_FOUND")
+            result = {key: row[key] for key in ("id", "title", "snapshot_id", "created_at", "updated_at")}
+            result["messages"] = []
+            for item in db.execute("SELECT * FROM messages WHERE conversation_id=? ORDER BY position", (identifier,)):
+                message = {key: item[key] for key in ("id", "role", "content", "status", "created_at", "run_id")}
+                details = json.loads(item["details"])
+                message.update(details)
+                result["messages"].append(message)
+            return result
+
+    def list(self):
+        with closing(sqlite3.connect(self.path)) as db:
+            db.row_factory = sqlite3.Row
+            return [dict(row) for row in db.execute(
+                "SELECT id,title,snapshot_id,updated_at FROM conversations WHERE source_key=? ORDER BY updated_at DESC LIMIT 100",
+                (self.source_key,))]
+
+    def append(self, identifier, role, content, *, status="completed", run_id=None, details=None):
+        self.get(identifier)
+        message_id, now = secrets.token_hex(16), _now()
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("INSERT INTO messages(id,conversation_id,role,content,status,created_at,run_id,details) VALUES(?,?,?,?,?,?,?,?)",
+                       (message_id, identifier, role, content, status, now, run_id, json.dumps(details or {}, ensure_ascii=False)))
+            db.execute("UPDATE conversations SET updated_at=? WHERE id=?", (now, identifier))
+            if role == "user":
+                db.execute("UPDATE conversations SET title=? WHERE id=? AND title='新对话'", (content[:80], identifier))
+        return message_id
+
+    def complete_user(self, run_id, status):
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("UPDATE messages SET status=? WHERE run_id=? AND role='user'", (status, run_id))
+
+    def recover_interrupted(self):
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("UPDATE messages SET status='interrupted' WHERE status='pending' AND conversation_id IN (SELECT id FROM conversations WHERE source_key=?)", (self.source_key,))

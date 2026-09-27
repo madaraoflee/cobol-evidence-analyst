@@ -32,6 +32,9 @@ htmlcov/
 ~$*.pptx
 
 # Generated POC outputs
+.poc-data/
+poc/fixtures/testResults/
 repo-inventory*.json
 repo-inventory*.md
-.poc-data/
+conversations.sqlite
+conversations.sqlite-*

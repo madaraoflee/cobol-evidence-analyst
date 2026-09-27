@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections import OrderedDict, defaultdict
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import os
 from pathlib import Path
@@ -26,6 +26,9 @@ from structural_index import _stable_id
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REFERENCE_PATH = PROJECT_ROOT / ".poc-data" / "framework" / "reference.md"
 MAX_REFERENCE_BYTES = 2 * 1024 * 1024
+MAX_REFERENCE_DOCUMENTS = 256
+MAX_REFERENCE_COLLECTION_BYTES = 32 * 1024 * 1024
+REFERENCE_EXTENSIONS = frozenset({".md", ".markdown", ".txt"})
 MAX_DOCUMENT_SECTIONS = 4096
 MAX_SECTION_CHARS = 2400
 MAX_REFERENCES = 10
@@ -84,6 +87,8 @@ class _Section:
     end_line: int
     text: str
     terms: frozenset[str]
+    document_name: str = ""
+    document_sha256: str = ""
 
 
 @dataclass(frozen=True)
@@ -93,6 +98,8 @@ class _Document:
     sections: tuple[_Section, ...]
     terms: frozenset[str]
     truncated: bool
+    documents: tuple[dict, ...] = ()
+    warnings: tuple[dict, ...] = ()
 
 
 def _resolve_reference(reference_path: Path | str | None) -> Path | None:
@@ -107,12 +114,19 @@ def _resolve_reference(reference_path: Path | str | None) -> Path | None:
                 raise _ReferenceError("FRAMEWORK_REFERENCE_CONFIG_INVALID") from None
     else:
         value = str(reference_path)
-    if not value.strip():
+    value = value.strip()
+    # File Explorer's Copy as path includes surrounding quotes. Keep backslashes
+    # literal: interpreting escapes would turn common Windows paths into tabs.
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        value = value[1:-1].strip()
+    if not value:
         return None
     if "\x00" in value or len(value) > 4096:
         raise _ReferenceError("FRAMEWORK_REFERENCE_INVALID")
     try:
-        path = Path(value.strip()).expanduser()
+        environment = {name.casefold(): item for name, item in os.environ.items()}
+        value = re.sub(r"%([^%]+)%", lambda match: environment.get(match[1].casefold(), match[0]), value)
+        path = Path(os.path.expandvars(value)).expanduser()
     except (OSError, RuntimeError, ValueError):
         raise _ReferenceError("FRAMEWORK_REFERENCE_INVALID") from None
     return path if path.is_absolute() else PROJECT_ROOT / path
@@ -230,10 +244,7 @@ def _parse_document(text: str, digest: str) -> _Document:
     return _Document(title[:200], digest, tuple(sections), terms, truncated)
 
 
-def _load_document(reference_path: Path | str | None) -> _Document | None:
-    path = _resolve_reference(reference_path)
-    if path is None:
-        return None
+def _load_file(path: Path) -> _Document:
     try:
         stat = path.stat()
         if not path.is_file():
@@ -256,26 +267,101 @@ def _load_document(reference_path: Path | str | None) -> _Document | None:
                            opened_stat.st_mtime_ns, opened_stat.st_ctime_ns)
         if identity != opened_identity or len(raw) != opened_stat.st_size:
             raise _ReferenceError("FRAMEWORK_REFERENCE_CHANGED")
-        text = raw.decode("utf-8-sig")
+        # Text exported by Windows editors can use a UTF-16 byte-order mark.
+        encoding = "utf-16" if raw.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig"
+        text = raw.decode(encoding)
         if not text.strip() or "\x00" in text:
             raise _ReferenceError("FRAMEWORK_REFERENCE_INVALID")
         document = _parse_document(text, hashlib.sha256(raw).hexdigest())
+        document = replace(document, documents=({"name": path.name, "title": document.title,
+                           "sha256": document.sha256, "section_count": len(document.sections),
+                           "encoding": encoding},))
     except (OSError, RuntimeError):
         raise _ReferenceError("FRAMEWORK_REFERENCE_UNREADABLE") from None
     except UnicodeError:
         raise _ReferenceError("FRAMEWORK_REFERENCE_INVALID") from None
     with _CACHE_LOCK:
         _CACHE[identity] = document
-        while len(_CACHE) > 4:
+        while len(_CACHE) > MAX_REFERENCE_DOCUMENTS:
             _CACHE.popitem(last=False)
     return document
 
 
+def _load_document(reference_path: Path | str | None) -> _Document | None:
+    path = _resolve_reference(reference_path)
+    if path is None:
+        return None
+    try:
+        if not path.is_dir():
+            return _load_file(path)
+        files = []
+        warnings = []
+        def unreadable_directory(_error):
+            warnings.append({"reason_code": "FRAMEWORK_REFERENCE_UNREADABLE"})
+        for base, directories, names in os.walk(path, onerror=unreadable_directory, followlinks=False):
+            directories[:] = sorted(name for name in directories if not name.startswith("."))
+            for name in sorted(names):
+                candidate = Path(base) / name
+                if candidate.suffix.casefold() in REFERENCE_EXTENSIONS:
+                    files.append(candidate)
+        if not files:
+            raise _ReferenceError("FRAMEWORK_REFERENCE_DIRECTORY_EMPTY")
+        sections, documents = [], []
+        total_bytes = 0
+        truncated = False
+        for candidate in files[:MAX_REFERENCE_DOCUMENTS]:
+            relative_name = candidate.relative_to(path).as_posix()
+            try:
+                total_bytes += candidate.stat().st_size
+                if total_bytes > MAX_REFERENCE_COLLECTION_BYTES:
+                    warnings.append({"reason_code": "FRAMEWORK_REFERENCE_COLLECTION_LIMIT"})
+                    truncated = True
+                    break
+                document = _load_file(candidate)
+            except (_ReferenceError, OSError) as error:
+                warnings.append({"name": relative_name, "reason_code": getattr(error, "code", "FRAMEWORK_REFERENCE_UNREADABLE")})
+                continue
+            documents.append({**document.documents[0], "name": relative_name})
+            sections.extend(replace(section, document_name=relative_name,
+                                    document_sha256=document.sha256) for section in document.sections)
+            truncated = truncated or document.truncated
+        if len(files) > MAX_REFERENCE_DOCUMENTS:
+            warnings.append({"reason_code": "FRAMEWORK_REFERENCE_COLLECTION_LIMIT",
+                             "omitted_document_count": len(files) - MAX_REFERENCE_DOCUMENTS})
+            truncated = True
+        if not documents:
+            raise _ReferenceError("FRAMEWORK_REFERENCE_DIRECTORY_NO_READABLE_DOCUMENTS")
+        digest = hashlib.sha256("\n".join(item["name"] + ":" + item["sha256"] for item in documents).encode("utf-8")).hexdigest()
+        return _Document(f"Framework references ({len(documents)})", digest, tuple(sections),
+                         frozenset(term for section in sections for term in section.terms),
+                         truncated, tuple(documents), tuple(warnings))
+    except (OSError, RuntimeError):
+        raise _ReferenceError("FRAMEWORK_REFERENCE_UNREADABLE") from None
+
+
+_LOADING_MESSAGES = {
+    "FRAMEWORK_REFERENCE_READY": "框架资料已加载，可用于业务问答。",
+    "FRAMEWORK_REFERENCE_NOT_CONFIGURED": "尚未指定框架资料；可选择 Markdown 或文本文件，也可选择包含这些文件的文件夹。",
+    "FRAMEWORK_REFERENCE_UNREADABLE": "无法读取指定位置。请确认这是当前电脑上的文件或文件夹，并具有读取权限。",
+    "FRAMEWORK_REFERENCE_INVALID": "资料不是有效文本。请保存为 UTF-8，或带字节顺序标记的 UTF-16 文本。",
+    "FRAMEWORK_REFERENCE_TOO_LARGE": "单份资料超过读取范围，请将资料按章节拆分到同一个文件夹。",
+    "FRAMEWORK_REFERENCE_DIRECTORY_EMPTY": "文件夹内没有 Markdown 或文本资料；支持 .md、.markdown、.txt 及其子文件夹。",
+    "FRAMEWORK_REFERENCE_DIRECTORY_NO_READABLE_DOCUMENTS": "已找到资料文件，但没有可读取的文本；请检查权限和文本编码。",
+    "FRAMEWORK_REFERENCE_CONFIG_INVALID": "框架资料的本机配置无法读取，请检查配置文件格式。",
+    "FRAMEWORK_REFERENCE_CHANGED": "资料在读取过程中发生变化，请保存文件后重试。",
+}
+
+
 def _summary(document: _Document | None, *, code: str | None = None) -> dict:
+    reason = code or ("FRAMEWORK_REFERENCE_READY" if document else "FRAMEWORK_REFERENCE_NOT_CONFIGURED")
     return {
         "schema_version": "framework-context/v1",
         "status": "UNAVAILABLE" if code else ("LOADED" if document else "NOT_CONFIGURED"),
-        "reason_code": code or ("FRAMEWORK_REFERENCE_READY" if document else "FRAMEWORK_REFERENCE_NOT_CONFIGURED"),
+        "reason_code": reason,
+        "loading_message": _LOADING_MESSAGES.get(reason, "框架资料暂时无法加载，请检查指定位置。"),
+        "loaded_document_count": len(document.documents) if document else 0,
+        "documents": list(document.documents) if document else [],
+        "loading_warnings": list(document.warnings) if document else [],
         "document": ({"title": document.title, "sha256": document.sha256,
                       "section_count": len(document.sections)} if document else None),
         "runtime_verified": False,
@@ -642,15 +728,52 @@ def _representative_rows(rows, limit):
     return selected
 
 
+def _retrieved_source_candidates(pages, document, coverage, check_cancel):
+    """Use the caller's retrieved evidence without re-opening its source files."""
+    candidates, source_terms, files = [], set(), set()
+    for page in pages:
+        if check_cancel:
+            check_cancel()
+        text = page.get("text", page.get("source_text", ""))
+        if not isinstance(text, str):
+            continue
+        active_format = page.get("format_hint") or "auto"
+        terms = set()
+        for line in text.splitlines():
+            cleaned, next_format, _ = _clean(line, active_format)
+            if active_format == "auto":
+                active_format = next_format
+            coverage["units_scanned"] += 1
+            coverage["chars_scanned"] += len(cleaned)
+            terms.update(word.upper() for word in _WORD.findall(cleaned))
+        hits = terms & document.terms
+        relative = page.get("relative_path", page.get("path"))
+        if relative:
+            files.add(relative)
+        if not hits:
+            continue
+        source_terms.update(hits)
+        if not all(page.get(key) is not None for key in ("evidence_id", "start_line", "end_line", "source_sha256")) or not relative:
+            continue
+        candidates.append({key: page.get(key) for key in ("evidence_id", "start_line", "end_line", "source_sha256", "program_name")}
+                          | {"relative_path": relative, "matched_terms": sorted(hits)})
+    coverage.update(source_scope="retrieved_pages", files_selected=len(files),
+                    pages_selected=len(pages), source_scan_strategy="provided_retrieval_pages",
+                    source_verification="provided_retrieval_pages", source_hash_verified=False)
+    return candidates, source_terms, None
+
+
 def build_framework_context(database_path: Path | None = None, *, entry_program: str | None = None,
                             question: str = "", reference_path: Path | str | None = None,
                             source_root: Path | str | None = None, source_paths: list[str] | None = None,
-                            check_cancel=None) -> dict:
+                            source_pages: list[dict] | None = None, check_cancel=None) -> dict:
     """Retrieve cited knowledge from an entry, selected files, or the repository.
 
     ``source_paths`` takes precedence over ``entry_program``. With neither, all
     indexed files are searched. Only actual source markers can yield MATCHED;
     references and source availability are optional context, not answer gates.
+    ``source_pages`` consumes already retrieved text and takes precedence over
+    database/file access; it never scans the repository or re-verifies files.
     """
     try:
         document = _load_document(reference_path)
@@ -661,7 +784,10 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
         return result
     result["coverage"]["document_truncated"] = document.truncated
     candidates, source_terms, source_error = [], set(), None
-    if database_path is not None:
+    if source_pages is not None:
+        candidates, source_terms, source_error = _retrieved_source_candidates(
+            source_pages, document, result["coverage"], check_cancel)
+    elif database_path is not None:
         candidates, source_terms, source_error = _source_candidates(database_path, entry_program, document,
                                                                    result["coverage"], source_root, check_cancel,
                                                                    source_paths)
@@ -685,10 +811,17 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
                      + min(3, len(technical_heading_hits - technical_body_hits)) * 12
                      + min(8, len(query_hits)) * .25)
             rankings.append((score, index, source_hits, query_hits))
-    remaining = MAX_REFERENCE_CHARS
+    overview_selection = not rankings and bool(question.strip() or database_path is not None or source_pages is not None)
+    if overview_selection:
+        # Loaded documentation remains available even when user language and
+        # framework vocabulary differ. This is background, not a source match.
+        rankings = [(0, index, set(), set()) for index in range(len(document.sections))]
+    reference_budget = min(MAX_REFERENCE_CHARS, 8000) if source_pages is not None else MAX_REFERENCE_CHARS
+    remaining = reference_budget
     covered_terms: set[str] = set()
     covered_headings: set[str] = set()
     covered_files: set[str] = set()
+    covered_documents: set[str] = set()
     term_files = defaultdict(set)
     for candidate in candidates:
         for term in candidate["matched_terms"]:
@@ -696,29 +829,37 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
     def matching_files(terms):
         return {relative for term in terms for relative in term_files[term]}
     # Prefer newly observed constructs and topics before repeated glossary rows.
+    omitted_sections = 0
     while rankings and len(result["references"]) < MAX_REFERENCES:
         best = max(range(len(rankings)), key=lambda position: (
             rankings[position][0]
             + min(3, len(matching_files(rankings[position][2]) - covered_files)) * 40
             + min(5, len(rankings[position][2] - covered_terms)) * 20
             + (12 if document.sections[rankings[position][1]].heading not in covered_headings else 0)
+            + (16 if document.sections[rankings[position][1]].document_name not in covered_documents else 0)
             - (15 if rankings[position][2] and not rankings[position][2] - covered_terms else 0),
             -rankings[position][1],
         ))
         _, index, source_hits, query_hits = rankings.pop(best)
         section = document.sections[index]
         if len(section.text) > remaining:
+            omitted_sections += 1
             continue
         remaining -= len(section.text)
         covered_terms.update(source_hits)
         covered_headings.add(section.heading)
+        covered_documents.add(section.document_name)
         covered_files.update(matching_files(source_hits))
+        reference_digest = section.document_sha256 or document.sha256
+        name_key = hashlib.sha256(section.document_name.encode()).hexdigest()[:8] + ":" if section.document_name else ""
         result["references"].append({
-            "reference_id": f"fw:{document.sha256[:16]}:{section.start_line}-{section.end_line}",
+            "reference_id": f"fw:{reference_digest[:16]}:{name_key}{section.start_line}-{section.end_line}",
             "heading": section.heading, "page": section.page,
             "start_line": section.start_line, "end_line": section.end_line, "text": section.text,
+            "document_name": section.document_name or document.documents[0]["name"],
+            "document_sha256": reference_digest,
             "matched_terms": sorted(source_hits) if source_hits else sorted(query_hits),
-            "selection_reason": "source_marker" if source_hits else "question_only",
+            "selection_reason": "document_overview" if overview_selection else ("source_marker" if source_hits else "question_only"),
         })
     seen_evidence: set[str] = set()
     eligible_matches = []
@@ -736,20 +877,21 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
             eligible_matches.append(row)
             seen_evidence.add(row["evidence_id"])
     result["source_matches"] = _representative_rows(eligible_matches, MAX_SOURCE_MATCHES)
-    if database_path is not None and result["source_matches"]:
+    if source_pages is None and database_path is not None and result["source_matches"]:
         result["external_calls"] = _external_call_context(database_path, result["source_matches"], result["references"])
     if source_error:
         result.update(status="LOADED", reason_code=source_error)
         result["boundaries"].append("Some selected source could not be matched to the reference; other business evidence remains usable.")
     elif result["source_matches"]:
         result.update(status="MATCHED", reason_code="FRAMEWORK_SOURCE_MATCHED")
-    elif database_path is not None:
+    elif database_path is not None or source_pages is not None:
         result.update(status="NO_MATCH", reason_code="FRAMEWORK_SOURCE_NO_MATCH")
     if result["coverage"]["truncated"] or document.truncated:
         result["boundaries"].append("Retrieval limits were reached; absence of a match does not establish absence of framework use.")
     result["coverage"].update({"matched_term_count": len(source_terms), "references_selected": len(result["references"]),
-                               "reference_chars": MAX_REFERENCE_CHARS - remaining,
-                               "references_truncated": bool(rankings),
+                               "reference_chars": reference_budget - remaining,
+                               "reference_selection": "document_overview" if overview_selection else "relevant_sections",
+                               "references_truncated": bool(rankings) or bool(omitted_sections),
                                "source_matches_selected": len(result["source_matches"]),
                                "source_matches_truncated": len(eligible_matches) > len(result["source_matches"]),
                                "external_calls_selected": len(result["external_calls"])})

@@ -7,6 +7,7 @@ import argparse
 import codecs
 import copy
 from contextlib import closing
+from dataclasses import replace
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -14,6 +15,8 @@ from pathlib import Path
 import re
 import secrets
 import sqlite3
+import subprocess
+import sys
 import threading
 import time
 from typing import Callable, Sequence
@@ -21,11 +24,12 @@ from urllib.parse import parse_qs, urlsplit
 import webbrowser
 
 from analyze_source import ARTIFACT_NAMES, AnalysisCancelled, _paths, analyze_source
-from company_api import APIConfigurationError, CompanyAPIConfig
+from company_api import APIClientError, APIConfigurationError, CompanyAPIConfig, OpenAICompatibleChatClient, Transport
 from investigation_tools import InvestigationTools
 from repo_inventory import parse_extensions
-from framework_knowledge import framework_status
+from framework_knowledge import framework_status, _resolve_reference
 from report_view import DIRECT_REPORT_BYTES, VIEW_REPORT_BYTES, report_sha256
+from conversation_store import ConversationStore
 
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
@@ -34,7 +38,7 @@ FRAMEWORK_DEMO_OUTPUT = Path(__file__).resolve().parents[1] / ".poc-data" / "fra
 STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/i18n.js": "i18n.js", "/styles.css": "styles.css"}
 MAX_REQUEST_BYTES = 32_768
 MAX_GRAPH_EDGES = 200
-OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm"))
+OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm", "conversations.sqlite", "conversations.sqlite-wal", "conversations.sqlite-shm", "conversations.sqlite-journal"))
 EVIDENCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}")
 
 
@@ -64,7 +68,7 @@ def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 102
 
 
 def _validate_options(payload: object) -> dict:
-    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy"}
+    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "conversation_id", "framework_reference_path"}
     if not isinstance(payload, dict) or set(payload) - fields:
         raise RequestError("INVALID_OPTIONS", "请求包含未知设置。")
     source_text, output_text = _text(payload, "source", required=True), _text(payload, "output", required=True)
@@ -102,12 +106,12 @@ def _validate_options(payload: object) -> dict:
     verify_content = payload.get("verify_content", False)
     if type(verify_content) is not bool:
         raise RequestError("INVALID_OPTIONS", "verify_content 必须为布尔值。")
-    max_source_pages = payload.get("max_source_pages", 12)
+    max_source_pages = payload.get("max_source_pages", 4)
     if type(max_source_pages) is not int or not 1 <= max_source_pages <= 128:
         raise RequestError("INVALID_OPTIONS", "阅读段数须为 1 到 128 的整数。")
-    reading_strategy = _text(payload, "reading_strategy", maximum=32) or "full_chain"
-    if reading_strategy not in {"focused", "full_chain"}:
-        raise RequestError("INVALID_OPTIONS", "阅读方式须为 focused 或 full_chain。")
+    reading_strategy = _text(payload, "reading_strategy", maximum=32) or "retrieval"
+    if reading_strategy not in {"retrieval", "focused", "full_chain"}:
+        raise RequestError("INVALID_OPTIONS", "阅读方式须为 retrieval、focused 或 full_chain。")
     extension_text = _text(payload, "extensions", maximum=256)
     try:
         extensions = parse_extensions(extension_text)
@@ -118,6 +122,8 @@ def _validate_options(payload: object) -> dict:
         "entry": _text(payload, "entry"), "question": _text(payload, "question", maximum=8000),
         "allow_network": allow_network, "extensions": extensions, "index_mode": index_mode, "verify_content": verify_content,
         "analysis_mode": "business", "max_source_pages": max_source_pages, "reading_strategy": reading_strategy,
+        "conversation_id": _text(payload, "conversation_id", maximum=64),
+        "framework_reference_path": _text(payload, "framework_reference_path", maximum=4096),
     }
 
 
@@ -179,16 +185,102 @@ def _relationships(database: Path, snapshot_id: str) -> dict:
 
 
 def _environment_config() -> CompanyAPIConfig:
-    return CompanyAPIConfig.from_env(timeout_seconds=60.0, max_output_tokens=4096)
+    return CompanyAPIConfig.from_env(timeout_seconds=60.0, max_output_tokens=2048)
+
+
+_FOLDER_DIALOG_SCRIPT = """
+import json
+import sys
+try:
+    import tkinter as tk
+    from tkinter import filedialog
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    selected = filedialog.askdirectory(parent=root, initialdir=sys.argv[1], mustexist=True)
+    root.destroy()
+    print(json.dumps({'path': selected or None}))
+except Exception:
+    print(json.dumps({'error': 'FOLDER_PICKER_UNAVAILABLE'}))
+"""
+
+_MAC_FOLDER_DIALOG_SCRIPT = """
+function run(argv) {
+    var app = Application.currentApplication();
+    app.includeStandardAdditions = true;
+    try {
+        return app.chooseFolder({withPrompt: "Choose a folder", defaultLocation: Path(argv[0])}).toString();
+    } catch (error) {
+        if (error.errorNumber === -128 || String(error).indexOf("(-128)") !== -1) return "__CANCELLED__";
+        throw error;
+    }
+}
+"""
+
+
+def _pick_macos_folder(initial_path: Path) -> str | None:
+    try:
+        child = subprocess.run(
+            ["/usr/bin/osascript", "-l", "JavaScript", "-e", _MAC_FOLDER_DIALOG_SCRIPT, str(initial_path)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            text=True, timeout=300, check=False,
+        )
+    except subprocess.TimeoutExpired:
+        raise RequestError("FOLDER_PICKER_TIMEOUT", "选择文件夹窗口已超时，请重试。", 504) from None
+    except OSError:
+        raise RequestError("FOLDER_PICKER_UNAVAILABLE", "无法打开本机文件夹选择窗口，请手动填写路径。", 503) from None
+    if child.returncode:
+        raise RequestError("FOLDER_PICKER_UNAVAILABLE", "无法打开本机文件夹选择窗口，请手动填写路径。", 503)
+    selected = child.stdout.strip()
+    if selected == "__CANCELLED__":
+        return None
+    directory = Path(selected).expanduser()
+    if not selected or not directory.is_absolute() or not directory.is_dir():
+        raise RequestError("FOLDER_PICKER_UNAVAILABLE", "无法打开本机文件夹选择窗口，请手动填写路径。", 503)
+    return str(directory.resolve())
+
+
+def _pick_local_folder(initial_path: Path) -> str | None:
+    """Run the native dialog on the child process's main thread."""
+    try:
+        child = subprocess.run(
+            [sys.executable, "-c", _FOLDER_DIALOG_SCRIPT, str(initial_path)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            text=True, timeout=300, check=False,
+        )
+    except subprocess.TimeoutExpired:
+        raise RequestError("FOLDER_PICKER_TIMEOUT", "选择文件夹窗口已超时，请重试。", 504) from None
+    except OSError:
+        if sys.platform == "darwin":
+            return _pick_macos_folder(initial_path)
+        raise RequestError("FOLDER_PICKER_UNAVAILABLE", "无法打开本机文件夹选择窗口，请手动填写路径。", 503) from None
+    try:
+        result = json.loads(child.stdout)
+        if child.returncode or not isinstance(result, dict) or result.get("error"):
+            raise ValueError("dialog unavailable")
+        selected = result["path"]
+        if selected is None:
+            return None
+        directory = Path(selected).expanduser()
+        if not directory.is_absolute() or not directory.is_dir():
+            raise ValueError("invalid selected path")
+        return str(directory.resolve())
+    except (KeyError, TypeError, ValueError, OSError):
+        if sys.platform == "darwin":
+            return _pick_macos_folder(initial_path)
+        raise RequestError("FOLDER_PICKER_UNAVAILABLE", "无法打开本机文件夹选择窗口，请手动填写路径。", 503) from None
 
 
 class WorkbenchState:
     """One in-memory browser session, one job, and one current source snapshot."""
 
     def __init__(self, *, analyzer: Callable = analyze_source, config_provider: Callable = _environment_config,
-                 demo_output_root: Path | None = None) -> None:
+                 demo_output_root: Path | None = None, state_path: Path | None = None,
+                 model_check_transport: Transport | None = None,
+                 folder_picker: Callable[[Path], str | None] = _pick_local_folder) -> None:
         self.session_token = secrets.token_urlsafe(32)
         self.analyzer, self.config_provider = analyzer, config_provider
+        self.model_check_transport, self.folder_picker = model_check_transport, folder_picker
         self.lock = threading.RLock()
         self.project = _project()
         self.job: dict | None = None
@@ -196,6 +288,186 @@ class WorkbenchState:
         self.started_at = self.updated_at = self.phase_started_at = 0.0
         self.phase_start_completed = 0.0
         self.demo_output_root = demo_output_root if demo_output_root is not None else FRAMEWORK_DEMO_OUTPUT
+        self.state_path = state_path
+        self.framework_reference_path = None
+        self.conversation = None
+        self.conversation_store = None
+        self._restore_workspace()
+
+    def _save_workspace(self, options=None):
+        if self.state_path is None:
+            return
+        options = options or self.project
+        data = {"source": str(options.get("source") or ""), "output": str(options.get("output") or ""),
+                "framework_reference_path": self.framework_reference_path,
+                "conversation_id": (self.conversation or {}).get("id")}
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        if self.state_path.is_symlink():
+            raise ValueError("WORKSPACE_PATH_INVALID")
+        temporary = self.state_path.with_suffix(".tmp")
+        if temporary.is_symlink():
+            raise ValueError("WORKSPACE_PATH_INVALID")
+        temporary.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        temporary.replace(self.state_path)
+
+    def _restore_workspace(self):
+        if self.state_path is None or not self.state_path.is_file() or self.state_path.is_symlink():
+            return
+        try:
+            saved = json.loads(self.state_path.read_text(encoding="utf-8"))
+            self.framework_reference_path = saved.get("framework_reference_path")
+            if not saved.get("source") or not saved.get("output"):
+                return
+            source, output = _paths(Path(saved["source"]), Path(saved["output"]))
+            report = _read_json(output / "diagnosis.json")
+            from repository_discovery import repository_search_overview
+            overview = repository_search_overview(output / "structural-index.sqlite", source)
+            if not report.get("source_manifest_verified") or report.get("source_root") != str(source):
+                return
+            if (report.get("build_report") or {}).get("snapshot_id") != overview["snapshot_id"]:
+                return
+            programs = _read_json(output / "programs.json")
+            project = _project(str(source), str(output))
+            project.update(diagnosis=report, programs=programs.get("programs", []),
+                           snapshot_id=overview["snapshot_id"], agent=_read_json(output / "agent-result.json"),
+                           relations=_relationships(output / "structural-index.sqlite", overview["snapshot_id"]))
+            self.project = project
+            self.conversation_store = ConversationStore(output, source)
+            self.conversation_store.recover_interrupted()
+            if saved.get("conversation_id"):
+                self.conversation = self.conversation_store.get(saved["conversation_id"])
+        except (OSError, ValueError, KeyError, sqlite3.Error):
+            # The saved path is a convenience, not authority for a stale index.
+            self.project = _project()
+
+    def framework(self):
+        try:
+            resolved = _resolve_reference(self.framework_reference_path)
+        except ValueError:
+            resolved = self.framework_reference_path
+        return {**framework_status(self.framework_reference_path),
+                "configured_path": str(resolved) if resolved else ""}
+
+    def configure_framework(self, payload):
+        if not isinstance(payload, dict) or set(payload) != {"path"}:
+            raise RequestError("INVALID_OPTIONS", "请提供框架资料文件或目录。")
+        path = _text(payload, "path", maximum=4096)
+        with self.lock:
+            if self.job and self.job["status"] == "RUNNING":
+                raise RequestError("JOB_ACTIVE", "本次回答完成后可以更新框架资料。", 409)
+            self.framework_reference_path = path
+            status = self.framework()
+            self._save_workspace()
+            return {"framework_knowledge": status}
+
+    def check_model(self, payload: object) -> dict:
+        if payload != {}:
+            raise RequestError("INVALID_OPTIONS", "模型连接测试请求须为空对象。")
+        try:
+            config = self.config_provider()
+            config.validate()
+            probe_config = replace(config, timeout_seconds=min(float(config.timeout_seconds), 15.0),
+                                   max_output_tokens=min(config.max_output_tokens, 32))
+            response = OpenAICompatibleChatClient(
+                probe_config, transport=self.model_check_transport, allow_network=True,
+            ).complete(messages=[{"role": "user", "content": "Reply with the single word OK."}])
+        except (APIConfigurationError, APIClientError) as exc:
+            return {"usable": False, "code": exc.code, "http_status": exc.http_status,
+                    "model_returned": False}
+        except (TypeError, ValueError):
+            return {"usable": False, "code": "CONFIGURATION_INVALID", "http_status": None,
+                    "model_returned": False}
+        choices = response.get("choices")
+        if isinstance(choices, list) and choices:
+            for choice in choices[:1]:
+                if not isinstance(choice, dict):
+                    continue
+                message = choice.get("message")
+                if not isinstance(message, dict) or message.get("role", "assistant") != "assistant":
+                    continue
+                content = message.get("content")
+                if isinstance(content, str):
+                    answer = content.strip()
+                elif isinstance(content, list):
+                    answer = "".join(
+                        part.get("text", "") for part in content
+                        if isinstance(part, dict) and isinstance(part.get("text"), str)
+                    ).strip()
+                else:
+                    answer = ""
+                if answer and not message.get("refusal") and choice.get("finish_reason") != "content_filter":
+                    return {"usable": True, "code": "MODEL_REPLY_RECEIVED", "http_status": 200,
+                            "model_returned": True}
+        return {"usable": False, "code": "MODEL_TEXT_EMPTY", "http_status": 200,
+                "model_returned": False}
+
+    def pick_folder(self, payload: object) -> dict:
+        if not isinstance(payload, dict) or set(payload) - {"initial_path"}:
+            raise RequestError("INVALID_OPTIONS", "文件夹选择请求只接受起始路径。")
+        suggested = _text(payload, "initial_path", maximum=4096)
+        with self.lock:
+            current_source = self.project.get("source")
+        candidate = Path(suggested or current_source or Path.home()).expanduser()
+        initial_path = candidate if candidate.is_dir() else candidate.parent
+        if not initial_path.is_dir():
+            initial_path = Path.home()
+        try:
+            selected = self.folder_picker(initial_path)
+        except RequestError:
+            raise
+        except Exception:
+            raise RequestError("FOLDER_PICKER_UNAVAILABLE", "无法打开本机文件夹选择窗口，请手动填写路径。", 503) from None
+        if selected is None:
+            return {"cancelled": True, "path": None}
+        directory = Path(selected).expanduser()
+        if not directory.is_absolute() or not directory.is_dir():
+            raise RequestError("FOLDER_PICKER_UNAVAILABLE", "所选文件夹不可用，请重新选择或手动填写路径。", 503)
+        return {"cancelled": False, "path": str(directory.resolve())}
+
+    def get_conversation(self, identifier):
+        with self.lock:
+            if self.job and self.job["status"] == "RUNNING":
+                raise RequestError("JOB_ACTIVE", "当前回答完成后可以切换对话。", 409)
+            try:
+                self.conversation = self.conversation_store.get(identifier)
+            except (ValueError, AttributeError):
+                raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话。", 404) from None
+            self._save_workspace()
+            return {"conversation": copy.deepcopy(self.conversation)}
+
+    def new_conversation(self, payload):
+        if payload != {}:
+            raise RequestError("INVALID_OPTIONS", "新对话请求须为空对象。")
+        with self.lock:
+            if self.job and self.job["status"] == "RUNNING":
+                raise RequestError("JOB_ACTIVE", "请先完成或停止当前回答。", 409)
+            if self.conversation_store is None:
+                raise RequestError("SOURCE_REQUIRED", "先接入源码，再开始对话。", 409)
+            self.conversation = self.conversation_store.create(self.project.get("snapshot_id"))
+            self._save_workspace()
+            return {"conversation": copy.deepcopy(self.conversation)}
+
+    def _record_answer(self, options, job_id, project):
+        identifier = options.get("conversation_id")
+        if not identifier:
+            return
+        agent = (project.get("agent") or {}).get("agent_result") or {}
+        status = "completed" if (project.get("agent") or {}).get("runner_status") == "COMPLETED" else "failed"
+        self.conversation_store.complete_user(job_id, status)
+        self.conversation_store.append(identifier, "assistant",
+            agent.get("answer") or "本次没有取得模型回答。对话已保留，可以重试。", status=status, run_id=job_id,
+            details={"evidence_refs": agent.get("evidence_refs", []),
+                     "cited_evidence_ids": [r.get("evidence_id") for r in (agent.get("narrative") or {}).get("citations", []) if r.get("evidence_id")],
+                     "framework_references": (agent.get("framework_context") or {}).get("references", []),
+                     "snapshot_id": agent.get("snapshot_id"), "metrics": agent.get("metrics", {}),
+                     "diagnostics": agent.get("diagnostics", [])})
+        self.conversation = self.conversation_store.get(identifier)
+
+    def _record_failure(self, options, job_id, status):
+        identifier = options.get("conversation_id")
+        if identifier and self.conversation_store:
+            self.conversation_store.complete_user(job_id, status)
+            self.conversation = self.conversation_store.get(identifier)
 
     def framework_demo(self) -> dict:
         from framework_demo import load_framework_demo
@@ -216,18 +488,39 @@ class WorkbenchState:
             case = select_framework_demo_case(demo, payload["case_id"])
         except (ValueError, TypeError):
             raise RequestError("FRAMEWORK_DEMO_CASE_UNKNOWN", "所选框架案例不存在。", 404) from None
-        # Case preparation indexes the bundled source locally. Model requests
-        # still require the ordinary explicit analysis action in the browser.
-        output = self.demo_output_root / secrets.token_hex(16)
+        # Cases share one source snapshot; choosing another question does not
+        # rebuild the synthetic repository or discard its conversation.
+        output = (self.demo_output_root / "business-conversation").resolve()
         question = case["question"]
         if isinstance(question, dict):
             question = question.get(locale) or question.get("zh-CN")
-        return self.start({
-            "source": demo["source_path"], "output": str(output.resolve()),
-            "entry": case["entry_path"], "question": question,
-            "encoding": "utf-8", "source_format": "free", "index_mode": "catalog",
-            "allow_network": False, "max_source_pages": 12, "reading_strategy": "full_chain",
-        })
+        with self.lock:
+            same_project = (self.project.get("source") == demo["source_path"]
+                            and self.project.get("output") == str(output))
+            diagnosis = self.project.get("diagnosis") or {}
+            search = diagnosis.get("repository_search") or {}
+            search_ready = (search.get("snapshot_id") == self.project.get("snapshot_id")
+                            and search.get("full_text_complete") is True
+                            and (diagnosis.get("scope") or {}).get("mode") in {"repository_index", "repository_question"})
+            if self.job and self.job["status"] == "RUNNING":
+                if same_project and self.project.get("run_id") == self.job["job_id"]:
+                    return {"job_id": self.job["job_id"], "status": "RUNNING",
+                            "suggested_question": question}
+                raise RequestError("JOB_ACTIVE", "当前工作完成后可以切换业务案例。", 409)
+            if same_project and self.project.get("snapshot_id") and diagnosis.get("source_manifest_verified") and search_ready:
+                if self.conversation_store is None:
+                    self.conversation_store = ConversationStore(output, Path(demo["source_path"]))
+                if not self.conversation:
+                    self.conversation = self.conversation_store.create(self.project["snapshot_id"])
+                    self._save_workspace()
+                return {"status": "READY", "project": copy.deepcopy(self.project),
+                        "conversation": copy.deepcopy(self.conversation),
+                        "suggested_question": question}
+        return {**self.start({
+            "source": demo["source_path"], "output": str(output),
+            "encoding": "utf-8", "source_format": "free", "index_mode": "full",
+            "allow_network": False, "max_source_pages": 4, "reading_strategy": "retrieval",
+        }), "suggested_question": question}
 
     def state(self) -> dict:
         configuration_error = None
@@ -246,7 +539,9 @@ class WorkbenchState:
                 "session_token": self.session_token,
                 "api_configured": configured,
                 "api_configuration_error": configuration_error,
-                "framework_knowledge": framework_status(),
+                "framework_knowledge": self.framework(),
+                "conversation": copy.deepcopy(self.conversation),
+                "conversations": self.conversation_store.list() if self.conversation_store else [],
                 "active_job_id": self.job["job_id"] if self.job and self.job["status"] == "RUNNING" else None,
                 "project": copy.deepcopy(self.project),
                 "job": self._job_snapshot() if self.job else None,
@@ -268,9 +563,24 @@ class WorkbenchState:
             if self.job and self.job["status"] == "RUNNING":
                 raise RequestError("JOB_ACTIVE", "当前分析尚未结束，请等待完成。", 409)
             job_id = secrets.token_hex(16)
-            # Clear answers, graph and evidence authority before the worker can
-            # read an older output directory or fail while refreshing it.
-            self.project = _project(str(options["source"]), str(options["output"]), job_id)
+            same_project = self.project.get("source") == str(options["source"]) and self.project.get("output") == str(options["output"])
+            self.conversation_store = ConversationStore(options["output"], options["source"])
+            options["framework_reference_path"] = options.get("framework_reference_path") or self.framework_reference_path
+            self.framework_reference_path = options["framework_reference_path"]
+            if options["question"] and options["allow_network"]:
+                try:
+                    conversation = self.conversation_store.get(options["conversation_id"]) if options.get("conversation_id") else self.conversation_store.create(self.project.get("snapshot_id") if same_project else None)
+                except ValueError:
+                    raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话，请新建对话后重试。", 404) from None
+                options["conversation_id"] = conversation["id"]
+                options["conversation_history"] = conversation["messages"]
+                self.conversation_store.append(conversation["id"], "user", options["question"], status="pending", run_id=job_id)
+                self.conversation = self.conversation_store.get(conversation["id"])
+            elif not same_project:
+                self.conversation = None
+            if not same_project or not options["question"]:
+                self.project = _project(str(options["source"]), str(options["output"]), job_id)
+            self._save_workspace(options)
             self.cancel_event = threading.Event()
             self.started_at = self.updated_at = self.phase_started_at = time.monotonic()
             self.phase_start_completed = 0.0
@@ -332,7 +642,9 @@ class WorkbenchState:
     def _run(self, job_id: str, options: dict) -> None:
         try:
             source, output = options["source"], options["output"]
-            arguments = {key: value for key, value in options.items() if key not in {"source", "output"}}
+            arguments = {key: value for key, value in options.items() if key not in {"source", "output", "conversation_id"}}
+            if arguments.get("framework_reference_path") is None:
+                arguments.pop("framework_reference_path", None)
             if options["allow_network"] and options["question"]:
                 arguments["capture_api_responses"] = True
                 try:
@@ -383,20 +695,25 @@ class WorkbenchState:
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
                     self.project = project
+                    self._record_answer(options, job_id, project)
+                    project["conversation"] = copy.deepcopy(self.conversation)
+                    self._save_workspace(options)
                     self.updated_at = time.monotonic()
                     self.job.update(status="COMPLETED", result=copy.deepcopy(project))
         except AnalysisCancelled:
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
                     self.updated_at = time.monotonic()
-                    self.project = _project(str(options["source"]), str(options["output"]), job_id)
-                    self.job.update(status="CANCELLED", result=None)
+                    self._record_failure(options, job_id, "cancelled")
+                    self.job.update(status="CANCELLED", result=None, conversation=copy.deepcopy(self.conversation))
         except Exception:
             # Never serialize raw adapter errors, environment values or remote
             # responses. Failed work leaves no current evidence authority.
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
                     self.updated_at = time.monotonic()
+                    self._record_failure(options, job_id, "failed")
+                    self.job["conversation"] = copy.deepcopy(self.conversation)
                     self.job.update(status="FAILED", error={"code": "ANALYSIS_FAILED", "message": "本次分析未完成。请检查输入路径和源码格式后重试。"})
 
     def get_job(self, job_id: str) -> dict:
@@ -405,11 +722,21 @@ class WorkbenchState:
                 raise RequestError("JOB_NOT_FOUND", "任务不存在或已由新的源码分析替换。", 404)
             return self._job_snapshot()
 
-    def evidence(self, evidence_id: str) -> dict:
+    def evidence(self, evidence_id: str, conversation_id=None, message_id=None) -> dict:
         if EVIDENCE_ID.fullmatch(evidence_id) is None:
             raise RequestError("INVALID_EVIDENCE_ID", "证据标识无效。")
         with self.lock:
-            if not self.project["snapshot_id"] or (self.job and self.job["status"] == "RUNNING"):
+            if conversation_id:
+                try:
+                    conversation = self.conversation_store.get(conversation_id)
+                    message = next(m for m in conversation["messages"] if m["id"] == message_id)
+                    if evidence_id not in {r.get("evidence_id") for r in message.get("evidence_refs", [])}:
+                        raise ValueError("missing reference")
+                    if message.get("snapshot_id") != self.project.get("snapshot_id"):
+                        raise RequestError("HISTORICAL_SOURCE_VERSION", "这条引用属于较早的源码版本；请查看当时的路径和行号，或在当前版本继续提问。", 409)
+                except (ValueError, StopIteration, AttributeError):
+                    raise RequestError("EVIDENCE_NOT_FOUND", "引用不属于这条对话消息。", 404) from None
+            if not self.project["snapshot_id"] or (self.job and self.job["status"] == "RUNNING" and not self.conversation):
                 raise RequestError("NO_CURRENT_INDEX", "当前没有完成并验证的源码索引。", 409)
             database = Path(self.project["output"]) / "structural-index.sqlite"
             if database.is_symlink():
@@ -492,11 +819,13 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._json(200, self.server.app.framework_demo())
             elif path.startswith("/api/jobs/") and not route.query:
                 self._json(200, self.server.app.get_job(path.removeprefix("/api/jobs/")))
+            elif re.fullmatch(r"/api/conversations/[a-f0-9]{32}", path) and not route.query:
+                self._json(200, self.server.app.get_conversation(path.rsplit("/", 1)[1]))
             elif path == "/api/evidence":
                 query = parse_qs(route.query, keep_blank_values=True)
-                if set(query) != {"id"} or len(query["id"]) != 1:
+                if "id" not in query or set(query) - {"id", "conversation_id", "message_id"} or any(len(v) != 1 for v in query.values()):
                     raise RequestError("INVALID_QUERY", "请提供一个有效证据标识。")
-                self._json(200, self.server.app.evidence(query["id"][0]))
+                self._json(200, self.server.app.evidence(query["id"][0], query.get("conversation_id", [None])[0], query.get("message_id", [None])[0]))
             elif path in STATIC_FILES:
                 file = self.server.web_root / STATIC_FILES[path]
                 if file.is_symlink() or not file.is_file():
@@ -514,7 +843,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             self._guard(token=True)
             cancel_match = re.fullmatch(r"/api/jobs/([a-f0-9]{32})/cancel", self.path)
-            if self.path not in {"/api/analyze", "/api/framework-demo/prepare"} and cancel_match is None:
+            if self.path not in {"/api/analyze", "/api/framework-demo/prepare", "/api/framework", "/api/conversations", "/api/model-check", "/api/pick-folder"} and cancel_match is None:
                 raise RequestError("NOT_FOUND", "请求的操作不存在。", 404)
             if self.headers.get_content_type() != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise RequestError("INVALID_CONTENT_TYPE", "只接受 JSON 请求。", 415)
@@ -534,6 +863,14 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._json(202, self.server.app.cancel(cancel_match.group(1)))
             elif self.path == "/api/framework-demo/prepare":
                 self._json(202, self.server.app.prepare_framework_demo(payload))
+            elif self.path == "/api/framework":
+                self._json(200, self.server.app.configure_framework(payload))
+            elif self.path == "/api/model-check":
+                self._json(200, self.server.app.check_model(payload))
+            elif self.path == "/api/pick-folder":
+                self._json(200, self.server.app.pick_folder(payload))
+            elif self.path == "/api/conversations":
+                self._json(201, self.server.app.new_conversation(payload))
             else:
                 self._json(202, self.server.app.start(payload))
         except RequestError as exc:
@@ -546,7 +883,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 
 def create_server(port: int = 8765, *, app: WorkbenchState | None = None, web_root: Path = WEB_ROOT) -> LocalServer:
-    return LocalServer(port, app or WorkbenchState(), web_root)
+    return LocalServer(port, app or WorkbenchState(state_path=Path(__file__).resolve().parents[1] / ".poc-data" / "workbench-state.json"), web_root)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

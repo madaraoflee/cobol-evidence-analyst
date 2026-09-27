@@ -216,6 +216,7 @@ def analyze_source(
     analysis_mode: str = "strict",
     max_source_pages: int = 12,
     reading_strategy: str = "focused",
+    conversation_history: list[dict] | None = None,
 ) -> dict:
     source, output = _paths(source_root, output_root)
     external_progress = progress
@@ -229,14 +230,23 @@ def analyze_source(
         raise ValueError("index_mode must be full or catalog.")
     if analysis_mode not in {"business", "strict"}:
         raise ValueError("analysis_mode must be business or strict.")
-    if reading_strategy not in {"focused", "full_chain"}:
-        raise ValueError("reading_strategy must be focused or full_chain.")
+    if reading_strategy not in {"retrieval", "focused", "full_chain"}:
+        raise ValueError("reading_strategy must be retrieval, focused or full_chain.")
     if type(max_source_pages) is not int or not 1 <= max_source_pages <= 128:
         raise ValueError("max_source_pages must be an integer from 1 to 128.")
     if entry is not None and not entry.strip():
         raise ValueError("--entry must not be empty.")
     if question is not None and not question.strip():
         raise ValueError("--question must not be empty.")
+    if analysis_mode == "business" and reading_strategy == "retrieval" and question and allow_network and not verify_content:
+        from indexed_chat import try_indexed_question
+        cached = try_indexed_question(source, output, question=question, entry=entry,
+            extensions=extensions, include_extensionless=include_extensionless, encoding=encoding,
+            source_format=source_format, config=config, api_options=api_options, transport=transport,
+            framework_reference_path=framework_reference_path, capture_api_responses=capture_api_responses,
+            history=conversation_history, progress=progress, check_cancel=check_cancel)
+        if cached is not None:
+            return cached
     repository_mode = analysis_mode == "business" and entry is None
     output.mkdir(parents=True, exist_ok=True)
     report = {
@@ -386,7 +396,7 @@ def analyze_source(
                 report["messages"].append("入口不存在或无法唯一定位。请从目录选择准确的文件和程序定义位置，并核对是否存在重复入口。")
             else:
                 report.update(runner_status="NEEDS_ATTENTION" if report["messages"] else "INDEX_READY", reason_code="SOURCE_INDEX_READY")
-            if report["runner_status"] != "BLOCKED":
+            if report["runner_status"] != "BLOCKED" and not (analysis_mode == "business" and reading_strategy == "retrieval"):
                 progress({"phase": "framework", "completed": 0, "total": None, "unit": "steps"})
                 report["framework_context"] = build_framework_context(
                     output / "structural-index.sqlite",
@@ -422,7 +432,8 @@ def analyze_source(
                                           capture_api_responses=capture_api_responses,
                                           analysis_mode=analysis_mode, source_root=source,
                                           max_source_pages=max_source_pages, reading_strategy=reading_strategy,
-                                          progress=progress, check_cancel=check_cancel)
+                                          progress=progress, check_cancel=check_cancel,
+                                          conversation_history=conversation_history)
             except APIConfigurationError as exc:
                 agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
             result = agent.get("agent_result") or {}
@@ -440,7 +451,8 @@ def analyze_source(
                 report["question_status"] = agent["runner_status"]
                 report["messages"].append("源码索引已建立，问答未完成。请查看页面的 API 返回，或 agent-result.json 的 reason_code、capability_report、agent_result.stop_reason，区分接口、协议和调查限制。")
             # Catch edits made while the model was investigating the stored snapshot.
-            _verify_scope(source, indexed, progress, check_cancel)
+            if not (analysis_mode == "business" and reading_strategy == "retrieval"):
+                _verify_scope(source, indexed, progress, check_cancel)
     except AnalysisCancelled:
         report.update(runner_status="CANCELLED", reason_code="USER_CANCELLED", source_manifest_verified=False, catalog_ready=False)
         report["framework_context"] = build_framework_context(reference_path=framework_reference_path)
@@ -484,7 +496,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--analysis-mode", choices=("business", "strict"), default="business",
                         help="business: source reading and explanation; strict: legacy action-contract investigation.")
     parser.add_argument("--max-source-pages", type=int, default=12, help="Focused page budget or full-chain batch size, from 1 to 128.")
-    parser.add_argument("--reading-strategy", choices=("focused", "full_chain"), default="full_chain",
+    parser.add_argument("--reading-strategy", choices=("retrieval", "focused", "full_chain"), default="retrieval",
                         help="full_chain: read all available selected source pages in batches; focused: bounded page selection.")
     parser.add_argument("--framework-reference", type=Path, help="Private UTF-8 Markdown reference; defaults to FRAMEWORK_REFERENCE_PATH from the project .env.")
     parser.add_argument("--index-mode", choices=("catalog", "full"), default="full", help="catalog: quick inventory, then bounded entry analysis; full: detailed whole-directory index.")

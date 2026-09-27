@@ -61,12 +61,12 @@ class WebResultVisibilityTests(unittest.TestCase):
             time.sleep(0.01)
         self.fail("web job did not finish")
 
-    def test_web_analysis_defaults_to_full_chain_without_changing_business_mode(self):
+    def test_web_analysis_defaults_to_retrieval_without_changing_business_mode(self):
         _, project = self.run_case(lambda report, agent, programs: None)
         options = project["diagnosis"]["source_options"]
         self.assertEqual(options["analysis_mode"], "business")
-        self.assertEqual(options["reading_strategy"], "full_chain")
-        self.assertEqual(options["max_source_pages"], 12)
+        self.assertEqual(options["reading_strategy"], "retrieval")
+        self.assertEqual(options["max_source_pages"], 4)
 
     def test_reading_strategy_and_batch_size_validate_independently(self):
         with tempfile.TemporaryDirectory() as temp:

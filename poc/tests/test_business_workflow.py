@@ -110,7 +110,7 @@ class BusinessWorkflowTests(unittest.TestCase):
         job = app.get_job(job_id)
         self.assertEqual(job["status"], "COMPLETED", job.get("error"))
         answer = job["result"]["agent"]["agent_result"]
-        self.assertEqual(answer["analysis_mode"], "source_reading")
+        self.assertEqual(answer["analysis_mode"], "retrieval")
         self.assertIn("FINAL-AMOUNT", answer["narrative"]["text"])
         reference = answer["evidence_refs"][0]
         evidence = app.evidence(reference["evidence_id"])

@@ -80,10 +80,10 @@ class WebAPIDiagnosticsTests(unittest.TestCase):
             agent = job["result"]["agent"]
             if change_source:
                 self.assertEqual(agent["runner_status"], "NOT_READY")
-                self.assertEqual(agent["reason_code"], "SOURCE_ANALYSIS_FAILED")
-                self.assertIsNone(agent["agent_result"])
-                self.assertIsNone(job["result"]["snapshot_id"])
-                self.assertEqual(job["result"]["relations"]["edges"], [])
+                self.assertEqual(agent["reason_code"], "SOURCE_CHANGED_DURING_ANSWER")
+                self.assertFalse(agent["agent_result"]["model_answer_recorded"])
+                self.assertNotIn("increments the counter", agent["agent_result"]["answer"])
+                self.assertEqual(agent["agent_result"]["evidence_refs"], [])
             else:
                 self.assertEqual(agent["runner_status"], "COMPLETED")
                 self.assertIn("increments the counter", agent["agent_result"]["narrative"]["text"])
@@ -91,12 +91,12 @@ class WebAPIDiagnosticsTests(unittest.TestCase):
             exchanges = agent["api_diagnostics"]["exchanges"]
             actual = [item for item in exchanges if item["phase"] == "investigation"]
             if repository:
-                self.assertGreaterEqual(len(actual), 2)
+                self.assertEqual(len(actual), 1)
                 project = job["result"]
                 self.assertIsNone(project["diagnosis"]["entry_requested"])
                 self.assertIsNone(project["diagnosis"]["selected_entry"])
                 self.assertEqual(project["diagnosis"]["question"], options["question"])
-                self.assertEqual(agent["agent_result"]["investigation"]["mode"], "repository")
+                self.assertEqual(agent["agent_result"]["investigation"]["mode"], "retrieval")
                 self.assertEqual(agent["agent_result"]["investigation"]["repository_file_count"], 2)
                 self.assertTrue(project["diagnosis"]["unresolved_dependencies"])
             else:

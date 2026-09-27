@@ -69,6 +69,7 @@ def run_investigation(
     source_root: Path | str | None = None,
     max_source_pages: int = 12,
     reading_strategy: str = "focused",
+    conversation_history: list[dict] | None = None,
     progress: Callable | None = None,
     check_cancel: Callable | None = None,
 ) -> dict[str, object]:
@@ -78,11 +79,18 @@ def run_investigation(
         raise ValueError("question must be a non-empty string")
     if analysis_mode not in {"business", "strict"}:
         raise ValueError("analysis_mode must be business or strict")
-    if reading_strategy not in {"focused", "full_chain"}:
+    if reading_strategy not in {"retrieval", "focused", "full_chain"}:
         raise ValueError("reading_strategy must be focused or full_chain")
     if analysis_mode == "business":
         if source_root is None:
             return _not_ready("SOURCE_ROOT_REQUIRED")
+        if reading_strategy == "retrieval":
+            from business_chat import run_business_chat
+            return run_business_chat(question, database_path, source_root, config,
+                history=conversation_history, entry_program=entry_program,
+                framework_reference_path=framework_reference_path, transport=transport,
+                allow_network=allow_network, capture_api_responses=capture_api_responses,
+                progress=progress, check_cancel=check_cancel)
         from business_analysis import run_business_analysis
         return run_business_analysis(
             question, database_path, source_root, config,

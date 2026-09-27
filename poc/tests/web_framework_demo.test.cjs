@@ -70,7 +70,7 @@ test('all case views translate authored guide objects while program names and so
     h.events['language-select:change']({target:{value:locale}});
     for(const id of ['online','client_server','batch']){
       h.run(`selectDemoCase('${id}',false)`);
-      const content=h.run('renderWorkbench()+renderSources()+renderHistory()+markdownSummary()');
+      const content=h.run('renderWorkbench()+renderSources()+renderHistory()+relationsView()+markdownSummary()');
       if(locale==='en')assert.doesNotMatch(content,/[\u3400-\u9fff]/);
       assert.match(content,/REQUESTIO/);assert.doesNotMatch(content,/\[object Object\]|screen_controlled_online/);
     }
@@ -85,7 +85,7 @@ test('case text and source are escaped and forged citations do not create links'
   selected.relations.push({source_program:'<script>source</script>',target_name:'<img src=x>',relation_type:'CALLS',status:'source_observed',evidence_id:'ev_forged'});
   selected.evidence[0].source_text="DISPLAY '來源：分析工作台 <script>source</script>'.";
   selected.metadata[0].value={en:'<img src=x>'};fixture.snapshot_id='<script>bad';
-  const h=harness();h.fixture(fixture);const content=h.run('renderWorkbench()+relationsView()');
+  const h=harness();h.fixture(fixture);const content=h.run('renderWorkbench()+relationsView()+evidencePanel()');
   assert.match(content,/&lt;script&gt;/);assert.match(content,/&lt;img/);assert.match(content,/來源：分析工作台/);assert.doesNotMatch(content,/<script|<img|<iframe/);
   assert.match(content,/data-evidence="ev_guide_online"/);assert.doesNotMatch(content,/data-evidence="ev_forged"/);
 });
@@ -111,6 +111,43 @@ test('load case only prepares a local job, restores its question and permits an 
   });
   await h.events.submit({target:{id:'question-form'},preventDefault:()=>{}});
   assert.equal(h.requests.filter(item=>item.url==='/api/analyze').length,1);assert.equal(h.run('state.question'),question);assert.equal(h.run('syntheticProject()'),true);
+});
+
+test('editable example enters chat, a second example reuses the synthetic index, and follow-ups keep the same conversation',async()=>{
+  const h=harness('en');h.fixture();h.run("state.connected=true;state.token='session';state.apiConfigured=true;state.conversationSupported=true");
+  const project=preparedProject('en');project.diagnosis.source_manifest_verified=true;project.diagnosis.scope={mode:'repository_index'};project.diagnosis.repository_search={full_text_complete:true};
+  const thread={id:'example-conversation',title:'',messages:[]};
+  h.events.input({target:{id:'demo-question-input',value:'How is any request routed?'}});
+  assert.equal(h.run('state.question'),'How is any request routed?');
+  assert.match(h.run('renderWorkbench()'),/How is any request routed/);
+  h.respond(url=>url==='/api/framework-demo/prepare'?{job_id:'first-index',status:'RUNNING'}:url==='/api/jobs/first-index'?{status:'COMPLETED',result:{...project,conversation:thread}}:assert.fail(url));
+  await h.events.submit({target:{id:'demo-question-form'},preventDefault(){}});
+  assert.equal(h.run('state.mode'),'real');assert.equal(h.run('state.entry'),'');assert.equal(h.run('state.question'),'How is any request routed?');
+  assert.equal(h.run('state.project.output'),'local-output');assert.match(h.run('renderWorkbench()'),/conversation-workspace/);
+  h.run("setMode('demo');selectDemoCase('batch',false)");
+  h.events.input({target:{id:'demo-question-input',value:'What else happens overnight?'}});
+  h.respond(url=>url==='/api/framework-demo/prepare'?{status:'READY',project,conversation:thread,suggested_question:'Suggested question'}:assert.fail(url));
+  await h.events.submit({target:{id:'demo-question-form'},preventDefault(){}});
+  assert.equal(h.run('state.question'),'What else happens overnight?');assert.equal(h.run('state.project.output'),'local-output');
+  assert.equal(h.requests.filter(item=>item.url==='/api/framework-demo/prepare').length,2);
+  assert.equal(h.requests.filter(item=>item.url.startsWith('/api/jobs/')).length,1);
+  h.respond((url,options)=>{
+    if(url==='/api/analyze'){const body=JSON.parse(options.body);assert.equal(body.conversation_id,'example-conversation');assert.equal(body.question,'What else happens overnight?');assert.equal(body.entry,null);assert.equal(body.reading_strategy,'retrieval');return {job_id:'answer'};}
+    if(url==='/api/jobs/answer')return {status:'COMPLETED',result:{...project,conversation:{...thread,messages:[{id:'user-1',role:'user',content:'What else happens overnight?',status:'COMPLETED'},{id:'assistant-1',role:'assistant',content:'Requests are processed overnight.',status:'COMPLETED'}]}}};
+    assert.fail(url);
+  });
+  h.events.input({target:{id:'question-input',value:'What else happens overnight?'}});
+  await h.events.submit({target:{id:'question-form'},preventDefault(){}});
+  assert.match(h.run('renderWorkbench()'),/Requests are processed overnight/);
+});
+
+test('a failed example preparation keeps the prior synthetic project and conversation',async()=>{
+  const h=harness('en');h.fixture();const project=preparedProject('en');
+  h.run(`state.connected=true;state.conversationSupported=true;state.project=${JSON.stringify(project)};state.conversation={id:'prior',messages:[{id:'before',role:'user',content:'Earlier question'}]};state.question='My edited question'`);
+  h.respond(()=>{throw Error('offline');});await h.run('prepareDemo()');
+  assert.equal(h.run('state.mode'),'demo');assert.equal(h.run('state.project.output'),'local-output');assert.equal(h.run('state.conversation.id'),'prior');assert.equal(h.run('state.question'),'My edited question');
+  h.respond(url=>url==='/api/framework-demo/prepare'?{job_id:'failed-job',status:'RUNNING'}:{status:'FAILED',error:{code:'INDEX_UNAVAILABLE'}});
+  await h.run('prepareDemo()');assert.equal(h.run('state.mode'),'demo');assert.equal(h.run('state.project.output'),'local-output');assert.equal(h.run('state.conversation.id'),'prior');
 });
 
 test('guide and later real-mode exports preserve synthetic provenance and source hashes',()=>{

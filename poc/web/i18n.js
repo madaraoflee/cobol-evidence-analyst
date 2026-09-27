@@ -3,6 +3,90 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+合成源碼 · 示例起點|合成源码 · 示例起点|Synthetic source · Example starters
+選一個問題，開始對話。|选一个问题，开始对话。|Choose a question to start a conversation.
+案例只提供起始問題。你可以改寫問題，接著自由追問；回答由目前源碼與模型生成。|案例只提供起始问题。你可以改写问题，接着自由追问；回答由当前源码与模型生成。|Examples are starting questions. Edit one and keep asking follow-ups; answers are generated from the current source and model.
+你的第一個業務問題|你的第一个业务问题|Your first business question
+輸入任何業務問題，或修改上方案例的建議問題…|输入任何业务问题，或修改上方案例的建议问题…|Ask any business question, or edit an example above…
+首次建立合成源碼索引；之後切換案例和追問會重用索引。|首次建立合成源码索引；之后切换案例和追问会重用索引。|The synthetic source is indexed once. Switching examples and follow-up questions reuse the index.
+載入只在本機建立索引。進入對話後按「發送」才會呼叫模型；追問會重用索引。|载入只在本机建立索引。进入对话后按“发送”才会调用模型；追问会重用索引。|Loading builds a local index only. Choose Send in the conversation to call the model; follow-ups reuse the index.
+載入案例，前往提問|载入案例，前往提问|Load example and open chat
+案例已載入，按「發送」開始提問；之後可繼續追問。|案例已载入，按“发送”开始提问；之后可继续追问。|Example loaded. Choose Send to ask, then continue with follow-up questions.
+案例索引暫時不可用，請重試。|案例索引暂时不可用，请重试。|The example index is temporarily unavailable. Please retry.
+案例尚未開始對話|案例尚未开始对话|No conversation started for this example
+選擇一個示例問題，載入合成源碼後即可提問和追問。|选择一个示例问题，载入合成源码后即可提问和追问。|Choose an example question, load the synthetic source, then ask and follow up.
+返回示例問題|返回示例问题|Back to example questions
+選擇文件夾|选择文件夹|Choose folder
+可點選文件夾，也可手動填入完整路徑；可保留程式、COPYBOOK 的子資料夾。|可选择文件夹，也可手动填入完整路径；可保留程序、COPYBOOK 的子文件夹。|Choose a folder or enter its full path. Keep program and COPYBOOK subfolders.
+正在開啟本機文件夾選擇窗口…|正在打开本机文件夹选择窗口…|Opening the folder picker on this computer…
+已取消選取；仍可手動填入路徑。|已取消选择；仍可手动填入路径。|Selection cancelled. You can still enter a path manually.
+已選取本機文件夾。|已选取本机文件夹。|Local folder selected.
+目前無法開啟本機文件夾窗口，請手動填入路徑。|当前无法打开本机文件夹窗口，请手动填入路径。|The folder picker is unavailable on this computer. Enter the path manually.
+無法選取文件夾，請手動填入路徑。|无法选择文件夹，请手动填入路径。|The folder could not be selected. Enter the path manually.
+測試模型連線|测试模型连接|Test model connection
+填好設定後，點選「測試模型連線」，確認模型能返回文字。|填好设置后，点击“测试模型连接”，确认模型能返回文字。|After configuring the endpoint, choose Test model connection to confirm the model returns text.
+正在測試模型連線…|正在测试模型连接…|Testing the model connection…
+連線成功：模型已返回有效回覆。|连接成功：模型已返回有效回复。|Connected: the model returned a usable reply.
+已驗證可用|已验证可用|Verified working
+連線測試未通過|连接测试未通过|Connection test failed
+驗證失敗：API Key 無效或未被接受，請核對本機設定。|验证失败：API Key 无效或未被接受，请核对本机设置。|Authentication failed. Check the local API key.
+訪問被拒絕：目前帳號沒有使用此模型的權限。|访问被拒绝：当前账号没有使用此模型的权限。|Access denied. This account cannot use the configured model.
+連線逾時：請檢查網路或模型服務後重試。|连接超时：请检查网络或模型服务后重试。|Connection timed out. Check the network or model service and retry.
+模型設定不完整或無效，請核對 .env 後重試。|模型配置不完整或无效，请核对 .env 后重试。|The model settings are missing or invalid. Check .env and retry.
+接口已回應，但模型沒有返回可用文字。|接口已响应，但模型没有返回可用文字。|The endpoint responded, but the model returned no usable text.
+模型連線測試未通過，請檢查本機設定及模型服務。|模型连接测试未通过，请检查本机设置及模型服务。|The model test failed. Check local settings and the model service.
+模型請求受到限流，請稍後重試。|模型请求受到限流，请稍后重试。|The model is rate limiting requests. Please retry later.
+接口已回應，但返回格式不兼容；請核對模型接口類型與路徑。|接口已响应，但返回格式不兼容；请核对模型接口类型与路径。|The endpoint responded in an incompatible format. Check the model API type and path.
+模型請求格式或接口路徑不正確；請核對模型名稱與接口設定。|模型请求格式或接口路径不正确；请核对模型名称与接口设置。|The model request or endpoint path is invalid. Check the model name and API settings.
+資料夾內沒有可讀資料；請選擇 .md、.markdown、.txt 文件或包含這些文件的資料夾。|文件夹内没有可读资料；请选择 .md、.markdown、.txt 文件或包含这些文件的文件夹。|No supported references were found. Choose .md, .markdown or .txt files, or a folder containing them.
+已找到文件，但無法讀取內容。請檢查檔案權限與文字編碼。|已找到文件，但无法读取内容。请检查文件权限与文字编码。|Files were found but could not be read. Check permissions and text encoding.
+目前電腦無法讀取這個位置。請確認文件或資料夾存在，並具有讀取權限。|当前电脑无法读取这个位置。请确认文件或文件夹存在，并具有读取权限。|This computer cannot read that location. Check that the file or folder exists and is readable.
+資料不是有效文字。請另存為 UTF-8 或帶 BOM 的 UTF-16 文字。|资料不是有效文本。请另存为 UTF-8 或带 BOM 的 UTF-16 文本。|The reference is not valid text. Save it as UTF-8 or UTF-16 with a BOM.
+框架資料設定無法讀取。請重新填寫路徑並儲存。|框架资料设置无法读取。请重新填写路径并保存。|The reference setting cannot be read. Enter the path and save it again.
+文件在讀取期間發生變更。請儲存文件後重新讀取。|文件在读取期间发生变更。请保存文件后重新读取。|The document changed while it was being read. Save it, then load it again.
+單份資料過大。可按章節拆分到同一資料夾，再指定該資料夾。|单份资料过大。可按章节拆分到同一文件夹，再指定该文件夹。|The document is too large. Split it into chapters in one folder, then select that folder.
+已讀取部分文件，其餘文件未納入本次框架資料。|已读取部分文件，其余文件未纳入本次框架资料。|Some documents were loaded; the remaining documents are not included in the current reference.
+已讀取的框架文件|已读取的框架文件|Loaded framework documents
+找不到這段對話。請從對話記錄選擇，或開始新的對話。|找不到这段对话。请从对话记录选择，或开始新的对话。|This conversation was not found. Choose one from history or start a new conversation.
+請先接入源碼，再開始對話。|请先接入源码，再开始对话。|Connect your source before starting a conversation.
+繼續對話|继续对话|Continue conversation
+已停止本次工作。對話已保留，可以繼續提問。|已停止本次工作。对话已保留，可以继续提问。|Work stopped. Your conversation is saved and you can keep asking questions.
+使用已建立的代碼庫索引|使用已建立的代码库索引|Using the existing codebase index
+查找與問題相關的依據|查找与问题相关的依据|Finding relevant evidence
+整理業務回答|整理业务回答|Preparing the business answer
+把業務問題，聊清楚。|把业务问题，聊清楚。|Talk through your business questions.
+沿用代碼庫索引與對話上下文，持續追問。|沿用代码库索引与对话上下文，持续追问。|Keep exploring with the same codebase index and conversation context.
+新的對話|新的对话|New conversation
+業務對話|业务对话|Business conversation
+提出業務問題，或接著上一個回答繼續追問…|提出业务问题，或接着上一个回答继续追问…|Ask a business question, or follow up on the last answer…
+分析選項|分析选项|Analysis options
+調查方式|调查方式|Investigation mode
+按問題檢索 · 建議|按问题检索 · 建议|Retrieve for this question · Recommended
+深入閱讀完整業務鏈 · 較慢|深入阅读完整业务链 · 较慢|Read the full business flow · Slower
+一般提問會查找相關片段與呼叫關係；只有深入閱讀才逐批處理完整範圍。|一般提问会查找相关片段与调用关系；只有深入阅读才逐批处理完整范围。|Normal questions retrieve relevant excerpts and call relationships. Deep reading processes the full scope in batches.
+Enter 發送 · Shift + Enter 換行|Enter 发送 · Shift + Enter 换行|Enter to send · Shift + Enter for a new line
+發送|发送|Send
+業務分析助手|业务分析助手|Business assistant
+你|你|You
+本次未取得回答。可保留對話並重試。|本次未取得回答。可保留对话并重试。|No answer was returned. Your conversation is saved and you can retry.
+查看回答依據|查看回答依据|View answer sources
+重試這個問題|重试这个问题|Retry this question
+停止|停止|Stop
+正在讀取引用…|正在读取引用…|Loading source…
+想了解哪一項業務？|想了解哪一项业务？|What would you like to understand?
+接入代碼庫，開始對話。|接入代码库，开始对话。|Connect your codebase to start a conversation.
+直接描述你的問題。可以繼續追問條件、例外、處理過程或影響。|直接描述你的问题。可以继续追问条件、例外、处理过程或影响。|Describe your question, then follow up on conditions, exceptions, processing or impact.
+首次建立本機索引，之後的問題會重用索引與對話。|首次建立本机索引，之后的问题会重用索引与对话。|Build the local index once. Later questions reuse the index and conversation.
+框架與連線設定|框架与连接设置|Framework and connection settings
+本次調查詳情|本次调查详情|Investigation details
+源碼已變更，保留原回答的引用位置；請重新提問以取得目前源碼依據。|源码已变更，保留原回答的引用位置；请重新提问以取得目前源码依据。|The source has changed. The original citation location is retained; ask again for current source evidence.
+框架文件或資料夾（選填）|框架文件或文件夹（选填）|Framework file or folder (optional)
+框架文件或資料夾|框架文件或文件夹|Framework file or folder
+可指定 Markdown 文件或包含文件的資料夾；接入後可在設定中查看辨識結果。|可指定 Markdown 文件或包含文件的文件夹；接入后可在设置中查看识别结果。|Choose a Markdown file or a folder containing documents. Check the detected reference in settings after connecting.
+支援完整文件路徑或資料夾路徑。儲存後立即重新讀取，無需重新啟動。|支持完整文件路径或文件夹路径。保存后立即重新读取，无需重新启动。|Use a full file or folder path. Saving reloads the reference immediately without restarting.
+儲存並讀取框架資料|保存并读取框架资料|Save and load framework reference
+其他連線說明|其他连接说明|More connection information
+正在讀取框架資料…|正在读取框架资料…|Loading framework reference…
 源碼索引已就緒|源码索引已就绪|Source indexes ready
 源碼已索引|源码已索引|Source indexed
  個程式| 个程序| programs
@@ -53,6 +137,7 @@ const UI_MESSAGES = `
 完整業務鏈 · 自動分批閱讀|完整业务链 · 自动分批阅读|Full business flow · Automatic batches
 按問題重點閱讀|按问题重点阅读|Focus on the question
 每批閱讀量|每批阅读量|Sections per batch
+每批 4 段|每批 4 段|4 sections per batch
 每批 12 段|每批 12 段|12 sections per batch
 每批 48 段|每批 48 段|48 sections per batch
 每批 |每批 |Sections per batch:\u0020
@@ -160,6 +245,8 @@ const UI_MESSAGES = `
 自訂 · 最多 |自定义 · 最多 |Custom · Up to\u0020
  段| 段| sections
 增加閱讀量會使用更多模型請求。|增加阅读量会使用更多模型请求。|Reading more source uses more model requests.
+快速閱讀 · 最多 4 段|快速阅读 · 最多 4 段|Quick reading · Up to 4 sections
+快速模式只閱讀與問題最相關的少量源碼；需要完整鏈路時請切換上方選項。|快速模式只阅读与问题最相关的少量源码；需要完整链路时请切换上方选项。|Quick mode reads only the most relevant source. Switch the option above for the full chain.
  頁| 页| pages
 頁|页|pages
 接口返回 HTTP 錯誤；本次傳輸未收集錯誤正文。|接口返回 HTTP 错误；本次传输未收集错误正文。|The API returned an HTTP error; this transport did not collect the error body.
