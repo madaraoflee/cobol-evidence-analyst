@@ -222,7 +222,7 @@ def refresh_source_catalog(
     verify_content: bool = False,
     header_bytes: int = HEADER_BYTES,
 ) -> dict:
-    """Refresh navigation metadata with per-file durable checkpoints.
+    """Refresh navigation metadata with bounded durable checkpoints.
 
     An unchanged stat tuple reuses its header metadata without opening the file.
     ``verify_content`` forces a streaming full-file digest on every candidate.
@@ -257,6 +257,8 @@ def refresh_source_catalog(
         connection.commit()
         total = stats['candidate']
         completed = 0
+        pending_writes = 0
+        checkpoint_started = time.monotonic()
         bytes_completed = 0
         scan_started = time.monotonic()
         _notify(progress, phase='catalog', completed=0, total=total, unit='files',
@@ -301,17 +303,27 @@ def refresh_source_catalog(
                     (relative_path,size_bytes,mtime_ns,inode,option_key,payload) VALUES (?, ?, ?, ?, ?, ?)''',
                                    (relative, row['size_bytes'], row['mtime_ns'], row['inode'],
                                     option_key, json.dumps(payload, ensure_ascii=False)))
-                connection.commit()
+                pending_writes += 1
+                if pending_writes >= 128 or time.monotonic() - checkpoint_started >= 0.5:
+                    connection.commit()
+                    pending_writes = 0
+                    checkpoint_started = time.monotonic()
             stats['decoded'] += int(payload.get('decoded', False))
             stats['failed'] += int(payload.get('error') is not None)
             completed += 1
             bytes_completed += row['size_bytes']
             elapsed = time.monotonic() - scan_started
-            _notify(progress, phase='catalog', completed=completed, total=total, unit='files',
-                    current_file=relative, bytes_completed=bytes_completed, bytes_total=stats['bytes_total'],
-                    bytes_read=stats['bytes_read'], cached=stats['cached'],
-                    elapsed_seconds=time.monotonic() - started,
-                    eta_seconds=round(elapsed / completed * (total - completed), 1) if completed >= 3 else None)
+            try:
+                _notify(progress, phase='catalog', completed=completed, total=total, unit='files',
+                        current_file=relative, bytes_completed=bytes_completed, bytes_total=stats['bytes_total'],
+                        bytes_read=stats['bytes_read'], cached=stats['cached'],
+                        elapsed_seconds=time.monotonic() - started,
+                        eta_seconds=round(elapsed / completed * (total - completed), 1) if completed >= 3 else None)
+            except BaseException:
+                # A requested cancellation preserves all finished headers,
+                # without requiring a disk flush for every imported file.
+                connection.commit()
+                raise
         stats['removed'] = connection.execute(
             'DELETE FROM catalog_files WHERE relative_path NOT IN (SELECT relative_path FROM candidates)'
         ).rowcount

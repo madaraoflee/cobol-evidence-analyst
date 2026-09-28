@@ -33,6 +33,8 @@ MAX_DOCUMENT_SECTIONS = 4096
 MAX_SECTION_CHARS = 2400
 MAX_REFERENCES = 10
 MAX_REFERENCE_CHARS = 16_000
+MAX_BACKGROUND_REFERENCES = 2
+MAX_BACKGROUND_CHARS = 1600
 MAX_SOURCE_MATCHES = 20
 MAX_SOURCE_UNITS = 120_000
 MAX_SOURCE_CHARS = 8 * 1024 * 1024
@@ -46,6 +48,9 @@ _PAGE = re.compile(r"(?:SOURCE_PAGE\s*:\s*|source-page-)(\d{1,4})", re.I)
 _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
 _TABLE_DIVIDER = re.compile(r"^\s*\|?[\s:|-]+\|?\s*$")
 _CJK = re.compile(r"[\u3400-\u9fff]{2,}")
+_BACKGROUND_HEADING = re.compile(
+    r"\b(?:overview|architecture|fundamentals|introduction|conventions)\b"
+    r"|总体架构|整体架构|框架概览|基础概念|分布式业务语义", re.I)
 # Language syntax and generic labels cannot alone establish framework use.
 _GENERIC = frozenset("""
 ACCEPT ADD ALL ALTER AND ARE ASCENDING ASSIGN AT AUTHOR BEFORE BINARY BY
@@ -394,6 +399,25 @@ def _question_terms(question: str) -> set[str]:
     for phrase in _CJK.findall(question[:4000]):
         result.update(phrase[index:index + 2] for index in range(len(phrase) - 1))
     return result
+
+
+def _background_sections(document: _Document, reference_budget: int) -> set[int]:
+    """Reserve a small amount of general guidance without asserting source use."""
+    remaining = min(MAX_BACKGROUND_CHARS, reference_budget // 4)
+    limit = min(MAX_BACKGROUND_REFERENCES, MAX_REFERENCES // 4)
+    selected, headings = set(), set()
+    for index, section in enumerate(document.sections):
+        if len(selected) >= limit:
+            break
+        heading = section.heading.rsplit(" / ", 1)[-1]
+        topic = (section.document_name, heading)
+        if (topic in headings or not _BACKGROUND_HEADING.search(heading)
+                or not 40 <= len(section.text) <= remaining):
+            continue
+        selected.add(index)
+        headings.add(topic)
+        remaining -= len(section.text)
+    return selected
 
 
 def _sparse_source_candidates(connection, selected, next_entry, document, coverage, source_root,
@@ -817,6 +841,13 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
         # framework vocabulary differ. This is background, not a source match.
         rankings = [(0, index, set(), set()) for index in range(len(document.sections))]
     reference_budget = min(MAX_REFERENCE_CHARS, 8000) if source_pages is not None else MAX_REFERENCE_CHARS
+    background_indices = _background_sections(document, reference_budget)
+    ranked_indices = {item[1] for item in rankings}
+    # Weak question-word overlap must not replace the framework's basic model.
+    # All source matches still require independently observed source markers.
+    rankings = [(score + (1000 if index in background_indices else 0), index, source_hits, query_hits)
+                for score, index, source_hits, query_hits in rankings]
+    rankings.extend((1000, index, set(), set()) for index in sorted(background_indices - ranked_indices))
     remaining = reference_budget
     covered_terms: set[str] = set()
     covered_headings: set[str] = set()
@@ -859,7 +890,8 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
             "document_name": section.document_name or document.documents[0]["name"],
             "document_sha256": reference_digest,
             "matched_terms": sorted(source_hits) if source_hits else sorted(query_hits),
-            "selection_reason": "document_overview" if overview_selection else ("source_marker" if source_hits else "question_only"),
+            "selection_reason": ("source_marker" if source_hits else "document_overview"
+                                 if overview_selection or index in background_indices else "question_only"),
         })
     seen_evidence: set[str] = set()
     eligible_matches = []
@@ -890,6 +922,8 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
         result["boundaries"].append("Retrieval limits were reached; absence of a match does not establish absence of framework use.")
     result["coverage"].update({"matched_term_count": len(source_terms), "references_selected": len(result["references"]),
                                "reference_chars": reference_budget - remaining,
+                               "background_references_selected": sum(
+                                   item["selection_reason"] == "document_overview" for item in result["references"]),
                                "reference_selection": "document_overview" if overview_selection else "relevant_sections",
                                "references_truncated": bool(rankings) or bool(omitted_sections),
                                "source_matches_selected": len(result["source_matches"]),

@@ -13,6 +13,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from answer_markdown import BUSINESS_ANSWER_POLICY
 from business_chat import run_business_chat
 from business_index import build_business_index
 from company_api import CompanyAPIConfig, TransportResponse
@@ -75,6 +76,46 @@ class BusinessChatTests(unittest.TestCase):
         self.assertIn(f"IF HOLD-DAYS <= {field}", code)
         self.assertIn("ELSE\nMOVE 'REVIEW'", code)
         return reply(f"保留期不超过{limit}天时进入HELD；超过{limit}天进入REVIEW等待复核。[{page['evidence_id']}]")
+
+    def test_markdown_answers_and_supported_wrappers_need_one_model_request(self):
+        self.write_window()
+        self.build()
+        for wrapper in (lambda text: text, lambda text: f"```markdown\n{text}\n```",
+                        lambda text: json.dumps({"answer": f"```md\n{text}\n```"}, ensure_ascii=False)):
+            with self.subTest(wrapper=wrapper):
+                self.requests.clear()
+                expected = []
+
+                def respond(payload, envelope):
+                    self.assertIn("最终给用户的答案使用 Markdown 正文", envelope["messages"][0]["content"])
+                    self.assertIn(BUSINESS_ANSWER_POLICY, envelope["messages"][0]["content"])
+                    page = next(page for page in source_pages(payload) if "MOVE 'REVIEW'" in page["source_text"])
+                    text = (f"**保留期以 9 天为界。** [{page['evidence_id']}]\n\n"
+                            "| 条件 | 处理 |\n| --- | --- |\n| 不超过 9 天 | HELD |\n| 超过 9 天 | REVIEW |")
+                    expected.append(text)
+                    return reply(wrapper(text))
+
+                result = self.ask("TIDE-WINDOW 如何处理？", respond)["agent_result"]
+                self.assertEqual(result["answer"], expected[0])
+                self.assertEqual(result["answer_format"], "markdown")
+                self.assertEqual(result["narrative"]["format"], "markdown")
+                self.assertEqual(len(result["narrative"]["citations"]), 1)
+                self.assertEqual(result["metrics"]["model_requests"], 1)
+                self.assertEqual(result["status"], "ANALYZED")
+
+    def test_explicit_source_request_preserves_requested_local_code(self):
+        self.write_window()
+        self.build()
+
+        def respond(payload, envelope):
+            self.assertEqual(payload["question"], "请给我 TIDE-WINDOW 判断条件的具体源码。")
+            self.assertIn("只有用户明确要求查看源码、具体语句或开发实现时", envelope["messages"][0]["content"])
+            page = next(page for page in source_pages(payload) if "IF HOLD-DAYS" in page["source_text"])
+            return reply(f"判断条件如下：\n\n```cobol\nIF HOLD-DAYS <= TIDE-WINDOW\n```\n\n[{page['evidence_id']}]")
+
+        result = self.ask("请给我 TIDE-WINDOW 判断条件的具体源码。", respond)["agent_result"]
+        self.assertIn("```cobol\nIF HOLD-DAYS <= TIDE-WINDOW\n```", result["answer"])
+        self.assertEqual(result["metrics"]["model_requests"], 1)
 
     def test_arbitrary_rules_use_one_request_and_preserve_conditions_and_real_citations(self):
         for field, limit in (("TIDE-WINDOW", 9), ("MAPLE-WINDOW", 17)):
@@ -310,16 +351,21 @@ class BusinessChatTests(unittest.TestCase):
         document = manual / "record-guide.md"
         document.write_text("# Record access\n\nFETCH-ROW requests a row by its supplied key; a zero return code means a row was found.\n", encoding="utf-8")
         self.build()
-        def respond(payload, _envelope):
+        def respond(payload, envelope):
             reference = next(item for item in payload["framework_references"] if "row by its supplied key" in item["text"])
             page = next(page for page in source_pages(payload) if "CLOSED-STORE" in page["source_text"])
+            self.assertIn(BUSINESS_ANSWER_POLICY, envelope["messages"][0]["content"])
+            self.assertIn("FETCH-ROW", reference["matched_terms"])
+            self.assertEqual(reference["selection_reason"], "source_marker")
+            self.assertTrue(any(location["relative_path"] == page["relative_path"] for location in reference["source_locations"]))
             links = [link for context in payload["source_context"] for link in context.get("call_chain", {}).get("links", [])]
             self.assertTrue(any(link["target_name"] == "CLOSED-STORE" and link["target_source_status"] == "unavailable" for link in links))
-            return reply(f"请求按键取得记录，返回零时业务状态变为FOUND。[{page['evidence_id']}] [{reference['reference_id']}]")
+            return reply(f"请求会按指定标识查找记录。查到记录后，系统把这次请求标记为已找到，可以继续使用该记录；框架资料明确了读取成功的含义，源码决定了成功后的状态变化。[{page['evidence_id']}] [{reference['reference_id']}]")
         with mock.patch("framework_knowledge._source_candidates", side_effect=AssertionError("framework rescanned source")):
             output = self.ask("FETCH-ROW 如何处理请求？", respond, framework_reference_path=manual)
         self.assertEqual(output["runner_status"], "COMPLETED")
-        self.assertIn("返回零时业务状态变为FOUND", output["agent_result"]["answer"])
+        self.assertIn("查到记录后，系统把这次请求标记为已找到", output["agent_result"]["answer"])
+        self.assertNotIn("```", output["agent_result"]["answer"])
         references = [item for item in output["agent_result"]["narrative"]["citations"] if item["kind"] == "framework_reference"]
         self.assertEqual(len(references), 1)
         reference = references[0]

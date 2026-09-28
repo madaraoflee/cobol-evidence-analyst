@@ -29,7 +29,10 @@ _CJK_STOP = frozenset(("请", "请问", "説明", "说明", "解釋", "解释", 
 def _tokens(text):
     """Split separators, camel case and CJK spans without a topic vocabulary."""
     result = []
-    for word in _WORDS.findall(text):
+    # The output already contains each token once. Deduplicate words before
+    # splitting, too, so repeated COBOL verbs and identifiers on a source page
+    # do not repeat the same tokenization work thousands of times.
+    for word in dict.fromkeys(_WORDS.findall(text)):
         if "\u3400" <= word[0] <= "\u9fff":
             if len(word) <= 64:
                 result.append(word)
@@ -101,13 +104,16 @@ def _remove_file(connection, relative):
     connection.execute("DELETE FROM repo_source_state WHERE relative_path=?", (relative,))
 
 
-def ensure_repository_search(database_path, source_root, check_cancel=None, progress=None):
-    """Index all snapshot text locally; verify even files whose tokens are cached.
+def ensure_repository_search(database_path, source_root, check_cancel=None, progress=None,
+                             *, verify_content=False):
+    """Index all snapshot text locally; reuse unchanged verified source pages.
 
     A failed refresh leaves the search marked unavailable. Its previous pages
     cannot be returned as current evidence, even if the source snapshot id did
     not change yet. Source/page facts are published only after whole-file hashes
-    and the enclosing SQLite snapshot have been verified.
+    and the enclosing SQLite snapshot have been verified. An unchanged size
+    and modification time reuse the prior verification; ``verify_content``
+    explicitly rehashes every source, including otherwise unchanged files.
     """
     root_input = Path(source_root).expanduser()
     if root_input.is_symlink():
@@ -115,6 +121,7 @@ def ensure_repository_search(database_path, source_root, check_cancel=None, prog
     root = root_input.resolve()
     connection = _connect(database_path, True)
     try:
+        connection.execute("PRAGMA cache_size = -65536")
         _schema(connection)
         connection.execute("INSERT OR REPLACE INTO repo_metadata VALUES ('ready','0')")
         connection.commit()
@@ -131,11 +138,12 @@ def ensure_repository_search(database_path, source_root, check_cancel=None, prog
             raise ValueError("SOURCE_INDEX_EMPTY")
         prior = dict(connection.execute("SELECT key,value FROM repo_metadata"))
         existing = {row["relative_path"]: dict(row) for row in connection.execute("SELECT * FROM repo_sources")}
+        states = {row["relative_path"]: dict(row) for row in connection.execute("SELECT * FROM repo_source_state")}
         current_paths = {item["relative_path"] for item in files}
         removed = set(existing) - current_paths
         for relative in removed:
             _remove_file(connection, relative)
-        updated, cached = 0, 0
+        updated, cached, metadata_cached, verified_files = 0, 0, 0, 0
         for offset, item in enumerate(files, 1):
             _cancel(check_cancel)
             relative = item["relative_path"]
@@ -148,8 +156,15 @@ def ensure_repository_search(database_path, source_root, check_cancel=None, prog
                 missing = connection.execute("SELECT COUNT(*) FROM repo_pages p LEFT JOIN evidence_spans e ON e.evidence_id=p.evidence_id WHERE p.relative_path=? AND p.span_truncated=0 AND e.evidence_id IS NULL", (relative,)).fetchone()[0]
                 reusable = not missing
             if reusable:
-                for _ in _verified_lines(root, item, check_cancel, 1):
-                    pass
+                state = states.get(relative, {})
+                if (not verify_content and state.get("sha256") == item["sha256"]
+                        and state.get("size") == verified_before.st_size
+                        and state.get("mtime_ns") == verified_before.st_mtime_ns):
+                    metadata_cached += 1
+                else:
+                    for _ in _verified_lines(root, item, check_cancel, 1):
+                        pass
+                    verified_files += 1
                 cached += 1
             else:
                 _remove_file(connection, relative)
@@ -166,6 +181,7 @@ def ensure_repository_search(database_path, source_root, check_cancel=None, prog
                     truncated += int(page["span_truncated"])
                 connection.execute("INSERT INTO repo_sources VALUES (?,?,?,?,?,?)", (relative, item["sha256"], item["encoding"], item["line_count"], count, truncated))
                 updated += 1
+                verified_files += 1
             info = _safe_file(root, relative).stat()
             if (verified_before.st_size, verified_before.st_mtime_ns) != (info.st_size, info.st_mtime_ns):
                 raise ValueError("SOURCE_HASH_MISMATCH")
@@ -183,6 +199,7 @@ def ensure_repository_search(database_path, source_root, check_cancel=None, prog
                     "indexed_pages": connection.execute("SELECT COUNT(*) FROM repo_pages").fetchone()[0],
                     "total_lines": sum(item["line_count"] for item in files), "updated_files": updated,
                     "cached_files": cached, "deleted_files": len(removed), "full_text_complete": not truncated,
+                    "metadata_cache_reused": metadata_cached, "content_hash_verified": verified_files,
                     "program_samples": programs, "program_count": program_count,
                     "omitted_program_samples": max(0, program_count - len(programs)), "boundaries": boundaries}
         connection.executemany("INSERT OR REPLACE INTO repo_metadata VALUES (?,?)",

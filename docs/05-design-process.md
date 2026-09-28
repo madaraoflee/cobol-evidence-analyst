@@ -4,7 +4,7 @@
 
 状态：`Target product process — current POC overrides implementation order`
 
-当前实施顺序以 [可演示 POC](./09-demonstrable-poc.md) 为准。本文件描述 POC 通过后扩大为正式产品时的证据门槛，不再作为第一次演示的前置清单。
+当前实施顺序以 [可演示 POC](./09-demonstrable-poc.md) 为准。本文件描述 POC 通过后扩大为正式产品时的证据门槛，不再作为第一次演示的前置清单。当前实现与验收阻塞见[项目状态说明](./16-current-implementation-status.md)；源码新鲜度回归修复前，不进入依赖快照可信性的业务验收。
 
 ## 阶段 0：框架与契约
 

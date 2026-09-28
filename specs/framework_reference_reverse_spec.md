@@ -2,6 +2,8 @@
 
 日期：2026-09-19；范围：当前网页与源码问答流程。
 
+当前问答栈和源码快照新鲜度的最新边界见[当前实现与已知限制](../docs/16-current-implementation-status.md)。本规格中的引用/快照要求不表示普通元数据复用路径已提供内容级新鲜度保证。
+
 实现采用 Python 标准库、本地 SQLite 与三语言静态网页。`framework_knowledge.py` 负责读取、分段、检索和来源信息，`analyze_source.py` 在入口详细解析后建立本次上下文，`run_agent.py` 绑定快照并传递，`agent_loop.py` 核对两类引用，`web_app.py` 和 `web/app.js` 显示加载／匹配／解释状态。现有路径执行器不属于此接入。
 
 ## 可观察要求

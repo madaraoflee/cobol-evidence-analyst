@@ -1,5 +1,7 @@
 # 业务分析 POC：服务申请业务链
 
+当前演示能力、真实接口状态和源码新鲜度限制见[当前实现与已知限制](../16-current-implementation-status.md)。合成案例和有效引用不能替代公司真实业务验收。
+
 领导汇报使用 [POC 演示说明 Word 文档](./COBOL业务分析系统POC演示说明.docx)，包含业务目标、三类案例规则、现场演示流程及验收依据。
 
 当前演示统一从本机工作台进入：`python poc/web_app.py`，Windows 双击 `poc\run_web.bat`。通过 GitHub 更新代码，保留本机 `.env`；公司接口地址、模型和密钥仍只配置一次。

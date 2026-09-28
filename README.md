@@ -4,6 +4,8 @@
 
 网页现以持久多轮对话为主。首次接入建立全库结构与全文索引；提问直接复用索引，使用关键词相关性、CALL/COPY 关系及对话中已引用片段检索，资料足够时一次模型请求回答，需要时才继续搜索或按行补读。无需手选入口，也不默认逐页分析长程序。详见[系统使用手册](./docs/15-system-user-manual.md)。
 
+**当前状态与重要限制（2026-09-28）：**默认问答使用本机 SQLite FTS5/BM25 和静态关系导航，不是稠密语义检索或完整控制/数据流证明；普通自然语言回答的语义与问题完整性未核验。另已复现同长度内容变更且保留 mtime 时会取回旧源码证据，修复前不得把引用视为当前内容的完整性证明。详见[当前实现与已知限制](./docs/16-current-implementation-status.md)。
+
 **对话和引用保存在本机，可连续追问、恢复历史和新建对话；普通聊天正文直接展示。** 源码新增或更新时重新接入一次，日常追问只核对命中的文件；旧完整链批量解读作为可选深入分析保留。具体操作见[系统使用手册](./docs/15-system-user-manual.md)。
 
 在项目根目录启动 `python poc/web_app.py`，或 Windows 双击 `poc/run_web.bat`，进入浏览器显示的本机地址。界面支持简体中文、繁体中文和 English，导入显示阶段、完成/剩余、耗时、当前文件与可计算时的预计剩余时间，并可停止。源码与结果目录由你指定，实际程序清单来自该目录。
@@ -38,6 +40,7 @@ python poc\analyze_source.py ^
 - [领导演示 Word 文档](./docs/leadership-demo/COBOL业务分析系统POC演示说明.docx)
 
 - [系统使用手册（当前版本）](./docs/15-system-user-manual.md)
+- [当前实现与已知限制（2026-09-28）](./docs/16-current-implementation-status.md)
 - [任务计划与进度总表（当前进度入口）](./docs/12-task-plan-and-progress.md)
 - [Smart Developer 框架对齐与通用 POC 使用](./docs/13-framework-alignment.md)
 - [框架路径、文件筛选、游标、锁、事务与重启契约](./docs/14-framework-paths-and-runtime-contracts.md)

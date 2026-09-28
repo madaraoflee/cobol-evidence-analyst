@@ -139,6 +139,42 @@ class FrameworkReferenceLoadingTests(unittest.TestCase):
         self.assertEqual(remaining["loaded_document_count"], 1)
         self.assertNotEqual(changed["document"]["sha256"], remaining["document"]["sha256"])
 
+    def test_weak_question_matches_keep_basic_framework_guidance_without_claiming_source_use(self):
+        path = self.write("guide.md", "# Processing guide\n\n## Architecture\n\n"
+            "Shared record definitions and generated routines jointly describe the application behavior.\n\n"
+            "## Overview\n\nThe visible caller supplies operation inputs and interprets the returned outcome.\n\n"
+            "## System notes\n\nThe system has a release number and a document index.\n")
+        result = knowledge.build_framework_context(reference_path=path,
+            question="How does the system calculate an amount?", source_pages=[])
+        background = [item for item in result["references"] if item["selection_reason"] == "document_overview"]
+        self.assertEqual({item["heading"].rsplit(" / ", 1)[-1] for item in background}, {"Architecture", "Overview"})
+        self.assertTrue(any(item["selection_reason"] == "question_only" for item in result["references"]))
+        self.assertEqual(result["status"], "NO_MATCH")
+        self.assertFalse(result["source_matches"])
+        self.assertFalse(result["external_calls"])
+        self.assertLessEqual(sum(len(item["text"]) for item in background), knowledge.MAX_BACKGROUND_CHARS)
+
+    def test_background_keeps_relevant_operations_and_existing_request_budgets(self):
+        path = self.write("guide.md", "# Processing guide\n\n## Architecture\n\n"
+            "The application combines generated definitions with caller-owned decisions and status handling.\n\n"
+            + "\n\n".join(f"## Operation {number}\n\nACTION-{number:02d} selects the corresponding operation and returns its status."
+                          for number in range(14)))
+        page = {"evidence_id": "ev-page-1", "relative_path": "request.cbl", "start_line": 1,
+                "end_line": 1, "source_sha256": "a" * 64, "format_hint": "free",
+                "text": 'MOVE "ACTION-13" TO REQUEST-ACTION.'}
+        result = knowledge.build_framework_context(reference_path=path, question="Explain the decision", source_pages=[page])
+        self.assertTrue(any(item["selection_reason"] == "document_overview" for item in result["references"]))
+        matched = [item for item in result["references"] if item["selection_reason"] == "source_marker"]
+        self.assertTrue(any("ACTION-13" in item["matched_terms"] for item in matched))
+        self.assertEqual(result["status"], "MATCHED")
+        self.assertEqual(len(result["source_matches"]), 1)
+        self.assertLessEqual(len(result["references"]), knowledge.MAX_REFERENCES)
+        self.assertLessEqual(result["coverage"]["reference_chars"], 8000)
+        with mock.patch.object(knowledge, "MAX_REFERENCES", 1):
+            small = knowledge.build_framework_context(reference_path=path, source_pages=[page])
+        self.assertEqual(small["references"][0]["selection_reason"], "source_marker")
+        self.assertEqual(small["status"], "MATCHED")
+
     def test_identical_documents_have_distinct_references(self):
         for name in ("a.md", "b.md"):
             self.write(name, "# Guide\n\nFLOW-OPEN prepares work.\n")

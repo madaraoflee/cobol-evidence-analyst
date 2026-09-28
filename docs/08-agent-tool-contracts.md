@@ -3,7 +3,7 @@
 > 核心判断：Agent 的能力边界应由工具契约决定，而不是由 Prompt 决定。LLM 可以选择下一步调查动作，但所有代码事实必须由只读、版本化、受权限和预算约束的领域工具返回；Agent 不获得原始 Cypher、向量库、SQL、Shell 或任意文件读取能力。
 
 状态：`Target architecture proposal — deferred behind POC`
-当前轻量实现见：[可演示 POC](./09-demonstrable-poc.md)  
+当前轻量实现见：[可演示 POC](./09-demonstrable-poc.md)。本契约描述目标受限调查接口，不代表默认业务聊天已调用全部工具或完成 Claim 语义核验；当前状态见[当前实现与已知限制](./16-current-implementation-status.md)。
 版本：`v0.1`  
 日期：2026-08-29  
 上游输入：[问题分类与调查策略矩阵](./06-question-investigation-matrix.md)、[统一 IR 与关系 Schema](./07-unified-ir-and-relations.md)  

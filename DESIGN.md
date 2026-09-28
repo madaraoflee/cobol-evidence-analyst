@@ -8,6 +8,8 @@
 当前实施基线：[可演示 POC](./docs/09-demonstrable-poc.md)  
 适用范围：IBM i / AS400、通用 COBOL，以及后续在公司内适配的 DXC Smart COBOL 香港保险系统
 
+> 当前实现状态（2026-09-28）：本文是目标架构设计，不是当前部署清单。默认问答实际采用 SQLite FTS5/BM25 和静态关系导航；源码新鲜度存在已复现缺口，真实模型与业务验收未完成。现状以[当前实现与已知限制](./docs/16-current-implementation-status.md)及[进度总表](./docs/12-task-plan-and-progress.md)为准。
+
 > 实施快照（2026-09-07）：P3-A 已实现公司 API 能力探测、四工具白名单、最多六步的单 Agent 循环、Evidence 范围/Hash/快照核验和固定四段回答。P3-B 增加独立的 `COMPUTE` 结构化断言核验：从单段完整有效证据解析语句，核对目标、算式 token 顺序和 `ROUNDED`，再本地生成中文事实。通过的回答可为 `SUPPORTED_WITH_BOUNDARIES`，范围仅限语句写法；普通自然语言仍为 `CITATION_VERIFIED_ONLY`。真实公司 API 验收和任意自然语言的完整语义支持核验尚未完成。下文的完整 Claim Support Checker 仍属于目标架构，当前切片见 [P3-B 进度报告](./docs/reports/2026-09-07-p3b-progress-report.md)。
 
 ## 1. 设计结论

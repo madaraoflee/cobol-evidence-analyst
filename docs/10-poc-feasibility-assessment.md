@@ -2,9 +2,11 @@
 
 > 核心判断：项目可行，但产品形态必须是“确定性代码事实层 + 混合检索 + 有界 Agent + 证据回答”，不能是把源码任意切块后只做向量 RAG。当前结论为 **Conditional GO**：足以开始一个真实纵向 POC；是否能扩展到整个 DXC Smart COBOL 企业代码库，必须由公司环境中的方言覆盖率和私有金标准决定。
 
-状态：Conditional GO — ready for P1 structural index  
+状态：Conditional GO — POC 正在推进；P1 源码新鲜度验证存在阻塞
 日期：2026-08-29  
 范围：已下载到 Windows 文件夹的 COBOL 与 COPYBOOK，只读分析
+
+> 当前状态（2026-09-28）：本页的 Conditional GO 是进入 POC 的可行性判断，不是产品验收结论。当前实现形态、真实 API 401 和已复现的源码新鲜度阻塞见[当前实现与已知限制](./16-current-implementation-status.md)；P1 尚不应关闭。
 
 ## 1. 为什么技术上可行
 

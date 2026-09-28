@@ -4,6 +4,8 @@
 
 状态：`Active for demonstrable POC`。当前只实现足以闭合 `CALC-01` 的最小原创 COBOL fixture，不默认完成全部 26 个问题；实施主线见 [可演示 POC](../09-demonstrable-poc.md)。
 
+本目录的 fixture、金标准草案和 P1-B 结果属于合成研发资产，不是公司真实业务验收。当前默认问答、快照新鲜度风险及真实接口状态见[当前实现与已知限制](../16-current-implementation-status.md)。
+
 本目录只描述原创合成场景，不包含或影射公司代码、DXC 文档、真实产品规则和生产数据。
 
 ## 当前状态

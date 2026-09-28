@@ -316,24 +316,7 @@ function narrativeText(answer){
 function narrativeMarkup(text,refs,frameworkRefs,allowedSourceIds=null){
   const sourceIds=new Map(refs.filter(ref=>typeof ref?.evidence_id==='string').map((ref,index)=>[ref.evidence_id,index+1]).filter(([id])=>!allowedSourceIds || allowedSourceIds.has(id)));
   const frameworkIds=new Map(frameworkRefs.filter(ref=>typeof ref?.reference_id==='string').map((ref,index)=>[ref.reference_id,index+1]));
-  const inline=value=>{
-    let rendered='',start=0;
-    for(const match of value.matchAll(/\[([^\[\]\r\n]{1,256})\]/g)){
-      rendered+=escapeHTML(value.slice(start,match.index));const id=match[1];
-      rendered+=sourceIds.has(id)?cite(id,String(sourceIds.get(id))):frameworkIds.has(id)?frameworkCite(id,frameworkIds.get(id)):escapeHTML(match[0]);
-      start=match.index+match[0].length;
-    }
-    return rendered+escapeHTML(value.slice(start));
-  };
-  const blocks=[];let paragraph=[];
-  const flush=()=>{if(paragraph.length){blocks.push(`<p>${inline(paragraph.join('\n'))}</p>`);paragraph=[];}};
-  for(const line of String(text).replace(/\r\n?/g,'\n').split('\n')){
-    const heading=line.match(/^#{1,4}\s+(.+?)\s*#*$/);
-    if(heading){flush();blocks.push(`<h3>${inline(heading[1])}</h3>`);}
-    else if(!line.trim())flush();
-    else paragraph.push(line);
-  }
-  flush();return blocks.join('');
+  return answerMarkdown.render(text,id=>sourceIds.has(id)?cite(id,String(sourceIds.get(id))):frameworkIds.has(id)?frameworkCite(id,frameworkIds.get(id)):null);
 }
 function readingCoverageText(coverage){
   if(!coverage || typeof coverage!=='object')return '';
@@ -414,7 +397,7 @@ function actualAnswer(){
     return `<div class="answer-empty">${icon(failed?'info':'spark')}<h2>${escapeHTML(failed?statusLabel(status):t('源碼已就緒'))}</h2><p>${failed?t('本次尚未取得業務解讀，請查看 API 返回中的具體原因後重試。'):t('直接輸入業務問題，系統會從代碼庫自動查找相關實作。也可以選擇程式縮小範圍。')}</p>${state.project?.agent?ui`<button class="button secondary" data-tab="api">查看 API 返回 ${icon('arrow')}</button>`:''}</div>${renderBoundaries(answer?.boundaries || d?.messages || [])}${state.project?.agent?.reason_code?ui`<p class="source-note">診斷代碼：${escapeHTML(state.project.agent.reason_code)}</p>`:''}`;
   }
   const refs=currentRefs();const frameworkRefs=answer.framework_context?.references || d?.framework_context?.references || [];
-  return ui`<div class="real-answer"><div class="answer-state-row"><span class="badge neutral">${icon('check')}${escapeHTML(statusLabel(answer.status))}</span><small>${refs.length} 段引用</small></div><h2>來自當前源碼的分析結果</h2><p class="answer-intro">以下陳述保留實際核驗狀態。點選引用，可回到本次快照的源碼位置。</p>${scopeNotice()}<div class="steps">${answer.claims.map((claim,i)=>`<div class="business-step"><span class="step-number">${String(i+1).padStart(2,'0')}</span><div><p class="claim-text">${escapeHTML(claim.claim || claim.text || '')}${(claim.evidence_ids || []).map(id=>cite(id,String(Math.max(1,refs.findIndex(r=>r.evidence_id===id)+1)))).join('')}${(claim.framework_reference_ids || []).map(id=>{const index=frameworkRefs.findIndex(ref=>ref.reference_id===id);return index<0?'':frameworkCite(id,index+1);}).join('')}</p><small class="field-hint">${escapeHTML(({code_fact:t('源碼事實'),framework_interpretation:t('框架條件解讀 · 需源碼與現場覆核'),business_inference:t('業務推測 · 未核驗'),open_question:t('待確認問題 · 未形成結論')})[claim.kind] || t('候選解讀'))} · ${escapeHTML(({supported:t('局部語句已核驗'),citation_verified_only:t('引用已核對，語義待核驗'),unsupported:t('證據尚不支持')})[claim.support_status] || t('語義未核驗'))}</small></div></div>`).join('')}</div>${renderBoundaries(answer.boundaries || [])}<div class="answer-footnote">${icon('info')}問題相關性與完整性尚未核驗；局部語句通過不代表整條業務流程已驗證。</div></div>`;
+  return ui`<div class="real-answer"><div class="answer-state-row"><span class="badge neutral">${icon('check')}${escapeHTML(statusLabel(answer.status))}</span><small>${refs.length} 段引用</small></div><h2>來自當前源碼的分析結果</h2><p class="answer-intro">以下陳述保留實際核驗狀態。點選引用，可回到本次快照的源碼位置。</p>${scopeNotice()}<div class="steps">${answer.claims.map((claim,i)=>`<div class="business-step"><span class="step-number">${String(i+1).padStart(2,'0')}</span><div><div class="claim-text narrative-body">${narrativeMarkup(claim.claim || claim.text || '',refs,frameworkRefs)}${(claim.evidence_ids || []).map(id=>cite(id,String(Math.max(1,refs.findIndex(r=>r.evidence_id===id)+1)))).join('')}${(claim.framework_reference_ids || []).map(id=>{const index=frameworkRefs.findIndex(ref=>ref.reference_id===id);return index<0?'':frameworkCite(id,index+1);}).join('')}</div><small class="field-hint">${escapeHTML(({code_fact:t('源碼事實'),framework_interpretation:t('框架條件解讀 · 需源碼與現場覆核'),business_inference:t('業務推測 · 未核驗'),open_question:t('待確認問題 · 未形成結論')})[claim.kind] || t('候選解讀'))} · ${escapeHTML(({supported:t('局部語句已核驗'),citation_verified_only:t('引用已核對，語義待核驗'),unsupported:t('證據尚不支持')})[claim.support_status] || t('語義未核驗'))}</small></div></div>`).join('')}</div>${renderBoundaries(answer.boundaries || [])}<div class="answer-footnote">${icon('info')}問題相關性與完整性尚未核驗；局部語句通過不代表整條業務流程已驗證。</div></div>`;
 }
 function renderBoundaries(items){if(!items.length)return '';return ui`<details class="answer-support"><summary>依據與補充說明</summary>${items.map(b=>`<p>${escapeHTML(boundaryText(b))}</p>`).join('')}</details>`;}
 function relationsView(){

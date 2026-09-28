@@ -11,7 +11,9 @@ function harness(locale='en'){
   const events={},elements=new Map(),requests=[];let responder=()=>{throw Error('Unexpected request');};
   const get=id=>{if(!elements.has(id))elements.set(id,{value:'',open:false,hidden:false,innerHTML:'',textContent:'',disabled:false,classList:{toggle:()=>{},contains:()=>false},setAttribute:()=>{},addEventListener:(event,handler)=>events[id+':'+event]=handler,showModal(){this.open=true;},close(){this.open=false;},focus(){}});return elements.get(id);};
   const context=vm.createContext({document:{documentElement:{classList:{toggle:()=>{}}},createTreeWalker:()=>({nextNode:()=>false}),querySelectorAll:()=>[],querySelector:()=>null,getElementById:get,addEventListener:(event,handler)=>events[event]=handler},NodeFilter:{SHOW_TEXT:4},localStorage:{getItem:()=>locale,setItem:()=>{}},fetch:async(url,options)=>{requests.push({url,options});const data=await responder(url,options);const status=data?.__status || (data?.error && !data?.status?409:200);return {ok:status>=200 && status<300,status,json:async()=>data};},setTimeout:()=>1,clearTimeout:()=>{},setInterval:()=>1,clearInterval:()=>{}});
-  vm.runInContext(fs.readFileSync(path.join(web,'i18n.js'),'utf8'),context);vm.runInContext(fs.readFileSync(path.join(web,'app.js'),'utf8').replace(/render\(\);initialize\(\);\s*$/,''),context);
+  vm.runInContext(fs.readFileSync(path.join(web,'i18n.js'),'utf8'),context);vm.runInContext(fs.readFileSync(path.join(web,'marked.umd.js'),'utf8'),context);
+  vm.runInContext(fs.readFileSync(path.join(web,'markdown.js'),'utf8'),context);
+  vm.runInContext(fs.readFileSync(path.join(web,'app.js'),'utf8').replace(/render\(\);initialize\(\);\s*$/,''),context);
   return {run:code=>vm.runInContext(code,context),get,events,requests,respond:fn=>responder=fn};
 }
 function project(){return {source:'local-source',output:'local-output',snapshot_id:'sha256:source',run_id:'run-1',programs:[{program_name:'REQUEST',relative_path:'request.cbl'}],diagnosis:{catalog_ready:true,source_manifest_verified:true,runner_status:'INDEX_READY',scope:{mode:'repository_index'},repository_search:{full_text_complete:true},build_report:{files:{candidate:1}},source_options:{reading_strategy:'retrieval'}},agent:null,relations:{edges:[]}};}
@@ -117,4 +119,20 @@ test('folder picker fills each path without indexing; cancel preserves input and
 test('conversation content is never translated or treated as HTML and framework references stay within the turn',()=>{
   const h=harness();setup(h,[{id:'a-unsafe',role:'assistant',content:'業務原文 <script>alert(1)</script> [ref-local]',status:'COMPLETED',framework_references:[{reference_id:'ref-local',heading:'Reference <img>',text:'<script>source text</script>'}]}]);
   const html=h.run('conversationWorkbench()');assert.match(html,/業務原文/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>|<img>/);assert.match(html,/data-message-id="a-unsafe" data-turn-framework="ref-local"/);assert.match(html,/id="turn-a-unsafe-framework-ref-local"/);
+});
+
+test('restored assistant turns render Markdown with turn-local citations and keep user questions literal',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);setup(h,[{id:'user-md',role:'user',content:'**原始问题** <script>text</script>'},{id:'assistant-md',role:'assistant',content:'## 业务回答\n\n**先读保单**，然后计算 `AMOUNT`。 [ev-md]\n\n- 判断生效条件\n- 计算结果',status:'COMPLETED',evidence_refs:[{evidence_id:'ev-md',relative_path:'calculation.cbl',start_line:1,end_line:5}]}]);
+    const html=h.run('conversationWorkbench()');assert.match(html,/<h3>业务回答<\/h3>/);assert.match(html,/<strong>先读保单<\/strong>/);assert.match(html,/<code>AMOUNT<\/code>/);assert.match(html,/<ul>/);
+    assert.match(html,/data-message-id="assistant-md" data-turn-evidence="ev-md"/);
+    assert.match(html,/\*\*原始问题\*\* &lt;script&gt;text&lt;\/script&gt;/);assert.doesNotMatch(html,/<script>/);
+  }
+});
+
+test('Markdown citation tokens cannot turn source identifiers or reference labels into HTML',()=>{
+  const h=harness();const sourceId='"><img src=x onerror=alert(1)>';const frameworkId='"><script>alert(2)</script>';
+  setup(h,[{id:'safe-turn',role:'assistant',content:`**业务说明** [${sourceId}] [${frameworkId}]`,status:'COMPLETED',evidence_refs:[{evidence_id:sourceId,relative_path:'<img src=x>.cbl',start_line:1,end_line:2}],framework_references:[{reference_id:frameworkId,heading:'<script>unsafe label</script>',text:'<img src=x>'}]}]);
+  const html=h.run('conversationWorkbench()');assert.match(html,/<strong>业务说明<\/strong>/);assert.match(html,/data-turn-evidence="&quot;&gt;&lt;img/);assert.match(html,/&lt;script&gt;unsafe label&lt;\/script&gt;/);
+  assert.doesNotMatch(html,/<img|<script|onerror="/i);
 });

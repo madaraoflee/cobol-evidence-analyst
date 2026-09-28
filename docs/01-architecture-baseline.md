@@ -4,7 +4,9 @@
 
 状态：`Target architecture baseline — deferred behind POC`  
 范围：只读业务问答产品及其可演进基础  
-当前轻量实现见：[可演示 POC](./09-demonstrable-poc.md)  
+当前轻量实现见：[可演示 POC](./09-demonstrable-poc.md)
+
+> 当前实现提示（2026-09-28）：本文件架构仍为 deferred target。现行工作台用 SQLite FTS5/BM25 和静态 CALL/COPY 导航；没有部署 Qdrant/Neo4j/LangGraph，也没有将完整路径模型接入默认问答。证据新鲜度与验收限制见[当前实现与已知限制](./16-current-implementation-status.md)。
 日期：2026-08-27
 
 ## 1. 架构驱动因素

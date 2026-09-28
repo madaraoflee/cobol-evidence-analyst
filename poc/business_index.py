@@ -222,6 +222,7 @@ class _Facts:
         self.division, self.active_format = None, source_format
         self.pending = None
         self.rule_batch = {}
+        self.rule_partition = _content_hash(relative)[:12]
         self.line_count = 0
         self.boundaries = Counter()
         self.copybook = copybook_hint or Path(relative).suffix.casefold() in COPY_EXTENSIONS
@@ -244,6 +245,11 @@ class _Facts:
         conditions = _unique_identifiers(code) if rule_kind in {"IF", "EVALUATE", "WHEN"} else []
         key = _stable_id("rule", self.relative, self.program, self.paragraph_name or self.section_name,
                          rule_kind, code)
+        # Keep one file's primary-key writes together. Fully random rule IDs
+        # scatter every insertion across a growing repository index and cause
+        # heavy page-cache churn for millions of rules. The original digest
+        # still supplies identity; existing cached rule IDs remain readable.
+        key = "rule_" + self.rule_partition + "_" + key[5:]
         row = self.rule_batch.get(key)
         if row:
             row[6] = max(row[6], end)
@@ -537,6 +543,10 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                 copy_paths.setdefault(alias.casefold(), set()).add(relative)
     connection = _connect(database.resolve())
     try:
+        # Keep B-tree pages hot while inserting large rule/field indexes.
+        # SQLite's small default cache otherwise repeatedly reads and evicts
+        # random index pages as a large repository is ingested.
+        connection.execute("PRAGMA cache_size = -65536")
         _ensure_schema(connection)
         _ensure_business_rules(connection)
         prior = dict(connection.execute("SELECT key,value FROM metadata"))
@@ -582,8 +592,12 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                     line_count, artifact = old["line_count"], old["artifact_kind"]
                     file_boundaries[relative] = prior_boundaries.get(relative, {})
                 else:
-                    _delete_business_rules(connection, relative)
-                    _delete_file_facts(connection, relative)
+                    # New files have no facts to remove. In particular, the
+                    # FTS deletion joins scan existing units, making a cold
+                    # import quadratic when repeated for every new file.
+                    if old is not None:
+                        _delete_business_rules(connection, relative)
+                        _delete_file_facts(connection, relative)
                     facts = _Facts(connection, relative, metadata, source_format, lambda done: emit(
                         "parsing", completed=len(selected), total=len(queued), current_file=relative, file_completed=done, file_unit="lines"),
                         copybook_hint=relative in copy_hints)
@@ -632,14 +646,16 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
             for relative in removed:
                 _delete_business_rules(connection, relative)
                 _delete_file_facts(connection, relative)
-            _resolve_relations(connection)
-            _resolve_copies(connection)
+            if updated or removed or rebuild:
+                _resolve_relations(connection)
+                _resolve_copies(connection)
             # Whole-directory business indexing has the same dependency gaps
             # as entry closure; scanning every local file does not supply a
             # missing or ambiguous external object.
             unresolved = connection.execute("SELECT relative_path,relation_type,target_name,status,metadata_json "
                 "FROM relations WHERE relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY') "
                 "AND (status != 'confirmed' OR relation_type='CALL_TARGET_FROM')").fetchall()
+            known_boundaries = {tuple(sorted(boundary.items())) for boundary in boundaries}
             for relation in unresolved:
                 detail = json.loads(relation["metadata_json"])
                 status = ("DYNAMIC_TARGET" if relation["relation_type"] == "CALL_TARGET_FROM" else
@@ -647,8 +663,10 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                           "AMBIGUOUS_SOURCE" if relation["status"] == "candidate" else "MISSING_SOURCE")
                 boundary = {"relative_path": relation["relative_path"], "relation_type": relation["relation_type"],
                             "target_name": relation["target_name"], "status": status}
-                if boundary not in boundaries:
+                key = tuple(sorted(boundary.items()))
+                if key not in known_boundaries:
                     boundaries.append(boundary)
+                    known_boundaries.add(key)
             digest = hashlib.sha256()
             for relative, sha in sorted(connection.execute("SELECT relative_path,sha256 FROM source_files"), key=lambda row: row[0].casefold()):
                 digest.update(relative.encode() + b"\0" + sha.encode() + b"\n")

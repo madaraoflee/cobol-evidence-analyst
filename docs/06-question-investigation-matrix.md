@@ -3,7 +3,7 @@
 > 核心判断：Agent 不能收到问题后自由搜索整个图。它必须先把问题拆成有限的原子类型，为每个子问题建立证据义务，再按关系白名单调查；是否回答由证据义务决定，不由模型“感觉已经够了”决定。
 
 状态：`Target architecture proposal — deferred behind POC`
-当前轻量实现见：[可演示 POC](./09-demonstrable-poc.md)  
+当前轻量实现见：[可演示 POC](./09-demonstrable-poc.md)。当前默认问答尚未实现本矩阵定义的完整证据义务与关系专项验证，边界见[当前实现与已知限制](./16-current-implementation-status.md)。
 日期：2026-08-28  
 范围：只读 COBOL 业务分析 MVP
 

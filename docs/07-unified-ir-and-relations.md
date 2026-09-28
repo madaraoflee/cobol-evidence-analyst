@@ -3,7 +3,7 @@
 > 核心判断：统一 IR 必须表达“源码明确存在什么、静态分析可以确定什么、仍然无法解析什么”，并为每项事实保留可回到原始源码的证据。它不是解析器 AST 的复制品，也不是 Neo4j 的图模型，更不是给 LLM 使用的代码摘要。
 
 状态：`Target architecture proposal — deferred behind POC`
-当前轻量实现见：[可演示 POC](./09-demonstrable-poc.md)  
+当前轻量实现见：[可演示 POC](./09-demonstrable-poc.md)。本 Schema 是目标事实模型，不是当前 SQLite 稀疏索引已完整实现的能力清单；当前差距与快照新鲜度问题见[当前实现与已知限制](./16-current-implementation-status.md)。
 版本：`v0.1`  
 日期：2026-08-28  
 上游输入：[问题分类与调查策略矩阵](./06-question-investigation-matrix.md)  

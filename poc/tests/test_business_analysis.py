@@ -81,6 +81,10 @@ class BusinessAnalysisTests(unittest.TestCase):
         self.assertNotIn("tools", payload)
         self.assertNotIn("response_format", payload)
         system = payload["messages"][0]["content"]
+        self.assertIn("默认交付给业务分析师可直接使用的业务知识", system)
+        self.assertIn("默认不展示源代码段、伪代码、逐句代码翻译或框架内部实现细节", system)
+        self.assertIn("仅询问如何计算、为什么、影响什么或改哪些程序，不表示用户要求看代码", system)
+        self.assertIn("不能只讲通用 COBOL 语法或复述框架目录", system)
         supplied = json.loads(payload["messages"][-1]["content"])
         for concept in ("业务目的", "触发输入", "准入与排除规则", "关键业务决策",
                         "状态与业务数据变化", "异常的业务影响和处理"):
@@ -589,7 +593,7 @@ class BusinessAnalysisTests(unittest.TestCase):
             if len(calls) == 2:
                 return response("")
             system = json.loads(request.body)["messages"][0]["content"]
-            self.assertIn("直接输出非空的普通业务说明文字", system)
+            self.assertIn("直接输出非空的 Markdown 业务说明正文", system)
             return response("重试后得到保费业务说明")
 
         result = self.run_analysis(transport, capture_api_responses=True)

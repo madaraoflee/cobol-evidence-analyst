@@ -5,6 +5,7 @@
 状态：`Target architecture reference — deferred behind POC`  
 范围：单个私有 COBOL/IBM i 代码库的只读业务分析 Agent  
 当前轻量实现见：[可演示 POC](./09-demonstrable-poc.md)
+当前工作台尚未实现本文的稠密向量召回、类型化图证明及通用 Claim 核验；现状与已知阻塞见[当前实现与已知限制](./16-current-implementation-status.md)。
 
 公司约束：模型能力只能通过公司 API Key 调用公司 API。下文 Qdrant、Neo4j、Qwen、BGE-M3 和 LanceDB 仅是未来公司已有服务或重新审批时的参考选项，不安装在当前工作电脑，也不是 POC 依赖。
 

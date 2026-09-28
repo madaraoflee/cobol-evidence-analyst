@@ -1,5 +1,7 @@
 # POC 运行说明
 
+当前默认检索、核验边界和已复现的源码新鲜度问题见[当前实现与已知限制](../docs/16-current-implementation-status.md)。本说明中的目标设计和专项路径演示不代表默认问答已具备完整控制/数据流证明。
+
 ## 新版框架案例
 
 双击 `poc\run_web.bat`，在“业务案例”选择申请受理、在线复核或夜间生效的示例问题。首次载入合成源码时建立一次全库索引；示例问题可以修改，点击发送才调用模型，之后可在同一对话继续追问。切换示例问题复用已建索引。案例资料用于展示操作，回答应来自本次模型调用；源码引用由本机实际文件生成。完整操作见[系统使用手册](../docs/15-system-user-manual.md)。
@@ -36,11 +38,13 @@ Windows 包装脚本接受相同参数：
 
 当前 POC 包含离线事实索引、受控 Agent、单条 Claim 核验、业务覆盖检查、P3-D 跨程序错误审查、P3-E 静态调用点链上下文、P3-F 局部异常控制流，以及 T01 跨程序错误返回组合。离线工具只使用 Python 标准库；`company_api.py` 和 `run_agent.py` 默认不发送网络请求，只有显式传入 `--allow-network` 才会连接公司 API。
 
-办公室电脑从零开始的最新完整操作请看：[系统使用手册（2026-09-14）](../docs/15-system-user-manual.md)。详细排查参考在[办公室电脑使用手册](../docs/11-office-usage-guide.md)。
+办公室电脑从零开始的当前完整操作请看：[系统使用手册（2026-09-28）](../docs/15-system-user-manual.md)。详细排查参考在[办公室使用手册（历史版本）](../docs/11-office-usage-guide.md)。
 
 ## 默认业务解读流程
 
 网页和 `analyze_source.py` 命令行默认使用 `business` + `retrieval`。基于本地 SQLite FTS5/BM25、程序结构与 CALL/COPY 关系选取相关原文，交给模型直接回答；模型确有缺口时才继续搜索或按行补读。无命中时给结构概览以寻找线索，不自动读遍全库。网页持久保存多轮历史，恢复上轮真实引用片段以理解追问。当前不依赖外部向量库或额外嵌入接口；这是全文与结构结合的 RAG，不能宣称已经部署语义向量检索。Python 库和底层 `run_agent.py` 保留旧默认以兼容调用，程序化使用传 `analysis_mode="business", reading_strategy="retrieval"`。
+
+默认回答的 `ANALYZED` 不代表 Claim 语义支持或问题完整性已验证。另因元数据复用可能在等长修改且 mtime 保留时返回旧源码，源码内容校验缺口修复前，关键分析须先执行逐文件内容校验；具体边界与复现见[状态说明](../docs/16-current-implementation-status.md)。
 
 ## 大源码目录与网页进度
 
@@ -56,7 +60,7 @@ Windows 包装脚本接受相同参数：
 
 项目根目录 `.env` 可设置 `FRAMEWORK_REFERENCE_PATH=.poc-data/framework/reference.md`。也可在网页连接设置中指定单个资料文件或包含多份资料的文件夹，立即查看加载结果。支持 UTF-8 与带 BOM 的 UTF-16 Markdown/文本。`framework_knowledge.py` 从资料标题、表格及调查范围内多个程序和 COPY 的源码词项匹配节选，保留文档 hash、原稿页码、文字行号以及匹配位置；不写死供应商或内部程序名。缺源码调用保留真实调用点与关联手册。资料匹配无需联网，最终实际用于本次答案的上下文另存 `framework-context.json`。
 
-问答运行器将节选作为不可信参考数据传给已配置模型。新增 `framework_interpretation` 必须同时引用已读取的有效源码证据和本次资料 ID，显示为有条件的框架解释；两类 ID 不可互相替代。资料加载或词项命中不等于控制流／数据流证明，不会模拟闭源对象。无资料、资料无匹配或不可读时保留原因，原有源码分析仍可使用。CLI 可用 `--framework-reference` 显式覆盖配置。具体操作见[使用手册](../docs/15-system-user-manual.md)和[设计边界](../docs/16-private-framework-knowledge.md)。
+问答运行器将节选作为不可信参考数据传给已配置模型。新增 `framework_interpretation` 必须同时引用已读取的有效源码证据和本次资料 ID，显示为有条件的框架解释；两类 ID 不可互相替代。资料加载或词项命中不等于控制流／数据流证明，不会模拟闭源对象。无资料、资料无匹配或不可读时保留原因，原有源码分析仍可使用。CLI 可用 `--framework-reference` 显式覆盖配置。具体操作见[使用手册](../docs/15-system-user-manual.md)和[框架参考资料接入规格](../specs/framework_reference_reverse_spec.md)。
 
 ## F01：通用项目入口与框架源码审查
 

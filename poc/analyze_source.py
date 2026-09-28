@@ -354,8 +354,9 @@ def analyze_source(
                 max_source_bytes=DEFAULT_SCOPE_SOURCE_BYTES if scope else None)
             report["build_report"] = build
             detailed_programs, dependencies, indexed = _catalog(output / "structural-index.sqlite")
-            _verify_scope(source, indexed, progress, check_cancel)
-            report["source_manifest_verified"] = True
+            if analysis_mode != "business":
+                _verify_scope(source, indexed, progress, check_cancel)
+                report["source_manifest_verified"] = True
             report["source_verification_scope"] = "selected_sources" if scope else "full_index"
             report["atomic_source_snapshot"] = False
             report["unresolved_dependencies"] = dependencies
@@ -371,7 +372,9 @@ def analyze_source(
                 selected = selected or (selected_options[0] if len(selected_options) == 1 else None)
                 entry_error = None if selected else "ENTRY_NOT_RECOGNIZED_IN_SCOPE"
                 report["scope"].update(detail_file_count=build["files"]["decoded"], catalogue_program_count=len(programs),
-                    source_verification="selected_sources_content_hash", full_repository_verified=False)
+                    source_verification=("incremental_metadata_and_content_hash"
+                        if analysis_mode == "business" and not verify_content else "selected_sources_content_hash"),
+                    full_repository_verified=False)
             else:
                 programs = detailed_programs
                 selected, entry_error = (None, None) if repository_mode else _select_entry(programs, entry)
@@ -383,7 +386,13 @@ def analyze_source(
             if analysis_mode == "business":
                 report["repository_search"] = ensure_repository_search(
                     output / "structural-index.sqlite", source,
-                    check_cancel=check_cancel, progress=progress)
+                    check_cancel=check_cancel, progress=progress, verify_content=verify_content)
+                # Search ingestion verifies every new/changed source against
+                # the structural hash. A separate whole-repository hash pass
+                # here repeated the same disk reads on every refresh.
+                report["source_manifest_verified"] = True
+                report["source_verification_method"] = (
+                    "full_content_hash" if verify_content else "incremental_metadata_and_content_hash")
             report["program_count"] = len(programs)
             report["selected_entry"] = selected
             if dependencies:

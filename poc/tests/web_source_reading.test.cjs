@@ -15,6 +15,8 @@ function harness(locale='en'){
     fetch:()=>{fetches++;throw Error('unexpected request');},setTimeout,clearTimeout,
   });
   vm.runInContext(fs.readFileSync(path.join(root,'i18n.js'),'utf8'),context);
+  vm.runInContext(fs.readFileSync(path.join(root,'marked.umd.js'),'utf8'),context);
+  vm.runInContext(fs.readFileSync(path.join(root,'markdown.js'),'utf8'),context);
   vm.runInContext(fs.readFileSync(path.join(root,'app.js'),'utf8').replace(/render\(\);initialize\(\);\s*$/,''),context);
   return {run:code=>vm.runInContext(code,context),get,events,fetches:()=>fetches};
 }

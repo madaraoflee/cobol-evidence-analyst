@@ -21,6 +21,8 @@ function harness(locale='en'){
     setTimeout:()=>1,clearTimeout:()=>{},setInterval:()=>1,clearInterval:()=>{},
   });
   vm.runInContext(fs.readFileSync(path.join(web,'i18n.js'),'utf8'),context);
+  vm.runInContext(fs.readFileSync(path.join(web,'marked.umd.js'),'utf8'),context);
+  vm.runInContext(fs.readFileSync(path.join(web,'markdown.js'),'utf8'),context);
   vm.runInContext(fs.readFileSync(path.join(web,'app.js'),'utf8').replace(/render\(\);initialize\(\);\s*$/,''),context);
   return {run:code=>vm.runInContext(code,context),get,events,requests,respond:fn=>responder=fn,
     fixture(value=frameworkDemoFixture()){vm.runInContext(`preview.catalog=${JSON.stringify(value)};state.demoLoading=false;selectDemoCase('online',false);`,context);},
