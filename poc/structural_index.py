@@ -1926,7 +1926,7 @@ def build_structural_index(
         stats: dict[str, list[int]] = {}
         for path in source_files:
             info = path.stat()
-            stats[path.relative_to(root).as_posix()] = [info.st_size, info.st_mtime_ns, info.st_ctime_ns]
+            stats[path.relative_to(root).as_posix()] = [info.st_size, info.st_mtime_ns]
         total_bytes = sum(value[0] for value in stats.values())
         if max_source_bytes is not None and total_bytes > max_source_bytes:
             raise ValueError("Selected source files exceed the detailed analysis byte budget; refresh the catalog and select a smaller entry scope.")
@@ -1969,7 +1969,7 @@ def build_structural_index(
                         bytes_done += stats[relative][0]
                         continue
                     after = path.stat()
-                    if [after.st_size, after.st_mtime_ns, after.st_ctime_ns] != stats[relative]:
+                    if [after.st_size, after.st_mtime_ns] != stats[relative]:
                         raise ValueError("Source files changed while being read; retry against a stable export.")
                     row = {"encoding": document.encoding, "format_hint": document.format_hint,
                            "artifact_kind": document.artifact_kind,
@@ -2062,7 +2062,7 @@ def build_structural_index(
                 "files": {"candidate": len(source_files), "decoded": len(current_paths), "unreadable_or_binary": unreadable_count,
                           "indexed_or_updated": changed_count, "skipped_unchanged": skipped_count, "removed": len(removed_paths)},
                 "scope": {"kind": "selected_sources" if include_paths is not None else "full_directory", "file_count": len(current_paths)},
-                "change_detection": "size_mtime_ctime", "source_stat_manifest": {key: stats[key] for key in current_paths},
+                "change_detection": "size_mtime", "source_stat_manifest": {key: stats[key] for key in current_paths},
                 "database_counts": _database_counts(connection),
                 "relation_statuses": dict(connection.execute("SELECT status, COUNT(*) FROM relations GROUP BY status")),
                 "copy_expansion": copy_report, "call_bindings": call_report, "database_path": str(database)}

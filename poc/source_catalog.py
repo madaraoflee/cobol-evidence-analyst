@@ -46,14 +46,38 @@ def _connect(path: Path) -> sqlite3.Connection:
         CREATE TABLE IF NOT EXISTS catalog_files (
             relative_path TEXT PRIMARY KEY,
             size_bytes INTEGER NOT NULL, mtime_ns INTEGER NOT NULL,
-            ctime_ns INTEGER NOT NULL, inode INTEGER NOT NULL,
+            inode INTEGER NOT NULL,
             option_key TEXT NOT NULL, payload TEXT NOT NULL
         );
         CREATE TEMP TABLE candidates (
             relative_path TEXT PRIMARY KEY, size_bytes INTEGER NOT NULL,
-            mtime_ns INTEGER NOT NULL, ctime_ns INTEGER NOT NULL, inode INTEGER NOT NULL
+            mtime_ns INTEGER NOT NULL, inode INTEGER NOT NULL
         );
     ''')
+    columns = {row['name'] for row in connection.execute('PRAGMA table_info(catalog_files)')}
+    current_columns = {'relative_path', 'size_bytes', 'mtime_ns', 'inode', 'option_key', 'payload'}
+    if columns and columns != current_columns:
+        if current_columns.issubset(columns):
+            connection.executescript('''
+                BEGIN IMMEDIATE;
+                ALTER TABLE catalog_files RENAME TO catalog_files_legacy;
+                CREATE TABLE catalog_files (
+                    relative_path TEXT PRIMARY KEY,
+                    size_bytes INTEGER NOT NULL, mtime_ns INTEGER NOT NULL,
+                    inode INTEGER NOT NULL, option_key TEXT NOT NULL, payload TEXT NOT NULL
+                );
+                INSERT INTO catalog_files (relative_path,size_bytes,mtime_ns,inode,option_key,payload)
+                    SELECT relative_path,size_bytes,mtime_ns,inode,option_key,payload FROM catalog_files_legacy;
+                DROP TABLE catalog_files_legacy;
+                COMMIT;
+            ''')
+        else:
+            connection.execute('DROP TABLE catalog_files')
+            connection.execute('''CREATE TABLE catalog_files (
+                relative_path TEXT PRIMARY KEY,
+                size_bytes INTEGER NOT NULL, mtime_ns INTEGER NOT NULL,
+                inode INTEGER NOT NULL, option_key TEXT NOT NULL, payload TEXT NOT NULL
+            )''')
     return connection
 
 
@@ -222,8 +246,8 @@ def refresh_source_catalog(
         for path in iter_source_files(source, extensions, include_extensionless):
             stat = path.stat()
             relative = path.relative_to(source).as_posix()
-            connection.execute('INSERT INTO candidates VALUES (?, ?, ?, ?, ?)',
-                               (relative, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns, stat.st_ino))
+            connection.execute('INSERT INTO candidates VALUES (?, ?, ?, ?)',
+                               (relative, stat.st_size, stat.st_mtime_ns, stat.st_ino))
             stats['candidate'] += 1
             stats['bytes_total'] += stat.st_size
             if stats['candidate'] == 1 or stats['candidate'] % 100 == 0:
@@ -240,14 +264,14 @@ def refresh_source_catalog(
                 bytes_read=0, cached=0, elapsed_seconds=time.monotonic() - started, eta_seconds=None)
         # The cursor streams metadata; only one bounded prefix is resident.
         rows = connection.execute('''SELECT c.*, f.size_bytes old_size, f.mtime_ns old_mtime,
-            f.ctime_ns old_ctime, f.inode old_inode, f.option_key, f.payload
+            f.inode old_inode, f.option_key, f.payload
             FROM candidates c LEFT JOIN catalog_files f USING(relative_path)
             ORDER BY c.relative_path''')
         for row in rows:
             relative = row['relative_path']
             cached = not verify_content and row['payload'] is not None and row['option_key'] == option_key and (
-                row['size_bytes'], row['mtime_ns'], row['ctime_ns'], row['inode']) == (
-                row['old_size'], row['old_mtime'], row['old_ctime'], row['old_inode'])
+                row['size_bytes'], row['mtime_ns'], row['inode']) == (
+                row['old_size'], row['old_mtime'], row['old_inode'])
             if cached:
                 payload = json.loads(row['payload'])
                 # Transient read errors are retried even if stat metadata agrees.
@@ -263,8 +287,8 @@ def refresh_source_catalog(
                                               source_format=source_format, header_bytes=header_bytes,
                                               verify_content=verify_content)
                     after = (source / relative).stat()
-                    if (after.st_size, after.st_mtime_ns, after.st_ctime_ns, after.st_ino) != (
-                            row['size_bytes'], row['mtime_ns'], row['ctime_ns'], row['inode']):
+                    if (after.st_size, after.st_mtime_ns, after.st_ino) != (
+                            row['size_bytes'], row['mtime_ns'], row['inode']):
                         payload['error'] = 'SOURCE_CHANGED_DURING_CATALOG'
                         payload['programs'] = []
                 except OSError as exc:
@@ -273,9 +297,10 @@ def refresh_source_catalog(
                                'bytes_read': 0, 'error': type(exc).__name__}
                 stats['bytes_read'] += payload.get('bytes_read', 0)
                 stats['indexed_or_updated'] += 1
-                connection.execute('INSERT OR REPLACE INTO catalog_files VALUES (?, ?, ?, ?, ?, ?, ?)',
-                                   (relative, row['size_bytes'], row['mtime_ns'], row['ctime_ns'],
-                                    row['inode'], option_key, json.dumps(payload, ensure_ascii=False)))
+                connection.execute('''INSERT OR REPLACE INTO catalog_files
+                    (relative_path,size_bytes,mtime_ns,inode,option_key,payload) VALUES (?, ?, ?, ?, ?, ?)''',
+                                   (relative, row['size_bytes'], row['mtime_ns'], row['inode'],
+                                    option_key, json.dumps(payload, ensure_ascii=False)))
                 connection.commit()
             stats['decoded'] += int(payload.get('decoded', False))
             stats['failed'] += int(payload.get('error') is not None)
@@ -305,7 +330,7 @@ def refresh_source_catalog(
             truncated_count += int(payload.get('header_truncated', False))
             fallback_count += sum(item['name_origin'] == 'path' for item in payload['programs'])
             copybook_count += int(payload['artifact_kind'] == 'copybook')
-            digest.update(json.dumps([row['relative_path'], row['size_bytes'], row['mtime_ns'], row['ctime_ns'],
+            digest.update(json.dumps([row['relative_path'], row['size_bytes'], row['mtime_ns'],
                                       row['inode'], payload.get('header_sha256'), payload.get('full_sha256'),
                                       payload.get('error')], ensure_ascii=False).encode('utf-8'))
     if truncated_count:
@@ -328,7 +353,7 @@ def refresh_source_catalog(
                   'full_file_content_verified': bool(verify_content and not stats['failed']),
                   'all_program_definitions_discovered': not truncated_count and not stats['failed'] and not any(item.get('definition_limit_reached') for item in file_entries),
                   'structural_analysis_performed': False, 'truncated_file_count': truncated_count,
-                  'cache_validation': 'size_mtime_ctime_inode',
+                  'cache_validation': 'size_mtime_inode',
                   'stat_cache_limitation': 'Changes preserving all file metadata require explicit content verification.'},
     }
 
@@ -438,7 +463,7 @@ def select_related_sources(
         except OSError:
             boundary(relative, 'SOURCE_FILE', relative, 'UNREADABLE')
             continue
-        if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+        if (before.st_size, before.st_mtime_ns, before.st_ino) != (after.st_size, after.st_mtime_ns, after.st_ino):
             boundary(relative, 'SOURCE_FILE', relative, 'CHANGED_DURING_SCAN')
             continue
         truncated = bytes_read < before.st_size

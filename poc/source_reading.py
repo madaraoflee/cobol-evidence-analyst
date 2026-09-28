@@ -103,7 +103,7 @@ def _verified_lines(root: Path, item: dict, check: Callable | None, limit: int):
                 yield prefix, length > limit
             final = os.fstat(handle.fileno())
         after = _safe_file(root, item["relative_path"]).stat()
-        identity = lambda value: (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+        identity = lambda value: (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns)
         if identity(before) != identity(final) or identity(final) != identity(after):
             raise ValueError("SOURCE_HASH_MISMATCH")
     except OSError as exc:

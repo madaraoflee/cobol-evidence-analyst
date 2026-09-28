@@ -251,7 +251,7 @@ def _load_file(path: Path) -> _Document:
             raise _ReferenceError("FRAMEWORK_REFERENCE_UNREADABLE")
         if stat.st_size > MAX_REFERENCE_BYTES:
             raise _ReferenceError("FRAMEWORK_REFERENCE_TOO_LARGE")
-        identity = (str(path.absolute()), stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+        identity = (str(path.absolute()), stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns)
         with _CACHE_LOCK:
             cached = _CACHE.get(identity)
             if cached is not None:
@@ -264,7 +264,7 @@ def _load_file(path: Path) -> _Document:
             raise _ReferenceError("FRAMEWORK_REFERENCE_TOO_LARGE")
         # Do not cache a reference that changed during the read.
         opened_identity = (str(path.absolute()), opened_stat.st_dev, opened_stat.st_ino, opened_stat.st_size,
-                           opened_stat.st_mtime_ns, opened_stat.st_ctime_ns)
+                           opened_stat.st_mtime_ns)
         if identity != opened_identity or len(raw) != opened_stat.st_size:
             raise _ReferenceError("FRAMEWORK_REFERENCE_CHANGED")
         # Text exported by Windows editors can use a UTF-16 byte-order mark.

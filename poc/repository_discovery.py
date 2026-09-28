@@ -77,10 +77,21 @@ def _schema(connection):
         CREATE INDEX IF NOT EXISTS repo_pages_path ON repo_pages(relative_path);
         CREATE TABLE IF NOT EXISTS repo_source_state (
             relative_path TEXT PRIMARY KEY, sha256 TEXT NOT NULL,
-            size INTEGER NOT NULL, mtime_ns INTEGER NOT NULL, ctime_ns INTEGER NOT NULL);
+            size INTEGER NOT NULL, mtime_ns INTEGER NOT NULL);
         CREATE INDEX IF NOT EXISTS repo_relations_path ON relations(relative_path,relation_type);
         CREATE VIRTUAL TABLE IF NOT EXISTS repo_fts USING fts5(tokens, tokenize='unicode61 remove_diacritics 2');
     """)
+    _ensure_source_state_schema(connection)
+
+
+def _ensure_source_state_schema(connection):
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(repo_source_state)")}
+    expected = {"relative_path", "sha256", "size", "mtime_ns"}
+    if columns and columns != expected:
+        # This table is only a disposable retrieval cache; rebuild it when its
+        # metadata layout changes so existing source snapshots remain usable.
+        connection.execute("DROP TABLE repo_source_state")
+    connection.execute("CREATE TABLE IF NOT EXISTS repo_source_state (relative_path TEXT PRIMARY KEY, sha256 TEXT NOT NULL, size INTEGER NOT NULL, mtime_ns INTEGER NOT NULL)")
 
 
 def _remove_file(connection, relative):
@@ -156,10 +167,10 @@ def ensure_repository_search(database_path, source_root, check_cancel=None, prog
                 connection.execute("INSERT INTO repo_sources VALUES (?,?,?,?,?,?)", (relative, item["sha256"], item["encoding"], item["line_count"], count, truncated))
                 updated += 1
             info = _safe_file(root, relative).stat()
-            if (verified_before.st_size, verified_before.st_mtime_ns, verified_before.st_ctime_ns) != (info.st_size, info.st_mtime_ns, info.st_ctime_ns):
+            if (verified_before.st_size, verified_before.st_mtime_ns) != (info.st_size, info.st_mtime_ns):
                 raise ValueError("SOURCE_HASH_MISMATCH")
-            connection.execute("INSERT OR REPLACE INTO repo_source_state VALUES (?,?,?,?,?)",
-                               (relative, item["sha256"], info.st_size, info.st_mtime_ns, info.st_ctime_ns))
+            connection.execute("INSERT OR REPLACE INTO repo_source_state VALUES (?,?,?,?)",
+                               (relative, item["sha256"], info.st_size, info.st_mtime_ns))
             if progress:
                 progress({"phase": "repository_search", "stage": "indexing", "completed": offset,
                           "total": len(files), "unit": "files", "current_file": relative})
@@ -374,7 +385,7 @@ def repository_search_overview(database_path, source_root=None):
 
 def _state_schema(connection):
     # Supports a previously built index without asking users to reimport it.
-    connection.execute("CREATE TABLE IF NOT EXISTS repo_source_state (relative_path TEXT PRIMARY KEY, sha256 TEXT NOT NULL, size INTEGER NOT NULL, mtime_ns INTEGER NOT NULL, ctime_ns INTEGER NOT NULL)")
+    _ensure_source_state_schema(connection)
 
 
 def _current_selected_source(connection, root, relative, cache, check_cancel):
@@ -391,8 +402,8 @@ def _current_selected_source(connection, root, relative, cache, check_cancel):
     try:
         info = _safe_file(root, relative).stat()
         cache["checked_files"] += 1
-        observed = [info.st_size, info.st_mtime_ns, info.st_ctime_ns]
-        saved = connection.execute("SELECT sha256,size,mtime_ns,ctime_ns FROM repo_source_state WHERE relative_path=?", (relative,)).fetchone()
+        observed = [info.st_size, info.st_mtime_ns]
+        saved = connection.execute("SELECT sha256,size,mtime_ns FROM repo_source_state WHERE relative_path=?", (relative,)).fetchone()
         expected = list(saved)[1:] if saved and saved["sha256"] == item["sha256"] else None
         if expected is None:
             if "legacy_stats" not in cache:
@@ -401,16 +412,16 @@ def _current_selected_source(connection, root, relative, cache, check_cancel):
             expected = cache["legacy_stats"].get(relative)
         if expected == observed:
             cache["reused_files"] += 1
-            state.update(current=True, verification="size_mtime_ctime", source_sha256=item["sha256"])
+            state.update(current=True, verification="size_mtime", source_sha256=item["sha256"])
         else:
             cache["content_verified_files"] += 1
             for _ in _verified_lines(root, dict(item), check_cancel, 1):
                 pass
             after = _safe_file(root, relative).stat()
-            if observed != [after.st_size, after.st_mtime_ns, after.st_ctime_ns]:
+            if observed != [after.st_size, after.st_mtime_ns]:
                 raise ValueError("SOURCE_HASH_MISMATCH")
             state.update(current=True, verification="content_hash", source_sha256=item["sha256"])
-        connection.execute("INSERT OR REPLACE INTO repo_source_state VALUES (?,?,?,?,?)", (relative, item["sha256"], *observed))
+        connection.execute("INSERT OR REPLACE INTO repo_source_state VALUES (?,?,?,?)", (relative, item["sha256"], *observed))
     except ValueError as exc:
         if str(exc) not in {"SOURCE_PATH_INVALID", "SOURCE_HASH_MISMATCH", "SOURCE_LINE_COUNT_MISMATCH", "SOURCE_ENCODING_INVALID"}:
             raise

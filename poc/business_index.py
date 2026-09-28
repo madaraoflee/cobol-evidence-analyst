@@ -93,7 +93,7 @@ def _safe_path(root: Path, relative: str) -> Path:
 
 
 def _identity(value):
-    return value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns
+    return value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns
 
 
 def _verify_file(path, root, encoding, emit):
@@ -564,7 +564,7 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                 old = previous.get(relative)
                 observed = path.stat()
                 unchanged = (not verify_content and not rebuild and old is not None
-                             and prior_stats.get(relative) == [observed.st_size, observed.st_mtime_ns, observed.st_ctime_ns])
+                             and prior_stats.get(relative) == [observed.st_size, observed.st_mtime_ns])
                 if unchanged:
                     metadata = {"sha256": old["sha256"], "encoding": old["encoding"], "stat": observed,
                                 "used_fallback_encoding": bool(old["used_fallback_encoding"])}
@@ -574,7 +574,7 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                         "reading", completed=len(selected), total=len(queued), current_file=relative, file_bytes_completed=done))
                     content_verified += 1
                 info = metadata["stat"]
-                file_stats[relative] = [info.st_size, info.st_mtime_ns, info.st_ctime_ns]
+                file_stats[relative] = [info.st_size, info.st_mtime_ns]
                 total_bytes += info.st_size
                 cached = not rebuild and old is not None and old["sha256"] == metadata["sha256"]
                 if cached:

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 from pathlib import Path
 import sqlite3
 import sys
@@ -63,12 +62,10 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertEqual({p['program_name'] for p in after['programs']}, {'NEXT-WORK', 'NEW-WORK', 'STABLE-WORK'})
         self.assertNotEqual(before['snapshot_id'], after['snapshot_id'])
 
-    def test_changed_ctime_detects_equal_size_content_with_restored_mtime(self):
+    def test_changed_mtime_invalidates_equal_size_file(self):
         path = self.write('main.cbl', program('FIRST'))
-        stat = path.stat()
         self.refresh()
         path.write_text(program('OTHER'), encoding='utf-8')
-        os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
         after = self.refresh()
         self.assertEqual(after['files']['indexed_or_updated'], 1)
         self.assertEqual(after['programs'][0]['program_name'], 'OTHER')
