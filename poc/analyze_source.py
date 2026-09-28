@@ -217,6 +217,7 @@ def analyze_source(
     max_source_pages: int = 12,
     reading_strategy: str = "focused",
     conversation_history: list[dict] | None = None,
+    agent_policy=None,
 ) -> dict:
     source, output = _paths(source_root, output_root)
     external_progress = progress
@@ -244,7 +245,7 @@ def analyze_source(
             extensions=extensions, include_extensionless=include_extensionless, encoding=encoding,
             source_format=source_format, config=config, api_options=api_options, transport=transport,
             framework_reference_path=framework_reference_path, capture_api_responses=capture_api_responses,
-            history=conversation_history, progress=progress, check_cancel=check_cancel)
+            history=conversation_history, progress=progress, check_cancel=check_cancel, policy=agent_policy)
         if cached is not None:
             return cached
     repository_mode = analysis_mode == "business" and entry is None
@@ -442,7 +443,7 @@ def analyze_source(
                                           analysis_mode=analysis_mode, source_root=source,
                                           max_source_pages=max_source_pages, reading_strategy=reading_strategy,
                                           progress=progress, check_cancel=check_cancel,
-                                          conversation_history=conversation_history)
+                                          conversation_history=conversation_history, agent_policy=agent_policy)
             except APIConfigurationError as exc:
                 agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
             result = agent.get("agent_result") or {}
@@ -530,13 +531,15 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        from runtime_settings import load_agent_policy
+        policy = load_agent_policy() if args.question and args.analysis_mode == "business" and args.reading_strategy == "retrieval" else None
         report = analyze_source(args.source, args.output, entry=args.entry, question=args.question,
                                 extensions=parse_extensions(args.extensions), include_extensionless=args.include_extensionless,
                                 encoding=args.encoding, source_format=args.source_format, allow_network=args.allow_network,
                                 index_mode=args.index_mode, verify_content=args.verify_content,
                                 framework_reference_path=args.framework_reference,
                                 analysis_mode=args.analysis_mode, max_source_pages=args.max_source_pages,
-                                reading_strategy=args.reading_strategy,
+                                reading_strategy=args.reading_strategy, agent_policy=policy,
                                 api_options={"base_url": args.base_url, "chat_model": args.chat_model, "api_style": args.api_style,
                                              "timeout_seconds": args.timeout_seconds, "max_output_tokens": args.max_output_tokens,
                                              "allow_insecure_localhost": args.allow_insecure_localhost}, quiet=False)

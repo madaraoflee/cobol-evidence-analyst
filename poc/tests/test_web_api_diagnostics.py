@@ -70,7 +70,8 @@ class WebAPIDiagnosticsTests(unittest.TestCase):
 
             app = WorkbenchState(analyzer=analyzer, config_provider=lambda: config)
             options = {"source": str(source), "output": str(root / "output"),
-                       "entry": "entry.cbl", "question": "Explain the counter.", "allow_network": True}
+                       "entry": "entry.cbl", "question": "Explain the counter.", "allow_network": True,
+                       "capture_api_responses": True}
             if repository:
                 options.pop("entry")
                 options["question"] = "Explain how the counter result is made available across this repository."

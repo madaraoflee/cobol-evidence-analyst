@@ -54,6 +54,23 @@ test('new conversations and restored conversations preserve the local index and 
   await h.run("openConversation('conversation-1')");assert.equal(h.run('state.conversation.messages.length'),2);assert.match(h.run('renderWorkbench()'),/A valid request is accepted/);assert.deepEqual(h.requests.map(item=>item.url),['/api/conversations','/api/conversations/conversation-1']);
 });
 
+test('raw response capture is off by default and one explicit selection applies to one submission',async()=>{
+  const h=harness();setup(h);
+  h.respond(url=>url==='/api/analyze'?{job_id:'local-job'}:{status:'COMPLETED',result:{...project(),conversation:conversation(firstMessages)}});
+  await submit(h,'Explain the rule.');
+  h.events['capture-api-response:change']({target:{checked:true}});
+  await submit(h,'Explain the exception.');
+  assert.equal(h.run('state.captureApiResponses'),false);
+  assert.equal(h.get('capture-api-response').checked,false);
+  await submit(h,'Which condition decides?');
+  const submissions=h.requests.filter(item=>item.url==='/api/analyze').map(item=>JSON.parse(item.options.body));
+  assert.deepEqual(submissions.map(item=>item.capture_api_responses),[false,true,false]);
+  for(const locale of ['en','zh-CN','zh-HK']){
+    h.run(`selectInterfaceLocale('${locale}')`);
+    assert.ok(h.run("t('下一次回答保存接口原文').length")>5);
+  }
+});
+
 test('failed turns remain visible and retry restores the original question within the same conversation',async()=>{
   const h=harness();setup(h,firstMessages);const failed=[...firstMessages,{id:'user-2',role:'user',content:'Which conditions reject it?',status:'failed'}];
   h.respond(url=>url==='/api/analyze'?{job_id:'job-failed'}:{status:'FAILED',error:{code:'REQUEST_FAILED'},conversation:conversation(failed)});

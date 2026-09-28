@@ -30,6 +30,8 @@ from repo_inventory import parse_extensions
 from framework_knowledge import framework_status, _resolve_reference
 from report_view import DIRECT_REPORT_BYTES, VIEW_REPORT_BYTES, report_sha256
 from conversation_store import ConversationStore
+from runtime_settings import load_agent_policy
+from agent_policy import resolve_agent_policy
 
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
@@ -69,7 +71,7 @@ def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 102
 
 
 def _validate_options(payload: object) -> dict:
-    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "conversation_id", "framework_reference_path"}
+    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "conversation_id", "framework_reference_path", "capture_api_responses"}
     if not isinstance(payload, dict) or set(payload) - fields:
         raise RequestError("INVALID_OPTIONS", "请求包含未知设置。")
     source_text, output_text = _text(payload, "source", required=True), _text(payload, "output", required=True)
@@ -101,6 +103,9 @@ def _validate_options(payload: object) -> dict:
     allow_network = payload.get("allow_network", False)
     if type(allow_network) is not bool:
         raise RequestError("INVALID_OPTIONS", "allow_network 必须为布尔值。")
+    capture_api_responses = payload.get("capture_api_responses", False)
+    if type(capture_api_responses) is not bool:
+        raise RequestError("INVALID_OPTIONS", "capture_api_responses 必须为布尔值。")
     index_mode = _text(payload, "index_mode", maximum=16) or "catalog"
     if index_mode not in {"catalog", "full"}:
         raise RequestError("INVALID_OPTIONS", "index_mode 必须是 catalog 或 full。")
@@ -122,6 +127,7 @@ def _validate_options(payload: object) -> dict:
         "source": source, "output": output, "encoding": encoding, "source_format": source_format,
         "entry": _text(payload, "entry"), "question": _text(payload, "question", maximum=8000),
         "allow_network": allow_network, "extensions": extensions, "index_mode": index_mode, "verify_content": verify_content,
+        "capture_api_responses": capture_api_responses,
         "analysis_mode": "business", "max_source_pages": max_source_pages, "reading_strategy": reading_strategy,
         "conversation_id": _text(payload, "conversation_id", maximum=64),
         "framework_reference_path": _text(payload, "framework_reference_path", maximum=4096),
@@ -278,9 +284,11 @@ class WorkbenchState:
     def __init__(self, *, analyzer: Callable = analyze_source, config_provider: Callable = _environment_config,
                  demo_output_root: Path | None = None, state_path: Path | None = None,
                  model_check_transport: Transport | None = None,
+                 policy_provider: Callable = load_agent_policy,
                  folder_picker: Callable[[Path], str | None] = _pick_local_folder) -> None:
         self.session_token = secrets.token_urlsafe(32)
         self.analyzer, self.config_provider = analyzer, config_provider
+        self.policy_provider = policy_provider
         self.model_check_transport, self.folder_picker = model_check_transport, folder_picker
         self.lock = threading.RLock()
         self.project = _project()
@@ -572,11 +580,16 @@ class WorkbenchState:
             self.framework_reference_path = options["framework_reference_path"]
             if options["question"] and options["allow_network"]:
                 try:
-                    conversation = self.conversation_store.get(options["conversation_id"]) if options.get("conversation_id") else self.conversation_store.create(self.project.get("snapshot_id") if same_project else None)
+                    options["agent_policy"] = resolve_agent_policy(self.policy_provider())
+                except (ValueError, TypeError, OSError):
+                    raise RequestError("AGENT_SETTINGS_INVALID", "分析策略设置无法读取。请检查 agent-settings.json；本次尚未调用模型。", 400) from None
+                try:
+                    conversation = self.conversation_store.get_metadata(options["conversation_id"]) if options.get("conversation_id") else self.conversation_store.create(self.project.get("snapshot_id") if same_project else None)
                 except ValueError:
                     raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话，请新建对话后重试。", 404) from None
                 options["conversation_id"] = conversation["id"]
-                options["conversation_history"] = conversation["messages"]
+                options["conversation_history"] = self.conversation_store.model_history(
+                    conversation["id"], max_characters=options["agent_policy"].max_history_characters)
                 self.conversation_store.append(conversation["id"], "user", options["question"], status="pending", run_id=job_id)
                 self.conversation = self.conversation_store.get(conversation["id"])
             elif not same_project:
@@ -649,7 +662,6 @@ class WorkbenchState:
             if arguments.get("framework_reference_path") is None:
                 arguments.pop("framework_reference_path", None)
             if options["allow_network"] and options["question"]:
-                arguments["capture_api_responses"] = True
                 try:
                     arguments["config"] = self.config_provider()
                 except APIConfigurationError:

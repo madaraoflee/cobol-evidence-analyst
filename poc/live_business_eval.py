@@ -19,11 +19,13 @@ import sys
 import time
 
 from business_analysis import _TextResponseError, _extract_text
-from business_chat import run_business_chat
+from agent_policy import resolve_agent_policy
+from business_chat import _usage_report, run_business_chat
 from business_index import build_business_index
 from company_api import (APIClientError, APIConfigurationError, CompanyAPIConfig,
                          OpenAICompatibleChatClient, PROJECT_ENV_FILE, _read_local_env)
 from repository_discovery import ensure_repository_search
+from runtime_settings import load_agent_policy
 
 
 def _cases(path: Path) -> list[dict]:
@@ -69,21 +71,40 @@ def _safe_write(path: Path, report: dict) -> None:
     temporary.replace(path)
 
 
-def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_network: bool,
-             source_format: str = "auto", encoding: str = "auto", framework: str | None = None) -> dict:
+def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_network: bool = False,
+             source_format: str = "auto", encoding: str = "auto", framework: str | None = None,
+             policy=None, plan: bool = False) -> dict:
     source = source.expanduser().resolve(strict=True)
     evaluation_dir = evaluation_dir.expanduser().resolve()
     if not source.is_dir() or source.is_relative_to(evaluation_dir) or evaluation_dir.is_relative_to(source):
         raise ValueError("EVALUATION_PATHS_OVERLAP")
     items = _cases(cases_file.expanduser().resolve(strict=True))
+    policy = resolve_agent_policy(policy) if policy is not None else load_agent_policy()
     config = CompanyAPIConfig.from_env()
-    report = {"schema_version": "live-business-eval/v1", "created_at_utc": datetime.now(timezone.utc).isoformat(),
+    report = {"schema_version": "live-business-eval/v2", "created_at_utc": datetime.now(timezone.utc).isoformat(),
               "configuration": config.safe_summary(), "case_count": len(items),
+              "plan": {"case_count": len(items), "preflight_model_requests": 1,
+                       "max_model_requests_per_case": policy.max_model_requests,
+                       "max_model_requests": 1 + len(items) * policy.max_model_requests,
+                       "max_output_tokens_per_request": config.max_output_tokens,
+                       "timeout_seconds_per_request": config.timeout_seconds,
+                       "preflight_max_output_tokens": 32,
+                       "max_request_bytes": policy.max_request_bytes,
+                       "preflight_request_bytes": len(json.dumps({
+                           "model": config.chat_model, "messages": [{"role": "user", "content": "Reply with OK."}],
+                           "max_tokens": 32}, ensure_ascii=False, separators=(",", ":")).encode("utf-8")),
+                       "policy": policy.to_dict(),
+                       "configuration_scope": "evaluation_runner",
+                       "workbench_defaults": {"timeout_seconds": 60.0, "max_output_tokens": 2048},
+                       "matches_workbench_defaults": config.timeout_seconds == 60.0 and config.max_output_tokens == 2048,
+                       "comparison_note": "Evaluation uses its recorded configuration; results do not represent the web workbench when timeout or output settings differ.",
+                       "spend_authorization": "not_granted_by_request_budget",
+                       "currency_estimate": None},
               "model_preflight": {}, "index_seconds": None, "search_index_seconds": None,
               "cases": [], "latency_seconds": {"p50": None, "p95": None},
               "quality_status": "not_reviewed"}
-    if not allow_network:
-        report["model_preflight"] = {"status": "network_not_enabled"}
+    if plan or not allow_network:
+        report["model_preflight"] = {"status": "planned" if plan else "network_not_enabled"}
         return report
     started = time.monotonic()
     try:
@@ -97,7 +118,8 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                                      "http_status": getattr(exc, "http_status", None),
                                      "elapsed_seconds": round(time.monotonic() - started, 3)}
         return report
-    report["model_preflight"] = {"status": "responded", "elapsed_seconds": round(time.monotonic() - started, 3)}
+    report["model_preflight"] = {"status": "responded", "elapsed_seconds": round(time.monotonic() - started, 3),
+                                 "model_requests": 1, "usage": _usage_report([response.get("usage")], 1)}
 
     evaluation_dir.mkdir(parents=True, exist_ok=True)
     database = evaluation_dir / "structural-index.sqlite"
@@ -118,19 +140,28 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
         history = histories.setdefault(conversation, [])
         started = time.monotonic()
         output = run_business_chat(item["question"], database, source, config, history=history,
-                                   framework_reference_path=_framework_path(framework), allow_network=True)
+                                   framework_reference_path=_framework_path(framework), allow_network=True,
+                                   policy=policy)
         elapsed = round(time.monotonic() - started, 3)
         durations.append(elapsed)
         agent = output["agent_result"]
         citations = agent.get("narrative", {}).get("citations", [])
         cited_paths = sorted({ref["relative_path"] for ref in citations if ref.get("relative_path")})
-        retrieved_paths = sorted(set(agent.get("investigation", {}).get("business_map", {}).get("selected_paths", [])))
+        investigation = agent.get("investigation", {})
+        navigation_paths = sorted(set(investigation.get("business_map", {}).get("selected_paths", [])))
+        retrieved_paths = sorted(set(investigation.get("selected_paths", [])))
+        metrics = agent.get("metrics", {})
         expected = list(dict.fromkeys(item.get("expected_source_paths", [])))
         result = {"id": item["id"], "question": item["question"], "conversation": conversation,
-                  "elapsed_seconds": elapsed, "model_requests": agent.get("metrics", {}).get("model_requests"),
+                  "elapsed_seconds": elapsed, "model_requests": metrics.get("model_requests"),
+                  "metrics": metrics, "policy": metrics.get("policy", policy.to_dict()),
+                  "usage": metrics.get("usage"), "tool_calls": metrics.get("tool_calls", {}),
+                  "request_bytes": metrics.get("request_bytes", []),
                   "runner_status": output.get("runner_status"), "answer": agent.get("answer", ""),
                   "cited_source_paths": cited_paths, "retrieved_source_paths": retrieved_paths,
+                  "navigation_source_paths": navigation_paths,
                   "expected_source_paths": expected,
+                  "expected_paths_navigated": sorted(set(expected) & set(navigation_paths)),
                   "expected_paths_retrieved": sorted(set(expected) & set(retrieved_paths)),
                   "expected_paths_cited": sorted(set(expected) & set(cited_paths)),
                   "review_checks": item.get("review_checks", []), "human_review": None}
@@ -153,20 +184,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--encoding", default="auto")
     parser.add_argument("--framework")
     parser.add_argument("--allow-network", action="store_true")
+    parser.add_argument("--plan", "--dry-run", action="store_true",
+                        help="Show request bounds without indexing or calling a model; this does not authorize spending.")
+    parser.add_argument("--agent-settings", type=Path,
+                        help="Optional deployment policy file used by both planning and evaluation.")
     args = parser.parse_args(argv)
     report_path = args.evaluation_dir.expanduser().resolve() / "live-business-eval.json"
     try:
         report = evaluate(args.source, args.evaluation_dir, args.cases,
                           allow_network=args.allow_network, source_format=args.source_format,
-                          encoding=args.encoding, framework=args.framework)
+                          encoding=args.encoding, framework=args.framework, plan=args.plan,
+                          policy=load_agent_policy(args.agent_settings))
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"Evaluation setup failed: {type(exc).__name__}", file=sys.stderr)
         return 2
     _safe_write(report_path, report)
     print(json.dumps({"report": str(report_path), "model_preflight": report["model_preflight"],
                       "index_seconds": report["index_seconds"], "latency_seconds": report["latency_seconds"],
-                      "case_count": len(report["cases"])}, ensure_ascii=False))
-    return 0 if report["model_preflight"]["status"] == "responded" else 1
+                      "case_count": report["case_count"], "completed_case_count": len(report["cases"]),
+                      "plan": report["plan"]}, ensure_ascii=False))
+    return 0 if report["model_preflight"]["status"] in {"responded", "planned"} else 1
 
 
 if __name__ == "__main__":

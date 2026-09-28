@@ -15,7 +15,7 @@ from report_view import write_report_view
 def try_indexed_question(source, output, *, question, entry, extensions, include_extensionless,
                          encoding, source_format, config, api_options, transport,
                          framework_reference_path, capture_api_responses, history,
-                         progress, check_cancel):
+                         progress, check_cancel, policy=None):
     from repository_discovery import _connect, repository_search_overview
     from business_chat import run_business_chat
     from business_index import PARSER_VERSION
@@ -59,7 +59,7 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
         agent = run_business_chat(question, output / "structural-index.sqlite", source, selected_config,
             history=history, entry_program=entry, framework_reference_path=framework_reference_path,
             capture_api_responses=capture_api_responses, allow_network=True, transport=transport,
-            progress=progress, check_cancel=check_cancel)
+            progress=progress, check_cancel=check_cancel, policy=policy)
     except APIConfigurationError as exc:
         agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
     result = agent.get("agent_result") or {}

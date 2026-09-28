@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+import sys
 from threading import RLock
 
 from company_api import APIConfigurationError, PROJECT_ENV_FILE, _read_local_env
@@ -28,6 +29,7 @@ DEFAULT_REFERENCE_PATH = PROJECT_ROOT / ".poc-data" / "framework" / "reference.m
 MAX_REFERENCE_BYTES = 2 * 1024 * 1024
 MAX_REFERENCE_DOCUMENTS = 256
 MAX_REFERENCE_COLLECTION_BYTES = 32 * 1024 * 1024
+MAX_REFERENCE_CACHE_BYTES = 64 * 1024 * 1024
 REFERENCE_EXTENSIONS = frozenset({".md", ".markdown", ".txt"})
 MAX_DOCUMENT_SECTIONS = 4096
 MAX_SECTION_CHARS = 2400
@@ -74,7 +76,7 @@ WRITE ZERO ZEROES ZEROS FORMAT RECORD FIELD ERROR HELP SCREEN BATCH
 CALLS WRITES UPDATE PARAMETERS PARAMETER TRANSACTION
 AST API JSON UTF PDF IO I-O
 """.split())
-_CACHE: OrderedDict[tuple, "_Document"] = OrderedDict()
+_CACHE: OrderedDict[tuple, tuple[int, "_Document"]] = OrderedDict()
 _CACHE_LOCK = RLock()
 
 
@@ -105,6 +107,27 @@ class _Document:
     truncated: bool
     documents: tuple[dict, ...] = ()
     warnings: tuple[dict, ...] = ()
+
+
+def _document_memory_bytes(document: _Document) -> int:
+    """Estimate retained Python objects, counting shared strings once."""
+    seen = set()
+
+    def size(value):
+        identity = id(value)
+        if identity in seen:
+            return 0
+        seen.add(identity)
+        total = sys.getsizeof(value)
+        if isinstance(value, dict):
+            total += sum(size(key) + size(item) for key, item in value.items())
+        elif isinstance(value, (tuple, list, set, frozenset)):
+            total += sum(size(item) for item in value)
+        elif isinstance(value, (_Document, _Section)):
+            total += size(vars(value))
+        return total
+
+    return size(document)
 
 
 def _resolve_reference(reference_path: Path | str | None) -> Path | None:
@@ -261,7 +284,7 @@ def _load_file(path: Path) -> _Document:
             cached = _CACHE.get(identity)
             if cached is not None:
                 _CACHE.move_to_end(identity)
-                return cached
+                return cached[1]
         with path.open("rb") as handle:
             raw = handle.read(MAX_REFERENCE_BYTES + 1)
             opened_stat = os.fstat(handle.fileno())
@@ -286,8 +309,15 @@ def _load_file(path: Path) -> _Document:
     except UnicodeError:
         raise _ReferenceError("FRAMEWORK_REFERENCE_INVALID") from None
     with _CACHE_LOCK:
-        _CACHE[identity] = document
-        while len(_CACHE) > MAX_REFERENCE_DOCUMENTS:
+        # Revisions of the same manual do not need to remain resident together.
+        for previous in tuple(_CACHE):
+            if previous[0] == identity[0]:
+                del _CACHE[previous]
+        retained_bytes = _document_memory_bytes(document)
+        if retained_bytes <= MAX_REFERENCE_CACHE_BYTES:
+            _CACHE[identity] = (retained_bytes, document)
+        while (len(_CACHE) > MAX_REFERENCE_DOCUMENTS
+               or sum(item[0] for item in _CACHE.values()) > MAX_REFERENCE_CACHE_BYTES):
             _CACHE.popitem(last=False)
     return document
 
@@ -379,6 +409,53 @@ def framework_status(reference_path: Path | str | None = None) -> dict:
         return _summary(_load_document(reference_path))
     except _ReferenceError as error:
         return _summary(None, code=error.code)
+
+
+def search_framework_context(query: str, *, reference_path=None, max_references=10, max_chars=8000) -> dict:
+    """Search the configured manuals independently of retrieved source markers.
+
+    This local tool never uses a model or claims that a manual passage is an
+    observed program behavior. A miss remains available to the investigator.
+    """
+    try:
+        document = _load_document(reference_path)
+    except _ReferenceError as error:
+        return _empty_context(_summary(None, code=error.code))
+    result = _empty_context(_summary(document))
+    result["coverage"]["source_scope"] = "framework_documents"
+    if document is None:
+        return result
+    terms = _question_terms(query)
+    ranked = []
+    for position, section in enumerate(document.sections):
+        text = (section.heading + "\n" + section.text).casefold()
+        hits = {term for term in terms if term in text}
+        if hits:
+            heading_hits = sum(term in section.heading.casefold() for term in hits)
+            ranked.append((len(hits) + heading_hits * 2, position, hits))
+    ranked.sort(key=lambda item: (-item[0], item[1]))
+    remaining = min(max_chars, MAX_REFERENCE_CHARS)
+    for _, position, hits in ranked:
+        section = document.sections[position]
+        if len(result["references"]) >= max_references:
+            break
+        if len(section.text) > remaining:
+            continue
+        remaining -= len(section.text)
+        digest = section.document_sha256 or document.sha256
+        name_key = hashlib.sha256(section.document_name.encode()).hexdigest()[:8] + ":" if section.document_name else ""
+        result["references"].append({
+            "reference_id": f"fw:{digest[:16]}:{name_key}{section.start_line}-{section.end_line}",
+            "heading": section.heading, "page": section.page,
+            "start_line": section.start_line, "end_line": section.end_line, "text": section.text,
+            "document_name": section.document_name or document.documents[0]["name"],
+            "document_sha256": digest, "matched_terms": sorted(hits),
+            "selection_reason": "framework_search",
+        })
+    result["coverage"].update(matched_sections=len(ranked),
+                              references_selected=len(result["references"]),
+                              references_truncated=len(ranked) > len(result["references"]))
+    return result
 
 
 def _empty_context(summary: dict) -> dict:

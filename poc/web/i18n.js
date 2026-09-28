@@ -3,6 +3,8 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+下一次回答保存接口原文|下一次回答保存接口原文|Save the raw API response for the next answer
+僅排查問題時開啟，發送一次後自動關閉。原文可能包含業務資料，會保存在本機結果目錄；一般回答和引用仍正常保存。|仅排查问题时开启，发送一次后自动关闭。原文可能包含业务资料，会保存在本机结果目录；一般回答和引用仍正常保存。|Enable only for troubleshooting; it turns off after one submission. The raw response may contain business data and is stored in the local results folder. Normal answers and references are still saved.
 分析範圍|分析范围|Scope
 從哪個程式開始|从哪个程序开始|Start from a program
 不選擇程式時，系統會在整個代碼庫中查找。|不选择程序时，系统会在整个代码库中查找。|Leave this blank to search the whole codebase.

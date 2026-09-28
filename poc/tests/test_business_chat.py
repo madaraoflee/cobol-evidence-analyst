@@ -14,6 +14,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from answer_markdown import BUSINESS_ANSWER_POLICY
+from agent_policy import AgentPolicy
 from business_chat import run_business_chat
 from business_index import build_business_index
 from company_api import CompanyAPIConfig, TransportResponse
@@ -468,6 +469,124 @@ class BusinessChatTests(unittest.TestCase):
         reference = next(item for item in result["narrative"]["citations"] if item["kind"] == "framework_reference")
         self.assertEqual(reference["document_sha256"], old_digest)
         self.assertNotEqual(reference["document_sha256"], hashlib.sha256(manual.read_bytes()).hexdigest())
+
+    def test_framework_tool_finds_unselected_concept_without_source_or_network_scan(self):
+        self.write_window()
+        self.build()
+        manual = self.root / "guide.md"
+        manual.write_text("# Processing manual\n\n" + "\n\n".join(
+            f"## Entry {index}\n\nTIDE-WINDOW uses common lifecycle step {index}."
+            for index in range(14)) +
+            "\n\n## Deferred settlement\n\nDEFERRED-SETTLEMENT retains a request until the next working day.\n",
+            encoding="utf-8")
+        def respond(payload, _envelope):
+            if len(self.requests) == 1:
+                self.assertFalse(any("next working day" in item["text"] for item in payload["framework_references"]))
+                return reply('{"framework_search":["DEFERRED-SETTLEMENT"]}')
+            reference = next(item for item in payload["framework_references"] if "next working day" in item["text"])
+            self.assertEqual(reference["selection_reason"], "framework_search")
+            return reply(f"框架的延期结算操作会把请求保留到下一个工作日。[{reference['reference_id']}]")
+        with mock.patch("framework_knowledge._source_candidates", side_effect=AssertionError("source rescan")), \
+             mock.patch("company_api.UrllibTransport", side_effect=AssertionError("network created")):
+            result = self.ask("TIDE-WINDOW 的延期如何处理？", respond, framework_reference_path=manual)["agent_result"]
+        self.assertEqual(result["status"], "ANALYZED")
+        self.assertIn("下一个工作日", result["answer"])
+        self.assertEqual(result["metrics"]["model_requests"], 2)
+        self.assertEqual(result["metrics"]["tool_calls"]["framework_search"], 1)
+        self.assertEqual(result["narrative"]["citations"][0]["document_sha256"],
+                         hashlib.sha256(manual.read_bytes()).hexdigest())
+
+    def test_framework_citations_survive_later_reference_selection(self):
+        self.write_window()
+        self.build()
+        manual = self.root / "guide.md"
+        manual.write_text("# Processing\n\n## First\n\nARCHIVE-STAGE retains records for seven days.\n\n"
+                          "## Second\n\nRELEASE-STAGE publishes only completed records.\n", encoding="utf-8")
+        earlier = []
+        def respond(payload, _envelope):
+            turn = len(self.requests)
+            if turn == 1:
+                return reply('{"framework_search":["ARCHIVE-STAGE"]}')
+            if turn == 2:
+                reference = next(item for item in payload["framework_references"] if "seven days" in item["text"])
+                earlier.append(reference["reference_id"])
+                return reply('{"framework_search":["RELEASE-STAGE"]}')
+            self.assertNotIn(earlier[0], [item["reference_id"] for item in payload["framework_references"]])
+            current = next(item for item in payload["framework_references"] if "completed records" in item["text"])
+            return reply(f"归档保留七天。[{earlier[0]}] 发布只处理已完成记录。[{current['reference_id']}]")
+        result = self.ask("TIDE-WINDOW 的后续处理？", respond, framework_reference_path=manual,
+                          policy=AgentPolicy(max_framework_references=1))["agent_result"]
+        self.assertIn(earlier[0], result["answer"])
+        self.assertEqual(len(result["narrative"]["citations"]), 2)
+        self.assertEqual(result["metrics"]["tool_calls"]["framework_search"], 2)
+
+    def test_small_request_policy_still_answers_with_one_request(self):
+        self.write_window()
+        self.build()
+        policy = AgentPolicy(max_model_requests=1, max_request_bytes=32768,
+                             max_source_characters=2048, max_history_characters=1000)
+        history = [{"role": "user", "content": "旧话题" * 400},
+                   {"role": "assistant", "content": "先前结论" * 400}]
+        def respond(payload, envelope):
+            self.assertEqual(payload["investigation_budget"]["remaining_model_requests"], 1)
+            self.assertEqual(payload["investigation_budget"]["framework_searches_per_turn"], 0)
+            self.assertIn("不要再请求检索", payload["task"])
+            return self.grounded_window_reply(payload, envelope)
+        result = self.ask("TIDE-WINDOW 的处理？", respond, history=history, policy=policy)["agent_result"]
+        self.assertEqual(result["status"], "ANALYZED")
+        self.assertEqual(result["metrics"]["model_requests"], 1)
+        self.assertEqual(result["metrics"]["policy"], policy.to_dict())
+        self.assertLessEqual(max(self.request_bytes), policy.max_request_bytes)
+        self.assertIn("超过9天", result["answer"])
+
+    def test_missing_framework_tool_result_does_not_block_source_answer(self):
+        self.write_window()
+        self.build()
+        def respond(payload, envelope):
+            if len(self.requests) == 1:
+                return reply('{"framework_search":["unknown operation"]}')
+            self.assertEqual(payload["completed_actions"][-1]["references"], 0)
+            return self.grounded_window_reply(payload, envelope)
+        result = self.ask("TIDE-WINDOW", respond, framework_reference_path=self.root / "missing")["agent_result"]
+        self.assertEqual(result["status"], "ANALYZED")
+        self.assertEqual(result["metrics"]["model_requests"], 2)
+        self.assertIn("超过9天", result["answer"])
+
+    def test_provider_usage_is_reported_across_requests_without_an_extra_call(self):
+        self.write_window()
+        self.build()
+        def respond(payload, envelope):
+            turn = len(self.requests)
+            response = reply('{"search":["TIDE-WINDOW"]}') if turn == 1 else self.grounded_window_reply(payload, envelope)
+            body = json.loads(response.body)
+            body["usage"] = {"prompt_tokens": 100 * turn, "completion_tokens": 10 * turn,
+                             "total_tokens": 110 * turn}
+            return TransportResponse(200, json.dumps(body))
+        result = self.ask("TIDE-WINDOW", respond)["agent_result"]
+        self.assertEqual(result["metrics"]["model_requests"], 2)
+        self.assertEqual(result["metrics"]["usage"]["status"], "complete")
+        self.assertEqual(result["metrics"]["usage"]["total_tokens"], 330)
+        self.assertEqual(result["metrics"]["usage"]["prompt_tokens"], 300)
+
+    def test_small_framework_budget_keeps_the_found_rule_instead_of_an_empty_context(self):
+        self.write_window()
+        self.build()
+        manual = self.root / "guide.md"
+        manual.write_text("# Processing\n\n" + "General explanatory context. " * 35 +
+                          "DEFERRED-SETTLEMENT retains a request until the next working day.\n", encoding="utf-8")
+        def respond(payload, _envelope):
+            if len(self.requests) == 1:
+                return reply('{"framework_search":["DEFERRED-SETTLEMENT"]}')
+            reference = next(item for item in payload["framework_references"] if "next working day" in item["text"])
+            self.assertLessEqual(sum(len(item["text"]) for item in payload["framework_references"]), 512)
+            self.assertTrue(reference["text_truncated"])
+            return reply(f"框架的这项操作保留请求到下一个工作日。[{reference['reference_id']}]")
+        result = self.ask("TIDE-WINDOW 的后续处理？", respond, framework_reference_path=manual,
+                          policy=AgentPolicy(max_framework_characters=512))["agent_result"]
+        self.assertEqual(result["status"], "ANALYZED")
+        self.assertEqual(len(result["narrative"]["citations"]), 1)
+        self.assertTrue(result["narrative"]["citations"][0]["text_truncated"])
+        self.assertIn("下一个工作日", result["answer"])
 
 
 if __name__ == "__main__":

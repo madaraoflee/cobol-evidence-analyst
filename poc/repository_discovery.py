@@ -524,6 +524,61 @@ def _context_relations(connection, paths, limit=64):
     return result, max(0, len(rows) - limit)
 
 
+def _retrieved_outline(connection, relative, pages, limit=24):
+    """Return enclosing structures near the actual excerpts, including deep hits.
+
+    These are complete indexed source ranges for a subsequent read, not a
+    claim that the corresponding paragraph text has already been supplied.
+    Existing snapshots contain all required fields; no reindex is needed.
+    """
+    spans = [(page["start_line"], page["end_line"]) for page in pages
+             if page["relative_path"] == relative]
+    values = ",".join("(?,?)" for _ in spans)
+    query = f"""
+        WITH spans(first_line,last_line) AS (VALUES {values}),
+        units AS (
+            SELECT unit_id,unit_type,name,program_name,start_line,end_line
+            FROM code_units WHERE relative_path=?
+              AND unit_type IN ('Program','Section','Paragraph','ProcedureSignature')
+        ), programs AS (
+            SELECT start_line,end_line FROM units u WHERE unit_type='Program'
+              AND EXISTS (SELECT 1 FROM spans p
+                          WHERE u.start_line<=p.last_line AND u.end_line>=p.first_line)
+        )
+        SELECT u.*,
+          CASE
+            WHEN unit_type='Program' AND EXISTS (SELECT 1 FROM spans p
+                 WHERE u.start_line<=p.last_line AND u.end_line>=p.first_line) THEN 0
+            WHEN unit_type='ProcedureSignature' AND EXISTS (SELECT 1 FROM programs p
+                 WHERE u.start_line BETWEEN p.start_line AND p.end_line) THEN 1
+            WHEN EXISTS (SELECT 1 FROM spans p
+                 WHERE u.start_line<=p.first_line AND u.end_line>=p.last_line) THEN 2
+            WHEN EXISTS (SELECT 1 FROM spans p
+                 WHERE u.start_line<=p.last_line AND u.end_line>=p.first_line) THEN 3
+            ELSE 4
+          END AS context_rank,
+          (SELECT MIN(CASE WHEN u.end_line<p.first_line THEN p.first_line-u.end_line
+                          WHEN u.start_line>p.last_line THEN u.start_line-p.last_line
+                          ELSE 0 END) FROM spans p) AS distance,
+          COUNT(*) OVER () AS total_units
+        FROM units u
+        ORDER BY context_rank,distance,(end_line-start_line),start_line LIMIT ?
+    """
+    rows = connection.execute(query, (*[line for span in spans for line in span], relative, limit)).fetchall()
+    units = []
+    roles = ("program", "procedure_signature", "enclosing_structure", "overlapping_structure", "nearby_structure")
+    for row in rows:
+        item = {key: row[key] for key in ("unit_type", "name", "program_name", "start_line", "end_line")}
+        item["context_role"] = roles[row["context_rank"]]
+        item["complete_text_supplied"] = any(first <= row["start_line"] and last >= row["end_line"]
+                                              for first, last in spans)
+        units.append(item)
+    return {"relative_path": relative, "units": units,
+            "retrieved_ranges": [{"start_line": first, "end_line": last} for first, last in spans],
+            "selection": "retrieved_source_structure",
+            "omitted_units": max(0, (rows[0]["total_units"] if rows else 0) - len(units))}
+
+
 def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max_chars,
                       check_cancel=None, requested_span=None):
     _state_schema(connection)
@@ -569,8 +624,7 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
                                "message": "This retrieved file differs from the indexed snapshot or is unavailable; its old text was not supplied."})
     outline = []
     for relative in selected:
-        units = [dict(row) for row in connection.execute("SELECT unit_type,name,start_line,end_line FROM code_units WHERE relative_path=? AND unit_type IN ('Program','Section','Paragraph','ProcedureSignature') ORDER BY start_line LIMIT 24", (relative,))]
-        outline.append({"relative_path": relative, "units": units})
+        outline.append(_retrieved_outline(connection, relative, pages))
     connection.commit()
     cache_report = {key: value for key, value in cache.items() if key not in {"states", "legacy_stats"}}
     cache_report.update(index_reused=True, source_directory_scanned=False, source_files_reparsed=0)

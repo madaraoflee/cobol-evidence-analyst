@@ -11,6 +11,13 @@ import secrets
 import sqlite3
 
 
+MODEL_HISTORY_MESSAGES = 64
+MODEL_HISTORY_CHARACTERS = 24_000
+MAX_MODEL_HISTORY_CHARACTERS = 128_000
+MODEL_HISTORY_DETAILS_BYTES = 64_000
+MODEL_HISTORY_REFERENCE_MESSAGES = 8
+
+
 def _now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -56,6 +63,69 @@ class ConversationStore:
                 result["messages"].append(message)
             return result
 
+    def get_metadata(self, identifier):
+        """Look up a conversation without materializing its transcript."""
+        with closing(sqlite3.connect(self.path)) as db:
+            db.row_factory = sqlite3.Row
+            row = db.execute(
+                "SELECT id,title,snapshot_id,created_at,updated_at FROM conversations "
+                "WHERE id=? AND source_key=?", (identifier, self.source_key)).fetchone()
+            if row is None:
+                raise ValueError("CONVERSATION_NOT_FOUND")
+            return dict(row)
+
+    def model_history(self, identifier, *, max_messages=MODEL_HISTORY_MESSAGES,
+                      max_characters=MODEL_HISTORY_CHARACTERS):
+        """Read a bounded provider context; the complete transcript stays on disk.
+
+        Large response diagnostics and framework excerpts are display records,
+        not conversation memory. Only recent source references are restored.
+        Length checks happen in SQLite before text is returned to Python.
+        """
+        if not 1 <= max_messages <= MODEL_HISTORY_MESSAGES or not 0 <= max_characters <= MAX_MODEL_HISTORY_CHARACTERS:
+            raise ValueError("CONVERSATION_HISTORY_BUDGET_INVALID")
+        self.get_metadata(identifier)
+        if not max_characters:
+            return []
+        remaining = max_characters
+        details_remaining = MODEL_HISTORY_DETAILS_BYTES
+        messages = []
+        with closing(sqlite3.connect(self.path)) as db:
+            db.row_factory = sqlite3.Row
+            rows = list(db.execute(
+                "SELECT position,role,length(content) AS content_length,"
+                "length(CAST(details AS BLOB)) AS details_bytes FROM messages "
+                "WHERE conversation_id=? AND role IN ('user','assistant') "
+                "ORDER BY position DESC LIMIT ?", (identifier, max_messages)))
+            latest_user = next((row for row in rows if row["role"] == "user"), None)
+            reserved_user = min(latest_user["content_length"], max(1, max_characters // 4)) if latest_user else 0
+            for offset, row in enumerate(rows):
+                if remaining <= 0:
+                    break
+                if latest_user is not None and row["position"] == latest_user["position"]:
+                    reserved_user = 0
+                available = remaining - reserved_user
+                if available <= 0:
+                    continue
+                content = db.execute("SELECT substr(content,1,?) FROM messages WHERE position=?",
+                                     (available, row["position"])).fetchone()[0]
+                message = {"role": row["role"], "content": content}
+                remaining -= len(content)
+                if row["content_length"] > len(content):
+                    message["context_truncated"] = True
+                if (offset < MODEL_HISTORY_REFERENCE_MESSAGES and row["role"] == "assistant"
+                        and row["details_bytes"] <= details_remaining):
+                    text = db.execute("SELECT details FROM messages WHERE position=?",
+                                      (row["position"],)).fetchone()[0]
+                    details_remaining -= row["details_bytes"]
+                    details = json.loads(text)
+                    for key in ("evidence_refs", "cited_evidence_ids"):
+                        if isinstance(details.get(key), list):
+                            message[key] = details[key]
+                messages.append(message)
+        messages.reverse()
+        return messages
+
     def list(self):
         with closing(sqlite3.connect(self.path)) as db:
             db.row_factory = sqlite3.Row
@@ -64,9 +134,11 @@ class ConversationStore:
                 (self.source_key,))]
 
     def append(self, identifier, role, content, *, status="completed", run_id=None, details=None):
-        self.get(identifier)
         message_id, now = secrets.token_hex(16), _now()
         with closing(sqlite3.connect(self.path)) as db, db:
+            if db.execute("SELECT 1 FROM conversations WHERE id=? AND source_key=?",
+                          (identifier, self.source_key)).fetchone() is None:
+                raise ValueError("CONVERSATION_NOT_FOUND")
             db.execute("INSERT INTO messages(id,conversation_id,role,content,status,created_at,run_id,details) VALUES(?,?,?,?,?,?,?,?)",
                        (message_id, identifier, role, content, status, now, run_id, json.dumps(details or {}, ensure_ascii=False)))
             db.execute("UPDATE conversations SET updated_at=? WHERE id=?", (now, identifier))

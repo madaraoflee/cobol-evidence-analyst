@@ -106,6 +106,58 @@ class RetrievalRuntimeTests(unittest.TestCase):
         self.assertEqual(result["cache"]["checked_files"], 3)
         self.assertEqual(result["matched_file_count"], 0)
 
+    def test_deep_hit_exposes_full_parent_paragraph_for_reading_its_business_condition(self):
+        prefix = "".join(f"ROUTINE-{index:03d}.\nCONTINUE.\n" for index in range(45))
+        body = (prefix + "SETTLEMENT SECTION.\nDECIDE-REQUEST.\nIF REQUEST-STATE = 'READY'\n" +
+                "CONTINUE\n" * 350 + "*> DISTANT-DECISION\nMOVE 'APPROVED' TO FINAL-STATE\n" +
+                "CONTINUE\n" * 150 + "END-IF.\n" +
+                "FINISH-REQUEST.\nGOBACK.\n")
+        text = program("WORK-ENTRY", body)
+        self.write("deep.cbl", text)
+        overview = self.build()
+        expected_start = text.splitlines().index("DECIDE-REQUEST.") + 1
+        expected_end = text.splitlines().index("FINISH-REQUEST.")
+        with mock.patch("repository_discovery._verified_lines", side_effect=AssertionError("source reread")), \
+             mock.patch("repository_discovery.ensure_repository_search", side_effect=AssertionError("reindex")), \
+             mock.patch.object(Path, "rglob", side_effect=AssertionError("directory rescan")):
+            result = retrieve_repository_context(self.database, self.source, "DISTANT-DECISION",
+                                                   max_pages=1, max_chars=512)
+            page = result["pages"][0]
+            self.assertNotIn("IF REQUEST-STATE", page["source_text"])
+            outline = result["outline"][0]
+            self.assertEqual(outline["selection"], "retrieved_source_structure")
+            self.assertLessEqual(len(outline["units"]), 24)
+            self.assertGreater(outline["omitted_units"], 0)
+            paragraph = next(item for item in outline["units"] if item["name"] == "DECIDE-REQUEST")
+            self.assertEqual((paragraph["start_line"], paragraph["end_line"]), (expected_start, expected_end))
+            self.assertEqual(paragraph["context_role"], "enclosing_structure")
+            self.assertFalse(paragraph["complete_text_supplied"])
+            self.assertTrue(any(item["unit_type"] == "Program" for item in outline["units"]))
+            self.assertTrue(any(item["unit_type"] == "ProcedureSignature" for item in outline["units"]))
+            self.assertTrue(any(item["name"] == "SETTLEMENT" for item in outline["units"]))
+            parent = read_repository_context(self.database, self.source, relative_path="deep.cbl",
+                start_line=paragraph["start_line"], end_line=paragraph["end_line"], max_chars=6000)
+        self.assertTrue(parent["range_complete"])
+        supplied = "\n".join(item["source_text"] for item in parent["pages"])
+        self.assertIn("IF REQUEST-STATE = 'READY'", supplied)
+        self.assertIn("MOVE 'APPROVED' TO FINAL-STATE", supplied)
+        self.assertIn("END-IF.", supplied)
+        self.assertEqual(result["snapshot_id"], overview["snapshot_id"])
+        self.assertFalse(result["cache"]["source_directory_scanned"])
+
+    def test_outline_keeps_signature_of_deep_program_in_multi_program_file(self):
+        earlier = "".join(program(f"EARLIER-{index}", f"OLD-PARAGRAPH-{index}.\nGOBACK.\nEND PROGRAM EARLIER-{index}.\n")
+                          for index in range(28))
+        text = earlier + program("CURRENT-ENTRY", "CURRENT-PARAGRAPH.\n*> UNIQUE-CURRENT-RULE\nGOBACK.\n")
+        self.write("many.cbl", text)
+        self.build()
+        result = retrieve_repository_context(self.database, self.source, "UNIQUE-CURRENT-RULE",
+                                               max_pages=1, max_chars=512)
+        units = result["outline"][0]["units"]
+        self.assertTrue(any(item["unit_type"] == "Program" and item["name"] == "CURRENT-ENTRY" for item in units))
+        self.assertTrue(any(item["unit_type"] == "ProcedureSignature" and item["program_name"] == "CURRENT-ENTRY" for item in units))
+        self.assertTrue(any(item["name"] == "CURRENT-PARAGRAPH" for item in units))
+
     def test_read_by_range_and_crop_citation_supports_followup_without_rescanning(self):
         text = program("MAIN-ENTRY", "\n".join(f"MOVE {number} TO WORK-VALUE." for number in range(1500)) + "\n")
         self.write("main.cbl", text)
