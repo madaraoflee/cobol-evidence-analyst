@@ -1,0 +1,51 @@
+{
+  "schema_version": "business-evaluation-cases/v1",
+  "cases": [
+    {
+      "id": "request-decision-example",
+      "split": "development",
+      "conversation": "request-flow-example",
+      "question": "When does the service request move to review, and what happens before saving it?",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "programs/service-entry.cbl",
+            "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3",
+            "start_line": 55,
+            "end_line": 71,
+            "role": "condition_result_and_save"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "restore-before-update",
+            "description": "The update first requests a restore and checks its status.",
+            "critical": true,
+            "supporting_ranges": [{"path": "programs/service-entry.cbl", "start_line": 55, "end_line": 59}]
+          },
+          {
+            "id": "amount-decision",
+            "description": "An amount at most 5000 is approved; a greater amount enters review.",
+            "critical": true,
+            "supporting_ranges": [{"path": "programs/service-entry.cbl", "start_line": 60, "end_line": 65}]
+          },
+          {
+            "id": "save-and-status",
+            "description": "The source requests a save and then checks its status; actual persistence is not proven by the call alone.",
+            "critical": true,
+            "supporting_ranges": [{"path": "programs/service-entry.cbl", "start_line": 66, "end_line": 70}]
+          }
+        ],
+        "forbidden_claims": [{"id": "guaranteed-persistence", "description": "Do not state that the save definitely succeeded."}],
+        "allowed_unknowns": ["The external store implementation and runtime data are unavailable."],
+        "business_usefulness_checks": ["Explains the decision and the follow-on action in business terms."]
+      }
+    }
+  ]
+}

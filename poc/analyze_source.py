@@ -75,6 +75,14 @@ def _paths(source_root: Path, output_root: Path) -> tuple[Path, Path]:
         path = output / name
         if path.is_symlink() or (path.exists() and not path.is_file()):
             raise ValueError("A reserved output path is not a regular file.")
+    for name in ("quality-traces", "semantic-scopes", "impact-results"):
+        path = output / name
+        if path.is_symlink() or (path.exists() and not path.is_dir()):
+            raise ValueError("A reserved output directory is invalid.")
+    for name in ("versioned-evidence.sqlite", "versioned-evidence.sqlite-wal", "versioned-evidence.sqlite-shm"):
+        path = output / name
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise ValueError("A reserved output path is not a regular file.")
     return source, output
 
 
@@ -447,6 +455,14 @@ def analyze_source(
             except APIConfigurationError as exc:
                 agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
             result = agent.get("agent_result") or {}
+            if (analysis_mode == "business" and reading_strategy == "retrieval"
+                    and result.get("snapshot_id")
+                    and result["snapshot_id"] != (report.get("build_report") or {}).get("snapshot_id")):
+                programs, _, _ = _catalog(output / "structural-index.sqlite")
+                report["build_report"]["snapshot_id"] = result["snapshot_id"]
+                if report.get("repository_search"):
+                    from repository_discovery import repository_search_overview
+                    report["repository_search"] = repository_search_overview(output / "structural-index.sqlite", source)
             if analysis_mode == "business" and isinstance(result.get("framework_context"), dict):
                 report["framework_context"] = result["framework_context"]
             investigation = result.get("investigation") or agent.get("investigation")

@@ -75,7 +75,7 @@ class ConversationStore:
             return dict(row)
 
     def model_history(self, identifier, *, max_messages=MODEL_HISTORY_MESSAGES,
-                      max_characters=MODEL_HISTORY_CHARACTERS):
+                      max_characters=MODEL_HISTORY_CHARACTERS, before_position=None):
         """Read a bounded provider context; the complete transcript stays on disk.
 
         Large response diagnostics and framework excerpts are display records,
@@ -84,6 +84,8 @@ class ConversationStore:
         """
         if not 1 <= max_messages <= MODEL_HISTORY_MESSAGES or not 0 <= max_characters <= MAX_MODEL_HISTORY_CHARACTERS:
             raise ValueError("CONVERSATION_HISTORY_BUDGET_INVALID")
+        if before_position is not None and (type(before_position) is not int or before_position < 1):
+            raise ValueError("CONVERSATION_HISTORY_POSITION_INVALID")
         self.get_metadata(identifier)
         if not max_characters:
             return []
@@ -92,11 +94,14 @@ class ConversationStore:
         messages = []
         with closing(sqlite3.connect(self.path)) as db:
             db.row_factory = sqlite3.Row
+            position_filter = "AND position<? " if before_position is not None else ""
+            parameters = ((identifier, before_position, max_messages) if before_position is not None
+                          else (identifier, max_messages))
             rows = list(db.execute(
                 "SELECT position,role,length(content) AS content_length,"
                 "length(CAST(details AS BLOB)) AS details_bytes FROM messages "
-                "WHERE conversation_id=? AND role IN ('user','assistant') "
-                "ORDER BY position DESC LIMIT ?", (identifier, max_messages)))
+                "WHERE conversation_id=? AND role IN ('user','assistant') AND status='completed' "
+                + position_filter + "ORDER BY position DESC LIMIT ?", parameters))
             latest_user = next((row for row in rows if row["role"] == "user"), None)
             reserved_user = min(latest_user["content_length"], max(1, max_characters // 4)) if latest_user else 0
             for offset, row in enumerate(rows):
@@ -119,8 +124,8 @@ class ConversationStore:
                                       (row["position"],)).fetchone()[0]
                     details_remaining -= row["details_bytes"]
                     details = json.loads(text)
-                    for key in ("evidence_refs", "cited_evidence_ids"):
-                        if isinstance(details.get(key), list):
+                    for key in ("evidence_refs", "cited_evidence_ids", "investigation_state"):
+                        if isinstance(details.get(key), (list, dict)):
                             message[key] = details[key]
                 messages.append(message)
         messages.reverse()
@@ -132,6 +137,83 @@ class ConversationStore:
             return [dict(row) for row in db.execute(
                 "SELECT id,title,snapshot_id,updated_at FROM conversations WHERE source_key=? ORDER BY updated_at DESC LIMIT 100",
                 (self.source_key,))]
+
+    def delete(self, identifier):
+        with closing(sqlite3.connect(self.path)) as db, db:
+            if db.execute("SELECT 1 FROM conversations WHERE id=? AND source_key=?",
+                          (identifier, self.source_key)).fetchone() is None:
+                raise ValueError("CONVERSATION_NOT_FOUND")
+            db.execute("DELETE FROM messages WHERE conversation_id=?", (identifier,))
+            db.execute("DELETE FROM conversations WHERE id=? AND source_key=?",
+                       (identifier, self.source_key))
+
+    def retry_target(self, conversation_id, user_message_id):
+        with closing(sqlite3.connect(self.path)) as db:
+            db.row_factory = sqlite3.Row
+            if db.execute("SELECT 1 FROM conversations WHERE id=? AND source_key=?",
+                          (conversation_id, self.source_key)).fetchone() is None:
+                raise ValueError("CONVERSATION_NOT_FOUND")
+            user = db.execute(
+                "SELECT position,content,run_id FROM messages WHERE id=? AND conversation_id=? "
+                "AND role='user' AND status IN ('failed','cancelled','interrupted')",
+                (user_message_id, conversation_id)).fetchone()
+            if user is None:
+                raise ValueError("RETRY_NOT_AVAILABLE")
+            assistant = db.execute(
+                "SELECT id FROM messages WHERE conversation_id=? AND role='assistant' "
+                "AND run_id=? AND status='failed' ORDER BY position LIMIT 1",
+                (conversation_id, user["run_id"])).fetchone()
+            return {"question": user["content"], "position": user["position"],
+                    "assistant_message_id": assistant["id"] if assistant else None}
+
+    def claim_retry(self, conversation_id, user_message_id, new_run_id):
+        with closing(sqlite3.connect(self.path)) as db, db:
+            if db.execute("SELECT 1 FROM conversations WHERE id=? AND source_key=?",
+                          (conversation_id, self.source_key)).fetchone() is None:
+                raise ValueError("CONVERSATION_NOT_FOUND")
+            user = db.execute(
+                "SELECT run_id FROM messages WHERE id=? AND conversation_id=? AND role='user' "
+                "AND status IN ('failed','cancelled','interrupted')",
+                (user_message_id, conversation_id)).fetchone()
+            if user is None:
+                raise ValueError("RETRY_NOT_AVAILABLE")
+            assistant = db.execute(
+                "SELECT id FROM messages WHERE conversation_id=? AND role='assistant' "
+                "AND run_id=? AND status='failed' ORDER BY position LIMIT 1",
+                (conversation_id, user[0])).fetchone()
+            changed = db.execute(
+                "UPDATE messages SET status='pending',run_id=? WHERE id=? AND conversation_id=? "
+                "AND role='user' AND status IN ('failed','cancelled','interrupted')",
+                (new_run_id, user_message_id, conversation_id)).rowcount
+            if changed != 1:
+                raise ValueError("RETRY_NOT_AVAILABLE")
+            if assistant is not None:
+                db.execute("UPDATE messages SET run_id=? WHERE id=? AND conversation_id=? "
+                           "AND role='assistant' AND status='failed'",
+                           (new_run_id, assistant[0], conversation_id))
+            db.execute("UPDATE conversations SET updated_at=? WHERE id=? AND source_key=?",
+                       (_now(), conversation_id, self.source_key))
+
+    def replace_assistant(self, conversation_id, assistant_message_id, content, *,
+                          status="completed", run_id=None, details=None):
+        if assistant_message_id is None:
+            return self.append(conversation_id, "assistant", content, status=status,
+                               run_id=run_id, details=details)
+        now = _now()
+        with closing(sqlite3.connect(self.path)) as db, db:
+            if db.execute("SELECT 1 FROM conversations WHERE id=? AND source_key=?",
+                          (conversation_id, self.source_key)).fetchone() is None:
+                raise ValueError("CONVERSATION_NOT_FOUND")
+            changed = db.execute(
+                "UPDATE messages SET content=?,status=?,run_id=?,details=? WHERE id=? "
+                "AND conversation_id=? AND role='assistant' AND status='failed'",
+                (content, status, run_id, json.dumps(details or {}, ensure_ascii=False),
+                 assistant_message_id, conversation_id)).rowcount
+            if changed != 1:
+                raise ValueError("RETRY_NOT_AVAILABLE")
+            db.execute("UPDATE conversations SET updated_at=? WHERE id=? AND source_key=?",
+                       (now, conversation_id, self.source_key))
+        return assistant_message_id
 
     def append(self, identifier, role, content, *, status="completed", run_id=None, details=None):
         message_id, now = secrets.token_hex(16), _now()

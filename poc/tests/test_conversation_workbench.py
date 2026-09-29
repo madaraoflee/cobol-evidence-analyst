@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import closing
 import json
+import os
 from pathlib import Path
 import re
 import sqlite3
@@ -15,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from analyze_source import analyze_source
 from agent_policy import AgentPolicy
 from company_api import CompanyAPIConfig, TransportResponse
-from web_app import WorkbenchState
+from web_app import RequestError, WorkbenchState
 
 
 class ConversationWorkbenchTests(unittest.TestCase):
@@ -61,6 +62,15 @@ class ConversationWorkbenchTests(unittest.TestCase):
             time.sleep(.01)
         self.fail("worker timeout")
 
+    def wait_for_job(self, job_id):
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            job = self.app.get_job(job_id)
+            if job["status"] != "RUNNING":
+                return job
+            time.sleep(.01)
+        self.fail("worker timeout")
+
     def test_two_turns_reuse_index_and_survive_restart_with_valid_history_citations(self):
         indexed = self.run_job()
         self.assertEqual(len(self.calls), 0)
@@ -90,6 +100,70 @@ class ConversationWorkbenchTests(unittest.TestCase):
         self.assertNotEqual(new["id"], conversation_id)
         self.assertEqual(new["messages"], [])
         self.assertEqual(restored.state()["project"]["snapshot_id"], indexed["snapshot_id"])
+
+    def test_cold_and_warm_web_questions_send_selected_semantic_evidence(self):
+        (self.source / "quota.cbl").write_text(
+            "IDENTIFICATION DIVISION.\nPROGRAM-ID. QUOTA.\nDATA DIVISION.\n"
+            "WORKING-STORAGE SECTION.\n01 RESERVED-COUNT PIC 9(4).\n"
+            "01 CAPACITY PIC 9(4).\n01 AVAILABLE-COUNT PIC 9(4).\n"
+            "PROCEDURE DIVISION.\nMAIN.\n"
+            "IF RESERVED-COUNT > CAPACITY DISPLAY 'CAPACITY EXCEEDED' END-IF.\n"
+            "COMPUTE AVAILABLE-COUNT = CAPACITY - RESERVED-COUNT.\nGOBACK.\n",
+            encoding="utf-8")
+        first = self.run_job(question="How is AVAILABLE-COUNT calculated?", allow_network=True)
+        conversation_id = first["conversation"]["id"]
+        second = self.run_job(question="What condition precedes that calculation?",
+                              allow_network=True, conversation_id=conversation_id)
+        for result, request in zip((first, second), self.calls):
+            self.assertEqual(result["diagnosis"]["build_report"]["index_kind"], "business_sparse")
+            self.assertIn("semantic_scope", result["agent"])
+            payload = json.loads(request["messages"][-1]["content"])
+            self.assertTrue(payload["evidence_groups"])
+            self.assertIn("COMPUTE AVAILABLE-COUNT", json.dumps(payload["source_context"]))
+            self.assertTrue(Path(result["agent"]["agent_result"]["metrics"]["quality_trace_path"]).is_file())
+        self.assertTrue(second["diagnosis"]["index_reused"])
+        self.assertEqual(len(self.calls), 2)
+
+    def test_old_message_excerpt_survives_local_refresh(self):
+        first = self.run_job(question="Explain CAPACITY", allow_network=True)
+        conversation_id = first["conversation"]["id"]
+        message = first["conversation"]["messages"][1]
+        evidence_id = message["evidence_refs"][0]["evidence_id"]
+        source_file = self.source / "quota.cbl"
+        stat = source_file.stat()
+        source_file.write_text(source_file.read_text().replace("> CAPACITY", "< CAPACITY"), encoding="utf-8")
+        os.utime(source_file, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        second = self.run_job(question="Explain CAPACITY again", allow_network=True,
+                              conversation_id=conversation_id)
+        self.assertNotEqual(second["snapshot_id"], first["snapshot_id"])
+        archived = self.app.evidence(evidence_id, conversation_id, message["id"])
+        self.assertIn("RESERVED-COUNT > CAPACITY", archived["spans"][0]["source_text"])
+        self.assertEqual(archived["snapshot_id"], first["snapshot_id"])
+
+    def test_web_related_objects_use_authorized_frozen_result(self):
+        result = self.run_job(question="where-used RESERVED-COUNT?", allow_network=True)
+        message = result["conversation"]["messages"][-1]
+        impact = message["impact_result"]
+        self.assertGreater(impact["total"], 0)
+        page = self.app.impact(impact["handle"], result["conversation"]["id"], message["id"])
+        self.assertEqual(page["total"], impact["total"])
+        exported = self.app.impact(impact["handle"], result["conversation"]["id"], message["id"], export=True)
+        self.assertEqual(len(exported["jsonl"].splitlines()), impact["total"])
+        with self.assertRaises(RequestError):
+            self.app.impact(impact["handle"], result["conversation"]["id"], "another-message")
+
+    def test_stale_display_report_is_repaired_from_database_without_reimport(self):
+        indexed = self.run_job()
+        diagnosis_path = self.output / "diagnosis.json"
+        diagnosis = json.loads(diagnosis_path.read_text(encoding="utf-8"))
+        diagnosis["source_options"]["source_format"] = "fixed"
+        diagnosis["build_report"]["snapshot_id"] = "outdated-display-snapshot"
+        diagnosis_path.write_text(json.dumps(diagnosis), encoding="utf-8")
+        with patch("analyze_source.build_business_index", side_effect=AssertionError("must reuse database")):
+            result = self.run_job(question="Explain CAPACITY", allow_network=True)
+        self.assertTrue(result["diagnosis"]["index_reused"])
+        self.assertEqual(result["snapshot_id"], indexed["snapshot_id"])
+        self.assertTrue(result["diagnosis"]["report_repaired_from_index"])
 
     def test_framework_directory_configuration_persists_and_reaches_model(self):
         docs = self.root / "manuals"
@@ -196,6 +270,67 @@ class ConversationWorkbenchTests(unittest.TestCase):
         self.assertEqual(failed["snapshot_id"], indexed["snapshot_id"])
         self.assertFalse(failed["agent"]["agent_result"]["model_answer_recorded"])
         self.assertEqual(len(conversation["messages"]), 2)
+
+    def test_retry_failed_user_reuses_original_turn_and_rejects_duplicate_submissions(self):
+        self.run_job()
+        question = "Explain the CAPACITY rule."
+        options = {"source": str(self.source), "output": str(self.output),
+                   "source_format": "free", "question": question, "allow_network": True}
+        with patch.object(self.app, "analyzer", side_effect=RuntimeError("temporary analysis failure")):
+            failed = self.wait_for_job(self.app.start(options)["job_id"])
+        self.assertEqual(failed["status"], "FAILED")
+        original = failed["conversation"]
+        self.assertEqual(len(original["messages"]), 1)
+        original_user = original["messages"][0]
+        self.assertEqual(original_user["status"], "failed")
+        self.assertEqual(len(self.calls), 0)
+
+        retry = {**options, "conversation_id": original["id"],
+                 "retry_message_id": original_user["id"]}
+        retry_job_id = self.app.start(retry)["job_id"]
+        with self.assertRaises(RequestError) as duplicate:
+            self.app.start(retry)
+        self.assertEqual(duplicate.exception.status, 409)
+        completed = self.wait_for_job(retry_job_id)
+        self.assertEqual(completed["status"], "COMPLETED", completed.get("error"))
+        messages = completed["result"]["conversation"]["messages"]
+        self.assertEqual([message["role"] for message in messages], ["user", "assistant"])
+        self.assertEqual(messages[0]["id"], original_user["id"])
+        self.assertEqual(messages[0]["content"], question)
+        self.assertEqual(messages[0]["status"], "completed")
+        self.assertIn("超过容量", messages[1]["content"])
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(len(self.app.conversation_store.get(original["id"])["messages"]), 2)
+        with self.assertRaises(RequestError) as already_completed:
+            self.app.start(retry)
+        self.assertEqual(already_completed.exception.status, 409)
+        self.assertEqual(len(self.calls), 1)
+
+    def test_retry_failed_answer_replaces_that_answer_in_place(self):
+        self.run_job()
+        question = "Explain the CAPACITY rule."
+        working_transport = self.transport
+        self.transport = lambda request: TransportResponse(401, "{}")
+        failed = self.run_job(question=question, allow_network=True)
+        original = failed["conversation"]
+        self.assertEqual([message["status"] for message in original["messages"]], ["failed", "failed"])
+        original_user, original_answer = original["messages"]
+        self.assertIn("401", original_answer["content"])
+
+        self.transport = working_transport
+        completed = self.run_job(question=question, allow_network=True,
+                                 conversation_id=original["id"], retry_message_id=original_user["id"])
+        messages = completed["conversation"]["messages"]
+        self.assertEqual(len(messages), 2)
+        self.assertEqual([message["id"] for message in messages],
+                         [original_user["id"], original_answer["id"]])
+        self.assertEqual([message["status"] for message in messages], ["completed", "completed"])
+        self.assertIn("超过容量", messages[1]["content"])
+        self.assertNotIn("401", messages[1]["content"])
+        self.assertEqual(len(self.calls), 1)
+        self.assertFalse(any(message.get("content") == question
+                             for message in self.calls[0]["messages"][1:-1]))
+        self.assertEqual(len(self.app.conversation_store.get(original["id"])["messages"]), 2)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,21 @@
+{
+  "schema_version": "business-evaluation-cases/v1",
+  "cases": [
+    {
+      "id": "replace-with-case-id",
+      "split": "holdout",
+      "conversation": "replace-with-conversation-id",
+      "question": "Replace with an independently collected business question.",
+      "source_snapshot_id": "replace-with-index-snapshot",
+      "framework_revision": "replace-with-framework-sha256-or-null",
+      "history": [],
+      "reviewed_context": {"source_ranges": [], "framework_ranges": []},
+      "gold": {
+        "required_findings": [],
+        "forbidden_claims": [],
+        "allowed_unknowns": [],
+        "business_usefulness_checks": []
+      }
+    }
+  ]
+}

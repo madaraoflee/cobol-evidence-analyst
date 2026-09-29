@@ -9,6 +9,10 @@ const UI_MESSAGES = `
 從哪個程式開始|从哪个程序开始|Start from a program
 不選擇程式時，系統會在整個代碼庫中查找。|不选择程序时，系统会在整个代码库中查找。|Leave this blank to search the whole codebase.
 查看相關源碼|查看相关源码|Related source
+相關對象|相关对象|Related objects
+已索引文字與靜態關係範圍|已索引文本与静态关系范围|Indexed text and static relations
+載入更多|加载更多|Load more
+匯出完整 JSONL|导出完整 JSONL|Export complete JSONL
 合成源碼 · 示例起點|合成源码 · 示例起点|Synthetic source · Example starters
 選一個問題，開始對話。|选一个问题，开始对话。|Choose a question to start a conversation.
 案例只提供起始問題。你可以改寫問題，接著自由追問；回答由目前源碼與模型生成。|案例只提供起始问题。你可以改写问题，接着自由追问；回答由当前源码与模型生成。|Examples are starting questions. Edit one and keep asking follow-ups; answers are generated from the current source and model.
@@ -56,6 +60,12 @@ const UI_MESSAGES = `
 找不到這段對話。請從對話記錄選擇，或開始新的對話。|找不到这段对话。请从对话记录选择，或开始新的对话。|This conversation was not found. Choose one from history or start a new conversation.
 請先接入源碼，再開始對話。|请先接入源码，再开始对话。|Connect your source before starting a conversation.
 繼續對話|继续对话|Continue conversation
+刪除對話|删除对话|Delete conversation
+刪除這段對話？|删除这段对话？|Delete this conversation?
+這會從對話記錄中移除提問與回答，且無法復原。已生成的分析文件仍會保留。|这会从对话记录中移除提问与回答，且无法恢复。已生成的分析文件仍会保留。|This permanently removes the conversation record. Generated analysis files remain available.
+對話已刪除。|对话已删除。|Conversation deleted.
+編輯後重新發送|编辑后重新发送|Edit and send again
+這條問題已無法重試，請在對話末尾繼續提問。|这条问题已无法重试，请在对话末尾继续提问。|This question can no longer be retried. Continue at the end of the conversation.
 已停止本次工作。對話已保留，可以繼續提問。|已停止本次工作。对话已保留，可以继续提问。|Work stopped. Your conversation is saved and you can keep asking questions.
 使用已建立的代碼庫索引|使用已建立的代码库索引|Using the existing codebase index
 查找與問題相關的依據|查找与问题相关的依据|Finding relevant evidence

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http.client
 import json
 from pathlib import Path
 import sys
@@ -13,8 +14,9 @@ sys.path.insert(0, str(POC_ROOT))
 
 from analyze_source import analyze_source
 from company_api import CompanyAPIConfig
+from conversation_store import ConversationStore
 from test_run_agent import AgentReadyTransport, response
-from web_app import WorkbenchState
+from web_app import WorkbenchState, create_server
 
 
 class PlainAnswerTransport(AgentReadyTransport):
@@ -35,10 +37,70 @@ class PlainAnswerTransport(AgentReadyTransport):
 
 
 class WebAPIDiagnosticsTests(unittest.TestCase):
+    def test_delete_conversation_requires_session_and_preserves_other_conversations(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            source.mkdir()
+            app = WorkbenchState()
+            app.conversation_store = ConversationStore(root / "output", source)
+            server = create_server(0, app=app)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+
+            def request(method, path, *, token=None, payload=None):
+                headers = {"Origin": server.origin}
+                if token is not None:
+                    headers["X-Session-Token"] = token
+                body = None
+                if payload is not None:
+                    body = json.dumps(payload).encode("utf-8")
+                    headers["Content-Type"] = "application/json"
+                connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+                try:
+                    connection.request(method, path, body=body, headers=headers)
+                    result = connection.getresponse()
+                    return result.status, json.loads(result.read())
+                finally:
+                    connection.close()
+
+            try:
+                token = request("GET", "/api/state")[1]["session_token"]
+                status, first = request("POST", "/api/conversations", token=token, payload={})
+                self.assertEqual(status, 201)
+                status, second = request("POST", "/api/conversations", token=token, payload={})
+                self.assertEqual(status, 201)
+                first_id = first["conversation"]["id"]
+                second_id = second["conversation"]["id"]
+
+                self.assertEqual(request("DELETE", f"/api/conversations/{first_id}")[0], 403)
+                self.assertEqual(request("GET", f"/api/conversations/{first_id}", token=token)[0], 200)
+
+                status, deleted = request("DELETE", f"/api/conversations/{first_id}", token=token)
+                self.assertEqual(status, 200)
+                self.assertEqual([item["id"] for item in deleted["conversations"]], [second_id])
+                self.assertEqual(request("GET", f"/api/conversations/{first_id}", token=token)[0], 404)
+                self.assertEqual(request("GET", f"/api/conversations/{second_id}", token=token)[0], 200)
+                self.assertEqual(request("DELETE", f"/api/conversations/{'0' * 32}", token=token)[0], 404)
+                app.project["agent"] = {"agent_result": {"answer": "Earlier answer"}}
+                app.project["conversation"] = second["conversation"]
+                app.job = {"status": "COMPLETED", "result": {"conversation": second["conversation"]}}
+                status, deleted = request("DELETE", f"/api/conversations/{second_id}", token=token)
+                self.assertEqual(status, 200)
+                self.assertEqual(deleted["conversations"], [])
+                self.assertIsNone(app.conversation)
+                self.assertIsNone(app.project["agent"])
+                self.assertNotIn("conversation", app.project)
+                self.assertIsNone(app.job)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
     def test_web_job_preserves_plain_answer_in_page_state_and_report(self):
         self.exercise_run()
 
-    def test_source_change_invalidates_findings_but_keeps_received_api_response(self):
+    def test_live_source_change_preserves_answer_bound_to_sent_excerpt(self):
         self.exercise_run(change_source=True)
 
     def test_multi_program_business_question_runs_without_an_entry_and_keeps_missing_implementation(self):
@@ -80,11 +142,10 @@ class WebAPIDiagnosticsTests(unittest.TestCase):
             self.assertEqual(job["status"], "COMPLETED", job.get("error"))
             agent = job["result"]["agent"]
             if change_source:
-                self.assertEqual(agent["runner_status"], "NOT_READY")
-                self.assertEqual(agent["reason_code"], "SOURCE_CHANGED_DURING_ANSWER")
-                self.assertFalse(agent["agent_result"]["model_answer_recorded"])
-                self.assertNotIn("increments the counter", agent["agent_result"]["answer"])
-                self.assertEqual(agent["agent_result"]["evidence_refs"], [])
+                self.assertEqual(agent["runner_status"], "COMPLETED")
+                self.assertTrue(agent["agent_result"]["model_answer_recorded"])
+                self.assertIn("increments the counter", agent["agent_result"]["answer"])
+                self.assertTrue(agent["agent_result"]["evidence_refs"])
             else:
                 self.assertEqual(agent["runner_status"], "COMPLETED")
                 self.assertIn("increments the counter", agent["agent_result"]["narrative"]["text"])

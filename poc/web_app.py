@@ -38,10 +38,11 @@ WEB_ROOT = Path(__file__).resolve().parent / "web"
 FRAMEWORK_DEMO_SOURCE = Path(__file__).resolve().parent / "fixtures" / "framework-workbench" / "source"
 FRAMEWORK_DEMO_OUTPUT = Path(__file__).resolve().parents[1] / ".poc-data" / "framework-runs"
 STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/i18n.js": "i18n.js", "/styles.css": "styles.css",
+                "/appearance.css": "appearance.css", "/theme.js": "theme.js",
                 "/markdown.js": "markdown.js", "/marked.umd.js": "marked.umd.js"}
 MAX_REQUEST_BYTES = 32_768
 MAX_GRAPH_EDGES = 200
-OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm", "conversations.sqlite", "conversations.sqlite-wal", "conversations.sqlite-shm", "conversations.sqlite-journal"))
+OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm", "conversations.sqlite", "conversations.sqlite-wal", "conversations.sqlite-shm", "conversations.sqlite-journal", "quality-traces", "semantic-scopes", "impact-results", "versioned-evidence.sqlite", "versioned-evidence.sqlite-wal", "versioned-evidence.sqlite-shm"))
 EVIDENCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}")
 
 
@@ -71,7 +72,7 @@ def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 102
 
 
 def _validate_options(payload: object) -> dict:
-    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "conversation_id", "framework_reference_path", "capture_api_responses"}
+    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "conversation_id", "retry_message_id", "framework_reference_path", "capture_api_responses"}
     if not isinstance(payload, dict) or set(payload) - fields:
         raise RequestError("INVALID_OPTIONS", "请求包含未知设置。")
     source_text, output_text = _text(payload, "source", required=True), _text(payload, "output", required=True)
@@ -123,6 +124,9 @@ def _validate_options(payload: object) -> dict:
         extensions = parse_extensions(extension_text)
     except ValueError:
         raise RequestError("INVALID_EXTENSIONS", "扩展名格式无效。") from None
+    retry_message_id = _text(payload, "retry_message_id", maximum=64)
+    if retry_message_id and re.fullmatch(r"[a-f0-9]{32}", retry_message_id) is None:
+        raise RequestError("INVALID_OPTIONS", "重试消息标识无效。")
     return {
         "source": source, "output": output, "encoding": encoding, "source_format": source_format,
         "entry": _text(payload, "entry"), "question": _text(payload, "question", maximum=8000),
@@ -130,6 +134,7 @@ def _validate_options(payload: object) -> dict:
         "capture_api_responses": capture_api_responses,
         "analysis_mode": "business", "max_source_pages": max_source_pages, "reading_strategy": reading_strategy,
         "conversation_id": _text(payload, "conversation_id", maximum=64),
+        "retry_message_id": retry_message_id,
         "framework_reference_path": _text(payload, "framework_reference_path", maximum=4096),
     }
 
@@ -192,7 +197,8 @@ def _relationships(database: Path, snapshot_id: str) -> dict:
 
 
 def _environment_config() -> CompanyAPIConfig:
-    return CompanyAPIConfig.from_env(timeout_seconds=60.0, max_output_tokens=2048)
+    from model_profiles import model_config
+    return model_config("workbench")
 
 
 _FOLDER_DIALOG_SCRIPT = """
@@ -338,7 +344,8 @@ class WorkbenchState:
             programs = _read_json(output / "programs.json")
             project = _project(str(source), str(output))
             project.update(diagnosis=report, programs=programs.get("programs", []),
-                           snapshot_id=overview["snapshot_id"], agent=_read_json(output / "agent-result.json"),
+                           snapshot_id=overview["snapshot_id"],
+                           agent=_read_json(output / "agent-result.json") if saved.get("conversation_id") else None,
                            relations=_relationships(output / "structural-index.sqlite", overview["snapshot_id"]))
             self.project = project
             self.conversation_store = ConversationStore(output, source)
@@ -456,6 +463,29 @@ class WorkbenchState:
             self._save_workspace()
             return {"conversation": copy.deepcopy(self.conversation)}
 
+    def delete_conversation(self, identifier):
+        with self.lock:
+            if self.job and self.job["status"] == "RUNNING":
+                raise RequestError("JOB_ACTIVE", "当前回答完成后可以删除对话。", 409)
+            if self.conversation_store is None:
+                raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话。", 404)
+            try:
+                self.conversation_store.delete(identifier)
+            except ValueError:
+                raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话。", 404) from None
+            if (self.project.get("conversation") or {}).get("id") == identifier:
+                self.project.pop("conversation", None)
+                self.project["agent"] = None
+            job_conversation = (((self.job or {}).get("result") or {}).get("conversation") or {})
+            if job_conversation.get("id") == identifier:
+                self.job = None
+            if self.conversation and self.conversation["id"] == identifier:
+                self.conversation = None
+                self.project["agent"] = None
+                self._save_workspace()
+            return {"conversation": copy.deepcopy(self.conversation),
+                    "conversations": self.conversation_store.list()}
+
     def _record_answer(self, options, job_id, project):
         identifier = options.get("conversation_id")
         if not identifier:
@@ -463,15 +493,23 @@ class WorkbenchState:
         agent = (project.get("agent") or {}).get("agent_result") or {}
         status = "completed" if (project.get("agent") or {}).get("runner_status") == "COMPLETED" else "failed"
         self.conversation_store.complete_user(job_id, status)
-        self.conversation_store.append(identifier, "assistant",
-            agent.get("answer") or "本次没有取得模型回答。对话已保留，可以重试。", status=status, run_id=job_id,
-            details={"evidence_refs": agent.get("evidence_refs", []),
+        content = agent.get("answer") or "本次没有取得模型回答。对话已保留，可以重试。"
+        details = {"evidence_refs": agent.get("evidence_refs", []),
+                     "investigation_state": agent.get("investigation_state", {}),
                      "cited_evidence_ids": [r.get("evidence_id") for r in (agent.get("narrative") or {}).get("citations", []) if r.get("evidence_id")],
                      "framework_references": (agent.get("framework_context") or {}).get("references", []),
                      "related_sources": [{key: item[key] for key in ("relative_path", "program_names", "direct_source_match") if key in item}
                          for item in ((agent.get("investigation") or {}).get("business_map") or {}).get("programs", [])],
+                     "impact_result": agent.get("impact_result"),
                      "snapshot_id": agent.get("snapshot_id"), "metrics": agent.get("metrics", {}),
-                     "diagnostics": agent.get("diagnostics", [])})
+                     "diagnostics": agent.get("diagnostics", [])}
+        if options.get("retry_message_id"):
+            self.conversation_store.replace_assistant(
+                identifier, options.get("retry_assistant_id"), content,
+                status=status, run_id=job_id, details=details)
+        else:
+            self.conversation_store.append(identifier, "assistant", content,
+                                           status=status, run_id=job_id, details=details)
         self.conversation = self.conversation_store.get(identifier)
 
     def _record_failure(self, options, job_id, status):
@@ -575,10 +613,13 @@ class WorkbenchState:
                 raise RequestError("JOB_ACTIVE", "当前分析尚未结束，请等待完成。", 409)
             job_id = secrets.token_hex(16)
             same_project = self.project.get("source") == str(options["source"]) and self.project.get("output") == str(options["output"])
+            retry_message_id = options.get("retry_message_id")
+            if retry_message_id and (not same_project or not options["allow_network"] or not options.get("conversation_id")):
+                raise RequestError("INVALID_RETRY", "只能在当前对话和源码范围内重试原问题。", 409)
             self.conversation_store = ConversationStore(options["output"], options["source"])
             options["framework_reference_path"] = options.get("framework_reference_path") or self.framework_reference_path
             self.framework_reference_path = options["framework_reference_path"]
-            if options["question"] and options["allow_network"]:
+            if (options["question"] or retry_message_id) and options["allow_network"]:
                 try:
                     options["agent_policy"] = resolve_agent_policy(self.policy_provider())
                 except (ValueError, TypeError, OSError):
@@ -588,9 +629,26 @@ class WorkbenchState:
                 except ValueError:
                     raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话，请新建对话后重试。", 404) from None
                 options["conversation_id"] = conversation["id"]
-                options["conversation_history"] = self.conversation_store.model_history(
-                    conversation["id"], max_characters=options["agent_policy"].max_history_characters)
-                self.conversation_store.append(conversation["id"], "user", options["question"], status="pending", run_id=job_id)
+                if retry_message_id:
+                    try:
+                        target = self.conversation_store.retry_target(conversation["id"], retry_message_id)
+                    except ValueError:
+                        raise RequestError("RETRY_NOT_AVAILABLE", "这条问题已无法重试，请在对话末尾继续提问。", 409) from None
+                    if options["question"] and options["question"] != target["question"]:
+                        raise RequestError("INVALID_RETRY", "重试只能使用原来的问题。", 409)
+                    options["question"] = target["question"]
+                    options["retry_assistant_id"] = target["assistant_message_id"]
+                    options["conversation_history"] = self.conversation_store.model_history(
+                        conversation["id"], before_position=target["position"],
+                        max_characters=options["agent_policy"].max_history_characters)
+                    try:
+                        self.conversation_store.claim_retry(conversation["id"], retry_message_id, job_id)
+                    except ValueError:
+                        raise RequestError("RETRY_NOT_AVAILABLE", "这条问题已在处理或无法重试。", 409) from None
+                else:
+                    options["conversation_history"] = self.conversation_store.model_history(
+                        conversation["id"], max_characters=options["agent_policy"].max_history_characters)
+                    self.conversation_store.append(conversation["id"], "user", options["question"], status="pending", run_id=job_id)
                 self.conversation = self.conversation_store.get(conversation["id"])
             elif not same_project:
                 self.conversation = None
@@ -658,7 +716,8 @@ class WorkbenchState:
     def _run(self, job_id: str, options: dict) -> None:
         try:
             source, output = options["source"], options["output"]
-            arguments = {key: value for key, value in options.items() if key not in {"source", "output", "conversation_id"}}
+            arguments = {key: value for key, value in options.items()
+                         if key not in {"source", "output", "conversation_id", "retry_message_id", "retry_assistant_id"}}
             if arguments.get("framework_reference_path") is None:
                 arguments.pop("framework_reference_path", None)
             if options["allow_network"] and options["question"]:
@@ -741,18 +800,42 @@ class WorkbenchState:
         if EVIDENCE_ID.fullmatch(evidence_id) is None:
             raise RequestError("INVALID_EVIDENCE_ID", "证据标识无效。")
         with self.lock:
+            archived = None
             if conversation_id:
                 try:
                     conversation = self.conversation_store.get(conversation_id)
                     message = next(m for m in conversation["messages"] if m["id"] == message_id)
                     if evidence_id not in {r.get("evidence_id") for r in message.get("evidence_refs", [])}:
                         raise ValueError("missing reference")
+                    from source_session import read_archived_evidence
+                    archived = read_archived_evidence(Path(self.project["output"]) / "structural-index.sqlite", evidence_id)
+                    if archived:
+                        return {"snapshot_id": message.get("snapshot_id"), "status": "OK",
+                            "spans": [{**archived, "integrity": "VALID", "content_type": "UNTRUSTED_SOURCE_TEXT",
+                                       "span_truncated": False}], "span_count": 1,
+                            "missing_evidence_ids": [], "returned_characters": len(archived["source_text"]),
+                            "truncated": False, "diagnostics": [], "run_id": message.get("run_id")}
                     if message.get("snapshot_id") != self.project.get("snapshot_id"):
                         raise RequestError("HISTORICAL_SOURCE_VERSION", "这条引用属于较早的源码版本；请查看当时的路径和行号，或在当前版本继续提问。", 409)
                 except (ValueError, StopIteration, AttributeError):
                     raise RequestError("EVIDENCE_NOT_FOUND", "引用不属于这条对话消息。", 404) from None
             if not self.project["snapshot_id"] or (self.job and self.job["status"] == "RUNNING" and not self.conversation):
                 raise RequestError("NO_CURRENT_INDEX", "当前没有完成并验证的源码索引。", 409)
+            # The initial analysis result can be inspected before a caller has
+            # selected a conversation message. Semantic excerpts live in the
+            # versioned store, so authorize them against that current result.
+            if not conversation_id:
+                current = (self.project.get("agent") or {}).get("agent_result") or {}
+                if evidence_id in {ref.get("evidence_id") for ref in current.get("evidence_refs", [])}:
+                    from source_session import read_archived_evidence
+                    archived = read_archived_evidence(
+                        Path(self.project["output"]) / "structural-index.sqlite", evidence_id)
+                    if archived:
+                        return {"snapshot_id": current.get("snapshot_id"), "status": "OK",
+                            "spans": [{**archived, "integrity": "VALID", "content_type": "UNTRUSTED_SOURCE_TEXT",
+                                       "span_truncated": False}], "span_count": 1,
+                            "missing_evidence_ids": [], "returned_characters": len(archived["source_text"]),
+                            "truncated": False, "diagnostics": [], "run_id": self.project["run_id"]}
             database = Path(self.project["output"]) / "structural-index.sqlite"
             if database.is_symlink():
                 raise RequestError("INDEX_CHANGED", "索引位置已发生变化，请重新分析。", 409)
@@ -767,6 +850,21 @@ class WorkbenchState:
             if result["status"] == "INTEGRITY_ERROR":
                 raise RequestError("EVIDENCE_INTEGRITY_ERROR", "证据完整性检查失败，请重新分析。", 409)
             return {**result, "run_id": self.project["run_id"]}
+
+    def impact(self, handle, conversation_id, message_id, *, cursor=0, export=False):
+        from impact_results import impact_page, impact_jsonl
+        with self.lock:
+            try:
+                conversation = self.conversation_store.get(conversation_id)
+                message = next(item for item in conversation["messages"] if item["id"] == message_id)
+                if (message.get("impact_result") or {}).get("handle") != handle:
+                    raise ValueError("handle")
+                database = Path(self.project["output"]) / "structural-index.sqlite"
+                if export:
+                    return {"handle": handle, "jsonl": impact_jsonl(database, handle)}
+                return impact_page(database, handle, cursor=cursor)
+            except (ValueError, TypeError, StopIteration, OSError, sqlite3.Error):
+                raise RequestError("IMPACT_NOT_FOUND", "相关对象清单不可用。", 404) from None
 
 
 class LocalServer(ThreadingHTTPServer):
@@ -841,6 +939,17 @@ class RequestHandler(BaseHTTPRequestHandler):
                 if "id" not in query or set(query) - {"id", "conversation_id", "message_id"} or any(len(v) != 1 for v in query.values()):
                     raise RequestError("INVALID_QUERY", "请提供一个有效证据标识。")
                 self._json(200, self.server.app.evidence(query["id"][0], query.get("conversation_id", [None])[0], query.get("message_id", [None])[0]))
+            elif path == "/api/impact":
+                query = parse_qs(route.query, keep_blank_values=True)
+                if set(query) - {"handle", "conversation_id", "message_id", "cursor", "export"} or any(len(v) != 1 for v in query.values()):
+                    raise RequestError("INVALID_QUERY", "相关对象查询参数无效。")
+                cursor_text = query.get("cursor", ["0"])[0]
+                if not cursor_text.isdecimal() or query.get("export", [""])[0] not in {"", "jsonl"}:
+                    raise RequestError("INVALID_QUERY", "相关对象查询参数无效。")
+                self._json(200, self.server.app.impact(query.get("handle", [""])[0],
+                    query.get("conversation_id", [""])[0], query.get("message_id", [""])[0],
+                    cursor=int(cursor_text),
+                    export=query.get("export", [""])[0] == "jsonl"))
             elif path in STATIC_FILES:
                 file = self.server.web_root / STATIC_FILES[path]
                 if file.is_symlink() or not file.is_file():
@@ -849,6 +958,18 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._send(200, file.read_bytes(), content_type + "; charset=utf-8")
             else:
                 raise RequestError("NOT_FOUND", "请求的页面不存在。", 404)
+        except RequestError as exc:
+            self._error(exc)
+        except Exception:
+            self._error(RequestError("REQUEST_FAILED", "请求未完成。", 500))
+
+    def do_DELETE(self) -> None:
+        try:
+            self._guard(token=True)
+            route = urlsplit(self.path)
+            if route.query or route.fragment or re.fullmatch(r"/api/conversations/[a-f0-9]{32}", route.path) is None:
+                raise RequestError("NOT_FOUND", "请求的操作不存在。", 404)
+            self._json(200, self.server.app.delete_conversation(route.path.rsplit("/", 1)[1]))
         except RequestError as exc:
             self._error(exc)
         except Exception:

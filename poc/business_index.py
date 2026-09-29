@@ -473,12 +473,26 @@ class _Facts:
         self._close("Program", self.line_count)
 
 
-def _resolve_copies(connection):
+def _resolve_copies(connection, *, affected_paths=None, affected_target_names=None):
     aliases = {}
     for row in connection.execute("SELECT s.symbol_id,s.relative_path,s.name FROM symbols s WHERE symbol_type='Copybook'"):
         for value in {row["name"], Path(row["relative_path"]).name.upper(), row["relative_path"].upper()}:
             aliases.setdefault(value, set()).add(row["symbol_id"])
-    for row in connection.execute("SELECT relation_id,target_name,metadata_json FROM relations WHERE relation_type='INCLUDES_COPY'").fetchall():
+    conditions, arguments = [], []
+    if affected_paths is not None:
+        paths = sorted(set(affected_paths))
+        names = sorted(set(affected_target_names or []))
+        if not paths and not names:
+            return
+        if paths:
+            conditions.append("relative_path IN (" + ",".join("?" for _ in paths) + ")")
+            arguments.extend(paths)
+        if names:
+            conditions.append("target_name IN (" + ",".join("?" for _ in names) + ")")
+            arguments.extend(names)
+    where = " AND (" + " OR ".join(conditions) + ")" if conditions else ""
+    for row in connection.execute("SELECT relation_id,target_name,metadata_json FROM relations "
+            "WHERE relation_type='INCLUDES_COPY'" + where, arguments).fetchall():
         choices = aliases.get(row["target_name"], set())
         metadata = json.loads(row["metadata_json"])
         # A library-qualified COPY is not resolved by an unqualified filename.

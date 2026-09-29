@@ -71,11 +71,54 @@ test('raw response capture is off by default and one explicit selection applies 
   }
 });
 
-test('failed turns remain visible and retry restores the original question within the same conversation',async()=>{
-  const h=harness();setup(h,firstMessages);const failed=[...firstMessages,{id:'user-2',role:'user',content:'Which conditions reject it?',status:'failed'}];
-  h.respond(url=>url==='/api/analyze'?{job_id:'job-failed'}:{status:'FAILED',error:{code:'REQUEST_FAILED'},conversation:conversation(failed)});
-  await submit(h,'Which conditions reject it?');assert.match(h.run('renderWorkbench()'),/A valid request is accepted/);assert.match(h.run('renderWorkbench()'),/Retry this question/);
-  h.run("retryConversationMessage('user-2')");assert.equal(h.run('state.question'),'Which conditions reject it?');assert.equal(h.run('state.conversation.id'),'conversation-1');assert.equal(h.run('state.project.programs.length'),1);
+test('retry completes a failed turn in its original conversation without adding the question again',async()=>{
+  const h=harness();setup(h,firstMessages);let turn=0;
+  const failed=[...firstMessages,{id:'user-2',role:'user',content:'Which conditions reject it?',status:'failed'}];
+  const completed=[...firstMessages,{...failed[2],status:'completed'},{id:'assistant-2',role:'assistant',content:'Missing approval rejects it.',status:'completed'}];
+  h.respond(url=>{
+    if(url==='/api/analyze')return {job_id:'job-'+ ++turn};
+    return turn===1?{status:'FAILED',error:{code:'REQUEST_FAILED'},conversation:conversation(failed)}:{status:'COMPLETED',result:{...project(),conversation:conversation(completed)}};
+  });
+  await submit(h,'Which conditions reject it?');
+  assert.match(h.run('renderWorkbench()'),/Retry this question/);
+  h.run("state.question='A separate draft.'");
+  const firstRetry=h.run("retryConversationMessage('user-2')");
+  await h.run("retryConversationMessage('user-2')");
+  await firstRetry;
+  const submissions=h.requests.filter(item=>item.url==='/api/analyze').map(item=>JSON.parse(item.options.body));
+  assert.equal(submissions.length,2);
+  assert.equal(submissions[1].retry_message_id,'user-2');
+  assert.equal(submissions[1].conversation_id,'conversation-1');
+  assert.equal(submissions[1].question,'Which conditions reject it?');
+  assert.equal(h.run('state.question'),'A separate draft.');
+  assert.equal(h.run('state.pendingMessage'),null);
+  assert.equal(h.run('state.conversation.messages.length'),4);
+  assert.equal(h.run("state.conversation.messages.filter(message=>message.content==='Which conditions reject it?').length"),1);
+  assert.doesNotMatch(h.run('renderWorkbench()'),/Retry this question/);
+});
+
+test('delete confirmation removes only the chosen conversation and keeps the source index',async()=>{
+  const h=harness();setup(h,firstMessages);
+  h.run("state.conversations=[{id:'conversation-2',title:'Other question',message_count:2},...state.conversations]");
+  assert.match(h.run('renderChrome()') || h.get('conversation-list').innerHTML,/data-delete-conversation="conversation-2"/);
+  h.run("promptDeleteConversation('conversation-2')");
+  assert.equal(h.get('delete-conversation-dialog').open,true);
+  assert.equal(h.requests.length,0);
+  h.events['delete-conversation-cancel:click']();
+  assert.equal(h.get('delete-conversation-dialog').open,false);
+  h.run("promptDeleteConversation('conversation-2')");
+  h.respond((url,options)=>{assert.equal(options.method,'DELETE');assert.equal(options.body,undefined);return {conversations:[{id:'conversation-1',title:'Request processing',message_count:2}]};});
+  await h.events['delete-conversation-confirm:click']();
+  assert.equal(h.requests[0].url,'/api/conversations/conversation-2');
+  assert.equal(h.run('state.conversation.id'),'conversation-1');
+  assert.equal(h.run('state.project.snapshot_id'),'sha256:source');
+  assert.equal(h.run('state.conversations.length'),1);
+  h.run("promptDeleteConversation('conversation-1')");
+  h.respond(()=>({conversations:[]}));
+  await h.events['delete-conversation-confirm:click']();
+  assert.equal(h.run('state.conversation'),null);
+  assert.equal(h.run('state.project.snapshot_id'),'sha256:source');
+  assert.equal(h.run('state.conversations.length'),0);
 });
 
 test('historical source links use the message and conversation identity, and stale responses keep only the location',async()=>{
@@ -94,6 +137,22 @@ test('an answer keeps the relevant source map available without protocol status 
   assert.match(html,/Related source · 2/);
   assert.doesNotMatch(html,/部分解讀/);
   assert.doesNotMatch(html,/value="full_chain"/);
+});
+
+test('complete related-object result paginates without putting all rows in the answer',async()=>{
+  const h=harness('en');
+  const impact={handle:'a'.repeat(32),total:651,counts:{program:650,copybook:1},
+    rows:[{id:'one',name:'PROGRAM-ONE',relative_path:'one.cbl',type:'program',match_type:'text_match'}],next_cursor:1};
+  setup(h,[{id:'assistant-impact',role:'assistant',content:'The indexed result contains 651 related objects.',
+    status:'COMPLETED',impact_result:impact}]);
+  let html=h.run('conversationWorkbench()');
+  assert.match(html,/Related objects · 651/);assert.match(html,/PROGRAM-ONE/);
+  h.respond(url=>{assert.match(url,/\/api\/impact\?/);assert.match(url,/cursor=1/);
+    return {...impact,rows:[{id:'two',name:'PROGRAM-TWO',relative_path:'two.cbl',type:'program',match_type:'text_match'}],next_cursor:null};});
+  await h.run("loadImpactPage('assistant-impact')");
+  html=h.run('conversationWorkbench()');assert.match(html,/PROGRAM-ONE/);assert.match(html,/PROGRAM-TWO/);
+  assert.doesNotMatch(html,/Load more/);assert.match(html,/Export complete JSONL/);
+  assert.equal(h.requests.length,1);
 });
 
 test('server phase names render compactly without invented percentages and in all three languages',()=>{

@@ -96,6 +96,105 @@ class ConversationStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "CONVERSATION_NOT_FOUND"):
             other.model_history(self.identifier)
 
+    def test_delete_removes_only_the_owned_conversation_and_its_messages(self):
+        self.store.append(self.identifier, "user", "Explain the request.")
+        other = ConversationStore(self.root / "output", self.root / "other-source")
+        other_id = other.create()["id"]
+        other.append(other_id, "user", "Explain the other request.")
+        with self.assertRaisesRegex(ValueError, "CONVERSATION_NOT_FOUND"):
+            other.delete(self.identifier)
+        self.assertEqual(len(self.store.get(self.identifier)["messages"]), 1)
+
+        self.store.delete(self.identifier)
+        self.assertEqual(self.store.list(), [])
+        with self.assertRaisesRegex(ValueError, "CONVERSATION_NOT_FOUND"):
+            self.store.get(self.identifier)
+        with self.assertRaisesRegex(ValueError, "CONVERSATION_NOT_FOUND"):
+            self.store.delete(self.identifier)
+        with sqlite3.connect(self.store.path) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM messages WHERE conversation_id=?",
+                                        (self.identifier,)).fetchone()[0], 0)
+        self.assertEqual(other.get(other_id)["messages"][0]["content"],
+                         "Explain the other request.")
+
+    def test_retry_reuses_failed_turn_positions_and_only_completed_prior_history(self):
+        self.store.append(self.identifier, "user", "First question", run_id="first-run")
+        self.store.append(self.identifier, "assistant", "First answer", run_id="first-run")
+        user_id = self.store.append(self.identifier, "user", "Failed question",
+                                    status="failed", run_id="failed-run")
+        assistant_id = self.store.append(self.identifier, "assistant", "No answer",
+                                         status="failed", run_id="failed-run")
+        self.store.append(self.identifier, "user", "Later question", run_id="later-run")
+        self.store.append(self.identifier, "assistant", "Later answer", run_id="later-run")
+        target = self.store.retry_target(self.identifier, user_id)
+        self.assertEqual(target["question"], "Failed question")
+        self.assertEqual(target["assistant_message_id"], assistant_id)
+        self.assertEqual([item["content"] for item in
+                          self.store.model_history(self.identifier, before_position=target["position"])],
+                         ["First question", "First answer"])
+        self.assertEqual([item["content"] for item in self.store.model_history(self.identifier)],
+                         ["First question", "First answer", "Later question", "Later answer"])
+
+        self.store.claim_retry(self.identifier, user_id, "retry-run")
+        with self.assertRaisesRegex(ValueError, "RETRY_NOT_AVAILABLE"):
+            self.store.claim_retry(self.identifier, user_id, "duplicate-run")
+        self.assertEqual(self.store.get(self.identifier)["messages"][2]["status"], "pending")
+        self.store.complete_user("retry-run", "failed")
+        repeated = self.store.retry_target(self.identifier, user_id)
+        self.assertEqual(repeated["assistant_message_id"], assistant_id)
+        self.store.claim_retry(self.identifier, user_id, "second-retry-run")
+        self.store.complete_user("second-retry-run", "completed")
+        replaced_id = self.store.replace_assistant(
+            self.identifier, assistant_id, "Recovered answer", run_id="second-retry-run",
+            details={"evidence_refs": [{"evidence_id": "ev-recovered"}]})
+        self.assertEqual(replaced_id, assistant_id)
+        messages = self.store.get(self.identifier)["messages"]
+        self.assertEqual(len(messages), 6)
+        self.assertEqual([item["id"] for item in messages][2:4], [user_id, assistant_id])
+        self.assertEqual([item["run_id"] for item in messages][2:4],
+                         ["second-retry-run", "second-retry-run"])
+        self.assertEqual(messages[3]["content"], "Recovered answer")
+        self.assertEqual(messages[3]["evidence_refs"], [{"evidence_id": "ev-recovered"}])
+        self.assertEqual([item["content"] for item in self.store.model_history(self.identifier)],
+                         ["First question", "First answer", "Failed question", "Recovered answer",
+                          "Later question", "Later answer"])
+
+    def test_retry_without_failed_assistant_appends_one_answer(self):
+        for status in ("failed", "cancelled", "interrupted"):
+            identifier = self.store.create()["id"]
+            user_id = self.store.append(identifier, "user", status, status=status,
+                                        run_id=status + "-run")
+            target = self.store.retry_target(identifier, user_id)
+            self.assertIsNone(target["assistant_message_id"])
+            self.store.claim_retry(identifier, user_id, status + "-retry")
+            self.store.complete_user(status + "-retry", "completed")
+            answer_id = self.store.replace_assistant(identifier, None, "Recovered",
+                                                     run_id=status + "-retry")
+            messages = self.store.get(identifier)["messages"]
+            self.assertEqual([item["id"] for item in messages], [user_id, answer_id])
+            self.assertEqual([item["status"] for item in messages],
+                             ["completed", "completed"])
+
+    def test_retry_rejects_other_sources_and_nonfailed_messages(self):
+        user_id = self.store.append(self.identifier, "user", "A completed question")
+        assistant_id = self.store.append(self.identifier, "assistant", "A completed answer")
+        other = ConversationStore(self.root / "output", self.root / "other-source")
+        with self.assertRaisesRegex(ValueError, "CONVERSATION_NOT_FOUND"):
+            other.retry_target(self.identifier, user_id)
+        with self.assertRaisesRegex(ValueError, "CONVERSATION_NOT_FOUND"):
+            other.claim_retry(self.identifier, user_id, "new-run")
+        with self.assertRaisesRegex(ValueError, "CONVERSATION_NOT_FOUND"):
+            other.replace_assistant(self.identifier, assistant_id, "Changed")
+        with self.assertRaisesRegex(ValueError, "RETRY_NOT_AVAILABLE"):
+            self.store.retry_target(self.identifier, user_id)
+        with self.assertRaisesRegex(ValueError, "RETRY_NOT_AVAILABLE"):
+            self.store.claim_retry(self.identifier, user_id, "new-run")
+        with self.assertRaisesRegex(ValueError, "RETRY_NOT_AVAILABLE"):
+            self.store.replace_assistant(self.identifier, assistant_id, "Changed")
+        for position in (0, -1, True, "2"):
+            with self.assertRaisesRegex(ValueError, "CONVERSATION_HISTORY_POSITION_INVALID"):
+                self.store.model_history(self.identifier, before_position=position)
+
     def test_large_latest_answer_keeps_the_question_and_honors_larger_policy_budget(self):
         question = "Explain the exceptions for this adjustment."
         answer = "Business rule explanation. " * 1600

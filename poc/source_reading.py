@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from bisect import bisect_left, bisect_right
 import hashlib
+import json
 import codecs
 import os
 from pathlib import Path, PurePosixPath
@@ -146,6 +147,8 @@ def _identify_page(page):
     identity = "\x1f".join(str(value) for value in (
         page["relative_path"], page["source_sha256"], page["start_line"], page["end_line"],
         hashlib.sha256(page["source_text"].encode()).hexdigest()))
+    if page.get("include_chain"):
+        identity += "\x1f" + json.dumps(page["include_chain"], sort_keys=True, ensure_ascii=False)
     return "ev_page_" + hashlib.sha256(identity.encode()).hexdigest()[:24]
 
 

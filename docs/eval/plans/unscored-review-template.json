@@ -1,0 +1,39 @@
+{
+  "schema_version": "business-human-review/v1",
+  "reviews": [
+    {
+      "case_id": "request-decision-example",
+      "turn_id": "request-decision-example",
+      "run_id": null,
+      "reviewer": "",
+      "reviewed_at": null,
+      "required_findings": [
+        {
+          "id": "restore-before-update",
+          "result": null,
+          "note": ""
+        },
+        {
+          "id": "amount-decision",
+          "result": null,
+          "note": ""
+        },
+        {
+          "id": "save-and-status",
+          "result": null,
+          "note": ""
+        }
+      ],
+      "forbidden_claims": [
+        {
+          "id": "guaranteed-persistence",
+          "present": null,
+          "note": ""
+        }
+      ],
+      "usefulness": null,
+      "followup_continuity": null,
+      "comments": ""
+    }
+  ]
+}

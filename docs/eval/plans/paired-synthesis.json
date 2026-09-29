@@ -1,0 +1,85 @@
+{
+  "schema_version": "live-business-eval/v2",
+  "created_at_utc": "2026-09-29T17:28:01.872995+00:00",
+  "configuration": {
+    "api_style": "openai_compatible",
+    "base_url_configured": true,
+    "chat_model_configured": true,
+    "embedding_model_configured": false,
+    "api_key_source": "EXPLICIT",
+    "timeout_seconds": 60.0,
+    "max_output_tokens": 2048,
+    "allow_insecure_localhost": false
+  },
+  "case_count": 1,
+  "plan": {
+    "case_count": 1,
+    "user_turn_count": 1,
+    "mode": "paired-synthesis",
+    "profile": "workbench",
+    "preflight_model_requests": 1,
+    "max_model_requests_per_case": 5,
+    "max_model_requests": 3,
+    "requests_per_turn": 2,
+    "missing_frozen_captures": [
+      "request-decision-example/request-decision-example"
+    ],
+    "max_output_tokens_per_request": 2048,
+    "timeout_seconds_per_request": 60.0,
+    "preflight_max_output_tokens": 32,
+    "max_request_bytes": 230000,
+    "preflight_request_bytes": 110,
+    "policy": {
+      "max_model_requests": 5,
+      "max_source_characters": 36000,
+      "max_history_characters": 18000,
+      "max_request_bytes": 230000,
+      "max_searches_per_turn": 3,
+      "max_reads_per_turn": 3,
+      "max_framework_searches_per_turn": 3,
+      "initial_pages": 6,
+      "initial_source_characters": 24000,
+      "search_pages": 8,
+      "search_source_characters": 32000,
+      "read_source_characters": 12000,
+      "max_framework_references": 10,
+      "max_framework_characters": 8000,
+      "max_business_context_actions_per_turn": 2,
+      "max_semantic_files": 32,
+      "max_semantic_source_bytes": 33554432,
+      "max_semantic_expansions": 4,
+      "max_evidence_groups": 12,
+      "max_answer_revisions": 1,
+      "semantic_cache_bytes": 536870912
+    },
+    "configuration_scope": "evaluation_runner",
+    "workbench_defaults": {
+      "timeout_seconds": 60.0,
+      "max_output_tokens": 2048
+    },
+    "matches_workbench_defaults": true,
+    "comparison_note": "Evaluation uses its recorded configuration; results do not represent the web workbench when timeout or output settings differ.",
+    "spend_authorization": "not_granted_by_request_budget",
+    "currency_estimate": null,
+    "retry_policy": "no_automatic_retries",
+    "sampling": "provider_default",
+    "price_information_required": true,
+    "model_fingerprint": "fa9a640b470f23a59521553e744b90a853f52ef46d43f8ed42f6f237e9d5b0c5"
+  },
+  "model_preflight": {
+    "status": "planned"
+  },
+  "index_seconds": null,
+  "search_index_seconds": null,
+  "cases": [],
+  "latency_seconds": {
+    "p50": null,
+    "p95": null
+  },
+  "quality_status": "not_reviewed",
+  "review_counts": {
+    "not_reviewed": 0,
+    "partial": 0,
+    "complete": 0
+  }
+}

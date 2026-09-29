@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 import sys
 import tempfile
@@ -11,10 +12,84 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from company_api import APIClientError, CompanyAPIConfig
 from agent_policy import AgentPolicy
-from live_business_eval import evaluate, main
+from live_business_eval import evaluate, main, review_template, _review_status, _review_summary, SYNTHESIS_PROMPT_VERSION
+from company_api import TransportResponse
 
 
 class LiveBusinessEvalTests(unittest.TestCase):
+    def test_human_review_requires_each_finding_and_exports_unscored_form(self):
+        turn = {"id": "next", "question": "Why?", "gold": {
+            "required_findings": [{"id": "input"}, {"id": "result"}],
+            "forbidden_claims": [{"id": "unsupported"}]}}
+        item = {"id": "flow", "turns": [turn]}
+        form = review_template([item], {"cases": []})["reviews"][0]
+        self.assertIsNone(form["run_id"])
+        self.assertEqual([row["result"] for row in form["required_findings"]], [None, None])
+        self.assertEqual(_review_status(turn, None), "not_reviewed")
+        partial = {**form, "required_findings": [{"id": "input", "result": "met"}]}
+        self.assertEqual(_review_status(turn, partial), "partial")
+        complete = {**partial, "required_findings": [{"id": "input", "result": "met"},
+                    {"id": "result", "result": "omitted"}],
+                    "forbidden_claims": [{"id": "unsupported", "present": False}],
+                    "usefulness": "needs_work", "followup_continuity": "not_applicable"}
+        self.assertEqual(_review_status(turn, complete), "complete")
+        status, counts = _review_summary([{"quality_status": "complete"}, {"quality_status": "not_reviewed"}])
+        self.assertEqual((status, counts), ("partial", {"not_reviewed": 1, "partial": 0, "complete": 1}))
+
+    def test_paired_requests_change_only_evidence_and_never_include_gold(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "source"
+            source.mkdir()
+            text = "PROGRAM-ID. ENTRY.\nMOVE INPUT-VALUE TO RESULT-VALUE.\n"
+            (source / "entry.cbl").write_text(text, encoding="utf-8")
+            digest = hashlib.sha256(text.encode()).hexdigest()
+            cases = root / "cases.json"
+            cases.write_text(json.dumps({"cases": [{"id": "entry", "question": "How is RESULT-VALUE set?",
+                "source_snapshot_id": "snapshot-a", "history": [{"role": "user", "content": "Earlier question"}],
+                "reviewed_context": {"source_ranges": [{"path": "entry.cbl", "sha256": digest,
+                    "start_line": 1, "end_line": 2, "role": "result"}]},
+                "gold": {"required_findings": [{"id": "secret-grade", "description": "Do not send this"}]}}]}),
+                encoding="utf-8")
+            evaluation = root / "evaluation"
+            capture = evaluation / "captures" / "entry-entry.json"
+            capture.parent.mkdir(parents=True)
+            excerpt = "MOVE INPUT-VALUE TO RESULT-VALUE."
+            capture.write_text(json.dumps({"prompt_version": SYNTHESIS_PROMPT_VERSION,
+                "question": "How is RESULT-VALUE set?", "history": [{"role": "user", "content": "Earlier question"}],
+                "source_snapshot_id": "snapshot-a", "framework_revision": None,
+                "context": {"sources": [{"path": "entry.cbl", "source_sha256": digest,
+                    "start_line": 2, "end_line": 2, "excerpt": excerpt,
+                    "excerpt_sha256": hashlib.sha256(excerpt.encode()).hexdigest()}], "framework": []}}), encoding="utf-8")
+            bodies = []
+            def transport(request):
+                bodies.append(json.loads(request.body))
+                return TransportResponse(200, json.dumps({"choices": [{"message": {"role": "assistant", "content": "The value is copied."}, "finish_reason": "stop"}]}))
+            config = CompanyAPIConfig("https://gateway.example.invalid/v1", "test-model", api_key="local-test-secret")
+            report = evaluate(source, evaluation, cases, mode="paired-synthesis", allow_network=True,
+                              preflight=False, config=config, transport=transport)
+            self.assertEqual(len(bodies), 2)
+            self.assertEqual(report["cases"][0]["quality_status"], "not_reviewed")
+            prompts = [json.loads(body["messages"][-1]["content"]) for body in bodies]
+            self.assertEqual(prompts[0]["question"], prompts[1]["question"])
+            self.assertEqual(bodies[0]["messages"][:-1], bodies[1]["messages"][:-1])
+            self.assertNotEqual(prompts[0]["source_evidence"], prompts[1]["source_evidence"])
+            self.assertNotIn("secret-grade", json.dumps(bodies))
+
+    def test_paired_plan_lists_missing_frozen_context_without_model(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "source"
+            source.mkdir()
+            cases = root / "cases.json"
+            cases.write_text(json.dumps({"cases": [{"id": "entry", "question": "Explain the rule"}]}), encoding="utf-8")
+            config = CompanyAPIConfig("https://gateway.example.invalid/v1", "test-model", api_key="local-test-secret")
+            with mock.patch("live_business_eval.OpenAICompatibleChatClient", side_effect=AssertionError("network")):
+                report = evaluate(source, root / "evaluation", cases, mode="paired-synthesis",
+                                  plan=True, config=config)
+            self.assertEqual(report["plan"]["missing_frozen_captures"], ["entry/entry"])
+            self.assertEqual(report["quality_status"], "not_reviewed")
+
     def test_authentication_failure_stops_before_indexing_or_sending_source(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

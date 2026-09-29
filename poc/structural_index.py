@@ -1761,7 +1761,8 @@ def _symbol_maps(
     return programs, copybooks, paragraphs, fields
 
 
-def _resolve_relations(connection: sqlite3.Connection) -> None:
+def _resolve_relations(connection: sqlite3.Connection, *, affected_paths=None,
+                       affected_target_names=None) -> None:
     programs, copybooks, paragraphs, fields = _symbol_maps(connection)
     incomplete_copy_scopes = {
         row["program_name"] for row in connection.execute(
@@ -1770,6 +1771,19 @@ def _resolve_relations(connection: sqlite3.Connection) -> None:
     }
 
     placeholders = ",".join("?" for _ in RESOLVABLE_RELATION_TYPES)
+    conditions, arguments = [], list(sorted(RESOLVABLE_RELATION_TYPES))
+    if affected_paths is not None:
+        paths = sorted(set(affected_paths))
+        names = sorted(set(affected_target_names or []))
+        if not paths and not names:
+            return
+        if paths:
+            conditions.append("relative_path IN (" + ",".join("?" for _ in paths) + ")")
+            arguments.extend(paths)
+        if names:
+            conditions.append("target_name IN (" + ",".join("?" for _ in names) + ")")
+            arguments.extend(names)
+    where = " AND (" + " OR ".join(conditions) + ")" if conditions else ""
     rows = list(
         connection.execute(
             f"""
@@ -1777,8 +1791,9 @@ def _resolve_relations(connection: sqlite3.Connection) -> None:
                    metadata_json
               FROM relations
              WHERE relation_type IN ({placeholders})
+                   {where}
             """,
-            tuple(sorted(RESOLVABLE_RELATION_TYPES)),
+            tuple(arguments),
         )
     )
 
@@ -1878,6 +1893,7 @@ def build_structural_index(
     check_cancel: Callable[[], None] | None = None,
     verify_content: bool = False,
     max_source_bytes: int | None = None,
+    source_options_by_path: dict[str, dict[str, str]] | None = None,
 ) -> dict[str, object]:
     """Build a bounded source scope, reusing unchanged files before decoding.
 
@@ -1889,6 +1905,9 @@ def build_structural_index(
     if not root.is_dir():
         raise ValueError(f"Source root is not a directory: {source_root}")
     validate_source_options(encoding, source_format)
+    for file_options in (source_options_by_path or {}).values():
+        validate_source_options(file_options.get("encoding", encoding),
+                                file_options.get("source_format", source_format))
 
     def emit(phase: str, completed: int = 0, total: int | None = None, **extra: object) -> None:
         if check_cancel:
@@ -1910,7 +1929,9 @@ def build_structural_index(
         discovery = {"excluded_extensionless_file_count": 0, "scope_limited": True}
     if not source_files:
         raise ValueError("No source files selected. Check the source directory, --extensions, and --include-extensionless. The existing index was not changed.")
+    source_options_by_path = source_options_by_path or {}
     source_options = {"encoding": encoding, "source_format": source_format,
+                      "source_options_by_path": source_options_by_path,
                       "include_extensionless": include_extensionless, "extensions": sorted(extensions)}
     options_json = json.dumps(source_options, sort_keys=True)
     database = database_path.expanduser().resolve()
@@ -1961,7 +1982,10 @@ def build_structural_index(
                     row = previous
                 else:
                     try:
-                        document = read_source_document(path, root, encoding=encoding, source_format=source_format)
+                        file_options = source_options_by_path.get(relative, {})
+                        document = read_source_document(path, root,
+                            encoding=file_options.get("encoding", encoding),
+                            source_format=file_options.get("source_format", source_format))
                     except OSError:
                         document = None
                     if document is None:

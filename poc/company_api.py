@@ -472,11 +472,13 @@ class OpenAICompatibleChatClient:
         allow_network: bool = False,
         diagnostics: APIResponseDiagnostics | None = None,
         diagnostic_phase: str = "investigation",
+        request_observer=None,
     ) -> None:
         self.config = config
         self.allow_network = bool(allow_network)
         self._diagnostics = diagnostics
         self._diagnostic_phase = diagnostic_phase
+        self._request_observer = request_observer
         self.transport_mode = (
             "INJECTED"
             if transport is not None
@@ -585,6 +587,8 @@ class OpenAICompatibleChatClient:
             timeout_seconds=effective_timeout,
             endpoint=safe_endpoint,
         )
+        if self._request_observer is not None and request_body is not None:
+            self._request_observer(request_body)
         started = time.monotonic()
         response: object = None
         response_received = False

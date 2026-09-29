@@ -123,6 +123,9 @@ def expand_program(
     extensions: Iterable[str] | str | None = None,
     max_depth: int = 8,
     max_lines: int = 20_000,
+    source_provider=None,
+    source_catalog=None,
+    entry_relative_path: str | None = None,
 ) -> dict[str, object]:
     """Expand one uniquely identified host file, without writing any source.
 
@@ -154,19 +157,25 @@ def expand_program(
     includes: list[dict[str, object]] = []
     exhausted = False
 
-    for path in iter_source_files(root, suffixes, True):
-        relative = path.relative_to(root).as_posix()
+    def load(relative: str) -> None:
+        if relative in sources:
+            return
         try:
-            raw = path.read_bytes()
+            if source_provider is not None:
+                captured = source_provider.capture(relative)
+                raw = captured.path.read_bytes()
+                decoded = decode_source(raw, captured.encoding)
+            else:
+                raw = (root / relative).read_bytes()
+                decoded = decode_source(raw)
         except OSError:
             boundaries.append({"reason": "source_read_error", "relative_path": relative, "include_chain": []})
-            continue
+            return
         digest = sha256_bytes(raw)
-        decoded = decode_source(raw)
         if decoded is None:
             boundaries.append({"reason": "source_not_text", "relative_path": relative,
                                "source_hash": digest, "include_chain": []})
-            continue
+            return
         lines = tuple(decoded.text.splitlines())
         lexical = tuple(_lex_line(line) for line in lines)
         code = tuple(item[0] for item in lexical)
@@ -177,10 +186,25 @@ def expand_program(
         programs = tuple(name.upper() for name in _PROGRAM.findall("\n".join(masked)))
         source = _Source(relative, digest, lines, code, masked, problems, programs)
         sources[relative] = source
-        # A set prevents a suffixless member from becoming ambiguous with itself.
-        for key in {path.stem.upper(), path.name.upper()}:
-            members[key].append(relative)
         entries.extend(relative for name in programs if name == entry)
+
+    if source_provider is None:
+        for path in iter_source_files(root, suffixes, True):
+            relative = path.relative_to(root).as_posix()
+            load(relative)
+            # A set prevents a suffixless member from becoming ambiguous with itself.
+            for key in {path.stem.upper(), path.name.upper()}:
+                members[key].append(relative)
+    else:
+        if source_catalog is None or entry_relative_path is None:
+            raise ValueError("Explicit source catalog and entry path required")
+        for relative in source_catalog:
+            path = Path(relative)
+            for key in {path.stem.upper(), path.name.upper()}:
+                members[key].append(relative)
+        if entry_relative_path not in source_catalog:
+            raise ValueError("Entry path absent from source catalog")
+        load(entry_relative_path)
 
     def origin(source: _Source, line: int) -> dict[str, object]:
         return {"relative_path": source.relative_path, "line": line, "source_hash": source.source_hash}
@@ -261,7 +285,11 @@ def expand_program(
                 reason = "copy_cycle"
             elif len(nested) > max_depth:
                 reason = "copy_depth_limit"
-            elif sources[candidates[0]].programs:
+            else:
+                load(candidates[0])
+            if reason is None and candidates[0] not in sources:
+                reason = "copy_target_not_found"
+            elif reason is None and sources[candidates[0]].programs:
                 reason = "copy_target_contains_program"
             if reason:
                 boundary(reason, source, index + 1, chain, copy_name=name, candidates=candidates)

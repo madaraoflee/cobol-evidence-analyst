@@ -405,8 +405,8 @@ def _state_schema(connection):
     _ensure_source_state_schema(connection)
 
 
-def _current_selected_source(connection, root, relative, cache, check_cancel):
-    """Check only a retrieved file; unchanged files need no content I/O."""
+def _current_selected_source(connection, root, relative, cache, check_cancel, source_session=None):
+    """Check only a retrieved file against one question's captured bytes."""
     if relative in cache["states"]:
         return cache["states"][relative]
     _cancel(check_cancel)
@@ -414,6 +414,19 @@ def _current_selected_source(connection, root, relative, cache, check_cancel):
     state = {"relative_path": relative, "current": False}
     if item is None:
         state["reason_code"] = "SOURCE_NOT_INDEXED"
+        cache["states"][relative] = state
+        return state
+    if source_session is not None:
+        try:
+            captured = source_session.capture(relative)
+            cache["checked_files"] += 1
+            cache["content_verified_files"] += 1
+            if captured.sha256 != item["sha256"]:
+                state.update(reason_code="SOURCE_HASH_MISMATCH", captured_sha256=captured.sha256)
+            else:
+                state.update(current=True, verification="content_hash", source_sha256=captured.sha256)
+        except ValueError as exc:
+            state["reason_code"] = str(exc)
         cache["states"][relative] = state
         return state
     try:
@@ -580,7 +593,7 @@ def _retrieved_outline(connection, relative, pages, limit=24):
 
 
 def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max_chars,
-                      check_cancel=None, requested_span=None):
+                      check_cancel=None, requested_span=None, source_session=None):
     _state_schema(connection)
     cache = {"states": {}, "checked_files": 0, "reused_files": 0, "content_verified_files": 0}
     pages, boundaries, used, seen = [], [], 0, set()
@@ -589,7 +602,7 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
         if len(pages) >= max_pages or used >= max_chars:
             break
         _cancel(check_cancel)
-        state = _current_selected_source(connection, root, row["relative_path"], cache, check_cancel)
+        state = _current_selected_source(connection, root, row["relative_path"], cache, check_cancel, source_session)
         if not state["current"]:
             continue
         kwargs = requested_span or {}
@@ -609,7 +622,7 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
     links, omitted = _context_relations(connection, selected)
     usable = []
     for link in links:
-        state = _current_selected_source(connection, root, link["caller_path"], cache, check_cancel)
+        state = _current_selected_source(connection, root, link["caller_path"], cache, check_cancel, source_session)
         if state["current"]:
             link["caller_evidence_ids"] = [page["evidence_id"] for page in pages
                 if page["relative_path"] == link["caller_path"]
@@ -638,12 +651,16 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
                          "selected_pages": len(pages), "selected_characters": used, "max_pages": max_pages,
                          "max_characters": max_chars, "repository_complete": False,
                          "source_state_scope": "selected_files_only", "new_files_checked": False,
-                         "selected_source_hashes_verified": True, "current_content_hashes_recomputed": cache["content_verified_files"]},
+                         "selected_source_hashes_verified": bool(cache["states"]) and all(
+                             state.get("current") and state.get("verification") == "content_hash"
+                             for state in cache["states"].values()),
+                         "current_content_hashes_recomputed": cache["content_verified_files"]},
             "cache": cache_report, "needs_refresh": bool(boundaries and any(item.get("needs_refresh") for item in boundaries))}
 
 
 def retrieve_repository_context(database_path, source_root, question, *, search_terms=None,
-                                prior_paths=None, max_pages=8, max_chars=32000, check_cancel=None):
+                                prior_paths=None, max_pages=8, max_chars=32000, check_cancel=None,
+                                source_session=None):
     """Retrieve a small evidence bundle and neighbouring structure from SQLite.
 
     No-match questions get representative indexed pages, never a full-repository
@@ -734,7 +751,7 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
         cut = max(1, max_pages - len(neighbours))
         rows = rows[:cut] + neighbours + rows[cut:]
         result = _assemble_context(connection, root, overview, rows, terms, max_pages=max_pages,
-                                   max_chars=max_chars, check_cancel=check_cancel)
+                                   max_chars=max_chars, check_cancel=check_cancel, source_session=source_session)
         result.update(search_terms=terms, omitted_search_terms=omitted_terms,
                       matched_page_count=matched_count, matched_file_count=matched_files,
                       fallback_all=False, orientation_only=not matched_count,
@@ -745,7 +762,8 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
 
 
 def read_repository_context(database_path, source_root, *, relative_path=None, start_line=1,
-                            end_line=None, evidence_id=None, max_chars=12000, check_cancel=None):
+                            end_line=None, evidence_id=None, max_chars=12000, check_cancel=None,
+                            source_session=None):
     """Read a requested indexed range or citation without parsing the program."""
     if type(max_chars) is not int or not 512 <= max_chars <= 128000:
         raise ValueError("RETRIEVAL_BUDGET_INVALID")
@@ -769,7 +787,8 @@ def read_repository_context(database_path, source_root, *, relative_path=None, s
         rows = [dict(row, selection_reason="agent_requested_read") for row in connection.execute("SELECT * FROM repo_pages WHERE relative_path=? AND end_line>=? AND start_line<=? ORDER BY start_line LIMIT 33", (relative_path, start_line, end_line))]
         result = _assemble_context(connection, root, overview, rows, [], max_pages=32,
                                    max_chars=max_chars, check_cancel=check_cancel,
-                                   requested_span={"start_line": start_line, "end_line": end_line})
+                                   requested_span={"start_line": start_line, "end_line": end_line},
+                                   source_session=source_session)
         last_line = max((page["end_line"] for page in result["pages"]), default=start_line - 1)
         file_row = connection.execute("SELECT line_count FROM source_files WHERE relative_path=?", (relative_path,)).fetchone()
         total_lines = file_row[0] if file_row else 0

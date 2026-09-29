@@ -24,6 +24,13 @@ class AgentPolicy:
     read_source_characters: int = 12000
     max_framework_references: int = 10
     max_framework_characters: int = 8000
+    max_business_context_actions_per_turn: int = 2
+    max_semantic_files: int = 32
+    max_semantic_source_bytes: int = 33554432
+    max_semantic_expansions: int = 4
+    max_evidence_groups: int = 12
+    max_answer_revisions: int = 1
+    semantic_cache_bytes: int = 536870912
 
     def __post_init__(self):
         limits = {
@@ -42,6 +49,13 @@ class AgentPolicy:
             "read_source_characters": (512, 128000),
             "max_framework_references": (1, 10),
             "max_framework_characters": (512, 8000),
+            "max_business_context_actions_per_turn": (0, 8),
+            "max_semantic_files": (1, 256),
+            "max_semantic_source_bytes": (1024, 536870912),
+            "max_semantic_expansions": (0, 16),
+            "max_evidence_groups": (0, 64),
+            "max_answer_revisions": (0, 1),
+            "semantic_cache_bytes": (1048576, 4294967296),
         }
         for name, (minimum, maximum) in limits.items():
             value = getattr(self, name)

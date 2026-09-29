@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import closing
 import hashlib
+import os
 import json
 from pathlib import Path
 import re
@@ -374,7 +375,7 @@ class BusinessChatTests(unittest.TestCase):
         self.assertEqual(reference["document_sha256"], hashlib.sha256(document.read_bytes()).hexdigest())
         self.assertEqual(reference["start_line"], 3)
 
-    def test_source_changed_while_model_answers_is_not_shown_as_current_business_answer(self):
+    def test_live_edit_after_request_keeps_answer_bound_to_captured_version(self):
         path = self.write_window()
         self.build()
         def respond(payload, envelope):
@@ -382,11 +383,122 @@ class BusinessChatTests(unittest.TestCase):
             path.write_text(path.read_text().replace("VALUE 9", "VALUE 2"), encoding="utf-8")
             return response
         output = self.ask("TIDE-WINDOW", respond)
-        self.assertEqual(output["runner_status"], "NOT_READY")
-        self.assertEqual(output["reason_code"], "SOURCE_CHANGED_DURING_ANSWER")
-        self.assertNotIn("不超过9天", output["agent_result"]["answer"])
-        self.assertFalse(output["agent_result"]["model_answer_recorded"])
-        self.assertEqual(output["agent_result"]["evidence_refs"], [])
+        self.assertEqual(output["runner_status"], "COMPLETED")
+        self.assertIn("不超过9天", output["agent_result"]["answer"])
+        self.assertTrue(output["agent_result"]["model_answer_recorded"])
+        self.assertEqual(output["agent_result"]["evidence_refs"][0]["source_sha256"],
+                         hashlib.sha256(path.read_text().replace("VALUE 2", "VALUE 9").encode()).hexdigest())
+
+    def test_equal_length_edit_with_preserved_mtime_reaches_actual_request(self):
+        path = self.write_window()
+        self.build()
+        before = path.stat()
+        path.write_text(path.read_text().replace("VALUE 9", "VALUE 7"), encoding="utf-8")
+        os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+        def respond(payload, _envelope):
+            self.assertTrue(any("VALUE 7" in page["source_text"] for page in source_pages(payload)))
+            self.assertFalse(any("VALUE 9" in page["source_text"] for page in source_pages(payload)))
+            return reply("当前阈值为七天。")
+        output = self.ask("TIDE-WINDOW 如何处理？", respond)
+        self.assertEqual(output["runner_status"], "COMPLETED")
+        self.assertEqual(output["agent_result"]["snapshot_id"],
+                         output["agent_result"]["metrics"]["quality_trace_path"] and
+                         json.loads(Path(output["agent_result"]["metrics"]["quality_trace_path"]).read_text())["analysis_revision"])
+
+    def test_single_framework_slot_never_authorizes_an_old_invisible_rule(self):
+        self.write_window()
+        self.build()
+        manual = self.root / "guide.md"
+        manual.write_text("# Rules\n\n## Hold\nHOLD-STEP retains requests for six days.\n\n"
+                          "## Release\nRELEASE-STEP sends only approved requests.\n", encoding="utf-8")
+        def respond(payload, _envelope):
+            if len(self.requests) == 1:
+                return reply('{"framework_search":["HOLD-STEP"]}')
+            if len(self.requests) == 2:
+                self.assertTrue(any("six days" in row["text"] for row in payload["framework_references"]))
+                return reply('{"framework_search":["RELEASE-STEP"]}')
+            visible = payload["framework_references"]
+            self.assertEqual(len(visible), 1)
+            self.assertTrue(any("approved requests" in row["text"] for row in visible))
+            return reply(f"仅核对已批准请求。[{visible[0]['reference_id']}]")
+        result = self.ask("两个后续步骤如何处理？", respond,
+                          framework_reference_path=manual,
+                          policy=AgentPolicy(max_framework_references=1))["agent_result"]
+        self.assertEqual(len(result["narrative"]["citations"]), 1)
+        self.assertNotIn("六天", result["answer"])
+
+    def test_large_program_request_contains_condition_call_calculation_and_return_clear(self):
+        filler = "\n".join("DISPLAY 'UNCHANGED'." for _ in range(11950))
+        path = self.write("entry.cbl", "ENTRY", "IF INPUT-STATUS = 'READY'\n"
+            "PERFORM CALCULATE-RESULT\nEND-IF.\n" + filler + "\nCALCULATE-RESULT.\n"
+            "CALL 'CALC' USING BY CONTENT INPUT-COUNT BY REFERENCE RESULT-COUNT.\n"
+            "IF RETURN-CODE = 9\nMOVE 0 TO RESULT-COUNT\nEND-IF.",
+            "01 INPUT-STATUS PIC X(5).\n01 INPUT-COUNT PIC 9(5).\n"
+            "01 RESULT-COUNT PIC 9(5).\n01 RETURN-CODE PIC 9.")
+        self.write("calc.cbl", "CALC", "COMPUTE RESULT-COUNT ROUNDED = INPUT-COUNT * 2.",
+                   "01 INPUT-COUNT PIC 9(5).\n01 RESULT-COUNT PIC 9(5).")
+        self.assertGreater(len(path.read_text().splitlines()), 12000 - 100)
+        self.build()
+        def respond(payload, _envelope):
+            pages = source_pages(payload)
+            for excerpt in ("IF INPUT-STATUS = 'READY'", "CALL 'CALC' USING BY CONTENT",
+                            "COMPUTE RESULT-COUNT ROUNDED", "MOVE 0 TO RESULT-COUNT"):
+                self.assertTrue(any(excerpt in page["source_text"] for page in pages), excerpt)
+            self.assertTrue(any(page.get("semantic_roles") for page in pages))
+            return reply("计算候选和返回清零分支已见源码，仍需业务复核。")
+        result = self.ask("ENTRY RESULT-COUNT 如何计算及返回时清零？", respond)["agent_result"]
+        self.assertEqual(result["metrics"]["model_requests"], 1)
+        self.assertEqual(result["status"], "ANALYZED")
+
+    def test_partial_read_cursor_causes_one_grounded_draft_revision(self):
+        self.write("long.cbl", "LONG", "\n".join(f"DISPLAY 'RECORD-{index:03d}'." for index in range(300)))
+        self.build()
+        def respond(payload, _envelope):
+            if len(self.requests) == 1:
+                return reply('{"read":[{"relative_path":"long.cbl","start_line":1,"end_line":300}]}')
+            if len(self.requests) == 2:
+                read = payload["completed_actions"][-1]
+                self.assertFalse(read["range_complete"])
+                self.assertGreater(read["next_start_line"], 1)
+                self.assertTrue(any(item["next_start_line"] == read["next_start_line"]
+                    for item in payload["source_context"][0]["open_reads"]))
+                return reply("初稿：已读取前段记录。")
+            self.assertIn("初稿：已读取前段记录", payload["draft_answer"])
+            self.assertTrue(any(page["start_line"] > 1 and "RECORD" in page["source_text"]
+                for page in source_pages(payload)))
+            return reply("修订：已补读后续记录。")
+        result = self.ask("LONG 程序都展示哪些记录？", respond,
+            policy=AgentPolicy(read_source_characters=512, max_model_requests=3))["agent_result"]
+        self.assertEqual(result["answer"], "修订：已补读后续记录。")
+        self.assertEqual(result["metrics"]["model_requests"], 3)
+
+    def test_failed_revision_keeps_draft_and_its_visible_citation(self):
+        self.write("long.cbl", "LONG", "\n".join(f"DISPLAY 'RECORD-{index:03d}'." for index in range(300)))
+        self.build()
+        failures = {
+            "empty": TransportResponse(200, json.dumps({"choices": [{"message": {"role": "assistant", "content": ""}, "finish_reason": "stop"}]})),
+            "filter": TransportResponse(200, json.dumps({"choices": [{"message": {"role": "assistant", "content": ""}, "finish_reason": "content_filter"}]})),
+            "length": TransportResponse(200, json.dumps({"choices": [{"message": {"role": "assistant", "content": "incomplete"}, "finish_reason": "length"}]})),
+            "tool": reply('{"search":["ANOTHER"]}'),
+            "error": TransportResponse(500, json.dumps({"error": {"message": "temporary"}})),
+        }
+        for name, failure in failures.items():
+            with self.subTest(name=name):
+                self.requests.clear()
+                saved = []
+                def respond(payload, _envelope):
+                    if len(self.requests) == 1:
+                        return reply('{"read":[{"relative_path":"long.cbl","start_line":1,"end_line":300}]}')
+                    if len(self.requests) == 2:
+                        evidence_id = source_pages(payload)[0]["evidence_id"]
+                        saved.append(evidence_id)
+                        return reply(f"可用初稿。[{evidence_id}]")
+                    return failure
+                result = self.ask("LONG 展示记录的规则？", respond,
+                    policy=AgentPolicy(read_source_characters=512, max_model_requests=3))["agent_result"]
+                self.assertIn("可用初稿", result["answer"])
+                self.assertEqual([ref["evidence_id"] for ref in result["narrative"]["citations"]], saved)
+                self.assertEqual(result["metrics"]["model_requests"], 3)
 
     def test_unknown_citations_are_removed_but_supported_answer_is_retained(self):
         self.write_window()
@@ -502,21 +614,19 @@ class BusinessChatTests(unittest.TestCase):
         manual = self.root / "guide.md"
         manual.write_text("# Processing\n\n## First\n\nARCHIVE-STAGE retains records for seven days.\n\n"
                           "## Second\n\nRELEASE-STAGE publishes only completed records.\n", encoding="utf-8")
-        earlier = []
         def respond(payload, _envelope):
             turn = len(self.requests)
             if turn == 1:
                 return reply('{"framework_search":["ARCHIVE-STAGE"]}')
             if turn == 2:
-                reference = next(item for item in payload["framework_references"] if "seven days" in item["text"])
-                earlier.append(reference["reference_id"])
+                self.assertTrue(any("seven days" in item["text"] for item in payload["framework_references"]))
                 return reply('{"framework_search":["RELEASE-STAGE"]}')
-            self.assertNotIn(earlier[0], [item["reference_id"] for item in payload["framework_references"]])
+            earlier = next(item for item in payload["framework_references"] if "seven days" in item["text"])
             current = next(item for item in payload["framework_references"] if "completed records" in item["text"])
-            return reply(f"归档保留七天。[{earlier[0]}] 发布只处理已完成记录。[{current['reference_id']}]")
+            return reply(f"归档保留七天。[{earlier['reference_id']}] 发布只处理已完成记录。[{current['reference_id']}]")
         result = self.ask("TIDE-WINDOW 的后续处理？", respond, framework_reference_path=manual,
-                          policy=AgentPolicy(max_framework_references=1))["agent_result"]
-        self.assertIn(earlier[0], result["answer"])
+                          policy=AgentPolicy(max_framework_references=2))["agent_result"]
+        self.assertIn("归档保留七天", result["answer"])
         self.assertEqual(len(result["narrative"]["citations"]), 2)
         self.assertEqual(result["metrics"]["tool_calls"]["framework_search"], 2)
 

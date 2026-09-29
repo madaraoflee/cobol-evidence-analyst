@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 from contextlib import closing
 from datetime import datetime, timezone
+import hashlib
 import json
 import sqlite3
 
@@ -25,22 +26,32 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
         if path.is_symlink():
             return None
         previous = json.loads(path.read_text(encoding="utf-8"))
-        options = previous.get("source_options", {})
-        if previous.get("source_root") != str(source) or not previous.get("source_manifest_verified"):
+        if not previous.get("source_manifest_verified"):
             return None
         if not entry and (previous.get("scope") or {}).get("mode") not in {"repository_index", "repository_question"}:
             return None
-        if any(options.get(key) != value for key, value in {
-            "extensions": sorted(extensions), "include_extensionless": include_extensionless,
-            "encoding": encoding, "source_format": source_format, "analysis_mode": "business"}.items()):
-            return None
         overview = repository_search_overview(output / "structural-index.sqlite", source)
-        if (previous.get("build_report") or {}).get("snapshot_id") != overview["snapshot_id"]:
-            return None
         with closing(_connect(output / "structural-index.sqlite")) as connection:
-            parser = connection.execute("SELECT value FROM metadata WHERE key='parser_version'").fetchone()
-            if parser is None or parser[0] != PARSER_VERSION:
-                return None
+            metadata = dict(connection.execute("SELECT key,value FROM metadata WHERE key IN "
+                "('parser_version','source_options','source_root_hash','index_kind')"))
+        if (metadata.get("parser_version") != PARSER_VERSION
+                or metadata.get("index_kind") != "business_sparse"
+                or metadata.get("source_root_hash") != hashlib.sha256(str(source).encode()).hexdigest()):
+            return None
+        database_options = json.loads(metadata["source_options"])
+        requested_options = {"extensions": sorted(extensions),
+            "include_extensionless": include_extensionless,
+            "encoding": encoding, "source_format": source_format}
+        if any(database_options.get(key) != value for key, value in requested_options.items()):
+            return None
+        previous["source_root"] = str(source)
+        previous.setdefault("source_options", {}).update(requested_options, analysis_mode="business")
+        if (previous.get("build_report") or {}).get("snapshot_id") != overview["snapshot_id"]:
+            # A selected-file refresh commits the database before the display
+            # report is rewritten. The database is the authoritative snapshot.
+            previous.setdefault("build_report", {})["snapshot_id"] = overview["snapshot_id"]
+            previous["snapshot_id"] = overview["snapshot_id"]
+            previous["report_repaired_from_index"] = True
     except (OSError, ValueError, KeyError, sqlite3.Error):
         return None
     if check_cancel:
@@ -63,6 +74,17 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
     except APIConfigurationError as exc:
         agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
     result = agent.get("agent_result") or {}
+    if result.get("snapshot_id") and result["snapshot_id"] != overview["snapshot_id"]:
+        from analyze_source import _catalog
+        programs, _, _ = _catalog(output / "structural-index.sqlite")
+        report.setdefault("build_report", {})["snapshot_id"] = result["snapshot_id"]
+        report["snapshot_id"] = result["snapshot_id"]
+        overview = repository_search_overview(output / "structural-index.sqlite", source)
+        report["repository_search"] = overview
+        program_path = output / "programs.json"
+        previous_programs = json.loads(program_path.read_text(encoding="utf-8"))
+        _write(program_path, {**previous_programs, "snapshot_id": result["snapshot_id"],
+                              "programs": programs})
     report["question_status"] = result.get("status") if agent["runner_status"] == "COMPLETED" else agent["runner_status"]
     if result.get("framework_context"):
         report["framework_context"] = result["framework_context"]
