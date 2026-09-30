@@ -317,7 +317,11 @@ def discover_repository(database_path, question, *, search_terms=None, check_can
                 relative = row["relative_path"]
                 seeds.add(relative)
                 matched_count += 1
-                if preview_count >= MAX_MATCHED_PAGES and relative not in preview_by_path:
+                # Once every preview represents a different file, no slot can
+                # be reclaimed. Avoid rescanning the entire preview for every
+                # remaining matching file in a large repository.
+                if (preview_count >= MAX_MATCHED_PAGES and relative not in preview_by_path
+                        and preview_count > len(preview_by_path)):
                     crowded = max(preview_by_path, key=lambda path: len(preview_by_path[path]))
                     if len(preview_by_path[crowded]) > 1:
                         preview_by_path[crowded].pop()

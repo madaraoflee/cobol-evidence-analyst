@@ -150,8 +150,18 @@ def _rule_leads(connection, paths, previews, question, check_cancel):
             (relative, preview["end_line"] + 12, max(1, preview["start_line"] - 12)),
         ):
             by_path[relative][row["rule_id"]] = (dict(row), "source_match")
-    for relative in list(paths)[:80]:
+    for relative in sorted(paths)[:80]:
         _cancel(check_cancel)
+        # A source name or a header comment can identify the right program
+        # without matching any field in its calculation. Keep a few arithmetic
+        # leads from that program even when the matching page is far away.
+        for row in connection.execute(
+            "SELECT * FROM business_rules WHERE relative_path=? "
+            "AND rule_kind IN ('COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE') "
+            "ORDER BY CASE WHEN rule_kind='COMPUTE' THEN 0 ELSE 1 END,first_line LIMIT 3",
+            (relative,),
+        ):
+            by_path[relative].setdefault(row["rule_id"], (dict(row), "program_calculation"))
         for term in terms:
             for row in connection.execute(
                 "SELECT * FROM business_rules WHERE relative_path=? AND normalized_text LIKE ? "
@@ -168,9 +178,9 @@ def _rule_leads(connection, paths, previews, question, check_cancel):
             continue
         slots = ",".join("?" for _ in names)
         query = (
-            "SELECT DISTINCT b.* FROM business_rules b JOIN business_rule_fields f "
-            "ON f.rule_id=b.rule_id WHERE b.relative_path=? "
-            f"AND f.field_name IN ({slots}) ORDER BY b.first_line LIMIT 100"
+            "SELECT b.* FROM business_rules b WHERE b.relative_path=? "
+            "AND EXISTS (SELECT 1 FROM business_rule_fields f WHERE f.rule_id=b.rule_id "
+            f"AND f.field_name IN ({slots})) ORDER BY b.first_line LIMIT 100"
         )
         for row in connection.execute(query, (relative, *names)):
             found.setdefault(row["rule_id"], (dict(row), "shared_field"))
@@ -179,7 +189,8 @@ def _rule_leads(connection, paths, previews, question, check_cancel):
         for row, reason in found.values():
             code = row["normalized_text"]
             hits = sum(1 for term in terms if term in code)
-            score = (20 if reason == "source_match" else 10 if reason == "term_match" else 0)
+            score = (20 if reason in {"source_match", "program_calculation"}
+                     else 10 if reason == "term_match" else 0)
             score += hits * 8
             score += 5 if row["rule_kind"] in {"COMPUTE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE", "EXEC_SQL"} else 0
             score += 3 if row["rule_kind"] in {"IF", "WHEN", "EVALUATE"} else 0

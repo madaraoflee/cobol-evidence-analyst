@@ -524,7 +524,10 @@ class BusinessChatTests(unittest.TestCase):
              mock.patch("repository_discovery.ensure_repository_search", side_effect=AssertionError("repository reindexed")), \
              mock.patch("business_index.build_business_index", side_effect=AssertionError("repository reparsed")):
             output = self.ask("UnknownNebulaFeature", respond)
-        self.assertEqual(len(self.requests), 1)
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(output["reason_code"], "RETRIEVAL_UNRESOLVED")
+        self.assertEqual(output["agent_result"]["status"], "ABSTAINED")
+        self.assertEqual(source_pages(json.loads(self.requests[0]["messages"][-1]["content"])), [])
         self.assertEqual(output["agent_result"]["metrics"]["repository_rebuilt"], False)
         self.assertLess(output["agent_result"]["metrics"]["retrieved_pages"], overview["indexed_pages"])
         self.assertFalse(output["agent_result"]["reading_coverage"]["complete"])

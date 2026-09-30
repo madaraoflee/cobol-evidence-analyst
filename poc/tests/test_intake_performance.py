@@ -69,6 +69,27 @@ class IncrementalIntakeTests(unittest.TestCase):
         self.assertEqual(after["repository_search"]["content_hash_verified"], 0)
         self.assertEqual(discover_repository(self.database, "SECONDARYMARK")["matched_file_count"], 1)
 
+    def test_many_matching_files_do_not_rescan_a_full_diverse_preview(self):
+        for index in range(40):
+            self.write(f"member-{index:02}.cbl", program(f"MEMBER-{index}", "SHARED-TOPIC"))
+        self.intake()
+        original_max = max
+        preview_scans = []
+
+        def observed_max(values, *args, **kwargs):
+            if isinstance(values, dict):
+                preview_scans.append(len(values))
+            return original_max(values, *args, **kwargs)
+
+        with patch("repository_discovery.MAX_MATCHED_PAGES", 4), \
+             patch("repository_discovery.max", observed_max, create=True):
+            result = discover_repository(self.database, "SHARED-TOPIC")
+        self.assertEqual(result["matched_file_count"], 40)
+        self.assertEqual(len(result["selected_paths"]), 40)
+        self.assertEqual(len(result["matched_pages"]), 4)
+        self.assertEqual(len({page["relative_path"] for page in result["matched_pages"]}), 4)
+        self.assertEqual(preview_scans, [])
+
     def test_one_changed_file_refreshes_its_text_and_preserves_other_cached_pages(self):
         self.write("main.cbl", program("MAIN", "OLDMARK"))
         self.write("worker.cbl", program("WORKER", "STABLEMARK"))

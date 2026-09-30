@@ -34,6 +34,12 @@ def _actions(text, policy=None):
     fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", value, re.S | re.I)
     if fenced:
         value = fenced[1]
+    else:
+        # Some chat providers introduce an action with a short explanation.
+        # Only one fenced JSON object is eligible; ordinary prose stays prose.
+        blocks = re.findall(r"```(?:json)?\s*\n(.*?)```", value, re.S | re.I)
+        if len(blocks) == 1:
+            value = blocks[0].strip()
     try:
         item = json.loads(value)
     except (ValueError, RecursionError):
@@ -234,6 +240,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     from concept_search import search_concepts
     started = time.monotonic()
     timing = {"selected_source_hash_seconds": 0.0, "retrieval_seconds": 0.0,
+              "business_map_seconds": 0.0,
               "semantic_scope_seconds": 0.0, "context_assembly_seconds": 0.0,
               "provider_wait_seconds": 0.0}
     policy = resolve_agent_policy(policy)
@@ -274,6 +281,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             progress({"phase": phase, "completed": turns, "total": None, "unit": "requests",
                       "model_requests": turns, "retrieved_pages": len(pages)})
 
+    emit("retrieving")
     overview = repository_search_overview(database_path, source_root)
     base_snapshot_id = overview["snapshot_id"]
     prior_paths = list(dict.fromkeys(ref.get("relative_path") for item in (history or [])[-8:]
@@ -286,8 +294,15 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             if isinstance(location, dict) and location.get("relative_path")))[:12]
     if entry_program:
         prior_paths = list(dict.fromkeys([entry_program, *prior_paths]))
-    business_map = build_business_map(database_path, source_root, question,
-                                      prior_paths=prior_paths, check_cancel=check_cancel)
+    def timed_business_map(**options):
+        map_started = time.monotonic()
+        try:
+            return build_business_map(database_path, source_root, question,
+                prior_paths=prior_paths, check_cancel=check_cancel, **options)
+        finally:
+            timing["business_map_seconds"] += time.monotonic() - map_started
+
+    business_map = timed_business_map()
 
     refreshed = False
     def refresh_if_needed(context):
@@ -301,32 +316,42 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             return False
         refresh_selected_sources(database_path, changed, expected_snapshot_id=overview["snapshot_id"])
         overview = repository_search_overview(database_path, source_root)
-        business_map = build_business_map(database_path, source_root, question,
-                                          prior_paths=prior_paths, check_cancel=check_cancel)
+        business_map = timed_business_map()
         refreshed = True
         return True
 
     def checked_read(**arguments):
-        context = read_repository_context(database_path, source_root, source_session=source_session,
-                                          **arguments)
+        context = timed_retrieval(read_repository_context, **arguments)
         if refresh_if_needed(context):
-            context = read_repository_context(database_path, source_root, source_session=source_session,
-                                              **arguments)
+            context = timed_retrieval(read_repository_context, **arguments)
         return context
 
+    def timed_retrieval(operation, *arguments, **options):
+        retrieval_started = time.monotonic()
+        try:
+            return operation(database_path, source_root, *arguments,
+                             source_session=source_session, **options)
+        finally:
+            timing["retrieval_seconds"] += time.monotonic() - retrieval_started
+
     def checked_retrieve(search_terms=None, *, max_pages, max_chars):
-        context = retrieve_repository_context(database_path, source_root, question,
+        context = timed_retrieval(retrieve_repository_context, question,
                     search_terms=search_terms, prior_paths=prior_paths,
                     max_pages=max_pages, max_chars=max_chars,
-                    check_cancel=check_cancel, source_session=source_session)
+                    check_cancel=check_cancel)
         if refresh_if_needed(context):
-            context = retrieve_repository_context(database_path, source_root, question,
+            context = timed_retrieval(retrieve_repository_context, question,
                     search_terms=search_terms, prior_paths=prior_paths,
                     max_pages=max_pages, max_chars=max_chars,
-                    check_cancel=check_cancel, source_session=source_session)
+                    check_cancel=check_cancel)
         return context
 
     def accept(context, operation):
+        if operation == "search":
+            # Directory samples are navigation, never evidence for a business
+            # question that failed to match the repository.
+            context = {**context, "pages": [page for page in context.get("pages", [])
+                if "repository_orientation" not in page.get("selection_reasons", [])]}
         fresh = evidence.accept(context, operation)
         quality.add_tool_result(action=operation,
             actual_result_ids=[page["evidence_id"] for page in context.get("pages", [])
@@ -382,8 +407,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     policy=scoped_policy, check_cancel=check_cancel)
                 source_session.register_scope(semantic_scope)
                 timing["semantic_scope_seconds"] += time.monotonic() - semantic_started
+                scoped_paths = [item["relative_path"] for item in semantic_scope.input_manifest]
                 with closing(sqlite3.connect(database_path)) as db:
-                    indexed = dict(db.execute("SELECT relative_path,sha256 FROM source_files"))
+                    slots = ",".join("?" for _ in scoped_paths)
+                    indexed = dict(db.execute("SELECT relative_path,sha256 FROM source_files "
+                        f"WHERE relative_path IN ({slots})", scoped_paths))
                 changed = [source_session.capture(item["relative_path"])
                     for item in semantic_scope.input_manifest
                     if indexed.get(item["relative_path"]) != item["sha256"]]
@@ -396,8 +424,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     refresh_selected_sources(database_path, changed,
                         expected_snapshot_id=overview["snapshot_id"])
                     overview = repository_search_overview(database_path, source_root)
-                    business_map = build_business_map(database_path, source_root, question,
-                        prior_paths=prior_paths, check_cancel=check_cancel)
+                    business_map = timed_business_map()
                     refreshed = True
                     semantic_started = time.monotonic()
                     semantic_scope = prepare_semantic_scope(database_path, source_session,
@@ -433,7 +460,6 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             boundaries.append({"reason": "semantic_scope_unavailable", "detail": type(exc).__name__})
             return 0
 
-    retrieval_started = time.monotonic()
     emit("retrieving")
     # A follow-up must retain the actual prior branch, not just the file header.
     restored = 0
@@ -456,7 +482,6 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                max_chars=min(policy.initial_source_characters, policy.max_source_characters))
     accept(initial, "search")
     add_rule_spotlights(business_map)
-    timing["retrieval_seconds"] = time.monotonic() - retrieval_started
     if initial.get("orientation_only"):
         concept_candidates = search_concepts(database_path, question,
             framework_reference_path=framework_reference_path)
@@ -480,6 +505,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             if candidate.get("relative_path") in prior_paths and type(candidate.get("line")) is int), None)
     if first_lead is not None:
         add_semantic_context(first_lead)
+    discovery_pending = bool(initial.get("orientation_only") and not pages)
+    discovery_attempted = False
+    discovery_reprompted = False
     searches.append({"query": question, "matched_files": initial.get("matched_file_count", 0),
                      "matched_pages": initial.get("matched_page_count", 0)})
     history_context = _history_messages(history, policy)
@@ -514,6 +542,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 reference_versions[reference["reference_id"]] = (framework.get("document") or {}).get("sha256")
             references, combined_framework = _framework_prompt_references(
                 framework, searched_framework, recent_framework_ids, policy, _framework_for_prompt)
+            framework_only = not selected_pages and any(reference.get("selection_reason") in
+                {"question_only", "framework_search", "source_marker"} for reference in references)
+            discovery_pending = not selected_pages and not framework_only
             force_answer = turn == policy.max_model_requests - 1
             graph_prompt = {"intent": business_map["intent"],
                             "direct_path_count": len(business_map["direct_paths"]),
@@ -545,16 +576,36 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             ("handle", "identifier", "total", "counts", "scope", "rows", "next_cursor")}
                             if impact_result else None),
                        "concept_candidates": concept_candidates,
+                       "retrieval_status": {"state": "needs_discovery" if discovery_pending else
+                            "framework_candidates" if framework_only else "source_candidates",
+                            "query_expansion_attempted": discovery_attempted,
+                            "source_absence_proven": False},
                        "investigation_budget": {"remaining_model_requests": policy.max_model_requests - turn,
                             "searches_per_turn": 0 if force_answer else policy.max_searches_per_turn,
                             "reads_per_turn": 0 if force_answer else policy.max_reads_per_turn,
                             "framework_searches_per_turn": 0 if force_answer else policy.max_framework_searches_per_turn},
-                       "task": "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。" if force_answer else
+                       "task": "当前仅定位到与问题相关的框架手册。解释手册明确规定的行为；尚未定位到相关源码，"
+                               "不能把手册约定写成程序已实现或执行的事实。" if framework_only else
+                               "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。" if force_answer else
+                               "当前问题尚未命中源码。这一轮只做检索规划，返回 JSON search 数组，"
+                               "把用户业务描述转换为可能出现在源码中的英文术语、同义词或常见缩写；"
+                               "保留有区分度的业务词，避免仅搜索通用计算动词。词项只是待验证候选，"
+                               "不要猜具体程序名，不要回答业务结论或声称公司、程序、资料不存在。"
+                               "遵守 searches_per_turn 的数量限制，已查无结果时换用其他候选。" if discovery_pending else
                                "当前问题尚未命中源码；若这是承接上文且已有原文足够，可以直接回答，否则请先搜索对应的源码词、缩写或字段名。" if initial.get("orientation_only") and not business_map["direct_paths"] else
                                "结合全库关系和相关原文回答；确需补查时才请求搜索或读取。"}
+            if discovery_pending:
+                if discovery_reprompted:
+                    payload["task"] += (" 上一轮没有执行检索，不能据此下结论。"
+                        '本轮请只返回形如 {"search":["候选源码词项"]} 的搜索动作。')
+                payload["repository"]["program_samples"] = (overview.get("program_samples") or [])[:12]
+                payload["source_context"] = [{"pages": [], "call_chain": {"links": [], "omitted_links": 0},
+                    "outline": [], "notices": [], "open_reads": []}]
             trim_events = []
             messages, request_size = _fit_request(config, payload, history_context, policy, trim_events=trim_events)
             visible = EvidenceContext.manifest(payload)
+            if not visible["source_ids"] and not visible["framework_ids"]:
+                discovery_pending = True
             request_sizes.append(request_size)
             sent_pages.update({page["evidence_id"]: page for page in payload["source_context"][0]["pages"]})
             evidence.sent_any_round_ids.update(visible["source_ids"])
@@ -565,25 +616,35 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 if reference_versions.get(identifier):
                     framework_versions.add(reference_versions[identifier])
             turns += 1
-            quality.prepare(stage="answer" if force_answer else "investigate", payload=payload,
+            quality.prepare(stage="answer" if force_answer else "discover" if discovery_pending else "investigate", payload=payload,
                             messages=messages, trim_events=trim_events)
             timing["context_assembly_seconds"] += time.monotonic() - assembly_started
             provider_started = time.monotonic()
-            raw = client.complete(messages=messages)
-            timing["provider_wait_seconds"] += time.monotonic() - provider_started
+            try:
+                raw = client.complete(messages=messages)
+            finally:
+                timing["provider_wait_seconds"] += time.monotonic() - provider_started
             provider_usage.append(raw.get("usage"))
             if check_cancel:
                 check_cancel()
             reply = _extract_text(raw)
+            finish_reason = raw["choices"][reply.choice_index].get("finish_reason")
             if reply.refused or reply.filtered:
-                quality.finish_round(finish_reason=(raw.get("choices") or [{}])[0].get("finish_reason"),
+                quality.finish_round(finish_reason=finish_reason,
                                      parsed_action=None, usage=raw.get("usage"))
                 answer, failure = reply.text, "MODEL_REFUSED" if reply.refused else "MODEL_CONTENT_FILTERED"
                 break
             action = _actions(reply.text, policy)
-            quality.finish_round(finish_reason=(raw.get("choices") or [{}])[0].get("finish_reason"),
+            quality.finish_round(finish_reason=finish_reason,
                                  parsed_action=list(action) if action else None, usage=raw.get("usage"))
             if not action:
+                if discovery_pending:
+                    if (not discovery_attempted and not discovery_reprompted and not force_answer
+                            and policy.max_searches_per_turn):
+                        discovery_reprompted = True
+                        continue
+                    failure = "RETRIEVAL_UNRESOLVED"
+                    break
                 answer, truncated = reply.text, reply.truncated
                 answer_round = f"round-{turns}"
                 answer_manifest = {"source_ids": visible["source_ids"],
@@ -591,7 +652,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 break
             key = json.dumps(action, sort_keys=True, ensure_ascii=False)
             if force_answer:
-                failure = "ANSWER_NOT_PRODUCED"
+                failure = "RETRIEVAL_UNRESOLVED" if discovery_pending else "ANSWER_NOT_PRODUCED"
                 break
             if key in seen_actions:
                 contexts.append({"notice": "该检索已执行，无新来源。请根据当前资料直接回答。"})
@@ -599,13 +660,21 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             seen_actions.add(key)
             emit("retrieving")
             if action["search"]:
+                discovery_attempted = True
                 tool_calls["search"] += 1
                 context = checked_retrieve(action["search"], max_pages=policy.search_pages,
                     max_chars=min(policy.search_source_characters, policy.max_source_characters))
                 added = accept(context, "search")
-                business_map = build_business_map(database_path, source_root, question,
-                    search_terms=action["search"], prior_paths=prior_paths, check_cancel=check_cancel)
+                business_map = timed_business_map(search_terms=action["search"])
                 add_rule_spotlights(business_map)
+                if context.get("matched_file_count", 0) and pages:
+                    discovery_pending = False
+                # A cross-language search must assemble the same related
+                # conditions and inputs as an initial source match.
+                lead = next((item for item in business_map["rule_leads"]
+                    if item.get("rule_kind") in {"COMPUTE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"}), None)
+                if lead is not None:
+                    add_semantic_context(lead)
                 completed_actions.append({"search": action["search"], "added_pages": added})
                 searches.append({"query": " / ".join(action["search"]),
                                  "matched_files": context.get("matched_file_count", 0),
@@ -617,6 +686,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     context = checked_read(**arguments,
                         max_chars=min(policy.read_source_characters, policy.max_source_characters), check_cancel=check_cancel)
                     added = accept(context, "read")
+                    if context.get("pages"):
+                        discovery_pending = False
                     completed_actions.append({"read": arguments, "added_pages": added,
                                               "range_complete": context.get("range_complete"),
                                               "next_start_line": context.get("next_start_line"),
@@ -633,6 +704,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     break
                 tool_calls["inspect_business_context"] += 1
                 added = add_semantic_context(item)
+                if added:
+                    discovery_pending = False
                 completed_actions.append({"inspect_business_context": {
                     "relative_path": item.get("relative_path"), "line": item.get("line")},
                     "added_pages": added})
@@ -699,12 +772,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                 messages=revision_messages, trim_events=trims)
                 try:
                     provider_started = time.monotonic()
-                    revised_raw = client.complete(messages=revision_messages)
-                    timing["provider_wait_seconds"] += time.monotonic() - provider_started
+                    try:
+                        revised_raw = client.complete(messages=revision_messages)
+                    finally:
+                        timing["provider_wait_seconds"] += time.monotonic() - provider_started
                     provider_usage.append(revised_raw.get("usage"))
                     revised_reply = _extract_text(revised_raw)
                     revised_action = _actions(revised_reply.text, policy)
-                    quality.finish_round(finish_reason=(revised_raw.get("choices") or [{}])[0].get("finish_reason"),
+                    quality.finish_round(finish_reason=revised_raw["choices"][revised_reply.choice_index].get("finish_reason"),
                         parsed_action=list(revised_action) if revised_action else None,
                         usage=revised_raw.get("usage"))
                     if (revised_reply.text.strip() and not revised_reply.truncated
@@ -718,7 +793,6 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     else:
                         boundaries.append({"reason": "usable_draft_retained"})
                 except (APIClientError, _TextResponseError) as exc:
-                    timing["provider_wait_seconds"] += time.monotonic() - provider_started
                     quality.finish_round(error=exc.code)
                     boundaries.append({"reason": "usable_draft_retained", "revision_error": exc.code})
     except (APIClientError, APIConfigurationError, _TextResponseError) as exc:
@@ -761,7 +835,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     usable = bool(answer.strip())
     if not answer:
         http_status = next((item.get("http_status") for item in errors if item.get("http_status")), None)
-        if http_status == 401:
+        if failure == "RETRIEVAL_UNRESOLVED":
+            answer = "本次尚未定位到能回答这个业务问题的相关源码，因此还不能给出可靠的业务结论。这不表示程序或资料不存在；需要继续核对业务用语与源码词项的对应关系。"
+        elif http_status == 401:
             answer = "模型接口鉴权失败（HTTP 401）。请检查本机 .env 中的接口密钥与地址，更新后重启服务。对话和源码索引已保留。"
         elif http_status == 403:
             answer = "模型接口拒绝了本次访问（HTTP 403）。请核对该接口或模型的使用权限。对话和源码索引已保留。"
@@ -791,6 +867,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                        for t in evidence.tasks.values() if t.state != "complete"],
         "stop_reason": stop_reason})
     investigation = {"mode": "retrieval", "searches": searches, "search_rounds": len(searches),
+                     "retrieval_status": "source_candidates" if refs else
+                         "framework_candidates" if final_framework_ids else "unresolved",
+                     "query_expansion_attempted": discovery_attempted,
                      "repository_file_count": overview.get("indexed_files", 0),
                      "selected_file_count": len({ref["relative_path"] for ref in refs}),
                      "selected_paths": list(dict.fromkeys(ref["relative_path"] for ref in refs)),
