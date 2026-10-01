@@ -501,9 +501,11 @@ def build_question_investigation(question, business_map, *, database_path=None,
                 # Some calculations select or transfer values through branches.
                 # Reuse the existing bounded step selection without asserting a
                 # formula, complete value flow, or any actual runtime result.
-                business_steps = True
-                candidates, frontier, hashes = _indexed_candidates(database_path, paths, question,
+                steps, step_frontier, step_hashes = _indexed_candidates(database_path, paths, question,
                     business_steps=True, root_paths=root_paths)
+                if any(row["kind"] == "business_steps" for row in steps):
+                    business_steps = True
+                    candidates, frontier, hashes = steps, step_frontier, step_hashes
             dependencies, dependency_frontier = _dependencies(database_path, list(hashes), candidates, hashes,
                                                               business_steps=business_steps)
             candidates.extend(dependencies)
@@ -518,10 +520,10 @@ def build_question_investigation(question, business_map, *, database_path=None,
                       for row in business_map.get("rule_leads", []) if row.get("relative_path") in paths
                       and (business_steps or row.get("rule_kind") in _ARITHMETIC)]
         if calculation and not candidates:
-            business_steps = True
             steps = [row for row in business_map.get("rule_leads", [])
                 if row.get("relative_path") in paths and row.get("rule_kind") in
                 {"MOVE", "IF", "EVALUATE", "WHEN", "EXEC_SQL"}]
+            business_steps = bool(steps)
             if len(steps) > _MAX_FORMULAS:
                 frontier.append({"kind": "business_steps", "reason": "formula_candidate_budget"})
             candidates = [_rule(row, "business_steps") for row in steps[:_MAX_FORMULAS]]

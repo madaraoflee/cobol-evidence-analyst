@@ -133,7 +133,7 @@ class QuestionInvestigationChatTests(unittest.TestCase):
             return f"[{page['evidence_id']}] 基础金额乘系数计算。"
         for respond in (citation_first,
                         lambda payload: "[处理说明](#result) 基础金额乘系数计算。",
-                        lambda payload: '{"rate":1.25,"meaning":"计算系数"}',
+                        lambda payload: '{"rate":1.25,"meaning":"基础金额乘系数"}',
                         lambda payload: "处理需要先读取参数再计算，基础金额乘系数得到结果。"):
             with self.subTest(respond=respond):
                 self.requests.clear()
@@ -161,7 +161,7 @@ class QuestionInvestigationChatTests(unittest.TestCase):
         with mock.patch("question_investigation._indexed_candidates",
                         wraps=question_investigation._indexed_candidates) as indexed:
             result = self.ask("FINAL-RULE FINAL-AMOUNT怎么计算？",
-                lambda payload: "已提供计算式及后续调整候选。",
+                lambda payload: "基础金额乘以系数，基础金额大于1时再加2。",
                 policy=AgentPolicy(max_model_requests=1, max_request_bytes=32768))
         self.assertEqual(indexed.call_count, 1)
         self.assertGreater(result["metrics"]["question_investigation"]["calls"], 1)

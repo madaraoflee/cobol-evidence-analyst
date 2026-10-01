@@ -140,6 +140,22 @@ class ProceduralCalculationTests(unittest.TestCase):
         self.assertFalse(complete["planned_actions"])
         self.assertFalse(complete["semantic_execution_verified"])
 
+    def test_empty_procedural_fallback_keeps_formula_discovery_obligation(self):
+        self.build()
+        self.text = self.text.split("PROCEDURE DIVISION.", 1)[0] + (
+            "PROCEDURE DIVISION.\nDISPLAY NET-VALUE.\nGOBACK.\n")
+        (self.source / "assign.cbl").write_text(self.text, encoding="utf-8")
+        build_business_index(self.source, self.database, source_format="free")
+        ensure_repository_search(self.database, self.source)
+        self.mapping = build_business_map(self.database, self.source, self.question)
+        cache = {}
+        for _ in range(2):
+            result = self.ask([self.page()], candidate_cache=cache)
+            self.assertEqual(self.item(result, "formula")["status"], "OPEN")
+            self.assertEqual(self.item(result, "formula")["reason"], "formula_not_located")
+            self.assertFalse(any(item["kind"] == "business_steps" for item in result["required_items"]))
+            self.assertFalse(result["can_answer"])
+
 
 if __name__ == "__main__":
     unittest.main()

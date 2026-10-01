@@ -121,6 +121,7 @@ class RetrievalEvidenceRegressionTests(unittest.TestCase):
         citations = sorted({page["evidence_id"] for page in source_pages(payload)
                             if any(literal in page["source_text"] for literal in literals.values())})
         text = "Offline source observation: " + json.dumps(observed, sort_keys=True)
+        text += "\n" + "\n".join(literal for kind, literal in literals.items() if observed[kind])
         return response(text + " " + " ".join(f"[{identifier}]" for identifier in citations))
 
     def ask(self, question, *, policy=None, first_action=None, history=None, literals=None):

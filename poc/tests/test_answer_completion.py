@@ -168,6 +168,95 @@ class AnswerCompletionTests(unittest.TestCase):
         self.assertTrue(output["agent_result"]["business_review"]["synthesis_review_attempted"])
         self.assert_not_successful_answer(output)
 
+    def test_detailed_vague_answer_reviews_the_supplied_but_unexplained_aspects(self):
+        self.build_source()
+        question = ("请详细解释 rule.cbl 的 FINAL-AMOUNT 如何计算，"
+                    "包括输入来源、条件和不满足时的结果。")
+        output = self.ask(["最终金额由基础值与系数计算。", BUSINESS_ANSWER], question=question)
+        self.assert_complete_source_supplied()
+        self.assertEqual(len(self.requests), 2)
+        review = self.requests[1]["answer_review"]
+        self.assertEqual(set(review["missing_aspects"]),
+                         {"formula", "inputs", "conditions", "result_adjustments"})
+        self.assertEqual(self.requests[1]["draft_answer"], "最终金额由基础值与系数计算。")
+        result = output["agent_result"]
+        self.assertEqual(result["answer"], BUSINESS_ANSWER)
+        self.assertEqual(result["status"], "ANALYZED")
+        self.assertTrue(result["business_review"]["synthesis_review_attempted"])
+        self.assertEqual(result["business_review"]["answer_completion"]["missing_aspects"], [])
+        self.assertFalse(result["claims_semantically_verified"])
+
+    def test_generic_calculation_answer_is_not_success_after_bounded_review(self):
+        self.build_source()
+        for answer in ("最终金额由基础值与系数计算。",
+                       "最终金额就是程序的计算结果。",
+                       "**最终金额**由基础值与系数计算。",
+                       "[业务说明](https://offline.example.invalid/info/amount)中说明金额由参数计算。"):
+            with self.subTest(answer=answer):
+                output = self.ask([answer])
+                self.assert_complete_source_supplied()
+                self.assertEqual(len(self.requests), 2)
+                self.assert_not_successful_answer(output)
+                completion = output["agent_result"]["business_review"]["answer_completion"]
+                self.assertEqual(completion["reason"], "supplied_business_aspects_unexplained")
+                self.assertEqual(completion["missing_aspects"], ["formula"])
+                trace = json.loads(Path(output["agent_result"]["metrics"]["quality_trace_path"])
+                                   .read_text(encoding="utf-8"))
+                self.assertEqual(trace["final"]["answer_completion"]["missing_aspects"], ["formula"])
+
+    def test_explicit_sources_conditions_and_else_are_checked_without_detail_keyword(self):
+        self.build_source()
+        output = self.ask(["最终金额为基础值乘以系数。", BUSINESS_ANSWER],
+            question="rule.cbl 的 FINAL-AMOUNT 怎么计算，输入来源、条件和不满足时结果是什么？")
+        self.assert_complete_source_supplied()
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(set(self.requests[1]["answer_review"]["missing_aspects"]),
+                         {"inputs", "conditions", "result_adjustments"})
+        self.assertEqual(output["agent_result"]["answer"], BUSINESS_ANSWER)
+
+    def test_short_concrete_answers_need_no_word_count_or_extra_review(self):
+        self.build_source()
+        for answer in ("初始值8、1.25；正数基础值乘系数，否则归零。",
+                       "基础值预设8、系数预设1.25；正数基础值乘系数，其他情况结果为0。",
+                       "Initially 8 and 1.25; if the basis is positive, multiply by the factor; otherwise zero."):
+            with self.subTest(answer=answer):
+                output = self.ask([answer], question="请详细解释 rule.cbl 的 FINAL-AMOUNT 怎么计算？")
+                self.assert_complete_source_supplied()
+                self.assertEqual(len(self.requests), 1)
+                self.assertEqual(output["agent_result"]["status"], "ANALYZED")
+                self.assertEqual(output["agent_result"]["business_review"]["answer_completion"]["missing_aspects"], [])
+
+    def test_explicit_initial_values_cannot_be_replaced_by_formula_only(self):
+        self.build_source()
+        output = self.ask(["最终金额为基础值乘以系数。", BUSINESS_ANSWER],
+            question="rule.cbl 的 FINAL-AMOUNT 怎么计算，BASIS 和 FACTOR 的初值分别是什么？")
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(self.requests[1]["answer_review"]["missing_aspects"], ["inputs"])
+        self.assertEqual(output["agent_result"]["answer"], BUSINESS_ANSWER)
+
+    def test_plain_addition_and_subtraction_are_valid_calculation_explanations(self):
+        for operator, word in (("+", "加"), ("-", "减")):
+            with self.subTest(operator=operator):
+                self.build_source()
+                path = self.source / "rule.cbl"
+                path.write_text(path.read_text().replace("BASIS * FACTOR", f"BASIS {operator} FACTOR"))
+                build_business_index(self.source, self.database, source_format="free", verify_content=True)
+                ensure_repository_search(self.database, self.source)
+                answer = f"基础值大于零时，最终金额为基础值{word}系数；否则归零。"
+                output = self.ask([answer])
+                self.assertEqual(len(self.requests), 1)
+                self.assertEqual(output["agent_result"]["status"], "ANALYZED")
+
+    def test_budget_cannot_turn_unexplained_supplied_formula_into_success(self):
+        self.build_source()
+        for policy in (AgentPolicy(max_model_requests=1),
+                       AgentPolicy(max_model_requests=3, max_answer_revisions=0)):
+            with self.subTest(policy=policy.to_dict()):
+                output = self.ask(["最终金额由基础值与系数计算。"], policy=policy)
+                self.assert_complete_source_supplied()
+                self.assertEqual(len(self.requests), 1)
+                self.assert_not_successful_answer(output)
+
     def test_request_or_revision_budget_cannot_turn_deferral_into_success(self):
         self.build_source()
         policies = (
@@ -220,6 +309,82 @@ class AnswerCompletionTests(unittest.TestCase):
                 self.assert_complete_source_supplied()
                 self.assertEqual(output["agent_result"]["answer"], BUSINESS_ANSWER)
                 self.assertEqual(len(self.requests), 2)
+
+    def test_search_absence_messages_review_the_source_already_supplied(self):
+        self.build_source()
+        limitations = (
+            "该程序处理最终金额。目前找不到完整计算口径。",
+            "未找到 FINAL-AMOUNT 的计算公式。",
+            "没找到 FINAL-AMOUNT 的计算规则。",
+            "没有找到 FINAL-AMOUNT 的输入来源。",
+            "目前找不到 FINAL-AMOUNT 的完整計算口徑。",
+            "尚未找到 FINAL-AMOUNT 的計算公式。",
+            "沒有找到相關源碼。",
+            "I couldn't find the formula for FINAL-AMOUNT.",
+            "I can’t find the source code for FINAL-AMOUNT.",
+            "We could not locate the input source for FINAL-AMOUNT.",
+            "No formula for FINAL-AMOUNT was found.",
+            "No matching source code is available.",
+        )
+        for limitation in limitations:
+            with self.subTest(reply=limitation):
+                output = self.ask([limitation, BUSINESS_ANSWER])
+                self.assert_complete_source_supplied()
+                self.assertEqual(output["agent_result"]["answer"], BUSINESS_ANSWER)
+                self.assertEqual(len(self.requests), 2)
+                self.assertTrue(output["agent_result"]["business_review"]["synthesis_review_attempted"])
+
+    def test_repeated_source_not_found_reply_does_not_complete_the_answer(self):
+        self.build_source()
+        output = self.ask(["未找到 FINAL-AMOUNT 的计算公式。"])
+        self.assert_complete_source_supplied()
+        self.assertGreaterEqual(len(self.requests), 2)
+        self.assert_not_successful_answer(output)
+
+    def test_missing_record_or_customer_is_a_business_branch(self):
+        (self.source / "rule.cbl").write_text(
+            "IDENTIFICATION DIVISION.\nPROGRAM-ID. RECORD-RULE.\n"
+            "DATA DIVISION.\nWORKING-STORAGE SECTION.\n"
+            "01 RECORD-FOUND PIC X VALUE 'N'.\n"
+            "01 RESULT-FLAG PIC X.\nPROCEDURE DIVISION.\nMAIN.\n"
+            "IF RECORD-FOUND = 'N'\nMOVE 'R' TO RESULT-FLAG\n"
+            "DISPLAY '未找到记录'\nDISPLAY 'No customer was found'\n"
+            "END-IF.\nGOBACK.\n", encoding="utf-8")
+        build_business_index(self.source, self.database, source_format="free", verify_content=True)
+        ensure_repository_search(self.database, self.source)
+        answers = (
+            "找不到记录时，程序将结果标志设为 R 并显示“未找到记录”。",
+            "未找到客户时返回 R，程序显示“No customer was found”。",
+            "If no record is found, the result flag is R and the program displays 'No customer was found'.",
+        )
+        for answer in answers:
+            with self.subTest(reply=answer):
+                output = self.ask([answer], question="rule.cbl 找不到记录时会怎样？")
+                supplied = "\n".join(page["source_text"]
+                                     for page in self.requests[0]["source_context"][0]["pages"])
+                self.assertIn("IF RECORD-FOUND = 'N'", supplied)
+                self.assertIn("DISPLAY '未找到记录'", supplied)
+                self.assertEqual(output["agent_result"]["answer"], answer)
+                self.assertEqual(len(self.requests), 1)
+                self.assertFalse(output["agent_result"]["business_review"]["synthesis_review_attempted"])
+                self.assertFalse(assess_answer_completion(answer)["limitation_detected"])
+
+    def test_not_found_message_in_program_output_is_not_an_analysis_limitation(self):
+        answer = "程序返回“找不到计算公式”并拒绝请求。"
+        completion = assess_answer_completion(answer)
+        self.assertNotEqual(completion["status"], "incomplete")
+        self.assertFalse(completion["limitation_detected"])
+
+    def test_missing_external_source_keeps_the_known_calculation(self):
+        self.build_source(external_call=True)
+        answer = BUSINESS_ANSWER + "\n\n未找到 EXTERNAL-STEP 的源码，调用后的金额取决于该外部步骤。"
+        output = self.ask([answer])
+        result = output["agent_result"]
+        self.assertEqual(result["answer"], answer)
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(len(self.requests), 1)
+        self.assertNotEqual(result["business_review"]["answer_completion"]["status"], "incomplete")
+        self.assertTrue(result["business_review"]["answer_completion"]["limitation_detected"])
 
     def test_condition_explanation_is_not_mistaken_for_investigation_deferral(self):
         self.build_source()

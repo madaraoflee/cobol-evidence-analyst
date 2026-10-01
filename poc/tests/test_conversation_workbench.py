@@ -39,6 +39,8 @@ class ConversationWorkbenchTests(unittest.TestCase):
             self.calls.append(body)
             refs = re.findall(r"ev_page_[a-f0-9]+", json.dumps(body))
             content = "超过容量时会提示超额。" + (f"[{refs[0]}]" if refs else "")
+            if "COMPUTE AVAILABLE-COUNT" in json.dumps(body):
+                content += "可用数量等于容量减去已预留数量。"
             return TransportResponse(200, json.dumps({"choices": [{"message": {"role": "assistant", "content": content}, "finish_reason": "stop"}]}))
 
         self.transport = transport

@@ -247,7 +247,7 @@ class QuestionInvestigationTests(unittest.TestCase):
             page = next(page for context in payload["source_context"] for page in context["pages"]
                 if page["relative_path"] == "z-target.cbl" and "COMPUTE NET-VALUE ROUNDED" in page["source_text"])
             return TransportResponse(200, json.dumps({"choices": [{"message": {"role": "assistant",
-                "content": f"已提供目标计算公式。[{page['evidence_id']}]"}, "finish_reason": "stop"}]}))
+                "content": f"基础值初始为11，大于5时乘以2再加29并舍入。[{page['evidence_id']}]"}, "finish_reason": "stop"}]}))
         result = run_business_chat("VALUEPLAN 计算公式", self.database, self.source,
             CompanyAPIConfig("https://offline.example.invalid/v1", "offline-model", api_key="offline-only"),
             transport=transport, allow_network=False, framework_reference_path=self.root / "absent.md")

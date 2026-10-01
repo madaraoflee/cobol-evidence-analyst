@@ -162,7 +162,7 @@ class IndependentBusinessQualityTests(unittest.TestCase):
 
     def visible_answer(self, payload, _turn):
         cited = [page["evidence_id"] for page in pages(payload) if FORMULA in page["source_text"]]
-        return "离线控制正文。" + " ".join(f"[{value}]" for value in cited)
+        return ("所示计算式：" + FORMULA if cited else "未见该计算式。") + " ".join(f"[{value}]" for value in cited)
 
     def assert_request_has(self, payload, literals, *, path=None):
         actual = [page for page in pages(payload) if path is None or page["relative_path"] == path]
