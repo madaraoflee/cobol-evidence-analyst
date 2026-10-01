@@ -14,14 +14,18 @@ import re
 from repository_discovery import _connect, _fast_snapshot, _query_terms, discover_repository
 from repository_identity import resolve_source_identity
 from source_reading import _cancel
+from file_impact_evidence import is_file_impact_question
 
 
 _IMPACT_LANGUAGE = re.compile(
     r"影响|影響|改动|修改|變更|变更|用到.{0,24}程序|哪些程序.{0,24}用到|"
-    r"\b(?:impact|affected|affect|change|where[ -]?used|used[ -]?by)\b",
+    r"\b(?:impact|affected|affects?|change|where[ -]?used|used[ -]?by)\b",
     re.IGNORECASE,
 )
 _CODE_TERM = re.compile(r"[A-Za-z][A-Za-z0-9_$#@-]{2,}")
+_OUTGOING_PATH_LIMIT = 32
+_OUTGOING_DEPTH_LIMIT = 4
+_OUTGOING_FRONTIER_LIMIT = 32
 
 
 def _exact_identifier_paths(connection, question):
@@ -106,6 +110,52 @@ def _impact_paths(incoming, seeds, check_cancel):
                 distance[caller] = distance[target] + 1
                 queue.append(caller)
     return distance
+
+
+def _outgoing_paths(edges, seeds, check_cancel):
+    """Nominate bounded dependencies of the requested roots for source reading.
+
+    Incoming callers remain a separate impact navigation graph. Only confirmed
+    CALL/COPY links from these roots expand here; these are static candidates,
+    not proof that a callee executes or writes a particular business value.
+    """
+    forward = defaultdict(set)
+    for edge in edges:
+        if (edge["relation_type"] in {"CALLS", "INCLUDES_COPY"}
+                and edge["resolution"] == "confirmed" and edge.get("target_path")):
+            forward[edge["caller_path"]].add(edge["target_path"])
+    roots = sorted(seeds)
+    distance = {path: 0 for path in roots[:_OUTGOING_PATH_LIMIT]}
+    queue = deque(distance)
+    frontier = []
+    omitted_frontier_count = 0
+    if len(roots) > _OUTGOING_PATH_LIMIT:
+        frontier.append({"reason": "outgoing_dependency_root_budget",
+                         "omitted_count": len(roots) - _OUTGOING_PATH_LIMIT})
+    omitted = set()
+    while queue:
+        _cancel(check_cancel)
+        caller = queue.popleft()
+        for target in sorted(forward[caller]):
+            if target in distance or target in omitted:
+                continue
+            reason = ("outgoing_dependency_depth_budget" if distance[caller] >= _OUTGOING_DEPTH_LIMIT
+                      else "outgoing_dependency_path_budget" if len(distance) >= _OUTGOING_PATH_LIMIT
+                      else None)
+            if reason:
+                omitted.add(target)
+                if len(frontier) < _OUTGOING_FRONTIER_LIMIT - 1:
+                    frontier.append({"reason": reason, "relative_path": target,
+                                     "caller_path": caller})
+                else:
+                    omitted_frontier_count += 1
+                continue
+            distance[target] = distance[caller] + 1
+            queue.append(target)
+    if omitted_frontier_count:
+        frontier.append({"reason": "outgoing_dependency_frontier_budget",
+                         "omitted_count": omitted_frontier_count})
+    return distance, frontier
 
 
 def _explain_paths(incoming, edges, seeds, repository_size, check_cancel):
@@ -281,7 +331,7 @@ def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage
     return selected
 
 
-def _related_program_rules(connection, selected, direct, distance, existing, check_cancel):
+def _related_program_rules(connection, selected, direct, distance, existing, check_cancel, *, file_impact=False):
     """Surface distant calculations and decisions when entry text is generic."""
     if not selected or not connection.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='business_rules'"
@@ -289,12 +339,16 @@ def _related_program_rules(connection, selected, direct, distance, existing, che
         return existing
     seen = {(item["relative_path"], item["start_line"]) for item in existing}
     candidates = sorted(selected - direct, key=lambda path: (-distance.get(path, 0), path))
+    kinds = "'COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE','IF','WHEN','EVALUATE','EXEC_SQL'"
+    if file_impact:
+        kinds += ",'MOVE','READ','START','WRITE','REWRITE','DELETE'"
+    output_rank = "WHEN rule_kind IN ('WRITE','REWRITE','DELETE') THEN -1 " if file_impact else ""
     for relative in candidates[:24]:
         _cancel(check_cancel)
         for row in connection.execute(
             "SELECT * FROM business_rules WHERE relative_path=? "
-            "AND rule_kind IN ('COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE','IF','WHEN','EVALUATE','EXEC_SQL') "
-            "ORDER BY CASE WHEN rule_kind IN ('COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE') "
+            f"AND rule_kind IN ({kinds}) "
+            "ORDER BY CASE " + output_rank + "WHEN rule_kind IN ('COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE') "
             "THEN 0 WHEN rule_kind='EXEC_SQL' THEN 1 ELSE 2 END,first_line LIMIT 3", (relative,)
         ):
             if (relative, row["first_line"]) in seen:
@@ -342,8 +396,13 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
             direct.update(historical)
         intent = "impact" if _IMPACT_LANGUAGE.search(question) else "explain"
         incoming, all_edges = _call_graph(connection, check_cancel) if direct else ({}, [])
+        outgoing, outgoing_frontier = {}, []
         if intent == "impact" and direct:
             distance = _impact_paths(incoming, direct, check_cancel)
+            if is_file_impact_question(question):
+                outgoing, outgoing_frontier = _outgoing_paths(all_edges, direct, check_cancel)
+            for path, depth in outgoing.items():
+                distance.setdefault(path, depth)
             selected = set(distance)
         elif direct:
             distance = _explain_paths(incoming, all_edges, direct, overview["indexed_files"], check_cancel)
@@ -369,6 +428,11 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         if intent == "explain":
             before_related = len(leads)
             leads = _related_program_rules(connection, selected, direct, distance, leads, check_cancel)
+            rule_coverage["related_rules_added"] = len(leads) - before_related
+        elif outgoing:
+            before_related = len(leads)
+            leads = _related_program_rules(connection, set(outgoing), direct, outgoing, leads,
+                                           check_cancel, file_impact=True)
             rule_coverage["related_rules_added"] = len(leads) - before_related
         anchors, anchor_groups = [], set()
         for rule in leads:
@@ -415,6 +479,9 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
                 break
         return {"snapshot_id": overview["snapshot_id"], "intent": intent,
                 "direct_paths": sorted(query_direct), "selected_paths": ordered,
+                "outgoing_dependency_paths": sorted(set(outgoing) - direct,
+                    key=lambda path: (outgoing[path], path)),
+                "outgoing_dependency_frontier": outgoing_frontier,
                 "programs": programs, "relations": relevant_edges,
                 "rule_leads": leads, "spotlights": spotlights,
                 "source_identity": identity, "boundaries": discovery["boundaries"],

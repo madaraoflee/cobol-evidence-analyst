@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from file_impact_evidence import is_file_impact_question
+
 
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _BRIEF = re.compile(r"(?:简短|簡短|简洁|簡潔|简要|簡要)(?:地)?\s*"
@@ -16,6 +18,8 @@ _BRIEF = re.compile(r"(?:简短|簡短|简洁|簡潔|简要|簡要)(?:地)?\s*"
                     r"(?:brief|concise|short) (?:answer|response|explanation)|"
                     r"in (?:one|two|three|a single) sentences?)\b", re.I)
 _LIMITATION = re.compile(
+    r"(?:不足以|无法|無法|不能|未能|难以|難以|尚不能).{0,24}"
+    r"(?:列出|列举|列舉|枚举|枚舉|罗列|羅列).{0,48}(?:字段|欄位|栏位|文件|\b(?:LF|PF|fields?|files?)\b)|"
     r"不足以.{0,12}(?:判断|判斷|确认|確認|解释|解釋|确定|確定|结论|結論|回答|分析|说明|說明|给出|給出)|"
     r"(?:无法|無法|不能|未能|难以|難以|尚未).{0,24}"
     r"(?:判断|判斷|确认|確認|解释|解釋|确定|確定|结论|結論|回答)|"
@@ -33,6 +37,9 @@ _LIMITATION = re.compile(
     r"(?:no|not any)\s+(?:(?:relevant|matching|complete)\s+)?"
     r"(?:source(?:\s+code)?|code|formulas?|calculation (?:rules?|basis|logic)|input sources?)"
     r".{0,48}(?:found|located|available)|"
+    r"(?:cannot|can['’]t|unable to)\s+(?:reliably\s+|yet\s+)?(?:list|enumerate|identify)\b"
+    r".{0,64}\b(?:LF|PF|fields?|files?)\b|"
+    r"insufficient\s+to\s+(?:reliably\s+)?(?:list|enumerate|identify)\b.{0,64}\b(?:LF|PF|fields?|files?)\b|"
     r"cannot (?:yet )?(?:determine|confirm|explain|answer)|"
     r"unable to (?:determine|confirm|explain|answer)|need more source|provide source)\b", re.I)
 _INVESTIGATION_STATEMENT = re.compile(
@@ -111,6 +118,8 @@ _CONDITION_QUESTION = re.compile(r"条件|條件|何时|何時|什么时候|什�
 _ALTERNATIVE_QUESTION = re.compile(
     r"不满足|不滿足|否则|否則|归零|歸零|清零|例外|分支|\b(?:otherwise|else|exceptions?|branches?)\b", re.I)
 _ANSWER_SIGNALS = {
+    "file_io": re.compile(r"写入|寫入|更新|扣减|扣減|读取|讀取|只读|唯讀|删除|刪除|"
+                          r"\b(?:write|writes|rewrite|update[ds]?|read[ -]?only|read[sn]?|delete[ds]?)\b", re.I),
     "formula": re.compile(
         r"[\w)]\s*[=＝×÷*/+]\s*[\w(]|\w\s+-\s+\w|乘|除|加|减|減|之和|之差|倍|等于|等於|"
         r"取值|取自|赋值|賦值|\b(?:multiply|multiplied|multiplying|multiplication|times|scaled?|"
@@ -131,7 +140,8 @@ _ANSWER_SIGNALS = {
         r"retain(?:ed|s)?|preserv(?:e[ds]?|ing))\b", re.I),
 }
 _ASPECT_LABELS = {"formula": "具体算式或运算关系", "inputs": "输入的初值、读取或传入来源",
-                  "conditions": "计算适用的条件", "result_adjustments": "其他分支或结果调整"}
+                  "conditions": "计算适用的条件", "result_adjustments": "其他分支或结果调整",
+                  "file_io": "原文已知的文件/record写入、只读依赖、准确字段名及定位"}
 
 
 def answer_requirements(question, investigation, source_pages, *, answer_detail="detailed"):
@@ -148,6 +158,7 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
     # supplementary input origins that the user did not ask to enumerate.
     detailed_calculation = calculation and detail_requested and bool(_EXPLICIT_DETAIL_REQUEST.search(question))
     requested = {"formula": calculation,
+                 "file_io": is_file_impact_question(question),
                  "inputs": bool(_INPUT_QUESTION.search(question)) or detailed_calculation,
                  "conditions": detailed_calculation or bool(_CONDITION_QUESTION.search(question)),
                  "result_adjustments": detailed_calculation or bool(_ALTERNATIVE_QUESTION.search(question))}
@@ -156,10 +167,25 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
     for item in investigation.get("required_items", []):
         kind = item.get("kind")
         identifiers = [identifier for identifier in item.get("evidence_ids", []) if identifier in visible]
-        if (requested.get(kind) and item.get("status") == "SATISFIED"
+        if (requested.get(kind) and (item.get("status") == "SATISFIED" or
+                                     kind == "file_io" and item.get("status") == "PARTIAL")
                 and item.get("candidate_count", 0) and identifiers):
-            requirements.append({"kind": kind, "description": _ASPECT_LABELS[kind],
-                                 "supplied_reference_ids": identifiers[:8]})
+            requirement = {"kind": kind, "description": _ASPECT_LABELS[kind],
+                           "supplied_reference_ids": identifiers[:8]}
+            if kind == "file_io":
+                observations = [row for row in investigation.get("file_impact", {}).get("observations", [])
+                    if set(row.get("evidence_ids", [])).issubset(visible)]
+                groups = {}
+                if re.search(r"文件|记录|記錄|\b(?:LF|PF|files?|records?)\b", question, re.I):
+                    groups["file_identifiers"] = list(dict.fromkeys(str(name) for row in observations
+                        if row.get("kind") == "io_operation"
+                        for name in (row.get("file_name"), row.get("assigned_name"), row.get("operand")) if name))[:32]
+                if re.search(r"字段|栏位|欄位|\bfields?\b", question, re.I):
+                    groups["field_identifiers"] = list(dict.fromkeys(str(name) for row in observations
+                        for name in (row.get("written_fields", []) if row.get("kind") == "field_assignment"
+                                     else row.get("fields", []) if row.get("kind") == "io_operation" else [])))[:32]
+                requirement["identifier_groups"] = {key: names for key, names in groups.items() if names}
+            requirements.append(requirement)
     return requirements
 
 
@@ -180,6 +206,11 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
         and not re.search(r"[?？]", clause))
     missing = [item["kind"] for item in requirements
                if not _ANSWER_SIGNALS[item["kind"]].search(explanation)]
+    for item in requirements:
+        for group, names in item.get("identifier_groups", {}).items():
+            if not any(re.search(r"(?<![A-Z0-9_$#@-])" + re.escape(name) + r"(?![A-Z0-9_$#@-])",
+                                 explanation, re.I) for name in names):
+                missing.append(group)
     completion.update(required_aspects=[item["kind"] for item in requirements], missing_aspects=missing)
     if missing and completion["status"] != "incomplete":
         completion.update(status="incomplete", reason="supplied_business_aspects_unexplained")

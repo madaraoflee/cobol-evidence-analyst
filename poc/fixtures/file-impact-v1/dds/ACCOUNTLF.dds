@@ -1,0 +1,5 @@
+     A          R ACCTREC                   PFILE(ACCOUNTPF)
+     A            ACCTKEY
+     A            ACCTBAL
+     A            ACCTSTAT
+     A          K ACCTKEY
