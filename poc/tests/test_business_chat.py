@@ -475,7 +475,8 @@ class BusinessChatTests(unittest.TestCase):
                 for page in source_pages(payload)))
             return reply("修订：已补读后续记录。")
         result = self.ask("LONG 程序都展示哪些记录？", respond,
-            policy=AgentPolicy(read_source_characters=512, max_model_requests=3))["agent_result"]
+            policy=AgentPolicy(max_source_characters=4096, read_source_characters=512,
+                               max_model_requests=3))["agent_result"]
         self.assertEqual(result["answer"], "修订：已补读后续记录。")
         self.assertEqual(result["metrics"]["model_requests"], 3)
 
