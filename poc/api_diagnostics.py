@@ -144,6 +144,9 @@ class APIResponseDiagnostics:
             raw_text = body
         else:
             body_bytes, raw_text = 0, ""
+        if body_omitted_reason in {"HTTP_ERROR_BODY_NOT_COLLECTED", "ERROR_RESPONSE_BODY_OMITTED"}:
+            raw_text = ""
+            body_omitted_reason = "ERROR_RESPONSE_BODY_OMITTED"
         sanitized = self._sanitize(raw_text)
         retained = sanitized[:MAX_BODY_CHARACTERS]
         remaining = max(0, MAX_TOTAL_BODY_BYTES - self._body_bytes)
@@ -167,6 +170,25 @@ class APIResponseDiagnostics:
             exchange["body_omitted_reason"] = body_omitted_reason
         self._exchanges.append(exchange)
         return exchange
+
+    def suppress_latest_error(self, outcome_code: str) -> None:
+        """Remove the current response preview after a decoded error envelope.
+
+        A response beyond the capture-count limit must not clear an earlier
+        successful draft. Counters and observed byte sizes remain available.
+        """
+        if not self._exchanges or self._exchanges[-1]["sequence"] != self._request_count:
+            return
+        exchange = self._exchanges[-1]
+        self._body_bytes -= len(str(exchange["body_text"]).encode("utf8"))
+        exchange["body_text"], exchange["body_truncated"] = "", False
+        exchange["body_omitted_reason"] = "ERROR_RESPONSE_BODY_OMITTED"
+        safe_codes = {"MODEL_ERROR_RESPONSE", "HTTP_ERROR", "INVALID_JSON_RESPONSE", "INVALID_RESPONSE_SHAPE",
+                      "RESPONSE_BODY_INVALID", "RESPONSE_TOO_LARGE", "RESPONSE_NESTING_TOO_DEEP",
+                      "TRANSPORT_RESPONSE_INVALID", "HTTP_STATUS_INVALID", "MODEL_MESSAGE_MISSING",
+                      "MODEL_TEXT_EMPTY", "MODEL_TEXT_WRAPPER_UNSUPPORTED", "MODEL_ACTION_RESPONSE",
+                      "MODEL_PROTOCOL_ERROR", "MODEL_CONTENT_FILTERED"}
+        exchange["outcome_code"] = outcome_code if isinstance(outcome_code, str) and outcome_code in safe_codes else "API_ERROR"
 
     def to_dict(self) -> dict[str, object]:
         return {

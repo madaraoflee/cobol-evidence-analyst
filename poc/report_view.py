@@ -16,7 +16,7 @@ _ARRAY_LIMITS = {"page_summaries": 0, "program_summaries": 300, "evidence_refs":
                  "verified_evidence_refs": 3000, "tool_trace": 300, "exchanges": 100,
                  "programs": 20000}
 _PRIORITY = {name: index for index, name in enumerate((
-    "diagnostic_summary", "runner_status", "reason_code", "snapshot_id", "agent_result", "status", "narrative", "answer",
+    "diagnostic_summary", "diagnostic", "diagnostics", "prior_diagnostic", "runner_status", "reason_code", "snapshot_id", "agent_result", "status", "narrative", "answer",
     "model_answer_recorded", "reading_coverage", "investigation", "analysis_scope", "evidence_refs",
     "program_summaries", "api_diagnostics", "unaccepted_response",
 ))}

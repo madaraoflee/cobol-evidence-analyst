@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Callable, Sequence
 
 from company_api import APIConfigurationError, CompanyAPIConfig, Transport
+from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
 from repo_inventory import DEFAULT_EXTENSIONS, parse_extensions
 from run_agent import run_investigation
 from structural_index import build_structural_index
@@ -295,7 +296,7 @@ def analyze_source(
         _write(output / "agent-result.md", "\n".join([
             "# 本次源码问答", "", f"状态：{report['question_status']}；运行状态：{agent['runner_status']}。", "",
             f"快照：{_inline((report.get('build_report') or {}).get('snapshot_id', '未生成'))}。", "",
-            answer or "本次没有生成业务答案。请查看 diagnosis.md 中的原因与下一步。", "",
+            answer or format_diagnostic(agent.get("diagnostic")) or "本次没有生成业务答案。请查看 diagnosis.md 中的原因与下一步。", "",
         ]), markdown=True)
 
     # Replace prior reports before indexing so a failed refresh cannot display an old answer as current.
@@ -459,6 +460,12 @@ def analyze_source(
                                           conversation_history=conversation_history, agent_policy=agent_policy)
             except APIConfigurationError as exc:
                 agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
+                diagnostic = sanitize_diagnostic(getattr(exc, "diagnostic", None))
+                if diagnostic is not None:
+                    agent["diagnostic"] = diagnostic
+            diagnostic = sanitize_diagnostic(agent.get("diagnostic"))
+            if diagnostic is not None:
+                report["diagnostic"] = diagnostic
             result = agent.get("agent_result") or {}
             if (analysis_mode == "business" and reading_strategy == "retrieval"
                     and result.get("snapshot_id")
@@ -480,7 +487,7 @@ def analyze_source(
                 report["question_status"] = result.get("status", "COMPLETED")
             else:
                 report["question_status"] = agent["runner_status"]
-                report["messages"].append("源码索引已建立，问答未完成。请查看页面的 API 返回，或 agent-result.json 的 reason_code、capability_report、agent_result.stop_reason，区分接口、协议和调查限制。")
+                report["messages"].append(format_diagnostic(diagnostic) or "源码索引已建立，问答未完成。请查看页面的 API 返回，或 agent-result.json 的 reason_code、capability_report、agent_result.stop_reason，区分接口、协议和调查限制。")
             # Catch edits made while the model was investigating the stored snapshot.
             if not (analysis_mode == "business" and reading_strategy == "retrieval"):
                 _verify_scope(source, indexed, progress, check_cancel)
@@ -497,8 +504,16 @@ def analyze_source(
         report["source_manifest_verified"] = False
         report["framework_context"] = build_framework_context(reference_path=framework_reference_path)
         report["question_status"] = "BLOCKED" if question else "NOT_REQUESTED"
-        report["messages"].append(str(exc))
+        diagnostic = build_diagnostic("INTERNAL_ERROR")
+        report["diagnostic"] = diagnostic
+        if type(exc) is RuntimeError and exc.args in (
+            ("This SQLite build does not include FTS5 support.",),
+            ("This Python SQLite build does not include FTS5 support.",),
+        ):
+            report["messages"].append("当前 Python SQLite 不支持 FTS5，请使用包含 FTS5 的 Python 环境。")
+        report["messages"].append(format_diagnostic(diagnostic))
         response_diagnostics = agent.get("api_diagnostics")
+        prior_diagnostic = sanitize_diagnostic(agent.get("diagnostic"))
         unaccepted_response = agent.get("unaccepted_response")
         prior_result = agent.get("agent_result") or {}
         narrative = prior_result.get("narrative") or {}
@@ -508,7 +523,10 @@ def analyze_source(
             # Keep the received explanation inspectable after its source
             # authority expires, without granting it active source references.
             unaccepted_response = {"reason_code": "SOURCE_ANALYSIS_FAILED", "text": previous_text[:60_000]}
-        agent = {"runner_status": "NOT_READY", "reason_code": "SOURCE_ANALYSIS_FAILED", "agent_result": None}
+        agent = {"runner_status": "NOT_READY", "reason_code": "SOURCE_ANALYSIS_FAILED",
+                 "agent_result": None, "diagnostic": diagnostic}
+        if prior_diagnostic is not None:
+            agent["prior_diagnostic"] = prior_diagnostic
         if response_diagnostics is not None:
             # Response receipt remains observable after source authority expires.
             agent["api_diagnostics"] = response_diagnostics

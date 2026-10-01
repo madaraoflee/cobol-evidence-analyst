@@ -87,7 +87,8 @@ class APIResponseCaptureTests(unittest.TestCase):
                 self.assertEqual(raised.exception.code, expected)
                 exchange = diagnostics.to_dict()["exchanges"][0]
                 self.assertEqual(exchange["outcome_code"], expected)
-                self.assertEqual(exchange["body_text"], body)
+                self.assertEqual(exchange["body_text"], "")
+                self.assertEqual(exchange["body_omitted_reason"], "ERROR_RESPONSE_BODY_OMITTED")
                 self.assertEqual(exchange["http_status"], status)
                 self.assertEqual(exchange["body_bytes"], len(body.encode("utf-8")))
 
@@ -130,7 +131,7 @@ class APIResponseCaptureTests(unittest.TestCase):
         self.assertNotIn(KEY, json.dumps(decoded))
         self.assertNotIn(KEY, json.dumps(json.loads(decoded["content"])))
 
-    def test_malformed_json_credential_is_redacted_before_truncation(self) -> None:
+    def test_malformed_json_credential_body_is_omitted(self) -> None:
         prefix = "x" * (MAX_BODY_CHARACTERS - 3)
         body = prefix + KEY + '\n{"api_key":"unknown-credential'
         diagnostics = collector()
@@ -141,8 +142,9 @@ class APIResponseCaptureTests(unittest.TestCase):
         with self.assertRaises(APIClientError):
             client.complete(messages=[{"role": "user", "content": "check"}])
         exchange = diagnostics.to_dict()["exchanges"][0]
-        self.assertTrue(exchange["body_truncated"])
-        self.assertEqual(exchange["body_text"], prefix + "[RE")
+        self.assertFalse(exchange["body_truncated"])
+        self.assertEqual(exchange["body_text"], "")
+        self.assertEqual(exchange["body_omitted_reason"], "ERROR_RESPONSE_BODY_OMITTED")
         self.assertNotIn("unknown-credential", json.dumps(exchange))
 
     def test_timeout_records_safe_code_without_exception_or_request_details(self) -> None:
@@ -177,10 +179,11 @@ class APIResponseCaptureTests(unittest.TestCase):
         with self.assertRaises(APIClientError):
             client.complete(messages=[{"role": "user", "content": "check"}])
         exchange = diagnostics.to_dict()["exchanges"][0]
-        self.assertEqual(exchange["body_omitted_reason"], "HTTP_ERROR_BODY_NOT_COLLECTED")
+        self.assertEqual(exchange["body_omitted_reason"], "ERROR_RESPONSE_BODY_OMITTED")
         self.assertEqual(exchange["http_status"], 401)
         self.assertEqual(exchange["body_text"], "")
-        self.assertEqual(error_body.tell(), 0)
+        self.assertTrue(error_body.closed)
+        self.assertEqual(exchange["body_bytes"], len(b"gateway private content"))
 
     def test_collection_has_per_response_total_and_count_limits(self) -> None:
         diagnostics = collector()
@@ -239,7 +242,7 @@ class RunnerDiagnosticsTests(unittest.TestCase):
     def tearDownClass(cls) -> None:
         cls.temporary.cleanup()
 
-    def test_plain_assistant_answer_survives_contract_rejection(self) -> None:
+    def test_plain_assistant_body_is_omitted_after_contract_rejection(self) -> None:
         transport = DiagnosticTransport()
         output = run_investigation(
             "请解释这个程序", self.database, config(), transport=transport,
@@ -255,12 +258,13 @@ class RunnerDiagnosticsTests(unittest.TestCase):
         investigation = diagnostics["exchanges"][-1]
         self.assertEqual(investigation["phase"], "investigation")
         self.assertEqual(investigation["http_status"], 200)
-        self.assertEqual(investigation["outcome_code"], "RESPONSE_RECEIVED")
-        self.assertIn(transport.body, investigation["body_text"])
+        self.assertEqual(investigation["outcome_code"], "MODEL_PROTOCOL_ERROR")
+        self.assertEqual(investigation["body_text"], "")
+        self.assertEqual(investigation["body_omitted_reason"], "ERROR_RESPONSE_BODY_OMITTED")
         self.assertNotIn(transport.body, json.dumps(output["capability_report"], ensure_ascii=False))
         self.assertFalse(output["capability_report"]["privacy"]["response_bodies_recorded"])
 
-    def test_probe_failure_keeps_body_even_when_runner_not_ready(self) -> None:
+    def test_probe_failure_omits_body_when_runner_not_ready(self) -> None:
         body = "The service returned an unexpected authentication page."
         output = run_investigation(
             "check", self.database, config(),
@@ -270,7 +274,8 @@ class RunnerDiagnosticsTests(unittest.TestCase):
         self.assertEqual(output["runner_status"], "NOT_READY")
         exchanges = output["api_diagnostics"]["exchanges"]
         self.assertEqual(len(exchanges), 2)
-        self.assertTrue(all(item["body_text"] == body for item in exchanges))
+        self.assertTrue(all(item["body_text"] == "" for item in exchanges))
+        self.assertTrue(all(item["body_omitted_reason"] == "ERROR_RESPONSE_BODY_OMITTED" for item in exchanges))
         self.assertTrue(all(item["phase"] == "capability_probe" for item in exchanges))
         self.assertNotIn(body, json.dumps(output["capability_report"]))
 
@@ -293,7 +298,8 @@ class RunnerDiagnosticsTests(unittest.TestCase):
         exchanges = output["api_diagnostics"]["exchanges"]
         self.assertEqual([item["http_status"] for item in exchanges], [200, 200, 400, 400])
         self.assertIn('"content": "OK"', exchanges[1]["body_text"])
-        self.assertIn("feature unsupported", exchanges[-1]["body_text"])
+        self.assertEqual(exchanges[-1]["body_text"], "")
+        self.assertEqual(exchanges[-1]["body_omitted_reason"], "ERROR_RESPONSE_BODY_OMITTED")
 
     def test_default_capture_is_off_and_adds_no_requests(self) -> None:
         disabled, enabled = DiagnosticTransport(), DiagnosticTransport()
