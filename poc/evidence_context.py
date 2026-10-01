@@ -116,9 +116,44 @@ class EvidenceContext:
         self._accept_sequence = 0
         self._page_order = {}
         self._group_sequence = {}
+        self.working_set = None
+
+    def covering_id(self, identifier, selected):
+        """Rebind a physical excerpt only to identical text in a complete file."""
+        original = self.pages.get(identifier)
+        if original is None or any(page.get("evidence_id") == identifier for page in selected):
+            return identifier
+        for page in selected:
+            if ("complete_working_set" not in page.get("selection_reasons", ())
+                    or page.get("span_truncated")
+                    or any(page.get(key) != original.get(key) for key in
+                           ("relative_path", "source_sha256"))
+                    or tuple(page.get("include_chain", ())) != tuple(original.get("include_chain", ()))
+                    or page["start_line"] > original["start_line"]
+                    or page["end_line"] < original["end_line"]):
+                continue
+            first = original["start_line"] - page["start_line"]
+            last = original["end_line"] - page["start_line"] + 1
+            if "\n".join(page["source_text"].split("\n")[first:last]) == original["source_text"]:
+                return page["evidence_id"]
+        return identifier
 
     def accept(self, context, operation):
         self._accept_sequence += 1
+        if operation == "complete_working_set":
+            self.working_set = context.get("metadata")
+            for task in self.tasks.values():
+                total = next((row.get("line_count") for row in (self.working_set or {}).get("source_manifest", [])
+                              if row.get("relative_path") == task.relative_path), None)
+                cursor = task.next_start_line or task.requested_range["start_line"]
+                matching = [page for page in context.get("pages", [])
+                            if page.get("relative_path") == task.relative_path
+                            and not page.get("span_truncated")
+                            and (page.get("start_line", 0) <= cursor <= page.get("end_line", 0)
+                                 or (total is not None and page.get("start_line") == 1
+                                     and page.get("end_line") == total < cursor))]
+                if matching and (self.working_set or {}).get("status") == "supplied":
+                    task.advance({**context, "pages": matching, "file_total_lines": total})
         fresh = []
         for position, page in enumerate(context.get("pages", [])):
             identifier = page.get("evidence_id")
@@ -178,6 +213,17 @@ class EvidenceContext:
                         ref.evidence_id for ref in observation.source_refs if ref.evidence_id in self.pages)
         core_identifiers = {identifier for members in core_by_group.values() for identifier in members}
 
+        complete = [page for page in self.pages.values()
+                    if "complete_working_set" in page.get("selection_reasons", ())]
+        if sum(len(page.get("source_text", "")) for page in complete) > maximum:
+            complete = []
+        replacements = {identifier: self.covering_id(identifier, complete) for identifier in self.pages}
+        candidates = {identifier: page for identifier, page in self.pages.items()
+                      if replacements[identifier] == identifier}
+        core_by_group = {group: {replacements[identifier] for identifier in identifiers}
+                         for group, identifiers in core_by_group.items()}
+        core_identifiers = {identifier for members in core_by_group.values() for identifier in members}
+
         def target_rank(page):
             for index, target in enumerate(priority_targets):
                 if isinstance(target, str):
@@ -197,8 +243,8 @@ class EvidenceContext:
             return (target_rank(page), 0 if recent_request or page["evidence_id"] in core_identifiers else page_priority(page),
                     -sequence, position)
 
-        pages = sorted(self.pages.values(), key=rank)
-        units, grouped = [], set()
+        pages = sorted(candidates.values(), key=rank)
+        units, grouped = [], {page["evidence_id"] for page in complete}
         for page in pages:
             identifier = page["evidence_id"]
             if identifier in grouped:
@@ -210,6 +256,8 @@ class EvidenceContext:
             units.append(group)
             grouped.update(item["evidence_id"] for item in group)
         units.sort(key=lambda unit: min(rank(page) for page in unit))
+        if complete:
+            units.insert(0, complete)
         selected, used = [], 0
         for unit in units:
             if sum(len(page.get("source_text", "")) for page in unit) <= maximum - used:
@@ -250,7 +298,7 @@ class EvidenceContext:
                   "supplied_ranges": task.supplied_ranges, "next_start_line": task.next_start_line,
                   "range_complete": task.state == "complete", "state": task.state}
                  for task in self.tasks.values()]
-        return [{"pages": visible, "call_chain": {"links": list(links.values())[:96],
+        result = {"pages": visible, "call_chain": {"links": list(links.values())[:96],
                 "omitted_links": max(0, len(links) - 96)}, "outline": list(outlines.values())[:24],
                 "notices": notices[-8:], "open_reads": reads,
                 "source_selection_trim_events": self.selection_trim_events[:24],
@@ -258,7 +306,10 @@ class EvidenceContext:
                 "source_selection_trim_events_omitted": max(0, len(self.selection_trim_events) - 24),
                 "open_frontier": self.selection_frontier[:24],
                 "open_frontier_count": len(self.selection_frontier),
-                "open_frontier_omitted": max(0, len(self.selection_frontier) - 24)}]
+                "open_frontier_omitted": max(0, len(self.selection_frontier) - 24)}
+        if self.working_set is not None:
+            result["working_set"] = {**self.working_set}
+        return [result]
 
     @staticmethod
     def reconcile_payload(payload):
@@ -285,6 +336,26 @@ class EvidenceContext:
                 if cursor > last:
                     return chosen
             return []
+
+        working_set = bundle.get("working_set")
+        if working_set is not None:
+            manifest = working_set.get("source_manifest", [])
+            supplied = [row["relative_path"] for row in manifest
+                if any(page.get("relative_path") == row["relative_path"]
+                    and page.get("source_sha256") == row["sha256"]
+                    and page.get("evidence_id") == row.get("evidence_id")
+                    and page.get("start_line") == 1 and page.get("end_line") == row["line_count"]
+                    and len(page.get("source_text", "")) == row["source_characters"]
+                    and not page.get("span_truncated") for page in pages)]
+            working_set["supplied_complete_paths"] = supplied
+            working_set["omitted_complete_paths"] = [row["relative_path"] for row in manifest
+                                                     if row["relative_path"] not in supplied]
+            working_set["physical_complete"] = (working_set.get("status") == "supplied"
+                and bool(manifest) and len(supplied) == len(manifest))
+            if working_set.get("status") == "supplied" and not working_set["physical_complete"]:
+                working_set["transmission_status"] = "partial"
+            else:
+                working_set["transmission_status"] = working_set.get("status")
 
         for link in bundle.get("call_chain", {}).get("links", []):
             caller = covers(link.get("caller_path"), link.get("caller_start_line"),
@@ -320,7 +391,10 @@ class EvidenceContext:
     def manifest(payload):
         source = payload["source_context"][0]["pages"]
         framework = payload.get("framework_references", [])
-        return {"source_ids": [p["evidence_id"] for p in source],
+        result = {"source_ids": [p["evidence_id"] for p in source],
                 "framework_ids": [r["reference_id"] for r in framework],
                 "source_characters": sum(len(p.get("source_text", "")) for p in source),
                 "framework_characters": sum(len(r.get("text", "")) for r in framework)}
+        if payload["source_context"][0].get("working_set") is not None:
+            result["working_set"] = json.loads(json.dumps(payload["source_context"][0]["working_set"]))
+        return result

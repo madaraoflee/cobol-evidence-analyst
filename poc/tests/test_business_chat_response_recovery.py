@@ -140,6 +140,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
             output = run_business_chat("rule.cbl 的金额怎么计算？", self.database, self.source,
                 self.config, transport=transport, framework_reference_path="",
                 policy=AgentPolicy(max_model_requests=3, max_answer_revisions=0,
+                                   max_source_characters=512,
                                    initial_pages=1, initial_source_characters=512))
         return output, draft[0]
 

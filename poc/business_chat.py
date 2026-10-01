@@ -278,7 +278,8 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         elif len(bundle["pages"]) > 1:
             protected = {identifier for group in payload.get("evidence_groups", [])
                          for identifier in group.get("core_evidence_ids", [])}
-            removed = max(bundle["pages"], key=lambda p: (p.get("evidence_id") not in protected,
+            removed = max(bundle["pages"], key=lambda p: (
+                "complete_working_set" not in p.get("selection_reasons", ()), p.get("evidence_id") not in protected,
                 page_priority(p), len(p.get("source_text", ""))))
             bundle["pages"].remove(removed)
             record(removed.get("evidence_id"), "request_bytes", len(removed.get("source_text", "")))
@@ -364,12 +365,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     from impact_results import list_impact
     from concept_search import search_concepts
     from question_investigation import build_question_investigation
+    from complete_working_set import build_complete_working_set
     started = time.monotonic()
     timing = {"selected_source_hash_seconds": 0.0, "business_map_seconds": 0.0,
               "retrieval_seconds": 0.0, "read_seconds": 0.0,
               "initial_context_seconds": 0.0, "semantic_evidence_seconds": 0.0,
               "semantic_scope_seconds": 0.0, "context_assembly_seconds": 0.0,
               "provider_wait_seconds": 0.0, "question_investigation_seconds": 0.0}
+    timing["complete_working_set_seconds"] = 0.0
     policy = resolve_agent_policy(policy)
     turns, searches, trace, boundaries, errors = 0, [], [], [], []
     completed_actions, sent_pages, request_sizes = [], {}, []
@@ -731,6 +734,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     expand_map_evidence(business_map)
     if first_lead is not None and not priority_targets:
         add_semantic_context(first_lead)
+    complete_started = time.monotonic()
+    complete_context = build_complete_working_set(database_path, source_session, business_map, policy,
+                                                  check_cancel=check_cancel)
+    timing["complete_working_set_seconds"] += time.monotonic() - complete_started
+    if complete_context["metadata"]["status"] != "not_applicable":
+        accept(complete_context, "complete_working_set")
     timing["initial_context_seconds"] = time.monotonic() - retrieval_started
     source_match_observed = bool(initial.get("matched_file_count", 0) or restored or
         any("conversation_context" in page.get("selection_reasons", []) for page in pages.values()) or
@@ -930,9 +939,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                             "framework_reference_ids": [r["reference_id"] for r in references
                                                 if r.get("selection_reason") == "source_marker"
                                                 and any(o.semantic_role == "callsite" for o in g.observations)],
-                                            "required_evidence_ids": sorted({ref.evidence_id
+                                            "required_evidence_ids": sorted({evidence.covering_id(ref.evidence_id, selected_pages)
                                                 for observation in g.observations for ref in observation.source_refs}),
-                                            "core_evidence_ids": sorted({ref.evidence_id for observation in g.observations
+                                            "core_evidence_ids": sorted({evidence.covering_id(ref.evidence_id, selected_pages) for observation in g.observations
                                                 if observation.semantic_role in {"anchor", "result", "condition", "input", "callsite", "parameter"}
                                                 for ref in observation.source_refs})}
                                            for g in evidence_groups],
@@ -1047,8 +1056,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         if not deferred:
                             answer, truncated = reply.text, reply.truncated
                             answer_round = f"round-{turns}"
-                            answer_manifest = {"source_ids": visible["source_ids"],
-                                               "framework_ids": visible["framework_ids"]}
+                            answer_manifest = visible
                             answer_investigation = current_investigation
                         continue
                     if deferred and not investigation_reprompted:
@@ -1060,8 +1068,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     break
                 answer, truncated = reply.text, reply.truncated
                 answer_round = f"round-{turns}"
-                answer_manifest = {"source_ids": visible["source_ids"],
-                                   "framework_ids": visible["framework_ids"]}
+                answer_manifest = visible
                 answer_investigation = current_investigation
                 break
             key = json.dumps(action, sort_keys=True, ensure_ascii=False)
@@ -1232,8 +1239,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             and not _investigation_deferral(revised_reply.text)):
                         answer, truncated = revised_reply.text, False
                         answer_round = f"round-{turns}"
-                        answer_manifest = {"source_ids": revised_visible["source_ids"],
-                                           "framework_ids": revised_visible["framework_ids"]}
+                        answer_manifest = revised_visible
                         answer_investigation = revised_payload["question_investigation"]
                     else:
                         failure = ("MODEL_REFUSED" if revised_reply.refused else
@@ -1317,7 +1323,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     quality.data["analysis_revision"] = overview["snapshot_id"]
     quality.data["question_source_manifest"] = source_session.source_manifest() if source_session else []
     identity_status = business_map.get("source_identity", {}).get("status")
-    core_ids = {ref.evidence_id for group in evidence_groups for observation in group.observations
+    final_pages = [sent_pages[identifier] for identifier in final_source_ids]
+    core_ids = {evidence.covering_id(ref.evidence_id, final_pages) for group in evidence_groups for observation in group.observations
                 if observation.semantic_role in {"anchor", "result", "condition", "input", "callsite", "parameter"}
                 for ref in observation.source_refs}
     missing_core = core_ids - final_source_ids if answer_manifest else set()
@@ -1325,6 +1332,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     open_question_gaps = final_investigation.get("open_gaps", [])
     incomplete_reads = any(task.material_to_question and task.state != "complete"
                            for task in evidence.tasks.values())
+    final_working_set = (answer_manifest or {}).get("working_set")
+    working_set_trimmed = bool(final_working_set and final_working_set.get("status") == "supplied"
+                              and not final_working_set.get("physical_complete"))
     tool_problem = tool_problem or any(item.get("reason") == "semantic_scope_unavailable"
                                        for item in boundaries)
     material_gap = ("source_identity_" + identity_status if identity_status in {"ambiguous", "not_found"}
@@ -1332,6 +1342,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     else "evidence_incomplete" if missing_core
                     else "question_evidence_incomplete" if open_question_gaps
                     else "evidence_read_incomplete" if incomplete_reads
+                    else "working_set_transmission_incomplete" if working_set_trimmed
                     else "tool_unavailable" if tool_problem else None)
     if missing_core:
         boundaries.append({"reason": "evidence_incomplete", "missing_core_evidence_count": len(missing_core),
@@ -1339,6 +1350,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     quality.data["source_selection_frontier"] = list(evidence.selection_frontier)
     quality.data["rule_lead_coverage"] = business_map.get("rule_lead_coverage", {})
     quality.data["question_investigation"] = final_investigation
+    if final_working_set is not None:
+        quality.data["working_set"] = final_working_set
     if failure:
         stop_reason = failure
     elif turns >= policy.max_model_requests and (open_question_gaps or incomplete_reads):
@@ -1370,6 +1383,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                      "selected_paths": list(dict.fromkeys(ref["relative_path"] for ref in refs)),
                      "scope_kind": "retrieved_context", "full_repository_semantics_verified": False,
                      "business_map": {key: value for key, value in business_map.items() if key != "spotlights"}}
+    if final_working_set is not None:
+        investigation["working_set"] = final_working_set
     investigation_state = {"focus_candidates": [{"relative_path": item.get("relative_path"),
         "program_name": item.get("program_name"), "line": item.get("start_line")}
         for item in business_map.get("rule_leads", [])[:8]],

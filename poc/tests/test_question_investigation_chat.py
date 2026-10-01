@@ -218,7 +218,8 @@ class QuestionInvestigationChatTests(unittest.TestCase):
             return f"基础金额大于零时按基础金额乘系数计算；否则结果为零。[{formula['evidence_id']}]"
         with mock.patch.object(business_chat, "build_business_map", side_effect=limited_navigation):
             result = self.ask("rule.cbl 的金额怎么计算？", respond,
-                policy=AgentPolicy(initial_pages=1, initial_source_characters=512))
+                policy=AgentPolicy(max_source_characters=4096,
+                                   initial_pages=1, initial_source_characters=512))
         self.assertEqual(len(self.requests), 2)
         self.assertFalse(any("COMPUTE FINAL-AMOUNT" in page["source_text"]
                              for page in self.requests[0]["source_context"][0]["pages"]))
