@@ -40,7 +40,7 @@ PROJECT_ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 MAX_ENV_FILE_BYTES = 65_536
 CONFIG_ENV_KEYS = frozenset({
     "COMPANY_API_BASE_URL", "COMPANY_API_KEY", "COMPANY_CHAT_MODEL",
-    "COMPANY_EMBEDDING_MODEL", "COMPANY_API_STYLE",
+    "COMPANY_EMBEDDING_MODEL", "COMPANY_API_STYLE", "COMPANY_MAX_OUTPUT_TOKENS",
     "FRAMEWORK_REFERENCE_PATH",
 })
 
@@ -244,13 +244,15 @@ class CompanyAPIConfig:
         embedding_model: str | None = None,
         api_style: str | None = None,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
-        max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
+        max_output_tokens: int | None = None,
+        default_max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
         allow_insecure_localhost: bool = False,
     ) -> "CompanyAPIConfig":
         """Resolve explicit values, process environment, then the project .env.
 
         No process variables are changed. An explicitly supplied environment
         is isolated from ambient files unless env_file is also supplied.
+        Output limits fall back to the caller's profile default when absent.
         """
 
         environment = os.environ if environ is None else environ
@@ -258,6 +260,19 @@ class CompanyAPIConfig:
             _read_local_env(PROJECT_ENV_FILE) if environ is None else {}
         )
         source = {**local, **{key: environment[key] for key in CONFIG_ENV_KEYS if key in environment}}
+        resolved_output_tokens = default_max_output_tokens
+        if max_output_tokens is not None:
+            resolved_output_tokens = max_output_tokens
+        elif "COMPANY_MAX_OUTPUT_TOKENS" in source:
+            raw_tokens = source["COMPANY_MAX_OUTPUT_TOKENS"]
+            if not isinstance(raw_tokens, str) or not re.fullmatch(r"[0-9]+", raw_tokens.strip()):
+                raise APIConfigurationError("MAX_OUTPUT_TOKENS_INVALID")
+            try:
+                resolved_output_tokens = int(raw_tokens.strip())
+            except ValueError:
+                raise APIConfigurationError("MAX_OUTPUT_TOKENS_INVALID") from None
+            if not 128 <= resolved_output_tokens <= 8192:
+                raise APIConfigurationError("MAX_OUTPUT_TOKENS_INVALID")
         resolved_key = (
             api_key
             if api_key is not None
@@ -291,7 +306,7 @@ class CompanyAPIConfig:
                 else source.get("COMPANY_API_STYLE", SUPPORTED_API_STYLE)
             ),
             timeout_seconds=timeout_seconds,
-            max_output_tokens=max_output_tokens,
+            max_output_tokens=resolved_output_tokens,
             allow_insecure_localhost=allow_insecure_localhost,
         )
         config.validate(require_key=True)
