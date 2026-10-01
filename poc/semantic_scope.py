@@ -265,7 +265,18 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
                             purpose="explain", policy):
     """Keep exact units and conservative links around one selected anchor."""
     path, line = anchor["relative_path"], int(anchor["line"])
-    selected, roles = {}, {}
+    selected, roles, bases = {}, {}, {}
+    frontier = list(scope.frontier)
+
+    def bounded(db, query, arguments, limit, reason, relative):
+        candidates = db.execute(query + " LIMIT ?", (*arguments, limit + 1)).fetchall()
+        if len(candidates) > limit:
+            count = db.execute("SELECT COUNT(*) FROM (" + query + ")", arguments).fetchone()[0]
+            frontier.append({"reason": reason, "relative_path": relative,
+                "candidate_count": count, "omitted_count": count - limit, "limit": limit,
+                "interpretation_basis": "conservative_relation_candidates_not_execution_proof"})
+        return candidates[:limit]
+
     with closing(sqlite3.connect(scope.database_path)) as db:
         db.row_factory = sqlite3.Row
         locations = [(path, line)]
@@ -278,7 +289,7 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
                 (unit_path, anchor_line, anchor_line)).fetchone()
             if row:
                 selected[row["unit_id"]] = row
-                roles[row["unit_id"]] = "result" if row["name"] in {"COMPUTE", "MOVE", "ADD", "SUBTRACT"} else "callsite" if row["name"] == "CALL" else "anchor"
+                roles[row["unit_id"]] = "result" if row["name"] in {"COMPUTE", "MOVE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"} else "callsite" if row["name"] == "CALL" else "anchor"
         if not selected:
             return EvidenceGroup("group_" + scope.scope_key[:12], anchor, purpose,
                                  open_frontier=[{"reason": "anchor_not_structurally_parsed", **anchor}])
@@ -295,10 +306,26 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
                         declaration = db.execute("SELECT * FROM code_units WHERE unit_id=?", (symbol["definition_unit_id"],)).fetchone()
                         if declaration:
                             selected[declaration["unit_id"]], roles[declaration["unit_id"]] = declaration, "declaration"
-                        # Exact symbol identity avoids conflating names in two programs.
-                        for linked in db.execute("SELECT u.*,r.relation_type FROM relations r JOIN code_units u ON u.unit_id=r.from_entity_id WHERE r.target_entity_id=? AND r.relation_type IN ('READS','WRITES') ORDER BY u.start_line LIMIT 12", (symbol["symbol_id"],)):
+                        # Nearby prior writes are candidates, not reaching definitions.
+                        for linked in bounded(db,
+                                "SELECT u.*,r.relation_type FROM relations r JOIN code_units u "
+                                "ON u.unit_id=r.from_entity_id WHERE r.target_entity_id=? "
+                                "AND r.relation_type IN ('READS','WRITES') "
+                                "ORDER BY CASE WHEN u.unit_id=? THEN 0 "
+                                "WHEN r.relation_type='WRITES' AND u.start_line<=? THEN 1 ELSE 2 END,"
+                                "ABS(u.start_line-?),u.start_line,u.unit_id",
+                                (symbol["symbol_id"], unit_id, selected[unit_id]["start_line"],
+                                 selected[unit_id]["start_line"]), 12,
+                                "same_symbol_candidates_limited", selected[unit_id]["relative_path"]):
                             selected[linked["unit_id"]] = linked
-                            roles[linked["unit_id"]] = "input" if linked["relation_type"] == "READS" else "result"
+                            if linked["unit_id"] in anchor_units:
+                                continue
+                            candidate_role = ("input" if relation["relation_type"] == "READS" and
+                                linked["relation_type"] == "WRITES" else "return_processing" if
+                                relation["relation_type"] == "WRITES" and linked["relation_type"] == "READS"
+                                else "related_statement")
+                            roles.setdefault(linked["unit_id"], candidate_role)
+                            bases[linked["unit_id"]] = "same_symbol_candidate_not_reaching_definition"
             call = selected[unit_id]
             if call["name"] == "CALL":
                 for binding in db.execute("SELECT * FROM call_bindings WHERE callsite_id=?", (unit_id,)):
@@ -310,17 +337,22 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
                                 declaration = db.execute("SELECT * FROM code_units WHERE unit_id=?", (symbol[0],)).fetchone()
                                 if declaration:
                                     selected[declaration["unit_id"]], roles[declaration["unit_id"]] = declaration, role
-                            for linked in db.execute("SELECT u.*,r.relation_type FROM relations r "
+                            for linked in bounded(db, "SELECT u.*,r.relation_type FROM relations r "
                                     "JOIN code_units u ON u.unit_id=r.from_entity_id "
                                     "WHERE r.target_entity_id=? AND r.relation_type IN ('READS','WRITES') "
-                                    "ORDER BY u.start_line LIMIT 16", (symbol_id,)):
+                                    "ORDER BY ABS(u.start_line-?),u.start_line,u.unit_id",
+                                    (symbol_id, call["start_line"]), 16,
+                                    "binding_candidates_limited", call["relative_path"]):
                                 selected[linked["unit_id"]] = linked
-                                roles[linked["unit_id"]] = "input" if linked["relation_type"] == "READS" else "return_processing"
+                                if linked["unit_id"] not in anchor_units:
+                                    roles.setdefault(linked["unit_id"], "input" if linked["relation_type"] == "WRITES" else "return_processing")
+                                    bases[linked["unit_id"]] = "same_symbol_candidate_not_reaching_definition"
             # Neighbouring control and return checks are candidates, never
             # proof that one physical line follows at runtime.
-            nearby = db.execute("SELECT * FROM code_units WHERE relative_path=? AND program_name=? AND unit_type='Statement' "
-                "AND start_line BETWEEN ? AND ? ORDER BY start_line LIMIT 30",
-                (call["relative_path"], call["program_name"], max(1, call["start_line"] - 12), call["end_line"] + 16))
+            nearby = bounded(db, "SELECT * FROM code_units WHERE relative_path=? AND program_name=? AND unit_type='Statement' "
+                "AND start_line BETWEEN ? AND ? ORDER BY ABS(start_line-?),start_line,unit_id",
+                (call["relative_path"], call["program_name"], max(1, call["start_line"] - 12), call["end_line"] + 16,
+                 call["start_line"]), 30, "nearby_candidates_limited", call["relative_path"])
             for row in nearby:
                 if row["name"] in {"IF", "ELSE", "EVALUATE", "WHEN", "ON SIZE ERROR", "CALL", "MOVE", "COMPUTE", "END-IF"}:
                     selected[row["unit_id"]] = row
@@ -333,14 +365,18 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
                     "WHERE r.from_entity_id=? AND r.relation_type='CALLS'", (call["unit_id"],)):
                 if relation["status"] != "confirmed" or not relation["relative_path"]:
                     continue
-                for callee in db.execute("SELECT * FROM code_units WHERE relative_path=? "
+                for callee in bounded(db, "SELECT * FROM code_units WHERE relative_path=? "
                         "AND unit_type='Statement' AND name IN ('COMPUTE','MOVE','IF','EVALUATE','WHEN') "
-                        "ORDER BY start_line LIMIT 24", (relation["relative_path"],)):
+                        "ORDER BY start_line", (relation["relative_path"],), 24,
+                        "callee_candidates_limited", relation["relative_path"]):
                     selected[callee["unit_id"]] = callee
                     roles.setdefault(callee["unit_id"], "callee_processing")
         # Reach the caller of a computed result and the caller of a paragraph.
         # Static links nominate source to read; they do not assert execution.
         frontier_units = list(selected)
+        if len(frontier_units) > 32:
+            frontier.append({"reason": "caller_expansion_candidates_limited", "candidate_count": len(frontier_units),
+                             "omitted_count": len(frontier_units) - 32, "limit": 32})
         for unit_id in frontier_units[:32]:
             unit = selected[unit_id]
             if unit["unit_type"] not in {"Statement", "Paragraph"}:
@@ -354,29 +390,41 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
                 targets.extend(row[0] for row in db.execute("SELECT symbol_id FROM symbols "
                     "WHERE definition_unit_id=? AND symbol_type='Paragraph'", (unit["parent_unit_id"],)))
             for target in targets:
-                for caller in db.execute("SELECT u.* FROM relations r JOIN code_units u ON u.unit_id=r.from_entity_id "
+                for caller in bounded(db, "SELECT u.* FROM relations r JOIN code_units u ON u.unit_id=r.from_entity_id "
                         "WHERE r.target_entity_id=? AND r.relation_type IN ('CALLS','PERFORMS','PERFORMS_THRU') "
-                        "ORDER BY u.relative_path,u.start_line LIMIT 8", (target,)):
+                        "ORDER BY u.relative_path,u.start_line", (target,), 8,
+                        "caller_candidates_limited", unit["relative_path"]):
                     selected[caller["unit_id"]], roles[caller["unit_id"]] = caller, "callsite"
-                    for nearby in db.execute("SELECT * FROM code_units WHERE relative_path=? AND program_name=? "
+                    for nearby in bounded(db, "SELECT * FROM code_units WHERE relative_path=? AND program_name=? "
                             "AND unit_type='Statement' AND start_line BETWEEN ? AND ? "
-                            "ORDER BY start_line LIMIT 24", (caller["relative_path"], caller["program_name"],
-                            max(1, caller["start_line"] - 12), caller["end_line"] + 24)):
+                            "ORDER BY ABS(start_line-?),start_line,unit_id", (caller["relative_path"], caller["program_name"],
+                            max(1, caller["start_line"] - 12), caller["end_line"] + 24, caller["start_line"]),
+                            24, "caller_nearby_candidates_limited", caller["relative_path"]):
                         if nearby["name"] in {"IF", "ELSE", "EVALUATE", "WHEN", "MOVE", "COMPUTE", "CALL", "PERFORM", "END-IF"}:
                             selected[nearby["unit_id"]] = nearby
                             roles.setdefault(nearby["unit_id"], "condition" if nearby["name"] in {"IF", "EVALUATE", "WHEN", "ELSE"} else "return_processing")
         observations, supplied = [], []
-        for unit in sorted(selected.values(), key=lambda row: (row["relative_path"], row["start_line"], row["unit_id"]))[:80]:
+        ordered = sorted(selected.values(), key=lambda row: (
+            row["unit_id"] not in anchor_units,
+            roles.get(row["unit_id"]) not in {"result", "condition", "input", "parameter"},
+            row["relative_path"] != path, abs(row["start_line"] - line), row["unit_id"]))
+        for omitted in ordered[80:]:
+            frontier.append({"reason": "observation_budget", "relative_path": omitted["relative_path"],
+                "start_line": omitted["start_line"], "end_line": omitted["end_line"], "limit": 80})
+        for unit in ordered[:80]:
             pages = _source_pages(scope, unit)
             refs = []
             for page in pages:
+                page["semantic_roles"] = [roles.get(unit["unit_id"], "related_statement")]
+                page["interpretation_basis"] = ("source_observation" if unit["unit_id"] in anchor_units else
+                    bases.get(unit["unit_id"], "conservative_relation_candidate"))
                 refs.append(SourceRef("source", page["relative_path"], page["source_sha256"],
                     page["start_line"], page["end_line"], hashlib.sha256(page["source_text"].encode()).hexdigest(),
                     page["evidence_id"], tuple(json.dumps(x, sort_keys=True) for x in page.get("include_chain", []))))
                 supplied.append(page)
             observations.append(Observation(unit["unit_id"], roles.get(unit["unit_id"], "related_statement"), refs,
                 interpretation_basis="source_observation" if unit["unit_id"] in anchor_units
-                                     else "conservative_relation_candidate"))
+                                     else bases.get(unit["unit_id"], "conservative_relation_candidate")))
     archive_evidence(source_session.database_path, supplied)
     return EvidenceGroup("group_" + hashlib.sha256((scope.scope_key + str(anchor)).encode()).hexdigest()[:16],
-        anchor, purpose, observations, supplied_locations=supplied, open_frontier=list(scope.frontier))
+        anchor, purpose, observations, supplied_locations=supplied, open_frontier=frontier)

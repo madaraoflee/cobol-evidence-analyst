@@ -56,6 +56,10 @@ class ReadTask:
 
     def advance(self, context):
         previous = self.next_start_line or self.requested_range["start_line"]
+        requested_end = self.requested_range["end_line"]
+        total = context.get("file_total_lines")
+        if isinstance(total, int) and total >= 0:
+            requested_end = min(requested_end, total)
         for page in context.get("pages", []):
             if page.get("relative_path") == self.relative_path and not page.get("span_truncated"):
                 self.supplied_ranges.append((page["start_line"], page["end_line"]))
@@ -64,7 +68,7 @@ class ReadTask:
             if first > cursor:
                 break
             cursor = max(cursor, last + 1)
-        if cursor > self.requested_range["end_line"]:
+        if cursor > requested_end:
             self.state, self.next_start_line = "complete", None
         elif cursor > previous:
             self.next_start_line = cursor
@@ -89,8 +93,10 @@ class InvestigationState:
 def page_priority(page):
     roles = set(page.get("semantic_roles", ()))
     reasons = set(page.get("selection_reasons", ()))
-    if roles & {"result", "condition", "input", "callsite", "return_processing", "declaration"}:
+    if roles & {"anchor", "result", "condition", "input", "parameter"}:
         return 0
+    if roles & {"callsite", "return_processing", "declaration"}:
+        return 1
     if reasons & {"agent_requested_read", "business_rule", "conversation_context"}:
         return 1
     if "question_match" in reasons:
@@ -105,16 +111,38 @@ class EvidenceContext:
         self.retrieved_ids = set()
         self.sent_any_round_ids = set()
         self.tasks = {}
+        self.selection_trim_events = []
+        self.selection_frontier = []
+        self._accept_sequence = 0
+        self._page_order = {}
+        self._group_sequence = {}
 
     def accept(self, context, operation):
+        self._accept_sequence += 1
         fresh = []
-        for page in context.get("pages", []):
+        for position, page in enumerate(context.get("pages", [])):
             identifier = page.get("evidence_id")
             if identifier:
                 self.retrieved_ids.add(identifier)
                 if identifier not in self.pages:
-                    self.pages[identifier] = page
+                    self.pages[identifier] = dict(page)
                     fresh.append(page)
+                else:
+                    saved = self.pages[identifier]
+                    for key in ("relative_path", "start_line", "end_line", "source_sha256", "source_text", "include_chain"):
+                        if key in saved and key in page and saved[key] != page[key]:
+                            raise ValueError("EVIDENCE_ID_CONTENT_MISMATCH")
+                    for key in ("semantic_roles", "selection_reasons", "group_ids"):
+                        saved[key] = list(dict.fromkeys([*saved.get(key, []), *page.get(key, [])]))
+                    if page.get("group_id"):
+                        saved["group_id"] = page["group_id"]
+                saved = self.pages[identifier]
+                saved["group_ids"] = list(dict.fromkeys([*saved.get("group_ids", []),
+                    *([saved["group_id"]] if saved.get("group_id") else []),
+                    *([page["group_id"]] if page.get("group_id") else [])]))
+                self._page_order[identifier] = (self._accept_sequence, position, operation)
+                for group in [*page.get("group_ids", []), *([page["group_id"]] if page.get("group_id") else [])]:
+                    self._group_sequence[group] = self._accept_sequence
         self.contexts.append({"call_chain": context.get("call_chain", {}),
                               "outline": context.get("outline", []),
                               "notice": context.get("notice"),
@@ -134,14 +162,68 @@ class EvidenceContext:
             task.advance(context)
         return fresh
 
-    def selected_pages(self, maximum):
-        pages = sorted(self.pages.values(), key=lambda page: (page_priority(page), page.get("relative_path", ""), page.get("start_line", 0)))
-        selected, used = [], 0
+    def selected_pages(self, maximum, *, evidence_groups=(), priority_targets=()):
+        """Keep recent anchors and their core evidence together within whole-page budgets."""
+        self.selection_trim_events, self.selection_frontier = [], []
+        core_roles = {"anchor", "result", "condition", "input", "parameter"}
+        core_by_group = {}
+        for page in self.pages.values():
+            if set(page.get("semantic_roles", ())) & core_roles:
+                for group in page.get("group_ids", ()):
+                    core_by_group.setdefault(group, set()).add(page["evidence_id"])
+        for group in evidence_groups:
+            for observation in group.observations:
+                if observation.semantic_role in core_roles:
+                    core_by_group.setdefault(group.group_id, set()).update(
+                        ref.evidence_id for ref in observation.source_refs if ref.evidence_id in self.pages)
+        core_identifiers = {identifier for members in core_by_group.values() for identifier in members}
+
+        def target_rank(page):
+            for index, target in enumerate(priority_targets):
+                if isinstance(target, str):
+                    matched = target in {page.get("evidence_id"), page.get("relative_path")}
+                else:
+                    first = target.get("line", target.get("start_line", 1))
+                    last = target.get("end_line", first)
+                    matched = (target.get("relative_path") == page.get("relative_path") and
+                               page.get("start_line", 0) <= last and page.get("end_line", 0) >= first)
+                if matched:
+                    return index
+            return len(priority_targets)
+
+        def rank(page):
+            sequence, position, operation = self._page_order.get(page["evidence_id"], (0, 0, ""))
+            recent_request = operation in {"read", "read_continuation"}
+            return (target_rank(page), 0 if recent_request or page["evidence_id"] in core_identifiers else page_priority(page),
+                    -sequence, position)
+
+        pages = sorted(self.pages.values(), key=rank)
+        units, grouped = [], set()
         for page in pages:
-            size = len(page.get("source_text", ""))
-            if size <= maximum - used:
-                selected.append(page)
-                used += size
+            identifier = page["evidence_id"]
+            if identifier in grouped:
+                continue
+            eligible = [(group, ids) for group, ids in core_by_group.items() if identifier in ids]
+            members = min(eligible, key=lambda item: (min(rank(self.pages[value]) for value in item[1]),
+                -self._group_sequence.get(item[0], 0)))[1] if eligible else {identifier}
+            group = sorted((self.pages[item] for item in members if item not in grouped), key=rank)
+            units.append(group)
+            grouped.update(item["evidence_id"] for item in group)
+        units.sort(key=lambda unit: min(rank(page) for page in unit))
+        selected, used = [], 0
+        for unit in units:
+            if sum(len(page.get("source_text", "")) for page in unit) <= maximum - used:
+                selected.extend(unit)
+                used += sum(len(page.get("source_text", "")) for page in unit)
+            else:
+                for page in unit:
+                    item = {"evidence_id": page["evidence_id"], "relative_path": page.get("relative_path"),
+                            "start_line": page.get("start_line"), "end_line": page.get("end_line"),
+                            "reason": "source_characters", "dropped_characters": len(page.get("source_text", "")),
+                            "group_ids": sorted({*page.get("group_ids", []),
+                                *(group for group, members in core_by_group.items() if page["evidence_id"] in members)})}
+                    self.selection_trim_events.append(item)
+                    self.selection_frontier.append({**item, "reason": "source_budget_evidence_omitted"})
         identifiers = {page["evidence_id"] for page in selected}
         return [page for identifier, page in self.pages.items() if identifier in identifiers]
 
@@ -170,7 +252,13 @@ class EvidenceContext:
                  for task in self.tasks.values()]
         return [{"pages": visible, "call_chain": {"links": list(links.values())[:96],
                 "omitted_links": max(0, len(links) - 96)}, "outline": list(outlines.values())[:24],
-                "notices": notices[-8:], "open_reads": reads}]
+                "notices": notices[-8:], "open_reads": reads,
+                "source_selection_trim_events": self.selection_trim_events[:24],
+                "source_selection_trim_event_count": len(self.selection_trim_events),
+                "source_selection_trim_events_omitted": max(0, len(self.selection_trim_events) - 24),
+                "open_frontier": self.selection_frontier[:24],
+                "open_frontier_count": len(self.selection_frontier),
+                "open_frontier_omitted": max(0, len(self.selection_frontier) - 24)}]
 
     @staticmethod
     def reconcile_payload(payload):
@@ -216,6 +304,16 @@ class EvidenceContext:
             required = set(group.get("required_evidence_ids", []))
             supplied = sorted(required & visible)
             group["visible_evidence_ids"] = supplied
+            missing = required - visible
+            group["open_frontier"] = [item for item in group.get("open_frontier", [])
+                                      if item.get("reason") != "required_evidence_not_visible"]
+            existing = {item.get("evidence_id") for item in group.get("open_frontier", [])}
+            derived = sorted(missing - existing)
+            for identifier in derived[:24]:
+                group.setdefault("open_frontier", []).append({"evidence_id": identifier,
+                    "reason": "required_evidence_not_visible", "group_id": group.get("group_id")})
+            group["missing_evidence_count"] = len(missing)
+            group["omitted_visibility_frontier_count"] = max(0, len(derived) - 24)
             group["complete_text_supplied"] = bool(required) and required <= visible and not group.get("open_frontier")
 
     @staticmethod

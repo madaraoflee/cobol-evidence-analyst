@@ -128,8 +128,14 @@ class APIMessageIntegrityTests(unittest.TestCase):
                         source, local_config(), transport=transport, framework_reference_path="",
                         policy=AgentPolicy(max_model_requests=1))
                     result = output["agent_result"]
-                    self.assertEqual(result["status"], "ANALYZED")
+                    self.assertEqual(result["status"], "PARTIAL")
+                    inputs = next(item for item in result["investigation_state"]["question_investigation"]["required_items"]
+                                  if item["kind"] == "inputs")
+                    self.assertEqual(inputs["reason"], "input_source_not_located")
+                    self.assertEqual(set(inputs["fields"]), {"INSURED-AMOUNT", "BASE-RATE"})
                     self.assertIn("保费按保额乘以费率计算并舍入。", result["answer"])
+                    self.assertEqual(len(result["narrative"]["citations"]), 1)
+                    self.assertEqual(result["narrative"]["citations"][0]["kind"], "source_page")
                     self.assertEqual(result["metrics"]["model_requests"], 1)
                     trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text(encoding="utf-8"))
                     self.assertEqual(trace["rounds"][0]["response"]["finish_reason"], "stop")

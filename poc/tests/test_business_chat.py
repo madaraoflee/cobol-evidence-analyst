@@ -448,7 +448,14 @@ class BusinessChatTests(unittest.TestCase):
             return reply("计算候选和返回清零分支已见源码，仍需业务复核。")
         result = self.ask("ENTRY RESULT-COUNT 如何计算及返回时清零？", respond)["agent_result"]
         self.assertEqual(result["metrics"]["model_requests"], 1)
-        self.assertEqual(result["status"], "ANALYZED")
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["stop_reason"], "question_evidence_incomplete")
+        inputs = next(item for item in result["investigation_state"]["question_investigation"]["required_items"]
+                      if item["kind"] == "inputs")
+        self.assertEqual(inputs["reason"], "input_source_not_located")
+        self.assertIn("INPUT-COUNT", inputs["fields"])
+        self.assertIn("返回清零分支已见源码", result["answer"])
+        self.assertTrue(result["evidence_refs"])
 
     def test_partial_read_cursor_causes_one_grounded_draft_revision(self):
         self.write("long.cbl", "LONG", "\n".join(f"DISPLAY 'RECORD-{index:03d}'." for index in range(300)))
