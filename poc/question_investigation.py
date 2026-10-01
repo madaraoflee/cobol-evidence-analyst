@@ -15,6 +15,8 @@ import re
 import sqlite3
 from urllib.parse import quote
 
+from file_impact_evidence import is_file_impact_question, nominate_file_impact_evidence
+
 
 _CALCULATION = re.compile(r"计算|計算|公式|怎么算|怎麼算|如何算|算出|\b(?:calculation|calculate[ds]?|calculating|formula|computed?)\b", re.I)
 _BUSINESS_DETAIL = re.compile(r"流程|处理目的|處理目的|业务目的|業務目的|业务功能|業務功能|程序(?:功能|作用)|"
@@ -118,7 +120,8 @@ def _input_candidates(db, path, fields):
     return collected, required[:_MAX_FIELDS], frontier
 
 
-def _indexed_candidates(database_path, paths, question, *, business_steps=False, root_paths=None):
+def _indexed_candidates(database_path, paths, question, *, business_steps=False, root_paths=None,
+                        file_impact=False):
     """Select exact field obligations before applying bounded source budgets."""
     candidates, frontier, hashes = [], [], {}
     primary_kind = "business_steps" if business_steps else "formula"
@@ -141,6 +144,8 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
         kinds = "'COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE'"
         if business_steps:
             kinds += ",'MOVE','IF','EVALUATE','WHEN','EXEC_SQL'"
+        if file_impact:
+            kinds += ",'READ','START','WRITE','REWRITE','DELETE'"
         if tokens and scoped_paths:
             field_slots = ",".join("?" for _ in tokens)
             path_order = "CASE b.relative_path " + " ".join(
@@ -473,7 +478,8 @@ def build_question_investigation(question, business_map, *, database_path=None,
     if identity.get("status") in {"ambiguous", "not_found"}:
         return {**base, "state": "unresolved", "can_answer": False}
     calculation = bool(_CALCULATION.search(question))
-    business_steps = not calculation and bool(_BUSINESS_DETAIL.search(question))
+    file_impact = is_file_impact_question(question)
+    business_steps = not calculation and (bool(_BUSINESS_DETAIL.search(question)) or file_impact)
     if not calculation and not business_steps:
         return base
     if not located:
@@ -486,6 +492,8 @@ def build_question_investigation(question, business_map, *, database_path=None,
     paths = _calculation_paths(business_map, source_pages)
     root_paths = _calculation_roots(business_map, source_pages)
     candidates, frontier, hashes = [], [], {}
+    impact_frontier = [{"kind": "dependencies", **gap}
+                       for gap in business_map.get("outgoing_dependency_frontier", [])] if file_impact else []
     cache_hit = False
     if database_path is not None:
         key = (str(Path(database_path).resolve()), business_map.get("snapshot_id"), tuple(paths),
@@ -496,16 +504,21 @@ def build_question_investigation(question, business_map, *, database_path=None,
             business_steps = candidate_cache.get("business_steps", business_steps)
         else:
             candidates, frontier, hashes = _indexed_candidates(database_path, paths, question,
-                                                               business_steps=business_steps, root_paths=root_paths)
+                business_steps=business_steps, root_paths=root_paths, file_impact=file_impact)
             if calculation and not any(row["kind"] == "formula" for row in candidates):
                 # Some calculations select or transfer values through branches.
                 # Reuse the existing bounded step selection without asserting a
                 # formula, complete value flow, or any actual runtime result.
                 steps, step_frontier, step_hashes = _indexed_candidates(database_path, paths, question,
-                    business_steps=True, root_paths=root_paths)
+                    business_steps=True, root_paths=root_paths, file_impact=file_impact)
                 if any(row["kind"] == "business_steps" for row in steps):
                     business_steps = True
                     candidates, frontier, hashes = steps, step_frontier, step_hashes
+            if file_impact:
+                file_candidates, file_frontier, file_hashes = nominate_file_impact_evidence(database_path, paths)
+                candidates.extend(file_candidates)
+                frontier.extend(file_frontier)
+                hashes.update(file_hashes)
             dependencies, dependency_frontier = _dependencies(database_path, list(hashes), candidates, hashes,
                                                               business_steps=business_steps)
             candidates.extend(dependencies)
@@ -540,6 +553,8 @@ def build_question_investigation(question, business_map, *, database_path=None,
     kinds = ["formula", "inputs", "conditions", "result_adjustments", "dependencies"]
     if business_steps:
         kinds.insert(0, "business_steps")
+    if file_impact:
+        kinds.extend(("file_io", "file_definitions", "dds_definitions"))
     for kind in kinds:
         related = [row for row in candidates if row["kind"] == kind]
         supplied, absent, unresolved = [], [], []
@@ -588,6 +603,10 @@ def build_question_investigation(question, business_map, *, database_path=None,
             if isinstance(args, Mapping):
                 seen.add((tool, args.get("relative_path"), args.get("line", args.get("start_line"))))
     plans, planned = [], set()
+    # File operands and layouts need physical source; a field slice can omit
+    # SELECT/FD entirely. Keep these reads ahead of supplementary input origins.
+    if file_impact:
+        missing.sort(key=lambda row: row["kind"] not in {"file_io", "file_definitions", "dds_definitions"})
     for row in missing:
         key = (row["relative_path"], row["start_line"])
         if key in planned:
@@ -598,7 +617,10 @@ def build_question_investigation(question, business_map, *, database_path=None,
         last = row["end_line"] if row.get("occurrence_count", 1) == 1 else key[1] + 8
         read = {"relative_path": key[0], "start_line": max(1, key[1] - 4),
                 "end_line": min(max(key[1] + 8, last), key[1] + 96)}
-        tool = "read" if ("inspect_business_context", *key) in seen else "inspect_business_context"
+        file_source = row["kind"] in {"file_io", "file_definitions", "dds_definitions"}
+        if file_source:
+            read = {"relative_path": key[0], "start_line": key[1], "end_line": last}
+        tool = "read" if file_source or ("inspect_business_context", *key) in seen else "inspect_business_context"
         arguments = read if tool == "read" else inspect
         if (tool, key[0], arguments.get("line", arguments.get("start_line"))) in seen:
             continue
@@ -654,6 +676,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
                        targets=external.get("targets", []))
     gaps = [{"kind": item["kind"], "status": item["status"], "reason": item["reason"]}
             for item in items if item["status"] in {"OPEN", "PARTIAL", "UNRESOLVED"}]
+    gaps.extend(impact_frontier[:8])
     gaps.extend(frontier[:8])
     input_coverage = next(item for item in items if item["kind"] == "inputs")
     for group in evidence_groups:
@@ -673,7 +696,13 @@ def build_question_investigation(question, business_map, *, database_path=None,
     formula_supplied = any(item["kind"] in {"formula", "business_steps"} and item["evidence_ids"] for item in items)
     boundary_supplied = bool(external and external["evidence_ids"])
     state = "needs_evidence" if plans else "bounded_partial" if gaps else "located"
-    return {**base, "required_items": items, "planned_actions": plans, "open_gaps": gaps[:16],
-            "state": state, "can_answer": (formula_supplied or boundary_supplied) and not plans,
+    file_observations = {}
+    if file_impact:
+        from file_impact import collect_file_impact
+        file_observations = {"file_impact": collect_file_impact(pages)}
+    known_file_supplied = any(row["kind"] in {"io_operation", "field_assignment"}
+        for row in file_observations.get("file_impact", {}).get("observations", []))
+    return {**base, **file_observations, "required_items": items, "planned_actions": plans, "open_gaps": gaps[:16],
+            "state": state, "can_answer": (formula_supplied or boundary_supplied or known_file_supplied) and not plans,
             "candidate_paths": paths[:_MAX_PATHS],
             "candidate_cache": {"hit": cache_hit, "candidate_count": len(candidates)}}
