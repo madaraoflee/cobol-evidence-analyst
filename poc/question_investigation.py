@@ -121,6 +121,7 @@ def _input_candidates(db, path, fields):
 def _indexed_candidates(database_path, paths, question, *, business_steps=False, root_paths=None):
     """Select exact field obligations before applying bounded source budgets."""
     candidates, frontier, hashes = [], [], {}
+    primary_kind = "business_steps" if business_steps else "formula"
     tokens = set(re.findall(r"[A-Z][A-Z0-9_$#@-]*", question.upper()))
     encoded = quote(Path(database_path).resolve().as_posix(), safe="/:")
     with closing(sqlite3.connect(f"file:{encoded}?mode=ro", uri=True)) as db:
@@ -131,12 +132,16 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
                                        f"WHERE relative_path IN ({slots})", scoped_paths))
         hashes = {path: source_hashes[path] for path in scoped_paths if path in source_hashes}
         if len(paths) > _MAX_PATHS:
-            frontier.append({"kind": "formula", "reason": "located_path_budget",
+            frontier.append({"kind": primary_kind, "reason": "located_path_budget",
                              "omitted_count": len(paths) - _MAX_PATHS})
         if not db.execute("SELECT 1 FROM sqlite_master WHERE name='business_rules'").fetchone():
-            return [], [{"kind": "formula", "reason": "indexed_rules_unavailable"}], hashes
+            return [], [{"kind": primary_kind, "reason": "indexed_rules_unavailable"}], hashes
         targeted = []
-        if tokens and scoped_paths and not business_steps:
+        field_matched = False
+        kinds = "'COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE'"
+        if business_steps:
+            kinds += ",'MOVE','IF','EVALUATE','WHEN','EXEC_SQL'"
+        if tokens and scoped_paths:
             field_slots = ",".join("?" for _ in tokens)
             path_order = "CASE b.relative_path " + " ".join(
                 f"WHEN ? THEN {index}" for index, _ in enumerate(scoped_paths)) + " END"
@@ -150,24 +155,28 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
                 "CROSS JOIN business_rule_fields f ON f.rule_id=b.rule_id "
                 f"WHERE f.field_name IN ({field_slots}) AND b.relative_path IN ({slots}) "
                 "AND f.field_role IN ('read','write') "
-                "AND b.rule_kind IN ('COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE') "
+                f"AND b.rule_kind IN ({kinds}) "
                 "GROUP BY b.rule_id ORDER BY matched_writes DESC,matched_reads DESC,"
                 + path_order + ",b.first_line,b.rule_id LIMIT ?",
                 (*sorted(tokens), *scoped_paths, *scoped_paths, _MAX_FORMULAS + 1)).fetchall()
+            # A known field assigned without arithmetic still defines the
+            # question's target. Program names and unknown ASCII tokens do not.
+            field_matched = bool(targeted) or db.execute(
+                "SELECT 1 FROM business_rules b CROSS JOIN business_rule_fields f ON f.rule_id=b.rule_id "
+                f"WHERE b.relative_path IN ({slots}) AND f.field_name IN ({field_slots}) "
+                "AND f.field_role IN ('read','write') LIMIT 1",
+                (*scoped_paths, *sorted(tokens))).fetchone() is not None
         if targeted:
             if len(targeted) > _MAX_FORMULAS:
-                frontier.append({"kind": "formula", "reason": "formula_candidate_budget"})
-            candidates.extend(_rule(row, "formula") for row in targeted[:_MAX_FORMULAS])
+                frontier.append({"kind": primary_kind, "reason": "formula_candidate_budget"})
+            candidates.extend(_rule(row, primary_kind) for row in targeted[:_MAX_FORMULAS])
         # Without a field match, retain program-level discovery and its explicit
         # enumeration limits. Unrelated formulas are not missing evidence for
         # a question whose exact input or result field is already located.
         # Outgoing dependencies remain obligations: a callee can rename a
         # caller's field in its parameter list without changing that value.
         roots = set(paths if root_paths is None else root_paths)
-        for path in (scoped_paths if not targeted else [path for path in scoped_paths if path not in roots]):
-            kinds = "'COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE'"
-            if business_steps:
-                kinds += ",'MOVE','IF','EVALUATE','WHEN','EXEC_SQL'"
+        for path in (scoped_paths if not field_matched else [path for path in scoped_paths if path not in roots]):
             grouping = "paragraph_name,writes_json,rule_kind" if business_steps else "paragraph_name,writes_json"
             rows = db.execute(
                 f"WITH grouped AS (SELECT *,ROW_NUMBER() OVER (PARTITION BY {grouping} "
@@ -176,8 +185,8 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
                 "SELECT * FROM grouped WHERE group_rank=1 ORDER BY first_line,rule_id LIMIT ?",
                 (path, _MAX_FORMULAS + 1)).fetchall()
             if len(rows) > _MAX_FORMULAS:
-                frontier.append({"kind": "formula", "relative_path": path, "reason": "formula_group_budget"})
-            candidates.extend(_rule(row, "business_steps" if business_steps else "formula") for row in rows[:_MAX_FORMULAS])
+                frontier.append({"kind": primary_kind, "relative_path": path, "reason": "formula_group_budget"})
+            candidates.extend(_rule(row, primary_kind) for row in rows[:_MAX_FORMULAS])
         # Exact identifiers are a ranking signal, never an abbreviation expansion.
         candidates = list({(row["kind"], row["relative_path"], row["start_line"], row["statement"]): row
                            for row in candidates}.values())
@@ -185,7 +194,7 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
             -len(tokens.intersection(row["writes"])), -len(tokens.intersection(row["reads"])),
             paths.index(row["relative_path"]), row["start_line"]))
         if len(candidates) > _MAX_FORMULAS:
-            frontier.append({"kind": "formula", "reason": "formula_candidate_budget"})
+            frontier.append({"kind": primary_kind, "reason": "formula_candidate_budget"})
             candidates = candidates[:_MAX_FORMULAS]
         formulas = list(candidates)
         # Field equality is scoped to the source path, not a cross-program binding.
@@ -484,21 +493,40 @@ def build_question_investigation(question, business_map, *, database_path=None,
         cache_hit = isinstance(candidate_cache, dict) and candidate_cache.get("key") == key
         if cache_hit:
             candidates, frontier, hashes = candidate_cache["value"]
+            business_steps = candidate_cache.get("business_steps", business_steps)
         else:
             candidates, frontier, hashes = _indexed_candidates(database_path, paths, question,
                                                                business_steps=business_steps, root_paths=root_paths)
+            if calculation and not any(row["kind"] == "formula" for row in candidates):
+                # Some calculations select or transfer values through branches.
+                # Reuse the existing bounded step selection without asserting a
+                # formula, complete value flow, or any actual runtime result.
+                steps, step_frontier, step_hashes = _indexed_candidates(database_path, paths, question,
+                    business_steps=True, root_paths=root_paths)
+                if any(row["kind"] == "business_steps" for row in steps):
+                    business_steps = True
+                    candidates, frontier, hashes = steps, step_frontier, step_hashes
             dependencies, dependency_frontier = _dependencies(database_path, list(hashes), candidates, hashes,
                                                               business_steps=business_steps)
             candidates.extend(dependencies)
             frontier.extend(dependency_frontier)
             if isinstance(candidate_cache, dict):
                 candidate_cache.clear()
-                candidate_cache.update(key=key, value=(candidates, frontier, hashes))
+                candidate_cache.update(key=key, value=(candidates, frontier, hashes),
+                                       business_steps=business_steps)
         paths = list(hashes)
     else:
         candidates = [_rule(row, "business_steps" if business_steps else "formula")
                       for row in business_map.get("rule_leads", []) if row.get("relative_path") in paths
                       and (business_steps or row.get("rule_kind") in _ARITHMETIC)]
+        if calculation and not candidates:
+            steps = [row for row in business_map.get("rule_leads", [])
+                if row.get("relative_path") in paths and row.get("rule_kind") in
+                {"MOVE", "IF", "EVALUATE", "WHEN", "EXEC_SQL"}]
+            business_steps = bool(steps)
+            if len(steps) > _MAX_FORMULAS:
+                frontier.append({"kind": "business_steps", "reason": "formula_candidate_budget"})
+            candidates = [_rule(row, "business_steps") for row in steps[:_MAX_FORMULAS]]
     pages = _visible_pages(source_pages, paths, hashes)
     candidates = [*candidates, *_visible_input_declarations(pages, candidates)]
     candidates = _condition_spans(candidates, evidence_groups)

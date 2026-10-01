@@ -16,7 +16,7 @@ from report_view import write_report_view
 def try_indexed_question(source, output, *, question, entry, extensions, include_extensionless,
                          encoding, source_format, config, api_options, transport,
                          framework_reference_path, capture_api_responses, history,
-                         progress, check_cancel, policy=None):
+                         progress, check_cancel, policy=None, answer_detail="detailed"):
     from repository_discovery import _connect, repository_search_overview
     from business_chat import run_business_chat
     from business_index import PARSER_VERSION
@@ -63,14 +63,14 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
                   question_status="RUNNING", entry_requested=entry, messages=[],
                   runner_status="INDEX_READY", reason_code="SOURCE_INDEX_REUSED",
                   source_verification_scope="retrieved_sources", index_reused=True)
-    report["source_options"].update(reading_strategy="retrieval")
+    report["source_options"].update(reading_strategy="retrieval", answer_detail=answer_detail)
     report["repository_search"] = overview
     try:
         selected_config = config or CompanyAPIConfig.from_env(**(api_options or {}))
         agent = run_business_chat(question, output / "structural-index.sqlite", source, selected_config,
             history=history, entry_program=entry, framework_reference_path=framework_reference_path,
             capture_api_responses=capture_api_responses, allow_network=True, transport=transport,
-            progress=progress, check_cancel=check_cancel, policy=policy)
+            progress=progress, check_cancel=check_cancel, policy=policy, answer_detail=answer_detail)
     except APIConfigurationError as exc:
         agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
     result = agent.get("agent_result") or {}

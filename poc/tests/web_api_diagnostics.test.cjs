@@ -30,6 +30,44 @@ function agent(overrides={}){
   return {runner_status:'SAFE_STOP',reason_code:'AGENT_SAFETY_STOPPED',agent_result:{status:'ABSTAINED',stop_reason:'model_protocol_error',claims:[]},api_diagnostics:{captured:true,exchanges:[exchange()]},...overrides};
 }
 
+test('shareable diagnostics rebuild the field allowlist and never export business data or arbitrary strings',async()=>{
+  const h=harness();const privateMarker='PRIVATE-DATA-MARKER';const answer='Received business answer 😀.';
+  const diagnostic_summary={schema_version:'business-answer-diagnostics/v1',
+    runtime:{commit:'d222e240',profile:'workbench',model_fingerprint:'a'.repeat(64),output_limit_source:'profile',api_key:privateMarker,provider_url:privateMarker},
+    configured:{max_output_tokens:2048,max_model_requests:2,requested_detail:'detailed',question:privateMarker},
+    requests:[{round_id:'round-1',stage:'answer',request_bytes:600,source_file_count:1,page_count:1,source_characters:40,source_line_count:4,trim_event_count:0,history_message_count:0,history_characters:0,finish_reason:'stop',raw_content_characters:Array.from(answer).length,parsed_answer_characters:Array.from(answer).length,choice_index:0,source_text:privateMarker},
+      {round_id:privateMarker,stage:privateMarker,finish_reason:privateMarker,raw_content_characters:privateMarker}],
+    source_coverage:{indexed_files:2,selected_files:1,provided_files:1,pages:1,unread_tasks:0,omitted_complete_files:0,identity_status:'resolved',retrieval_status:'source_candidates',limitation_codes:[privateMarker],source_paths:[privateMarker]},
+    output:{finish_reason:'stop',answer_truncated:false,continuation_attempted:false,final_answer_characters:Array.from(answer).length,answer:privateMarker},stop_reason:'completed',raw_response:privateMarker,history:[privateMarker]};
+  setup(h,agent({runner_status:'COMPLETED',reason_code:'BUSINESS_CHAT_COMPLETED',agent_result:{status:'ANALYZED',analysis_mode:'source_reading',answer,narrative:{text:answer},diagnostic_summary},api_diagnostics:{captured:true,exchanges:[exchange({body_text:privateMarker})]}}));
+  const safe=h.run('diagnosticSummaryData()');assert.equal(safe.rendering.render_input_characters,Array.from(answer).length);assert.equal(safe.output.final_answer_characters,Array.from(answer).length);
+  assert.equal(safe.runtime.model_fingerprint,'a'.repeat(64));assert.equal(safe.requests[1].stage,null);assert.equal(safe.requests[1].finish_reason,null);assert.equal(safe.requests[1].raw_content_characters,null);
+  assert.doesNotMatch(JSON.stringify(safe),new RegExp(privateMarker));assert.doesNotMatch(JSON.stringify(safe),/Received business answer|provider_url|api_key|source_paths|raw_response/);
+  assert.match(h.run('diagnosticSummaryView()'),/data-copy-safe-diagnostics/);assert.match(h.run('diagnosticSummaryView()'),/data-export-safe-diagnostics/);assert.doesNotMatch(h.run('diagnosticSummaryView()'),new RegExp(privateMarker));
+  h.run("globalThis.copied=null;globalThis.downloaded=null;globalThis.navigator={clipboard:{writeText:async value=>{copied=value;}}};download=(content,type,name)=>{downloaded={content,type,name};};exportData=()=>{throw Error('full export must not be called');}");
+  await h.run('copyDiagnosticSummary()');assert.deepEqual(JSON.parse(h.run('copied')),JSON.parse(JSON.stringify(safe)));
+  h.events.click({target:{closest:()=>({hasAttribute:name=>name==='data-export-safe-diagnostics'})}});
+  assert.equal(h.run('downloaded.name'),'business-answer-diagnostics.json');assert.deepEqual(JSON.parse(h.run('downloaded.content')),JSON.parse(JSON.stringify(safe)));
+});
+
+test('raw API parsed answer and rendering input keep a long answer intact',()=>{
+  const h=harness();const answer='## Business process\n\n'+'A valid request is processed.\n\n'.repeat(4000)+'ANSWER-END';
+  setup(h,agent({runner_status:'COMPLETED',reason_code:'BUSINESS_CHAT_COMPLETED',agent_result:{status:'ANALYZED',analysis_mode:'source_reading',answer,narrative:{text:answer},finish_reason:'stop'},api_diagnostics:{captured:true,exchanges:[exchange({body_text:JSON.stringify({choices:[{message:{role:'assistant',content:answer},finish_reason:'stop'}]})})]}}));
+  assert.equal(h.run('apiMessage(apiExchanges()[0]).content'),answer);assert.equal(h.run('narrativeText(result())'),answer);
+  const rendered=h.run('actualAnswer()');assert.match(rendered,/ANSWER-END/);assert.equal((rendered.match(/A valid request is processed/g)||[]).length,4000);assert.doesNotMatch(rendered,/answer-incomplete/);
+  h.run("state.project.agent.agent_result.finish_reason='length';state.project.agent.agent_result.status='PARTIAL';state.project.agent.agent_result.stop_reason='MODEL_OUTPUT_TRUNCATED'");
+  const partial=h.run('actualAnswer()');assert.match(partial,/finish_reason=length/);assert.match(partial,/ANSWER-END/);assert.ok(partial.indexOf('answer-incomplete')<partial.indexOf('narrative-body'));
+  assert.match(h.run('apiSummary()'),/business answer is incomplete/);
+});
+
+test('API extraction follows the actual selected choice for each investigation round and skips probes',()=>{
+  const h=harness();const first='Selected business answer 😀.';const second='Selected follow-up.';
+  const exchanges=[exchange({sequence:1,phase:'capability_probe'}),exchange({sequence:2,body_text:JSON.stringify({choices:[{message:{role:'assistant',content:''}},{message:{role:'assistant',content:first},finish_reason:'stop'}]})}),exchange({sequence:3,body_text:JSON.stringify({choices:[{message:{role:'assistant',content:second},finish_reason:'stop'},{message:{role:'assistant',content:'Unused choice'},finish_reason:'length'}]})})];
+  setup(h,agent({runner_status:'COMPLETED',reason_code:'BUSINESS_CHAT_COMPLETED',agent_result:{status:'ANALYZED',narrative:{text:first+'\n\n'+second},diagnostic_summary:{schema_version:'business-answer-diagnostics/v1',requests:[{round_id:'round-1',choice_index:1},{round_id:'round-2',choice_index:0}]}} ,api_diagnostics:{captured:true,exchanges}}));
+  assert.equal(h.run('apiMessage(apiExchanges()[1]).content'),first);assert.equal(h.run('apiMessage(apiExchanges()[2]).content'),second);assert.equal(h.run('apiChoice(apiExchanges()[1]).finish_reason'),'stop');
+  const view=h.run('apiResponseView()');assert.match(view,/Selected business answer 😀/);assert.match(view,/Selected follow-up/);assert.match(h.run('apiSummary()'),/Chat response received/);
+});
+
 test('raw API and extracted model content stay literal, untranslated and escaped in every locale',()=>{
   for(const locale of ['en','zh-CN','zh-HK']){
     const h=harness(locale);const original='來源：分析工作台 <script>alert(1)</script> <img src=x onerror=alert(1)> & "content"';

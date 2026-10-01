@@ -48,9 +48,10 @@ source_scope 给出本次纳入源码的边界；深度、文件数、字节数�
 
 
 class _TextResponseError(ValueError):
-    def __init__(self, code: str, *, text: str = "") -> None:
+    def __init__(self, code: str, *, text: str = "", choice_index: int | None = None) -> None:
         self.code = code
         self.text = text
+        self.choice_index = choice_index
         super().__init__(code)
 
 
@@ -118,7 +119,7 @@ def _extract_text(response: Mapping[str, object]) -> _BusinessText:
     if not text and refused:
         text = str(message["refusal"]).strip()
     if not text:
-        raise _TextResponseError("MODEL_CONTENT_FILTERED" if filtered else "MODEL_TEXT_EMPTY")
+        raise _TextResponseError("MODEL_CONTENT_FILTERED" if filtered else "MODEL_TEXT_EMPTY", choice_index=choice_index)
     structured = False
     if has_content:
         candidate = text
@@ -132,7 +133,7 @@ def _extract_text(response: Mapping[str, object]) -> _BusinessText:
         if isinstance(wrapped, Mapping):
             rejection = _explicit_nonbusiness_object(wrapped)
             if rejection:
-                raise _TextResponseError(rejection, text=text)
+                raise _TextResponseError(rejection, text=text, choice_index=choice_index)
             unwrapped = next((_content_text(wrapped[key]).strip() for key in ("answer", "content", "text")
                               if _content_text(wrapped.get(key)).strip()), "")
             if unwrapped:
@@ -145,16 +146,16 @@ def _extract_text(response: Mapping[str, object]) -> _BusinessText:
                 text = candidate
                 structured = True
             else:
-                raise _TextResponseError("MODEL_TEXT_EMPTY", text=text)
+                raise _TextResponseError("MODEL_TEXT_EMPTY", text=text, choice_index=choice_index)
         elif isinstance(wrapped, str):
             text = wrapped.strip()
         elif isinstance(wrapped, list):
             structured = True
     text = normalize_answer_markdown(text)
     if not text:
-        raise _TextResponseError("MODEL_TEXT_EMPTY")
-    truncated = choice.get("finish_reason") == "length" or len(text) > MAX_ANSWER_CHARACTERS
-    return _BusinessText(text[:MAX_ANSWER_CHARACTERS], truncated, refused, filtered,
+        raise _TextResponseError("MODEL_TEXT_EMPTY", choice_index=choice_index)
+    truncated = choice.get("finish_reason") == "length"
+    return _BusinessText(text, truncated, refused, filtered,
                          has_content, structured, choice_index)
 
 
@@ -335,6 +336,7 @@ def run_business_analysis(
     check_cancel: Callable[[], None] | None = None,
     max_pages: int = 12,
     reading_strategy: str = "focused",
+    answer_detail: str = "detailed",
 ) -> dict[str, object]:
     """Read source pages, explain them, and retain useful partial responses."""
 
@@ -344,6 +346,8 @@ def run_business_analysis(
         raise ValueError("max_pages must be between 1 and 128")
     if reading_strategy not in {"focused", "full_chain"}:
         raise ValueError("reading_strategy must be focused or full_chain")
+    if answer_detail not in {"brief", "detailed"}:
+        raise ValueError("answer_detail must be brief or detailed")
     full_chain = reading_strategy == "full_chain"
     redactor = APIResponseDiagnostics(protected_values=(
         config.resolve_api_key(), config.base_url, config.chat_model, config.embedding_model,
@@ -575,7 +579,9 @@ def run_business_analysis(
             "reference_ids", "source_text_truncated", "target_resolution", "relation_type",
             "parameter_binding_verified", "runtime_verified"), maximum=24, byte_limit=12_000)
         payload: dict[str, object] = {
-            "question": supplied_question, "task": instruction,
+            "question": supplied_question, "answer_detail": answer_detail,
+            "task": ("简要说明结论和关键条件，保留必要依据；" if answer_detail == "brief" else
+                     "按问题需要充分解释相关业务结论、步骤、条件、例外和依据；") + instruction,
             "scope": {"kind": "indexed_sources", "snapshot_id": plan.get("snapshot_id"), "planned_pages": len(pages),
                       "reading_strategy": reading_strategy,
                       "total_pages": plan.get("coverage", {}).get("total_pages"),
@@ -915,9 +921,6 @@ def run_business_analysis(
             unknown.append(identifier)
         return "【未确认来源引用】"
 
-    if len(answer) > MAX_ANSWER_CHARACTERS:
-        answer = answer[:MAX_ANSWER_CHARACTERS]
-        boundaries.append(_boundary("ANSWER_PREVIEW_TRUNCATED", "综合未完成时的正文预览较长；各程序与各页的已得业务解释仍分别保留。"))
     page_summaries = [{
         **_reference_metadata(page),
         "text": _REFERENCE.sub(validate_reference, text),

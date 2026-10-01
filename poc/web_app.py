@@ -72,7 +72,7 @@ def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 102
 
 
 def _validate_options(payload: object) -> dict:
-    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "conversation_id", "retry_message_id", "framework_reference_path", "capture_api_responses"}
+    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "answer_detail", "conversation_id", "retry_message_id", "framework_reference_path", "capture_api_responses"}
     if not isinstance(payload, dict) or set(payload) - fields:
         raise RequestError("INVALID_OPTIONS", "请求包含未知设置。")
     source_text, output_text = _text(payload, "source", required=True), _text(payload, "output", required=True)
@@ -119,6 +119,9 @@ def _validate_options(payload: object) -> dict:
     reading_strategy = _text(payload, "reading_strategy", maximum=32) or "retrieval"
     if reading_strategy not in {"retrieval", "focused", "full_chain"}:
         raise RequestError("INVALID_OPTIONS", "阅读方式须为 retrieval、focused 或 full_chain。")
+    answer_detail = _text(payload, "answer_detail", maximum=16) or "detailed"
+    if answer_detail not in {"brief", "detailed"}:
+        raise RequestError("INVALID_OPTIONS", "回答详略须为 brief 或 detailed。")
     extension_text = _text(payload, "extensions", maximum=256)
     try:
         extensions = parse_extensions(extension_text)
@@ -133,6 +136,7 @@ def _validate_options(payload: object) -> dict:
         "allow_network": allow_network, "extensions": extensions, "index_mode": index_mode, "verify_content": verify_content,
         "capture_api_responses": capture_api_responses,
         "analysis_mode": "business", "max_source_pages": max_source_pages, "reading_strategy": reading_strategy,
+        "answer_detail": answer_detail,
         "conversation_id": _text(payload, "conversation_id", maximum=64),
         "retry_message_id": retry_message_id,
         "framework_reference_path": _text(payload, "framework_reference_path", maximum=4096),
@@ -161,6 +165,9 @@ def _unaccepted_agent(agent: dict, reason_code: str) -> dict:
         rejected["api_diagnostics"] = agent["api_diagnostics"]
     if isinstance(agent.get("display_projection"), dict):
         rejected["display_projection"] = agent["display_projection"]
+    summary = agent.get("diagnostic_summary") or (agent.get("agent_result") or {}).get("diagnostic_summary")
+    if isinstance(summary, dict):
+        rejected["diagnostic_summary"] = summary
     response = agent.get("unaccepted_response")
     answer = agent.get("agent_result")
     text = response.get("text") if isinstance(response, dict) else None
@@ -305,6 +312,7 @@ class WorkbenchState:
         self.demo_output_root = demo_output_root if demo_output_root is not None else FRAMEWORK_DEMO_OUTPUT
         self.state_path = state_path
         self.framework_reference_path = None
+        self.answer_detail = "detailed"
         self.conversation = None
         self.conversation_store = None
         self._restore_workspace()
@@ -315,6 +323,7 @@ class WorkbenchState:
         options = options or self.project
         data = {"source": str(options.get("source") or ""), "output": str(options.get("output") or ""),
                 "framework_reference_path": self.framework_reference_path,
+                "answer_detail": self.answer_detail,
                 "conversation_id": (self.conversation or {}).get("id")}
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         if self.state_path.is_symlink():
@@ -331,6 +340,7 @@ class WorkbenchState:
         try:
             saved = json.loads(self.state_path.read_text(encoding="utf-8"))
             self.framework_reference_path = saved.get("framework_reference_path")
+            self.answer_detail = "brief" if saved.get("answer_detail") == "brief" else "detailed"
             if not saved.get("source") or not saved.get("output"):
                 return
             source, output = _paths(Path(saved["source"]), Path(saved["output"]))
@@ -494,6 +504,11 @@ class WorkbenchState:
         status = "completed" if (project.get("agent") or {}).get("runner_status") == "COMPLETED" else "failed"
         self.conversation_store.complete_user(job_id, status)
         content = agent.get("answer") or "本次没有取得模型回答。对话已保留，可以重试。"
+        projection = (project.get("agent") or {}).get("display_projection") or {}
+        answer_omissions = [item for item in projection.get("omitted", [])
+                            if isinstance(item, dict) and item.get("path") == "agent_result.answer"]
+        complete_characters = max((item.get("total_characters", 0) for item in answer_omissions
+                                   if type(item.get("total_characters")) is int), default=len(content))
         details = {"evidence_refs": agent.get("evidence_refs", []),
                      "investigation_state": agent.get("investigation_state", {}),
                      "cited_evidence_ids": [r.get("evidence_id") for r in (agent.get("narrative") or {}).get("citations", []) if r.get("evidence_id")],
@@ -502,7 +517,14 @@ class WorkbenchState:
                          for item in ((agent.get("investigation") or {}).get("business_map") or {}).get("programs", [])],
                      "impact_result": agent.get("impact_result"),
                      "snapshot_id": agent.get("snapshot_id"), "metrics": agent.get("metrics", {}),
-                     "diagnostics": agent.get("diagnostics", [])}
+                     "diagnostics": agent.get("diagnostics", []),
+                     "analysis_status": agent.get("status"), "stop_reason": agent.get("stop_reason"),
+                     "finish_reason": agent.get("finish_reason"),
+                     "answer_truncated": agent.get("answer_truncated", False),
+                     "diagnostic_summary": agent.get("diagnostic_summary"),
+                     "answer_display_truncated": complete_characters > len(content),
+                     "answer_complete_characters": complete_characters,
+                     "answer_detail": options.get("answer_detail", "detailed")}
         if options.get("retry_message_id"):
             self.conversation_store.replace_assistant(
                 identifier, options.get("retry_assistant_id"), content,
@@ -569,6 +591,7 @@ class WorkbenchState:
             "source": demo["source_path"], "output": str(output),
             "encoding": "utf-8", "source_format": "free", "index_mode": "full",
             "allow_network": False, "max_source_pages": 4, "reading_strategy": "retrieval",
+            "answer_detail": self.answer_detail,
         }), "suggested_question": question}
 
     def state(self) -> dict:
@@ -589,6 +612,7 @@ class WorkbenchState:
                 "api_configured": configured,
                 "api_configuration_error": configuration_error,
                 "framework_knowledge": self.framework(),
+                "answer_detail": self.answer_detail,
                 "conversation": copy.deepcopy(self.conversation),
                 "conversations": self.conversation_store.list() if self.conversation_store else [],
                 "active_job_id": self.job["job_id"] if self.job and self.job["status"] == "RUNNING" else None,
@@ -617,6 +641,7 @@ class WorkbenchState:
             if retry_message_id and (not same_project or not options["allow_network"] or not options.get("conversation_id")):
                 raise RequestError("INVALID_RETRY", "只能在当前对话和源码范围内重试原问题。", 409)
             self.conversation_store = ConversationStore(options["output"], options["source"])
+            self.answer_detail = options["answer_detail"]
             options["framework_reference_path"] = options.get("framework_reference_path") or self.framework_reference_path
             self.framework_reference_path = options["framework_reference_path"]
             if (options["question"] or retry_message_id) and options["allow_network"]:
