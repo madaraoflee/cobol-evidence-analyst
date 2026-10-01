@@ -6,7 +6,7 @@ import re
 
 
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
-_DETAIL = re.compile(r"详细|詳細|详尽|詳盡|细致|完整|流程|目的|原理|来龙去脉|"
+_DETAIL = re.compile(r"详细|詳細|详尽|詳盡|细致|完整|逐步|流程|目的|原理|来龙去脉|"
                      r"\b(?:detailed|thorough|workflow|flow|purpose)\b", re.I)
 _LIMITATION = re.compile(
     r"不足以.{0,12}(?:判断|判斷|确认|確認|解释|解釋|确定|確定|结论|結論|回答|分析|说明|說明|给出|給出)|"
