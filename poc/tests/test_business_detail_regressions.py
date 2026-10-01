@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from agent_policy import AgentPolicy
 from business_chat import run_business_chat
 from business_index import build_business_index
+from business_synthesis import wants_business_detail
 from company_api import CompanyAPIConfig, TransportResponse
 from repository_discovery import ensure_repository_search
 
@@ -34,6 +35,18 @@ REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 
 def source_pages(payload):
     return [page for bundle in payload["source_context"] for page in bundle.get("pages", [])]
+
+
+class BusinessDetailIntentTests(unittest.TestCase):
+    def test_stepwise_calculation_requests_business_detail(self):
+        for question in ("请逐步计算净金额。", "請逐步計算淨金額。"):
+            with self.subTest(question=question):
+                self.assertTrue(wants_business_detail(question))
+
+    def test_simple_calculation_keeps_existing_detail_classification(self):
+        for question in ("净金额怎么计算？", "淨金額怎麼計算？", "How is the net amount calculated?"):
+            with self.subTest(question=question):
+                self.assertFalse(wants_business_detail(question))
 
 
 class BusinessDetailRegressions(unittest.TestCase):
@@ -180,6 +193,16 @@ class BusinessDetailRegressions(unittest.TestCase):
         inputs = next(item for item in result["investigation_state"]["question_investigation"]["required_items"]
                       if item["kind"] == "inputs")
         self.assertEqual(inputs["status"], "SATISFIED")
+        self.assert_answer_binding(result)
+
+    def test_stepwise_calculation_supplies_input_origins_and_binds_answer_claims(self):
+        self.chain()
+        result = self.ask("请逐步计算 VALUEFLOW NET-VALUE，说明输入最初来自哪里以及何时归零？",
+                          self.chain_answer)
+        self.assert_first_material(CHAIN_MARKERS)
+        self.assertEqual(result["metrics"]["model_requests"], 1)
+        self.assertEqual(result["business_review"]["answer_completion"]["status"], "not_assessed")
+        self.assertEqual(result["business_review"]["answer_completion"]["semantic_verification"], "unverified")
         self.assert_answer_binding(result)
 
     def test_detailed_process_question_supplies_upstream_sources_without_formula_word(self):
