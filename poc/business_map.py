@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 
 from repository_discovery import _connect, _fast_snapshot, _query_terms, discover_repository
+from repository_identity import resolve_source_identity
 from source_reading import _cancel
 
 
@@ -24,7 +25,12 @@ _CODE_TERM = re.compile(r"[A-Za-z][A-Za-z0-9_$#@-]{2,}")
 
 
 def _exact_identifier_paths(connection, question):
-    """Prefer a user's explicit source identifier over its common word pieces."""
+    """Compatibility wrapper: only definitions establish source identity."""
+    return set(resolve_source_identity(connection, question)["direct_paths"])
+
+
+def _lexical_identifier_paths(connection, question):
+    """Prefer complete field phrases over common word pieces, without identity."""
     identifiers = list(dict.fromkeys(token for token in _CODE_TERM.findall(question)
                                      if any(char.isdigit() for char in token) or
                                      any(char in "-$#@" for char in token)))[:8]
@@ -133,41 +139,74 @@ def _explain_paths(incoming, edges, seeds, repository_size, check_cancel):
     return distance
 
 
-def _rule_leads(connection, paths, previews, question, check_cancel):
+def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage=None, diversify=False):
+    coverage = coverage if coverage is not None else {}
+    ordered_paths = sorted(paths)
+    coverage.update({"scope": "navigation_candidates", "preview_budget": 32,
+        "preview_candidates": len(previews), "omitted_previews": max(0, len(previews) - 32),
+        "path_budget": 80, "path_candidates": len(paths), "omitted_paths": max(0, len(paths) - 80),
+        "per_path_rule_budget": 4, "global_rule_budget": 48, "candidate_rules": 0,
+        "selected_rules": 0, "omitted_rules_per_path": {}, "omitted_rules_global": 0,
+        "query_frontier": [], "candidate_selection_complete": False})
     if not connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='business_rules'").fetchone():
         return []
     terms = [term.upper() for term in _CODE_TERM.findall(question)
              if term.casefold() not in {"business", "program", "programs", "source", "analysis", "impact", "change"}]
-    terms = list(dict.fromkeys(terms))[:8]
+    unique_terms = list(dict.fromkeys(terms))
+    terms = unique_terms[:8]
+    coverage["omitted_rule_query_terms"] = max(0, len(unique_terms) - 8)
     by_path = defaultdict(dict)
     for preview in previews[:32]:
         relative = preview["relative_path"]
         if relative not in paths:
             continue
-        for row in connection.execute(
+        rows = connection.execute(
             "SELECT * FROM business_rules WHERE relative_path=? AND first_line<=? "
-            "AND last_line>=? ORDER BY first_line LIMIT 40",
+            "AND last_line>=? ORDER BY first_line,rule_id LIMIT 41",
             (relative, preview["end_line"] + 12, max(1, preview["start_line"] - 12)),
-        ):
+        ).fetchall()
+        if len(rows) > 40:
+            coverage["query_frontier"].append({"relative_path": relative, "reason": "preview_rule_budget", "minimum_omitted_rules": len(rows) - 40})
+        for row in rows[:40]:
             by_path[relative][row["rule_id"]] = (dict(row), "source_match")
-    for relative in sorted(paths)[:80]:
+    for relative in ordered_paths[:80]:
         _cancel(check_cancel)
-        # A source name or a header comment can identify the right program
-        # without matching any field in its calculation. Keep a few arithmetic
-        # leads from that program even when the matching page is far away.
-        for row in connection.execute(
-            "SELECT * FROM business_rules WHERE relative_path=? "
-            "AND rule_kind IN ('COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE') "
-            "ORDER BY CASE WHEN rule_kind='COMPUTE' THEN 0 ELSE 1 END,first_line LIMIT 3",
-            (relative,),
-        ):
-            by_path[relative].setdefault(row["rule_id"], (dict(row), "program_calculation"))
+        if not diversify:
+            # Preserve generic business-description navigation when there is
+            # no defined program identity; defined identities use result groups.
+            rows = connection.execute(
+                "SELECT * FROM business_rules WHERE relative_path=? "
+                "AND rule_kind IN ('COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE') "
+                "ORDER BY CASE WHEN rule_kind='COMPUTE' THEN 0 ELSE 1 END,first_line,rule_id LIMIT 4",
+                (relative,),
+            ).fetchall()
+            if len(rows) > 3:
+                coverage["query_frontier"].append({"relative_path": relative, "reason": "program_calculation_budget", "minimum_omitted_rules": len(rows) - 3})
+            for row in rows[:3]:
+                by_path[relative].setdefault(row["rule_id"], (dict(row), "program_calculation"))
         for term in terms:
-            for row in connection.execute(
+            rows = connection.execute(
                 "SELECT * FROM business_rules WHERE relative_path=? AND normalized_text LIKE ? "
-                "ORDER BY first_line LIMIT 60", (relative, "%" + term + "%"),
-            ):
+                "ORDER BY first_line,rule_id LIMIT 61", (relative, "%" + term + "%"),
+            ).fetchall()
+            if len(rows) > 60:
+                coverage["query_frontier"].append({"relative_path": relative, "reason": "term_rule_budget", "term": term, "minimum_omitted_rules": len(rows) - 60})
+            for row in rows[:60]:
                 by_path[relative].setdefault(row["rule_id"], (dict(row), "term_match"))
+        if diversify:
+            # A program identity does not need to occur in the calculation's
+            # text. Represent distinct paragraphs and result fields within the
+            # existing candidate and output budgets, rather than every repeat.
+            rows = connection.execute(
+                "WITH candidates AS (SELECT *,ROW_NUMBER() OVER (PARTITION BY paragraph_name,writes_json "
+                "ORDER BY first_line,rule_id) AS group_rank FROM business_rules WHERE relative_path=? "
+                "AND rule_kind IN ('COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE','MOVE')) "
+                "SELECT * FROM candidates WHERE group_rank=1 ORDER BY first_line,rule_id LIMIT 61", (relative,)
+            ).fetchall()
+            if len(rows) > 60:
+                coverage["query_frontier"].append({"relative_path": relative, "reason": "identity_rule_group_budget", "minimum_omitted_groups": len(rows) - 60})
+            for row in rows[:60]:
+                by_path[relative].setdefault(row["rule_id"], (dict(row), "source_identity"))
     # Follow nearby field operations within the same source. These are search
     # leads; no cross-program value flow is inferred from identical names.
     for relative, found in list(by_path.items()):
@@ -182,7 +221,10 @@ def _rule_leads(connection, paths, previews, question, check_cancel):
             "AND EXISTS (SELECT 1 FROM business_rule_fields f WHERE f.rule_id=b.rule_id "
             f"AND f.field_name IN ({slots})) ORDER BY b.first_line LIMIT 100"
         )
-        for row in connection.execute(query, (relative, *names)):
+        rows = connection.execute(query.replace("LIMIT 100", "LIMIT 101"), (relative, *names)).fetchall()
+        if len(rows) > 100:
+            coverage["query_frontier"].append({"relative_path": relative, "reason": "shared_field_rule_budget", "minimum_omitted_rules": len(rows) - 100})
+        for row in rows[:100]:
             found.setdefault(row["rule_id"], (dict(row), "shared_field"))
     ranked = []
     for relative, found in by_path.items():
@@ -205,14 +247,37 @@ def _rule_leads(connection, paths, previews, question, check_cancel):
                 "selection_reason": reason,
             }))
     ranked.sort(key=lambda item: (-item[0], item[2]["relative_path"], item[1]))
-    selected, per_path = [], defaultdict(int)
-    for _, _, rule in ranked:
-        if per_path[rule["relative_path"]] >= 4:
-            continue
-        selected.append(rule)
-        per_path[rule["relative_path"]] += 1
-        if len(selected) >= 48:
-            break
+    coverage["candidate_rules"] = len(ranked)
+    per_path = defaultdict(list)
+    for item in ranked:
+        per_path[item[2]["relative_path"]].append(item)
+    eligible = []
+    for relative, candidates in per_path.items():
+        chosen, groups = [], set()
+        if diversify:
+            for item in candidates:
+                rule = item[2]
+                group = (rule["paragraph_name"], tuple(rule["writes"] or rule["conditions"] or rule["reads"]), rule["rule_kind"] if not rule["writes"] else "write")
+                if group not in groups:
+                    chosen.append(item)
+                    groups.add(group)
+                if len(chosen) >= 4:
+                    break
+        for item in candidates:
+            if len(chosen) >= 4:
+                break
+            if item not in chosen:
+                chosen.append(item)
+        eligible.extend(chosen)
+        if len(candidates) > len(chosen):
+            coverage["omitted_rules_per_path"][relative] = len(candidates) - len(chosen)
+    eligible.sort(key=lambda item: (-item[0], item[2]["relative_path"], item[1]))
+    selected = [item[2] for item in eligible[:48]]
+    coverage["selected_rules"] = len(selected)
+    coverage["omitted_rules_global"] = max(0, len(eligible) - 48)
+    coverage["candidate_selection_complete"] = not (coverage["omitted_previews"] or coverage["omitted_paths"] or
+        coverage["omitted_rules_per_path"] or coverage["omitted_rules_global"] or coverage["query_frontier"] or
+        coverage["omitted_rule_query_terms"])
     return selected
 
 
@@ -262,14 +327,18 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
     try:
         connection.execute("BEGIN")
         _, overview = _fast_snapshot(connection, source_root)
+        identity = discovery["source_identity"]
         direct = {item["relative_path"] for item in discovery["selection_reasons"]
                   if "text_match" in item["reasons"]}
-        exact = _exact_identifier_paths(connection, question + " " + " ".join(search_terms or []))
-        if exact:
-            direct = exact
+        if identity["status"] != "none":
+            direct = set(identity["direct_paths"])
+        else:
+            exact_lexical = _lexical_identifier_paths(connection, question + " " + " ".join(search_terms or []))
+            if exact_lexical:
+                direct = exact_lexical
         query_direct = set(direct)
         historical = _paths_from_history(connection, prior_paths)
-        if not direct:
+        if not direct and identity["status"] == "none":
             direct.update(historical)
         intent = "impact" if _IMPACT_LANGUAGE.search(question) else "explain"
         incoming, all_edges = _call_graph(connection, check_cancel) if direct else ({}, [])
@@ -293,10 +362,27 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         relevant_edges = [edge for edge in all_edges if edge["caller_path"] in selected and
                           (edge["target_path"] in selected or not edge["target_path"])]
         relevant_edges.sort(key=lambda edge: (distance.get(edge["caller_path"], 0), edge["caller_path"], edge["caller_line"]))
-        rule_query = question + " " + " ".join(search_terms or [])
-        leads = _rule_leads(connection, query_direct, discovery["matched_pages"], rule_query, check_cancel)
+        rule_query = " ".join(search_terms or []) + " " + question
+        rule_coverage = {}
+        leads = _rule_leads(connection, query_direct, discovery["matched_pages"], rule_query, check_cancel,
+                            coverage=rule_coverage, diversify=identity["status"] == "resolved")
         if intent == "explain":
+            before_related = len(leads)
             leads = _related_program_rules(connection, selected, direct, distance, leads, check_cancel)
+            rule_coverage["related_rules_added"] = len(leads) - before_related
+        anchors, anchor_groups = [], set()
+        for rule in leads:
+            if rule["rule_kind"] not in {"COMPUTE", "MOVE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"}:
+                continue
+            group = (rule["relative_path"], rule["paragraph_name"], tuple(rule["writes"]))
+            if group in anchor_groups:
+                continue
+            anchor_groups.add(group)
+            anchors.append({**rule, "line": rule["start_line"],
+                            "fields": list(dict.fromkeys([*rule["writes"], *rule["reads"]]))})
+        rule_coverage["semantic_anchor_candidates"] = len(anchors)
+        rule_coverage["semantic_anchor_budget"] = 4
+        rule_coverage["omitted_semantic_anchors"] = max(0, len(anchors) - 4)
         spotlights = []
         relation_candidates = [edge for edge in relevant_edges if edge["target_path"] in selected]
         relation_candidates.sort(key=lambda edge: (edge["caller_path"] not in direct,
@@ -331,6 +417,8 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
                 "direct_paths": sorted(query_direct), "selected_paths": ordered,
                 "programs": programs, "relations": relevant_edges,
                 "rule_leads": leads, "spotlights": spotlights,
+                "source_identity": identity, "boundaries": discovery["boundaries"],
+                "rule_lead_coverage": rule_coverage, "semantic_anchors": anchors[:4],
                 "matched_files": discovery["matched_file_count"],
                 "matched_pages": discovery["matched_page_count"],
                 "search_terms": _query_terms(question, search_terms)[0]}

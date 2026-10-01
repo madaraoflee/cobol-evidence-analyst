@@ -79,9 +79,17 @@ class BusinessDiscoveryRecoveryTests(unittest.TestCase):
 
         output = self.ask(respond)
         self.assertEqual(len(self.requests), 2)
-        self.assertEqual(output["agent_result"]["status"], "ANALYZED")
-        self.assertIn("乘费率", output["agent_result"]["answer"])
-        trace = json.loads(Path(output["agent_result"]["metrics"]["quality_trace_path"]).read_text())
+        result = output["agent_result"]
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["stop_reason"], "question_evidence_incomplete")
+        inputs = next(item for item in result["investigation_state"]["question_investigation"]["required_items"]
+                      if item["kind"] == "inputs")
+        self.assertEqual(inputs["reason"], "input_source_not_located")
+        self.assertEqual(set(inputs["fields"]), {"BASE-AMOUNT", "PREMIUM-RATE"})
+        self.assertIn("乘费率", result["answer"])
+        self.assertTrue(result["narrative"]["citations"])
+        self.assertTrue(all(ref["kind"] == "source_page" for ref in result["narrative"]["citations"]))
+        trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
         self.assertEqual(trace["rounds"][0]["stage"], "discover")
         self.assertEqual(trace["rounds"][0]["sources"], [])
         self.assertTrue(trace["rounds"][1]["sources"])
