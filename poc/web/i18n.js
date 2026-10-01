@@ -3,6 +3,21 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+已取得部分業務回答；尚未完成的範圍可繼續分析。|已取得部分业务回答；尚未完成的范围可继续分析。|A partial business answer is available; continue the analysis for the unfinished scope.
+業務回答未完整輸出；已保留收到的正文。|业务回答未完整输出；已保留收到的正文。|The business answer is incomplete; the received answer text is retained.
+已達頁面展示字數上限，這裡僅呈現部分正文。完整模型正文仍保存在本機結果檔。|已达页面展示字数上限，这里仅呈现部分正文。完整模型正文仍保存在本机结果文件。|The page display character limit was reached; only part of the answer is shown here. The complete model answer remains in the local result file.
+可分享的診斷摘要|可分享的诊断摘要|Shareable diagnostic summary
+僅含配置、覆蓋數量、完成狀態與字數。問題、源碼、回答正文、路徑及 API 配置值不會匯出。|仅含配置、覆盖数量、完成状态与字数。问题、源码、回答正文、路径及 API 配置值不会导出。|Contains configuration limits, coverage counts, completion status and character counts. Questions, source code, answers, paths and API configuration values are excluded.
+複製診斷 JSON|复制诊断 JSON|Copy diagnostic JSON
+匯出診斷 JSON|导出诊断 JSON|Export diagnostic JSON
+查看診斷摘要|查看诊断摘要|View diagnostic summary
+已複製診斷摘要。|已复制诊断摘要。|Diagnostic summary copied.
+複製暫不可用，請使用匯出診斷 JSON。|复制暂不可用，请使用导出诊断 JSON。|Copy is unavailable. Use Export diagnostic JSON.
+回答詳略|回答详略|Answer detail
+詳細 · 說明條件、流程與依據|详细 · 说明条件、流程与依据|Detailed · conditions, process and evidence
+簡短 · 重點與結論|简短 · 重点与结论|Brief · key points and conclusion
+回答未完整輸出：模型達到輸出長度限制（finish_reason=length）。已保留收到的完整正文，可繼續追問尚未說明的部分。|回答未完整输出：模型达到输出长度限制（finish_reason=length）。已保留收到的完整正文，可继续追问尚未说明的部分。|Incomplete answer: the model reached its output length limit (finish_reason=length). All received answer text is retained; ask a follow-up about the unfinished part.
+部分業務解讀：已保留取得的正文，尚未完成的範圍可繼續分析。|部分业务解读：已保留取得的正文，尚未完成的范围可继续分析。|Partial business explanation: the received answer text is retained. Continue the analysis for the unfinished scope.
 下一次回答保存接口原文|下一次回答保存接口原文|Save the raw API response for the next answer
 僅排查問題時開啟，發送一次後自動關閉。原文可能包含業務資料，會保存在本機結果目錄；一般回答和引用仍正常保存。|仅排查问题时开启，发送一次后自动关闭。原文可能包含业务资料，会保存在本机结果目录；一般回答和引用仍正常保存。|Enable only for troubleshooting; it turns off after one submission. The raw response may contain business data and is stored in the local results folder. Normal answers and references are still saved.
 分析範圍|分析范围|Scope

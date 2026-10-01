@@ -22,6 +22,38 @@ const firstMessages=[{id:'user-1',role:'user',content:'How is a request accepted
 function setup(h,messages=[]){h.run(`state.connected=true;state.apiConfigured=true;state.mode='real';state.conversationSupported=true;applyProject(${JSON.stringify(project())});state.readingStrategy='retrieval';state.question='';applyConversation(${JSON.stringify(conversation(messages))});`);}
 async function submit(h,question){h.events.input({target:{id:'question-input',value:question}});await h.events.submit({target:{id:'question-form'},preventDefault(){}});}
 
+test('detailed answers are default and a brief preference reaches the actual request',async()=>{
+  const h=harness();setup(h);assert.equal(h.run('state.answerDetail'),'detailed');
+  assert.match(h.run('conversationComposer()'),/value="detailed" selected/);
+  h.events.change({target:{id:'answer-detail',value:'brief'}});
+  h.respond(url=>url==='/api/analyze'?{job_id:'neutral-job'}:{status:'COMPLETED',result:{...project(),conversation:conversation(firstMessages)}});
+  await submit(h,'Explain the rule.');
+  const body=JSON.parse(h.requests.find(item=>item.url==='/api/analyze').options.body);
+  assert.equal(body.answer_detail,'brief');assert.equal(h.run('state.answerDetail'),'brief');
+});
+
+test('long normal and length-limited answers retain their final text with explicit partial notices',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);const answer='## Eligibility\n\n'+'A valid request requires capacity.\n\n'.repeat(3000)+'TAIL-RETAINED';
+    setup(h,[{id:'assistant-long',role:'assistant',content:answer,status:'completed',analysis_status:'ANALYZED',finish_reason:'stop'}]);
+    const normal=h.run('renderWorkbench()');assert.match(normal,/TAIL-RETAINED/);assert.equal((normal.match(/A valid request requires capacity/g)||[]).length,3000);assert.doesNotMatch(normal,/answer-incomplete/);
+    h.run("state.conversation.messages[0].analysis_status='PARTIAL';state.conversation.messages[0].finish_reason='length';state.conversation.messages[0].answer_truncated=true");
+    const partial=h.run('renderWorkbench()');assert.match(partial,/answer-incomplete/);assert.match(partial,/finish_reason=length/);assert.match(partial,/TAIL-RETAINED/);
+    assert.equal(h.run('state.conversation.messages[0].content'),answer);
+    if(locale==='en')assert.match(partial,/Incomplete answer: the model reached its output length limit/);
+  }
+});
+
+test('page projection limits have a visible notice distinct from the model output limit',()=>{
+  const h=harness();setup(h,[{id:'projected-answer',role:'assistant',content:'Retained answer',status:'completed',analysis_status:'ANALYZED',finish_reason:'stop',answer_display_truncated:true,answer_complete_characters:1000015}]);
+  const html=h.run('renderWorkbench()');assert.match(html,/page display character limit/);assert.match(html,/complete model answer remains in the local result file/);assert.doesNotMatch(html,/finish_reason=length/);assert.match(html,/Retained answer/);
+});
+
+test('an unknown completion reason never invents a provider length stop',()=>{
+  const h=harness();setup(h,[{id:'partial-answer',role:'assistant',content:'Available answer',status:'completed',analysis_status:'PARTIAL',finish_reason:'unknown',answer_truncated:true}]);
+  const html=h.run('renderWorkbench()');assert.match(html,/answer-incomplete/);assert.doesNotMatch(html,/finish_reason=length/);assert.match(html,/Available answer/);
+});
+
 test('the supported service opens a real conversation workspace with retrieval as default',async()=>{
   const h=harness();h.respond(url=>url==='/api/state'?{session_token:'test',api_configured:true,project:project(),conversations:[],conversation:null}:url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
   await h.run('initialize()');assert.equal(h.run('state.mode'),'real');assert.equal(h.run('state.readingStrategy'),'retrieval');assert.equal(h.run('state.question'),'');

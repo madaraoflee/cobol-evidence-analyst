@@ -15,7 +15,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from analyze_source import analyze_source, main
-from company_api import CompanyAPIConfig
+from company_api import CompanyAPIConfig, TransportResponse
 from investigation_tools import InvestigationTools
 from run_demo import main as demo_main
 
@@ -173,6 +173,28 @@ class AnalyzeSourceTests(unittest.TestCase):
         self.assertEqual(result["question_status"], "CITATION_VERIFIED_ONLY")
         self.assertIn("Current source explanation.", (self.output / "agent-result.md").read_text())
         self.assertNotIn("hidden-test-key", json.dumps(result))
+
+    def test_brief_preference_reaches_fresh_and_reused_business_questions(self) -> None:
+        self.write_program(filename="rule.cbl")
+        requests = []
+        def transport(request):
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            requests.append(payload)
+            return TransportResponse(200, json.dumps({"choices": [{"message": {
+                "role": "assistant", "content": "输出数量为输入数量的两倍。"}, "finish_reason": "stop"}]}))
+        config = CompanyAPIConfig("https://neutral.example.invalid/v1", "neutral-model",
+                                  api_key="offline-neutral-credential")
+        from agent_policy import AgentPolicy
+        options = dict(question="BATCHENTRY OUTPUT-COUNT 怎么计算？", analysis_mode="business",
+                       reading_strategy="retrieval", answer_detail="brief", allow_network=True,
+                       framework_reference_path="", source_format="free", config=config,
+                       transport=transport, agent_policy=AgentPolicy(max_model_requests=1, max_answer_revisions=0))
+        first = analyze_source(self.source, self.output, **options)
+        second = analyze_source(self.source, self.output, **options)
+        self.assertEqual([payload["answer_detail"] for payload in requests], ["brief", "brief"])
+        self.assertEqual(first["source_options"]["answer_detail"], "brief")
+        self.assertEqual(second["source_options"]["answer_detail"], "brief")
+        self.assertTrue(second["index_reused"])
 
     def test_custom_extension_and_explicit_encoding(self) -> None:
         (self.source / "module.member").write_bytes((program("CUSTOMENTRY") + "*> 中文说明\n").encode("gb18030"))

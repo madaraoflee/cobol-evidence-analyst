@@ -149,7 +149,9 @@ class WebAPIDiagnosticsTests(unittest.TestCase):
             else:
                 self.assertEqual(agent["runner_status"], "COMPLETED")
                 self.assertIn("increments the counter", agent["agent_result"]["narrative"]["text"])
-                self.assertEqual(agent["agent_result"]["claims"], [])
+                self.assertFalse(agent["agent_result"]["claims_semantically_verified"])
+                self.assertTrue(all(claim["verification"] == "unverified"
+                                    for claim in agent["agent_result"]["claims"]))
             exchanges = agent["api_diagnostics"]["exchanges"]
             actual = [item for item in exchanges if item["phase"] == "investigation"]
             if repository:

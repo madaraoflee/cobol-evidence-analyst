@@ -43,6 +43,8 @@ CONFIG_ENV_KEYS = frozenset({
     "COMPANY_EMBEDDING_MODEL", "COMPANY_API_STYLE", "COMPANY_MAX_OUTPUT_TOKENS",
     "FRAMEWORK_REFERENCE_PATH",
 })
+MODEL_PROFILE_NAMES = frozenset({"adapter", "workbench", "analysis", "custom"})
+OUTPUT_LIMIT_SOURCES = frozenset({"profile", "environment", "dotenv", "explicit", "unknown"})
 
 _SAFE_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
 
@@ -139,6 +141,9 @@ class CompanyAPIConfig:
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
     max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS
     allow_insecure_localhost: bool = False
+    profile_name: str = field(default="custom", repr=False, compare=False)
+    # Direct constructors do not reveal whether their token default was explicit.
+    output_limit_source: str = field(default="unknown", repr=False, compare=False)
 
     def __repr__(self) -> str:
         return (
@@ -150,12 +155,24 @@ class CompanyAPIConfig:
             f"api_key_source={self.api_key_source!r}, "
             f"timeout_seconds={self.timeout_seconds!r}, "
             f"max_output_tokens={self.max_output_tokens!r}, "
+            f"profile_name={self.safe_profile_name!r}, "
+            f"output_limit_source={self.safe_output_limit_source!r}, "
             f"allow_insecure_localhost={self.allow_insecure_localhost!r})"
         )
 
     @property
     def normalized_api_style(self) -> str:
         return self.api_style.strip().lower()
+
+    @property
+    def safe_profile_name(self) -> str:
+        return (self.profile_name if isinstance(self.profile_name, str)
+                and self.profile_name in MODEL_PROFILE_NAMES else "unknown")
+
+    @property
+    def safe_output_limit_source(self) -> str:
+        return (self.output_limit_source if isinstance(self.output_limit_source, str)
+                and self.output_limit_source in OUTPUT_LIMIT_SOURCES else "unknown")
 
     @property
     def api_key_source(self) -> str:
@@ -178,6 +195,10 @@ class CompanyAPIConfig:
         return candidate.strip() or None
 
     def validate(self, *, require_key: bool = True) -> None:
+        if self.safe_profile_name == "unknown":
+            raise APIConfigurationError("MODEL_PROFILE_INVALID")
+        if not isinstance(self.output_limit_source, str) or self.output_limit_source not in OUTPUT_LIMIT_SOURCES:
+            raise APIConfigurationError("OUTPUT_LIMIT_SOURCE_INVALID")
         if self.normalized_api_style != SUPPORTED_API_STYLE:
             raise APIConfigurationError("API_STYLE_UNSUPPORTED")
         if not self.base_url.strip():
@@ -229,6 +250,8 @@ class CompanyAPIConfig:
             "api_key_source": self.api_key_source,
             "timeout_seconds": float(self.timeout_seconds),
             "max_output_tokens": self.max_output_tokens,
+            "profile_name": self.safe_profile_name,
+            "output_limit_source": self.safe_output_limit_source,
             "allow_insecure_localhost": self.allow_insecure_localhost,
         }
 
@@ -246,6 +269,7 @@ class CompanyAPIConfig:
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         max_output_tokens: int | None = None,
         default_max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
+        profile_name: str = "adapter",
         allow_insecure_localhost: bool = False,
     ) -> "CompanyAPIConfig":
         """Resolve explicit values, process environment, then the project .env.
@@ -253,6 +277,7 @@ class CompanyAPIConfig:
         No process variables are changed. An explicitly supplied environment
         is isolated from ambient files unless env_file is also supplied.
         Output limits fall back to the caller's profile default when absent.
+        Fixed metadata records the profile and selected output-limit source.
         """
 
         environment = os.environ if environ is None else environ
@@ -261,9 +286,12 @@ class CompanyAPIConfig:
         )
         source = {**local, **{key: environment[key] for key in CONFIG_ENV_KEYS if key in environment}}
         resolved_output_tokens = default_max_output_tokens
+        output_limit_source = "profile"
         if max_output_tokens is not None:
             resolved_output_tokens = max_output_tokens
+            output_limit_source = "explicit"
         elif "COMPANY_MAX_OUTPUT_TOKENS" in source:
+            output_limit_source = "environment" if "COMPANY_MAX_OUTPUT_TOKENS" in environment else "dotenv"
             raw_tokens = source["COMPANY_MAX_OUTPUT_TOKENS"]
             if not isinstance(raw_tokens, str) or not re.fullmatch(r"[0-9]+", raw_tokens.strip()):
                 raise APIConfigurationError("MAX_OUTPUT_TOKENS_INVALID")
@@ -307,6 +335,8 @@ class CompanyAPIConfig:
             ),
             timeout_seconds=timeout_seconds,
             max_output_tokens=resolved_output_tokens,
+            profile_name=profile_name,
+            output_limit_source=output_limit_source,
             allow_insecure_localhost=allow_insecure_localhost,
         )
         config.validate(require_key=True)
@@ -1359,7 +1389,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-style")
     parser.add_argument("--timeout-seconds", type=float, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument(
-        "--max-output-tokens", type=int, default=DEFAULT_MAX_OUTPUT_TOKENS
+        "--max-output-tokens", type=int,
+        help="Output limit override; otherwise use environment, local file, then the 1024-token adapter default."
     )
     parser.add_argument("--allow-insecure-localhost", action="store_true")
     parser.add_argument("--probe-embeddings", action="store_true")

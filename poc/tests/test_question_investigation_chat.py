@@ -221,7 +221,9 @@ class QuestionInvestigationChatTests(unittest.TestCase):
                 policy=AgentPolicy(max_source_characters=4096,
                                    initial_pages=1, initial_source_characters=512))
         self.assertEqual(len(self.requests), 2)
-        self.assertFalse(any("COMPUTE FINAL-AMOUNT" in page["source_text"]
+        # Default detail now supplies located missing material before the first
+        # request; a model's subsequent deferral still receives a bounded retry.
+        self.assertTrue(any("COMPUTE FINAL-AMOUNT" in page["source_text"]
                              for page in self.requests[0]["source_context"][0]["pages"]))
         self.assertTrue(any("COMPUTE FINAL-AMOUNT" in page["source_text"]
                             for page in self.requests[1]["source_context"][0]["pages"]))

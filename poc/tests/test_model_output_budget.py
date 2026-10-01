@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,8 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import company_api
+import analyze_source
+import run_agent
 from company_api import APIConfigurationError, CompanyAPIConfig, OpenAICompatibleChatClient, TransportResponse
 from model_profiles import model_config
 from run_agent import build_parser
@@ -62,6 +65,71 @@ class ModelOutputBudgetTests(unittest.TestCase):
         self.assertEqual((workbench.max_output_tokens, workbench.timeout_seconds), (2048, 60.0))
         self.assertEqual(self.actual_request(adapter)["max_tokens"], 1024)
         self.assertEqual(self.actual_request(workbench)["max_tokens"], 2048)
+
+    def test_budget_provenance_identifies_profile_and_override_source(self):
+        for name in ("adapter", "workbench"):
+            config = self.profile(name)
+            self.assertEqual(config.profile_name, name)
+            self.assertEqual(config.output_limit_source, "profile")
+            self.assertEqual(config.safe_summary()["profile_name"], name)
+        self.write_env("3072")
+        self.assertEqual(self.profile("workbench").output_limit_source, "dotenv")
+        environment = {"COMPANY_MAX_OUTPUT_TOKENS": "6144"}
+        self.assertEqual(self.profile("workbench", environ=environment).output_limit_source,
+                         "environment")
+        config = self.profile("workbench", environ=environment, max_output_tokens=4096)
+        self.assertEqual(config.output_limit_source, "explicit")
+        self.assertEqual(config.profile_name, "workbench")
+        safe = repr(config) + json.dumps(config.safe_summary())
+        for value in self.values.values():
+            self.assertNotIn(value, safe)
+
+    def test_config_metadata_uses_only_fixed_safe_values(self):
+        direct = CompanyAPIConfig(self.values["COMPANY_API_BASE_URL"],
+            self.values["COMPANY_CHAT_MODEL"], api_key=self.values["COMPANY_API_KEY"])
+        self.assertEqual(direct.profile_name, "custom")
+        self.assertEqual(direct.output_limit_source, "unknown")
+        for kwargs in ({"profile_name": "private-profile-canary"},
+                       {"output_limit_source": "private-source-canary"}):
+            config = CompanyAPIConfig(self.values["COMPANY_API_BASE_URL"],
+                self.values["COMPANY_CHAT_MODEL"], api_key=self.values["COMPANY_API_KEY"], **kwargs)
+            with self.assertRaises(APIConfigurationError):
+                config.validate()
+            self.assertNotIn("private-", repr(config) + json.dumps(config.safe_summary()))
+
+    def test_cli_budget_precedence_preserves_each_entry_default(self):
+        entrypoints = (
+            (run_agent.main, ["--database", str(self.root / "unused.sqlite"),
+                              "--question", "模拟业务问题"], 1024, "adapter"),
+            (company_api.main, [], 1024, "adapter"),
+            (analyze_source.main, ["--source", str(self.root), "--output", str(self.root),
+                                  "--reading-strategy", "focused"], 4096, "analysis"),
+        )
+        for main, arguments, default, name in entrypoints:
+            cases = (({}, None, [], default, "profile"),
+                     ({}, "3072", [], 3072, "dotenv"),
+                     ({"COMPANY_MAX_OUTPUT_TOKENS": "6144"}, "3072", [], 6144, "environment"),
+                     ({"COMPANY_MAX_OUTPUT_TOKENS": "6144"}, "3072",
+                      ["--max-output-tokens", "4096"], 4096, "explicit"))
+            for environment, stored, flag, expected, source in cases:
+                self.write_env(stored)
+                with self.subTest(entrypoint=main.__module__, source=source), \
+                     mock.patch.object(company_api, "PROJECT_ENV_FILE", self.env_file), \
+                     mock.patch.dict(os.environ, environment, clear=True), \
+                     mock.patch("sys.stdout", new_callable=io.StringIO), \
+                     mock.patch.object(run_agent, "run_investigation", return_value={"runner_status": "COMPLETED"}) as run, \
+                     mock.patch.object(company_api, "probe_capabilities", return_value={
+                         "overall_status": "COMPLETED", "agent_readiness": {"ready": True}}) as probe, \
+                     mock.patch.object(analyze_source, "analyze_source", return_value={
+                         "runner_status": "COMPLETED", "question_status": "ANSWERED"}) as analyze:
+                    self.assertEqual(main([*arguments, *flag]), 0)
+                    if main is analyze_source.main:
+                        config = CompanyAPIConfig.from_env(**analyze.call_args.kwargs["api_options"])
+                    else:
+                        config = run.call_args.args[2] if main is run_agent.main else probe.call_args.args[0]
+                    self.assertEqual(self.actual_request(config)["max_tokens"], expected)
+                    self.assertEqual(config.profile_name, name)
+                    self.assertEqual(config.output_limit_source, source)
 
     def test_file_setting_reaches_actual_web_workbench_request(self):
         self.write_env("4096")

@@ -6,8 +6,15 @@ import re
 
 
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
-_DETAIL = re.compile(r"详细|詳細|详尽|詳盡|细致|完整|逐步|流程|目的|原理|来龙去脉|"
-                     r"\b(?:detailed|thorough|workflow|flow|purpose)\b", re.I)
+_BRIEF = re.compile(r"(?:简短|簡短|简洁|簡潔|简要|簡要)(?:地)?\s*"
+                    r"(?:回答|答复|答覆|说明|說明|解释|解釋|一点|一點|些|即可|就好|[。.!?？]?\s*$)|"
+                    r"(?:只要|仅要|僅要|只给|只給|仅给|僅給)\s*(?:结论|結論)|"
+                    r"(?:不要|不用|无需|無需)(?:展开|展開)|"
+                    r"(?:一|两|兩|三)句话|(?:一|兩|两|三)句話|"
+                    r"\b(?:keep (?:it|the answer) (?:brief|concise|short)|(?:please )?be brief|"
+                    r"(?:answer|explain|respond) briefly|briefly (?:answer|explain|describe|summarize)|"
+                    r"(?:brief|concise|short) (?:answer|response|explanation)|"
+                    r"in (?:one|two|three|a single) sentences?)\b", re.I)
 _LIMITATION = re.compile(
     r"不足以.{0,12}(?:判断|判斷|确认|確認|解释|解釋|确定|確定|结论|結論|回答|分析|说明|說明|给出|給出)|"
     r"(?:无法|無法|不能|未能|难以|難以|尚未).{0,24}"
@@ -73,8 +80,14 @@ def assess_answer_completion(answer):
             "method": "bounded_text_check", "semantic_verification": "unverified"}
 
 
-def wants_business_detail(question):
-    return bool(_DETAIL.search(str(question)))
+def wants_business_detail(question, *, answer_detail="detailed"):
+    """Business answers are developed by default; explicit brevity wins."""
+    if answer_detail not in {"brief", "detailed"}:
+        raise ValueError("answer_detail must be brief or detailed.")
+    preference = re.sub(r"(?:不要|不用|无需|無需|别|別)(?:太)?(?:简短|簡短|简洁|簡潔|简要|簡要)", "", str(question))
+    preference = re.sub(r"\b(?:do not|don't|don’t)\s+(?:be|keep (?:it|the answer))\s+"
+                        r"(?:brief|concise|short)\b", "", preference, flags=re.I)
+    return answer_detail != "brief" and not _BRIEF.search(preference)
 
 
 def needs_synthesis_review(question, answer, investigation, *, source_available=False):
@@ -94,7 +107,8 @@ def needs_synthesis_review(question, answer, investigation, *, source_available=
     return completion["limitation_detected"]
 
 
-def build_analysis_brief(question, investigation, source_pages, framework_references, max_output_tokens):
+def build_analysis_brief(question, investigation, source_pages, framework_references, max_output_tokens,
+                         *, answer_detail="detailed"):
     """Bind the synthesis brief to excerpts surviving actual request trimming."""
     visible = {page["evidence_id"] for page in source_pages if page.get("evidence_id")}
     visible.update(row["reference_id"] for row in framework_references if row.get("reference_id"))
@@ -108,7 +122,7 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
     external = list(dict.fromkeys(target for item in investigation.get("required_items", [])
         if item.get("reason") in {"external_implementation_unavailable", "runtime_target_unresolved"}
         for target in item.get("targets", [])))
-    return {"detail_requested": wants_business_detail(question),
+    return {"detail_requested": wants_business_detail(question, answer_detail=answer_detail),
             "output_budget_tokens": max_output_tokens,
             "available_source_paths": list(dict.fromkeys(page["relative_path"] for page in source_pages
                                                          if page.get("relative_path")))[:8],
@@ -116,8 +130,11 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
             "unavailable_or_runtime_targets": external[:8],
             "remaining_gaps": [{key: gap[key] for key in ("kind", "reason") if key in gap} for gap in gaps[:8]],
             "semantic_execution_verified": False,
-            "task": "综合当前原文支持的业务目的、处理先后、输入来源、计算口径、适用条件、例外和结果影响，"
+            "task": ("先简要回答结论和关键条件，保留必要来源引用。" if not wants_business_detail(
+                question, answer_detail=answer_detail) else "按问题需要充分解释，默认不因用户未写‘详细’而缩成概述。")
+                + "综合当前原文支持的业务目的、处理先后、输入来源、计算口径、适用条件、例外和结果影响，"
                 "只展开与问题有关的内容。关键结论逐项附实际来源引用。已有证据的结论直接说明；"
+                "没有直接 COMPUTE 或具体数值不妨碍解释已知步骤、条件或符号关系；只限定未知数值或算法。"
                 "内部尚可补读的程序、段落、赋值和依赖由调查工具读取，不要求用户补交已入库源码。"
                 "缺外部实现或运行时目标只限制依赖它的结论，继续解释调用者已知的输入、条件和返回处理。"
                 "不把必答项状态、检索覆盖或索引数量写成业务结论或完整值流证明。"}
