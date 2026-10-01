@@ -12,6 +12,7 @@ from typing import Callable, Mapping, Sequence
 
 from agent_loop import BoundedAgentLoop
 from api_diagnostics import APIResponseDiagnostics
+from api_error_details import sanitize_diagnostic
 from company_api import (
     DEFAULT_TIMEOUT_SECONDS,
     APIConfigurationError,
@@ -32,6 +33,7 @@ def _not_ready(
     *,
     capability_report: Mapping[str, object] | None = None,
     diagnostics: APIResponseDiagnostics | None = None,
+    diagnostic: object = None,
 ) -> dict[str, object]:
     result: dict[str, object] = {
         "schema_version": RUNNER_SCHEMA_VERSION,
@@ -46,10 +48,42 @@ def _not_ready(
     }
     if capability_report is not None:
         result["capability_report"] = dict(capability_report)
+        if diagnostic is None:
+            diagnostic = _capability_failure_diagnostic(capability_report)
+    safe_diagnostic = sanitize_diagnostic(diagnostic)
+    if safe_diagnostic is not None:
+        result["diagnostic"] = safe_diagnostic
     if diagnostics is not None:
         result["api_diagnostics"] = diagnostics.to_dict()
         result["privacy"]["scope"] = "CONFIGURATION_AND_CAPABILITY_REPORT"
     return result
+
+
+def _capability_failure_diagnostic(report: Mapping[str, object]) -> object:
+    """Choose the blocking request failure, not an optional model-list failure."""
+    capabilities = report.get("capabilities")
+    if not isinstance(capabilities, Mapping):
+        return None
+    audit = report.get("audit", [])
+    audit = audit if isinstance(audit, list) else []
+    for name in ("chat", "tool_calling", "strict_json", "models"):
+        capability = capabilities.get(name)
+        if not isinstance(capability, Mapping) or capability.get("status") == "SUPPORTED":
+            continue
+        diagnostic = sanitize_diagnostic(capability.get("diagnostic"))
+        if diagnostic is not None:
+            return diagnostic
+        evidence = capability.get("evidence")
+        if isinstance(evidence, Mapping):
+            diagnostic = sanitize_diagnostic(evidence.get("diagnostic"))
+            if diagnostic is not None:
+                return diagnostic
+        for event in reversed(audit):
+            if isinstance(event, Mapping) and event.get("capability") == name:
+                diagnostic = sanitize_diagnostic(event.get("diagnostic"))
+                if diagnostic is not None:
+                    return diagnostic
+    return None
 
 
 def run_investigation(
@@ -194,6 +228,9 @@ def run_investigation(
             "model_identifiers_recorded": False,
         },
     }
+    safe_diagnostic = sanitize_diagnostic(result.get("diagnostic"))
+    if safe_diagnostic is not None:
+        output["diagnostic"] = safe_diagnostic
     if diagnostics is not None:
         output["api_diagnostics"] = diagnostics.to_dict()
         output["privacy"]["scope"] = "CONFIGURATION_AND_CAPABILITY_REPORT"
@@ -250,7 +287,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             allow_insecure_localhost=args.allow_insecure_localhost,
         )
     except APIConfigurationError as exc:
-        output = _not_ready(exc.code)
+        output = _not_ready(exc.code, diagnostic=getattr(exc, "diagnostic", None))
         print(json.dumps(output, ensure_ascii=False, indent=2, sort_keys=True))
         return 2
 

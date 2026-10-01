@@ -180,7 +180,12 @@ class ModelOutputBudgetTests(unittest.TestCase):
                 with self.assertRaises(APIConfigurationError) as raised:
                     CompanyAPIConfig.from_env(environ={**self.values, "COMPANY_MAX_OUTPUT_TOKENS": value})
                 self.assertEqual(str(raised.exception), "MAX_OUTPUT_TOKENS_INVALID")
-                self.assertEqual(raised.exception.to_safe_dict(), {"code": "MAX_OUTPUT_TOKENS_INVALID"})
+                safe = raised.exception.to_safe_dict()
+                self.assertEqual(safe["code"], "MAX_OUTPUT_TOKENS_INVALID")
+                self.assertEqual(safe["diagnostic"]["evidence_source"], "local")
+                self.assertRegex(safe["diagnostic"]["request_id"], r"^local-[0-9a-f]{32}$")
+                self.assertNotIn("private-invalid-budget-marker", json.dumps(safe))
+                self.assertNotIn("9" * 5000, json.dumps(safe))
 
     def test_invalid_file_budget_is_reported_before_a_web_request(self):
         self.write_env("private-invalid-budget-marker")

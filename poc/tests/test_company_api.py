@@ -548,7 +548,7 @@ class CapabilityProbeTests(unittest.TestCase):
         report = probe_capabilities(self.make_config(), transport=transport)
 
         self.assertEqual(
-            report["capabilities"]["tool_calling"]["status"], "UNSUPPORTED"  # type: ignore[index]
+            report["capabilities"]["tool_calling"]["status"], "UNAVAILABLE"  # type: ignore[index]
         )
         self.assertEqual(
             report["agent_readiness"]["mode"], "VALIDATED_JSON_FALLBACK"  # type: ignore[index]
@@ -611,7 +611,7 @@ class CapabilityProbeTests(unittest.TestCase):
 
         self.assertEqual(report["overall_status"], "COMPLETED")
         self.assertEqual(
-            report["capabilities"]["models"]["status"], "UNSUPPORTED"  # type: ignore[index]
+            report["capabilities"]["models"]["status"], "UNAVAILABLE"  # type: ignore[index]
         )
         self.assertEqual(
             report["agent_readiness"]["mode"], "NATIVE_TOOL_CALLING"  # type: ignore[index]
@@ -626,7 +626,7 @@ class CapabilityProbeTests(unittest.TestCase):
                 if "response_format" in payload:
                     return json_response(
                         400,
-                        {"error": {"message": f"unsupported {API_KEY}"}},
+                        {"error": {"code": "unsupported_parameter", "message": f"unsupported {API_KEY}"}},
                     )
             return successful(request)
 

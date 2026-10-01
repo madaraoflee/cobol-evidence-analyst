@@ -10,6 +10,7 @@ import json
 import sqlite3
 
 from company_api import APIConfigurationError, CompanyAPIConfig
+from api_error_details import format_diagnostic, sanitize_diagnostic
 from report_view import write_report_view
 
 
@@ -59,6 +60,7 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
     if progress:
         progress({"phase": "using_index", "completed": 0, "total": None, "unit": "steps"})
     report = copy.deepcopy(previous)
+    report.pop("diagnostic", None)
     report.update(generated_at_utc=datetime.now(timezone.utc).isoformat(), question=question,
                   question_status="RUNNING", entry_requested=entry, messages=[],
                   runner_status="INDEX_READY", reason_code="SOURCE_INDEX_REUSED",
@@ -73,6 +75,12 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
             progress=progress, check_cancel=check_cancel, policy=policy, answer_detail=answer_detail)
     except APIConfigurationError as exc:
         agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
+        diagnostic = sanitize_diagnostic(getattr(exc, "diagnostic", None))
+        if diagnostic is not None:
+            agent["diagnostic"] = diagnostic
+    diagnostic = sanitize_diagnostic(agent.get("diagnostic"))
+    if diagnostic is not None:
+        report["diagnostic"] = diagnostic
     result = agent.get("agent_result") or {}
     if result.get("snapshot_id") and result["snapshot_id"] != overview["snapshot_id"]:
         from analyze_source import _catalog
@@ -94,6 +102,6 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
     _write(output / "diagnosis.md", "# 本次业务对话\n\n使用已有源码索引，按问题检索。\n", markdown=True)
     _write(output / "agent-result.json", agent)
     write_report_view(output / "agent-result.json", agent)
-    _write(output / "agent-result.md", result.get("answer", "本次没有取得模型回答。"), markdown=True)
+    _write(output / "agent-result.md", result.get("answer") or format_diagnostic(diagnostic) or "本次没有取得模型回答。", markdown=True)
     _write(output / "framework-context.json", report.get("framework_context", {}))
     return report

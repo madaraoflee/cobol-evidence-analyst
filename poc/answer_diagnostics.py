@@ -7,6 +7,8 @@ from pathlib import Path
 import re
 import subprocess
 
+from api_error_details import sanitize_diagnostic
+
 
 STOP_REASONS = frozenset({
     "sufficient_material", "MODEL_OUTPUT_TRUNCATED", "answer_incomplete", "request_budget",
@@ -143,7 +145,19 @@ def build_answer_diagnostics(*, config, quality, result):
            for item in result.get("diagnostics", [])):
         limitations.add("parser_failed")
     policy = configuration.get("policy", {})
+    api_failures = []
+    for item in result.get("diagnostics", [])[:64]:
+        if not isinstance(item, dict):
+            continue
+        diagnostic = sanitize_diagnostic(item.get("diagnostic"))
+        if diagnostic is not None:
+            api_failures.append({"stage": _enum(item.get("stage"), {
+                "configuration", "provider_request", "context_assembly", "response_parse",
+                "response_validation", "continuation", "synthesis_review", "direct",
+                "map", "reduce", "model_request", "repository_search", "page",
+                "program", "synthesis"}), **diagnostic})
     return {"schema_version": "business-answer-diagnostics/v1",
+        "api_failures": api_failures,
         "runtime": {"commit": _commit(),
             "profile": _enum(getattr(config, "profile_name", None), {"adapter", "workbench", "analysis", "custom"}),
             "model_fingerprint": hashlib.sha256(config.chat_model.encode()).hexdigest(),

@@ -17,14 +17,18 @@ from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Sequence
 
 try:  # Support both ``python poc/...`` and package-style imports.
+    from .api_error_details import build_diagnostic, format_diagnostic, is_error_envelope, sanitize_diagnostic
     from .claim_support import CHECKER_VERSION, check_claim_support, normalize_assertion
+    from .company_api import SafeAPIError
     from .investigation_tools import (
         TOOL_CONTRACT_VERSION,
         InvestigationTools,
         tool_definitions,
     )
 except ImportError:  # pragma: no cover - exercised by the repository test style.
+    from api_error_details import build_diagnostic, format_diagnostic, is_error_envelope, sanitize_diagnostic
     from claim_support import CHECKER_VERSION, check_claim_support, normalize_assertion
+    from company_api import SafeAPIError
     from investigation_tools import (  # type: ignore[no-redef]
         TOOL_CONTRACT_VERSION,
         InvestigationTools,
@@ -2986,6 +2990,7 @@ class BoundedAgentLoop:
         *,
         collected_boundaries: list[object],
         common: dict[str, Any],
+        diagnostic: object = None,
     ) -> dict[str, Any]:
         safe_message = _SAFE_STOP_MESSAGES.get(
             stop_reason,
@@ -2998,7 +3003,7 @@ class BoundedAgentLoop:
         }
         boundaries = _deduplicate([*collected_boundaries, boundary])
         evidence_refs = common.get("verified_evidence_refs", [])
-        return {
+        result = {
             **common,
             "status": "ABSTAINED",
             "question_coverage": _question_coverage(),
@@ -3021,6 +3026,14 @@ class BoundedAgentLoop:
                 "verified_evidence_count": len(evidence_refs),
             },
         }
+        safe_diagnostic = sanitize_diagnostic(diagnostic)
+        if safe_diagnostic is not None:
+            result["diagnostic"] = safe_diagnostic
+            result["diagnostics"][0].update(
+                stage="model_request", diagnostic=safe_diagnostic,
+            )
+            result["answer"] = format_diagnostic(safe_diagnostic) + "\n\n" + result["answer"]
+        return result
 
     def run(
         self, question: str, *, entry_program: str | None = None,
@@ -3177,6 +3190,7 @@ class BoundedAgentLoop:
                     "an absent target does not exist elsewhere. File, depth, byte "
                     "and dependency-scan limits are explanation boundaries."
                 )
+            response = None
             try:
                 response = self._complete(
                     messages,
@@ -3186,12 +3200,40 @@ class BoundedAgentLoop:
                 decision = normalize_model_output(
                     response, fallback_call_id=f"agent_call_{model_turns}"
                 )
+            except SafeAPIError as exc:
+                return self._stopped_result(
+                    "model_client_error",
+                    "The model request failed.",
+                    collected_boundaries=collected_boundaries,
+                    common=common(),
+                    diagnostic=getattr(exc, "diagnostic", None),
+                )
             except (ModelProtocolError, TypeError, ValueError) as exc:
+                if response is None and not isinstance(exc, ModelProtocolError):
+                    return self._stopped_result(
+                        "model_client_error",
+                        "The local model client failed before returning a response.",
+                        collected_boundaries=collected_boundaries,
+                        common=common(),
+                        diagnostic=build_diagnostic("INTERNAL_ERROR"),
+                    )
+                suppress = getattr(self.model_client, "suppress_error_capture", None)
+                if response is not None and callable(suppress):
+                    suppress("MODEL_PROTOCOL_ERROR")
+                try:
+                    message = _message_from_response(response) if isinstance(response, Mapping) else None
+                except ModelProtocolError:
+                    message = None
+                content = message.get("content") if isinstance(message, Mapping) else None
+                diagnostic = None
+                if isinstance(content, str) and is_error_envelope(content):
+                    diagnostic = build_diagnostic("INVALID_RESPONSE_SHAPE")
                 return self._stopped_result(
                     "model_protocol_error",
                     str(exc),
                     collected_boundaries=collected_boundaries,
                     common=common(),
+                    diagnostic=diagnostic,
                 )
             except Exception:  # Model adapters must not leak remote error detail.
                 return self._stopped_result(
@@ -3199,6 +3241,7 @@ class BoundedAgentLoop:
                     "The model client failed; remote response details were not recorded.",
                     collected_boundaries=collected_boundaries,
                     common=common(),
+                    diagnostic=build_diagnostic("INTERNAL_ERROR"),
                 )
 
             if decision.action in FINAL_ACTIONS:

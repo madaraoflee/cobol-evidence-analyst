@@ -211,8 +211,8 @@ class BusinessAnalysisTests(unittest.TestCase):
                 self.assertEqual(output["runner_status"], "SAFE_STOP")
                 self.assertEqual(output["agent_result"]["status"], "ABSTAINED")
                 self.assertEqual(output["agent_result"]["diagnostics"][0]["code"], expected)
-                self.assertEqual(output["api_diagnostics"]["request_count"], 3)
-                self.assertEqual(output["agent_result"]["automatic_retries"], 2)
+                self.assertEqual(output["api_diagnostics"]["request_count"], 1)
+                self.assertEqual(output["agent_result"]["automatic_retries"], 0)
                 self.assertEqual(output["agent_result"]["reading_coverage"]["sent_pages"], 1)
 
     def test_structured_business_reply_is_preserved_without_guessing_fields(self) -> None:
@@ -282,7 +282,7 @@ class BusinessAnalysisTests(unittest.TestCase):
         self.assertGreater(len(requests), 145)
         self.assertEqual(result["status"], "ANALYZED")
 
-    def test_full_chain_late_page_and_synthesis_failure_keep_all_other_explanations(self) -> None:
+    def test_full_chain_late_page_failure_preserves_prior_explanations_without_extra_requests(self) -> None:
         prepared = self.full_chain_plan(35)
         failed_id = prepared["pages"][25]["evidence_id"]
         delivered = []
@@ -300,12 +300,14 @@ class BusinessAnalysisTests(unittest.TestCase):
         with mock.patch("business_analysis.prepare_source_reading", return_value=prepared):
             result = self.run_analysis(transport, reading_strategy="full_chain", max_pages=3)["agent_result"]
         self.assertEqual(result["status"], "PARTIAL")
-        self.assertEqual(result["reading_coverage"]["summarized_pages"], 34)
-        self.assertEqual(result["reading_coverage"]["sent_pages"], 35)
-        self.assertEqual(result["automatic_retries"], 2)
-        self.assertEqual(len(result["page_summaries"]), 34)
-        self.assertIn(prepared["pages"][-1]["evidence_id"], {item["evidence_id"] for item in result["page_summaries"]})
-        self.assertTrue(all(item["text"] for item in result["program_summaries"]))
+        self.assertEqual(result["reading_coverage"]["summarized_pages"], 25)
+        self.assertEqual(result["reading_coverage"]["sent_pages"], 26)
+        self.assertEqual(result["reading_coverage"]["unattempted_pages"], 9)
+        self.assertEqual(result["automatic_retries"], 0)
+        self.assertEqual(result["model_turns"], 26)
+        self.assertEqual(len(result["page_summaries"]), 25)
+        self.assertNotIn(prepared["pages"][-1]["evidence_id"], {item["evidence_id"] for item in result["page_summaries"]})
+        self.assertTrue(all(item["text"] for item in result["program_summaries"] if item["summarized_pages"]))
         self.assertIn("已完成的程序业务解释", result["answer"])
 
     def test_full_chain_stops_on_authentication_or_refusal_and_keeps_prior_result(self) -> None:
@@ -329,7 +331,7 @@ class BusinessAnalysisTests(unittest.TestCase):
                 self.assertIn("已知业务规则保留", result["answer"])
                 self.assertEqual(len(result["page_summaries"]), 1)
 
-    def test_error_and_old_action_objects_remain_unaccepted_but_visible(self) -> None:
+    def test_error_objects_are_omitted_and_old_action_objects_remain_unaccepted(self) -> None:
         for content, code in (
             ('{"error":{"message":"backend unavailable"}}', "MODEL_ERROR_RESPONSE"),
             ('{"action":"search_code","arguments":{"query":"PREMIUM"}}', "MODEL_ACTION_RESPONSE"),
@@ -340,7 +342,12 @@ class BusinessAnalysisTests(unittest.TestCase):
                 self.assertEqual(output["runner_status"], "SAFE_STOP")
                 self.assertEqual(output["agent_result"]["status"], "ABSTAINED")
                 self.assertFalse(output["agent_result"]["model_answer_recorded"])
-                self.assertEqual(output["unaccepted_response"], {"reason_code": code, "text": content})
+                if code == "MODEL_ERROR_RESPONSE":
+                    self.assertNotIn("unaccepted_response", output)
+                    self.assertEqual(output["api_diagnostics"]["exchanges"][0]["body_text"], "")
+                    self.assertNotIn(content, json.dumps(output))
+                else:
+                    self.assertEqual(output["unaccepted_response"], {"reason_code": code, "text": content})
                 self.assertEqual(output["api_diagnostics"]["request_count"], 1)
 
     def test_nonempty_later_choice_is_used_without_retrying_an_empty_first_choice(self) -> None:
@@ -459,7 +466,7 @@ class BusinessAnalysisTests(unittest.TestCase):
                 else:
                     self.assertEqual(result["status"], "ABSTAINED")
 
-    def test_page_and_synthesis_failure_keep_successful_page_explanations(self) -> None:
+    def test_page_failure_stops_requests_and_keeps_successful_page_explanations(self) -> None:
         prepared = plan()
         requests = []
 
@@ -477,18 +484,20 @@ class BusinessAnalysisTests(unittest.TestCase):
         with mock.patch("business_analysis.prepare_source_reading", return_value=prepared):
             output = self.run_analysis(transport, capture_api_responses=True)
         result = output["agent_result"]
-        self.assertEqual(len(requests), 6)
+        self.assertEqual(len(requests), 2)
         self.assertEqual(result["status"], "PARTIAL")
         self.assertIn("第 1 页解释", result["answer"])
-        self.assertIn("第 3 页解释", result["answer"])
+        self.assertNotIn("第 3 页解释", result["answer"])
         self.assertNotIn("第 2 页解释", result["answer"])
-        self.assertEqual(result["reading_coverage"]["sent_pages"], 3)
-        self.assertEqual(result["reading_coverage"]["summarized_pages"], 2)
-        self.assertEqual(result["reading_coverage"]["summarized_lines"], 200)
-        self.assertEqual(result["reading_coverage"]["failed_pages"], 1)
-        self.assertEqual(len(result["evidence_refs"]), 3)
-        self.assertEqual({item["code"] for item in result["diagnostics"]}, {"REQUEST_TIMEOUT", "HTTP_ERROR", "MODEL_REQUEST_RETRIED"})
-        self.assertEqual(len(result["page_summaries"]), 2)
+        self.assertEqual(result["reading_coverage"]["sent_pages"], 2)
+        self.assertEqual(result["reading_coverage"]["summarized_pages"], 1)
+        self.assertEqual(result["reading_coverage"]["summarized_lines"], 100)
+        self.assertEqual(result["reading_coverage"]["failed_pages"], 2)
+        self.assertEqual(result["reading_coverage"]["unattempted_pages"], 1)
+        self.assertEqual(len(result["evidence_refs"]), 2)
+        self.assertEqual({item["code"] for item in result["diagnostics"]}, {"REQUEST_TIMEOUT", "MODEL_REQUESTS_STOPPED"})
+        self.assertEqual(result["automatic_retries"], 0)
+        self.assertEqual(len(result["page_summaries"]), 1)
         self.assertNotIn("remote request detail", json.dumps(output))
 
     def test_successful_synthesis_uses_bounded_summaries_without_source_accumulation(self) -> None:
@@ -583,26 +592,22 @@ class BusinessAnalysisTests(unittest.TestCase):
         for secret in (cfg.resolve_api_key(), cfg.base_url, cfg.chat_model):
             self.assertNotIn(secret, rendered)
 
-    def test_transient_failures_retry_twice_globally_and_deduplicate_source_delivery(self) -> None:
+    def test_received_empty_text_stops_without_automatic_parsing_recovery(self) -> None:
         calls = []
 
         def transport(request):
             calls.append(request)
-            if len(calls) == 1:
-                return TransportResponse(429, "retry later")
-            if len(calls) == 2:
-                return response("")
-            system = json.loads(request.body)["messages"][0]["content"]
-            self.assertIn("直接输出非空的 Markdown 业务说明正文", system)
-            return response("重试后得到保费业务说明")
+            self.assertEqual(len(calls), 1)
+            return response("")
 
         result = self.run_analysis(transport, capture_api_responses=True)
-        self.assertEqual(len(calls), 3)
-        self.assertEqual(result["agent_result"]["status"], "ANALYZED")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(result["agent_result"]["status"], "ABSTAINED")
         self.assertEqual(result["agent_result"]["reading_coverage"]["sent_pages"], 1)
-        self.assertEqual(result["agent_result"]["reading_coverage"]["summarized_pages"], 1)
-        self.assertEqual(result["agent_result"]["model_turns"], 3)
-        self.assertEqual(result["api_diagnostics"]["request_count"], 3)
+        self.assertEqual(result["agent_result"]["reading_coverage"]["summarized_pages"], 0)
+        self.assertEqual(result["agent_result"]["model_turns"], 1)
+        self.assertEqual(result["agent_result"]["automatic_retries"], 0)
+        self.assertEqual(result["api_diagnostics"]["request_count"], 1)
 
     def test_authorization_failures_are_not_retried(self) -> None:
         for status in (401, 403):

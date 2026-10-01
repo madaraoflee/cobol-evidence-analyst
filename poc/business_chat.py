@@ -11,6 +11,7 @@ import time
 from collections.abc import Mapping
 
 from api_diagnostics import APIResponseDiagnostics
+from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
 from agent_policy import resolve_agent_policy
 from answer_markdown import ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY
 from answer_diagnostics import build_answer_diagnostics, response_character_counts
@@ -454,13 +455,22 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         else:
             quality.finish_round(error=code)
 
-    def record_response_error(code, stage, *, http_status=None, shape=None):
+    def record_response_error(code, stage, *, http_status=None, shape=None, diagnostic=None):
         code = code if isinstance(code, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{1,63}", code) else "UNKNOWN_ERROR"
+        if code == "MODEL_ERROR_RESPONSE":
+            if diagnostics is not None:
+                diagnostics.suppress_latest_error(code)
+            diagnostic = diagnostic or build_diagnostic(code, http_status=http_status)
+        elif code == "MODEL_MESSAGE_MISSING":
+            diagnostic = diagnostic or build_diagnostic("INVALID_RESPONSE_SHAPE", http_status=http_status)
         item = {"code": code, "stage": stage}
         if http_status:
             item["http_status"] = http_status
         if shape is not None:
             item["response_shape"] = shape
+        safe_diagnostic = sanitize_diagnostic(diagnostic)
+        if safe_diagnostic is not None:
+            item["diagnostic"] = safe_diagnostic
         errors.append(item)
         if quality.data["rounds"] and stage != "context_assembly":
             row = quality.data["rounds"][-1]
@@ -1424,16 +1434,22 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         record_response_error(failure, failure_stage, shape=response_shape)
                         boundaries.append({"reason": "usable_draft_retained"})
                 except (APIClientError, _TextResponseError) as exc:
+                    if isinstance(exc, _TextResponseError) and diagnostics is not None:
+                        diagnostics.suppress_latest_error(exc.code)
                     finish_failed_response(exc)
                     failure = exc.code
                     record_response_error(exc.code, failure_stage,
-                        http_status=getattr(exc, "http_status", None), shape=response_shape)
+                        http_status=getattr(exc, "http_status", None), shape=response_shape,
+                        diagnostic=getattr(exc, "diagnostic", None))
                     boundaries.append({"reason": "usable_draft_retained", "revision_error": exc.code})
     except (APIClientError, APIConfigurationError, _TextResponseError) as exc:
+        if isinstance(exc, _TextResponseError) and diagnostics is not None:
+            diagnostics.suppress_latest_error(exc.code)
         finish_failed_response(exc)
         failure = exc.code
         record_response_error(exc.code, failure_stage,
-            http_status=getattr(exc, "http_status", None), shape=response_shape)
+            http_status=getattr(exc, "http_status", None), shape=response_shape,
+            diagnostic=getattr(exc, "diagnostic", None))
     if failure and not any(item["code"] == failure for item in errors):
         record_response_error(failure, failure_stage, shape=response_shape)
     if failure and answer and not any(item.get("reason") == "usable_draft_retained" for item in boundaries):
@@ -1474,8 +1490,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         [sent_pages[identifier] for identifier in final_source_ids], answer_detail=answer_detail)
     if not answer:
         http_status = next((item.get("http_status") for item in errors if item.get("http_status")), None)
+        api_failure = next((item["diagnostic"] for item in reversed(errors) if item.get("diagnostic")), None)
         if failure == "RETRIEVAL_UNRESOLVED":
             answer = "本次尚未定位到能回答这个业务问题的相关源码，因此还不能给出可靠的业务结论。这不表示程序或资料不存在；需要继续核对业务用语与源码词项的对应关系。"
+        elif api_failure is not None:
+            answer = format_diagnostic(api_failure) + "\n\n对话和源码索引已保留。"
         elif http_status == 401:
             answer = "模型接口鉴权失败（HTTP 401）。请检查本机 .env 中的接口密钥与地址，更新后重启服务。对话和源码索引已保留。"
         elif http_status == 403:
@@ -1487,7 +1506,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         if errors:
             error = errors[-1]
             answer += f"\n\n诊断：{error['code']}；阶段：{error['stage']}。"
-            if error.get("http_status"):
+            if error.get("http_status") and api_failure is None:
                 answer += f" HTTP {error['http_status']}。"
             shape = error.get("response_shape", {})
             if shape.get("finish_reason") == "length":
@@ -1619,6 +1638,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
               "sent_files": len({sent_pages[i].get("relative_path") for i in final_source_ids}), "complete": False},
               "model_turns": turns, "model_answer_recorded": usable, "stop_reason": stop_reason,
               "boundaries": boundaries, "diagnostics": errors, "tool_trace": trace, "metrics": metrics}
+    latest_diagnostic = next((item["diagnostic"] for item in reversed(errors) if item.get("diagnostic")), None)
+    if latest_diagnostic is not None:
+        result["diagnostic"] = latest_diagnostic
     result["diagnostic_summary"] = build_answer_diagnostics(config=config, quality=quality.data, result=result)
     output = {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
               "runner_status": "COMPLETED" if usable else "NOT_READY",

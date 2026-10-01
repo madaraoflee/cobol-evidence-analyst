@@ -26,7 +26,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from api_diagnostics import APIResponseDiagnostics
+try:
+    from .api_diagnostics import APIResponseDiagnostics
+    from .api_error_details import MAX_ERROR_BODY_BYTES, build_diagnostic, is_error_envelope, sanitize_diagnostic
+except ImportError:
+    from api_diagnostics import APIResponseDiagnostics
+    from api_error_details import MAX_ERROR_BODY_BYTES, build_diagnostic, is_error_envelope, sanitize_diagnostic
 
 
 PROBE_SCHEMA_VERSION = "company-api-capability-probe/v1"
@@ -52,17 +57,18 @@ _SAFE_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
 class SafeAPIError(RuntimeError):
     """Base error whose string representation never contains remote data."""
 
-    def __init__(self, code: str, *, http_status: int | None = None) -> None:
-        safe_code = code if _SAFE_ERROR_CODE.fullmatch(code) else "API_ERROR"
+    def __init__(self, code: str, *, http_status: int | None = None, diagnostic=None) -> None:
+        safe_code = code if isinstance(code, str) and _SAFE_ERROR_CODE.fullmatch(code) else "API_ERROR"
         self.code = safe_code
-        self.http_status = http_status if isinstance(http_status, int) else None
+        self.http_status = http_status if type(http_status) is int and 100 <= http_status <= 599 else None
+        self.diagnostic = sanitize_diagnostic(diagnostic) or build_diagnostic(safe_code, http_status=self.http_status)
         message = safe_code
         if self.http_status is not None:
             message = f"{safe_code} (HTTP {self.http_status})"
         super().__init__(message)
 
     def to_safe_dict(self) -> dict[str, object]:
-        result: dict[str, object] = {"code": self.code}
+        result: dict[str, object] = {"code": self.code, "diagnostic": sanitize_diagnostic(self.diagnostic)}
         if self.http_status is not None:
             result["http_status"] = self.http_status
         return result
@@ -475,17 +481,40 @@ class UrllibTransport:
                     headers=dict(response.headers.items()),
                 )
         except urllib.error.HTTPError as exc:
-            # Do not read or preserve an error body; corporate gateways often
-            # include request details that are unsafe to surface.
-            return TransportResponse(
-                status_code=int(exc.code), body=b"",
-                body_omitted_reason="HTTP_ERROR_BODY_NOT_COLLECTED",
-            )
+            # Bounded private input for classification; the capture path always
+            # omits error bodies and no upstream text enters a safe diagnostic.
+            chunks, size = [], 0
+            try:
+                read_chunk = getattr(exc, "read1", None)
+                if not callable(read_chunk):
+                    read_chunk = exc.read
+                while size <= MAX_ERROR_BODY_BYTES:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        break
+                    self._apply_remaining_socket_timeout(exc, remaining)
+                    chunk = read_chunk(min(8192, MAX_ERROR_BODY_BYTES + 1 - size))
+                    if time.monotonic() >= deadline:
+                        chunks = []
+                        break
+                    if not isinstance(chunk, bytes) or not chunk:
+                        break
+                    chunks.append(chunk)
+                    size += len(chunk)
+            except Exception:
+                chunks = []
+            finally:
+                exc.close()
+            return TransportResponse(status_code=int(exc.code), body=b"".join(chunks),
+                                     headers=dict(exc.headers.items()) if exc.headers is not None else {},
+                                     body_omitted_reason="HTTP_ERROR_BODY_NOT_COLLECTED")
         except APIClientError:
             raise
         except TimeoutError:
             raise APIClientError("REQUEST_TIMEOUT") from None
-        except (urllib.error.URLError, OSError):
+        except urllib.error.URLError as exc:
+            raise APIClientError("REQUEST_TIMEOUT" if isinstance(exc.reason, TimeoutError) else "TRANSPORT_ERROR") from None
+        except OSError:
             raise APIClientError("TRANSPORT_ERROR") from None
 
 
@@ -581,6 +610,10 @@ class OpenAICompatibleChatClient:
         response, _ = self._request_json("POST", "chat/completions", payload)
         return response
 
+    def suppress_error_capture(self, code: str) -> None:
+        if self._diagnostics is not None:
+            self._diagnostics.suppress_latest_error(outcome_code=code)
+
     def _request_json(
         self,
         method: str,
@@ -654,13 +687,15 @@ class OpenAICompatibleChatClient:
                 exchange = self._capture_response(
                     response, safe_endpoint, started, "RESPONSE_RECEIVED"
                 )
-            return self._validate_response(response, secret)
+            return self._validate_response(response, secret, protected_values=(secret, self.config.base_url,
+                self.config.chat_model, self.config.embedding_model), request_body=request_body)
         except APIClientError as exc:
             if self._diagnostics is not None:
                 if not response_received:
                     self._capture_response(None, safe_endpoint, started, exc.code)
                 elif exchange is not None:
-                    exchange["outcome_code"] = exc.code
+                    self._diagnostics.suppress_latest_error(outcome_code=exc.code)
+                    exchange["diagnostic"] = sanitize_diagnostic(exc.diagnostic)
             raise
 
     def _capture_response(
@@ -671,7 +706,9 @@ class OpenAICompatibleChatClient:
         omission = None
         if valid_response:
             # Omission annotations from injected transports are untrusted.
-            if response.body_omitted_reason == "HTTP_ERROR_BODY_NOT_COLLECTED":
+            if (type(response.status_code) is int and not 200 <= response.status_code < 300) or is_error_envelope(response.body):
+                omission = "ERROR_RESPONSE_BODY_OMITTED"
+            elif response.body_omitted_reason == "HTTP_ERROR_BODY_NOT_COLLECTED":
                 omission = "HTTP_ERROR_BODY_NOT_COLLECTED"
             elif not isinstance(response.body, (bytes, str)):
                 omission = "RESPONSE_BODY_INVALID"
@@ -689,7 +726,7 @@ class OpenAICompatibleChatClient:
 
     @staticmethod
     def _validate_response(
-        response: object, secret: str
+        response: object, secret: str, *, protected_values=(), request_body=None
     ) -> tuple[dict[str, object], int]:
         if not isinstance(response, TransportResponse):
             raise APIClientError("TRANSPORT_RESPONSE_INVALID")
@@ -697,7 +734,9 @@ class OpenAICompatibleChatClient:
         if not isinstance(status, int) or not 100 <= status <= 599:
             raise APIClientError("HTTP_STATUS_INVALID")
         if not 200 <= status < 300:
-            raise APIClientError("HTTP_ERROR", http_status=status)
+            raise APIClientError("HTTP_ERROR", http_status=status, diagnostic=build_diagnostic("HTTP_ERROR",
+                http_status=status, body=response.body, headers=response.headers,
+                protected_values=protected_values or (secret,), request_body=request_body))
 
         raw_body = response.body
         if not isinstance(raw_body, (bytes, str)):
@@ -713,6 +752,10 @@ class OpenAICompatibleChatClient:
             raise APIClientError("INVALID_JSON_RESPONSE", http_status=status) from None
         if not isinstance(parsed, dict):
             raise APIClientError("INVALID_RESPONSE_SHAPE", http_status=status)
+        if is_error_envelope(raw_body):
+            raise APIClientError("MODEL_ERROR_RESPONSE", http_status=status,
+                diagnostic=build_diagnostic("MODEL_ERROR_RESPONSE", http_status=status, body=raw_body,
+                    headers=response.headers, protected_values=protected_values or (secret,), request_body=request_body))
         try:
             redacted = _redact_secret(parsed, secret)
         except RecursionError:
@@ -760,31 +803,32 @@ def _error_capability(
         "MAX_OUTPUT_TOKENS_INVALID",
     }:
         return _capability("NOT_RUN", error.code)
-    if error.code == "HTTP_ERROR":
+    diagnostic = sanitize_diagnostic(error.diagnostic)
+    evidence = {"diagnostic": diagnostic}
+    if status is not None:
+        evidence["http_status"] = status
+    category = diagnostic.get("category") if diagnostic else None
+    if error.code in {"HTTP_ERROR", "MODEL_ERROR_RESPONSE"}:
         if status in {401, 403}:
             return _capability(
-                "UNAVAILABLE", "AUTHORIZATION_FAILED", evidence={"http_status": status}
+                "UNAVAILABLE", "AUTHORIZATION_FAILED", evidence=evidence
             )
         if status == 429:
             return _capability(
-                "UNAVAILABLE", "RATE_LIMITED", evidence={"http_status": status}
+                "UNAVAILABLE", "RATE_LIMITED" if category == "rate_limit" else "QUOTA_EXHAUSTED" if category == "quota_exhausted" else "HTTP_429_UNCONFIRMED", evidence=evidence
             )
         if status is not None and status >= 500:
             return _capability(
-                "UNAVAILABLE", "REMOTE_SERVER_ERROR", evidence={"http_status": status}
+                "UNAVAILABLE", "REMOTE_SERVER_ERROR", evidence=evidence
             )
-        if feature_request and status in {400, 404, 405, 415, 422}:
+        if feature_request and category == "unsupported_feature":
             return _capability(
-                "UNSUPPORTED", "FEATURE_REQUEST_REJECTED", evidence={"http_status": status}
-            )
-        if status in {404, 405}:
-            return _capability(
-                "UNSUPPORTED", "ENDPOINT_UNAVAILABLE", evidence={"http_status": status}
+                "UNSUPPORTED", "FEATURE_REQUEST_REJECTED", evidence=evidence
             )
         return _capability(
-            "UNAVAILABLE", "REQUEST_REJECTED", evidence={"http_status": status}
+            "UNAVAILABLE", "REQUEST_REJECTED", evidence=evidence
         )
-    return _capability("INDETERMINATE", error.code)
+    return _capability("INDETERMINATE", error.code, evidence=evidence)
 
 
 class CapabilityProbe:
@@ -838,6 +882,7 @@ class CapabilityProbe:
         }
         if error.http_status is not None:
             event["http_status"] = error.http_status
+        event["diagnostic"] = sanitize_diagnostic(error.diagnostic)
         self._audit.append(event)
 
     def _request(
