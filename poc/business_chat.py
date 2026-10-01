@@ -83,28 +83,78 @@ def _action_reply_invalid(text, action):
     if action is not None:
         return not any(action.values())
     value = str(text).strip()
-    if not re.match(r"^(?:```(?:json)?\s*)?[\[{]", value, re.I):
-        return False
-    # A source citation, Markdown link, or business JSON can start the answer.
-    # Only explicit investigation keys/descriptors belong to the protocol.
-    return bool(re.search(r'["\'](?:search|read|framework_search|inspect_business_context|'
-        r'list_impact|search_concepts|tool|tools|tool_calls|action|actions|fetch|lookup|queries)["\']\s*:',
-        value, re.I))
+    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", value, re.S | re.I)
+    if fenced:
+        value = fenced[1].strip()
+    tool_keys = {"search", "read", "framework_search", "inspect_business_context",
+                 "list_impact", "search_concepts"}
+    descriptor_keys = {"tool", "tools", "tool_calls", "function_call"}
+
+    def protocol_object(item):
+        if not isinstance(item, dict):
+            return False
+        keys = set(item)
+        if keys & tool_keys and keys <= tool_keys | {"reason", "focus"}:
+            return True
+        return bool(keys & descriptor_keys and keys <= descriptor_keys |
+                    {"name", "function", "arguments", "parameters", "reason", "focus"})
+
+    try:
+        item = json.loads(value)
+    except (ValueError, RecursionError):
+        # A malformed protocol must start with an explicit tool key. Looking
+        # through the entire reply also matches citations and business examples.
+        return bool(re.match(r'^(?:\[\s*)?\{\s*(?:"(?:reason|focus)"\s*:\s*'
+            r'"(?:\\.|[^"\\])*"\s*,\s*)*["\'](?:search|read|framework_search|'
+            r'inspect_business_context|list_impact|search_concepts|tool|tools|'
+            r'tool_calls|function_call)["\']\s*:', value, re.I))
+    if isinstance(item, list):
+        return bool(item) and all(protocol_object(row) for row in item)
+    return protocol_object(item)
 
 
 def _investigation_deferral(text):
     """Recognize a short request to investigate, without judging business prose."""
-    value = str(text).strip()
-    if len(value) > 600 or _REFERENCE.search(value):
+    value = _REFERENCE.sub("", str(text)).strip()
+    if len(value) > 600:
         return False
-    return bool(re.search(
-        r"^(?:(?:我|我们|為了回答|为了回答|为了解释|为了说明|要回答这个问题).{0,20})?"
-        r"(?:需要先|必须先|还需要|尚需|先|待).{0,30}(?:查找|找到|找|定位|补读|补查|读取|核对|确认)"
-        r".{0,40}(?:公式|计算|条件|赋值|原文|来源|源码|参数|手册|实现)|"
-        r"^(?:(?:I|we|to answer|to explain)\s.{0,20})?(?:need|must|first|before)"
-        r".{0,40}(?:find|search|read|locate|inspect|check)"
-        r".{0,60}(?:formula|calculation|condition|assignment|source|parameter|manual|implementation)",
-        value, re.I | re.S))
+    noun = (r"(?:对应的|相关的?|实际的?|具体的?|完整的?|适用的?|输入的?|计算的?|该)?"
+            r"(?:公式|计算规则|计算逻辑|条件|赋值|原文|来源|源码|参数|手册|实现)")
+    chinese_action = r"(?:查找|找到|找|定位|补读|补查|读取|核对|确认)"
+    chinese_objects = noun + r"(?:(?:和|及|与|、|以及)" + noun + r"){0,4}"
+    chinese = (r"(?:(?:我|我们)[，,]?|(?:為了回答|为了回答|为了解释|为了说明|要回答这个问题)[，,]?)?"
+               r"(?:需要先|必须先|还需要|尚需|先|待)" + chinese_action + chinese_objects
+               + r"(?:[，,]?(?:再|并|然后)?" + chinese_action + chinese_objects + r"){0,3}"
+               r"(?:后?(?:才能|再)(?:解释|回答|说明))?[。.!?！？]*")
+    english_noun = (r"(?:the\s+|relevant\s+|actual\s+|input\s+)?"
+                    r"(?:formulas?|calculations?|conditions?|assignments?|sources?|parameters?|manuals?|implementation)")
+    english_action = r"(?:find|search(?: for)?|read|locate|inspect|check)\s+"
+    english_objects = english_noun + r"(?:\s+and\s+" + english_noun + r"){0,4}"
+    english = (r"(?:(?:I|we)\s+|(?:to answer|to explain)(?:\s+this question)?[, ]+)?"
+               r"(?:need to|must|first)\s+" + english_action + english_objects
+               + r"(?:\s+and\s+" + english_action + english_objects + r"){0,3}"
+               r"(?:\s+(?:before|to)\s+(?:(?:I|we)\s+can\s+)?(?:answering|explaining|answer|explain))?[.!?]*")
+    # Match the whole unfinished request, never only the opening instruction of
+    # an explanation that subsequently gives a condition or calculation.
+    return bool(re.fullmatch(chinese, value) or re.fullmatch(english, value, re.I))
+
+
+def _response_shape(raw):
+    """Describe response structure without retaining provider text or metadata."""
+    choices = raw.get("choices") if isinstance(raw, Mapping) else None
+    rows = choices if isinstance(choices, list) else []
+    choice = next((row for row in rows if isinstance(row, Mapping)
+                   and isinstance(row.get("message"), Mapping)), {})
+    message = choice.get("message", {})
+    content = message.get("content")
+    finish = choice.get("finish_reason")
+    return {"choice_count": len(rows),
+            "finish_reason": finish if finish is None or isinstance(finish, str) and finish in
+                {"stop", "length", "tool_calls", "function_call", "content_filter"} else "other",
+            "content_shape": "missing" if "content" not in message else "null" if content is None
+                else "string" if isinstance(content, str) else "list" if isinstance(content, list) else "other",
+            "reasoning_present": bool(message.get("reasoning_content") or message.get("reasoning")),
+            "tool_calls_present": bool(message.get("tool_calls") or message.get("function_call"))}
 
 
 def _history_messages(history, policy=None):
@@ -344,6 +394,23 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     redactor = APIResponseDiagnostics(protected_values=(
         config.resolve_api_key(), config.base_url, config.chat_model, config.embedding_model))
     diagnostics = redactor if capture_api_responses else None
+    failure_stage, response_shape = "configuration", None
+
+    def record_response_error(code, stage, *, http_status=None, shape=None):
+        code = code if isinstance(code, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{1,63}", code) else "UNKNOWN_ERROR"
+        item = {"code": code, "stage": stage}
+        if http_status:
+            item["http_status"] = http_status
+        if shape is not None:
+            item["response_shape"] = shape
+        errors.append(item)
+        if quality.data["rounds"]:
+            row = quality.data["rounds"][-1]
+            response = row.setdefault("response", None)
+            if response is not None:
+                response["error"], response["error_stage"] = code, stage
+                if shape is not None:
+                    response["response_shape"] = shape
 
     def emit(phase):
         if check_cancel:
@@ -907,16 +974,19 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             quality.prepare(stage="answer" if force_answer else "discover" if discovery_pending else "investigate", payload=payload,
                             messages=messages, trim_events=trim_events)
             timing["context_assembly_seconds"] += time.monotonic() - assembly_started
+            failure_stage, response_shape = "provider_request", None
             raw = complete(messages)
             provider_usage.append(raw.get("usage"))
             if check_cancel:
                 check_cancel()
+            failure_stage, response_shape = "response_parse", _response_shape(raw)
             reply = _extract_text(raw)
+            failure_stage = "response_validation"
             finish_reason = raw["choices"][reply.choice_index].get("finish_reason")
             if reply.refused or reply.filtered:
                 quality.finish_round(finish_reason=finish_reason,
                                      parsed_action=None, usage=raw.get("usage"))
-                answer, failure = reply.text, "MODEL_REFUSED" if reply.refused else "MODEL_CONTENT_FILTERED"
+                failure = "MODEL_REFUSED" if reply.refused else "MODEL_CONTENT_FILTERED"
                 break
             action = _actions(reply.text, policy)
             quality.finish_round(finish_reason=finish_reason,
@@ -1097,9 +1167,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 quality.prepare(stage="revise", payload=revised_payload,
                                 messages=revision_messages, trim_events=trims)
                 try:
+                    failure_stage, response_shape = "provider_request", None
                     revised_raw = complete(revision_messages)
                     provider_usage.append(revised_raw.get("usage"))
+                    failure_stage, response_shape = "response_parse", _response_shape(revised_raw)
                     revised_reply = _extract_text(revised_raw)
+                    failure_stage = "response_validation"
                     revised_action = _actions(revised_reply.text, policy)
                     quality.finish_round(finish_reason=revised_raw["choices"][revised_reply.choice_index].get("finish_reason"),
                         parsed_action=[key for key, value in revised_action.items() if value] if revised_action else None,
@@ -1114,16 +1187,28 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                            "framework_ids": revised_visible["framework_ids"]}
                         answer_investigation = revised_payload["question_investigation"]
                     else:
+                        failure = ("MODEL_REFUSED" if revised_reply.refused else
+                            "MODEL_CONTENT_FILTERED" if revised_reply.filtered else
+                            "INVALID_INVESTIGATION_ACTION" if _action_reply_invalid(revised_reply.text, revised_action) else
+                            "ANSWER_NOT_PRODUCED" if revised_action or _investigation_deferral(revised_reply.text) else
+                            "MODEL_OUTPUT_TRUNCATED")
+                        record_response_error(failure, failure_stage, shape=response_shape)
                         boundaries.append({"reason": "usable_draft_retained"})
                 except (APIClientError, _TextResponseError) as exc:
                     quality.finish_round(error=exc.code)
+                    failure = exc.code
+                    record_response_error(exc.code, failure_stage,
+                        http_status=getattr(exc, "http_status", None), shape=response_shape)
                     boundaries.append({"reason": "usable_draft_retained", "revision_error": exc.code})
     except (APIClientError, APIConfigurationError, _TextResponseError) as exc:
         quality.finish_round(error=exc.code)
         failure = exc.code
-        errors.append({"code": exc.code, **({"http_status": exc.http_status} if getattr(exc, "http_status", None) else {})})
-        if getattr(exc, "text", ""):
-            answer = str(exc.text)
+        record_response_error(exc.code, failure_stage,
+            http_status=getattr(exc, "http_status", None), shape=response_shape)
+    if failure and not any(item["code"] == failure for item in errors):
+        record_response_error(failure, failure_stage, shape=response_shape)
+    if failure and answer and not any(item.get("reason") == "usable_draft_retained" for item in boundaries):
+        boundaries.append({"reason": "usable_draft_retained", "followup_error": failure})
 
     # A retained answer is bound to its request's captured excerpts. A later
     # live-file edit cannot revoke text the provider actually saw.
@@ -1168,6 +1253,16 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             answer = "模型接口本次响应超时。对话和源码索引已保留，可以重试，不需要重新接入源码。"
         else:
             answer = "本次未取得模型回答。对话和源码索引已保留，可以重试或查看接口返回。"
+        if errors:
+            error = errors[-1]
+            answer += f"\n\n诊断：{error['code']}；阶段：{error['stage']}。"
+            if error.get("http_status"):
+                answer += f" HTTP {error['http_status']}。"
+            shape = error.get("response_shape", {})
+            if shape.get("finish_reason") == "length":
+                answer += " 接口输出已达长度限制，尚未提供可用正文。"
+            elif shape.get("tool_calls_present"):
+                answer += " 接口返回了工具调用，尚未提供可用业务正文。"
     refs = [ref for ref in allowed.values() if ref.get("kind") == "source_page"]
     quality.data["base_snapshot_id"] = base_snapshot_id
     quality.data["analysis_revision"] = overview["snapshot_id"]
@@ -1256,7 +1351,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                "timing_components_are_inclusive": True,
                "selected_source_bytes_hashed": source_session.captured_bytes,
                "semantic_cache_hits": sum(bool(item["cache_hit"]) for item in semantic_scopes)}
-    result = {"status": "PARTIAL" if usable and (failure or truncated or material_gap) else "ANALYZED" if usable else "ABSTAINED",
+    draft_retained = any(item.get("reason") == "usable_draft_retained" for item in boundaries)
+    result = {"status": "PARTIAL" if usable and (failure or truncated or material_gap or draft_retained) else "ANALYZED" if usable else "ABSTAINED",
               "answer": answer, "answer_format": "markdown", "analysis_mode": "retrieval", "snapshot_id": overview["snapshot_id"],
               "narrative": {"text": answer, "format": "markdown", "verification": "unverified", "citations": [allowed[i] for i in cited]},
               "claims": [], "claims_semantically_verified": False, "evidence_refs": refs,
