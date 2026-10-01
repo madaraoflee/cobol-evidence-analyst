@@ -141,7 +141,14 @@ class EvidenceContext:
     def accept(self, context, operation):
         self._accept_sequence += 1
         if operation == "complete_working_set":
-            self.working_set = context.get("metadata")
+            # Keep prior source and citations available without reserving the
+            # next request's whole-file budget for a previous search identity.
+            for identifier, page in self.pages.items():
+                if "complete_working_set" in page.get("selection_reasons", []):
+                    self.pages[identifier] = {**page, "selection_reasons": [
+                        reason for reason in page["selection_reasons"] if reason != "complete_working_set"]}
+            metadata = context.get("metadata")
+            self.working_set = metadata if metadata and metadata.get("status") != "not_applicable" else None
             for task in self.tasks.values():
                 total = next((row.get("line_count") for row in (self.working_set or {}).get("source_manifest", [])
                               if row.get("relative_path") == task.relative_path), None)
@@ -152,7 +159,7 @@ class EvidenceContext:
                             and (page.get("start_line", 0) <= cursor <= page.get("end_line", 0)
                                  or (total is not None and page.get("start_line") == 1
                                      and page.get("end_line") == total < cursor))]
-                if matching and (self.working_set or {}).get("status") == "supplied":
+                if matching and (self.working_set or {}).get("status") in {"supplied", "partial"}:
                     task.advance({**context, "pages": matching, "file_total_lines": total})
         fresh = []
         for position, page in enumerate(context.get("pages", [])):

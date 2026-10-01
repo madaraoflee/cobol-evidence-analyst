@@ -14,7 +14,8 @@ from api_diagnostics import APIResponseDiagnostics
 from agent_policy import resolve_agent_policy
 from answer_markdown import ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY
 from business_map import build_business_map
-from business_synthesis import build_analysis_brief, link_answer_claims, needs_synthesis_review, wants_business_detail
+from business_synthesis import (assess_answer_completion, build_analysis_brief, link_answer_claims,
+                                needs_synthesis_review, wants_business_detail)
 from company_api import APIClientError, APIConfigurationError, OpenAICompatibleChatClient
 from evidence_context import EvidenceContext, page_priority
 from framework_knowledge import MAX_SECTION_CHARS, build_framework_context, framework_status, search_framework_context
@@ -734,12 +735,26 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     expand_map_evidence(business_map)
     if first_lead is not None and not priority_targets:
         add_semantic_context(first_lead)
-    complete_started = time.monotonic()
-    complete_context = build_complete_working_set(database_path, source_session, business_map, policy,
-                                                  check_cancel=check_cancel)
-    timing["complete_working_set_seconds"] += time.monotonic() - complete_started
-    if complete_context["metadata"]["status"] != "not_applicable":
-        accept(complete_context, "complete_working_set")
+    complete_contexts, active_complete_key = {}, None
+
+    def update_complete_context():
+        nonlocal active_complete_key
+        identity = business_map.get("source_identity", {})
+        key = (business_map.get("snapshot_id"), identity.get("status"), identity.get("kind"),
+               tuple(identity.get("direct_paths", [])))
+        if key == active_complete_key:
+            return
+        if key not in complete_contexts:
+            complete_started = time.monotonic()
+            complete_contexts[key] = build_complete_working_set(
+                database_path, source_session, business_map, policy, check_cancel=check_cancel)
+            timing["complete_working_set_seconds"] += time.monotonic() - complete_started
+        context = complete_contexts[key]
+        if context["metadata"]["status"] != "not_applicable" or evidence.working_set is not None:
+            accept(context, "complete_working_set")
+        active_complete_key = key
+
+    update_complete_context()
     timing["initial_context_seconds"] = time.monotonic() - retrieval_started
     source_match_observed = bool(initial.get("matched_file_count", 0) or restored or
         any("conversation_context" in page.get("selection_reasons", []) for page in pages.values()) or
@@ -1096,6 +1111,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 business_map = current_map(action["search"])
                 add_rule_spotlights(business_map)
                 expand_map_evidence(business_map)
+                update_complete_context()
                 source_match_observed = source_match_observed or bool(context.get("matched_file_count", 0) or
                     business_map.get("source_identity", {}).get("status") == "resolved")
                 question_match_observed = question_match_observed or bool(context.get("matched_file_count", 0) or
@@ -1191,7 +1207,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     accept(continuation, "read_continuation")
                 except (ValueError, TypeError):
                     task.state = "stalled"
-            review_synthesis = needs_synthesis_review(question, answer, answer_investigation or {})
+            review_synthesis = needs_synthesis_review(question, answer, answer_investigation or {},
+                source_available=bool((answer_manifest or {}).get("source_ids")))
             if len(evidence.pages) > before or review_synthesis:
                 selected = evidence.selected_pages(policy.max_source_characters,
                     evidence_groups=evidence_groups, priority_targets=priority_targets)
@@ -1203,6 +1220,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     "draft_answer": answer,
                     "task": ("逐项复核初稿中的业务判断是否有本轮原文支持，并综合已知的业务目的、处理顺序、"
                         "输入来源、计算条件、分支例外和结果影响。已供应内部实现时不能仅以片段不足拒答或要求用户补源码；"
+                        "直接回答用户提出的业务点。初稿声称无法确认时，逐项指出缺少的具体字段、赋值、条件或外部数据，"
+                        "并检查它是否已经在本轮原文中；已提供的算式与条件应解释为静态规则，"
+                        "未知运行数据只限制依赖该数据的实际结果。"
                         "缺外部实现只限制相关判断，保留并具体解释调用者已知业务。关键判断附实际来源引用，"
                         "不编造完整性。输出普通 Markdown，不请求工具。" if review_synthesis else
                         "只根据新增的相关原文修订初稿；若新增原文不改变解释，保留原结论。输出普通 Markdown，不请求工具。")}
@@ -1237,10 +1257,15 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             and not revised_reply.refused and not revised_reply.filtered
                             and not revised_action and not _action_reply_invalid(revised_reply.text, revised_action)
                             and not _investigation_deferral(revised_reply.text)):
-                        answer, truncated = revised_reply.text, False
-                        answer_round = f"round-{turns}"
-                        answer_manifest = revised_visible
-                        answer_investigation = revised_payload["question_investigation"]
+                        if (assess_answer_completion(revised_reply.text)["status"] == "incomplete"
+                                and assess_answer_completion(answer)["status"] != "incomplete"):
+                            boundaries.append({"reason": "usable_draft_retained",
+                                               "revision_error": "ANSWER_INCOMPLETE"})
+                        else:
+                            answer, truncated = revised_reply.text, False
+                            answer_round = f"round-{turns}"
+                            answer_manifest = revised_visible
+                            answer_investigation = revised_payload["question_investigation"]
                     else:
                         failure = ("MODEL_REFUSED" if revised_reply.refused else
                             "MODEL_CONTENT_FILTERED" if revised_reply.filtered else
@@ -1296,6 +1321,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     unsupported = sorted(set(_REFERENCE.findall(answer)) - set(allowed))
     answer = _REFERENCE.sub(citation, redactor._sanitize(answer))
     usable = bool(answer.strip())
+    answer_completion = assess_answer_completion(answer)
     if not answer:
         http_status = next((item.get("http_status") for item in errors if item.get("http_status")), None)
         if failure == "RETRIEVAL_UNRESOLVED":
@@ -1333,8 +1359,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     incomplete_reads = any(task.material_to_question and task.state != "complete"
                            for task in evidence.tasks.values())
     final_working_set = (answer_manifest or {}).get("working_set")
-    working_set_trimmed = bool(final_working_set and final_working_set.get("status") == "supplied"
-                              and not final_working_set.get("physical_complete"))
+    working_set_trimmed = bool(final_working_set and (
+        final_working_set.get("omitted_complete_paths") or
+        final_working_set.get("status") == "supplied" and not final_working_set.get("physical_complete")))
     tool_problem = tool_problem or any(item.get("reason") == "semantic_scope_unavailable"
                                        for item in boundaries)
     material_gap = ("source_identity_" + identity_status if identity_status in {"ambiguous", "not_found"}
@@ -1352,8 +1379,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     quality.data["question_investigation"] = final_investigation
     if final_working_set is not None:
         quality.data["working_set"] = final_working_set
+    answer_incomplete = usable and answer_completion["status"] == "incomplete"
     if failure:
         stop_reason = failure
+    elif answer_incomplete:
+        stop_reason = "answer_incomplete"
     elif turns >= policy.max_model_requests and (open_question_gaps or incomplete_reads):
         stop_reason = "request_budget"
     elif material_gap:
@@ -1371,7 +1401,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         "next_start_line": t.next_start_line, "state": t.state}
                        for t in evidence.tasks.values() if t.state != "complete"],
         "missing_core_evidence_ids": sorted(missing_core),
-        "question_investigation": final_investigation, "stop_reason": stop_reason})
+        "question_investigation": final_investigation, "answer_completion": answer_completion,
+        "stop_reason": stop_reason})
     investigation = {"mode": "retrieval", "searches": searches, "search_rounds": len(searches),
                      "retrieval_status": "source_candidates" if refs and source_match_observed else
                          "framework_candidates" if final_framework_ids else "unresolved",
@@ -1417,8 +1448,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                "semantic_cache_hits": sum(bool(item["cache_hit"]) for item in semantic_scopes)}
     claims, business_review = link_answer_claims(answer if usable and wants_business_detail(question) else "", allowed)
     business_review["synthesis_review_attempted"] = synthesis_review_attempted
+    business_review["answer_completion"] = answer_completion
     draft_retained = any(item.get("reason") == "usable_draft_retained" for item in boundaries)
-    result = {"status": "PARTIAL" if usable and (failure or truncated or material_gap or draft_retained) else "ANALYZED" if usable else "ABSTAINED",
+    result = {"status": "PARTIAL" if usable and (failure or truncated or material_gap or draft_retained or answer_incomplete) else "ANALYZED" if usable else "ABSTAINED",
               "answer": answer, "answer_format": "markdown", "analysis_mode": "retrieval", "snapshot_id": overview["snapshot_id"],
               "narrative": {"text": answer, "format": "markdown", "verification": "unverified", "citations": [allowed[i] for i in cited]},
               "claims": claims, "claims_semantically_verified": False, "business_review": business_review, "evidence_refs": refs,
@@ -1433,7 +1465,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
               "boundaries": boundaries, "diagnostics": errors, "tool_trace": trace, "metrics": metrics}
     output = {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
               "runner_status": "COMPLETED" if usable else "NOT_READY",
-              "reason_code": failure or (stop_reason.upper() if material_gap else "BUSINESS_CHAT_COMPLETED"),
+              "reason_code": failure or (stop_reason.upper() if material_gap or answer_incomplete or draft_retained else "BUSINESS_CHAT_COMPLETED"),
               "agent_result": result, "framework_context": framework, "investigation": investigation}
     if diagnostics is not None:
         output["api_diagnostics"] = diagnostics.to_dict()

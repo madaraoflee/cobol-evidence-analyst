@@ -118,22 +118,53 @@ def _input_candidates(db, path, fields):
     return collected, required[:_MAX_FIELDS], frontier
 
 
-def _indexed_candidates(database_path, paths, question, *, business_steps=False):
-    """Use existing sparse facts, with distinct results ahead of repeat counters."""
+def _indexed_candidates(database_path, paths, question, *, business_steps=False, root_paths=None):
+    """Select exact field obligations before applying bounded source budgets."""
     candidates, frontier, hashes = [], [], {}
+    tokens = set(re.findall(r"[A-Z][A-Z0-9_$#@-]*", question.upper()))
     encoded = quote(Path(database_path).resolve().as_posix(), safe="/:")
     with closing(sqlite3.connect(f"file:{encoded}?mode=ro", uri=True)) as db:
         db.row_factory = sqlite3.Row
         scoped_paths = paths[:_MAX_PATHS]
         slots = ",".join("?" for _ in scoped_paths)
-        hashes = dict(db.execute("SELECT relative_path,sha256 FROM source_files "
-                                f"WHERE relative_path IN ({slots})", scoped_paths))
+        source_hashes = dict(db.execute("SELECT relative_path,sha256 FROM source_files "
+                                       f"WHERE relative_path IN ({slots})", scoped_paths))
+        hashes = {path: source_hashes[path] for path in scoped_paths if path in source_hashes}
         if len(paths) > _MAX_PATHS:
             frontier.append({"kind": "formula", "reason": "located_path_budget",
                              "omitted_count": len(paths) - _MAX_PATHS})
         if not db.execute("SELECT 1 FROM sqlite_master WHERE name='business_rules'").fetchone():
             return [], [{"kind": "formula", "reason": "indexed_rules_unavailable"}], hashes
-        for path in paths[:_MAX_PATHS]:
+        targeted = []
+        if tokens and scoped_paths and not business_steps:
+            field_slots = ",".join("?" for _ in tokens)
+            path_order = "CASE b.relative_path " + " ".join(
+                f"WHEN ? THEN {index}" for index, _ in enumerate(scoped_paths)) + " END"
+            # Match fields inside located paths before LIMIT, including inputs.
+            # CROSS JOIN preserves the path-first lookup so common field names
+            # elsewhere cannot cause a repository-wide field scan. Distinct
+            # expressions for one result remain separate obligations.
+            targeted = db.execute(
+                "SELECT b.*,SUM(f.field_role='write') AS matched_writes,"
+                "SUM(f.field_role='read') AS matched_reads FROM business_rules b "
+                "CROSS JOIN business_rule_fields f ON f.rule_id=b.rule_id "
+                f"WHERE f.field_name IN ({field_slots}) AND b.relative_path IN ({slots}) "
+                "AND f.field_role IN ('read','write') "
+                "AND b.rule_kind IN ('COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE') "
+                "GROUP BY b.rule_id ORDER BY matched_writes DESC,matched_reads DESC,"
+                + path_order + ",b.first_line,b.rule_id LIMIT ?",
+                (*sorted(tokens), *scoped_paths, *scoped_paths, _MAX_FORMULAS + 1)).fetchall()
+        if targeted:
+            if len(targeted) > _MAX_FORMULAS:
+                frontier.append({"kind": "formula", "reason": "formula_candidate_budget"})
+            candidates.extend(_rule(row, "formula") for row in targeted[:_MAX_FORMULAS])
+        # Without a field match, retain program-level discovery and its explicit
+        # enumeration limits. Unrelated formulas are not missing evidence for
+        # a question whose exact input or result field is already located.
+        # Outgoing dependencies remain obligations: a callee can rename a
+        # caller's field in its parameter list without changing that value.
+        roots = set(paths if root_paths is None else root_paths)
+        for path in (scoped_paths if not targeted else [path for path in scoped_paths if path not in roots]):
             kinds = "'COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE'"
             if business_steps:
                 kinds += ",'MOVE','IF','EVALUATE','WHEN','EXEC_SQL'"
@@ -148,9 +179,10 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False)
                 frontier.append({"kind": "formula", "relative_path": path, "reason": "formula_group_budget"})
             candidates.extend(_rule(row, "business_steps" if business_steps else "formula") for row in rows[:_MAX_FORMULAS])
         # Exact identifiers are a ranking signal, never an abbreviation expansion.
-        tokens = set(re.findall(r"[A-Z][A-Z0-9_$#@-]*", question.upper()))
+        candidates = list({(row["kind"], row["relative_path"], row["start_line"], row["statement"]): row
+                           for row in candidates}.values())
         candidates.sort(key=lambda row: (
-            not bool(tokens.intersection(row["writes"])), not bool(tokens.intersection(row["reads"])),
+            -len(tokens.intersection(row["writes"])), -len(tokens.intersection(row["reads"])),
             paths.index(row["relative_path"]), row["start_line"]))
         if len(candidates) > _MAX_FORMULAS:
             frontier.append({"kind": "formula", "reason": "formula_candidate_budget"})
@@ -383,8 +415,7 @@ def _dependencies(database_path, paths, candidates, hashes, *, business_steps=Fa
     return result, frontier
 
 
-def _calculation_paths(business_map, source_pages):
-    """Root obligations in matches; incoming callers remain navigation context."""
+def _calculation_roots(business_map, source_pages):
     selected = set(business_map.get("selected_paths", []))
     identity = business_map.get("source_identity", {})
     roots = list(dict.fromkeys(business_map.get("direct_paths", [])))
@@ -394,7 +425,13 @@ def _calculation_paths(business_map, source_pages):
         roots = list(dict.fromkeys(page.get("relative_path") for page in source_pages
             if "conversation_context" in page.get("selection_reasons", [])
             and page.get("relative_path") in selected))
-    paths = [path for path in roots if path in selected]
+    return [path for path in roots if path in selected]
+
+
+def _calculation_paths(business_map, source_pages):
+    """Root obligations in matches; incoming callers remain navigation context."""
+    selected = set(business_map.get("selected_paths", []))
+    paths = _calculation_roots(business_map, source_pages)
     # Only a resolved outgoing dependency may nominate additional arithmetic.
     # A caller's unrelated formulas do not become obligations for its callee.
     position = 0
@@ -438,23 +475,26 @@ def build_question_investigation(question, business_map, *, database_path=None,
         return {**base, "required_items": [item], "open_gaps": [
             {"kind": kind, "status": "OPEN", "reason": kind + "_not_located"}]}
     paths = _calculation_paths(business_map, source_pages)
+    root_paths = _calculation_roots(business_map, source_pages)
     candidates, frontier, hashes = [], [], {}
     cache_hit = False
     if database_path is not None:
-        key = (str(Path(database_path).resolve()), business_map.get("snapshot_id"), tuple(paths), question)
+        key = (str(Path(database_path).resolve()), business_map.get("snapshot_id"), tuple(paths),
+               tuple(root_paths), question)
         cache_hit = isinstance(candidate_cache, dict) and candidate_cache.get("key") == key
         if cache_hit:
             candidates, frontier, hashes = candidate_cache["value"]
         else:
             candidates, frontier, hashes = _indexed_candidates(database_path, paths, question,
-                                                               business_steps=business_steps)
-            dependencies, dependency_frontier = _dependencies(database_path, paths, candidates, hashes,
+                                                               business_steps=business_steps, root_paths=root_paths)
+            dependencies, dependency_frontier = _dependencies(database_path, list(hashes), candidates, hashes,
                                                               business_steps=business_steps)
             candidates.extend(dependencies)
             frontier.extend(dependency_frontier)
             if isinstance(candidate_cache, dict):
                 candidate_cache.clear()
                 candidate_cache.update(key=key, value=(candidates, frontier, hashes))
+        paths = list(hashes)
     else:
         candidates = [_rule(row, "business_steps" if business_steps else "formula")
                       for row in business_map.get("rule_leads", []) if row.get("relative_path") in paths

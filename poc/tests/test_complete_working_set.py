@@ -22,6 +22,7 @@ from agent_policy import AgentPolicy
 from business_chat import run_business_chat
 from business_index import build_business_index
 from company_api import APIClientError, CompanyAPIConfig, TransportResponse
+import complete_working_set
 from evidence_context import EvidenceContext, ReadTask
 from repository_discovery import ensure_repository_search
 
@@ -204,6 +205,166 @@ class CompleteWorkingSetTests(unittest.TestCase):
         self.assertLessEqual(sum(len(page["source_text"]) for page in source_pages(payload)),
                              policy.max_source_characters)
 
+    def test_search_resolution_supplies_complete_files_and_reuses_changed_identity(self):
+        self.build({
+            "first.cbl": program("FIRST-RULE", "MOVE 3 TO RESULT-AMOUNT.\n" +
+                "*> neutral first context\n" * 500 + "MOVE 7 TO RESULT-AMOUNT."),
+            "second.cbl": program("SECOND-RULE", "MOVE 5 TO RESULT-AMOUNT.\n" +
+                "*> neutral second context\n" * 500 + "MOVE 9 TO RESULT-AMOUNT."),
+        })
+        actions = [["FIRST-RULE"], ["FIRST-RULE", "RESULT-AMOUNT"],
+                   ["SECOND-RULE"], ["FIRST-RULE", "MAIN"]]
+        requests = []
+        policy = AgentPolicy(max_model_requests=5)
+
+        def transport(request):
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            requests.append(payload)
+            self.assertLessEqual(len(request.body), policy.max_request_bytes)
+            if len(requests) > len(actions):
+                raise APIClientError("OFFLINE_CAPTURE_ONLY")
+            reply = json.dumps({"search": actions[len(requests) - 1]})
+            return TransportResponse(200, json.dumps({"choices": [{"message": {
+                "role": "assistant", "content": reply}, "finish_reason": "stop"}]}))
+
+        with mock.patch.object(complete_working_set, "build_complete_working_set",
+                wraps=complete_working_set.build_complete_working_set) as build:
+            run_business_chat("这项处理有什么用途？", self.database, self.source, self.config,
+                transport=transport, allow_network=False, framework_reference_path="", policy=policy)
+        self.assertEqual(len(requests), 5)
+        self.assertEqual(source_pages(requests[0]), [])
+        for payload, path in zip(requests[1:], ("first.cbl", "first.cbl", "second.cbl", "first.cbl")):
+            metadata = self.assert_exact_complete_files(payload, {path})
+            self.assertEqual(metadata["root_paths"], [path])
+            self.assertEqual(metadata["supplied_complete_paths"], [path])
+            self.assertEqual(metadata["omitted_complete_paths"], [])
+            self.assertLessEqual(sum(len(page["source_text"]) for page in source_pages(payload)),
+                                 policy.max_source_characters)
+        eligible_calls = [call for call in build.call_args_list
+                          if call.args[2]["source_identity"]["status"] == "resolved"]
+        self.assertEqual(len(eligible_calls), 2)
+        self.assertEqual(self.network_attempts, [])
+
+    def test_dependency_budget_keeps_root_and_smaller_complete_dependencies(self):
+        self.build({
+            "root.cbl": program("ROOT-RULE", "CALL 'LARGE-RULE'.\nCALL 'SMALL-RULE'.\n"
+                "MOVE 7 TO RESULT-AMOUNT.\n" + "*> neutral root context\n" * 300),
+            "a-large.cbl": program("LARGE-RULE", "*> neutral large context\n" * 1300 +
+                "MOVE 8 TO RESULT-AMOUNT."),
+            "z-small.cbl": program("SMALL-RULE", "MOVE 9 TO RESULT-AMOUNT."),
+        })
+        payload, _, _ = self.capture("请详细解释 root.cbl 的业务流程与结果。")
+        pages = [page for page in source_pages(payload)
+                 if "complete_working_set" in page.get("selection_reasons", [])]
+        self.assertEqual({page["relative_path"] for page in pages}, {"root.cbl", "z-small.cbl"})
+        for page in pages:
+            self.assertEqual(page["source_text"], self.files[page["relative_path"]].rstrip("\n"))
+        metadata = payload["source_context"][0]["working_set"]
+        self.assertEqual(metadata["status"], "partial")
+        self.assertEqual(metadata["transmission_status"], "partial")
+        self.assertFalse(metadata["physical_complete"])
+        self.assertFalse(metadata["closure_complete"])
+        self.assertEqual(set(metadata["supplied_complete_paths"]), {"root.cbl", "z-small.cbl"})
+        self.assertIn("a-large.cbl", metadata["omitted_candidate_paths"])
+        self.assertEqual(metadata["source_characters"], sum(len(page["source_text"]) for page in pages))
+        self.assertLessEqual(sum(len(page["source_text"]) for page in source_pages(payload)),
+                             AgentPolicy().max_source_characters)
+        self.assertTrue(all(len(text) < AgentPolicy().max_source_characters for text in self.files.values()))
+        self.assertGreater(sum(map(len, self.files.values())), AgentPolicy().max_source_characters)
+
+    def test_dependency_file_budget_keeps_root_and_reports_unavailable_closure(self):
+        self.build({"root.cbl": program("ROOT-RULE", "CALL 'LEAF-RULE'.\nMOVE 7 TO RESULT-AMOUNT."),
+                    "leaf.cbl": program("LEAF-RULE", "MOVE 9 TO RESULT-AMOUNT.")})
+        payload, _, _ = self.capture("请详细解释 root.cbl 的业务流程与结果。",
+                                    policy=AgentPolicy(max_semantic_files=1))
+        pages = [page for page in source_pages(payload)
+                 if "complete_working_set" in page.get("selection_reasons", [])]
+        self.assertEqual([page["relative_path"] for page in pages], ["root.cbl"])
+        self.assertEqual(pages[0]["source_text"], self.files["root.cbl"].rstrip("\n"))
+        metadata = payload["source_context"][0]["working_set"]
+        self.assertEqual(metadata["status"], "partial")
+        self.assertFalse(metadata["physical_complete"])
+        self.assertFalse(metadata["closure_complete"])
+        self.assertIn("leaf.cbl", metadata["omitted_candidate_paths"])
+        self.assertIn("dependency_file_budget", {gap["reason"] for gap in metadata["frontier"]})
+
+    def test_dependency_byte_budget_keeps_verified_root_without_widening_budget(self):
+        self.build({"root.cbl": program("ROOT-RULE", "CALL 'LEAF-RULE'.\nMOVE 7 TO RESULT-AMOUNT."),
+                    "leaf.cbl": program("LEAF-RULE", "*> neutral context\n" * 200 +
+                        "MOVE 9 TO RESULT-AMOUNT.")})
+        policy = AgentPolicy(max_semantic_source_bytes=1024)
+        payload, _, _ = self.capture("请详细解释 root.cbl 的业务流程与结果。", policy=policy)
+        metadata = payload["source_context"][0]["working_set"]
+        pages = [page for page in source_pages(payload)
+                 if "complete_working_set" in page.get("selection_reasons", [])]
+        self.assertEqual([page["relative_path"] for page in pages], ["root.cbl"])
+        self.assertEqual(pages[0]["source_text"], self.files["root.cbl"].rstrip("\n"))
+        self.assertEqual(metadata["status"], "partial")
+        self.assertFalse(metadata["physical_complete"])
+        self.assertEqual(metadata["omitted_candidate_paths"], ["leaf.cbl"])
+        self.assertIn({"reason": "source_byte_budget", "relative_path": "leaf.cbl", "byte_limit": 1024},
+                      metadata["frontier"])
+
+    def test_depth_limit_keeps_bounded_complete_files_without_claiming_closure(self):
+        files = {f"level-{index}.cbl": program(f"LEVEL-{index}",
+            (f"CALL 'LEVEL-{index + 1}'.\n" if index < 5 else "") +
+            f"MOVE {index} TO RESULT-AMOUNT.") for index in range(6)}
+        self.build(files)
+        payload, _, _ = self.capture("请详细解释 level-0.cbl 的业务流程与结果。")
+        metadata = payload["source_context"][0]["working_set"]
+        pages = [page for page in source_pages(payload)
+                 if "complete_working_set" in page.get("selection_reasons", [])]
+        self.assertEqual({page["relative_path"] for page in pages}, {f"level-{i}.cbl" for i in range(5)})
+        for page in pages:
+            self.assertEqual(page["source_text"], self.files[page["relative_path"]].rstrip("\n"))
+        self.assertEqual(metadata["status"], "partial")
+        self.assertFalse(metadata["physical_complete"])
+        self.assertFalse(metadata["closure_complete"])
+        self.assertEqual(metadata["omitted_candidate_paths"], ["level-5.cbl"])
+        self.assertIn("dependency_depth_budget", {gap["reason"] for gap in metadata["frontier"]})
+
+    def test_partial_working_set_metadata_still_reports_request_byte_trimming(self):
+        self.build({
+            "root.cbl": program("ROOT-RULE", "CALL 'LARGE-RULE'.\nMOVE 7 TO RESULT-AMOUNT.\n" +
+                "*> 中性业务注释保留原始行\n" * 400),
+            "large.cbl": program("LARGE-RULE", "*> neutral large context\n" * 2000 +
+                "MOVE 9 TO RESULT-AMOUNT."),
+        })
+        prefix = "请详细解释 root.cbl 的业务流程与结果。"
+        question = prefix + ("业务" * 3000)[:6000 - len(prefix)]
+        payload, _, size = self.capture(question, policy=AgentPolicy(max_request_bytes=32768))
+        metadata = payload["source_context"][0]["working_set"]
+        self.assertLessEqual(size, 32768)
+        self.assertEqual(metadata["status"], "partial")
+        self.assertEqual(metadata["transmission_status"], "partial")
+        self.assertFalse(metadata["physical_complete"])
+        self.assertIn("large.cbl", metadata["omitted_candidate_paths"])
+        self.assertIn("root.cbl", metadata["omitted_complete_paths"])
+        self.assertNotIn("root.cbl", metadata["supplied_complete_paths"])
+        self.assertFalse(any(page["relative_path"] == "root.cbl" and page["start_line"] == 1
+            and page["end_line"] == len(self.files["root.cbl"].splitlines())
+            for page in source_pages(payload)))
+
+    def test_changing_whole_file_priority_preserves_prior_request_pages(self):
+        context = EvidenceContext()
+        first = {"evidence_id": "ev:first-neutral", "relative_path": "first.cbl",
+            "start_line": 1, "end_line": 1, "source_text": "FIRST",
+            "selection_reasons": ["complete_working_set"]}
+        second = {**first, "evidence_id": "ev:second-neutral", "relative_path": "second.cbl",
+                  "source_text": "SECOND"}
+        context.accept({"pages": [first], "metadata": {"status": "supplied"}}, "complete_working_set")
+        previous = context.bundle(context.selected_pages(512))[0]["pages"][0]
+        context.accept({"pages": [second], "metadata": {"status": "partial"}}, "complete_working_set")
+        self.assertIn(first["evidence_id"], context.pages)
+        self.assertEqual(context.pages[first["evidence_id"]]["source_text"], "FIRST")
+        self.assertNotIn("complete_working_set", context.pages[first["evidence_id"]]["selection_reasons"])
+        self.assertIn("complete_working_set", previous["selection_reasons"])
+        context.accept({"pages": [], "metadata": {"status": "not_applicable"}}, "complete_working_set")
+        self.assertIsNone(context.working_set)
+        self.assertEqual(set(context.pages), {first["evidence_id"], second["evidence_id"]})
+        self.assertFalse(any("complete_working_set" in page["selection_reasons"]
+                             for page in context.pages.values()))
+
     def test_encoded_request_trimming_recomputes_actual_complete_status(self):
         self.build({"rule.cbl": program("SHORT-RULE",
             "MOVE 7 TO RESULT-AMOUNT.\n" + "*> 中性业务注释保留原始行\n" * 400)})
@@ -282,6 +443,8 @@ class CompleteWorkingSetTests(unittest.TestCase):
             ("head_before_cursor", {"pages": [{**complete, "end_line": 2,
                 "source_text": "FIRST\nSECOND"}], "metadata": {"status": "supplied"}}, "open", 3, 4),
             ("same_path_complete", {"pages": [complete], "metadata": {"status": "supplied"}},
+             "complete", None, 4),
+            ("same_path_partial_set", {"pages": [complete], "metadata": {"status": "partial"}},
              "complete", None, 4),
             ("requested_beyond_eof", {"pages": [complete], "metadata": {"status": "supplied",
                 "source_manifest": [{"relative_path": "rule.cbl", "sha256": "a" * 64,

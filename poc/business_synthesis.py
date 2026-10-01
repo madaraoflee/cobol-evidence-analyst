@@ -8,20 +8,90 @@ import re
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _DETAIL = re.compile(r"详细|詳細|详尽|詳盡|细致|完整|流程|目的|原理|来龙去脉|"
                      r"\b(?:detailed|thorough|workflow|flow|purpose)\b", re.I)
+_LIMITATION = re.compile(
+    r"不足以.{0,12}(?:判断|判斷|确认|確認|解释|解釋|确定|確定|结论|結論|回答|分析|说明|說明|给出|給出)|"
+    r"(?:无法|無法|不能|未能|难以|難以|尚未).{0,24}"
+    r"(?:判断|判斷|确认|確認|解释|解釋|确定|確定|结论|結論|回答)|"
+    r"(?:资料|資料|证据|證據|源码|源碼|代码|代碼|信息).{0,8}(?:不足|不够|不夠|不全)|"
+    r"(?:补齐|補齊|补充|補充|提供).{0,16}(?:源码|源碼|代码|代碼)|"
+    r"\b(?:insufficient (?:source|information|evidence|material|context|to (?:determine|confirm|explain|answer))|"
+    r"(?:source|information|evidence|material|context) (?:is |are )?insufficient|"
+    r"cannot (?:yet )?(?:determine|confirm|explain|answer)|"
+    r"unable to (?:determine|confirm|explain|answer)|need more source|provide source)\b", re.I)
+_INVESTIGATION_STATEMENT = re.compile(
+    r"^(?:我们|我們|我)?\s*(?:目前|当前|當前|现在|現在)?\s*(?:还|還|仍|尚)?\s*"
+    r"(?:需要|需|必须|必須|有待|待|先|要|已经|已經|已)\s*(?:先|进一步|進一步)?\s*"
+    r"(?:查找|补读|補讀|补查|補查|读取|讀取|核对|核對|确认|確認|检查|檢查|分析)|"
+    r"^(?:(?:I|we)\s+)?(?:(?:still |first |already )?(?:need to|must|have to|have|had)|first)\s+"
+    r"(?:find|search|read|locate|inspect|check|verify|review|checked|reviewed)\b", re.I)
+_REPORTED_BEHAVIOR = re.compile(
+    r"(?:程序|系统|系統|接口|函数|函數).{0,8}(?:返回|输出|輸出|显示|顯示|报告|報告)|"
+    r"(?:返回|输出|輸出|显示|顯示|提示|记录|記錄|写入|寫入)\s*[「『“\"']|"
+    r"\b(?:returns?|prints?|outputs?|displays?|reports?|writes?)\s+[\"'“]", re.I)
+_FOLLOWING_EXPLANATION = re.compile(
+    r"(?:再|并|並|然后|然後|接着|接著).{0,16}(?:计算|計算|乘|除|加|减|減|归零|歸零|赋值|賦值|设置|設置|返回)|"
+    r"(?:时|時)(?:会|會|将|將|则|則|直接)?(?:拒绝|拒絕|返回|归零|歸零|计算|計算)|"
+    r"\b(?:and|then)\s+(?:\w+\s+){0,3}(?:multiply|divide|add|subtract|calculate|compute|set|return)\b", re.I)
+_CONDITIONAL_STATEMENT = re.compile(r"^(?:若|如果|当(?!前)|當(?!前)|只要|除非|一旦|(?:if|when|unless)\b)", re.I)
+_EXPLICIT_DEFERRAL = re.compile(
+    r"^(?:我|我们|我們).{0,120}(?:需要|必须|必須|待).{0,240}(?:才能|才可|再)(?:回答|解释|解釋|确认|確認)|"
+    r"^(?:I|we)\s+(?:(?:still|first)\s+)?(?:need|must|have to)\b.{0,480}"
+    r"\bbefore\s+(?:(?:I|we)\s+can\s+)?(?:answer|explain|confirm)\b", re.I)
+
+
+def assess_answer_completion(answer):
+    """Detect a reply made only of investigation or limitation statements.
+
+    This is a conservative text check, not semantic verification. A concrete
+    explanation alongside an uncertainty remains available as a partial answer.
+    Citations and headings alone cannot turn a deferred answer into an analysis.
+    """
+    text = _REFERENCE.sub("", str(answer))
+    text = re.sub(r"(?m)^\s*#{1,6}\s+.*$", "", text)
+    clauses = re.split(r"[\n。！？；;，,:：]+|(?<=[.!?])\s+|\b(?:but|however)\b", text, flags=re.I)
+    deferred = substantive = limitation = False
+    for clause in clauses:
+        clause = re.sub(r"^[\s*#>\-:：]+|[\s*。.!?]+$", "", clause)
+        clause = re.sub(r"^(?:但是|但|因此|所以|不过|不過|然而|而且)\s*", "", clause)
+        if not clause or clause.casefold() in {"结论", "結論", "说明", "說明", "分析结果", "分析結果", "answer", "conclusion"}:
+            continue
+        if _EXPLICIT_DEFERRAL.search(clause):
+            deferred = True
+        elif (_REPORTED_BEHAVIOR.search(clause) or _FOLLOWING_EXPLANATION.search(clause)
+              or _CONDITIONAL_STATEMENT.search(clause)):
+            substantive = True
+        elif _LIMITATION.search(clause):
+            deferred = limitation = True
+        elif _INVESTIGATION_STATEMENT.search(clause):
+            deferred = True
+        else:
+            substantive = True
+    incomplete = deferred and not substantive
+    return {"status": "incomplete" if incomplete else "not_assessed",
+            "reason": "investigation_without_business_answer" if incomplete else None,
+            "limitation_detected": limitation,
+            "method": "bounded_text_check", "semantic_verification": "unverified"}
 
 
 def wants_business_detail(question):
     return bool(_DETAIL.search(str(question)))
 
 
-def needs_synthesis_review(question, answer, investigation):
+def needs_synthesis_review(question, answer, investigation, *, source_available=False):
     """Nominate a bounded review when useful material got a blanket limitation."""
-    if not wants_business_detail(question):
+    items = investigation.get("required_items", [])
+    supplied = source_available or any(item.get("evidence_ids") for item in items)
+    if not supplied:
         return False
-    supplied = any(item.get("evidence_ids") for item in investigation.get("required_items", []))
-    return supplied and bool(re.search(r"不足以|无法.{0,12}(?:判断|确认|解释|确定)|"
-        r"(?:补齐|补充|提供).{0,16}(?:源码|代码)|"
-        r"\b(?:insufficient|cannot determine|need more source|provide source)\b", str(answer), re.I))
+    completion = assess_answer_completion(answer)
+    if completion["status"] == "incomplete":
+        return True
+    # A useful explanation can legitimately bound an unavailable implementation.
+    # That known boundary does not call for another synthesis of the same facts.
+    if any(item.get("reason") in {"external_implementation_unavailable", "runtime_target_unresolved"}
+           for item in items):
+        return False
+    return completion["limitation_detected"]
 
 
 def build_analysis_brief(question, investigation, source_pages, framework_references, max_output_tokens):

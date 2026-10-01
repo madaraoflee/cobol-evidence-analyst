@@ -16,7 +16,7 @@ _ROOT_KINDS = {"program", "relative_path", "basename", "stem"}
 
 def build_complete_working_set(database_path, source_session, business_map, policy,
                               *, check_cancel=None):
-    """Return exact whole-file pages when the known outgoing set fits budgets.
+    """Prefer the complete root, then whole dependencies within the same budgets.
 
     Physical completeness describes only candidate_paths. Static dependencies
     and original text do not prove execution, parameter binding or value flow.
@@ -29,6 +29,7 @@ def build_complete_working_set(database_path, source_session, business_map, poli
         "physical_completeness_scope": "candidate_paths", "closure_complete": False,
         "semantic_execution_verified": False, "root_paths": roots,
         "candidate_paths": [], "source_manifest": [], "frontier": [],
+        "omitted_candidate_paths": [], "omitted_candidate_path_count": 0,
         "omitted_frontier_count": 0, "source_characters": 0,
         "max_source_characters": policy.max_source_characters,
         "depth_limit": _DEPTH_LIMIT, "reason": "source_identity_not_eligible"}
@@ -39,6 +40,8 @@ def build_complete_working_set(database_path, source_session, business_map, poli
         return result
     metadata.update(status="fallback", reason="source_set_unavailable", closure_complete=True)
     fatal = False
+    budget_limited = False
+    omitted_paths = set()
 
     def frontier(reason, relative_path=None, *, blocking=False, **details):
         nonlocal fatal
@@ -54,6 +57,18 @@ def build_complete_working_set(database_path, source_session, business_map, poli
             if not fatal:
                 metadata["reason"] = reason
             fatal = True
+
+    def budget_frontier(reason, relative_path, **details):
+        nonlocal budget_limited
+        if not budget_limited:
+            metadata["reason"] = reason
+        budget_limited = True
+        if relative_path not in omitted_paths:
+            omitted_paths.add(relative_path)
+            metadata["omitted_candidate_path_count"] += 1
+            if len(metadata["omitted_candidate_paths"]) < _FRONTIER_LIMIT:
+                metadata["omitted_candidate_paths"].append(relative_path)
+        frontier(reason, relative_path, **details)
 
     def cancel():
         if check_cancel:
@@ -93,9 +108,9 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                     if target in queued:
                         continue
                     if depth >= _DEPTH_LIMIT:
-                        frontier("dependency_depth_budget", target, blocking=True)
+                        budget_frontier("dependency_depth_budget", target)
                     elif len(queued) >= policy.max_semantic_files:
-                        frontier("dependency_file_budget", target, blocking=True)
+                        budget_frontier("dependency_file_budget", target)
                     else:
                         queued.add(target)
                         pending.append((target, depth + 1))
@@ -116,6 +131,10 @@ def build_complete_working_set(database_path, source_session, business_map, poli
 
         staged, total_bytes, total_chars = [], 0, 0
         captured_paths = {item["relative_path"] for item in source_session.source_manifest()}
+        # The root stays first. Previously inspected dependencies receive the
+        # next slots, while an oversized file cannot displace smaller sources.
+        records = records[:1] + sorted(records[1:],
+            key=lambda item: item["relative_path"] not in captured_paths)
         for item in records:
             cancel()
             relative = item["relative_path"]
@@ -123,13 +142,17 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                              else source_session.source_root)
             size = _safe_file(physical_root, relative).stat().st_size
             if total_bytes + size > byte_limit:
-                frontier("source_byte_budget", relative, blocking=True, byte_limit=byte_limit)
-                return result
+                budget_frontier("source_byte_budget", relative, byte_limit=byte_limit)
+                if relative == roots[0]:
+                    return result
+                continue
             captured = source_session.capture(relative)
             total_bytes += captured.size
             if total_bytes > byte_limit:
-                frontier("source_byte_budget", relative, blocking=True, byte_limit=byte_limit)
-                return result
+                budget_frontier("source_byte_budget", relative, byte_limit=byte_limit)
+                if relative == roots[0]:
+                    return result
+                continue
             if captured.sha256 != item["sha256"]:
                 frontier("source_hash_mismatch", relative, blocking=True,
                          reason_code="SOURCE_HASH_MISMATCH", needs_refresh=True,
@@ -140,15 +163,19 @@ def build_complete_working_set(database_path, source_session, business_map, poli
             verified = list(_verified_lines(source_session.mirror_root,
                 {**item, "encoding": captured.encoding}, check_cancel, policy.max_source_characters))
             if any(truncated for _, truncated in verified):
-                frontier("source_characters", relative, blocking=True)
-                return result
+                budget_frontier("source_characters", relative)
+                if relative == roots[0]:
+                    return result
+                continue
             lines = [text for text, _ in verified]
             text = "\n".join(lines)
+            if total_chars + len(text) > policy.max_source_characters:
+                budget_frontier("source_characters", relative)
+                if relative == roots[0]:
+                    return result
+                continue
             total_chars += len(text)
             metadata["source_characters"] = total_chars
-            if total_chars > policy.max_source_characters:
-                frontier("source_characters", relative, blocking=True)
-                return result
             page = {"relative_path": relative, "start_line": 1, "end_line": len(lines),
                     "source_sha256": captured.sha256, "source_text": text,
                     "span_truncated": False, "selection_reasons": ["complete_working_set"],
@@ -179,8 +206,10 @@ def build_complete_working_set(database_path, source_session, business_map, poli
             for page in staged:
                 _persist_page(db, page)
             db.commit()
-        metadata.update(status="supplied", physical_complete=True,
-                        reason="candidate_source_set_supplied", snapshot_id=snapshot)
+        metadata.update(status="partial" if budget_limited else "supplied",
+                        physical_complete=not budget_limited,
+                        reason=metadata["reason"] if budget_limited else "candidate_source_set_supplied",
+                        snapshot_id=snapshot)
         result["pages"] = staged
     except (OSError, UnicodeError, ValueError, sqlite3.Error) as exc:
         frontier("source_read_unavailable", blocking=True, error_type=type(exc).__name__)

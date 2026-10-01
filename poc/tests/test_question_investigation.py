@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -15,7 +16,7 @@ from business_map import build_business_map
 from business_chat import run_business_chat
 from company_api import CompanyAPIConfig, TransportResponse
 from evidence_context import ReadTask
-from question_investigation import build_question_investigation, _visible_ids
+from question_investigation import build_question_investigation, _indexed_candidates, _visible_ids
 from repository_discovery import ensure_repository_search
 from semantic_scope import build_business_evidence, prepare_semantic_scope
 from source_session import QuestionSourceSession
@@ -60,6 +61,132 @@ class QuestionInvestigationTests(unittest.TestCase):
     @staticmethod
     def item(result, kind):
         return next(item for item in result["required_items"] if item["kind"] == kind)
+
+    def test_exact_late_formula_is_selected_before_budget_and_unrelated_gaps_are_excluded(self):
+        self.write("entry.cbl", "VALUEPLAN", "\n".join(
+            f"COMPUTE OUT-{index} = {index} * 2." for index in range(1, 41)))
+        self.build()
+        lines = (self.source / "entry.cbl").read_text().splitlines()
+        target = next(index for index, line in enumerate(lines, 1) if "OUT-40 =" in line)
+        question = "VALUEPLAN OUT-40 怎么计算？"
+        before = self.investigate(question, [self.page("entry.cbl", 1, 10)])
+        self.assertFalse(before["can_answer"])
+        self.assertEqual(before["planned_actions"][0]["arguments"]["line"], target)
+        after = self.investigate(question, [self.page("entry.cbl", target, target)])
+        self.assertTrue(after["can_answer"])
+        self.assertEqual(self.item(after, "formula")["candidate_count"], 1)
+        self.assertEqual(after["open_gaps"], [])
+        self.assertEqual(after["planned_actions"], [])
+
+    def test_input_field_match_keeps_later_formula_with_same_output(self):
+        self.write("entry.cbl", "VALUEPLAN", "\n".join(
+            f"COMPUTE NET-VALUE = {index} * 2." for index in range(40))
+            + "\nCOMPUTE NET-VALUE = BASE-VALUE * 3.")
+        self.build()
+        for question in ("VALUEPLAN BASE-VALUE 怎么参与计算？",
+                         "VALUEPLAN NET-VALUE 怎么由 BASE-VALUE 计算？"):
+            with self.subTest(question=question):
+                candidates, _, _ = _indexed_candidates(self.database, ["entry.cbl"], question)
+                formulas = [row for row in candidates if row["kind"] == "formula"]
+                self.assertIn("BASE-VALUE", formulas[0]["reads"])
+                self.assertLessEqual(len(formulas), 32)
+
+    def test_explicit_result_keeps_distinct_assignments_to_same_field(self):
+        self.write("entry.cbl", "VALUEPLAN", "COMPUTE NET-VALUE = 11 * 2.\n"
+                   "COMPUTE NET-VALUE = 13 * 3.")
+        self.build()
+        result = self.investigate("VALUEPLAN NET-VALUE 怎么计算？", [self.page("entry.cbl")])
+        self.assertEqual(self.item(result, "formula")["candidate_count"], 2)
+        self.assertTrue(result["can_answer"])
+
+    def test_unfocused_formula_enumeration_remains_bounded_and_reports_its_gap(self):
+        self.write("entry.cbl", "VALUEPLAN", "\n".join(
+            f"COMPUTE OUT-{index} = {index} * 2." for index in range(1, 41)))
+        self.build()
+        result = self.investigate("VALUEPLAN 的计算公式是什么？", [self.page("entry.cbl")])
+        self.assertEqual(self.item(result, "formula")["candidate_count"], 32)
+        self.assertIn("formula_group_budget", {gap["reason"] for gap in result["open_gaps"]})
+
+    def test_exact_field_priority_applies_across_source_files(self):
+        self.write("entry.cbl", "VALUEPLAN", "CALL 'VALUELEAF'.\n" + "\n".join(
+            f"COMPUTE OUT-{index} = {index} * 2." for index in range(1, 41)))
+        self.write("leaf.cbl", "VALUELEAF", "COMPUTE NET-VALUE = 11 * 2.")
+        self.build()
+        result = self.investigate("VALUEPLAN NET-VALUE 怎么计算？",
+                                  [self.page("entry.cbl"), self.page("leaf.cbl")])
+        self.assertEqual(self.item(result, "formula")["candidate_count"], 1)
+        self.assertEqual(result["open_gaps"], [])
+        self.assertTrue(result["can_answer"])
+
+    def test_exact_result_keeps_called_formula_when_parameter_name_changes(self):
+        self.write("entry.cbl", "VALUEPLAN", "COMPUTE NET-VALUE = 11 * 2.\n"
+                   "CALL 'VALUELEAF' USING NET-VALUE.")
+        self.write("leaf.cbl", "VALUELEAF", "COMPUTE IO-RESULT = IO-RESULT * 3.",
+                   "LINKAGE SECTION.\n01 IO-RESULT PIC 9(7).")
+        path = self.source / "leaf.cbl"
+        path.write_text(path.read_text().replace("PROCEDURE DIVISION.",
+                                                "PROCEDURE DIVISION USING IO-RESULT."))
+        self.build()
+        question = "VALUEPLAN NET-VALUE 怎么计算？"
+        before = self.investigate(question, [self.page("entry.cbl")])
+        self.assertFalse(before["can_answer"])
+        self.assertTrue(any(action["arguments"]["relative_path"] == "leaf.cbl"
+                            for action in before["planned_actions"]))
+        after = self.investigate(question, [self.page("entry.cbl"), self.page("leaf.cbl")])
+        self.assertEqual(self.item(after, "formula")["candidate_count"], 2)
+        self.assertEqual(after["open_gaps"], [])
+        self.assertTrue(after["can_answer"])
+
+    def test_path_budget_keeps_direct_root_ahead_of_leaf_formula_matches(self):
+        self.write("entry.cbl", "VALUEPLAN", "IF MODE-VALUE = 1\n" + "\n".join(
+            f"CALL 'LEAF-{index}'." for index in range(8)) + "\nEND-IF.")
+        leaves = []
+        for index in range(8):
+            path = f"leaf-{index}.cbl"
+            leaves.append(path)
+            self.write(path, f"LEAF-{index}", f"COMPUTE NET-VALUE = {index} * 3.")
+        self.build()
+        result = self.investigate("VALUEPLAN NET-VALUE 怎么计算？",
+                                  [self.page(path) for path in leaves])
+        self.assertFalse(result["can_answer"])
+        self.assertEqual(result["candidate_paths"][0], "entry.cbl")
+        self.assertTrue(any(action["arguments"]["relative_path"] == "entry.cbl"
+                            for action in result["planned_actions"]))
+        self.assertIn("located_path_budget", {gap["reason"] for gap in result["open_gaps"]})
+
+    def test_related_formula_budget_is_not_hidden_by_exact_field_match(self):
+        self.write("entry.cbl", "VALUEPLAN", "\n".join(
+            f"COMPUTE NET-VALUE = {index} * 2." for index in range(40)))
+        self.build()
+        result = self.investigate("VALUEPLAN NET-VALUE 怎么计算？", [self.page("entry.cbl")])
+        self.assertEqual(self.item(result, "formula")["candidate_count"], 32)
+        self.assertIn("formula_candidate_budget", {gap["reason"] for gap in result["open_gaps"]})
+        self.assertEqual(result["state"], "bounded_partial")
+
+    def test_exact_common_field_query_work_does_not_scale_with_unrelated_rules(self):
+        self.write("entry.cbl", "VALUEPLAN", "COMPUTE NET-VALUE = 11 * 2.")
+        self.build()
+        original_connect = sqlite3.connect
+
+        def measured():
+            instructions = []
+            def connect(*args, **kwargs):
+                connection = original_connect(*args, **kwargs)
+                connection.set_progress_handler(lambda: instructions.append(100) or 0, 100)
+                return connection
+            with mock.patch("question_investigation.sqlite3.connect", side_effect=connect):
+                candidates, _, _ = _indexed_candidates(self.database, ["entry.cbl"],
+                                                       "VALUEPLAN NET-VALUE 怎么计算？")
+            self.assertEqual(sum(row["kind"] == "formula" for row in candidates), 1)
+            return sum(instructions)
+
+        baseline = measured()
+        self.write("unrelated.cbl", "OTHERPLAN", "\n".join(
+            f"COMPUTE NET-VALUE = {index} * 2." for index in range(5000)))
+        self.build()
+        # Count VM work instead of wall-clock time: a common field elsewhere
+        # must not turn this one-file lookup into a repository-wide field scan.
+        self.assertLessEqual(measured(), baseline * 2 + 1000)
 
     def test_peripheral_alias_needs_deep_formula_and_cross_paragraph_adjustments(self):
         body = "DISPLAY 'RQX 203012'.\n"
