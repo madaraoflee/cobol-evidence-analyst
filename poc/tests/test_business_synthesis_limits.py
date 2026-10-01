@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 import sys
 import tempfile
@@ -15,10 +16,13 @@ from agent_policy import AgentPolicy
 import business_chat
 from business_chat import run_business_chat
 from business_index import build_business_index
+from business_map import build_business_map
+from business_synthesis import assess_business_answer
 from company_api import CompanyAPIConfig, TransportResponse
 from evidence_context import EvidenceContext, ReadTask
 import repository_discovery
 from repository_discovery import ensure_repository_search
+from question_investigation import build_question_investigation
 
 
 class BusinessSynthesisLimitTests(unittest.TestCase):
@@ -51,6 +55,49 @@ class BusinessSynthesisLimitTests(unittest.TestCase):
         supplied = {identifier for item in brief.get("supplied_material", [])
                     for identifier in item["supplied_reference_ids"]}
         self.assertLessEqual(supplied, actual)
+
+    def test_revision_review_rebinds_after_the_formula_page_is_trimmed(self):
+        self.build(long_source=True)
+        source_bytes = (self.source / "rule.cbl").read_bytes()
+        lines = source_bytes.decode("utf-8").splitlines()
+        common = {"relative_path": "rule.cbl", "source_sha256": hashlib.sha256(source_bytes).hexdigest()}
+        formula_page = {**common, "evidence_id": "ev:formula", "start_line": 1,
+                        "end_line": len(lines) - 1, "source_text": "\n".join(lines[:-1])}
+        end_page = {**common, "evidence_id": "ev:end", "start_line": len(lines),
+                    "end_line": len(lines), "source_text": lines[-1]}
+        question = "rule.cbl 的 FINAL-AMOUNT 怎么计算？" + "业务" * 3000
+        business_map = build_business_map(self.database, self.source, question)
+
+        def investigation(pages):
+            return build_question_investigation(question, business_map,
+                database_path=self.database, source_pages=pages)
+
+        draft = "最终金额由基础值与系数计算。"
+        pages = [formula_page, end_page]
+        review = assess_business_answer(question, draft, investigation(pages), pages)
+        self.assertEqual(review["missing_aspects"], ["formula"])
+        payload = {"question": question, "repository": {}, "business_map": {},
+            "source_context": [{"pages": pages, "call_chain": {"links": [], "omitted_links": 0},
+                                "outline": [], "notices": []}],
+            "framework_references": [], "draft_answer": draft, "answer_review": review}
+        trims = []
+        messages, size = business_chat._fit_request(self.config, payload, [],
+            AgentPolicy(max_request_bytes=32768), trim_events=trims, investigation_builder=investigation)
+        actual = json.loads(messages[-1]["content"])
+        visible = actual["source_context"][0]["pages"]
+        self.assertEqual([page["evidence_id"] for page in visible], ["ev:end"])
+        self.assertTrue(any(item["item_id"] == "ev:formula" and item["reason"] == "request_bytes"
+                            for item in trims))
+        self.assertLessEqual(size, 32768)
+        formula = next(item for item in actual["question_investigation"]["required_items"]
+                       if item["kind"] == "formula")
+        self.assertEqual(formula["status"], "OPEN")
+        expected = assess_business_answer(question, actual["draft_answer"],
+            actual["question_investigation"], visible)
+        self.assertEqual(actual["answer_review"], expected)
+        self.assertEqual(actual["answer_review"]["required_aspects"], [])
+        self.assertEqual(actual["answer_review"]["missing_aspects"], [])
+        self.assertEqual(actual["answer_review"]["semantic_verification"], "unverified")
 
     def test_optional_brief_does_not_break_valid_question_at_minimum_request_budget(self):
         self.build()

@@ -14,8 +14,18 @@ _LIMITATION = re.compile(
     r"(?:判断|判斷|确认|確認|解释|解釋|确定|確定|结论|結論|回答)|"
     r"(?:资料|資料|证据|證據|源码|源碼|代码|代碼|信息).{0,8}(?:不足|不够|不夠|不全)|"
     r"(?:补齐|補齊|补充|補充|提供).{0,16}(?:源码|源碼|代码|代碼)|"
+    r"(?:找不到|找不着|找不著|(?:未|没|沒|没有|沒有|尚未|暂未|暫未)(?:能)?"
+    r"(?:找到|查到|定位到|检索到|檢索到)).{0,40}"
+    r"(?:源码|源碼|代码|代碼|原文|公式|算式|(?:计算|計算)(?:口径|口徑|规则|規則|逻辑|邏輯)|"
+    r"(?:输入|輸入|赋值|賦值)(?:来源|來源))|"
     r"\b(?:insufficient (?:source|information|evidence|material|context|to (?:determine|confirm|explain|answer))|"
     r"(?:source|information|evidence|material|context) (?:is |are )?insufficient|"
+    r"(?:(?:can|could|did|have)\s+not|can['’]t|(?:could|did|have)n['’]t|cannot|unable to)\s+"
+    r"(?:yet\s+)?(?:find|locate).{0,48}"
+    r"(?:source(?:\s+code)?|code|formulas?|calculation (?:rules?|basis|logic)|input sources?)|"
+    r"(?:no|not any)\s+(?:(?:relevant|matching|complete)\s+)?"
+    r"(?:source(?:\s+code)?|code|formulas?|calculation (?:rules?|basis|logic)|input sources?)"
+    r".{0,48}(?:found|located|available)|"
     r"cannot (?:yet )?(?:determine|confirm|explain|answer)|"
     r"unable to (?:determine|confirm|explain|answer)|need more source|provide source)\b", re.I)
 _INVESTIGATION_STATEMENT = re.compile(
@@ -77,13 +87,94 @@ def wants_business_detail(question):
     return bool(_DETAIL.search(str(question)))
 
 
-def needs_synthesis_review(question, answer, investigation, *, source_available=False):
+_FORMULA_QUESTION = re.compile(
+    r"计算|計算|公式|怎么算|怎麼算|如何算|算出|\b(?:calculation|calculate[ds]?|calculating|formula|computed?)\b", re.I)
+_INPUT_QUESTION = re.compile(
+    r"初值|初始值|预设值|預設值|(?:输入|輸入|参数|參數).{0,12}(?:来源|來源|来自|來自|哪里|哪裡|何处|何處)|"
+    r"\b(?:initial|default) values?\b|\b(?:input|parameter).{0,24}(?:source|origin|from)|\bwhere.{0,24}(?:input|parameter)\b", re.I)
+_CONDITION_QUESTION = re.compile(r"条件|條件|何时|何時|什么时候|什麼時候|\b(?:conditions?|when)\b", re.I)
+_ALTERNATIVE_QUESTION = re.compile(
+    r"不满足|不滿足|否则|否則|归零|歸零|清零|例外|分支|\b(?:otherwise|else|exceptions?|branches?)\b", re.I)
+_ANSWER_SIGNALS = {
+    "formula": re.compile(
+        r"[\w)]\s*[=＝×÷*/+]\s*[\w(]|\w\s+-\s+\w|乘|除|加|减|減|之和|之差|倍|等于|等於|"
+        r"取值|取自|赋值|賦值|\b(?:multiply|multiplied|multiplying|multiplication|times|scaled?|"
+        r"divide[ds]?|division|add(?:ed|ing)?|plus|sum|subtract(?:ed|ing)?|minus|difference|"
+        r"equals?|product|double[ds]?|twice|COMPUTE|GIVING)\b", re.I),
+    "inputs": re.compile(
+        r"初值|初始|预设|預設|固定值|来自|來自|读取|讀取|接收|传入|傳入|赋值|賦值|设为|設為|设置|設置|"
+        r"从.{0,24}(?:取|开始)|從.{0,24}(?:取|開始)|"
+        r"\b(?:VALUE|MOVE|LINKAGE|READ|USING|from|initialized?|initially|loaded?|received?|passed?)\b", re.I),
+    "conditions": re.compile(
+        r"大于|大於|小于|小於|等于|等於|超过|超過|超出|低于|低於|达到|達到|正数|正數|正值|非正|[<>≤≥]|若|如果|当.{0,24}时|當.{0,24}時|"
+        r"仅|僅|才|\b(?:if|when|unless|positive|negative|greater|less|exceeds?)\b", re.I),
+    "result_adjustments": re.compile(
+        r"否则|否則|不满足|不滿足|其他情况|其他情況|归零|歸零|清零|置零|为零|為零|"
+        r"(?:为|為|设为|設為|[=＝])\s*0(?![\d.])|保留|保持|改写|改寫|"
+        r"再加|再减|再減|调整|調整|四舍五入|四捨五入|舍入|捨入|截断|截斷|"
+        r"\b(?:else|otherwise|zero|unchanged|round(?:ed|ing)?|adjust(?:ed|s)?|truncate[ds]?|"
+        r"retain(?:ed|s)?|preserv(?:e[ds]?|ing))\b", re.I),
+}
+_ASPECT_LABELS = {"formula": "具体算式或运算关系", "inputs": "输入的初值、读取或传入来源",
+                  "conditions": "计算适用的条件", "result_adjustments": "其他分支或结果调整"}
+
+
+def answer_requirements(question, investigation, source_pages):
+    """Nominate answer aspects only from question-relevant, supplied candidates.
+
+    These are bounded lexical coverage hints, not a semantic answer score. A
+    short answer can cover them; there is deliberately no minimum word count.
+    """
+    question = str(question)
+    calculation = bool(_FORMULA_QUESTION.search(question))
+    detailed_calculation = calculation and wants_business_detail(question)
+    requested = {"formula": calculation,
+                 "inputs": bool(_INPUT_QUESTION.search(question)) or detailed_calculation,
+                 "conditions": detailed_calculation or bool(_CONDITION_QUESTION.search(question)),
+                 "result_adjustments": detailed_calculation or bool(_ALTERNATIVE_QUESTION.search(question))}
+    visible = {page.get("evidence_id") for page in source_pages if page.get("source_text")}
+    requirements = []
+    for item in investigation.get("required_items", []):
+        kind = item.get("kind")
+        identifiers = [identifier for identifier in item.get("evidence_ids", []) if identifier in visible]
+        if (requested.get(kind) and item.get("status") == "SATISFIED"
+                and item.get("candidate_count", 0) and identifiers):
+            requirements.append({"kind": kind, "description": _ASPECT_LABELS[kind],
+                                 "supplied_reference_ids": identifiers[:8]})
+    return requirements
+
+
+def assess_business_answer(question, answer, investigation, source_pages):
+    """Detect obvious omissions without treating source supply as answer quality."""
+    completion = assess_answer_completion(answer)
+    requirements = answer_requirements(question, investigation, source_pages)
+    text = _REFERENCE.sub("", str(answer))
+    text = re.sub(r"\[([^\]\n]+)\]\([^\)\n]+\)", r"\1", text)
+    text = re.sub(r"(?m)^\s*#{1,6}\s+.*$", "", text)
+    # An uncertainty or a question restated in the reply is not an explanation
+    # of a supplied aspect. Preserve substantive clauses for the coverage hints.
+    clauses = re.split(r"[\n。！？；;，,:：]+|(?<=[.!?])\s+", text)
+    explanation = "\n".join(clause for clause in clauses
+        if (_REPORTED_BEHAVIOR.search(clause) or _FOLLOWING_EXPLANATION.search(clause)
+            or _CONDITIONAL_STATEMENT.search(clause)
+            or not (_LIMITATION.search(clause) or _INVESTIGATION_STATEMENT.search(clause)))
+        and not re.search(r"[?？]", clause))
+    missing = [item["kind"] for item in requirements
+               if not _ANSWER_SIGNALS[item["kind"]].search(explanation)]
+    completion.update(required_aspects=[item["kind"] for item in requirements], missing_aspects=missing)
+    if missing and completion["status"] != "incomplete":
+        completion.update(status="incomplete", reason="supplied_business_aspects_unexplained")
+    completion["method"] = "bounded_text_and_coverage_signals"
+    return completion
+
+
+def needs_synthesis_review(question, answer, investigation, *, source_available=False, source_pages=()):
     """Nominate a bounded review when useful material got a blanket limitation."""
     items = investigation.get("required_items", [])
     supplied = source_available or any(item.get("evidence_ids") for item in items)
     if not supplied:
         return False
-    completion = assess_answer_completion(answer)
+    completion = assess_business_answer(question, answer, investigation, source_pages)
     if completion["status"] == "incomplete":
         return True
     # A useful explanation can legitimately bound an unavailable implementation.
@@ -110,6 +201,7 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
         for target in item.get("targets", [])))
     return {"detail_requested": wants_business_detail(question),
             "output_budget_tokens": max_output_tokens,
+            "required_answer_aspects": answer_requirements(question, investigation, source_pages),
             "available_source_paths": list(dict.fromkeys(page["relative_path"] for page in source_pages
                                                          if page.get("relative_path")))[:8],
             "supplied_material": items,
