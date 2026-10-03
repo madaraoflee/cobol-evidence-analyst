@@ -7,6 +7,7 @@ Questions deliberately exercise cancellation or a safe failure; no provider is c
 from pathlib import Path
 import argparse
 import hashlib
+import json
 import sys
 import tempfile
 import time
@@ -18,6 +19,26 @@ from company_api import APIClientError, CompanyAPIConfig, TransportResponse
 from web_app import WorkbenchState, WEB_ROOT, create_server
 from source_reading import _identify_page
 from source_session import archive_evidence
+
+
+REVIEW_EVENTS = []
+EVENTS_PATH = None
+
+
+def synthetic_failure(question):
+    """Select a deterministic safe error without making any network request."""
+    if "[network]" in question:
+        return "network", APIClientError("TRANSPORT_ERROR", transport_reason="connection_reset")
+    if "[500]" in question:
+        return "500", APIClientError("HTTP_ERROR", http_status=500,
+            diagnostic=build_diagnostic("HTTP_ERROR", http_status=500))
+    for marker, code in (("429-quota", "insufficient_quota"), ("429-rate", "rate_limit_exceeded")):
+        if "[" + marker + "]" in question:
+            return marker, APIClientError("HTTP_ERROR", http_status=429,
+                diagnostic=build_diagnostic("HTTP_ERROR", http_status=429,
+                    body=json.dumps({"error": {"code": code}})))
+    return "429-unknown", APIClientError("HTTP_ERROR", http_status=429,
+        diagnostic=build_diagnostic("HTTP_ERROR", http_status=429))
 
 
 ANSWER = """## 费用如何计算？
@@ -61,19 +82,28 @@ END-IF
 def offline_analyzer(source, output, **options):
     if not options.get("allow_network"):
         return analyze_source(source, output, **options)
+    question = options.get("question") or ""
+    scenario, failure = synthetic_failure(question)
+    stopping = "停止" in question
+    REVIEW_EVENTS.append({"sequence": len(REVIEW_EVENTS) + 1,
+                          "scenario": "cancel" if stopping else scenario})
+    if EVENTS_PATH is not None:
+        EVENTS_PATH.write_text(json.dumps(REVIEW_EVENTS, indent=2), encoding="utf-8")
     # Give the real cancel endpoint a deterministic window for browser review.
-    for _ in range(80 if "停止" in (options.get("question") or "") else 12):
+    for _ in range(80 if stopping else 12):
         options["check_cancel"]()
         time.sleep(.1)
-    diagnostic = build_diagnostic("HTTP_ERROR", http_status=429)
-    raise APIClientError("HTTP_ERROR", http_status=429, diagnostic=diagnostic)
+    raise failure
 
 
 def main():
+    global EVENTS_PATH
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8873)
     parser.add_argument("--web-root", type=Path, default=WEB_ROOT)
+    parser.add_argument("--events-path", type=Path, help="Optional synthetic scenario counter output; no question text is stored.")
     args = parser.parse_args()
+    EVENTS_PATH = args.events_path
     with tempfile.TemporaryDirectory(prefix="cobol-ui-review-") as temporary:
         root = Path(temporary).resolve()
         source, output = root / "synthetic-review", root / "analysis"

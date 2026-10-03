@@ -66,6 +66,28 @@ test('server default conversation title follows the selected interface language 
   h.run("state.conversation.title='Business title from user'");assert.match(h.run('renderWorkbench()'),/Business title from user/);
 });
 
+test('reload restores the latest safe failure only for the matching conversation and failed run',async()=>{
+  const diagnostic={schema_version:'safe-api-error/v1',category:'connection',transport_reason:'connection_reset',evidence_source:'local',request_id:'local-'+'b'.repeat(32),reason:'UNTRUSTED PROVIDER TEXT'};
+  for(const match of ['current','other-conversation','other-run','completed-turn']){
+    const h=harness('zh-CN');
+    const current=conversation([...firstMessages,{id:'failed-question',role:'user',content:'Keep this question',run_id:match==='other-run'?'older-run':'failed-run',status:match==='completed-turn'?'completed':'failed'}]);
+    const job={job_id:'failed-run',status:'FAILED',conversation:{id:match==='other-conversation'?'unrelated':current.id},error:{diagnostic}};
+    h.respond(url=>url==='/api/state'?{session_token:'test',api_configured:true,project:project(),conversations:[current],conversation:current,job}:url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
+    await h.run('initialize()');
+    const html=h.run('conversationWorkbench()');
+    assert.match(html,/A valid request is accepted/);assert.match(html,/Keep this question/);
+    assert.doesNotMatch(html,/UNTRUSTED PROVIDER TEXT/);
+    if(match==='current'){assert.match(html,/接口连接中断/);assert.match(html,/<details><summary>查看安全错误详情/);}
+    else assert.doesNotMatch(html,/conversation-failure/);
+  }
+});
+
+test('reload restores a cancelled turn without claiming a provider failure',()=>{
+  const h=harness('zh-CN');setup(h,[{id:'cancelled-question',role:'user',content:'Stop this question',run_id:'cancelled-run',status:'cancelled'}]);
+  h.run("restoreConversationFailure({job_id:'cancelled-run',status:'CANCELLED',conversation:{id:'conversation-1'}})");
+  const html=h.run('conversationWorkbench()');assert.match(html,/已停止本次工作/);assert.doesNotMatch(html,/查看安全错误详情/);
+});
+
 test('switching conversations blocks both Enter and form submission until the active scope is ready',async()=>{
   const h=harness();setup(h,firstMessages);
   h.run("state.question='Keep this draft';state.conversationLoading=true");
@@ -87,7 +109,8 @@ test('a failed turn has one concise panel with correlation details folded outsid
   assert.equal(h.get('notice').hidden,true);
   const html=h.run('conversationWorkbench()');
   assert.equal((html.match(/class="conversation-failure"/g)||[]).length,1);
-  const paragraph=html.match(/class="conversation-failure" role="status"><p>(.*?)<\/p>/)[1];
+  const paragraph=html.match(/class="conversation-failure" role="status">[\s\S]*?<p>(.*?)<\/p>/)[1];
+  assert.match(html, /class="failure-heading">[\s\S]*?本次请求未完成<\/div>/);
   assert.match(paragraph,/HTTP 429/);assert.equal((paragraph.match(/HTTP 429/g)||[]).length,1);
   assert.doesNotMatch(paragraph,/local-|Technical text/);
   assert.match(html,/<details><summary>查看安全错误详情/);

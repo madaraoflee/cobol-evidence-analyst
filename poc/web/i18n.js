@@ -3,6 +3,7 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+本次請求未完成|本次请求未完成|This request did not complete
 脈絡|脉络|Mailuo
 脈絡首頁|脉络首页|Mailuo home
 COBOL 業務分析|COBOL 业务分析|COBOL Workbench
