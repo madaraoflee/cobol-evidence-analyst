@@ -3,6 +3,24 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+脈絡|脉络|Mailuo
+脈絡首頁|脉络首页|Mailuo home
+COBOL 業務分析|COBOL 业务分析|COBOL Workbench
+最近對話|最近对话|Recent conversations
+匯出|导出|Export
+提問時，向已設定的接口傳送有限源碼與框架節錄。|提问时，向已配置的接口发送有限源码与框架节录。|Questions send limited source and framework excerpts to your configured endpoint.
+從一個問題，理清業務脈絡|从一个问题，理清业务脉络|FOLLOW THE THREAD
+描述你想確認的規則、例外或影響，沿著源碼一起找答案。|描述你想确认的规则、例外或影响，沿着源码一起找答案。|Ask about rules, exceptions or impact. Follow the source to understand why.
+源碼|源码|Source
+追溯證據|追溯证据|Trace evidence
+理解業務|理解业务|Understand
+梳理業務規則|梳理业务规则|Understand rules
+條件、計算與處理流程|条件、计算与处理流程|Conditions, calculations and flow
+找出尚待確認的部分|找出尚待确认的部分|Identify what still needs review
+追蹤欄位與相關程式|追踪字段与相关程序|Trace fields and related programs
+業務解讀 · 請結合證據覆核|业务解读 · 请结合证据复核|Interpretation · Review against evidence
+回答目錄|回答目录|Answer navigation
+本頁內容|本页内容|ON THIS PAGE
 跳至主要內容|跳至主要内容|Skip to main content
 工作空間導覽|工作空间导航|Workspace navigation
 關閉導覽|关闭导航|Close navigation
@@ -836,7 +854,7 @@ for (const element of document.querySelectorAll('[aria-label],[placeholder],[tit
 }
 function translateStaticInterface() {
   document.documentElement.lang = currentLocale === 'zh-HK' ? 'zh-Hant-HK' : currentLocale === 'zh-CN' ? 'zh-Hans' : 'en';
-  document.title = 'COBOL Lens · ' + t('業務洞察工作台');
+  document.title = t('脈絡') + ' · ' + t('COBOL 業務分析');
   for (const [node,original] of staticText) if (node.isConnected) node.data = t(original);
   for (const [node,attribute,original] of staticAttributes) if (node.isConnected) node.setAttribute(attribute,t(original));
   document.getElementById('language-select').value = currentLocale;

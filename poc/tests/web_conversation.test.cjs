@@ -286,7 +286,7 @@ test('conversation content is never translated or treated as HTML and framework 
 test('restored assistant turns render Markdown with turn-local citations and keep user questions literal',()=>{
   for(const locale of ['en','zh-CN','zh-HK']){
     const h=harness(locale);setup(h,[{id:'user-md',role:'user',content:'**原始问题** <script>text</script>'},{id:'assistant-md',role:'assistant',content:'## 业务回答\n\n**先读保单**，然后计算 `AMOUNT`。 [ev-md]\n\n- 判断生效条件\n- 计算结果',status:'COMPLETED',evidence_refs:[{evidence_id:'ev-md',relative_path:'calculation.cbl',start_line:1,end_line:5}]}]);
-    const html=h.run('conversationWorkbench()');assert.match(html,/<h3>业务回答<\/h3>/);assert.match(html,/<strong>先读保单<\/strong>/);assert.match(html,/<code>AMOUNT<\/code>/);assert.match(html,/<ul>/);
+    const html=h.run('conversationWorkbench()');assert.match(html,/<h3 id="answer-assistant-md-section-0" tabindex="-1">业务回答<\/h3>/);assert.match(html,/<strong>先读保单<\/strong>/);assert.match(html,/<code>AMOUNT<\/code>/);assert.match(html,/<ul>/);
     assert.match(html,/data-message-id="assistant-md" data-turn-evidence="ev-md"/);
     assert.match(html,/\*\*原始问题\*\* &lt;script&gt;text&lt;\/script&gt;/);assert.doesNotMatch(html,/<script>/);
   }
@@ -297,4 +297,34 @@ test('Markdown citation tokens cannot turn source identifiers or reference label
   setup(h,[{id:'safe-turn',role:'assistant',content:`**业务说明** [${sourceId}] [${frameworkId}]`,status:'COMPLETED',evidence_refs:[{evidence_id:sourceId,relative_path:'<img src=x>.cbl',start_line:1,end_line:2}],framework_references:[{reference_id:frameworkId,heading:'<script>unsafe label</script>',text:'<img src=x>'}]}]);
   const html=h.run('conversationWorkbench()');assert.match(html,/<strong>业务说明<\/strong>/);assert.match(html,/data-turn-evidence="&quot;&gt;&lt;img/);assert.match(html,/&lt;script&gt;unsafe label&lt;\/script&gt;/);
   assert.doesNotMatch(html,/<img|<script|onerror="/i);
+});
+
+test('reading navigation stays within its answer and cannot promote heading text to HTML',()=>{
+  const h=harness();
+  const content='## Same heading\n\nKeep this answer.\n\n### Same heading\n\n<script>unsafe</script>\n\n### `FIELD` & <img src=x onerror=alert(1)>\n\nTAIL';
+  setup(h,[{id:'answer-one',role:'assistant',content},{id:'answer-two',role:'assistant',content}]);
+  const html=h.run('conversationWorkbench()');
+  assert.match(html,/data-answer-section="answer-answer-one-section-1"/);
+  assert.match(html,/data-answer-section="answer-answer-two-section-1"/);
+  assert.equal((html.match(/>TAIL<\/p>/g)||[]).length,2);
+  assert.doesNotMatch(html,/<script>|<img|<button[^>]*onerror=/);
+  let focused=false,scrolled=false;
+  h.get('answer-answer-two-section-1').focus=()=>focused=true;
+  h.get('answer-answer-two-section-1').scrollIntoView=()=>scrolled=true;
+  const target={dataset:{answerSection:'answer-answer-two-section-1'},hasAttribute:()=>false,classList:{contains:()=>false}};
+  h.events.click({target:{closest:()=>target},preventDefault(){}});
+  assert.equal(focused,true);assert.equal(scrolled,true);assert.equal(h.requests.length,0);
+});
+
+test('the welcome puts the composer before optional prompts and keeps source onboarding available',()=>{
+  for(const locale of ['zh-CN','zh-HK','en']){
+    const h=harness(locale);setup(h);
+    const html=h.run('conversationWorkbench()');
+    assert.ok(html.indexOf('id="question-input"')<html.indexOf('class="starter-questions"'));
+    assert.doesNotMatch(html,/conversation-toolbar|data-new-conversation/);
+    assert.equal((html.match(/data-question=/g)||[]).length,3);
+    h.run('state.project=null');
+    assert.match(h.run('conversationWorkbench()'),/data-connect/);
+    assert.match(h.run('conversationComposer()'),/ disabled/);
+  }
 });
