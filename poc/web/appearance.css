@@ -593,7 +593,7 @@ summary { cursor: pointer; }
 .conversation-diagnostics[open] { text-align: left; }
 .conversation-progress { max-width: calc(100% - 202px); background: var(--surface-soft); border: 1px solid var(--border); padding: 13px 16px; border-radius: 10px; }
 .conversation-progress button { min-height: 36px; }
-.conversation-evidence { margin: 0 0 0 auto; top: 12px; right: 12px; bottom: 12px; height: calc(100dvh - 24px); max-height: none; width: min(620px, calc(100vw - 24px)); max-width: none; padding: 22px; border-radius: 14px; color: var(--ink); }
+.conversation-evidence { margin: 0 0 0 auto; top: 12px; right: 12px; bottom: 12px; height: calc(100dvh - 24px); max-height: none; width: min(620px, calc(100% - 24px)); max-width: none; padding: 22px; border-radius: 14px; color: var(--ink); }
 .conversation-evidence:not([open]) { display: none; }
 .conversation-evidence[open] { display: block; animation: panel-enter .2s ease-out; }
 .conversation-evidence::backdrop, .navigation-dialog::backdrop { background: #28151c66; backdrop-filter: blur(2px); }
@@ -682,7 +682,7 @@ summary { cursor: pointer; }
   .conversation-composer { padding-top: 16px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
   .conversation-composer textarea { font-size: 16px; padding: 15px 15px 5px; }
   .composer-bottom { padding: 6px 10px 10px; }
-  .conversation-evidence { top: 8px; right: 8px; bottom: 8px; width: calc(100vw - 16px); height: calc(100dvh - 16px); padding: 17px; }
+  .conversation-evidence { top: 8px; right: 8px; bottom: 8px; width: calc(100% - 16px); height: calc(100dvh - 16px); padding: 17px; }
 }
 @media (max-width: 359px) {
   .breadcrumb { max-width: 69px; overflow: hidden; }
