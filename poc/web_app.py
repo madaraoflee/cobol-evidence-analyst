@@ -422,8 +422,11 @@ class WorkbenchState:
                 probe_config, transport=self.model_check_transport, allow_network=True,
             ).complete(messages=[{"role": "user", "content": "Reply with the single word OK."}])
         except (APIConfigurationError, APIClientError) as exc:
-            return {"usable": False, "code": exc.code, "http_status": exc.http_status,
-                    "model_returned": False, "diagnostic": _failure_diagnostic(exc, "MODEL_CHECK_FAILED")}
+            result = {"usable": False, "code": exc.code, "http_status": exc.http_status,
+                      "model_returned": False, "diagnostic": _failure_diagnostic(exc, "MODEL_CHECK_FAILED")}
+            if isinstance(exc, APIClientError) and exc.transport_reason is not None:
+                result["transport_reason"] = exc.transport_reason
+            return result
         except (TypeError, ValueError):
             return {"usable": False, "code": "CONFIGURATION_INVALID", "http_status": None,
                     "model_returned": False, "diagnostic": _log_safe_failure(build_diagnostic("CONFIGURATION_INVALID"))}

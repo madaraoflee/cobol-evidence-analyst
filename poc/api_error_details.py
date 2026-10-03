@@ -28,6 +28,15 @@ _EXPLANATIONS = {
     "invalid_response": ("接口返回的响应格式无效。", "检查接口兼容性和服务端响应日志。"),
     "system_error": ("请求处理发生系统错误，具体原因尚未确认。", "凭关联编号检查应用和服务端日志。"),
 }
+TRANSPORT_EXPLANATIONS = {
+    "dns_resolution_failed": "找不到接口地址，请检查网络或地址。",
+    "tls_certificate_invalid": "连接验证失败，请联系管理员检查证书。",
+    "tls_handshake_failed": "无法建立安全连接，请联系管理员。",
+    "connection_refused": "接口拒绝连接，请确认服务已启动。",
+    "connection_reset": "接口连接中断，请稍后重试。",
+    "network_unreachable": "无法连上接口网络，请检查网络连接。",
+    "timeout": "接口响应超时，请稍后重试。",
+}
 _CODE_CATEGORY = {
     "request_too_large": "request_too_large", "payload_too_large": "request_too_large",
     "context_length_exceeded": "context_too_large", "context_window_exceeded": "context_too_large",
@@ -79,6 +88,12 @@ def sanitize_diagnostic(value):
     result = {"schema_version": SCHEMA_VERSION, "category": category, "reason": reason,
               "next_step": next_step, "evidence_source": source if isinstance(source, str) and source in {"local", "provider_code", "provider_message", "http_status", "unknown"} else "unknown",
               "request_id": request_id, "request_id_source": "local"}
+    transport_reason = value.get("transport_reason")
+    if (source == "local" and category in {"connection", "timeout"}
+            and isinstance(transport_reason, str) and transport_reason in TRANSPORT_EXPLANATIONS
+            and (category != "timeout" or transport_reason == "timeout")):
+        result["transport_reason"] = transport_reason
+        result["reason"] = TRANSPORT_EXPLANATIONS[transport_reason]
     status = value.get("http_status")
     if type(status) is int and 100 <= status <= 599:
         result["http_status"] = status

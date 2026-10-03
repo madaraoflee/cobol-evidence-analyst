@@ -3,6 +3,13 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+接口回應逾時，請稍後重試。|接口响应超时，请稍后重试。|The API request timed out; please retry later.
+找不到接口地址，請檢查網路或地址。|找不到接口地址，请检查网络或地址。|Endpoint address not found; check the network or address.
+連線驗證失敗，請聯絡管理員檢查憑證。|连接验证失败，请联系管理员检查证书。|Connection verification failed; ask an administrator to check the certificate.
+無法建立安全連線，請聯絡管理員。|无法建立安全连接，请联系管理员。|Could not establish a secure connection; contact an administrator.
+接口拒絕連線，請確認服務已啟動。|接口拒绝连接，请确认服务已启动。|The endpoint refused the connection; check that the service is running.
+接口連線中斷，請稍後重試。|接口连接中断，请稍后重试。|The endpoint connection was interrupted; please retry later.
+無法連上接口網路，請檢查網路連線。|无法连上接口网络，请检查网络连接。|The endpoint network is unreachable; check your network connection.
 單次請求正文超過限制。|单次请求正文超过限制。|The request body exceeds the limit.
 縮小本次供應的源碼或資料範圍後再試。|缩小本次供应的源码或资料范围后再试。|Reduce the source or material supplied in this request and try again.
 本次請求超過模型上下文限制。|本次请求超过模型上下文限制。|The request exceeds the model context limit.

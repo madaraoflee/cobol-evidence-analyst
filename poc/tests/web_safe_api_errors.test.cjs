@@ -102,3 +102,24 @@ test('bare model-check HTTP statuses do not invent quota, rate-limit or request-
     }
   }
 });
+
+
+test('typed transport reasons are rebuilt and correlation IDs stay in the single folded panel',()=>{
+  const reasons={dns_resolution_failed:/找不到接口地址/,tls_certificate_invalid:/证书/,tls_handshake_failed:/安全连接/,connection_refused:/拒绝连接/,connection_reset:/连接中断/,network_unreachable:/接口网络/,timeout:/超时/};
+  const run=harness();
+  for(const [reason,pattern] of Object.entries(reasons)){
+    const value=diagnostic({category:reason==='timeout'?'timeout':'connection',evidence_source:'local',http_status:undefined,transport_reason:reason,reason:'PRIVATE-REFLECTION'});
+    const safe=run(`safeApiDiagnostic(${JSON.stringify(value)})`);
+    assert.equal(safe.transport_reason,reason);assert.match(safe.reason,pattern);
+    assert.doesNotMatch(JSON.stringify(safe),/PRIVATE-REFLECTION/);
+    const view=run(`failureDiagnosticsView({diagnostic:${JSON.stringify(value)}})`);
+    assert.equal((view.match(/<details>/g)||[]).length,1);
+    assert.ok(view.indexOf('<details>')<view.indexOf(value.request_id));
+  }
+  for(const transport_reason of ['PRIVATE-REFLECTION','constructor',['timeout'],{timeout:true}]){
+    const safe=run(`safeApiDiagnostic(${JSON.stringify(diagnostic({category:'connection',evidence_source:'local',transport_reason}))})`);
+    assert.equal(Object.hasOwn(safe,'transport_reason'),false);
+  }
+  const remote=run(`safeApiDiagnostic(${JSON.stringify(diagnostic({transport_reason:'dns_resolution_failed'}))})`);
+  assert.equal(Object.hasOwn(remote,'transport_reason'),false);assert.equal(remote.category,'quota_exhausted');
+});

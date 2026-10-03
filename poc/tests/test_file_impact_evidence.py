@@ -150,6 +150,80 @@ class FileImpactEvidenceTests(unittest.TestCase):
         self.assertEqual(select["end_line"] - select["start_line"], 4)
         self.assertFalse(any(gap.get("object") in {"ORGANIZATION", "IS", "INDEXED", "ACCTKEY"} for gap in frontier))
 
+    def test_explicit_fixed_format_retains_declarations_with_sequence_labels(self):
+        path = self.source / "programs" / "fixed.cbl"
+        rows = ["IDENTIFICATION DIVISION.", "PROGRAM-ID. FIXEDFLOW.",
+                "ENVIRONMENT DIVISION.", "INPUT-OUTPUT SECTION.", "FILE-CONTROL.",
+                "SELECT ACCOUNT-FILE ASSIGN TO 'ACCOUNTLF'.", "DATA DIVISION.",
+                "FILE SECTION.", "FD ACCOUNT-FILE.", "01 ACCTREC PIC X(8).",
+                "PROCEDURE DIVISION.", "READ ACCOUNT-FILE.", "GOBACK."]
+        path.write_text("\n".join(f"SEQ{i:03d} {row}" for i, row in enumerate(rows, 1)) + "\n")
+        build_business_index(self.source, self.database, source_format="fixed")
+        ensure_repository_search(self.database, self.source)
+        candidates, _, _ = self.nominate(["programs/fixed.cbl"])
+        self.assertTrue(any(row["statement"].startswith("SELECT ACCOUNT-FILE")
+                            for row in candidates if row["kind"] == "file_definitions"))
+        self.assertTrue(any(row["relative_path"] == "dds/ACCOUNTLF.dds" for row in candidates))
+        row = next(row for row in candidates if row["statement"].startswith("SELECT ACCOUNT-FILE"))
+        raw = path.read_text().splitlines()
+        page = {"relative_path": row["relative_path"], "start_line": row["start_line"],
+                "end_line": row["end_line"], "source_sha256": row["source_sha256"],
+                "source_text": "\n".join(raw[row["start_line"] - 1:row["end_line"]]), "evidence_id": "ev_fixed"}
+        self.assertEqual(_visible_ids(row, [page]), ["ev_fixed"])
+        page["source_text"] = page["source_text"].replace("'ACCOUNTLF'", "'DIFFERENTLF'")
+        self.assertEqual(_visible_ids(row, [page]), [])
+
+    def test_free_format_directive_keeps_assignment_beyond_column_72(self):
+        path = self.source / "programs" / "free.cbl"
+        path.write_text(">>SOURCE FORMAT FREE\nIDENTIFICATION DIVISION.\nPROGRAM-ID. FREEFLOW.\n"
+                        "ENVIRONMENT DIVISION.\nINPUT-OUTPUT SECTION.\nFILE-CONTROL.\n"
+                        "       SELECT ACCOUNT-FILE" + " " * 65 + "ASSIGN TO 'ACCOUNTLF'.\n"
+                        "DATA DIVISION.\nFILE SECTION.\nFD ACCOUNT-FILE.\n01 ACCTREC PIC X(8).\n"
+                        "PROCEDURE DIVISION.\nREAD ACCOUNT-FILE.\nGOBACK.\n")
+        build_business_index(self.source, self.database, source_format="auto")
+        ensure_repository_search(self.database, self.source)
+        candidates, _, _ = self.nominate(["programs/free.cbl"])
+        self.assertTrue(any("ASSIGN TO 'ACCOUNTLF'." in row["statement"]
+                            for row in candidates if row["kind"] == "file_definitions"))
+
+    def test_explicit_pfile_supplies_physical_definition_as_reading_lead(self):
+        (self.source / "dds" / "ACCOUNTPF.pf").write_text(
+            "     A          R ACCTREC\n     A            ACCTKEY        8A\n"
+            "     A            ACCTBAL       11P 2\n")
+        self.build()
+        candidates, _, hashes = self.nominate(["programs/debit.cbl"])
+        physical = [row for row in candidates if row["relative_path"] == "dds/ACCOUNTPF.pf"]
+        self.assertTrue(physical, "the explicit PFILE declaration must supply its indexed definition")
+        self.assertTrue(all(row["kind"] == "dds_definitions" for row in physical))
+        self.assertIn("dds/ACCOUNTPF.pf", hashes)
+        self.assertFalse(any(row.get("lf_pf_confirmed") for row in physical))
+
+    def test_pfile_text_literals_comments_and_missing_definitions_remain_bounded_leads(self):
+        path = self.source / "dds" / "ACCOUNTLF.dds"
+        path.write_text("     A          R ACCTREC\n"
+                        "     A                                      TEXT('PFILE(ACCOUNTPF)')\n"
+                        "     A*                                     PFILE(ACCOUNTPF)\n")
+        (self.source / "dds" / "ACCOUNTPF.pf").write_text("     A          R ACCTREC\n")
+        self.build()
+        candidates, _, _ = self.nominate(["programs/debit.cbl"])
+        self.assertFalse(any(row["relative_path"] == "dds/ACCOUNTPF.pf" for row in candidates))
+        path.write_text("     A          R ACCTREC PFILE(MISSINGPF)\n")
+        self.build()
+        _, frontier, _ = self.nominate(["programs/debit.cbl"])
+        self.assertIn({"kind": "dds_definitions", "reason": "dds_object_not_located", "object": "MISSINGPF"}, frontier)
+
+    def test_pfile_cycles_and_fanout_share_existing_candidate_budget(self):
+        (self.source / "dds" / "ACCOUNTLF.dds").write_text(
+            "     A          R ACCTREC PFILE(" + " ".join(f"DATA{i:02d}" for i in range(20)) + ")\n")
+        for i in range(20):
+            (self.source / "dds" / f"DATA{i:02d}.pf").write_text("     A          R ACCTREC PFILE(ACCOUNTLF)\n")
+        self.build()
+        candidates, frontier, _ = self.nominate(["programs/debit.cbl"])
+        paths = {row["relative_path"] for row in candidates if row["kind"] == "dds_definitions"}
+        self.assertLessEqual(len(paths), 16)
+        self.assertEqual(len({(row["relative_path"], row["start_line"], row["end_line"]) for row in candidates}), len(candidates))
+        self.assertIn("dds_candidate_budget", {gap["reason"] for gap in frontier})
+
     def test_invalid_candidate_budget_cannot_disable_bounds(self):
         self.build()
         for budget in (0, -1, 129, True):

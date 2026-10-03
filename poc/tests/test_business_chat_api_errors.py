@@ -16,7 +16,7 @@ from answer_diagnostics import build_answer_diagnostics
 from api_error_details import build_diagnostic
 from business_chat import run_business_chat
 from business_index import build_business_index
-from company_api import CompanyAPIConfig, TransportResponse
+from company_api import APIClientError, CompanyAPIConfig, TransportResponse
 from repository_discovery import ensure_repository_search
 from report_view import project_report
 
@@ -48,13 +48,25 @@ class BusinessChatAPIErrorsTests(unittest.TestCase):
         def transport(request):
             self.calls.append(request)
             self.assertLessEqual(len(self.calls), len(replies), "provider failure must not retry")
-            return replies[len(self.calls) - 1]
+            response = replies[len(self.calls) - 1]
+            if isinstance(response, BaseException):
+                raise response
+            return response
 
         with mock.patch("socket.create_connection", side_effect=AssertionError("offline only")):
             return run_business_chat("NET-AMOUNT 如何扣减？", self.database, self.source,
                 self.config, transport=transport, framework_reference_path="",
                 capture_api_responses=True,
                 policy=AgentPolicy(max_model_requests=4, max_answer_revisions=0))
+
+    def test_typed_transport_failure_stops_and_preserves_safe_diagnostic(self):
+        output = self.run_chat([APIClientError("TRANSPORT_ERROR", transport_reason="connection_reset")])
+        self.assertEqual(len(self.calls), 1)
+        result = output["agent_result"]
+        self.assertFalse(result["model_answer_recorded"])
+        self.assertEqual(result["diagnostics"][-1]["diagnostic"]["transport_reason"], "connection_reset")
+        self.assertEqual(result["diagnostic_summary"]["api_failures"][-1]["transport_reason"], "connection_reset")
+        self.assertEqual(output["api_diagnostics"]["exchanges"][-1]["body_text"], "")
 
     def test_explicit_reasons_survive_adapter_chat_and_shareable_summary(self):
         cases = ((500, "context_length_exceeded", "context_too_large"),

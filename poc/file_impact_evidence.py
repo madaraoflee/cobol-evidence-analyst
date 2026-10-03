@@ -8,6 +8,7 @@ import re
 import sqlite3
 
 from business_index import _clean
+from file_impact import _mask_literals
 from statement_facts import sentence_terminated
 
 
@@ -32,7 +33,7 @@ def _candidate(kind, path, first, last, text, sha):
             "source_sha256": sha, "occurrence_count": 1}
 
 
-def _lines(db, path, sha, tables, frontier, *, first=1, last=None):
+def _lines(db, path, sha, tables, frontier, *, first=1, last=None, formats=None):
     if "repo_pages" not in tables:
         return {}
     join = ("LEFT JOIN evidence_spans e ON e.evidence_id=p.evidence_id "
@@ -41,9 +42,15 @@ def _lines(db, path, sha, tables, frontier, *, first=1, last=None):
     text = "COALESCE(e.text,NULLIF(p.fallback_text,''),'')" if join else "p.fallback_text"
     rows = db.execute(f"SELECT p.*, {text} AS source_text FROM repo_pages p {join} "
         "WHERE p.relative_path=? AND p.end_line>=? AND (? IS NULL OR p.start_line<=?) "
-        "ORDER BY p.start_line LIMIT ?", (path, first, last, last, _MAX_PAGES + 1)).fetchall()
+        "ORDER BY p.start_line LIMIT ?", (path, 1, last, last, _MAX_PAGES + 1)).fetchall()
     if len(rows) > _MAX_PAGES:
         frontier.append({"kind": "file_definitions", "relative_path": path, "reason": "indexed_page_budget"})
+    # Reconstruct format state from the beginning, within the existing page
+    # budget, so directives apply to later declarations and I/O ranges.
+    metadata = db.execute("SELECT format_hint FROM source_files WHERE relative_path=?", (path,)).fetchone()
+    source_format = metadata[0] if metadata and metadata[0] in {"fixed", "free"} else "auto"
+    is_dds = Path(path).suffix.lower() in _DDS_SUFFIXES
+    active_format, previous_line = source_format, 0
     result = {}
     for row in rows[:_MAX_PAGES]:
         if row["source_sha256"] != sha or row["span_truncated"] or not row["source_text"]:
@@ -51,8 +58,19 @@ def _lines(db, path, sha, tables, frontier, *, first=1, last=None):
                              "reason": "indexed_source_unavailable"})
             continue
         for line, raw in enumerate(row["source_text"].splitlines(), row["start_line"]):
+            if line <= previous_line:
+                continue
+            if line != previous_line + 1:
+                active_format = source_format
+            previous_line = line
+            if is_dds:
+                code = raw.strip()
+            else:
+                code, active_format, _ = _clean(raw, active_format)
             if first <= line and (last is None or line <= last):
-                result[line] = _clean(raw, "auto")[0]
+                result[line] = code
+                if formats is not None and not is_dds:
+                    formats[line] = active_format
     return result
 
 
@@ -107,6 +125,19 @@ def _definitions(path, lines, sha, copybook, frontier):
     return candidates, list(dict.fromkeys(objects))
 
 
+def _exact_dds_paths(db, name, frontier):
+    paths = []
+    for suffix in _DDS_SUFFIXES:
+        filename = name + suffix.upper()
+        rows = db.execute("SELECT relative_path FROM source_files "
+            "WHERE UPPER(relative_path)=? OR UPPER(relative_path) LIKE ? ESCAPE '!' "
+            "ORDER BY relative_path LIMIT 9", (filename, "%/" + filename.replace("_", "!_") )).fetchall()
+        paths.extend(row[0] for row in rows[:8])
+        if len(rows) > 8:
+            frontier.append({"kind": "dds_definitions", "reason": "dds_lookup_budget", "object": name})
+    return list(dict.fromkeys(paths))
+
+
 def nominate_file_impact_evidence(database_path, paths, *, max_candidates=48):
     """Nominate I/O, declarations, and exact-object DDS pages for source reads.
 
@@ -137,7 +168,8 @@ def nominate_file_impact_evidence(database_path, paths, *, max_candidates=48):
             if not sha:
                 frontier.append({"kind": "file_definitions", "relative_path": path, "reason": "source_not_indexed"})
                 continue
-            lines = _lines(db, path, sha, tables, frontier)
+            formats = {}
+            lines = _lines(db, path, sha, tables, frontier, formats=formats)
             rules = []
             if "business_rules" in tables:
                 rules = db.execute("SELECT * FROM business_rules WHERE relative_path=? "
@@ -155,7 +187,7 @@ def nominate_file_impact_evidence(database_path, paths, *, max_candidates=48):
             for rule in rules[:max_candidates]:
                 first = rule["first_line"]
                 last = min(rule["last_line"], first + _MAX_LINES - 1)
-                actual = _lines(db, path, sha, tables, frontier, first=first, last=last)
+                actual = _lines(db, path, sha, tables, frontier, first=first, last=last, formats=formats)
                 # Sparse repeated rules span multiple occurrences. Locate the
                 # first physical statement so distant repeats cannot hide it.
                 for end in sorted(actual):
@@ -169,21 +201,16 @@ def nominate_file_impact_evidence(database_path, paths, *, max_candidates=48):
             copybook = files[path]["artifact_kind"] in {"copybook", "cobol_fragment_or_copybook"}
             definitions, names = _definitions(path, lines, sha, copybook, frontier)
             candidates.extend(definitions)
+            for candidate in candidates:
+                if candidate["relative_path"] == path and formats.get(candidate["start_line"]) in {"fixed", "free"}:
+                    candidate["source_format"] = formats[candidate["start_line"]]
             objects.extend(names)
             if not definitions:
                 frontier.append({"kind": "file_definitions", "relative_path": path, "reason": "file_definitions_not_located"})
         dds_paths = []
         for name in list(dict.fromkeys(objects))[:16]:
             # Filename metadata is bounded separately from source-page reads.
-            exact = []
-            for suffix in _DDS_SUFFIXES:
-                filename = name + suffix.upper()
-                rows = db.execute("SELECT relative_path FROM source_files "
-                    "WHERE UPPER(relative_path)=? OR UPPER(relative_path) LIKE ? ESCAPE '!' "
-                    "ORDER BY relative_path LIMIT 9", (filename, "%/" + filename.replace("_", "!_") )).fetchall()
-                exact.extend(row[0] for row in rows[:8])
-                if len(rows) > 8:
-                    frontier.append({"kind": "dds_definitions", "reason": "dds_lookup_budget", "object": name})
+            exact = _exact_dds_paths(db, name, frontier)
             referenced = []
             if "repo_fts" in tables:
                 referenced = [row[0] for row in db.execute("SELECT DISTINCT p.relative_path FROM repo_fts "
@@ -200,7 +227,13 @@ def nominate_file_impact_evidence(database_path, paths, *, max_candidates=48):
         dds_paths = list(dict.fromkeys(dds_paths))
         if len(dds_paths) > 16 or len(set(objects)) > 16:
             frontier.append({"kind": "dds_definitions", "reason": "dds_candidate_budget"})
-        for path in dds_paths[:16]:
+        dds_paths = dds_paths[:16]
+        # Follow explicit PFILE clauses only. The same 16-path budget covers
+        # logical and physical definitions, including cycles and fan-out.
+        for offset in range(16):
+            if offset >= len(dds_paths):
+                break
+            path = dds_paths[offset]
             sha = db.execute("SELECT sha256 FROM source_files WHERE relative_path=?", (path,)).fetchone()
             if not sha:
                 continue
@@ -208,6 +241,31 @@ def nominate_file_impact_evidence(database_path, paths, *, max_candidates=48):
             lines = _lines(db, path, sha[0], tables, frontier)
             if not lines:
                 frontier.append({"kind": "dds_definitions", "relative_path": path, "reason": "dds_source_not_located"})
+            physical_names = []
+            for raw in lines.values():
+                raw = re.sub(r"^\d{5}A", "A", raw.upper())
+                if not re.match(r"^A\s", raw):
+                    continue
+                code, complete = _mask_literals(raw)
+                if not complete:
+                    continue
+                for match in re.finditer(r"\bPFILE\s*\(\s*([A-Z0-9_$#@/ -]+)\s*\)", code):
+                    physical_names.extend(match.group(1).split())
+            for name in list(dict.fromkeys(physical_names))[:16]:
+                if not re.fullmatch(_NAME, name):
+                    frontier.append({"kind": "dds_definitions", "reason": "dds_object_identity_unresolved", "object": name})
+                    continue
+                matches = _exact_dds_paths(db, name, frontier)
+                if not matches:
+                    frontier.append({"kind": "dds_definitions", "reason": "dds_object_not_located", "object": name})
+                for match in matches:
+                    if match not in dds_paths:
+                        if len(dds_paths) < 16:
+                            dds_paths.append(match)
+                        else:
+                            frontier.append({"kind": "dds_definitions", "reason": "dds_candidate_budget"})
+            if len(set(physical_names)) > 16:
+                frontier.append({"kind": "dds_definitions", "reason": "dds_candidate_budget"})
             numbers = sorted(lines)
             for offset in range(0, len(numbers), _MAX_LINES):
                 chunk = numbers[offset:offset + _MAX_LINES]

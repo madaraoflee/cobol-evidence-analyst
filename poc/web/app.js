@@ -328,11 +328,23 @@ const SAFE_API_EXPLANATIONS={
   system_error:['請求處理發生系統錯誤，具體原因尚未確認。','憑關聯編號檢查應用和服務端日誌。'],
 };
 const SAFE_PROVIDER_CODES=['request_too_large','payload_too_large','context_length_exceeded','context_window_exceeded','model_not_found','model_not_available','model_unavailable','unsupported_parameter','unsupported_value','unsupported_feature','max_tokens_exceeded','max_output_tokens_exceeded','output_token_limit_exceeded','insufficient_quota','quota_exceeded','billing_hard_limit_reached','rate_limit_exceeded','invalid_api_key','authentication_error','permission_denied','access_denied','internal_error','server_error'];
+const SAFE_TRANSPORT_EXPLANATIONS={
+  dns_resolution_failed:'找不到接口地址，請檢查網路或地址。',
+  tls_certificate_invalid:'連線驗證失敗，請聯絡管理員檢查憑證。',
+  tls_handshake_failed:'無法建立安全連線，請聯絡管理員。',
+  connection_refused:'接口拒絕連線，請確認服務已啟動。',
+  connection_reset:'接口連線中斷，請稍後重試。',
+  network_unreachable:'無法連上接口網路，請檢查網路連線。',
+  timeout:'接口回應逾時，請稍後重試。'
+};
 function safeApiDiagnostic(value){
   if(!value || value.schema_version!=='safe-api-error/v1' || typeof value.category!=='string' || !Object.hasOwn(SAFE_API_EXPLANATIONS,value.category) || typeof value.request_id!=='string' || !/^local-[a-f0-9]{32}$/.test(value.request_id))return null;
   const messages=SAFE_API_EXPLANATIONS[value.category];
   const safe={schema_version:'safe-api-error/v1',category:value.category,reason:t(messages[0]),next_step:t(messages[1]),
     evidence_source:['local','provider_code','provider_message','http_status','unknown'].includes(value.evidence_source)?value.evidence_source:'unknown',request_id:value.request_id,request_id_source:'local'};
+  if(safe.evidence_source==='local' && ['connection','timeout'].includes(safe.category) && typeof value.transport_reason==='string' && Object.hasOwn(SAFE_TRANSPORT_EXPLANATIONS,value.transport_reason) && (safe.category!=='timeout' || value.transport_reason==='timeout')){
+    safe.transport_reason=value.transport_reason;safe.reason=t(SAFE_TRANSPORT_EXPLANATIONS[value.transport_reason]);
+  }
   if(Number.isInteger(value.http_status) && value.http_status>=100 && value.http_status<=599)safe.http_status=value.http_status;
   if(SAFE_PROVIDER_CODES.includes(value.provider_code))safe.provider_code=value.provider_code;
   if(Number.isInteger(value.retry_after_seconds) && value.retry_after_seconds>=0 && value.retry_after_seconds<=86400)safe.retry_after_seconds=value.retry_after_seconds;
@@ -362,7 +374,7 @@ function failureDiagnosticText(value){
 function failureDiagnosticsView(subject=null){
   if(!subject && (state.mode!=='real' || draftChanged()))return '';
   const failures=safeFailureDiagnostics(subject);if(!failures.length)return '';
-  return ui`<section class="narrative-notes request-failure" role="status">${failures.slice(-4).map(failure=>`<p><strong>${failure.evidence_source==='local'?escapeHTML(t('本機處理'))+'：':''}${escapeHTML(failure.reason)}</strong>${failure.http_status?' · HTTP '+failure.http_status:''}</p><p>${escapeHTML(t('下一步'))}：${escapeHTML(failure.next_step)}</p><p><small>${escapeHTML(t('本地關聯編號'))}：<code>${escapeHTML(failure.request_id)}</code>${failure.upstream_request_id?` · ${escapeHTML(t('上游關聯編號'))}：<code>${escapeHTML(failure.upstream_request_id)}</code>`:''}</small></p>`).join('')}<details><summary>查看安全錯誤詳情</summary><pre class="api-raw-text">${escapeHTML(JSON.stringify(failures,null,2))}</pre></details></section>`;
+  return ui`<section class="narrative-notes request-failure" role="status">${failures.slice(-4).map(failure=>`<p><strong>${failure.evidence_source==='local'?escapeHTML(t('本機處理'))+'：':''}${escapeHTML(failure.reason)}</strong>${failure.http_status?' · HTTP '+failure.http_status:''}</p><p>${escapeHTML(t('下一步'))}：${escapeHTML(failure.next_step)}</p>`).join('')}<details><summary>查看安全錯誤詳情</summary>${failures.slice(-4).map(failure=>`<p><small>${escapeHTML(t('本地關聯編號'))}：<code>${escapeHTML(failure.request_id)}</code>${failure.upstream_request_id?` · ${escapeHTML(t('上游關聯編號'))}：<code>${escapeHTML(failure.upstream_request_id)}</code>`:''}</small></p>`).join('')}<pre class="api-raw-text">${escapeHTML(JSON.stringify(failures,null,2))}</pre></details></section>`;
 }
 function browserDiagnostic(category,httpStatus=null){
   let identifier;
