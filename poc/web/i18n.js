@@ -3,6 +3,18 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+跳至主要內容|跳至主要内容|Skip to main content
+工作空間導覽|工作空间导航|Workspace navigation
+關閉導覽|关闭导航|Close navigation
+開啟工作空間導覽|打开工作空间导航|Open workspace navigation
+對話記錄|对话记录|Conversations
+這段流程的受理條件是甚麼？|这段流程的受理条件是什么？|What are the acceptance conditions for this process?
+有哪些例外和待確認的依賴？|有哪些例外和待确认的依赖？|Which exceptions and dependencies still need verification?
+修改這個欄位會影響哪些程式？|修改这个字段会影响哪些程序？|Which programs are affected by changing this field?
+梳理受理條件|梳理受理条件|Understand conditions
+查找例外與依賴|查找例外与依赖|Review exceptions
+了解變更影響|了解变更影响|Explore change impact
+
 接口回應逾時，請稍後重試。|接口响应超时，请稍后重试。|The API request timed out; please retry later.
 找不到接口地址，請檢查網路或地址。|找不到接口地址，请检查网络或地址。|Endpoint address not found; check the network or address.
 連線驗證失敗，請聯絡管理員檢查憑證。|连接验证失败，请联系管理员检查证书。|Connection verification failed; ask an administrator to check the certificate.

@@ -66,6 +66,60 @@ test('server default conversation title follows the selected interface language 
   h.run("state.conversation.title='Business title from user'");assert.match(h.run('renderWorkbench()'),/Business title from user/);
 });
 
+test('switching conversations blocks both Enter and form submission until the active scope is ready',async()=>{
+  const h=harness();setup(h,firstMessages);
+  h.run("state.question='Keep this draft';state.conversationLoading=true");
+  await h.events.submit({target:{id:'question-form'},preventDefault(){}});
+  let submitted=0;h.get('question-form').requestSubmit=()=>submitted++;
+  h.events.keydown({target:{id:'question-input'},key:'Enter',preventDefault(){}});
+  assert.equal(submitted,0);assert.equal(h.requests.length,0);
+  assert.equal(h.run('state.question'),'Keep this draft');
+  h.run('state.conversationLoading=false');
+  h.events.keydown({target:{id:'question-input'},key:'Enter',isComposing:true,preventDefault(){}});
+  h.events.keydown({target:{id:'question-input'},key:'Enter',shiftKey:true,preventDefault(){}});
+  assert.equal(submitted,0,'IME confirmation and newline must never send');
+});
+
+test('a failed turn has one concise panel with correlation details folded outside the answer',()=>{
+  const h=harness('zh-CN');setup(h,firstMessages);
+  const id='local-'+'a'.repeat(32);
+  h.run(`state.error='Technical text ${id}';state.errorDiagnostic={schema_version:'safe-api-error/v1',category:'http_429_unknown',evidence_source:'http_status',http_status:429,request_id:'${id}',request_id_source:'local'};render()`);
+  assert.equal(h.get('notice').hidden,true);
+  const html=h.run('conversationWorkbench()');
+  assert.equal((html.match(/class="conversation-failure"/g)||[]).length,1);
+  const paragraph=html.match(/class="conversation-failure" role="status"><p>(.*?)<\/p>/)[1];
+  assert.match(paragraph,/HTTP 429/);assert.equal((paragraph.match(/HTTP 429/g)||[]).length,1);
+  assert.doesNotMatch(paragraph,/local-|Technical text/);
+  assert.match(html,/<details><summary>查看安全错误详情/);
+  assert.match(html,new RegExp(id));assert.match(html,/A valid request is accepted/);
+  h.run("state.page='sources';render()");
+  assert.equal(h.get('notice').hidden,false,'failure remains visible outside the conversation');
+});
+
+test('closing evidence invalidates a pending response without changing the answer or draft',async()=>{
+  const h=harness();setup(h,firstMessages);let resolve;
+  h.run("state.question='Draft while reading'");h.respond(()=>new Promise(done=>{resolve=done;}));
+  const pending=h.run("loadConversationEvidence('assistant-1','ev-1')");
+  h.run('closeConversationEvidence()');
+  resolve({spans:[{evidence_id:'ev-1',integrity:'VALID',source_text:'LATE SOURCE'}]});
+  await pending;
+  assert.equal(h.run('state.conversationEvidence'),null);
+  assert.equal(h.run('state.question'),'Draft while reading');
+  assert.match(h.run('conversationWorkbench()'),/A valid request is accepted/);
+  assert.doesNotMatch(h.run('conversationWorkbench()'),/LATE SOURCE/);
+});
+
+test('starter questions populate a draft without making an analysis request',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);setup(h);
+    const view=h.run('conversationWorkbench()');
+    assert.match(view,/starter-questions/);assert.match(view,/maxlength="8000"/);
+    const question=view.match(/data-question="([^"]+)"/)[1];
+    h.events.click({target:{closest:()=>({dataset:{question},hasAttribute:()=>false,classList:{contains:()=>false}})}});
+    assert.equal(h.run('state.question'),question);assert.equal(h.requests.length,0);
+  }
+});
+
 test('two real API turns retain history and submit the server conversation id without browser history',async()=>{
   const h=harness();setup(h);let turn=0;
   h.respond((url,options)=>{
