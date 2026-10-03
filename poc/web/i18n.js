@@ -3,6 +3,44 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+本次請求未完成|本次请求未完成|This request did not complete
+脈絡|脉络|Mailuo
+脈絡首頁|脉络首页|Mailuo home
+COBOL 業務分析|COBOL 业务分析|COBOL Workbench
+最近對話|最近对话|Recent conversations
+匯出|导出|Export
+提問時，向已設定的接口傳送有限源碼與框架節錄。|提问时，向已配置的接口发送有限源码与框架节录。|Questions send limited source and framework excerpts to your configured endpoint.
+從一個問題，理清業務脈絡|从一个问题，理清业务脉络|FOLLOW THE THREAD
+描述你想確認的規則、例外或影響，沿著源碼一起找答案。|描述你想确认的规则、例外或影响，沿着源码一起找答案。|Ask about rules, exceptions or impact. Follow the source to understand why.
+源碼|源码|Source
+追溯證據|追溯证据|Trace evidence
+理解業務|理解业务|Understand
+梳理業務規則|梳理业务规则|Understand rules
+條件、計算與處理流程|条件、计算与处理流程|Conditions, calculations and flow
+找出尚待確認的部分|找出尚待确认的部分|Identify what still needs review
+追蹤欄位與相關程式|追踪字段与相关程序|Trace fields and related programs
+業務解讀 · 請結合證據覆核|业务解读 · 请结合证据复核|Interpretation · Review against evidence
+回答目錄|回答目录|Answer navigation
+本頁內容|本页内容|ON THIS PAGE
+跳至主要內容|跳至主要内容|Skip to main content
+工作空間導覽|工作空间导航|Workspace navigation
+關閉導覽|关闭导航|Close navigation
+開啟工作空間導覽|打开工作空间导航|Open workspace navigation
+對話記錄|对话记录|Conversations
+這段流程的受理條件是甚麼？|这段流程的受理条件是什么？|What are the acceptance conditions for this process?
+有哪些例外和待確認的依賴？|有哪些例外和待确认的依赖？|Which exceptions and dependencies still need verification?
+修改這個欄位會影響哪些程式？|修改这个字段会影响哪些程序？|Which programs are affected by changing this field?
+梳理受理條件|梳理受理条件|Understand conditions
+查找例外與依賴|查找例外与依赖|Review exceptions
+了解變更影響|了解变更影响|Explore change impact
+
+接口回應逾時，請稍後重試。|接口响应超时，请稍后重试。|The API request timed out; please retry later.
+找不到接口地址，請檢查網路或地址。|找不到接口地址，请检查网络或地址。|Endpoint address not found; check the network or address.
+連線驗證失敗，請聯絡管理員檢查憑證。|连接验证失败，请联系管理员检查证书。|Connection verification failed; ask an administrator to check the certificate.
+無法建立安全連線，請聯絡管理員。|无法建立安全连接，请联系管理员。|Could not establish a secure connection; contact an administrator.
+接口拒絕連線，請確認服務已啟動。|接口拒绝连接，请确认服务已启动。|The endpoint refused the connection; check that the service is running.
+接口連線中斷，請稍後重試。|接口连接中断，请稍后重试。|The endpoint connection was interrupted; please retry later.
+無法連上接口網路，請檢查網路連線。|无法连上接口网络，请检查网络连接。|The endpoint network is unreachable; check your network connection.
 單次請求正文超過限制。|单次请求正文超过限制。|The request body exceeds the limit.
 縮小本次供應的源碼或資料範圍後再試。|缩小本次供应的源码或资料范围后再试。|Reduce the source or material supplied in this request and try again.
 本次請求超過模型上下文限制。|本次请求超过模型上下文限制。|The request exceeds the model context limit.
@@ -817,7 +855,7 @@ for (const element of document.querySelectorAll('[aria-label],[placeholder],[tit
 }
 function translateStaticInterface() {
   document.documentElement.lang = currentLocale === 'zh-HK' ? 'zh-Hant-HK' : currentLocale === 'zh-CN' ? 'zh-Hans' : 'en';
-  document.title = 'COBOL Lens · ' + t('業務洞察工作台');
+  document.title = t('脈絡') + ' · ' + t('COBOL 業務分析');
   for (const [node,original] of staticText) if (node.isConnected) node.data = t(original);
   for (const [node,attribute,original] of staticAttributes) if (node.isConnected) node.setAttribute(attribute,t(original));
   document.getElementById('language-select').value = currentLocale;

@@ -340,14 +340,17 @@ def _visible_ids(candidate, pages):
                 and page.get("start_line", 0) <= candidate_limit and page.get("end_line", 0) >= first]
     relevant.sort(key=lambda page: (page["start_line"], page["end_line"], page["evidence_id"]))
     cursor, lines, identifiers = first, {}, []
+    active_format = candidate.get("source_format")
+    if not isinstance(active_format, str) or active_format not in {"fixed", "free"}:
+        active_format = "auto"
     for page in relevant:
         start, end = page["start_line"], page["end_line"]
         if start > cursor:
             break
         text_lines = str(page.get("source_text", "")).splitlines()
         for index, text in enumerate(text_lines, start):
+            cleaned, active_format, _ = _clean(text, active_format)
             if first <= index <= (last if candidate.get("occurrence_count", 1) <= 1 else end):
-                cleaned = _clean(text, "auto")[0]
                 if index in lines and lines[index] != cleaned:
                     return []
                 lines[index] = cleaned

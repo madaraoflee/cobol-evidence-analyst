@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import unittest
 from unittest import mock
@@ -36,13 +37,36 @@ class WebSafeAPIErrorTests(unittest.TestCase):
         self.web.app.analyzer = mock.Mock(side_effect=APIClientError("HTTP_ERROR", http_status=413, diagnostic=diagnostic))
         source = self.web.source("neutral-source", "DEBITFLOW")
         output = self.web.root / "output"
-        self.web.app.project.update(source=str(source), output=str(output))
+        # Production stores resolved paths. macOS temporary paths may alias
+        # /private/var, so the fixture must use that same project identity.
+        self.web.app.project.update(source=str(source.resolve()), output=str(output.resolve()))
         result = self.web.finish(self.web.submit(source, output, question="Explain the neutral debit process."))
         self.assertEqual(result["status"], "FAILED")
         self.assertEqual(result["error"]["code"], "ANALYSIS_FAILED")
         self.assertEqual(result["error"]["diagnostic"]["category"], "context_too_large")
         self.assertEqual(result["error"]["diagnostic"]["request_id"], diagnostic["request_id"])
         self.assertEqual(self.web.app.project["agent"]["agent_result"]["answer"], "Earlier saved answer.")
+
+    def test_failed_question_preserves_established_project_index_and_answer(self):
+        source = self.web.source("established-source", "DEBITFLOW")
+        output = self.web.root / "established-output"
+        initial = self.web.finish(self.web.submit(source, output))
+        self.assertEqual(initial["status"], "COMPLETED")
+        self.assertTrue(self.web.app.project["snapshot_id"])
+        self.assertEqual(self.web.app.project["source"], str(source.resolve()))
+        self.web.app.project["agent"] = {"agent_result": {"answer": "Earlier saved answer."}}
+        before = copy.deepcopy(self.web.app.project)
+        diagnostic = build_diagnostic("TRANSPORT_ERROR")
+        self.web.app.analyzer = mock.Mock(side_effect=APIClientError("TRANSPORT_ERROR", diagnostic=diagnostic))
+        result = self.web.finish(self.web.submit(source, output,
+            question="Explain the neutral debit process.", allow_network=True))
+        self.assertEqual(result["status"], "FAILED")
+        self.assertEqual(self.web.app.analyzer.call_count, 1)
+        self.assertEqual(self.web.app.project, before)
+        self.assertEqual(result["error"]["diagnostic"]["request_id"], diagnostic["request_id"])
+        self.assertEqual(result["error"]["diagnostic"]["category"], "connection")
+        self.assertTrue((output / "structural-index.sqlite").is_file())
+        self.assertEqual(self.web.app.conversation["messages"][-1]["status"], "failed")
 
     def test_synchronous_http_500_provides_local_safe_diagnostic_without_exception_text(self):
         private = "PRIVATE-ADAPTER-ERROR"

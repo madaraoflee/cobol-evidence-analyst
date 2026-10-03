@@ -12,11 +12,14 @@ base URL, model identifiers, prompts, request bodies, or response bodies.
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import math
 import os
 import re
 import sys
+import socket
+import ssl
 import time
 import urllib.error
 import urllib.parse
@@ -28,10 +31,10 @@ from typing import Any
 
 try:
     from .api_diagnostics import APIResponseDiagnostics
-    from .api_error_details import MAX_ERROR_BODY_BYTES, build_diagnostic, is_error_envelope, sanitize_diagnostic
+    from .api_error_details import MAX_ERROR_BODY_BYTES, TRANSPORT_EXPLANATIONS, build_diagnostic, is_error_envelope, sanitize_diagnostic
 except ImportError:
     from api_diagnostics import APIResponseDiagnostics
-    from api_error_details import MAX_ERROR_BODY_BYTES, build_diagnostic, is_error_envelope, sanitize_diagnostic
+    from api_error_details import MAX_ERROR_BODY_BYTES, TRANSPORT_EXPLANATIONS, build_diagnostic, is_error_envelope, sanitize_diagnostic
 
 
 PROBE_SCHEMA_VERSION = "company-api-capability-probe/v1"
@@ -123,6 +126,81 @@ def _read_local_env(path: Path) -> dict[str, str]:
 
 class APIClientError(SafeAPIError):
     """Raised for safe client, transport, HTTP, and response failures."""
+
+    def __init__(
+        self,
+        code: str,
+        *,
+        http_status: int | None = None,
+        transport_reason: str | None = None,
+        diagnostic=None,
+    ) -> None:
+        super().__init__(code, http_status=http_status, diagnostic=diagnostic)
+        self.transport_reason = (
+            transport_reason
+            if isinstance(transport_reason, str) and transport_reason in TRANSPORT_EXPLANATIONS
+            else None
+        )
+        if self.transport_reason is not None:
+            self.diagnostic = sanitize_diagnostic({**self.diagnostic,
+                "transport_reason": self.transport_reason})
+
+    def to_safe_dict(self) -> dict[str, object]:
+        result = super().to_safe_dict()
+        if (
+            isinstance(self.transport_reason, str)
+            and self.transport_reason in TRANSPORT_EXPLANATIONS
+        ):
+            result["transport_reason"] = self.transport_reason
+        return result
+
+
+def _transport_failure(
+    error: BaseException, *, opening_connection: bool = False
+) -> APIClientError:
+    """Classify typed network failures without inspecting remote error text."""
+
+    # urllib wraps socket errors in reason, which may also be arbitrary text.
+    # A bounded unwrap handles nested wrappers without trusting their messages.
+    reason: str | None = None
+    for _ in range(8):
+        if not isinstance(error, urllib.error.URLError):
+            break
+        if not isinstance(error.reason, BaseException):
+            break
+        error = error.reason
+    if isinstance(error, TimeoutError):
+        reason = "timeout"
+    elif isinstance(error, ssl.SSLCertVerificationError):
+        reason = "tls_certificate_invalid"
+    elif isinstance(error, ssl.SSLError):
+        # A TLS read failure after opening is not necessarily a handshake failure.
+        reason = "tls_handshake_failed" if opening_connection else None
+    elif isinstance(error, (socket.gaierror, socket.herror)):
+        reason = "dns_resolution_failed"
+    elif isinstance(error, ConnectionRefusedError):
+        reason = "connection_refused"
+    elif isinstance(error, ConnectionResetError):
+        reason = "connection_reset"
+    elif isinstance(error, OSError):
+        error_numbers = {
+            number for number in (error.errno, getattr(error, "winerror", None))
+            if isinstance(number, int) and not isinstance(number, bool)
+        }
+        if error_numbers & {errno.ETIMEDOUT, 10060}:
+            reason = "timeout"
+        elif error_numbers & {errno.ECONNREFUSED, 10061}:
+            reason = "connection_refused"
+        elif error_numbers & {errno.ECONNRESET, 10054}:
+            reason = "connection_reset"
+        elif error_numbers & {errno.ENETUNREACH, errno.EHOSTUNREACH, 10051, 10065}:
+            reason = "network_unreachable"
+        elif error_numbers & {11001, 11002, 11003, 11004}:
+            reason = "dns_resolution_failed"
+    return APIClientError(
+        "REQUEST_TIMEOUT" if reason == "timeout" else "TRANSPORT_ERROR",
+        transport_reason=reason,
+    )
 
 
 @dataclass(frozen=True, repr=False)
@@ -451,10 +529,12 @@ class UrllibTransport:
             method=request.method,
         )
         deadline = time.monotonic() + request.timeout_seconds
+        opening_connection = True
         try:
             with self._opener.open(  # noqa: S310 - explicit opt-in only
                 raw_request, timeout=request.timeout_seconds
             ) as response:
+                opening_connection = False
                 chunks: list[bytes] = []
                 body_size = 0
                 read_chunk = getattr(response, "read1", None)
@@ -463,13 +543,13 @@ class UrllibTransport:
                 while body_size <= MAX_RESPONSE_BYTES:
                     remaining = deadline - time.monotonic()
                     if remaining <= 0:
-                        raise APIClientError("REQUEST_TIMEOUT")
+                        raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
                     self._apply_remaining_socket_timeout(response, remaining)
                     chunk = read_chunk(
                         min(65_536, MAX_RESPONSE_BYTES + 1 - body_size)
                     )
                     if time.monotonic() >= deadline:
-                        raise APIClientError("REQUEST_TIMEOUT")
+                        raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
                     if not chunk:
                         break
                     chunks.append(chunk)
@@ -510,12 +590,8 @@ class UrllibTransport:
                                      body_omitted_reason="HTTP_ERROR_BODY_NOT_COLLECTED")
         except APIClientError:
             raise
-        except TimeoutError:
-            raise APIClientError("REQUEST_TIMEOUT") from None
-        except urllib.error.URLError as exc:
-            raise APIClientError("REQUEST_TIMEOUT" if isinstance(exc.reason, TimeoutError) else "TRANSPORT_ERROR") from None
-        except OSError:
-            raise APIClientError("TRANSPORT_ERROR") from None
+        except (OSError, urllib.error.URLError) as exc:
+            raise _transport_failure(exc, opening_connection=opening_connection) from None
 
 
 def _redact_secret(value: Any, secret: str | None) -> Any:
@@ -677,10 +753,8 @@ class OpenAICompatibleChatClient:
                 response_received = True
             except APIClientError:
                 raise
-            except TimeoutError:
-                raise APIClientError("REQUEST_TIMEOUT") from None
-            except Exception:  # injected transports are untrusted at this boundary
-                raise APIClientError("TRANSPORT_ERROR") from None
+            except Exception as exc:  # injected transports are untrusted at this boundary
+                raise _transport_failure(exc) from None
             # Capture before HTTP status, body shape, or JSON validation. The
             # shared collector redacts first and stores a bounded text preview.
             if self._diagnostics is not None:
@@ -692,10 +766,13 @@ class OpenAICompatibleChatClient:
         except APIClientError as exc:
             if self._diagnostics is not None:
                 if not response_received:
-                    self._capture_response(None, safe_endpoint, started, exc.code)
+                    exchange = self._capture_response(None, safe_endpoint, started, exc.code)
                 elif exchange is not None:
                     self._diagnostics.suppress_latest_error(outcome_code=exc.code)
+                if exchange is not None:
                     exchange["diagnostic"] = sanitize_diagnostic(exc.diagnostic)
+                    if exc.transport_reason is not None:
+                        exchange["transport_reason"] = exc.transport_reason
             raise
 
     def _capture_response(
