@@ -3,6 +3,17 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+錯誤詳情|错误详情|Error details
+模型服務暫時出錯，請稍後重試。|模型服务暂时出错，请稍后重试。|The model service encountered a temporary error; please retry later.
+接口回應逾時，請稍後重試。|接口响应超时，请稍后重试。|The API request timed out; please retry later.
+找不到接口地址，請檢查網路或地址。|找不到接口地址，请检查网络或地址。|Endpoint address not found; check the network or address.
+連線驗證失敗，請聯絡管理員檢查憑證。|连接验证失败，请联系管理员检查证书。|Connection verification failed; ask an administrator to check the certificate.
+無法建立安全連線，請聯絡管理員。|无法建立安全连接，请联系管理员。|Could not establish a secure connection; contact an administrator.
+接口拒絕連線，請確認服務已啟動。|接口拒绝连接，请确认服务已启动。|The endpoint refused the connection; check that the service is running.
+接口連線中斷，請稍後重試。|接口连接中断，请稍后重试。|The endpoint connection was interrupted; please retry later.
+無法連上接口網路，請檢查網路連線。|无法连上接口网络，请检查网络连接。|The endpoint network is unreachable; check your network connection.
+接口連線失敗，請稍後重試。|接口连接失败，请稍后重试。|The endpoint connection failed; please retry later.
+無法連上本機工作台，請確認工作台已啟動。|无法连上本机工作台，请确认工作台已启动。|Cannot reach the local workbench; check that it is running.
 下一次回答保存接口原文|下一次回答保存接口原文|Save the raw API response for the next answer
 僅排查問題時開啟，發送一次後自動關閉。原文可能包含業務資料，會保存在本機結果目錄；一般回答和引用仍正常保存。|仅排查问题时开启，发送一次后自动关闭。原文可能包含业务资料，会保存在本机结果目录；一般回答和引用仍正常保存。|Enable only for troubleshooting; it turns off after one submission. The raw response may contain business data and is stored in the local results folder. Normal answers and references are still saved.
 分析範圍|分析范围|Scope
@@ -39,15 +50,14 @@ const UI_MESSAGES = `
 連線成功：模型已返回有效回覆。|连接成功：模型已返回有效回复。|Connected: the model returned a usable reply.
 已驗證可用|已验证可用|Verified working
 連線測試未通過|连接测试未通过|Connection test failed
-驗證失敗：API Key 無效或未被接受，請核對本機設定。|验证失败：API Key 无效或未被接受，请核对本机设置。|Authentication failed. Check the local API key.
-訪問被拒絕：目前帳號沒有使用此模型的權限。|访问被拒绝：当前账号没有使用此模型的权限。|Access denied. This account cannot use the configured model.
-連線逾時：請檢查網路或模型服務後重試。|连接超时：请检查网络或模型服务后重试。|Connection timed out. Check the network or model service and retry.
-模型設定不完整或無效，請核對 .env 後重試。|模型配置不完整或无效，请核对 .env 后重试。|The model settings are missing or invalid. Check .env and retry.
-接口已回應，但模型沒有返回可用文字。|接口已响应，但模型没有返回可用文字。|The endpoint responded, but the model returned no usable text.
-模型連線測試未通過，請檢查本機設定及模型服務。|模型连接测试未通过，请检查本机设置及模型服务。|The model test failed. Check local settings and the model service.
-模型請求受到限流，請稍後重試。|模型请求受到限流，请稍后重试。|The model is rate limiting requests. Please retry later.
-接口已回應，但返回格式不兼容；請核對模型接口類型與路徑。|接口已响应，但返回格式不兼容；请核对模型接口类型与路径。|The endpoint responded in an incompatible format. Check the model API type and path.
-模型請求格式或接口路徑不正確；請核對模型名稱與接口設定。|模型请求格式或接口路径不正确；请核对模型名称与接口设置。|The model request or endpoint path is invalid. Check the model name and API settings.
+接口驗證失敗，請檢查 API Key。|接口验证失败，请检查 API Key。|Authentication failed; check the API key.
+沒有模型使用權限，請聯絡管理員。|没有模型使用权限，请联系管理员。|Model access denied; contact an administrator.
+模型設定有誤，請檢查設定。|模型设置有误，请检查设置。|The model settings are invalid; check the configuration.
+模型未返回可用文字，請重試。|模型未返回可用文字，请重试。|The model returned no usable text; please retry.
+模型連線測試失敗，請檢查接口設定。|模型连接测试失败，请检查接口设置。|The model connection test failed; check the API settings.
+模型請求過於頻繁，請稍後重試。|模型请求过于频繁，请稍后重试。|Too many model requests; please retry later.
+接口回覆格式不相容，請檢查接口設定。|接口回复格式不兼容，请检查接口设置。|The reply format is incompatible; check the API settings.
+接口請求無效，請檢查接口設定。|接口请求无效，请检查接口设置。|The API request is invalid; check the API settings.
 資料夾內沒有可讀資料；請選擇 .md、.markdown、.txt 文件或包含這些文件的資料夾。|文件夹内没有可读资料；请选择 .md、.markdown、.txt 文件或包含这些文件的文件夹。|No supported references were found. Choose .md, .markdown or .txt files, or a folder containing them.
 已找到文件，但無法讀取內容。請檢查檔案權限與文字編碼。|已找到文件，但无法读取内容。请检查文件权限与文字编码。|Files were found but could not be read. Check permissions and text encoding.
 目前電腦無法讀取這個位置。請確認文件或資料夾存在，並具有讀取權限。|当前电脑无法读取这个位置。请确认文件或文件夹存在，并具有读取权限。|This computer cannot read that location. Check that the file or folder exists and is readable.

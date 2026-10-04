@@ -388,8 +388,10 @@ class WorkbenchState:
                 probe_config, transport=self.model_check_transport, allow_network=True,
             ).complete(messages=[{"role": "user", "content": "Reply with the single word OK."}])
         except (APIConfigurationError, APIClientError) as exc:
+            reason = exc.to_safe_dict().get("transport_reason")
             return {"usable": False, "code": exc.code, "http_status": exc.http_status,
-                    "model_returned": False}
+                    "model_returned": False,
+                    **({"transport_reason": reason} if reason else {})}
         except (TypeError, ValueError):
             return {"usable": False, "code": "CONFIGURATION_INVALID", "http_status": None,
                     "model_returned": False}

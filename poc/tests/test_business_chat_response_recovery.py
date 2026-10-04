@@ -15,7 +15,7 @@ from agent_policy import AgentPolicy
 import business_chat
 from business_chat import run_business_chat
 from business_index import build_business_index
-from company_api import CompanyAPIConfig, TransportResponse
+from company_api import APIClientError, CompanyAPIConfig, TransportResponse
 from repository_discovery import ensure_repository_search
 
 
@@ -89,6 +89,8 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
 
     def assert_safe_failure(self, output, code, stage, *, http_status=None):
         result = self.assert_abstained(output)
+        self.assertNotIn("诊断：", result["answer"])
+        self.assertLessEqual(len(result["answer"]), 50)
         self.assertEqual(output["reason_code"], code)
         error = next(item for item in result["diagnostics"] if item["code"] == code)
         self.assertEqual(error["stage"], stage)
@@ -290,6 +292,25 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
 
         output = self.ask(respond)
         self.assert_safe_failure(output, "TRANSPORT_ERROR", "provider_request")
+
+    def test_classified_transport_failure_preserves_specific_safe_diagnosis(self):
+        for reason, text in (("dns_resolution_failed", "找不到接口地址"),
+                             ("tls_certificate_invalid", "连接验证失败"),
+                             ("tls_handshake_failed", "加密连接失败"),
+                             ("connection_refused", "接口拒绝连接"),
+                             ("connection_reset", "接口连接中断"),
+                             ("network_unreachable", "无法到达接口网络")):
+            with self.subTest(reason=reason):
+                def respond(payload):
+                    raise APIClientError("TRANSPORT_ERROR", transport_reason=reason)
+
+                output = self.ask(respond)
+                error = self.assert_safe_failure(output, "TRANSPORT_ERROR", "provider_request")
+                self.assertEqual(error["transport_reason"], reason)
+                result = output["agent_result"]
+                self.assertIn(text, result["answer"])
+                trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
+                self.assertEqual(trace["rounds"][0]["response"]["transport_reason"], reason)
 
     def test_invalid_json_response_reports_safe_provider_failure(self):
         output = self.ask(lambda payload: TransportResponse(200, self.provider_echo))

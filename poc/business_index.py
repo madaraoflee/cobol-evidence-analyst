@@ -27,7 +27,7 @@ from structural_index import (
     _resolve_relations, _database_counts,
 )
 
-PARSER_VERSION = "business-sparse-v1.2"
+PARSER_VERSION = "business-sparse-v1.3"
 CHUNK_BYTES = 1024 * 1024
 MAX_PHYSICAL_LINE_CHARS = 65536
 MAX_FACT_CHARS = 131072
@@ -380,6 +380,18 @@ class _Facts:
                 self.sql = True
                 self.boundaries["embedded_statement_exceeds_fact_budget"] += 1
             return
+        # Preserve preprocessing boundaries in copybooks as well as callers.
+        # A later consumer must not treat the unexpanded text as its result.
+        directive = re.match(r"^(REPLACE\b|>>|CBL\b|PROCESS\b)", code, re.I)
+        if directive:
+            self._flush()
+            if self.copybook and self.program_id is None:
+                self.program = Path(self.relative).stem.upper()
+                self.program_id, _ = self._unit("Copybook", self.program, line_number, line_number,
+                                                code, raw, symbol="Copybook")
+            self._unit("PreprocessorDirective", directive.group(1).upper(), line_number, line_number,
+                       code, raw, "complete" if sentence_terminated(code) else "partial")
+            return
         if self.pending:
             kind = self.pending[0]
             parameter_tail = bool(PARAGRAPH_RE.match(code) and (
@@ -451,7 +463,7 @@ class _Facts:
             self.paragraph_name = match.group(1).upper()
             self.paragraph_id, _ = self._unit("Paragraph", match.group(1).upper(), line_number, line_number, code, raw, symbol="Paragraph")
             return
-        elif (self.copybook or self.section_name == "LINKAGE") and DATA_ITEM_RE.match(code):
+        elif (self.copybook or self.division == "DATA") and DATA_ITEM_RE.match(code):
             kind = "DataItem"
         elif any(word in upper for word in ("CALL", "COPY", "PERFORM")):
             targets, dynamic = _dependency_targets(code)
@@ -507,7 +519,7 @@ def _resolve_copies(connection, *, affected_paths=None, affected_target_names=No
 def build_business_index(source_root: Path, database_path: Path, *, extensions=DEFAULT_EXTENSIONS,
                          include_extensionless=False, encoding="auto", source_format="auto", quiet=False,
                          include_paths=None, progress=None, check_cancel=None, verify_content=False,
-                         catalog=None, entry_program=None, **_unused):
+                         catalog=None, entry_program=None, framework_reference_path=None, **_unused):
     """Index sparse facts, optionally following all unique static dependencies.
 
     File count, source bytes, and call depth do not impose a hidden scope cutoff.
@@ -692,6 +704,9 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                        "business_file_boundaries": json.dumps(file_boundaries),
                        "copy_report": json.dumps(omission), "call_report": json.dumps(omission)}
             connection.executemany("INSERT INTO metadata VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", updates.items())
+        from framework_semantics import refresh_framework_index
+        framework_semantics = refresh_framework_index(connection, root,
+            reference_path=framework_reference_path, check_cancel=check_cancel)
         counts = _database_counts(connection)
         program_count = connection.execute("SELECT COUNT(*) FROM symbols WHERE symbol_type='Program'").fetchone()[0]
         copybook_count = connection.execute("SELECT COUNT(*) FROM symbols WHERE symbol_type='Copybook'").fetchone()[0]
@@ -716,6 +731,7 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                 "distributions": {key: dict(value) for key, value in distributions.items()},
                 "parser_rebuild_required": bool(previous) and rebuild, "source_options_rebuild_required": bool(previous) and prior.get("source_options") != options_json,
                 "copy_expansion": omission, "call_bindings": omission,
+                "framework_semantics": framework_semantics,
                 "relation_statuses": dict(connection.execute("SELECT status,COUNT(*) FROM relations GROUP BY status")),
                 "database_path": str(database.resolve()), "privacy": {"network_calls": False, "source_stored_locally": True}}
     finally:

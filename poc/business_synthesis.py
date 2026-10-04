@@ -194,6 +194,9 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
         supplied = [identifier for identifier in item.get("evidence_ids", []) if identifier in visible]
         items.append({"kind": item["kind"], "status": item["status"],
                       "reason": item.get("reason"), "supplied_reference_ids": supplied[:8],
+                      **({"framework_fact_ids": item["framework_fact_ids"],
+                          "framework_reference_ids": item.get("framework_reference_ids", [])}
+                         if item.get("framework_fact_ids") else {}),
                       "omitted_supplied_reference_ids": max(0, len(supplied) - 8)})
     gaps = investigation.get("open_gaps", [])
     external = list(dict.fromkeys(target for item in investigation.get("required_items", [])
@@ -212,6 +215,8 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
                 "只展开与问题有关的内容。关键结论逐项附实际来源引用。已有证据的结论直接说明；"
                 "内部尚可补读的程序、段落、赋值和依赖由调查工具读取，不要求用户补交已入库源码。"
                 "缺外部实现或运行时目标只限制依赖它的结论，继续解释调用者已知的输入、条件和返回处理。"
+                "framework_facts 是离线绑定到当前调用点的框架规则；可以说明其约定操作，"
+                "不把已由该规则解释的公共调用重复列为资料缺失，也不据此推断运行结果或缺失算式。"
                 "不把必答项状态、检索覆盖或索引数量写成业务结论或完整值流证明。"}
 
 

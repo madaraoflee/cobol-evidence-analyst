@@ -178,9 +178,40 @@ test('model connection test reports only a verified reply or safe fixed errors w
   h.respond(()=>({usable:false,code:'REQUEST_TIMEOUT',model_returned:false}));await h.events['model-check-button:click']();
   assert.match(h.get('model-check-feedback').textContent,/timed out/);
   h.respond(()=>({usable:false,code:'INVALID_RESPONSE_SHAPE',model_returned:false}));await h.events['model-check-button:click']();
-  assert.match(h.get('model-check-feedback').textContent,/incompatible format/);assert.doesNotMatch(h.get('model-check-feedback').textContent,/\.env/);
+  assert.match(h.get('model-check-feedback').textContent,/reply format is incompatible/);assert.doesNotMatch(h.get('model-check-feedback').textContent,/\.env/);
   assert.equal(h.requests.filter(item=>item.url==='/api/model-check').length,5);
   assert.equal(h.requests.filter(item=>item.url==='/api/analyze').length,0);
+});
+
+test('model test distinguishes server, network and local workbench failures',async()=>{
+  const h=harness();setup(h);
+  for(const status of [500,502,503,504]){
+    h.respond(()=>({usable:false,code:'HTTP_ERROR',http_status:status,model_returned:false}));
+    await h.events['model-check-button:click']();
+    assert.match(h.get('model-check-feedback').textContent,/model service encountered a temporary error; please retry later/);
+    assert.doesNotMatch(h.get('model-check-feedback').textContent,/HTTP|logs|gateway|proxy/);
+  }
+  for(const [reason,pattern] of [['dns_resolution_failed',/Endpoint address not found/],['tls_certificate_invalid',/Connection verification failed/],['tls_handshake_failed',/Could not establish a secure connection/],['connection_refused',/refused the connection/],['connection_reset',/connection was interrupted/],['network_unreachable',/network is unreachable/],['timeout',/request timed out/],['__proto__',/endpoint connection failed; please retry later/],['PRIVATE-MARKER',/endpoint connection failed; please retry later/]]){
+    h.respond(()=>({usable:false,code:'TRANSPORT_ERROR',transport_reason:reason,model_returned:false}));
+    await h.events['model-check-button:click']();
+    assert.match(h.get('model-check-feedback').textContent,pattern);
+    assert.doesNotMatch(h.get('model-check-feedback').textContent,/PRIVATE-MARKER|__proto__/);
+  }
+  h.respond(()=>{throw Error('PRIVATE-MARKER');});
+  await h.events['model-check-button:click']();
+  assert.match(h.get('model-check-feedback').textContent,/Cannot reach the local workbench; check that it is running/);
+  assert.doesNotMatch(h.get('model-check-feedback').textContent,/PRIVATE-MARKER|model service|API Key/);
+});
+
+test('model connection errors use one short cause and suggestion in Chinese',()=>{
+  const h=harness('zh-CN');
+  for(const [response,expected] of [
+    [{code:'HTTP_ERROR',http_status:500},'模型服务暂时出错，请稍后重试。'],
+    [{code:'TRANSPORT_ERROR',transport_reason:'dns_resolution_failed'},'找不到接口地址，请检查网络或地址。'],
+    [{code:'TRANSPORT_ERROR',transport_reason:'tls_certificate_invalid'},'连接验证失败，请联系管理员检查证书。'],
+    [{code:'TRANSPORT_ERROR',transport_reason:'connection_reset'},'接口连接中断，请稍后重试。'],
+    [{code:'TRANSPORT_ERROR',transport_reason:'unknown'},'接口连接失败，请稍后重试。'],
+  ])assert.equal(h.run(`modelCheckMessage(${JSON.stringify(response)})`),expected);
 });
 
 test('folder picker fills each path without indexing; cancel preserves input and unavailable picker leaves manual entry',async()=>{

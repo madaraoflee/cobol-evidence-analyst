@@ -296,12 +296,35 @@ function apiSummary(){
   const evidence=unacceptedResponse()?t('已保留未接受正文，不能作為目前業務結論'):narrativeText(answer)?t('已有模型解讀，業務含義尚待覆核'):stopped?t('流程中斷，尚未形成業務結論'):answer?.claims?.length?statusLabel(answer.status):answer?.status==='ABSTAINED'?t('證據不足 · 尚未形成結論'):t('尚未形成業務結論');
   return ui`<div class="api-summary"><div><span>API 連線</span><strong>${escapeHTML(transport)}</strong></div><div><span>Agent 流程</span><strong>${escapeHTML(flow)}</strong>${stopped?`<code>${escapeHTML(stopped.code)}</code>`:''}</div><div><span>業務證據</span><strong>${escapeHTML(evidence)}</strong></div></div>`;
 }
+function apiErrorDetails(){
+  const diagnostics=result()?.diagnostics;if(!Array.isArray(diagnostics))return '';
+  const codes=new Set(['HTTP_ERROR','REQUEST_TIMEOUT','TRANSPORT_ERROR','INVALID_JSON_RESPONSE','INVALID_RESPONSE_SHAPE','RESPONSE_BODY_INVALID','RESPONSE_TOO_LARGE','HTTP_STATUS_INVALID','TRANSPORT_RESPONSE_INVALID','MODEL_MESSAGE_MISSING','MODEL_TEXT_EMPTY','MODEL_TEXT_WRAPPER_UNSUPPORTED','MODEL_REFUSED','MODEL_CONTENT_FILTERED','MODEL_ACTION_RESPONSE','MODEL_ERROR_RESPONSE','MODEL_OUTPUT_TRUNCATED','INVALID_INVESTIGATION_ACTION','ANSWER_NOT_PRODUCED','BUSINESS_CONTEXT_TOO_LARGE','MODEL_REQUEST_BUDGET_EXHAUSTED','MODEL_REQUESTS_STOPPED','NETWORK_DISABLED','RETRIEVAL_UNRESOLVED','SOURCE_IDENTITY_UNRESOLVED','REQUEST_PAYLOAD_INVALID','REQUEST_TOO_LARGE','MESSAGES_INVALID','TOOLS_INVALID','RESPONSE_FORMAT_INVALID','API_STYLE_UNSUPPORTED','BASE_URL_MISSING','BASE_URL_INVALID','CHAT_MODEL_MISSING','TIMEOUT_INVALID','MAX_OUTPUT_TOKENS_INVALID','API_KEY_MISSING','ENV_FILE_UNREADABLE','ENV_FILE_TOO_LARGE','ENV_FILE_INVALID','CONFIGURATION_INVALID','UNKNOWN_ERROR']);
+  const stages=new Set(['configuration','context_assembly','provider_request','response_parse','response_validation','direct','page','synthesis','planning']);
+  const reasons=new Set(['dns_resolution_failed','tls_certificate_invalid','tls_handshake_failed','connection_refused','connection_reset','network_unreachable','timeout']);
+  const safe=diagnostics.filter(item=>item && typeof item==='object' && !Array.isArray(item)).map(item=>{
+    const row={code:codes.has(item.code)?item.code:'UNKNOWN_ERROR'};
+    if(stages.has(item.stage))row.stage=item.stage;
+    if(Number.isInteger(item.http_status) && item.http_status>=100 && item.http_status<=599)row.http_status=item.http_status;
+    if(reasons.has(item.transport_reason))row.transport_reason=item.transport_reason;
+    const shape=item.response_shape;
+    if(shape && typeof shape==='object' && !Array.isArray(shape)){
+      const fields={};
+      if(Number.isSafeInteger(shape.choice_count) && shape.choice_count>=0)fields.choice_count=shape.choice_count;
+      if(shape.finish_reason===null || ['stop','length','tool_calls','function_call','content_filter','other'].includes(shape.finish_reason))fields.finish_reason=shape.finish_reason;
+      if(['missing','null','string','list','other'].includes(shape.content_shape))fields.content_shape=shape.content_shape;
+      for(const key of ['reasoning_present','tool_calls_present'])if(typeof shape[key]==='boolean')fields[key]=shape[key];
+      if(Object.keys(fields).length)row.response_shape=fields;
+    }
+    return row;
+  });
+  return safe.length?ui`<details class="api-error-details"><summary>錯誤詳情</summary><pre class="api-raw-text">${escapeHTML(JSON.stringify(safe,null,2))}</pre></details>`:'';
+}
 function apiResponseView(){
   if(state.mode!=='real')return '';
   if(draftChanged())return ui`<div class="answer-empty">${icon('clock')}<h2>新問題尚未取得 API 返回</h2><p>問題、調查起點或閱讀方式已更改。發起分析後，這裡會顯示本次請求的返回資料。</p></div>`;
   const diagnostic=state.project?.agent?.api_diagnostics;const exchanges=apiExchanges();
   const ordered=exchanges.map((item,index)=>({item,sequence:Number.isInteger(item.sequence)?item.sequence:index+1})).sort((a,b)=>Number(b.item.phase==='investigation')-Number(a.item.phase==='investigation') || b.sequence-a.sequence);
-  return ui`<div class="api-response-view"><div class="answer-state-row"><span class="badge warning">未核驗的 API 返回</span><small>${exchanges.length} 次請求</small></div><h2>先確認接口返回，再核對分析結果。</h2><p class="answer-intro">這裡展示接口實際返回的文字，用於核對連線與返回格式；不代表已通過業務證據核驗。${exchanges.some(item=>item.phase==='capability_probe')?t('能力探測成功不代表業務分析已完成。'):''}</p>${apiSummary()}${unacceptedResponseView()}${reportDisplayNotice()}<p class="api-privacy-note">API 請求記錄已遮蔽配置值，內容可能因大小限制而截斷。保留的模型正文可能包含源碼或業務內容，請在分享前核對。</p>${diagnostic?.truncated || diagnostic?.omitted_exchange_count>0?ui`<p class="api-truncated">已達診斷保存上限，部分返回內容或請求記錄未保存。${diagnostic.omitted_exchange_count>0?ui` 未保存的請求記錄：${formatNumber(diagnostic.omitted_exchange_count)}`:''}</p>`:''}${exchanges.length?ui`<p class="field-hint">業務調查優先；各階段的最新請求優先，序號保留實際呼叫順序。</p>`:''}${ordered.length?ordered.map(({item,sequence})=>{
+  return ui`<div class="api-response-view"><div class="answer-state-row"><span class="badge warning">未核驗的 API 返回</span><small>${exchanges.length} 次請求</small></div><h2>先確認接口返回，再核對分析結果。</h2><p class="answer-intro">這裡展示接口實際返回的文字，用於核對連線與返回格式；不代表已通過業務證據核驗。${exchanges.some(item=>item.phase==='capability_probe')?t('能力探測成功不代表業務分析已完成。'):''}</p>${apiSummary()}${apiErrorDetails()}${unacceptedResponseView()}${reportDisplayNotice()}<p class="api-privacy-note">API 請求記錄已遮蔽配置值，內容可能因大小限制而截斷。保留的模型正文可能包含源碼或業務內容，請在分享前核對。</p>${diagnostic?.truncated || diagnostic?.omitted_exchange_count>0?ui`<p class="api-truncated">已達診斷保存上限，部分返回內容或請求記錄未保存。${diagnostic.omitted_exchange_count>0?ui` 未保存的請求記錄：${formatNumber(diagnostic.omitted_exchange_count)}`:''}</p>`:''}${exchanges.length?ui`<p class="field-hint">業務調查優先；各階段的最新請求優先，序號保留實際呼叫順序。</p>`:''}${ordered.length?ordered.map(({item,sequence})=>{
     const message=apiMessage(item);const content=message?.content;
     const contentText=typeof content==='string'?content:content===null || content===undefined?'':JSON.stringify(content,null,2);
     const phase=item.phase==='capability_probe'?t('能力探測'):item.phase==='investigation'?t('業務調查'):t('未知階段');
@@ -625,15 +648,20 @@ function modelCheckMessage(response){
   if(response?.usable===true && response?.model_returned===true)return t('連線成功：模型已返回有效回覆。');
   const status=Number(response?.http_status || response?.status || 0);
   const code=String(response?.code || '').toUpperCase();
-  if(status===401 || code.includes('AUTH') || code.includes('API_KEY'))return t('驗證失敗：API Key 無效或未被接受，請核對本機設定。');
-  if(status===403 || code.includes('FORBIDDEN'))return t('訪問被拒絕：目前帳號沒有使用此模型的權限。');
-  if(status===408 || status===504 || code.includes('TIMEOUT'))return t('連線逾時：請檢查網路或模型服務後重試。');
-  if(status===429)return t('模型請求受到限流，請稍後重試。');
-  if(['INVALID_JSON_RESPONSE','INVALID_RESPONSE_SHAPE'].includes(code) || code.includes('RESPONSE_FORMAT') || code.includes('RESPONSE_SHAPE'))return t('接口已回應，但返回格式不兼容；請核對模型接口類型與路徑。');
-  if(status===400 || status===404)return t('模型請求格式或接口路徑不正確；請核對模型名稱與接口設定。');
-  if(code.includes('CONFIG') || code.includes('MISSING') || code.includes('INVALID'))return t('模型設定不完整或無效，請核對 .env 後重試。');
-  if(code.includes('EMPTY') || response?.model_returned===false && response?.usable===true)return t('接口已回應，但模型沒有返回可用文字。');
-  return t('模型連線測試未通過，請檢查本機設定及模型服務。');
+  if(status===401 || code.includes('AUTH') || code.includes('API_KEY'))return t('接口驗證失敗，請檢查 API Key。');
+  if(status===403 || code.includes('FORBIDDEN'))return t('沒有模型使用權限，請聯絡管理員。');
+  if(Number.isInteger(status) && status>=500 && status<=599)return t('模型服務暫時出錯，請稍後重試。');
+  if(status===408 || code.includes('TIMEOUT'))return t('接口回應逾時，請稍後重試。');
+  if(status===429)return t('模型請求過於頻繁，請稍後重試。');
+  if(code==='TRANSPORT_ERROR'){
+    const reasons={dns_resolution_failed:'找不到接口地址，請檢查網路或地址。',tls_certificate_invalid:'連線驗證失敗，請聯絡管理員檢查憑證。',tls_handshake_failed:'無法建立安全連線，請聯絡管理員。',connection_refused:'接口拒絕連線，請確認服務已啟動。',connection_reset:'接口連線中斷，請稍後重試。',network_unreachable:'無法連上接口網路，請檢查網路連線。',timeout:'接口回應逾時，請稍後重試。'};
+    return t(Object.hasOwn(reasons,response?.transport_reason)?reasons[response.transport_reason]:'接口連線失敗，請稍後重試。');
+  }
+  if(['INVALID_JSON_RESPONSE','INVALID_RESPONSE_SHAPE'].includes(code) || code.includes('RESPONSE_FORMAT') || code.includes('RESPONSE_SHAPE'))return t('接口回覆格式不相容，請檢查接口設定。');
+  if(status===400 || status===404)return t('接口請求無效，請檢查接口設定。');
+  if(code.includes('CONFIG') || code.includes('MISSING') || code.includes('INVALID'))return t('模型設定有誤，請檢查設定。');
+  if(code.includes('EMPTY') || response?.model_returned===false && response?.usable===true)return t('模型未返回可用文字，請重試。');
+  return t('模型連線測試失敗，請檢查接口設定。');
 }
 async function checkModelConnection(){
   if(state.modelChecking)return;
@@ -643,7 +671,7 @@ async function checkModelConnection(){
     state.modelCheckStatus=response.usable===true && response.model_returned===true?'success':'failure';
     state.modelCheckFeedback=modelCheckMessage(response);feedback.textContent=state.modelCheckFeedback;
     $('settings-api').textContent=state.modelCheckStatus==='success'?t('已驗證可用'):t('連線測試未通過');
-  }catch(error){state.modelCheckStatus='failure';state.modelCheckFeedback=modelCheckMessage({status:error.status});feedback.textContent=state.modelCheckFeedback;$('settings-api').textContent=t('連線測試未通過');}
+  }catch(error){state.modelCheckStatus='failure';state.modelCheckFeedback=t('無法連上本機工作台，請確認工作台已啟動。');feedback.textContent=state.modelCheckFeedback;$('settings-api').textContent=t('連線測試未通過');}
   finally{state.modelChecking=false;button.disabled=false;}
 }
 async function startJob(options){

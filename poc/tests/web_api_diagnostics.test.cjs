@@ -110,6 +110,27 @@ test('transport errors, truncated payloads and missing diagnostics remain inspec
   setup(h,undefined);assert.match(h.run('apiResponseView()'),/No model analysis has been started/);
 });
 
+test('safe error details stay collapsed and available without raw response capture',()=>{
+  for(const [locale,label] of [['en','Error details'],['zh-CN','错误详情'],['zh-HK','錯誤詳情']]){
+    const h=harness(locale);
+    setup(h,agent({api_diagnostics:undefined,agent_result:{status:'ABSTAINED',diagnostics:[
+      {code:'HTTP_ERROR',stage:'provider_request',http_status:500,message:'PRIVATE-MARKER'},
+      {code:'TRANSPORT_ERROR',stage:'provider_request',transport_reason:'connection_reset'},
+      {code:'MODEL_TEXT_EMPTY',stage:'response_parse',response_shape:{choice_count:1,finish_reason:'length',content_shape:'null',reasoning_present:true,tool_calls_present:false,content:'PRIVATE-MARKER'}},
+      {code:'PRIVATE-MARKER',stage:'<script>PRIVATE-MARKER</script>',http_status:'500',transport_reason:'__proto__',response_shape:{choice_count:-1,finish_reason:'PRIVATE-MARKER',content_shape:'PRIVATE-MARKER',reasoning_present:'PRIVATE-MARKER'}},
+    ]}}));
+    const view=h.run('apiResponseView()');
+    assert.match(view,new RegExp(`<details class="api-error-details"><summary>${label}</summary>`));
+    assert.match(view,/HTTP_ERROR/);assert.match(view,/provider_request/);assert.match(view,/http_status&quot;: 500/);
+    assert.match(view,/connection_reset/);assert.match(view,/MODEL_TEXT_EMPTY/);assert.match(view,/response_parse/);
+    assert.match(view,/finish_reason&quot;: &quot;length/);assert.match(view,/reasoning_present&quot;: true/);
+    assert.match(view,/UNKNOWN_ERROR/);
+    assert.doesNotMatch(view,/<details class="api-error-details"[^>]*\bopen|PRIVATE-MARKER|__proto__|<script/);
+    assert.equal(h.fetches(),0);
+    h.run("state.question='A different question'");assert.doesNotMatch(h.run('apiResponseView()'),/HTTP_ERROR|connection_reset|api-error-details/);
+  }
+});
+
 test('new questions and changed entries hide old API data even when the previous run never started its Agent',()=>{
   const h=harness();setup(h,agent({runner_status:'NOT_READY',reason_code:'COMPANY_API_NOT_READY',agent_result:null}));
   assert.match(h.run('apiResponseView()'),/Readable response/);

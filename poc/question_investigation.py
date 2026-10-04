@@ -404,15 +404,44 @@ def _dependencies(database_path, paths, candidates, hashes, *, business_steps=Fa
                      and "USING" in tokens))
                 if not related:
                     continue
-                unresolved = edge["status"] != "confirmed" or not edge["target_path"]
+                unresolved = (edge["relation_type"] == "CALL_TARGET_FROM"
+                              or edge["status"] != "confirmed" or not edge["target_path"])
                 result.append({"kind": "dependencies", "relative_path": path,
                     "start_line": edge["start_line"], "end_line": edge["end_line"],
                     "statement": edge["text"], "reads": [], "writes": [],
                     "source_sha256": hashes.get(path), "unresolved": unresolved,
+                    "source_available": bool(edge["target_path"]) and edge["relation_type"] != "CALL_TARGET_FROM",
                     "target_name": edge["target_name"], "relation_type": edge["relation_type"],
                     "unresolved_reason": "runtime_target_unresolved" if edge["relation_type"] == "CALL_TARGET_FROM"
                         else "external_implementation_unavailable"})
     return result, frontier
+
+
+def _framework_dependencies(candidates, pages, framework_facts):
+    """Resolve only the documented call whose complete source is supplied."""
+    supplied_ids = {page.get("evidence_id") for page in pages}
+    result = []
+    for original in candidates:
+        row = dict(original)
+        if (row.get("kind") == "dependencies" and row.get("unresolved")
+                and not row.get("source_available") and row.get("relation_type") == "CALLS"
+                and _visible_ids(row, pages)):
+            facts = [fact for fact in framework_facts
+                if fact.get("kind") == "framework_operation"
+                and fact.get("dependency_covered") is True
+                and fact.get("interpretation_basis") == "documented_framework_rule"
+                and fact.get("relation_type") == "CALLS"
+                and fact.get("runtime_verified") is False
+                and all(fact.get(key) == row.get(key) for key in
+                    ("relative_path", "source_sha256", "start_line", "end_line", "target_name"))
+                and fact.get("source_evidence_ids") and fact.get("reference_ids")
+                and set(fact["source_evidence_ids"]) <= supplied_ids]
+            if facts:
+                row.update(unresolved=False, framework_fact_ids=[fact["fact_id"] for fact in facts],
+                    framework_reference_ids=list(dict.fromkeys(identifier for fact in facts
+                        for identifier in fact["reference_ids"])))
+        result.append(row)
+    return result
 
 
 def _calculation_roots(business_map, source_pages):
@@ -449,7 +478,7 @@ def _calculation_paths(business_map, source_pages):
 
 def build_question_investigation(question, business_map, *, database_path=None,
                                 source_pages=(), evidence_groups=(), completed_actions=(), max_actions=4,
-                                candidate_cache=None):
+                                candidate_cache=None, framework_facts=()):
     """Return material obligations and bounded actions for a located calculation."""
     identity = business_map.get("source_identity", {})
     paths = list(dict.fromkeys(business_map.get("selected_paths", [])))
@@ -507,6 +536,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
         if row.get("start_line"):
             unique[(row["kind"], row["relative_path"], row["start_line"], row["statement"])] = row
     candidates = list(unique.values())
+    candidates = _framework_dependencies(candidates, pages, framework_facts)
     missing = []
     items = []
     kinds = ["formula", "inputs", "conditions", "result_adjustments", "dependencies"]
@@ -528,13 +558,18 @@ def build_question_investigation(question, business_map, *, database_path=None,
         status = ("UNRESOLVED" if unresolved and not absent else "PARTIAL" if absent and supplied
                   else "OPEN" if absent or required and not related else
                   "SATISFIED" if related else "NOT_APPLICABLE")
+        covered = [row for row in related if row.get("framework_fact_ids")]
         items.append({"id": "calculation_" + kind, "kind": kind, "status": status,
             "evidence_ids": list(dict.fromkeys(supplied)), "candidate_count": len(related),
             "missing_count": len(absent), "reason": ("runtime_target_unresolved" if
                 any(row.get("unresolved_reason") == "runtime_target_unresolved" for row in unresolved)
                 else "external_implementation_unavailable") if unresolved
                 else "source_not_supplied" if absent else kind + "_not_located" if required and not related
-                else "source_candidates_supplied" if related else "no_indexed_candidate",
+                else "documented_framework_rule" if covered else "source_candidates_supplied" if related else "no_indexed_candidate",
+            **({"framework_fact_ids": list(dict.fromkeys(identifier for row in covered
+                    for identifier in row["framework_fact_ids"])),
+                "framework_reference_ids": list(dict.fromkeys(identifier for row in covered
+                    for identifier in row["framework_reference_ids"]))} if covered else {}),
             **({"targets": list(dict.fromkeys(row["target_name"] for row in unresolved))[:8]} if unresolved else {})})
     input_fields = {(row["relative_path"], field) for row in candidates
                     if row["kind"] in {"formula", "business_steps", "inputs"}
@@ -566,7 +601,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
             continue
         planned.add(key)
         inspect = {"relative_path": key[0], "line": key[1],
-                   "fields": list(dict.fromkeys([*row["writes"], *row["reads"]]))[:_MAX_FIELDS]}
+                   "fields": list(dict.fromkeys([*row["writes"], *row["reads"], *row.get("input_fields", [])]))[:_MAX_FIELDS]}
         last = row["end_line"] if row.get("occurrence_count", 1) == 1 else key[1] + 8
         read = {"relative_path": key[0], "start_line": max(1, key[1] - 4),
                 "end_line": min(max(key[1] + 8, last), key[1] + 96)}
@@ -575,7 +610,8 @@ def build_question_investigation(question, business_map, *, database_path=None,
         if (tool, key[0], arguments.get("line", arguments.get("start_line"))) in seen:
             continue
         plans.append({"tool": tool, "arguments": arguments, "read_fallback": read,
-                      "reason": row["kind"] + "_source_not_supplied"})
+                      "reason": "input_origin_not_supplied" if row["kind"] == "inputs" and row.get("input_fields")
+                                else row["kind"] + "_source_not_supplied"})
         if len(plans) >= max(0, min(int(max_actions), 4)):
             break
     if unknown_inputs and database_path is not None and len(plans) < min(max_actions, 4):

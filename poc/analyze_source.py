@@ -335,7 +335,8 @@ def analyze_source(
                             extensions=extensions, include_extensionless=include_extensionless,
                             encoding=encoding, source_format=source_format, quiet=quiet,
                             catalog=catalog, entry_program=chosen_entry, progress=progress,
-                            check_cancel=check_cancel, verify_content=verify_content)
+                            check_cancel=check_cancel, verify_content=verify_content,
+                            framework_reference_path=framework_reference_path)
                         scope = business_build
                     else:
                         scope = select_related_sources(source, catalog, chosen_entry, encoding=encoding,
@@ -360,8 +361,11 @@ def analyze_source(
                 include_extensionless=include_extensionless, encoding=encoding, source_format=source_format,
                 quiet=quiet, include_paths=scope["relative_paths"] if scope else None,
                 progress=progress, check_cancel=check_cancel, verify_content=verify_content,
-                max_source_bytes=DEFAULT_SCOPE_SOURCE_BYTES if scope else None)
+                max_source_bytes=DEFAULT_SCOPE_SOURCE_BYTES if scope else None,
+                **({"framework_reference_path": framework_reference_path} if analysis_mode == "business" else {}))
             report["build_report"] = build
+            if analysis_mode == "business":
+                report["framework_semantics"] = build.get("framework_semantics", {})
             detailed_programs, dependencies, indexed = _catalog(output / "structural-index.sqlite")
             if analysis_mode != "business":
                 _verify_scope(source, indexed, progress, check_cancel)
