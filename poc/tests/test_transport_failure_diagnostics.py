@@ -15,6 +15,7 @@ from unittest import mock
 POC_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(POC_ROOT))
 
+from api_error_details import build_diagnostic, sanitize_diagnostic
 from api_diagnostics import APIResponseDiagnostics  # noqa: E402
 from company_api import (  # noqa: E402
     APIClientError, CompanyAPIConfig, OpenAICompatibleChatClient, UrllibTransport,
@@ -53,6 +54,21 @@ class FailingResponse:
 
 
 class TransportFailureDiagnosticsTests(unittest.TestCase):
+    def safe_error(self, failure):
+        result = failure.to_safe_dict()
+        diagnostic = result.pop("diagnostic")
+        self.assertEqual(diagnostic, sanitize_diagnostic(diagnostic))
+        self.assertRegex(diagnostic["request_id"], r"^local-[a-f0-9]{32}$")
+        self.assertNotIn(DETAIL, json.dumps(diagnostic))
+        return result
+
+    def test_transport_extension_accepts_upstream_diagnostic(self):
+        diagnostic = build_diagnostic("HTTP_ERROR", http_status=429,
+            body=json.dumps({"error": {"code": "insufficient_quota"}}))
+        failure = APIClientError("HTTP_ERROR", http_status=429, diagnostic=diagnostic)
+        self.assertEqual(failure.diagnostic, diagnostic)
+        self.assertEqual(failure.to_safe_dict()["diagnostic"]["category"], "quota_exhausted")
+
     def assert_failure(
         self, error: BaseException, reason: str | None, *, reading: bool = False,
         injected: bool = False,
@@ -76,7 +92,7 @@ class TransportFailureDiagnosticsTests(unittest.TestCase):
         expected = {"code": expected_code}
         if reason is not None:
             expected["transport_reason"] = reason
-        self.assertEqual(failure.to_safe_dict(), expected)
+        self.assertEqual(self.safe_error(failure), expected)
         self.assertEqual(failure.transport_reason, reason)
         self.assertEqual(str(failure), expected_code)
         self.assertIsNone(failure.http_status)
@@ -100,12 +116,12 @@ class TransportFailureDiagnosticsTests(unittest.TestCase):
 
     def test_optional_reason_preserves_existing_error_contract(self) -> None:
         failure = APIClientError("HTTP_ERROR", http_status=503)
-        self.assertEqual(failure.to_safe_dict(), {"code": "HTTP_ERROR", "http_status": 503})
+        self.assertEqual(self.safe_error(failure), {"code": "HTTP_ERROR", "http_status": 503})
         self.assertEqual(str(failure), "HTTP_ERROR (HTTP 503)")
         for reason in REASONS:
             with self.subTest(reason=reason):
                 failure = APIClientError("TRANSPORT_ERROR", transport_reason=reason)
-                self.assertEqual(failure.to_safe_dict(), {
+                self.assertEqual(self.safe_error(failure), {
                     "code": "TRANSPORT_ERROR", "transport_reason": reason,
                 })
 
@@ -114,9 +130,9 @@ class TransportFailureDiagnosticsTests(unittest.TestCase):
             with self.subTest(reason=reason):
                 failure = APIClientError("TRANSPORT_ERROR", transport_reason=reason)
                 self.assertIsNone(failure.transport_reason)
-                self.assertEqual(failure.to_safe_dict(), {"code": "TRANSPORT_ERROR"})
+                self.assertEqual(self.safe_error(failure), {"code": "TRANSPORT_ERROR"})
         failure.transport_reason = DETAIL
-        self.assertEqual(failure.to_safe_dict(), {"code": "TRANSPORT_ERROR"})
+        self.assertEqual(self.safe_error(failure), {"code": "TRANSPORT_ERROR"})
 
     def test_open_failures_classify_direct_and_nested_url_errors(self) -> None:
         cases = (
@@ -214,11 +230,11 @@ class TransportFailureDiagnosticsTests(unittest.TestCase):
         client = OpenAICompatibleChatClient(config(), transport=transport, diagnostics=diagnostics)
         with self.assertRaises(APIClientError) as raised:
             client.complete(messages=[{"role": "user", "content": "request-sentinel"}])
-        self.assertEqual(raised.exception.to_safe_dict(), {"code": "HTTP_ERROR", "http_status": 407})
-        self.assertEqual(body.tell(), 0)
+        self.assertEqual(self.safe_error(raised.exception), {"code": "HTTP_ERROR", "http_status": 407})
+        self.assertTrue(body.closed)
         exchange = diagnostics.to_dict()["exchanges"][0]
         self.assertNotIn("transport_reason", exchange)
-        self.assertEqual(exchange["body_omitted_reason"], "HTTP_ERROR_BODY_NOT_COLLECTED")
+        self.assertEqual(exchange["body_omitted_reason"], "ERROR_RESPONSE_BODY_OMITTED")
         self.assertNotIn(DETAIL, json.dumps(diagnostics.to_dict()))
 
 

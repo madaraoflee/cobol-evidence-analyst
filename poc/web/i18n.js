@@ -3,8 +3,37 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
-錯誤詳情|错误详情|Error details
-模型服務暫時出錯，請稍後重試。|模型服务暂时出错，请稍后重试。|The model service encountered a temporary error; please retry later.
+本次請求未完成|本次请求未完成|This request did not complete
+脈絡|脉络|Mailuo
+脈絡首頁|脉络首页|Mailuo home
+COBOL 業務分析|COBOL 业务分析|COBOL Workbench
+最近對話|最近对话|Recent conversations
+匯出|导出|Export
+提問時，向已設定的接口傳送有限源碼與框架節錄。|提问时，向已配置的接口发送有限源码与框架节录。|Questions send limited source and framework excerpts to your configured endpoint.
+從一個問題，理清業務脈絡|从一个问题，理清业务脉络|FOLLOW THE THREAD
+描述你想確認的規則、例外或影響，沿著源碼一起找答案。|描述你想确认的规则、例外或影响，沿着源码一起找答案。|Ask about rules, exceptions or impact. Follow the source to understand why.
+源碼|源码|Source
+追溯證據|追溯证据|Trace evidence
+理解業務|理解业务|Understand
+梳理業務規則|梳理业务规则|Understand rules
+條件、計算與處理流程|条件、计算与处理流程|Conditions, calculations and flow
+找出尚待確認的部分|找出尚待确认的部分|Identify what still needs review
+追蹤欄位與相關程式|追踪字段与相关程序|Trace fields and related programs
+業務解讀 · 請結合證據覆核|业务解读 · 请结合证据复核|Interpretation · Review against evidence
+回答目錄|回答目录|Answer navigation
+本頁內容|本页内容|ON THIS PAGE
+跳至主要內容|跳至主要内容|Skip to main content
+工作空間導覽|工作空间导航|Workspace navigation
+關閉導覽|关闭导航|Close navigation
+開啟工作空間導覽|打开工作空间导航|Open workspace navigation
+對話記錄|对话记录|Conversations
+這段流程的受理條件是甚麼？|这段流程的受理条件是什么？|What are the acceptance conditions for this process?
+有哪些例外和待確認的依賴？|有哪些例外和待确认的依赖？|Which exceptions and dependencies still need verification?
+修改這個欄位會影響哪些程式？|修改这个字段会影响哪些程序？|Which programs are affected by changing this field?
+梳理受理條件|梳理受理条件|Understand conditions
+查找例外與依賴|查找例外与依赖|Review exceptions
+了解變更影響|了解变更影响|Explore change impact
+
 接口回應逾時，請稍後重試。|接口响应超时，请稍后重试。|The API request timed out; please retry later.
 找不到接口地址，請檢查網路或地址。|找不到接口地址，请检查网络或地址。|Endpoint address not found; check the network or address.
 連線驗證失敗，請聯絡管理員檢查憑證。|连接验证失败，请联系管理员检查证书。|Connection verification failed; ask an administrator to check the certificate.
@@ -12,8 +41,61 @@ const UI_MESSAGES = `
 接口拒絕連線，請確認服務已啟動。|接口拒绝连接，请确认服务已启动。|The endpoint refused the connection; check that the service is running.
 接口連線中斷，請稍後重試。|接口连接中断，请稍后重试。|The endpoint connection was interrupted; please retry later.
 無法連上接口網路，請檢查網路連線。|无法连上接口网络，请检查网络连接。|The endpoint network is unreachable; check your network connection.
-接口連線失敗，請稍後重試。|接口连接失败，请稍后重试。|The endpoint connection failed; please retry later.
-無法連上本機工作台，請確認工作台已啟動。|无法连上本机工作台，请确认工作台已启动。|Cannot reach the local workbench; check that it is running.
+單次請求正文超過限制。|单次请求正文超过限制。|The request body exceeds the limit.
+縮小本次供應的源碼或資料範圍後再試。|缩小本次供应的源码或资料范围后再试。|Reduce the source or material supplied in this request and try again.
+本次請求超過模型上下文限制。|本次请求超过模型上下文限制。|The request exceeds the model context limit.
+減少歷史消息和供應資料，分段分析後再試。|减少历史消息和供应资料，分段分析后再试。|Reduce conversation history and supplied material, then analyze smaller sections.
+所選模型不可用或目前帳號無法訪問。|所选模型不可用或当前账号无法访问。|The selected model is unavailable or inaccessible to this account.
+檢查模型配置和帳號可訪問的模型。|检查模型配置和账号可访问的模型。|Check the model settings and the models available to this account.
+目前接口明確不支持所請求的功能或參數。|当前接口明确不支持所请求的功能或参数。|The endpoint explicitly does not support the requested feature or parameter.
+使用接口支持的功能或調整請求參數。|使用接口支持的功能或调整请求参数。|Use supported features or adjust the request parameters.
+單次輸出額度或輸出參數超過限制。|单次输出额度或输出参数超过限制。|The output allowance or output parameter exceeds the limit.
+降低單次最大輸出額度後再試。|降低单次最大输出额度后再试。|Lower the maximum output allowance and try again.
+帳號配額或累計使用額度不足。|账号配额或累计使用额度不足。|The account quota or usage allowance is insufficient.
+檢查帳號配額或帳單狀態，恢復額度後再試。|检查账号配额或账单状态，恢复额度后再试。|Check the account quota or billing status and try again when quota is available.
+接口明確報告請求速率受限。|接口明确报告请求速率受限。|The endpoint explicitly reports a request rate limit.
+等待限流窗口結束後再手動重試。|等待限流窗口结束后再手动重试。|Wait for the rate limit window to end, then retry manually.
+接口認證失敗。|接口认证失败。|API authentication failed.
+檢查 API 密鑰及認證配置。|检查 API 密钥及认证配置。|Check the API key and authentication settings.
+接口拒絕目前帳號的訪問權限。|接口拒绝当前账号的访问权限。|The endpoint denied access to this account.
+檢查帳號權限和資源訪問授權。|检查账号权限和资源访问授权。|Check the account permissions and resource access authorization.
+請求超過等待時間。|请求超过等待时间。|The request timed out.
+檢查網絡和服務狀態，再手動重試。|检查网络和服务状态，再手动重试。|Check network and service status, then retry manually.
+未能連接到接口。|未能连接到接口。|The endpoint could not be reached.
+檢查網絡、接口地址和服務連通性。|检查网络、接口地址和服务连通性。|Check the network, endpoint address and service connectivity.
+接口返回 HTTP 429，但未提供可確認的原因。|接口返回 HTTP 429，但未提供可确认的原因。|The endpoint returned HTTP 429 without a confirmed cause.
+檢查帳號額度和服務限流說明，再決定是否重試。|检查账号额度和服务限流说明，再决定是否重试。|Check the account quota and rate limit information before deciding to retry.
+接口返回服務端錯誤，具體原因尚未確認。|接口返回服务端错误，具体原因尚未确认。|The endpoint returned a server error; the cause is unconfirmed.
+憑關聯編號檢查服務端日誌和服務狀態。|凭关联编号检查服务端日志和服务状态。|Use the correlation ID to check server logs and service status.
+接口拒絕本次請求，具體原因尚未確認。|接口拒绝本次请求，具体原因尚未确认。|The endpoint rejected the request; the cause is unconfirmed.
+請核對請求格式、模型配置與服務日誌。|请核对请求格式、模型配置与服务日志。|Check the request format, model settings and service logs.
+憑關聯編號檢查接口支持的請求格式和服務日誌。|凭关联编号检查接口支持的请求格式和服务日志。|Use the correlation ID to check the supported request format and service logs.
+接口返回的響應格式無效。|接口返回的响应格式无效。|The endpoint returned an invalid response format.
+檢查接口兼容性和服務端響應日誌。|检查接口兼容性和服务端响应日志。|Check API compatibility and server response logs.
+請求處理發生系統錯誤，具體原因尚未確認。|请求处理发生系统错误，具体原因尚未确认。|Request processing encountered a system error; the cause is unconfirmed.
+憑關聯編號檢查應用和服務端日誌。|凭关联编号检查应用和服务端日志。|Use the correlation ID to check application and server logs.
+下一步|下一步|Next step
+本機處理|本机处理|Local processing
+此關聯編號由瀏覽器產生，不是服務端請求編號。|此关联编号由浏览器产生，不是服务端请求编号。|This correlation ID was generated by the browser; it is not a server request ID.
+本地關聯編號|本地关联编号|Local correlation ID
+上游關聯編號|上游关联编号|Upstream correlation ID
+查看安全錯誤詳情|查看安全错误详情|Safe error details
+錯誤正文已省略以避免回顯敏感信息。|错误正文已省略以避免回显敏感信息。|The error body is omitted to avoid reflecting sensitive information.
+已取得部分業務回答；尚未完成的範圍可繼續分析。|已取得部分业务回答；尚未完成的范围可继续分析。|A partial business answer is available; continue the analysis for the unfinished scope.
+業務回答未完整輸出；已保留收到的正文。|业务回答未完整输出；已保留收到的正文。|The business answer is incomplete; the received answer text is retained.
+已達頁面展示字數上限，這裡僅呈現部分正文。完整模型正文仍保存在本機結果檔。|已达页面展示字数上限，这里仅呈现部分正文。完整模型正文仍保存在本机结果文件。|The page display character limit was reached; only part of the answer is shown here. The complete model answer remains in the local result file.
+可分享的診斷摘要|可分享的诊断摘要|Shareable diagnostic summary
+僅含配置限制、覆蓋數量、完成狀態、字數與安全錯誤診斷。問題、源碼、回答正文、路徑及 API 配置值不會匯出。|仅含配置限制、覆盖数量、完成状态、字数与安全错误诊断。问题、源码、回答正文、路径及 API 配置值不会导出。|Contains configuration limits, coverage counts, completion status, character counts and safe error diagnostics. Questions, source code, answers, paths and API configuration values are excluded.
+複製診斷 JSON|复制诊断 JSON|Copy diagnostic JSON
+匯出診斷 JSON|导出诊断 JSON|Export diagnostic JSON
+查看診斷摘要|查看诊断摘要|View diagnostic summary
+已複製診斷摘要。|已复制诊断摘要。|Diagnostic summary copied.
+複製暫不可用，請使用匯出診斷 JSON。|复制暂不可用，请使用导出诊断 JSON。|Copy is unavailable. Use Export diagnostic JSON.
+回答詳略|回答详略|Answer detail
+詳細 · 說明條件、流程與依據|详细 · 说明条件、流程与依据|Detailed · conditions, process and evidence
+簡短 · 重點與結論|简短 · 重点与结论|Brief · key points and conclusion
+回答未完整輸出：模型達到輸出長度限制（finish_reason=length）。已保留收到的完整正文，可繼續追問尚未說明的部分。|回答未完整输出：模型达到输出长度限制（finish_reason=length）。已保留收到的完整正文，可继续追问尚未说明的部分。|Incomplete answer: the model reached its output length limit (finish_reason=length). All received answer text is retained; ask a follow-up about the unfinished part.
+部分業務解讀：已保留取得的正文，尚未完成的範圍可繼續分析。|部分业务解读：已保留取得的正文，尚未完成的范围可继续分析。|Partial business explanation: the received answer text is retained. Continue the analysis for the unfinished scope.
 下一次回答保存接口原文|下一次回答保存接口原文|Save the raw API response for the next answer
 僅排查問題時開啟，發送一次後自動關閉。原文可能包含業務資料，會保存在本機結果目錄；一般回答和引用仍正常保存。|仅排查问题时开启，发送一次后自动关闭。原文可能包含业务资料，会保存在本机结果目录；一般回答和引用仍正常保存。|Enable only for troubleshooting; it turns off after one submission. The raw response may contain business data and is stored in the local results folder. Normal answers and references are still saved.
 分析範圍|分析范围|Scope
@@ -50,14 +132,15 @@ const UI_MESSAGES = `
 連線成功：模型已返回有效回覆。|连接成功：模型已返回有效回复。|Connected: the model returned a usable reply.
 已驗證可用|已验证可用|Verified working
 連線測試未通過|连接测试未通过|Connection test failed
-接口驗證失敗，請檢查 API Key。|接口验证失败，请检查 API Key。|Authentication failed; check the API key.
-沒有模型使用權限，請聯絡管理員。|没有模型使用权限，请联系管理员。|Model access denied; contact an administrator.
-模型設定有誤，請檢查設定。|模型设置有误，请检查设置。|The model settings are invalid; check the configuration.
-模型未返回可用文字，請重試。|模型未返回可用文字，请重试。|The model returned no usable text; please retry.
-模型連線測試失敗，請檢查接口設定。|模型连接测试失败，请检查接口设置。|The model connection test failed; check the API settings.
-模型請求過於頻繁，請稍後重試。|模型请求过于频繁，请稍后重试。|Too many model requests; please retry later.
-接口回覆格式不相容，請檢查接口設定。|接口回复格式不兼容，请检查接口设置。|The reply format is incompatible; check the API settings.
-接口請求無效，請檢查接口設定。|接口请求无效，请检查接口设置。|The API request is invalid; check the API settings.
+驗證失敗：API Key 無效或未被接受，請核對本機設定。|验证失败：API Key 无效或未被接受，请核对本机设置。|Authentication failed. Check the local API key.
+訪問被拒絕：目前帳號沒有使用此模型的權限。|访问被拒绝：当前账号没有使用此模型的权限。|Access denied. This account cannot use the configured model.
+連線逾時：請檢查網路或模型服務後重試。|连接超时：请检查网络或模型服务后重试。|Connection timed out. Check the network or model service and retry.
+模型設定不完整或無效，請核對 .env 後重試。|模型配置不完整或无效，请核对 .env 后重试。|The model settings are missing or invalid. Check .env and retry.
+接口已回應，但模型沒有返回可用文字。|接口已响应，但模型没有返回可用文字。|The endpoint responded, but the model returned no usable text.
+模型連線測試未通過，請檢查本機設定及模型服務。|模型连接测试未通过，请检查本机设置及模型服务。|The model test failed. Check local settings and the model service.
+模型請求受到限流，請稍後重試。|模型请求受到限流，请稍后重试。|The model is rate limiting requests. Please retry later.
+接口已回應，但返回格式不兼容；請核對模型接口類型與路徑。|接口已响应，但返回格式不兼容；请核对模型接口类型与路径。|The endpoint responded in an incompatible format. Check the model API type and path.
+模型請求格式或接口路徑不正確；請核對模型名稱與接口設定。|模型请求格式或接口路径不正确；请核对模型名称与接口设置。|The model request or endpoint path is invalid. Check the model name and API settings.
 資料夾內沒有可讀資料；請選擇 .md、.markdown、.txt 文件或包含這些文件的資料夾。|文件夹内没有可读资料；请选择 .md、.markdown、.txt 文件或包含这些文件的文件夹。|No supported references were found. Choose .md, .markdown or .txt files, or a folder containing them.
 已找到文件，但無法讀取內容。請檢查檔案權限與文字編碼。|已找到文件，但无法读取内容。请检查文件权限与文字编码。|Files were found but could not be read. Check permissions and text encoding.
 目前電腦無法讀取這個位置。請確認文件或資料夾存在，並具有讀取權限。|当前电脑无法读取这个位置。请确认文件或文件夹存在，并具有读取权限。|This computer cannot read that location. Check that the file or folder exists and is readable.
@@ -772,7 +855,7 @@ for (const element of document.querySelectorAll('[aria-label],[placeholder],[tit
 }
 function translateStaticInterface() {
   document.documentElement.lang = currentLocale === 'zh-HK' ? 'zh-Hant-HK' : currentLocale === 'zh-CN' ? 'zh-Hans' : 'en';
-  document.title = 'COBOL Lens · ' + t('業務洞察工作台');
+  document.title = t('脈絡') + ' · ' + t('COBOL 業務分析');
   for (const [node,original] of staticText) if (node.isConnected) node.data = t(original);
   for (const [node,attribute,original] of staticAttributes) if (node.isConnected) node.setAttribute(attribute,t(original));
   document.getElementById('language-select').value = currentLocale;

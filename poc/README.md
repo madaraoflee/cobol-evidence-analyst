@@ -1,6 +1,6 @@
 # POC 运行说明
 
-当前默认检索、核验边界和已复现的源码新鲜度问题见[当前实现与已知限制](../docs/16-current-implementation-status.md)。本说明中的目标设计和专项路径演示不代表默认问答已具备完整控制/数据流证明。
+当前默认检索、内容版本核对和核验边界见[当前实现与已知限制](../docs/16-current-implementation-status.md)。本说明中的目标设计和专项路径演示不代表默认问答已具备完整控制/数据流证明。
 
 ## 新版框架案例
 
@@ -38,13 +38,13 @@ Windows 包装脚本接受相同参数：
 
 当前 POC 包含离线事实索引、受控 Agent、单条 Claim 核验、业务覆盖检查、P3-D 跨程序错误审查、P3-E 静态调用点链上下文、P3-F 局部异常控制流，以及 T01 跨程序错误返回组合。离线工具只使用 Python 标准库；`company_api.py` 和 `run_agent.py` 默认不发送网络请求，只有显式传入 `--allow-network` 才会连接公司 API。
 
-办公室电脑从零开始的当前完整操作请看：[系统使用手册（2026-09-28）](../docs/15-system-user-manual.md)。详细排查参考在[办公室使用手册（历史版本）](../docs/11-office-usage-guide.md)。
+办公室电脑从零开始的当前完整操作请看：[系统使用手册（当前版本）](../docs/15-system-user-manual.md)。详细排查参考在[办公室使用手册（历史版本）](../docs/11-office-usage-guide.md)。
 
 ## 默认业务解读流程
 
 网页和 `analyze_source.py` 命令行默认使用 `business` + `retrieval`。基于本地 SQLite FTS5/BM25、程序结构与 CALL/COPY 关系选取相关原文，交给模型直接回答；模型确有缺口时才继续搜索或按行补读。无命中时给结构概览以寻找线索，不自动读遍全库。网页持久保存多轮历史，恢复上轮真实引用片段以理解追问。当前不依赖外部向量库或额外嵌入接口；这是全文与结构结合的 RAG，不能宣称已经部署语义向量检索。Python 库和底层 `run_agent.py` 保留旧默认以兼容调用，程序化使用传 `analysis_mode="business", reading_strategy="retrieval"`。
 
-默认回答的 `ANALYZED` 不代表 Claim 语义支持或问题完整性已验证。另因元数据复用可能在等长修改且 mtime 保留时返回旧源码，源码内容校验缺口修复前，关键分析须先执行逐文件内容校验；具体边界与复现见[状态说明](../docs/16-current-implementation-status.md)。
+默认回答的 `ANALYZED` 不代表 Claim 语义支持或问题完整性已验证。默认问答会对本题实际选中的文件采集内容哈希，并局部刷新发生变化的索引；这已覆盖等长且保留 mtime 的修改，但不等于每题都核对全库。新增文件仍需重新接入；具体范围见[状态说明](../docs/16-current-implementation-status.md)。
 
 ## 大源码目录与网页进度
 

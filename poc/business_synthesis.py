@@ -4,11 +4,22 @@ from __future__ import annotations
 
 import re
 
+from file_impact_evidence import is_file_impact_question
+
 
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
-_DETAIL = re.compile(r"详细|詳細|详尽|詳盡|细致|完整|逐步|流程|目的|原理|来龙去脉|"
-                     r"\b(?:detailed|thorough|workflow|flow|purpose)\b", re.I)
+_BRIEF = re.compile(r"(?:简短|簡短|简洁|簡潔|简要|簡要)(?:地)?\s*"
+                    r"(?:回答|答复|答覆|说明|說明|解释|解釋|一点|一點|些|即可|就好|[。.!?？]?\s*$)|"
+                    r"(?:只要|仅要|僅要|只给|只給|仅给|僅給)\s*(?:结论|結論)|"
+                    r"(?:不要|不用|无需|無需)(?:展开|展開)|"
+                    r"(?:一|两|兩|三)句话|(?:一|兩|两|三)句話|"
+                    r"\b(?:keep (?:it|the answer) (?:brief|concise|short)|(?:please )?be brief|"
+                    r"(?:answer|explain|respond) briefly|briefly (?:answer|explain|describe|summarize)|"
+                    r"(?:brief|concise|short) (?:answer|response|explanation)|"
+                    r"in (?:one|two|three|a single) sentences?)\b", re.I)
 _LIMITATION = re.compile(
+    r"(?:不足以|无法|無法|不能|未能|难以|難以|尚不能).{0,24}"
+    r"(?:列出|列举|列舉|枚举|枚舉|罗列|羅列).{0,48}(?:字段|欄位|栏位|文件|\b(?:LF|PF|fields?|files?)\b)|"
     r"不足以.{0,12}(?:判断|判斷|确认|確認|解释|解釋|确定|確定|结论|結論|回答|分析|说明|說明|给出|給出)|"
     r"(?:无法|無法|不能|未能|难以|難以|尚未).{0,24}"
     r"(?:判断|判斷|确认|確認|解释|解釋|确定|確定|结论|結論|回答)|"
@@ -26,6 +37,9 @@ _LIMITATION = re.compile(
     r"(?:no|not any)\s+(?:(?:relevant|matching|complete)\s+)?"
     r"(?:source(?:\s+code)?|code|formulas?|calculation (?:rules?|basis|logic)|input sources?)"
     r".{0,48}(?:found|located|available)|"
+    r"(?:cannot|can['’]t|unable to)\s+(?:reliably\s+|yet\s+)?(?:list|enumerate|identify)\b"
+    r".{0,64}\b(?:LF|PF|fields?|files?)\b|"
+    r"insufficient\s+to\s+(?:reliably\s+)?(?:list|enumerate|identify)\b.{0,64}\b(?:LF|PF|fields?|files?)\b|"
     r"cannot (?:yet )?(?:determine|confirm|explain|answer)|"
     r"unable to (?:determine|confirm|explain|answer)|need more source|provide source)\b", re.I)
 _INVESTIGATION_STATEMENT = re.compile(
@@ -83,12 +97,20 @@ def assess_answer_completion(answer):
             "method": "bounded_text_check", "semantic_verification": "unverified"}
 
 
-def wants_business_detail(question):
-    return bool(_DETAIL.search(str(question)))
+def wants_business_detail(question, *, answer_detail="detailed"):
+    """Business answers are developed by default; explicit brevity wins."""
+    if answer_detail not in {"brief", "detailed"}:
+        raise ValueError("answer_detail must be brief or detailed.")
+    preference = re.sub(r"(?:不要|不用|无需|無需|别|別)(?:太)?(?:简短|簡短|简洁|簡潔|简要|簡要)", "", str(question))
+    preference = re.sub(r"\b(?:do not|don't|don’t)\s+(?:be|keep (?:it|the answer))\s+"
+                        r"(?:brief|concise|short)\b", "", preference, flags=re.I)
+    return answer_detail != "brief" and not _BRIEF.search(preference)
 
 
 _FORMULA_QUESTION = re.compile(
     r"计算|計算|公式|怎么算|怎麼算|如何算|算出|\b(?:calculation|calculate[ds]?|calculating|formula|computed?)\b", re.I)
+_EXPLICIT_DETAIL_REQUEST = re.compile(
+    r"详细|詳細|详尽|詳盡|细致|細緻|完整|逐步|流程|\b(?:detailed|thorough|step.by.step|workflow)\b", re.I)
 _INPUT_QUESTION = re.compile(
     r"初值|初始值|预设值|預設值|(?:输入|輸入|参数|參數).{0,12}(?:来源|來源|来自|來自|哪里|哪裡|何处|何處)|"
     r"\b(?:initial|default) values?\b|\b(?:input|parameter).{0,24}(?:source|origin|from)|\bwhere.{0,24}(?:input|parameter)\b", re.I)
@@ -96,6 +118,8 @@ _CONDITION_QUESTION = re.compile(r"条件|條件|何时|何時|什么时候|什�
 _ALTERNATIVE_QUESTION = re.compile(
     r"不满足|不滿足|否则|否則|归零|歸零|清零|例外|分支|\b(?:otherwise|else|exceptions?|branches?)\b", re.I)
 _ANSWER_SIGNALS = {
+    "file_io": re.compile(r"写入|寫入|更新|扣减|扣減|读取|讀取|只读|唯讀|删除|刪除|"
+                          r"\b(?:write|writes|rewrite|update[ds]?|read[ -]?only|read[sn]?|delete[ds]?)\b", re.I),
     "formula": re.compile(
         r"[\w)]\s*[=＝×÷*/+]\s*[\w(]|\w\s+-\s+\w|乘|除|加|减|減|之和|之差|倍|等于|等於|"
         r"取值|取自|赋值|賦值|\b(?:multiply|multiplied|multiplying|multiplication|times|scaled?|"
@@ -116,10 +140,11 @@ _ANSWER_SIGNALS = {
         r"retain(?:ed|s)?|preserv(?:e[ds]?|ing))\b", re.I),
 }
 _ASPECT_LABELS = {"formula": "具体算式或运算关系", "inputs": "输入的初值、读取或传入来源",
-                  "conditions": "计算适用的条件", "result_adjustments": "其他分支或结果调整"}
+                  "conditions": "计算适用的条件", "result_adjustments": "其他分支或结果调整",
+                  "file_io": "原文已知的文件/record写入、只读依赖、准确字段名及定位"}
 
 
-def answer_requirements(question, investigation, source_pages):
+def answer_requirements(question, investigation, source_pages, *, answer_detail="detailed"):
     """Nominate answer aspects only from question-relevant, supplied candidates.
 
     These are bounded lexical coverage hints, not a semantic answer score. A
@@ -127,8 +152,13 @@ def answer_requirements(question, investigation, source_pages):
     """
     question = str(question)
     calculation = bool(_FORMULA_QUESTION.search(question))
-    detailed_calculation = calculation and wants_business_detail(question)
+    detail_requested = wants_business_detail(question, answer_detail=answer_detail)
+    # Default depth governs the synthesis prompt. Coverage checks remain tied
+    # to the question so a concrete short answer is not rejected for omitting
+    # supplementary input origins that the user did not ask to enumerate.
+    detailed_calculation = calculation and detail_requested and bool(_EXPLICIT_DETAIL_REQUEST.search(question))
     requested = {"formula": calculation,
+                 "file_io": is_file_impact_question(question),
                  "inputs": bool(_INPUT_QUESTION.search(question)) or detailed_calculation,
                  "conditions": detailed_calculation or bool(_CONDITION_QUESTION.search(question)),
                  "result_adjustments": detailed_calculation or bool(_ALTERNATIVE_QUESTION.search(question))}
@@ -137,17 +167,32 @@ def answer_requirements(question, investigation, source_pages):
     for item in investigation.get("required_items", []):
         kind = item.get("kind")
         identifiers = [identifier for identifier in item.get("evidence_ids", []) if identifier in visible]
-        if (requested.get(kind) and item.get("status") == "SATISFIED"
+        if (requested.get(kind) and (item.get("status") == "SATISFIED" or
+                                     kind == "file_io" and item.get("status") == "PARTIAL")
                 and item.get("candidate_count", 0) and identifiers):
-            requirements.append({"kind": kind, "description": _ASPECT_LABELS[kind],
-                                 "supplied_reference_ids": identifiers[:8]})
+            requirement = {"kind": kind, "description": _ASPECT_LABELS[kind],
+                           "supplied_reference_ids": identifiers[:8]}
+            if kind == "file_io":
+                observations = [row for row in investigation.get("file_impact", {}).get("observations", [])
+                    if set(row.get("evidence_ids", [])).issubset(visible)]
+                groups = {}
+                if re.search(r"文件|记录|記錄|\b(?:LF|PF|files?|records?)\b", question, re.I):
+                    groups["file_identifiers"] = list(dict.fromkeys(str(name) for row in observations
+                        if row.get("kind") == "io_operation"
+                        for name in (row.get("file_name"), row.get("assigned_name"), row.get("operand")) if name))[:32]
+                if re.search(r"字段|栏位|欄位|\bfields?\b", question, re.I):
+                    groups["field_identifiers"] = list(dict.fromkeys(str(name) for row in observations
+                        for name in (row.get("written_fields", []) if row.get("kind") == "field_assignment"
+                                     else row.get("fields", []) if row.get("kind") == "io_operation" else [])))[:32]
+                requirement["identifier_groups"] = {key: names for key, names in groups.items() if names}
+            requirements.append(requirement)
     return requirements
 
 
-def assess_business_answer(question, answer, investigation, source_pages):
+def assess_business_answer(question, answer, investigation, source_pages, *, answer_detail="detailed"):
     """Detect obvious omissions without treating source supply as answer quality."""
     completion = assess_answer_completion(answer)
-    requirements = answer_requirements(question, investigation, source_pages)
+    requirements = answer_requirements(question, investigation, source_pages, answer_detail=answer_detail)
     text = _REFERENCE.sub("", str(answer))
     text = re.sub(r"\[([^\]\n]+)\]\([^\)\n]+\)", r"\1", text)
     text = re.sub(r"(?m)^\s*#{1,6}\s+.*$", "", text)
@@ -161,6 +206,11 @@ def assess_business_answer(question, answer, investigation, source_pages):
         and not re.search(r"[?？]", clause))
     missing = [item["kind"] for item in requirements
                if not _ANSWER_SIGNALS[item["kind"]].search(explanation)]
+    for item in requirements:
+        for group, names in item.get("identifier_groups", {}).items():
+            if not any(re.search(r"(?<![A-Z0-9_$#@-])" + re.escape(name) + r"(?![A-Z0-9_$#@-])",
+                                 explanation, re.I) for name in names):
+                missing.append(group)
     completion.update(required_aspects=[item["kind"] for item in requirements], missing_aspects=missing)
     if missing and completion["status"] != "incomplete":
         completion.update(status="incomplete", reason="supplied_business_aspects_unexplained")
@@ -168,13 +218,14 @@ def assess_business_answer(question, answer, investigation, source_pages):
     return completion
 
 
-def needs_synthesis_review(question, answer, investigation, *, source_available=False, source_pages=()):
+def needs_synthesis_review(question, answer, investigation, *, source_available=False, source_pages=(),
+                           answer_detail="detailed"):
     """Nominate a bounded review when useful material got a blanket limitation."""
     items = investigation.get("required_items", [])
     supplied = source_available or any(item.get("evidence_ids") for item in items)
     if not supplied:
         return False
-    completion = assess_business_answer(question, answer, investigation, source_pages)
+    completion = assess_business_answer(question, answer, investigation, source_pages, answer_detail=answer_detail)
     if completion["status"] == "incomplete":
         return True
     # A useful explanation can legitimately bound an unavailable implementation.
@@ -185,7 +236,8 @@ def needs_synthesis_review(question, answer, investigation, *, source_available=
     return completion["limitation_detected"]
 
 
-def build_analysis_brief(question, investigation, source_pages, framework_references, max_output_tokens):
+def build_analysis_brief(question, investigation, source_pages, framework_references, max_output_tokens,
+                         *, answer_detail="detailed"):
     """Bind the synthesis brief to excerpts surviving actual request trimming."""
     visible = {page["evidence_id"] for page in source_pages if page.get("evidence_id")}
     visible.update(row["reference_id"] for row in framework_references if row.get("reference_id"))
@@ -202,17 +254,21 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
     external = list(dict.fromkeys(target for item in investigation.get("required_items", [])
         if item.get("reason") in {"external_implementation_unavailable", "runtime_target_unresolved"}
         for target in item.get("targets", [])))
-    return {"detail_requested": wants_business_detail(question),
+    return {"detail_requested": wants_business_detail(question, answer_detail=answer_detail),
             "output_budget_tokens": max_output_tokens,
-            "required_answer_aspects": answer_requirements(question, investigation, source_pages),
+            "required_answer_aspects": answer_requirements(question, investigation, source_pages,
+                                                            answer_detail=answer_detail),
             "available_source_paths": list(dict.fromkeys(page["relative_path"] for page in source_pages
                                                          if page.get("relative_path")))[:8],
             "supplied_material": items,
             "unavailable_or_runtime_targets": external[:8],
             "remaining_gaps": [{key: gap[key] for key in ("kind", "reason") if key in gap} for gap in gaps[:8]],
             "semantic_execution_verified": False,
-            "task": "综合当前原文支持的业务目的、处理先后、输入来源、计算口径、适用条件、例外和结果影响，"
+            "task": ("先简要回答结论和关键条件，保留必要来源引用。" if not wants_business_detail(
+                question, answer_detail=answer_detail) else "按问题需要充分解释，默认不因用户未写‘详细’而缩成概述。")
+                + "综合当前原文支持的业务目的、处理先后、输入来源、计算口径、适用条件、例外和结果影响，"
                 "只展开与问题有关的内容。关键结论逐项附实际来源引用。已有证据的结论直接说明；"
+                "没有直接 COMPUTE 或具体数值不妨碍解释已知步骤、条件或符号关系；只限定未知数值或算法。"
                 "内部尚可补读的程序、段落、赋值和依赖由调查工具读取，不要求用户补交已入库源码。"
                 "缺外部实现或运行时目标只限制依赖它的结论，继续解释调用者已知的输入、条件和返回处理。"
                 "framework_facts 是离线绑定到当前调用点的框架规则；可以说明其约定操作，"

@@ -43,10 +43,20 @@ class BusinessDetailIntentTests(unittest.TestCase):
             with self.subTest(question=question):
                 self.assertTrue(wants_business_detail(question))
 
-    def test_simple_calculation_keeps_existing_detail_classification(self):
+    def test_business_questions_default_to_detail_without_keyword_gate(self):
         for question in ("净金额怎么计算？", "淨金額怎麼計算？", "How is the net amount calculated?"):
             with self.subTest(question=question):
+                self.assertTrue(wants_business_detail(question))
+
+    def test_explicit_brief_preference_is_respected(self):
+        for question in ("请简短回答净金额怎么计算？", "請簡短回答淨金額怎麼計算？",
+                         "How is the net amount calculated? Keep it brief."):
+            with self.subTest(question=question):
                 self.assertFalse(wants_business_detail(question))
+        self.assertFalse(wants_business_detail("金额怎么计算？", answer_detail="brief"))
+        self.assertTrue(wants_business_detail("不要简短，完整解释金额怎么计算。"))
+        self.assertTrue(wants_business_detail("描述字段里的简短文字代表什么业务含义？"))
+        self.assertTrue(wants_business_detail("Explain the business rules. Do not be brief."))
 
 
 class BusinessDetailRegressions(unittest.TestCase):
@@ -195,6 +205,39 @@ class BusinessDetailRegressions(unittest.TestCase):
         self.assertEqual(inputs["status"], "SATISFIED")
         self.assert_answer_binding(result)
 
+    def test_default_calculation_supplies_input_origins_before_first_model(self):
+        self.chain()
+        result = self.ask("VALUEFLOW NET-VALUE 怎么计算，输入最初来自哪里以及何时归零？",
+                          self.chain_answer)
+        self.assert_first_material(CHAIN_MARKERS)
+        self.assertEqual(result["metrics"]["model_requests"], 1)
+        self.assert_answer_binding(result)
+
+    def test_explicit_brief_option_reaches_first_request(self):
+        self.write("rule.cbl", "BRIEFRULE", "COMPUTE NET-VALUE = BASE-VALUE * 2.",
+                   "01 BASE-VALUE PIC 9(9) VALUE 11.\n01 NET-VALUE PIC 9(9).")
+        self.build()
+        self.ask("BRIEFRULE NET-VALUE 怎么计算？", lambda payload: "金额为基础值的两倍。",
+                 answer_detail="brief", policy=AgentPolicy(max_model_requests=1, max_answer_revisions=0))
+        self.assertEqual(self.requests[0]["answer_detail"], "brief")
+        self.assertFalse(self.requests[0]["business_analysis_brief"]["detail_requested"])
+
+    def test_known_non_arithmetic_rules_answer_calculation_without_compute(self):
+        self.write("rule.cbl", "ASSIGNFLOW", "IF BASE-VALUE > ZERO\n"
+                   "MOVE BASE-VALUE TO NET-VALUE\nELSE\nMOVE ZERO TO NET-VALUE\nEND-IF.",
+                   "01 BASE-VALUE PIC S9(9).\n01 NET-VALUE PIC 9(9).")
+        self.build()
+        result = self.ask("ASSIGNFLOW NET-VALUE 怎么计算？", lambda payload:
+            "基础金额大于零时直接作为结果，其他情况下结果归零。"
+            + self.cite(payload, "MOVE BASE-VALUE TO NET-VALUE"),
+            policy=AgentPolicy(max_model_requests=1, max_answer_revisions=0))
+        first = self.requests[0]
+        self.assertTrue(first["question_investigation"]["can_answer"])
+        self.assertNotIn("formula_not_located", json.dumps(first["question_investigation"]))
+        self.assertIn("没有直接 COMPUTE", first["business_analysis_brief"]["task"])
+        self.assertIn("结果归零", result["answer"])
+        self.assertTrue(result["narrative"]["citations"])
+
     def test_stepwise_calculation_supplies_input_origins_and_binds_answer_claims(self):
         self.chain()
         result = self.ask("请逐步计算 VALUEFLOW NET-VALUE，说明输入最初来自哪里以及何时归零？",
@@ -277,10 +320,9 @@ class BusinessDetailRegressions(unittest.TestCase):
             return TransportResponse(500, '{"error":{"message":"synthetic unavailable"}}')
         result = self.ask("请详细分析 VALUEFLOW 的业务处理流程、输入来源、条件和结果去向。", respond)
         self.assert_first_material(CHAIN_MARKERS)
-        self.assertEqual(result["metrics"]["model_requests"], 3)
-        self.assertEqual(self.requests[1], self.requests[2])
-        self.assertEqual(len(result["metrics"]["provider_retries"]), 1)
-        self.assertEqual(result["metrics"]["provider_retries"][0]["outcome"], "failed")
+        self.assertEqual(result["metrics"]["model_requests"], 2)
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(result["metrics"]["provider_retries"], [])
         self.assertEqual(result["answer"], drafts[0])
         self.assertTrue(result["business_review"]["synthesis_review_attempted"])
         self.assert_answer_binding(result)

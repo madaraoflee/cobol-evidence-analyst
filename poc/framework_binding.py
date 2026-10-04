@@ -109,6 +109,7 @@ def bind_framework_source(
     controls: list[str] = []
     embedded = False
     replacement_active = False
+    source_incomplete = False
     last_move: dict | None = None
     declarations: Counter = Counter()
     program_occurrences: Counter = Counter()
@@ -238,6 +239,9 @@ def bind_framework_source(
         if raw is None:
             flush(discard=True)
             last_move = None
+            # An unreadable line may contain a persistent preprocessing or
+            # program-scope directive; a later MOVE cannot restore that proof.
+            source_incomplete = True
             continue
         expanded = raw.expandtabs(8)
         code, next_format, continuation = _clean(raw, active_format)
@@ -351,7 +355,13 @@ def bind_framework_source(
     # Repeated names in one physical file do not establish a unique program
     # scope. Keep the observation but withdraw its dependency coverage.
     for fact in facts:
-        if program_occurrences[fact["program_name"]] > 1:
+        if source_incomplete:
+            fact["dependency_covered"] = False
+            fact["reason"] = "source_line_unavailable"
+            if fact.get("operation"):
+                fact["documented_operation_candidate"] = fact["operation"]
+                fact["operation"] = None
+        elif program_occurrences[fact["program_name"]] > 1:
             fact["dependency_covered"] = False
             fact["reason"] = "program_scope_ambiguous"
     return facts

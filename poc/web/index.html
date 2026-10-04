@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>COBOL Lens · 業務洞察工作台</title>
+  <title>脈絡 · COBOL 業務分析</title>
   <script src="theme.js"></script>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="appearance.css">
@@ -14,38 +14,46 @@
   <script src="app.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">跳至主要內容</a>
   <div class="app-shell">
-    <aside class="sidebar">
-      <a class="brand" href="#workbench" aria-label="COBOL Lens 首頁"><span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i></span><span>COBOL <b>Lens</b><small>BUSINESS INTELLIGENCE</small></span></a>
-      <div class="workspace-label">工作空間 <span>POC</span></div>
+    <aside class="sidebar" id="workspace-sidebar" aria-label="工作空間導覽">
+      <button class="icon-button sidebar-close" id="navigation-close" aria-label="關閉導覽"><span data-icon="close"></span></button>
+      <a class="brand" href="#workbench" aria-label="脈絡首頁"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><path d="M8 10h7c9 0 1 20 10 20h7M8 20h24M8 30h7c9 0 1-20 10-20h7"/><circle cx="8" cy="10" r="2"/><circle cx="32" cy="30" r="2"/></svg><span><b>脈絡</b><small>COBOL 業務分析</small></span></a>
+      <button class="nav-item new-conversation" id="new-conversation-button" data-new-conversation hidden><span data-icon="plus"></span>新的對話<span class="new-conversation-arrow" data-icon="arrow"></span></button>
       <nav aria-label="主導覽">
         <button class="nav-item active" data-page="workbench"><span data-icon="spark"></span>分析工作台</button>
         <button class="nav-item" data-page="sources"><span data-icon="folder"></span>源碼資料庫<span class="nav-count" id="nav-count">—</span></button>
         <button class="nav-item" data-page="history"><span data-icon="clock"></span>分析記錄</button>
       </nav>
-      <button class="nav-item new-conversation" id="new-conversation-button" data-new-conversation hidden><span data-icon="plus"></span>新的對話</button><div id="conversation-list" class="conversation-list"></div><div class="sidebar-divider"></div>
+      <section class="project-strip" aria-label="當前源碼範圍">
+        <div class="project-card-heading"><span data-icon="folder"></span><strong id="project-title">業務案例工作台</strong><button class="icon-button" id="connect-button" aria-label="接入源碼" title="接入源碼"><span data-icon="plus"></span></button></div>
+        <span class="badge preview" id="source-badge">合成業務案例</span><small id="project-description">正在讀取業務案例</small>
+        <div class="snapshot-info" id="snapshot-info"></div>
+        <div class="mode-switch" aria-label="資料模式"><button class="selected" id="demo-mode">業務案例</button><button id="real-mode">本機源碼</button></div>
+      </section>
+      <div class="conversation-list-label">最近對話</div><div id="conversation-list" class="conversation-list"></div><div class="sidebar-divider"></div>
       <div class="sidebar-caption">本次分析</div>
       <button class="recent-item" id="recent-analysis"><span class="recent-dot"></span><span id="recent-title">業務案例工作台<small>合成業務案例 · 未呼叫模型</small></span></button>
       <div class="sidebar-bottom">
-        <div class="privacy-card"><span data-icon="shield"></span><div>源碼留在本機<small>提問時，向已設定的接口<br>傳送有限源碼與框架節錄。</small></div></div>
-        <button class="nav-item" id="settings-button"><span data-icon="settings"></span>連線設定<span class="status-dot" id="config-dot"></span></button>
-        <div class="user-profile"><span class="avatar">BA</span><span>業務分析工作空間<small>本機工作階段</small></span><span data-icon="chevron"></span></div>
+        <details class="privacy-card"><summary><span data-icon="shield"></span>源碼留在本機<span data-icon="chevron"></span></summary><p>提問時，向已設定的接口傳送有限源碼與框架節錄。</p></details>
+        <div class="connection-tools"><button class="connection-status" id="connection-status" aria-label="查看模型連線設定"><i></i>正在檢查本機服務</button><button class="icon-button" id="settings-button" aria-label="連線設定" title="連線設定"><span data-icon="settings"></span><span class="status-dot" id="config-dot"></span></button></div>
       </div>
     </aside>
     <div class="app-body">
       <header class="topbar">
-        <div class="breadcrumb">業務洞察 <span>/</span> <strong id="breadcrumb-page">分析工作台</strong></div>
-        <div class="topbar-actions"><button class="connection-status" id="connection-status" aria-label="查看模型連線設定"><i></i>正在檢查本機服務</button><span class="topbar-divider"></span><select id="language-select" class="language-select" aria-label="Language / 语言 / 語言" data-language-names><option value="zh-CN">简体中文</option><option value="zh-HK">繁體中文</option><option value="en">English</option></select><button type="button" class="theme-toggle" id="theme-toggle" aria-label="切換至夜間模式" title="切換至夜間模式"><svg class="theme-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.7A8.5 8.5 0 0 1 8.3 3.5 8.5 8.5 0 1 0 20.5 15.7Z"/></svg><span class="theme-toggle-label">夜間</span></button><span class="top-avatar">BA</span></div>
+        <button class="icon-button navigation-toggle" id="navigation-toggle" aria-label="開啟工作空間導覽" aria-controls="navigation-dialog" aria-expanded="false"><span data-icon="menu"></span></button>
+        <div class="breadcrumb"><span class="breadcrumb-mark" data-icon="spark"></span><strong id="breadcrumb-page">分析工作台</strong></div>
+        <div class="topbar-actions"><button class="topbar-export" id="export-button" aria-label="匯出摘要" title="匯出摘要"><span data-icon="download"></span><span>匯出</span></button><span class="topbar-divider"></span><select id="language-select" class="language-select" aria-label="Language / 语言 / 語言" data-language-names><option value="zh-CN">简体中文</option><option value="zh-HK">繁體中文</option><option value="en">English</option></select><button type="button" class="theme-toggle" id="theme-toggle" aria-label="切換至夜間模式" title="切換至夜間模式"><svg class="theme-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.7A8.5 8.5 0 0 1 8.3 3.5 8.5 8.5 0 1 0 20.5 15.7Z"/></svg><span class="theme-toggle-label">夜間</span></button></div>
       </header>
-      <main>
-        <div class="page-heading"><div><div class="eyebrow">FROM SOURCE TO UNDERSTANDING</div><h1 id="page-title">讓業務邏輯，清晰可見。</h1><p id="page-subtitle">從一個業務問題出發，沿著源碼找到可追溯的答案。</p></div><div class="heading-actions"><button class="button secondary" id="export-button"><span data-icon="download"></span>匯出摘要</button><button class="button primary" id="connect-button"><span data-icon="plus"></span>接入源碼</button></div></div>
-        <section class="project-strip" aria-label="當前源碼範圍"><div class="project-icon" data-icon="folder"></div><div class="project-info"><div><strong id="project-title">業務案例工作台</strong><span class="badge preview" id="source-badge">合成業務案例</span></div><small id="project-description">正在讀取業務案例</small></div><div class="snapshot-info" id="snapshot-info"><span data-icon="layers"></span>合成業務案例 · 未呼叫模型</div><div class="mode-switch" aria-label="資料模式"><button class="selected" id="demo-mode">業務案例</button><button id="real-mode">本機源碼</button></div></section>
+      <main id="main-content" tabindex="-1">
+        <div class="page-heading"><div><div class="eyebrow">FROM SOURCE TO UNDERSTANDING</div><h1 id="page-title">讓業務邏輯，清晰可見。</h1><p id="page-subtitle">從一個業務問題出發，沿著源碼找到可追溯的答案。</p></div></div>
         <div id="notice" class="notice" hidden role="status"></div>
         <div id="page-content"></div>
-        <footer class="page-footer"><span><span class="tiny-square"></span>COBOL Lens · Evidence-led analysis</span><span id="footer-scope">合成業務案例 · 未呼叫模型</span></footer>
+        <footer class="page-footer"><span><span class="tiny-square"></span><span>脈絡</span> · Evidence-led analysis</span><span id="footer-scope">合成業務案例 · 未呼叫模型</span></footer>
       </main>
     </div>
   </div>
+  <dialog id="navigation-dialog" class="navigation-dialog" aria-label="工作空間導覽"></dialog>
   <dialog id="source-dialog" class="modal source-modal" aria-labelledby="source-dialog-title"><form id="source-form"><div class="modal-heading"><div><div class="eyebrow">CONNECT YOUR SOURCE</div><h2 id="source-dialog-title">接入本機源碼</h2></div><button type="button" class="icon-button close-dialog" aria-label="關閉"><span data-icon="close"></span></button></div><p class="modal-description">選擇源碼資料夾，建立業務查找索引後，即可直接提問。</p><div class="form-progress"><span class="current">01 <b>指定資料</b></span><span>02 <b>建立索引</b></span><span>03 <b>提出問題</b></span></div><label for="source-path">源碼資料夾 <span class="required">*</span></label><div class="path-row"><div class="path-input"><span data-icon="folder"></span><input id="source-path" required placeholder="D:\cobol-data\source" autocomplete="off"></div><button type="button" class="button secondary folder-picker" data-pick-folder="source-path">選擇文件夾</button></div><small class="field-hint">可點選文件夾，也可手動填入完整路徑；可保留程式、COPYBOOK 的子資料夾。</small><label for="source-framework-path">框架文件或資料夾（選填）</label><div class="path-row"><div class="path-input"><span data-icon="document"></span><input id="source-framework-path" placeholder="D:\reference\framework" autocomplete="off"></div><button type="button" class="button secondary folder-picker" data-pick-folder="source-framework-path">選擇文件夾</button></div><small class="field-hint">可指定 Markdown 文件或包含文件的資料夾；接入後可在設定中查看辨識結果。</small><label for="output-path">分析結果資料夾 <span class="required">*</span></label><div class="path-row"><div class="path-input"><span data-icon="archive"></span><input id="output-path" required placeholder="D:\cobol-output\analysis" autocomplete="off"></div><button type="button" class="button secondary folder-picker" data-pick-folder="output-path">選擇文件夾</button></div><small class="field-hint">與源碼分開儲存，供本次及日後更新使用。</small><div class="form-grid"><div><label for="source-encoding">文字編碼</label><select id="source-encoding"><option value="auto">自動偵測</option><option value="utf-8">UTF-8</option><option value="cp950">繁體中文 · CP950</option><option value="gb18030">簡體中文 · GB18030</option><option value="cp037">EBCDIC · CP037</option><option value="utf-16">UTF-16</option></select></div><div><label for="source-format">源碼格式</label><select id="source-format"><option value="auto">自動偵測</option><option value="fixed">固定格式 · Fixed</option><option value="free">自由格式 · Free</option></select></div></div><details class="advanced-options"><summary>進階讀取選項</summary><label for="source-extensions">自訂副檔名（選填）</label><input id="source-extensions" placeholder=".cbl,.cpy,.member" autocomplete="off"><small class="field-hint">填寫後取代預設副檔名清單。無副檔名成員預設納入。</small><label class="check-option"><input id="verify-content" type="checkbox">強制校驗全部檔案內容</label><small class="field-hint">一般更新會重用未變檔案。強制校驗會完整讀取全部源碼，首次大目錄接入無需勾選。</small></details><div class="form-note"><span data-icon="shield"></span>此步驟在本機建立源碼結構與全文查找索引，不呼叫模型。</div><p id="source-picker-feedback" class="field-hint" role="status" hidden></p><div id="source-error" class="form-error" role="alert" hidden></div><div class="modal-footer"><button type="button" class="button secondary close-dialog">取消</button><button type="submit" class="button primary" id="index-submit">建立源碼索引<span data-icon="arrow"></span></button></div></form></dialog>
   <dialog id="settings-dialog" class="modal" aria-labelledby="settings-title"><div class="modal-heading"><div><div class="eyebrow">CONNECTION</div><h2 id="settings-title">模型連線設定</h2></div><button class="icon-button close-dialog" aria-label="關閉"><span data-icon="close"></span></button></div><p class="modal-description" id="settings-description"></p><div class="settings-list"><div><span>本機源碼服務</span><strong id="settings-local">未連線</strong></div><div><span>模型接口設定</span><strong id="settings-api">未提供</strong></div><div><span>框架知識</span><strong id="settings-framework">尚未設定框架資料</strong></div><div><span>API Key 儲存位置</span><strong>項目根目錄 .env 或服務環境變數</strong></div></div><div class="model-check"><button type="button" class="button secondary" id="model-check-button">測試模型連線</button><p id="model-check-feedback" class="field-hint" role="status" aria-live="polite"></p></div><p class="settings-help">首次使用：將項目根目錄的 .env.example 複製為 .env，填入以下三項並儲存。之後雙擊 poc/run_web.bat 即可啟動，無需每次重新輸入。</p><pre class="env-list">COMPANY_API_BASE_URL
 COMPANY_API_KEY

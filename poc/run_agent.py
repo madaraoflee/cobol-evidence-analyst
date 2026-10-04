@@ -12,8 +12,8 @@ from typing import Callable, Mapping, Sequence
 
 from agent_loop import BoundedAgentLoop
 from api_diagnostics import APIResponseDiagnostics
+from api_error_details import sanitize_diagnostic
 from company_api import (
-    DEFAULT_MAX_OUTPUT_TOKENS,
     DEFAULT_TIMEOUT_SECONDS,
     APIConfigurationError,
     CompanyAPIConfig,
@@ -33,6 +33,7 @@ def _not_ready(
     *,
     capability_report: Mapping[str, object] | None = None,
     diagnostics: APIResponseDiagnostics | None = None,
+    diagnostic: object = None,
 ) -> dict[str, object]:
     result: dict[str, object] = {
         "schema_version": RUNNER_SCHEMA_VERSION,
@@ -47,10 +48,42 @@ def _not_ready(
     }
     if capability_report is not None:
         result["capability_report"] = dict(capability_report)
+        if diagnostic is None:
+            diagnostic = _capability_failure_diagnostic(capability_report)
+    safe_diagnostic = sanitize_diagnostic(diagnostic)
+    if safe_diagnostic is not None:
+        result["diagnostic"] = safe_diagnostic
     if diagnostics is not None:
         result["api_diagnostics"] = diagnostics.to_dict()
         result["privacy"]["scope"] = "CONFIGURATION_AND_CAPABILITY_REPORT"
     return result
+
+
+def _capability_failure_diagnostic(report: Mapping[str, object]) -> object:
+    """Choose the blocking request failure, not an optional model-list failure."""
+    capabilities = report.get("capabilities")
+    if not isinstance(capabilities, Mapping):
+        return None
+    audit = report.get("audit", [])
+    audit = audit if isinstance(audit, list) else []
+    for name in ("chat", "tool_calling", "strict_json", "models"):
+        capability = capabilities.get(name)
+        if not isinstance(capability, Mapping) or capability.get("status") == "SUPPORTED":
+            continue
+        diagnostic = sanitize_diagnostic(capability.get("diagnostic"))
+        if diagnostic is not None:
+            return diagnostic
+        evidence = capability.get("evidence")
+        if isinstance(evidence, Mapping):
+            diagnostic = sanitize_diagnostic(evidence.get("diagnostic"))
+            if diagnostic is not None:
+                return diagnostic
+        for event in reversed(audit):
+            if isinstance(event, Mapping) and event.get("capability") == name:
+                diagnostic = sanitize_diagnostic(event.get("diagnostic"))
+                if diagnostic is not None:
+                    return diagnostic
+    return None
 
 
 def run_investigation(
@@ -69,6 +102,7 @@ def run_investigation(
     source_root: Path | str | None = None,
     max_source_pages: int = 12,
     reading_strategy: str = "focused",
+    answer_detail: str = "detailed",
     conversation_history: list[dict] | None = None,
     agent_policy=None,
     progress: Callable | None = None,
@@ -91,7 +125,7 @@ def run_investigation(
                 history=conversation_history, entry_program=entry_program,
                 framework_reference_path=framework_reference_path, transport=transport,
                 allow_network=allow_network, capture_api_responses=capture_api_responses,
-                progress=progress, check_cancel=check_cancel, policy=agent_policy)
+                progress=progress, check_cancel=check_cancel, policy=agent_policy, answer_detail=answer_detail)
         from business_analysis import run_business_analysis
         return run_business_analysis(
             question, database_path, source_root, config,
@@ -100,6 +134,7 @@ def run_investigation(
             framework_reference_path=framework_reference_path,
             allow_network=allow_network, capture_api_responses=capture_api_responses,
             max_pages=max_source_pages, reading_strategy=reading_strategy,
+            answer_detail=answer_detail,
             progress=progress, check_cancel=check_cancel,
         )
 
@@ -193,6 +228,9 @@ def run_investigation(
             "model_identifiers_recorded": False,
         },
     }
+    safe_diagnostic = sanitize_diagnostic(result.get("diagnostic"))
+    if safe_diagnostic is not None:
+        output["diagnostic"] = safe_diagnostic
     if diagnostics is not None:
         output["api_diagnostics"] = diagnostics.to_dict()
         output["privacy"]["scope"] = "CONFIGURATION_AND_CAPABILITY_REPORT"
@@ -213,6 +251,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-source-pages", type=int, default=12)
     parser.add_argument("--reading-strategy", choices=("focused", "full_chain"), default="focused",
                         help="Read selected pages or every page in the reachable source scope in batches.")
+    parser.add_argument("--answer-detail", choices=("brief", "detailed"), default="detailed",
+                        help="Business answers are detailed by default; brief keeps the conclusion and key conditions.")
     parser.add_argument(
         "--entry", "--entry-program", dest="entry_program",
         help="PROGRAM-ID, source relative path, or unique source filename to investigate.",
@@ -222,7 +262,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-style")
     parser.add_argument("--timeout-seconds", type=float, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument(
-        "--max-output-tokens", type=int, default=DEFAULT_MAX_OUTPUT_TOKENS
+        "--max-output-tokens", type=int,
+        help="Output limit override; otherwise use environment, local file, then the 1024-token adapter default."
     )
     parser.add_argument("--allow-insecure-localhost", action="store_true")
     parser.add_argument("--allow-network", action="store_true")
@@ -246,7 +287,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             allow_insecure_localhost=args.allow_insecure_localhost,
         )
     except APIConfigurationError as exc:
-        output = _not_ready(exc.code)
+        output = _not_ready(exc.code, diagnostic=getattr(exc, "diagnostic", None))
         print(json.dumps(output, ensure_ascii=False, indent=2, sort_keys=True))
         return 2
 
@@ -258,6 +299,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         entry_program=args.entry_program,
         analysis_mode=args.analysis_mode, source_root=args.source,
         max_source_pages=args.max_source_pages, reading_strategy=args.reading_strategy,
+        answer_detail=args.answer_detail,
     )
     print(json.dumps(output, ensure_ascii=False, indent=2, sort_keys=True))
     if output["runner_status"] == "COMPLETED":

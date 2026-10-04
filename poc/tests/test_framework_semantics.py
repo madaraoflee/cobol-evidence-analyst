@@ -220,6 +220,34 @@ class OfflineFrameworkSemanticsTests(unittest.TestCase):
         self.assertEqual(recovered["framework_semantics"]["files_rebuilt"], 1)
         self.assertTrue(self.facts()["facts"])
 
+    def test_truncated_preprocessing_line_never_covers_a_later_call(self):
+        from source_session import QuestionSourceSession
+        directive = "REPLACE " + " " * 66_000 + "=='ADVANCE'== BY =='STORE'==."
+        self.path.write_text(SOURCE.replace("MOVE 'ADVANCE'", directive + "\nMOVE 'ADVANCE'"))
+        report = self.build()
+        self.assertIn("source_line_exceeds_fact_budget", {
+            row["status"] for row in report["scope"]["boundaries"]})
+        self.assertEqual(report["framework_semantics"]["covered_external_calls"], 0)
+        with closing(sqlite3.connect(self.database)) as db:
+            stored, = json.loads(db.execute("SELECT facts_json FROM framework_file_semantics").fetchone()[0])
+        self.assertFalse(stored["dependency_covered"])
+        self.assertEqual(stored["reason"], "source_line_unavailable")
+        self.assertIsNone(stored["operation"])
+        self.assertEqual(stored["documented_operation_candidate"]["value"], "ADVANCE")
+        self.assertTrue(stored["reference_ids"])
+        self.assertEqual(self.build()["framework_semantics"]["files_reused"], 1)
+        cached, = self.facts()["facts"]
+        self.assertFalse(cached["dependency_covered"])
+        self.assertIsNone(cached["operation"])
+
+        # A changed manual triggers the request-time complete-source pass.
+        self.manual.write_text(MANUAL.replace("following record", "following eligible record"))
+        with QuestionSourceSession(self.database, self.source) as session:
+            rebound, = self.facts(source_session=session)["facts"]
+        self.assertFalse(rebound["dependency_covered"])
+        self.assertEqual(rebound["reason"], "source_line_unavailable")
+        self.assertIsNone(rebound["operation"])
+
     def test_changed_manual_partial_page_cannot_forget_earlier_replacement(self):
         from source_session import QuestionSourceSession
         self.path.write_text(SOURCE.replace("MOVE 'ADVANCE'", "REPLACE =='ADVANCE'== BY =='STORE'==.\nMOVE 'ADVANCE'"))

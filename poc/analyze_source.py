@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Callable, Sequence
 
 from company_api import APIConfigurationError, CompanyAPIConfig, Transport
+from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
 from repo_inventory import DEFAULT_EXTENSIONS, parse_extensions
 from run_agent import run_investigation
 from structural_index import build_structural_index
@@ -224,6 +225,7 @@ def analyze_source(
     analysis_mode: str = "strict",
     max_source_pages: int = 12,
     reading_strategy: str = "focused",
+    answer_detail: str = "detailed",
     conversation_history: list[dict] | None = None,
     agent_policy=None,
 ) -> dict:
@@ -241,6 +243,8 @@ def analyze_source(
         raise ValueError("analysis_mode must be business or strict.")
     if reading_strategy not in {"retrieval", "focused", "full_chain"}:
         raise ValueError("reading_strategy must be retrieval, focused or full_chain.")
+    if answer_detail not in {"brief", "detailed"}:
+        raise ValueError("answer_detail must be brief or detailed.")
     if type(max_source_pages) is not int or not 1 <= max_source_pages <= 128:
         raise ValueError("max_source_pages must be an integer from 1 to 128.")
     if entry is not None and not entry.strip():
@@ -253,7 +257,8 @@ def analyze_source(
             extensions=extensions, include_extensionless=include_extensionless, encoding=encoding,
             source_format=source_format, config=config, api_options=api_options, transport=transport,
             framework_reference_path=framework_reference_path, capture_api_responses=capture_api_responses,
-            history=conversation_history, progress=progress, check_cancel=check_cancel, policy=agent_policy)
+            history=conversation_history, progress=progress, check_cancel=check_cancel,
+            policy=agent_policy, answer_detail=answer_detail)
         if cached is not None:
             return cached
     repository_mode = analysis_mode == "business" and entry is None
@@ -268,7 +273,7 @@ def analyze_source(
         "source_options": {"extensions": sorted(extensions), "include_extensionless": include_extensionless,
                            "encoding": encoding, "source_format": source_format, "verify_content": verify_content,
                            "analysis_mode": analysis_mode, "max_source_pages": max_source_pages,
-                           "reading_strategy": reading_strategy},
+                           "reading_strategy": reading_strategy, "answer_detail": answer_detail},
         "artifacts": {name: str(output / name) for name in ARTIFACT_NAMES},
         "full_business_analysis_verified": False, "index_mode": index_mode,
         "catalog_ready": False, "source_manifest_verified": False,
@@ -291,7 +296,7 @@ def analyze_source(
         _write(output / "agent-result.md", "\n".join([
             "# 本次源码问答", "", f"状态：{report['question_status']}；运行状态：{agent['runner_status']}。", "",
             f"快照：{_inline((report.get('build_report') or {}).get('snapshot_id', '未生成'))}。", "",
-            answer or "本次没有生成业务答案。请查看 diagnosis.md 中的原因与下一步。", "",
+            answer or format_diagnostic(agent.get("diagnostic")) or "本次没有生成业务答案。请查看 diagnosis.md 中的原因与下一步。", "",
         ]), markdown=True)
 
     # Replace prior reports before indexing so a failed refresh cannot display an old answer as current.
@@ -454,10 +459,17 @@ def analyze_source(
                                           capture_api_responses=capture_api_responses,
                                           analysis_mode=analysis_mode, source_root=source,
                                           max_source_pages=max_source_pages, reading_strategy=reading_strategy,
+                                          answer_detail=answer_detail,
                                           progress=progress, check_cancel=check_cancel,
                                           conversation_history=conversation_history, agent_policy=agent_policy)
             except APIConfigurationError as exc:
                 agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
+                diagnostic = sanitize_diagnostic(getattr(exc, "diagnostic", None))
+                if diagnostic is not None:
+                    agent["diagnostic"] = diagnostic
+            diagnostic = sanitize_diagnostic(agent.get("diagnostic"))
+            if diagnostic is not None:
+                report["diagnostic"] = diagnostic
             result = agent.get("agent_result") or {}
             if (analysis_mode == "business" and reading_strategy == "retrieval"
                     and result.get("snapshot_id")
@@ -479,7 +491,7 @@ def analyze_source(
                 report["question_status"] = result.get("status", "COMPLETED")
             else:
                 report["question_status"] = agent["runner_status"]
-                report["messages"].append("源码索引已建立，问答未完成。请查看页面的 API 返回，或 agent-result.json 的 reason_code、capability_report、agent_result.stop_reason，区分接口、协议和调查限制。")
+                report["messages"].append(format_diagnostic(diagnostic) or "源码索引已建立，问答未完成。请查看页面的 API 返回，或 agent-result.json 的 reason_code、capability_report、agent_result.stop_reason，区分接口、协议和调查限制。")
             # Catch edits made while the model was investigating the stored snapshot.
             if not (analysis_mode == "business" and reading_strategy == "retrieval"):
                 _verify_scope(source, indexed, progress, check_cancel)
@@ -496,8 +508,16 @@ def analyze_source(
         report["source_manifest_verified"] = False
         report["framework_context"] = build_framework_context(reference_path=framework_reference_path)
         report["question_status"] = "BLOCKED" if question else "NOT_REQUESTED"
-        report["messages"].append(str(exc))
+        diagnostic = build_diagnostic("INTERNAL_ERROR")
+        report["diagnostic"] = diagnostic
+        if type(exc) is RuntimeError and exc.args in (
+            ("This SQLite build does not include FTS5 support.",),
+            ("This Python SQLite build does not include FTS5 support.",),
+        ):
+            report["messages"].append("当前 Python SQLite 不支持 FTS5，请使用包含 FTS5 的 Python 环境。")
+        report["messages"].append(format_diagnostic(diagnostic))
         response_diagnostics = agent.get("api_diagnostics")
+        prior_diagnostic = sanitize_diagnostic(agent.get("diagnostic"))
         unaccepted_response = agent.get("unaccepted_response")
         prior_result = agent.get("agent_result") or {}
         narrative = prior_result.get("narrative") or {}
@@ -507,7 +527,10 @@ def analyze_source(
             # Keep the received explanation inspectable after its source
             # authority expires, without granting it active source references.
             unaccepted_response = {"reason_code": "SOURCE_ANALYSIS_FAILED", "text": previous_text[:60_000]}
-        agent = {"runner_status": "NOT_READY", "reason_code": "SOURCE_ANALYSIS_FAILED", "agent_result": None}
+        agent = {"runner_status": "NOT_READY", "reason_code": "SOURCE_ANALYSIS_FAILED",
+                 "agent_result": None, "diagnostic": diagnostic}
+        if prior_diagnostic is not None:
+            agent["prior_diagnostic"] = prior_diagnostic
         if response_diagnostics is not None:
             # Response receipt remains observable after source authority expires.
             agent["api_diagnostics"] = response_diagnostics
@@ -528,6 +551,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-source-pages", type=int, default=12, help="Focused page budget or full-chain batch size, from 1 to 128.")
     parser.add_argument("--reading-strategy", choices=("retrieval", "focused", "full_chain"), default="retrieval",
                         help="full_chain: read all available selected source pages in batches; focused: bounded page selection.")
+    parser.add_argument("--answer-detail", choices=("brief", "detailed"), default="detailed",
+                        help="Business retrieval answers are detailed by default; brief keeps the conclusion and key conditions.")
     parser.add_argument("--framework-reference", type=Path, help="Private UTF-8 Markdown reference; defaults to FRAMEWORK_REFERENCE_PATH from the project .env.")
     parser.add_argument("--index-mode", choices=("catalog", "full"), default="full", help="catalog: quick inventory, then bounded entry analysis; full: detailed whole-directory index.")
     parser.add_argument("--verify-content", action="store_true", help="Reread content instead of trusting unchanged file metadata.")
@@ -543,7 +568,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--chat-model")
     parser.add_argument("--api-style")
     parser.add_argument("--timeout-seconds", type=float, default=60.0)
-    parser.add_argument("--max-output-tokens", type=int, default=4096)
+    parser.add_argument("--max-output-tokens", type=int,
+                        help="Output limit override; otherwise use environment, local file, then the 4096-token analysis default.")
     parser.add_argument("--allow-insecure-localhost", action="store_true")
     return parser
 
@@ -559,9 +585,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                                 index_mode=args.index_mode, verify_content=args.verify_content,
                                 framework_reference_path=args.framework_reference,
                                 analysis_mode=args.analysis_mode, max_source_pages=args.max_source_pages,
-                                reading_strategy=args.reading_strategy, agent_policy=policy,
+                                reading_strategy=args.reading_strategy, answer_detail=args.answer_detail, agent_policy=policy,
                                 api_options={"base_url": args.base_url, "chat_model": args.chat_model, "api_style": args.api_style,
                                              "timeout_seconds": args.timeout_seconds, "max_output_tokens": args.max_output_tokens,
+                                             "default_max_output_tokens": 4096, "profile_name": "analysis",
                                              "allow_insecure_localhost": args.allow_insecure_localhost}, quiet=False)
     except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
         print(json.dumps({"runner_status": "BLOCKED", "reason_code": "INVALID_PATH_OR_OPTIONS", "message": str(exc),

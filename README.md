@@ -2,9 +2,27 @@
 
 **系统的最终交付是通用业务分析：直接提出业务问题，由系统在本地代码库查找、阅读和解释相关逻辑。** 没有固定业务主题词典或预置问答路线；演示案例只是操作示例。真实作业调度作为后续可选能力，当前聚焦本地 COBOL/COPYBOOK 与用户提供的框架资料。
 
+**统一发布入口（2026-10-04）：以 GitHub 的 `main` 分支为准。** 办公室电脑只需 Python 3.10 或更高版本及 Git，不需要安装额外 Python 包或构建前端；Node 仅供开发者运行页面测试。首次下载，在 Windows 终端执行：
+
+```bat
+git clone --branch main https://github.com/madaraoflee/cobol-evidence-analyst.git
+cd cobol-evidence-analyst
+copy .env.example .env
+```
+
+首次填写 `.env` 中的接口地址、密钥和模型后，双击 `poc\run_web.bat`。以后更新先在旧工作台的启动窗口按 Ctrl+C 停止服务，再在项目目录执行；只有拉取成功后才重新启动：
+
+```bat
+git switch main
+git pull --ff-only
+poc\run_web.bat
+```
+
+更新时保留已有 `.env`、本机源码、私有框架资料和分析结果，无需重新复制配置模板。它们不会随 GitHub 分发；新电脑须自行配置或复制获准使用的资料。若切换分支或拉取提示本地改动、分支分叉，先保留并核对改动，不要强制覆盖。完整步骤见[系统使用手册](./docs/15-system-user-manual.md)。
+
 网页现以持久多轮对话为主。首次接入建立全库结构与全文索引；提问直接复用索引，使用关键词相关性、CALL/COPY 关系及对话中已引用片段检索，资料足够时一次模型请求回答，需要时才继续搜索或按行补读。无需手选入口，也不默认逐页分析长程序。详见[系统使用手册](./docs/15-system-user-manual.md)。
 
-**当前状态与重要限制（2026-09-28）：**默认问答使用本机 SQLite FTS5/BM25 和静态关系导航，不是稠密语义检索或完整控制/数据流证明；普通自然语言回答的语义与问题完整性未核验。另已复现同长度内容变更且保留 mtime 时会取回旧源码证据，修复前不得把引用视为当前内容的完整性证明。详见[当前实现与已知限制](./docs/16-current-implementation-status.md)。
+**当前状态与重要限制：**默认问答使用本机 SQLite FTS5/BM25、静态关系和按需语义侧库。本题首次读取选中文件时采集内容哈希及稳定副本，发现索引与内容不同就局部刷新，已覆盖等长且保留 mtime 的修改；新增文件仍需重新接入，其他兼容入口可能保留旧检查方式。这不等于整库实时一致或完整控制/数据流证明，普通自然语言回答的语义与问题完整性仍未核验。详见[当前实现与已知限制](./docs/16-current-implementation-status.md)。
 
 **对话和引用保存在本机，可连续追问、恢复历史和新建对话；普通聊天正文直接展示。** 源码新增或更新时重新接入一次，日常追问只核对命中的文件；旧完整链批量解读作为可选深入分析保留。具体操作见[系统使用手册](./docs/15-system-user-manual.md)。
 
@@ -16,7 +34,7 @@
 
 **实际框架资料自动加载：** 在连接设置中指定 Markdown/文本文件或资料目录并立即检查加载数量，支持子目录与 UTF-16 BOM。默认沿用 `.poc-data/framework/reference.md` 或 `.env` 的 `FRAMEWORK_REFERENCE_PATH`；网页保存的本机路径优先。系统把与当前源码相关的章节交给模型，保留资料和源码引用。GitHub 下载不会包含私有文件，详细步骤见[最新系统使用手册](./docs/15-system-user-manual.md)。
 
-命令行接入大源码库时，必须显式选择轻量目录模式：
+命令行接入业务源码可使用以下命令。当前默认业务模式在无入口时建立全库业务结构与全文索引；`catalog` 参数不表示只读取文件头：
 
 ```bat
 python poc\analyze_source.py ^
@@ -40,7 +58,7 @@ python poc\analyze_source.py ^
 - [领导演示 Word 文档](./docs/leadership-demo/COBOL业务分析系统POC演示说明.docx)
 
 - [系统使用手册（当前版本）](./docs/15-system-user-manual.md)
-- [当前实现与已知限制（2026-09-28）](./docs/16-current-implementation-status.md)
+- [当前实现与已知限制](./docs/16-current-implementation-status.md)
 - [任务计划与进度总表（当前进度入口）](./docs/12-task-plan-and-progress.md)
 - [Smart Developer 框架对齐与通用 POC 使用](./docs/13-framework-alignment.md)
 - [框架路径、文件筛选、游标、锁、事务与重启契约](./docs/14-framework-paths-and-runtime-contracts.md)
@@ -100,7 +118,7 @@ P3-E 已加入完整静态调用点链上下文。同一包装程序被调用两
 
 P3-F 已实现显式语法子集的局部异常控制流与有界状态路径：区分调用正常/失败、计算正常/溢出，跟踪错误后的输出直到模型退出，并能检出清零后再次覆写。新样例 5 个程序展开为 8 个静态上下文，三项安全事件预期及单独的非零覆写反例均符合验收；隐式作用域、循环和跨程序真实执行仍未证明。
 
-T01 已在明确支持范围内组合实际子程序源码路径与调用方返回：状态 21 经六步参数记录到达入口和汇总；30 项主检查、6 项复制隔断检查通过，调用方覆写 7 的副本触发 5 项安全预期失败。未绑定 LINKAGE、别名、递归和未决目标不伪装成完整结果；全量 438 项测试通过。可查看 [T01 报告](./docs/reports/2026-09-08-t01-interprogram-error-returns.md)或 [本地案例结果](./.poc-data/error-return-v5/result.md)。
+T01 已在明确支持范围内组合实际子程序源码路径与调用方返回：状态 21 经六步参数记录到达入口和汇总；30 项主检查、6 项复制隔断检查通过，调用方覆写 7 的副本触发 5 项安全预期失败。未绑定 LINKAGE、别名、递归和未决目标不伪装成完整结果；全量 438 项测试通过。可查看 [T01 报告](./docs/reports/2026-09-08-t01-interprogram-error-returns.md)或 运行 `poc/run_error_return_demo.bat` 生成的本地案例结果。
 
 F01 增加以任意源码目录、入口和版本 profile 驱动的离线结构审查；F02 进一步把控制 COPY 接入现有 CFG 的框架模式，沿实际子程序与参数回写推进。F03 子集以版本契约模拟文件等值筛选、游标、锁、提交/回滚和检查点恢复。15 个场景的 92 项独立预期通过，当前全库 675 项测试通过；这些是合成源码模型结果，不是实际 I/O 或全部业务路径证明。见[本轮验收报告](./docs/reports/2026-09-12-framework-control-paths.md)及[运行方式与边界](./docs/14-framework-paths-and-runtime-contracts.md)。
 

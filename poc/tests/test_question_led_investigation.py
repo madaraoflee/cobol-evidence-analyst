@@ -100,7 +100,7 @@ class QuestionLedInvestigationTests(unittest.TestCase):
         self.assertIn("requests a record", json.dumps(requests))
         self.assertNotIn(self.config.api_key, json.dumps(runner))
 
-    def test_planning_failure_uses_local_search_and_keeps_business_answer(self):
+    def test_planning_failure_keeps_local_search_and_stops_model_requests(self):
         self.fixture()
         requests = []
 
@@ -113,12 +113,15 @@ class QuestionLedInvestigationTests(unittest.TestCase):
             return reply("保留天数上限为14。" + (f"[{page['evidence_id']}]" if page.get("evidence_id") else ""))
 
         report, runner = self.run_question("HOLD-LIMIT 如何决定预留？", transport)
-        self.assertEqual(runner["runner_status"], "COMPLETED", report)
-        self.assertIn("14", runner["agent_result"]["answer"])
-        investigation = runner["agent_result"]["investigation"]
+        self.assertEqual(runner["runner_status"], "NOT_READY", report)
+        self.assertIsNone(runner["agent_result"])
+        investigation = runner["investigation"]
         self.assertEqual(investigation["search_stop_reason"], "planning_unavailable")
         self.assertEqual(investigation["planning_diagnostics"][0]["code"], "HTTP_ERROR")
-        self.assertEqual(sum(item.get("stage") == "repository_search" for item in requests), 1)
+        self.assertEqual(len(requests), 1)
+        self.assertTrue(report["source_manifest_verified"])
+        self.assertIn("allocation.cbl", investigation["selected_paths"])
+        self.assertEqual(runner["diagnostic"]["category"], "http_5xx_unknown")
 
     def test_unknown_concept_does_not_require_entry_or_a_predefined_topic(self):
         self.write("new-feature.cbl", "ROSTER", "IF WAIT-SLOTS > 0\nMOVE 'QUEUED' TO RESERVATION-STATE\nEND-IF.",
@@ -138,19 +141,24 @@ class QuestionLedInvestigationTests(unittest.TestCase):
         self.assertTrue(runner["agent_result"]["investigation"]["fallback_all"])
         self.assertEqual(set(seen), {"new-feature.cbl", "other.cbl"})
 
-    def test_invalid_planner_envelope_falls_back_without_discarding_an_answer(self):
+    def test_invalid_planner_envelope_keeps_local_index_without_another_model_call(self):
         self.fixture()
+        calls = []
 
         def transport(request):
+            calls.append(request)
             supplied = json.loads(json.loads(request.body)["messages"][-1]["content"])
             if supplied.get("stage") == "repository_search":
                 return TransportResponse(200, "temporary non-json gateway reply")
             return reply("保留天数在源码中定义为14；已有规则可以正常解释。")
 
-        _, runner = self.run_question("HOLD-LIMIT 如何使用？", transport)
-        self.assertEqual(runner["runner_status"], "COMPLETED")
-        self.assertIn("14", runner["agent_result"]["answer"])
-        self.assertEqual(runner["agent_result"]["investigation"]["planning_diagnostics"][0]["code"], "INVALID_JSON_RESPONSE")
+        report, runner = self.run_question("HOLD-LIMIT 如何使用？", transport)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(runner["runner_status"], "NOT_READY")
+        self.assertIsNone(runner["agent_result"])
+        self.assertTrue(report["source_manifest_verified"])
+        self.assertEqual(runner["investigation"]["planning_diagnostics"][0]["code"], "INVALID_JSON_RESPONSE")
+        self.assertEqual(runner["diagnostic"]["category"], "invalid_response")
 
     def test_explicit_overview_request_reads_all_indexed_files(self):
         self.fixture()

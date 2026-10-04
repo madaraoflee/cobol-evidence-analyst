@@ -1,4 +1,4 @@
-"""Offline regression coverage for bounded retries of transient HTTP failures."""
+"""Offline regression coverage for stopping after provider HTTP failures."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from agent_policy import AgentPolicy
-from analyze_source import AnalysisCancelled
 from business_chat import run_business_chat
 from business_index import build_business_index
 from company_api import APIClientError, CompanyAPIConfig, TransportResponse
@@ -45,14 +44,17 @@ class BusinessChatHTTPRecoveryTests(unittest.TestCase):
                     if "COMPUTE RESULT-AMOUNT" in page["source_text"])
         return f"结果金额等于 10 乘以 2，得到 20。[{page['evidence_id']}]"
 
-    def ask(self, script, *, limit=5):
+    def ask(self, script, *, limit=5, revisions=0):
         self.requests = []
 
         def transport(request):
             self.requests.append(request)
+            self.assertLessEqual(len(self.requests), len(script), "provider failures must not retry")
             response = script[len(self.requests) - 1]
             if isinstance(response, BaseException):
                 raise response
+            if isinstance(response, TransportResponse):
+                return response
             if isinstance(response, int):
                 return TransportResponse(response, '{"error":{"message":"synthetic gateway failure"}}')
             payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
@@ -62,12 +64,9 @@ class BusinessChatHTTPRecoveryTests(unittest.TestCase):
                 "usage": {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}},
                 ensure_ascii=False))
 
-        with mock.patch("business_chat.time.sleep") as sleep:
-            output = run_business_chat("ORDER-RULE 的 RESULT-AMOUNT 怎么计算？", self.database,
-                self.source, self.config, transport=transport, framework_reference_path="",
-                policy=AgentPolicy(max_model_requests=limit))
-        self.sleep_calls = sleep.call_count
-        self.sleep_seconds = sum(call.args[0] for call in sleep.call_args_list)
+        output = run_business_chat("ORDER-RULE 的 RESULT-AMOUNT 怎么计算？", self.database,
+            self.source, self.config, transport=transport, framework_reference_path="",
+            policy=AgentPolicy(max_model_requests=limit, max_answer_revisions=revisions))
         self.result = output["agent_result"]
         self.trace = json.loads(Path(self.result["metrics"]["quality_trace_path"]).read_text(encoding="utf-8"))
         return self.result
@@ -78,133 +77,89 @@ class BusinessChatHTTPRecoveryTests(unittest.TestCase):
         self.assertEqual(self.result["model_turns"], count)
         self.assertEqual(len(self.result["metrics"]["request_bytes"]), count)
         self.assertEqual(len(self.trace["rounds"]), count)
+        self.assertEqual(self.result["metrics"]["provider_retries"], [])
         self.assertTrue(all(json.loads(request.body)["max_tokens"] == 2048 for request in self.requests))
 
-    def test_server_error_retries_identical_request_and_binds_answer_to_successful_round(self):
-        result = self.ask([500, self.answer], limit=2)
-        self.assert_request_accounting(2)
-        self.assertAlmostEqual(self.sleep_seconds, 1.0)
-        self.assertEqual(self.requests[0].body, self.requests[1].body)
-        self.assertEqual(self.requests[0].timeout_seconds, self.requests[1].timeout_seconds)
-        self.assertEqual(self.requests[0].url, self.requests[1].url)
-        self.assertEqual(self.trace["rounds"][0]["request_body_sha256"],
-                         self.trace["rounds"][1]["request_body_sha256"])
-        self.assertEqual(self.trace["rounds"][0]["response"]["error"], "HTTP_ERROR")
-        self.assertEqual(self.trace["final"]["final_answer_round_id"], "round-2")
-        visible = {source["evidence_id"] for source in self.trace["rounds"][1]["sources"]}
-        self.assertTrue(result["narrative"]["citations"])
-        self.assertLessEqual({ref["evidence_id"] for ref in result["narrative"]["citations"]}, visible)
-        self.assertFalse(result["diagnostics"])
-        self.assertEqual(result["status"], "ANALYZED")
-        retry = result["metrics"]["provider_retries"]
-        self.assertEqual(len(retry), 1)
-        self.assertEqual({key: retry[0][key] for key in
-            ("failed_round_id", "retry_round_id", "http_status", "outcome", "max_output_tokens")},
-            {"failed_round_id": "round-1", "retry_round_id": "round-2", "http_status": 500,
-             "outcome": "recovered", "max_output_tokens": 2048})
-        self.assertEqual(retry[0]["request_bytes"], len(self.requests[0].body))
-        self.assertEqual(result["metrics"]["usage"]["status"], "partial")
-
-    def test_repeated_server_error_stops_after_one_retry_for_the_whole_question(self):
-        result = self.ask([500, 500], limit=5)
-        self.assert_request_accounting(2)
-        self.assertAlmostEqual(self.sleep_seconds, 1.0)
-        self.assertEqual(result["status"], "ABSTAINED")
-        self.assertEqual(result["metrics"]["provider_retries"][0]["outcome"], "failed")
-        self.assertEqual(result["diagnostics"][-1]["http_status"], 500)
-        self.assertNotIn("synthetic gateway failure", result["answer"])
-
-    def test_single_request_budget_does_not_allow_retry(self):
-        result = self.ask([503], limit=1)
-        self.assert_request_accounting(1)
-        self.assertEqual(self.sleep_calls, 0)
-        self.assertEqual(result["metrics"]["provider_retries"], [])
-        self.assertEqual(result["diagnostics"][-1]["http_status"], 503)
-
-    def test_only_selected_server_statuses_are_retried(self):
-        for status in (502, 503, 504):
-            with self.subTest(status=status):
-                result = self.ask([status, self.answer], limit=2)
-                self.assert_request_accounting(2)
-                self.assertEqual(result["metrics"]["provider_retries"][0]["http_status"], status)
-                self.assertFalse(result["diagnostics"])
-        for status in (400, 401, 403, 404, 408, 429, 501, 505):
+    def test_server_errors_stop_without_automatic_resend(self):
+        for status in (500, 502, 503, 504):
             with self.subTest(status=status):
                 result = self.ask([status], limit=5)
                 self.assert_request_accounting(1)
-                self.assertEqual(self.sleep_calls, 0)
-                self.assertEqual(result["metrics"]["provider_retries"], [])
+                self.assertEqual(result["status"], "ABSTAINED")
+                self.assertFalse(result["model_answer_recorded"])
                 self.assertEqual(result["diagnostics"][-1]["http_status"], status)
+                self.assertEqual(self.trace["rounds"][0]["response"]["error"], "HTTP_ERROR")
+                self.assertNotIn("synthetic gateway failure", result["answer"])
+
+    def test_other_http_statuses_also_stop_without_resend(self):
+        for status in (400, 401, 403, 404, 408, 429, 501, 505):
+            with self.subTest(status=status):
+                result = self.ask([status])
+                self.assert_request_accounting(1)
+                self.assertEqual(result["diagnostics"][-1]["http_status"], status)
+
+    def test_single_request_budget_records_failed_request_once(self):
+        result = self.ask([503], limit=1)
+        self.assert_request_accounting(1)
+        self.assertEqual(result["diagnostics"][-1]["http_status"], 503)
 
     def test_timeout_and_non_http_errors_do_not_retry(self):
         for error in (APIClientError("REQUEST_TIMEOUT"), APIClientError("TRANSPORT_ERROR"),
                       APIClientError("INVALID_JSON_RESPONSE", http_status=500)):
             with self.subTest(code=error.code):
-                result = self.ask([error], limit=5)
+                result = self.ask([error])
                 self.assert_request_accounting(1)
-                self.assertEqual(self.sleep_calls, 0)
-                self.assertEqual(result["metrics"]["provider_retries"], [])
                 self.assertEqual(result["diagnostics"][-1]["code"], error.code)
 
-    def test_tool_reply_in_last_retry_slot_cannot_trigger_further_investigation(self):
-        result = self.ask([500, '{"search":["RESULT-AMOUNT"]}'], limit=2)
+    def test_user_can_start_a_new_request_after_server_failure(self):
+        self.ask([500])
+        self.assert_request_accounting(1)
+        result = self.ask([self.answer])
+        self.assert_request_accounting(1)
+        self.assertTrue(result["model_answer_recorded"])
+        self.assertFalse(result["diagnostics"])
+        self.assertEqual(self.trace["final"]["final_answer_round_id"], "round-1")
+
+    def test_failure_after_investigation_does_not_trigger_resend(self):
+        result = self.ask(['{"search":["RESULT-AMOUNT"]}', 503])
         self.assert_request_accounting(2)
-        self.assertEqual(result["metrics"]["tool_calls"]["search"], 0)
-        self.assertFalse(result["model_answer_recorded"])
-        self.assertEqual(result["metrics"]["provider_retries"][0]["outcome"], "recovered")
-
-    def test_retry_consumes_a_round_before_subsequent_tool_and_answer(self):
-        result = self.ask([500, '{"search":["RESULT-AMOUNT"]}', self.answer], limit=3)
-        self.assert_request_accounting(3)
         self.assertEqual(result["metrics"]["tool_calls"]["search"], 1)
-        self.assertEqual(self.trace["final"]["final_answer_round_id"], "round-3")
-        final_payload = json.loads(json.loads(self.requests[-1].body)["messages"][-1]["content"])
-        self.assertEqual(final_payload["investigation_budget"]["remaining_model_requests"], 1)
-        self.assertEqual(final_payload["investigation_budget"]["searches_per_turn"], 0)
-
-    def test_retry_allowance_is_shared_after_success_and_followup_tool_request(self):
-        result = self.ask([500, '{"search":["RESULT-AMOUNT"]}', 503], limit=5)
-        self.assert_request_accounting(3)
-        self.assertAlmostEqual(self.sleep_seconds, 1.0)
-        self.assertEqual(len(result["metrics"]["provider_retries"]), 1)
         self.assertEqual(result["diagnostics"][-1]["http_status"], 503)
+        self.assertFalse(result["model_answer_recorded"])
 
-    def test_failed_revision_retry_keeps_draft_and_original_citation_round(self):
+    def test_continuation_counts_each_send_once_and_preserves_its_budget(self):
+        truncated = TransportResponse(200, json.dumps({"choices": [{"message": {
+            "role": "assistant", "content": "结果金额依次计算，剩余条件尚未写完。"},
+            "finish_reason": "length"}]}))
+        for response in (self.answer, 503, truncated):
+            with self.subTest(response=response):
+                result = self.ask([truncated, response], limit=4)
+                self.assert_request_accounting(2)
+                self.assertTrue(result["continuation_attempted"])
+                self.assertTrue(result["model_answer_recorded"])
+                self.assertEqual(self.trace["rounds"][1]["stage"], "continue")
+                self.assertEqual(len(self.trace["question_investigation_rounds"]), 2)
+                continuation = json.loads(json.loads(self.requests[1].body)["messages"][-1]["content"])
+                self.assertEqual(continuation["investigation_budget"]["remaining_model_requests"], 3)
+                expected_round = "round-1" if response == 503 else "round-2"
+                self.assertEqual(self.trace["final"]["final_answer_round_id"], expected_round)
+        result = self.ask([truncated], limit=1)
+        self.assert_request_accounting(1)
+        self.assertFalse(result["continuation_attempted"])
+        self.assertTrue(result["model_answer_recorded"])
+
+    def test_failed_revision_keeps_draft_and_original_citation_round(self):
         with mock.patch("business_chat.needs_synthesis_review", return_value=True):
-            result = self.ask([self.answer, 502, 502], limit=3)
-        self.assert_request_accounting(3)
-        self.assertEqual(self.requests[1].body, self.requests[2].body)
+            result = self.ask([self.answer, 502], revisions=1)
+        self.assert_request_accounting(2)
         self.assertEqual(self.trace["final"]["final_answer_round_id"], "round-1")
         self.assertTrue(result["model_answer_recorded"])
         self.assertIn("得到 20", result["answer"])
         self.assertTrue(result["narrative"]["citations"])
+        visible = {source["evidence_id"] for source in self.trace["rounds"][0]["sources"]}
+        self.assertLessEqual({ref["evidence_id"] for ref in result["narrative"]["citations"]}, visible)
         self.assertTrue(any(boundary.get("reason") == "usable_draft_retained" for boundary in result["boundaries"]))
-        retry = result["metrics"]["provider_retries"][0]
-        self.assertEqual((retry["failed_round_id"], retry["retry_round_id"], retry["outcome"]),
-                         ("round-2", "round-3", "failed"))
-
-    def test_cancellation_during_retry_delay_prevents_second_request(self):
-        cancelled = False
-
-        def cancel_during_wait(seconds):
-            nonlocal cancelled
-            cancelled = True
-
-        def check_cancel():
-            if cancelled:
-                raise AnalysisCancelled("Synthetic user cancellation.")
-
-        def transport(request):
-            self.requests.append(request)
-            return TransportResponse(503, "Synthetic service failure.")
-
-        with mock.patch("business_chat.time.sleep", side_effect=cancel_during_wait) as sleep:
-            with self.assertRaises(AnalysisCancelled):
-                run_business_chat("ORDER-RULE 的 RESULT-AMOUNT 怎么计算？", self.database,
-                    self.source, self.config, transport=transport, framework_reference_path="",
-                    check_cancel=check_cancel, policy=AgentPolicy(max_model_requests=3))
-        self.assertEqual(len(self.requests), 1)
-        self.assertEqual(sleep.call_count, 1)
+        self.assertEqual(result["diagnostics"][-1]["http_status"], 502)
 
 
 if __name__ == "__main__":

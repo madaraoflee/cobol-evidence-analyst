@@ -7,6 +7,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from api_error_details import sanitize_diagnostic
 from company_api import APIClientError, CompanyAPIConfig, TransportResponse
 from web_app import WorkbenchState
 
@@ -33,6 +34,9 @@ class ConnectionMessageTests(unittest.TestCase):
                     raise APIClientError(code, transport_reason=reason)
 
                 result = self.check(transport)
+                diagnostic = result.pop("diagnostic")
+                self.assertEqual(diagnostic, sanitize_diagnostic(diagnostic))
+                self.assertEqual(diagnostic["transport_reason"], reason)
                 self.assertEqual(result, {"usable": False, "code": code, "http_status": None,
                                           "model_returned": False, "transport_reason": reason})
                 self.assertEqual(len(requests), 1)
@@ -42,6 +46,8 @@ class ConnectionMessageTests(unittest.TestCase):
 
     def test_server_failure_is_an_http_response_not_a_transport_failure(self):
         result = self.check(lambda request: TransportResponse(500, "synthetic failure"))
+        diagnostic = result.pop("diagnostic")
+        self.assertEqual(diagnostic["category"], "http_5xx_unknown")
         self.assertEqual(result, {"usable": False, "code": "HTTP_ERROR", "http_status": 500,
                                   "model_returned": False})
 

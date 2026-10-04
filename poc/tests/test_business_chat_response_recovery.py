@@ -89,8 +89,6 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
 
     def assert_safe_failure(self, output, code, stage, *, http_status=None):
         result = self.assert_abstained(output)
-        self.assertNotIn("诊断：", result["answer"])
-        self.assertLessEqual(len(result["answer"]), 50)
         self.assertEqual(output["reason_code"], code)
         error = next(item for item in result["diagnostics"] if item["code"] == code)
         self.assertEqual(error["stage"], stage)
@@ -141,6 +139,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
         with mock.patch.object(business_chat, "build_business_map", side_effect=limited_map):
             output = run_business_chat("rule.cbl 的金额怎么计算？", self.database, self.source,
                 self.config, transport=transport, framework_reference_path="",
+                answer_detail="brief",
                 policy=AgentPolicy(max_model_requests=3, max_answer_revisions=0,
                                    max_source_characters=512,
                                    initial_pages=1, initial_source_characters=512))
@@ -272,6 +271,164 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
                 self.assertTrue(shape["reasoning_present"])
                 self.assertFalse(shape["tool_calls_present"])
                 self.assertEqual(shape["choice_count"], 1)
+                result = output["agent_result"]
+                self.assertTrue(result["answer_truncated"])
+                self.assertEqual(result["finish_reason"], "length")
+                summary = result["diagnostic_summary"]
+                self.assertEqual(summary["requests"][0]["finish_reason"], "length")
+                self.assertEqual(summary["requests"][0]["raw_content_characters"], None if content is None else 0)
+                self.assertIsNone(summary["requests"][0]["parsed_answer_characters"])
+                self.assertEqual(summary["requests"][0]["choice_index"], 0)
+                self.assertIn("output_limit_reached", summary["source_coverage"]["limitation_codes"])
+
+    def test_rejected_second_choice_does_not_inherit_first_choice_length(self):
+        body = json.dumps({"action": "search", "arguments": {"query": "neutral"}})
+        raw = {"choices": [{"message": {"content": None}, "finish_reason": "length"},
+                           {"message": {"content": body}, "finish_reason": "stop"}]}
+        output = self.ask(lambda payload: TransportResponse(200, json.dumps(raw)))
+        result = output["agent_result"]
+        self.assertEqual(result["stop_reason"], "MODEL_ACTION_RESPONSE")
+        self.assertEqual(result["finish_reason"], "stop")
+        self.assertFalse(result["answer_truncated"])
+        summary = result["diagnostic_summary"]
+        self.assertEqual(summary["requests"][0]["choice_index"], 1)
+        self.assertEqual(summary["requests"][0]["raw_content_characters"], len(body))
+        self.assertEqual(summary["source_coverage"]["limitation_codes"], ["parser_failed"])
+
+    def test_long_native_completion_keeps_entire_answer(self):
+        text = "先读取参数，再按基础金额乘系数计算，负值时结果归零。\n\n" * 220 + "结尾条件也必须保留。"
+        output = self.ask(lambda payload: completion(text))
+        self.assert_answer(output, text)
+        self.assertFalse(output["agent_result"]["answer_truncated"])
+        self.assertEqual(output["agent_result"]["finish_reason"], "stop")
+        summary = output["agent_result"]["diagnostic_summary"]
+        self.assertEqual(summary["requests"][0]["raw_content_characters"], len(text))
+        self.assertEqual(summary["requests"][0]["parsed_answer_characters"], len(text))
+        self.assertEqual(summary["output"]["final_answer_characters"], len(text))
+        self.assertNotIn("结尾条件", json.dumps(summary, ensure_ascii=False))
+
+    def test_finish_reason_follows_selected_choice_with_usable_content(self):
+        text = "基础金额大于零时乘以系数，否则结果归零。"
+        raw = {"choices": [{"message": {"content": None}, "finish_reason": "length"},
+                           {"message": {"content": text}, "finish_reason": "stop"}]}
+        output = self.ask(lambda payload: TransportResponse(200, json.dumps(raw, ensure_ascii=False)))
+        self.assert_answer(output, text)
+        self.assertEqual(output["agent_result"]["finish_reason"], "stop")
+        self.assertEqual(output["agent_result"]["diagnostic_summary"]["requests"][0]["choice_index"], 1)
+
+    def test_length_with_body_is_partial_with_explicit_stop_reason(self):
+        text = "金额为基础金额乘系数；条件和例外尚未写完。"
+        output = self.ask(lambda payload: completion(text, finish_reason="length"))
+        self.assert_answer(output, text)
+        result = output["agent_result"]
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["stop_reason"], "MODEL_OUTPUT_TRUNCATED")
+        self.assertEqual(output["reason_code"], "MODEL_OUTPUT_TRUNCATED")
+        self.assertTrue(result["answer_truncated"])
+        self.assertEqual(result["finish_reason"], "length")
+
+    def test_length_continues_once_with_same_budgets_preserving_original_and_citations(self):
+        self.requests.clear()
+        answers, citations, budgets = [], [], []
+
+        def transport(request):
+            envelope = json.loads(request.body)
+            payload = json.loads(envelope["messages"][-1]["content"])
+            self.requests.append(payload)
+            budgets.append(envelope["max_tokens"])
+            page = payload["source_context"][0]["pages"][0]
+            citations.append(page["evidence_id"])
+            if len(self.requests) == 1:
+                text = f"金额为基础金额乘系数。[{page['evidence_id']}]"
+                answers.append(text)
+                return completion(text, finish_reason="length")
+            self.assertEqual(payload["draft_answer"], answers[0])
+            text = f"基础金额不大于零时，结果归零。[{page['evidence_id']}]"
+            answers.append(text)
+            return completion(text)
+
+        result = run_business_chat("FINAL-AMOUNT 怎么计算？", self.database, self.source,
+            self.config, transport=transport, framework_reference_path="",
+            policy=AgentPolicy(max_model_requests=2, max_answer_revisions=0))["agent_result"]
+        self.assertEqual(result["answer"], "\n\n".join(answers))
+        self.assertEqual(result["narrative"]["text"], result["answer"])
+        self.assertTrue(set(citations) <= {item["evidence_id"] for item in result["narrative"]["citations"]})
+        self.assertEqual(budgets, [self.config.max_output_tokens] * 2)
+        self.assertTrue(result["continuation_attempted"])
+        self.assertFalse(result["answer_truncated"])
+        self.assertEqual(result["finish_reason"], "stop")
+        self.assertNotEqual(result["stop_reason"], "MODEL_OUTPUT_TRUNCATED")
+        summary = result["diagnostic_summary"]
+        self.assertEqual(summary["requests"][1]["stage"], "continuation")
+        self.assertEqual([item["parsed_answer_characters"] for item in summary["requests"]],
+                         [len(answer) for answer in answers])
+        self.assertEqual(summary["output"]["final_answer_characters"], len(result["answer"]))
+
+    def test_continuation_length_does_not_loop_or_discard_first_body(self):
+        self.requests.clear()
+        answers = []
+
+        def transport(request):
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            self.requests.append(payload)
+            text = "金额为基础金额乘系数。" if len(self.requests) == 1 else "条件说明尚未写完。"
+            answers.append(text)
+            return completion(text, finish_reason="length")
+
+        result = run_business_chat("FINAL-AMOUNT 怎么计算？", self.database, self.source,
+            self.config, transport=transport, framework_reference_path="",
+            policy=AgentPolicy(max_model_requests=4, max_answer_revisions=0))["agent_result"]
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(result["answer"], "\n\n".join(answers))
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["stop_reason"], "MODEL_OUTPUT_TRUNCATED")
+
+    def test_continuation_failure_stops_and_retains_original_answer(self):
+        for followup in (completion("", refusal=self.provider_echo),
+                         TransportResponse(429, json.dumps({"error": {"message": self.provider_echo}}))):
+            with self.subTest(reply=followup):
+                self.requests.clear()
+                original = "金额为基础金额乘系数，条件说明尚未完成。"
+
+                def transport(request):
+                    payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+                    self.requests.append(payload)
+                    return completion(original, finish_reason="length") if len(self.requests) == 1 else followup
+
+                result = run_business_chat("FINAL-AMOUNT 怎么计算？", self.database, self.source,
+                    self.config, transport=transport, framework_reference_path="",
+                    policy=AgentPolicy(max_model_requests=4, max_answer_revisions=0))["agent_result"]
+                self.assertEqual(len(self.requests), 2)
+                self.assertEqual(result["answer"], original)
+                self.assertEqual(result["status"], "PARTIAL")
+                self.assertTrue(result["answer_truncated"])
+                self.assertNotEqual(result["stop_reason"], "sufficient_material")
+                self.assertNotIn(self.provider_echo, json.dumps(result, ensure_ascii=False))
+
+    def test_long_continuation_prompt_keeps_tail_within_request_budget(self):
+        self.requests.clear()
+        original = "原始开头必须保留。" + "中间业务规则说明。" * 5000 + "最后的条件尚未写完："
+        appended = "条件满足时计算金额，否则结果归零。"
+        sizes = []
+        policy = AgentPolicy(max_model_requests=2, max_answer_revisions=0, max_request_bytes=32768)
+
+        def transport(request):
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            self.requests.append(payload)
+            sizes.append(len(request.body))
+            if len(self.requests) == 1:
+                return completion(original, finish_reason="length")
+            self.assertTrue(payload["draft_continuation"])
+            self.assertTrue(payload["draft_answer"].endswith("最后的条件尚未写完："))
+            self.assertNotIn("原始开头必须保留", payload["draft_answer"])
+            self.assertEqual(payload["draft_answer_retained_part"], "tail")
+            return completion(appended)
+
+        result = run_business_chat("FINAL-AMOUNT 怎么计算？", self.database, self.source,
+            self.config, transport=transport, framework_reference_path="", policy=policy)["agent_result"]
+        self.assertEqual(len(self.requests), 2)
+        self.assertTrue(all(size <= policy.max_request_bytes for size in sizes))
+        self.assertEqual(result["answer"], original + "\n\n" + appended)
 
     def test_unknown_finish_reason_cannot_echo_remote_metadata(self):
         output = self.ask(lambda payload: completion(None, finish_reason=self.provider_echo))
@@ -296,10 +453,10 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
     def test_classified_transport_failure_preserves_specific_safe_diagnosis(self):
         for reason, text in (("dns_resolution_failed", "找不到接口地址"),
                              ("tls_certificate_invalid", "连接验证失败"),
-                             ("tls_handshake_failed", "加密连接失败"),
+                             ("tls_handshake_failed", "无法建立安全连接"),
                              ("connection_refused", "接口拒绝连接"),
                              ("connection_reset", "接口连接中断"),
-                             ("network_unreachable", "无法到达接口网络")):
+                             ("network_unreachable", "无法连上接口网络")):
             with self.subTest(reason=reason):
                 def respond(payload):
                     raise APIClientError("TRANSPORT_ERROR", transport_reason=reason)

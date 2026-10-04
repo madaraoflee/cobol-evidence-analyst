@@ -117,11 +117,18 @@ class FrameworkChatSemanticsTests(unittest.TestCase):
 
     def test_resolving_framework_call_does_not_supply_a_missing_formula(self):
         self.build(formula=False)
-        result = self.investigate(framework_facts=[self.fact], question="ORDER-RULE RESULT-AMOUNT 怎么计算？")
+        question = "ORDER-RULE RESULT-AMOUNT 怎么计算？"
+        baseline = self.investigate(question=question)
+        result = self.investigate(framework_facts=[self.fact], question=question)
         self.assertEqual(self.item(result, "dependencies")["reason"], "documented_framework_rule")
         formula = self.item(result, "formula")
-        self.assertEqual(formula["reason"], "formula_not_located")
-        self.assertEqual(formula["status"], "OPEN")
+        # Procedural calculations may use MOVE/branch evidence without a formula.
+        # Resolving a framework dependency must never supply a missing formula.
+        for field in ("candidate_count", "evidence_ids", "missing_count"):
+            self.assertEqual(formula[field], self.item(baseline, "formula")[field])
+        self.assertEqual(formula["candidate_count"], 0)
+        self.assertEqual(formula["evidence_ids"], [])
+        self.assertNotEqual(formula["status"], "SATISFIED")
 
     def test_final_request_rechecks_fact_source_and_reference_visibility(self):
         self.build()

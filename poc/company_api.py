@@ -17,9 +17,9 @@ import json
 import math
 import os
 import re
+import sys
 import socket
 import ssl
-import sys
 import time
 import urllib.error
 import urllib.parse
@@ -29,7 +29,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from api_diagnostics import APIResponseDiagnostics
+try:
+    from .api_diagnostics import APIResponseDiagnostics
+    from .api_error_details import MAX_ERROR_BODY_BYTES, TRANSPORT_EXPLANATIONS, build_diagnostic, is_error_envelope, sanitize_diagnostic
+except ImportError:
+    from api_diagnostics import APIResponseDiagnostics
+    from api_error_details import MAX_ERROR_BODY_BYTES, TRANSPORT_EXPLANATIONS, build_diagnostic, is_error_envelope, sanitize_diagnostic
 
 
 PROBE_SCHEMA_VERSION = "company-api-capability-probe/v1"
@@ -46,28 +51,27 @@ CONFIG_ENV_KEYS = frozenset({
     "COMPANY_EMBEDDING_MODEL", "COMPANY_API_STYLE", "COMPANY_MAX_OUTPUT_TOKENS",
     "FRAMEWORK_REFERENCE_PATH",
 })
+MODEL_PROFILE_NAMES = frozenset({"adapter", "workbench", "analysis", "custom"})
+OUTPUT_LIMIT_SOURCES = frozenset({"profile", "environment", "dotenv", "explicit", "unknown"})
 
 _SAFE_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
-_TRANSPORT_REASONS = frozenset({
-    "dns_resolution_failed", "tls_certificate_invalid", "tls_handshake_failed",
-    "connection_refused", "connection_reset", "network_unreachable", "timeout",
-})
 
 
 class SafeAPIError(RuntimeError):
     """Base error whose string representation never contains remote data."""
 
-    def __init__(self, code: str, *, http_status: int | None = None) -> None:
-        safe_code = code if _SAFE_ERROR_CODE.fullmatch(code) else "API_ERROR"
+    def __init__(self, code: str, *, http_status: int | None = None, diagnostic=None) -> None:
+        safe_code = code if isinstance(code, str) and _SAFE_ERROR_CODE.fullmatch(code) else "API_ERROR"
         self.code = safe_code
-        self.http_status = http_status if isinstance(http_status, int) else None
+        self.http_status = http_status if type(http_status) is int and 100 <= http_status <= 599 else None
+        self.diagnostic = sanitize_diagnostic(diagnostic) or build_diagnostic(safe_code, http_status=self.http_status)
         message = safe_code
         if self.http_status is not None:
             message = f"{safe_code} (HTTP {self.http_status})"
         super().__init__(message)
 
     def to_safe_dict(self) -> dict[str, object]:
-        result: dict[str, object] = {"code": self.code}
+        result: dict[str, object] = {"code": self.code, "diagnostic": sanitize_diagnostic(self.diagnostic)}
         if self.http_status is not None:
             result["http_status"] = self.http_status
         return result
@@ -129,19 +133,23 @@ class APIClientError(SafeAPIError):
         *,
         http_status: int | None = None,
         transport_reason: str | None = None,
+        diagnostic=None,
     ) -> None:
-        super().__init__(code, http_status=http_status)
+        super().__init__(code, http_status=http_status, diagnostic=diagnostic)
         self.transport_reason = (
             transport_reason
-            if isinstance(transport_reason, str) and transport_reason in _TRANSPORT_REASONS
+            if isinstance(transport_reason, str) and transport_reason in TRANSPORT_EXPLANATIONS
             else None
         )
+        if self.transport_reason is not None:
+            self.diagnostic = sanitize_diagnostic({**self.diagnostic,
+                "transport_reason": self.transport_reason})
 
     def to_safe_dict(self) -> dict[str, object]:
         result = super().to_safe_dict()
         if (
             isinstance(self.transport_reason, str)
-            and self.transport_reason in _TRANSPORT_REASONS
+            and self.transport_reason in TRANSPORT_EXPLANATIONS
         ):
             result["transport_reason"] = self.transport_reason
         return result
@@ -217,6 +225,9 @@ class CompanyAPIConfig:
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
     max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS
     allow_insecure_localhost: bool = False
+    profile_name: str = field(default="custom", repr=False, compare=False)
+    # Direct constructors do not reveal whether their token default was explicit.
+    output_limit_source: str = field(default="unknown", repr=False, compare=False)
 
     def __repr__(self) -> str:
         return (
@@ -228,12 +239,24 @@ class CompanyAPIConfig:
             f"api_key_source={self.api_key_source!r}, "
             f"timeout_seconds={self.timeout_seconds!r}, "
             f"max_output_tokens={self.max_output_tokens!r}, "
+            f"profile_name={self.safe_profile_name!r}, "
+            f"output_limit_source={self.safe_output_limit_source!r}, "
             f"allow_insecure_localhost={self.allow_insecure_localhost!r})"
         )
 
     @property
     def normalized_api_style(self) -> str:
         return self.api_style.strip().lower()
+
+    @property
+    def safe_profile_name(self) -> str:
+        return (self.profile_name if isinstance(self.profile_name, str)
+                and self.profile_name in MODEL_PROFILE_NAMES else "unknown")
+
+    @property
+    def safe_output_limit_source(self) -> str:
+        return (self.output_limit_source if isinstance(self.output_limit_source, str)
+                and self.output_limit_source in OUTPUT_LIMIT_SOURCES else "unknown")
 
     @property
     def api_key_source(self) -> str:
@@ -256,6 +279,10 @@ class CompanyAPIConfig:
         return candidate.strip() or None
 
     def validate(self, *, require_key: bool = True) -> None:
+        if self.safe_profile_name == "unknown":
+            raise APIConfigurationError("MODEL_PROFILE_INVALID")
+        if not isinstance(self.output_limit_source, str) or self.output_limit_source not in OUTPUT_LIMIT_SOURCES:
+            raise APIConfigurationError("OUTPUT_LIMIT_SOURCE_INVALID")
         if self.normalized_api_style != SUPPORTED_API_STYLE:
             raise APIConfigurationError("API_STYLE_UNSUPPORTED")
         if not self.base_url.strip():
@@ -307,6 +334,8 @@ class CompanyAPIConfig:
             "api_key_source": self.api_key_source,
             "timeout_seconds": float(self.timeout_seconds),
             "max_output_tokens": self.max_output_tokens,
+            "profile_name": self.safe_profile_name,
+            "output_limit_source": self.safe_output_limit_source,
             "allow_insecure_localhost": self.allow_insecure_localhost,
         }
 
@@ -324,6 +353,7 @@ class CompanyAPIConfig:
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         max_output_tokens: int | None = None,
         default_max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
+        profile_name: str = "adapter",
         allow_insecure_localhost: bool = False,
     ) -> "CompanyAPIConfig":
         """Resolve explicit values, process environment, then the project .env.
@@ -331,6 +361,7 @@ class CompanyAPIConfig:
         No process variables are changed. An explicitly supplied environment
         is isolated from ambient files unless env_file is also supplied.
         Output limits fall back to the caller's profile default when absent.
+        Fixed metadata records the profile and selected output-limit source.
         """
 
         environment = os.environ if environ is None else environ
@@ -339,9 +370,12 @@ class CompanyAPIConfig:
         )
         source = {**local, **{key: environment[key] for key in CONFIG_ENV_KEYS if key in environment}}
         resolved_output_tokens = default_max_output_tokens
+        output_limit_source = "profile"
         if max_output_tokens is not None:
             resolved_output_tokens = max_output_tokens
+            output_limit_source = "explicit"
         elif "COMPANY_MAX_OUTPUT_TOKENS" in source:
+            output_limit_source = "environment" if "COMPANY_MAX_OUTPUT_TOKENS" in environment else "dotenv"
             raw_tokens = source["COMPANY_MAX_OUTPUT_TOKENS"]
             if not isinstance(raw_tokens, str) or not re.fullmatch(r"[0-9]+", raw_tokens.strip()):
                 raise APIConfigurationError("MAX_OUTPUT_TOKENS_INVALID")
@@ -385,6 +419,8 @@ class CompanyAPIConfig:
             ),
             timeout_seconds=timeout_seconds,
             max_output_tokens=resolved_output_tokens,
+            profile_name=profile_name,
+            output_limit_source=output_limit_source,
             allow_insecure_localhost=allow_insecure_localhost,
         )
         config.validate(require_key=True)
@@ -493,12 +529,12 @@ class UrllibTransport:
             method=request.method,
         )
         deadline = time.monotonic() + request.timeout_seconds
-        connection_opened = False
+        opening_connection = True
         try:
             with self._opener.open(  # noqa: S310 - explicit opt-in only
                 raw_request, timeout=request.timeout_seconds
             ) as response:
-                connection_opened = True
+                opening_connection = False
                 chunks: list[bytes] = []
                 body_size = 0
                 read_chunk = getattr(response, "read1", None)
@@ -525,16 +561,37 @@ class UrllibTransport:
                     headers=dict(response.headers.items()),
                 )
         except urllib.error.HTTPError as exc:
-            # Do not read or preserve an error body; corporate gateways often
-            # include request details that are unsafe to surface.
-            return TransportResponse(
-                status_code=int(exc.code), body=b"",
-                body_omitted_reason="HTTP_ERROR_BODY_NOT_COLLECTED",
-            )
+            # Bounded private input for classification; the capture path always
+            # omits error bodies and no upstream text enters a safe diagnostic.
+            chunks, size = [], 0
+            try:
+                read_chunk = getattr(exc, "read1", None)
+                if not callable(read_chunk):
+                    read_chunk = exc.read
+                while size <= MAX_ERROR_BODY_BYTES:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        break
+                    self._apply_remaining_socket_timeout(exc, remaining)
+                    chunk = read_chunk(min(8192, MAX_ERROR_BODY_BYTES + 1 - size))
+                    if time.monotonic() >= deadline:
+                        chunks = []
+                        break
+                    if not isinstance(chunk, bytes) or not chunk:
+                        break
+                    chunks.append(chunk)
+                    size += len(chunk)
+            except Exception:
+                chunks = []
+            finally:
+                exc.close()
+            return TransportResponse(status_code=int(exc.code), body=b"".join(chunks),
+                                     headers=dict(exc.headers.items()) if exc.headers is not None else {},
+                                     body_omitted_reason="HTTP_ERROR_BODY_NOT_COLLECTED")
         except APIClientError:
             raise
-        except (urllib.error.URLError, OSError) as exc:
-            raise _transport_failure(exc, opening_connection=not connection_opened) from None
+        except (OSError, urllib.error.URLError) as exc:
+            raise _transport_failure(exc, opening_connection=opening_connection) from None
 
 
 def _redact_secret(value: Any, secret: str | None) -> Any:
@@ -629,6 +686,10 @@ class OpenAICompatibleChatClient:
         response, _ = self._request_json("POST", "chat/completions", payload)
         return response
 
+    def suppress_error_capture(self, code: str) -> None:
+        if self._diagnostics is not None:
+            self._diagnostics.suppress_latest_error(outcome_code=code)
+
     def _request_json(
         self,
         method: str,
@@ -700,16 +761,18 @@ class OpenAICompatibleChatClient:
                 exchange = self._capture_response(
                     response, safe_endpoint, started, "RESPONSE_RECEIVED"
                 )
-            return self._validate_response(response, secret)
+            return self._validate_response(response, secret, protected_values=(secret, self.config.base_url,
+                self.config.chat_model, self.config.embedding_model), request_body=request_body)
         except APIClientError as exc:
             if self._diagnostics is not None:
                 if not response_received:
                     exchange = self._capture_response(None, safe_endpoint, started, exc.code)
                 elif exchange is not None:
-                    exchange["outcome_code"] = exc.code
-                transport_reason = exc.to_safe_dict().get("transport_reason")
-                if exchange is not None and transport_reason is not None:
-                    exchange["transport_reason"] = transport_reason
+                    self._diagnostics.suppress_latest_error(outcome_code=exc.code)
+                if exchange is not None:
+                    exchange["diagnostic"] = sanitize_diagnostic(exc.diagnostic)
+                    if exc.transport_reason is not None:
+                        exchange["transport_reason"] = exc.transport_reason
             raise
 
     def _capture_response(
@@ -720,7 +783,9 @@ class OpenAICompatibleChatClient:
         omission = None
         if valid_response:
             # Omission annotations from injected transports are untrusted.
-            if response.body_omitted_reason == "HTTP_ERROR_BODY_NOT_COLLECTED":
+            if (type(response.status_code) is int and not 200 <= response.status_code < 300) or is_error_envelope(response.body):
+                omission = "ERROR_RESPONSE_BODY_OMITTED"
+            elif response.body_omitted_reason == "HTTP_ERROR_BODY_NOT_COLLECTED":
                 omission = "HTTP_ERROR_BODY_NOT_COLLECTED"
             elif not isinstance(response.body, (bytes, str)):
                 omission = "RESPONSE_BODY_INVALID"
@@ -738,7 +803,7 @@ class OpenAICompatibleChatClient:
 
     @staticmethod
     def _validate_response(
-        response: object, secret: str
+        response: object, secret: str, *, protected_values=(), request_body=None
     ) -> tuple[dict[str, object], int]:
         if not isinstance(response, TransportResponse):
             raise APIClientError("TRANSPORT_RESPONSE_INVALID")
@@ -746,7 +811,9 @@ class OpenAICompatibleChatClient:
         if not isinstance(status, int) or not 100 <= status <= 599:
             raise APIClientError("HTTP_STATUS_INVALID")
         if not 200 <= status < 300:
-            raise APIClientError("HTTP_ERROR", http_status=status)
+            raise APIClientError("HTTP_ERROR", http_status=status, diagnostic=build_diagnostic("HTTP_ERROR",
+                http_status=status, body=response.body, headers=response.headers,
+                protected_values=protected_values or (secret,), request_body=request_body))
 
         raw_body = response.body
         if not isinstance(raw_body, (bytes, str)):
@@ -762,6 +829,10 @@ class OpenAICompatibleChatClient:
             raise APIClientError("INVALID_JSON_RESPONSE", http_status=status) from None
         if not isinstance(parsed, dict):
             raise APIClientError("INVALID_RESPONSE_SHAPE", http_status=status)
+        if is_error_envelope(raw_body):
+            raise APIClientError("MODEL_ERROR_RESPONSE", http_status=status,
+                diagnostic=build_diagnostic("MODEL_ERROR_RESPONSE", http_status=status, body=raw_body,
+                    headers=response.headers, protected_values=protected_values or (secret,), request_body=request_body))
         try:
             redacted = _redact_secret(parsed, secret)
         except RecursionError:
@@ -809,31 +880,32 @@ def _error_capability(
         "MAX_OUTPUT_TOKENS_INVALID",
     }:
         return _capability("NOT_RUN", error.code)
-    if error.code == "HTTP_ERROR":
+    diagnostic = sanitize_diagnostic(error.diagnostic)
+    evidence = {"diagnostic": diagnostic}
+    if status is not None:
+        evidence["http_status"] = status
+    category = diagnostic.get("category") if diagnostic else None
+    if error.code in {"HTTP_ERROR", "MODEL_ERROR_RESPONSE"}:
         if status in {401, 403}:
             return _capability(
-                "UNAVAILABLE", "AUTHORIZATION_FAILED", evidence={"http_status": status}
+                "UNAVAILABLE", "AUTHORIZATION_FAILED", evidence=evidence
             )
         if status == 429:
             return _capability(
-                "UNAVAILABLE", "RATE_LIMITED", evidence={"http_status": status}
+                "UNAVAILABLE", "RATE_LIMITED" if category == "rate_limit" else "QUOTA_EXHAUSTED" if category == "quota_exhausted" else "HTTP_429_UNCONFIRMED", evidence=evidence
             )
         if status is not None and status >= 500:
             return _capability(
-                "UNAVAILABLE", "REMOTE_SERVER_ERROR", evidence={"http_status": status}
+                "UNAVAILABLE", "REMOTE_SERVER_ERROR", evidence=evidence
             )
-        if feature_request and status in {400, 404, 405, 415, 422}:
+        if feature_request and category == "unsupported_feature":
             return _capability(
-                "UNSUPPORTED", "FEATURE_REQUEST_REJECTED", evidence={"http_status": status}
-            )
-        if status in {404, 405}:
-            return _capability(
-                "UNSUPPORTED", "ENDPOINT_UNAVAILABLE", evidence={"http_status": status}
+                "UNSUPPORTED", "FEATURE_REQUEST_REJECTED", evidence=evidence
             )
         return _capability(
-            "UNAVAILABLE", "REQUEST_REJECTED", evidence={"http_status": status}
+            "UNAVAILABLE", "REQUEST_REJECTED", evidence=evidence
         )
-    return _capability("INDETERMINATE", error.code)
+    return _capability("INDETERMINATE", error.code, evidence=evidence)
 
 
 class CapabilityProbe:
@@ -887,6 +959,7 @@ class CapabilityProbe:
         }
         if error.http_status is not None:
             event["http_status"] = error.http_status
+        event["diagnostic"] = sanitize_diagnostic(error.diagnostic)
         self._audit.append(event)
 
     def _request(
@@ -1438,7 +1511,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-style")
     parser.add_argument("--timeout-seconds", type=float, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument(
-        "--max-output-tokens", type=int, default=DEFAULT_MAX_OUTPUT_TOKENS
+        "--max-output-tokens", type=int,
+        help="Output limit override; otherwise use environment, local file, then the 1024-token adapter default."
     )
     parser.add_argument("--allow-insecure-localhost", action="store_true")
     parser.add_argument("--probe-embeddings", action="store_true")

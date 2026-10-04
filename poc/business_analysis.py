@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from api_diagnostics import APIResponseDiagnostics
+from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
 from answer_markdown import ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, normalize_answer_markdown
 from company_api import APIClientError, APIConfigurationError, CompanyAPIConfig, OpenAICompatibleChatClient, Transport
 from framework_knowledge import build_framework_context
@@ -30,7 +31,6 @@ MAX_SUMMARY_CHARACTERS = 3_000
 MAX_SYNTHESIS_SUMMARY_CHARACTERS = 36_000
 MAX_ANSWER_CHARACTERS = 60_000
 MAX_PROMPT_BYTES = 240_000
-MAX_AUTOMATIC_RETRIES = 2
 SUMMARY_FAN_IN = 8
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _SAFE_CODE = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
@@ -48,9 +48,10 @@ source_scope 给出本次纳入源码的边界；深度、文件数、字节数�
 
 
 class _TextResponseError(ValueError):
-    def __init__(self, code: str, *, text: str = "") -> None:
+    def __init__(self, code: str, *, text: str = "", choice_index: int | None = None) -> None:
         self.code = code
         self.text = text
+        self.choice_index = choice_index
         super().__init__(code)
 
 
@@ -82,9 +83,15 @@ def _content_text(content: object) -> str:
 
 def _explicit_nonbusiness_object(value: Mapping[str, object]) -> str | None:
     keys = set(value)
+    error = value.get("error")
+    # Gateway metadata must not turn a provider-shaped error into an accepted
+    # business answer. Ordinary business fields named "error" remain data.
+    if isinstance(error, Mapping) and error and set(error) & {"message", "code", "type", "param"}:
+        return "MODEL_ERROR_RESPONSE"
     if {"action", "arguments"} <= keys or keys & {"tool_calls", "function_call"}:
         return "MODEL_ACTION_RESPONSE"
-    error_keys = {"error", "errors", "code", "status", "message", "detail", "details", "type", "request_id"}
+    error_keys = {"error", "errors", "code", "status", "message", "detail", "details", "type", "request_id",
+                  "timestamp", "trace", "trace_id", "correlation_id"}
     if keys <= error_keys and (
         bool(value.get("error") or value.get("errors"))
         or value.get("status") in ("error", "failed", "failure")
@@ -118,7 +125,7 @@ def _extract_text(response: Mapping[str, object]) -> _BusinessText:
     if not text and refused:
         text = str(message["refusal"]).strip()
     if not text:
-        raise _TextResponseError("MODEL_CONTENT_FILTERED" if filtered else "MODEL_TEXT_EMPTY")
+        raise _TextResponseError("MODEL_CONTENT_FILTERED" if filtered else "MODEL_TEXT_EMPTY", choice_index=choice_index)
     structured = False
     if has_content:
         candidate = text
@@ -132,7 +139,7 @@ def _extract_text(response: Mapping[str, object]) -> _BusinessText:
         if isinstance(wrapped, Mapping):
             rejection = _explicit_nonbusiness_object(wrapped)
             if rejection:
-                raise _TextResponseError(rejection, text=text)
+                raise _TextResponseError(rejection, text=text, choice_index=choice_index)
             unwrapped = next((_content_text(wrapped[key]).strip() for key in ("answer", "content", "text")
                               if _content_text(wrapped.get(key)).strip()), "")
             if unwrapped:
@@ -145,16 +152,16 @@ def _extract_text(response: Mapping[str, object]) -> _BusinessText:
                 text = candidate
                 structured = True
             else:
-                raise _TextResponseError("MODEL_TEXT_EMPTY", text=text)
+                raise _TextResponseError("MODEL_TEXT_EMPTY", text=text, choice_index=choice_index)
         elif isinstance(wrapped, str):
             text = wrapped.strip()
         elif isinstance(wrapped, list):
             structured = True
     text = normalize_answer_markdown(text)
     if not text:
-        raise _TextResponseError("MODEL_TEXT_EMPTY")
-    truncated = choice.get("finish_reason") == "length" or len(text) > MAX_ANSWER_CHARACTERS
-    return _BusinessText(text[:MAX_ANSWER_CHARACTERS], truncated, refused, filtered,
+        raise _TextResponseError("MODEL_TEXT_EMPTY", choice_index=choice_index)
+    truncated = choice.get("finish_reason") == "length"
+    return _BusinessText(text, truncated, refused, filtered,
                          has_content, structured, choice_index)
 
 
@@ -183,18 +190,18 @@ def _boundary(reason: str, message: str, **extra: object) -> dict[str, object]:
     return {"type": "source_reading", "reason": reason, "message": message, **extra}
 
 
-def _retryable(error: APIClientError | _TextResponseError) -> bool:
-    if error.code in {"REQUEST_TIMEOUT", "MODEL_TEXT_EMPTY", "MODEL_TEXT_WRAPPER_UNSUPPORTED"}:
-        return True
-    return isinstance(error, APIClientError) and error.code == "HTTP_ERROR" and (
-        error.http_status == 429 or error.http_status is not None and error.http_status >= 500
-    )
-
-
-def _failure(error: APIClientError | _TextResponseError, stage: str, **extra: object) -> dict[str, object]:
+def _failure(error: APIClientError | APIConfigurationError | _TextResponseError,
+             stage: str, **extra: object) -> dict[str, object]:
     result = {"code": error.code, "stage": stage, **extra}
     if isinstance(error, APIClientError) and error.http_status is not None:
         result["http_status"] = error.http_status
+    diagnostic = sanitize_diagnostic(getattr(error, "diagnostic", None))
+    if diagnostic is None and isinstance(error, (APIClientError, APIConfigurationError)):
+        diagnostic = build_diagnostic(error.code, http_status=getattr(error, "http_status", None))
+    if diagnostic is None and error.code == "MODEL_ERROR_RESPONSE":
+        diagnostic = build_diagnostic(error.code, http_status=200)
+    if diagnostic is not None:
+        result["diagnostic"] = diagnostic
     return result
 
 
@@ -335,6 +342,7 @@ def run_business_analysis(
     check_cancel: Callable[[], None] | None = None,
     max_pages: int = 12,
     reading_strategy: str = "focused",
+    answer_detail: str = "detailed",
 ) -> dict[str, object]:
     """Read source pages, explain them, and retain useful partial responses."""
 
@@ -344,6 +352,8 @@ def run_business_analysis(
         raise ValueError("max_pages must be between 1 and 128")
     if reading_strategy not in {"focused", "full_chain"}:
         raise ValueError("reading_strategy must be focused or full_chain")
+    if answer_detail not in {"brief", "detailed"}:
+        raise ValueError("answer_detail must be brief or detailed")
     full_chain = reading_strategy == "full_chain"
     redactor = APIResponseDiagnostics(protected_values=(
         config.resolve_api_key(), config.base_url, config.chat_model, config.embedding_model,
@@ -353,6 +363,7 @@ def run_business_analysis(
     investigation: dict[str, object] | None = None
     planning_turns = 0
     planning_fatal: str | None = None
+    planning_failure: dict[str, object] | None = None
 
     def emit(phase: str, completed: int, total: int | None) -> None:
         if check_cancel:
@@ -373,10 +384,24 @@ def run_business_analysis(
             output["unaccepted_response"] = unaccepted_response
         if investigation is not None:
             output["investigation"] = investigation
+        failures = (output.get("agent_result") or {}).get("diagnostics", [])
+        if planning_failure is not None:
+            failures = [planning_failure, *failures]
+            output["diagnostics"] = failures
+        diagnostic = next((safe for item in failures if isinstance(item, Mapping)
+                           if (safe := sanitize_diagnostic(item.get("diagnostic"))) is not None), None)
+        if diagnostic is not None:
+            output["diagnostic"] = diagnostic
+            if isinstance(output.get("agent_result"), dict):
+                output["agent_result"]["diagnostic"] = diagnostic
         return output
 
     def preserve_unaccepted(code: str, text: str) -> None:
         nonlocal unaccepted_response
+        if code == "MODEL_ERROR_RESPONSE":
+            if diagnostics is not None:
+                diagnostics.suppress_latest_error(outcome_code=code)
+            return
         if text.strip():
             unaccepted_response = {"reason_code": code, "text": redactor._sanitize(text)[:MAX_ANSWER_CHARACTERS]}
 
@@ -397,6 +422,7 @@ def run_business_analysis(
         try:
             config.validate(require_key=True)
         except APIConfigurationError as exc:
+            planning_failure = _failure(exc, "configuration")
             return finish({"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None})
         if not allow_network and transport is None:
             return finish({"runner_status": "NOT_READY", "reason_code": "NETWORK_DISABLED", "agent_result": None})
@@ -404,7 +430,7 @@ def run_business_analysis(
                                             diagnostics=diagnostics)
 
         def ask_search(system: str, payload: dict) -> str:
-            nonlocal planning_turns, planning_fatal
+            nonlocal planning_turns, planning_fatal, planning_failure
             if check_cancel:
                 check_cancel()
             messages = [{"role": "system", "content": system},
@@ -414,7 +440,10 @@ def run_business_analysis(
                                                     if key not in {"program_samples", "identifier_samples"}})
                 messages[1]["content"] = json.dumps(payload, ensure_ascii=False)
             if _prompt_size(config, messages) > MAX_PROMPT_BYTES:
-                raise _TextResponseError("PROMPT_CONTEXT_TOO_LARGE")
+                failure = _TextResponseError("PROMPT_CONTEXT_TOO_LARGE")
+                planning_fatal = failure.code
+                planning_failure = _failure(failure, "repository_search")
+                raise failure
             planning_turns += 1
             try:
                 reply = _extract_text(client.complete(messages=messages))
@@ -424,12 +453,14 @@ def run_business_analysis(
                     raise _TextResponseError(planning_fatal)
                 return redactor._sanitize(reply.text)
             except APIClientError as exc:
-                if ((exc.code == "HTTP_ERROR" and exc.http_status is not None
-                     and 400 <= exc.http_status < 500 and exc.http_status not in {408, 429})
-                    or exc.code in {"NETWORK_DISABLED", "API_KEY_MISSING"}):
-                    planning_fatal = exc.code
+                planning_fatal = exc.code
+                planning_failure = _failure(exc, "repository_search")
                 raise
             except _TextResponseError as exc:
+                if diagnostics is not None:
+                    diagnostics.suppress_latest_error(outcome_code=exc.code)
+                planning_fatal = exc.code
+                planning_failure = _failure(exc, "repository_search")
                 preserve_unaccepted(exc.code, getattr(exc, "text", ""))
                 raise
 
@@ -515,6 +546,7 @@ def run_business_analysis(
     try:
         config.validate(require_key=True)
     except APIConfigurationError as exc:
+        planning_failure = _failure(exc, "configuration")
         return finish({"runner_status": "NOT_READY", "reason_code": exc.code,
                        "source_preflight": source_preflight, "agent_result": None})
     if not allow_network and transport is None:
@@ -533,7 +565,7 @@ def run_business_analysis(
 
     def request_text(stage: str, page_group: list[Mapping[str, object]], instruction: str,
                      summary_items: list[dict[str, object]] | None = None) -> _BusinessText:
-        nonlocal model_turns, automatic_retries
+        nonlocal model_turns
         if check_cancel:
             check_cancel()
         prompt_references = [dict(item) for item in references]
@@ -575,7 +607,9 @@ def run_business_analysis(
             "reference_ids", "source_text_truncated", "target_resolution", "relation_type",
             "parameter_binding_verified", "runtime_verified"), maximum=24, byte_limit=12_000)
         payload: dict[str, object] = {
-            "question": supplied_question, "task": instruction,
+            "question": supplied_question, "answer_detail": answer_detail,
+            "task": ("简要说明结论和关键条件，保留必要依据；" if answer_detail == "brief" else
+                     "按问题需要充分解释相关业务结论、步骤、条件、例外和依据；") + instruction,
             "scope": {"kind": "indexed_sources", "snapshot_id": plan.get("snapshot_id"), "planned_pages": len(pages),
                       "reading_strategy": reading_strategy,
                       "total_pages": plan.get("coverage", {}).get("total_pages"),
@@ -625,27 +659,22 @@ def run_business_analysis(
             }
         sent_ids = {page.get("evidence_id") for page in sent_pages}
         sent_pages.extend(_reference_metadata(page) for page in page_group if page.get("evidence_id") not in sent_ids)
-        while True:
-            if check_cancel:
-                check_cancel()
-            model_turns += 1
-            try:
-                response = client.complete(messages=messages)
-                reply = _extract_text(response)
-                if reply.choice_index:
-                    warnings.append({"code": "MODEL_NONEMPTY_CHOICE_SELECTED", "stage": stage,
-                                     "choice_index": reply.choice_index})
-                if reply.structured:
-                    warnings.append({"code": "MODEL_STRUCTURED_TEXT_PRESERVED", "stage": stage})
-                return replace(reply, text=redactor._sanitize(reply.text))
-            except (APIClientError, _TextResponseError) as exc:
-                if not _retryable(exc) or automatic_retries >= MAX_AUTOMATIC_RETRIES:
-                    raise
-                automatic_retries += 1
-                warnings.append({**_failure(exc, stage), "code": "MODEL_REQUEST_RETRIED",
-                                 "error_code": exc.code, "retry_number": automatic_retries})
-                if isinstance(exc, _TextResponseError):
-                    messages[0]["content"] = _SYSTEM + "\n本次请直接输出非空的 Markdown 业务说明正文；不要用 JSON 或代码围栏包装整篇答案。"
+        if check_cancel:
+            check_cancel()
+        model_turns += 1
+        try:
+            response = client.complete(messages=messages)
+            reply = _extract_text(response)
+            if reply.choice_index:
+                warnings.append({"code": "MODEL_NONEMPTY_CHOICE_SELECTED", "stage": stage,
+                                 "choice_index": reply.choice_index})
+            if reply.structured:
+                warnings.append({"code": "MODEL_STRUCTURED_TEXT_PRESERVED", "stage": stage})
+            return replace(reply, text=redactor._sanitize(reply.text))
+        except _TextResponseError as exc:
+            if diagnostics is not None:
+                diagnostics.suppress_latest_error(outcome_code=exc.code)
+            raise
 
     def record_pages(page_group: list[Mapping[str, object]], *, succeeded: bool, code: str) -> None:
         for page in page_group:
@@ -656,15 +685,6 @@ def run_business_analysis(
                            "model_explanation_received": succeeded,
                            "source_characters": len(str(page.get("source_text", "")))},
             })
-
-    def stop_for_error(error: APIClientError | _TextResponseError) -> bool:
-        if isinstance(error, APIClientError):
-            return (error.code == "HTTP_ERROR" and error.http_status is not None
-                    and 400 <= error.http_status < 500 and error.http_status not in {408, 429}) or error.code in {
-                "NETWORK_DISABLED", "API_KEY_MISSING", "TRANSPORT_ERROR", "INVALID_JSON_RESPONSE",
-                "INVALID_RESPONSE_SHAPE", "TRANSPORT_RESPONSE_INVALID", "HTTP_STATUS_INVALID",
-            }
-        return error.code in {"MODEL_REFUSED", "MODEL_CONTENT_FILTERED", "MODEL_ACTION_RESPONSE", "MODEL_ERROR_RESPONSE"}
 
     synthesis_instruction = (
         "根据分段摘要先回答用户实际问到的业务结论；需要解释流程时，跨程序整合成连贯的业务过程，按需说明业务目的与触发输入、准入与排除规则、"
@@ -703,7 +723,7 @@ def run_business_analysis(
                             f"尽量不超过 {MAX_SUMMARY_CHARACTERS} 字。不得把摘要之外的程序或页当成已经分析。", retained)
                         if reply.refused:
                             errors.append({"code": "MODEL_REFUSED", "stage": stage, "relative_path": label})
-                            requests_stopped = full_chain
+                            requests_stopped = True
                         if reply.has_content:
                             text = reply.text
                         else:
@@ -713,12 +733,12 @@ def run_business_analysis(
                         final_filtered |= reply.filtered
                         aggregation_complete &= not (reply.truncated or reply.filtered or reply.refused or reply.structured)
                         if reply.filtered:
-                            requests_stopped = full_chain
+                            requests_stopped = True
                     except (APIClientError, _TextResponseError) as exc:
                         failed = True
                         errors.append(_failure(exc, stage, relative_path=label))
                         preserve_unaccepted(exc.code, getattr(exc, "text", ""))
-                        requests_stopped |= full_chain and stop_for_error(exc)
+                        requests_stopped = True
                 if failed:
                     # The full successful leaf texts remain in page_summaries.
                     # Share this fallback budget across every child so late
@@ -799,7 +819,7 @@ def run_business_analysis(
                 )
                 if reply.refused:
                     errors.append({"code": "MODEL_REFUSED", "stage": "page", "evidence_id": page.get("evidence_id")})
-                    requests_stopped = full_chain
+                    requests_stopped = True
                 if not reply.has_content:
                     preserve_unaccepted("MODEL_REFUSED", reply.text)
                     record_pages([page], succeeded=False, code="MODEL_REFUSED")
@@ -813,12 +833,12 @@ def run_business_analysis(
                         truncated_response_pages.append(str(page.get("evidence_id", "")))
                     if reply.filtered:
                         filtered_response_pages.append(str(page.get("evidence_id", "")))
-                        requests_stopped = full_chain
+                        requests_stopped = True
             except (APIClientError, _TextResponseError) as exc:
                 errors.append(_failure(exc, "page", evidence_id=page.get("evidence_id")))
                 preserve_unaccepted(exc.code, getattr(exc, "text", ""))
                 record_pages([page], succeeded=False, code=exc.code)
-                requests_stopped |= full_chain and stop_for_error(exc)
+                requests_stopped = True
             processed_pages = index + 1
             emit("analyzing_pages", index + 1, len(pages))
             if requests_stopped:
@@ -915,9 +935,6 @@ def run_business_analysis(
             unknown.append(identifier)
         return "【未确认来源引用】"
 
-    if len(answer) > MAX_ANSWER_CHARACTERS:
-        answer = answer[:MAX_ANSWER_CHARACTERS]
-        boundaries.append(_boundary("ANSWER_PREVIEW_TRUNCATED", "综合未完成时的正文预览较长；各程序与各页的已得业务解释仍分别保留。"))
     page_summaries = [{
         **_reference_metadata(page),
         "text": _REFERENCE.sub(validate_reference, text),
@@ -968,7 +985,7 @@ def run_business_analysis(
     if errors:
         boundaries.append(_boundary("MODEL_REQUEST_INCOMPLETE", "部分模型请求未完成；已保留成功生成的业务解释。", failures=errors))
     if requests_stopped:
-        boundaries.append(_boundary("MODEL_REQUESTS_STOPPED", "接口返回了不可继续的配置、鉴权、协议错误或明确拒绝，已停止后续请求；已经生成的说明保留，剩余页没有视作已分析。"))
+        boundaries.append(_boundary("MODEL_REQUESTS_STOPPED", "接口请求失败或服务端明确拒绝，已停止后续模型请求；已经生成的说明保留，剩余页没有视作已分析。"))
     if any(error["code"] == "MODEL_REFUSED" for error in errors):
         boundaries.append(_boundary("MODEL_REFUSED", "服务端明确拒绝了部分内容；如已返回可用正文，将保留为部分解读，不自动重试绕过拒绝。"))
     if structured_responses:
@@ -979,7 +996,9 @@ def run_business_analysis(
         boundaries.append(_boundary("MODEL_CONTENT_FILTERED", "服务端过滤中断了部分模型输出，以下保留已经返回的正文。"))
         warnings.append({"code": "MODEL_CONTENT_FILTERED", "stage": "direct" if direct else "synthesis" if final_filtered else "page"})
     if not answer:
-        answer = "本次未取得可阅读的业务解释。请查看 API 返回与错误代码；源码阅读计划已保留。"
+        diagnostic = next((item["diagnostic"] for item in errors if item.get("diagnostic")), None)
+        answer = (format_diagnostic(diagnostic) + "\n\n源码阅读计划已保留。" if diagnostic else
+                  "本次未取得可阅读的业务解释。请查看 API 返回与错误代码；源码阅读计划已保留。")
     usable = bool(summarized_pages)
     status = "PARTIAL" if usable and partial else "ANALYZED" if usable else "ABSTAINED"
     stop_reason = ("model_refused" if any(error["code"] == "MODEL_REFUSED" for error in errors)

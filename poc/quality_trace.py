@@ -25,7 +25,7 @@ class QualityTrace:
                      "question_id": question_id or "sha256:" + _digest(question.encode()),
                      "conversation_id": conversation_id,
                      "created_at_utc": datetime.now(timezone.utc).isoformat(),
-                     "pipeline_version": "question-evidence-v4", "prompt_version": "business-chat-v5",
+                     "pipeline_version": "question-evidence-v5", "prompt_version": "business-chat-v6",
                      "configuration": {"model_fingerprint": _digest(config.chat_model.encode()),
                          "configuration_fingerprint": _digest(json.dumps({
                              "base_url": config.base_url, "model": config.chat_model,
@@ -76,13 +76,17 @@ class QualityTrace:
         self.data["rounds"].append(record)
         self._pending = (stage, payload, messages, trims, started)
 
-    def finish_round(self, *, finish_reason=None, parsed_action=None, usage=None, error=None):
+    def finish_round(self, *, finish_reason=None, parsed_action=None, usage=None, error=None,
+                     raw_content_characters=None, parsed_answer_characters=None, choice_index=None):
         if not self.data["rounds"] or self._pending is None:
             return
         row = self.data["rounds"][-1]
         row["duration_ms"] = round((time.monotonic() - self._pending[-1]) * 1000, 2)
         row["response"] = {"finish_reason": finish_reason, "parsed_action": parsed_action,
-                           "usage": usage if isinstance(usage, dict) else None, "error": error}
+                           "usage": usage if isinstance(usage, dict) else None, "error": error,
+                           "raw_content_characters": raw_content_characters,
+                           "parsed_answer_characters": parsed_answer_characters,
+                           "choice_index": choice_index}
         self._pending = None
 
     def add_tool_result(self, *, action, actual_result_ids=(), open_read_cursor=None,

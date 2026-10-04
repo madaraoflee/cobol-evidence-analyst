@@ -14,7 +14,7 @@ import re
 import sqlite3
 
 
-SEMANTICS_VERSION = "framework-semantics/v1.1"
+SEMANTICS_VERSION = "framework-semantics/v1.2"
 MAX_FILE_FACTS = 2048
 MAX_REQUEST_FACTS = 32
 
@@ -126,8 +126,9 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
                 def lines():
                     for number, (line, truncated) in enumerate(
                             _verified_lines(root, item, check_cancel, 65536), 1):
-                        # A truncated line must act as an unknown statement.
-                        yield number, "<unsupported-source-line>" if truncated else line
+                        # Preserve unknown lines so their possible persistent
+                        # preprocessing effects withdraw binding coverage.
+                        yield number, None if truncated else line
                 try:
                     facts = bind_framework_source(lines(), knowledge, relative_path=relative,
                         source_sha256=item["sha256"], source_format=item["format_hint"])

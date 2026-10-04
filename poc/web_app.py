@@ -11,6 +11,7 @@ from dataclasses import replace
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import logging
 from pathlib import Path
 import re
 import secrets
@@ -32,6 +33,7 @@ from report_view import DIRECT_REPORT_BYTES, VIEW_REPORT_BYTES, report_sha256
 from conversation_store import ConversationStore
 from runtime_settings import load_agent_policy
 from agent_policy import resolve_agent_policy
+from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
 
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
@@ -44,12 +46,30 @@ MAX_REQUEST_BYTES = 32_768
 MAX_GRAPH_EDGES = 200
 OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm", "conversations.sqlite", "conversations.sqlite-wal", "conversations.sqlite-shm", "conversations.sqlite-journal", "quality-traces", "semantic-scopes", "impact-results", "versioned-evidence.sqlite", "versioned-evidence.sqlite-wal", "versioned-evidence.sqlite-shm"))
 EVIDENCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}")
+LOGGER = logging.getLogger(__name__)
 
 
 class RequestError(ValueError):
-    def __init__(self, code: str, message: str, status: int = 400) -> None:
+    def __init__(self, code: str, message: str, status: int = 400, *, diagnostic=None) -> None:
         super().__init__(message)
         self.code, self.message, self.status = code, message, status
+        self.diagnostic = sanitize_diagnostic(diagnostic)
+
+
+def _failure_diagnostic(exc, fallback_code, *, http_status=None):
+    """Serialize classified metadata only; exception text stays private."""
+    diagnostic = sanitize_diagnostic(getattr(exc, "diagnostic", None))
+    if diagnostic:
+        return _log_safe_failure(diagnostic)
+    code = exc.code if isinstance(exc, (APIClientError, APIConfigurationError)) else fallback_code
+    status = getattr(exc, "http_status", http_status)
+    return _log_safe_failure(build_diagnostic(code, http_status=status))
+
+
+def _log_safe_failure(value):
+    diagnostic = sanitize_diagnostic(value)
+    LOGGER.warning("api_failure %s", json.dumps(diagnostic, ensure_ascii=False))
+    return diagnostic
 
 
 def _project(source: str | None = None, output: str | None = None, run_id: str | None = None) -> dict:
@@ -72,7 +92,7 @@ def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 102
 
 
 def _validate_options(payload: object) -> dict:
-    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "conversation_id", "retry_message_id", "framework_reference_path", "capture_api_responses"}
+    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "answer_detail", "conversation_id", "retry_message_id", "framework_reference_path", "capture_api_responses"}
     if not isinstance(payload, dict) or set(payload) - fields:
         raise RequestError("INVALID_OPTIONS", "请求包含未知设置。")
     source_text, output_text = _text(payload, "source", required=True), _text(payload, "output", required=True)
@@ -119,6 +139,9 @@ def _validate_options(payload: object) -> dict:
     reading_strategy = _text(payload, "reading_strategy", maximum=32) or "retrieval"
     if reading_strategy not in {"retrieval", "focused", "full_chain"}:
         raise RequestError("INVALID_OPTIONS", "阅读方式须为 retrieval、focused 或 full_chain。")
+    answer_detail = _text(payload, "answer_detail", maximum=16) or "detailed"
+    if answer_detail not in {"brief", "detailed"}:
+        raise RequestError("INVALID_OPTIONS", "回答详略须为 brief 或 detailed。")
     extension_text = _text(payload, "extensions", maximum=256)
     try:
         extensions = parse_extensions(extension_text)
@@ -133,6 +156,7 @@ def _validate_options(payload: object) -> dict:
         "allow_network": allow_network, "extensions": extensions, "index_mode": index_mode, "verify_content": verify_content,
         "capture_api_responses": capture_api_responses,
         "analysis_mode": "business", "max_source_pages": max_source_pages, "reading_strategy": reading_strategy,
+        "answer_detail": answer_detail,
         "conversation_id": _text(payload, "conversation_id", maximum=64),
         "retry_message_id": retry_message_id,
         "framework_reference_path": _text(payload, "framework_reference_path", maximum=4096),
@@ -157,10 +181,17 @@ def _read_json(path: Path) -> object:
 def _unaccepted_agent(agent: dict, reason_code: str) -> dict:
     """Retain response text for diagnostics without granting citation authority."""
     rejected = {"runner_status": "NOT_READY", "reason_code": reason_code, "agent_result": None}
+    diagnostic = sanitize_diagnostic(agent.get("diagnostic")) or sanitize_diagnostic(
+        (agent.get("agent_result") or {}).get("diagnostic"))
+    if diagnostic:
+        rejected["diagnostic"] = diagnostic
     if isinstance(agent.get("api_diagnostics"), dict):
         rejected["api_diagnostics"] = agent["api_diagnostics"]
     if isinstance(agent.get("display_projection"), dict):
         rejected["display_projection"] = agent["display_projection"]
+    summary = agent.get("diagnostic_summary") or (agent.get("agent_result") or {}).get("diagnostic_summary")
+    if isinstance(summary, dict):
+        rejected["diagnostic_summary"] = summary
     response = agent.get("unaccepted_response")
     answer = agent.get("agent_result")
     text = response.get("text") if isinstance(response, dict) else None
@@ -305,6 +336,7 @@ class WorkbenchState:
         self.demo_output_root = demo_output_root if demo_output_root is not None else FRAMEWORK_DEMO_OUTPUT
         self.state_path = state_path
         self.framework_reference_path = None
+        self.answer_detail = "detailed"
         self.conversation = None
         self.conversation_store = None
         self._restore_workspace()
@@ -315,6 +347,7 @@ class WorkbenchState:
         options = options or self.project
         data = {"source": str(options.get("source") or ""), "output": str(options.get("output") or ""),
                 "framework_reference_path": self.framework_reference_path,
+                "answer_detail": self.answer_detail,
                 "conversation_id": (self.conversation or {}).get("id")}
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         if self.state_path.is_symlink():
@@ -331,6 +364,7 @@ class WorkbenchState:
         try:
             saved = json.loads(self.state_path.read_text(encoding="utf-8"))
             self.framework_reference_path = saved.get("framework_reference_path")
+            self.answer_detail = "brief" if saved.get("answer_detail") == "brief" else "detailed"
             if not saved.get("source") or not saved.get("output"):
                 return
             source, output = _paths(Path(saved["source"]), Path(saved["output"]))
@@ -388,13 +422,14 @@ class WorkbenchState:
                 probe_config, transport=self.model_check_transport, allow_network=True,
             ).complete(messages=[{"role": "user", "content": "Reply with the single word OK."}])
         except (APIConfigurationError, APIClientError) as exc:
-            reason = exc.to_safe_dict().get("transport_reason")
-            return {"usable": False, "code": exc.code, "http_status": exc.http_status,
-                    "model_returned": False,
-                    **({"transport_reason": reason} if reason else {})}
+            result = {"usable": False, "code": exc.code, "http_status": exc.http_status,
+                      "model_returned": False, "diagnostic": _failure_diagnostic(exc, "MODEL_CHECK_FAILED")}
+            if isinstance(exc, APIClientError) and exc.transport_reason is not None:
+                result["transport_reason"] = exc.transport_reason
+            return result
         except (TypeError, ValueError):
             return {"usable": False, "code": "CONFIGURATION_INVALID", "http_status": None,
-                    "model_returned": False}
+                    "model_returned": False, "diagnostic": _log_safe_failure(build_diagnostic("CONFIGURATION_INVALID"))}
         choices = response.get("choices")
         if isinstance(choices, list) and choices:
             for choice in choices[:1]:
@@ -417,7 +452,7 @@ class WorkbenchState:
                     return {"usable": True, "code": "MODEL_REPLY_RECEIVED", "http_status": 200,
                             "model_returned": True}
         return {"usable": False, "code": "MODEL_TEXT_EMPTY", "http_status": 200,
-                "model_returned": False}
+                "model_returned": False, "diagnostic": _log_safe_failure(build_diagnostic("MODEL_TEXT_EMPTY", http_status=200))}
 
     def pick_folder(self, payload: object) -> dict:
         if not isinstance(payload, dict) or set(payload) - {"initial_path"}:
@@ -493,9 +528,15 @@ class WorkbenchState:
         if not identifier:
             return
         agent = (project.get("agent") or {}).get("agent_result") or {}
+        project_agent = project.get("agent") or {}
         status = "completed" if (project.get("agent") or {}).get("runner_status") == "COMPLETED" else "failed"
         self.conversation_store.complete_user(job_id, status)
         content = agent.get("answer") or "本次没有取得模型回答。对话已保留，可以重试。"
+        projection = (project.get("agent") or {}).get("display_projection") or {}
+        answer_omissions = [item for item in projection.get("omitted", [])
+                            if isinstance(item, dict) and item.get("path") == "agent_result.answer"]
+        complete_characters = max((item.get("total_characters", 0) for item in answer_omissions
+                                   if type(item.get("total_characters")) is int), default=len(content))
         details = {"evidence_refs": agent.get("evidence_refs", []),
                      "investigation_state": agent.get("investigation_state", {}),
                      "cited_evidence_ids": [r.get("evidence_id") for r in (agent.get("narrative") or {}).get("citations", []) if r.get("evidence_id")],
@@ -504,7 +545,15 @@ class WorkbenchState:
                          for item in ((agent.get("investigation") or {}).get("business_map") or {}).get("programs", [])],
                      "impact_result": agent.get("impact_result"),
                      "snapshot_id": agent.get("snapshot_id"), "metrics": agent.get("metrics", {}),
-                     "diagnostics": agent.get("diagnostics", [])}
+                     "diagnostics": agent.get("diagnostics", []),
+                     "diagnostic": sanitize_diagnostic(agent.get("diagnostic")) or sanitize_diagnostic(project_agent.get("diagnostic")),
+                     "analysis_status": agent.get("status"), "stop_reason": agent.get("stop_reason"),
+                     "finish_reason": agent.get("finish_reason"),
+                     "answer_truncated": agent.get("answer_truncated", False),
+                     "diagnostic_summary": agent.get("diagnostic_summary") or project_agent.get("diagnostic_summary"),
+                     "answer_display_truncated": complete_characters > len(content),
+                     "answer_complete_characters": complete_characters,
+                     "answer_detail": options.get("answer_detail", "detailed")}
         if options.get("retry_message_id"):
             self.conversation_store.replace_assistant(
                 identifier, options.get("retry_assistant_id"), content,
@@ -571,6 +620,7 @@ class WorkbenchState:
             "source": demo["source_path"], "output": str(output),
             "encoding": "utf-8", "source_format": "free", "index_mode": "full",
             "allow_network": False, "max_source_pages": 4, "reading_strategy": "retrieval",
+            "answer_detail": self.answer_detail,
         }), "suggested_question": question}
 
     def state(self) -> dict:
@@ -591,6 +641,7 @@ class WorkbenchState:
                 "api_configured": configured,
                 "api_configuration_error": configuration_error,
                 "framework_knowledge": self.framework(),
+                "answer_detail": self.answer_detail,
                 "conversation": copy.deepcopy(self.conversation),
                 "conversations": self.conversation_store.list() if self.conversation_store else [],
                 "active_job_id": self.job["job_id"] if self.job and self.job["status"] == "RUNNING" else None,
@@ -619,6 +670,7 @@ class WorkbenchState:
             if retry_message_id and (not same_project or not options["allow_network"] or not options.get("conversation_id")):
                 raise RequestError("INVALID_RETRY", "只能在当前对话和源码范围内重试原问题。", 409)
             self.conversation_store = ConversationStore(options["output"], options["source"])
+            self.answer_detail = options["answer_detail"]
             options["framework_reference_path"] = options.get("framework_reference_path") or self.framework_reference_path
             self.framework_reference_path = options["framework_reference_path"]
             if (options["question"] or retry_message_id) and options["allow_network"]:
@@ -782,7 +834,7 @@ class WorkbenchState:
                     self.updated_at = time.monotonic()
                     self._record_failure(options, job_id, "cancelled")
                     self.job.update(status="CANCELLED", result=None, conversation=copy.deepcopy(self.conversation))
-        except Exception:
+        except Exception as exc:
             # Never serialize raw adapter errors, environment values or remote
             # responses. Failed work leaves no current evidence authority.
             with self.lock:
@@ -790,7 +842,9 @@ class WorkbenchState:
                     self.updated_at = time.monotonic()
                     self._record_failure(options, job_id, "failed")
                     self.job["conversation"] = copy.deepcopy(self.conversation)
-                    self.job.update(status="FAILED", error={"code": "ANALYSIS_FAILED", "message": "本次分析未完成。请检查输入路径和源码格式后重试。"})
+                    diagnostic = _failure_diagnostic(exc, "ANALYSIS_FAILED")
+                    self.job.update(status="FAILED", error={"code": "ANALYSIS_FAILED",
+                        "message": format_diagnostic(diagnostic), "diagnostic": diagnostic})
 
     def get_job(self, job_id: str) -> dict:
         with self.lock:
@@ -919,7 +973,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         self._send(status, json.dumps(value, ensure_ascii=False).encode("utf-8"))
 
     def _error(self, exc: RequestError) -> None:
-        self._json(exc.status, {"error": {"code": exc.code, "message": exc.message}})
+        error = {"code": exc.code, "message": exc.message}
+        if exc.diagnostic:
+            error["diagnostic"] = exc.diagnostic
+        self._json(exc.status, {"error": error})
 
     def do_GET(self) -> None:
         try:
@@ -962,8 +1019,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                 raise RequestError("NOT_FOUND", "请求的页面不存在。", 404)
         except RequestError as exc:
             self._error(exc)
-        except Exception:
-            self._error(RequestError("REQUEST_FAILED", "请求未完成。", 500))
+        except Exception as exc:
+            self._error(RequestError("REQUEST_FAILED", "请求未完成。", 500,
+                diagnostic=_failure_diagnostic(exc, "REQUEST_FAILED", http_status=500)))
 
     def do_DELETE(self) -> None:
         try:
@@ -974,8 +1032,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._json(200, self.server.app.delete_conversation(route.path.rsplit("/", 1)[1]))
         except RequestError as exc:
             self._error(exc)
-        except Exception:
-            self._error(RequestError("REQUEST_FAILED", "请求未完成。", 500))
+        except Exception as exc:
+            self._error(RequestError("REQUEST_FAILED", "请求未完成。", 500,
+                diagnostic=_failure_diagnostic(exc, "REQUEST_FAILED", http_status=500)))
 
     def do_POST(self) -> None:
         try:
@@ -1013,8 +1072,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._json(202, self.server.app.start(payload))
         except RequestError as exc:
             self._error(exc)
-        except Exception:
-            self._error(RequestError("REQUEST_FAILED", "请求未完成。", 500))
+        except Exception as exc:
+            self._error(RequestError("REQUEST_FAILED", "请求未完成。", 500,
+                diagnostic=_failure_diagnostic(exc, "REQUEST_FAILED", http_status=500)))
 
     def do_OPTIONS(self) -> None:
         self._error(RequestError("CROSS_ORIGIN_DENIED", "不提供跨站访问。", 403))

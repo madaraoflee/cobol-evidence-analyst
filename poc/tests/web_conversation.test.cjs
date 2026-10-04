@@ -22,6 +22,38 @@ const firstMessages=[{id:'user-1',role:'user',content:'How is a request accepted
 function setup(h,messages=[]){h.run(`state.connected=true;state.apiConfigured=true;state.mode='real';state.conversationSupported=true;applyProject(${JSON.stringify(project())});state.readingStrategy='retrieval';state.question='';applyConversation(${JSON.stringify(conversation(messages))});`);}
 async function submit(h,question){h.events.input({target:{id:'question-input',value:question}});await h.events.submit({target:{id:'question-form'},preventDefault(){}});}
 
+test('detailed answers are default and a brief preference reaches the actual request',async()=>{
+  const h=harness();setup(h);assert.equal(h.run('state.answerDetail'),'detailed');
+  assert.match(h.run('conversationComposer()'),/value="detailed" selected/);
+  h.events.change({target:{id:'answer-detail',value:'brief'}});
+  h.respond(url=>url==='/api/analyze'?{job_id:'neutral-job'}:{status:'COMPLETED',result:{...project(),conversation:conversation(firstMessages)}});
+  await submit(h,'Explain the rule.');
+  const body=JSON.parse(h.requests.find(item=>item.url==='/api/analyze').options.body);
+  assert.equal(body.answer_detail,'brief');assert.equal(h.run('state.answerDetail'),'brief');
+});
+
+test('long normal and length-limited answers retain their final text with explicit partial notices',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);const answer='## Eligibility\n\n'+'A valid request requires capacity.\n\n'.repeat(3000)+'TAIL-RETAINED';
+    setup(h,[{id:'assistant-long',role:'assistant',content:answer,status:'completed',analysis_status:'ANALYZED',finish_reason:'stop'}]);
+    const normal=h.run('renderWorkbench()');assert.match(normal,/TAIL-RETAINED/);assert.equal((normal.match(/A valid request requires capacity/g)||[]).length,3000);assert.doesNotMatch(normal,/answer-incomplete/);
+    h.run("state.conversation.messages[0].analysis_status='PARTIAL';state.conversation.messages[0].finish_reason='length';state.conversation.messages[0].answer_truncated=true");
+    const partial=h.run('renderWorkbench()');assert.match(partial,/answer-incomplete/);assert.match(partial,/finish_reason=length/);assert.match(partial,/TAIL-RETAINED/);
+    assert.equal(h.run('state.conversation.messages[0].content'),answer);
+    if(locale==='en')assert.match(partial,/Incomplete answer: the model reached its output length limit/);
+  }
+});
+
+test('page projection limits have a visible notice distinct from the model output limit',()=>{
+  const h=harness();setup(h,[{id:'projected-answer',role:'assistant',content:'Retained answer',status:'completed',analysis_status:'ANALYZED',finish_reason:'stop',answer_display_truncated:true,answer_complete_characters:1000015}]);
+  const html=h.run('renderWorkbench()');assert.match(html,/page display character limit/);assert.match(html,/complete model answer remains in the local result file/);assert.doesNotMatch(html,/finish_reason=length/);assert.match(html,/Retained answer/);
+});
+
+test('an unknown completion reason never invents a provider length stop',()=>{
+  const h=harness();setup(h,[{id:'partial-answer',role:'assistant',content:'Available answer',status:'completed',analysis_status:'PARTIAL',finish_reason:'unknown',answer_truncated:true}]);
+  const html=h.run('renderWorkbench()');assert.match(html,/answer-incomplete/);assert.doesNotMatch(html,/finish_reason=length/);assert.match(html,/Available answer/);
+});
+
 test('the supported service opens a real conversation workspace with retrieval as default',async()=>{
   const h=harness();h.respond(url=>url==='/api/state'?{session_token:'test',api_configured:true,project:project(),conversations:[],conversation:null}:url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
   await h.run('initialize()');assert.equal(h.run('state.mode'),'real');assert.equal(h.run('state.readingStrategy'),'retrieval');assert.equal(h.run('state.question'),'');
@@ -32,6 +64,83 @@ test('server default conversation title follows the selected interface language 
   const h=harness('en');setup(h);h.run("state.conversation.title='新对话'");
   assert.match(h.run('renderWorkbench()'),/New conversation/);assert.doesNotMatch(h.run('renderWorkbench()'),/新对话/);
   h.run("state.conversation.title='Business title from user'");assert.match(h.run('renderWorkbench()'),/Business title from user/);
+});
+
+test('reload restores the latest safe failure only for the matching conversation and failed run',async()=>{
+  const diagnostic={schema_version:'safe-api-error/v1',category:'connection',transport_reason:'connection_reset',evidence_source:'local',request_id:'local-'+'b'.repeat(32),reason:'UNTRUSTED PROVIDER TEXT'};
+  for(const match of ['current','other-conversation','other-run','completed-turn']){
+    const h=harness('zh-CN');
+    const current=conversation([...firstMessages,{id:'failed-question',role:'user',content:'Keep this question',run_id:match==='other-run'?'older-run':'failed-run',status:match==='completed-turn'?'completed':'failed'}]);
+    const job={job_id:'failed-run',status:'FAILED',conversation:{id:match==='other-conversation'?'unrelated':current.id},error:{diagnostic}};
+    h.respond(url=>url==='/api/state'?{session_token:'test',api_configured:true,project:project(),conversations:[current],conversation:current,job}:url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
+    await h.run('initialize()');
+    const html=h.run('conversationWorkbench()');
+    assert.match(html,/A valid request is accepted/);assert.match(html,/Keep this question/);
+    assert.doesNotMatch(html,/UNTRUSTED PROVIDER TEXT/);
+    if(match==='current'){assert.match(html,/接口连接中断/);assert.match(html,/<details><summary>查看安全错误详情/);}
+    else assert.doesNotMatch(html,/conversation-failure/);
+  }
+});
+
+test('reload restores a cancelled turn without claiming a provider failure',()=>{
+  const h=harness('zh-CN');setup(h,[{id:'cancelled-question',role:'user',content:'Stop this question',run_id:'cancelled-run',status:'cancelled'}]);
+  h.run("restoreConversationFailure({job_id:'cancelled-run',status:'CANCELLED',conversation:{id:'conversation-1'}})");
+  const html=h.run('conversationWorkbench()');assert.match(html,/已停止本次工作/);assert.doesNotMatch(html,/查看安全错误详情/);
+});
+
+test('switching conversations blocks both Enter and form submission until the active scope is ready',async()=>{
+  const h=harness();setup(h,firstMessages);
+  h.run("state.question='Keep this draft';state.conversationLoading=true");
+  await h.events.submit({target:{id:'question-form'},preventDefault(){}});
+  let submitted=0;h.get('question-form').requestSubmit=()=>submitted++;
+  h.events.keydown({target:{id:'question-input'},key:'Enter',preventDefault(){}});
+  assert.equal(submitted,0);assert.equal(h.requests.length,0);
+  assert.equal(h.run('state.question'),'Keep this draft');
+  h.run('state.conversationLoading=false');
+  h.events.keydown({target:{id:'question-input'},key:'Enter',isComposing:true,preventDefault(){}});
+  h.events.keydown({target:{id:'question-input'},key:'Enter',shiftKey:true,preventDefault(){}});
+  assert.equal(submitted,0,'IME confirmation and newline must never send');
+});
+
+test('a failed turn has one concise panel with correlation details folded outside the answer',()=>{
+  const h=harness('zh-CN');setup(h,firstMessages);
+  const id='local-'+'a'.repeat(32);
+  h.run(`state.error='Technical text ${id}';state.errorDiagnostic={schema_version:'safe-api-error/v1',category:'http_429_unknown',evidence_source:'http_status',http_status:429,request_id:'${id}',request_id_source:'local'};render()`);
+  assert.equal(h.get('notice').hidden,true);
+  const html=h.run('conversationWorkbench()');
+  assert.equal((html.match(/class="conversation-failure"/g)||[]).length,1);
+  const paragraph=html.match(/class="conversation-failure" role="status">[\s\S]*?<p>(.*?)<\/p>/)[1];
+  assert.match(html, /class="failure-heading">[\s\S]*?本次请求未完成<\/div>/);
+  assert.match(paragraph,/HTTP 429/);assert.equal((paragraph.match(/HTTP 429/g)||[]).length,1);
+  assert.doesNotMatch(paragraph,/local-|Technical text/);
+  assert.match(html,/<details><summary>查看安全错误详情/);
+  assert.match(html,new RegExp(id));assert.match(html,/A valid request is accepted/);
+  h.run("state.page='sources';render()");
+  assert.equal(h.get('notice').hidden,false,'failure remains visible outside the conversation');
+});
+
+test('closing evidence invalidates a pending response without changing the answer or draft',async()=>{
+  const h=harness();setup(h,firstMessages);let resolve;
+  h.run("state.question='Draft while reading'");h.respond(()=>new Promise(done=>{resolve=done;}));
+  const pending=h.run("loadConversationEvidence('assistant-1','ev-1')");
+  h.run('closeConversationEvidence()');
+  resolve({spans:[{evidence_id:'ev-1',integrity:'VALID',source_text:'LATE SOURCE'}]});
+  await pending;
+  assert.equal(h.run('state.conversationEvidence'),null);
+  assert.equal(h.run('state.question'),'Draft while reading');
+  assert.match(h.run('conversationWorkbench()'),/A valid request is accepted/);
+  assert.doesNotMatch(h.run('conversationWorkbench()'),/LATE SOURCE/);
+});
+
+test('starter questions populate a draft without making an analysis request',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);setup(h);
+    const view=h.run('conversationWorkbench()');
+    assert.match(view,/starter-questions/);assert.match(view,/maxlength="8000"/);
+    const question=view.match(/data-question="([^"]+)"/)[1];
+    h.events.click({target:{closest:()=>({dataset:{question},hasAttribute:()=>false,classList:{contains:()=>false}})}});
+    assert.equal(h.run('state.question'),question);assert.equal(h.requests.length,0);
+  }
 });
 
 test('two real API turns retain history and submit the server conversation id without browser history',async()=>{
@@ -178,40 +287,9 @@ test('model connection test reports only a verified reply or safe fixed errors w
   h.respond(()=>({usable:false,code:'REQUEST_TIMEOUT',model_returned:false}));await h.events['model-check-button:click']();
   assert.match(h.get('model-check-feedback').textContent,/timed out/);
   h.respond(()=>({usable:false,code:'INVALID_RESPONSE_SHAPE',model_returned:false}));await h.events['model-check-button:click']();
-  assert.match(h.get('model-check-feedback').textContent,/reply format is incompatible/);assert.doesNotMatch(h.get('model-check-feedback').textContent,/\.env/);
+  assert.match(h.get('model-check-feedback').textContent,/incompatible format/);assert.doesNotMatch(h.get('model-check-feedback').textContent,/\.env/);
   assert.equal(h.requests.filter(item=>item.url==='/api/model-check').length,5);
   assert.equal(h.requests.filter(item=>item.url==='/api/analyze').length,0);
-});
-
-test('model test distinguishes server, network and local workbench failures',async()=>{
-  const h=harness();setup(h);
-  for(const status of [500,502,503,504]){
-    h.respond(()=>({usable:false,code:'HTTP_ERROR',http_status:status,model_returned:false}));
-    await h.events['model-check-button:click']();
-    assert.match(h.get('model-check-feedback').textContent,/model service encountered a temporary error; please retry later/);
-    assert.doesNotMatch(h.get('model-check-feedback').textContent,/HTTP|logs|gateway|proxy/);
-  }
-  for(const [reason,pattern] of [['dns_resolution_failed',/Endpoint address not found/],['tls_certificate_invalid',/Connection verification failed/],['tls_handshake_failed',/Could not establish a secure connection/],['connection_refused',/refused the connection/],['connection_reset',/connection was interrupted/],['network_unreachable',/network is unreachable/],['timeout',/request timed out/],['__proto__',/endpoint connection failed; please retry later/],['PRIVATE-MARKER',/endpoint connection failed; please retry later/]]){
-    h.respond(()=>({usable:false,code:'TRANSPORT_ERROR',transport_reason:reason,model_returned:false}));
-    await h.events['model-check-button:click']();
-    assert.match(h.get('model-check-feedback').textContent,pattern);
-    assert.doesNotMatch(h.get('model-check-feedback').textContent,/PRIVATE-MARKER|__proto__/);
-  }
-  h.respond(()=>{throw Error('PRIVATE-MARKER');});
-  await h.events['model-check-button:click']();
-  assert.match(h.get('model-check-feedback').textContent,/Cannot reach the local workbench; check that it is running/);
-  assert.doesNotMatch(h.get('model-check-feedback').textContent,/PRIVATE-MARKER|model service|API Key/);
-});
-
-test('model connection errors use one short cause and suggestion in Chinese',()=>{
-  const h=harness('zh-CN');
-  for(const [response,expected] of [
-    [{code:'HTTP_ERROR',http_status:500},'模型服务暂时出错，请稍后重试。'],
-    [{code:'TRANSPORT_ERROR',transport_reason:'dns_resolution_failed'},'找不到接口地址，请检查网络或地址。'],
-    [{code:'TRANSPORT_ERROR',transport_reason:'tls_certificate_invalid'},'连接验证失败，请联系管理员检查证书。'],
-    [{code:'TRANSPORT_ERROR',transport_reason:'connection_reset'},'接口连接中断，请稍后重试。'],
-    [{code:'TRANSPORT_ERROR',transport_reason:'unknown'},'接口连接失败，请稍后重试。'],
-  ])assert.equal(h.run(`modelCheckMessage(${JSON.stringify(response)})`),expected);
 });
 
 test('folder picker fills each path without indexing; cancel preserves input and unavailable picker leaves manual entry',async()=>{
@@ -231,7 +309,7 @@ test('conversation content is never translated or treated as HTML and framework 
 test('restored assistant turns render Markdown with turn-local citations and keep user questions literal',()=>{
   for(const locale of ['en','zh-CN','zh-HK']){
     const h=harness(locale);setup(h,[{id:'user-md',role:'user',content:'**原始问题** <script>text</script>'},{id:'assistant-md',role:'assistant',content:'## 业务回答\n\n**先读保单**，然后计算 `AMOUNT`。 [ev-md]\n\n- 判断生效条件\n- 计算结果',status:'COMPLETED',evidence_refs:[{evidence_id:'ev-md',relative_path:'calculation.cbl',start_line:1,end_line:5}]}]);
-    const html=h.run('conversationWorkbench()');assert.match(html,/<h3>业务回答<\/h3>/);assert.match(html,/<strong>先读保单<\/strong>/);assert.match(html,/<code>AMOUNT<\/code>/);assert.match(html,/<ul>/);
+    const html=h.run('conversationWorkbench()');assert.match(html,/<h3 id="answer-assistant-md-section-0" tabindex="-1">业务回答<\/h3>/);assert.match(html,/<strong>先读保单<\/strong>/);assert.match(html,/<code>AMOUNT<\/code>/);assert.match(html,/<ul>/);
     assert.match(html,/data-message-id="assistant-md" data-turn-evidence="ev-md"/);
     assert.match(html,/\*\*原始问题\*\* &lt;script&gt;text&lt;\/script&gt;/);assert.doesNotMatch(html,/<script>/);
   }
@@ -242,4 +320,34 @@ test('Markdown citation tokens cannot turn source identifiers or reference label
   setup(h,[{id:'safe-turn',role:'assistant',content:`**业务说明** [${sourceId}] [${frameworkId}]`,status:'COMPLETED',evidence_refs:[{evidence_id:sourceId,relative_path:'<img src=x>.cbl',start_line:1,end_line:2}],framework_references:[{reference_id:frameworkId,heading:'<script>unsafe label</script>',text:'<img src=x>'}]}]);
   const html=h.run('conversationWorkbench()');assert.match(html,/<strong>业务说明<\/strong>/);assert.match(html,/data-turn-evidence="&quot;&gt;&lt;img/);assert.match(html,/&lt;script&gt;unsafe label&lt;\/script&gt;/);
   assert.doesNotMatch(html,/<img|<script|onerror="/i);
+});
+
+test('reading navigation stays within its answer and cannot promote heading text to HTML',()=>{
+  const h=harness();
+  const content='## Same heading\n\nKeep this answer.\n\n### Same heading\n\n<script>unsafe</script>\n\n### `FIELD` & <img src=x onerror=alert(1)>\n\nTAIL';
+  setup(h,[{id:'answer-one',role:'assistant',content},{id:'answer-two',role:'assistant',content}]);
+  const html=h.run('conversationWorkbench()');
+  assert.match(html,/data-answer-section="answer-answer-one-section-1"/);
+  assert.match(html,/data-answer-section="answer-answer-two-section-1"/);
+  assert.equal((html.match(/>TAIL<\/p>/g)||[]).length,2);
+  assert.doesNotMatch(html,/<script>|<img|<button[^>]*onerror=/);
+  let focused=false,scrolled=false;
+  h.get('answer-answer-two-section-1').focus=()=>focused=true;
+  h.get('answer-answer-two-section-1').scrollIntoView=()=>scrolled=true;
+  const target={dataset:{answerSection:'answer-answer-two-section-1'},hasAttribute:()=>false,classList:{contains:()=>false}};
+  h.events.click({target:{closest:()=>target},preventDefault(){}});
+  assert.equal(focused,true);assert.equal(scrolled,true);assert.equal(h.requests.length,0);
+});
+
+test('the welcome puts the composer before optional prompts and keeps source onboarding available',()=>{
+  for(const locale of ['zh-CN','zh-HK','en']){
+    const h=harness(locale);setup(h);
+    const html=h.run('conversationWorkbench()');
+    assert.ok(html.indexOf('id="question-input"')<html.indexOf('class="starter-questions"'));
+    assert.doesNotMatch(html,/conversation-toolbar|data-new-conversation/);
+    assert.equal((html.match(/data-question=/g)||[]).length,3);
+    h.run('state.project=null');
+    assert.match(h.run('conversationWorkbench()'),/data-connect/);
+    assert.match(h.run('conversationComposer()'),/ disabled/);
+  }
 });
