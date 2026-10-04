@@ -9,8 +9,11 @@ const web=path.join(__dirname,'../web');
 
 function harness(locale='en'){
   const events={},elements=new Map(),requests=[];let responder=()=>{throw Error('Unexpected request');};
-  const get=id=>{if(!elements.has(id))elements.set(id,{value:'',open:false,hidden:false,innerHTML:'',textContent:'',disabled:false,classList:{toggle:()=>{},contains:()=>false},setAttribute:()=>{},addEventListener:(event,handler)=>events[id+':'+event]=handler,showModal(){this.open=true;},close(){this.open=false;},focus(){}});return elements.get(id);};
-  const context=vm.createContext({document:{documentElement:{classList:{toggle:()=>{}}},createTreeWalker:()=>({nextNode:()=>false}),querySelectorAll:()=>[],querySelector:()=>null,getElementById:get,addEventListener:(event,handler)=>events[event]=handler},NodeFilter:{SHOW_TEXT:4},localStorage:{getItem:()=>locale,setItem:()=>{}},fetch:async(url,options)=>{requests.push({url,options});const data=await responder(url,options);const status=data?.__status || (data?.error && !data?.status?409:200);return {ok:status>=200 && status<300,status,json:async()=>data};},setTimeout:()=>1,clearTimeout:()=>{},setInterval:()=>1,clearInterval:()=>{}});
+  const move=(parent,child,prepend)=>{if(child.parentElement)child.parentElement.children=child.parentElement.children.filter(item=>item!==child);child.parentElement=parent;parent.children[prepend?'unshift':'push'](child);};
+  const get=id=>{if(!elements.has(id))elements.set(id,{id,value:'',open:false,hidden:false,innerHTML:'',textContent:'',disabled:false,attributes:new Map(),children:[],parentElement:null,classList:{toggle:()=>{},contains:()=>false},setAttribute(name,value){this.attributes.set(name,String(value));},getAttribute(name){return this.attributes.get(name)??null;},addEventListener:(event,handler)=>events[id+':'+event]=handler,append(child){move(this,child,false);},prepend(child){move(this,child,true);},showModal(){this.open=true;},close(){if(!this.open)return;this.open=false;events[id+':close']?.();},getClientRects(){return this.hidden?[]:[{}];},focus(){document.activeElement=this;}});return elements.get(id);};
+  const document={documentElement:{classList:{toggle:()=>{}}},activeElement:null,createTreeWalker:()=>({nextNode:()=>false}),querySelectorAll:()=>[],querySelector:selector=>selector==='.app-shell'?get('app-shell'):null,getElementById:get,addEventListener:(event,handler)=>events[event]=handler};
+  get('app-shell').append(get('workspace-sidebar'));get('app-shell').append(get('app-body'));get('app-shell').append(get('activity-sidebar'));
+  const context=vm.createContext({document,NodeFilter:{SHOW_TEXT:4},localStorage:{getItem:()=>locale,setItem:()=>{}},fetch:async(url,options)=>{requests.push({url,options});const data=await responder(url,options);const status=data?.__status || (data?.error && !data?.status?409:200);return {ok:status>=200 && status<300,status,json:async()=>data};},setTimeout:()=>1,clearTimeout:()=>{},setInterval:()=>1,clearInterval:()=>{}});
   vm.runInContext(fs.readFileSync(path.join(web,'i18n.js'),'utf8'),context);vm.runInContext(fs.readFileSync(path.join(web,'marked.umd.js'),'utf8'),context);
   vm.runInContext(fs.readFileSync(path.join(web,'markdown.js'),'utf8'),context);
   vm.runInContext(fs.readFileSync(path.join(web,'app.js'),'utf8').replace(/render\(\);initialize\(\);\s*$/,''),context);
@@ -161,6 +164,79 @@ test('new conversations and restored conversations preserve the local index and 
   const h=harness();setup(h,firstMessages);h.respond(url=>url==='/api/conversations'?{conversation:{id:'conversation-2',title:'',messages:[]}}:{conversation:conversation(firstMessages)});
   await h.run('newConversation()');assert.equal(h.run('state.conversation.id'),'conversation-2');assert.equal(h.run('state.project.snapshot_id'),'sha256:source');assert.equal(h.run('state.question'),'');
   await h.run("openConversation('conversation-1')");assert.equal(h.run('state.conversation.messages.length'),2);assert.match(h.run('renderWorkbench()'),/A valid request is accepted/);assert.deepEqual(h.requests.map(item=>item.url),['/api/conversations','/api/conversations/conversation-1']);
+});
+
+test('recent conversations retain every populated conversation beyond the first twelve',()=>{
+  const h=harness();setup(h,firstMessages);
+  const conversations=Array.from({length:18},(_,index)=>({id:'conversation-'+(index+1),title:'Request question '+(index+1),message_count:2}));
+  conversations.splice(3,0,{id:'empty-conversation',title:'Empty conversation',message_count:0});
+  h.run(`state.conversations=${JSON.stringify(conversations)};renderChrome()`);
+  const html=h.get('conversation-list').innerHTML;
+  assert.equal((html.match(/data-conversation=/g)||[]).length,18);
+  for(const item of conversations.filter(item=>item.message_count)){
+    assert.ok(html.includes(`data-conversation="${item.id}"`),item.id+' must remain available');
+    assert.ok(html.includes(`data-delete-conversation="${item.id}"`));
+  }
+  assert.match(html,/aria-current="true"/);assert.doesNotMatch(html,/empty-conversation/);
+  assert.equal(h.requests.length,0);
+});
+
+test('recent conversations drawer restores its rail, expanded state and visible trigger after closing',()=>{
+  const h=harness();setup(h,firstMessages);
+  const shell=h.get('app-shell'),rail=h.get('activity-sidebar'),dialog=h.get('activity-dialog'),toggle=h.get('activity-toggle');
+  for(const close of [()=>h.events['activity-close:click'](),()=>dialog.close()]){
+    h.events['activity-toggle:click']();
+    assert.equal(dialog.open,true);assert.equal(rail.parentElement,dialog);
+    assert.equal(toggle.getAttribute('aria-expanded'),'true');assert.equal(h.run('document.activeElement.id'),'activity-close');
+    h.events['activity-toggle:click']();
+    assert.equal(dialog.children.length,1,'opening an open drawer must not duplicate its rail');
+    close();
+    assert.equal(dialog.open,false);assert.equal(rail.parentElement,shell);assert.equal(shell.children.at(-1),rail);
+    assert.equal(toggle.getAttribute('aria-expanded'),'false');assert.equal(h.run('document.activeElement.id'),'activity-toggle');
+  }
+  h.events['activity-toggle:click']();toggle.hidden=true;dialog.close();
+  assert.equal(rail.parentElement,shell);assert.equal(toggle.getAttribute('aria-expanded'),'false');
+  assert.notEqual(h.run('document.activeElement.id'),'activity-toggle','a desktop-hidden drawer trigger must not receive focus');
+  assert.equal(h.requests.length,0);
+});
+
+test('switching between navigation and recent conversations keeps only one drawer open',()=>{
+  const h=harness();const shell=h.get('app-shell');
+  h.events['navigation-toggle:click']();
+  assert.equal(h.get('workspace-sidebar').parentElement,h.get('navigation-dialog'));
+  h.events['activity-toggle:click']();
+  assert.equal(h.get('navigation-dialog').open,false);assert.equal(h.get('navigation-toggle').getAttribute('aria-expanded'),'false');
+  assert.equal(shell.children[0],h.get('workspace-sidebar'));assert.equal(h.get('activity-dialog').open,true);
+  h.events['navigation-toggle:click']();
+  assert.equal(h.get('activity-dialog').open,false);assert.equal(h.get('activity-toggle').getAttribute('aria-expanded'),'false');
+  assert.equal(shell.children.at(-1),h.get('activity-sidebar'));assert.equal(h.get('navigation-dialog').open,true);
+  assert.equal(h.requests.length,0);
+});
+
+test('selecting a recent conversation closes the drawer before restoring that conversation',async()=>{
+  const h=harness();setup(h,firstMessages);
+  const restored={...conversation(firstMessages),id:'conversation-18',title:'Older request question'};
+  h.respond(url=>{assert.equal(url,'/api/conversations/conversation-18');assert.equal(h.get('activity-dialog').open,false);return {conversation:restored};});
+  h.run('const restoreConversation=openConversation;let restoredConversation;openConversation=id=>restoredConversation=restoreConversation(id)');
+  h.events['activity-toggle:click']();
+  const target={dataset:{conversation:'conversation-18'},hasAttribute:()=>false,classList:{contains:()=>false}};
+  h.events.click({target:{closest:()=>target}});
+  await h.run('restoredConversation');
+  assert.equal(h.get('activity-sidebar').parentElement,h.get('app-shell'));
+  assert.equal(h.get('activity-toggle').getAttribute('aria-expanded'),'false');
+  assert.equal(h.run('state.conversation.id'),'conversation-18');assert.equal(h.run('state.project.snapshot_id'),'sha256:source');
+  assert.equal(h.requests.length,1);assert.match(h.run('renderWorkbench()'),/A valid request is accepted/);
+});
+
+test('deleting from recent conversations closes the drawer and still requires explicit confirmation',()=>{
+  const h=harness();setup(h,firstMessages);h.events['activity-toggle:click']();
+  const target={dataset:{deleteConversation:'conversation-1'},hasAttribute:()=>false,classList:{contains:()=>false}};
+  h.events.click({target:{closest:()=>target}});
+  assert.equal(h.get('activity-dialog').open,false);assert.equal(h.get('activity-sidebar').parentElement,h.get('app-shell'));
+  assert.equal(h.get('delete-conversation-dialog').open,true);assert.equal(h.run('state.deletingConversationId'),'conversation-1');
+  assert.equal(h.requests.length,0);
+  h.events['delete-conversation-cancel:click']();
+  assert.equal(h.run('state.conversation.id'),'conversation-1');assert.equal(h.run('state.deletingConversationId'),null);
 });
 
 test('raw response capture is off by default and one explicit selection applies to one submission',async()=>{

@@ -3,6 +3,7 @@
   "agent": {
     "max_model_requests": 5,
     "max_source_characters": 36000,
+    "max_complete_source_characters": 128000,
     "max_history_characters": 18000,
     "max_request_bytes": 230000,
     "max_searches_per_turn": 3,

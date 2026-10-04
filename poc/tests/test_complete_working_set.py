@@ -193,7 +193,7 @@ class CompleteWorkingSetTests(unittest.TestCase):
     def test_over_source_budget_uses_bounded_fallback_without_a_complete_flag(self):
         self.build({"large-rule.cbl": program("LARGE-RULE",
             "*> " + "x" * 13000 + "\nMOVE 7 TO RESULT-AMOUNT.")})
-        policy = AgentPolicy(max_source_characters=512, initial_source_characters=512,
+        policy = AgentPolicy(max_source_characters=512, max_complete_source_characters=512, initial_source_characters=512,
                              search_source_characters=512, read_source_characters=512)
         payload, _, _ = self.capture("请详细解释 large-rule.cbl 的业务流程与结果。", policy=policy)
         metadata = payload["source_context"][0]["working_set"]

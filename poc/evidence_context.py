@@ -204,7 +204,8 @@ class EvidenceContext:
             task.advance(context)
         return fresh
 
-    def selected_pages(self, maximum, *, evidence_groups=(), priority_targets=()):
+    def selected_pages(self, maximum, *, evidence_groups=(), priority_targets=(),
+                       max_complete_source_characters=None, include_complete=True):
         """Keep recent anchors and their core evidence together within whole-page budgets."""
         self.selection_trim_events, self.selection_frontier = [], []
         core_roles = {"anchor", "result", "condition", "input", "parameter"}
@@ -221,14 +222,23 @@ class EvidenceContext:
         core_identifiers = {identifier for members in core_by_group.values() for identifier in members}
 
         complete = [page for page in self.pages.values()
-                    if "complete_working_set" in page.get("selection_reasons", ())]
+                    if include_complete and "complete_working_set" in page.get("selection_reasons", ())]
+        roots = (self.working_set or {}).get("root_paths", [])
+        extended = [page for page in complete if len(roots) == 1 and page.get("relative_path") == roots[0]
+                    and maximum < len(page.get("source_text", "")) <= (max_complete_source_characters or 0)]
+        if len(extended) == 1 and (self.working_set or {}).get("complete_root_budget_applied"):
+            # Only the resolved root gets the additional allowance. Dependencies
+            # and every other excerpt still share the ordinary source budget.
+            maximum += len(extended[0]["source_text"])
         if sum(len(page.get("source_text", "")) for page in complete) > maximum:
             complete = []
         replacements = {identifier: self.covering_id(identifier, complete) for identifier in self.pages}
         candidates = {identifier: page for identifier, page in self.pages.items()
-                      if replacements[identifier] == identifier}
+                      if replacements[identifier] == identifier and (include_complete or
+                          "complete_working_set" not in page.get("selection_reasons", ()))}
         core_by_group = {group: {replacements[identifier] for identifier in identifiers}
                          for group, identifiers in core_by_group.items()}
+        core_by_group = {group: identifiers & candidates.keys() for group, identifiers in core_by_group.items()}
         core_identifiers = {identifier for members in core_by_group.values() for identifier in members}
 
         def target_rank(page):
@@ -281,6 +291,50 @@ class EvidenceContext:
                     self.selection_frontier.append({**item, "reason": "source_budget_evidence_omitted"})
         identifiers = {page["evidence_id"] for page in selected}
         return [page for identifier, page in self.pages.items() if identifier in identifiers]
+
+    def fallback_pages(self, maximum, *, evidence_groups=(), priority_targets=()):
+        """Restore retained physical excerpts when a whole file cannot be sent."""
+        selected = self.selected_pages(maximum, evidence_groups=evidence_groups,
+            priority_targets=priority_targets, include_complete=False)
+        if selected:
+            return selected
+        # A small file can share its ID with the original retrieval page. If
+        # that whole page is too large for the encoded request, keep a bounded
+        # physical range instead of losing every source line with the full file.
+        for page in list(self.pages.values()):
+            if "complete_working_set" not in page.get("selection_reasons", ()):
+                continue
+            excerpt = self.narrow_page(page, min(maximum, 4096), priority_targets=priority_targets)
+            if excerpt is not None:
+                return [excerpt]
+        return []
+
+    def narrow_page(self, page, maximum_bytes, *, priority_targets=()):
+        """Keep a smaller exact physical span, preferring a requested anchor."""
+        from source_reading import _identify_page
+        lines = page.get("source_text", "").split("\n")
+        anchor = next((target.get("line", target.get("start_line", 1)) for target in priority_targets
+            if isinstance(target, dict) and target.get("relative_path") == page.get("relative_path")
+            and page["start_line"] <= target.get("line", target.get("start_line", 1)) <= page["end_line"]), page["start_line"])
+        for offset in dict.fromkeys((anchor - page["start_line"], 0)):
+            rows, size = [], 0
+            for line in lines[offset:]:
+                added = len(line.encode("utf-8")) + bool(rows)
+                if size + added > maximum_bytes:
+                    break
+                rows.append(line)
+                size += added
+            if not rows or len(rows) == len(lines):
+                continue
+            excerpt = {key: page[key] for key in ("relative_path", "source_sha256", "include_chain") if key in page}
+            first = page["start_line"] + offset
+            excerpt.update(start_line=first, end_line=first + len(rows) - 1,
+                source_text="\n".join(rows), span_truncated=False,
+                selection_reasons=["request_budget_fallback"])
+            excerpt["evidence_id"] = _identify_page(excerpt)
+            self.accept({"pages": [excerpt]}, "request_budget_fallback")
+            return self.pages[excerpt["evidence_id"]]
+        return None
 
     def bundle(self, selected):
         visible = list(selected)

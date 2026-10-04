@@ -141,7 +141,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
                 self.config, transport=transport, framework_reference_path="",
                 answer_detail="brief",
                 policy=AgentPolicy(max_model_requests=3, max_answer_revisions=0,
-                                   max_source_characters=512,
+                                   max_source_characters=512, max_complete_source_characters=512,
                                    initial_pages=1, initial_source_characters=512))
         return output, draft[0]
 

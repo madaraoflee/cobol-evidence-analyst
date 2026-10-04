@@ -170,18 +170,20 @@ class QuestionInvestigationChatTests(unittest.TestCase):
         visible = {page["evidence_id"] for page in self.requests[0]["source_context"][0]["pages"]}
         for item in self.requests[0]["question_investigation"]["required_items"]:
             self.assertTrue(set(item["evidence_ids"]).issubset(visible))
-        self.assertEqual(result["status"], "ANALYZED")
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["stop_reason"], "working_set_transmission_incomplete")
 
     def test_transmission_gap_does_not_reacquire_already_retrieved_source(self):
         self.calculation()
         import business_chat
         original_fit = business_chat._fit_request
         def omit_source(config, payload, history, policy=None, *, trim_events=None,
-                        investigation_builder=None):
+                        investigation_builder=None, source_fallback_builder=None):
             self.assertTrue(payload["source_context"][0]["pages"])
             payload["source_context"][0]["pages"] = []
             return original_fit(config, payload, history, policy,
-                trim_events=trim_events, investigation_builder=investigation_builder)
+                trim_events=trim_events, investigation_builder=investigation_builder,
+                source_fallback_builder=source_fallback_builder)
         with mock.patch.object(business_chat, "_fit_request", side_effect=omit_source):
             result = self.ask("FINAL-AMOUNT 怎么计算？", lambda payload:
                 "已有公式候选，但本轮原文未供应，不能完整确认。")
@@ -218,7 +220,7 @@ class QuestionInvestigationChatTests(unittest.TestCase):
             return f"基础金额大于零时按基础金额乘系数计算；否则结果为零。[{formula['evidence_id']}]"
         with mock.patch.object(business_chat, "build_business_map", side_effect=limited_navigation):
             result = self.ask("rule.cbl 的金额怎么计算？", respond,
-                policy=AgentPolicy(max_source_characters=4096,
+                policy=AgentPolicy(max_source_characters=4096, max_complete_source_characters=4096,
                                    initial_pages=1, initial_source_characters=512))
         self.assertEqual(len(self.requests), 2)
         # Default detail now supplies located missing material before the first

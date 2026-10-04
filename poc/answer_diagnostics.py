@@ -19,6 +19,12 @@ STOP_REASONS = frozenset({
     "MODEL_REFUSED", "MODEL_CONTENT_FILTERED", "MODEL_REQUEST_BUDGET_EXHAUSTED",
     "completed", "model_abstained", "unknown", "other",
 })
+WORKING_SET_REASONS = frozenset({
+    "source_identity_not_eligible", "source_set_unavailable", "snapshot_changed",
+    "source_not_indexed", "dependency_depth_budget", "dependency_file_budget",
+    "source_byte_budget", "source_characters", "complete_source_characters",
+    "source_hash_mismatch", "source_read_unavailable", "candidate_source_set_supplied",
+})
 
 
 def _enum(value, allowed):
@@ -74,6 +80,10 @@ def build_answer_diagnostics(*, config, quality, result):
     question = final.get("question_investigation", {})
     reading = result.get("reading_coverage", {})
     working = investigation.get("working_set", {})
+    omitted_candidates = set(working.get("omitted_candidate_paths", []))
+    omitted_complete = set(working.get("omitted_complete_paths", []))
+    omitted_complete_count = max(len(omitted_candidates),
+        _number(working.get("omitted_candidate_path_count")) or 0) + len(omitted_complete - omitted_candidates)
     rounds = []
     for offset, row in enumerate(quality.get("rounds", [])[:64], 1):
         response = row.get("response") or {}
@@ -118,7 +128,12 @@ def build_answer_diagnostics(*, config, quality, result):
         limitations.add("located_source_not_read")
     source_trimmed = any(event.get("role") == "source" or event.get("reason") == "source_characters"
                          for row in quality.get("rounds", []) for event in row.get("trim_events", []))
-    if working.get("omitted_complete_paths") or source_trimmed:
+    working_budget_reasons = {working.get("reason"), *(item.get("reason")
+        for item in working.get("frontier", []) if isinstance(item, dict))}
+    if (omitted_complete_count or source_trimmed or working_budget_reasons.intersection({
+            "source_characters", "complete_source_characters", "source_byte_budget",
+            "dependency_depth_budget", "dependency_file_budget"})
+            or working.get("transmission_fallback_reason") == "complete_source_request_bytes"):
         limitations.add("source_budget_omitted")
     reasons = {item.get("reason") for item in [*result.get("boundaries", []), *question.get("open_gaps", [])]
                if isinstance(item, dict)}
@@ -164,6 +179,9 @@ def build_answer_diagnostics(*, config, quality, result):
             "output_limit_source": _enum(getattr(config, "output_limit_source", None), {"profile", "environment", "dotenv", "explicit"})},
         "configured": {"max_output_tokens": _number(config.max_output_tokens),
             "max_model_requests": _number(policy.get("max_model_requests")),
+            "max_source_characters": _number(policy.get("max_source_characters")),
+            "max_complete_source_characters": _number(policy.get("max_complete_source_characters")),
+            "max_request_bytes": _number(policy.get("max_request_bytes")),
             "requested_detail": _enum(result.get("answer_detail"), {"brief", "detailed"})},
         "requests": rounds,
         "source_coverage": {"indexed_files": indexed,
@@ -171,7 +189,15 @@ def build_answer_diagnostics(*, config, quality, result):
                                   len(business_map.get("selected_paths", []))),
             "provided_files": len(provided_paths) if sent_sources else _number(reading.get("sent_files")),
             "pages": len(provided_pages) if sent_sources else _number(reading.get("sent_pages")),
-            "unread_tasks": len(tasks), "omitted_complete_files": len(working.get("omitted_complete_paths", [])),
+            "unread_tasks": len(tasks), "omitted_complete_files": omitted_complete_count,
+            "working_set_status": _enum(working.get("status"), {"not_applicable", "fallback", "partial", "supplied"}),
+            "working_set_reason": _enum(working.get("reason"), WORKING_SET_REASONS),
+            "supplied_complete_files": len(working.get("supplied_complete_paths", [])),
+            "physical_complete": working.get("physical_complete") if type(working.get("physical_complete")) is bool else None,
+            "closure_complete": working.get("closure_complete") if type(working.get("closure_complete")) is bool else None,
+            "complete_root_budget_applied": working.get("complete_root_budget_applied")
+                if type(working.get("complete_root_budget_applied")) is bool else None,
+            "transmission_fallback_reason": _enum(working.get("transmission_fallback_reason"), {"complete_source_request_bytes"}),
             "identity_status": "not_requested" if status == "none" else _enum(status, {"resolved", "ambiguous", "not_found"}),
             "retrieval_status": _enum(retrieval, {"source_candidates", "framework_candidates", "unresolved", "not_attempted"}),
             "limitation_codes": sorted(limitations)},

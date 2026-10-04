@@ -149,7 +149,17 @@ class RetrievalEvidenceRegressionTests(unittest.TestCase):
         self.assertLessEqual(len(self.requests), policy.max_model_requests)
         for request in self.requests:
             self.assertLessEqual(len(request["body"]), policy.max_request_bytes)
-            self.assertLessEqual(sum(len(page["source_text"]) for page in source_pages(request["payload"])),
+            supplied = source_pages(request["payload"])
+            working_set = request["payload"]["source_context"][0].get("working_set", {})
+            extended_roots = [page for page in supplied
+                if working_set.get("complete_root_budget_applied")
+                and page["relative_path"] in working_set.get("root_paths", [])
+                and "complete_working_set" in page.get("selection_reasons", [])]
+            self.assertLessEqual(len(extended_roots), 1)
+            if extended_roots:
+                self.assertEqual(request["payload"]["business_map"]["source_identity"]["status"], "resolved")
+                self.assertLessEqual(len(extended_roots[0]["source_text"]), policy.max_complete_source_characters)
+            self.assertLessEqual(sum(len(page["source_text"]) for page in supplied if page not in extended_roots),
                                  policy.max_source_characters)
             ids = {page["evidence_id"] for page in source_pages(request["payload"])}
             for group in request["payload"].get("evidence_groups", []):
@@ -336,7 +346,7 @@ class RetrievalEvidenceRegressionTests(unittest.TestCase):
         original_fit = business_chat._fit_request
 
         def drop_source_before_fit(config, payload, history, policy=None, *, trim_events=None,
-                                   investigation_builder=None):
+                                   investigation_builder=None, source_fallback_builder=None):
             # Exercise the flow contract after transport fitting omits every
             # already located excerpt; selector behavior is covered separately.
             self.assertEqual(payload["business_map"]["source_identity"]["status"], "none")
@@ -350,7 +360,8 @@ class RetrievalEvidenceRegressionTests(unittest.TestCase):
                     "after_characters": 0})
             payload["source_context"][0]["pages"] = []
             return original_fit(config, payload, history, policy, trim_events=trim_events,
-                                investigation_builder=investigation_builder)
+                                investigation_builder=investigation_builder,
+                                source_fallback_builder=source_fallback_builder)
 
         with mock.patch.object(business_chat, "_fit_request", side_effect=drop_source_before_fit):
             result = self.ask("Explain FINAL-VALUE calculation")
@@ -366,7 +377,7 @@ class RetrievalEvidenceRegressionTests(unittest.TestCase):
         self.write(TARGET, text)
         self.build()
         lines = text.splitlines()
-        policy = AgentPolicy(max_model_requests=5)
+        policy = AgentPolicy(max_model_requests=5, max_complete_source_characters=36000)
         result = self.ask("Explain COUNTPLAN calculation", policy=policy, first_action={"read": [{
             "relative_path": TARGET, "start_line": lines.index(INPUT) + 1,
             "end_line": lines.index(FORMULA) + 2}]})

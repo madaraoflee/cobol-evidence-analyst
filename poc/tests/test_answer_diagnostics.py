@@ -128,6 +128,41 @@ class AnswerDiagnosticsTests(unittest.TestCase):
         self.assertEqual(captured[0]["answer_detail"], "brief")
         self.assertIn("简要说明结论", captured[0]["task"])
 
+    def test_complete_source_rejected_before_request_is_reported_as_budget_omission(self):
+        policy = {"max_model_requests": 5, "max_source_characters": 36000,
+                  "max_complete_source_characters": 128000, "max_request_bytes": 230000}
+        for reason in ("source_characters", "complete_source_characters", "source_byte_budget"):
+            with self.subTest(reason=reason):
+                result = {"investigation": {"working_set": {"status": "fallback",
+                    "reason": reason, "source_manifest": [], "physical_complete": False,
+                    "closure_complete": False, "omitted_candidate_paths": ["private-source.cbl"],
+                    "omitted_candidate_path_count": 1}}}
+                summary = build_answer_diagnostics(config=self.config(),
+                    quality={"configuration": {"policy": policy}}, result=result)
+                coverage = summary["source_coverage"]
+                self.assertEqual(coverage["omitted_complete_files"], 1)
+                self.assertIn("source_budget_omitted", coverage["limitation_codes"])
+                self.assertNotIn("external_implementation_missing", coverage["limitation_codes"])
+                self.assertEqual(coverage["working_set_reason"], reason)
+                self.assertEqual(summary["configured"]["max_complete_source_characters"], 128000)
+                self.assertNotIn("private-source.cbl", json.dumps(summary))
+
+    def test_working_set_projection_keeps_unknown_distinct_and_deduplicates_omissions(self):
+        poison = "private-context-marker"
+        summary = build_answer_diagnostics(config=self.config(), quality={}, result={
+            "investigation": {"working_set": {"status": poison, "reason": poison,
+                "physical_complete": poison, "closure_complete": poison,
+                "complete_root_budget_applied": poison, "transmission_fallback_reason": poison,
+                "omitted_candidate_paths": [poison], "omitted_candidate_path_count": 1,
+                "omitted_complete_paths": [poison]}}})
+        coverage = summary["source_coverage"]
+        self.assertEqual(coverage["omitted_complete_files"], 1)
+        self.assertEqual(coverage["working_set_status"], "unknown")
+        self.assertIsNone(coverage["physical_complete"])
+        self.assertIsNone(coverage["closure_complete"])
+        self.assertIsNone(coverage["complete_root_budget_applied"])
+        self.assertNotIn(poison, json.dumps(summary))
+
 
 if __name__ == "__main__":
     unittest.main()

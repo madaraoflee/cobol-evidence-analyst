@@ -61,6 +61,17 @@ _EXPLICIT_DEFERRAL = re.compile(
     r"^(?:我|我们|我們).{0,120}(?:需要|必须|必須|待).{0,240}(?:才能|才可|再)(?:回答|解释|解釋|确认|確認)|"
     r"^(?:I|we)\s+(?:(?:still|first)\s+)?(?:need|must|have to)\b.{0,480}"
     r"\bbefore\s+(?:(?:I|we)\s+can\s+)?(?:answer|explain|confirm)\b", re.I)
+_PENDING_INVESTIGATION = re.compile(
+    r"(?:^|[。！？]|[.!?]\s+)[ \t]*(?:[-*]\s+)?(?:\*\*)?"
+    r"(?:(?:接下来|接下來|下一步)[，, ]*)?"
+    r"(?:(?:我们|我們|我)\s*(?:会|會|将|將|打算|计划|計劃|准备|準備)\s*"
+    r"(?:再|先|继续|繼續|进一步|進一步)*\s*"
+    r"(?:核对|核對|补查|補查|补读|補讀|查找|查阅|查閱|读取|讀取|检查|檢查|"
+    r"追踪|追蹤|调查|調查|确认|確認|分析)|"
+    r"(?:I|we)(?:\s+will|['’]ll)\s+(?:(?:now|next|first)\s+)?"
+    r"(?:continue\s+(?:to\s+)?)?"
+    r"(?:check(?:ing)?|read(?:ing)?|inspect(?:ing)?|investigate|investigating|"
+    r"review(?:ing)?|verify|verifying|search(?:ing)?|trace|tracing)\b)", re.I | re.M)
 
 
 def assess_answer_completion(answer):
@@ -72,6 +83,16 @@ def assess_answer_completion(answer):
     """
     text = _REFERENCE.sub("", str(answer))
     text = re.sub(r"(?m)^\s*#{1,6}\s+.*$", "", text)
+    # An explicit promise is unfinished work even when it follows a useful
+    # partial explanation. Preserve that explanation; nominate a bounded
+    # investigation instead of treating the promise as a completed answer.
+    # Quoted examples and code are data, not commitments by the analyst.
+    commitment_text = re.sub(r"```[^\n]*\n.*?(?:```|\Z)|~~~[^\n]*\n.*?(?:~~~|\Z)",
+                             "", text, flags=re.S)
+    commitment_text = re.sub(r"(?m)^\s*>.*$|`[^`\n]*`", "", commitment_text)
+    commitment_text = re.sub(r'''“[^”]*”|「[^」]*」|『[^』]*』|‘[^’]*’|"[^"\n]*"|(?<!\w)'[^'\n]*' ''',
+                             "", commitment_text, flags=re.X)
+    pending_investigation = bool(_PENDING_INVESTIGATION.search(commitment_text))
     clauses = re.split(r"[\n。！？；;，,:：]+|(?<=[.!?])\s+|\b(?:but|however)\b", text, flags=re.I)
     deferred = substantive = limitation = False
     for clause in clauses:
@@ -90,9 +111,11 @@ def assess_answer_completion(answer):
             deferred = True
         else:
             substantive = True
-    incomplete = deferred and not substantive
+    incomplete = pending_investigation or deferred and not substantive
     return {"status": "incomplete" if incomplete else "not_assessed",
-            "reason": "investigation_without_business_answer" if incomplete else None,
+            "reason": "investigation_promised_without_completion" if pending_investigation else
+                      "investigation_without_business_answer" if incomplete else None,
+            "pending_investigation": pending_investigation,
             "limitation_detected": limitation,
             "method": "bounded_text_check", "semantic_verification": "unverified"}
 

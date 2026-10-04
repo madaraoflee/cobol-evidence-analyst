@@ -179,7 +179,9 @@ class BusinessChatTests(unittest.TestCase):
             pages = source_pages(payload)
             deep = next(page for page in pages if 'CALL "CALC-RULE"' in page["source_text"])
             leaf = next(page for page in pages if "RESULT-COUNT = REQUEST-COUNT * 2" in page["source_text"])
-            self.assertGreater(deep["start_line"], 1000)
+            call_line = deep["start_line"] + next(index for index, line in enumerate(deep["source_text"].splitlines())
+                                                   if 'CALL "CALC-RULE"' in line)
+            self.assertGreater(call_line, 1000)
             self.assertIn("IF REQUEST-COUNT > 4", leaf["source_text"])
             self.assertEqual({item["relative_path"] for item in payload["business_map"]["programs"]},
                              {"entry.cbl", "calc.cbl"})
@@ -476,7 +478,7 @@ class BusinessChatTests(unittest.TestCase):
                 for page in source_pages(payload)))
             return reply("修订：已补读后续记录。")
         result = self.ask("LONG 程序都展示哪些记录？", respond,
-            policy=AgentPolicy(max_source_characters=4096, read_source_characters=512,
+            policy=AgentPolicy(max_source_characters=4096, max_complete_source_characters=4096, read_source_characters=512,
                                max_model_requests=3))["agent_result"]
         self.assertEqual(result["answer"], "修订：已补读后续记录。")
         self.assertEqual(result["metrics"]["model_requests"], 3)

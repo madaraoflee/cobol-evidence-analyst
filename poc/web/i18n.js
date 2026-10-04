@@ -4,10 +4,13 @@
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
 本次請求未完成|本次请求未完成|This request did not complete
-脈絡|脉络|Mailuo
-脈絡首頁|脉络首页|Mailuo home
+知序|知序|Zhixu
+知序首頁|知序首页|Zhixu home
 COBOL 業務分析|COBOL 业务分析|COBOL Workbench
 最近對話|最近对话|Recent conversations
+開啟最近對話|打开最近对话|Open recent conversations
+關閉最近對話|关闭最近对话|Close recent conversations
+尚無對話，提出問題後會顯示在這裡。|暂无对话，提出问题后会显示在这里。|Your conversations will appear here after you ask a question.
 匯出|导出|Export
 提問時，向已設定的接口傳送有限源碼與框架節錄。|提问时，向已配置的接口发送有限源码与框架节录。|Questions send limited source and framework excerpts to your configured endpoint.
 從一個問題，理清業務脈絡|从一个问题，理清业务脉络|FOLLOW THE THREAD
@@ -855,7 +858,7 @@ for (const element of document.querySelectorAll('[aria-label],[placeholder],[tit
 }
 function translateStaticInterface() {
   document.documentElement.lang = currentLocale === 'zh-HK' ? 'zh-Hant-HK' : currentLocale === 'zh-CN' ? 'zh-Hans' : 'en';
-  document.title = t('脈絡') + ' · ' + t('COBOL 業務分析');
+  document.title = t('知序') + ' · ' + t('COBOL 業務分析');
   for (const [node,original] of staticText) if (node.isConnected) node.data = t(original);
   for (const [node,attribute,original] of staticAttributes) if (node.isConnected) node.setAttribute(attribute,t(original));
   document.getElementById('language-select').value = currentLocale;

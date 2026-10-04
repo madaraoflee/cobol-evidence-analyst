@@ -1,7 +1,8 @@
 """Explicit, provider-independent budgets for an interactive investigation.
 
-Defaults preserve the existing local workflow. Changing these values is a
-deployment choice, never an automatic response to a difficult question.
+Ordinary excerpts and a uniquely resolved whole root have separate allowances.
+Changing these values is a deployment choice, never an automatic response to a
+difficult question.
 """
 
 from collections.abc import Mapping
@@ -12,6 +13,7 @@ from dataclasses import asdict, dataclass, fields
 class AgentPolicy:
     max_model_requests: int = 5
     max_source_characters: int = 36000
+    max_complete_source_characters: int = 128000
     max_history_characters: int = 18000
     max_request_bytes: int = 230000
     max_searches_per_turn: int = 3
@@ -36,6 +38,7 @@ class AgentPolicy:
         limits = {
             "max_model_requests": (1, 32),
             "max_source_characters": (512, 128000),
+            "max_complete_source_characters": (512, 128000),
             "max_history_characters": (0, 128000),
             # Leave room below the adapter's 256 KB transport hard limit.
             "max_request_bytes": (32768, 230000),

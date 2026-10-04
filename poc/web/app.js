@@ -167,7 +167,8 @@ function renderChrome(){
   const [page,title,subtitle]=titles[state.page];$('breadcrumb-page').textContent=page;$('page-title').textContent=title;$('page-subtitle').textContent=subtitle;
   if(conversationMode() && state.page==='workbench'){$('page-title').textContent=t('分析工作台');$('page-subtitle').textContent=t('沿用代碼庫索引與對話上下文，持續追問。');}
   if($('new-conversation-button')){$('new-conversation-button').hidden=!state.conversationSupported;$('new-conversation-button').disabled=state.busy || state.conversationLoading || !sourceUsable();}
-  if($('conversation-list'))$('conversation-list').innerHTML=state.conversationSupported?state.conversations.filter(item=>item.message_count!==0).slice(0,12).map(item=>`<div class="conversation-row"><button class="conversation-link ${item.id===state.conversation?.id?'active':''}" ${item.id===state.conversation?.id?'aria-current="true"':''} title="${escapeHTML(conversationTitle(item.title))}" data-conversation="${escapeHTML(item.id)}" ${state.busy || state.conversationLoading?'disabled':''}>${escapeHTML(conversationTitle(item.title))}</button><button class="conversation-delete" type="button" data-delete-conversation="${escapeHTML(item.id)}" aria-label="${escapeHTML(t('刪除對話'))}：${escapeHTML(conversationTitle(item.title))}" title="${escapeHTML(t('刪除對話'))}" ${state.busy || state.conversationLoading?'disabled':''}>${icon('trash')}</button></div>`).join(''):'';
+  if($('conversation-list'))$('conversation-list').innerHTML=state.conversationSupported?state.conversations.filter(item=>item.message_count!==0).map(item=>`<div class="conversation-row"><button class="conversation-link ${item.id===state.conversation?.id?'active':''}" ${item.id===state.conversation?.id?'aria-current="true"':''} title="${escapeHTML(conversationTitle(item.title))}" data-conversation="${escapeHTML(item.id)}" ${state.busy || state.conversationLoading?'disabled':''}>${escapeHTML(conversationTitle(item.title))}</button><button class="conversation-delete" type="button" data-delete-conversation="${escapeHTML(item.id)}" aria-label="${escapeHTML(t('刪除對話'))}：${escapeHTML(conversationTitle(item.title))}" title="${escapeHTML(t('刪除對話'))}" ${state.busy || state.conversationLoading?'disabled':''}>${icon('trash')}</button></div>`).join(''):'';
+  if($('conversation-list') && !$('conversation-list').innerHTML)$('conversation-list').innerHTML=ui`<p class="conversation-empty">尚無對話，提出問題後會顯示在這裡。</p>`;
   $('connection-status').classList.toggle('live',state.connected);
   $('connection-status').innerHTML=`<i></i>${state.connected?t('本機服務已啟動'):t('介面預覽 · 本機服務未啟動')}`;
   $('config-dot').classList.toggle('ready',state.apiConfigured);
@@ -394,6 +395,7 @@ function diagnosticSummaryData(){
   if(!summary || summary.schema_version!=='business-answer-diagnostics/v1')return null;
   const number=value=>Number.isSafeInteger(value) && value>=0?value:null;
   const enumeration=(value,allowed)=>allowed.includes(value)?value:null;
+  const boolean=value=>typeof value==='boolean'?value:null;
   const finish=value=>enumeration(value,['stop','length','content_filter','tool_calls','function_call','other','unknown']);
   const fingerprint=value=>typeof value==='string' && /^[a-f0-9]{64}$/.test(value)?value:null;
   const integers=(source,keys)=>Object.fromEntries(keys.map(key=>[key,number(source?.[key])]));
@@ -413,10 +415,14 @@ function diagnosticSummaryData(){
     runtime:{commit:typeof runtime.commit==='string' && (/^[a-f0-9]{7,64}$/.test(runtime.commit) || runtime.commit==='unknown')?runtime.commit:null,
       profile:enumeration(runtime.profile,['workbench','adapter','analysis','custom','unknown']),model_fingerprint:fingerprint(runtime.model_fingerprint),
       output_limit_source:enumeration(runtime.output_limit_source,['profile','environment','dotenv','explicit','unknown'])},
-    configured:{...integers(configured,['max_output_tokens','max_model_requests']),requested_detail:enumeration(configured.requested_detail,['brief','detailed'])},
+    configured:{...integers(configured,['max_output_tokens','max_model_requests','max_source_characters','max_complete_source_characters','max_request_bytes']),requested_detail:enumeration(configured.requested_detail,['brief','detailed'])},
     requests,
     api_failures:safeFailureDiagnostics({diagnostic_summary:summary}),
-    source_coverage:{...integers(coverage,['indexed_files','selected_files','provided_files','pages','unread_tasks','omitted_complete_files']),
+    source_coverage:{...integers(coverage,['indexed_files','selected_files','provided_files','pages','unread_tasks','omitted_complete_files','supplied_complete_files']),
+      working_set_status:enumeration(coverage.working_set_status,['not_applicable','fallback','partial','supplied','unknown']),
+      working_set_reason:enumeration(coverage.working_set_reason,['source_identity_not_eligible','source_set_unavailable','snapshot_changed','source_not_indexed','dependency_depth_budget','dependency_file_budget','source_byte_budget','source_characters','complete_source_characters','source_hash_mismatch','source_read_unavailable','candidate_source_set_supplied','unknown']),
+      physical_complete:boolean(coverage.physical_complete),closure_complete:boolean(coverage.closure_complete),complete_root_budget_applied:boolean(coverage.complete_root_budget_applied),
+      transmission_fallback_reason:enumeration(coverage.transmission_fallback_reason,['complete_source_request_bytes','unknown']),
       identity_status:enumeration(coverage.identity_status,['resolved','ambiguous','not_found','not_requested','unknown']),
       retrieval_status:enumeration(coverage.retrieval_status,['source_candidates','framework_candidates','unresolved','not_attempted','unknown']),
       limitation_codes:Array.isArray(coverage.limitation_codes)?coverage.limitation_codes.filter(value=>['index_not_ready','explicit_source_not_indexed','source_identity_ambiguous','search_no_match','business_terms_unresolved','located_source_not_read','source_budget_omitted','source_read_failed','external_implementation_missing','runtime_target_unresolved','output_limit_reached','parser_failed','request_budget_exhausted','answer_incomplete','unresolved_inputs'].includes(value)).slice(0,16):[]},
@@ -652,7 +658,7 @@ function answerReadingView(markup,messageId){
     sections.push({id,label:label.replace(/<[^>]+>/g,'')});
     return `<h${level} id="${escapeHTML(id)}" tabindex="-1">${label}</h${level}>`;
   });
-  const outline=sections.length>=3?ui`<aside class="answer-outline"><nav aria-label="回答目錄"><span>本頁內容</span>${sections.map(section=>`<button data-answer-section="${escapeHTML(section.id)}">${section.label}</button>`).join('')}</nav></aside>`:'';
+  const outline=sections.length>=3?ui`<details class="answer-outline"><summary>本頁內容</summary><nav aria-label="回答目錄">${sections.map(section=>`<button data-answer-section="${escapeHTML(section.id)}">${section.label}</button>`).join('')}</nav></details>`:'';
   return {content,outline};
 }
 function conversationMessage(message){
@@ -675,7 +681,7 @@ function conversationMessage(message){
   const referenceMarkup=!user && (refs.length || framework.length)?`<details class="message-references"><summary>${escapeHTML(t('查看回答依據'))} · ${refs.length+framework.length}</summary>${refs.map((ref,index)=>`<button class="citation" data-message-id="${escapeHTML(id)}" data-turn-evidence="${escapeHTML(ref.evidence_id)}">${index+1} · ${escapeHTML(ref.relative_path || ref.path || '')} · L${Number(ref.start_line)}–${Number(ref.end_line)}</button>`).join('')}${framework.map(ref=>`<details id="turn-${escapeHTML(id)}-framework-${escapeHTML(encodeURIComponent(ref.reference_id))}" class="message-framework"><summary>${escapeHTML(ref.heading || ref.reference_id)}</summary><pre>${escapeHTML(ref.text || '')}</pre></details>`).join('')}</details>`:'';
   const retryMarkup=user && failed?`<button class="message-retry" data-retry-message="${escapeHTML(id)}" ${state.busy || state.conversationLoading?'disabled':''}>${escapeHTML(t('重試這個問題'))}</button>`:'';
   const reading=user?{content:markup,outline:''}:answerReadingView(markup,id);
-  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}" data-message="${escapeHTML(id)}"><div class="answer-main"><div class="message-author">${user?t('你'):t('脈絡')}<span>${user?'':t('業務解讀 · 請結合證據覆核')}</span></div>${user?'':answerCompletionNotice(message)+failureDiagnosticsView(message)}<div class="message-content narrative-body">${reading.content || (failed?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${relatedMarkup}${impactMarkup}${referenceMarkup}${retryMarkup}</div>${reading.outline}</article>`;
+  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}" data-message="${escapeHTML(id)}">${reading.outline}<div class="answer-main"><div class="message-author">${user?t('你'):t('知序')}<span>${user?'':t('業務解讀 · 請結合證據覆核')}</span></div>${user?'':answerCompletionNotice(message)+failureDiagnosticsView(message)}<div class="message-content narrative-body">${reading.content || (failed?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${relatedMarkup}${impactMarkup}${referenceMarkup}${retryMarkup}</div></article>`;
 }
 function conversationProgress(){
   const v=progressViewModel();
@@ -749,10 +755,19 @@ function closeConversationEvidence(){
   const trigger=Array.from(document.querySelectorAll('[data-turn-evidence]')).find(button=>button.dataset.messageId===previous?.messageId && button.dataset.turnEvidence===previous?.ref?.evidence_id);
   trigger?.focus?.({preventScroll:true});
 }
+function closeActivity(){if($('activity-dialog')?.open)$('activity-dialog').close();}
+function openActivity(){
+  const dialog=$('activity-dialog'),sidebar=$('activity-sidebar');
+  if(!dialog || !sidebar || dialog.open)return;
+  closeNavigation();
+  dialog.append(sidebar);dialog.showModal();$('activity-toggle').setAttribute('aria-expanded','true');
+  $('activity-close').focus();
+}
 function closeNavigation(){if($('navigation-dialog')?.open)$('navigation-dialog').close();}
 function openNavigation(){
   const dialog=$('navigation-dialog'),sidebar=$('workspace-sidebar');
   if(!dialog || !sidebar || dialog.open)return;
+  closeActivity();
   dialog.append(sidebar);dialog.showModal();$('navigation-toggle').setAttribute('aria-expanded','true');
 }
 // Page routes preserve in-memory answers and drafts; no analysis request is made.
@@ -969,7 +984,7 @@ function markdownSummary(project=state.project){
   if(conversationMode() && project===state.project && state.conversation)return `# ${state.conversation.title || t('業務對話')}\n\n${t('來源：')} ${project?.source || ''}\n\n${state.conversation.messages.map(message=>`## ${message.role==='user'?t('你'):t('業務分析助手')}\n\n${message.content || ''}\n\n${(message.evidence_refs || []).map(ref=>`- ${ref.relative_path || ref.path}:${ref.start_line}–${ref.end_line} · ${ref.evidence_id}`).join('\n')}`).join('\n\n')}`;
   if(state.mode==='demo' && project===state.project){
     const selected=demoCase();if(!selected)return t('業務案例尚未載入。');
-    return ui`# ${t('脈絡')} · 業務說明\n\n合成業務案例 · 未呼叫模型\n\n## ${demoText(selected.title)}\n\n${demoText(selected.purpose)}\n\n## 建議業務問題\n\n${demoText(selected.question)}\n\n## 業務處理過程\n\n${(selected.steps || []).map((step,index)=>`${index+1}. ${demoText(step.title)} — ${demoText(step.description)} [${step.evidence_id || ''}]`).join('\n')}\n\n## 業務規則與影響\n\n${(selected.metadata || []).map(item=>`- ${demoText(item.label)}: ${demoText(item.value)}`).join('\n')}\n\n業務設定為案例中的合成聲明，不代表已匯入生產配置或執行記錄。\n\n## 技術與框架依據\n\n框架類型： ${demoKind(selected.kind || selected.id)}\n調查起點： ${selected.entry_program || ''} · ${selected.entry_path || ''}\n快照： ${preview.catalog.snapshot_id || ''}\n\n## 案例源碼引用\n\n${(selected.evidence || []).map(ref=>`- ${ref.relative_path}:${ref.start_line}–${ref.end_line} · ${ref.evidence_id} · ${ref.source_sha256 || ''}`).join('\n')}\n\n## 案例範圍與待確認事項\n\n${(selected.boundaries || []).map(item=>'- '+demoText(item)).join('\n')}\n`;
+    return ui`# ${t('知序')} · 業務說明\n\n合成業務案例 · 未呼叫模型\n\n## ${demoText(selected.title)}\n\n${demoText(selected.purpose)}\n\n## 建議業務問題\n\n${demoText(selected.question)}\n\n## 業務處理過程\n\n${(selected.steps || []).map((step,index)=>`${index+1}. ${demoText(step.title)} — ${demoText(step.description)} [${step.evidence_id || ''}]`).join('\n')}\n\n## 業務規則與影響\n\n${(selected.metadata || []).map(item=>`- ${demoText(item.label)}: ${demoText(item.value)}`).join('\n')}\n\n業務設定為案例中的合成聲明，不代表已匯入生產配置或執行記錄。\n\n## 技術與框架依據\n\n框架類型： ${demoKind(selected.kind || selected.id)}\n調查起點： ${selected.entry_program || ''} · ${selected.entry_path || ''}\n快照： ${preview.catalog.snapshot_id || ''}\n\n## 案例源碼引用\n\n${(selected.evidence || []).map(ref=>`- ${ref.relative_path}:${ref.start_line}–${ref.end_line} · ${ref.evidence_id} · ${ref.source_sha256 || ''}`).join('\n')}\n\n## 案例範圍與待確認事項\n\n${(selected.boundaries || []).map(item=>'- '+demoText(item)).join('\n')}\n`;
   }
   const d=project?.diagnosis;const answer=project?.agent?.agent_result;
   const entry=d?.selected_entry;const refs=answer?.evidence_refs || answer?.verified_evidence_refs || [];
@@ -979,7 +994,7 @@ function markdownSummary(project=state.project){
   const investigation=answer?.investigation || d?.investigation;
   const searchSummary=investigation?.mode==='repository'?ui`\n\n## 本次查找\n\n整個代碼庫 · 自動查找\n\n${(investigation.searches || []).map(search=>`- ${search.query || ''} · ${t('匹配檔案')} ${search.matched_file_count ?? (Array.isArray(search.matched_files)?search.matched_files.length:search.matched_files) ?? 0}`).join('\n')}\n\n${(investigation.selected_paths || []).join('\n')}`:'';
   const sourceSummaries=narrativeText(answer) && programSummaries(answer).length?ui`\n\n## 各來源的業務解讀\n\n按來源保留的模型解讀，可補充上方業務摘要；仍需業務覆核。\n\n${programSummaries(answer).map(item=>`### ${item.relative_path || item.program_name || t('源碼引用')}\n\n${item.text}${item.complete===false?'\n\n'+t('部分解讀'):''}`).join('\n\n')}`:'';
-  return ui`# ${t('脈絡')} · 業務分析摘要\n\n資料模式：${syntheticProject(project)?t('本機合成源碼'):t('本機源碼')}\n匯出時間： ${new Date().toISOString()}\n來源： ${project?.source || ''}\n調查起點： ${entry?.program_name || d?.entry_requested || t('整個代碼庫 · 自動查找')}${entry?.relative_path?' · '+entry.relative_path:''}\n快照： ${project?.snapshot_id || t('未建立')}\n接入狀態： ${d?.runner_status || ''}\n問答狀態： ${answer?.status || d?.question_status || ''}\n\n## 業務問題\n\n${d?.question || t('尚未提出問題')}\n\n${narrativeText(answer) || answer?.answer || t('本次沒有生成業務答案。')}${searchSummary}${coverageSummary}${sourceSummaries}\n\n## 本次引用索引\n\n${refs.length?refs.map(r=>`- ${r.relative_path || r.path}:${r.start_line}–${r.end_line} · ${r.evidence_id}`).join('\n'):t('本次沒有回答引用。')}\n\n${frameworkSummary}\n\n## 接入診斷\n\n${(d?.messages || []).map(m=>'- '+m).join('\n')}\n\n問題相關性與完整性尚未核驗。完整診斷與分析邊界可一併匯出為 JSON。\n`;
+  return ui`# ${t('知序')} · 業務分析摘要\n\n資料模式：${syntheticProject(project)?t('本機合成源碼'):t('本機源碼')}\n匯出時間： ${new Date().toISOString()}\n來源： ${project?.source || ''}\n調查起點： ${entry?.program_name || d?.entry_requested || t('整個代碼庫 · 自動查找')}${entry?.relative_path?' · '+entry.relative_path:''}\n快照： ${project?.snapshot_id || t('未建立')}\n接入狀態： ${d?.runner_status || ''}\n問答狀態： ${answer?.status || d?.question_status || ''}\n\n## 業務問題\n\n${d?.question || t('尚未提出問題')}\n\n${narrativeText(answer) || answer?.answer || t('本次沒有生成業務答案。')}${searchSummary}${coverageSummary}${sourceSummaries}\n\n## 本次引用索引\n\n${refs.length?refs.map(r=>`- ${r.relative_path || r.path}:${r.start_line}–${r.end_line} · ${r.evidence_id}`).join('\n'):t('本次沒有回答引用。')}\n\n${frameworkSummary}\n\n## 接入診斷\n\n${(d?.messages || []).map(m=>'- '+m).join('\n')}\n\n問題相關性與完整性尚未核驗。完整診斷與分析邊界可一併匯出為 JSON。\n`;
 }
 async function loadImpactPage(messageId){
   const message=state.conversation?.messages?.find(item=>item.id===messageId);
@@ -1007,9 +1022,9 @@ document.addEventListener('click',event=>{
   if(target.classList?.contains('brand')){event.preventDefault();closeNavigation();state.page='workbench';render();return;}
   if(target.hasAttribute('data-copy-safe-diagnostics')){copyDiagnosticSummary();return;}
   if(target.hasAttribute('data-export-safe-diagnostics')){const summary=diagnosticSummaryData();if(summary)download(JSON.stringify(summary,null,2),'application/json;charset=utf-8','business-answer-diagnostics.json');return;}
-  if(target.dataset.deleteConversation){promptDeleteConversation(target.dataset.deleteConversation);return;}
+  if(target.dataset.deleteConversation){closeActivity();promptDeleteConversation(target.dataset.deleteConversation);return;}
   if(target.hasAttribute('data-new-conversation')){closeNavigation();newConversation();}
-  if(target.dataset.conversation){closeNavigation();openConversation(target.dataset.conversation);}
+  if(target.dataset.conversation){closeNavigation();closeActivity();openConversation(target.dataset.conversation);}
   if(target.dataset.turnEvidence)loadConversationEvidence(target.dataset.messageId,target.dataset.turnEvidence);
   if(target.dataset.turnFramework){event.preventDefault();const ref=$('turn-'+target.dataset.messageId+'-framework-'+encodeURIComponent(target.dataset.turnFramework));if(ref){ref.open=true;const list=ref.closest('.message-references');if(list)list.open=true;ref.scrollIntoView({block:'nearest'});}}
   if(target.hasAttribute('data-close-conversation-evidence'))closeConversationEvidence();
@@ -1042,7 +1057,7 @@ document.addEventListener('click',event=>{
 });
 document.addEventListener('cancel',event=>{if(event.target.id==='conversation-evidence-dialog'){event.preventDefault();closeConversationEvidence();}},true);
 document.addEventListener('keydown',event=>{
-  const dialog=document.querySelector('#conversation-evidence-dialog[open], #navigation-dialog[open]');
+  const dialog=document.querySelector('#conversation-evidence-dialog[open], #navigation-dialog[open], #activity-dialog[open]');
   if(event.key==='Tab' && dialog){
     const controls=Array.from(dialog.querySelectorAll('button:not([disabled]), a[href], [tabindex="0"]')).filter(el=>el.getClientRects().length);
     const first=controls[0],last=controls.at(-1);
@@ -1051,10 +1066,14 @@ document.addEventListener('keydown',event=>{
   }
   if(event.key==='Escape' && !document.querySelector('dialog[open]')){const options=document.querySelector('.conversation-options[open]');if(options){options.open=false;options.querySelector('summary')?.focus();}}
 });
+$('activity-toggle')?.addEventListener('click',openActivity);
+$('activity-close')?.addEventListener('click',closeActivity);
+$('activity-dialog')?.addEventListener('close',()=>{document.querySelector('.app-shell')?.append($('activity-sidebar'));$('activity-toggle').setAttribute('aria-expanded','false');if($('activity-toggle').getClientRects().length)$('activity-toggle').focus();});
 $('navigation-toggle')?.addEventListener('click',openNavigation);
 $('navigation-close')?.addEventListener('click',closeNavigation);
 $('navigation-dialog')?.addEventListener('close',()=>{document.querySelector('.app-shell')?.prepend($('workspace-sidebar'));$('navigation-toggle').setAttribute('aria-expanded','false');$('navigation-toggle').focus();});
 if(typeof window!=='undefined'){
+  window.matchMedia?.('(min-width: 1181px)').addEventListener?.('change',event=>{if(event.matches)closeActivity();});
   window.addEventListener('popstate',restorePageRoute);
   window.addEventListener('hashchange',restorePageRoute);
   window.matchMedia?.('(min-width: 761px)').addEventListener?.('change',event=>{if(event.matches)closeNavigation();});
@@ -1092,7 +1111,7 @@ $('source-form').addEventListener('submit',async event=>{event.preventDefault();
 $('connect-button').addEventListener('click',openSource);
 $('demo-mode').addEventListener('click',()=>setMode('demo'));
 $('real-mode').addEventListener('click',()=>setMode('real'));
-$('recent-analysis').addEventListener('click',()=>{state.page='workbench';render();});
+$('recent-analysis').addEventListener('click',()=>{closeActivity();state.page='workbench';render();});
 function apiConfigurationMessage(){
   if(!state.apiConfigurationError)return '';
   const messages={

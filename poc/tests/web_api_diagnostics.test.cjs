@@ -60,6 +60,26 @@ test('raw API parsed answer and rendering input keep a long answer intact',()=>{
   assert.match(h.run('apiSummary()'),/business answer is incomplete/);
 });
 
+test('shareable diagnostics keep complete-source budgets and omissions without private metadata',()=>{
+  const h=harness();
+  const diagnostic_summary={schema_version:'business-answer-diagnostics/v1',
+    configured:{max_source_characters:36000,max_complete_source_characters:128000,max_request_bytes:230000},
+    source_coverage:{working_set_status:'fallback',working_set_reason:'complete_source_characters',
+      physical_complete:false,closure_complete:null,complete_root_budget_applied:false,
+      supplied_complete_files:0,omitted_complete_files:1,limitation_codes:['source_budget_omitted'],
+      transmission_fallback_reason:'PRIVATE-MARKER',source_manifest:['PRIVATE-MARKER']}};
+  setup(h,agent({agent_result:{diagnostic_summary}}));
+  const safe=h.run('diagnosticSummaryData()');
+  assert.equal(safe.configured.max_complete_source_characters,128000);
+  assert.equal(safe.configured.max_request_bytes,230000);
+  assert.equal(safe.source_coverage.working_set_reason,'complete_source_characters');
+  assert.equal(safe.source_coverage.omitted_complete_files,1);
+  assert.equal(safe.source_coverage.physical_complete,false);
+  assert.equal(safe.source_coverage.closure_complete,null);
+  assert.equal(safe.source_coverage.transmission_fallback_reason,null);
+  assert.doesNotMatch(JSON.stringify(safe),/PRIVATE-MARKER|source_manifest/);
+});
+
 test('API extraction follows the actual selected choice for each investigation round and skips probes',()=>{
   const h=harness();const first='Selected business answer 😀.';const second='Selected follow-up.';
   const exchanges=[exchange({sequence:1,phase:'capability_probe'}),exchange({sequence:2,body_text:JSON.stringify({choices:[{message:{role:'assistant',content:''}},{message:{role:'assistant',content:first},finish_reason:'stop'}]})}),exchange({sequence:3,body_text:JSON.stringify({choices:[{message:{role:'assistant',content:second},finish_reason:'stop'},{message:{role:'assistant',content:'Unused choice'},finish_reason:'length'}]})})];

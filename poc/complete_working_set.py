@@ -16,7 +16,7 @@ _ROOT_KINDS = {"program", "relative_path", "basename", "stem"}
 
 def build_complete_working_set(database_path, source_session, business_map, policy,
                               *, check_cancel=None):
-    """Prefer the complete root, then whole dependencies within the same budgets.
+    """Prefer the complete root, then dependencies under the ordinary allowance.
 
     Physical completeness describes only candidate_paths. Static dependencies
     and original text do not prove execution, parameter binding or value flow.
@@ -32,6 +32,9 @@ def build_complete_working_set(database_path, source_session, business_map, poli
         "omitted_candidate_paths": [], "omitted_candidate_path_count": 0,
         "omitted_frontier_count": 0, "source_characters": 0,
         "max_source_characters": policy.max_source_characters,
+        "max_complete_source_characters": policy.max_complete_source_characters,
+        "complete_root_budget_applied": False, "root_source_characters": 0,
+        "non_root_source_characters": 0,
         "depth_limit": _DEPTH_LIMIT, "reason": "source_identity_not_eligible"}
     result = {"pages": [], "metadata": metadata}
     if (source_session is None
@@ -77,8 +80,9 @@ def build_complete_working_set(database_path, source_session, business_map, poli
     # A valid text scalar occupies at most four bytes in the supported UTF
     # encodings. This derived bound avoids capturing huge files only to reject
     # their decoded text, while staying inside the existing source byte budget.
+    root_limit = policy.max_complete_source_characters
     byte_limit = min(policy.max_semantic_source_bytes,
-                     policy.max_source_characters * 4 + policy.max_semantic_files * 4)
+                     (root_limit + policy.max_source_characters) * 4 + policy.max_semantic_files * 4)
     records = []
     try:
         with closing(_connect(database_path)) as db:
@@ -129,7 +133,7 @@ def build_complete_working_set(database_path, source_session, business_map, poli
             if fatal:
                 return result
 
-        staged, total_bytes, total_chars = [], 0, 0
+        staged, total_bytes, total_chars, ordinary_chars = [], 0, 0, 0
         captured_paths = {item["relative_path"] for item in source_session.source_manifest()}
         # The root stays first. Previously inspected dependencies receive the
         # next slots, while an oversized file cannot displace smaller sources.
@@ -138,6 +142,9 @@ def build_complete_working_set(database_path, source_session, business_map, poli
         for item in records:
             cancel()
             relative = item["relative_path"]
+            is_root = relative == roots[0]
+            character_limit = root_limit if is_root else policy.max_source_characters
+            character_reason = "complete_source_characters" if is_root else "source_characters"
             physical_root = (source_session.mirror_root if relative in captured_paths
                              else source_session.source_root)
             size = _safe_file(physical_root, relative).stat().st_size
@@ -161,19 +168,27 @@ def build_complete_working_set(database_path, source_session, business_map, poli
             # Exhaust the existing verified physical reader before trusting any
             # text. The capture can contain lines absent from the search index.
             verified = list(_verified_lines(source_session.mirror_root,
-                {**item, "encoding": captured.encoding}, check_cancel, policy.max_source_characters))
+                {**item, "encoding": captured.encoding}, check_cancel, character_limit))
             if any(truncated for _, truncated in verified):
-                budget_frontier("source_characters", relative)
+                budget_frontier(character_reason, relative)
                 if relative == roots[0]:
                     return result
                 continue
             lines = [text for text, _ in verified]
             text = "\n".join(lines)
-            if total_chars + len(text) > policy.max_source_characters:
-                budget_frontier("source_characters", relative)
+            if len(text) > character_limit or (not is_root and
+                    ordinary_chars + len(text) > policy.max_source_characters):
+                budget_frontier(character_reason, relative)
                 if relative == roots[0]:
                     return result
                 continue
+            if is_root:
+                metadata["root_source_characters"] = len(text)
+                metadata["complete_root_budget_applied"] = len(text) > policy.max_source_characters
+            else:
+                metadata["non_root_source_characters"] += len(text)
+            if not is_root or not metadata["complete_root_budget_applied"]:
+                ordinary_chars += len(text)
             total_chars += len(text)
             metadata["source_characters"] = total_chars
             page = {"relative_path": relative, "start_line": 1, "end_line": len(lines),

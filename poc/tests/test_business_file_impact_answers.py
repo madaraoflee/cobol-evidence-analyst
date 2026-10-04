@@ -188,6 +188,7 @@ class BusinessFileImpactAnswerTests(unittest.TestCase):
     def test_tight_budgets_only_report_observations_from_surviving_pages(self):
         self.build()
         policy = AgentPolicy(max_model_requests=1, max_source_characters=512,
+            max_complete_source_characters=512,
             initial_source_characters=512, max_request_bytes=32768,
             max_reads_per_turn=1, read_source_characters=512)
         output = self.ask(lambda payload, number: "已供应的局部赋值是静态候选，缺失文件布局仍待补读。",

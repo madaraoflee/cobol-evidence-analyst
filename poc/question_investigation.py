@@ -19,9 +19,11 @@ from file_impact_evidence import is_file_impact_question, nominate_file_impact_e
 
 
 _CALCULATION = re.compile(r"计算|計算|公式|怎么算|怎麼算|如何算|算出|\b(?:calculation|calculate[ds]?|calculating|formula|computed?)\b", re.I)
-_BUSINESS_DETAIL = re.compile(r"流程|处理目的|處理目的|业务目的|業務目的|业务功能|業務功能|程序(?:功能|作用)|"
+_BUSINESS_DETAIL = re.compile(r"流程|(?:逻辑|邏輯)(?!\s*(?:标志|標誌|字段|欄位|栏位|变量|變量|类型|類型))|"
+    r"处理目的|處理目的|业务目的|業務目的|业务功能|業務功能|程序(?:功能|作用)|"
     r"业务规则|業務規則|处理规则|處理規則|返回(?:标志|標誌|状态|狀態|结果|結果|码|碼|值)|"
     r"如何处理|如何處理|怎么处理|怎麼處理|用途|用于什么|用於什麼|业务含义|業務含義|"
+    r"(?<![\w-])logic(?![\w-])|"
     r"\b(?:workflow|flow|purpose|business rules?|processing steps?|return (?:flag|status|code|result))\b", re.I)
 _ARITHMETIC = ("COMPUTE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE")
 _MAX_PATHS = 8

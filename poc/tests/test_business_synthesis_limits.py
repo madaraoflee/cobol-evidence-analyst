@@ -172,7 +172,7 @@ class BusinessSynthesisLimitTests(unittest.TestCase):
                         '"已知程序处理金额，计算式仍待核对。"},"finish_reason":"stop"}]}')
 
                 policy = AgentPolicy(max_model_requests=1, max_answer_revisions=0,
-                    max_source_characters=4096,
+                    max_source_characters=4096, max_complete_source_characters=4096,
                     max_reads_per_turn=cap, max_business_context_actions_per_turn=0,
                     initial_pages=1, initial_source_characters=512, read_source_characters=512)
                 with mock.patch.object(EvidenceContext, "__init__", with_open_read), \
