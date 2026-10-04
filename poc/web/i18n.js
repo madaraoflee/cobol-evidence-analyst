@@ -8,6 +8,9 @@ const UI_MESSAGES = `
 知序首頁|知序首页|Zhixu home
 COBOL 業務分析|COBOL 业务分析|COBOL Workbench
 最近對話|最近对话|Recent conversations
+調整左側欄寬度|调整左侧栏宽度|Resize left sidebar
+調整右側欄寬度|调整右侧栏宽度|Resize right sidebar
+拖曳調整寬度，雙擊恢復預設|拖动调整宽度，双击恢复默认|Drag to resize; double-click to reset
 開啟最近對話|打开最近对话|Open recent conversations
 關閉最近對話|关闭最近对话|Close recent conversations
 尚無對話，提出問題後會顯示在這裡。|暂无对话，提出问题后会显示在这里。|Your conversations will appear here after you ask a question.

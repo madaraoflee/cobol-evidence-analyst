@@ -34,7 +34,7 @@ class WebAppTests(unittest.TestCase):
         for name, contents in (("index.html", "<!doctype html><title>Source workbench</title>"),
                                ("app.js", "'use strict';"), ("i18n.js", "'use strict';"),
                                ("markdown.js", "'use strict';"), ("marked.umd.js", "'use strict';"),
-                               ("styles.css", "body { color: black; }")):
+                               ("styles.css", "body { color: black; }"), ("layout.js", "'use strict';")):
             (self.web / name).write_text(contents, encoding="utf-8")
         self.config = CompanyAPIConfig(base_url=TEST_ENDPOINT, chat_model=TEST_MODEL, api_key=TEST_KEY)
         self.app = WorkbenchState(config_provider=lambda: self.config, demo_output_root=self.root / "demo-runs")
@@ -114,7 +114,7 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(headers["Cache-Control"], "no-store")
         self.assertEqual(headers["Cross-Origin-Resource-Policy"], "same-origin")
         self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
-        for path in ("/", "/index.html", "/app.js", "/i18n.js", "/styles.css", "/markdown.js", "/marked.umd.js"):
+        for path in ("/", "/index.html", "/app.js", "/i18n.js", "/styles.css", "/markdown.js", "/marked.umd.js", "/layout.js"):
             self.assertEqual(self.request("GET", path)[0], 200)
         (self.web / ".env").write_text("COMPANY_API_KEY=" + TEST_KEY, encoding="utf-8")
         for path in ("/../company_api.py", "/%2e%2e/company_api.py", "/web_app.py", "/api/state?token=anything",

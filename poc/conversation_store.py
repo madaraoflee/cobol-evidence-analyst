@@ -16,6 +16,12 @@ MODEL_HISTORY_CHARACTERS = 24_000
 MAX_MODEL_HISTORY_CHARACTERS = 128_000
 MODEL_HISTORY_DETAILS_BYTES = 64_000
 MODEL_HISTORY_REFERENCE_MESSAGES = 8
+_CONVERSATION_METADATA_COLUMNS = (
+    "c.id,c.title,c.snapshot_id,c.created_at,c.updated_at,"
+    "COALESCE((SELECT m.created_at FROM messages AS m "
+    "WHERE m.conversation_id=c.id AND m.role='user' ORDER BY m.position LIMIT 1),"
+    "c.created_at) AS first_question_at"
+)
 
 
 def _now():
@@ -51,10 +57,12 @@ class ConversationStore:
     def get(self, identifier):
         with closing(sqlite3.connect(self.path)) as db:
             db.row_factory = sqlite3.Row
-            row = db.execute("SELECT * FROM conversations WHERE id=? AND source_key=?", (identifier, self.source_key)).fetchone()
+            row = db.execute(
+                "SELECT " + _CONVERSATION_METADATA_COLUMNS + " FROM conversations AS c "
+                "WHERE c.id=? AND c.source_key=?", (identifier, self.source_key)).fetchone()
             if row is None:
                 raise ValueError("CONVERSATION_NOT_FOUND")
-            result = {key: row[key] for key in ("id", "title", "snapshot_id", "created_at", "updated_at")}
+            result = dict(row)
             result["messages"] = []
             for item in db.execute("SELECT * FROM messages WHERE conversation_id=? ORDER BY position", (identifier,)):
                 message = {key: item[key] for key in ("id", "role", "content", "status", "created_at", "run_id")}
@@ -68,8 +76,8 @@ class ConversationStore:
         with closing(sqlite3.connect(self.path)) as db:
             db.row_factory = sqlite3.Row
             row = db.execute(
-                "SELECT id,title,snapshot_id,created_at,updated_at FROM conversations "
-                "WHERE id=? AND source_key=?", (identifier, self.source_key)).fetchone()
+                "SELECT " + _CONVERSATION_METADATA_COLUMNS + " FROM conversations AS c "
+                "WHERE c.id=? AND c.source_key=?", (identifier, self.source_key)).fetchone()
             if row is None:
                 raise ValueError("CONVERSATION_NOT_FOUND")
             return dict(row)
@@ -135,7 +143,9 @@ class ConversationStore:
         with closing(sqlite3.connect(self.path)) as db:
             db.row_factory = sqlite3.Row
             return [dict(row) for row in db.execute(
-                "SELECT id,title,snapshot_id,updated_at FROM conversations WHERE source_key=? ORDER BY updated_at DESC LIMIT 100",
+                "SELECT " + _CONVERSATION_METADATA_COLUMNS + " FROM conversations AS c "
+                "WHERE c.source_key=? "
+                "ORDER BY first_question_at DESC,c.created_at DESC,c.id DESC LIMIT 100",
                 (self.source_key,))]
 
     def delete(self, identifier):

@@ -1573,14 +1573,26 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         revised_completion = assess_business_answer(question, revised_reply.text,
                             revised_payload["question_investigation"], revised_payload["source_context"][0]["pages"],
                             answer_detail=answer_detail)
+                        # Compare both candidates against the actual revision
+                        # context, which can gain or lose source during fitting.
+                        # Coverage signals do not establish semantic correctness.
+                        draft_in_revision_context = assess_business_answer(question, answer,
+                            revised_payload["question_investigation"], revised_payload["source_context"][0]["pages"],
+                            answer_detail=answer_detail)
+                        lost_aspects = sorted(set(revised_completion["missing_aspects"])
+                            - set(draft_in_revision_context["missing_aspects"]))
                         revised_answer_completion = assess_answer_completion(revised_reply.text)
                         if (revised_answer_completion.get("pending_investigation")
                                 or revised_answer_completion["status"] == "incomplete"
                                 and assess_answer_completion(answer)["status"] != "incomplete"
                                 or revised_completion["status"] == "incomplete"
-                                and draft_completion["status"] != "incomplete"):
+                                and draft_in_revision_context["status"] != "incomplete"):
                             boundaries.append({"reason": "usable_draft_retained",
                                                "revision_error": "ANSWER_INCOMPLETE"})
+                        elif lost_aspects:
+                            boundaries.append({"reason": "usable_draft_retained",
+                                               "revision_error": "ANSWER_COVERAGE_REGRESSED",
+                                               "lost_aspects": lost_aspects})
                         else:
                             answer, truncated = revised_reply.text, False
                             answer_round = f"round-{turns}"

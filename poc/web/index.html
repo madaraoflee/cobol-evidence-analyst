@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="appearance.css">
   <script src="i18n.js" defer></script>
+  <script src="layout.js" defer></script>
   <script src="marked.umd.js" defer></script>
   <script src="markdown.js" defer></script>
   <script src="app.js" defer></script>
@@ -16,6 +17,8 @@
 <body>
   <a class="skip-link" href="#main-content">跳至主要內容</a>
   <div class="app-shell">
+    <div class="rail-resizer navigation-resizer" id="navigation-resizer" role="separator" aria-orientation="vertical" aria-label="調整左側欄寬度" aria-controls="workspace-sidebar" title="拖曳調整寬度，雙擊恢復預設" tabindex="0"></div>
+    <div class="rail-resizer activity-resizer" id="activity-resizer" role="separator" aria-orientation="vertical" aria-label="調整右側欄寬度" aria-controls="activity-sidebar" title="拖曳調整寬度，雙擊恢復預設" tabindex="0"></div>
     <aside class="sidebar" id="workspace-sidebar" aria-label="工作空間導覽" tabindex="0">
       <button class="icon-button sidebar-close" id="navigation-close" aria-label="關閉導覽"><span data-icon="close"></span></button>
       <a class="brand" href="#workbench" aria-label="知序首頁"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><path d="M8 10h7c9 0 1 20 10 20h7M8 20h24M8 30h7c9 0 1-20 10-20h7"/><circle cx="8" cy="10" r="2"/><circle cx="32" cy="30" r="2"/></svg><span><b>知序</b><small>COBOL 業務分析</small></span></a>

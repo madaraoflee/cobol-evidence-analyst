@@ -97,11 +97,26 @@ function sourceFiles(){return diagnosis()?.catalog_report?.files || diagnosis()?
 function projectReadingStrategy(project=state.project){const strategy=project?.diagnosis?.source_options?.reading_strategy;return ['focused','full_chain'].includes(strategy)?strategy:'focused';}
 function draftChanged(){if(conversationMode())return false;const d=diagnosis();return state.mode==='real' && Boolean(state.project?.agent) && (state.question.trim()!==(d?.question || '').trim() || state.entry!==selectedEntryValue(d) || state.maxSourcePages!==Number(d?.source_options?.max_source_pages || 4) || state.readingStrategy!==projectReadingStrategy());}
 function conversationMode(){return state.mode==='real' && state.conversationSupported;}
+function sortConversations(items){
+  const timestamp=value=>Number.isFinite(Date.parse(value))?Date.parse(value):0;
+  return [...items].sort((a,b)=>{
+    const first=timestamp(a.first_question_at || a.created_at),second=timestamp(b.first_question_at || b.created_at);
+    if(first!==second)return second-first;
+    if(!first)return 0;
+    const created=timestamp(b.created_at)-timestamp(a.created_at);
+    return created || (a.id===b.id?0:a.id<b.id?1:-1);
+  });
+}
 function applyConversation(conversation){
   if(!conversation || typeof conversation.id!=='string' || !Array.isArray(conversation.messages))return;
   state.conversation=conversation;state.conversationEvidence=null;
-  const summary={id:conversation.id,title:conversation.title,message_count:conversation.messages.length};
-  state.conversations=[summary,...state.conversations.filter(item=>item.id!==conversation.id)];
+  const index=state.conversations.findIndex(item=>item.id===conversation.id),previous=state.conversations[index] || {};
+  const summary={...previous,id:conversation.id,title:conversation.title,message_count:conversation.messages.length,
+    created_at:conversation.created_at || previous.created_at,
+    first_question_at:conversation.first_question_at || conversation.messages.find(message=>message.role==='user')?.created_at || previous.first_question_at || conversation.created_at || previous.created_at};
+  const items=[...state.conversations];
+  if(index<0)items.unshift(summary);else items[index]=summary;
+  state.conversations=sortConversations(items);
 }
 function currentRefs(){
   if(state.mode==='demo')return demoCase()?.evidence || [];
@@ -818,7 +833,7 @@ function restoreConversationFailure(job){
 }
 async function initialize(){
   try{const data=await api('/api/state');state.connected=true;state.token=data.session_token;state.apiConfigured=Boolean(data.api_configured);state.apiConfigurationError=data.api_configuration_error || null;state.frameworkKnowledge=data.framework_knowledge || null;
-    state.conversationSupported=Array.isArray(data.conversations) || Object.hasOwn(data,'conversation');state.conversations=Array.isArray(data.conversations)?data.conversations:[];
+    state.conversationSupported=Array.isArray(data.conversations) || Object.hasOwn(data,'conversation');state.conversations=sortConversations(Array.isArray(data.conversations)?data.conversations:[]);
     state.answerDetail=data.answer_detail==='brief'?'brief':'detailed';
     if(data.project?.source){applyProject(data.project);state.mode='real';if(data.project.diagnosis)state.history=[data.project];}
     if(state.conversationSupported){state.mode='real';state.question='';state.entry='';state.readingStrategy='retrieval';applyConversation(data.conversation || data.project?.conversation);restoreConversationFailure(data.job);}
@@ -938,7 +953,7 @@ async function deleteConversation(){
   render();
   try{
     const data=await api('/api/conversations/'+encodeURIComponent(id),{method:'DELETE'});
-    state.conversations=Array.isArray(data.conversations)?data.conversations:state.conversations.filter(item=>item.id!==id);
+    state.conversations=sortConversations(Array.isArray(data.conversations)?data.conversations:state.conversations.filter(item=>item.id!==id));
     if(state.conversation?.id===id){
       state.conversation=null;state.pendingMessage=null;state.conversationEvidence=null;
       state.impactPages={};state.question='';state.error='';

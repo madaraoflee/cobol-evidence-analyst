@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from decimal import Decimal, InvalidOperation
 
 from file_impact_evidence import is_file_impact_question
 
@@ -131,7 +132,7 @@ def wants_business_detail(question, *, answer_detail="detailed"):
 
 
 _FORMULA_QUESTION = re.compile(
-    r"计算|計算|公式|怎么算|怎麼算|如何算|算出|\b(?:calculation|calculate[ds]?|calculating|formula|computed?)\b", re.I)
+    r"计算|計算|公式|算式|怎么算|怎麼算|如何算|算出|\b(?:calculation|calculate[ds]?|calculating|formula|computed?)\b", re.I)
 _EXPLICIT_DETAIL_REQUEST = re.compile(
     r"详细|詳細|详尽|詳盡|细致|細緻|完整|逐步|流程|\b(?:detailed|thorough|step.by.step|workflow)\b", re.I)
 _INPUT_QUESTION = re.compile(
@@ -153,11 +154,13 @@ _ANSWER_SIGNALS = {
         r"从.{0,24}(?:取|开始)|從.{0,24}(?:取|開始)|"
         r"\b(?:VALUE|MOVE|LINKAGE|READ|USING|from|initialized?|initially|loaded?|received?|passed?)\b", re.I),
     "conditions": re.compile(
-        r"大于|大於|小于|小於|等于|等於|超过|超過|超出|低于|低於|达到|達到|正数|正數|正值|非正|[<>≤≥]|若|如果|当.{0,24}时|當.{0,24}時|"
+        r"大于|大於|小于|小於|(?:等于|等於).{0,24}(?:时|時|则|則)|"
+        r"(?:为|為)\s*(?:[+-]?\d+(?:\.\d+)?|零|[A-Z][A-Z0-9_-]*)\s*(?:时|時|则|則)|"
+        r"超过|超過|超出|低于|低於|达到|達到|正数|正數|正值|非正|[<>≤≥]|若|如果|当.{0,24}时|當.{0,24}時|"
         r"仅|僅|才|\b(?:if|when|unless|positive|negative|greater|less|exceeds?)\b", re.I),
     "result_adjustments": re.compile(
         r"否则|否則|不满足|不滿足|其他情况|其他情況|归零|歸零|清零|置零|为零|為零|"
-        r"(?:为|為|设为|設為|[=＝])\s*0(?![\d.])|保留|保持|改写|改寫|"
+        r"(?:为|為|设为|設為|[=＝])\s*0(?![\d.])|保留|保持|改写|改寫|改为|改為|覆盖|覆蓋|"
         r"再加|再减|再減|调整|調整|四舍五入|四捨五入|舍入|捨入|截断|截斷|"
         r"\b(?:else|otherwise|zero|unchanged|round(?:ed|ing)?|adjust(?:ed|s)?|truncate[ds]?|"
         r"retain(?:ed|s)?|preserv(?:e[ds]?|ing))\b", re.I),
@@ -165,6 +168,184 @@ _ANSWER_SIGNALS = {
 _ASPECT_LABELS = {"formula": "具体算式或运算关系", "inputs": "输入的初值、读取或传入来源",
                   "conditions": "计算适用的条件", "result_adjustments": "其他分支或结果调整",
                   "file_io": "原文已知的文件/record写入、只读依赖、准确字段名及定位"}
+
+_SOURCE_VERBS = re.compile(
+    r"(?<![A-Z0-9_$#@-])(?:END-IF|END-EVALUATE|EVALUATE|WHEN|ELSE|IF|COMPUTE|"
+    r"MOVE|ADD|SUBTRACT|MULTIPLY|DIVIDE|DISPLAY|CALL|PERFORM|GOBACK|STOP|"
+    r"CONTINUE|READ|WRITE|REWRITE|SET|INITIALIZE|ACCEPT)(?![A-Z0-9_$#@-])", re.I)
+_ARITHMETIC_VERBS = {"COMPUTE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"}
+_ROUNDING_ANSWER = re.compile(r"四舍五入|四捨五入|舍入|捨入|圆整|圓整|\bround(?:ed|ing)?\b", re.I)
+_OVERRIDE_ANSWER = re.compile(
+    r"改为|改為|改写|改寫|覆盖|覆蓋|重设|重設|归零|歸零|清零|置零|重新(?:计算|計算|赋值|賦值)|"
+    r"随后|隨後|之后|之後|最后|最後|再(?:加|减|減|乘|除)|"
+    r"\b(?:overrid(?:e[sn]?|den|ing)|replac(?:e[ds]?|ing)|later|then|finally|reset|recomput\w*)\b", re.I)
+
+
+def _supplied_source_spans(source_pages, supplied):
+    """Join only adjacent/identical overlapping physical excerpts of one version."""
+    spans = []
+    for page in sorted((page for page in source_pages
+                        if page.get("evidence_id") in supplied and page.get("source_text")),
+                       key=lambda page: (page.get("relative_path") or "", page.get("source_sha256") or "",
+                                         page.get("start_line") or 0, page.get("end_line") or 0)):
+        text_lines = page["source_text"].splitlines()
+        start, end = page.get("start_line"), page.get("end_line")
+        physical = isinstance(start, int) and isinstance(end, int) and end - start + 1 == len(text_lines)
+        lines = dict(enumerate(text_lines, start)) if physical else {}
+        key = (page.get("relative_path"), page.get("source_sha256"))
+        previous = spans[-1] if spans else None
+        if (physical and previous and previous["lines"] and previous["key"] == key
+                and start <= max(previous["lines"]) + 1
+                and all(number not in previous["lines"] or previous["lines"][number] == text
+                        for number, text in lines.items())):
+            previous["lines"].update(lines)
+            previous["source_text"] = "\n".join(previous["lines"][number] for number in sorted(previous["lines"]))
+            previous["supplied_reference_ids"].append(page["evidence_id"])
+        else:
+            spans.append({"key": key, "lines": lines, "source_text": page["source_text"],
+                          "supplied_reference_ids": [page["evidence_id"]]})
+    return spans
+
+
+def _number_marker_covered(marker, text):
+    """Normalize literal spellings only; no arithmetic expression is evaluated."""
+    try:
+        expected = Decimal(marker)
+    except InvalidOperation:
+        return False
+    for number in re.findall(r"(?<![A-Z0-9_.])[+-]?\d+(?:\.\d+)?(?![A-Z0-9_.])", text, re.I):
+        if Decimal(number) == expected:
+            return True
+    digits = "零一二三四五六七八九"
+
+    def chinese_integer(value):
+        if value < 10:
+            return digits[value]
+        for unit, label in ((1000, "千"), (100, "百"), (10, "十")):
+            if value >= unit:
+                head, remainder = divmod(value, unit)
+                prefix = "" if unit == 10 and head == 1 else digits[head]
+                suffix = "零" if remainder and unit >= 100 and remainder < unit // 10 else ""
+                return prefix + label + suffix + (chinese_integer(remainder) if remainder else "")
+        return ""
+
+    # Common Chinese number spellings should not turn a correct short answer
+    # into an omission. Larger/other spellings remain outside this text hint.
+    absolute = abs(expected)
+    if absolute < 10000:
+        whole = int(absolute)
+        fraction = format(absolute, "f").partition(".")[2].rstrip("0")
+        number = chinese_integer(whole) + ("点" + "".join(digits[int(char)] for char in fraction) if fraction else "")
+        number = ("负" if expected < 0 else "") + number
+        return number in text or number.replace("负", "負").replace("点", "點") in text
+    return False
+
+
+def _supplied_calculation_hints(question, investigation, source_pages):
+    """Nominate visible control/assignment syntax, never executed value flow.
+
+    An indexed result-adjustment count includes the original formula itself.
+    Inspect only its actually supplied pages and target writes instead, so an
+    unconditional formula does not acquire an invented exception requirement.
+    """
+    from structural_index import _extract_data_access, _unique_identifiers, normalize_cobol_lines
+
+    supplied = {identifier for item in investigation.get("required_items", [])
+                if item.get("kind") in {"formula", "business_steps", "conditions", "result_adjustments"}
+                and item.get("status") == "SATISFIED"
+                for identifier in item.get("evidence_ids", [])}
+    question_fields = set(re.findall(r"[A-Z][A-Z0-9_$#@-]*", str(question).upper()))
+    conditions, adjustments, hints = False, False, []
+    seen, scopes = set(), []
+    for span in _supplied_source_spans(source_pages, supplied):
+        lines, _ = normalize_cobol_lines(span["source_text"])
+        source = "\n".join(line.text for line in lines)
+        # Preserve offsets while keeping quoted DISPLAY text out of syntax.
+        masked = re.sub(r"'([^']|'')*'|\"([^\"]|\"\")*\"",
+                        lambda match: " " * len(match[0]), source)
+        events = list(_SOURCE_VERBS.finditer(masked))
+        stack, writes, unknown_branch = [], [], False
+        for index, event in enumerate(events):
+            verb = event[0].upper()
+            end = events[index + 1].start() if index + 1 < len(events) else len(source)
+            statement = source[event.start():end].strip()
+            if verb in {"IF", "EVALUATE"}:
+                stack.append([verb, index, 0])
+            elif verb in {"ELSE", "WHEN"}:
+                expected = "IF" if verb == "ELSE" else "EVALUATE"
+                if stack and stack[-1][0] == expected:
+                    stack[-1][2] += 1
+                else:
+                    unknown_branch = True
+            elif verb in {"END-IF", "END-EVALUATE"}:
+                expected = "IF" if verb == "END-IF" else "EVALUATE"
+                if stack and stack[-1][0] == expected:
+                    stack.pop()
+                else:
+                    unknown_branch = False
+            elif verb in _ARITHMETIC_VERBS | {"MOVE"}:
+                reads, targets, metadata = _extract_data_access(statement)
+                syntax = masked[event.start():end]
+                if verb in _ARITHMETIC_VERBS and re.search(r"\bGIVING\b", syntax, re.I):
+                    giving = re.split(r"\bGIVING\b", syntax, flags=re.I)[1]
+                    targets = _unique_identifiers(re.split(r"\b(?:ON|NOT|END-\w+)\b", giving)[0])
+                    reads = [field for field in reads if field not in targets]
+                if targets:
+                    writes.append({"verb": verb, "targets": targets, "reads": reads, "statement": statement,
+                                   "syntax": syntax, "unknown_branch": unknown_branch,
+                                   "expression": metadata.get("expression", ""), "index": index,
+                                   "branch": tuple((row[1], row[2]) for row in stack)})
+            # A COBOL sentence terminator also closes implicit IF scopes.
+            if re.search(r"(?<!\d)\.(?:\s|$)|(?<=\d)\.(?:\s|$)", masked[event.start():end]):
+                stack = []
+                unknown_branch = False
+        scopes.append((span, writes))
+    all_targets = {field for _, writes in scopes for row in writes for field in row["targets"]}
+    arithmetic_targets = {field for _, writes in scopes for row in writes
+                          if row["verb"] in _ARITHMETIC_VERBS for field in row["targets"]}
+    arithmetic_inputs = {field for _, writes in scopes for row in writes
+                         if row["verb"] in _ARITHMETIC_VERBS for field in row["reads"]}
+    matched = (arithmetic_targets.intersection(question_fields) or
+               all_targets.intersection(question_fields).difference(arithmetic_inputs))
+    # A program-level question can supply many intermediate counters. Their
+    # independent writes do not establish which one is the requested result.
+    override_targets = matched or (arithmetic_targets if len(arithmetic_targets) == 1 else set())
+    for span, writes in scopes:
+        arithmetic = [row for row in writes if row["verb"] in _ARITHMETIC_VERBS]
+        targets = ({field for row in writes for field in row["targets"]}.intersection(matched) if matched
+                   else {field for row in arithmetic or writes for field in row["targets"]})
+        for target in sorted(targets):
+            relevant = [row for row in writes if target in row["targets"]]
+            primary = next((row for row in relevant if row["verb"] in _ARITHMETIC_VERBS),
+                           relevant[0] if relevant else None)
+            if primary is None:
+                continue
+            conditions |= any(row["branch"] or row["unknown_branch"] for row in relevant)
+            for row in relevant:
+                row_hints = []
+                if row["verb"] in _ARITHMETIC_VERBS and re.search(r"\bROUNDED\b", row["syntax"], re.I):
+                    row_hints.append({"kind": "rounding", "target_field": target,
+                                      "source_statement": row["statement"][:300],
+                                      "supplied_reference_ids": span["supplied_reference_ids"][:8]})
+                if row["index"] > primary["index"]:
+                    primary_branch, branch = dict(primary["branch"]), dict(row["branch"])
+                    if (row["unknown_branch"] or primary["unknown_branch"] or
+                            any(key in branch and branch[key] != value for key, value in primary_branch.items())):
+                        adjustments = True
+                    elif target in override_targets:  # A later overwrite needs a located result target.
+                        row_hints.append({"kind": "result_overrides", "target_field": target,
+                                          "source_statement": row["statement"][:300],
+                                          "value_markers": re.findall(r"(?<![\w-])[+-]?\d+(?:\.\d+)?(?![\w-])",
+                                                                      row["expression"]),
+                                          "supplied_reference_ids": span["supplied_reference_ids"][:8]})
+                for hint in row_hints:
+                    key = (span["key"], target, hint["kind"], row["statement"])
+                    if key not in seen:
+                        seen.add(key)
+                        hints.append(hint)
+                        adjustments = True
+    return {"conditions": bool(conditions), "result_adjustments": bool(adjustments),
+            "coverage_hints": hints[:32]}
 
 
 def answer_requirements(question, investigation, source_pages, *, answer_detail="detailed"):
@@ -180,11 +361,13 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
     # to the question so a concrete short answer is not rejected for omitting
     # supplementary input origins that the user did not ask to enumerate.
     detailed_calculation = calculation and detail_requested and bool(_EXPLICIT_DETAIL_REQUEST.search(question))
+    source_hints = (_supplied_calculation_hints(question, investigation, source_pages) if calculation
+                    else {"conditions": False, "result_adjustments": False, "coverage_hints": []})
     requested = {"formula": calculation,
                  "file_io": is_file_impact_question(question),
                  "inputs": bool(_INPUT_QUESTION.search(question)) or detailed_calculation,
-                 "conditions": detailed_calculation or bool(_CONDITION_QUESTION.search(question)),
-                 "result_adjustments": detailed_calculation or bool(_ALTERNATIVE_QUESTION.search(question))}
+                 "conditions": detailed_calculation or bool(_CONDITION_QUESTION.search(question)) or source_hints["conditions"],
+                 "result_adjustments": detailed_calculation or bool(_ALTERNATIVE_QUESTION.search(question)) or source_hints["result_adjustments"]}
     visible = {page.get("evidence_id") for page in source_pages if page.get("source_text")}
     requirements = []
     for item in investigation.get("required_items", []):
@@ -195,6 +378,8 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
                 and item.get("candidate_count", 0) and identifiers):
             requirement = {"kind": kind, "description": _ASPECT_LABELS[kind],
                            "supplied_reference_ids": identifiers[:8]}
+            if kind == "result_adjustments" and source_hints["coverage_hints"]:
+                requirement["coverage_hints"] = source_hints["coverage_hints"]
             if kind == "file_io":
                 observations = [row for row in investigation.get("file_impact", {}).get("observations", [])
                     if set(row.get("evidence_ids", [])).issubset(visible)]
@@ -230,6 +415,16 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
     missing = [item["kind"] for item in requirements
                if not _ANSWER_SIGNALS[item["kind"]].search(explanation)]
     for item in requirements:
+        for hint in item.get("coverage_hints", []):
+            kind = hint["kind"]
+            if kind == "rounding":
+                covered = bool(_ROUNDING_ANSWER.search(explanation))
+            else:
+                markers = hint.get("value_markers", [])
+                covered = (all(_number_marker_covered(marker, explanation) for marker in markers)
+                           if markers else bool(_OVERRIDE_ANSWER.search(explanation)))
+            if not covered and kind not in missing:
+                missing.append(kind)
         for group, names in item.get("identifier_groups", {}).items():
             if not any(re.search(r"(?<![A-Z0-9_$#@-])" + re.escape(name) + r"(?![A-Z0-9_$#@-])",
                                  explanation, re.I) for name in names):
@@ -296,6 +491,8 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
                 "缺外部实现或运行时目标只限制依赖它的结论，继续解释调用者已知的输入、条件和返回处理。"
                 "framework_facts 是离线绑定到当前调用点的框架规则；可以说明其约定操作，"
                 "不把已由该规则解释的公共调用重复列为资料缺失，也不据此推断运行结果或缺失算式。"
+                "最终计算按源码顺序串起适用条件、分支、舍入和后续结果覆盖；"
+                "不能把中间算式写成无条件的最终结果，后续赋值有影响时明确其优先关系。"
                 "不把必答项状态、检索覆盖或索引数量写成业务结论或完整值流证明。"}
 
 

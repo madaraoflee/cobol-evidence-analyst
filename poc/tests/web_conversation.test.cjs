@@ -181,6 +181,41 @@ test('recent conversations retain every populated conversation beyond the first 
   assert.equal(h.requests.length,0);
 });
 
+test('opening an older conversation and receiving a follow-up keep its original list position',async()=>{
+  const h=harness();setup(h,firstMessages);
+  const older={...conversation(firstMessages),id:'older-request',created_at:'2026-09-01T08:00:00Z',first_question_at:'2026-09-01T08:01:00Z'};
+  const newer={id:'newer-request',title:'Newer question',created_at:'2026-09-02T08:00:00Z',first_question_at:'2026-09-02T08:01:00Z',message_count:2};
+  h.run(`state.conversations=${JSON.stringify([newer,{...older,messages:undefined,message_count:2}])}`);
+  h.respond(url=>{assert.equal(url,'/api/conversations/older-request');return {conversation:older};});
+  await h.run("openConversation('older-request')");
+  assert.equal(h.run('state.conversations.map(item=>item.id).join()'),'newer-request,older-request');
+  h.run(`applyConversation(${JSON.stringify({...older,title:'Updated older question',updated_at:'2026-10-04T10:00:00Z',messages:[...firstMessages,{id:'follow-up',role:'user',content:'Explain further.',created_at:'2026-10-04T10:00:00Z'}]})});renderChrome()`);
+  assert.equal(h.run('state.conversations.map(item=>item.id).join()'),'newer-request,older-request');
+  assert.match(h.get('conversation-list').innerHTML,/Updated older question/);
+  assert.equal(h.run("state.conversations[1].first_question_at"),older.first_question_at);
+});
+
+test('initial restoration orders conversations by first question rather than creation or updates',async()=>{
+  const h=harness();
+  const older={...conversation(firstMessages),id:'older-request',created_at:'2026-09-02T08:00:00Z',first_question_at:'2026-09-02T08:01:00Z',updated_at:'2026-10-04T10:00:00Z'};
+  const laterQuestion={id:'later-question',title:'Asked later',created_at:'2026-09-01T08:00:00Z',first_question_at:'2026-09-03T08:01:00Z',updated_at:'2026-09-03T08:02:00Z'};
+  h.respond(url=>url==='/api/state'?{session_token:'test',project:project(),conversations:[older,laterQuestion],conversation:older}:url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
+  await h.run('initialize()');
+  assert.equal(h.run('state.conversation.id'),'older-request');
+  assert.equal(h.run('state.conversations.map(item=>item.id).join()'),'later-question,older-request');
+});
+
+test('conversation responses without dates preserve existing metadata and legacy order',()=>{
+  const h=harness();setup(h,firstMessages);
+  h.run("state.conversations=[{id:'legacy-newer',title:'Earlier list entry'},{id:'conversation-1',title:'Older list entry'}]");
+  h.run(`applyConversation(${JSON.stringify(conversation(firstMessages))})`);
+  assert.equal(h.run('state.conversations.map(item=>item.id).join()'),'legacy-newer,conversation-1');
+  h.run("state.conversations[1].created_at='2026-09-01T08:00:00Z';state.conversations[1].first_question_at='2026-09-01T08:01:00Z';state.conversations[0].created_at='2026-09-02T08:00:00Z'");
+  h.run(`applyConversation(${JSON.stringify(conversation(firstMessages))})`);
+  assert.equal(h.run('state.conversations.map(item=>item.id).join()'),'legacy-newer,conversation-1');
+  assert.equal(h.run('state.conversations[1].first_question_at'),'2026-09-01T08:01:00Z');
+});
+
 test('recent conversations drawer restores its rail, expanded state and visible trigger after closing',()=>{
   const h=harness();setup(h,firstMessages);
   const shell=h.get('app-shell'),rail=h.get('activity-sidebar'),dialog=h.get('activity-dialog'),toggle=h.get('activity-toggle');

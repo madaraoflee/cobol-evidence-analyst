@@ -99,6 +99,17 @@ class QuestionInvestigationTests(unittest.TestCase):
         self.assertEqual(self.item(result, "formula")["candidate_count"], 2)
         self.assertTrue(result["can_answer"])
 
+    def test_natural_expression_question_investigates_the_formula(self):
+        self.write("entry.cbl", "VALUEPLAN", "COMPUTE NET-VALUE = BASE-VALUE * 2.")
+        self.build()
+        for question in ("VALUEPLAN NET-VALUE 的算式是什么？", "VALUEPLAN NET-VALUE 的算式是什麼？"):
+            with self.subTest(question=question):
+                result = self.investigate(question, [self.page("entry.cbl")])
+                formula = self.item(result, "formula")
+                self.assertEqual(formula["candidate_count"], 1)
+                self.assertEqual(formula["status"], "SATISFIED")
+                self.assertTrue(result["can_answer"])
+
     def test_unfocused_formula_enumeration_remains_bounded_and_reports_its_gap(self):
         self.write("entry.cbl", "VALUEPLAN", "\n".join(
             f"COMPUTE OUT-{index} = {index} * 2." for index in range(1, 41)))

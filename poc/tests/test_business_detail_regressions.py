@@ -222,6 +222,69 @@ class BusinessDetailRegressions(unittest.TestCase):
         self.assertEqual(self.requests[0]["answer_detail"], "brief")
         self.assertFalse(self.requests[0]["business_analysis_brief"]["detail_requested"])
 
+    def conditional_result(self):
+        self.write("rule.cbl", "CONDITIONFLOW", "IF BASE-VALUE > ZERO\n"
+            "COMPUTE NET-VALUE = BASE-VALUE * 2\nELSE\nMOVE ZERO TO NET-VALUE\nEND-IF.\n"
+            "IF REVIEW-FLAG = 'Y'\nMOVE 19 TO NET-VALUE\nEND-IF.",
+            "01 BASE-VALUE PIC S9(9).\n01 NET-VALUE PIC S9(9).\n01 REVIEW-FLAG PIC X.")
+        self.build()
+
+    def conditional_answer(self, payload):
+        return ("基础金额大于零时净金额为基础金额的两倍，否则净金额归零。"
+            + self.cite(payload, "COMPUTE NET-VALUE")
+            + "\n\n最后若复核标志为Y，净金额改写为19，覆盖前面的计算或归零结果。"
+            + self.cite(payload, "MOVE 19 TO NET-VALUE"))
+
+    def assert_conditional_review(self, *, answer_detail="detailed"):
+        self.conditional_result()
+        draft = []
+        def respond(payload):
+            if len(self.requests) == 1:
+                draft.append("净金额等于基础金额乘以2。" + self.cite(payload, "COMPUTE NET-VALUE"))
+                return draft[0]
+            return self.conditional_answer(payload)
+        result = self.ask("CONDITIONFLOW NET-VALUE 怎么计算？", respond, answer_detail=answer_detail)
+        # The unconditional draft is wrong for two independently chosen inputs:
+        # BASE=-5 / REVIEW=N produces 0, and BASE=10 / REVIEW=Y produces 19.
+        # The fixed transport isolates omission handling, not model accuracy.
+        self.assertEqual(result["metrics"]["model_requests"], 2)
+        self.assertEqual(self.requests[1]["draft_answer"], draft[0])
+        self.assertTrue({"conditions", "result_adjustments"} <=
+                        set(self.requests[1]["answer_review"]["missing_aspects"]))
+        for payload, request_size in zip(self.requests, self.request_bytes):
+            text = "\n".join(page["source_text"] for page in source_pages(payload))
+            for marker in ("IF BASE-VALUE > ZERO", "MOVE ZERO TO NET-VALUE", "MOVE 19 TO NET-VALUE"):
+                self.assertIn(marker, text)
+            self.assertLessEqual(request_size, AgentPolicy().max_request_bytes)
+        self.assertTrue(result["business_review"]["synthesis_review_attempted"])
+        self.assertEqual(result["business_review"]["answer_completion"]["missing_aspects"], [])
+        self.assertIn("否则净金额归零", result["answer"])
+        self.assertIn("覆盖前面的计算或归零结果", result["answer"])
+        if answer_detail == "detailed":
+            self.assert_answer_binding(result)
+        else:
+            self.assertFalse(result["claims_semantically_verified"])
+            self.assertEqual(self.network_attempts, [])
+            self.assertTrue(result["narrative"]["citations"])
+
+    def test_default_calculation_reviews_omitted_conditions_and_later_override(self):
+        self.assert_conditional_review()
+
+    def test_brief_calculation_still_reviews_rules_that_change_the_result(self):
+        self.assert_conditional_review(answer_detail="brief")
+
+    def test_simple_unconditional_formula_needs_no_extra_review(self):
+        self.write("rule.cbl", "SIMPLEFLOW", "COMPUTE NET-VALUE = BASE-VALUE * 2.",
+                   "01 BASE-VALUE PIC 9(9).\n01 NET-VALUE PIC 9(9).")
+        self.build()
+        result = self.ask("SIMPLEFLOW NET-VALUE 怎么计算？", lambda payload:
+            "净金额等于基础金额乘以2。" + self.cite(payload, "COMPUTE NET-VALUE"))
+        self.assertEqual(result["metrics"]["model_requests"], 1)
+        self.assertFalse(result["business_review"]["synthesis_review_attempted"])
+        self.assertEqual(result["business_review"]["answer_completion"]["required_aspects"], ["formula"])
+        self.assertEqual(result["business_review"]["answer_completion"]["missing_aspects"], [])
+        self.assertFalse(result["claims_semantically_verified"])
+
     def test_known_non_arithmetic_rules_answer_calculation_without_compute(self):
         self.write("rule.cbl", "ASSIGNFLOW", "IF BASE-VALUE > ZERO\n"
                    "MOVE BASE-VALUE TO NET-VALUE\nELSE\nMOVE ZERO TO NET-VALUE\nEND-IF.",

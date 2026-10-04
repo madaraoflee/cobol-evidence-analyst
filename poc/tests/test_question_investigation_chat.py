@@ -130,11 +130,11 @@ class QuestionInvestigationChatTests(unittest.TestCase):
         def citation_first(payload):
             page = next(page for page in payload["source_context"][0]["pages"]
                         if "COMPUTE FINAL-AMOUNT" in page["source_text"])
-            return f"[{page['evidence_id']}] 基础金额乘系数计算。"
+            return f"[{page['evidence_id']}] 基础金额大于零时乘系数计算，否则结果为零。"
         for respond in (citation_first,
-                        lambda payload: "[处理说明](#result) 基础金额乘系数计算。",
-                        lambda payload: '{"rate":1.25,"meaning":"基础金额乘系数"}',
-                        lambda payload: "处理需要先读取参数再计算，基础金额乘系数得到结果。"):
+                        lambda payload: "[处理说明](#result) 基础金额大于零时乘系数计算，否则结果为零。",
+                        lambda payload: '{"rate":1.25,"meaning":"基础金额大于零时乘系数，否则结果为零"}',
+                        lambda payload: "处理需要先读取参数再计算，基础金额大于零时乘系数得到结果，否则为零。"):
             with self.subTest(respond=respond):
                 self.requests.clear()
                 result = self.ask("FINAL-AMOUNT 怎么计算？", respond)

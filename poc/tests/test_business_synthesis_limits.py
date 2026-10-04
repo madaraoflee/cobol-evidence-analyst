@@ -75,7 +75,7 @@ class BusinessSynthesisLimitTests(unittest.TestCase):
         draft = "最终金额由基础值与系数计算。"
         pages = [formula_page, end_page]
         review = assess_business_answer(question, draft, investigation(pages), pages)
-        self.assertEqual(review["missing_aspects"], ["formula"])
+        self.assertEqual(set(review["missing_aspects"]), {"formula", "conditions", "result_adjustments"})
         payload = {"question": question, "repository": {}, "business_map": {},
             "source_context": [{"pages": pages, "call_chain": {"links": [], "omitted_links": 0},
                                 "outline": [], "notices": []}],

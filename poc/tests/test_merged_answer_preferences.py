@@ -23,13 +23,14 @@ class MergedAnswerPreferenceTests(unittest.TestCase):
     def test_brief_option_limits_implicit_detailed_calculation_requirements(self):
         question = "请详细解释最终金额怎么计算？"
         requirements = answer_requirements(question, self.investigation, self.pages, answer_detail="brief")
-        self.assertEqual([item["kind"] for item in requirements], ["formula"])
+        self.assertEqual([item["kind"] for item in requirements],
+                         ["formula", "conditions", "result_adjustments"])
         brief = build_analysis_brief(question, self.investigation, self.pages, [], 2048, answer_detail="brief")
         self.assertFalse(brief["detail_requested"])
         self.assertEqual(brief["required_answer_aspects"], requirements)
 
     def test_brief_option_reaches_assessment_and_synthesis_review(self):
-        question, answer = "请详细解释最终金额怎么计算？", "最终金额为基础金额乘以系数。"
+        question, answer = "请详细解释最终金额怎么计算？", "正数基础金额乘以系数，否则归零。"
         review = assess_business_answer(question, answer, self.investigation, self.pages, answer_detail="brief")
         self.assertNotEqual(review["status"], "incomplete")
         self.assertEqual(review["missing_aspects"], [])
@@ -40,7 +41,7 @@ class MergedAnswerPreferenceTests(unittest.TestCase):
         review = assess_business_answer("最终金额怎么计算？",
             "基础金额大于零时乘系数，否则归零。", self.investigation, self.pages)
         self.assertNotEqual(review["status"], "incomplete")
-        self.assertEqual(review["required_aspects"], ["formula"])
+        self.assertEqual(review["required_aspects"], ["formula", "conditions", "result_adjustments"])
 
     def test_explicit_detailed_request_keeps_supplied_aspect_checks(self):
         question = "请详细解释最终金额怎么计算？"
@@ -54,7 +55,7 @@ class MergedAnswerPreferenceTests(unittest.TestCase):
     def test_brief_still_checks_explicitly_asked_conditions(self):
         review = assess_business_answer("最终金额怎么计算，条件和输入来源是什么？",
             "最终金额为基础金额乘以系数。", self.investigation, self.pages, answer_detail="brief")
-        self.assertEqual(set(review["missing_aspects"]), {"inputs", "conditions"})
+        self.assertEqual(set(review["missing_aspects"]), {"inputs", "conditions", "result_adjustments"})
         self.assertEqual(review["status"], "incomplete")
 
     def test_short_answer_can_cover_all_explicit_detailed_aspects(self):
@@ -67,7 +68,7 @@ class MergedAnswerPreferenceTests(unittest.TestCase):
         answer = "最终金额由基础金额和系数计算。"
         review = assess_business_answer("最终金额怎么计算？", answer, self.investigation, self.pages)
         self.assertEqual(review["status"], "incomplete")
-        self.assertEqual(review["missing_aspects"], ["formula"])
+        self.assertEqual(review["missing_aspects"], ["formula", "conditions", "result_adjustments"])
         self.assertTrue(needs_synthesis_review("最终金额怎么计算？", answer, self.investigation,
                                                source_pages=self.pages))
 

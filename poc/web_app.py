@@ -40,7 +40,7 @@ WEB_ROOT = Path(__file__).resolve().parent / "web"
 FRAMEWORK_DEMO_SOURCE = Path(__file__).resolve().parent / "fixtures" / "framework-workbench" / "source"
 FRAMEWORK_DEMO_OUTPUT = Path(__file__).resolve().parents[1] / ".poc-data" / "framework-runs"
 STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/i18n.js": "i18n.js", "/styles.css": "styles.css",
-                "/appearance.css": "appearance.css", "/theme.js": "theme.js",
+                "/appearance.css": "appearance.css", "/theme.js": "theme.js", "/layout.js": "layout.js",
                 "/markdown.js": "markdown.js", "/marked.umd.js": "marked.umd.js"}
 MAX_REQUEST_BYTES = 32_768
 MAX_GRAPH_EDGES = 200

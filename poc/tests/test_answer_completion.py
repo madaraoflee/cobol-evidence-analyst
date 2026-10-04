@@ -186,6 +186,42 @@ class AnswerCompletionTests(unittest.TestCase):
         self.assertEqual(result["business_review"]["answer_completion"]["missing_aspects"], [])
         self.assertFalse(result["claims_semantically_verified"])
 
+    def test_partial_revision_cannot_discard_the_drafts_formula_and_inputs(self):
+        self.build_source()
+        def draft(payload):
+            identifier = payload["source_context"][0]["pages"][0]["evidence_id"]
+            return "基础值初始8、系数初始1.25，最终金额为基础值乘以系数。" + f"[{identifier}]"
+        def revision(payload):
+            identifier = payload["source_context"][0]["pages"][0]["evidence_id"]
+            return "基础值大于零时走处理分支，否则最终金额为零。" + f"[{identifier}]"
+        output = self.ask([draft, revision],
+            question="请详细解释 rule.cbl 的 FINAL-AMOUNT 如何计算，包括输入来源、条件与其他分支。")
+        result = output["agent_result"]
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(self.requests[0]["source_context"], self.requests[1]["source_context"])
+        self.assertEqual(result["answer"], draft(self.requests[0]))
+        self.assertEqual(set(result["business_review"]["answer_completion"]["missing_aspects"]),
+                         {"conditions", "result_adjustments"})
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertTrue(any(item.get("revision_error") == "ANSWER_COVERAGE_REGRESSED"
+                            for item in result["boundaries"]))
+        trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
+        self.assertEqual(trace["final"]["final_answer_round_id"], "round-1")
+        self.assertEqual(trace["final"]["final_answer_round_ids"], ["round-1"])
+        self.assertEqual([item["evidence_id"] for item in result["narrative"]["citations"]],
+                         [self.requests[0]["source_context"][0]["pages"][0]["evidence_id"]])
+
+    def test_partial_revision_can_fill_a_gap_without_losing_explained_aspects(self):
+        self.build_source()
+        draft = "基础值初始8、系数初始1.25，最终金额为基础值乘以系数。"
+        revision = "基础值初始8、系数初始1.25；基础值大于零时，最终金额为基础值乘以系数。"
+        result = self.ask([draft, revision],
+            question="请详细解释 rule.cbl 的 FINAL-AMOUNT 如何计算，包括输入来源、条件与其他分支。")["agent_result"]
+        self.assertEqual(result["answer"], revision)
+        self.assertEqual(result["business_review"]["answer_completion"]["missing_aspects"],
+                         ["result_adjustments"])
+        self.assertFalse(any(item.get("reason") == "usable_draft_retained" for item in result["boundaries"]))
+
     def test_generic_calculation_answer_is_not_success_after_bounded_review(self):
         self.build_source()
         for answer in ("最终金额由基础值与系数计算。",
@@ -199,10 +235,12 @@ class AnswerCompletionTests(unittest.TestCase):
                 self.assert_not_successful_answer(output)
                 completion = output["agent_result"]["business_review"]["answer_completion"]
                 self.assertEqual(completion["reason"], "supplied_business_aspects_unexplained")
-                self.assertEqual(completion["missing_aspects"], ["formula"])
+                self.assertEqual(set(completion["missing_aspects"]),
+                                 {"formula", "conditions", "result_adjustments"})
                 trace = json.loads(Path(output["agent_result"]["metrics"]["quality_trace_path"])
                                    .read_text(encoding="utf-8"))
-                self.assertEqual(trace["final"]["answer_completion"]["missing_aspects"], ["formula"])
+                self.assertEqual(set(trace["final"]["answer_completion"]["missing_aspects"]),
+                                 {"formula", "conditions", "result_adjustments"})
 
     def test_explicit_sources_conditions_and_else_are_checked_without_detail_keyword(self):
         self.build_source()
@@ -231,7 +269,8 @@ class AnswerCompletionTests(unittest.TestCase):
         output = self.ask(["最终金额为基础值乘以系数。", BUSINESS_ANSWER],
             question="rule.cbl 的 FINAL-AMOUNT 怎么计算，BASIS 和 FACTOR 的初值分别是什么？")
         self.assertEqual(len(self.requests), 2)
-        self.assertEqual(self.requests[1]["answer_review"]["missing_aspects"], ["inputs"])
+        self.assertEqual(set(self.requests[1]["answer_review"]["missing_aspects"]),
+                         {"inputs", "conditions", "result_adjustments"})
         self.assertEqual(output["agent_result"]["answer"], BUSINESS_ANSWER)
 
     def test_plain_addition_and_subtraction_are_valid_calculation_explanations(self):
@@ -390,12 +429,12 @@ class AnswerCompletionTests(unittest.TestCase):
         self.build_source()
         explanations = (
             "需要先确认条件：基础值大于零时乘以系数，否则最终金额归零。",
-            "需要先确认条件：仅基础值大于零时才按基础值乘以系数计算金额。",
+            "需要先确认条件：仅基础值大于零时才按基础值乘以系数计算金额，否则归零。",
             "先核对条件：基础值大于零时，最终金额等于基础值乘以系数；否则归零。",
-            "先读取参数并按基础值乘以系数计算最终金额。",
+            "先读取参数，仅基础值大于零时按基础值乘以系数计算最终金额，否则归零。",
             "First check the condition: if the basis is positive, multiply it by the factor; "
             "otherwise set the final amount to zero.",
-            "First read the parameters and multiply the basis by the factor.",
+            "First read the parameters; if the basis is positive, multiply it by the factor; otherwise zero.",
         )
         for answer in explanations:
             with self.subTest(answer=answer):

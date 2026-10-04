@@ -37,6 +37,89 @@ class ConversationStoreTests(unittest.TestCase):
         self.assertEqual(metadata["id"], self.identifier)
         self.assertNotIn("messages", metadata)
 
+    def test_first_question_time_uses_message_position_and_empty_creation_time(self):
+        created_at = self.store.get(self.identifier)["created_at"]
+        self.assertEqual(self.store.get_metadata(self.identifier)["first_question_at"], created_at)
+        self.assertEqual(self.store.list()[0]["first_question_at"], created_at)
+        with patch("conversation_store._now", return_value="2030-01-01T09:00:00+00:00"):
+            self.store.append(self.identifier, "assistant", "Initial context.")
+        first_question_at = "2030-01-01T10:00:00+00:00"
+        with patch("conversation_store._now", return_value=first_question_at):
+            self.store.append(self.identifier, "user", "First question.")
+        with patch("conversation_store._now", return_value="2029-01-01T10:00:00+00:00"):
+            self.store.append(self.identifier, "user", "Follow-up after a clock correction.")
+        for metadata in (self.store.get(self.identifier), self.store.get_metadata(self.identifier),
+                         self.store.list()[0]):
+            self.assertEqual(metadata["created_at"], created_at)
+            self.assertEqual(metadata["first_question_at"], first_question_at)
+
+    def test_list_orders_by_first_question_time_and_keeps_sources_separate(self):
+        self.store.delete(self.identifier)
+        with patch("conversation_store._now", return_value="2030-01-01T08:00:00+00:00"):
+            earlier_created = self.store.create()["id"]
+        with patch("conversation_store._now", return_value="2030-01-01T09:00:00+00:00"):
+            later_created = self.store.create()["id"]
+        with patch("conversation_store._now", return_value="2030-01-01T10:00:00+00:00"):
+            self.store.append(later_created, "user", "Earlier first question.")
+        with patch("conversation_store._now", return_value="2030-01-01T11:00:00+00:00"):
+            self.store.append(earlier_created, "user", "Later first question.")
+        with patch("conversation_store._now", return_value="2030-01-01T12:00:00+00:00"):
+            empty = self.store.create()["id"]
+        other = ConversationStore(self.root / "output", self.root / "other-source")
+        with patch("conversation_store._now", return_value="2030-01-01T13:00:00+00:00"):
+            other_id = other.create()["id"]
+            other.append(other_id, "user", "Another source's question.")
+
+        rows = self.store.list()
+        self.assertEqual([row["id"] for row in rows], [empty, earlier_created, later_created])
+        self.assertEqual([row["id"] for row in other.list()], [other_id])
+        for row in rows:
+            self.assertEqual(row, self.store.get_metadata(row["id"]))
+
+    def test_open_follow_up_and_retry_do_not_reorder_conversations(self):
+        self.store.delete(self.identifier)
+        with patch("conversation_store._now", return_value="2030-01-01T08:00:00+00:00"):
+            older = self.store.create()["id"]
+            user_id = self.store.append(older, "user", "First question.",
+                                        status="failed", run_id="failed-run")
+            assistant_id = self.store.append(older, "assistant", "Failed answer.",
+                                             status="failed", run_id="failed-run")
+        with patch("conversation_store._now", return_value="2030-01-01T09:00:00+00:00"):
+            newer = self.store.create()["id"]
+            self.store.append(newer, "user", "A newer conversation.")
+
+        def assert_order():
+            self.assertEqual([row["id"] for row in self.store.list()], [newer, older])
+            self.assertEqual(self.store.get_metadata(older)["first_question_at"],
+                             "2030-01-01T08:00:00+00:00")
+
+        assert_order()
+        self.store.get(older)
+        assert_order()
+        with patch("conversation_store._now", return_value="2030-01-01T10:00:00+00:00"):
+            self.store.append(older, "user", "A later follow-up.")
+            self.store.append(older, "assistant", "A later answer.")
+        assert_order()
+        with patch("conversation_store._now", return_value="2030-01-01T11:00:00+00:00"):
+            self.store.claim_retry(older, user_id, "retry-run")
+            self.store.complete_user("retry-run", "completed")
+            self.store.replace_assistant(older, assistant_id, "Recovered answer.",
+                                         run_id="retry-run")
+        assert_order()
+        self.assertEqual(self.store.get_metadata(older)["updated_at"],
+                         "2030-01-01T11:00:00+00:00")
+
+    def test_matching_start_times_have_a_stable_tie_order(self):
+        self.store.delete(self.identifier)
+        with patch("conversation_store._now", return_value="2030-01-01T08:00:00+00:00"), \
+                patch("conversation_store.secrets.token_hex", side_effect=["0" * 32, "1" * 32]):
+            first = self.store.create()["id"]
+            second = self.store.create()["id"]
+        self.assertEqual([row["id"] for row in self.store.list()], [second, first])
+        with patch("conversation_store._now", return_value="2030-01-01T09:00:00+00:00"):
+            self.store.append(first, "assistant", "Initial context added later.")
+        self.assertEqual([row["id"] for row in self.store.list()], [second, first])
+
     def test_history_keeps_recent_turns_in_order_with_source_references(self):
         for i in range(20):
             self.store.append(self.identifier, "user", f"Question {i}")
