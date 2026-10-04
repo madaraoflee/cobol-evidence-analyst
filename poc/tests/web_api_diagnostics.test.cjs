@@ -60,6 +60,22 @@ test('raw API parsed answer and rendering input keep a long answer intact',()=>{
   assert.match(h.run('apiSummary()'),/business answer is incomplete/);
 });
 
+test('latency diagnostics separate source preparation from model waiting and reject arbitrary values',()=>{
+  const h=harness();setup(h,agent({agent_result:{diagnostic_summary:{schema_version:'business-answer-diagnostics/v1',
+    configured:{max_initial_context_seconds:3,max_local_analysis_seconds:15},
+    timing_seconds:{first_model_request_seconds:1.125,local_processing_seconds:2.5,provider_wait_seconds:17.75,total_seconds:20.25,private_path:'PRIVATE-TIMING'},
+    source_coverage:{limitation_codes:['local_analysis_budget_reached','PRIVATE-TIMING']}}}}));
+  const safe=h.run('diagnosticSummaryData()');assert.equal(safe.timing_seconds.first_model_request_seconds,1.125);
+  assert.equal(safe.timing_seconds.provider_wait_seconds,17.75);assert.equal(safe.configured.max_initial_context_seconds,3);
+  assert.deepEqual(Array.from(safe.source_coverage.limitation_codes),['local_analysis_budget_reached']);
+  assert.doesNotMatch(JSON.stringify(safe),/PRIVATE-TIMING|private_path/);
+  h.run('result().diagnostic_summary.timing_seconds={first_model_request_seconds:NaN,local_processing_seconds:Infinity,provider_wait_seconds:-1,total_seconds:true}');
+  assert.ok(Object.values(h.run('diagnosticSummaryData().timing_seconds')).every(value=>value===null));
+  for(const [phase,expected] of [['locating_sources','Locating relevant programs'],['reading_relevant_sources','Reading relevant source sections'],['supplementing_evidence','Supplementing source analysis'],['waiting_for_model','The model is generating an answer']]){
+    assert.equal(h.run(`phaseLabel('${phase}')`),expected);
+  }
+});
+
 test('shareable diagnostics keep complete-source budgets and omissions without private metadata',()=>{
   const h=harness();
   const diagnostic_summary={schema_version:'business-answer-diagnostics/v1',

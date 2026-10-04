@@ -6,6 +6,8 @@
     "max_complete_source_characters": 128000,
     "max_history_characters": 18000,
     "max_request_bytes": 230000,
+    "max_initial_context_seconds": 3,
+    "max_local_analysis_seconds": 15,
     "max_searches_per_turn": 3,
     "max_reads_per_turn": 3,
     "max_framework_searches_per_turn": 3,

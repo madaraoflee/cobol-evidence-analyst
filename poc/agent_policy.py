@@ -31,6 +31,8 @@ class AgentPolicy:
     max_semantic_source_bytes: int = 33554432
     max_semantic_expansions: int = 4
     max_evidence_groups: int = 12
+    max_initial_context_seconds: int = 3
+    max_local_analysis_seconds: int = 15
     max_answer_revisions: int = 1
     semantic_cache_bytes: int = 536870912
 
@@ -57,6 +59,8 @@ class AgentPolicy:
             "max_semantic_source_bytes": (1024, 536870912),
             "max_semantic_expansions": (0, 16),
             "max_evidence_groups": (0, 64),
+            "max_initial_context_seconds": (1, 120),
+            "max_local_analysis_seconds": (1, 300),
             "max_answer_revisions": (0, 1),
             "semantic_cache_bytes": (1048576, 4294967296),
         }

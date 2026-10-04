@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from business_index import _ensure_business_rules, build_business_index
 from business_map import _rule_leads, build_business_map
+from question_investigation import build_question_investigation
 import business_map as business_mapping
 import repository_discovery as discovery
 
@@ -89,6 +90,52 @@ class BusinessMapSelectionTests(unittest.TestCase):
         full_text_queries = [query for query in queries if "repo_fts MATCH" in query]
         self.assertTrue(full_text_queries)
         self.assertTrue(all("p.relative_path IN ('aa/target.cbl')" in query for query in full_text_queries))
+
+    def test_program_names_read_only_selected_paths_even_with_many_unrelated_units(self):
+        self.write("target.cbl", "TARGETPLAN", "COMPUTE FINALRESULT = INPUTVALUE * 2.")
+        self.write("other.cbl", "OTHERPLAN", "CONTINUE.")
+        self.build()
+        original = business_mapping._connect
+
+        def measure():
+            work = []
+            def connect(*args, **kwargs):
+                connection = original(*args, **kwargs)
+                connection.set_progress_handler(lambda: work.append(100) or 0, 100)
+                return connection
+            with mock.patch.object(business_mapping, "_connect", side_effect=connect):
+                result = build_business_map(self.database, self.source, "target.cbl 的逻辑是什么？")
+            return result, sum(work)
+
+        before, baseline = measure()
+        with sqlite3.connect(self.database) as connection:
+            unit = connection.execute("SELECT * FROM code_units WHERE relative_path='other.cbl' LIMIT 1").fetchone()
+            for index in range(12000):
+                row = list(unit)
+                row[0], row[2], row[3] = f"unrelated-unit-{index}", "Statement", "OTHER"
+                connection.execute("INSERT INTO code_units VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", row)
+                connection.execute("INSERT INTO relations VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (f"unrelated-perform-{index}", "other.cbl", row[0], "PERFORMS", "OTHER",
+                     "OTHERPLAN", None, "unresolved", row[10], "{}"))
+        after, work = measure()
+        self.assertEqual(after, before)
+        self.assertLessEqual(work, baseline * 2 + 1000)
+
+    def test_unmatched_business_question_leaves_discovery_open_without_global_dependencies(self):
+        self.write("entry.cbl", "ENTRYPLAN", 'CALL "MISSING-WORKER".')
+        self.write("other.cbl", "OTHERPLAN", "CONTINUE.")
+        self.build()
+        question = "说一说 billing notice 的不同触发条件，还有保费计算是怎么样的。"
+        with mock.patch.object(discovery, "_dependency_rows", side_effect=AssertionError("global relation lookup")):
+            mapping = build_business_map(self.database, self.source, question)
+        self.assertEqual(mapping["matched_files"], 0)
+        self.assertEqual(mapping["direct_paths"], [])
+        self.assertEqual(mapping["selected_paths"], [])
+        self.assertEqual(mapping["relations"], [])
+        investigation = build_question_investigation(question, mapping, database_path=self.database)
+        self.assertEqual(investigation["state"], "unresolved")
+        self.assertFalse(investigation["can_answer"])
+        self.assertEqual(investigation["open_gaps"][0]["reason"], "formula_not_located")
 
     def test_complete_field_phrase_limits_rules_despite_shared_word_noise(self):
         self.write("target.cbl", "RESULTPLAN", "COMPUTE RESULT-AMOUNT = INPUTVALUE * 2 + 37.")

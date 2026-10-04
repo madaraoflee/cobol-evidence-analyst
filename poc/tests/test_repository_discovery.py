@@ -9,7 +9,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from business_index import build_business_index
-from repository_discovery import discover_repository, ensure_repository_search
+from repository_discovery import _dependency_rows, _dependency_selection, discover_repository, ensure_repository_search
 from source_reading import prepare_source_reading, read_source_page_batch
 
 
@@ -35,6 +35,37 @@ class RepositoryDiscoveryTests(unittest.TestCase):
     def build(self):
         build_business_index(self.source, self.database, source_format="free", verify_content=True)
         return ensure_repository_search(self.database, self.source)
+
+    def test_dependency_batches_preserve_unusual_and_missing_target_bindings(self):
+        self.write("entry.cbl", "IDENTIFICATION DIVISION.\nPROGRAM-ID. ENTRY.\n"
+            "DATA DIVISION.\nWORKING-STORAGE SECTION.\n01 TARGET-NAME PIC X(20).\n"
+            "PROCEDURE DIVISION.\nCALL TARGET-NAME.\nGOBACK.\n")
+        self.build()
+        with closing(sqlite3.connect(self.database)) as connection:
+            connection.row_factory = sqlite3.Row
+            field = connection.execute("SELECT symbol_id FROM symbols WHERE symbol_type='Field' LIMIT 1").fetchone()[0]
+            relation = connection.execute("SELECT * FROM relations LIMIT 1").fetchone()
+            for index in range(1200):
+                row = list(relation)
+                row[0], row[6] = f"dynamic-{index:04d}", field if index % 2 else "missing-symbol"
+                connection.execute("INSERT INTO relations VALUES (?,?,?,?,?,?,?,?,?,?)", row)
+            expected = [dict(row) for row in connection.execute(
+                "SELECT r.relative_path,r.relation_type,r.target_name,r.status,r.evidence_id,s.relative_path AS target_path "
+                "FROM source_files f CROSS JOIN relations r ON r.relative_path=f.relative_path "
+                "LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
+                "WHERE r.relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY') ORDER BY r.relative_path,r.relation_id")]
+            queries = []
+            connection.set_trace_callback(queries.append)
+            actual = list(_dependency_rows(connection))
+            self.assertEqual(actual, expected)
+            lookups = [query for query in queries if "WHERE symbol_id IN" in query]
+            self.assertEqual(len(lookups), 1, "repeated bindings should not cause per-edge queries")
+            self.assertEqual(len(actual), 1201)
+
+    def test_empty_dependency_roots_do_not_read_the_relation_catalog(self):
+        with closing(sqlite3.connect(":memory:")) as connection:
+            self.assertEqual(_dependency_selection(connection, set(), {"member.cbl"}, None),
+                             ([], [], [], []))
 
     def test_new_concept_in_deep_comment_is_searchable_with_real_nearby_evidence(self):
         content = program("MAIN-ENTRY", 'MOVE 1 TO WORK-VALUE.\n' * 6000 + '*> 星辉额度 uses NebulaRewardCap and ASTEROID_LIMIT for this request.\nGOBACK.\n')
@@ -90,6 +121,8 @@ class RepositoryDiscoveryTests(unittest.TestCase):
         result = discover_repository(self.database, "NOVEL-QUESTION-CONCEPT")
         self.assertEqual(len(result["selected_paths"]), 40)
         self.assertTrue(result["dependency_expansion_complete"])
+        self.assertEqual(discover_repository(self.database, "NOVEL-QUESTION-CONCEPT",
+                                            fallback_to_repository=False), result)
 
     def test_no_lexical_match_falls_back_to_all_and_unavailable_targets_do_not_block(self):
         self.write("entry.cbl", program("MAIN-ENTRY", 'CALL "ABSENT-SERVICE".\nCALL TARGET-NAME.\n'))

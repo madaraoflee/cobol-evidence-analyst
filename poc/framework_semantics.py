@@ -58,10 +58,16 @@ def _candidate_paths(db, knowledge):
             if any(pattern.fullmatch(target.upper()) for pattern in targets):
                 paths.add(path)
     if stages:
-        for path, name in db.execute("SELECT relative_path,name FROM code_units "
-                                    "WHERE unit_type IN ('Section','Paragraph')"):
-            if name.upper() in stages:
-                paths.add(path)
+        # Both parsers persist canonical uppercase definition symbols. Their
+        # existing (symbol_type,name,program_name) index finds the few named
+        # stages directly, without reading every source unit on each refresh.
+        stage_names = sorted(stages)
+        for start in range(0, len(stage_names), 500):
+            batch = stage_names[start:start + 500]
+            placeholders = ",".join("?" for _ in batch)
+            paths.update(row[0] for row in db.execute(
+                "SELECT relative_path FROM symbols WHERE symbol_type IN ('Section','Paragraph') "
+                "AND name IN (" + placeholders + ")", batch))
     return paths
 
 

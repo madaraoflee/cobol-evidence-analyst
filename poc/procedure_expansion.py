@@ -126,6 +126,7 @@ def expand_program(
     source_provider=None,
     source_catalog=None,
     entry_relative_path: str | None = None,
+    check_cancel=None,
 ) -> dict[str, object]:
     """Expand one uniquely identified host file, without writing any source.
 
@@ -158,6 +159,8 @@ def expand_program(
     exhausted = False
 
     def load(relative: str) -> None:
+        if check_cancel:
+            check_cancel()
         if relative in sources:
             return
         try:
@@ -177,7 +180,12 @@ def expand_program(
                                "source_hash": digest, "include_chain": []})
             return
         lines = tuple(decoded.text.splitlines())
-        lexical = tuple(_lex_line(line) for line in lines)
+        lexical = []
+        for index, line in enumerate(lines):
+            if check_cancel and index % 256 == 0:
+                check_cancel()
+            lexical.append(_lex_line(line))
+        lexical = tuple(lexical)
         code = tuple(item[0] for item in lexical)
         masked = tuple(item[1] for item in lexical)
         problems = tuple((index, item[2]) for index, item in enumerate(lexical, 1) if item[2])
@@ -199,6 +207,8 @@ def expand_program(
         if source_catalog is None or entry_relative_path is None:
             raise ValueError("Explicit source catalog and entry path required")
         for relative in source_catalog:
+            if check_cancel:
+                check_cancel()
             path = Path(relative)
             for key in {path.stem.upper(), path.name.upper()}:
                 members[key].append(relative)
@@ -215,6 +225,8 @@ def expand_program(
 
     def emit(source: _Source, index: int, chain: list[dict[str, object]]) -> bool:
         nonlocal exhausted
+        if check_cancel and len(emitted) % 256 == 0:
+            check_cancel()
         if len(emitted) >= max_lines:
             if not exhausted:
                 boundary("copy_line_limit", source, index + 1, chain, max_lines=max_lines)

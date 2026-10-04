@@ -47,6 +47,53 @@ class SourceIdentityTests(unittest.TestCase):
         )
         ensure_repository_search(self.database, self.source)
 
+    def test_normalized_definition_lookup_preserves_case_and_avoids_unrelated_rows(self):
+        self.write_source("entry.cbl", "MixedPlan", "COMPUTE CHARGE-VALUE = BASE-AMOUNT * 2.")
+        self.build()
+        with closing(sqlite3.connect(self.database)) as connection:
+            connection.row_factory = sqlite3.Row
+            # Older display text may retain source case; symbols still carry
+            # the normalized definition key used by both index writers.
+            connection.execute("UPDATE code_units SET name='MixedPlan' WHERE unit_type='Program'")
+
+            def measure(question):
+                work = []
+                connection.set_progress_handler(lambda: work.append(100) or 0, 100)
+                try:
+                    result = resolve_source_identity(connection, question)
+                finally:
+                    connection.set_progress_handler(None, 0)
+                return result, sum(work)
+
+            questions = ("mixedplan", "billing notice", "charge-value")
+            before = {question: measure(question) for question in questions}
+            unit = connection.execute("SELECT * FROM code_units LIMIT 1").fetchone()
+            rule = connection.execute("SELECT * FROM business_rules LIMIT 1").fetchone()
+            symbol = connection.execute("SELECT * FROM symbols WHERE symbol_type='Field' LIMIT 1").fetchone()
+            for index in range(12000):
+                unit_row, rule_row, symbol_row = list(unit), list(rule), list(symbol)
+                unit_row[0], unit_row[2], unit_row[3] = f"extra-unit-{index}", "Statement", "OTHER"
+                rule_row[0] = f"extra-rule-{index}"
+                symbol_row[0], symbol_row[3] = f"extra-symbol-{index}", "OTHER-FIELD"
+                connection.execute("INSERT INTO code_units VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", unit_row)
+                connection.execute("INSERT INTO business_rules VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", rule_row)
+                connection.execute("INSERT INTO business_rule_fields VALUES (?,?,?)", (rule_row[0], "CHARGE-VALUE", "write"))
+                connection.execute("INSERT INTO symbols VALUES (?,?,?,?,?,?,?,?)", symbol_row)
+            for question in questions:
+                with self.subTest(question=question):
+                    result, work = measure(question)
+                    self.assertEqual(result, before[question][0])
+                    self.assertLessEqual(work, before[question][1] * 2 + 1000)
+            self.assert_identity_result(before["mixedplan"][0], "resolved", ["entry.cbl"])
+            self.assertEqual(before["charge-value"][0]["status"], "none")
+            for query, values in (
+                ("SELECT relative_path FROM symbols WHERE symbol_type='Program' AND name=?", ("MIXEDPLAN",)),
+                ("SELECT 1 FROM business_rule_fields WHERE field_name=? LIMIT 1", ("CHARGE-VALUE",)),
+            ):
+                plan = [row[3] for row in connection.execute("EXPLAIN QUERY PLAN " + query, values)]
+                self.assertTrue(any("SEARCH" in detail for detail in plan), plan)
+                self.assertFalse(any("SCAN" in detail for detail in plan), plan)
+
     def collision_fixture(self):
         self.write_source(
             "aa/target.cbl", "ALPHARULE",

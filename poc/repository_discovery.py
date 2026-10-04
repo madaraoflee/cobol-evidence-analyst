@@ -6,12 +6,14 @@ module has no business-topic dictionary and never calls a remote service.
 
 from __future__ import annotations
 
-from collections import defaultdict, deque
+from collections import OrderedDict, defaultdict, deque
 import hashlib
 import json
 from pathlib import Path
 import re
 import sqlite3
+import sys
+from threading import RLock
 
 from repository_identity import identity_boundaries, identity_sql_scope, resolve_source_identity
 from source_reading import _cancel, _identify_page, _persist_page, _relative_path, _safe_file, _verified_lines, _verified_pages
@@ -21,6 +23,10 @@ SEARCH_VERSION = "repository-text-v1"
 PAGE_CHARS = 12000
 MAX_MATCHED_PAGES = 200
 MAX_QUERY_TERMS = 128
+_GRAPH_CACHE = OrderedDict()
+_GRAPH_CACHE_LOCK = RLock()
+_GRAPH_CACHE_SNAPSHOTS = 2
+_GRAPH_CACHE_BYTES = 96 * 1024 * 1024
 _WORDS = re.compile(r"[A-Za-z0-9][A-Za-z0-9_$#@.-]*|[\u3400-\u9fff]+")
 _PARTS = re.compile(r"(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|[^A-Za-z0-9]+")
 _STOP = frozenset("a an and are as at be by can could do does explain for from how i in is it me of on or please show that the their these this to what when where which who why will with would you your program programs source code business analysis impact find all related affected".split())
@@ -222,16 +228,132 @@ def _snippet(text, terms, budget=1000):
     return text[start:start + budget], start
 
 
+def _graph_cache_key(connection):
+    # Writable callers with pending changes do not describe a sealed snapshot.
+    if connection.total_changes:
+        return None
+    databases = connection.execute("PRAGMA database_list")
+    database = next((row[2] for row in databases if row[1] == "main"), None)
+    if not database:
+        return None
+    metadata = dict(connection.execute("SELECT key,value FROM metadata WHERE key IN "
+        "('snapshot_id','index_kind','schema_version','parser_version','source_options','indexed_at_utc')"))
+    snapshot = metadata.pop("snapshot_id", None)
+    # The content hash can stay unchanged when parser/options/index kind are
+    # rebuilt. The persisted generation prevents reuse across those rebuilds.
+    return (str(Path(database).resolve()), snapshot, json.dumps(metadata, sort_keys=True)) if snapshot else None
+
+
+def _cache_graph(key, rows, details):
+    if key is None:
+        return
+    # Count value storage conservatively, including repeated string values.
+    keys = {id(name): name for row in rows for name in row}
+    size = (sys.getsizeof(rows) + sum(sys.getsizeof(name) for name in keys.values()) +
+            sum(sys.getsizeof(row) + sum(sys.getsizeof(value) for value in row.values()) for row in rows) +
+            sum(sys.getsizeof(part) for part in key) + 512)
+    with _GRAPH_CACHE_LOCK:
+        existing = _GRAPH_CACHE.get(key)
+        if existing is not None and existing[1] and not details:
+            _GRAPH_CACHE.move_to_end(key)
+            return
+        # A new snapshot of one database replaces its older graph immediately.
+        for old in [old for old in _GRAPH_CACHE if old[0] == key[0]]:
+            del _GRAPH_CACHE[old]
+        if size > _GRAPH_CACHE_BYTES:
+            return
+        _GRAPH_CACHE[key] = (rows, details, size)
+        while (len(_GRAPH_CACHE) > _GRAPH_CACHE_SNAPSHOTS or
+               sum(entry[2] for entry in _GRAPH_CACHE.values()) > _GRAPH_CACHE_BYTES):
+            _GRAPH_CACHE.popitem(last=False)
+
+
+def _load_navigation_graph(connection, check_cancel):
+    # CALL/COPY targets are definition symbols. Load their small namespace in
+    # index order once instead of doing a random primary-key lookup per edge.
+    # Other bindings in older snapshots still resolve through bounded batches;
+    # this cache changes access order, not which navigation edges are retained.
+    target_paths = dict(connection.execute(
+        "SELECT symbol_id,relative_path FROM symbols WHERE symbol_type IN ('Program','Copybook')"))
+    cursor = connection.execute("SELECT r.relation_id,r.rowid AS relation_order,r.relative_path,r.relation_type,"
+        "r.target_name,r.status,r.evidence_id,r.target_entity_id,r.from_entity_id "
+        "FROM source_files f CROSS JOIN relations r ON r.relative_path=f.relative_path "
+        "WHERE r.relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY') ORDER BY r.relative_path,r.relation_id")
+    while rows := cursor.fetchmany(400):
+        _cancel(check_cancel)
+        missing = sorted({row["target_entity_id"] for row in rows
+                          if row["target_entity_id"] and row["target_entity_id"] not in target_paths})
+        if missing:
+            target_paths.update(dict.fromkeys(missing))
+            slots = ",".join("?" for _ in missing)
+            target_paths.update(connection.execute(
+                f"SELECT symbol_id,relative_path FROM symbols WHERE symbol_id IN ({slots}) ORDER BY symbol_id", missing))
+        for row in rows:
+            edge = dict(row)
+            edge["target_path"] = target_paths.get(edge.pop("target_entity_id"))
+            yield edge
+
+
+def _graph_details(connection, rows, check_cancel):
+    # Visit primary keys in order and fetch each physical span/unit once. This
+    # avoids two random table lookups for every edge in the full navigation.
+    details = []
+    for table, key, column, row_key in (
+        ("evidence_spans", "evidence_id", "start_line", "evidence_id"),
+        ("code_units", "unit_id", "program_name", "from_entity_id"),
+    ):
+        values = {}
+        identifiers = sorted({row[row_key] for row in rows if row[row_key]})
+        for start in range(0, len(identifiers), 400):
+            _cancel(check_cancel)
+            batch = identifiers[start:start + 400]
+            slots = ",".join("?" for _ in batch)
+            values.update(connection.execute(
+                f"SELECT {key},{column} FROM {table} WHERE {key} IN ({slots}) ORDER BY {key}", batch))
+        details.append(values)
+    evidence_lines, programs = details
+    return tuple({**row, "caller_line": evidence_lines.get(row["evidence_id"]),
+                  "caller_program": programs.get(row["from_entity_id"])} for row in rows)
+
+
+def _navigation_graph(connection, check_cancel=None, *, details=False):
+    _cancel(check_cancel)
+    key = _graph_cache_key(connection)
+    with _GRAPH_CACHE_LOCK:
+        cached = _GRAPH_CACHE.get(key)
+        if cached is not None:
+            _GRAPH_CACHE.move_to_end(key)
+    if cached is not None and (not details or cached[1]):
+        return cached[0]
+    rows = cached[0] if cached is not None else tuple(_load_navigation_graph(connection, check_cancel))
+    if details:
+        rows = _graph_details(connection, rows, check_cancel)
+    _cancel(check_cancel)
+    _cache_graph(key, rows, details)
+    return rows
+
+
+def _dependency_rows(connection, check_cancel=None):
+    columns = ("relative_path", "relation_type", "target_name", "status", "evidence_id", "target_path")
+    for row in _navigation_graph(connection, check_cancel):
+        # Consumers may attach resolution reasons; cached facts stay immutable.
+        yield {key: row[key] for key in columns}
+
+
 def _dependency_selection(connection, seeds, all_paths, check_cancel):
+    _cancel(check_cancel)
+    if not seeds:
+        return [], [], [], []
     forward, incoming = defaultdict(list), defaultdict(list)
     aliases = defaultdict(set)
     for relative in all_paths:
         for alias in (relative, Path(relative).name, Path(relative).stem):
             aliases[alias.casefold()].add(relative)
     unresolved = []
-    for row in connection.execute("SELECT r.relative_path,r.relation_type,r.target_name,r.status,r.evidence_id,s.relative_path AS target_path FROM relations r LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id WHERE r.relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY') ORDER BY r.relative_path,r.relation_id"):
+    # Each indexed source supplies the leading key of repo_relations_path, so
+    # repository navigation need not scan unrelated field/PERFORM relations.
+    for edge in _dependency_rows(connection, check_cancel):
         _cancel(check_cancel)
-        edge = dict(row)
         target = edge["target_path"] if edge["status"] == "confirmed" and edge["relation_type"] != "CALL_TARGET_FROM" else None
         if not target and edge["relation_type"] == "INCLUDES_COPY":
             candidates = aliases.get((edge["target_name"] or "").casefold(), set())
@@ -287,12 +409,15 @@ def _dependency_selection(connection, seeds, all_paths, check_cancel):
     return sorted(selected), [{"relative_path": relative, "reasons": sorted(reasons[relative])} for relative in sorted(reasons)], deferred, unresolved
 
 
-def discover_repository(database_path, question, *, search_terms=None, check_cancel=None):
+def discover_repository(database_path, question, *, search_terms=None, check_cancel=None,
+                        fallback_to_repository=True):
     """Retrieve all matching files, then expand supported static dependencies.
 
     The evidence preview is bounded, but matching paths are not top-k clipped.
     Missing and dynamic targets remain visible. With no lexical matches, the
     indexed repository is selected for reading instead of rejecting the query.
+    Callers seeking direct matches can disable only this no-match fallback;
+    dependencies of any matched source remain fully navigable.
     """
     terms, omitted_terms = _query_terms(question, search_terms)
     connection = _connect(database_path)
@@ -353,7 +478,7 @@ def discover_repository(database_path, question, *, search_terms=None, check_can
                     snippet, offset = _snippet(evidence[0] if evidence else row["fallback_text"], terms)
                     matches.append({key: row[key] for key in ("evidence_id", "relative_path", "start_line", "end_line", "source_sha256", "span_truncated")} |
                                    {"score": 0, "snippet": snippet, "snippet_char_offset": offset})
-        fallback = not seeds and not blocked
+        fallback = not seeds and not blocked and fallback_to_repository
         paths, reasons, deferred, unresolved = _dependency_selection(connection, all_paths if fallback else seeds, all_paths, check_cancel)
         if fallback:
             paths = sorted(all_paths)
@@ -535,14 +660,31 @@ def _context_relations(connection, paths, limit=64):
     if not paths:
         return [], 0
     slots = ",".join("?" for _ in paths)
-    query = ("SELECT r.relation_id,r.relative_path AS caller_path,r.relation_type,r.target_name,r.status AS resolution,"
+    # Start at the selected definitions, then use the existing symbol and
+    # target indexes for incoming links. An OR across a LEFT JOIN makes SQLite
+    # visit every relation, even when just one source page is being read.
+    # Sparse and structural snapshots differ in Copybook program_name; both
+    # definitions remain addressable without adding a repository-sized index.
+    query = (f"WITH definitions AS MATERIALIZED (SELECT unit_id,unit_type,name,program_name FROM code_units "
+             f"WHERE relative_path IN ({slots}) AND unit_type IN ('Program','Copybook','Section','Paragraph','DataItem')), "
+             "target_keys AS (SELECT unit_id,unit_type AS symbol_type,name,program_name FROM definitions WHERE unit_type!='DataItem' "
+             "UNION ALL SELECT unit_id,'Field',name,program_name FROM definitions WHERE unit_type='DataItem' "
+             "UNION ALL SELECT unit_id,'ConditionName',name,program_name FROM definitions WHERE unit_type='DataItem' "
+             "UNION ALL SELECT unit_id,'Copybook',name,NULL FROM definitions WHERE unit_type='Copybook' AND program_name IS NOT NULL), "
+             "targets AS (SELECT s.symbol_id FROM target_keys k CROSS JOIN symbols s "
+             "ON s.symbol_type=k.symbol_type AND s.name=UPPER(k.name) AND s.program_name IS k.program_name "
+             "AND s.definition_unit_id=k.unit_id), "
+             "candidates AS (SELECT relation_id FROM relations "
+             f"WHERE relative_path IN ({slots}) AND relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY','PERFORMS') "
+             "UNION SELECT r.relation_id FROM targets t CROSS JOIN relations r ON r.target_entity_id=t.symbol_id "
+             "WHERE r.relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY','PERFORMS')) "
+             "SELECT r.relation_id,r.relative_path AS caller_path,r.relation_type,r.target_name,r.status AS resolution,"
              "r.evidence_id,e.start_line AS caller_start_line,e.end_line AS caller_end_line,"
              "s.relative_path AS target_path,u.start_line AS target_start_line,u.end_line AS target_end_line "
-             "FROM relations r JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
+             "FROM candidates c CROSS JOIN relations r ON r.relation_id=c.relation_id "
+             "JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
              "LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
              "LEFT JOIN code_units u ON u.unit_id=s.definition_unit_id "
-             f"WHERE r.relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY','PERFORMS') "
-             f"AND (r.relative_path IN ({slots}) OR s.relative_path IN ({slots})) "
              "ORDER BY r.relation_type='PERFORMS',r.relative_path,e.start_line LIMIT ?")
     rows = connection.execute(query, (*paths, *paths, limit + 1)).fetchall()
     result = []
@@ -732,7 +874,7 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
                 continue
             candidate = requested.split("::", 1)[0]
             _relative_path(candidate)
-            paths = [row[0] for row in connection.execute("SELECT relative_path FROM source_files WHERE relative_path=? COLLATE NOCASE UNION SELECT relative_path FROM code_units WHERE unit_type='Program' AND name=? COLLATE NOCASE LIMIT 2", (candidate, requested))]
+            paths = [row[0] for row in connection.execute("SELECT relative_path FROM source_files WHERE relative_path=? COLLATE NOCASE UNION SELECT relative_path FROM symbols WHERE symbol_type='Program' AND name=? LIMIT 2", (candidate, requested.upper()))]
             if identity["status"] == "resolved":
                 paths = [relative for relative in paths if relative in identity["direct_paths"]]
             for relative in paths:

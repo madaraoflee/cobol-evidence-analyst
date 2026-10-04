@@ -183,6 +183,59 @@ class RetrievalRuntimeTests(unittest.TestCase):
         self.assertFalse(closed["runtime_verified"])
         self.assertTrue(any(row["relation_type"] == "INCLUDES_COPY" for row in result["call_chain"]["links"]))
 
+    def test_local_relation_work_does_not_scale_with_unrelated_relations(self):
+        self.write("main.cbl", program("MAIN-ENTRY", 'COPY SHARED.\nCALL "WORKER".\n'))
+        self.write("worker.cbl", program("WORKER", "MAIN.\nPERFORM FINISH-WORK.\nFINISH-WORK.\nGOBACK.\n"))
+        self.write("other.cbl", program("OTHER-ENTRY", 'CALL "MISSING-WORKER".\n'))
+        self.write("shared.cpy", "01 SHARED-VALUE PIC X.\n")
+        self.build()
+        with closing(sqlite3.connect(self.database)) as connection:
+            connection.row_factory = sqlite3.Row
+            # Prove compatibility with existing snapshots, without depending
+            # on indexes that may be added by a later import migration.
+            connection.execute("DROP INDEX IF EXISTS idx_symbols_path")
+
+            def measure(paths):
+                work = []
+                connection.set_progress_handler(lambda: work.append(100) or 0, 100)
+                try:
+                    result = repository_discovery._context_relations(connection, paths)
+                finally:
+                    connection.set_progress_handler(None, 0)
+                return result, sum(work)
+
+            selections = (["worker.cbl"], ["main.cbl", "worker.cbl"], ["shared.cpy"])
+            baseline = [measure(paths) for paths in selections]
+            relation = connection.execute("SELECT * FROM relations WHERE relative_path='other.cbl' LIMIT 1").fetchone()
+            for index in range(12000):
+                row = list(relation)
+                row[0] = f"unrelated-relation-{index}"
+                connection.execute("INSERT INTO relations VALUES (?,?,?,?,?,?,?,?,?,?)", row)
+            for paths, (expected, before) in zip(selections, baseline):
+                with self.subTest(paths=paths):
+                    actual, work = measure(paths)
+                    self.assertEqual(actual, expected)
+                    self.assertLessEqual(work, before * 2 + 1000)
+            worker_links = baseline[0][0][0]
+            self.assertTrue(any(link["caller_path"] == "main.cbl" and link["target_path"] == "worker.cbl"
+                                for link in worker_links))
+            self.assertTrue(any(link["relation_type"] == "PERFORMS" for link in worker_links))
+
+    def test_copy_incoming_links_preserve_both_snapshot_symbol_conventions(self):
+        self.write("main.cbl", program("MAIN-ENTRY", "COPY SHARED.\n"))
+        self.write("shared.cpy", "01 SHARED-VALUE PIC X.\n")
+        self.build()
+        with closing(sqlite3.connect(self.database)) as connection:
+            connection.row_factory = sqlite3.Row
+            before = repository_discovery._context_relations(connection, ["shared.cpy"])
+            self.assertEqual(len(before[0]), 1)
+            self.assertEqual(before[0][0]["caller_path"], "main.cbl")
+            # Structural snapshots leave the Copybook symbol's program unset;
+            # sparse snapshots use its normalized physical name.
+            connection.execute("UPDATE symbols SET program_name=NULL WHERE symbol_type='Copybook'")
+            after = repository_discovery._context_relations(connection, ["shared.cpy"])
+            self.assertEqual(after, before)
+
     def test_bounded_range_read_is_contiguous_and_reports_next_unread_line(self):
         text = program("MAIN-ENTRY", "\n".join(f"MOVE {number} TO WORK-VALUE." for number in range(1500)) + "\n")
         self.write("main.cbl", text)

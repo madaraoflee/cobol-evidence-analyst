@@ -76,6 +76,28 @@ def _delete_business_rules(connection, relative):
     connection.execute("DELETE FROM business_rules WHERE relative_path=?", (relative,))
 
 
+def _changed_definitions(connection, relative, target_names, program_names):
+    for kind, name in connection.execute(
+            "SELECT unit_type,name FROM code_units WHERE relative_path=? "
+            "AND unit_type IN ('Program','Copybook')", (relative,)):
+        target_names.add(name)
+        # Copybook fields also have a persisted scope name. Keep resolution
+        # conservative when a program happens to share that name.
+        program_names.add(name)
+        if kind == "Copybook":
+            target_names.update((Path(relative).name.upper(), relative.upper()))
+
+
+def _queue_file_deletion(connection, relative):
+    # Keep old search rows until every changed file has been replaced. Their
+    # rowid upper bound distinguishes them from new rows with the same unit ID.
+    # A single final FTS scan replaces one whole-index scan per changed file.
+    connection.execute("INSERT OR IGNORE INTO business_deleted_units "
+                       "SELECT unit_id FROM code_units WHERE relative_path=?", (relative,))
+    _delete_business_rules(connection, relative)
+    _delete_file_facts(connection, relative, delete_search=False)
+
+
 def _safe_path(root: Path, relative: str) -> Path:
     parts = PurePosixPath(relative)
     if not relative or parts.is_absolute() or "\\" in relative or any(
@@ -222,6 +244,7 @@ class _Facts:
         self.division, self.active_format = None, source_format
         self.pending = None
         self.rule_batch = {}
+        self.rule_field_batch = {}
         self.rule_partition = _content_hash(relative)[:12]
         self.line_count = 0
         self.boundaries = Counter()
@@ -239,10 +262,6 @@ class _Facts:
 
     def _business_rule(self, kind, code, start, end):
         rule_kind = "EXEC_SQL" if kind == "SqlRule" else _statement_kind(code)
-        reads, writes, _ = _extract_data_access(code)
-        if kind == "SqlRule":
-            reads, writes, _ = sql_host_access(code)
-        conditions = _unique_identifiers(code) if rule_kind in {"IF", "EVALUATE", "WHEN"} else []
         key = _stable_id("rule", self.relative, self.program, self.paragraph_name or self.section_name,
                          rule_kind, code)
         # Keep one file's primary-key writes together. Fully random rule IDs
@@ -255,9 +274,19 @@ class _Facts:
             row[6] = max(row[6], end)
             row[7] += 1
         else:
+            reads, writes, _ = _extract_data_access(code)
+            if kind == "SqlRule":
+                reads, writes, _ = sql_host_access(code)
+            conditions = _unique_identifiers(code) if rule_kind in {"IF", "EVALUATE", "WHEN"} else []
             self.rule_batch[key] = [key, self.relative, self.program, self.paragraph_name or self.section_name,
                                     rule_kind, start, end, 1, code,
                                     json.dumps(reads), json.dumps(writes), json.dumps(conditions)]
+            # Keep the parsed fields until this bounded batch is written. The
+            # rule JSON is for readers; decoding it again for the field index
+            # repeated the same work for every rule in large repositories.
+            self.rule_field_batch[key] = [
+                (key, name, role) for role, names in
+                (("read", reads), ("write", writes), ("condition", conditions)) for name in names]
         if len(self.rule_batch) >= 2048:
             self._flush_rules()
 
@@ -272,13 +301,10 @@ class _Facts:
                 last_line=MAX(last_line,excluded.last_line),
                 occurrence_count=occurrence_count+excluded.occurrence_count
         """, rows)
-        fields = []
-        for row in rows:
-            for role, names in (("read", json.loads(row[9])), ("write", json.loads(row[10])),
-                                ("condition", json.loads(row[11]))):
-                fields.extend((row[0], name, role) for name in names)
-        self.connection.executemany("INSERT OR IGNORE INTO business_rule_fields VALUES (?,?,?)", fields)
+        self.connection.executemany("INSERT OR IGNORE INTO business_rule_fields VALUES (?,?,?)",
+                                    (field for fields in self.rule_field_batch.values() for field in fields))
         self.rule_batch.clear()
+        self.rule_field_batch.clear()
 
     def _unit(self, kind, name, start, end, text, raw, parse_status="complete", symbol=None):
         evidence = _stable_id("ev", self.relative, self.metadata["sha256"], start, end)
@@ -584,11 +610,24 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
             for alias in {Path(relative).name, Path(relative).stem, relative}:
                 copy_paths.setdefault(alias.casefold(), set()).add(relative)
     connection = _connect(database.resolve())
+    sql_failure = []
+    if check_cancel:
+        def check_sql_progress():
+            if sql_failure:
+                return 0
+            try:
+                check_cancel()
+            except BaseException as error:
+                sql_failure.append(error)
+                return 1
+            return 0
+        connection.set_progress_handler(check_sql_progress, 2000)
     try:
         # Keep B-tree pages hot while inserting large rule/field indexes.
         # SQLite's small default cache otherwise repeatedly reads and evicts
         # random index pages as a large repository is ingested.
         connection.execute("PRAGMA cache_size = -65536")
+        emit("preparing_index", completed=0, total=None)
         _ensure_schema(connection)
         _ensure_business_rules(connection)
         prior = dict(connection.execute("SELECT key,value FROM metadata"))
@@ -604,7 +643,11 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
         file_stats, file_boundaries, boundaries, scan_details, distributions = {}, {}, [], [], {key: Counter() for key in ("encodings", "format_hints", "artifact_kinds")}
         selected, queued = [], set(initial)
         queue = deque((relative, 0) for relative in initial)
+        changed_paths, changed_targets, changed_programs = set(), set(), set()
         with connection:
+            connection.execute("CREATE TEMP TABLE business_deleted_units (unit_id TEXT PRIMARY KEY)")
+            search_row = connection.execute("SELECT rowid FROM code_units_fts ORDER BY rowid DESC LIMIT 1").fetchone()
+            previous_search_rowid = search_row[0] if search_row else 0
             # Empty derived tables prevent strict facts from surviving a mode switch.
             for table in ("call_bindings", "call_binding_boundaries", "copy_expansions", "copy_scope_boundaries"):
                 if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():
@@ -637,15 +680,17 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                     # New files have no facts to remove. In particular, the
                     # FTS deletion joins scan existing units, making a cold
                     # import quadratic when repeated for every new file.
+                    changed_paths.add(relative)
                     if old is not None:
-                        _delete_business_rules(connection, relative)
-                        _delete_file_facts(connection, relative)
+                        _changed_definitions(connection, relative, changed_targets, changed_programs)
+                        _queue_file_deletion(connection, relative)
                     facts = _Facts(connection, relative, metadata, source_format, lambda done: emit(
                         "parsing", completed=len(selected), total=len(queued), current_file=relative, file_completed=done, file_unit="lines"),
                         copybook_hint=relative in copy_hints)
                     for number, line in _physical_lines(path, metadata["encoding"], info):
                         facts.consume(number, line)
                     facts.finish()
+                    _changed_definitions(connection, relative, changed_targets, changed_programs)
                     line_count = facts.line_count
                     artifact = "copybook" if facts.copybook else "program" if facts.program else "unknown"
                     file_boundaries[relative] = dict(facts.boundaries)
@@ -686,11 +731,27 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                 emit("indexing", completed=len(selected), total=len(queued), current_file=relative)
             removed = set(previous) - set(selected)
             for relative in removed:
-                _delete_business_rules(connection, relative)
-                _delete_file_facts(connection, relative)
+                changed_paths.add(relative)
+                _changed_definitions(connection, relative, changed_targets, changed_programs)
+                _queue_file_deletion(connection, relative)
+            if connection.execute("SELECT 1 FROM business_deleted_units LIMIT 1").fetchone():
+                connection.execute("DELETE FROM code_units_fts WHERE rowid IN ("
+                    "SELECT f.rowid FROM code_units_fts f WHERE f.rowid<=? "
+                    "AND f.unit_id IN (SELECT unit_id FROM business_deleted_units))", (previous_search_rowid,))
             if updated or removed or rebuild:
-                _resolve_relations(connection)
-                _resolve_copies(connection)
+                resolution = {}
+                if not rebuild and len(changed_paths) + len(changed_targets) + len(changed_programs) <= 500:
+                    # Definitions in another file with the same program name
+                    # can change local paragraph/field ambiguity as well.
+                    if changed_programs:
+                        placeholders = ",".join("?" for _ in changed_programs)
+                        changed_paths.update(row[0] for row in connection.execute(
+                            "SELECT DISTINCT relative_path FROM code_units WHERE program_name IN (" + placeholders + ")",
+                            tuple(changed_programs)))
+                    if len(changed_paths) + len(changed_targets) <= 500:
+                        resolution = {"affected_paths": changed_paths, "affected_target_names": changed_targets}
+                _resolve_relations(connection, **resolution)
+                _resolve_copies(connection, **resolution)
             # Whole-directory business indexing has the same dependency gaps
             # as entry closure; scanning every local file does not supply a
             # missing or ambiguous external object.
@@ -750,5 +811,10 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                 "framework_semantics": framework_semantics,
                 "relation_statuses": dict(connection.execute("SELECT status,COUNT(*) FROM relations GROUP BY status")),
                 "database_path": str(database.resolve()), "privacy": {"network_calls": False, "source_stored_locally": True}}
+    except sqlite3.OperationalError:
+        if sql_failure:
+            raise sql_failure[0]
+        raise
     finally:
+        connection.set_progress_handler(None, 0)
         connection.close()

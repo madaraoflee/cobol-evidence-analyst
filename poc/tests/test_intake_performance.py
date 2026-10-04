@@ -3,6 +3,7 @@
 from contextlib import closing
 from pathlib import Path
 import os
+import json
 import sqlite3
 import sys
 import tempfile
@@ -52,6 +53,189 @@ class IncrementalIntakeTests(unittest.TestCase):
         self.assertEqual(report["repository_search"]["indexed_files"], 32)
         self.assertTrue(report["repository_search"]["full_text_complete"])
         self.assertEqual(len(discover_repository(self.database, "COMMON-TOPIC")["selected_paths"]), 32)
+
+    def test_rule_batches_keep_fields_and_repeated_occurrences_without_reparsing(self):
+        self.write("main.cbl", program("MAIN", "RULE-BATCH") +
+                   "COMPUTE BILL-AMOUNT = BASE-AMOUNT * RATE.\n" * 20 +
+                   "".join(f"MOVE INPUT-{index} TO OUTPUT-{index}.\n" for index in range(2050)) +
+                   "COMPUTE BILL-AMOUNT = BASE-AMOUNT * RATE.\n")
+        with patch("business_index._extract_data_access", wraps=business_index._extract_data_access) as extract:
+            self.intake()
+        # The repeated rule before the flush is parsed once; the occurrence
+        # after the flush still merges correctly through the persisted key.
+        self.assertEqual(extract.call_count, 2052)
+        with closing(sqlite3.connect(self.database)) as db:
+            rows = db.execute("SELECT rule_id,occurrence_count,reads_json,writes_json,condition_json "
+                              "FROM business_rules").fetchall()
+            expected = {(key, name, role) for key, _, reads, writes, conditions in rows
+                        for role, encoded in (("read", reads), ("write", writes), ("condition", conditions))
+                        for name in json.loads(encoded)}
+            self.assertEqual(set(db.execute("SELECT * FROM business_rule_fields")), expected)
+            self.assertEqual(sorted(row[1] for row in rows).count(21), 1)
+
+    def test_changed_files_remove_old_search_rows_in_one_batch(self):
+        for index in range(8):
+            self.write(f"member-{index}.cbl", program(f"MEMBER-{index}", "ORIGINALMARK") +
+                       f"01 ORIGINAL-FIELD-{index} PIC 9.\n")
+        self.intake()
+        for index in range(7):
+            self.write(f"member-{index}.cbl", program(f"MEMBER-{index}", "REPLACEDMARK") +
+                       f"01 REPLACED-FIELD-{index} PIC 9.\n")
+        (self.source / "member-7.cbl").unlink()
+        statements = []
+        original_connect = business_index._connect
+
+        def observe(*args, **kwargs):
+            db = original_connect(*args, **kwargs)
+            db.set_trace_callback(statements.append)
+            return db
+
+        with patch("business_index._connect", side_effect=observe):
+            self.intake()
+        deletes = [sql for sql in statements if sql.startswith("DELETE FROM code_units_fts WHERE")]
+        self.assertEqual(len(deletes), 1)
+        with closing(sqlite3.connect(self.database)) as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM code_units_fts f LEFT JOIN code_units u "
+                                        "ON u.unit_id=f.unit_id WHERE u.unit_id IS NULL").fetchone()[0], 0)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM code_units_fts").fetchone()[0],
+                             db.execute("SELECT COUNT(*) FROM code_units").fetchone()[0])
+        self.assertEqual(discover_repository(self.database, "ORIGINALMARK")["matched_file_count"], 0)
+        self.assertEqual(discover_repository(self.database, "REPLACEDMARK")["matched_file_count"], 7)
+
+    def test_incremental_resolution_updates_inbound_ambiguity_and_removal(self):
+        self.write("caller.cbl", program("CALLER", "CALLER", 'CALL "TARGET".\n'))
+        self.write("target.cbl", program("TARGET", "TARGET"))
+        self.write("other.cbl", program("OTHER", "OTHER", "PERFORM SHARED-WORK.\n") + "SHARED-WORK.\nEXIT.\n")
+        self.intake()
+
+        def status():
+            with closing(sqlite3.connect(self.database)) as db:
+                return db.execute("SELECT status FROM relations WHERE relative_path='caller.cbl' "
+                                  "AND relation_type='CALLS'").fetchone()[0]
+
+        self.assertEqual(status(), "confirmed")
+        self.write("duplicate.cbl", program("TARGET", "DUPLICATE"))
+        with patch("business_index._resolve_relations", wraps=business_index._resolve_relations) as resolve:
+            self.intake()
+        self.assertEqual(status(), "candidate")
+        self.assertEqual(resolve.call_args.kwargs["affected_paths"], {"target.cbl", "duplicate.cbl"})
+        self.assertEqual(resolve.call_args.kwargs["affected_target_names"], {"TARGET"})
+        self.write("duplicate.cbl", program("RENAMED-TARGET", "RENAMED"))
+        self.intake()
+        self.assertEqual(status(), "confirmed")
+        (self.source / "target.cbl").unlink()
+        self.intake()
+        self.assertEqual(status(), "unresolved")
+
+    def test_incremental_copy_aliases_preserve_ambiguity_and_qualified_boundaries(self):
+        self.write("main.cbl", program("MAIN", "COPY-ALIAS", 'COPY "shared.cpy".\nCOPY SHARED OF LIBRARY.\n'))
+        (self.source / "first").mkdir()
+        (self.source / "second").mkdir()
+        self.write("first/shared.cpy", "01 SHARED-RECORD PIC 9.\n")
+        self.intake()
+
+        def statuses():
+            with closing(sqlite3.connect(self.database)) as db:
+                return dict(db.execute("SELECT target_name,status FROM relations WHERE relation_type='INCLUDES_COPY'"))
+
+        self.assertEqual(statuses(), {"SHARED.CPY": "confirmed", "SHARED": "candidate"})
+        self.write("second/shared.cpy", "01 ANOTHER-RECORD PIC 9.\n")
+        self.intake()
+        self.assertEqual(statuses(), {"SHARED.CPY": "candidate", "SHARED": "candidate"})
+        (self.source / "first/shared.cpy").unlink()
+        self.intake()
+        self.assertEqual(statuses(), {"SHARED.CPY": "confirmed", "SHARED": "candidate"})
+
+    def test_preparing_index_builds_path_indexes_for_incremental_deletion(self):
+        self.write("main.cbl", program("MAIN", "PRIMARYMARK"))
+        events = []
+        self.intake(progress=events.append)
+        self.assertTrue(any(event.get("phase") == "preparing_index" for event in events))
+        with closing(sqlite3.connect(self.database)) as db:
+            for table, index in (("symbols", "idx_symbols_path"), ("evidence_spans", "idx_evidence_path")):
+                plan = " ".join(str(row) for row in db.execute(
+                    f"EXPLAIN QUERY PLAN DELETE FROM {table} WHERE relative_path=?", ("main.cbl",)))
+                self.assertIn(index, plan)
+                self.assertIn("SEARCH", plan)
+
+    def test_copybook_change_updates_a_program_with_the_same_stored_scope(self):
+        self.write("main.cbl", "IDENTIFICATION DIVISION.\nPROGRAM-ID. SHARED.\n"
+                   "DATA DIVISION.\nWORKING-STORAGE SECTION.\n01 TARGET-NAME PIC X(8).\n"
+                   "PROCEDURE DIVISION.\nCALL TARGET-NAME.\nGOBACK.\n")
+        self.write("shared.cpy", "01 TARGET-NAME PIC X(8).\n")
+        self.intake()
+        with closing(sqlite3.connect(self.database)) as db:
+            self.assertEqual(db.execute("SELECT status FROM relations WHERE relation_type='CALL_TARGET_FROM'")
+                             .fetchone()[0], "candidate")
+        self.write("shared.cpy", "01 OTHER-NAME PIC X(8).\n")
+        self.intake()
+        with closing(sqlite3.connect(self.database)) as db:
+            self.assertEqual(db.execute("SELECT status FROM relations WHERE relation_type='CALL_TARGET_FROM'")
+                             .fetchone()[0], "confirmed")
+
+    def test_preparing_index_sql_can_be_cancelled_before_reading_source(self):
+        self.write("main.cbl", program("MAIN", "PRIMARYMARK"))
+        original_schema = business_index._ensure_schema
+        preparing = False
+
+        def expensive_schema(db):
+            nonlocal preparing
+            original_schema(db)
+            preparing = True
+            db.execute("WITH RECURSIVE numbers(n) AS (VALUES(0) UNION ALL "
+                       "SELECT n+1 FROM numbers WHERE n<100000) SELECT SUM(n) FROM numbers").fetchone()
+
+        def cancel_preparation():
+            if preparing:
+                raise AnalysisCancelled("cancelled while preparing source indexes")
+
+        with patch("business_index._ensure_schema", side_effect=expensive_schema), \
+             patch("business_index._verify_file", side_effect=AssertionError("source read after cancellation")):
+            with self.assertRaisesRegex(AnalysisCancelled, "preparing source indexes"):
+                business_index.build_business_index(self.source, self.database,
+                    source_format="free", check_cancel=cancel_preparation, quiet=True)
+
+    def test_batched_search_deletion_rolls_back_if_replacement_fails(self):
+        self.write("first.cbl", program("FIRST", "PRIORFIRST"))
+        self.write("second.cbl", program("SECOND", "PRIORSECOND"))
+        self.intake()
+        with closing(sqlite3.connect(self.database)) as db:
+            old_rows = db.execute("SELECT rowid,* FROM code_units_fts ORDER BY rowid").fetchall()
+        self.write("first.cbl", program("REPLACED-FIRST", "AFTERFIRST"))
+        self.write("second.cbl", program("REPLACED-SECOND", "AFTERSECOND"))
+        original = business_index._Facts.finish
+
+        def fail_second(facts):
+            if facts.relative == "second.cbl":
+                raise ValueError("SYNTHETIC_REPLACEMENT_FAILURE")
+            return original(facts)
+
+        with patch("business_index._Facts.finish", new=fail_second):
+            report = self.intake()
+        self.assertFalse(report["source_manifest_verified"])
+        with closing(sqlite3.connect(self.database)) as db:
+            self.assertEqual(db.execute("SELECT rowid,* FROM code_units_fts ORDER BY rowid").fetchall(), old_rows)
+
+    def test_framework_stage_candidates_use_existing_definition_lookup(self):
+        from framework_semantics import _candidate_paths
+        self.write("main.cbl", program("MAIN", "STAGE") + "RUN-WORK.\nGOBACK.\n")
+        self.intake()
+        with closing(sqlite3.connect(self.database)) as db:
+            statements = []
+            db.set_trace_callback(statements.append)
+            paths = _candidate_paths(db, {"rules": [{"kind": "section", "symbol": "run-work"}]})
+        self.assertEqual(paths, {"main.cbl"})
+        self.assertFalse(any("FROM code_units" in sql for sql in statements))
+
+    def test_business_benchmark_contains_large_program_and_resolved_dependencies(self):
+        from benchmark_intake import run_benchmark
+        report = run_benchmark(2, 100, workload="business", longest_program_lines=500)
+        self.assertEqual(report["indexed_lines_after_edit"], 100 + 500 + 2 * 9 + 1)
+        self.assertEqual(report["confirmed_call_edges"], 2)
+        self.assertGreaterEqual(report["relation_count"], 2 * 13)
+        self.assertTrue(report["full_text_complete"])
+        self.assertTrue(report["deep_tail_retrieved"])
+        self.assertEqual(report["warm_search"]["cached_files"], 4)
 
     def test_directory_discovery_reports_progress_before_traversal_and_path_validation(self):
         self.write("main.cbl", program("MAIN", "PRIMARYMARK"))

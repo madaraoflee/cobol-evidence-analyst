@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 import re
 
-from repository_discovery import _connect, _fast_snapshot, _query_terms, discover_repository
+from repository_discovery import _connect, _fast_snapshot, _navigation_graph, _query_terms, discover_repository
 from repository_identity import resolve_source_identity
 from source_reading import _cancel
 from file_impact_evidence import is_file_impact_question
@@ -57,14 +57,15 @@ def _paths_from_history(connection, prior_paths):
         candidate = value.split("::", 1)[0]
         for row in connection.execute(
             "SELECT relative_path FROM source_files WHERE relative_path=? COLLATE NOCASE "
-            "UNION SELECT relative_path FROM code_units WHERE unit_type='Program' "
-            "AND name=? COLLATE NOCASE LIMIT 2", (candidate, candidate)
+            "UNION SELECT relative_path FROM symbols WHERE symbol_type='Program' "
+            "AND name=? LIMIT 2", (candidate, candidate.upper())
         ):
             result.append(row[0])
     return list(dict.fromkeys(result))
 
 
 def _call_graph(connection, check_cancel):
+    _cancel(check_cancel)
     incoming = defaultdict(list)
     edges = []
     aliases = defaultdict(set)
@@ -72,19 +73,14 @@ def _call_graph(connection, check_cancel):
         relative = row[0]
         for alias in (relative, Path(relative).name, Path(relative).stem):
             aliases[alias.casefold()].add(relative)
-    query = (
-        "SELECT r.relation_id,r.relative_path AS caller_path,r.relation_type,r.target_name,"
-        "r.status AS resolution,r.evidence_id,e.start_line AS caller_line,"
-        "s.relative_path AS target_path,u.program_name AS caller_program "
-        "FROM relations r JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
-        "LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
-        "LEFT JOIN code_units u ON u.unit_id=r.from_entity_id "
-        "WHERE r.relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY') "
-        "ORDER BY r.relative_path,e.start_line"
-    )
-    for row in connection.execute(query):
+    rows = (row for row in _navigation_graph(connection, check_cancel, details=True)
+            if row["caller_line"] is not None)
+    for row in sorted(rows, key=lambda row: (row["relative_path"], row["caller_line"],
+                                            row["relation_type"], row["relation_order"])):
         _cancel(check_cancel)
-        edge = dict(row)
+        edge = {key: row[key] for key in ("relation_id", "relation_type", "target_name", "evidence_id",
+                                         "caller_line", "target_path", "caller_program")}
+        edge.update(caller_path=row["relative_path"], resolution=row["status"])
         if edge["resolution"] != "confirmed" or edge["relation_type"] == "CALL_TARGET_FROM":
             edge["target_path"] = None
         if not edge["target_path"] and edge["relation_type"] == "INCLUDES_COPY":
@@ -376,7 +372,7 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
     or ask the model to summarise individual pages.
     """
     discovery = discover_repository(database_path, question, search_terms=search_terms,
-                                    check_cancel=check_cancel)
+                                    check_cancel=check_cancel, fallback_to_repository=False)
     connection = _connect(database_path)
     try:
         connection.execute("BEGIN")
@@ -410,9 +406,17 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         else:
             selected, distance = set(), {}
         program_names = defaultdict(list)
-        for row in connection.execute("SELECT relative_path,name FROM code_units "
-                                      "WHERE unit_type='Program' ORDER BY relative_path,start_line"):
-            if row["relative_path"] in selected:
+        selected_paths = sorted(selected)
+        # Keep definition lookup proportional to the nominated sources. The
+        # path index already exists in older snapshots; no catalog rebuild or
+        # new repository-sized index is needed for an interactive question.
+        for start in range(0, len(selected_paths), 400):
+            _cancel(check_cancel)
+            batch = selected_paths[start:start + 400]
+            slots = ",".join("?" for _ in batch)
+            for row in connection.execute("SELECT relative_path,name FROM code_units "
+                    f"WHERE relative_path IN ({slots}) AND unit_type='Program' "
+                    "ORDER BY relative_path,start_line", batch):
                 program_names[row["relative_path"]].append(row["name"])
         ordered = sorted(selected, key=lambda path: (distance.get(path, 0), path))
         programs = [{"relative_path": path, "program_names": program_names[path] or [Path(path).stem.upper()],

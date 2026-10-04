@@ -414,6 +414,7 @@ function diagnosticSummaryData(){
   const summary=result()?.diagnostic_summary || state.project?.agent?.diagnostic_summary;
   if(!summary || summary.schema_version!=='business-answer-diagnostics/v1')return null;
   const number=value=>Number.isSafeInteger(value) && value>=0?value:null;
+  const seconds=value=>typeof value==='number' && Number.isFinite(value) && value>=0?value:null;
   const enumeration=(value,allowed)=>allowed.includes(value)?value:null;
   const boolean=value=>typeof value==='boolean'?value:null;
   const finish=value=>enumeration(value,['stop','length','content_filter','tool_calls','function_call','other','unknown']);
@@ -435,7 +436,8 @@ function diagnosticSummaryData(){
     runtime:{commit:typeof runtime.commit==='string' && (/^[a-f0-9]{7,64}$/.test(runtime.commit) || runtime.commit==='unknown')?runtime.commit:null,
       profile:enumeration(runtime.profile,['workbench','adapter','analysis','custom','unknown']),model_fingerprint:fingerprint(runtime.model_fingerprint),
       output_limit_source:enumeration(runtime.output_limit_source,['profile','environment','dotenv','explicit','unknown'])},
-    configured:{...integers(configured,['max_output_tokens','max_model_requests','max_source_characters','max_complete_source_characters','max_request_bytes']),requested_detail:enumeration(configured.requested_detail,['brief','detailed'])},
+    configured:{...integers(configured,['max_output_tokens','max_model_requests','max_source_characters','max_complete_source_characters','max_request_bytes','max_initial_context_seconds','max_local_analysis_seconds']),requested_detail:enumeration(configured.requested_detail,['brief','detailed'])},
+    timing_seconds:Object.fromEntries(['first_model_request_seconds','local_processing_seconds','provider_wait_seconds','total_seconds'].map(key=>[key,seconds(summary.timing_seconds?.[key])])),
     requests,
     api_failures:safeFailureDiagnostics({diagnostic_summary:summary}),
     source_coverage:{...integers(coverage,['indexed_files','selected_files','provided_files','pages','unread_tasks','omitted_complete_files','supplied_complete_files']),
@@ -445,7 +447,7 @@ function diagnosticSummaryData(){
       transmission_fallback_reason:enumeration(coverage.transmission_fallback_reason,['complete_source_request_bytes','unknown']),
       identity_status:enumeration(coverage.identity_status,['resolved','ambiguous','not_found','not_requested','unknown']),
       retrieval_status:enumeration(coverage.retrieval_status,['source_candidates','framework_candidates','unresolved','not_attempted','unknown']),
-      limitation_codes:Array.isArray(coverage.limitation_codes)?coverage.limitation_codes.filter(value=>['index_not_ready','explicit_source_not_indexed','source_identity_ambiguous','search_no_match','business_terms_unresolved','located_source_not_read','source_budget_omitted','source_read_failed','external_implementation_missing','runtime_target_unresolved','output_limit_reached','parser_failed','request_budget_exhausted','answer_incomplete','unresolved_inputs'].includes(value)).slice(0,16):[]},
+      limitation_codes:Array.isArray(coverage.limitation_codes)?coverage.limitation_codes.filter(value=>['index_not_ready','explicit_source_not_indexed','source_identity_ambiguous','search_no_match','business_terms_unresolved','located_source_not_read','source_budget_omitted','source_read_failed','external_implementation_missing','runtime_target_unresolved','output_limit_reached','parser_failed','request_budget_exhausted','answer_incomplete','unresolved_inputs','local_analysis_budget_reached'].includes(value)).slice(0,16):[]},
     output:{finish_reason:finish(output.finish_reason),answer_truncated:output.answer_truncated===true,
       continuation_attempted:output.continuation_attempted===true,final_answer_characters:number(output.final_answer_characters)},
     stop_reason:enumeration(summary.stop_reason,['sufficient_material','MODEL_OUTPUT_TRUNCATED','answer_incomplete','request_budget','usable_draft_retained','source_identity_ambiguous','source_identity_not_found','unsupported_citations','evidence_incomplete','question_evidence_incomplete','evidence_read_incomplete','working_set_transmission_incomplete','tool_unavailable','RETRIEVAL_UNRESOLVED','REQUEST_TIMEOUT','MODEL_CLIENT_ERROR','MODEL_RESPONSE_INVALID','MODEL_REFUSED','MODEL_CONTENT_FILTERED','MODEL_REQUEST_BUDGET_EXHAUSTED','completed','model_abstained','unknown','other']),
@@ -610,9 +612,11 @@ function formatBytes(bytes){if(!Number.isFinite(bytes))return '—';const units=
 function phaseLabel(phase){
   const labels={
     using_index:t('使用已建立的代碼庫索引'),retrieving:t('查找與問題相關的依據'),answering:t('整理業務回答'),
+    locating_sources:t('定位與問題相關的程序'),reading_relevant_sources:t('讀取相關段落'),
+    supplementing_evidence:t('補充相關分析依據'),waiting_for_model:t('模型正在生成回答'),
     reading_sources:t('逐頁讀取源碼'),analyzing_pages:t('解讀已讀源碼'),synthesizing:t('整合業務解讀'),
     framework:t('檢索相關框架資料'),framework_reference:t('載入框架資料'),framework_semantics:t('整理框架與源碼的對應'),source_version:t('記錄源碼版本'),
-    preparing:t('準備中'),queued:t('等待開始'),backup:t('備份現有索引'),backing_up:t('正在保留舊版本'),
+    preparing:t('準備中'),preparing_index:t('準備索引結構'),queued:t('等待開始'),backup:t('備份現有索引'),backing_up:t('正在保留舊版本'),
     discovering:t('掃描檔案目錄'),discover:t('掃描檔案目錄'),discovery:t('掃描檔案目錄'),
     catalog:t('更新輕量目錄'),catalog_scan:t('更新輕量目錄'),repository_search:t('建立業務查找索引'),
     discovering_business:t('查找相關業務實作'),searching_repository:t('查找相關業務實作'),

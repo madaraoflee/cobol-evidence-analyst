@@ -18,6 +18,24 @@ class AnswerDiagnosticsTests(unittest.TestCase):
         return CompanyAPIConfig(base_url="https://service.example/v1", chat_model="private-model-canary",
                                 api_key="private-key-canary", profile_name="workbench", output_limit_source="environment")
 
+    def test_shareable_latency_distinguishes_local_preparation_from_provider_wait(self):
+        result = {"metrics": {"timing_seconds": {"first_model_request_seconds": 1.125,
+            "local_processing_seconds": 2.5, "provider_wait_seconds": 17.75, "total_seconds": 20.25,
+            "private_path": "private-timing-canary"}},
+            "boundaries": [{"reason": "local_analysis_budget_reached"}]}
+        quality = {"configuration": {"policy": {
+            "max_initial_context_seconds": 3, "max_local_analysis_seconds": 15}}}
+        summary = build_answer_diagnostics(config=self.config(), quality=quality, result=result)
+        self.assertEqual(summary["timing_seconds"], {"first_model_request_seconds": 1.125,
+            "local_processing_seconds": 2.5, "provider_wait_seconds": 17.75, "total_seconds": 20.25})
+        self.assertEqual(summary["configured"]["max_initial_context_seconds"], 3)
+        self.assertIn("local_analysis_budget_reached", summary["source_coverage"]["limitation_codes"])
+        self.assertNotIn("private-timing-canary", json.dumps(summary))
+        result["metrics"]["timing_seconds"] = {"first_model_request_seconds": float("nan"),
+            "local_processing_seconds": True, "provider_wait_seconds": float("inf"), "total_seconds": -1}
+        self.assertTrue(all(value is None for value in build_answer_diagnostics(
+            config=self.config(), quality=quality, result=result)["timing_seconds"].values()))
+
     def test_normal_long_selected_response_is_preserved_with_matching_counts(self):
         text = "結論。\n\n" + "相关步骤与条件🙂。" * 10000 + "\n\n最后一条例外。"
         raw = {"choices": [{"message": {"content": ""}, "finish_reason": "length"},

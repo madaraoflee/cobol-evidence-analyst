@@ -16,7 +16,7 @@ from business_map import build_business_map
 from business_chat import run_business_chat
 from company_api import CompanyAPIConfig, TransportResponse
 from evidence_context import ReadTask
-from question_investigation import build_question_investigation, _indexed_candidates, _visible_ids
+from question_investigation import build_question_investigation, _calculation_paths, _indexed_candidates, _visible_ids
 from repository_discovery import ensure_repository_search
 from semantic_scope import build_business_evidence, prepare_semantic_scope
 from source_session import QuestionSourceSession
@@ -24,6 +24,44 @@ from agent_policy import AgentPolicy
 
 
 class QuestionInvestigationTests(unittest.TestCase):
+    def test_large_dependency_closure_visits_the_relation_catalog_once(self):
+        class SinglePassRelations(list):
+            passes = 0
+
+            def __iter__(self):
+                self.passes += 1
+                if self.passes > 1:
+                    raise AssertionError("the relation catalog was scanned again")
+                return super().__iter__()
+
+        paths = [f"member-{index:05d}.cbl" for index in range(12000)]
+        edges = SinglePassRelations()
+        for index, caller in enumerate(paths):
+            target = paths[(index + 1) % len(paths)]
+            for kind, resolution in (("CALLS", "confirmed"), ("INCLUDES_COPY", "confirmed"),
+                                     ("CALLS", "confirmed"), ("PERFORMS", "confirmed"),
+                                     ("CALLS", "unresolved")):
+                edges.append({"caller_path": caller, "target_path": target,
+                              "relation_type": kind, "resolution": resolution})
+        mapping = {"selected_paths": paths, "direct_paths": [paths[0]], "relations": edges}
+        self.assertEqual(_calculation_paths(mapping, []), paths)
+        self.assertEqual(edges.passes, 1)
+
+    def test_dependency_closure_preserves_root_and_edge_order_and_resolution(self):
+        def edge(caller, target, kind="CALLS", resolution="confirmed"):
+            return {"caller_path": caller, "target_path": target,
+                    "relation_type": kind, "resolution": resolution}
+
+        mapping = {"selected_paths": ["first", "second", "third", "fourth", "fifth", "sixth", "unresolved", "performed"],
+                   "direct_paths": ["second", "first", "second"],
+                   "relations": [edge("second", "fourth"), edge("first", "third"),
+                                 edge("second", "fifth", "INCLUDES_COPY"), edge("fourth", "sixth"),
+                                 edge("sixth", "second"), edge("second", "fourth"),
+                                 edge("second", "unresolved", resolution="unresolved"),
+                                 edge("second", "performed", kind="PERFORMS"), edge("second", "outside")]}
+        self.assertEqual(_calculation_paths(mapping, []),
+                         ["second", "first", "fourth", "fifth", "third", "sixth"])
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
@@ -342,7 +380,8 @@ class QuestionInvestigationTests(unittest.TestCase):
         first = build_question_investigation("VALUEPLAN 计算公式", mapping, database_path=self.database,
             source_pages=[self.page("entry.cbl")], candidate_cache=cache)
         self.assertEqual(self.item(first, "formula")["status"], "SATISFIED")
-        with mock.patch("question_investigation._indexed_candidates", side_effect=AssertionError("repeat query")):
+        with mock.patch("question_investigation._indexed_candidates", side_effect=AssertionError("repeat query")), \
+             mock.patch("question_investigation._calculation_paths", side_effect=AssertionError("repeat graph traversal")):
             trimmed = build_question_investigation("VALUEPLAN 计算公式", mapping, database_path=self.database,
                 source_pages=[self.page("entry.cbl", 1, 10)], candidate_cache=cache)
         self.assertTrue(trimmed["candidate_cache"]["hit"])
@@ -352,6 +391,18 @@ class QuestionInvestigationTests(unittest.TestCase):
         changed = self.investigate("VALUEPLAN 计算公式", [self.page("entry.cbl")], candidate_cache=cache)
         self.assertFalse(changed["candidate_cache"]["hit"])
         self.assertEqual(self.item(changed, "formula")["status"], "SATISFIED")
+
+    def test_cached_page_cleaning_does_not_accept_changed_literal_or_trimmed_source(self):
+        candidate = {"relative_path": "entry.cbl", "start_line": 1, "end_line": 1,
+                     "statement": "MOVE 'A' TO RESULT.", "source_format": "free"}
+        page = {"relative_path": "entry.cbl", "start_line": 1, "end_line": 1,
+                "source_text": "MOVE 'A' TO RESULT.", "evidence_id": "source-page"}
+        cache = {}
+        self.assertEqual(_visible_ids(candidate, [page], page_cache=cache), ["source-page"])
+        page["source_text"] = "MOVE 'B' TO RESULT."
+        self.assertEqual(_visible_ids(candidate, [page], page_cache=cache), [])
+        page["source_text"] = "MOVE 'A'"
+        self.assertEqual(_visible_ids(candidate, [page], page_cache=cache), [])
 
     def test_duplicate_id_wrong_hash_and_prefix_expression_do_not_supply_formula(self):
         self.write("entry.cbl", "VALUEPLAN", "COMPUTE NET-VALUE = BASE-VALUE * 2.")

@@ -24,7 +24,6 @@ from typing import Callable, Iterable, Sequence
 from statement_facts import (
     condition_syntax_supported,
     sentence_terminated,
-    sql_code_only,
     sql_host_access,
 )
 
@@ -595,6 +594,55 @@ def _extract_data_access(text: str) -> tuple[list[str], list[str], dict[str, obj
     return reads, writes, metadata
 
 
+class _SQLCodeScanner:
+    """Mask SQL incrementally, retaining literal and block-comment state."""
+
+    def __init__(self):
+        self.mode = None
+
+    def feed(self, text, check_progress=None):
+        result, index, last_check = [], 0, 0
+        while index < len(text):
+            if check_progress and index - last_check >= 4096:
+                check_progress()
+                last_check = index
+            char = text[index]
+            if self.mode == "block":
+                if text.startswith("*/", index):
+                    result.append("  ")
+                    self.mode = None
+                    index += 2
+                else:
+                    result.append("\n" if char == "\n" else " ")
+                    index += 1
+            elif self.mode:
+                result.append("\n" if char == "\n" else " ")
+                if char == self.mode:
+                    if index + 1 < len(text) and text[index + 1] == self.mode:
+                        result.append(" ")
+                        index += 2
+                        continue
+                    self.mode = None
+                index += 1
+            elif text.startswith("--", index):
+                end = text.find("\n", index)
+                end = len(text) if end < 0 else end
+                result.append(" " * (end - index))
+                index = end
+            elif text.startswith("/*", index):
+                result.append("  ")
+                self.mode = "block"
+                index += 2
+            elif char in {"'", '"'}:
+                self.mode = char
+                result.append(" ")
+                index += 1
+            else:
+                result.append(char)
+                index += 1
+        return "".join(result).upper()
+
+
 def parse_document(document: SourceDocument, *, progress: Callable[[int, int], None] | None = None) -> ParsedFile:
     evidence: dict[str, EvidenceSpan] = {}
     units: list[CodeUnit] = []
@@ -789,6 +837,8 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
             metadata=metadata or {},
         )
         relations.append(relation)
+        if progress is not None and len(relations) % 256 == 0:
+            checkpoint(max(index, last_progress), force=True)
         return relation
 
     def add_statement(
@@ -864,10 +914,17 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
                 metadata=metadata,
             )
 
+    last_progress = -256
+
+    def checkpoint(position, *, force=False):
+        nonlocal last_progress
+        if progress is not None and (force or position - last_progress >= 256):
+            progress(position, len(document.lines))
+            last_progress = position
+
     index = 0
     while index < len(document.lines):
-        if progress is not None and index % 256 == 0:
-            progress(index, len(document.lines))
+        checkpoint(index)
         line = document.lines[index]
         stripped = line.text.strip()
         upper = stripped.upper()
@@ -885,6 +942,7 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
                 header_lines = [line]
                 cursor = index + 1
                 while not sentence_terminated(header_lines[-1].text) and cursor < len(document.lines):
+                    checkpoint(cursor)
                     candidate = document.lines[cursor]
                     candidate_upper = candidate.text.strip().upper()
                     if (
@@ -992,6 +1050,7 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
                 declaration_lines = [line]
                 cursor = index + 1
                 while not sentence_terminated(declaration_lines[-1].text) and cursor < len(document.lines):
+                    checkpoint(cursor)
                     candidate = document.lines[cursor]
                     candidate_upper = candidate.text.strip().upper()
                     if (
@@ -1037,9 +1096,13 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
 
         if EXEC_SQL_START_RE.match(upper):
             sql_lines = [line]
+            scanner = _SQLCodeScanner()
+            sql_codes = [scanner.feed(line.text.strip(), lambda: checkpoint(index, force=True))]
             cursor = index + 1
-            terminated = bool(EXEC_SQL_END_RE.search(sql_code_only(upper)[0]))
+            terminator_seen = bool(EXEC_SQL_END_RE.search(sql_codes[0]))
+            terminated = terminator_seen and scanner.mode is None
             while not terminated and cursor < len(document.lines):
+                checkpoint(cursor)
                 candidate_upper = document.lines[cursor].text.strip().upper()
                 if (
                     DIVISION_RE.match(candidate_upper)
@@ -1049,9 +1112,10 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
                 ):
                     break
                 sql_lines.append(document.lines[cursor])
-                if EXEC_SQL_END_RE.search(sql_code_only("\n".join(
-                    item.text for item in sql_lines
-                ))[0]):
+                sql_codes.append(scanner.feed(document.lines[cursor].text.strip(),
+                    lambda: checkpoint(cursor, force=True)))
+                terminator_seen = terminator_seen or bool(EXEC_SQL_END_RE.search(sql_codes[-1]))
+                if terminator_seen and scanner.mode is None:
                     terminated = True
                     cursor += 1
                     break
@@ -1061,7 +1125,8 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
                 end_line=sql_lines[-1].end_line,
                 text="\n".join(item.text.strip() for item in sql_lines),
             )
-            sql_upper, lexical_complete = sql_code_only(sql_line.text)
+            lexical_complete = scanner.mode is None
+            sql_upper = "\n".join(sql_codes) if lexical_complete else ""
             reads, writes, host_supported = sql_host_access(sql_upper)
             statement = add_statement(
                 "EXEC_SQL", sql_line,
@@ -1174,6 +1239,7 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
             collected = [line]
             cursor = index + 1
             while cursor < len(document.lines) and not collected[-1].text.rstrip().endswith("."):
+                checkpoint(cursor)
                 candidate = document.lines[cursor]
                 candidate_upper = candidate.text.strip().upper()
                 first_word = candidate_upper.split(None, 1)[0].rstrip(".")
@@ -1292,6 +1358,7 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
             collected = [line]
             cursor = index + 1
             while cursor < len(document.lines):
+                checkpoint(cursor)
                 candidate = document.lines[cursor]
                 candidate_upper = candidate.text.strip().upper()
                 candidate_kind = _statement_kind(candidate_upper)
@@ -1418,16 +1485,21 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
         add_field_relations(statement, reads, writes, expression_metadata)
         index = next_index
 
+    checkpoint(len(document.lines), force=True)
     # Group evidence covers every subordinate declaration, including intervening
     # source text. Parameter layout checks can cite this complete physical span.
     data_units = [item for item in units if item.unit_type == "DataItem"]
     for offset, item in enumerate(data_units):
+        if offset % 256 == 0:
+            checkpoint(len(document.lines), force=True)
         match = DATA_ITEM_RE.match(item.normalized_text)
         if match is None or match.group(3).strip().rstrip("."):
             continue
         level = int(match.group(1))
         descendants: list[CodeUnit] = []
         for candidate_index in range(offset + 1, len(data_units)):
+            if (candidate_index - offset) % 256 == 0:
+                checkpoint(len(document.lines), force=True)
             candidate = data_units[candidate_index]
             next_match = DATA_ITEM_RE.match(candidate.normalized_text)
             if (
@@ -1441,6 +1513,7 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
         if descendants:
             ensure_evidence(NormalizedLine(item.start_line, descendants[-1].end_line, ""))
 
+    checkpoint(len(document.lines), force=True)
     return ParsedFile(
         document=document,
         evidence_spans=tuple(evidence.values()),
@@ -1532,6 +1605,10 @@ def _ensure_schema(connection: sqlite3.Connection) -> None:
             ON code_units(program_name, unit_type);
         CREATE INDEX IF NOT EXISTS idx_symbols_lookup
             ON symbols(symbol_type, name, program_name);
+        CREATE INDEX IF NOT EXISTS idx_symbols_path
+            ON symbols(relative_path);
+        CREATE INDEX IF NOT EXISTS idx_evidence_path
+            ON evidence_spans(relative_path);
         CREATE INDEX IF NOT EXISTS idx_relations_from
             ON relations(from_entity_id, relation_type);
         CREATE INDEX IF NOT EXISTS idx_relations_target
@@ -1572,14 +1649,16 @@ def _ensure_schema(connection: sqlite3.Connection) -> None:
         ) from exc
 
 
-def _delete_file_facts(connection: sqlite3.Connection, relative_path: str) -> None:
+def _delete_file_facts(connection: sqlite3.Connection, relative_path: str, *,
+                       delete_search: bool = True) -> None:
     # Scan the FTS table once. Deleting once per statement made refresh time
     # quadratic because unit_id is an UNINDEXED FTS column.
-    connection.execute(
-        "DELETE FROM code_units_fts WHERE rowid IN ("
-        "SELECT f.rowid FROM code_units_fts f JOIN code_units u ON u.unit_id=f.unit_id "
-        "WHERE u.relative_path=?)", (relative_path,),
-    )
+    if delete_search:
+        connection.execute(
+            "DELETE FROM code_units_fts WHERE rowid IN ("
+            "SELECT f.rowid FROM code_units_fts f JOIN code_units u ON u.unit_id=f.unit_id "
+            "WHERE u.relative_path=?)", (relative_path,),
+        )
     connection.execute(
         "DELETE FROM relations WHERE relative_path = ?", (relative_path,)
     )
@@ -1938,6 +2017,18 @@ def build_structural_index(
     options_json = json.dumps(source_options, sort_keys=True)
     database = database_path.expanduser().resolve()
     connection = _connect(database)
+    sql_failure = []
+    if check_cancel:
+        def check_sql_progress():
+            if sql_failure:
+                return 0
+            try:
+                check_cancel()
+            except BaseException as exc:
+                sql_failure.append(exc)
+                return 1
+            return 0
+        connection.set_progress_handler(check_sql_progress, 2000)
     try:
         _ensure_schema(connection)
         metadata = dict(connection.execute("SELECT key, value FROM metadata"))
@@ -2092,7 +2183,12 @@ def build_structural_index(
                 "database_counts": _database_counts(connection),
                 "relation_statuses": dict(connection.execute("SELECT status, COUNT(*) FROM relations GROUP BY status")),
                 "copy_expansion": copy_report, "call_bindings": call_report, "database_path": str(database)}
+    except sqlite3.OperationalError:
+        if sql_failure:
+            raise sql_failure[0]
+        raise
     finally:
+        connection.set_progress_handler(None, 0)
         connection.close()
 
 

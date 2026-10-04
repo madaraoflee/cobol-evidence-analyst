@@ -31,8 +31,11 @@ def _result(candidates):
 
 
 def _program_paths(connection, name):
+    # Both index writers normalize definition symbols to uppercase. Preserve
+    # that key so the existing (symbol_type,name,program_name) index is usable;
+    # NOCASE on a binary index would scan every source unit for each word.
     return sorted({row[0] for row in connection.execute(
-        "SELECT relative_path FROM code_units WHERE unit_type='Program' AND name=? COLLATE NOCASE", (name,))})
+        "SELECT relative_path FROM symbols WHERE symbol_type='Program' AND name=?", (name.upper(),))})
 
 
 def _like_literal(value):
@@ -113,13 +116,27 @@ def _resolve_input(connection, text):
         if name.casefold() in explicit_fields:
             continue
         programs = _program_paths(connection, name)
-        other_symbols = [row[0] for row in connection.execute(
-            "SELECT DISTINCT relative_path FROM symbols WHERE symbol_type IN ('Field','ConditionName','Paragraph','Section') "
-            "AND name=? COLLATE NOCASE ORDER BY relative_path", (name,))]
-        if has_rule_fields:
-            other_symbols = sorted(set(other_symbols) | {row[0] for row in connection.execute(
-                "SELECT DISTINCT b.relative_path FROM business_rule_fields f JOIN business_rules b USING(rule_id) "
-                "WHERE f.field_name=? COLLATE NOCASE", (name,))})
+        if not programs:
+            # A field is a lexical search, not a source identity. Its presence
+            # is enough here; enumerating every rule using a common field would
+            # join millions of rules just to discard their paths below.
+            symbol = connection.execute(
+                "SELECT 1 FROM symbols WHERE symbol_type IN ('Field','ConditionName','Paragraph','Section') "
+                "AND name=? LIMIT 1", (name.upper(),)).fetchone()
+            field = (connection.execute(
+                "SELECT 1 FROM business_rule_fields WHERE field_name=? LIMIT 1",
+                (name.upper(),)).fetchone() if has_rule_fields and not symbol else None)
+            if symbol or field:
+                continue
+            other_symbols = []
+        else:
+            other_symbols = [row[0] for row in connection.execute(
+                "SELECT DISTINCT relative_path FROM symbols WHERE symbol_type IN ('Field','ConditionName','Paragraph','Section') "
+                "AND name=? ORDER BY relative_path", (name.upper(),))]
+            if has_rule_fields:
+                other_symbols = sorted(set(other_symbols) | {row[0] for row in connection.execute(
+                    "SELECT DISTINCT b.relative_path FROM business_rule_fields f JOIN business_rules b USING(rule_id) "
+                    "WHERE f.field_name=?", (name.upper(),))})
         if other_symbols:
             if programs:
                 candidates.append({"identifier": name, "kind": "program_or_symbol", "ambiguous": True,

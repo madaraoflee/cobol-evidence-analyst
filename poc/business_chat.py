@@ -25,6 +25,10 @@ from framework_semantics import build_framework_facts, visible_framework_facts
 from quality_trace import QualityTrace
 
 
+class _LocalAnalysisBudgetExceeded(RuntimeError):
+    """Optional deep analysis must not indefinitely delay a source-based answer."""
+
+
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _SYSTEM = """你是与用户持续合作的业务分析员。根据当前问题、已有对话、检索到的源码与框架资料回答，内容不限于任何预设业务主题。先直接回答用户关心的业务含义、规则或影响，使用用户语言，按问题需要给具体条件、计算、异常与依据，不逐页翻译代码，不输出核验状态清单。默认在相关原文支持范围内充分解释业务目的、先后流程、输入来源、公式顺序、分支例外与结果影响，不要求用户写‘详细’才展开；按问题选择内容，不套固定栏目。answer_detail=brief 或用户明确要求简短时，只保留直接结论、关键条件和必要引用。每项关键结论对应简短来源引用，不用一个笼统的资料不足段落取代已知分析。没有直接 COMPUTE、具体数值或执行验证时，仍可解释源码支持的步骤、条件与符号公式，明确未知值如何限制实际结果。business_analysis_brief 只描述本次实际供应的材料；内部可读缺口主动补查，真实外部缺失只限制受影响的结论。
 对业务计算、原因或流程问题，先给结论，再把输入来源、处理先后、具体算式、适用条件、其他分支和结果影响串起来；不只说程序处理某字段或根据参数计算。篇幅由问题涉及的业务规则决定；单一事实和明确要求简短的追问按需简答。
@@ -213,23 +217,32 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
     bundle = payload["source_context"][0]
     business_map = payload.get("business_map", {})
     source_fallback_attempted = False
+    last_material = None
     while True:
         EvidenceContext.reconcile_payload(payload)
         if "framework_facts" in payload:
             payload["framework_facts"] = visible_framework_facts(payload["framework_facts"],
                 bundle["pages"], payload.get("framework_references", []))
-        if investigation_builder is not None:
+        # Navigation/omission metadata can be trimmed many times without
+        # changing the actual evidence. Re-evaluate obligations only when the
+        # pages, framework material or reviewed draft really change.
+        material = json.dumps([bundle["pages"], payload.get("framework_facts", []),
+            payload.get("framework_references", []), payload.get("draft_answer", "")],
+            ensure_ascii=False, separators=(",", ":"))
+        material_changed = material != last_material
+        if investigation_builder is not None and material_changed:
             payload["question_investigation"] = investigation_builder(bundle["pages"],
                 **({"framework_facts": payload["framework_facts"]} if "framework_facts" in payload else {}))
-        if "answer_review" in payload:
+        if "answer_review" in payload and material_changed:
             payload["answer_review"] = assess_business_answer(payload.get("question", ""),
                 payload.get("draft_answer", ""), payload.get("question_investigation", {}), bundle["pages"],
                 answer_detail=payload.get("answer_detail", "detailed"))
-        if not payload.get("business_analysis_brief_omitted"):
+        if not payload.get("business_analysis_brief_omitted") and material_changed:
             payload["business_analysis_brief"] = build_analysis_brief(payload.get("question", ""),
                 payload.get("question_investigation", {}), bundle["pages"],
                 payload.get("framework_references", []), config.max_output_tokens,
                 answer_detail=payload.get("answer_detail", "detailed"))
+        last_material = material
         messages = [{"role": "system", "content": _SYSTEM}, *history,
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=False,
                         separators=(",", ":"))}]
@@ -438,6 +451,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
               "semantic_scope_seconds": 0.0, "context_assembly_seconds": 0.0,
               "provider_wait_seconds": 0.0, "question_investigation_seconds": 0.0}
     timing["complete_working_set_seconds"] = 0.0
+    first_model_request_seconds = None
+    local_budget_frontiers = set()
     policy = resolve_agent_policy(policy)
     detail_requested = wants_business_detail(question, answer_detail=answer_detail)
     answer_detail = "detailed" if detail_requested else "brief"
@@ -534,12 +549,26 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 if transport_reason:
                     response["transport_reason"] = transport_reason
 
-    def emit(phase):
+    def emit(phase, **details):
         if check_cancel:
             check_cancel()
         if progress:
             progress({"phase": phase, "completed": turns, "total": None, "unit": "requests",
-                      "model_requests": turns, "retrieved_pages": len(pages)})
+                      "model_requests": turns, "retrieved_pages": len(pages), **details})
+
+    def check_local_analysis_budget():
+        if check_cancel:
+            check_cancel()
+        local_elapsed = time.monotonic() - started - timing["provider_wait_seconds"]
+        limit = min(policy.max_initial_context_seconds, policy.max_local_analysis_seconds) \
+            if turns == 0 else policy.max_local_analysis_seconds
+        if local_elapsed >= limit:
+            stage = "initial_context" if turns == 0 else "local_analysis"
+            if stage not in local_budget_frontiers:
+                local_budget_frontiers.add(stage)
+                boundaries.append({"reason": "local_analysis_budget_reached", "stage": stage,
+                    "limit_seconds": limit, "source_text_retained": True})
+            raise _LocalAnalysisBudgetExceeded(stage)
 
     emit("retrieving")
     overview = repository_search_overview(database_path, source_root)
@@ -555,6 +584,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     if entry_program:
         prior_paths = list(dict.fromkeys([entry_program, *prior_paths]))
     def current_map(search_terms=None):
+        emit("locating_sources")
         began = time.monotonic()
         try:
             return build_business_map(database_path, source_root, question,
@@ -582,6 +612,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         return True
 
     def checked_read(**arguments):
+        emit("reading_relevant_sources", current_file=arguments.get("relative_path"))
         began = time.monotonic()
         try:
             if business_map.get("source_identity", {}).get("status") in {"ambiguous", "not_found"}:
@@ -657,6 +688,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         if source_session is None or policy.max_evidence_groups <= len(evidence_groups):
             return 0
         try:
+            check_local_analysis_budget()
+            emit("supplementing_evidence", current_file=anchor.get("relative_path"))
             location = {"relative_path": anchor["relative_path"],
                         "line": int(anchor.get("line", anchor.get("start_line", 1)))}
             if semantic_scope is not None and location["relative_path"] not in {
@@ -677,7 +710,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 semantic_scope = prepare_semantic_scope(database_path, source_session,
                     anchors=[location], requested_calls=[path for path in business_map.get("direct_paths", [])[:3]
                         if path != location["relative_path"]],
-                    policy=scoped_policy, check_cancel=check_cancel)
+                    policy=scoped_policy, check_cancel=check_local_analysis_budget)
                 source_session.register_scope(semantic_scope)
                 timing["semantic_scope_seconds"] += time.monotonic() - semantic_started
                 scoped_paths = [item["relative_path"] for item in semantic_scope.input_manifest]
@@ -703,7 +736,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     semantic_scope = prepare_semantic_scope(database_path, source_session,
                         anchors=[location], requested_calls=[path for path in business_map.get("direct_paths", [])[:3]
                             if path != location["relative_path"]],
-                        policy=scoped_policy, check_cancel=check_cancel)
+                        policy=scoped_policy, check_cancel=check_local_analysis_budget)
                     source_session.register_scope(semantic_scope)
                     timing["semantic_scope_seconds"] += time.monotonic() - semantic_started
                 for item in semantic_scope.input_manifest:
@@ -722,7 +755,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 return 0
             semantic_started = time.monotonic()
             group = build_business_evidence(semantic_scope, source_session, anchor=location,
-                focus_fields=anchor.get("fields", []), policy=policy)
+                focus_fields=anchor.get("fields", []), policy=policy,
+                check_cancel=check_local_analysis_budget)
             timing["semantic_evidence_seconds"] += time.monotonic() - semantic_started
             role_by_id = {}
             for observation in group.observations:
@@ -734,6 +768,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     role_by_id.get(page["evidence_id"], {"related_statement"}))
             evidence_groups.append(group)
             return accept({"pages": group.supplied_locations}, "business_context")
+        except _LocalAnalysisBudgetExceeded:
+            return 0
         except (ValueError, OSError, sqlite3.Error) as exc:
             boundaries.append({"reason": "semantic_scope_unavailable", "detail": type(exc).__name__})
             return 0
@@ -758,6 +794,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         for candidate in anchors:
             key = (candidate["relative_path"], candidate.get("line", candidate.get("start_line", 1)))
             if key in semantic_anchors_seen or len(evidence_groups) >= policy.max_evidence_groups:
+                continue
+            if any(page.get("relative_path") == candidate["relative_path"]
+                   and "complete_working_set" in page.get("selection_reasons", ())
+                   and not page.get("span_truncated") for page in pages.values()):
                 continue
             before = len(evidence_groups)
             add_semantic_context(candidate)
@@ -833,9 +873,6 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             for message in reversed(history or []) if message.get("role") == "assistant"
             for candidate in (message.get("investigation_state") or {}).get("focus_candidates", [])
             if candidate.get("relative_path") in prior_paths and type(candidate.get("line")) is int), None)
-    expand_map_evidence(business_map)
-    if first_lead is not None and not priority_targets:
-        add_semantic_context(first_lead)
     complete_contexts, active_complete_key = {}, None
 
     def update_complete_context():
@@ -856,6 +893,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         active_complete_key = key
 
     update_complete_context()
+    expand_map_evidence(business_map)
+    if first_lead is not None and not priority_targets:
+        add_semantic_context(first_lead)
     timing["initial_context_seconds"] = time.monotonic() - retrieval_started
     source_match_observed = bool(initial.get("matched_file_count", 0) or restored or
         any("conversation_context" in page.get("selection_reasons", []) for page in pages.values()) or
@@ -890,18 +930,21 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                        request_observer=quality.observe)
     def complete(messages, *, payload, request_size, stage, trim_events=()):
         """Send once; provider failures stop this question for explicit retry."""
-        nonlocal turns
+        nonlocal turns, first_model_request_seconds
         if check_cancel:
             check_cancel()
         if turns >= policy.max_model_requests:
             raise APIClientError("MODEL_REQUEST_BUDGET_EXHAUSTED")
         turns += 1
+        if first_model_request_seconds is None:
+            first_model_request_seconds = time.monotonic() - started
         request_sizes.append(request_size)
         quality.prepare(stage=stage, payload=payload,
                         messages=messages, trim_events=trim_events)
         quality.data.setdefault("question_investigation_rounds", []).append({
             "round_id": f"round-{turns}", **payload.get("question_investigation", {})})
         began = time.monotonic()
+        emit("waiting_for_model")
         try:
             return client.complete(messages=messages)
         finally:
@@ -1350,8 +1393,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 added = accept(context, "search")
                 business_map = current_map(action["search"])
                 add_rule_spotlights(business_map)
-                expand_map_evidence(business_map)
                 update_complete_context()
+                expand_map_evidence(business_map)
                 source_match_observed = source_match_observed or bool(context.get("matched_file_count", 0) or
                     business_map.get("source_identity", {}).get("status") == "resolved")
                 question_match_observed = question_match_observed or bool(context.get("matched_file_count", 0) or
@@ -1794,6 +1837,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                "final_visible_ids": len(allowed),
                "quality_stop_reason": stop_reason,
                "timing_seconds": {**{key: round(value, 4) for key, value in timing.items()},
+                   "first_model_request_seconds": round(first_model_request_seconds, 4)
+                       if first_model_request_seconds is not None else None,
+                   "local_processing_seconds": round(time.monotonic() - started - timing["provider_wait_seconds"], 4),
                    "selected_source_hash_seconds": round(source_session.capture_seconds, 4),
                    "total_seconds": round(time.monotonic() - started, 4)},
                "timing_components_are_inclusive": True,

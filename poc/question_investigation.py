@@ -330,7 +330,7 @@ def _visible_input_declarations(pages, candidates):
     return origins
 
 
-def _visible_ids(candidate, pages):
+def _visible_ids(candidate, pages, *, page_cache=None):
     from business_index import _clean
     first, last = candidate["start_line"], candidate["end_line"]
     # Repeated identical sparse rules have a first/last occurrence envelope,
@@ -349,9 +349,19 @@ def _visible_ids(candidate, pages):
         start, end = page["start_line"], page["end_line"]
         if start > cursor:
             break
-        text_lines = str(page.get("source_text", "")).splitlines()
-        for index, text in enumerate(text_lines, start):
-            cleaned, active_format, _ = _clean(text, active_format)
+        text = str(page.get("source_text", ""))
+        key = (page["evidence_id"], start, end, text, active_format)
+        cached = page_cache.get(key) if isinstance(page_cache, dict) else None
+        if cached is None:
+            cleaned_lines = []
+            for raw in text.splitlines():
+                cleaned, active_format, _ = _clean(raw, active_format)
+                cleaned_lines.append(cleaned)
+            cached = (cleaned_lines, active_format)
+            if isinstance(page_cache, dict):
+                page_cache[key] = cached
+        cleaned_lines, active_format = cached
+        for index, cleaned in enumerate(cleaned_lines, start):
             if first <= index <= (last if candidate.get("occurrence_count", 1) <= 1 else end):
                 if index in lines and lines[index] != cleaned:
                     return []
@@ -482,15 +492,22 @@ def _calculation_paths(business_map, source_pages):
     paths = _calculation_roots(business_map, source_pages)
     # Only a resolved outgoing dependency may nominate additional arithmetic.
     # A caller's unrelated formulas do not become obligations for its callee.
+    # Build adjacency once: scanning every relation for each reached source,
+    # followed by list membership checks, becomes superlinear on large chains.
+    outgoing = {}
+    for edge in business_map.get("relations", []):
+        target = edge.get("target_path")
+        if (target in selected and edge.get("relation_type") in {"CALLS", "INCLUDES_COPY"}
+                and edge.get("resolution") == "confirmed"):
+            outgoing.setdefault(edge.get("caller_path"), []).append(target)
+    visited = set(paths)
     position = 0
     while position < len(paths):
         caller = paths[position]
         position += 1
-        for edge in business_map.get("relations", []):
-            target = edge.get("target_path")
-            if (edge.get("caller_path") == caller and target in selected and target not in paths
-                    and edge.get("relation_type") in {"CALLS", "INCLUDES_COPY"}
-                    and edge.get("resolution") == "confirmed"):
+        for target in outgoing.get(caller, ()):
+            if target not in visited:
+                visited.add(target)
                 paths.append(target)
     return paths
 
@@ -523,8 +540,25 @@ def build_question_investigation(question, business_map, *, database_path=None,
                 "reason": kind + "_not_located"}
         return {**base, "required_items": [item], "open_gaps": [
             {"kind": kind, "status": "OPEN", "reason": kind + "_not_located"}]}
-    paths = _calculation_paths(business_map, source_pages)
-    root_paths = _calculation_roots(business_map, source_pages)
+    # Request fitting repeatedly changes the visible pages, while the map and
+    # its dependency closure remain fixed. Reuse only navigation here; evidence
+    # visibility is still checked against the actual pages on every call.
+    history_roots = tuple(dict.fromkeys(page.get("relative_path") for page in source_pages
+        if "conversation_context" in page.get("selection_reasons", [])))
+    scope_hit = (isinstance(candidate_cache, dict)
+        and candidate_cache.get("scope_map") is business_map
+        and candidate_cache.get("scope_snapshot") == business_map.get("snapshot_id")
+        and candidate_cache.get("scope_history_roots") == history_roots)
+    if scope_hit:
+        paths, root_paths = candidate_cache["scope_paths"], candidate_cache["scope_roots"]
+    else:
+        paths = _calculation_paths(business_map, source_pages)
+        root_paths = _calculation_roots(business_map, source_pages)
+    scope_cache = {"scope_map": business_map, "scope_history_roots": history_roots,
+                   "scope_snapshot": business_map.get("snapshot_id"),
+                   "scope_paths": paths, "scope_roots": root_paths,
+                   "visible_pages": candidate_cache.get("visible_pages", {})
+                       if scope_hit else {}}
     candidates, frontier, hashes = [], [], {}
     impact_frontier = [{"kind": "dependencies", **gap}
                        for gap in business_map.get("outgoing_dependency_frontier", [])] if file_impact else []
@@ -559,10 +593,12 @@ def build_question_investigation(question, business_map, *, database_path=None,
             frontier.extend(dependency_frontier)
             if isinstance(candidate_cache, dict):
                 candidate_cache.clear()
-                candidate_cache.update(key=key, value=(candidates, frontier, hashes),
+                candidate_cache.update(**scope_cache, key=key, value=(candidates, frontier, hashes),
                                        business_steps=business_steps)
         paths = list(hashes)
     else:
+        if isinstance(candidate_cache, dict):
+            candidate_cache.update(scope_cache)
         candidates = [_rule(row, "business_steps" if business_steps else "formula")
                       for row in business_map.get("rule_leads", []) if row.get("relative_path") in paths
                       and (business_steps or row.get("rule_kind") in _ARITHMETIC)]
@@ -594,7 +630,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
         related = [row for row in candidates if row["kind"] == kind]
         supplied, absent, unresolved = [], [], []
         for row in related:
-            identifiers = _visible_ids(row, pages)
+            identifiers = _visible_ids(row, pages, page_cache=scope_cache["visible_pages"])
             if identifiers:
                 supplied.extend(identifiers)
             else:

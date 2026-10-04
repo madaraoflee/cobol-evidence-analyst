@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, contextmanager
+from collections import deque
 from dataclasses import dataclass, field
 import hashlib
 import json
@@ -21,6 +22,32 @@ from procedure_expansion import expand_program
 
 SEMANTIC_VERSION = "selected-structural-v1"
 _ACTIVE = set()
+
+
+@contextmanager
+def _semantic_connection(database_path, check_cancel=None):
+    """Interrupt a long SQL operation without hiding the caller's exception."""
+    failure = []
+    with closing(sqlite3.connect(database_path)) as db:
+        if check_cancel:
+            def progress():
+                if failure:
+                    return 0
+                try:
+                    check_cancel()
+                except BaseException as exc:
+                    failure.append(exc)
+                    return 1
+                return 0
+            db.set_progress_handler(progress, 2000)
+        try:
+            yield db
+        except sqlite3.OperationalError:
+            if failure:
+                raise failure[0]
+            raise
+        finally:
+            db.set_progress_handler(None, 0)
 
 
 def _prune_cache(directory, limit):
@@ -50,6 +77,7 @@ class SemanticScope:
     source_session: object
     _temporary: object = field(repr=False)
     _line_cache: dict = field(default_factory=dict, repr=False)
+    _origin_locations: dict | None = field(default=None, repr=False)
     cache_limit: int = 536870912
 
     def close(self):
@@ -64,19 +92,25 @@ class SemanticScope:
         self.close()
 
 
-def _select_paths(repository_database, anchors, requested_calls, policy):
+def _select_paths(repository_database, anchors, requested_calls, policy, check_cancel=None):
     paths, frontier, bytes_estimate = [], [], 0
-    with closing(sqlite3.connect(repository_database)) as db:
+    with _semantic_connection(repository_database, check_cancel) as db:
         db.row_factory = sqlite3.Row
-        pending = [a["relative_path"] for a in anchors if a.get("relative_path")]
-        pending += list(requested_calls)
+        initial = [a["relative_path"] for a in anchors if a.get("relative_path")]
+        initial += list(requested_calls)
+        pending = deque(dict.fromkeys(initial))
+        queued = set(pending)
         visited = set()
         while pending:
-            relative = pending.pop(0)
+            if check_cancel:
+                check_cancel()
+            relative = pending.popleft()
             if relative in visited:
                 continue
             visited.add(relative)
-            row = db.execute("SELECT relative_path FROM source_files WHERE relative_path=?", (relative,)).fetchone()
+            row = db.execute("SELECT f.relative_path,s.size FROM source_files f "
+                "LEFT JOIN repo_source_state s ON s.relative_path=f.relative_path "
+                "WHERE f.relative_path=?", (relative,)).fetchone()
             if row is None:
                 frontier.append({"relative_path": relative, "reason": "source_not_indexed"})
                 continue
@@ -84,8 +118,7 @@ def _select_paths(repository_database, anchors, requested_calls, policy):
                 frontier.append({"relative_path": relative, "reason": "file_budget"})
                 continue
             # SQL metadata is allowed here; no unrelated file is opened.
-            info = db.execute("SELECT size FROM repo_source_state WHERE relative_path=?", (relative,)).fetchone()
-            size = info[0] if info else 0
+            size = row["size"] or 0
             if bytes_estimate + size > policy.max_semantic_source_bytes:
                 frontier.append({"relative_path": relative, "reason": "byte_budget"})
                 continue
@@ -96,8 +129,9 @@ def _select_paths(repository_database, anchors, requested_calls, policy):
                 "LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
                 "WHERE r.relative_path=? AND r.relation_type IN ('CALLS','INCLUDES_COPY') "
                 "ORDER BY r.relation_type,r.target_name", (relative,)):
-                if status == "confirmed" and target and target != relative and target not in visited:
+                if status == "confirmed" and target and target != relative and target not in queued:
                     pending.append(target)
+                    queued.add(target)
                 elif status != "confirmed":
                     frontier.append({"relative_path": relative, "relation_type": kind,
                                      "reason": status or "unresolved"})
@@ -106,7 +140,7 @@ def _select_paths(repository_database, anchors, requested_calls, policy):
 
 def _prepare_semantic_scope(repository_database, source_session, *, anchors,
                             requested_calls=(), policy, check_cancel=None, temporary):
-    paths, frontier = _select_paths(repository_database, anchors, requested_calls, policy)
+    paths, frontier = _select_paths(repository_database, anchors, requested_calls, policy, check_cancel)
     if not paths:
         raise ValueError("SEMANTIC_SCOPE_EMPTY")
     root = Path(temporary.name)
@@ -132,22 +166,24 @@ def _prepare_semantic_scope(repository_database, source_session, *, anchors,
     derived_manifest = list(input_manifest)
     # The complete SQL catalog decides ambiguity; only an inclusion target is
     # captured by the provider. No source-directory enumeration is involved.
-    with closing(sqlite3.connect(repository_database)) as db:
-        catalog = [row[0] for row in db.execute("SELECT relative_path FROM source_files")]
+    with _semantic_connection(repository_database, check_cancel) as db:
+        slots = ",".join("?" for _ in paths)
         programs = {row[0]: row[1] for row in db.execute(
-            "SELECT relative_path,name FROM code_units WHERE unit_type='Program'")}
+            "SELECT u.relative_path,u.name FROM code_units u "
+            f"WHERE u.relative_path IN ({slots}) AND u.unit_type='Program' "
+            "AND EXISTS (SELECT 1 FROM relations r WHERE r.relative_path=u.relative_path "
+            "AND r.relation_type='INCLUDES_COPY')", paths)}
+        catalog = [row[0] for row in db.execute("SELECT relative_path FROM source_files")] if programs else []
     expansions = 0
     for relative in list(paths):
         if expansions >= policy.max_semantic_expansions or relative not in programs:
             continue
-        with closing(sqlite3.connect(repository_database)) as db:
-            has_copy = db.execute("SELECT 1 FROM relations WHERE relative_path=? AND relation_type='INCLUDES_COPY' LIMIT 1", (relative,)).fetchone()
-        if not has_copy:
-            continue
+        if check_cancel:
+            check_cancel()
         expansion = expand_program(source_session.mirror_root, programs[relative],
             source_provider=source_session, source_catalog=catalog,
             entry_relative_path=relative, max_depth=policy.max_semantic_expansions,
-            max_lines=max(20000, policy.max_semantic_source_bytes // 32))
+            max_lines=max(20000, policy.max_semantic_source_bytes // 32), check_cancel=check_cancel)
         frontier.extend(expansion["boundaries"])
         if not expansion["source_expansion_complete"] or not expansion["includes"]:
             continue
@@ -236,12 +272,9 @@ def _source_pages(scope, unit):
         origins = [mapped[index - 1] for index in range(unit["start_line"], unit["end_line"] + 1)
                    if 1 <= index <= len(mapped)]
     else:
-        origins = [{"origin": {"relative_path": relative, "line": index,
-                                "source_hash": scope.source_session.capture(relative).sha256},
-                    "include_chain": []}
-                   for index in range(unit["start_line"], unit["end_line"] + 1)]
-    groups = []
-    for item in origins:
+        origins = None
+    groups = [] if mapped else [[relative, [], unit["start_line"], unit["end_line"]]]
+    for item in origins or ():
         origin = item["origin"]
         chain = item["include_chain"]
         if groups and groups[-1][0] == origin["relative_path"] and groups[-1][1] == chain and groups[-1][3] + 1 == origin["line"]:
@@ -251,7 +284,9 @@ def _source_pages(scope, unit):
     pages = []
     for path, chain, start, end in groups:
         captured = scope.source_session.capture(path)
-        lines = scope._line_cache.setdefault(path, captured.path.read_text(encoding=captured.encoding).splitlines())
+        if path not in scope._line_cache:
+            scope._line_cache[path] = captured.path.read_text(encoding=captured.encoding).splitlines()
+        lines = scope._line_cache[path]
         text = "\n".join(lines[start - 1:end])
         page = {"relative_path": path, "start_line": start, "end_line": end,
                 "source_sha256": captured.sha256, "source_text": text,
@@ -262,7 +297,7 @@ def _source_pages(scope, unit):
 
 
 def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
-                            purpose="explain", policy):
+                            purpose="explain", policy, check_cancel=None):
     """Keep exact units and conservative links around one selected anchor."""
     path, line = anchor["relative_path"], int(anchor["line"])
     selected, roles, bases = {}, {}, {}
@@ -277,13 +312,23 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
                 "interpretation_basis": "conservative_relation_candidates_not_execution_proof"})
         return candidates[:limit]
 
-    with closing(sqlite3.connect(scope.database_path)) as db:
+    with _semantic_connection(scope.database_path, check_cancel) as db:
         db.row_factory = sqlite3.Row
         locations = [(path, line)]
-        for host_path, mapped in scope.source_map.items():
-            locations.extend((host_path, i) for i, item in enumerate(mapped, 1)
-                if item["origin"]["relative_path"] == path and item["origin"]["line"] == line)
+        if scope._origin_locations is None:
+            origin_locations = {}
+            for host_path, mapped in scope.source_map.items():
+                for i, item in enumerate(mapped, 1):
+                    if check_cancel and i % 256 == 0:
+                        check_cancel()
+                    origin = item["origin"]
+                    key = (origin["relative_path"], origin["line"])
+                    origin_locations.setdefault(key, []).append((host_path, i))
+            scope._origin_locations = origin_locations
+        locations.extend(scope._origin_locations.get((path, line), ()))
         for unit_path, anchor_line in locations:
+            if check_cancel:
+                check_cancel()
             row = db.execute("SELECT * FROM code_units WHERE relative_path=? AND unit_type='Statement' "
                 "AND start_line<=? AND end_line>=? ORDER BY end_line-start_line LIMIT 1",
                 (unit_path, anchor_line, anchor_line)).fetchone()
@@ -295,6 +340,8 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
                                  open_frontier=[{"reason": "anchor_not_structurally_parsed", **anchor}])
         anchor_units = list(selected)
         for unit_id in anchor_units:
+            if check_cancel:
+                check_cancel()
             for relation in db.execute("SELECT * FROM relations WHERE from_entity_id=?", (unit_id,)):
                 if relation["relation_type"] == "CONTROL_DEPENDS_ON" and relation["target_entity_id"]:
                     row = db.execute("SELECT * FROM code_units WHERE unit_id=?", (relation["target_entity_id"],)).fetchone()
@@ -358,6 +405,8 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
                     selected[row["unit_id"]] = row
                     roles.setdefault(row["unit_id"], "condition" if row["name"] in {"IF", "ELSE", "EVALUATE", "WHEN"} else "return_processing")
         for call in list(selected.values()):
+            if check_cancel:
+                check_cancel()
             if call["unit_type"] != "Statement" or call["name"] != "CALL":
                 continue
             for relation in db.execute("SELECT r.status,s.relative_path,s.name FROM relations r "
@@ -378,6 +427,8 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
             frontier.append({"reason": "caller_expansion_candidates_limited", "candidate_count": len(frontier_units),
                              "omitted_count": len(frontier_units) - 32, "limit": 32})
         for unit_id in frontier_units[:32]:
+            if check_cancel:
+                check_cancel()
             unit = selected[unit_id]
             if unit["unit_type"] not in {"Statement", "Paragraph"}:
                 continue
@@ -412,6 +463,8 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
             frontier.append({"reason": "observation_budget", "relative_path": omitted["relative_path"],
                 "start_line": omitted["start_line"], "end_line": omitted["end_line"], "limit": 80})
         for unit in ordered[:80]:
+            if check_cancel:
+                check_cancel()
             pages = _source_pages(scope, unit)
             refs = []
             for page in pages:

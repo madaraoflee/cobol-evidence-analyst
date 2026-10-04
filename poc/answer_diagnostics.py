@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from pathlib import Path
 import re
 import subprocess
@@ -33,6 +34,10 @@ def _enum(value, allowed):
 
 def _number(value):
     return value if type(value) is int and value >= 0 else None
+
+
+def _seconds(value):
+    return value if type(value) in {int, float} and math.isfinite(value) and value >= 0 else None
 
 
 def _finish(value):
@@ -143,6 +148,8 @@ def build_answer_diagnostics(*, config, quality, result):
         limitations.add("runtime_target_unresolved")
     if reasons.intersection({"input_source_not_located", "input_candidate_frontier"}):
         limitations.add("unresolved_inputs")
+    if "local_analysis_budget_reached" in reasons:
+        limitations.add("local_analysis_budget_reached")
     failed_read = any(item.get("outcome") == "unavailable" and "read" in item
                       for item in result.get("investigation_state", {}).get("completed_actions", []))
     if failed_read or any(item.get("code") in {"SOURCE_READ_FAILED", "SOURCE_UNAVAILABLE", "SOURCE_CHANGED"}
@@ -182,7 +189,11 @@ def build_answer_diagnostics(*, config, quality, result):
             "max_source_characters": _number(policy.get("max_source_characters")),
             "max_complete_source_characters": _number(policy.get("max_complete_source_characters")),
             "max_request_bytes": _number(policy.get("max_request_bytes")),
+            "max_initial_context_seconds": _number(policy.get("max_initial_context_seconds")),
+            "max_local_analysis_seconds": _number(policy.get("max_local_analysis_seconds")),
             "requested_detail": _enum(result.get("answer_detail"), {"brief", "detailed"})},
+        "timing_seconds": {key: _seconds(result.get("metrics", {}).get("timing_seconds", {}).get(key))
+            for key in ("first_model_request_seconds", "local_processing_seconds", "provider_wait_seconds", "total_seconds")},
         "requests": rounds,
         "source_coverage": {"indexed_files": indexed,
             "selected_files": max(_number(investigation.get("selected_file_count")) or 0,

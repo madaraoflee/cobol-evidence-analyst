@@ -7,6 +7,11 @@ const UI_MESSAGES = `
 知序|知序|Zhixu
 知序首頁|知序首页|Zhixu home
 COBOL 業務分析|COBOL 业务分析|COBOL Workbench
+定位與問題相關的程序|定位与问题相关的程序|Locating relevant programs
+讀取相關段落|读取相关段落|Reading relevant source sections
+補充相關分析依據|补充相关分析依据|Supplementing source analysis
+模型正在生成回答|模型正在生成回答|The model is generating an answer
+準備索引結構|准备索引结构|Preparing index structures
 最近對話|最近对话|Recent conversations
 調整左側欄寬度|调整左侧栏宽度|Resize left sidebar
 調整右側欄寬度|调整右侧栏宽度|Resize right sidebar
