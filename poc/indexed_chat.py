@@ -99,6 +99,7 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
     report["investigation"] = result.get("investigation", {})
     report["metrics"] = result.get("metrics", {})
     _write(output / "diagnosis.json", report)
+    write_report_view(output / "diagnosis.json", report)
     _write(output / "diagnosis.md", "# 本次业务对话\n\n使用已有源码索引，按问题检索。\n", markdown=True)
     _write(output / "agent-result.json", agent)
     write_report_view(output / "agent-result.json", agent)

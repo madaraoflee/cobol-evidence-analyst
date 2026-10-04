@@ -184,7 +184,7 @@ test('business scenario titles and process explanations precede optional technic
   assert.ok(answer.indexOf('SERVICEENTRY')>answer.indexOf('class="guide-technical"'));
   assert.match(answer,/<details class="guide-technical"><summary>Technical and framework references<\/summary>/);
   assert.match(answer,/data-evidence="ev_guide_online"/);assert.match(h.run('evidencePanel()'),/class="code-body"/);
-  const summary=h.run('markdownSummary()');assert.match(summary,/# Zhixu · Business explanation/);
+  const summary=h.run('markdownSummary()');assert.match(summary,/# Xin Xian · Business explanation/);
   assert.ok(summary.indexOf('Business rules and impact')<summary.indexOf('Framework type'));
   assert.equal(h.run('exportData().model_called'),false);assert.equal(h.run('exportData().source_origin'),'synthetic_framework');
 });

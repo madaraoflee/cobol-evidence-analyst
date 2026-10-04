@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Callable, Sequence
 
 from company_api import APIConfigurationError, CompanyAPIConfig, Transport
-from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
+from api_error_details import build_diagnostic, build_local_diagnostic, format_diagnostic, sanitize_diagnostic
 from repo_inventory import DEFAULT_EXTENSIONS, parse_extensions
 from run_agent import run_investigation
 from structural_index import build_structural_index
@@ -33,7 +33,7 @@ ARTIFACT_NAMES = (
     "structural-index.sqlite", "diagnosis.json", "diagnosis.md",
     "programs.json", "agent-result.json", "agent-result.md", "source-catalog.sqlite",
     "framework-context.json",
-    "agent-result-view.json", "programs-view.json",
+    "agent-result-view.json", "programs-view.json", "diagnosis-view.json",
 )
 
 
@@ -286,6 +286,7 @@ def analyze_source(
 
     def save() -> None:
         _write(output / "diagnosis.json", report)
+        write_report_view(output / "diagnosis.json", report)
         _write(output / "diagnosis.md", _render(report, programs), markdown=True)
         program_report = {"snapshot_id": (report.get("build_report") or {}).get("snapshot_id"),
             "catalog_snapshot_id": report.get("catalog_snapshot_id"), "scope": report.get("scope"), "programs": programs}
@@ -510,7 +511,7 @@ def analyze_source(
         report["source_manifest_verified"] = False
         report["framework_context"] = build_framework_context(reference_path=framework_reference_path)
         report["question_status"] = "BLOCKED" if question else "NOT_REQUESTED"
-        diagnostic = build_diagnostic("INTERNAL_ERROR")
+        diagnostic = build_local_diagnostic(exc)
         report["diagnostic"] = diagnostic
         if type(exc) is RuntimeError and exc.args in (
             ("This SQLite build does not include FTS5 support.",),

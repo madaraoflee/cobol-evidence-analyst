@@ -222,7 +222,7 @@ class SourceUpdateBackupTests(unittest.TestCase):
             output.mkdir()
             report = output / "diagnosis.json"
             report.write_text("original data")
-            create_temporary = tempfile.TemporaryDirectory
+            create_temporary = tempfile.mkdtemp
             calls = []
 
             def fallback_temporary(**options):
@@ -231,7 +231,7 @@ class SourceUpdateBackupTests(unittest.TestCase):
                     raise PermissionError("parent is read only")
                 return create_temporary(**options)
 
-            with patch("source_update.tempfile.TemporaryDirectory", side_effect=fallback_temporary):
+            with patch("source_update.tempfile.mkdtemp", side_effect=fallback_temporary):
                 backup = SourceUpdateBackup(output, [report.name])
             try:
                 self.assertEqual((backup.root / report.name).read_text(), "original data")
@@ -239,7 +239,7 @@ class SourceUpdateBackupTests(unittest.TestCase):
                 self.assertNotIn("dir", calls[1])
             finally:
                 backup.close()
-            with patch("source_update.tempfile.TemporaryDirectory", side_effect=OSError("storage full")):
+            with patch("source_update.tempfile.mkdtemp", side_effect=OSError("storage full")):
                 with self.assertRaisesRegex(OSError, "storage full"):
                     SourceUpdateBackup(output, [report.name])
             self.assertEqual(report.read_text(), "original data")

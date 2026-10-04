@@ -128,7 +128,7 @@ function currentRefs(){
 }
 function currentRelations(){return state.mode==='demo'?(demoCase()?.relations || []):(state.project?.relations?.edges || []);}
 function statusLabel(status){return ({ANALYZED:t('已生成業務解讀'),SCOPE_LIMIT:t('入口超出本次解析範圍'),PARTIAL:t('部分業務解讀'),CANCELLED:t('已取消'),SUPPORTED_WITH_BOUNDARIES:t('已核驗局部語句 · 保留邊界'),CITATION_VERIFIED_ONLY:t('引用已核對 · 解釋待核驗'),ABSTAINED:t('證據不足 · 尚未形成結論'),NOT_READY:t('尚未具備分析條件'),SAFE_STOP:t('調查已停止 · 需要處理'),NETWORK_DISABLED:t('尚未啟用模型問答'),NOT_REQUESTED:t('尚未提出業務問題'),BLOCKED:t('接入受阻'),INDEX_READY:t('源碼已就緒'),NEEDS_ATTENTION:t('源碼已接入 · 有待核對'),PREPARING:t('正在接入源碼')})[status] || status || t('尚未分析');}
-function sourceUsable(){const d=diagnosis();return Boolean(d && (d.catalog_ready || (d.source_manifest_verified===true && state.project?.snapshot_id)) && (currentPrograms().length>0 || Number(sourceFiles().candidate || sourceFiles().decoded)>0));}
+function sourceUsable(){const d=diagnosis();return !state.project?.restore_blocked && Boolean(d && (d.catalog_ready || (d.source_manifest_verified===true && state.project?.snapshot_id)) && (currentPrograms().length>0 || Number(sourceFiles().candidate || sourceFiles().decoded)>0));}
 function repositoryIndexReady(){const d=diagnosis();return Boolean(d?.source_manifest_verified===true && state.project?.snapshot_id && d.runner_status!=='BLOCKED' && ['repository_index','repository_question'].includes(d.scope?.mode) && d.repository_search?.full_text_complete===true);}
 function sourceReadinessLabel(){return repositoryIndexReady()?t('源碼索引已就緒'):statusLabel(diagnosis()?.runner_status);}
 function frameworkStatusLabel(status){return ({LOADED:t('框架資料已載入'),MATCHED:t('已找到相關框架資料'),NO_MATCH:t('框架資料已載入'),UNAVAILABLE:t('框架資料無法讀取'),NOT_CONFIGURED:t('尚未設定框架資料')})[status] || t('尚未設定框架資料');}
@@ -203,7 +203,7 @@ function renderChrome(){
   $('connect-button').setAttribute('title',state.busy?t('目前工作完成後，可更新源碼'):sourceAction);
   if($('connect-label'))$('connect-label').textContent=sourceAction;
   const inlineFailure=conversationMode() && state.page==='workbench' && state.error;
-  const notice=(!inlineFailure && state.error?(state.errorDiagnostic?failureSummaryText(state.errorDiagnostic):state.error):'') || (!demo && d?.runner_status==='BLOCKED'?(d.messages || []).join(' '):'');
+  const notice=(!inlineFailure && state.error?errorSummaryText():'') || (!demo && d?.runner_status==='BLOCKED'?(d.messages || []).join(' '):'');
   $('notice').textContent=notice;$('notice').hidden=!notice;
 }
 
@@ -350,6 +350,16 @@ const SAFE_API_EXPLANATIONS={
   request_rejected:['接口拒絕本次請求，具體原因尚未確認。','憑關聯編號檢查接口支持的請求格式和服務日誌。'],
   invalid_response:['接口返回的響應格式無效。','檢查接口兼容性和服務端響應日誌。'],
   system_error:['請求處理發生系統錯誤，具體原因尚未確認。','憑關聯編號檢查應用和服務端日誌。'],
+  storage_full:['本機儲存空間不足。','釋放結果目錄與暫存目錄的磁碟空間後重試。'],
+  storage_permission:['無法寫入本機分析文件。','檢查結果目錄和工作台設定目錄的寫入權限。'],
+  storage_locked:['本機資料庫或文件被佔用。','停止其他使用同一結果目錄的工作台後重試。'],
+  storage_corrupt:['本機分析資料庫損壞或格式無效。','保留原結果目錄，並使用新的獨立結果目錄重新建立索引。'],
+  report_invalid:['本機分析報告無法讀取或格式無效。','保留原文件，檢查匯入詳情並重新生成分析產物。'],
+  source_snapshot_mismatch:['本次匯入的程式清單與索引快照不一致。','保留原資料庫，並重新執行源碼更新。'],
+  source_encoding_invalid:['本次匯入遇到無法按所選編碼讀取的文件。','核對匯入進度顯示的文件，確認它是文字源碼，並選擇正確編碼後重試。'],
+  source_changed:['匯入期間源碼發生了變化，無法建立一致索引。','暫停源碼編輯或同步，待文件穩定後重新匯入。'],
+  source_empty:['所選目錄沒有符合設定的可用源碼。','核對源碼目錄、副檔名和無副檔名文件設定。'],
+  fts_unavailable:['目前 Python 的 SQLite 不支援全文索引。','使用包含 FTS5 的 Python 3.10 或更高版本後重新啟動工作台。'],
 };
 const SAFE_PROVIDER_CODES=['request_too_large','payload_too_large','context_length_exceeded','context_window_exceeded','model_not_found','model_not_available','model_unavailable','unsupported_parameter','unsupported_value','unsupported_feature','max_tokens_exceeded','max_output_tokens_exceeded','output_token_limit_exceeded','insufficient_quota','quota_exceeded','billing_hard_limit_reached','rate_limit_exceeded','invalid_api_key','authentication_error','permission_denied','access_denied','internal_error','server_error'];
 const SAFE_TRANSPORT_EXPLANATIONS={
@@ -398,6 +408,10 @@ function failureDiagnosticText(value){
 function failureSummaryText(value){
   const safe=safeApiDiagnostic(value);if(!safe)return '';
   return safe.reason+' '+t('下一步')+'：'+safe.next_step+(safe.http_status && !safe.reason.includes('HTTP '+safe.http_status)?' HTTP '+safe.http_status+'。':'');
+}
+function errorSummaryText(){
+  if(state.project?.restore_blocked)return apiErrorText({code:'SOURCE_UPDATE_ROLLBACK_FAILED',diagnostic:state.errorDiagnostic});
+  return state.errorDiagnostic?failureSummaryText(state.errorDiagnostic):state.error;
 }
 function failureDiagnosticsView(subject=null){
   if(!subject && (state.mode!=='real' || draftChanged()))return '';
@@ -734,7 +748,7 @@ function conversationMessage(message){
   const priorSnapshot=!user && message.snapshot_id && state.project?.snapshot_id && message.snapshot_id!==state.project.snapshot_id;
   const versionMarkup=priorSnapshot?ui`<small class="message-source-version">此回答依據較早的本機版本 <code>${escapeHTML(shortSourceVersion(message.snapshot_id))}</code>；原引用仍可查看。新提問會使用目前源碼。</small>`:'';
   const reading=user?{content:markup,outline:''}:answerReadingView(markup,id);
-  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}" data-message="${escapeHTML(id)}">${reading.outline}<div class="answer-main"><div class="message-author">${user?t('你'):t('知序')}<span>${user?'':t('業務解讀 · 請結合證據覆核')}</span></div>${versionMarkup}${user?'':answerCompletionNotice(message)+failureDiagnosticsView(message)}<div class="message-content narrative-body">${reading.content || (failed?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${relatedMarkup}${impactMarkup}${referenceMarkup}${retryMarkup}</div></article>`;
+  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}" data-message="${escapeHTML(id)}">${reading.outline}<div class="answer-main"><div class="message-author">${user?t('你'):t('馨弦')}<span>${user?'':t('業務解讀 · 請結合證據覆核')}</span></div>${versionMarkup}${user?'':answerCompletionNotice(message)+failureDiagnosticsView(message)}<div class="message-content narrative-body">${reading.content || (failed?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${relatedMarkup}${impactMarkup}${referenceMarkup}${retryMarkup}</div></article>`;
 }
 function conversationProgress(){
   const v=progressViewModel();
@@ -749,7 +763,7 @@ function conversationWorkbench(){
   const pending=state.pendingMessage && !messages.some(message=>message.role==='user' && message.id===state.pendingMessage.id)?state.pendingMessage:null;
   const empty=!messages.length && !pending;
   const ready=sourceUsable();
-  return ui`<section class="conversation-workspace ${empty?'is-empty':'has-messages'}"><${empty?'h2':'h1'} class="sr-only">${escapeHTML(conversationTitle(state.conversation?.title))}</${empty?'h2':'h1'}>${empty?conversationWelcome(ready):''}<div class="conversation-messages" aria-label="業務對話">${messages.map(conversationMessage).join('')}${pending?conversationMessage(pending):''}${state.busy?conversationProgress():''}</div>${state.error?ui`<div class="conversation-failure" role="status"><div class="failure-heading">${icon('alert')}本次請求未完成</div><p>${escapeHTML(state.errorDiagnostic?failureSummaryText(state.errorDiagnostic):state.error)}</p>${state.errorDiagnostic?ui`<details><summary>查看安全錯誤詳情</summary><pre class="api-raw-text">${escapeHTML(JSON.stringify(safeApiDiagnostic(state.errorDiagnostic),null,2))}</pre></details>`:''}${pending?ui`<button data-retry-pending>編輯後重新發送</button>`:''}</div>`:''}${conversationComposer()}${empty && ready?starterQuestions():''}<div class="conversation-context"><span>${frameworkStatusLabel(frameworkContext().status)}</span><button data-settings>框架與連線設定</button><details class="conversation-diagnostics"><summary>本次調查詳情</summary>${supportingContext()}${state.project?.agent?`${traceView()}${apiResponseView()}`:''}</details></div>${conversationEvidenceView()}</section>`;
+  return ui`<section class="conversation-workspace ${empty?'is-empty':'has-messages'}"><${empty?'h2':'h1'} class="sr-only">${escapeHTML(conversationTitle(state.conversation?.title))}</${empty?'h2':'h1'}>${empty?conversationWelcome(ready):''}<div class="conversation-messages" aria-label="業務對話">${messages.map(conversationMessage).join('')}${pending?conversationMessage(pending):''}${state.busy?conversationProgress():''}</div>${state.error?ui`<div class="conversation-failure" role="status"><div class="failure-heading">${icon('alert')}本次請求未完成</div><p>${escapeHTML(errorSummaryText())}</p>${state.errorDiagnostic?ui`<details><summary>查看安全錯誤詳情</summary><pre class="api-raw-text">${escapeHTML(JSON.stringify(safeApiDiagnostic(state.errorDiagnostic),null,2))}</pre></details>`:''}${pending?ui`<button data-retry-pending>編輯後重新發送</button>`:''}</div>`:''}${conversationComposer()}${empty && ready?starterQuestions():''}<div class="conversation-context"><span>${frameworkStatusLabel(frameworkContext().status)}</span><button data-settings>框架與連線設定</button><details class="conversation-diagnostics"><summary>本次調查詳情</summary>${supportingContext()}${state.project?.agent?`${traceView()}${apiResponseView()}`:''}</details></div>${conversationEvidenceView()}</section>`;
 }
 function demoConversationStart(){
   return ui`<section class="demo-chat-start">${frameworkCaseSelector()}<form id="demo-question-form" class="demo-composer"><label for="demo-question-input">你的第一個業務問題</label><textarea id="demo-question-input" rows="3" placeholder="輸入任何業務問題，或修改上方案例的建議問題…" ${state.busy?'disabled':''}>${escapeHTML(state.question)}</textarea><div class="demo-composer-actions"><small>載入只在本機建立索引。進入對話後按「發送」才會呼叫模型；追問會重用索引。</small><button class="button primary" type="submit" ${state.busy || !state.connected?'disabled':''}>${icon('arrow')}載入案例，前往提問</button></div></form></section>`;
@@ -848,11 +862,14 @@ function restorePageRoute(){
 }
 
 function apiErrorText(error){
-  const diagnostic=safeApiDiagnostic(error?.diagnostic);if(diagnostic)return failureDiagnosticText(diagnostic);
+  const diagnostic=safeApiDiagnostic(error?.diagnostic);
   const code=error?.code || 'REQUEST_FAILED';
+  if(code==='SOURCE_UPDATE_ROLLBACK_FAILED')return t('源碼更新與恢復均未完成。請保留原結果目錄，停止使用該目錄並檢查磁碟空間和寫入權限。')+(diagnostic?' '+failureDiagnosticText(diagnostic):'');
+  if(diagnostic)return failureDiagnosticText(diagnostic);
   if(code==='CONVERSATION_NOT_FOUND')return t('找不到這段對話。請從對話記錄選擇，或開始新的對話。');
   if(code==='RETRY_NOT_AVAILABLE' || code==='INVALID_RETRY')return t('這條問題已無法重試，請在對話末尾繼續提問。');
   if(code==='SOURCE_REQUIRED')return t('請先接入源碼，再開始對話。');
+  if(code==='SOURCE_UPDATE_FAILED')return t('源碼更新未完成，原資料庫和對話已保留。請檢查匯入詳情後重試。');
   if(code==='INVALID_PATH')return t('請使用完整絕對路徑：源碼目錄須存在；輸出須獨立且為空、新目錄或只含分析產物。兩者不可相互嵌套。');
   if(code==='JOB_ACTIVE')return t('目前已有分析正在執行，請等候完成。');
   if(code==='INVALID_SESSION')return t('工作階段已失效，請重新整理頁面。');
@@ -868,7 +885,7 @@ async function api(path,options={}){
   catch{const error=new Error();error.diagnostic=browserDiagnostic('connection');error.browserDiagnostic=true;error.message=failureDiagnosticText(error.diagnostic)+' '+t('此關聯編號由瀏覽器產生，不是服務端請求編號。');throw error;}
   let value;try{value=await response.json();if(!value || typeof value!=='object' || Array.isArray(value))throw Error('INVALID_RESPONSE');}
   catch{const category=response.ok?'invalid_response':response.status===429?'http_429_unknown':response.status>=500?'system_error':'request_rejected';const error=new Error();error.status=response.status;error.diagnostic=browserDiagnostic(category,response.status);error.browserDiagnostic=true;error.message=failureDiagnosticText(error.diagnostic)+' '+t('此關聯編號由瀏覽器產生，不是服務端請求編號。');throw error;}
-  if(!response.ok){const error=new Error(apiErrorText(value.error));error.status=response.status;error.diagnostic=safeApiDiagnostic(value.error?.diagnostic);error.code=['REQUEST_FAILED','ANALYSIS_FAILED','MODEL_CHECK_FAILED','CONFIGURATION_INVALID','REQUEST_TIMEOUT'].includes(value.error?.code)?value.error.code:'REQUEST_FAILED';throw error;}
+  if(!response.ok){const error=new Error(apiErrorText(value.error));error.status=response.status;error.diagnostic=safeApiDiagnostic(value.error?.diagnostic);error.code=['REQUEST_FAILED','ANALYSIS_FAILED','MODEL_CHECK_FAILED','CONFIGURATION_INVALID','REQUEST_TIMEOUT','SOURCE_UPDATE_FAILED','SOURCE_UPDATE_ROLLBACK_FAILED'].includes(value.error?.code)?value.error.code:'REQUEST_FAILED';throw error;}
   return value;
 }
 function clearEvidence(){state.selectedEvidence=null;state.evidence=null;state.evidenceTicket++;}
@@ -886,6 +903,7 @@ async function initialize(){
     state.answerDetail=data.answer_detail==='brief'?'brief':'detailed';
     if(data.project?.source){applyProject(data.project);state.mode='real';if(data.project.diagnosis)state.history=[data.project];}
     if(state.conversationSupported){state.mode='real';state.question='';state.entry='';state.readingStrategy='retrieval';applyConversation(data.conversation || data.project?.conversation);restoreConversationFailure(data.job);}
+    if(state.project?.restore_blocked){blockSourceRecovery(data.project);state.errorDiagnostic=data.job?.error?.code==='SOURCE_UPDATE_ROLLBACK_FAILED'?safeApiDiagnostic(data.job.error.diagnostic):null;state.error=apiErrorText({code:'SOURCE_UPDATE_ROLLBACK_FAILED',diagnostic:state.errorDiagnostic});}
     if(data.active_job_id){state.mode='real';state.page='workbench';state.busy=true;state.jobId=data.active_job_id;state.jobKind=data.job?.kind==='question'?'question':'index';if(state.jobKind==='index'){state.sourceJobBackup=sourceJobState();state.sourceJobTarget={source:data.job?.source || state.project?.source,output:data.job?.output || state.project?.output};}state.cancelRequested=Boolean(data.job?.cancel_requested);rememberProgress(data.job?.progress);startProgressClock();pollJob(data.active_job_id);}
   }catch{state.connected=false;state.demoLoading=false;}
   if(state.connected)await loadFrameworkDemo();
@@ -960,10 +978,18 @@ async function startJob(options){
   render();
   if(chat && options.question)$('conversation-progress')?.scrollIntoView?.({block:'center'});
   try{const response=await api('/api/analyze',{method:'POST',body:JSON.stringify(options)});state.jobId=response.job_id;if(options.framework_reference_path)state.frameworkKnowledge={...state.frameworkKnowledge,configured_path:options.framework_reference_path};if(response.conversation){applyConversation(response.conversation);state.pendingMessage=null;}rememberProgress(response.progress);if(chat)render();await pollJob(response.job_id);}
-  catch(error){state.busy=false;stopProgressClock();restoreSourceJob();state.error=error.message;state.errorDiagnostic=safeApiDiagnostic(error.diagnostic);if(chat && !state.question)state.question=draft;render();}
+  catch(error){state.busy=false;stopProgressClock();if(error.code==='SOURCE_UPDATE_ROLLBACK_FAILED')blockSourceRecovery(options);else restoreSourceJob();state.error=error.message;state.errorDiagnostic=safeApiDiagnostic(error.diagnostic);if(chat && !state.question)state.question=draft;render();}
 }
 function sourceJobState(){return {project:state.project,conversation:state.conversation,conversations:state.conversations,question:state.question,mode:state.mode,page:state.page,entry:state.entry,pendingMessage:state.pendingMessage,evidence:state.evidence,selectedEvidence:state.selectedEvidence,conversationEvidence:state.conversationEvidence};}
 function restoreSourceJob(){if(state.sourceJobBackup){Object.assign(state,state.sourceJobBackup);state.sourceJobBackup=null;}state.sourceJobTarget=null;}
+function blockSourceRecovery(scope={}){
+  const target=state.sourceJobTarget,project=state.project;
+  state.project={source:scope.scope?.source || scope.source || target?.source || project?.source || '',
+    output:scope.scope?.output || scope.output || target?.output || project?.output || '',snapshot_id:null,diagnosis:null,
+    programs:[],agent:null,relations:{edges:[]},restore_blocked:true};
+  state.conversation=null;state.conversations=[];state.pendingMessage=null;state.conversationEvidence=null;state.impactPages={};
+  clearEvidence();state.entry='';state.sourcePage=0;state.entryFilter='';state.sourceJobBackup=null;state.sourceJobTarget=null;
+}
 function sameSourceWorkspace(left,right){
   if(!left || !right)return false;
   const normalized=value=>{const path=String(value || '').replace(/\\/g,'/').replace(/\/+$/,'');return /^[A-Z]:\//i.test(path)?path.toLowerCase():path;};
@@ -982,7 +1008,7 @@ async function pollJob(jobId){
     state.busy=false;state.jobId=null;stopProgressClock();
     const sourceBackup=state.sourceJobBackup;
     const failedSource=state.jobKind==='index' && job.status!=='COMPLETED';
-    if(failedSource)restoreSourceJob();
+    if(failedSource){if(job.status==='FAILED' && job.error?.code==='SOURCE_UPDATE_ROLLBACK_FAILED')blockSourceRecovery(job);else restoreSourceJob();}
     if(job.result && !failedSource){const draft=state.question;if(state.mode==='real')applyProject(job.result);else state.project=job.result;if(state.conversationSupported){state.question=draft;state.readingStrategy='retrieval';applyConversation(job.result.conversation || job.conversation);if(job.result.conversation || job.conversation)state.pendingMessage=null;}if(job.result.diagnosis)state.history.unshift(job.result);const context=job.result.diagnosis?.framework_context;if(context)state.frameworkKnowledge={...state.frameworkKnowledge,status:['MATCHED','NO_MATCH'].includes(context.status)?'LOADED':context.status,reason_code:context.reason_code,document:context.document,runtime_verified:false};}
     else if(job.conversation && !failedSource){applyConversation(job.conversation);state.pendingMessage=null;}
     if(job.status==='FAILED'){state.error=apiErrorText(job.error);state.errorDiagnostic=safeApiDiagnostic(job.error?.diagnostic);}if(job.status==='CANCELLED')state.error=conversationMode()?t('已停止本次工作。對話已保留，可以繼續提問。'):t('已取消。再次接入會重用已完成的目錄快取。');
@@ -1070,10 +1096,10 @@ async function loadEvidence(id){
   }catch(error){if(ticket===state.evidenceTicket){toast(error.message);render();}}
 }
 function markdownSummary(project=state.project){
-  if(conversationMode() && project===state.project && state.conversation)return `# ${state.conversation.title || t('業務對話')}\n\n${t('來源：')} ${project?.source || ''}\n\n${state.conversation.messages.map(message=>`## ${message.role==='user'?t('你'):t('業務分析助手')}\n\n${message.content || ''}\n\n${(message.evidence_refs || []).map(ref=>`- ${ref.relative_path || ref.path}:${ref.start_line}–${ref.end_line} · ${ref.evidence_id}`).join('\n')}`).join('\n\n')}`;
+  if(conversationMode() && project===state.project && state.conversation)return `# ${state.conversation.title || t('業務對話')}\n\n${t('來源：')} ${project?.source || ''}\n\n${state.conversation.messages.map(message=>`## ${message.role==='user'?t('你'):t('馨弦')}\n\n${message.content || ''}\n\n${(message.evidence_refs || []).map(ref=>`- ${ref.relative_path || ref.path}:${ref.start_line}–${ref.end_line} · ${ref.evidence_id}`).join('\n')}`).join('\n\n')}`;
   if(state.mode==='demo' && project===state.project){
     const selected=demoCase();if(!selected)return t('業務案例尚未載入。');
-    return ui`# ${t('知序')} · 業務說明\n\n合成業務案例 · 未呼叫模型\n\n## ${demoText(selected.title)}\n\n${demoText(selected.purpose)}\n\n## 建議業務問題\n\n${demoText(selected.question)}\n\n## 業務處理過程\n\n${(selected.steps || []).map((step,index)=>`${index+1}. ${demoText(step.title)} — ${demoText(step.description)} [${step.evidence_id || ''}]`).join('\n')}\n\n## 業務規則與影響\n\n${(selected.metadata || []).map(item=>`- ${demoText(item.label)}: ${demoText(item.value)}`).join('\n')}\n\n業務設定為案例中的合成聲明，不代表已匯入生產配置或執行記錄。\n\n## 技術與框架依據\n\n框架類型： ${demoKind(selected.kind || selected.id)}\n調查起點： ${selected.entry_program || ''} · ${selected.entry_path || ''}\n快照： ${preview.catalog.snapshot_id || ''}\n\n## 案例源碼引用\n\n${(selected.evidence || []).map(ref=>`- ${ref.relative_path}:${ref.start_line}–${ref.end_line} · ${ref.evidence_id} · ${ref.source_sha256 || ''}`).join('\n')}\n\n## 案例範圍與待確認事項\n\n${(selected.boundaries || []).map(item=>'- '+demoText(item)).join('\n')}\n`;
+    return ui`# ${t('馨弦')} · 業務說明\n\n合成業務案例 · 未呼叫模型\n\n## ${demoText(selected.title)}\n\n${demoText(selected.purpose)}\n\n## 建議業務問題\n\n${demoText(selected.question)}\n\n## 業務處理過程\n\n${(selected.steps || []).map((step,index)=>`${index+1}. ${demoText(step.title)} — ${demoText(step.description)} [${step.evidence_id || ''}]`).join('\n')}\n\n## 業務規則與影響\n\n${(selected.metadata || []).map(item=>`- ${demoText(item.label)}: ${demoText(item.value)}`).join('\n')}\n\n業務設定為案例中的合成聲明，不代表已匯入生產配置或執行記錄。\n\n## 技術與框架依據\n\n框架類型： ${demoKind(selected.kind || selected.id)}\n調查起點： ${selected.entry_program || ''} · ${selected.entry_path || ''}\n快照： ${preview.catalog.snapshot_id || ''}\n\n## 案例源碼引用\n\n${(selected.evidence || []).map(ref=>`- ${ref.relative_path}:${ref.start_line}–${ref.end_line} · ${ref.evidence_id} · ${ref.source_sha256 || ''}`).join('\n')}\n\n## 案例範圍與待確認事項\n\n${(selected.boundaries || []).map(item=>'- '+demoText(item)).join('\n')}\n`;
   }
   const d=project?.diagnosis;const answer=project?.agent?.agent_result;
   const entry=d?.selected_entry;const refs=answer?.evidence_refs || answer?.verified_evidence_refs || [];
@@ -1083,7 +1109,7 @@ function markdownSummary(project=state.project){
   const investigation=answer?.investigation || d?.investigation;
   const searchSummary=investigation?.mode==='repository'?ui`\n\n## 本次查找\n\n整個代碼庫 · 自動查找\n\n${(investigation.searches || []).map(search=>`- ${search.query || ''} · ${t('匹配檔案')} ${search.matched_file_count ?? (Array.isArray(search.matched_files)?search.matched_files.length:search.matched_files) ?? 0}`).join('\n')}\n\n${(investigation.selected_paths || []).join('\n')}`:'';
   const sourceSummaries=narrativeText(answer) && programSummaries(answer).length?ui`\n\n## 各來源的業務解讀\n\n按來源保留的模型解讀，可補充上方業務摘要；仍需業務覆核。\n\n${programSummaries(answer).map(item=>`### ${item.relative_path || item.program_name || t('源碼引用')}\n\n${item.text}${item.complete===false?'\n\n'+t('部分解讀'):''}`).join('\n\n')}`:'';
-  return ui`# ${t('知序')} · 業務分析摘要\n\n資料模式：${syntheticProject(project)?t('本機合成源碼'):t('本機源碼')}\n匯出時間： ${new Date().toISOString()}\n來源： ${project?.source || ''}\n調查起點： ${entry?.program_name || d?.entry_requested || t('整個代碼庫 · 自動查找')}${entry?.relative_path?' · '+entry.relative_path:''}\n快照： ${project?.snapshot_id || t('未建立')}\n接入狀態： ${d?.runner_status || ''}\n問答狀態： ${answer?.status || d?.question_status || ''}\n\n## 業務問題\n\n${d?.question || t('尚未提出問題')}\n\n${narrativeText(answer) || answer?.answer || t('本次沒有生成業務答案。')}${searchSummary}${coverageSummary}${sourceSummaries}\n\n## 本次引用索引\n\n${refs.length?refs.map(r=>`- ${r.relative_path || r.path}:${r.start_line}–${r.end_line} · ${r.evidence_id}`).join('\n'):t('本次沒有回答引用。')}\n\n${frameworkSummary}\n\n## 接入診斷\n\n${(d?.messages || []).map(m=>'- '+m).join('\n')}\n\n問題相關性與完整性尚未核驗。完整診斷與分析邊界可一併匯出為 JSON。\n`;
+  return ui`# ${t('馨弦')} · 業務分析摘要\n\n資料模式：${syntheticProject(project)?t('本機合成源碼'):t('本機源碼')}\n匯出時間： ${new Date().toISOString()}\n來源： ${project?.source || ''}\n調查起點： ${entry?.program_name || d?.entry_requested || t('整個代碼庫 · 自動查找')}${entry?.relative_path?' · '+entry.relative_path:''}\n快照： ${project?.snapshot_id || t('未建立')}\n接入狀態： ${d?.runner_status || ''}\n問答狀態： ${answer?.status || d?.question_status || ''}\n\n## 業務問題\n\n${d?.question || t('尚未提出問題')}\n\n${narrativeText(answer) || answer?.answer || t('本次沒有生成業務答案。')}${searchSummary}${coverageSummary}${sourceSummaries}\n\n## 本次引用索引\n\n${refs.length?refs.map(r=>`- ${r.relative_path || r.path}:${r.start_line}–${r.end_line} · ${r.evidence_id}`).join('\n'):t('本次沒有回答引用。')}\n\n${frameworkSummary}\n\n## 接入診斷\n\n${(d?.messages || []).map(m=>'- '+m).join('\n')}\n\n問題相關性與完整性尚未核驗。完整診斷與分析邊界可一併匯出為 JSON。\n`;
 }
 async function loadImpactPage(messageId){
   const message=state.conversation?.messages?.find(item=>item.id===messageId);

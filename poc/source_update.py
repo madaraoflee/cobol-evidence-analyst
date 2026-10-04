@@ -13,6 +13,10 @@ _SQLITE_BATCH_PAGES = 256
 _FILE_BATCH_BYTES = 1024 * 1024
 _PROGRESS_INTERVAL_SECONDS = 0.1
 _BUSY_POLL_SECONDS = 0.05
+# Primary result constants were not all exported by Python 3.10.
+_SQLITE_BUSY = getattr(sqlite3, "SQLITE_BUSY", 5)
+_SQLITE_LOCKED = getattr(sqlite3, "SQLITE_LOCKED", 6)
+_SQLITE_DONE = getattr(sqlite3, "SQLITE_DONE", 101)
 
 
 class SourceUpdateBackup:
@@ -26,10 +30,10 @@ class SourceUpdateBackup:
         # A sibling stays on the same filesystem in ordinary workspaces and
         # cannot leave an unknown entry inside the managed output directory.
         try:
-            self.temporary = tempfile.TemporaryDirectory(prefix="source-update-", dir=self.output.parent)
+            self.root = Path(tempfile.mkdtemp(prefix="source-update-", dir=self.output.parent))
         except PermissionError:
-            self.temporary = tempfile.TemporaryDirectory(prefix="source-update-")
-        self.root = Path(self.temporary.name)
+            self.root = Path(tempfile.mkdtemp(prefix="source-update-"))
+        self.keep_for_recovery = False
         self.existing = set()
         self.file_sizes = {}
         self.completed_bytes = 0
@@ -103,7 +107,10 @@ class SourceUpdateBackup:
                     page_size = source.execute("PRAGMA page_size").fetchone()[0]
                     break
                 except sqlite3.OperationalError as error:
-                    if getattr(error, "sqlite_errorcode", None) not in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
+                    code = getattr(error, "sqlite_errorcode", None)
+                    primary = code & 255 if type(code) is int else None
+                    legacy_locked = error.args in (("database is locked",), ("database table is locked",), ("database schema is locked",))
+                    if primary not in (_SQLITE_BUSY, _SQLITE_LOCKED) and not legacy_locked:
                         raise
                     busy_started_at = self._check_busy(busy_started_at)
                     self._emit(name)
@@ -113,13 +120,13 @@ class SourceUpdateBackup:
             def advance(status, remaining, total):
                 nonlocal busy_started_at
                 self._check_cancel()
-                if status in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
+                if status in (_SQLITE_BUSY, _SQLITE_LOCKED):
                     busy_started_at = self._check_busy(busy_started_at)
                     self._emit(name)
                     return
                 busy_started_at = None
                 self.file_sizes[name] = total * page_size
-                self._emit(name, (total - remaining) * page_size, force=status == sqlite3.SQLITE_DONE)
+                self._emit(name, (total - remaining) * page_size, force=status == _SQLITE_DONE)
 
             with closing(sqlite3.connect(self.root / name)) as target:
                 source.backup(target, pages=_SQLITE_BATCH_PAGES, progress=advance, sleep=_BUSY_POLL_SECONDS)
@@ -158,5 +165,11 @@ class SourceUpdateBackup:
             else:
                 path.unlink(missing_ok=True)
 
+    def preserve(self):
+        """Keep the original artifacts when automatic rollback cannot finish."""
+        self.keep_for_recovery = True
+        return str(self.root)
+
     def close(self):
-        self.temporary.cleanup()
+        if not self.keep_for_recovery and self.root.exists():
+            shutil.rmtree(self.root)

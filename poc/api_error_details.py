@@ -1,8 +1,10 @@
 """Allowlisted API failure explanations; upstream text is never returned."""
 from __future__ import annotations
 
+import errno
 import json
 import re
+import sqlite3
 import uuid
 from collections.abc import Mapping
 
@@ -27,6 +29,16 @@ _EXPLANATIONS = {
     "request_rejected": ("接口拒绝本次请求，具体原因尚未确认。", "凭关联编号检查接口支持的请求格式和服务日志。"),
     "invalid_response": ("接口返回的响应格式无效。", "检查接口兼容性和服务端响应日志。"),
     "system_error": ("请求处理发生系统错误，具体原因尚未确认。", "凭关联编号检查应用和服务端日志。"),
+    "storage_full": ("本机存储空间不足。", "释放结果目录与临时目录磁盘空间后重试。"),
+    "storage_permission": ("无法写入本机分析文件。", "检查结果目录和工作台配置目录的写权限。"),
+    "storage_locked": ("本机数据库或文件被占用。", "停止其它使用同一结果目录的工作台后重试。"),
+    "storage_corrupt": ("本机分析数据库损坏或格式无效。", "保留原结果目录并用新的独立结果目录重新建立索引。"),
+    "report_invalid": ("本机分析报告无法读取或格式无效。", "保留原文件，检查导入详情并重新生成分析产物。"),
+    "source_snapshot_mismatch": ("本次导入的程序清单与索引快照不一致。", "保留原资料库并重新执行源码更新。"),
+    "source_encoding_invalid": ("本次导入遇到无法按所选编码读取的文件。", "核对导入进度显示的文件，确认它是文本源码，并选择正确编码后重试。"),
+    "source_changed": ("导入期间源码发生了变化，无法建立一致索引。", "暂停源码编辑或同步，待文件稳定后重新导入。"),
+    "source_empty": ("所选目录没有符合设置的可用源码。", "核对源码目录、扩展名和无扩展名文件设置。"),
+    "fts_unavailable": ("当前 Python 的 SQLite 不支持全文索引。", "使用包含 FTS5 的 Python 3.10 或更高版本后重新启动工作台。"),
 }
 TRANSPORT_EXPLANATIONS = {
     "dns_resolution_failed": "找不到接口地址，请检查网络或地址。",
@@ -61,6 +73,12 @@ _LOCAL_CATEGORY = {
     "MODEL_MESSAGE_MISSING": "invalid_response", "MODEL_TEXT_WRAPPER_UNSUPPORTED": "invalid_response",
     "REQUEST_FAILED": "system_error", "ANALYSIS_FAILED": "system_error", "INTERNAL_ERROR": "system_error",
     "CONFIGURATION_INVALID": "system_error",
+    "LOCAL_STORAGE_FULL": "storage_full", "LOCAL_STORAGE_PERMISSION": "storage_permission",
+    "LOCAL_STORAGE_LOCKED": "storage_locked", "LOCAL_STORAGE_CORRUPT": "storage_corrupt",
+    "LOCAL_REPORT_INVALID": "report_invalid", "SOURCE_SNAPSHOT_MISMATCH": "source_snapshot_mismatch",
+    "SOURCE_ENCODING_INVALID": "source_encoding_invalid", "SOURCE_CHANGED_DURING_READ": "source_changed",
+    "SOURCE_HASH_MISMATCH": "source_changed", "SOURCE_INDEX_EMPTY": "source_empty",
+    "LOCAL_FTS_UNAVAILABLE": "fts_unavailable",
 }
 _MESSAGE_RULES = (
     (r"(?:request (?:body |payload )?(?:is )?too large|payload too large|request entity too large)[.!]?", "request_too_large"),
@@ -74,6 +92,50 @@ _MESSAGE_RULES = (
     (r"(?:invalid api key|authentication failed)[.!]?", "authentication"),
     (r"(?:permission denied|access denied)[.!]?", "permission"),
 )
+
+
+def build_local_diagnostic(exc, fallback_code="INTERNAL_ERROR", *, http_status=None):
+    """Explain typed local failures without returning exception text or paths."""
+    code = fallback_code
+    if isinstance(exc, sqlite3.Error):
+        number = getattr(exc, "sqlite_errorcode", None)
+        primary = number & 255 if type(number) is int else None
+        sqlite_codes = {13: "LOCAL_STORAGE_FULL", 8: "LOCAL_STORAGE_PERMISSION",
+                        5: "LOCAL_STORAGE_LOCKED", 6: "LOCAL_STORAGE_LOCKED",
+                        11: "LOCAL_STORAGE_CORRUPT", 26: "LOCAL_STORAGE_CORRUPT"}
+        # Python 3.10 does not attach sqlite_errorcode. Only exact standard
+        # messages are recognized; arbitrary database text is never reflected.
+        sqlite_messages = {"database or disk is full": "LOCAL_STORAGE_FULL",
+                           "attempt to write a readonly database": "LOCAL_STORAGE_PERMISSION",
+                           "database is locked": "LOCAL_STORAGE_LOCKED", "database table is locked": "LOCAL_STORAGE_LOCKED",
+                           "database schema is locked": "LOCAL_STORAGE_LOCKED",
+                           "database disk image is malformed": "LOCAL_STORAGE_CORRUPT", "file is not a database": "LOCAL_STORAGE_CORRUPT"}
+        code = sqlite_codes.get(primary, code)
+        if primary is None and len(exc.args) == 1 and isinstance(exc.args[0], str):
+            code = sqlite_messages.get(exc.args[0], code)
+    elif isinstance(exc, OSError):
+        windows_error = getattr(exc, "winerror", None)
+        if windows_error in {32, 33}:
+            code = "LOCAL_STORAGE_LOCKED"
+        elif exc.errno in {errno.ENOSPC, getattr(errno, "EDQUOT", -1)} or windows_error in {39, 112}:
+            code = "LOCAL_STORAGE_FULL"
+        elif isinstance(exc, PermissionError) or exc.errno in {errno.EACCES, errno.EPERM, errno.EROFS}:
+            code = "LOCAL_STORAGE_PERMISSION"
+    elif isinstance(exc, json.JSONDecodeError):
+        code = "LOCAL_REPORT_INVALID"
+    elif isinstance(exc, ValueError) and len(exc.args) == 1 and isinstance(exc.args[0], str):
+        known = {"SOURCE_ENCODING_INVALID", "SOURCE_CHANGED_DURING_READ", "SOURCE_HASH_MISMATCH", "SOURCE_INDEX_EMPTY", "SOURCE_SNAPSHOT_MISMATCH"}
+        if exc.args[0] in known:
+            code = exc.args[0]
+        elif exc.args[0] == "SOURCE_UPDATE_BACKUP_BUSY":
+            code = "LOCAL_STORAGE_LOCKED"
+        elif exc.args[0] in {"invalid report", "invalid report view", "report view does not match complete report"}:
+            code = "LOCAL_REPORT_INVALID"
+    elif type(exc) is RuntimeError and exc.args in (
+            ("This SQLite build does not include FTS5 support.",),
+            ("This Python SQLite build does not include FTS5 support.",)):
+        code = "LOCAL_FTS_UNAVAILABLE"
+    return build_diagnostic(code, http_status=http_status)
 
 
 def sanitize_diagnostic(value):

@@ -8,10 +8,12 @@ import codecs
 import copy
 from contextlib import closing
 from dataclasses import replace
+import hashlib
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import logging
+import os
 from pathlib import Path
 import re
 import secrets
@@ -33,7 +35,7 @@ from report_view import DIRECT_REPORT_BYTES, VIEW_REPORT_BYTES, report_sha256
 from conversation_store import ConversationStore
 from runtime_settings import load_agent_policy
 from agent_policy import resolve_agent_policy
-from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
+from api_error_details import build_diagnostic, build_local_diagnostic, format_diagnostic, sanitize_diagnostic
 from source_versions import record_version, versions
 from source_update import SourceUpdateBackup
 
@@ -46,7 +48,8 @@ STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.
                 "/markdown.js": "markdown.js", "/marked.umd.js": "marked.umd.js"}
 MAX_REQUEST_BYTES = 32_768
 MAX_GRAPH_EDGES = 200
-OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm", "conversations.sqlite", "conversations.sqlite-wal", "conversations.sqlite-shm", "conversations.sqlite-journal", "quality-traces", "semantic-scopes", "impact-results", "versioned-evidence.sqlite", "versioned-evidence.sqlite-wal", "versioned-evidence.sqlite-shm", "source-versions.sqlite", "source-versions.sqlite-wal", "source-versions.sqlite-shm", "source-versions.sqlite-journal"))
+SOURCE_UPDATE_PENDING = "source-update-pending.json"
+OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, SOURCE_UPDATE_PENDING, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm", "conversations.sqlite", "conversations.sqlite-wal", "conversations.sqlite-shm", "conversations.sqlite-journal", "quality-traces", "semantic-scopes", "impact-results", "versioned-evidence.sqlite", "versioned-evidence.sqlite-wal", "versioned-evidence.sqlite-shm", "source-versions.sqlite", "source-versions.sqlite-wal", "source-versions.sqlite-shm", "source-versions.sqlite-journal"))
 EVIDENCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}")
 LOGGER = logging.getLogger(__name__)
 
@@ -65,7 +68,7 @@ def _failure_diagnostic(exc, fallback_code, *, http_status=None):
         return _log_safe_failure(diagnostic)
     code = exc.code if isinstance(exc, (APIClientError, APIConfigurationError)) else fallback_code
     status = getattr(exc, "http_status", http_status)
-    return _log_safe_failure(build_diagnostic(code, http_status=status))
+    return _log_safe_failure(build_local_diagnostic(exc, code, http_status=status))
 
 
 def _log_safe_failure(value):
@@ -109,6 +112,9 @@ def _validate_options(payload: object) -> dict:
         # overwriting unrelated documents with reserved report filenames.
         if output.exists() and any(path.name not in OUTPUT_NAMES for path in output.iterdir()):
             raise ValueError("unrelated output contents")
+        pending = output / SOURCE_UPDATE_PENDING
+        if pending.is_symlink() or (pending.exists() and not pending.is_file()):
+            raise ValueError("invalid source update marker")
     except (OSError, ValueError):
         raise RequestError(
             "INVALID_PATH",
@@ -180,6 +186,28 @@ def _read_json(path: Path) -> object:
     return view
 
 
+def _workspace_diagnosis(path: Path) -> object:
+    try:
+        return _read_json(path)
+    except ValueError:
+        if path.is_symlink() or not path.is_file() or path.stat().st_size <= DIRECT_REPORT_BYTES:
+            raise
+    # Older imports did not produce a diagnosis view. Convert the complete,
+    # validated JSON once; future restarts read its bounded companion. This
+    # touches the report only and preserves the original file byte for byte.
+    from report_view import project_report, write_report_view
+    with path.open(encoding="utf-8") as stream:
+        complete = json.load(stream)
+    if not isinstance(complete, dict):
+        raise ValueError("invalid diagnosis")
+    view = project_report(complete)
+    try:
+        write_report_view(path, complete)
+    except (OSError, ValueError):
+        pass
+    return view
+
+
 def _unaccepted_agent(agent: dict, reason_code: str) -> dict:
     """Retain response text for diagnostics without granting citation authority."""
     rejected = {"runner_status": "NOT_READY", "reason_code": reason_code, "agent_result": None}
@@ -215,17 +243,48 @@ def _relationships(database: Path, snapshot_id: str) -> dict:
         stored_snapshot = connection.execute("SELECT value FROM metadata WHERE key='snapshot_id'").fetchone()
         if stored_snapshot is None or stored_snapshot[0] != snapshot_id:
             raise ValueError("relationship snapshot mismatch")
-        rows = [dict(row) for row in connection.execute(
-            """SELECT r.relation_id, u.program_name AS source_program,
+        columns = """SELECT r.relation_id, u.program_name AS source_program,
                       r.target_name, r.relation_type, r.status, r.target_entity_id,
                       e.evidence_id, e.relative_path, e.start_line, e.end_line
                  FROM relations r
                  JOIN code_units u ON u.unit_id = r.from_entity_id
                  JOIN evidence_spans e ON e.evidence_id = r.evidence_id
-                WHERE r.relation_type IN ('CALLS', 'CALL_TARGET_FROM', 'INCLUDES_COPY')
-                ORDER BY e.relative_path, e.start_line, r.relation_type
-                LIMIT ?""", (MAX_GRAPH_EDGES + 1,),
-        )]
+                WHERE r.relation_type IN ('CALLS', 'CALL_TARGET_FROM', 'INCLUDES_COPY')"""
+        indexed = connection.execute("SELECT 1 FROM sqlite_master WHERE type='index' "
+                                     "AND name='repo_relations_path'").fetchone()
+        paths, matched_paths = [], set()
+        same_paths = bool(indexed)
+        if indexed:
+            # Only CALL/COPY metadata is visited. Published source relations
+            # belong to the source-file inventory; unrelated field relations
+            # cannot make this preview perform a full relation-table scan.
+            for row in connection.execute(
+                    "SELECT r.relative_path,e.relative_path FROM source_files f "
+                    "CROSS JOIN relations r INDEXED BY repo_relations_path "
+                    "ON r.relative_path=f.relative_path "
+                    "JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
+                    "WHERE r.relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY') "
+                    "ORDER BY f.relative_path"):
+                if row[0] != row[1]:
+                    # Preserve the original evidence-path ordering for any
+                    # graph facts whose provenance belongs to another file.
+                    same_paths = False
+                    break
+                if row[0] not in matched_paths:
+                    paths.append(row[0])
+                    matched_paths.add(row[0])
+        if same_paths:
+            rows = []
+            for relative in paths:
+                remaining = MAX_GRAPH_EDGES + 1 - len(rows)
+                rows.extend(dict(row) for row in connection.execute(columns +
+                    " AND r.relative_path=? ORDER BY e.start_line,r.relation_type LIMIT ?",
+                    (relative, remaining)))
+                if len(rows) > MAX_GRAPH_EDGES:
+                    break
+        else:
+            rows = [dict(row) for row in connection.execute(columns +
+                " ORDER BY e.relative_path,e.start_line,r.relation_type LIMIT ?", (MAX_GRAPH_EDGES + 1,))]
     return {"edges": rows[:MAX_GRAPH_EDGES], "truncated": len(rows) > MAX_GRAPH_EDGES, "snapshot_id": snapshot_id}
 
 
@@ -350,6 +409,7 @@ class WorkbenchState:
         data = {"source": str(options.get("source") or ""), "output": str(options.get("output") or ""),
                 "framework_reference_path": self.framework_reference_path,
                 "answer_detail": self.answer_detail,
+                "restore_blocked": self.project.get("restore_blocked") is True,
                 "conversation_id": (self.conversation or {}).get("id")}
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         if self.state_path.is_symlink():
@@ -365,34 +425,139 @@ class WorkbenchState:
             return
         try:
             saved = json.loads(self.state_path.read_text(encoding="utf-8"))
-            self.framework_reference_path = saved.get("framework_reference_path")
+            if not isinstance(saved, dict):
+                return
+            reference = saved.get("framework_reference_path")
+            self.framework_reference_path = reference if isinstance(reference, str) else None
             self.answer_detail = "brief" if saved.get("answer_detail") == "brief" else "detailed"
-            if not saved.get("source") or not saved.get("output"):
+            if not all(isinstance(saved.get(key), str) and saved[key] for key in ("source", "output")):
                 return
-            source, output = _paths(Path(saved["source"]), Path(saved["output"]))
-            report = _read_json(output / "diagnosis.json")
-            from repository_discovery import repository_search_overview
-            overview = repository_search_overview(output / "structural-index.sqlite", source)
-            if not report.get("source_manifest_verified") or report.get("source_root") != str(source):
+            source_input, output_input = Path(saved["source"]), Path(saved["output"])
+            if not source_input.is_absolute() or not output_input.is_absolute():
                 return
-            if (report.get("build_report") or {}).get("snapshot_id") != overview["snapshot_id"]:
+            source, output = _paths(source_input, output_input)
+            # Keep the inputs available even when an explicit index repair is
+            # needed. A saved path alone never grants source authority.
+            self.project = _project(str(source), str(output))
+            if saved.get("restore_blocked") is True or (output / SOURCE_UPDATE_PENDING).exists() or (output / SOURCE_UPDATE_PENDING).is_symlink():
+                self.project["restore_blocked"] = True
                 return
-            programs = _read_json(output / "programs.json")
+            database = output / "structural-index.sqlite"
+            if not source.is_dir() or not database.is_file():
+                return
+            report = _workspace_diagnosis(output / "diagnosis.json")
+            if (not isinstance(report, dict) or report.get("source_manifest_verified") is not True
+                    or report.get("source_root") != str(source) or not isinstance(report.get("scope"), dict)):
+                return
+            try:
+                programs = _read_json(output / "programs.json")
+            except (OSError, ValueError):
+                programs = None
+            from repository_discovery import _fast_snapshot
+            with closing(sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True)) as connection:
+                connection.row_factory = sqlite3.Row
+                connection.execute("BEGIN")
+                metadata = dict(connection.execute("SELECT key,value FROM metadata WHERE key IN "
+                                                    "('snapshot_id','source_root_hash','source_options')"))
+                if (not metadata.get("snapshot_id") or metadata.get("snapshot_id") == "unknown"
+                        or metadata.get("source_root_hash") != hashlib.sha256(str(source).encode()).hexdigest()):
+                    return
+                _, overview = _fast_snapshot(connection, source)
+                database_options = json.loads(metadata["source_options"])
+                if not isinstance(database_options, dict):
+                    return
+                snapshot = overview["snapshot_id"]
+                programs_repaired = (not isinstance(programs, dict) or programs.get("snapshot_id") != snapshot
+                    or not isinstance(programs.get("programs"), list)
+                    or not all(isinstance(item, dict)
+                        and all(isinstance(item.get(key), str) and item[key]
+                                for key in ("program_name", "relative_path"))
+                        and type(item.get("start_line")) is int and item["start_line"] > 0
+                        and (item.get("evidence_id") is None or isinstance(item["evidence_id"], str) and item["evidence_id"])
+                        for item in programs["programs"]))
+                if programs_repaired:
+                    # Restore the current evidence IDs, rather than relabeling
+                    # a stale list with the database's new snapshot.
+                    items = [dict(row) for row in connection.execute(
+                        """SELECT s.name AS program_name, s.relative_path, u.start_line, s.evidence_id
+                             FROM symbols s JOIN code_units u ON u.unit_id = s.definition_unit_id
+                            WHERE s.symbol_type = 'Program'
+                            ORDER BY s.name, s.relative_path, u.start_line""")]
+                    for item in items:
+                        item.update(entry_key=f"{item['relative_path']}::{item['program_name']}::{item['start_line']}",
+                                    name_origin="program_id")
+                    programs = {"snapshot_id": snapshot, "catalog_snapshot_id": report.get("catalog_snapshot_id"),
+                                "scope": report["scope"], "programs": items}
+            build_report = report.get("build_report")
+            build_report = build_report if isinstance(build_report, dict) else {}
+            source_options = report.get("source_options")
+            source_options = source_options if isinstance(source_options, dict) else {}
+            index_options = {key: database_options[key] for key in
+                             ("extensions", "include_extensionless", "encoding", "source_format")}
+            repaired = (build_report.get("snapshot_id") != snapshot or programs_repaired
+                        or any(source_options.get(key) != value for key, value in index_options.items()))
+            report.update(build_report={**build_report, "snapshot_id": snapshot}, snapshot_id=snapshot,
+                          repository_search=overview, source_options={**source_options, **index_options})
+            if repaired:
+                report["report_repaired_from_index"] = True
+                report["program_count"] = len(programs["programs"])
             project = _project(str(source), str(output))
             project.update(diagnosis=report, programs=programs.get("programs", []),
-                           snapshot_id=overview["snapshot_id"],
-                           agent=_read_json(output / "agent-result.json") if saved.get("conversation_id") else None,
-                           relations=_relationships(output / "structural-index.sqlite", overview["snapshot_id"]))
-            project["source_versions"] = versions(output, source)
-            project["source_version"] = next(iter(project["source_versions"]), None)
+                           snapshot_id=snapshot, catalog_snapshot_id=report.get("catalog_snapshot_id"),
+                           relations=_relationships(database, snapshot))
+            if programs.get("display_projection"):
+                project["display_projection"] = programs["display_projection"]
             self.project = project
+        except (OSError, ValueError, KeyError, TypeError, AttributeError, sqlite3.Error):
+            return
+
+        # Display reports, version history and conversations are independent
+        # of the published index. Their failures must not clear the library.
+        if repaired:
+            from analyze_source import _write
+            from report_view import write_report_view
+            # A display projection must never replace the complete diagnosis.
+            # Indexed questions already repair its snapshot from SQLite.
+            if not report.get("display_projection"):
+                try:
+                    _write(output / "diagnosis.json", report)
+                    write_report_view(output / "diagnosis.json", report)
+                except (OSError, ValueError):
+                    pass
+            if programs_repaired:
+                try:
+                    _write(output / "programs.json", programs)
+                    write_report_view(output / "programs.json", programs)
+                except (OSError, ValueError):
+                    pass
+        project["source_versions"], project["source_version"] = [], None
+        try:
+            project["source_versions"] = versions(output, source)
+            project["source_version"] = next((version for version in project["source_versions"]
+                                                if version.get("snapshot_id") == snapshot), None)
+        except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+            pass
+        if saved.get("conversation_id"):
+            try:
+                agent = _read_json(output / "agent-result.json")
+                if isinstance(agent, dict) and (agent.get("agent_result") is None or isinstance(agent.get("agent_result"), dict)):
+                    agent_snapshot = (agent.get("agent_result") or {}).get("snapshot_id")
+                    if agent_snapshot is not None and agent_snapshot != snapshot:
+                        agent = _unaccepted_agent(agent, "ANSWER_SNAPSHOT_MISMATCH")
+                    project["agent"] = agent
+            except (OSError, ValueError, TypeError, AttributeError):
+                pass
+        try:
             self.conversation_store = ConversationStore(output, source)
             self.conversation_store.recover_interrupted()
-            if saved.get("conversation_id"):
+            self.conversation_store.list()
+        except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+            self.conversation_store = None
+        if self.conversation_store and saved.get("conversation_id"):
+            try:
                 self.conversation = self.conversation_store.get(saved["conversation_id"])
-        except (OSError, ValueError, KeyError, sqlite3.Error):
-            # The saved path is a convenience, not authority for a stale index.
-            self.project = _project()
+            except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+                self.conversation = None
 
     def framework(self):
         try:
@@ -571,8 +736,12 @@ class WorkbenchState:
     def _record_failure(self, options, job_id, status):
         identifier = options.get("conversation_id")
         if identifier and self.conversation_store:
-            self.conversation_store.complete_user(job_id, status)
-            self.conversation = self.conversation_store.get(identifier)
+            try:
+                self.conversation_store.complete_user(job_id, status)
+                self.conversation = self.conversation_store.get(identifier)
+            except (OSError, ValueError, sqlite3.Error) as exc:
+                _failure_diagnostic(exc, "ANALYSIS_FAILED")
+                self.conversation, self.conversation_store = None, None
 
     def framework_demo(self) -> dict:
         from framework_demo import load_framework_demo
@@ -664,6 +833,9 @@ class WorkbenchState:
                 raise RequestError("JOB_ACTIVE", "当前分析尚未结束，请等待完成。", 409)
             job_id = secrets.token_hex(16)
             same_project = self.project.get("source") == str(options["source"]) and self.project.get("output") == str(options["output"])
+            if options["question"] and ((same_project and self.project.get("restore_blocked") is True)
+                                       or (options["output"] / SOURCE_UPDATE_PENDING).exists()):
+                raise RequestError("SOURCE_UPDATE_ROLLBACK_FAILED", "源码更新与恢复均未完成，请保留原结果目录并先恢复资料库。", 409)
             source_update = not options["question"] and not options["allow_network"] and not options.get("entry")
             if source_update:
                 # An explicit import checks all content, including equal-size
@@ -672,7 +844,8 @@ class WorkbenchState:
                 options["reading_strategy"] = "retrieval"
                 options["_source_update"] = {"project": self.project, "conversation": self.conversation,
                     "store": self.conversation_store, "framework_reference_path": self.framework_reference_path,
-                    "answer_detail": self.answer_detail, "same_project": same_project}
+                    "answer_detail": self.answer_detail, "same_project": same_project,
+                    "pending_before": (options["output"] / SOURCE_UPDATE_PENDING).exists()}
             retry_message_id = options.get("retry_message_id")
             if retry_message_id and (not same_project or not options["allow_network"] or not options.get("conversation_id")):
                 raise RequestError("INVALID_RETRY", "只能在当前对话和源码范围内重试原问题。", 409)
@@ -786,6 +959,19 @@ class WorkbenchState:
                 backup = SourceUpdateBackup(output, (*ARTIFACT_NAMES, "source-versions.sqlite"),
                     progress=lambda event: self._progress(job_id, event), check_cancel=self._check_cancel)
                 options["_source_update"]["artifacts"] = backup
+            if options.get("_source_update"):
+                output.mkdir(parents=True, exist_ok=True)
+                pending = output / SOURCE_UPDATE_PENDING
+                if pending.is_symlink() or (pending.exists() and not pending.is_file()):
+                    raise ValueError("invalid source update marker")
+                if not pending.exists():
+                    # The output itself records an unfinished update before
+                    # any published artifacts can change. It remains useful
+                    # when the separate workspace settings cannot be written.
+                    with pending.open("x", encoding="utf-8") as stream:
+                        json.dump({"job_id": job_id}, stream)
+                        stream.flush()
+                        os.fsync(stream.fileno())
             arguments = {key: value for key, value in options.items()
                          if key not in {"source", "output", "conversation_id", "retry_message_id", "retry_assistant_id", "_source_update"}}
             if arguments.get("framework_reference_path") is None:
@@ -818,7 +1004,8 @@ class WorkbenchState:
                 except (OSError, ValueError, sqlite3.Error):
                     project["diagnosis"] = {**report, "runner_status": "BLOCKED", "question_status": "NOT_READY",
                                             "source_manifest_verified": False, "catalog_ready": False,
-                                            "reason_code": "SOURCE_SNAPSHOT_MISMATCH"}
+                                            "reason_code": "SOURCE_SNAPSHOT_MISMATCH",
+                                            "diagnostic": build_diagnostic("SOURCE_SNAPSHOT_MISMATCH")}
                     project["agent"] = _unaccepted_agent(agent, "SOURCE_SNAPSHOT_MISMATCH")
                 else:
                     agent_snapshot = (agent.get("agent_result") or {}).get("snapshot_id")
@@ -854,10 +1041,13 @@ class WorkbenchState:
                     self._check_cancel()
                     update = options.get("_source_update")
                     if update and not project.get("snapshot_id"):
-                        self._restore_source_update(options)
+                        failed_report = project.get("diagnosis") or {}
+                        diagnostic = sanitize_diagnostic(failed_report.get("diagnostic")) or build_diagnostic("ANALYSIS_FAILED")
+                        rollback_error = self._restore_after_failure(options)
                         self.updated_at = time.monotonic()
                         self.job.update(status="FAILED", result=None, conversation=copy.deepcopy(self.conversation),
-                            error={"code": "SOURCE_UPDATE_FAILED", "message": "源码更新未完成，原对话和版本记录已保留。请检查目录、编码或源文件后重试。"})
+                            error=rollback_error or {"code": "SOURCE_UPDATE_FAILED", "message": format_diagnostic(diagnostic),
+                                                     "diagnostic": _log_safe_failure(diagnostic)})
                         return
                     if update:
                         self.conversation_store = ConversationStore(output, source)
@@ -868,30 +1058,59 @@ class WorkbenchState:
                     self._record_answer(options, job_id, project)
                     project["conversation"] = copy.deepcopy(self.conversation)
                     self._save_workspace(options)
+                    if update:
+                        (output / SOURCE_UPDATE_PENDING).unlink()
                     self.updated_at = time.monotonic()
                     self.job.update(status="COMPLETED", result=copy.deepcopy(project))
         except AnalysisCancelled:
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
                     self.updated_at = time.monotonic()
-                    self._restore_source_update(options)
-                    self._record_failure(options, job_id, "cancelled")
-                    self.job.update(status="CANCELLED", result=None, conversation=copy.deepcopy(self.conversation))
+                    rollback_error = self._restore_after_failure(options)
+                    self._record_failure(options, job_id, "failed" if rollback_error else "cancelled")
+                    self.job.update(status="FAILED" if rollback_error else "CANCELLED", result=None,
+                                    error=rollback_error, conversation=copy.deepcopy(self.conversation))
         except Exception as exc:
             # Never serialize raw adapter errors, environment values or remote
             # responses. Failed work leaves no current evidence authority.
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
                     self.updated_at = time.monotonic()
-                    self._restore_source_update(options)
+                    rollback_error = self._restore_after_failure(options)
                     self._record_failure(options, job_id, "failed")
                     self.job["conversation"] = copy.deepcopy(self.conversation)
                     diagnostic = _failure_diagnostic(exc, "ANALYSIS_FAILED")
-                    self.job.update(status="FAILED", error={"code": "ANALYSIS_FAILED",
+                    self.job.update(status="FAILED", result=None, error=rollback_error or {"code": "ANALYSIS_FAILED",
                         "message": format_diagnostic(diagnostic), "diagnostic": diagnostic})
         finally:
             if backup:
-                backup.close()
+                try:
+                    backup.close()
+                except OSError as exc:
+                    _failure_diagnostic(exc, "ANALYSIS_FAILED")
+
+    def _restore_after_failure(self, options):
+        try:
+            self._restore_source_update(options)
+        except Exception as exc:
+            # A rollback failure must end the job, retain its backup and revoke
+            # authority for artifacts which may only be partly restored.
+            backup = (options.get("_source_update") or {}).get("artifacts")
+            recovery_directory = backup.preserve() if backup else None
+            self.project = _project(str(options["source"]), str(options["output"]))
+            self.project["restore_blocked"] = True
+            self.conversation, self.conversation_store = None, None
+            diagnostic = _failure_diagnostic(exc, "ANALYSIS_FAILED")
+            try:
+                self._save_workspace()
+            except (OSError, ValueError):
+                pass
+            error = {"code": "SOURCE_UPDATE_ROLLBACK_FAILED", "message": format_diagnostic(diagnostic),
+                     "diagnostic": diagnostic}
+            if recovery_directory:
+                error["recovery_directory"] = recovery_directory
+            return error
+        return None
 
     def _restore_source_update(self, options):
         update = options.get("_source_update")
@@ -902,6 +1121,8 @@ class WorkbenchState:
             self.conversation_store = update["store"]
             self.framework_reference_path, self.answer_detail = update["framework_reference_path"], update["answer_detail"]
             self._save_workspace()
+            if not update.get("pending_before"):
+                (options["output"] / SOURCE_UPDATE_PENDING).unlink(missing_ok=True)
 
     def get_job(self, job_id: str) -> dict:
         with self.lock:

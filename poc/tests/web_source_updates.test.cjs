@@ -66,6 +66,75 @@ test('a rejected update retains the usable source, current conversation, draft a
   assert.equal(h.run('state.busy'),false);assert.equal(h.run('state.sourceJobBackup'),null);
 });
 
+test('a source update failure keeps its local cause through HTTP and background errors while restoring prior context',async()=>{
+  const privateValue='PRIVATE-SOURCE-UPDATE-MARKER';
+  for(const locale of ['en','zh-CN','zh-HK']){
+    for(const transport of ['http','background']){
+      const h=harness(locale);setup(h);
+      const diagnostic={schema_version:'safe-api-error/v1',category:'source_encoding_invalid',evidence_source:'local',
+        request_id:'local-'+'a'.repeat(32),reason:privateValue,next_step:privateValue,source_path:privateValue};
+      const error={code:'SOURCE_UPDATE_FAILED',message:privateValue,diagnostic};
+      h.respond(url=>transport==='http'?{__status:500,error}:url==='/api/analyze'?{job_id:'source-job'}:{status:'FAILED',error,
+        result:{source:'/other/source',output:'/local/output',diagnosis:null,programs:[],snapshot_id:null}});
+      await h.run(`startJob(${JSON.stringify(indexOptions())})`);
+      assert.equal(h.run('state.errorDiagnostic.category'),'source_encoding_invalid',locale+' '+transport);
+      assert.equal(h.run('state.errorDiagnostic.evidence_source'),'local');
+      assert.match(h.run('state.error'),locale==='en'?/selected encoding/:locale==='zh-CN'?/所选编码/:/所選編碼/);
+      assert.doesNotMatch(h.run('state.error'),/REQUEST_FAILED|PRIVATE-SOURCE-UPDATE-MARKER/);
+      const html=h.run('conversationWorkbench()');
+      assert.match(html,locale==='en'?/selected encoding/:locale==='zh-CN'?/所选编码/:/所選編碼/);
+      assert.doesNotMatch(html,/REQUEST_FAILED|PRIVATE-SOURCE-UPDATE-MARKER/);
+      assert.equal(h.run('state.project.snapshot_id'),version().snapshot_id);
+      assert.equal(h.run('state.conversation.id'),'old-conversation');assert.equal(h.run('state.question'),'Unsent follow-up');
+      assert.match(html,/Original answer|data-turn-evidence="ev:old"/);
+      assert.equal(h.run('state.busy'),false);assert.equal(h.run('state.sourceJobBackup'),null);
+    }
+  }
+});
+
+test('a failed rollback revokes source authority, keeps the draft and displays its warning with the safe local cause',async()=>{
+  const privateValue='PRIVATE-ROLLBACK-RECOVERY-MARKER';
+  const warnings={en:/source update and recovery did not complete/,'zh-CN':/源码更新与恢复均未完成/,'zh-HK':/源碼更新與恢復均未完成/};
+  const causes={en:/Could not write local analysis files/,'zh-CN':/无法写入本机分析文件/,'zh-HK':/無法寫入本機分析文件/};
+  for(const locale of ['en','zh-CN','zh-HK']){
+    for(const transport of ['job-scope','job-paths','target','http']){
+      const h=harness(locale);setup(h);
+      h.run("state.evidence={source_text:'Old evidence'};state.selectedEvidence='old-evidence';state.conversationEvidence={span:{source_text:'Old evidence'}};state.impactPages={old:{rows:['Old impact']}};");
+      const options={...indexOptions('/import/source'),output:'/import/output'};
+      const error={code:'SOURCE_UPDATE_ROLLBACK_FAILED',message:privateValue,recovery_directory:privateValue,
+        diagnostic:{schema_version:'safe-api-error/v1',category:'storage_permission',evidence_source:'local',
+          request_id:'local-'+'a'.repeat(32),reason:privateValue,next_step:privateValue,raw_body:privateValue}};
+      const scope=transport==='job-scope'?{scope:{source:'/blocked/source',output:'/blocked/output'},source:'/unused/source',output:'/unused/output'}:
+        transport==='job-paths'?{source:'/blocked/source',output:'/blocked/output'}:{};
+      h.respond(url=>transport==='http'?{__status:500,error}:url==='/api/analyze'?{job_id:'source-job'}:
+        {...scope,status:'FAILED',error,result:{...project('b'),conversation:conversation()},conversation:conversation()});
+      await h.run(`startJob(${JSON.stringify(options)})`);
+      const expectedSource=transport.startsWith('job-')?'/blocked/source':'/import/source';
+      const expectedOutput=transport.startsWith('job-')?'/blocked/output':'/import/output';
+      assert.deepEqual(JSON.parse(h.run('JSON.stringify(state.project)')),{source:expectedSource,output:expectedOutput,
+        snapshot_id:null,diagnosis:null,programs:[],agent:null,relations:{edges:[]},restore_blocked:true});
+      assert.equal(h.run('sourceUsable()'),false);assert.equal(h.run('state.question'),'Unsent follow-up');
+      assert.equal(h.run('state.conversation'),null);assert.equal(h.run('state.conversations.length'),0);
+      for(const key of ['sourceJobBackup','sourceJobTarget','evidence','selectedEvidence','conversationEvidence','pendingMessage'])assert.equal(h.run('state.'+key),null,key);
+      assert.equal(h.run('Object.keys(state.impactPages).length'),0);
+      assert.equal(h.run('state.busy'),false);assert.equal(h.run('state.errorDiagnostic.category'),'storage_permission');
+      const html=h.get('page-content').innerHTML;
+      assert.match(html,warnings[locale]);assert.match(html,causes[locale]);assert.match(html,/type="submit" disabled/);
+      assert.doesNotMatch(html,/Original answer|Old evidence|Old impact|PRIVATE-ROLLBACK-RECOVERY-MARKER/);
+      assert.doesNotMatch(h.run('JSON.stringify(state)'),new RegExp(privateValue));
+      h.run("state.page='sources';render()");
+      assert.match(h.get('notice').textContent,warnings[locale]);assert.match(h.get('notice').textContent,causes[locale]);
+      assert.doesNotMatch(h.get('notice').textContent,new RegExp(privateValue));
+      h.run('restoreSourceJob()');assert.equal(h.run('sourceUsable()'),false);assert.equal(h.run('state.project.snapshot_id'),null);
+      const requests=h.requests.length;
+      await h.events.submit({target:{id:'question-form'},preventDefault(){}});
+      assert.equal(h.requests.length,requests,'a blocked source must not send a question');
+      assert.equal(h.run('state.question'),'Unsent follow-up');
+      if(locale==='en')assert.doesNotMatch(html+h.get('notice').textContent,/[\u3400-\u9fff]/);
+    }
+  }
+});
+
 test('a failed or cancelled background update cannot replace the restored source with an incomplete result',async()=>{
   for(const status of ['FAILED','CANCELLED']){
     const h=harness();setup(h);
@@ -136,6 +205,33 @@ test('a reloaded failed index job restores the previous version instead of apply
   await h.run('initialize()');
   assert.equal(h.run('state.busy'),false);assert.equal(h.run('sourceUsable()'),true);assert.equal(h.run('state.project.source'),'/local/source');
   assert.equal(h.run('state.conversation.id'),'old-conversation');assert.equal(h.run('state.sourceJobTarget'),null);assert.match(h.run('renderWorkbench()'),/Original answer/);
+});
+
+test('reload keeps a blocked rollback scope unusable and restores its warning even without a retained job',async()=>{
+  const privateValue='PRIVATE-RELOADED-ROLLBACK-MARKER';
+  const warnings={en:/source update and recovery did not complete/,'zh-CN':/源码更新与恢复均未完成/,'zh-HK':/源碼更新與恢復均未完成/};
+  const causes={en:/Local storage is full/,'zh-CN':/本机存储空间不足/,'zh-HK':/本機儲存空間不足/};
+  for(const locale of ['en','zh-CN','zh-HK']){
+    for(const retainedJob of [false,true]){
+      const h=harness(locale);
+      const job=retainedJob?{kind:'index',status:'FAILED',source:'/blocked/source',output:'/blocked/output',error:{code:'SOURCE_UPDATE_ROLLBACK_FAILED',
+        message:privateValue,recovery_directory:privateValue,diagnostic:{schema_version:'safe-api-error/v1',category:'storage_full',evidence_source:'local',
+          request_id:'local-'+'a'.repeat(32),reason:privateValue,next_step:privateValue}}}:null;
+      h.respond(url=>url==='/api/state'?{session_token:'test',api_configured:true,project:{source:'/blocked/source',output:'/blocked/output',restore_blocked:true},
+        conversation:null,conversations:[],active_job_id:null,job}:url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
+      await h.run('initialize()');
+      assert.equal(h.run('sourceUsable()'),false);assert.equal(h.run('state.project.snapshot_id'),null);assert.equal(h.run('state.project.restore_blocked'),true);
+      assert.equal(h.run('state.conversation'),null);assert.equal(h.run('state.sourceJobBackup'),null);
+      const html=h.get('page-content').innerHTML;assert.match(html,warnings[locale]);assert.match(html,/type="submit" disabled/);
+      if(retainedJob){assert.match(html,causes[locale]);assert.equal(h.run('state.errorDiagnostic.category'),'storage_full');}
+      else assert.equal(h.run('state.errorDiagnostic'),null);
+      assert.doesNotMatch(html,new RegExp(privateValue));assert.doesNotMatch(h.run('JSON.stringify(state)'),new RegExp(privateValue));
+      if(locale==='en')assert.doesNotMatch(html,/[\u3400-\u9fff]/);
+      const requests=h.requests.length;h.run("state.question='Kept local draft'");
+      await h.events.submit({target:{id:'question-form'},preventDefault(){}});
+      assert.equal(h.requests.length,requests);assert.equal(h.run('state.question'),'Kept local draft');
+    }
+  }
 });
 
 test('reload preserves the compact chat progress for an active question job',async()=>{
