@@ -264,6 +264,7 @@ def analyze_source(
             return cached
     repository_mode = analysis_mode == "business" and entry is None
     output.mkdir(parents=True, exist_ok=True)
+    progress({"phase": "framework_reference", "completed": 0, "total": None, "unit": "references"})
     report = {
         "schema_version": "source-analysis/v1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),

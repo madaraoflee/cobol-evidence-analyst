@@ -4,6 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
+const {frameworkDemoFixture}=require('./framework_demo_fixture.cjs');
 const web=path.join(__dirname,'../web');
 
 function harness(locale='en'){
@@ -81,6 +82,85 @@ test('a running update keeps existing context available while disabling further 
   await h.run(`startJob(${JSON.stringify(indexOptions())})`);
   assert.equal(h.run('state.busy'),true);assert.equal(h.run('sourceUsable()'),true);assert.equal(h.run('state.conversation.id'),'old-conversation');
   assert.match(h.run('conversationComposer()'),/type="submit" disabled/);assert.match(h.run('renderWorkbench()'),/id="job-progress"/);
+});
+
+test('successive asynchronous import polls update the full panel even with an existing chat workspace',async()=>{
+  const h=harness();setup(h);
+  const progress=[{phase:'preparing',completed:0,total:null,unit:'files'},
+    {phase:'backing_up',completed:2048,total:8192,unit:'bytes',bytes_completed:2048,current_file:'source-index.sqlite',file_completed:2048,file_total:8192,file_unit:'bytes'},
+    {phase:'discovery',completed:37,total:null,unit:'files',current_file:'source/batch'},
+    {phase:'discovery',completed:129,total:null,unit:'files',current_file:'source/screens'},
+    {phase:'catalog',completed:6000,total:12000,unit:'files',current_file:'request.cbl'}];
+  let round=0;h.respond(url=>url==='/api/analyze'?{job_id:'source-job'}:{status:'RUNNING',progress:progress[round++]});
+  await h.run(`startJob(${JSON.stringify(indexOptions())})`);
+  assert.equal(h.get('job-phase-name').textContent,'Preparing');
+  await h.run("pollJob('source-job')");
+  assert.equal(h.get('job-phase-name').textContent,'Preserving the previous version');assert.equal(h.get('job-percent').textContent,'25.0%');
+  assert.match(h.get('job-counts').textContent,/2,048 \/ 8,192 bytes/);assert.equal(h.get('job-file').textContent,'source-index.sqlite');
+  assert.match(h.get('job-file-lines').textContent,/Copied in the current file 2,048 \/ 8,192 bytes/);assert.doesNotMatch(h.get('job-file-lines').textContent,/lines/);
+  assert.equal(h.get('job-bytes').textContent,'2.0 KiB');assert.match(h.get('job-progress-explanation').textContent,/not overall intake completion/);
+  await h.run("pollJob('source-job')");assert.match(h.get('job-counts').textContent,/Scanned 37 files/);assert.equal(h.get('job-percent').textContent,'Counting');
+  assert.doesNotMatch(h.run('progressPanel()'),/<progress[^>]*value=/);assert.match(h.get('job-progress-explanation').textContent,/total is known after scanning finishes/);
+  await h.run("pollJob('source-job')");assert.match(h.get('job-counts').textContent,/Scanned 129 files/);assert.equal(h.get('job-file').textContent,'source/screens');
+  await h.run("pollJob('source-job')");assert.match(h.get('job-counts').textContent,/6,000 \/ 12,000 files/);assert.equal(h.get('job-percent').textContent,'50.0%');
+  assert.equal(h.run('state.conversation.id'),'old-conversation');assert.equal(h.run('state.project.snapshot_id'),version().snapshot_id);
+});
+
+test('the pending import scope is explicit while the previous version and conversation remain intact',async()=>{
+  const h=harness();setup(h);h.respond(url=>url==='/api/analyze'?{job_id:'source-job'}:{status:'RUNNING',progress:{phase:'discovery',completed:12,total:null,unit:'files'}});
+  await h.run(`startJob(${JSON.stringify(indexOptions('/other/new-source'))})`);
+  const html=h.run('renderWorkbench()');assert.match(html,/Source for this import/);assert.match(html,/\/other\/new-source/);assert.match(html,/Output folder for this import/);
+  assert.match(html,/Previous source:<code>\/local\/source/);assert.equal(h.get('project-title').textContent,'new-source');
+  assert.match(h.get('project-description').textContent,/previous version is retained/);assert.match(h.get('snapshot-info').innerHTML,/new version is not ready/);
+  assert.equal(h.run('state.project.source'),'/local/source');assert.equal(h.run('state.conversation.id'),'old-conversation');
+  assert.match(h.run('renderSources()'),/job-progress|\/other\/new-source/);assert.doesNotMatch(h.run('renderSources()'),/Program catalog|business search index is ready/);
+});
+
+test('reload restores an active index job from its own scope metadata and keeps polling full import progress',async()=>{
+  const h=harness();const job={kind:'index',source:'/other/new-source',output:'/other/output',status:'RUNNING',progress:{phase:'backing_up',completed:1024,total:4096,unit:'bytes',current_file:'source-index.sqlite'}};
+  h.respond(url=>url==='/api/state'?{session_token:'test',project:project(),conversation:conversation(),conversations:[conversation()],active_job_id:'source-job',job}:
+    url==='/api/jobs/source-job'?{...job,progress:{phase:'discovery',completed:80,total:null,unit:'files'}}:
+    url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
+  await h.run('initialize()');
+  assert.equal(h.run('state.jobKind'),'index');assert.equal(h.run('state.sourceJobTarget.output'),'/other/output');
+  assert.match(h.get('page-content').innerHTML,/id="job-progress"/);assert.match(h.get('page-content').innerHTML,/Scanned 80 files/);
+  assert.match(h.get('page-content').innerHTML,/\/other\/new-source|\/other\/output/);assert.doesNotMatch(h.get('page-content').innerHTML,/id="conversation-progress"/);
+  assert.equal(h.run('state.conversation.id'),'old-conversation');assert.equal(h.run('state.project.source'),'/local/source');
+});
+
+test('a reloaded failed index job restores the previous version instead of applying an incomplete new result',async()=>{
+  const h=harness();const job={kind:'index',source:'/other/new-source',output:'/other/output',status:'RUNNING',progress:{phase:'discovery',completed:10,total:null,unit:'files'}};
+  h.respond(url=>url==='/api/state'?{session_token:'test',project:project(),conversation:conversation(),conversations:[conversation()],active_job_id:'source-job',job}:
+    url==='/api/jobs/source-job'?{status:'FAILED',error:{code:'INDEX_UNAVAILABLE'},result:{source:'/other/new-source',diagnosis:null,programs:[]}}:
+    url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
+  await h.run('initialize()');
+  assert.equal(h.run('state.busy'),false);assert.equal(h.run('sourceUsable()'),true);assert.equal(h.run('state.project.source'),'/local/source');
+  assert.equal(h.run('state.conversation.id'),'old-conversation');assert.equal(h.run('state.sourceJobTarget'),null);assert.match(h.run('renderWorkbench()'),/Original answer/);
+});
+
+test('reload preserves the compact chat progress for an active question job',async()=>{
+  const h=harness();const job={kind:'question',source:'/local/source',output:'/local/output',status:'RUNNING',progress:{phase:'retrieving',completed:1,total:4,unit:'requests'}};
+  h.respond(url=>url==='/api/state'?{session_token:'test',project:project(),conversation:conversation(),conversations:[conversation()],active_job_id:'question-job',job}:
+    url==='/api/jobs/question-job'?job:url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
+  await h.run('initialize()');assert.equal(h.run('state.jobKind'),'question');assert.equal(h.run('state.sourceJobBackup'),null);
+  assert.match(h.get('page-content').innerHTML,/id="conversation-progress"/);assert.doesNotMatch(h.get('page-content').innerHTML,/id="job-progress"/);
+  assert.match(h.get('page-content').innerHTML,/Original answer/);assert.doesNotMatch(h.get('page-content').innerHTML,/25.0%/);
+});
+
+test('intake stages, unknown totals and backup page counts are readable in every locale without overall percentages',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);setup(h);h.run("state.busy=true;state.jobKind='index';state.sourceJobTarget={source:'/source/<img>',output:'/output'}");
+    for(const phase of ['backing_up','framework_reference','source_version']){
+      h.run(`rememberProgress({phase:'${phase}',completed:2,total:8,unit:'pages',file_completed:2,file_total:8,file_unit:'pages',current_file:'source-index.sqlite'})`);
+      const html=h.run('progressPanel()');assert.match(html,/&lt;img&gt;/);assert.doesNotMatch(html,/<img>/);
+      if(locale==='en'){assert.doesNotMatch(html,/[\u3400-\u9fff]/);assert.match(html,/2 \/ 8 pages/);}
+    }
+    h.run("rememberProgress({phase:'discovery',completed:12000,total:null,unit:'files',eta_seconds:null})");
+    const scanning=h.run('progressPanel()');assert.doesNotMatch(scanning,/<progress[^>]*value=|NaN|Infinity|\d+(?:\.\d+)?%/);
+    if(locale==='en'){assert.match(scanning,/Scanned 12,000 files/);assert.match(scanning,/No overall completion percentage/);assert.doesNotMatch(scanning,/[\u3400-\u9fff]/);}
+    h.run("rememberProgress({phase:'reading',completed:0,total:1,unit:'files',file_completed:4096,file_total:8192,file_unit:'bytes'})");
+    if(locale==='en'){assert.match(h.run('fileProgress(progressViewModel())'),/Processed in the current file 4,096 \/ 8,192 bytes/);assert.doesNotMatch(h.run('fileProgress(progressViewModel())'),/lines/);}
+  }
 });
 
 test('same-source success uses the job conversation list and preserves the current dialogue and draft',async()=>{

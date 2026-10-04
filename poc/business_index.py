@@ -543,6 +543,7 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
             progress({"phase": phase, "unit": "files", **extra})
     selected_entry = None
     closure = catalog is not None and entry_program is not None
+    emit("discovery", stage="listing", completed=0, total=None)
     if closure:
         if Path(catalog["source_root"]).resolve() != root:
             raise ValueError("SOURCE_ROOT_MISMATCH")
@@ -553,13 +554,28 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
         known = {row["relative_path"] for row in catalog["file_entries"]}
         initial = [selected_entry["relative_path"]]
     else:
-        known = set(include_paths) if include_paths is not None else {
-            path.relative_to(root).as_posix() for path in iter_source_files(root, extensions, include_extensionless)}
+        known = set()
+        candidates = (include_paths if include_paths is not None else
+                      (path.relative_to(root).as_posix() for path in
+                       iter_source_files(root, extensions, include_extensionless)))
+        for relative in candidates:
+            if check_cancel:
+                check_cancel()
+            known.add(relative)
+            if len(known) == 1 or len(known) % 100 == 0:
+                emit("discovery", stage="listing", completed=len(known), total=None,
+                     current_file=relative)
         initial = sorted(known, key=str.casefold)
     if not known:
         raise ValueError("SOURCE_INDEX_EMPTY")
-    for relative in known:
+    emit("discovery", stage="validating", completed=0, total=len(known))
+    for offset, relative in enumerate(known, 1):
+        if check_cancel:
+            check_cancel()
         _safe_path(root, relative)
+        if offset == 1 or offset % 100 == 0 or offset == len(known):
+            emit("discovery", stage="validating", completed=offset, total=len(known),
+                 current_file=relative)
     program_paths, copy_paths, copy_hints = {}, {}, set()
     if closure:
         for item in catalog["programs"]:
@@ -706,7 +722,7 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
             connection.executemany("INSERT INTO metadata VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", updates.items())
         from framework_semantics import refresh_framework_index
         framework_semantics = refresh_framework_index(connection, root,
-            reference_path=framework_reference_path, check_cancel=check_cancel)
+            reference_path=framework_reference_path, check_cancel=check_cancel, progress=progress)
         counts = _database_counts(connection)
         program_count = connection.execute("SELECT COUNT(*) FROM symbols WHERE symbol_type='Program'").fetchone()[0]
         copybook_count = connection.execute("SELECT COUNT(*) FROM symbols WHERE symbol_type='Copybook'").fetchone()[0]

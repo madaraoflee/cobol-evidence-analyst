@@ -1536,6 +1536,8 @@ def _ensure_schema(connection: sqlite3.Connection) -> None:
             ON relations(from_entity_id, relation_type);
         CREATE INDEX IF NOT EXISTS idx_relations_target
             ON relations(target_entity_id, relation_type);
+        CREATE INDEX IF NOT EXISTS repo_relations_path
+            ON relations(relative_path, relation_type);
 
         CREATE TABLE IF NOT EXISTS copy_expansions (
             symbol_id TEXT PRIMARY KEY,

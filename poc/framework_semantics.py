@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 import re
 import sqlite3
+import time
 
 
 SEMANTICS_VERSION = "framework-semantics/v1.3"
@@ -84,7 +85,7 @@ def _source_precedence(db, facts):
     return result
 
 
-def refresh_framework_index(db, source_root, *, reference_path=None, check_cancel=None):
+def refresh_framework_index(db, source_root, *, reference_path=None, check_cancel=None, progress=None):
     """Compile manuals and persist source-bound facts without any model call.
 
     Cache identity includes source content, the complete manual collection, and
@@ -93,6 +94,10 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
     from framework_binding import bind_framework_source
     from framework_layout import validate_framework_layouts
     from source_reading import _verified_lines
+    if check_cancel:
+        check_cancel()
+    if progress:
+        progress({"phase": "framework_semantics", "completed": 0, "total": None, "unit": "files"})
     knowledge, digest = _knowledge(reference_path)
     _schema(db)
     summary = {"schema_version": SEMANTICS_VERSION, "status": knowledge.get("status"),
@@ -109,11 +114,19 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
                    (digest, json.dumps(knowledge, ensure_ascii=False)))
         db.execute("DELETE FROM framework_file_semantics WHERE relative_path NOT IN "
                    "(SELECT relative_path FROM source_files)")
-        for item in db.execute("SELECT relative_path,sha256,encoding,format_hint,line_count FROM source_files").fetchall():
+        items = db.execute("SELECT relative_path,sha256,encoding,format_hint,line_count FROM source_files").fetchall()
+        last_progress = time.monotonic()
+        if progress:
+            progress({"phase": "framework_semantics", "completed": 0, "total": len(items), "unit": "files"})
+        for offset, item in enumerate(items, 1):
             if check_cancel:
                 check_cancel()
             item = dict(item)
             relative = item["relative_path"]
+            if progress and (offset == len(items) or time.monotonic() - last_progress >= .2):
+                progress({"phase": "framework_semantics", "completed": offset - 1,
+                          "total": len(items), "unit": "files", "current_file": relative})
+                last_progress = time.monotonic()
             if relative not in paths:
                 db.execute("DELETE FROM framework_file_semantics WHERE relative_path=?", (relative,))
                 continue
@@ -150,6 +163,8 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
                 "(relative_path,source_sha256,knowledge_digest,version,facts_json,bindings_json) VALUES (?,?,?,?,?,?)",
                 (relative, item["sha256"], digest, SEMANTICS_VERSION,
                  json.dumps(interpreted, ensure_ascii=False), json.dumps(facts, ensure_ascii=False)))
+        if progress:
+            progress({"phase": "framework_semantics", "completed": len(items), "total": len(items), "unit": "files"})
     return summary
 
 

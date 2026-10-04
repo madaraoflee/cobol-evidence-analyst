@@ -11,8 +11,9 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from analyze_source import analyze_source
+from analyze_source import AnalysisCancelled, analyze_source
 from repository_discovery import discover_repository, ensure_repository_search
+import business_index
 import repository_discovery
 
 
@@ -51,6 +52,78 @@ class IncrementalIntakeTests(unittest.TestCase):
         self.assertEqual(report["repository_search"]["indexed_files"], 32)
         self.assertTrue(report["repository_search"]["full_text_complete"])
         self.assertEqual(len(discover_repository(self.database, "COMMON-TOPIC")["selected_paths"]), 32)
+
+    def test_directory_discovery_reports_progress_before_traversal_and_path_validation(self):
+        self.write("main.cbl", program("MAIN", "PRIMARYMARK"))
+        self.write("worker.cbl", program("WORKER", "SECONDARYMARK"))
+        events = []
+        original_iterator = business_index.iter_source_files
+        original_safe_path = business_index._safe_path
+
+        def observed_iterator(*args, **kwargs):
+            self.assertTrue(events, "directory traversal must not start without progress")
+            self.assertEqual(events[0]["phase"], "discovery")
+            self.assertEqual(events[0]["completed"], 0)
+            self.assertIsNone(events[0]["total"])
+            yield from original_iterator(*args, **kwargs)
+
+        def observed_validation(*args, **kwargs):
+            self.assertTrue(any(event.get("stage") == "validating" for event in events))
+            return original_safe_path(*args, **kwargs)
+
+        with patch("business_index.iter_source_files", side_effect=observed_iterator), \
+             patch("business_index._safe_path", side_effect=observed_validation):
+            report = business_index.build_business_index(self.source, self.database,
+                source_format="free", progress=events.append, framework_reference_path="", quiet=True)
+        self.assertEqual(report["diagnostics"]["program_count"], 2)
+        listing = [event for event in events if event.get("stage") == "listing"]
+        self.assertTrue(all(event["total"] is None for event in listing))
+        validation = [event for event in events if event.get("stage") == "validating"]
+        self.assertEqual(validation[-1]["completed"], 2)
+        self.assertEqual(validation[-1]["total"], 2)
+
+    def test_discovery_can_be_cancelled_before_any_source_body_is_read(self):
+        self.write("main.cbl", program("MAIN", "PRIMARYMARK"))
+        self.write("worker.cbl", program("WORKER", "SECONDARYMARK"))
+        for stage in ("listing", "validating"):
+            with self.subTest(stage=stage):
+                cancelled = False
+
+                def progress(event):
+                    nonlocal cancelled
+                    if event.get("stage") == stage and event.get("completed") == 1:
+                        cancelled = True
+
+                def check_cancel():
+                    if cancelled:
+                        raise AnalysisCancelled("discovery cancelled")
+
+                with patch("business_index._verify_file", side_effect=AssertionError("source body read")):
+                    with self.assertRaises(AnalysisCancelled):
+                        business_index.build_business_index(self.source, self.database,
+                            source_format="free", progress=progress, check_cancel=check_cancel,
+                            framework_reference_path="", quiet=True)
+                self.assertFalse(self.database.exists())
+
+    def test_relation_lookup_index_exists_before_framework_checks(self):
+        self.write("main.cbl", program("MAIN", "PRIMARYMARK", 'CALL "UNAVAILABLE".\n'))
+        import framework_semantics
+        refresh = framework_semantics.refresh_framework_index
+        calls = []
+
+        def check_index(connection, *args, **kwargs):
+            calls.append(True)
+            columns = [row[2] for row in connection.execute("PRAGMA index_info(repo_relations_path)")]
+            self.assertEqual(columns, ["relative_path", "relation_type"])
+            plan = connection.execute("EXPLAIN QUERY PLAN SELECT * FROM relations "
+                "WHERE relative_path=? AND relation_type='INCLUDES_COPY'", ("main.cbl",)).fetchall()
+            self.assertTrue(any("repo_relations_path" in row[3] and "SEARCH" in row[3] for row in plan))
+            return refresh(connection, *args, **kwargs)
+
+        with patch("framework_semantics.refresh_framework_index", side_effect=check_index):
+            report = self.intake()
+        self.assertEqual(calls, [True])
+        self.assertTrue(report["source_manifest_verified"])
 
     def test_warm_web_intake_reuses_structure_and_search_without_source_body_reads(self):
         self.write("main.cbl", program("MAIN", "PRIMARYMARK", 'CALL "WORKER".\n'))

@@ -721,7 +721,9 @@ class WorkbenchState:
             self.cancel_event = threading.Event()
             self.started_at = self.updated_at = self.phase_started_at = time.monotonic()
             self.phase_start_completed = 0.0
-            self.job = {"job_id": job_id, "status": "RUNNING", "result": None, "error": None,
+            self.job = {"job_id": job_id, "kind": "question" if options["question"] else "index",
+                        "source": str(options["source"]), "output": str(options["output"]),
+                        "status": "RUNNING", "result": None, "error": None,
                         "cancel_requested": False, "progress": {"phase": "preparing", "completed": 0,
                         "total": None, "unit": "files", "current_file": None,
                         "bytes_completed": 0, "bytes_total": None}}
@@ -781,7 +783,8 @@ class WorkbenchState:
         try:
             source, output = options["source"], options["output"]
             if options.get("_source_update") and (output / "structural-index.sqlite").is_file():
-                backup = SourceUpdateBackup(output, (*ARTIFACT_NAMES, "source-versions.sqlite"))
+                backup = SourceUpdateBackup(output, (*ARTIFACT_NAMES, "source-versions.sqlite"),
+                    progress=lambda event: self._progress(job_id, event), check_cancel=self._check_cancel)
                 options["_source_update"]["artifacts"] = backup
             arguments = {key: value for key, value in options.items()
                          if key not in {"source", "output", "conversation_id", "retry_message_id", "retry_assistant_id", "_source_update"}}
@@ -831,8 +834,12 @@ class WorkbenchState:
                         project["source_version"] = copy.deepcopy(previous["source_version"])
                         project["source_versions"] = copy.deepcopy(previous.get("source_versions", []))
                     else:
+                        self._progress(job_id, {"phase": "source_version", "completed": 0, "total": 1,
+                                               "unit": "versions"})
                         project["source_version"] = record_version(output, source, snapshot)
                         project["source_versions"] = versions(output, source)
+                        self._progress(job_id, {"phase": "source_version", "completed": 1, "total": 1,
+                                               "unit": "versions"})
             elif report.get("catalog_ready") is True:
                 # A usable catalog permits another question but does not verify
                 # any model answer or citations from an unverified source scope.

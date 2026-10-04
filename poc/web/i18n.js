@@ -536,6 +536,22 @@ API 請求記錄已遮蔽配置值，內容可能因大小限制而截斷。保�
 已完成|已完成|Completed
 準備中|准备中|Preparing
 接入進度|接入进度|Source intake progress
+備份現有索引|备份现有索引|Backing up the existing index
+正在保留舊版本|正在保留旧版本|Preserving the previous version
+載入框架資料|加载框架资料|Loading framework material
+整理框架與源碼的對應|整理框架与源码的对应|Mapping framework material to source
+記錄源碼版本|记录源码版本|Recording the source version
+正在備份現有索引；這裡顯示已備份資料量，不是整體接入百分比。|正在备份现有索引；这里显示已备份数据量，不是整体接入百分比。|The existing index is being backed up. Progress measures copied data, not overall intake completion.
+正在掃描源碼目錄；計數會隨找到的檔案增加，完成掃描後才知道總量。不估算整體接入百分比。|正在扫描源码目录；计数会随找到的文件增加，完成扫描后才知道总量。不估算整体接入百分比。|The source folder is being scanned. Counts increase as files are found; the total is known after scanning finishes. No overall completion percentage is estimated.
+已掃描|已扫描|Scanned
+目前檔案已備份|当前文件已备份|Copied in the current file
+目前檔案已處理|当前文件已处理|Processed in the current file
+本次接入的源碼|本次接入的源码|Source for this import
+本次結果目錄|本次结果目录|Output folder for this import
+完成前保留原版本及對話。原源碼：|完成前保留原版本及对话。原源码：|The previous version and conversations remain available until completion. Previous source:
+正在接入本次源碼；完成前保留原版本。|正在接入本次源码；完成前保留原版本。|Importing this source; the previous version is retained until completion.
+新版本尚未就緒|新版本尚未就绪|The new version is not ready yet
+目錄|目录|directories
 本次執行|本次执行|Current job
 統計中|统计中|Counting
 目前階段進度|当前阶段进度|Current stage progress

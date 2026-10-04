@@ -8,6 +8,7 @@ import re
 import sqlite3
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch
@@ -301,6 +302,84 @@ class ConversationWorkbenchTests(unittest.TestCase):
         self.assertEqual(job["status"], "CANCELLED")
         self.assertEqual(len(written), 1)
         self.assert_local_refresh_rolled_back(before, message, evidence_id)
+
+    def test_source_switch_backup_progress_is_pollable_and_cancellable_before_analysis(self):
+        self.run_job()
+        before = self.app.state()
+        original_index = (self.output / "structural-index.sqlite").read_bytes()
+        source = self.root / "replacement-source"
+        source.mkdir()
+        (source / "replacement.cbl").write_text("PROGRAM-ID. REPLACEMENT.\nGOBACK.\n")
+        reached, release = threading.Event(), threading.Event()
+        original_progress = self.app._progress
+
+        def pause_backup(job_id, event):
+            original_progress(job_id, event)
+            if event["phase"] == "backing_up" and not reached.is_set():
+                reached.set()
+                release.wait(5)
+
+        self.app._progress = pause_backup
+        with patch.object(self.app, "analyzer", side_effect=AssertionError("cancelled backup must not analyze")) as analyzer:
+            job_id = self.app.start({"source": str(source), "output": str(self.output),
+                                     "source_format": "free"})["job_id"]
+            try:
+                self.assertTrue(reached.wait(5), "backup did not publish progress")
+                state = self.app.state()
+                self.assertEqual(state["active_job_id"], job_id)
+                self.assertEqual(state["job"]["kind"], "index")
+                self.assertEqual(state["job"]["source"], str(source.resolve()))
+                self.assertEqual(state["job"]["output"], str(self.output.resolve()))
+                self.assertEqual(state["job"]["progress"]["phase"], "backing_up")
+                self.assertEqual(state["job"]["progress"]["unit"], "bytes")
+                self.assertGreater(state["job"]["progress"]["total"], 0)
+                self.assertEqual(state["project"], before["project"])
+                self.app.cancel(job_id)
+            finally:
+                release.set()
+            job = self.wait_for_job(job_id)
+            analyzer.assert_not_called()
+        self.assertEqual(job["status"], "CANCELLED")
+        self.assertEqual(self.app.state()["project"], before["project"])
+        self.assertEqual((self.output / "structural-index.sqlite").read_bytes(), original_index)
+        self.assertEqual(list(self.root.glob("source-update-*")), [])
+
+    def test_new_output_source_switch_publishes_preparation_and_reconnect_metadata(self):
+        self.run_job()
+        before = self.app.state()
+        source, output = self.root / "new-source", self.root / "new-output"
+        source.mkdir()
+        (source / "new-rule.cbl").write_text(
+            "IDENTIFICATION DIVISION.\nPROGRAM-ID. NEW-RULE.\nPROCEDURE DIVISION.\nGOBACK.\n")
+        reached, release = threading.Event(), threading.Event()
+        original_progress = self.app._progress
+
+        def pause_preparation(job_id, event):
+            original_progress(job_id, event)
+            if event["phase"] == "framework_reference" and not reached.is_set():
+                reached.set()
+                release.wait(5)
+
+        self.app._progress = pause_preparation
+        with patch("web_app.SourceUpdateBackup", side_effect=AssertionError("new output needs no backup")):
+            job_id = self.app.start({"source": str(source), "output": str(output),
+                                     "source_format": "free"})["job_id"]
+            try:
+                self.assertTrue(reached.wait(5), "preparation did not publish progress")
+                state = self.app.state()
+                self.assertEqual(state["job"]["status"], "RUNNING")
+                self.assertEqual(state["job"]["kind"], "index")
+                self.assertEqual(state["job"]["source"], str(source.resolve()))
+                self.assertEqual(state["job"]["output"], str(output.resolve()))
+                self.assertEqual(state["job"]["progress"]["phase"], "framework_reference")
+                self.assertEqual(state["project"], before["project"])
+            finally:
+                release.set()
+            job = self.wait_for_job(job_id)
+        self.assertEqual(job["status"], "COMPLETED", job.get("error"))
+        self.assertEqual(self.app.state()["project"]["source"], str(source.resolve()))
+        self.assertEqual(job["result"]["source_version"]["file_count"], 1)
+        self.assertEqual(len(self.calls), 0)
 
     def test_directory_symlink_version_store_is_rejected_before_analysis_and_preserves_workspace(self):
         self.run_job()
