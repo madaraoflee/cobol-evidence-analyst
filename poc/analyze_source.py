@@ -513,6 +513,15 @@ def analyze_source(
         report["question_status"] = "BLOCKED" if question else "NOT_REQUESTED"
         diagnostic = build_local_diagnostic(exc)
         report["diagnostic"] = diagnostic
+        if type(exc) is ValueError and exc.args == ("SOURCE_INDEX_EMPTY",) and getattr(exc, "input_skips", None):
+            skips = exc.input_skips
+            report["build_report"] = {"snapshot_id": None,
+                "files": {"candidate": exc.source_input_count, "decoded": 0, "unreadable_or_binary": len(skips)},
+                "input_skips": skips, "diagnostics": {"warnings": ["所选候选文件均未能读取，没有发布新的源码索引。"]}}
+            report["scope"] = {"kind": "selected_sources" if entry else "full_directory",
+                "file_count": 0, "input_coverage_complete": False,
+                "boundaries": [{"relative_path": item["relative_path"], "relation_type": "SOURCE_INPUT",
+                                "target_name": "", "status": item["reason_code"]} for item in skips]}
         if type(exc) is RuntimeError and exc.args in (
             ("This SQLite build does not include FTS5 support.",),
             ("This Python SQLite build does not include FTS5 support.",),

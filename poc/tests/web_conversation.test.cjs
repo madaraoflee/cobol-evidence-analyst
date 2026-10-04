@@ -4,7 +4,6 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const {frameworkDemoFixture}=require('./framework_demo_fixture.cjs');
 const web=path.join(__dirname,'../web');
 
 function harness(locale='en'){
@@ -58,9 +57,9 @@ test('an unknown completion reason never invents a provider length stop',()=>{
 });
 
 test('the supported service opens a real conversation workspace with retrieval as default',async()=>{
-  const h=harness();h.respond(url=>url==='/api/state'?{session_token:'test',api_configured:true,project:project(),conversations:[],conversation:null}:url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
+  const h=harness();h.respond(url=>url==='/api/state'?{session_token:'test',api_configured:true,project:project(),conversations:[],conversation:null}:assert.fail(url));
   await h.run('initialize()');assert.equal(h.run('state.mode'),'real');assert.equal(h.run('state.readingStrategy'),'retrieval');assert.equal(h.run('state.question'),'');
-  const html=h.run('renderWorkbench()');assert.match(html,/conversation-composer/);assert.match(html,/What would you like to understand/);assert.doesNotMatch(html,/id="reading-depth"|id="job-progress"|evidence-panel/);assert.match(html,/<details class="conversation-options">/);assert.equal(h.requests.length,2);
+  const html=h.run('renderWorkbench()');assert.match(html,/conversation-composer/);assert.match(html,/What would you like to understand/);assert.doesNotMatch(html,/id="reading-depth"|id="job-progress"|evidence-panel/);assert.match(html,/<details class="conversation-options">/);assert.deepEqual(h.requests.map(item=>item.url),['/api/state']);
 });
 
 test('server default conversation title follows the selected interface language without rewriting user titles',()=>{
@@ -75,7 +74,7 @@ test('reload restores the latest safe failure only for the matching conversation
     const h=harness('zh-CN');
     const current=conversation([...firstMessages,{id:'failed-question',role:'user',content:'Keep this question',run_id:match==='other-run'?'older-run':'failed-run',status:match==='completed-turn'?'completed':'failed'}]);
     const job={job_id:'failed-run',status:'FAILED',conversation:{id:match==='other-conversation'?'unrelated':current.id},error:{diagnostic}};
-    h.respond(url=>url==='/api/state'?{session_token:'test',api_configured:true,project:project(),conversations:[current],conversation:current,job}:url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
+    h.respond(url=>url==='/api/state'?{session_token:'test',api_configured:true,project:project(),conversations:[current],conversation:current,job}:assert.fail(url));
     await h.run('initialize()');
     const html=h.run('conversationWorkbench()');
     assert.match(html,/A valid request is accepted/);assert.match(html,/Keep this question/);
@@ -199,7 +198,7 @@ test('initial restoration orders conversations by first question rather than cre
   const h=harness();
   const older={...conversation(firstMessages),id:'older-request',created_at:'2026-09-02T08:00:00Z',first_question_at:'2026-09-02T08:01:00Z',updated_at:'2026-10-04T10:00:00Z'};
   const laterQuestion={id:'later-question',title:'Asked later',created_at:'2026-09-01T08:00:00Z',first_question_at:'2026-09-03T08:01:00Z',updated_at:'2026-09-03T08:02:00Z'};
-  h.respond(url=>url==='/api/state'?{session_token:'test',project:project(),conversations:[older,laterQuestion],conversation:older}:url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
+  h.respond(url=>url==='/api/state'?{session_token:'test',project:project(),conversations:[older,laterQuestion],conversation:older}:assert.fail(url));
   await h.run('initialize()');
   assert.equal(h.run('state.conversation.id'),'older-request');
   assert.equal(h.run('state.conversations.map(item=>item.id).join()'),'later-question,older-request');

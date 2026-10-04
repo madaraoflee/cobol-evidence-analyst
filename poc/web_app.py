@@ -87,6 +87,34 @@ def _project(source: str | None = None, output: str | None = None, run_id: str |
     }
 
 
+def _source_preferences(value):
+    """Recover form inputs only; they never authorize a source snapshot."""
+    if not isinstance(value, dict):
+        return None
+    source, output = value.get("source"), value.get("output")
+    if (not all(isinstance(item, str) and item and "\x00" not in item and len(item) <= 4096
+                for item in (source, output)) or not Path(source).is_absolute()
+            or not Path(output).is_absolute() or Path(source).resolve() == FRAMEWORK_DEMO_SOURCE.resolve()):
+        return None
+    encoding, source_format = value.get("encoding", "auto"), value.get("source_format", "auto")
+    if (not isinstance(encoding, str) or len(encoding) > 64 or not isinstance(source_format, str)
+            or source_format not in {"auto", "fixed", "free"}):
+        return None
+    try:
+        if encoding != "auto":
+            codecs.lookup(encoding)
+    except LookupError:
+        return None
+    extensions = value.get("extensions")
+    if extensions is not None and (not isinstance(extensions, (list, tuple, set, frozenset))
+                                  or not all(isinstance(item, str) and len(item) <= 64 for item in extensions)):
+        return None
+    reference = value.get("framework_reference_path")
+    return {"source": source, "output": output, "encoding": encoding, "source_format": source_format,
+            "extensions": sorted(extensions) if extensions is not None else None,
+            "framework_reference_path": reference if isinstance(reference, str) and len(reference) <= 4096 else None}
+
+
 def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 1024) -> str | None:
     value = payload.get(key)
     if not required and (value is None or (isinstance(value, str) and not value.strip())):
@@ -398,19 +426,28 @@ class WorkbenchState:
         self.state_path = state_path
         self.framework_reference_path = None
         self.answer_detail = "detailed"
+        self.source_preferences = None
+        self._local_workspace = None
         self.conversation = None
         self.conversation_store = None
         self._restore_workspace()
 
     def _save_workspace(self, options=None):
-        if self.state_path is None:
-            return
         options = options or self.project
         data = {"source": str(options.get("source") or ""), "output": str(options.get("output") or ""),
-                "framework_reference_path": self.framework_reference_path,
-                "answer_detail": self.answer_detail,
                 "restore_blocked": self.project.get("restore_blocked") is True,
                 "conversation_id": (self.conversation or {}).get("id")}
+        if data["source"] and Path(data["source"]).resolve() == FRAMEWORK_DEMO_SOURCE.resolve():
+            # An explicitly opened example stays in this session. It must not
+            # replace the user's real workspace on the next service restart.
+            data = copy.deepcopy(self._local_workspace) or {"source": "", "output": "",
+                    "restore_blocked": False, "conversation_id": None}
+        else:
+            self._local_workspace = copy.deepcopy(data)
+        data.update(framework_reference_path=self.framework_reference_path, answer_detail=self.answer_detail,
+                    source_preferences=copy.deepcopy(self.source_preferences))
+        if self.state_path is None:
+            return
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         if self.state_path.is_symlink():
             raise ValueError("WORKSPACE_PATH_INVALID")
@@ -430,12 +467,19 @@ class WorkbenchState:
             reference = saved.get("framework_reference_path")
             self.framework_reference_path = reference if isinstance(reference, str) else None
             self.answer_detail = "brief" if saved.get("answer_detail") == "brief" else "detailed"
+            self.source_preferences = _source_preferences(saved.get("source_preferences"))
             if not all(isinstance(saved.get(key), str) and saved[key] for key in ("source", "output")):
                 return
             source_input, output_input = Path(saved["source"]), Path(saved["output"])
             if not source_input.is_absolute() or not output_input.is_absolute():
                 return
+            if source_input.resolve() == FRAMEWORK_DEMO_SOURCE.resolve():
+                return
             source, output = _paths(source_input, output_input)
+            self._local_workspace = {key: saved.get(key) for key in
+                                     ("source", "output", "restore_blocked", "conversation_id")}
+            if self.source_preferences is None:
+                self.source_preferences = _source_preferences({"source": str(source), "output": str(output)})
             # Keep the inputs available even when an explicit index repair is
             # needed. A saved path alone never grants source authority.
             self.project = _project(str(source), str(output))
@@ -498,6 +542,9 @@ class WorkbenchState:
                         or any(source_options.get(key) != value for key, value in index_options.items()))
             report.update(build_report={**build_report, "snapshot_id": snapshot}, snapshot_id=snapshot,
                           repository_search=overview, source_options={**source_options, **index_options})
+            if not saved.get("source_preferences"):
+                self.source_preferences = _source_preferences({"source": str(source), "output": str(output),
+                    **index_options, "framework_reference_path": self.framework_reference_path})
             if repaired:
                 report["report_repaired_from_index"] = True
                 report["program_count"] = len(programs["programs"])
@@ -816,6 +863,7 @@ class WorkbenchState:
                 "api_configuration_error": configuration_error,
                 "framework_knowledge": self.framework(),
                 "answer_detail": self.answer_detail,
+                "source_preferences": copy.deepcopy(self.source_preferences),
                 "conversation": copy.deepcopy(self.conversation),
                 "conversations": self.conversation_store.list() if self.conversation_store else [],
                 "active_job_id": self.job["job_id"] if self.job and self.job["status"] == "RUNNING" else None,
@@ -846,6 +894,16 @@ class WorkbenchState:
                     "store": self.conversation_store, "framework_reference_path": self.framework_reference_path,
                     "answer_detail": self.answer_detail, "same_project": same_project,
                     "pending_before": (options["output"] / SOURCE_UPDATE_PENDING).exists()}
+                preferences = _source_preferences({**options, "source": str(options["source"]),
+                    "output": str(options["output"]), "framework_reference_path": options.get("framework_reference_path") or self.framework_reference_path})
+                if preferences:
+                    self.source_preferences = preferences
+                    # Keep retry inputs even if this import later fails and
+                    # restores an older workspace. They remain form hints.
+                    try:
+                        self._save_workspace()
+                    except (OSError, ValueError) as exc:
+                        _failure_diagnostic(exc, "REQUEST_FAILED")
             retry_message_id = options.get("retry_message_id")
             if retry_message_id and (not same_project or not options["allow_network"] or not options.get("conversation_id")):
                 raise RequestError("INVALID_RETRY", "只能在当前对话和源码范围内重试原问题。", 409)
@@ -901,7 +959,7 @@ class WorkbenchState:
                         "total": None, "unit": "files", "current_file": None,
                         "bytes_completed": 0, "bytes_total": None}}
             threading.Thread(target=self._run, args=(job_id, options), daemon=True).start()
-            return {"job_id": job_id, "status": "RUNNING"}
+            return {"job_id": job_id, "status": "RUNNING", "source_preferences": copy.deepcopy(self.source_preferences)}
 
     def _job_snapshot(self) -> dict:
         result = copy.deepcopy(self.job)

@@ -47,6 +47,66 @@ test('an existing source has explicit update and switch actions, and reopening p
   const first=harness();first.run('state.connected=true;openSource()');assert.equal(first.get('source-dialog-title').textContent,'Connect local source');
 });
 
+test('saved real form preferences and active import paths take precedence over synthetic projects without claiming a valid index',async()=>{
+  const preferences={source:'/real/source',output:'/real/output',encoding:'gb18030',source_format:'free',extensions:['.cbl','.member'],framework_reference_path:'/real/reference'};
+  const synthetic={...project(),source:'poc/fixtures/framework-workbench/source',output:'/synthetic/output',source_origin:'synthetic_framework'};
+  const h=harness();h.respond(url=>url==='/api/state'?{session_token:'test',project:synthetic,source_preferences:preferences,
+    conversation:conversation(),conversations:[conversation()]}:assert.fail(url));
+  await h.run('initialize()');
+  assert.deepEqual(h.requests.map(item=>item.url),['/api/state']);assert.equal(h.run('state.mode'),'real');assert.equal(h.run('state.project'),null);
+  assert.equal(h.run('state.conversation'),null);assert.equal(h.run('sourceUsable()'),false);
+  h.run('openSource()');
+  for(const [id,value] of [['source-path',preferences.source],['output-path',preferences.output],['source-encoding',preferences.encoding],
+    ['source-format',preferences.source_format],['source-extensions','.cbl,.member'],['source-framework-path',preferences.framework_reference_path]])assert.equal(h.get(id).value,value,id);
+  h.run("state.sourceJobTarget={source:'/pending/source',output:'/pending/output'};openSource()");
+  assert.equal(h.get('source-path').value,'/pending/source');assert.equal(h.get('output-path').value,'/pending/output');
+  h.run(`state.sourceJobTarget=null;state.sourcePreferences=null;rememberSourcePreferences(${JSON.stringify(synthetic)});openSource()`);
+  assert.equal(h.get('source-path').value,'');assert.equal(h.get('output-path').value,'');
+});
+
+test('a failed real import leaves example mode and preserves its attempted paths and settings for retry',async()=>{
+  for(const prior of ['real-preview','real-prepared','empty-preview']){
+    const h=harness();if(prior!=='empty-preview')setup(h);else h.run('state.connected=true;state.conversationSupported=true');
+    h.respond(url=>url==='/api/framework-demo'?frameworkDemoFixture():url==='/api/framework-demo/prepare'?{status:'READY',
+      project:{...project(),source:'poc/fixtures/framework-workbench/source',source_origin:'synthetic_framework',output:'/synthetic/output'}}:assert.fail(url));
+    await h.run("setMode('demo')");if(prior==='real-prepared')await h.run('prepareDemo()');
+    const options={source:'/real/new-source',output:'/real/new-output',encoding:'gb18030',source_format:'free',extensions:'.cbl,.member',framework_reference_path:'/real/reference',allow_network:false};
+    h.respond(url=>url==='/api/analyze'?{job_id:'real-import'}:url==='/api/jobs/real-import'?{kind:'index',status:'FAILED',source:options.source,output:options.output,
+      error:{code:'SOURCE_UPDATE_FAILED',diagnostic:{schema_version:'safe-api-error/v1',category:'source_encoding_invalid',evidence_source:'local',request_id:'local-'+'a'.repeat(32)}}}:assert.fail(url));
+    await h.run(`startJob(${JSON.stringify(options)})`);
+    assert.equal(h.run('state.mode'),'real',prior);assert.equal(h.run('syntheticProject()'),false);assert.equal(h.run('state.errorDiagnostic.category'),'source_encoding_invalid');
+    assert.equal(h.run('state.project?.source || null'),prior==='empty-preview'?null:'/local/source');
+    assert.equal(h.run('state.question'),prior==='empty-preview'?'':'Unsent follow-up');
+    assert.doesNotMatch(h.get('page-content').innerHTML,/fixtures\/framework-workbench\/source|data-demo-case|data-prepare-demo/);
+    h.run('openSource()');assert.equal(h.get('source-path').value,options.source);assert.equal(h.get('output-path').value,options.output);
+    assert.equal(h.get('source-encoding').value,options.encoding);assert.equal(h.get('source-format').value,options.source_format);
+    assert.equal(h.get('source-extensions').value,options.extensions);assert.equal(h.get('source-framework-path').value,options.framework_reference_path);
+    assert.equal(h.requests.filter(item=>item.url==='/api/framework-demo').length,1);
+  }
+});
+
+test('a completed mixed import displays read and skipped candidate counts while keeping questions available in every locale',async()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);setup(h);
+    const current=project('b');current.diagnosis.runner_status='NEEDS_ATTENTION';current.diagnosis.scope.input_coverage_complete=false;
+    current.diagnosis.build_report={files:{candidate:12000,decoded:11997,unreadable_or_binary:3,skipped_unchanged:11990},input_skips:[
+      {relative_path:'attachments/<img src=x>.member',reason_code:'SOURCE_ENCODING_INVALID'},
+      {relative_path:'restricted.cbl',reason_code:'SOURCE_READ_FAILED'},
+      {relative_path:'unknown.cbl',reason_code:'PRIVATE-SKIP-REASON',message:'PRIVATE-SKIP-MESSAGE'}]};
+    h.respond(url=>url==='/api/analyze'?{job_id:'mixed-import'}:{status:'COMPLETED',result:current});
+    await h.run(`startJob(${JSON.stringify(indexOptions())})`);
+    assert.equal(h.run('sourceUsable()'),true);assert.equal(h.run('state.error'),'');assert.equal(h.run('state.errorDiagnostic'),null);
+    const html=h.get('page-content').innerHTML;
+    assert.match(html,locale==='en'?/Read 11,997 files · Skipped 3 candidate files/:locale==='zh-CN'?/已读入 11,997 个文件 · 跳过 3 个候选文件/:/已讀入 11,997 個檔案 · 跳過 3 個候選檔案/);
+    assert.match(html,locale==='en'?/indexed and ready for questions/:locale==='zh-CN'?/已建立索引，可继续提问/:/已建立索引，可繼續提問/);
+    assert.match(html,locale==='en'?/<details><summary>View skipped files/:locale==='zh-CN'?/<details><summary>查看跳过的文件/:/<details><summary>查看跳過的文件/);
+    assert.match(html,/attachments\/&lt;img src=x&gt;\.member/);assert.match(html,/restricted\.cbl/);assert.match(html,/unknown\.cbl/);
+    assert.doesNotMatch(html,/<img|PRIVATE-SKIP|conversation-failure|type="submit" disabled/);
+    assert.match(h.run('renderSources()'),/11,997/);assert.match(h.run('renderSources()'),/source-input-coverage/);
+    if(locale==='en')assert.doesNotMatch(html,/[\u3400-\u9fff]/);
+  }
+});
+
 test('the actual update form sends a full local verification without a model call',async()=>{
   const h=harness();setup(h);h.run('openSource()');h.get('verify-content').checked=false;
   h.respond(url=>url==='/api/analyze'?{job_id:'source-job'}:{status:'COMPLETED',result:{...project('b'),conversations:[{id:'old-conversation',title:'Existing question',message_count:1}]}});

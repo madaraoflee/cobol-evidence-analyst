@@ -118,14 +118,25 @@ def _identity(value):
     return value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns
 
 
+class _SourceReadError(OSError):
+    """An input read failed, independently of database writes or callbacks."""
+
+
+def _source_read(operation, *args, **kwargs):
+    try:
+        return operation(*args, **kwargs)
+    except OSError as error:
+        raise _SourceReadError(*error.args) from error
+
+
 def _verify_file(path, root, encoding, emit):
     """Hash the complete file and validate encodings with fixed-size buffers."""
-    before = path.stat()
-    with path.open("rb") as handle:
-        opened = os.fstat(handle.fileno())
+    before = _source_read(path.stat)
+    with _source_read(path.open, "rb") as handle:
+        opened = _source_read(os.fstat, handle.fileno())
         if _identity(before) != _identity(opened) or not stat.S_ISREG(opened.st_mode):
             raise ValueError("SOURCE_CHANGED_DURING_READ")
-        prefix = handle.read(8192)
+        prefix = _source_read(handle.read, 8192)
         if encoding == "auto":
             candidates = ["utf-8", "cp950", "big5", "cp1252", "latin-1"]
             for bom, name in ((b"\xff\xfe\x00\x00", "utf-32"), (b"\x00\x00\xfe\xff", "utf-32"),
@@ -150,14 +161,14 @@ def _verify_file(path, root, encoding, emit):
                 except UnicodeError:
                     del decoders[name]
             emit(completed)
-            chunk = handle.read(CHUNK_BYTES)
+            chunk = _source_read(handle.read, CHUNK_BYTES)
         for name in list(decoders):
             try:
                 decoders[name].decode(b"", final=True)
             except UnicodeError:
                 del decoders[name]
-        after_open = os.fstat(handle.fileno())
-    after = _safe_path(root, path.relative_to(root).as_posix()).stat()
+        after_open = _source_read(os.fstat, handle.fileno())
+    after = _source_read(_safe_path(root, path.relative_to(root).as_posix()).stat)
     if _identity(before) != _identity(after_open) or _identity(before) != _identity(after):
         raise ValueError("SOURCE_CHANGED_DURING_READ")
     selected = next((name for name in candidates if name in decoders), None)
@@ -169,19 +180,19 @@ def _verify_file(path, root, encoding, emit):
 
 def _physical_lines(path, encoding, expected_stat=None):
     """Yield every physical line; a huge line is counted but not held as a fact."""
-    with path.open("r", encoding=encoding, errors="strict", newline="") as handle:
-        if expected_stat is not None and _identity(os.fstat(handle.fileno())) != _identity(expected_stat):
+    with _source_read(path.open, "r", encoding=encoding, errors="strict", newline="") as handle:
+        if expected_stat is not None and _identity(_source_read(os.fstat, handle.fileno())) != _identity(expected_stat):
             raise ValueError("SOURCE_CHANGED_DURING_READ")
         pending, oversized, first, line_number = "", False, True, 0
         while True:
-            chunk = handle.read(65536)
+            chunk = _source_read(handle.read, 65536)
             if first:
                 chunk, first = chunk.lstrip("\ufeff"), False
             if not chunk:
                 if pending or oversized:
                     line_number += 1
                     yield line_number, None if oversized else pending.removesuffix("\r")
-                if expected_stat is not None and _identity(os.fstat(handle.fileno())) != _identity(expected_stat):
+                if expected_stat is not None and _identity(_source_read(os.fstat, handle.fileno())) != _identity(expected_stat):
                     raise ValueError("SOURCE_CHANGED_DURING_READ")
                 return
             text = pending + chunk
@@ -641,9 +652,18 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                    or prior.get("source_root_hash") != _content_hash(str(root)))
         updated = skipped = total_bytes = metadata_cached = content_verified = 0
         file_stats, file_boundaries, boundaries, scan_details, distributions = {}, {}, [], [], {key: Counter() for key in ("encodings", "format_hints", "artifact_kinds")}
+        input_skips = []
         selected, queued = [], set(initial)
         queue = deque((relative, 0) for relative in initial)
         changed_paths, changed_targets, changed_programs = set(), set(), set()
+
+        def skip_input(relative, reason):
+            input_skips.append({"relative_path": relative, "reason_code": reason})
+            boundaries.append({"relative_path": relative, "relation_type": "SOURCE_INPUT",
+                               "target_name": "", "status": reason})
+            emit("indexing", completed=len(selected) + len(input_skips), total=len(queued),
+                 current_file=relative, input_skip_reason=reason)
+
         with connection:
             connection.execute("CREATE TEMP TABLE business_deleted_units (unit_id TEXT PRIMARY KEY)")
             search_row = connection.execute("SELECT rowid FROM code_units_fts ORDER BY rowid DESC LIMIT 1").fetchone()
@@ -655,9 +675,13 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
             while queue:
                 relative, depth = queue.popleft()
                 path = _safe_path(root, relative)
-                emit("reading", completed=len(selected), total=len(queued), current_file=relative)
+                emit("reading", completed=len(selected) + len(input_skips), total=len(queued), current_file=relative)
                 old = previous.get(relative)
-                observed = path.stat()
+                try:
+                    observed = _source_read(path.stat)
+                except _SourceReadError:
+                    skip_input(relative, "SOURCE_READ_FAILED")
+                    continue
                 unchanged = (not verify_content and not rebuild and old is not None
                              and prior_stats.get(relative) == [observed.st_size, observed.st_mtime_ns])
                 if unchanged:
@@ -665,18 +689,29 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                                 "used_fallback_encoding": bool(old["used_fallback_encoding"])}
                     metadata_cached += 1
                 else:
-                    metadata = _verify_file(path, root, encoding, lambda done: emit(
-                        "reading", completed=len(selected), total=len(queued), current_file=relative, file_bytes_completed=done))
+                    try:
+                        metadata = _verify_file(path, root, encoding, lambda done: emit(
+                            "reading", completed=len(selected) + len(input_skips), total=len(queued),
+                            current_file=relative, file_bytes_completed=done))
+                    except _SourceReadError:
+                        skip_input(relative, "SOURCE_READ_FAILED")
+                        continue
+                    except ValueError as error:
+                        if error.args != ("SOURCE_ENCODING_INVALID",):
+                            raise
+                        skip_input(relative, "SOURCE_ENCODING_INVALID")
+                        continue
                     content_verified += 1
                 info = metadata["stat"]
-                file_stats[relative] = [info.st_size, info.st_mtime_ns]
-                total_bytes += info.st_size
                 cached = not rebuild and old is not None and old["sha256"] == metadata["sha256"]
                 if cached:
                     skipped += 1
                     line_count, artifact = old["line_count"], old["artifact_kind"]
                     file_boundaries[relative] = prior_boundaries.get(relative, {})
                 else:
+                    # An input can become unreadable after verification. Keep
+                    # that file's partially written facts out of the snapshot.
+                    connection.execute("SAVEPOINT business_source_input")
                     # New files have no facts to remove. In particular, the
                     # FTS deletion joins scan existing units, making a cold
                     # import quadratic when repeated for every new file.
@@ -685,10 +720,31 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                         _changed_definitions(connection, relative, changed_targets, changed_programs)
                         _queue_file_deletion(connection, relative)
                     facts = _Facts(connection, relative, metadata, source_format, lambda done: emit(
-                        "parsing", completed=len(selected), total=len(queued), current_file=relative, file_completed=done, file_unit="lines"),
+                        "parsing", completed=len(selected) + len(input_skips), total=len(queued),
+                        current_file=relative, file_completed=done, file_unit="lines"),
                         copybook_hint=relative in copy_hints)
-                    for number, line in _physical_lines(path, metadata["encoding"], info):
-                        facts.consume(number, line)
+                    failed_input = None
+                    lines = _physical_lines(path, metadata["encoding"], info)
+                    try:
+                        while True:
+                            try:
+                                number, line = next(lines)
+                            except StopIteration:
+                                break
+                            except _SourceReadError:
+                                failed_input = "SOURCE_READ_FAILED"
+                                break
+                            except UnicodeError:
+                                failed_input = "SOURCE_ENCODING_INVALID"
+                                break
+                            facts.consume(number, line)
+                    finally:
+                        lines.close()
+                    if failed_input:
+                        connection.execute("ROLLBACK TO business_source_input")
+                        connection.execute("RELEASE business_source_input")
+                        skip_input(relative, failed_input)
+                        continue
                     facts.finish()
                     _changed_definitions(connection, relative, changed_targets, changed_programs)
                     line_count = facts.line_count
@@ -697,6 +753,7 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                     connection.execute("INSERT INTO source_files VALUES (?,?,?,?,?,?,?,?)", (
                         relative, metadata["sha256"], metadata["encoding"], int(metadata["used_fallback_encoding"]),
                         source_format, artifact, line_count, datetime.now(timezone.utc).isoformat()))
+                    connection.execute("RELEASE business_source_input")
                     updated += 1
                 boundaries.extend({"relative_path": relative, "relation_type": "SPARSE_PARSER", "target_name": "",
                                    "status": reason, "count": count} for reason, count in file_boundaries[relative].items())
@@ -705,6 +762,8 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                 distributions["encodings"][metadata["encoding"]] += 1
                 distributions["format_hints"][source_format] += 1
                 distributions["artifact_kinds"][artifact] += 1
+                file_stats[relative] = [info.st_size, info.st_mtime_ns]
+                total_bytes += info.st_size
                 selected.append(relative)
                 scan_details.append({"relative_path": relative, "bytes_scanned": info.st_size, "file_bytes": info.st_size,
                                      "truncated": False, "encoding": metadata["encoding"], "depth": depth})
@@ -728,7 +787,12 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                             if target_path not in queued:
                                 queued.add(target_path)
                                 queue.append((target_path, depth + int(relation == "CALLS")))
-                emit("indexing", completed=len(selected), total=len(queued), current_file=relative)
+                emit("indexing", completed=len(selected) + len(input_skips), total=len(queued), current_file=relative)
+            if not selected:
+                error = ValueError("SOURCE_INDEX_EMPTY")
+                error.input_skips = input_skips
+                error.source_input_count = len(queued)
+                raise error
             removed = set(previous) - set(selected)
             for relative in removed:
                 changed_paths.add(relative)
@@ -793,17 +857,19 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                  "selected_source_bytes": total_bytes, "total_scope_bytes": total_bytes,
                  "max_files": None, "max_depth": None, "max_total_source_bytes": None,
                  "dependency_scan": scan_details, "complete_dependency_closure": not boundaries,
+                 "input_coverage_complete": not input_skips,
                  "boundaries": boundaries, "truncated": False, "runtime_paths_verified": False,
                  "budget_kind": "streaming_sparse_facts", "full_statement_analysis_performed": False,
                  "source_text_buffer_bounded": True, "memory_usage_bounded": False}
         return {"schema_version": SCHEMA_VERSION, "parser_version": PARSER_VERSION, "index_kind": "business_sparse",
                 "snapshot_id": snapshot, "source_options": options, "scope": scope, "selected_entry": selected_entry,
-                "relative_paths": selected, "missing_dependencies": boundaries,
+                "relative_paths": selected, "missing_dependencies": boundaries, "input_skips": input_skips,
                 "source_stat_manifest": file_stats, "database_counts": counts,
-                "files": {"candidate": len(selected), "decoded": len(selected), "unreadable_or_binary": 0,
+                "files": {"candidate": len(queued), "decoded": len(selected), "unreadable_or_binary": len(input_skips),
                           "indexed_or_updated": updated, "skipped_unchanged": skipped, "removed": len(removed),
                           "metadata_cache_reused": metadata_cached, "content_hash_verified": content_verified},
-                "diagnostics": {"status": "ready", "warnings": [], "program_count": program_count,
+                "diagnostics": {"status": "needs_attention" if input_skips else "ready", "warnings": ([f"{len(input_skips)} source files were unreadable or could not be decoded; see input_skips for the excluded paths."]
+                                                              if input_skips else []), "program_count": program_count,
                                 "copybook_count": copybook_count, "files_without_symbols": 0},
                 "distributions": {key: dict(value) for key, value in distributions.items()},
                 "parser_rebuild_required": bool(previous) and rebuild, "source_options_rebuild_required": bool(previous) and prior.get("source_options") != options_json,

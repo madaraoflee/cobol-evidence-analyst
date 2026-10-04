@@ -194,7 +194,7 @@ test('new questions and changed entries hide old API data even when the previous
 });
 
 test('API tab is real-mode only and all authored diagnostic messages translate into English',()=>{
-  const h=harness();assert.doesNotMatch(h.run('answerTabs()'),/data-tab="api"/);assert.equal(h.run('apiResponseView()'),'');
+  const h=harness();h.run("state.mode='demo'");assert.doesNotMatch(h.run('answerTabs()'),/data-tab="api"/);assert.equal(h.run('apiResponseView()'),'');
   setup(h,agent());h.run("state.tab='api'");assert.match(h.run('answerTabs()'),/data-tab="api"[^>]+aria-selected="true"/);assert.match(h.run('renderWorkbench()'),/Raw response body/);assert.doesNotMatch(h.run('apiResponseView()'),/[\u3400-\u9fff]/);
   for(const reason of ['model_protocol_error','invalid_final_answer','model_client_error','tool_budget_exhausted','model_turn_budget_exhausted','no_progress','model_output_budget_exceeded','unauthorized_tool','invalid_tool_arguments','evidence_phase_closed','tool_execution_error','tool_contract_mismatch','tool_status_invalid','snapshot_missing','snapshot_mismatch','snapshot_integrity_error','tool_policy_denied','tool_capability_unavailable','evidence_scope_violation','invalid_evidence_reference','unsupported_claim_content','unsupported_claim','claim_checker_error','unknown']){
     assert.doesNotMatch(h.run(`stopExplanation('${reason}')`),/[\u3400-\u9fff]/,reason);

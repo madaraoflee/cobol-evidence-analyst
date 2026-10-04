@@ -99,13 +99,15 @@ class ImportRequestFailureTests(unittest.TestCase):
             self.app.evidence(self.old_evidence)
         self.assertEqual(caught.exception.code, "NO_CURRENT_INDEX")
 
-    def test_binary_source_update_keeps_its_diagnostic_and_restores_historical_references(self):
+    def test_all_binary_source_update_explains_no_usable_source_and_restores_historical_references(self):
         self.member.write_bytes(b"\x00" * 128)
         result = self.update()
-        diagnostic = self.assert_failure(result, "source_encoding_invalid", "SOURCE_UPDATE_FAILED")
+        diagnostic = self.assert_failure(result, "source_empty", "SOURCE_UPDATE_FAILED")
         failed_report = self.reports[-1]
         self.assertEqual(failed_report["reason_code"], "SOURCE_ANALYSIS_FAILED")
         self.assertFalse(failed_report["source_manifest_verified"])
+        self.assertEqual(failed_report["build_report"]["input_skips"],
+                         [{"relative_path": "entry.cbl", "reason_code": "SOURCE_ENCODING_INVALID"}])
         self.assertEqual(diagnostic["request_id"], failed_report["diagnostic"]["request_id"])
         self.assert_old_workspace_is_usable()
 

@@ -29,6 +29,16 @@ COBOL 業務分析|COBOL 业务分析|COBOL Workbench
 更新索引與版本|更新索引与版本|Update index and version
 目前工作完成後，可更新源碼|当前工作完成后，可更新源码|Update source after the current task finishes
 本機源碼版本|本地源码版本|Local source versions
+本次源碼接入|本次源码接入|Current source import
+部分候選文件未讀入|部分候选文件未读入|Some candidate files were not read
+已讀入 |已读入 |Read\u0020
+ · 跳過 | · 跳过 | · Skipped\u0020
+已讀入的源碼已建立索引，可繼續提問。跳過的文件未納入本次業務分析範圍。|已读入的源码已建立索引，可继续提问。跳过的文件未纳入本次业务分析范围。|The source that was read is indexed and ready for questions. Skipped files are outside the scope of this analysis.
+查看跳過的文件|查看跳过的文件|View skipped files
+非文字文件，或無法按目前編碼讀取。|非文本文件，或无法按当前编码读取。|Not a text file, or unreadable using the current encoding.
+文件無法讀取。|文件无法读取。|The file could not be read.
+此文件未讀入，原因未確認。|此文件未读入，原因未确认。|This file was not read; the cause is unconfirmed.
+目前顯示前 200 個跳過的文件；完整清單保留在匯出 JSON。|目前显示前 200 个跳过的文件；完整清单保留在导出 JSON 中。|Showing the first 200 skipped files. The full list is retained in the JSON export.
 個檔案|个文件|files
 最近檢查：|最近检查：|Last checked:
 查看版本記錄 ·|查看版本记录 ·|Version history ·

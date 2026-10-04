@@ -19,8 +19,9 @@ function harness(saved='zh-HK',storageBlocked=false){
   vm.runInContext(fs.readFileSync(path.join(root,'marked.umd.js'),'utf8'),context);
   vm.runInContext(fs.readFileSync(path.join(root,'markdown.js'),'utf8'),context);
   vm.runInContext(fs.readFileSync(path.join(root,'app.js'),'utf8').replace(/render\(\);initialize\(\);\s*$/,''),context);
-  vm.runInContext(`preview.catalog=${JSON.stringify(frameworkDemoFixture())};selectDemoCase('online',false);state.demoLoading=false;`,context);
-  return {run:code=>vm.runInContext(code,context),change:locale=>events['language-select:change']({target:{value:locale}}),storage,get,fetches:()=>fetches};
+  return {run:code=>vm.runInContext(code,context),change:locale=>events['language-select:change']({target:{value:locale}}),storage,get,fetches:()=>fetches,
+    fixture(){vm.runInContext(`state.mode='demo';preview.catalog=${JSON.stringify(frameworkDemoFixture())};selectDemoCase('online',false);state.demoLoading=false;`,context);},
+  };
 }
 test('all three locale choices persist; unsupported preferences and denied storage are safe',()=>{
   const h=harness('unknown');assert.equal(h.run('currentLocale'),'zh-HK');
@@ -36,7 +37,7 @@ test('authored interface changes language while interpolated source and model te
   h.run("selectInterfaceLocale('zh-CN')");assert.equal(h.run("t('讓業務邏輯，清晰可見。')"),'让业务逻辑，清晰可见。');
 });
 test('framework guide pages contain no untranslated Chinese in English',()=>{
-  const h=harness('en');
+  const h=harness('en');h.fixture();
   for(const fn of ['renderWorkbench','renderSources','renderHistory','relationsView','traceView','markdownSummary']){
     assert.doesNotMatch(h.run(`${fn}()`),/[\u3400-\u9fff]/,fn);
   }
@@ -48,7 +49,7 @@ test('switching language retains local drafts, source scope, answers and pending
   assert.equal(h.run('JSON.stringify(state)'),before);assert.equal(h.fetches(),0);
 });
 test('case suggestions follow the selected locale and real questions remain editable separately',()=>{
-  const h=harness();h.run('render=()=>{}');h.change('en');
+  const h=harness();h.fixture();h.run('render=()=>{}');h.change('en');
   assert.equal(h.run('state.question'),'Explain Service request intake.');
   h.change('zh-CN');assert.equal(h.run('state.question'),'请解释服务申请受理。');
   assert.doesNotMatch(h.run('questionCard()'),/<textarea|id="question-input"/);

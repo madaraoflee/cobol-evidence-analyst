@@ -29,10 +29,10 @@
         <button class="nav-item" data-page="history"><span data-icon="clock"></span>分析記錄</button>
       </nav>
       <section class="project-strip" aria-label="當前源碼範圍">
-        <div class="project-card-heading"><span data-icon="folder"></span><strong id="project-title">業務案例工作台</strong><button class="icon-button" id="connect-button" aria-label="接入源碼" title="接入源碼"><span data-icon="plus"></span></button></div>
-        <span class="badge preview" id="source-badge">合成業務案例</span><small id="project-description">正在讀取業務案例</small>
+        <div class="project-card-heading"><span data-icon="folder"></span><strong id="project-title">尚未接入本機源碼</strong><button class="icon-button" id="connect-button" aria-label="接入源碼" title="接入源碼"><span data-icon="plus"></span></button></div>
+        <span class="badge neutral" id="source-badge">等待接入</span><small id="project-description">選擇源碼與結果資料夾，建立自己的分析範圍</small>
         <div class="snapshot-info" id="snapshot-info"></div>
-        <div class="mode-switch" aria-label="資料模式"><button class="selected" id="demo-mode">業務案例</button><button id="real-mode">本機源碼</button></div>
+        <div class="mode-switch" aria-label="資料模式"><button id="demo-mode" aria-pressed="false">業務案例</button><button class="selected" id="real-mode" aria-pressed="true">本機源碼</button></div>
       </section>
       <div class="sidebar-bottom">
         <details class="privacy-card"><summary><span data-icon="shield"></span>源碼留在本機<span data-icon="chevron"></span></summary><p>提問時，向已設定的接口傳送有限源碼與框架節錄。</p></details>
@@ -49,7 +49,7 @@
         <div class="page-heading"><div><div class="eyebrow">FROM SOURCE TO UNDERSTANDING</div><h1 id="page-title">讓業務邏輯，清晰可見。</h1><p id="page-subtitle">從一個業務問題出發，沿著源碼找到可追溯的答案。</p></div></div>
         <div id="notice" class="notice" hidden role="status"></div>
         <div id="page-content"></div>
-        <footer class="page-footer"><span><span class="tiny-square"></span><span>馨弦</span> · Evidence-led analysis</span><span id="footer-scope">合成業務案例 · 未呼叫模型</span></footer>
+        <footer class="page-footer"><span><span class="tiny-square"></span><span>馨弦</span> · Evidence-led analysis</span><span id="footer-scope">本機代碼庫 · 業務問答</span></footer>
       </main>
     </div>
     <aside class="activity-sidebar" id="activity-sidebar" aria-labelledby="activity-title" tabindex="0">
@@ -57,7 +57,7 @@
       <div id="conversation-list" class="conversation-list"></div>
       <section class="current-analysis" aria-labelledby="current-analysis-title">
         <h2 class="sidebar-caption" id="current-analysis-title">本次分析</h2>
-        <button class="recent-item" id="recent-analysis"><span class="recent-dot"></span><span id="recent-title">業務案例工作台<small>合成業務案例 · 未呼叫模型</small></span></button>
+        <button class="recent-item" id="recent-analysis"><span class="recent-dot"></span><span id="recent-title">尚未建立業務問答<small>接入源碼後開始</small></span></button>
       </section>
     </aside>
   </div>

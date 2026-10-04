@@ -25,7 +25,7 @@ function harness(locale='en'){
   vm.runInContext(fs.readFileSync(path.join(web,'markdown.js'),'utf8'),context);
   vm.runInContext(fs.readFileSync(path.join(web,'app.js'),'utf8').replace(/render\(\);initialize\(\);\s*$/,''),context);
   return {run:code=>vm.runInContext(code,context),get,events,requests,respond:fn=>responder=fn,
-    fixture(value=frameworkDemoFixture()){vm.runInContext(`preview.catalog=${JSON.stringify(value)};state.demoLoading=false;selectDemoCase('online',false);`,context);},
+    fixture(value=frameworkDemoFixture()){vm.runInContext(`state.mode='demo';preview.catalog=${JSON.stringify(value)};state.demoLoading=false;selectDemoCase('online',false);`,context);},
     click(data){return events.click({preventDefault:()=>{},target:{closest:()=>({dataset:data,hasAttribute:()=>false,classList:{contains:()=>false}})}});},
   };
 }
@@ -36,18 +36,72 @@ function preparedProject(locale='en'){
     diagnosis:{runner_status:'INDEX_READY',catalog_ready:true,question_status:'NETWORK_DISABLED',question:selected.question[locale],entry_requested:selected.entry_path,source_options:{max_source_pages:12,reading_strategy:'full_chain',index_mode:'catalog'},catalog_report:{files:{candidate:7}}},agent:{runner_status:'NETWORK_DISABLED',agent_result:null},relations:{edges:[]}};
 }
 
-test('initial guide reads the authenticated local payload and never starts a model request',async()=>{
-  const h=harness();h.respond(url=>url==='/api/state'?{session_token:'test-session',api_configured:false}:url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
+test('startup opens an empty real source workspace and only reads local state',async()=>{
+  const h=harness();
+  assert.equal(h.run('state.mode'),'real');assert.equal(h.run('state.demoLoading'),false);assert.equal(h.run('preview.catalog'),null);
+  h.respond(url=>url==='/api/state'?{session_token:'test-session',api_configured:false}:assert.fail(url));
   await h.run('initialize()');
+  assert.deepEqual(h.requests.map(item=>item.url),['/api/state']);
+  assert.equal(h.run('state.mode'),'real');assert.equal(h.run('state.demoLoading'),false);assert.equal(h.run('state.project'),null);
+  assert.equal(h.run('state.question'),'');assert.equal(h.run('state.entry'),'');assert.equal(h.run('sourceUsable()'),false);
+  assert.equal(h.run('currentPrograms().length'),0);assert.equal(h.run('preview.catalog'),null);
+  assert.match(h.get('page-content').innerHTML,/Start with your own source/);assert.match(h.get('page-content').innerHTML,/data-connect/);
+  assert.doesNotMatch(h.get('page-content').innerHTML,/data-demo-case|data-prepare-demo|Synthetic business case/);
+  assert.equal(h.get('project-title').textContent,'No local source connected');
+  h.run('openSource()');assert.equal(h.get('source-path').value,'');assert.equal(h.get('output-path').value,'');
+});
+
+test('startup never restores a saved synthetic project as the real source scope',async()=>{
+  for(const withConversation of [false,true]){
+    const h=harness();const project=preparedProject();
+    const conversation={id:'saved-example',title:'Example discussion',source_origin:'synthetic_framework',messages:[{id:'example-answer',role:'assistant',content:'SAVED-EXAMPLE-ANSWER'}]};
+    h.respond(url=>url==='/api/state'?{session_token:'test-session',project,...(withConversation?{conversations:[conversation],conversation}: {})}:assert.fail(url));
+    await h.run('initialize()');
+    assert.deepEqual(h.requests.map(item=>item.url),['/api/state']);
+    assert.equal(h.run('state.mode'),'real');assert.equal(h.run('state.project'),null);assert.equal(h.run('state.conversation'),null);
+    assert.equal(h.run('state.question'),'');assert.equal(h.run('state.entry'),'');assert.equal(h.run('sourceUsable()'),false);
+    assert.equal(h.run('currentPrograms().length'),0);assert.equal(h.run('preview.catalog'),null);
+    assert.doesNotMatch(h.get('page-content').innerHTML,/SAVED-EXAMPLE-ANSWER|data-demo-case|data-prepare-demo/);
+    h.run('openSource()');assert.equal(h.get('source-path').value,'');assert.equal(h.get('output-path').value,'');
+  }
+});
+
+test('explicit case selection loads the authenticated guide once and only an explicit preparation requests its index',async()=>{
+  const h=harness();h.respond(url=>url==='/api/state'?{session_token:'test-session',api_configured:false}:url==='/api/framework-demo'?frameworkDemoFixture():assert.fail(url));
+  await h.run('initialize()');await h.run("setMode('demo')");
   assert.deepEqual(h.requests.map(item=>item.url),['/api/state','/api/framework-demo']);
   assert.equal(h.requests[1].options.headers['X-Session-Token'],'test-session');
   assert.equal(h.run('state.mode'),'demo');assert.equal(h.run('state.question'),'Explain Service request intake.');
   assert.match(h.get('page-content').innerHTML,/Synthetic business case · No model call/);
   assert.match(h.get('project-description').textContent,/7 files · 3 program definitions/);assert.equal(h.get('nav-count').textContent,'7');
+  assert.equal(h.run('state.project'),null);
+  await h.run("setMode('real')");await h.run("setMode('demo')");
+  assert.deepEqual(h.requests.map(item=>item.url),['/api/state','/api/framework-demo']);
+  h.respond(url=>url==='/api/framework-demo/prepare'?{status:'READY',project:preparedProject()}:assert.fail(url));
+  await h.run('prepareDemo()');
+  assert.deepEqual(h.requests.map(item=>item.url),['/api/state','/api/framework-demo','/api/framework-demo/prepare']);
+  assert.equal(h.run('state.mode'),'real');assert.equal(h.run('syntheticProject()'),true);
+});
+
+test('returning to real mode after preparing a case restores the real project, conversation, draft and paths',async()=>{
+  const h=harness();const project={...preparedProject(),source:'local-source',source_origin:'local_source',output:'local-results',snapshot_id:'sha256:local'};
+  project.agent=null;project.diagnosis={...project.diagnosis,question:'Original business question',entry_requested:'',source_manifest_verified:true,scope:{mode:'repository_index'},repository_search:{full_text_complete:true}};
+  const conversation={id:'real-conversation',title:'Current real discussion',messages:[{id:'real-answer',role:'assistant',content:'REAL-ANSWER-RETAINED'}]};
+  h.run(`state.connected=true;state.conversationSupported=true;applyProject(${JSON.stringify(project)});applyConversation(${JSON.stringify(conversation)});state.question='Keep my unsent real question';state.readingStrategy='retrieval';`);
+  const before=h.run('JSON.stringify({project:state.project,conversation:state.conversation,question:state.question,entry:state.entry,readingStrategy:state.readingStrategy})');
+  h.respond(url=>url==='/api/framework-demo'?frameworkDemoFixture():url==='/api/framework-demo/prepare'?{status:'READY',project:preparedProject(),conversation:{id:'prepared-example',messages:[]}}:assert.fail(url));
+  await h.run("setMode('demo')");await h.run('prepareDemo()');
+  assert.equal(h.run('syntheticProject()'),true);assert.equal(h.run('state.conversation.id'),'prepared-example');
+  await h.run("setMode('real')");
+  assert.equal(h.run('JSON.stringify({project:state.project,conversation:state.conversation,question:state.question,entry:state.entry,readingStrategy:state.readingStrategy})'),before);
+  assert.match(h.run('renderWorkbench()'),/REAL-ANSWER-RETAINED/);assert.doesNotMatch(h.run('renderWorkbench()'),/Synthetic business case|prepared-example/);
+  h.run('openSource()');assert.equal(h.get('source-path').value,'local-source');assert.equal(h.get('output-path').value,'local-results');
+  assert.deepEqual(h.requests.map(item=>item.url),['/api/framework-demo','/api/framework-demo/prepare']);
 });
 
 test('unavailable or invalid case data stays empty and clears stale guide evidence',async()=>{
   const h=harness();h.respond(()=>{throw Error('offline');});await h.run('initialize()');
+  assert.equal(h.run('state.mode'),'real');await h.run("setMode('demo')");
   assert.match(h.run('renderWorkbench()'),/Start the local service/);assert.doesNotMatch(h.run('renderWorkbench()'),/data-demo-case|data-evidence/);
   h.fixture();h.run('state.connected=true');h.respond(()=>({cases:[]}));await h.run('loadFrameworkDemo()');
   assert.equal(h.run('demoCase()'),null);assert.equal(h.run('state.evidence'),null);assert.match(h.run('renderWorkbench()'),/could not be loaded/);
@@ -126,7 +180,7 @@ test('editable example enters chat, a second example reuses the synthetic index,
   await h.events.submit({target:{id:'demo-question-form'},preventDefault(){}});
   assert.equal(h.run('state.mode'),'real');assert.equal(h.run('state.entry'),'');assert.equal(h.run('state.question'),'How is any request routed?');
   assert.equal(h.run('state.project.output'),'local-output');assert.match(h.run('renderWorkbench()'),/conversation-workspace/);
-  h.run("setMode('demo');selectDemoCase('batch',false)");
+  await h.run("setMode('demo')");h.run("selectDemoCase('batch',false)");
   h.events.input({target:{id:'demo-question-input',value:'What else happens overnight?'}});
   h.respond(url=>url==='/api/framework-demo/prepare'?{status:'READY',project,conversation:thread,suggested_question:'Suggested question'}:assert.fail(url));
   await h.events.submit({target:{id:'demo-question-form'},preventDefault(){}});

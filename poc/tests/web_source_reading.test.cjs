@@ -75,7 +75,7 @@ test('new drafts hide previous narratives, citations and coverage while changing
 });
 
 test('reading depth is restored and sent numerically in analysis requests with real-mode controls only',async()=>{
-  const h=harness();assert.doesNotMatch(h.run('questionCard()'),/id="reading-depth"/);
+  const h=harness();h.run("state.mode='demo'");assert.doesNotMatch(h.run('questionCard()'),/id="reading-depth"/);
   const p=project();p.diagnosis.source_options.max_source_pages=48;h.run(`state.mode='real';applyProject(${JSON.stringify(p)});state.apiConfigured=true;let submitted=null;startJob=async options=>{submitted=options;};`);
   assert.equal(h.run('state.maxSourcePages'),48);assert.match(h.run('questionCard()'),/value="48" selected/);
   await h.events.submit({target:{id:'question-form'},preventDefault:()=>{}});assert.equal(h.run('submitted.max_source_pages'),48);assert.equal(h.run('submitted.question'),'Explain flow');assert.equal(h.run('submitted.allow_network'),true);
@@ -131,7 +131,7 @@ test('focused reading is the new default, keeps a full-flow option, and restores
   await h.events.submit({target:{id:'question-form'},preventDefault:()=>{}});assert.equal(h.run('submitted.reading_strategy'),'full_chain');assert.equal(h.run('submitted.max_source_pages'),12);
   const p=project();p.diagnosis.source_options={max_source_pages:48,reading_strategy:'full_chain'};h.run(`applyProject(${JSON.stringify(p)})`);assert.equal(h.run('draftChanged()'),false);assert.match(h.run('readingDepthControl()'),/48 sections per batch/);
   h.run("state.busy=true");assert.match(h.run('readingDepthControl()'),/id="reading-strategy" disabled/);
-  h.run("state.busy=false;setMode('demo');state.readingStrategy='focused';setMode('real')");assert.equal(h.run('state.readingStrategy'),'full_chain');assert.equal(h.run('state.maxSourcePages'),48);
+  h.run("state.busy=false");await h.run("setMode('demo')");h.run("state.readingStrategy='focused'");await h.run("setMode('real')");assert.equal(h.run('state.readingStrategy'),'full_chain');assert.equal(h.run('state.maxSourcePages'),48);
 });
 
 test('batched coverage and per-source business detail remain readable, literal and traceable in every locale',()=>{
@@ -161,7 +161,7 @@ test('a connected multi-program catalog keeps repository scope and sends arbitra
   assert.equal(h.run('state.entry'),'');assert.match(h.run('entryOptions()'),/value="" selected>Entire repository/);
   assert.match(h.run('actualAnswer()'),/Enter a business question to find relevant implementations automatically/);
   assert.doesNotMatch(h.run('actualAnswer()'),/blocked|Choose a starting program|Insufficient evidence/i);
-  h.run("setMode('demo');setMode('real');state.question='How does a returned transfer change the settlement balance?'");
+  await h.run("setMode('demo')");await h.run("setMode('real')");h.run("state.question='How does a returned transfer change the settlement balance?'");
   assert.equal(h.run('state.entry'),'');
   await h.events.submit({target:{id:'question-form'},preventDefault:()=>{}});
   assert.equal(h.run('submitted.entry'),null);
