@@ -19,6 +19,26 @@ COBOL 業務分析|COBOL 业务分析|COBOL Workbench
 從一個問題，理清業務脈絡|从一个问题，理清业务脉络|FOLLOW THE THREAD
 描述你想確認的規則、例外或影響，沿著源碼一起找答案。|描述你想确认的规则、例外或影响，沿着源码一起找答案。|Ask about rules, exceptions or impact. Follow the source to understand why.
 源碼|源码|Source
+更新本機源碼|更新本地源码|Update local source
+切換源碼目錄|切换源码目录|Switch source folder
+更新索引與版本|更新索引与版本|Update index and version
+目前工作完成後，可更新源碼|当前工作完成后，可更新源码|Update source after the current task finishes
+本機源碼版本|本地源码版本|Local source versions
+個檔案|个文件|files
+最近檢查：|最近检查：|Last checked:
+查看版本記錄 ·|查看版本记录 ·|Version history ·
+更新會校驗檔案內容，識別新增、修改和刪除。版本記錄保留檔案指紋，舊回答保留當時引用。|更新会校验文件内容，识别新增、修改和删除。版本记录保留文件指纹，旧回答保留当时引用。|Updates check file contents for additions, changes and removals. Version records keep file fingerprints, and earlier answers keep their original references.
+選擇或更新本機源碼資料夾。完成後，新問題使用目前版本，原對話和引用仍保留。|选择或更新本地源码文件夹。完成后，新问题使用当前版本，原对话和引用仍保留。|Select or update a local source folder. New questions use the current version, while earlier conversations and references remain available.
+接入與更新會完整校驗源碼內容；只有內容改變的檔案需要更新索引。|接入与更新会完整校验源码内容；只有内容改变的文件需要更新索引。|Imports and updates check all source contents. Only changed files need their index updated.
+接入與更新均在本機校驗源碼並建立版本記錄，不呼叫模型。|接入与更新均在本地校验源码并建立版本记录，不调用模型。|Importing and updating check source locally and record its version without calling a model.
+此回答依據較早的本機版本|此回答依据较早的本地版本|This answer uses an earlier local version
+；原引用仍可查看。新提問會使用目前源碼。|；原引用仍可查看。新提问会使用当前源码。|. Its original references remain available. New questions use the current source.
+新增|新增|Added
+修改|修改|Changed
+刪除|删除|Removed
+框架操作已識別|框架操作已识别|Framework operation identified
+框架操作說明不確認本次返回值或實際執行結果。|框架操作说明不确认本次返回值或实际执行结果。|The framework operation does not confirm this call's returned values or actual execution outcome.
+公共呼叫可按已匹配框架約定解釋；未覆蓋的內部行為才需補充資料。|公共调用可按已匹配框架约定解释；未覆盖的内部行为才需补充资料。|Public calls can be explained using matched framework conventions; only uncovered internal behaviour needs additional material.
 追溯證據|追溯证据|Trace evidence
 理解業務|理解业务|Understand
 梳理業務規則|梳理业务规则|Understand rules

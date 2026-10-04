@@ -33,7 +33,7 @@ const preview = {catalog:null,selectedCase:null};
 const state = {mode:'demo',page:'workbench',tab:'answer',connected:false,token:null,apiConfigured:false,apiConfigurationError:null,frameworkKnowledge:null,captureApiResponses:false,
   conversationSupported:false,conversation:null,conversations:[],pendingMessage:null,conversationEvidence:null,conversationLoading:false,impactPages:{},
   project:null,question:'',entry:'',readingStrategy:'focused',answerDetail:'detailed',maxSourcePages:4,selectedEvidence:null,
-  evidence:null,demoLoading:true,demoError:'',demoRestore:null,busy:false,jobId:null,jobKind:null,error:'',errorDiagnostic:null,history:[],filter:'',sourcePage:0,entryFilter:'',progress:null,progressReceived:0,progressTimer:null,pollError:'',cancelRequested:false,evidenceTicket:0,modelChecking:false,modelCheckStatus:null,modelCheckFeedback:'',folderPicking:false,deletingConversationId:null};
+  evidence:null,demoLoading:true,demoError:'',demoRestore:null,sourceJobBackup:null,sourceIntent:'connect',busy:false,jobId:null,jobKind:null,error:'',errorDiagnostic:null,history:[],filter:'',sourcePage:0,entryFilter:'',progress:null,progressReceived:0,progressTimer:null,pollError:'',cancelRequested:false,evidenceTicket:0,modelChecking:false,modelCheckStatus:null,modelCheckFeedback:'',folderPicking:false,deletingConversationId:null};
 
 function demoText(value){return frameworkDemoText(value ?? '');}
 function demoCase(){return preview.catalog?.cases?.find(item=>item.id===preview.selectedCase) || null;}
@@ -197,6 +197,10 @@ function renderChrome(){
   $('footer-scope').textContent=demo?t('合成業務案例 · 未呼叫模型'):syntheticProject()?t('合成源碼 · 業務解讀仍需覆核'):t('本機代碼庫 · 業務問答');
   $('export-button').disabled=state.busy || demo || !d;
   $('connect-button').disabled=state.busy;
+  const sourceAction=state.project?.source && !syntheticProject()?t('更新本機源碼'):t('接入本機源碼');
+  $('connect-button').setAttribute('aria-label',sourceAction);
+  $('connect-button').setAttribute('title',state.busy?t('目前工作完成後，可更新源碼'):sourceAction);
+  if($('connect-label'))$('connect-label').textContent=sourceAction;
   const inlineFailure=conversationMode() && state.page==='workbench' && state.error;
   const notice=(!inlineFailure && state.error?(state.errorDiagnostic?failureSummaryText(state.errorDiagnostic):state.error):'') || (!demo && d?.runner_status==='BLOCKED'?(d.messages || []).join(' '):'');
   $('notice').textContent=notice;$('notice').hidden=!notice;
@@ -519,8 +523,6 @@ function narrativeNotes(answer,project=state.project){
   if(failed>0 || (answer?.stop_reason && !['completed','model_abstained','output_truncated'].includes(answer.stop_reason)))notes.push(t('部分分析請求未完成，已保留取得的解讀；詳情可查看 API 返回。'));
   const truncated=Array.isArray(coverage.truncated_response_pages)?coverage.truncated_response_pages.length:Number(coverage.truncated_response_pages || 0);
   if(truncated>0 || answer?.stop_reason==='output_truncated')notes.push(t('部分模型回應尚未完整輸出，已保留可用的解讀內容。'));
-  const missing=answer?.analysis_scope?.unresolved_dependency_count ?? project?.diagnosis?.unresolved_dependencies?.length ?? 0;
-  if(missing>0)notes.push(ui`${formatNumber(missing)} 項依賴尚缺實作，相關內部行為仍需補充源碼確認。`);
   if(answer?.status==='PARTIAL' && !notes.length)notes.push(t('目前呈現已取得的解讀，尚未完成的範圍可繼續分析。'));
   return notes;
 }
@@ -572,8 +574,16 @@ function actualAnswerBody(){
   return ui`<div class="real-answer"><div class="answer-state-row"><span class="badge neutral">${icon('check')}${escapeHTML(statusLabel(answer.status))}</span><small>${refs.length} 段引用</small></div><h2>來自當前源碼的分析結果</h2><p class="answer-intro">以下陳述保留實際核驗狀態。點選引用，可回到本次快照的源碼位置。</p>${scopeNotice()}<div class="steps">${answer.claims.map((claim,i)=>`<div class="business-step"><span class="step-number">${String(i+1).padStart(2,'0')}</span><div><div class="claim-text narrative-body">${narrativeMarkup(claim.claim || claim.text || '',refs,frameworkRefs)}${(claim.evidence_ids || []).map(id=>cite(id,String(Math.max(1,refs.findIndex(r=>r.evidence_id===id)+1)))).join('')}${(claim.framework_reference_ids || []).map(id=>{const index=frameworkRefs.findIndex(ref=>ref.reference_id===id);return index<0?'':frameworkCite(id,index+1);}).join('')}</div><small class="field-hint">${escapeHTML(({code_fact:t('源碼事實'),framework_interpretation:t('框架條件解讀 · 需源碼與現場覆核'),business_inference:t('業務推測 · 未核驗'),open_question:t('待確認問題 · 未形成結論')})[claim.kind] || t('候選解讀'))} · ${escapeHTML(({supported:t('局部語句已核驗'),citation_verified_only:t('引用已核對，語義待核驗'),unsupported:t('證據尚不支持')})[claim.support_status] || t('語義未核驗'))}</small></div></div>`).join('')}</div>${renderBoundaries(answer.boundaries || [])}<div class="answer-footnote">${icon('info')}問題相關性與完整性尚未核驗；局部語句通過不代表整條業務流程已驗證。</div></div>`;
 }
 function renderBoundaries(items){if(!items.length)return '';return ui`<details class="answer-support"><summary>依據與補充說明</summary>${items.map(b=>`<p>${escapeHTML(boundaryText(b))}</p>`).join('')}</details>`;}
+function relationFrameworkOperation(edge){
+  const answer=result();
+  if(state.mode!=='real' || !answer?.snapshot_id || answer.snapshot_id!==state.project?.snapshot_id || edge.relation_type!=='CALLS')return null;
+  if(!edge.relative_path || !edge.source_program || !edge.target_name || !Number.isInteger(edge.start_line) || !Number.isInteger(edge.end_line))return null;
+  return (answer.framework_context?.facts || []).find(fact=>fact.dependency_covered===true && fact.relation_type==='CALLS'
+    && fact.relative_path===edge.relative_path && fact.program_name===edge.source_program && fact.target_name===edge.target_name
+    && fact.start_line===edge.start_line && fact.end_line===edge.end_line && typeof fact.operation?.meaning==='string' && fact.operation.meaning.trim())?.operation || null;
+}
 function relationsView(){
-  const edges=currentRelations();return ui`<h2>沿著程式，回查關係。</h2><p class="graph-subtitle">${state.mode==='demo'?t('以下關係來自合成案例源碼中的呼叫語句，不代表實際執行順序。'):t('以下來自當前源碼的靜態呼叫與 COPY 關係，不表示執行順序或實際可達。')}${state.project?.relations?.truncated && state.mode==='real'?t(' 關係數量已達顯示上限。'):''}</p>${edges.length?edges.slice(0,40).map(edge=>`<div class="relation-row"><div class="relation-program">${escapeHTML(edge.source_program || edge.relative_path || t('來源'))}<span class="relation-meta">${escapeHTML(edge.relation_type==='INCLUDES_COPY'?t('引入定義'):t('呼叫來源'))}</span></div><div class="relation-link">${escapeHTML(edge.relation_type)}</div><div class="relation-program">${escapeHTML(edge.target_name || t('未解析目標'))}<span class="relation-meta">${escapeHTML(({confirmed:t('源碼關係已確認'),candidate:t('候選關係'),unresolved:t('未能確認'),illustrative:t('示例關係'),source_observed:t('源碼呼叫已讀取')})[edge.status] || edge.status)}</span></div>${edge.evidence_id && (state.mode!=='demo' || currentRefs().some(ref=>ref.evidence_id===edge.evidence_id))?cite(edge.evidence_id,'↗'):''}</div>`).join(''):t('<div class="answer-empty"><p>本次沒有可展示的呼叫或 COPY 關係；不能據此推斷不存在依賴。</p></div>')}${edges.length>40?t('<p class="source-note">目前顯示前 40 項關係。完整回傳資料可在匯出檔中查看。</p>'):''}`;
+  const edges=currentRelations();return ui`<h2>沿著程式，回查關係。</h2><p class="graph-subtitle">${state.mode==='demo'?t('以下關係來自合成案例源碼中的呼叫語句，不代表實際執行順序。'):t('以下來自當前源碼的靜態呼叫與 COPY 關係，不表示執行順序或實際可達。')}${state.project?.relations?.truncated && state.mode==='real'?t(' 關係數量已達顯示上限。'):''}</p>${edges.length?edges.slice(0,40).map(edge=>{const operation=relationFrameworkOperation(edge);return `<div class="relation-row"><div class="relation-program">${escapeHTML(edge.source_program || edge.relative_path || t('來源'))}<span class="relation-meta">${escapeHTML(edge.relation_type==='INCLUDES_COPY'?t('引入定義'):t('呼叫來源'))}</span></div><div class="relation-link">${escapeHTML(edge.relation_type)}</div><div class="relation-program">${escapeHTML(edge.target_name || t('未解析目標'))}<span class="relation-meta">${escapeHTML(operation?t('框架操作已識別'):({confirmed:t('源碼關係已確認'),candidate:t('候選關係'),unresolved:t('未能確認'),illustrative:t('示例關係'),source_observed:t('源碼呼叫已讀取')})[edge.status] || edge.status)}</span>${operation?`<small class="relation-meta">${escapeHTML(operation.meaning)}${operation.caveat?' '+escapeHTML(operation.caveat):''}</small><small class="relation-meta">${escapeHTML(t('框架操作說明不確認本次返回值或實際執行結果。'))}</small>`:''}</div>${edge.evidence_id && (state.mode!=='demo' || currentRefs().some(ref=>ref.evidence_id===edge.evidence_id))?cite(edge.evidence_id,'↗'):''}</div>`;}).join(''):t('<div class="answer-empty"><p>本次沒有可展示的呼叫或 COPY 關係；不能據此推斷不存在依賴。</p></div>')}${edges.length>40?t('<p class="source-note">目前顯示前 40 項關係。完整回傳資料可在匯出檔中查看。</p>'):''}`;
 }
 function traceView(){
   if(draftChanged())return ui`<div class="answer-empty">${icon('clock')}<h2>新問題尚未執行調查</h2><p>問題、調查起點或閱讀方式已更改。發起分析後，這裡會顯示新問題的工具記錄。</p></div>`;
@@ -648,9 +658,9 @@ function stopProgressClock(){if(state.progressTimer)clearInterval(state.progress
 async function cancelJob(){if(!state.jobId || state.cancelRequested)return;const jobId=state.jobId;state.cancelRequested=true;updateProgressPanel();try{await api(`/api/jobs/${encodeURIComponent(jobId)}/cancel`,{method:'POST',body:'{}'});}catch(error){if(state.jobId===jobId){state.cancelRequested=false;toast(error.message);updateProgressPanel();}}}
 function scopeNotice(){
   const d=diagnosis();if(!d || !d.catalog_ready)return '';
-  const detailed=Boolean(state.project?.snapshot_id);const count=d.scope?.detail_file_count || d.build_report?.files?.candidate;const scope=d.scope || {};const unknown=result()?.analysis_scope?.unresolved_dependency_count ?? d.unresolved_dependencies?.length ?? 0;
-  if(d.source_options?.analysis_mode==='business' || ['repository_question','repository_index'].includes(scope.mode))return ui`<div class="scope-notice">${icon('info')}<div><strong>已建立業務查找索引</strong><p>已讀取源碼結構，可直接提出業務問題；系統會按問題選取相關檔案繼續閱讀。</p><p>${formatNumber(count || sourceFiles().candidate)} ${t('已索引檔案')}${unknown?' · '+formatNumber(unknown)+' '+t('呼叫實作未提供'):''}</p></div></div>`;
-  return ui`<div class="scope-notice">${icon('info')}<div><strong>${detailed?t('本次問題的局部解析'):t('輕量目錄已就緒')}</strong><p>${detailed?ui`本次詳細索引包含 ${formatNumber(count)} 個檔案。缺失或閉源的依賴會標示邊界，已有源碼仍可分析。`:t('直接提出業務問題，系統會自動查找相關程式與 COPYBOOK。')}</p>${detailed?ui`<p>${formatNumber(count)} / ${formatNumber(scope.max_files || 24)} 個檔案 · ${formatBytes(scope.total_scope_bytes)} / ${formatBytes(scope.max_scope_bytes || 16777216)} · ${formatNumber(unknown)} 項未確認依賴</p>`:''}${scope.truncated?ui`<p><strong>已達本次範圍限制，部分依賴未納入。可另選相關入口繼續分析。</strong></p>`:''}</div></div>`;
+  const detailed=Boolean(state.project?.snapshot_id);const count=d.scope?.detail_file_count || d.build_report?.files?.candidate;const scope=d.scope || {};
+  if(d.source_options?.analysis_mode==='business' || ['repository_question','repository_index'].includes(scope.mode))return ui`<div class="scope-notice">${icon('info')}<div><strong>已建立業務查找索引</strong><p>已讀取源碼結構，可直接提出業務問題；系統會按問題選取相關檔案繼續閱讀。</p><p>${formatNumber(count || sourceFiles().candidate)} ${t('已索引檔案')}</p></div></div>`;
+  return ui`<div class="scope-notice">${icon('info')}<div><strong>${detailed?t('本次問題的局部解析'):t('輕量目錄已就緒')}</strong><p>${detailed?ui`本次詳細索引包含 ${formatNumber(count)} 個檔案。缺失或閉源的依賴會標示邊界，已有源碼仍可分析。`:t('直接提出業務問題，系統會自動查找相關程式與 COPYBOOK。')}</p>${detailed?ui`<p>${formatNumber(count)} / ${formatNumber(scope.max_files || 24)} 個檔案 · ${formatBytes(scope.total_scope_bytes)} / ${formatBytes(scope.max_scope_bytes || 16777216)}</p>`:''}${scope.truncated?ui`<p><strong>已達本次範圍限制，部分依賴未納入。可另選相關入口繼續分析。</strong></p>`:''}</div></div>`;
 }
 
 function conversationComposer(){
@@ -695,8 +705,10 @@ function conversationMessage(message){
   const relatedMarkup=!user && related.length>1?`<details class="message-related"><summary>${escapeHTML(t('查看相關源碼'))} · ${related.length}</summary><ul>${related.map(item=>`<li>${escapeHTML((item.program_names || []).join('、') || item.relative_path)} <small>${escapeHTML(item.relative_path)}</small></li>`).join('')}</ul></details>`:'';
   const referenceMarkup=!user && (refs.length || framework.length)?`<details class="message-references"><summary>${escapeHTML(t('查看回答依據'))} · ${refs.length+framework.length}</summary>${refs.map((ref,index)=>`<button class="citation" data-message-id="${escapeHTML(id)}" data-turn-evidence="${escapeHTML(ref.evidence_id)}">${index+1} · ${escapeHTML(ref.relative_path || ref.path || '')} · L${Number(ref.start_line)}–${Number(ref.end_line)}</button>`).join('')}${framework.map(ref=>`<details id="turn-${escapeHTML(id)}-framework-${escapeHTML(encodeURIComponent(ref.reference_id))}" class="message-framework"><summary>${escapeHTML(ref.heading || ref.reference_id)}</summary><pre>${escapeHTML(ref.text || '')}</pre></details>`).join('')}</details>`:'';
   const retryMarkup=user && failed?`<button class="message-retry" data-retry-message="${escapeHTML(id)}" ${state.busy || state.conversationLoading?'disabled':''}>${escapeHTML(t('重試這個問題'))}</button>`:'';
+  const priorSnapshot=!user && message.snapshot_id && state.project?.snapshot_id && message.snapshot_id!==state.project.snapshot_id;
+  const versionMarkup=priorSnapshot?ui`<small class="message-source-version">此回答依據較早的本機版本 <code>${escapeHTML(shortSourceVersion(message.snapshot_id))}</code>；原引用仍可查看。新提問會使用目前源碼。</small>`:'';
   const reading=user?{content:markup,outline:''}:answerReadingView(markup,id);
-  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}" data-message="${escapeHTML(id)}">${reading.outline}<div class="answer-main"><div class="message-author">${user?t('你'):t('知序')}<span>${user?'':t('業務解讀 · 請結合證據覆核')}</span></div>${user?'':answerCompletionNotice(message)+failureDiagnosticsView(message)}<div class="message-content narrative-body">${reading.content || (failed?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${relatedMarkup}${impactMarkup}${referenceMarkup}${retryMarkup}</div></article>`;
+  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}" data-message="${escapeHTML(id)}">${reading.outline}<div class="answer-main"><div class="message-author">${user?t('你'):t('知序')}<span>${user?'':t('業務解讀 · 請結合證據覆核')}</span></div>${versionMarkup}${user?'':answerCompletionNotice(message)+failureDiagnosticsView(message)}<div class="message-content narrative-body">${reading.content || (failed?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${relatedMarkup}${impactMarkup}${referenceMarkup}${retryMarkup}</div></article>`;
 }
 function conversationProgress(){
   const v=progressViewModel();
@@ -717,6 +729,7 @@ function demoConversationStart(){
   return ui`<section class="demo-chat-start">${frameworkCaseSelector()}<form id="demo-question-form" class="demo-composer"><label for="demo-question-input">你的第一個業務問題</label><textarea id="demo-question-input" rows="3" placeholder="輸入任何業務問題，或修改上方案例的建議問題…" ${state.busy?'disabled':''}>${escapeHTML(state.question)}</textarea><div class="demo-composer-actions"><small>載入只在本機建立索引。進入對話後按「發送」才會呼叫模型；追問會重用索引。</small><button class="button primary" type="submit" ${state.busy || !state.connected?'disabled':''}>${icon('arrow')}載入案例，前往提問</button></div></form></section>`;
 }
 function renderWorkbench(){
+  if(state.mode==='real' && state.jobKind==='index' && state.busy)return progressPanel()+supportingContext();
   if(state.mode==='real' && state.jobKind==='demo' && state.busy)return progressPanel();
   if(conversationMode())return conversationWorkbench();
   if(state.mode==='demo' && !demoCase())return frameworkDemoUnavailable();
@@ -739,11 +752,20 @@ function sourceRows(){
 
 function sourcePagination(){const total=filteredPrograms().length;const first=total?state.sourcePage*SOURCE_PAGE_SIZE+1:0;const last=Math.min(total,(state.sourcePage+1)*SOURCE_PAGE_SIZE);return ui`<span>${first}–${last} / ${formatNumber(total)} 個目錄入口</span><div><button data-source-page="previous" ${state.sourcePage===0?'disabled':''}>上一頁</button><button data-source-page="next" ${last>=total?'disabled':''}>下一頁</button></div>`;}
 
-function dependencyGaps(){const gaps=diagnosis()?.unresolved_dependencies || [];if(!gaps.length)return '';return ui`<section class="data-card dependency-gaps"><div class="data-card-heading"><h2>待確認的程式與 COPY 依賴</h2><span class="badge warning">${formatNumber(gaps.length)} 項</span></div><div class="table-wrapper"><table><thead><tr><th>目標名稱</th><th>關係</th><th>來源檔案</th></tr></thead><tbody>${gaps.slice(0,20).map(g=>`<tr><td>${escapeHTML(g.target_name || t('動態目標'))}</td><td>${escapeHTML(g.relation_type)}</td><td>${escapeHTML(g.relative_path)}</td></tr>`).join('')}</tbody></table></div><div class="table-count">${gaps.length>20?t('目前顯示前 20 項；完整清單保留在匯出 JSON。'):t('請補齊對應源碼；動態目標可能仍需設定資料確認。')}</div></section>`;}
+function dependencyGaps(){const gaps=diagnosis()?.unresolved_dependencies || [];if(!gaps.length)return '';return ui`<section class="data-card dependency-gaps"><div class="data-card-heading"><h2>待確認的程式與 COPY 依賴</h2><span class="badge warning">${formatNumber(gaps.length)} 項</span></div><div class="table-wrapper"><table><thead><tr><th>目標名稱</th><th>關係</th><th>來源檔案</th></tr></thead><tbody>${gaps.slice(0,20).map(g=>`<tr><td>${escapeHTML(g.target_name || t('動態目標'))}</td><td>${escapeHTML(g.relation_type)}</td><td>${escapeHTML(g.relative_path)}</td></tr>`).join('')}</tbody></table></div><div class="table-count">${gaps.length>20?t('目前顯示前 20 項；完整清單保留在匯出 JSON。'):''}${t('公共呼叫可按已匹配框架約定解釋；未覆蓋的內部行為才需補充資料。')}</div></section>`;}
+function shortSourceVersion(value){return String(value || '').replace(/^local:|^sha256:/,'').slice(0,12);}
+function sourceVersionTime(value){const date=new Date(value);return value && Number.isFinite(date.getTime())?date.toLocaleString(currentLocale,{hour12:false}):'—';}
+function sourceVersionView(){
+  const current=state.project?.source_version;
+  const history=(Array.isArray(state.project?.source_versions)?state.project.source_versions:[])
+    .filter(version=>!current?.source_key || version.source_key===current.source_key).slice(0,20);
+  if(!current && !history.length)return '';
+  return ui`<section class="data-card source-version-card"><div class="data-card-heading"><h2>本機源碼版本</h2>${current?`<strong title="${escapeHTML(current.version_id)}">${escapeHTML(shortSourceVersion(current.version_id))}</strong>`:''}</div>${current?ui`<p>最近檢查：${escapeHTML(sourceVersionTime(current.checked_at || current.created_at))}</p>`:''}<p>更新會校驗檔案內容，識別新增、修改和刪除。版本記錄保留檔案指紋，舊回答保留當時引用。</p><details><summary>查看版本記錄 · ${history.length}</summary>${history.map(v=>`<div class="history-card"><div><strong title="${escapeHTML(v.version_id)}">${escapeHTML(shortSourceVersion(v.version_id))}</strong><p>${escapeHTML(sourceVersionTime(v.created_at))} · ${formatNumber(v.file_count)} ${escapeHTML(t('個檔案'))}</p><small>${escapeHTML(t('新增'))} ${formatNumber(v.changes?.added)} · ${escapeHTML(t('修改'))} ${formatNumber(v.changes?.modified)} · ${escapeHTML(t('刪除'))} ${formatNumber(v.changes?.removed)}</small></div></div>`).join('')}</details></section>`;
+}
 function renderSources(){
   if(state.mode==='real'&&!diagnosis() || state.mode==='demo'&&!demoCase())return renderWorkbench();
   const demo=state.mode==='demo';const d=diagnosis();const files=sourceFiles();const programs=currentPrograms();
-  return ui`${scopeNotice()}${reportDisplayNotice()}<div class="source-stats"><div class="source-stat"><span>目錄檔案</span><strong>${demo?formatNumber(preview.catalog?.file_count):formatNumber(files?.candidate || files?.decoded)}</strong><small>${demo?t('由合成文件實際讀取'):ui`${formatNumber(files?.candidate)} 個候選檔案`}</small></div><div class="source-stat"><span>${repositoryIndexReady()?t('程式'):t('可選入口')}</span><strong>${formatNumber(programs.length)}</strong><small>${repositoryIndexReady()?t('已建立索引，可直接提出業務問題'):t('先建立目錄，提問時解析相關源碼')}</small></div><div class="source-stat"><span>本次重用快取</span><strong>${demo?'—':formatNumber(files?.cached || files?.skipped_unchanged)}</strong><small>${demo?t('由合成文件實際讀取'):ui`${formatNumber(files?.indexed_or_updated)} 個檔案已更新`}</small></div></div><section class="data-card"><div class="data-card-heading"><h2>程式目錄</h2><input id="program-filter" aria-label="搜尋程式名稱或路徑" placeholder="搜尋程式名稱或路徑" value="${escapeHTML(state.filter)}"></div><div class="table-wrapper"><table><thead><tr><th>PROGRAM-ID</th><th>來源路徑</th><th>定義行</th><th>識別狀態</th><th></th></tr></thead><tbody id="program-rows">${sourceRows()}</tbody></table></div><div class="table-count source-pagination" id="source-pagination">${sourcePagination()}</div></section>${frameworkKnowledgeCard()}${!demo?ui`<div class="source-note"><strong>源碼位置</strong><br>${escapeHTML(state.project.source)}<br><strong>本次快照</strong><br>${escapeHTML(state.project.snapshot_id || state.project.catalog_snapshot_id || t('未建立有效快照'))}</div>${renderBoundaries(d?.messages || [])}`:''}`;
+  return ui`${scopeNotice()}${reportDisplayNotice()}${!demo?ui`<div class="source-actions"><button class="button primary" data-source-update ${state.busy?'disabled':''}>更新本機源碼</button><button class="button secondary" data-source-switch ${state.busy?'disabled':''}>切換源碼目錄</button></div>${sourceVersionView()}`:''}<div class="source-stats"><div class="source-stat"><span>目錄檔案</span><strong>${demo?formatNumber(preview.catalog?.file_count):formatNumber(files?.candidate || files?.decoded)}</strong><small>${demo?t('由合成文件實際讀取'):ui`${formatNumber(files?.candidate)} 個候選檔案`}</small></div><div class="source-stat"><span>${repositoryIndexReady()?t('程式'):t('可選入口')}</span><strong>${formatNumber(programs.length)}</strong><small>${repositoryIndexReady()?t('已建立索引，可直接提出業務問題'):t('先建立目錄，提問時解析相關源碼')}</small></div><div class="source-stat"><span>本次重用快取</span><strong>${demo?'—':formatNumber(files?.cached || files?.skipped_unchanged)}</strong><small>${demo?t('由合成文件實際讀取'):ui`${formatNumber(files?.indexed_or_updated)} 個檔案已更新`}</small></div></div><section class="data-card"><div class="data-card-heading"><h2>程式目錄</h2><input id="program-filter" aria-label="搜尋程式名稱或路徑" placeholder="搜尋程式名稱或路徑" value="${escapeHTML(state.filter)}"></div><div class="table-wrapper"><table><thead><tr><th>PROGRAM-ID</th><th>來源路徑</th><th>定義行</th><th>識別狀態</th><th></th></tr></thead><tbody id="program-rows">${sourceRows()}</tbody></table></div><div class="table-count source-pagination" id="source-pagination">${sourcePagination()}</div></section>${frameworkKnowledgeCard()}${!demo?ui`<div class="source-note"><strong>源碼位置</strong><br>${escapeHTML(state.project.source)}<br><strong>本次快照</strong><br>${escapeHTML(state.project.snapshot_id || state.project.catalog_snapshot_id || t('未建立有效快照'))}</div>${renderBoundaries(d?.messages || [])}`:''}`;
 }
 function renderHistory(){
   if(conversationMode())return ui`<section class="data-card"><div class="data-card-heading"><h2>業務對話</h2><span class="badge neutral">${state.conversations.length} 項</span></div>${state.conversations.map(item=>`<div class="history-card">${icon('document')}<div><h3>${escapeHTML(conversationTitle(item.title))}</h3></div><button data-conversation="${escapeHTML(item.id)}" ${state.busy || state.conversationLoading?'disabled':''}>${escapeHTML(t('繼續對話'))}</button><button class="history-delete" data-delete-conversation="${escapeHTML(item.id)}" ${state.busy || state.conversationLoading?'disabled':''}>${escapeHTML(t('刪除對話'))}</button></div>`).join('')}</section>`;
@@ -848,8 +870,12 @@ function setMode(mode){
   else{state.readingStrategy=state.conversationSupported?'retrieval':projectReadingStrategy();state.maxSourcePages=Number(state.project?.diagnosis?.source_options?.max_source_pages || 4);state.question=state.conversationSupported?'':state.project?.diagnosis?.question || '';state.entry=selectedEntryValue(state.project?.diagnosis);}
   render();if(mode==='real')loadFirstEvidence();
 }
-function openSource(){
-  $('source-error').hidden=true;$('verify-content').checked=false;
+function openSource(intent='update'){
+  closeNavigation();
+  state.sourceIntent=state.project?.source && !syntheticProject()?intent:'connect';
+  $('source-error').hidden=true;$('verify-content').checked=true;
+  $('source-dialog-title').textContent=t(state.sourceIntent==='update'?'更新本機源碼':state.sourceIntent==='switch'?'切換源碼目錄':'接入本機源碼');
+  $('index-submit').textContent=t(state.sourceIntent==='update'?'更新索引與版本':'建立源碼索引');
   if($('source-picker-feedback')){$('source-picker-feedback').hidden=true;$('source-picker-feedback').textContent='';}
   if($('source-framework-path'))$('source-framework-path').value=frameworkConfiguredPath();
   if(state.project){$('source-path').value=state.project.source || '';$('output-path').value=state.project.output || '';const opts=state.project.diagnosis?.source_options || {};$('source-encoding').value=opts.encoding || 'auto';$('source-format').value=opts.source_format || 'auto';$('source-extensions').value=(opts.extensions || []).join(',');}
@@ -900,13 +926,22 @@ async function checkModelConnection(){
 async function startJob(options){
   if(options.question && options.allow_network){options.capture_api_responses=state.captureApiResponses;state.captureApiResponses=false;if($('capture-api-response'))$('capture-api-response').checked=false;}
   const chat=state.conversationSupported;const retry=Boolean(options.retry_message_id);const draft=state.question;
+  if(!options.question){options.verify_content=true;state.sourceJobBackup={project:state.project,conversation:state.conversation,conversations:state.conversations,question:state.question,mode:state.mode,page:state.page,entry:state.entry,pendingMessage:state.pendingMessage,evidence:state.evidence,selectedEvidence:state.selectedEvidence,conversationEvidence:state.conversationEvidence};}
   state.error='';state.errorDiagnostic=null;state.pollError='';state.cancelRequested=false;state.progress=null;state.jobId=null;state.progressReceived=Date.now();state.mode='real';state.page='workbench';state.busy=true;startProgressClock();state.jobKind=options.question?'question':'index';state.tab='answer';clearEvidence();
   if(chat && options.question){options.conversation_id=state.conversation?.id || null;if(!retry){state.pendingMessage={id:'pending-'+Date.now(),role:'user',content:options.question,status:'PENDING'};state.question='';}else state.pendingMessage=null;}
-  else{state.project={source_origin:state.project?.source===options.source?state.project.source_origin:undefined,source:options.source,output:options.output,diagnosis:null,programs:[],agent:null,relations:{edges:[]}};if(chat){state.conversation=null;state.pendingMessage=null;}}
+  else{state.pendingMessage=null;}
   render();
   if(chat && options.question)$('conversation-progress')?.scrollIntoView?.({block:'center'});
   try{const response=await api('/api/analyze',{method:'POST',body:JSON.stringify(options)});state.jobId=response.job_id;if(options.framework_reference_path)state.frameworkKnowledge={...state.frameworkKnowledge,configured_path:options.framework_reference_path};if(response.conversation){applyConversation(response.conversation);state.pendingMessage=null;}rememberProgress(response.progress);if(chat)render();await pollJob(response.job_id);}
-  catch(error){state.busy=false;stopProgressClock();state.error=error.message;state.errorDiagnostic=safeApiDiagnostic(error.diagnostic);if(chat && !state.question)state.question=draft;render();}
+  catch(error){state.busy=false;stopProgressClock();restoreSourceJob();state.error=error.message;state.errorDiagnostic=safeApiDiagnostic(error.diagnostic);if(chat && !state.question)state.question=draft;render();}
+}
+function restoreSourceJob(){if(state.sourceJobBackup){Object.assign(state,state.sourceJobBackup);state.sourceJobBackup=null;}}
+function sameSourceWorkspace(left,right){
+  if(!left || !right)return false;
+  const normalized=value=>{const path=String(value || '').replace(/\\/g,'/').replace(/\/+$/,'');return /^[A-Z]:\//i.test(path)?path.toLowerCase():path;};
+  const leftKey=left.source_version?.source_key,rightKey=right.source_version?.source_key;
+  const sameSource=leftKey && rightKey?leftKey===rightKey:normalized(left.source)===normalized(right.source);
+  return sameSource && normalized(left.output)===normalized(right.output);
 }
 function analysisOptions(question,extra={}){
   const p=state.project;const opts=p.diagnosis.source_options || {};
@@ -917,13 +952,24 @@ async function pollJob(jobId){
     const demoPreparation=state.jobKind==='demo';const demoDraft=demoPreparation?state.question:null;
     rememberProgress(job.progress);state.pollError='';state.cancelRequested=Boolean(job.cancel_requested || state.cancelRequested);if(job.status==='RUNNING'){updateProgressPanel();setTimeout(()=>pollJob(jobId),1000);return;}
     state.busy=false;state.jobId=null;stopProgressClock();
-    if(job.result){const draft=state.question;if(state.mode==='real')applyProject(job.result);else state.project=job.result;if(state.conversationSupported){state.question=draft;state.readingStrategy='retrieval';applyConversation(job.result.conversation || job.conversation);if(job.result.conversation || job.conversation)state.pendingMessage=null;}if(job.result.diagnosis)state.history.unshift(job.result);const context=job.result.diagnosis?.framework_context;if(context)state.frameworkKnowledge={...state.frameworkKnowledge,status:['MATCHED','NO_MATCH'].includes(context.status)?'LOADED':context.status,reason_code:context.reason_code,document:context.document,runtime_verified:false};}
-    else if(job.conversation){applyConversation(job.conversation);state.pendingMessage=null;}
+    const sourceBackup=state.sourceJobBackup;
+    const failedSource=state.jobKind==='index' && job.status!=='COMPLETED';
+    if(failedSource)restoreSourceJob();
+    if(job.result && !failedSource){const draft=state.question;if(state.mode==='real')applyProject(job.result);else state.project=job.result;if(state.conversationSupported){state.question=draft;state.readingStrategy='retrieval';applyConversation(job.result.conversation || job.conversation);if(job.result.conversation || job.conversation)state.pendingMessage=null;}if(job.result.diagnosis)state.history.unshift(job.result);const context=job.result.diagnosis?.framework_context;if(context)state.frameworkKnowledge={...state.frameworkKnowledge,status:['MATCHED','NO_MATCH'].includes(context.status)?'LOADED':context.status,reason_code:context.reason_code,document:context.document,runtime_verified:false};}
+    else if(job.conversation && !failedSource){applyConversation(job.conversation);state.pendingMessage=null;}
     if(job.status==='FAILED'){state.error=apiErrorText(job.error);state.errorDiagnostic=safeApiDiagnostic(job.error?.diagnostic);}if(job.status==='CANCELLED')state.error=conversationMode()?t('已停止本次工作。對話已保留，可以繼續提問。'):t('已取消。再次接入會重用已完成的目錄快取。');
+    if(state.jobKind==='index' && job.status==='COMPLETED'){
+      const sameScope=sameSourceWorkspace(sourceBackup?.project,state.project);
+      if(Array.isArray(job.result?.conversations))state.conversations=sortConversations(job.result.conversations);
+      else if(!sameScope)state.conversations=[];
+      if(!(job.result?.conversation || job.conversation))state.conversation=sameScope?sourceBackup?.conversation || null:null;
+      state.question=sameScope?sourceBackup?.question || '':'';
+      state.sourceJobBackup=null;state.entry='';
+    }
     if(demoPreparation){state.question=demoDraft;if(job.status==='COMPLETED'){state.entry='';state.readingStrategy='retrieval';if(!job.result?.conversation && !job.conversation)state.conversation=null;}else{state.mode='demo';state.project=state.demoRestore?.project || null;state.conversation=state.demoRestore?.conversation || null;}state.demoRestore=null;}
     if(state.mode==='real' && state.jobKind==='index' && sourceUsable())state.page=state.conversationSupported?'workbench':'sources';
     render();if(demoPreparation && job.status==='COMPLETED')promptDemoQuestion();if(state.mode==='real' && !conversationMode())loadFirstEvidence();
-  }catch(error){if(state.jobId!==jobId)return;if(error.status===404 || error.status===403){state.busy=false;state.jobId=null;stopProgressClock();state.error=error.message;if(state.jobKind==='demo'){state.mode='demo';state.project=state.demoRestore?.project || null;state.conversation=state.demoRestore?.conversation || null;state.demoRestore=null;}render();return;}state.pollError=t('進度連線中斷，正在重試；後台工作可能仍在繼續。');updateProgressPanel();setTimeout(()=>pollJob(jobId),2500);}
+  }catch(error){if(state.jobId!==jobId)return;if(error.status===404 || error.status===403){state.busy=false;state.jobId=null;stopProgressClock();restoreSourceJob();state.error=error.message;if(state.jobKind==='demo'){state.mode='demo';state.project=state.demoRestore?.project || null;state.conversation=state.demoRestore?.conversation || null;state.demoRestore=null;}render();return;}state.pollError=t('進度連線中斷，正在重試；後台工作可能仍在繼續。');updateProgressPanel();setTimeout(()=>pollJob(jobId),2500);}
 }
 async function loadFirstEvidence(){const first=currentRefs()[0];if(first&&!state.evidence&&!state.busy)await loadEvidence(first.evidence_id);}
 async function newConversation(){
@@ -1064,6 +1110,8 @@ document.addEventListener('click',event=>{
   if(target.id==='cancel-job')cancelJob();
   if(target.dataset.sourcePage){state.sourcePage+=target.dataset.sourcePage==='next'?1:-1;render();}
   if(target.hasAttribute('data-connect'))openSource();
+  if(target.hasAttribute('data-source-update'))openSource('update');
+  if(target.hasAttribute('data-source-switch'))openSource('switch');
   if(target.dataset.pickFolder)pickFolder(target.dataset.pickFolder);
   if(target.hasAttribute('data-demo')){state.page='workbench';setMode('demo');}
   if(target.hasAttribute('data-demo-result')){state.page='workbench';state.tab='answer';render();}

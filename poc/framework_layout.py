@@ -203,6 +203,12 @@ def validate_framework_layouts(db, facts: list[dict]) -> list[dict]:
             ref = _reference(unit, role)
             if ref not in refs:
                 refs.append(ref)
+        # The binder may retain a function literal across separate elementary
+        # assignments. Those declarations must also reach the model before the
+        # call can be covered; adding them here preserves the source-read plan.
+        for ref in fact.get("binding_evidence_refs", []):
+            if ref not in refs:
+                refs.append(deepcopy(ref))
         if any(ref["relative_path"] == fact.get("relative_path") and ref["source_sha256"] != fact.get("source_sha256") for ref in refs):
             reason = "framework_layout_source_mismatch"
         fact["layout_validation"] = {"status": "unresolved" if reason else "confirmed",

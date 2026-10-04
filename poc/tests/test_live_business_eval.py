@@ -219,7 +219,7 @@ class LiveBusinessEvalTests(unittest.TestCase):
             self.assertEqual(report["plan"]["timeout_seconds_per_request"], config.timeout_seconds)
             self.assertFalse(report["plan"]["matches_workbench_defaults"])
             self.assertEqual(report["plan"]["configuration_scope"], "evaluation_runner")
-            self.assertEqual(report["plan"]["workbench_defaults"], {"timeout_seconds": 60.0, "max_output_tokens": 2048})
+            self.assertEqual(report["plan"]["workbench_defaults"], {"timeout_seconds": 60.0, "max_output_tokens": 8192})
             self.assertEqual(report["plan"]["preflight_max_output_tokens"], 32)
             self.assertIsNone(report["plan"]["currency_estimate"])
             self.assertEqual(report["plan"]["spend_authorization"], "not_granted_by_request_budget")

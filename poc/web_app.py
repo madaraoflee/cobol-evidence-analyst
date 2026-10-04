@@ -34,6 +34,8 @@ from conversation_store import ConversationStore
 from runtime_settings import load_agent_policy
 from agent_policy import resolve_agent_policy
 from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
+from source_versions import record_version, versions
+from source_update import SourceUpdateBackup
 
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
@@ -44,7 +46,7 @@ STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.
                 "/markdown.js": "markdown.js", "/marked.umd.js": "marked.umd.js"}
 MAX_REQUEST_BYTES = 32_768
 MAX_GRAPH_EDGES = 200
-OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm", "conversations.sqlite", "conversations.sqlite-wal", "conversations.sqlite-shm", "conversations.sqlite-journal", "quality-traces", "semantic-scopes", "impact-results", "versioned-evidence.sqlite", "versioned-evidence.sqlite-wal", "versioned-evidence.sqlite-shm"))
+OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm", "conversations.sqlite", "conversations.sqlite-wal", "conversations.sqlite-shm", "conversations.sqlite-journal", "quality-traces", "semantic-scopes", "impact-results", "versioned-evidence.sqlite", "versioned-evidence.sqlite-wal", "versioned-evidence.sqlite-shm", "source-versions.sqlite", "source-versions.sqlite-wal", "source-versions.sqlite-shm", "source-versions.sqlite-journal"))
 EVIDENCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}")
 LOGGER = logging.getLogger(__name__)
 
@@ -381,6 +383,8 @@ class WorkbenchState:
                            snapshot_id=overview["snapshot_id"],
                            agent=_read_json(output / "agent-result.json") if saved.get("conversation_id") else None,
                            relations=_relationships(output / "structural-index.sqlite", overview["snapshot_id"]))
+            project["source_versions"] = versions(output, source)
+            project["source_version"] = next(iter(project["source_versions"]), None)
             self.project = project
             self.conversation_store = ConversationStore(output, source)
             self.conversation_store.recover_interrupted()
@@ -538,6 +542,7 @@ class WorkbenchState:
         complete_characters = max((item.get("total_characters", 0) for item in answer_omissions
                                    if type(item.get("total_characters")) is int), default=len(content))
         details = {"evidence_refs": agent.get("evidence_refs", []),
+                     "source_version": project.get("source_version"),
                      "investigation_state": agent.get("investigation_state", {}),
                      "cited_evidence_ids": [r.get("evidence_id") for r in (agent.get("narrative") or {}).get("citations", []) if r.get("evidence_id")],
                      "framework_references": (agent.get("framework_context") or {}).get("references", []),
@@ -653,23 +658,26 @@ class WorkbenchState:
         with self.lock:
             if self.job and self.job["status"] == "RUNNING":
                 raise RequestError("JOB_ACTIVE", "当前分析尚未结束，请等待完成。", 409)
-        try:
-            options = _validate_options(payload)
-        except RequestError:
-            with self.lock:
-                if not self.job or self.job["status"] != "RUNNING":
-                    self.project = _project()
-                    self.job = None
-            raise
+        options = _validate_options(payload)
         with self.lock:
             if self.job and self.job["status"] == "RUNNING":
                 raise RequestError("JOB_ACTIVE", "当前分析尚未结束，请等待完成。", 409)
             job_id = secrets.token_hex(16)
             same_project = self.project.get("source") == str(options["source"]) and self.project.get("output") == str(options["output"])
+            source_update = not options["question"] and not options["allow_network"] and not options.get("entry")
+            if source_update:
+                # An explicit import checks all content, including equal-size
+                # edits with preserved timestamps, and discovers added/deleted files.
+                options["verify_content"] = True
+                options["reading_strategy"] = "retrieval"
+                options["_source_update"] = {"project": self.project, "conversation": self.conversation,
+                    "store": self.conversation_store, "framework_reference_path": self.framework_reference_path,
+                    "answer_detail": self.answer_detail, "same_project": same_project}
             retry_message_id = options.get("retry_message_id")
             if retry_message_id and (not same_project or not options["allow_network"] or not options.get("conversation_id")):
                 raise RequestError("INVALID_RETRY", "只能在当前对话和源码范围内重试原问题。", 409)
-            self.conversation_store = ConversationStore(options["output"], options["source"])
+            if not source_update:
+                self.conversation_store = ConversationStore(options["output"], options["source"])
             self.answer_detail = options["answer_detail"]
             options["framework_reference_path"] = options.get("framework_reference_path") or self.framework_reference_path
             self.framework_reference_path = options["framework_reference_path"]
@@ -704,11 +712,12 @@ class WorkbenchState:
                         conversation["id"], max_characters=options["agent_policy"].max_history_characters)
                     self.conversation_store.append(conversation["id"], "user", options["question"], status="pending", run_id=job_id)
                 self.conversation = self.conversation_store.get(conversation["id"])
-            elif not same_project:
+            elif not same_project and not source_update:
                 self.conversation = None
-            if not same_project or not options["question"]:
+            if not source_update and (not same_project or not options["question"]):
                 self.project = _project(str(options["source"]), str(options["output"]), job_id)
-            self._save_workspace(options)
+            if not source_update:
+                self._save_workspace(options)
             self.cancel_event = threading.Event()
             self.started_at = self.updated_at = self.phase_started_at = time.monotonic()
             self.phase_start_completed = 0.0
@@ -768,10 +777,14 @@ class WorkbenchState:
             return self._job_snapshot()
 
     def _run(self, job_id: str, options: dict) -> None:
+        backup = None
         try:
             source, output = options["source"], options["output"]
+            if options.get("_source_update") and (output / "structural-index.sqlite").is_file():
+                backup = SourceUpdateBackup(output, (*ARTIFACT_NAMES, "source-versions.sqlite"))
+                options["_source_update"]["artifacts"] = backup
             arguments = {key: value for key, value in options.items()
-                         if key not in {"source", "output", "conversation_id", "retry_message_id", "retry_assistant_id"}}
+                         if key not in {"source", "output", "conversation_id", "retry_message_id", "retry_assistant_id", "_source_update"}}
             if arguments.get("framework_reference_path") is None:
                 arguments.pop("framework_reference_path", None)
             if options["allow_network"] and options["question"]:
@@ -811,6 +824,15 @@ class WorkbenchState:
                         project["diagnosis"] = {**report, "question_status": "NOT_READY"}
                     project.update(programs=program_report["programs"], agent=agent,
                                    snapshot_id=snapshot, relations=relations)
+                    previous = self.project
+                    if (previous.get("source") == str(source) and previous.get("output") == str(output)
+                            and previous.get("snapshot_id") == snapshot and previous.get("source_version")
+                            and not options.get("_source_update")):
+                        project["source_version"] = copy.deepcopy(previous["source_version"])
+                        project["source_versions"] = copy.deepcopy(previous.get("source_versions", []))
+                    else:
+                        project["source_version"] = record_version(output, source, snapshot)
+                        project["source_versions"] = versions(output, source)
             elif report.get("catalog_ready") is True:
                 # A usable catalog permits another question but does not verify
                 # any model answer or citations from an unverified source scope.
@@ -822,6 +844,19 @@ class WorkbenchState:
                 project["agent"] = _unaccepted_agent(agent, report.get("reason_code") or "SOURCE_SNAPSHOT_UNVERIFIED")
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
+                    self._check_cancel()
+                    update = options.get("_source_update")
+                    if update and not project.get("snapshot_id"):
+                        self._restore_source_update(options)
+                        self.updated_at = time.monotonic()
+                        self.job.update(status="FAILED", result=None, conversation=copy.deepcopy(self.conversation),
+                            error={"code": "SOURCE_UPDATE_FAILED", "message": "源码更新未完成，原对话和版本记录已保留。请检查目录、编码或源文件后重试。"})
+                        return
+                    if update:
+                        self.conversation_store = ConversationStore(output, source)
+                        self.conversation = (self.conversation_store.get(update["conversation"]["id"])
+                            if update["same_project"] and update["conversation"] else None)
+                        project["conversations"] = self.conversation_store.list()
                     self.project = project
                     self._record_answer(options, job_id, project)
                     project["conversation"] = copy.deepcopy(self.conversation)
@@ -832,6 +867,7 @@ class WorkbenchState:
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
                     self.updated_at = time.monotonic()
+                    self._restore_source_update(options)
                     self._record_failure(options, job_id, "cancelled")
                     self.job.update(status="CANCELLED", result=None, conversation=copy.deepcopy(self.conversation))
         except Exception as exc:
@@ -840,11 +876,25 @@ class WorkbenchState:
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
                     self.updated_at = time.monotonic()
+                    self._restore_source_update(options)
                     self._record_failure(options, job_id, "failed")
                     self.job["conversation"] = copy.deepcopy(self.conversation)
                     diagnostic = _failure_diagnostic(exc, "ANALYSIS_FAILED")
                     self.job.update(status="FAILED", error={"code": "ANALYSIS_FAILED",
                         "message": format_diagnostic(diagnostic), "diagnostic": diagnostic})
+        finally:
+            if backup:
+                backup.close()
+
+    def _restore_source_update(self, options):
+        update = options.get("_source_update")
+        if update:
+            if update.get("artifacts"):
+                update["artifacts"].restore()
+            self.project, self.conversation = update["project"], update["conversation"]
+            self.conversation_store = update["store"]
+            self.framework_reference_path, self.answer_detail = update["framework_reference_path"], update["answer_detail"]
+            self._save_workspace()
 
     def get_job(self, job_id: str) -> dict:
         with self.lock:

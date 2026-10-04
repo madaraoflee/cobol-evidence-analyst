@@ -340,7 +340,7 @@ class WebAppTests(unittest.TestCase):
         for secret in (TEST_KEY, TEST_ENDPOINT, TEST_MODEL):
             self.assertNotIn(secret, json.dumps(result))
 
-    def test_refresh_clears_old_answers_and_evidence_while_only_one_job_runs(self) -> None:
+    def test_refresh_preserves_old_project_until_commit_while_only_one_job_runs(self) -> None:
         first = self.source("first", "STOCK-READ")
         second = self.source("second", "STOCK-WRITE")
         initial_id = self.submit(first, self.root / "output", entry="STOCK-READ")
@@ -354,22 +354,25 @@ class WebAppTests(unittest.TestCase):
             return analyze_source(*args, **kwargs)
 
         self.app.analyzer = delayed_analyzer
-        job_id = self.submit(second, self.root / "output", entry="STOCK-WRITE")
+        job_id = self.submit(second, self.root / "output")
         self.assertTrue(started.wait(1))
         try:
             state = self.request("GET", "/api/state")[1]
             self.assertEqual(state["active_job_id"], job_id)
-            self.assertEqual(state["project"]["source"], str(second.resolve()))
-            self.assertIsNone(state["project"]["agent"])
-            self.assertEqual(state["project"]["programs"], [])
-            self.assertEqual(state["project"]["relations"]["edges"], [])
+            self.assertEqual(state["project"]["source"], str(first.resolve()))
+            self.assertEqual(state["project"], initial)
+            # Unarchived excerpts are unavailable while the shared index is
+            # being refreshed; the prior project remains visible until commit.
             self.assertEqual(self.request("GET", f"/api/evidence?id={old_evidence}")[0], 409)
             self.assertEqual(self.request("GET", f"/api/jobs/{initial_id}")[0], 404)
             self.assertEqual(self.request("POST", "/api/analyze", {"source": str(first), "output": str(self.root / "another")})[0], 409)
         finally:
             release.set()
         result = self.finish(job_id)
+        self.assertEqual(result["status"], "COMPLETED")
+        self.assertEqual(result["result"]["source"], str(second.resolve()))
         self.assertEqual(result["result"]["programs"][0]["program_name"], "STOCK-WRITE")
+        self.assertEqual(self.request("GET", "/api/state")[1]["project"]["source"], str(second.resolve()))
         self.assertEqual(self.request("GET", f"/api/evidence?id={old_evidence}")[0], 404)
 
     def test_conversation_and_framework_routes_use_local_state_and_session_guard(self) -> None:
@@ -392,7 +395,7 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(value["framework_knowledge"]["configured_path"], str(folder))
         self.assertEqual(self.request("POST", "/api/framework", {"path": str(folder)}, authenticated=False)[0], 403)
 
-    def test_failed_refresh_cannot_expose_preserved_old_sqlite(self) -> None:
+    def test_failed_refresh_retains_old_workspace_without_authorizing_failed_new_scope(self) -> None:
         source = self.source("source", "STOCK-READ")
         initial_id = self.submit(source, self.root / "output", entry="STOCK-READ")
         initial = self.finish(initial_id)["result"]
@@ -400,15 +403,18 @@ class WebAppTests(unittest.TestCase):
         empty = self.root / "empty"
         empty.mkdir()
         result = self.finish(self.submit(empty, self.root / "output"))
-        self.assertEqual(result["status"], "COMPLETED")
-        self.assertEqual(result["result"]["diagnosis"]["runner_status"], "BLOCKED")
-        self.assertIsNone(result["result"]["snapshot_id"])
-        self.assertEqual(result["result"]["programs"], [])
-        self.assertEqual(result["result"]["relations"]["edges"], [])
-        self.assertIsNone(result["result"]["agent"]["agent_result"])
-        self.assertEqual(self.request("GET", f"/api/evidence?id={evidence_id}")[0], 409)
+        self.assertEqual(result["status"], "FAILED")
+        self.assertIsNone(result["result"])
+        self.assertEqual(result["error"]["code"], "SOURCE_UPDATE_FAILED")
+        current = self.request("GET", "/api/state")[1]["project"]
+        self.assertEqual(current, initial)
+        self.assertEqual(current["source"], str(source.resolve()))
+        self.assertNotEqual(current["source"], str(empty.resolve()))
+        status, evidence, _ = self.request("GET", f"/api/evidence?id={evidence_id}")
+        self.assertEqual(status, 200)
+        self.assertEqual(evidence["snapshot_id"], initial["snapshot_id"])
 
-    def test_invalid_new_source_submission_clears_previous_browser_authority(self) -> None:
+    def test_invalid_new_source_submission_preserves_previous_browser_authority(self) -> None:
         source = self.source("source", "STOCK-READ")
         old_job = self.submit(source, self.root / "output", entry="STOCK-READ")
         old = self.finish(old_job)["result"]
@@ -418,12 +424,14 @@ class WebAppTests(unittest.TestCase):
         })
         self.assertEqual(status, 400)
         current = self.request("GET", "/api/state")[1]["project"]
-        self.assertIsNone(current["snapshot_id"])
-        self.assertIsNone(current["agent"])
-        self.assertEqual(current["programs"], [])
-        self.assertEqual(current["relations"]["edges"], [])
-        self.assertEqual(self.request("GET", f"/api/jobs/{old_job}")[0], 404)
-        self.assertEqual(self.request("GET", f"/api/evidence?id={evidence_id}")[0], 409)
+        self.assertEqual(current, old)
+        self.assertEqual(current["source"], str(source.resolve()))
+        status, retained_job, _ = self.request("GET", f"/api/jobs/{old_job}")
+        self.assertEqual(status, 200)
+        self.assertEqual(retained_job["status"], "COMPLETED")
+        status, evidence, _ = self.request("GET", f"/api/evidence?id={evidence_id}")
+        self.assertEqual(status, 200)
+        self.assertEqual(evidence["snapshot_id"], old["snapshot_id"])
 
     def test_unsafe_output_paths_and_browser_credentials_are_rejected(self) -> None:
         source = self.source("source", "STOCK-READ")

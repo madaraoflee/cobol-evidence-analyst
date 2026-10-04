@@ -50,7 +50,7 @@ test('source citations continue to use the existing evidence click handler',()=>
 
 test('reading coverage distinguishes planned, sent and interpreted pages, and partial results survive failed requests',()=>{
   const h=harness();setup(h,{status:'PARTIAL',stop_reason:'model_client_error',reading_coverage:{total_files:2,total_lines:1000,total_pages:10,selected_pages:8,selected_lines:800,planned_pages:8,sent_pages:5,summarized_pages:3,summarized_lines:300,failed_pages:2,complete:false},analysis_scope:{unresolved_dependency_count:2}});
-  const answer=h.run('actualAnswer()');assert.match(answer,/The program reads input/);assert.match(answer,/Interpreted 3 \/ 10 pages \(current source scope\)/);assert.match(answer,/Sent 5 pages/);assert.match(answer,/Selected for this run: 8 pages/);assert.match(answer,/300 \/ 1,000 lines/);assert.match(answer,/There are 5 unread pages/);assert.match(answer,/Some analysis requests did not complete/);assert.match(answer,/2 dependencies are missing implementations/);assert.doesNotMatch(answer,/>Analysis interrupted</);
+  const answer=h.run('actualAnswer()');assert.match(answer,/The program reads input/);assert.match(answer,/Interpreted 3 \/ 10 pages \(current source scope\)/);assert.match(answer,/Sent 5 pages/);assert.match(answer,/Selected for this run: 8 pages/);assert.match(answer,/300 \/ 1,000 lines/);assert.match(answer,/There are 5 unread pages/);assert.match(answer,/Some analysis requests did not complete/);assert.doesNotMatch(answer,/dependencies are missing implementations/);assert.doesNotMatch(answer,/>Analysis interrupted</);
   assert.match(h.run('apiSummary()'),/Model explanation available; business meaning needs review/);assert.doesNotMatch(h.run('apiSummary()'),/no business conclusion reached/);
 });
 
@@ -101,7 +101,7 @@ test('new reading phases, page units and authored narrative controls translate i
 test('verified source availability is independent of business status and keeps partial explanations visible',()=>{
   const h=harness();setup(h,{status:'PARTIAL',stop_reason:'model_client_error'});
   h.run("state.project.diagnosis.catalog_ready=false;state.project.diagnosis.source_manifest_verified=true;state.project.diagnosis.runner_status='BLOCKED';state.project.diagnosis.scope={truncated:true};state.project.diagnosis.unresolved_dependencies=Array.from({length:30},()=>({target_name:'EXTERNAL'}));state.project.agent.runner_status='SAFE_STOP';");
-  assert.equal(h.run('sourceUsable()'),true);assert.match(h.run('actualAnswer()'),/The program reads input/);assert.match(h.run('actualAnswer()'),/30 dependencies are missing implementations/);assert.doesNotMatch(h.run('actualAnswer()'),/>Analysis interrupted</);
+  assert.equal(h.run('sourceUsable()'),true);assert.match(h.run('actualAnswer()'),/The program reads input/);assert.doesNotMatch(h.run('actualAnswer()'),/dependencies are missing implementations/);assert.doesNotMatch(h.run('actualAnswer()'),/>Analysis interrupted</);
   assert.doesNotMatch(h.run('questionCard()'),/type="submit" disabled/);
   h.run('state.project.snapshot_id=null');assert.equal(h.run('sourceUsable()'),false);
   h.run('state.project.diagnosis.catalog_ready=true');assert.equal(h.run('sourceUsable()'),true);
@@ -183,11 +183,11 @@ test('repository investigations explain actual selected scope and escape search 
   assert.ok(answer.indexOf('The program reads input')<answer.indexOf('Searches for this question'));
 });
 
-test('missing implementations and reference gaps stay in collapsed details after the answer',()=>{
+test('question-specific gaps stay in collapsed details without a global missing-implementation prompt',()=>{
   const h=harness();setup(h,{status:'PARTIAL',analysis_scope:{unresolved_dependency_count:4},boundaries:[{reason:'target_not_found'},{message:'No framework marker matched.'}],reading_coverage:{total_pages:20,sent_pages:12,summarized_pages:10,failed_pages:2,complete:false}});
   const answer=h.run('actualAnswer()');assert.match(answer,/<details class="answer-support"><summary>Sources and additional details/);assert.doesNotMatch(answer,/<details class="answer-support"[^>]* open|boundary-box|Analysis interrupted/);
   assert.ok(answer.indexOf('The program reads input')<answer.indexOf('Sources and additional details'));
-  assert.match(answer,/There are 8 unread pages/);assert.match(answer,/4 dependencies are missing implementations/);assert.match(answer,/No framework marker matched/);
+  assert.match(answer,/There are 8 unread pages/);assert.doesNotMatch(answer,/dependencies are missing implementations/);assert.match(answer,/No framework marker matched/);
 });
 
 test('repository search results use actual scalar counters and do not show retired source limits',()=>{

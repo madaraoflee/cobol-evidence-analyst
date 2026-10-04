@@ -27,7 +27,7 @@ from company_api import (APIClientError, APIConfigurationError, CompanyAPIConfig
                          OpenAICompatibleChatClient, PROJECT_ENV_FILE, _read_local_env)
 from repository_discovery import ensure_repository_search
 from runtime_settings import load_agent_policy
-from model_profiles import model_config
+from model_profiles import WORKBENCH_MAX_OUTPUT_TOKENS, model_config
 from business_chat import _SYSTEM
 from source_reading import _safe_file
 
@@ -267,8 +267,8 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                            "max_tokens": 32}, ensure_ascii=False, separators=(",", ":")).encode("utf-8")),
                        "policy": policy.to_dict(),
                        "configuration_scope": "evaluation_runner",
-                       "workbench_defaults": {"timeout_seconds": 60.0, "max_output_tokens": 2048},
-                       "matches_workbench_defaults": config.timeout_seconds == 60.0 and config.max_output_tokens == 2048,
+                       "workbench_defaults": {"timeout_seconds": 60.0, "max_output_tokens": WORKBENCH_MAX_OUTPUT_TOKENS},
+                       "matches_workbench_defaults": config.timeout_seconds == 60.0 and config.max_output_tokens == WORKBENCH_MAX_OUTPUT_TOKENS,
                        "comparison_note": "Evaluation uses its recorded configuration; results do not represent the web workbench when timeout or output settings differ.",
                        "spend_authorization": "not_granted_by_request_budget",
                        "currency_estimate": None, "retry_policy": "no_automatic_retries",

@@ -105,6 +105,48 @@ class OfflineFrameworkSemanticsTests(unittest.TestCase):
         self.assertEqual(second["framework_semantics"]["files_reused"], 1)
         self.assertEqual(len(result["facts"]), 1)
 
+    def test_disjoint_assignment_requests_its_declaration_and_never_covers_missing_evidence(self):
+        text = SOURCE.replace("  05 ROWS-STATUS PIC X(4).", "  05 ROWS-STATUS PIC X(4).\n  05 ROWS-KEY PIC X(8).")
+        text = text.replace("CALL 'ROWSIO'", "MOVE 'KEY' TO ROWS-KEY.\nCALL 'ROWSIO'")
+        self.path.write_text(text)
+        self.build()
+        whole = self.pages()[0]
+        lines = text.splitlines()
+        first = next(i + 1 for i, line in enumerate(lines) if line.startswith("MOVE 'ADVANCE'"))
+        key_line = next(i + 1 for i, line in enumerate(lines) if "05 ROWS-KEY" in line)
+        procedure = {**whole, "evidence_id": "ev-procedure", "start_line": first, "end_line": first + 2,
+                     "source_text": "\n".join(lines[first - 1:first + 2])}
+        missing = self.facts([procedure])
+        self.assertEqual(missing["facts"], [])
+        self.assertTrue(any(span["start_line"] <= key_line <= span["end_line"]
+                            for span in missing["source_requests"]))
+        incomplete_data = {**whole, "evidence_id": "ev-incomplete-data", "start_line": 1,
+                           "end_line": key_line - 1, "source_text": "\n".join(lines[:key_line - 1])}
+        self.assertEqual(self.facts([incomplete_data, procedure])["facts"], [])
+        complete_data = {**incomplete_data, "end_line": key_line, "source_text": "\n".join(lines[:key_line])}
+        fact, = self.facts([complete_data, procedure])["facts"]
+        self.assertTrue(fact["dependency_covered"])
+        self.assertFalse(fact["runtime_verified"])
+        self.assertEqual(set(fact["source_evidence_ids"]), {"ev-incomplete-data", "ev-procedure"})
+        self.assertTrue(any(span["role"] == "binding_declaration" and span["start_line"] == key_line
+                            for span in fact["source_ranges"]))
+        assignment_missing = {**procedure, "evidence_id": "ev-call", "start_line": first + 2,
+                              "source_text": lines[first + 1]}
+        function_only = {**procedure, "evidence_id": "ev-function", "end_line": first,
+                         "source_text": lines[first - 1]}
+        self.assertEqual(self.facts([complete_data, function_only, assignment_missing])["facts"], [])
+
+    def test_older_binding_cache_is_rebuilt_for_same_source_and_manual(self):
+        self.build()
+        with sqlite3.connect(self.database) as db:
+            db.execute("UPDATE framework_file_semantics SET version='framework-semantics/v1.2'")
+        from framework_binding import bind_framework_source
+        with patch("framework_binding.bind_framework_source", wraps=bind_framework_source) as binding:
+            report = self.build()
+        self.assertEqual(report["files"]["indexed_or_updated"], 0)
+        self.assertEqual(report["framework_semantics"]["files_rebuilt"], 1)
+        self.assertEqual(binding.call_count, 1)
+
     def test_document_change_invalidates_cache_without_source_rebuild(self):
         self.build()
         previous = self.facts()

@@ -62,9 +62,9 @@ class ModelOutputBudgetTests(unittest.TestCase):
         adapter = self.profile("adapter")
         workbench = self.profile("workbench")
         self.assertEqual((adapter.max_output_tokens, adapter.timeout_seconds), (1024, 20.0))
-        self.assertEqual((workbench.max_output_tokens, workbench.timeout_seconds), (2048, 60.0))
+        self.assertEqual((workbench.max_output_tokens, workbench.timeout_seconds), (8192, 60.0))
         self.assertEqual(self.actual_request(adapter)["max_tokens"], 1024)
-        self.assertEqual(self.actual_request(workbench)["max_tokens"], 2048)
+        self.assertEqual(self.actual_request(workbench)["max_tokens"], 8192)
 
     def test_budget_provenance_identifies_profile_and_override_source(self):
         for name in ("adapter", "workbench"):

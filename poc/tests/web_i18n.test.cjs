@@ -78,7 +78,7 @@ test('large catalogs page and search without expanding all entries; selected pat
 test('scoped answers keep catalog navigation and canonical entry identity after a failed entry',()=>{
  const h=harness('en');h.run("state.mode='real';state.project={snapshot_id:'sha256:test',programs:[{entry_key:'member.cbl::PROGRAM::2',program_name:'PROGRAM',relative_path:'member.cbl'}],diagnosis:{runner_status:'BLOCKED',catalog_ready:true,entry_requested:'member.cbl',selected_entry:{entry_key:'member.cbl::PROGRAM::2'},scope:{detail_file_count:1,max_files:24,max_scope_bytes:16777216,total_scope_bytes:500,truncated:true},unresolved_dependencies:[{},{}]}};");
  assert.equal(h.run('sourceUsable()'),true);assert.equal(h.run('selectedEntryValue(diagnosis())'),'member.cbl::PROGRAM::2');
- assert.doesNotMatch(h.run('scopeNotice()'),/[\u3400-\u9fff]/);assert.match(h.run('scopeNotice()'),/2 unresolved dependencies/);assert.match(h.run('scopeNotice()'),/16.0 MiB/);
+ assert.doesNotMatch(h.run('scopeNotice()'),/[\u3400-\u9fff]/);assert.doesNotMatch(h.run('scopeNotice()'),/unresolved dependencies/);assert.match(h.run('scopeNotice()'),/16.0 MiB/);
 });
 test('configuration errors explain local setup in three languages without echoing service values',()=>{
  const h=harness('en');

@@ -14,7 +14,7 @@ import re
 import sqlite3
 
 
-SEMANTICS_VERSION = "framework-semantics/v1.2"
+SEMANTICS_VERSION = "framework-semantics/v1.3"
 MAX_FILE_FACTS = 2048
 MAX_REQUEST_FACTS = 32
 

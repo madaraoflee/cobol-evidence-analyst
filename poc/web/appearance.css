@@ -745,3 +745,6 @@ summary { cursor: pointer; }
   .theme-toggle, .activity-sidebar, .activity-dialog, .activity-toggle, .navigation-dialog, .rail-resizer { display: none !important; }
   .app-shell { display: block; }
 }
+
+.source-actions{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}.message-source-version{display:block;margin-bottom:12px;color:var(--muted);overflow-wrap:anywhere}
+.source-version-card>p{margin:12px 20px;line-height:1.7}.source-version-card>details{padding:0 20px 18px}

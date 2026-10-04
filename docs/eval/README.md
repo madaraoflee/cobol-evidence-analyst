@@ -10,7 +10,7 @@ python3 poc/live_business_eval.py --source /path/to/approved/source-snapshot --c
 python3 poc/live_business_eval.py --source /path/to/approved/source-snapshot --cases /path/to/independent-cases.json --evaluation-dir /path/to/local-evaluation --mode paired-synthesis --profile workbench --plan
 ```
 
-计划模式不建语义侧库、不预检接口、不发模型请求。工作台 profile 为单次超时 60 秒、输出上限 2048 tokens；每次普通请求最多 230,000 bytes。当前示例只有 1 个用户轮次，含可选预检时 automatic 最多 6 次请求，reviewed-context 最多 2 次，paired-synthesis 最多 3 次；预检关闭后分别为 5、1、2。真实题集按实际用户轮数重算，多轮历史不另计为新问题。失败尝试仍可能计费，脚本不自动重试；未提供单位价格，因此计划中的币种金额为 `null`。请求上限不是费用授权。
+计划模式不建语义侧库、不预检接口、不发模型请求。工作台 profile 为单次超时 60 秒、默认输出上限 8192 tokens（显式环境或文件设置仍优先）；每次普通请求最多 230,000 bytes。当前示例只有 1 个用户轮次，含可选预检时 automatic 最多 6 次请求，reviewed-context 最多 2 次，paired-synthesis 最多 3 次；预检关闭后分别为 5、1、2。真实题集按实际用户轮数重算，多轮历史不另计为新问题。失败尝试仍可能计费，脚本不自动重试；未提供单位价格，因此计划中的币种金额为 `null`。请求上限不是费用授权。
 
 实际评测须先确定：获准使用的模型与单价、输入及输出计价单位、预检是否执行、题数及用户轮数、单轮与总费用上限、失败请求的计费处理、框架资料与源码快照版本、公司数据的允许使用范围，以及负责评分的 BA。获得明确批准后才可另行使用 `--allow-network` 运行。automatic 先以 `--capture-context` 保存最后作答轮真实原文；paired-synthesis 必须读取这个冻结 artifact。缺少 artifact、路径/hash/行范围变化或人工材料超出请求预算时，不生成“公平配对成功”结论。两支最终合成只改变证据集合，共享问题、背景、模型、提示和输出参数，不把 gold 或自动初稿送给任何一支。
 

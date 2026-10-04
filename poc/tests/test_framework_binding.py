@@ -43,6 +43,11 @@ def bind(text: str, rules: dict | None = None, source_format: str = "auto") -> l
 
 CALL = "CALL 'ITEMIO' USING ITEM-PARAMS."
 MOVE = "MOVE 'NX' TO ITEM-FUNCTION."
+DIRECT_LAYOUT = """01 ITEM-PARAMS.
+  05 ITEM-FUNCTION PIC XX.
+  05 ITEM-KEY PIC X(8).
+  05 ITEM-COUNT PIC 9(4).
+"""
 
 
 class FrameworkBindingTests(unittest.TestCase):
@@ -68,6 +73,55 @@ class FrameworkBindingTests(unittest.TestCase):
         self.assertTrue(fact["dependency_covered"])
         self.assertEqual((fact["start_line"], fact["end_line"]), (11, 14))
         self.assertEqual(fact["source_ranges"][1], {"start_line": 8, "end_line": 10, "role": "function_assignment"})
+
+    def test_function_literal_survives_proven_disjoint_elementary_moves(self) -> None:
+        text = source(MOVE + "\nMOVE 'KEY' TO ITEM-KEY.\nMOVE 3 TO ITEM-COUNT.\n" + CALL, DIRECT_LAYOUT)
+        fact, = bind(text)
+        self.assertTrue(fact["dependency_covered"])
+        self.assertEqual(fact["operation"]["value"], "NX")
+        self.assertFalse(fact["runtime_verified"])
+        intervening = [span for span in fact["source_ranges"] if span["role"] == "disjoint_field_assignment"]
+        self.assertEqual([text.splitlines()[span["start_line"] - 1] for span in intervening],
+                         ["MOVE 'KEY' TO ITEM-KEY.", "MOVE 3 TO ITEM-COUNT."])
+        declarations = fact["binding_evidence_refs"]
+        self.assertEqual({text.splitlines()[span["start_line"] - 1].strip() for span in declarations},
+                         {line.strip() for line in DIRECT_LAYOUT.splitlines()})
+        self.assertTrue(all(span["source_sha256"] == fact["source_sha256"] for span in declarations))
+
+    def test_disjoint_storage_is_not_inferred_from_names_or_unsupported_layout(self) -> None:
+        layouts = [
+            "COPY ITEM-LAYOUT.",
+            DIRECT_LAYOUT + "COPY EXTRA-LAYOUT.",
+            DIRECT_LAYOUT.replace("05 ITEM-KEY PIC X(8).", "05 ITEM-KEY.\n    10 KEY-TEXT PIC X(8)."),
+            DIRECT_LAYOUT.replace("PIC X(8).", "REDEFINES ITEM-FUNCTION PIC X(8)."),
+            DIRECT_LAYOUT.replace("PIC X(8).", "PIC X(8) OCCURS 2 TIMES."),
+            DIRECT_LAYOUT + "66 ITEM-ALIAS RENAMES ITEM-FUNCTION THRU ITEM-KEY.\n",
+            DIRECT_LAYOUT + "01 OTHER-PARAMS REDEFINES ITEM-PARAMS.\n  05 OTHER-KEY PIC X(8).\n",
+            DIRECT_LAYOUT.replace("05 ITEM-KEY PIC X(8).", "05 ITEM-KEY\n    PIC X(8)."),
+            DIRECT_LAYOUT + "01 ITEM-KEY PIC X(8).\n",
+            DIRECT_LAYOUT.replace("  05 ITEM-KEY PIC X(8).\n", "01 ITEM-KEY PIC X(8).\n"),
+        ]
+        for declarations in layouts:
+            with self.subTest(declarations=declarations):
+                fact, = bind(source(MOVE + "\nMOVE 'KEY' TO ITEM-KEY.\n" + CALL, declarations))
+                self.assertFalse(fact["dependency_covered"])
+                self.assertNotIn("binding_evidence_refs", fact)
+
+    def test_preserved_function_still_stops_at_branch_call_and_group_writes(self) -> None:
+        for barrier in ("MOVE SPACES TO ITEM-PARAMS.", "MOVE 'KEY' TO UNKNOWN-FIELD.",
+                        "CALL 'HELPER'.", "IF FLAG = 1 CONTINUE END-IF.", "PERFORM HELPER.",
+                        "MOVE 'OTHER' TO ITEM-FUNCTION.", "MOVE CORRESPONDING ITEM-PARAMS TO OTHER-PARAMS."):
+            with self.subTest(barrier=barrier):
+                fact, = bind(source(MOVE + "\nMOVE 'KEY' TO ITEM-KEY.\n" + barrier + "\n" + CALL, DIRECT_LAYOUT))
+                self.assertFalse(fact["dependency_covered"])
+
+    def test_conditional_disjoint_moves_describe_only_the_same_branch_intent(self) -> None:
+        body = "IF FLAG = 1\nMOVE 'NX' TO ITEM-FUNCTION\nMOVE 'KEY' TO ITEM-KEY\n" + CALL + "\nEND-IF."
+        fact, = bind(source(body, DIRECT_LAYOUT))
+        self.assertTrue(fact["dependency_covered"])
+        self.assertFalse(fact["runtime_verified"])
+        body = "IF FLAG = 1\nMOVE 'NX' TO ITEM-FUNCTION\nMOVE 'KEY' TO ITEM-KEY\nEND-IF\n" + CALL
+        self.assertFalse(bind(source(body, DIRECT_LAYOUT))[0]["dependency_covered"])
 
     def test_fixed_format_comments_and_continuation(self) -> None:
         text = "\n".join(f"{number:06} {line}" for number, line in enumerate(source("MOVE 'NX'\nTO ITEM-FUNCTION\n" + CALL).splitlines(), 1))

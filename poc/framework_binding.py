@@ -1,16 +1,16 @@
 """Bind explicit local interface rules to a bounded subset of source syntax.
 
 The result describes the documented intent of a source call, never its execution
-or return value. A function value is retained only from the immediately preceding
-supported MOVE in the same straight-line block. This deliberately avoids alias
-and control-flow guesses that would require a complete language implementation.
+or return value. A function literal survives a following MOVE only when direct
+declarations prove that its elementary destination occupies separate storage.
+Unknown layout and control flow remain barriers.
 """
 
 from __future__ import annotations
 
 import hashlib
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import Iterable
 
 from call_bindings import parse_call
@@ -25,6 +25,15 @@ _PROGRAM = re.compile(rf"PROGRAM-ID\s*\.\s*(?:'({_NAME})'|\"({_NAME})\"|({_NAME}
 _SECTION = re.compile(rf"({_PROCEDURE_NAME})\s+SECTION\s*\.", re.I)
 _PARAGRAPH = re.compile(rf"({_PROCEDURE_NAME})\s*\.", re.I)
 _DECLARATION = re.compile(rf"(?:0?[1-9]|[1-4][0-9]|66|77|88)\s+({_NAME})\b", re.I)
+_LAYOUT_DECLARATION = re.compile(rf"(\d{{1,2}})\s+({_NAME})\b(.*)", re.I)
+_ELEMENTARY = re.compile(
+    rf"(?:PIC|PICTURE)\s+(?:IS\s+)?(?:[XA]+(?:\s*\(\s*\d+\s*\))?|"
+    rf"S?9+(?:\s*\(\s*\d+\s*\))?(?:V9+(?:\s*\(\s*\d+\s*\))?)?)\s*"
+    rf"(?:(?:USAGE\s+(?:IS\s+)?)?(?:DISPLAY|COMP|COMP-3|BINARY|PACKED-DECIMAL)\s*)?"
+    rf"(?:VALUE\s+(?:IS\s+)?(?:{_LITERAL}|[+-]?\d+(?:\.\d+)?|SPACES?|ZERO(?:S|ES)?)\s*)?",
+    re.I,
+)
+_STORAGE = frozenset({"WORKING-STORAGE", "LOCAL-STORAGE", "LINKAGE"})
 _STARTS = frozenset("""
 ACCEPT ADD ALTER CALL CANCEL CLOSE COMPUTE CONTINUE COPY DELETE DISPLAY DIVIDE
 ELSE END-ADD END-CALL END-COMPUTE END-DELETE END-DIVIDE END-EVALUATE END-IF
@@ -112,6 +121,10 @@ def bind_framework_source(
     source_incomplete = False
     last_move: dict | None = None
     declarations: Counter = Counter()
+    layout_nodes: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    uncertain_layout: set[tuple[str, str]] = set()
+    declaration_stack: list[dict] = []
+    storage_section: str | None = None
     program_occurrences: Counter = Counter()
     previous_line: int | None = None
     selected_ranges = None if focus_ranges is None else [
@@ -136,6 +149,48 @@ def bind_framework_source(
 
     def ref_ids(*items: dict) -> list[str]:
         return sorted({value for item in items for value in item.get("reference_ids", []) if value in references})
+
+    def preserve_function_move(destination: str, start: int, end: int) -> bool:
+        """Retain only a literal whose separate storage has direct evidence."""
+        if not last_move or not last_move["literal"] or not program:
+            return False
+        function = last_move["field"]
+        matches = [(item, _stem(item.get("function_template", ""), function)) for item in interfaces]
+        matches = [(item, stem) for item, stem in matches if stem is not None]
+        if len(matches) != 1 or any(_stem(item.get("function_template", ""), destination) is not None
+                                    for item in interfaces):
+            return False
+        interface, stem = matches[0]
+        argument = _instantiate(interface.get("argument_template", ""), stem)
+        if not argument or any(len(layout_nodes[(program, name)]) != 1
+                               for name in (function, destination, argument)):
+            return False
+        function_node, destination_node, argument_node = (
+            layout_nodes[(program, name)][0] for name in (function, destination, argument))
+        storage = function_node["storage"]
+        if (storage not in _STORAGE or (program, storage) in uncertain_layout
+                or destination_node["storage"] != storage
+                or argument_node not in function_node["ancestors"]
+                or argument_node not in destination_node["ancestors"]
+                or function_node is destination_node
+                or not all(1 < node["level"] < 50 and _ELEMENTARY.fullmatch(node["tail"])
+                           for node in (function_node, destination_node))):
+            return False
+        ancestors = list({id(node): node for node in
+                          function_node["ancestors"] + destination_node["ancestors"]}.values())
+        if any(not 1 <= node["level"] < 50 or node["tail"]
+               or len(layout_nodes[(program, node["name"])]) != 1 for node in ancestors):
+            return False
+        spans = last_move.setdefault("preserved_source_ranges", [])
+        spans.append({"start_line": start, "end_line": end, "role": "disjoint_field_assignment"})
+        refs = last_move.setdefault("binding_evidence_refs", [])
+        for node in [function_node, destination_node, *ancestors]:
+            ref = {"relative_path": relative_path, "source_sha256": source_sha256,
+                   "start_line": node["line"], "end_line": node["line"],
+                   "role": "binding_declaration"}
+            if ref not in refs:
+                refs.append(ref)
+        return True
 
     def emit_call(text: str, start: int, end: int) -> None:
         nonlocal last_move
@@ -180,6 +235,9 @@ def bind_framework_source(
                                and rules[value].get("symbol") == last_move["value"]]
             fact["source_ranges"].append({"start_line": last_move["start_line"],
                                          "end_line": last_move["end_line"], "role": "function_assignment"})
+            fact["source_ranges"].extend(last_move.get("preserved_source_ranges", []))
+            if last_move.get("binding_evidence_refs"):
+                fact["binding_evidence_refs"] = list(last_move["binding_evidence_refs"])
             fact["observed_function_value"] = last_move["value"]
             fact["reason"] = "function_operation_not_documented" if not operation_rules else "function_operation_ambiguous"
             if len(operation_rules) == 1:
@@ -213,9 +271,10 @@ def bind_framework_source(
             return
         if first == "MOVE":
             match = _MOVE.fullmatch(text)
-            last_move = {"field": match.group(2).upper(), "value": _literal(match.group(1)),
-                         "literal": not bool(re.fullmatch(_NAME, match.group(1), re.I)),
-                         "start_line": items[0][1], "end_line": items[-1][1]} if match else None
+            if not match or not preserve_function_move(match.group(2).upper(), items[0][1], items[-1][1]):
+                last_move = {"field": match.group(2).upper(), "value": _literal(match.group(1)),
+                             "literal": not bool(re.fullmatch(_NAME, match.group(1), re.I)),
+                             "start_line": items[0][1], "end_line": items[-1][1]} if match else None
         elif first == "CALL":
             emit_call(text, items[0][1], items[-1][1])
             last_move = None
@@ -273,6 +332,8 @@ def bind_framework_source(
             division = None
             last_move, embedded = None, False
             controls.clear()
+            declaration_stack.clear()
+            storage_section = None
             continue
         division_match = re.match(r"^(IDENTIFICATION|ENVIRONMENT|DATA|PROCEDURE)\s+DIVISION\b", upper)
         if division_match:
@@ -282,6 +343,8 @@ def bind_framework_source(
                 program = None
             last_move, embedded = None, False
             controls.clear()
+            declaration_stack.clear()
+            storage_section = None
             continue
         if re.match(r"^END\s+PROGRAM\b", upper):
             flush()
@@ -295,6 +358,27 @@ def bind_framework_source(
             declaration = _DECLARATION.match(upper)
             if declaration and program:
                 declarations[(program, declaration.group(1))] += 1
+            section = _SECTION.fullmatch(upper)
+            if section:
+                storage_section = section.group(1) if section.group(1) in _STORAGE else None
+                declaration_stack.clear()
+            elif program and storage_section:
+                layout = _LAYOUT_DECLARATION.fullmatch(code)
+                if layout:
+                    level, name, tail = int(layout.group(1)), layout.group(2).upper(), layout.group(3).strip().rstrip(".").strip()
+                    if level in {66, 77}:
+                        declaration_stack.clear()
+                    while declaration_stack and declaration_stack[-1]["level"] >= level:
+                        declaration_stack.pop()
+                    node = {"name": name, "level": level, "tail": tail, "line": number,
+                            "storage": storage_section, "ancestors": list(declaration_stack)}
+                    layout_nodes[(program, name)].append(node)
+                    if level != 88:
+                        declaration_stack.append(node)
+                    if level == 66 or re.search(r"\b(?:REDEFINES|RENAMES|OCCURS)\b", tail, re.I):
+                        uncertain_layout.add((program, storage_section))
+                else:
+                    uncertain_layout.add((program, storage_section))
             continue
         if division != "PROCEDURE" or not program:
             continue

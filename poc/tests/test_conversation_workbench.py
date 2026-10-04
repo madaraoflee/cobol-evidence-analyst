@@ -142,6 +142,194 @@ class ConversationWorkbenchTests(unittest.TestCase):
         self.assertIn("RESERVED-COUNT > CAPACITY", archived["spans"][0]["source_text"])
         self.assertEqual(archived["snapshot_id"], first["snapshot_id"])
 
+    def test_explicit_local_refresh_tracks_hash_changes_additions_deletions_and_renames(self):
+        removed = self.source / "remove.cbl"
+        removed.write_text("PROGRAM-ID. REMOVAL-RULE.\nPROCEDURE DIVISION.\nGOBACK.\n")
+        renamed = self.source / "prior.cbl"
+        renamed.write_text("PROGRAM-ID. MOVED-RULE.\nPROCEDURE DIVISION.\nGOBACK.\n")
+        imported = self.run_job()
+        first = self.run_job(question="Explain CAPACITY", allow_network=True)
+        original_version = imported["source_version"]
+        conversation_id = first["conversation"]["id"]
+        original_messages = first["conversation"]["messages"]
+        message = original_messages[1]
+        evidence_id = message["evidence_refs"][0]["evidence_id"]
+        source_file = self.source / "quota.cbl"
+        stat = source_file.stat()
+        original_text = source_file.read_text()
+        source_file.write_text(original_text.replace("> CAPACITY", "< CAPACITY"))
+        os.utime(source_file, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        self.assertEqual(source_file.stat().st_size, stat.st_size)
+        self.assertEqual(source_file.stat().st_mtime_ns, stat.st_mtime_ns)
+        removed.unlink()
+        renamed.rename(self.source / "renamed.cbl")
+        (self.source / "new.cbl").write_text(
+            "PROGRAM-ID. NEW-RULE.\nPROCEDURE DIVISION.\nGOBACK.\n")
+        request_count = len(self.calls)
+
+        refreshed = self.run_job(verify_content=False)
+
+        self.assertEqual(len(self.calls), request_count, "source refresh must remain offline")
+        self.assertNotEqual(refreshed["snapshot_id"], imported["snapshot_id"])
+        version = refreshed["source_version"]
+        self.assertTrue(version["version_id"].startswith("local:"))
+        self.assertEqual(version["provider"], "local")
+        self.assertEqual(version["snapshot_id"], refreshed["snapshot_id"])
+        self.assertNotEqual(version["version_id"], original_version["version_id"])
+        self.assertEqual(version["previous_version_id"], original_version["version_id"])
+        self.assertEqual(version["file_count"], 3)
+        self.assertEqual(version["changes"], {"added": 2, "modified": 1, "removed": 2, "unchanged": 0})
+        self.assertEqual(refreshed["source_versions"][0]["version_id"], version["version_id"])
+        self.assertEqual(refreshed["conversation"]["id"], conversation_id)
+        self.assertEqual(refreshed["conversation"]["messages"], original_messages)
+        with sqlite3.connect(self.output / "structural-index.sqlite") as db:
+            paths = [row[0] for row in db.execute("SELECT relative_path FROM source_files ORDER BY relative_path")]
+            rules = "\n".join(row[0] for row in db.execute(
+                "SELECT normalized_text FROM business_rules WHERE relative_path='quota.cbl'"))
+        self.assertEqual(paths, ["new.cbl", "quota.cbl", "renamed.cbl"])
+        self.assertIn("RESERVED-COUNT < CAPACITY", rules)
+        self.assertNotIn("RESERVED-COUNT > CAPACITY", rules)
+        archived = self.app.evidence(evidence_id, conversation_id, message["id"])
+        self.assertIn("RESERVED-COUNT > CAPACITY", archived["spans"][0]["source_text"])
+        self.assertEqual(archived["snapshot_id"], first["snapshot_id"])
+
+    def test_unchanged_local_refresh_keeps_one_version_and_its_creation_time(self):
+        first = self.run_job()
+        second = self.run_job()
+
+        self.assertEqual(len(self.calls), 0)
+        self.assertEqual(second["snapshot_id"], first["snapshot_id"])
+        self.assertEqual(second["source_version"]["version_id"], first["source_version"]["version_id"])
+        self.assertEqual(second["source_version"]["created_at"], first["source_version"]["created_at"])
+        self.assertGreaterEqual(second["source_version"]["checked_at"], first["source_version"]["checked_at"])
+        self.assertEqual(len(second["source_versions"]), 1)
+        self.assertEqual(second["source_versions"][0]["version_id"], first["source_version"]["version_id"])
+
+    def test_local_version_history_and_old_renamed_source_excerpt_survive_restart(self):
+        self.run_job()
+        first = self.run_job(question="Explain CAPACITY", allow_network=True)
+        conversation_id = first["conversation"]["id"]
+        message = first["conversation"]["messages"][1]
+        evidence_id = message["evidence_refs"][0]["evidence_id"]
+        (self.source / "quota.cbl").rename(self.source / "renamed.cbl")
+        refreshed = self.run_job()
+
+        restored = WorkbenchState(analyzer=self.analyzer, config_provider=lambda: self.config,
+                                  state_path=self.state_path)
+        state = restored.state()
+        self.assertEqual(state["conversation"]["id"], conversation_id)
+        self.assertEqual(state["project"]["source_version"]["version_id"],
+                         refreshed["source_version"]["version_id"])
+        self.assertEqual([version["version_id"] for version in state["project"]["source_versions"]],
+                         [version["version_id"] for version in refreshed["source_versions"]])
+        self.assertEqual(len(state["project"]["source_versions"]), 2)
+        archived = restored.evidence(evidence_id, conversation_id, message["id"])
+        self.assertEqual(archived["spans"][0]["relative_path"], "quota.cbl")
+        self.assertIn("RESERVED-COUNT > CAPACITY", archived["spans"][0]["source_text"])
+        self.assertEqual(archived["snapshot_id"], first["snapshot_id"])
+
+    def assert_local_refresh_rolled_back(self, before, message, evidence_id):
+        state = self.app.state()
+        self.assertEqual(state["project"], before["project"])
+        self.assertEqual(state["conversation"], before["conversation"])
+        with sqlite3.connect(self.output / "structural-index.sqlite") as db:
+            snapshot = db.execute("SELECT value FROM metadata WHERE key='snapshot_id'").fetchone()[0]
+            rules = "\n".join(row[0] for row in db.execute(
+                "SELECT normalized_text FROM business_rules WHERE relative_path='quota.cbl'"))
+        self.assertEqual(snapshot, before["project"]["snapshot_id"])
+        self.assertIn("RESERVED-COUNT > CAPACITY", rules)
+        self.assertNotIn("RESERVED-COUNT < CAPACITY", rules)
+        restored = WorkbenchState(analyzer=self.analyzer, config_provider=lambda: self.config,
+                                  state_path=self.state_path)
+        restored_state = restored.state()
+        self.assertEqual(restored_state["project"]["snapshot_id"], before["project"]["snapshot_id"])
+        self.assertEqual(restored_state["project"]["source_versions"], before["project"]["source_versions"])
+        self.assertEqual(restored_state["conversation"], before["conversation"])
+        archived = restored.evidence(evidence_id, before["conversation"]["id"], message["id"])
+        self.assertIn("RESERVED-COUNT > CAPACITY", archived["spans"][0]["source_text"])
+        self.assertEqual(archived["snapshot_id"], before["project"]["snapshot_id"])
+
+    def test_failed_local_refresh_after_index_and_version_write_restores_persisted_workspace(self):
+        from source_versions import record_version
+
+        self.run_job()
+        first = self.run_job(question="Explain CAPACITY", allow_network=True)
+        before = self.app.state()
+        message = first["conversation"]["messages"][1]
+        evidence_id = message["evidence_refs"][0]["evidence_id"]
+        path = self.source / "quota.cbl"
+        path.write_text(path.read_text().replace("> CAPACITY", "< CAPACITY"))
+        written = []
+
+        def fail_after_version_write(output, source, snapshot_id):
+            version = record_version(output, source, snapshot_id)
+            self.assertNotEqual(snapshot_id, before["project"]["snapshot_id"])
+            self.assertNotEqual(version["version_id"], before["project"]["source_version"]["version_id"])
+            written.append(version["version_id"])
+            raise RuntimeError("update failure after writing the new version")
+
+        with patch("web_app.record_version", side_effect=fail_after_version_write):
+            job_id = self.app.start({"source": str(self.source), "output": str(self.output),
+                                     "source_format": "free"})["job_id"]
+            job = self.wait_for_job(job_id)
+        self.assertEqual(job["status"], "FAILED")
+        self.assertEqual(len(written), 1)
+        self.assert_local_refresh_rolled_back(before, message, evidence_id)
+
+    def test_cancelled_local_refresh_after_index_write_restores_persisted_workspace(self):
+        self.run_job()
+        first = self.run_job(question="Explain CAPACITY", allow_network=True)
+        before = self.app.state()
+        message = first["conversation"]["messages"][1]
+        evidence_id = message["evidence_refs"][0]["evidence_id"]
+        path = self.source / "quota.cbl"
+        path.write_text(path.read_text().replace("> CAPACITY", "< CAPACITY"))
+        written = []
+
+        def cancel_after_index_write(source, output, **options):
+            report = self.analyzer(source, output, **options)
+            snapshot = report["build_report"]["snapshot_id"]
+            self.assertNotEqual(snapshot, before["project"]["snapshot_id"])
+            written.append(snapshot)
+            self.app.cancel_event.set()
+            return report
+
+        self.app.analyzer = cancel_after_index_write
+        job_id = self.app.start({"source": str(self.source), "output": str(self.output),
+                                 "source_format": "free"})["job_id"]
+        job = self.wait_for_job(job_id)
+        self.assertEqual(job["status"], "CANCELLED")
+        self.assertEqual(len(written), 1)
+        self.assert_local_refresh_rolled_back(before, message, evidence_id)
+
+    def test_directory_symlink_version_store_is_rejected_before_analysis_and_preserves_workspace(self):
+        self.run_job()
+        first = self.run_job(question="Explain CAPACITY", allow_network=True)
+        before = self.app.state()
+        message = first["conversation"]["messages"][1]
+        evidence_id = message["evidence_refs"][0]["evidence_id"]
+        version_path = self.output / "source-versions.sqlite"
+        saved_version_path = self.root / "saved-source-versions.sqlite"
+        version_path.rename(saved_version_path)
+        target = self.root / "directory-target"
+        target.mkdir()
+        version_path.symlink_to(target, target_is_directory=True)
+        try:
+            with patch.object(self.app, "analyzer", side_effect=AssertionError("must reject before analysis")) as analyzer:
+                with self.assertRaises(RequestError) as error:
+                    self.app.start({"source": str(self.source), "output": str(self.output),
+                                    "source_format": "free"})
+                self.assertEqual(error.exception.code, "INVALID_PATH")
+                analyzer.assert_not_called()
+            self.assertEqual(self.app.state()["project"], before["project"])
+            self.assertEqual(self.app.state()["conversation"], before["conversation"])
+            self.assertTrue(version_path.is_symlink())
+            self.assertTrue(target.is_dir())
+        finally:
+            version_path.unlink()
+            saved_version_path.rename(version_path)
+        self.assert_local_refresh_rolled_back(before, message, evidence_id)
+
     def test_web_related_objects_use_authorized_frozen_result(self):
         result = self.run_job(question="where-used RESERVED-COUNT?", allow_network=True)
         message = result["conversation"]["messages"][-1]

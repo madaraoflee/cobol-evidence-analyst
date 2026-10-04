@@ -221,7 +221,7 @@ class FrameworkChatSemanticsTests(unittest.TestCase):
         self.assertIn("[fw:operation]", result["answer"])
         self.assertFalse(any(row.get("reason") == "unsupported_citations" for row in result["boundaries"]))
 
-    def documented_index(self, operation="ADVANCE", *, filler_lines=0):
+    def documented_index(self, operation="ADVANCE", *, filler_lines=0, key_setup=False):
         manual = self.root / "manual.md"
         manual.write_text("# Record processing\n\n## Database I/O\n\n"
             "CALL XXXXIO USING XXXX-PARAMS\n\nThe operation is selected by XXXX-FUNCTION.\n\n"
@@ -231,9 +231,12 @@ class FrameworkChatSemanticsTests(unittest.TestCase):
         (self.source / "rule.cbl").write_text("IDENTIFICATION DIVISION.\nPROGRAM-ID. ORDER-RULE.\n"
             "DATA DIVISION.\nWORKING-STORAGE SECTION.\n01 ROWS-PARAMS.\n"
             "  05 ROWS-FUNCTION PIC X(8).\n  05 ROWS-STATUS PIC X(4).\n"
+            + ("  05 ROWS-KEY PIC X(8).\n" if key_setup else "") +
             "PROCEDURE DIVISION.\nREAD-STAGE SECTION.\n"
             + "DISPLAY 'UNRELATED FILLER STATEMENT'.\n" * filler_lines +
-            f"MOVE '{operation}' TO ROWS-FUNCTION.\nCALL 'ROWSIO' USING ROWS-PARAMS.\n"
+            f"MOVE '{operation}' TO ROWS-FUNCTION.\n" +
+            ("MOVE 'KEY' TO ROWS-KEY.\n" if key_setup else "") +
+            "CALL 'ROWSIO' USING ROWS-PARAMS.\n"
             "IF ROWS-STATUS = 'DONE' CONTINUE END-IF.\nGOBACK.\n", encoding="utf-8")
         report = build_business_index(self.source, self.database, source_format="free",
             verify_content=True, framework_reference_path=manual, quiet=True)
@@ -314,6 +317,35 @@ class FrameworkChatSemanticsTests(unittest.TestCase):
         self.assertEqual(result["metrics"]["tool_calls"]["read"], 1)
         self.assertTrue(any(action.get("reason") == "framework_layout_source_not_supplied"
                             for action in result["investigation_state"]["completed_actions"]))
+
+    def test_preparing_key_after_function_still_supplies_documented_io_to_actual_request(self):
+        manual, report = self.documented_index(filler_lines=1800, key_setup=True)
+        self.assertEqual(report["framework_semantics"]["covered_external_calls"], 1)
+        requests = []
+
+        def transport(request):
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            requests.append(payload)
+            fact, = [row for row in payload["framework_facts"] if row.get("dependency_covered")]
+            self.assertEqual(fact["operation"]["value"], "ADVANCE")
+            self.assertEqual(fact["operation"]["meaning"], "Request the following record.")
+            self.assertFalse(fact["runtime_verified"])
+            self.assertEqual(self.item(payload["question_investigation"], "dependencies")["reason"],
+                             "documented_framework_rule")
+            pages = payload["source_context"][0]["pages"]
+            self.assertTrue(any("05 ROWS-KEY PIC X(8)." in page["source_text"] for page in pages))
+            self.assertTrue(any("MOVE 'KEY' TO ROWS-KEY." in page["source_text"] for page in pages))
+            answer = "请求下一条记录，然后检查返回状态；实际读取结果需看运行返回值。" + "".join(
+                f"[{identifier}]" for identifier in fact["source_evidence_ids"] + fact["reference_ids"])
+            return TransportResponse(200, json.dumps({"choices": [{"message": {
+                "role": "assistant", "content": answer}, "finish_reason": "stop"}]}, ensure_ascii=False))
+
+        result = run_business_chat("ADVANCE 如何处理？", self.database, self.source, self.config,
+            transport=transport, framework_reference_path=manual,
+            policy=AgentPolicy(max_model_requests=1, max_reads_per_turn=1))["agent_result"]
+        self.assertEqual(len(requests), 1)
+        self.assertTrue(result["framework_context"]["facts"])
+        self.assertEqual(result["metrics"]["tool_calls"]["read"], 1)
 
     def test_missing_layout_does_not_expand_disabled_read_budget(self):
         manual, _ = self.documented_index(filler_lines=1800)

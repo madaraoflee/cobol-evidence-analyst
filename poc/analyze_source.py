@@ -80,7 +80,8 @@ def _paths(source_root: Path, output_root: Path) -> tuple[Path, Path]:
         path = output / name
         if path.is_symlink() or (path.exists() and not path.is_dir()):
             raise ValueError("A reserved output directory is invalid.")
-    for name in ("versioned-evidence.sqlite", "versioned-evidence.sqlite-wal", "versioned-evidence.sqlite-shm"):
+    for name in ("versioned-evidence.sqlite", "versioned-evidence.sqlite-wal", "versioned-evidence.sqlite-shm",
+                 "source-versions.sqlite", "source-versions.sqlite-wal", "source-versions.sqlite-shm", "source-versions.sqlite-journal"):
         path = output / name
         if path.is_symlink() or (path.exists() and not path.is_file()):
             raise ValueError("A reserved output path is not a regular file.")
