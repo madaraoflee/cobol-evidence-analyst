@@ -1551,7 +1551,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 answer_detail=answer_detail)
             review_synthesis = needs_synthesis_review(question, answer, answer_investigation or {},
                 source_available=bool((answer_manifest or {}).get("source_ids")), source_pages=answer_source_pages,
-                answer_detail=answer_detail)
+                answer_detail=answer_detail, assessment=draft_completion)
             if len(evidence.pages) > before or review_synthesis:
                 selected = evidence.selected_pages(policy.max_source_characters,
                     evidence_groups=evidence_groups, priority_targets=priority_targets,
@@ -1566,11 +1566,13 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         "searches_per_turn": 0, "reads_per_turn": 0, "framework_searches_per_turn": 0},
                     "draft_answer": answer,
                     "answer_review": draft_completion,
-                    "task": ("逐项复核初稿中的业务判断是否有本轮原文支持，并综合已知的业务目的、处理顺序、"
+                    "task": ("逐项复核初稿中的业务判断是否有本轮原文支持，并综合解释当前业务行为、处理顺序、"
                         "输入来源、计算条件、分支例外和结果影响。已供应内部实现时不能仅以片段不足拒答或要求用户补源码；"
                         "直接回答用户提出的业务点。answer_review.missing_aspects 是按表达特征提示的待复核业务点，"
                         "须对照本轮实际原文及初稿判断是否已解释，已经说明的内容保留。"
                         "逐项给出具体运算、来源、条件和对应分支，不只说程序处理金额或按参数计算。"
+                        "流程问题说明具体准入条件、跳过或失败后的处理、最终记录或状态；结合原文核对退出范围，"
+                        "不能仅列校验、计算、更新等环节，不能把写入说成已提交或单笔退出说成整批终止。"
                         "初稿声称无法确认时，逐项指出缺少的具体字段、赋值、条件或外部数据，"
                         "并检查它是否已经在本轮原文中；已提供的算式与条件应解释为静态规则，"
                         "未知运行数据只限制依赖该数据的实际结果。"

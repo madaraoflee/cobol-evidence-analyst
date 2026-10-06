@@ -16,6 +16,7 @@ import sqlite3
 from urllib.parse import quote
 
 from file_impact_evidence import is_file_impact_question, nominate_file_impact_evidence
+from business_behavior import wants_behavior_explanation
 
 
 _CALCULATION = re.compile(r"计算|計算|公式|算式|怎么算|怎麼算|如何算|算出|\b(?:calculation|calculate[ds]?|calculating|formula|computed?)\b", re.I)
@@ -530,7 +531,8 @@ def build_question_investigation(question, business_map, *, database_path=None,
         return {**base, "state": "unresolved", "can_answer": False}
     calculation = bool(_CALCULATION.search(question))
     file_impact = is_file_impact_question(question)
-    business_steps = not calculation and (bool(_BUSINESS_DETAIL.search(question)) or file_impact)
+    business_steps = not calculation and (bool(_BUSINESS_DETAIL.search(question))
+                                         or wants_behavior_explanation(question) or file_impact)
     if not calculation and not business_steps:
         return base
     if not located:

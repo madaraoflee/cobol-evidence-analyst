@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from decimal import Decimal, InvalidOperation
 
+from business_behavior import build_behavior_guide
 from file_impact_evidence import is_file_impact_question
 
 
@@ -156,8 +157,8 @@ _ANSWER_SIGNALS = {
     "conditions": re.compile(
         r"大于|大於|小于|小於|(?:等于|等於).{0,24}(?:时|時|则|則)|"
         r"(?:为|為)\s*(?:[+-]?\d+(?:\.\d+)?|零|[A-Z][A-Z0-9_-]*)\s*(?:时|時|则|則)|"
-        r"超过|超過|超出|低于|低於|达到|達到|正数|正數|正值|非正|[<>≤≥]|若|如果|当.{0,24}时|當.{0,24}時|"
-        r"仅|僅|才|\b(?:if|when|unless|positive|negative|greater|less|exceeds?)\b", re.I),
+        r"超过|超過|超出|低于|低於|达到|達到|不足|正数|正數|正值|非正|[<>≤≥]|若|如果|当.{0,24}时|當.{0,24}時|"
+        r"仅|僅|才|\b(?:if|when|unless|positive|negative|greater|less|exceeds?|insufficient)\b", re.I),
     "result_adjustments": re.compile(
         r"否则|否則|不满足|不滿足|其他情况|其他情況|归零|歸零|清零|置零|为零|為零|"
         r"(?:为|為|设为|設為|[=＝])\s*0(?![\d.])|保留|保持|改写|改寫|改为|改為|覆盖|覆蓋|"
@@ -166,8 +167,49 @@ _ANSWER_SIGNALS = {
         r"retain(?:ed|s)?|preserv(?:e[ds]?|ing))\b", re.I),
 }
 _ASPECT_LABELS = {"formula": "具体算式或运算关系", "inputs": "输入的初值、读取或传入来源",
-                  "conditions": "计算适用的条件", "result_adjustments": "其他分支或结果调整",
+                  "conditions": "当前处理适用的条件", "result_adjustments": "其他分支或结果调整",
                   "file_io": "原文已知的文件/record写入、只读依赖、准确字段名及定位"}
+
+# An unfamiliar business paraphrase is not evidence of an omission. Only
+# affirmative, vocabulary-limited boilerplate nominates a workflow revision;
+# useful short explanations and domain terms remain available without a retry.
+_GENERIC_BEHAVIOR_WORDS = re.compile(
+    r"这个|這個|当前|當前|首先|然后|然後|接着|接著|最后|最後|"
+    r"程序|系统|系統|流程|业务|業務|相关|相關|具体|具體|相应|相應|"
+    r"根据|根據|按照|依据|依據|通过|通過|进行|進行|完成|执行|執行|"
+    r"判断|判斷|校验|校驗|检查|檢查|验证|驗證|处理|處理|计算|計算|更新|"
+    r"生成|输出|輸出|返回|条件|條件|规则|規則|配置|参数|參數|资格|資格|"
+    r"数据|數據|信息|输入|輸入|记录|記錄|状态|狀態|结果|結果|"
+    r"是否|满足|滿足|符合|要求|该|該|本|先|再|并|並|且|和|与|與|及|的|了|会|會|将|將|对|對|按|后|後|时|時|来|來|做|有|关|關|等|地|它|这|這|是|在|所|作|出|以|用|于|於|"
+    r"\b(?:the|a|an|this|that|it|system|program|process|workflow|business|"
+    r"first|then|finally|and|or|to|of|for|in|on|with|according|based|"
+    r"validat\w*|check\w*|process\w*|calculat\w*|updat\w*|generat\w*|"
+    r"return\w*|output\w*|perform\w*|condition\w*|rule\w*|configuration|"
+    r"parameter\w*|eligibility|input\w*|data|information|record\w*|status|result\w*)\b", re.I)
+
+
+def _generic_behavior_summary(text):
+    if not re.search(r"校验|校驗|判断|判斷|处理|處理|计算|計算|更新|生成|"
+                     r"\b(?:validat\w*|check\w*|process\w*|calculat\w*|updat\w*)\b", text, re.I):
+        return False
+    return not re.search(r"\w", _GENERIC_BEHAVIOR_WORDS.sub("", text))
+
+
+def _behavior_requirements(guide):
+    """Bind omission hints to observed syntax, never a universal answer template."""
+    observations = guide.get("observations", [])
+    requirements = []
+    for kind, source_kinds, description in (
+            ("behavior_conditions", {"conditions"}, "解释原文中的具体适用或分支条件，不只说按规则判断"),
+            ("behavior_outcomes", {"file_io", "state_assignment"}, "解释已知处理怎样改变业务记录、状态或输出"),
+            ("behavior_exits", {"early_exit"}, "解释条件分支中的退出及其影响范围，不推定整批停止或已提交")):
+        references = list(dict.fromkeys(identifier for item in observations if item["kind"] in source_kinds
+            and (item["kind"] != "file_io" or item.get("verb") in {"WRITE", "REWRITE", "DELETE"})
+            for identifier in item["supplied_reference_ids"]))
+        if references:
+            requirements.append({"kind": kind, "description": description,
+                                 "supplied_reference_ids": references[:8]})
+    return requirements
 
 _SOURCE_VERBS = re.compile(
     r"(?<![A-Z0-9_$#@-])(?:END-IF|END-EVALUATE|EVALUATE|WHEN|ELSE|IF|COMPUTE|"
@@ -348,7 +390,7 @@ def _supplied_calculation_hints(question, investigation, source_pages):
             "coverage_hints": hints[:32]}
 
 
-def answer_requirements(question, investigation, source_pages, *, answer_detail="detailed"):
+def answer_requirements(question, investigation, source_pages, *, answer_detail="detailed", behavior_guide=None):
     """Nominate answer aspects only from question-relevant, supplied candidates.
 
     These are bounded lexical coverage hints, not a semantic answer score. A
@@ -394,6 +436,10 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
                                      else row.get("fields", []) if row.get("kind") == "io_operation" else [])))[:32]
                 requirement["identifier_groups"] = {key: names for key, names in groups.items() if names}
             requirements.append(requirement)
+    if not calculation and not is_file_impact_question(question):
+        guide = (build_behavior_guide(question, investigation, source_pages)
+                 if behavior_guide is None else behavior_guide)
+        requirements.extend(_behavior_requirements(guide))
     return requirements
 
 
@@ -412,8 +458,10 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
             or _CONDITIONAL_STATEMENT.search(clause)
             or not (_LIMITATION.search(clause) or _INVESTIGATION_STATEMENT.search(clause)))
         and not re.search(r"[?？]", clause))
+    generic_behavior = _generic_behavior_summary(explanation)
     missing = [item["kind"] for item in requirements
-               if not _ANSWER_SIGNALS[item["kind"]].search(explanation)]
+               if (generic_behavior if item["kind"].startswith("behavior_")
+                   else not _ANSWER_SIGNALS[item["kind"]].search(explanation))]
     for item in requirements:
         for hint in item.get("coverage_hints", []):
             kind = hint["kind"]
@@ -437,13 +485,14 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
 
 
 def needs_synthesis_review(question, answer, investigation, *, source_available=False, source_pages=(),
-                           answer_detail="detailed"):
+                           answer_detail="detailed", assessment=None):
     """Nominate a bounded review when useful material got a blanket limitation."""
     items = investigation.get("required_items", [])
     supplied = source_available or any(item.get("evidence_ids") for item in items)
     if not supplied:
         return False
-    completion = assess_business_answer(question, answer, investigation, source_pages, answer_detail=answer_detail)
+    completion = (assess_business_answer(question, answer, investigation, source_pages, answer_detail=answer_detail)
+                  if assessment is None else assessment)
     if completion["status"] == "incomplete":
         return True
     # A useful explanation can legitimately bound an unavailable implementation.
@@ -472,10 +521,12 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
     external = list(dict.fromkeys(target for item in investigation.get("required_items", [])
         if item.get("reason") in {"external_implementation_unavailable", "runtime_target_unresolved"}
         for target in item.get("targets", [])))
+    behavior_guide = build_behavior_guide(question, investigation, source_pages)
     return {"detail_requested": wants_business_detail(question, answer_detail=answer_detail),
             "output_budget_tokens": max_output_tokens,
             "required_answer_aspects": answer_requirements(question, investigation, source_pages,
-                                                            answer_detail=answer_detail),
+                                                            answer_detail=answer_detail, behavior_guide=behavior_guide),
+            **({"behavior_guide": behavior_guide} if behavior_guide.get("observations") else {}),
             "available_source_paths": list(dict.fromkeys(page["relative_path"] for page in source_pages
                                                          if page.get("relative_path")))[:8],
             "supplied_material": items,
@@ -484,7 +535,7 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
             "semantic_execution_verified": False,
             "task": ("先简要回答结论和关键条件，保留必要来源引用。" if not wants_business_detail(
                 question, answer_detail=answer_detail) else "按问题需要充分解释，默认不因用户未写‘详细’而缩成概述。")
-                + "综合当前原文支持的业务目的、处理先后、输入来源、计算口径、适用条件、例外和结果影响，"
+                + "解释当前系统实际实现的业务行为、处理先后、输入来源、计算口径、适用条件、例外和结果影响，"
                 "只展开与问题有关的内容。关键结论逐项附实际来源引用。已有证据的结论直接说明；"
                 "没有直接 COMPUTE 或具体数值不妨碍解释已知步骤、条件或符号关系；只限定未知数值或算法。"
                 "内部尚可补读的程序、段落、赋值和依赖由调查工具读取，不要求用户补交已入库源码。"
@@ -493,6 +544,11 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
                 "不把已由该规则解释的公共调用重复列为资料缺失，也不据此推断运行结果或缺失算式。"
                 "最终计算按源码顺序串起适用条件、分支、舍入和后续结果覆盖；"
                 "不能把中间算式写成无条件的最终结果，后续赋值有影响时明确其优先关系。"
+                "将校验、按配置处理、更新状态展开为具体条件、实际采用的值或日期及结果，让用户能判断自己的场景；"
+                "业务对象和后果是正文主线，标识和调用列表不能代替解释。不要推测历史设计动机或行业惯例。"
+                "behavior_guide 只提示本轮可见的语法位置；结合完整上下文解释具体条件、满足与不满足时的处理、"
+                "输出或状态变化，以及跳过或失败后哪些步骤继续、哪些不执行。不能把源码排列顺序当执行顺序，"
+                "不能把单笔返回推定为整批停止，或把写入推定为已提交。原文未证明的分支后果须明确限定。"
                 "不把必答项状态、检索覆盖或索引数量写成业务结论或完整值流证明。"}
 
 

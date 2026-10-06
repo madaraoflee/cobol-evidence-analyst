@@ -378,16 +378,25 @@ class EvidenceContext:
         bundle = payload["source_context"][0]
         pages = bundle["pages"]
         visible = {page["evidence_id"] for page in pages if page.get("evidence_id")}
+        # Request fitting can check hundreds of navigation spans after each
+        # trim. Sort each path once for this exact set of visible pages; never
+        # retain coverage across calls because a later trim can remove a page.
+        pages_by_path, ranges_by_path = {}, {}
+        for page in pages:
+            path = page.get("relative_path")
+            pages_by_path.setdefault(path, []).append(page)
+            if (not page.get("span_truncated") and type(page.get("start_line")) is int
+                    and type(page.get("end_line")) is int):
+                ranges_by_path.setdefault(path, []).append(
+                    (page["start_line"], page["end_line"], page.get("evidence_id")))
+        for ranges in ranges_by_path.values():
+            ranges.sort()
 
         def covers(path, first, last):
             if not path or type(first) is not int or type(last) is not int:
                 return []
-            ranges = sorted((page["start_line"], page["end_line"], page.get("evidence_id"))
-                            for page in pages if page.get("relative_path") == path
-                            and not page.get("span_truncated")
-                            and type(page.get("start_line")) is int and type(page.get("end_line")) is int)
             chosen, cursor = [], first
-            for start, end, identifier in ranges:
+            for start, end, identifier in ranges_by_path.get(path, ()):
                 if start > cursor:
                     break
                 if end >= cursor:
@@ -428,7 +437,7 @@ class EvidenceContext:
         for outline in bundle.get("outline", []):
             path = outline.get("relative_path")
             outline["retrieved_ranges"] = [{"start_line": p["start_line"], "end_line": p["end_line"]}
-                for p in pages if p.get("relative_path") == path]
+                for p in pages_by_path.get(path, ())]
             for unit in outline.get("units", []):
                 unit["complete_text_supplied"] = bool(covers(path, unit.get("start_line"),
                                                                unit.get("end_line")))

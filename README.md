@@ -1,5 +1,7 @@
 # COBOL Evidence Analyst
 
+**原版与改进版可独立试用。** 本次优化前的代码保存在 `codex/baseline-20261007`（`7dd3e57`），业务解释与速度改进在 `codex/business-behavior-quality-speed`。办公室可分别保留两个源码目录或两个桌面应用目录，用附带的独立启动入口切换，配置和结果目录分别保存。准备与切换步骤见[双版本使用说明](./docs/version-switching.md)，改动和验证范围见[本轮报告](./docs/reports/2026-10-07-business-behavior-optimization.md)。
+
 **系统的最终交付是通用业务分析：直接提出业务问题，由系统在本地代码库查找、阅读和解释相关逻辑。** 没有固定业务主题词典或预置问答路线；演示案例只是操作示例。真实作业调度作为后续可选能力，当前聚焦本地 COBOL/COPYBOOK 与用户提供的框架资料。
 
 **桌面应用交付：** 在允许安装构建工具的 Windows 电脑双击根目录 `build_app.bat`，macOS 双击 `build_app.command`，再把 `release` 内的 ZIP 发给使用者。办公室电脑只需解压运行，现有 Python 3.13.4 无需更换；Windows 已有桌面运行组件时打开原生窗口，缺少时改用已有浏览器，也可双击包内 `OPEN-IN-BROWSER.bat`。两种系统须分别构建，Windows 发布包尚未生成及实机验收。Python 业务模块采用编译交付，提高还原成本，但无法保证不可反编译。首次准备、配置、更新和交付验收见[桌面版打包与使用](./docs/desktop-app.md)。
