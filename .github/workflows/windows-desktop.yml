@@ -31,7 +31,6 @@ jobs:
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
-      WORKBENCH_DATA_DIR: ${{ runner.temp }}/workbench-ci-profile
     steps:
       - name: Check out the selected revision
         uses: actions/checkout@v7
@@ -43,6 +42,11 @@ jobs:
         with:
           python-version: '3.13'
           architecture: x64
+
+      - name: Isolate the runtime profile
+        run: |
+          $profilePath = Join-Path $env:RUNNER_TEMP 'workbench-ci-profile'
+          "WORKBENCH_DATA_DIR=$profilePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Check Windows compiler and build target
         run: |

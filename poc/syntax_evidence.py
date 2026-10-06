@@ -264,3 +264,29 @@ def build_syntax_guide(source_pages):
                 used_bytes += size
                 result["facts"].append(fact)
     return result
+
+
+def build_inline_syntax_guide(source_pages):
+    """Default only to units whose same-line syntax the legacy collector loses.
+
+    Wider AST guidance remains available for evaluation. Its contribution to
+    model quality and latency has not been established, so ordinary multiline
+    evidence does not automatically acquire a second derived representation.
+    """
+    guide = build_syntax_guide(source_pages)
+    counts, selected = {}, set()
+
+    def unit_key(fact):
+        return (fact["relative_path"], fact["source_sha256"], fact["unit"],
+                repr(fact.get("include_chain") or []))
+
+    for fact in guide["facts"]:
+        key = unit_key(fact)
+        location = (key, fact["start_line"])
+        counts[location] = counts.get(location, 0) + 1
+        if any(guard["start_line"] == fact["start_line"] for guard in fact["guards"]):
+            selected.add(key)
+    selected.update(key for (key, _), count in counts.items() if count > 1)
+    facts = [fact for fact in guide["facts"] if unit_key(fact) in selected]
+    return {**guide, "facts": facts, "scope": "supported_inline_units_only",
+            "omitted_facts": guide["omitted_facts"] + len(guide["facts"]) - len(facts)}

@@ -524,8 +524,8 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
         if item.get("reason") in {"external_implementation_unavailable", "runtime_target_unresolved"}
         for target in item.get("targets", [])))
     behavior_guide = build_behavior_guide(question, investigation, source_pages)
-    from syntax_evidence import build_syntax_guide
-    syntax_guide = build_syntax_guide(source_pages)
+    from syntax_evidence import build_inline_syntax_guide
+    syntax_guide = build_inline_syntax_guide(source_pages)
     return {"detail_requested": wants_business_detail(question, answer_detail=answer_detail),
             "output_budget_tokens": max_output_tokens,
             "required_answer_aspects": answer_requirements(question, investigation, source_pages,
@@ -553,11 +553,11 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
                 "业务对象和后果是正文主线，标识和调用列表不能代替解释。不要推测历史设计动机或行业惯例。"
                 "用户未请求修改方案时，只解释现有实现，不主动提出改码建议。"
                 "解释跨程序参数是否回写时，同时核对调用方传递方式与被调程序入口声明。"
-                "syntax_guide 用语法树绑定本轮可见原文中的条件与赋值，IF outcome=false 表示条件不成立；"
-                "EVALUATE 的 prior_branches_must_not_match 表示此前分支必须均不命中，OTHER是其余情况。"
-                "syntax_order_in_unit 只是本段源码顺序，effects_unknown表示调用、循环或异常块的影响尚未建模，"
-                "不能越过它推定最终值，也不能把无guard当成无条件执行。只据完整源码说明结果与限制。"
-                "behavior_guide 只提示本轮可见的语法位置；结合完整上下文解释具体条件、满足与不满足时的处理、"
+                + ("syntax_guide 绑定同行复合语句的条件与赋值。IF outcome=false表示条件不成立；"
+                   "EVALUATE的prior_branches_must_not_match表示此前分支必须均不命中。"
+                   "syntax_order_in_unit只是源码顺序；effects_unknown不是执行或最终值证明。"
+                   if syntax_guide.get("facts") else "")
+                + "behavior_guide 只提示本轮可见的语法位置；结合完整上下文解释具体条件、满足与不满足时的处理、"
                 "输出或状态变化，以及跳过或失败后哪些步骤继续、哪些不执行。不能把源码排列顺序当执行顺序，"
                 "不能把单笔返回推定为整批停止，或把写入推定为已提交。原文未证明的分支后果须明确限定。"
                 "对未被framework_facts覆盖且缺少实现的外部调用，名称或功能码只证明调用请求；"

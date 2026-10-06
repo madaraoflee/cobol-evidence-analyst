@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from business_synthesis import build_analysis_brief, _supplied_source_spans
-from syntax_evidence import build_syntax_guide
+from syntax_evidence import build_syntax_guide, build_inline_syntax_guide
 
 
 def page(text, reference="ev:source", start=1, digest="snapshot", chain=None):
@@ -96,6 +96,16 @@ class SyntaxEvidenceTests(unittest.TestCase):
         self.assertIn("syntax_guide", brief)
         self.assertFalse(brief["syntax_guide"]["semantic_execution_verified"])
         self.assertNotIn("syntax_guide", build_analysis_brief("结果如何决定？", {}, [], [], 8192))
+
+    def test_default_guide_only_promotes_units_with_inline_structure(self):
+        ordinary = page("MAIN.\nIF FLAG = 'Y'\nMOVE 1 TO RESULT-VALUE\nEND-IF.")
+        self.assertTrue(build_syntax_guide([ordinary])["facts"])
+        self.assertEqual(build_inline_syntax_guide([ordinary])["facts"], [])
+        self.assertNotIn("syntax_guide", build_analysis_brief("规则如何执行？", {}, [ordinary], [], 8192))
+        inline = page("MAIN.\nIF FLAG = 'Y' MOVE 1 TO RESULT-VALUE END-IF.")
+        self.assertTrue(build_inline_syntax_guide([inline])["facts"])
+        multiple = page("MAIN.\nMOVE 1 TO RESULT-VALUE MOVE 2 TO STATUS-CODE.")
+        self.assertEqual(len(build_inline_syntax_guide([multiple])["facts"]), 2)
 
     def test_budget_exhaustion_is_explicit(self):
         text = "MAIN.\n" + "MOVE 1 TO RESULT-VALUE.\n" * 100
