@@ -1,0 +1,95 @@
+{
+  "schema_version": "business-evaluation-cases/v1",
+  "challenge_suite": "business-quality-challenges/v1",
+  "source_root_from_repository": "poc/fixtures/call-context-v3/main",
+  "case_origin": "New source-reviewed questions over existing development fixtures; not a holdout.",
+  "cases": [
+    {
+      "id": "evaluate-first-match",
+      "split": "development",
+      "conversation": "evaluate-first-match",
+      "question": "PAIRJOIN 中 LEFT-CODE=21、RIGHT-CODE=22，左右金额即使都有值，最终汇总金额和状态是什么？如果左侧状态改成0呢？请说明 EVALUATE TRUE 的优先次序和什么时候才允许相加。",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "programs/PAIRJOIN.cbl"
+      ],
+      "review_checks": [
+        "按业务语义评分，不要求固定词句；引用存在不证明结论正确。",
+        "检查改变结果的条件、顺序、异常及最终值。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "programs/PAIRJOIN.cbl",
+            "sha256": "bb9d1040f7d9d5626a7d080c2ae217b1ed902b58bfd2fd818fd4b96baee3b634",
+            "start_line": 1,
+            "end_line": 30,
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "left-priority",
+            "description": "初始化金额和状态为0；两边非零时首个 WHEN 命中左侧，最终金额0、状态21。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/PAIRJOIN.cbl",
+                "start_line": 17,
+                "end_line": 29,
+                "sha256": "bb9d1040f7d9d5626a7d080c2ae217b1ed902b58bfd2fd818fd4b96baee3b634"
+              }
+            ]
+          },
+          {
+            "id": "right-after-left-clear",
+            "description": "左侧0右侧22时命中第二个 WHEN，金额0、状态22。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/PAIRJOIN.cbl",
+                "start_line": 18,
+                "end_line": 29,
+                "sha256": "bb9d1040f7d9d5626a7d080c2ae217b1ed902b58bfd2fd818fd4b96baee3b634"
+              }
+            ]
+          },
+          {
+            "id": "sum-gate",
+            "description": "双方状态均0才进入 WHEN OTHER 相加，若 SIZE ERROR 则状态25、金额0。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/PAIRJOIN.cbl",
+                "start_line": 23,
+                "end_line": 28,
+                "sha256": "bb9d1040f7d9d5626a7d080c2ae217b1ed902b58bfd2fd818fd4b96baee3b634"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "evaluate-first-match-forbidden-1",
+            "description": "不能说两个 WHEN 都执行、右22覆盖左21。"
+          },
+          {
+            "id": "evaluate-first-match-forbidden-2",
+            "description": "不能在任一非零状态时相加，不能承诺算术绝不溢出。"
+          }
+        ],
+        "allowed_unknowns": [
+          "源码静态推导；未执行 COBOL、数据库或程序加载器。"
+        ],
+        "business_usefulness_checks": [
+          "先回答问题，再解释会改变结论的条件及证据，避免逐行翻译。"
+        ]
+      }
+    }
+  ]
+}

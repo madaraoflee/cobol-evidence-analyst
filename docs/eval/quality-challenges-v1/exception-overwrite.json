@@ -1,0 +1,99 @@
+{
+  "schema_version": "business-evaluation-cases/v1",
+  "challenge_suite": "business-quality-challenges/v1",
+  "source_root_from_repository": "poc/fixtures/exception-flow-v4/regressions/programs",
+  "case_origin": "New source-reviewed questions over existing development fixtures; not a holdout.",
+  "cases": [
+    {
+      "id": "post-calculation-overwrite",
+      "split": "development",
+      "conversation": "post-calculation-overwrite",
+      "question": "EXBAD 先用 SOURCE-AMOUNT 乘二计算 RESULT-AMOUNT，出错时又清零。若计算触发 SIZE ERROR，GOBACK 时 RESULT-AMOUNT 和 RESULT-STATUS 各是什么？若未触发又是什么？程序能保证错误时金额为零吗？",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "EXBAD.cbl"
+      ],
+      "review_checks": [
+        "按业务语义评分，不要求固定词句；引用存在不证明结论正确。",
+        "检查改变结果的条件、顺序、异常及最终值。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "EXBAD.cbl",
+            "sha256": "c46c24823d96021f99d4c92de1c85f8a634c8f19641f90b0f3e3472c8002862d",
+            "start_line": 1,
+            "end_line": 20,
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "error-overwritten",
+            "description": "SIZE ERROR 先置状态24和金额0，但 END-COMPUTE 后无条件 MOVE 7 覆盖金额，返回金额7、状态24。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "EXBAD.cbl",
+                "start_line": 11,
+                "end_line": 20,
+                "sha256": "c46c24823d96021f99d4c92de1c85f8a634c8f19641f90b0f3e3472c8002862d"
+              }
+            ]
+          },
+          {
+            "id": "success-overwritten",
+            "description": "未触发 SIZE ERROR 时状态0，正常计算结果仍被 MOVE 7 覆盖，返回金额7、状态0。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "EXBAD.cbl",
+                "start_line": 12,
+                "end_line": 20,
+                "sha256": "c46c24823d96021f99d4c92de1c85f8a634c8f19641f90b0f3e3472c8002862d"
+              }
+            ]
+          },
+          {
+            "id": "zero-guarantee-broken",
+            "description": "源码不能保证错误返回金额为0，错误清零被后续无条件赋值破坏。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "EXBAD.cbl",
+                "start_line": 13,
+                "end_line": 20,
+                "sha256": "c46c24823d96021f99d4c92de1c85f8a634c8f19641f90b0f3e3472c8002862d"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "post-calculation-overwrite-forbidden-1",
+            "description": "不能把错误时最终金额认定为0。"
+          },
+          {
+            "id": "post-calculation-overwrite-forbidden-2",
+            "description": "不能把成功时最终金额认定为输入乘二。"
+          },
+          {
+            "id": "post-calculation-overwrite-forbidden-3",
+            "description": "不能推断 MOVE 7 同时把状态清零。"
+          }
+        ],
+        "allowed_unknowns": [
+          "源码静态推导；未执行 COBOL、数据库或程序加载器。"
+        ],
+        "business_usefulness_checks": [
+          "先回答问题，再解释会改变结论的条件及证据，避免逐行翻译。"
+        ]
+      }
+    }
+  ]
+}

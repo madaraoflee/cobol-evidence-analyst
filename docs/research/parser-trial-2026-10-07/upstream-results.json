@@ -1,0 +1,1126 @@
+{
+  "candidate": "upstream",
+  "grammar_commit": "550020ddf42ef9b718ad897868a9308d2afcda35",
+  "runtime": "tree-sitter 0.25.2",
+  "grammar_abi": 14,
+  "runtime_init_ms": 3.940792001230875,
+  "files": [
+    {
+      "path": "poc/fixtures/synthetic-insurance-v1/programs/SYNP000.cbl",
+      "bytes": 1681,
+      "lines": 47,
+      "sha256": "e666d68f82663738e005e051eb8f1f2e701f7fcf85f47ad40ffe7893e321a7a2",
+      "has_error": false,
+      "errors": [],
+      "counts": {
+        "copy_statement": 2,
+        "initialize_statement": 1,
+        "move_statement": 11,
+        "call_statement": 6,
+        "goback_statement": 1,
+        "exit_statement": 1
+      },
+      "all_node_offsets_consistent": true,
+      "first_parse_ms": 13.212083000325947,
+      "warm_parse_median_ms": 0.13962500088382512,
+      "warm_parse_p95_ms": 0.15254199934133794,
+      "selected_statements": [
+        {
+          "type": "if_header",
+          "line": 12,
+          "column": 12,
+          "end_line": 12,
+          "text": "IF RETURN-CODE = ZERO"
+        },
+        {
+          "type": "move_statement",
+          "line": 13,
+          "column": 16,
+          "end_line": 13,
+          "text": "MOVE 'LOAD' TO WS-STEP"
+        },
+        {
+          "type": "call_statement",
+          "line": 14,
+          "column": 16,
+          "end_line": 14,
+          "text": "CALL 'SYNP010' USING SYN-PREMIUM-PARAMETERS"
+        },
+        {
+          "type": "if_header",
+          "line": 16,
+          "column": 12,
+          "end_line": 16,
+          "text": "IF RETURN-CODE = ZERO"
+        },
+        {
+          "type": "move_statement",
+          "line": 17,
+          "column": 16,
+          "end_line": 17,
+          "text": "MOVE 'ROUTE' TO WS-STEP"
+        },
+        {
+          "type": "call_statement",
+          "line": 18,
+          "column": 16,
+          "end_line": 18,
+          "text": "CALL 'SYNP020' USING SYN-PREMIUM-PARAMETERS"
+        },
+        {
+          "type": "if_header",
+          "line": 20,
+          "column": 12,
+          "end_line": 20,
+          "text": "IF RETURN-CODE = ZERO"
+        },
+        {
+          "type": "move_statement",
+          "line": 21,
+          "column": 16,
+          "end_line": 21,
+          "text": "MOVE 'BASE' TO WS-STEP"
+        },
+        {
+          "type": "call_statement",
+          "line": 22,
+          "column": 16,
+          "end_line": 23,
+          "text": "CALL LK-CALCULATOR-PROGRAM\n002300             USING SYN-PREMIUM-PARAMETERS"
+        },
+        {
+          "type": "if_header",
+          "line": 25,
+          "column": 12,
+          "end_line": 25,
+          "text": "IF RETURN-CODE = ZERO"
+        },
+        {
+          "type": "move_statement",
+          "line": 26,
+          "column": 16,
+          "end_line": 26,
+          "text": "MOVE 'RIDER' TO WS-STEP"
+        },
+        {
+          "type": "call_statement",
+          "line": 27,
+          "column": 16,
+          "end_line": 27,
+          "text": "CALL 'SYNP030' USING SYN-PREMIUM-PARAMETERS"
+        },
+        {
+          "type": "if_header",
+          "line": 29,
+          "column": 12,
+          "end_line": 29,
+          "text": "IF RETURN-CODE = ZERO"
+        },
+        {
+          "type": "move_statement",
+          "line": 30,
+          "column": 16,
+          "end_line": 30,
+          "text": "MOVE 'ADJUST' TO WS-STEP"
+        },
+        {
+          "type": "call_statement",
+          "line": 31,
+          "column": 16,
+          "end_line": 31,
+          "text": "CALL 'SYNP040' USING SYN-PREMIUM-PARAMETERS"
+        },
+        {
+          "type": "call_statement",
+          "line": 33,
+          "column": 12,
+          "end_line": 33,
+          "text": "CALL 'SYNP090' USING SYN-PREMIUM-PARAMETERS"
+        },
+        {
+          "type": "move_statement",
+          "line": 36,
+          "column": 12,
+          "end_line": 36,
+          "text": "MOVE ZERO TO RETURN-CODE"
+        },
+        {
+          "type": "move_statement",
+          "line": 37,
+          "column": 12,
+          "end_line": 37,
+          "text": "MOVE SPACES TO OUT-ERROR-CODE"
+        },
+        {
+          "type": "if_header",
+          "line": 38,
+          "column": 12,
+          "end_line": 39,
+          "text": "IF IN-POLICY-STATUS NOT = 'P'\n003900        AND IN-POLICY-STATUS NOT = 'I'"
+        },
+        {
+          "type": "move_statement",
+          "line": 40,
+          "column": 16,
+          "end_line": 40,
+          "text": "MOVE 12 TO RETURN-CODE"
+        },
+        {
+          "type": "move_statement",
+          "line": 41,
+          "column": 16,
+          "end_line": 41,
+          "text": "MOVE 'INVALID-POLICY-STATUS' TO OUT-ERROR-CODE"
+        },
+        {
+          "type": "if_header",
+          "line": 43,
+          "column": 12,
+          "end_line": 43,
+          "text": "IF IN-BASE-SUM-ASSURED NOT > ZERO"
+        },
+        {
+          "type": "move_statement",
+          "line": 44,
+          "column": 16,
+          "end_line": 44,
+          "text": "MOVE 16 TO RETURN-CODE"
+        },
+        {
+          "type": "move_statement",
+          "line": 45,
+          "column": 16,
+          "end_line": 45,
+          "text": "MOVE 'INVALID-SUM-ASSURED' TO OUT-ERROR-CODE"
+        }
+      ]
+    },
+    {
+      "path": "poc/fixtures/synthetic-insurance-v1/programs/SYNP010.cbl",
+      "bytes": 1740,
+      "lines": 51,
+      "sha256": "3df1ecbd402334587a7bcc60fe0cb515b831a2a2d60053cfb9dc42e8a6c94079",
+      "has_error": true,
+      "errors": [
+        {
+          "type": "ERROR",
+          "missing": false,
+          "line": 11,
+          "column": 8,
+          "end_line": 51,
+          "text": "LOAD-POLICY.\n001200     EXEC SQL\n001300       SELECT PRODUCT_CODE, POLICY_STATUS, PAYMENT_MODE\n001400         INTO :IN-PRODUCT-CODE, :IN-POL"
+        }
+      ],
+      "counts": {
+        "copy_statement": 4
+      },
+      "all_node_offsets_consistent": true,
+      "first_parse_ms": 0.4615840007318184,
+      "warm_parse_median_ms": 0.06635399950027931,
+      "warm_parse_p95_ms": 0.07258299956447445,
+      "selected_statements": []
+    },
+    {
+      "path": "poc/fixtures/synthetic-insurance-v1/programs/SYNP020.cbl",
+      "bytes": 778,
+      "lines": 21,
+      "sha256": "286436338be5f240cd153396f37e802ced309a720acd3458ae3b4f0b8ab07a98",
+      "has_error": true,
+      "errors": [
+        {
+          "type": "ERROR",
+          "missing": false,
+          "line": 8,
+          "column": 8,
+          "end_line": 21,
+          "text": "RESOLVE-PRODUCT-ROUTE.\n000900     EXEC SQL\n001000       SELECT CALCULATOR_PROGRAM, RATE_VERSION\n001100         INTO :LK-CALCULATOR-PROGRAM, "
+        }
+      ],
+      "counts": {
+        "copy_statement": 1
+      },
+      "all_node_offsets_consistent": true,
+      "first_parse_ms": 0.04066700057592243,
+      "warm_parse_median_ms": 0.03666700104076881,
+      "warm_parse_p95_ms": 0.038624999433523044,
+      "selected_statements": []
+    },
+    {
+      "path": "poc/fixtures/synthetic-insurance-v1/programs/SYNP030.cbl",
+      "bytes": 1009,
+      "lines": 27,
+      "sha256": "bd56c95aaf9a0590054145a0dec1852e9e402a277e3ee87e0b298d277438085a",
+      "has_error": true,
+      "errors": [
+        {
+          "type": "ERROR",
+          "missing": false,
+          "line": 10,
+          "column": 33,
+          "end_line": 10,
+          "text": "'A'"
+        },
+        {
+          "type": "ERROR",
+          "missing": false,
+          "line": 11,
+          "column": 21,
+          "end_line": 27,
+          "text": "SQL\n001200           SELECT RIDER_RATE\n001300             INTO :WS-RIDER-RATE\n001400             FROM SYN_RIDER_RATE\n001500            WHERE"
+        }
+      ],
+      "counts": {
+        "copy_statement": 1,
+        "move_statement": 1
+      },
+      "all_node_offsets_consistent": true,
+      "first_parse_ms": 1.1563750013010576,
+      "warm_parse_median_ms": 0.08641699969302863,
+      "warm_parse_p95_ms": 0.09654200039221905,
+      "selected_statements": [
+        {
+          "type": "move_statement",
+          "line": 9,
+          "column": 12,
+          "end_line": 9,
+          "text": "MOVE ZERO TO WS-RIDER-PREMIUM-TOTAL"
+        },
+        {
+          "type": "if_header",
+          "line": 10,
+          "column": 12,
+          "end_line": 11,
+          "text": "IF IN-RIDER-STATUS = 'A'\n001100         EXEC"
+        }
+      ]
+    },
+    {
+      "path": "poc/fixtures/synthetic-insurance-v1/programs/SYNP040.cbl",
+      "bytes": 2544,
+      "lines": 68,
+      "sha256": "12e45eb73798c2767414eea7ce2577bc303272ba0a14e325fe79f28e1b974d1b",
+      "has_error": true,
+      "errors": [
+        {
+          "type": "ERROR",
+          "missing": false,
+          "line": 18,
+          "column": 12,
+          "end_line": 68,
+          "text": "EXEC SQL\n001900       SELECT LOAD_PERCENT\n002000         INTO :WS-OCCUPATION-PERCENT\n002100         FROM SYN_OCC_LOAD\n002200        WHERE OC"
+        }
+      ],
+      "counts": {
+        "copy_statement": 1,
+        "goback_statement": 1
+      },
+      "all_node_offsets_consistent": true,
+      "first_parse_ms": 0.1369580004393356,
+      "warm_parse_median_ms": 0.09645850059314398,
+      "warm_parse_p95_ms": 0.10516700058360584,
+      "selected_statements": [
+        {
+          "type": "if_header",
+          "line": 10,
+          "column": 12,
+          "end_line": 10,
+          "text": "IF RETURN-CODE = ZERO"
+        }
+      ]
+    },
+    {
+      "path": "poc/fixtures/synthetic-insurance-v1/programs/SYNP090.cbl",
+      "bytes": 353,
+      "lines": 12,
+      "sha256": "1a849c1df5b6944df2dd2082d2df6f6342457546f17903645f8ba0445048bf84",
+      "has_error": false,
+      "errors": [],
+      "counts": {
+        "copy_statement": 1,
+        "move_statement": 2,
+        "goback_statement": 1
+      },
+      "all_node_offsets_consistent": true,
+      "first_parse_ms": 0.03175000165356323,
+      "warm_parse_median_ms": 0.024124999981722794,
+      "warm_parse_p95_ms": 0.024707998818485066,
+      "selected_statements": [
+        {
+          "type": "if_header",
+          "line": 8,
+          "column": 12,
+          "end_line": 8,
+          "text": "IF RETURN-CODE NOT = ZERO"
+        },
+        {
+          "type": "move_statement",
+          "line": 9,
+          "column": 16,
+          "end_line": 9,
+          "text": "MOVE ZERO TO OUT-ANNUAL-PREMIUM"
+        },
+        {
+          "type": "move_statement",
+          "line": 10,
+          "column": 16,
+          "end_line": 10,
+          "text": "MOVE ZERO TO OUT-INSTALMENT-PREMIUM"
+        }
+      ]
+    },
+    {
+      "path": "poc/fixtures/synthetic-insurance-v1/programs/SYNP100.cbl",
+      "bytes": 941,
+      "lines": 26,
+      "sha256": "084fa4ebbdbc71a425ecf18dd24d73d6b941ef03dfad05accbc8c3f01fbd14ac",
+      "has_error": true,
+      "errors": [
+        {
+          "type": "ERROR",
+          "missing": false,
+          "line": 8,
+          "column": 8,
+          "end_line": 26,
+          "text": "CALCULATE-BASE-PREMIUM.\n000900     EXEC SQL\n001000       SELECT BASE_RATE\n001100         INTO :WS-BASE-RATE\n001200         FROM SYN_BASE_RAT"
+        }
+      ],
+      "counts": {
+        "copy_statement": 1
+      },
+      "all_node_offsets_consistent": true,
+      "first_parse_ms": 0.04679099947679788,
+      "warm_parse_median_ms": 0.04239549980411539,
+      "warm_parse_p95_ms": 0.04562499998428393,
+      "selected_statements": []
+    },
+    {
+      "path": "poc/fixtures/synthetic-insurance-v1/programs/SYNP200.cbl",
+      "bytes": 839,
+      "lines": 24,
+      "sha256": "d3b9d4be29172a4b0d3346437fd789faec192a446ec5b98f5458f7d24ec8eb2c",
+      "has_error": true,
+      "errors": [
+        {
+          "type": "ERROR",
+          "missing": false,
+          "line": 8,
+          "column": 8,
+          "end_line": 24,
+          "text": "CALCULATE-BASE-PREMIUM.\n000900     EXEC SQL\n001000       SELECT BASE_RATE\n001100         INTO :WS-BASE-RATE\n001200         FROM SYN_BASE_RAT"
+        }
+      ],
+      "counts": {
+        "copy_statement": 1
+      },
+      "all_node_offsets_consistent": true,
+      "first_parse_ms": 0.04137500036449637,
+      "warm_parse_median_ms": 0.040208000427810475,
+      "warm_parse_p95_ms": 0.04537499989964999,
+      "selected_statements": []
+    },
+    {
+      "path": "poc/fixtures/framework-workbench/source/programs/service-entry.cbl",
+      "bytes": 3434,
+      "lines": 98,
+      "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3",
+      "has_error": false,
+      "errors": [],
+      "counts": {
+        "copy_statement": 5,
+        "initialize_statement": 1,
+        "move_statement": 27,
+        "call_statement": 5,
+        "exit_statement": 5,
+        "add_statement": 1
+      },
+      "all_node_offsets_consistent": true,
+      "first_parse_ms": 5.530000000362634,
+      "warm_parse_median_ms": 0.21508399913727771,
+      "warm_parse_p95_ms": 0.22916600028111134,
+      "selected_statements": [
+        {
+          "type": "move_statement",
+          "line": 15,
+          "column": 12,
+          "end_line": 15,
+          "text": "MOVE \"REQ00001\" TO CONTEXT-REQUEST-ID IO-KEY"
+        },
+        {
+          "type": "move_statement",
+          "line": 16,
+          "column": 12,
+          "end_line": 16,
+          "text": "MOVE \"REQUEST\" TO IO-FORMAT"
+        },
+        {
+          "type": "move_statement",
+          "line": 17,
+          "column": 12,
+          "end_line": 17,
+          "text": "MOVE \"REQUEST-BY-ID\" TO IO-VIEW"
+        },
+        {
+          "type": "move_statement",
+          "line": 18,
+          "column": 12,
+          "end_line": 18,
+          "text": "MOVE \"FETCH\" TO IO-FUNCTION"
+        },
+        {
+          "type": "call_statement",
+          "line": 19,
+          "column": 12,
+          "end_line": 19,
+          "text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+        },
+        {
+          "type": "if_header",
+          "line": 21,
+          "column": 12,
+          "end_line": 21,
+          "text": "IF IO-STATUS = \"OK\""
+        },
+        {
+          "type": "move_statement",
+          "line": 22,
+          "column": 16,
+          "end_line": 22,
+          "text": "MOVE REQUEST-ID TO SCREEN-REQUEST-ID"
+        },
+        {
+          "type": "move_statement",
+          "line": 23,
+          "column": 16,
+          "end_line": 23,
+          "text": "MOVE REQUEST-AMOUNT TO SCREEN-AMOUNT"
+        },
+        {
+          "type": "move_statement",
+          "line": 24,
+          "column": 16,
+          "end_line": 24,
+          "text": "MOVE \"STORE\" TO IO-FUNCTION"
+        },
+        {
+          "type": "call_statement",
+          "line": 25,
+          "column": 16,
+          "end_line": 26,
+          "text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS\n                   REQUEST-RECORD"
+        },
+        {
+          "type": "move_statement",
+          "line": 33,
+          "column": 12,
+          "end_line": 33,
+          "text": "MOVE SPACES TO SCREEN-ERROR"
+        },
+        {
+          "type": "move_statement",
+          "line": 34,
+          "column": 12,
+          "end_line": 34,
+          "text": "MOVE \"DISPLAY\" TO SCREEN-FUNCTION"
+        },
+        {
+          "type": "call_statement",
+          "line": 35,
+          "column": 12,
+          "end_line": 36,
+          "text": "CALL \"SCREENCHANNEL\" USING SCREEN-PARAMETERS\n               SCREEN-FIELDS SHARED-CONTEXT"
+        },
+        {
+          "type": "evaluate_header",
+          "line": 37,
+          "column": 12,
+          "end_line": 37,
+          "text": "EVALUATE SCREEN-STATUS"
+        },
+        {
+          "type": "move_statement",
+          "line": 39,
+          "column": 20,
+          "end_line": 39,
+          "text": "MOVE \"CANCEL\" TO EDIT-STATE"
+        },
+        {
+          "type": "if_header",
+          "line": 41,
+          "column": 20,
+          "end_line": 41,
+          "text": "IF SCREEN-AMOUNT <= ZERO"
+        },
+        {
+          "type": "move_statement",
+          "line": 42,
+          "column": 24,
+          "end_line": 42,
+          "text": "MOVE \"AMOUNT-REQUIRED\" TO SCREEN-ERROR"
+        },
+        {
+          "type": "move_statement",
+          "line": 43,
+          "column": 24,
+          "end_line": 43,
+          "text": "MOVE \"RETRY\" TO EDIT-STATE"
+        },
+        {
+          "type": "move_statement",
+          "line": 45,
+          "column": 24,
+          "end_line": 45,
+          "text": "MOVE \"ACCEPT\" TO EDIT-STATE"
+        },
+        {
+          "type": "move_statement",
+          "line": 48,
+          "column": 20,
+          "end_line": 49,
+          "text": "MOVE SCREEN-STATUS TO ORIGINAL-ERROR\n                       FINAL-ERROR"
+        },
+        {
+          "type": "move_statement",
+          "line": 50,
+          "column": 20,
+          "end_line": 50,
+          "text": "MOVE \"ERROR\" TO EDIT-STATE"
+        },
+        {
+          "type": "move_statement",
+          "line": 56,
+          "column": 12,
+          "end_line": 56,
+          "text": "MOVE \"RESTORE\" TO IO-FUNCTION"
+        },
+        {
+          "type": "call_statement",
+          "line": 57,
+          "column": 12,
+          "end_line": 57,
+          "text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+        },
+        {
+          "type": "if_header",
+          "line": 59,
+          "column": 12,
+          "end_line": 59,
+          "text": "IF IO-STATUS = \"OK\""
+        },
+        {
+          "type": "move_statement",
+          "line": 60,
+          "column": 16,
+          "end_line": 60,
+          "text": "MOVE SCREEN-AMOUNT TO REQUEST-AMOUNT"
+        },
+        {
+          "type": "if_header",
+          "line": 61,
+          "column": 16,
+          "end_line": 61,
+          "text": "IF REQUEST-AMOUNT <= 5000"
+        },
+        {
+          "type": "move_statement",
+          "line": 62,
+          "column": 20,
+          "end_line": 62,
+          "text": "MOVE \"APPROVED\" TO REQUEST-STATE"
+        },
+        {
+          "type": "move_statement",
+          "line": 64,
+          "column": 20,
+          "end_line": 64,
+          "text": "MOVE \"REVIEW\" TO REQUEST-STATE"
+        },
+        {
+          "type": "move_statement",
+          "line": 66,
+          "column": 16,
+          "end_line": 66,
+          "text": "MOVE \"SAVE\" TO IO-FUNCTION"
+        },
+        {
+          "type": "call_statement",
+          "line": 67,
+          "column": 16,
+          "end_line": 68,
+          "text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS\n                   REQUEST-RECORD"
+        },
+        {
+          "type": "evaluate_header",
+          "line": 75,
+          "column": 12,
+          "end_line": 75,
+          "text": "EVALUATE TRUE"
+        },
+        {
+          "type": "move_statement",
+          "line": 77,
+          "column": 20,
+          "end_line": 77,
+          "text": "MOVE \"ERRORPAGE\" TO NEXT-PROGRAM"
+        },
+        {
+          "type": "move_statement",
+          "line": 79,
+          "column": 20,
+          "end_line": 79,
+          "text": "MOVE \"REQUESTLIST\" TO NEXT-PROGRAM"
+        },
+        {
+          "type": "move_statement",
+          "line": 81,
+          "column": 20,
+          "end_line": 81,
+          "text": "MOVE \"SCREENCONTROL\" TO NEXT-PROGRAM"
+        },
+        {
+          "type": "move_statement",
+          "line": 83,
+          "column": 20,
+          "end_line": 83,
+          "text": "MOVE \"REQUESTSUMMARY\" TO NEXT-PROGRAM"
+        },
+        {
+          "type": "if_header",
+          "line": 90,
+          "column": 12,
+          "end_line": 90,
+          "text": "IF IO-STATUS NOT = \"OK\""
+        },
+        {
+          "type": "if_header",
+          "line": 91,
+          "column": 16,
+          "end_line": 91,
+          "text": "IF ORIGINAL-ERROR = SPACES"
+        },
+        {
+          "type": "move_statement",
+          "line": 92,
+          "column": 20,
+          "end_line": 92,
+          "text": "MOVE IO-STATUS TO ORIGINAL-ERROR"
+        },
+        {
+          "type": "move_statement",
+          "line": 94,
+          "column": 16,
+          "end_line": 94,
+          "text": "MOVE IO-STATUS TO FINAL-ERROR"
+        },
+        {
+          "type": "move_statement",
+          "line": 95,
+          "column": 16,
+          "end_line": 95,
+          "text": "MOVE \"ERROR\" TO EDIT-STATE"
+        }
+      ]
+    },
+    {
+      "path": "poc/fixtures/framework-workbench/source/programs/screen-control.cbl",
+      "bytes": 3075,
+      "lines": 81,
+      "sha256": "c360f24e9bf474bc438182407567c973cba0cc4022368d7a9e97aac96a3788a6",
+      "has_error": false,
+      "errors": [],
+      "counts": {
+        "copy_statement": 4,
+        "initialize_statement": 1,
+        "move_statement": 19,
+        "call_statement": 5,
+        "goback_statement": 1
+      },
+      "all_node_offsets_consistent": true,
+      "first_parse_ms": 0.9539580005366588,
+      "warm_parse_median_ms": 0.18931199974758783,
+      "warm_parse_p95_ms": 0.20404200040502474,
+      "selected_statements": [
+        {
+          "type": "move_statement",
+          "line": 14,
+          "column": 12,
+          "end_line": 14,
+          "text": "MOVE \"REQ00002\" TO CONTEXT-REQUEST-ID IO-KEY"
+        },
+        {
+          "type": "if_header",
+          "line": 16,
+          "column": 12,
+          "end_line": 16,
+          "text": "IF FINAL-ERROR = SPACES"
+        },
+        {
+          "type": "move_statement",
+          "line": 17,
+          "column": 16,
+          "end_line": 17,
+          "text": "MOVE 1000 TO SECTION-NUMBER"
+        },
+        {
+          "type": "move_statement",
+          "line": 22,
+          "column": 16,
+          "end_line": 22,
+          "text": "MOVE 1500 TO SECTION-NUMBER"
+        },
+        {
+          "type": "move_statement",
+          "line": 24,
+          "column": 16,
+          "end_line": 24,
+          "text": "MOVE \"DISPLAY\" TO SCREEN-FUNCTION"
+        },
+        {
+          "type": "call_statement",
+          "line": 25,
+          "column": 16,
+          "end_line": 26,
+          "text": "CALL \"SCREENCHANNEL\" USING SCREEN-PARAMETERS\n                   SCREEN-FIELDS SHARED-CONTEXT"
+        },
+        {
+          "type": "evaluate_header",
+          "line": 27,
+          "column": 16,
+          "end_line": 27,
+          "text": "EVALUATE SCREEN-STATUS"
+        },
+        {
+          "type": "move_statement",
+          "line": 29,
+          "column": 24,
+          "end_line": 29,
+          "text": "MOVE \"CANCEL\" TO EDIT-STATE"
+        },
+        {
+          "type": "call_statement",
+          "line": 31,
+          "column": 24,
+          "end_line": 32,
+          "text": "CALL \"SCREENCHECK\" USING SCREEN-PARAMETERS\n                           SCREEN-FIELDS"
+        },
+        {
+          "type": "if_header",
+          "line": 33,
+          "column": 24,
+          "end_line": 33,
+          "text": "IF SCREEN-STATUS = \"OK\""
+        },
+        {
+          "type": "move_statement",
+          "line": 34,
+          "column": 28,
+          "end_line": 34,
+          "text": "MOVE 2000 TO SECTION-NUMBER"
+        },
+        {
+          "type": "move_statement",
+          "line": 37,
+          "column": 28,
+          "end_line": 37,
+          "text": "MOVE \"RETRY\" TO EDIT-STATE"
+        },
+        {
+          "type": "move_statement",
+          "line": 40,
+          "column": 24,
+          "end_line": 41,
+          "text": "MOVE SCREEN-STATUS TO ORIGINAL-ERROR\n                           FINAL-ERROR"
+        },
+        {
+          "type": "move_statement",
+          "line": 42,
+          "column": 24,
+          "end_line": 42,
+          "text": "MOVE \"ERROR\" TO EDIT-STATE"
+        },
+        {
+          "type": "if_header",
+          "line": 45,
+          "column": 12,
+          "end_line": 45,
+          "text": "IF EDIT-STATE = \"ACCEPT\""
+        },
+        {
+          "type": "move_statement",
+          "line": 46,
+          "column": 16,
+          "end_line": 46,
+          "text": "MOVE 3000 TO SECTION-NUMBER"
+        },
+        {
+          "type": "move_statement",
+          "line": 49,
+          "column": 12,
+          "end_line": 49,
+          "text": "MOVE 4000 TO SECTION-NUMBER"
+        },
+        {
+          "type": "move_statement",
+          "line": 54,
+          "column": 12,
+          "end_line": 54,
+          "text": "MOVE \"REQUEST\" TO IO-FORMAT"
+        },
+        {
+          "type": "move_statement",
+          "line": 55,
+          "column": 12,
+          "end_line": 55,
+          "text": "MOVE \"REQUEST-BY-ID\" TO IO-VIEW"
+        },
+        {
+          "type": "move_statement",
+          "line": 56,
+          "column": 12,
+          "end_line": 56,
+          "text": "MOVE \"FETCH\" TO IO-FUNCTION"
+        },
+        {
+          "type": "call_statement",
+          "line": 57,
+          "column": 12,
+          "end_line": 57,
+          "text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+        },
+        {
+          "type": "if_header",
+          "line": 58,
+          "column": 12,
+          "end_line": 58,
+          "text": "IF IO-STATUS = \"OK\""
+        },
+        {
+          "type": "move_statement",
+          "line": 59,
+          "column": 16,
+          "end_line": 59,
+          "text": "MOVE \"STORE\" TO IO-FUNCTION"
+        },
+        {
+          "type": "call_statement",
+          "line": 60,
+          "column": 16,
+          "end_line": 61,
+          "text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS\n                   REQUEST-RECORD"
+        },
+        {
+          "type": "if_header",
+          "line": 63,
+          "column": 12,
+          "end_line": 63,
+          "text": "IF IO-STATUS NOT = \"OK\""
+        },
+        {
+          "type": "move_statement",
+          "line": 64,
+          "column": 16,
+          "end_line": 64,
+          "text": "MOVE IO-STATUS TO ORIGINAL-ERROR FINAL-ERROR"
+        },
+        {
+          "type": "move_statement",
+          "line": 65,
+          "column": 16,
+          "end_line": 65,
+          "text": "MOVE \"ERROR\" TO EDIT-STATE"
+        },
+        {
+          "type": "evaluate_header",
+          "line": 69,
+          "column": 12,
+          "end_line": 69,
+          "text": "EVALUATE SECTION-NUMBER"
+        },
+        {
+          "type": "call_statement",
+          "line": 75,
+          "column": 20,
+          "end_line": 77,
+          "text": "CALL \"SERVICEMAINLINE\" USING SECTION-NUMBER\n                       SHARED-CONTEXT SCREEN-PARAMETERS\n                       SCREEN-FIELDS"
+        },
+        {
+          "type": "move_statement",
+          "line": 79,
+          "column": 20,
+          "end_line": 79,
+          "text": "MOVE \"BADSTAGE\" TO ORIGINAL-ERROR FINAL-ERROR"
+        },
+        {
+          "type": "move_statement",
+          "line": 80,
+          "column": 20,
+          "end_line": 80,
+          "text": "MOVE \"ERROR\" TO EDIT-STATE"
+        }
+      ]
+    }
+  ],
+  "probes": [
+    {
+      "path": ".build/parser-trial/probes/inline-nested.cbl",
+      "bytes": 878,
+      "lines": 29,
+      "sha256": "55bf54fe3c3debd4f6ea3085804fe7f5792f96b3767984db4b0e6366ccad5f9e",
+      "has_error": false,
+      "errors": [],
+      "counts": {
+        "move_statement": 9,
+        "goback_statement": 1
+      },
+      "all_node_offsets_consistent": true,
+      "first_parse_ms": 0.0932080001803115,
+      "warm_parse_median_ms": 0.08327050090883859,
+      "warm_parse_p95_ms": 0.08966600034909789,
+      "selected_statements": [
+        {
+          "type": "move_statement",
+          "line": 11,
+          "column": 12,
+          "end_line": 11,
+          "text": "MOVE 1 TO RESULT-A"
+        },
+        {
+          "type": "move_statement",
+          "line": 11,
+          "column": 31,
+          "end_line": 11,
+          "text": "MOVE 2 TO RESULT-B"
+        },
+        {
+          "type": "if_header",
+          "line": 12,
+          "column": 12,
+          "end_line": 12,
+          "text": "IF FLAG-A = 1"
+        },
+        {
+          "type": "if_header",
+          "line": 13,
+          "column": 16,
+          "end_line": 13,
+          "text": "IF FLAG-B = 2"
+        },
+        {
+          "type": "move_statement",
+          "line": 14,
+          "column": 20,
+          "end_line": 14,
+          "text": "MOVE 3 TO RESULT-A"
+        },
+        {
+          "type": "move_statement",
+          "line": 14,
+          "column": 39,
+          "end_line": 14,
+          "text": "MOVE 4 TO RESULT-B"
+        },
+        {
+          "type": "move_statement",
+          "line": 16,
+          "column": 20,
+          "end_line": 16,
+          "text": "MOVE 5 TO RESULT-A"
+        },
+        {
+          "type": "move_statement",
+          "line": 19,
+          "column": 16,
+          "end_line": 19,
+          "text": "MOVE 6 TO RESULT-A"
+        },
+        {
+          "type": "evaluate_header",
+          "line": 21,
+          "column": 12,
+          "end_line": 21,
+          "text": "EVALUATE FLAG-A"
+        },
+        {
+          "type": "evaluate_header",
+          "line": 23,
+          "column": 20,
+          "end_line": 23,
+          "text": "EVALUATE FLAG-B"
+        },
+        {
+          "type": "move_statement",
+          "line": 24,
+          "column": 31,
+          "end_line": 24,
+          "text": "MOVE 7 TO RESULT-A"
+        },
+        {
+          "type": "move_statement",
+          "line": 25,
+          "column": 35,
+          "end_line": 25,
+          "text": "MOVE 8 TO RESULT-A"
+        },
+        {
+          "type": "move_statement",
+          "line": 27,
+          "column": 27,
+          "end_line": 27,
+          "text": "MOVE 9 TO RESULT-A"
+        }
+      ]
+    }
+  ],
+  "cold_process_runs": [
+    {
+      "wall_ms": 41.20599999987462,
+      "init_ms": 2.53612500091549,
+      "init_and_read_and_parse_ms": 3.0424160013353685,
+      "has_error": false
+    },
+    {
+      "wall_ms": 40.43837500103109,
+      "init_ms": 2.4859169989213115,
+      "init_and_read_and_parse_ms": 2.9879590001655743,
+      "has_error": false
+    },
+    {
+      "wall_ms": 40.26841700033401,
+      "init_ms": 2.4559159992350033,
+      "init_and_read_and_parse_ms": 2.9469580003933515,
+      "has_error": false
+    },
+    {
+      "wall_ms": 40.65945900038059,
+      "init_ms": 2.5985409993154462,
+      "init_and_read_and_parse_ms": 3.1127500005823094,
+      "has_error": false
+    },
+    {
+      "wall_ms": 42.89345799952571,
+      "init_ms": 2.4595830000180285,
+      "init_and_read_and_parse_ms": 2.969290999317309,
+      "has_error": false
+    },
+    {
+      "wall_ms": 40.6779999993887,
+      "init_ms": 2.5872919995890697,
+      "init_and_read_and_parse_ms": 3.0854169999656733,
+      "has_error": false
+    },
+    {
+      "wall_ms": 40.6867500005319,
+      "init_ms": 2.4387089997617295,
+      "init_and_read_and_parse_ms": 2.9305420011951355,
+      "has_error": false
+    }
+  ],
+  "summary": {
+    "files": 10,
+    "clean_files": 4,
+    "error_nodes": 7,
+    "source_mapping_consistent": true,
+    "total_source_lines": 455,
+    "total_warm_parse_median_ms": 0.9366460008095601,
+    "cold_process_median_ms": 40.6779999993887
+  }
+}

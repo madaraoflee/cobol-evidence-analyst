@@ -43,18 +43,38 @@ business_map.source_identity 表示源码身份定位；ambiguous 的候选尚�
 关键业务判断在句末使用提供的[evidence_id]或[reference_id]。未检索的代码、运行结果、数据库值不能编造；不要将索引范围或检索命中数写成完整业务理解。用户追问时承接前文，不重复整篇初始报告。""" + "\n" + BUSINESS_ANSWER_POLICY + "\n" + ANSWER_MARKDOWN_POLICY
 
 
-def _actions(text, policy=None):
-    policy = resolve_agent_policy(policy)
-    value = text.strip()
+def _action_json_text(text):
+    """Accept one whole object or a standalone terminal object after prose.
+
+    Do not search arbitrary embedded examples for executable actions. A prose
+    prefix may contain citations, but no other JSON object or fenced block;
+    trailing prose, multiple objects and explicit examples remain ordinary text.
+    """
+    value = str(text).strip()
     fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", value, re.S | re.I)
     if fenced:
-        value = fenced[1]
-    else:
-        # Some chat providers introduce an action with a short explanation.
-        # Only one fenced JSON object is eligible; ordinary prose stays prose.
-        blocks = re.findall(r"```(?:json)?\s*\n(.*?)```", value, re.S | re.I)
-        if len(blocks) == 1:
-            value = blocks[0].strip()
+        return fenced[1].strip()
+    if value.startswith("{"):
+        return value
+    start = re.search(r"(?m)^[ \t]*(?:\{|```(?:json)?[ \t]*$)", value, re.I)
+    if not start:
+        return value
+    prefix, candidate = value[:start.start()].strip(), value[start.start():].strip()
+    if not prefix or "{" in prefix or "}" in prefix or "```" in prefix:
+        return value
+    introduction = prefix.splitlines()[-1].strip()
+    example_label = (r"(?:(?:以下|下面|这是|這是|一个|一個|仅|僅|输出|輸出|调用|調用|代码|代碼|协议|格式|操作|的|是|为|為|\s)*"
+                     r"(?:示例|例子|範例|范例|样例|樣例)(?:如下)?|(?:例如|举例|舉例|比如)|"
+                     r"(?:(?:for|an?|the|output|code|action)\s+)*(?:example|sample)|e\.g\.)[：:]?")
+    if re.fullmatch(example_label, introduction, re.I):
+        return value
+    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", candidate, re.S | re.I)
+    return fenced[1].strip() if fenced else candidate
+
+
+def _actions(text, policy=None):
+    policy = resolve_agent_policy(policy)
+    value = _action_json_text(text)
     try:
         item = json.loads(value)
     except (ValueError, RecursionError):
@@ -96,10 +116,7 @@ def _action_reply_invalid(text, action):
     """Keep malformed investigation requests out of the answer channel."""
     if action is not None:
         return not any(action.values())
-    value = str(text).strip()
-    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", value, re.S | re.I)
-    if fenced:
-        value = fenced[1].strip()
+    value = _action_json_text(text)
     tool_keys = {"search", "read", "framework_search", "inspect_business_context",
                  "list_impact", "search_concepts"}
     descriptor_keys = {"tool", "tools", "tool_calls", "function_call"}
@@ -172,6 +189,28 @@ def _response_shape(raw, choice_index=None):
             "tool_calls_present": bool(message.get("tool_calls") or message.get("function_call"))}
 
 
+def _empty_length_recovery_shape(raw, choice_index=None):
+    """Require an unambiguous empty answer choice, never hidden provider text."""
+    choices = raw.get("choices") if isinstance(raw, Mapping) else None
+    if not isinstance(choices, list):
+        return None
+    candidates = [(index, row) for index, row in enumerate(choices)
+                  if isinstance(row, Mapping) and isinstance(row.get("message"), Mapping)
+                  and row["message"].get("role", "assistant") == "assistant"]
+    if choice_index is None:
+        if len(candidates) != 1:
+            return None
+        choice_index, choice = candidates[0]
+    else:
+        choice = next((row for index, row in candidates if index == choice_index), None)
+    if choice is None or choice.get("finish_reason") != "length":
+        return None
+    message = choice["message"]
+    if message.get("refusal") or message.get("tool_calls") or message.get("function_call"):
+        return None
+    return _response_shape(raw, choice_index)
+
+
 def _history_messages(history, policy=None):
     """Keep the full transcript on disk; bound only the provider context."""
     policy = resolve_agent_policy(policy)
@@ -209,6 +248,67 @@ def _history_messages(history, policy=None):
     return retained
 
 
+def _compact_prompt_payload(payload):
+    """Encode repeated navigation keys once; keep source pages byte-for-byte.
+
+    The canonical payload remains available to reconciliation, answer review,
+    citation accounting and quality traces. This projection is rebuilt after
+    every trim, so its tables never preserve fields from removed material.
+    """
+    if "navigation_encoding" in payload:
+        return payload
+    projected = dict(payload)
+    saved_bytes = 0
+
+    def encoded_size(value):
+        return len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+
+    def compact(container, key, *, keep=()):
+        nonlocal saved_bytes
+        records = container.get(key)
+        columns_key = key + "_columns"
+        if (not isinstance(records, list) or len(records) < 4
+                or columns_key in container
+                or any(not isinstance(row, dict) or "_values" in row for row in records)):
+            return container
+        # Only columns present in every record are encoded. Missing keys remain
+        # distinct from explicit null values; uncommon fields stay on each row.
+        columns = [field for field in records[0] if field not in keep
+                   and all(field in row for row in records)]
+        if not columns:
+            return container
+        encoded = [{**{field: value for field, value in row.items() if field not in columns},
+                    "_values": [row[field] for field in columns]} for row in records]
+        saving = encoded_size({key: records}) - encoded_size({columns_key: columns, key: encoded})
+        if saving <= 0:
+            return container
+        saved_bytes += saving
+        return {**container, columns_key: columns, key: encoded}
+
+    contexts = []
+    for original in payload.get("source_context", []):
+        bundle = dict(original)
+        if "call_chain" in original:
+            bundle["call_chain"] = compact(original["call_chain"], "links", keep=(
+                "relation_id", "target_name", "target_source_status", "caller_evidence_ids",
+                "target_evidence_ids", "requires_source_read"))
+        if "outline" in original:
+            bundle["outline"] = [compact(outline, "units") for outline in original["outline"]]
+        contexts.append(bundle)
+    if "source_context" in payload:
+        projected["source_context"] = contexts
+    if "business_map" in payload:
+        projected["business_map"] = compact(payload["business_map"], "relations")
+    encoding = {"navigation_encoding": {
+        "format": "column-values/v1",
+        "instruction": "For each navigation list with <list>_columns, map each row's _values "
+            "positionally to those columns, then retain its explicit fields. No values are omitted. "
+            "Source pages and their evidence IDs, versions and include chains are unchanged."}}
+    if saved_bytes <= encoded_size(encoding) + 1:
+        return payload
+    return {**projected, **encoding}
+
+
 def _fit_request(config, payload, history, policy=None, *, trim_events=None, investigation_builder=None,
                  source_fallback_builder=None):
     """Bound the actual encoded request, trimming secondary context first."""
@@ -244,7 +344,7 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
                 answer_detail=payload.get("answer_detail", "detailed"))
         last_material = material
         messages = [{"role": "system", "content": _SYSTEM}, *history,
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=False,
+                    {"role": "user", "content": json.dumps(_compact_prompt_payload(payload), ensure_ascii=False,
                         separators=(",", ":"))}]
         size = len(json.dumps({"model": config.chat_model, "messages": messages,
                               "max_tokens": config.max_output_tokens}, ensure_ascii=False,
@@ -483,6 +583,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     answer, failure, truncated = "", None, False
     answer_finish_reason = None
     continuation_attempted = False
+    empty_length_recovery_attempted = False
     answer_rounds = []
     answer_round = None
     answer_manifest = None
@@ -511,6 +612,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             response_shape = _response_shape(response_raw, exc.choice_index)
         if failure_stage == "response_parse" and response_shape is not None:
             quality.finish_round(error=code, finish_reason=response_shape["finish_reason"],
+                usage=response_raw.get("usage") if isinstance(response_raw, Mapping) else None,
                 **response_character_counts(response_raw, choice_index=response_shape.get("choice_index")))
             if not answer:
                 answer_finish_reason = response_shape["finish_reason"]
@@ -1297,7 +1399,53 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             if check_cancel:
                 check_cancel()
             failure_stage, response_shape = "response_parse", _response_shape(raw)
-            reply = _extract_text(raw)
+            try:
+                reply = _extract_text(raw)
+            except _TextResponseError as exc:
+                shape = _empty_length_recovery_shape(raw, exc.choice_index)
+                if (exc.code != "MODEL_TEXT_EMPTY" or shape is None or turns != 1
+                        or discovery_pending or empty_length_recovery_attempted
+                        or turns >= policy.max_model_requests):
+                    raise
+                # Reuse exactly the already-sent evidence and history. This is
+                # a single answer attempt, not another investigation cycle.
+                recovery_payload = {**payload,
+                    "investigation_budget": {"remaining_model_requests": policy.max_model_requests - turns,
+                        "searches_per_turn": 0, "reads_per_turn": 0,
+                        "framework_searches_per_turn": 0, "business_context_actions_per_turn": 0},
+                    "task": "上一轮输出达到长度上限但没有可用正文。现在直接给出简明业务答案："
+                        "先写结论，再写决定结果的关键条件、计算或异常及必要来源引用。"
+                        "只使用本次已供应的相同证据；不要新检索、请求工具、承诺继续调查或冗长展开。"
+                        "不能确认的事项只限定相关结论。"}
+                recovery_messages = [*messages[:-1], {"role": "user", "content": json.dumps(
+                    _compact_prompt_payload(recovery_payload), ensure_ascii=False, separators=(",", ":"))}]
+                recovery_size = len(json.dumps({"model": config.chat_model, "messages": recovery_messages,
+                    "max_tokens": config.max_output_tokens}, ensure_ascii=False,
+                    separators=(",", ":")).encode("utf-8"))
+                # Do not trim or replace evidence to make a recovery fit.
+                if recovery_size > policy.max_request_bytes:
+                    raise
+                response_shape = shape
+                if diagnostics is not None:
+                    diagnostics.suppress_latest_error(exc.code)
+                finish_failed_response(exc)
+                record_response_error(exc.code, failure_stage, shape=response_shape)
+                empty_length_recovery_attempted = True
+                boundaries.append({"reason": "model_empty_length_recovery", "from_round_id": "round-1",
+                                   "requests": 1})
+                force_answer = True
+                answer_finish_reason, truncated = None, False
+                payload = recovery_payload
+                failure_stage, response_shape, response_raw = "provider_request", None, None
+                raw = complete(recovery_messages, payload=payload, request_size=recovery_size,
+                               stage="empty_length_recovery")
+                response_raw = raw
+                provider_usage.append(raw.get("usage"))
+                if check_cancel:
+                    check_cancel()
+                failure_stage, response_shape = "response_parse", _response_shape(raw)
+                # A second empty response escapes to the ordinary failure path.
+                reply = _extract_text(raw)
             response_shape = _response_shape(raw, reply.choice_index)
             failure_stage = "response_validation"
             finish_reason = response_shape["finish_reason"]
@@ -1472,7 +1620,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                           "status": found["status"]})
                 trace.append({"tool": "framework_search", "query": query,
                               "references": len(found["references"]), "network_requests": 0})
-        if answer and truncated and answer_finish_reason == "length" and turns < policy.max_model_requests:
+        if (answer and truncated and answer_finish_reason == "length" and not empty_length_recovery_attempted
+                and turns < policy.max_model_requests):
             # Continue once using the remaining request allowance. The original
             # text and its supplied references remain part of the final answer.
             continuation_payload = {**payload, "draft_answer": answer, "draft_continuation": True,
@@ -1528,7 +1677,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 evidence.sent_any_round_ids.update(continuation_visible["source_ids"])
                 sent_pages.update({page["evidence_id"]: page for page in continuation_payload["source_context"][0]["pages"]})
                 boundaries.append({"reason": "model_output_continued", "requests": 1})
-        if answer and not truncated and not continuation_attempted and policy.max_answer_revisions and turns < policy.max_model_requests:
+        if (answer and not truncated and not continuation_attempted and not empty_length_recovery_attempted
+                and policy.max_answer_revisions and turns < policy.max_model_requests):
             before = len(evidence.pages)
             for task in list(evidence.tasks.values()):
                 if task.state != "open" or task.next_start_line is None:
@@ -1790,6 +1940,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     quality_path = quality.save(final={"final_answer_round_id": answer_round,
         "final_answer_round_ids": answer_rounds, "answer_truncated": truncated,
         "continuation_attempted": continuation_attempted,
+        "empty_length_recovery_attempted": empty_length_recovery_attempted,
         "final_visible_ids": sorted(allowed), "cited_ids": cited,
         "unsupported_citation_ids": unsupported,
         "retrieved_ids": sorted(evidence.retrieved_ids),
@@ -1831,6 +1982,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                "history_messages": len(history or []), "source_characters": sum(len(sent_pages[i].get("source_text", "")) for i in final_source_ids),
                "request_bytes": request_sizes, "policy": policy.to_dict(), "tool_calls": tool_calls,
                "provider_retries": provider_retries,
+               "empty_length_recovery_attempted": empty_length_recovery_attempted,
                "usage": _usage_report(provider_usage, turns), "quality_trace_path": quality_path,
                "question_investigation": {"calls": investigation_calls,
                    "candidate_queries": investigation_queries,

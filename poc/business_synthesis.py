@@ -229,12 +229,14 @@ def _supplied_source_spans(source_pages, supplied):
     for page in sorted((page for page in source_pages
                         if page.get("evidence_id") in supplied and page.get("source_text")),
                        key=lambda page: (page.get("relative_path") or "", page.get("source_sha256") or "",
+                                         repr(page.get("include_chain") or []),
                                          page.get("start_line") or 0, page.get("end_line") or 0)):
         text_lines = page["source_text"].splitlines()
         start, end = page.get("start_line"), page.get("end_line")
         physical = isinstance(start, int) and isinstance(end, int) and end - start + 1 == len(text_lines)
         lines = dict(enumerate(text_lines, start)) if physical else {}
-        key = (page.get("relative_path"), page.get("source_sha256"))
+        key = (page.get("relative_path"), page.get("source_sha256"),
+               repr(page.get("include_chain") or []))
         previous = spans[-1] if spans else None
         if (physical and previous and previous["lines"] and previous["key"] == key
                 and start <= max(previous["lines"]) + 1
@@ -522,11 +524,14 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
         if item.get("reason") in {"external_implementation_unavailable", "runtime_target_unresolved"}
         for target in item.get("targets", [])))
     behavior_guide = build_behavior_guide(question, investigation, source_pages)
+    from syntax_evidence import build_syntax_guide
+    syntax_guide = build_syntax_guide(source_pages)
     return {"detail_requested": wants_business_detail(question, answer_detail=answer_detail),
             "output_budget_tokens": max_output_tokens,
             "required_answer_aspects": answer_requirements(question, investigation, source_pages,
                                                             answer_detail=answer_detail, behavior_guide=behavior_guide),
             **({"behavior_guide": behavior_guide} if behavior_guide.get("observations") else {}),
+            **({"syntax_guide": syntax_guide} if syntax_guide.get("facts") else {}),
             "available_source_paths": list(dict.fromkeys(page["relative_path"] for page in source_pages
                                                          if page.get("relative_path")))[:8],
             "supplied_material": items,
@@ -546,9 +551,17 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
                 "不能把中间算式写成无条件的最终结果，后续赋值有影响时明确其优先关系。"
                 "将校验、按配置处理、更新状态展开为具体条件、实际采用的值或日期及结果，让用户能判断自己的场景；"
                 "业务对象和后果是正文主线，标识和调用列表不能代替解释。不要推测历史设计动机或行业惯例。"
+                "用户未请求修改方案时，只解释现有实现，不主动提出改码建议。"
+                "解释跨程序参数是否回写时，同时核对调用方传递方式与被调程序入口声明。"
+                "syntax_guide 用语法树绑定本轮可见原文中的条件与赋值，IF outcome=false 表示条件不成立；"
+                "EVALUATE 的 prior_branches_must_not_match 表示此前分支必须均不命中，OTHER是其余情况。"
+                "syntax_order_in_unit 只是本段源码顺序，effects_unknown表示调用、循环或异常块的影响尚未建模，"
+                "不能越过它推定最终值，也不能把无guard当成无条件执行。只据完整源码说明结果与限制。"
                 "behavior_guide 只提示本轮可见的语法位置；结合完整上下文解释具体条件、满足与不满足时的处理、"
                 "输出或状态变化，以及跳过或失败后哪些步骤继续、哪些不执行。不能把源码排列顺序当执行顺序，"
                 "不能把单笔返回推定为整批停止，或把写入推定为已提交。原文未证明的分支后果须明确限定。"
+                "对未被framework_facts覆盖且缺少实现的外部调用，名称或功能码只证明调用请求；"
+                "不能写成已读取、保存、锁定或提交成功，应按可见返回状态解释调用方后续处理。"
                 "不把必答项状态、检索覆盖或索引数量写成业务结论或完整值流证明。"}
 
 

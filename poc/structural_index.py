@@ -26,6 +26,7 @@ from statement_facts import (
     sentence_terminated,
     sql_host_access,
 )
+from statement_parser import Statement as AstStatement, parse_statements
 
 from copy_expansion import clear_copy_expansions, rebuild_copy_expansions
 from call_bindings import clear_call_bindings, ensure_call_binding_schema, rebuild_call_bindings
@@ -43,7 +44,8 @@ from repo_inventory import (
 
 
 SCHEMA_VERSION = "0.3"
-PARSER_VERSION = "source-facts-v0.4"
+PARSER_VERSION = "source-facts-v0.5"
+INLINE_AST_ADAPTER_VERSION = "inline-statement-ast-v1"
 
 PROGRAM_ID_RE = re.compile(
     r"\bPROGRAM-ID\s*\.\s*['\"]?([A-Z0-9_$#@-]+)", re.IGNORECASE
@@ -329,6 +331,7 @@ class ControlFrame:
     condition_id: str
     outcome: str
     parse_status: str = "complete"
+    metadata: dict[str, object] = field(default_factory=dict)
 
 
 def _stable_id(prefix: str, *parts: object) -> str:
@@ -741,6 +744,8 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
         parent_unit_id: str | None,
         program_name: str | None,
         parse_status: str = "complete",
+        identity: tuple[object, ...] = (),
+        metadata: dict[str, object] | None = None,
     ) -> CodeUnit:
         evidence_id = ensure_evidence(line)
         unit_id = _stable_id(
@@ -751,7 +756,12 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
             name,
             line.start_line,
             line.text.upper(),
+            *identity,
         )
+        if identity:
+            # Legacy readers break line ties by ID. Only projected units need
+            # this sortable column prefix; existing unit identities stay put.
+            unit_id = f"unit_ast_{int(identity[1]):05d}_{unit_id.removeprefix('unit_')}"
         unit = CodeUnit(
             unit_id=unit_id,
             relative_path=document.relative_path,
@@ -776,6 +786,7 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
                 target_scope=program_name,
                 evidence_id=evidence_id,
                 status="confirmed",
+                metadata=metadata,
             )
         return unit
 
@@ -850,6 +861,8 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
         *,
         parse_status: str = "complete",
         closes_sentence: bool | None = None,
+        identity: tuple[object, ...] = (),
+        metadata: dict[str, object] | None = None,
     ) -> CodeUnit:
         parent = (
             current_paragraph_id
@@ -864,10 +877,14 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
             parent_unit_id=parent,
             program_name=current_program_name,
             parse_status=parse_status,
+            identity=identity,
+            metadata=metadata,
         )
         for frame in control_stack:
             control_metadata: dict[str, object] = {
                 "outcome": frame.outcome, "control_kind": frame.kind,
+                **frame.metadata,
+                **(metadata or {}),
             }
             if frame.parse_status != "complete":
                 control_metadata["boundary"] = "condition_syntax_not_supported"
@@ -916,6 +933,182 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
                 evidence_id=statement.evidence_id,
                 metadata=metadata,
             )
+
+    def add_inline_ast(line: NormalizedLine) -> bool:
+        """Project a complete, supported physical line without changing other IDs.
+
+        This adapter uses token AST boundaries, never line regexes to split
+        statements. Opaque effects, partial scopes, continuation lines and
+        ambiguous formats keep the existing conservative collection path.
+        Relation order is textual order only, not a reaching-definition claim.
+        """
+        if line.start_line != line.end_line or len(line.text) > 16384:
+            return False
+        if line.text.lstrip().split(None, 1)[0].upper() not in {
+            "IF", "EVALUATE", "MOVE", "COMPUTE", "CONTINUE", "GOBACK", "EXIT", "STOP",
+        }:
+            return False
+        raw = document.raw_lines[line.start_line - 1]
+        if len(raw) > 16384:
+            return False
+        source_format = None
+        for candidate_format in ("free", "fixed"):
+            # Fixed-column masking and tab expansion have different offsets.
+            if candidate_format == "fixed" and "\t" in raw:
+                continue
+            candidate, _ = normalize_cobol_lines(raw, candidate_format)
+            if len(candidate) == 1 and candidate[0].text == line.text:
+                source_format = candidate_format
+                break
+        if source_format is None:
+            return False
+        parsed = parse_statements(raw, start_line=line.start_line,
+                                  source_format=source_format, max_tokens=4096)
+        if (not parsed.complete or not parsed.nodes
+                or any(node.effects_unknown for node in parsed.statements)):
+            return False
+        if len(parsed.nodes) == 1 and parsed.nodes[0].kind not in {"IF", "EVALUATE"}:
+            return False
+
+        def terminator_bounds(node: AstStatement, word: str) -> tuple[int, int] | None:
+            end = node.span.end_offset
+            start = end - len(word)
+            children = node.children + node.else_children
+            # An explicit terminator is after every body token. A field such
+            # as RESULT-END-IF is part of the final child, not a scope marker.
+            if (not children or start < max(child.span.end_offset for child in children)
+                    or raw[start:end].upper() != word
+                    or start > 0 and (raw[start - 1].isalnum() or raw[start - 1] in "_$#@-")):
+                return None
+            return start, end
+
+        last = parsed.nodes[-1]
+        suffix = raw[last.span.end_offset:(72 if source_format == "fixed" else len(raw))]
+        closes_sentence = suffix.lstrip().startswith(".")
+        explicit_compound = (last.kind in {"IF", "EVALUATE"}
+                             and terminator_bounds(last, "END-" + last.kind) is not None)
+        # End of a physical line alone does not complete a MOVE/COMPUTE: its
+        # receivers or expression may continue on the following line.
+        if not closes_sentence and not explicit_compound:
+            return False
+        # With an open outer scope, a period between roots could close it.
+        # The line adapter does not interpret the missing prefix or sentence
+        # separators: a complete single root is the supported case here.
+        if control_stack and len(parsed.nodes) != 1:
+            return False
+
+        sentence_ends = {}
+        for position, root in enumerate(parsed.nodes):
+            following = (parsed.nodes[position + 1].span.start_offset
+                         if position + 1 < len(parsed.nodes)
+                         else (72 if source_format == "fixed" else len(raw)))
+            separator = raw[root.span.end_offset:following]
+            if separator.lstrip().startswith("."):
+                sentence_ends[root.span.end_offset] = (
+                    root.span.end_offset + len(separator) - len(separator.lstrip()) + 1)
+
+        ordinal = 0
+
+        def source_line(start: int, end: int) -> NormalizedLine:
+            return NormalizedLine(line.start_line, line.end_line, raw[start:end])
+
+        def source_metadata(start: int, end: int) -> dict[str, object]:
+            return {
+                "adapter_version": INLINE_AST_ADAPTER_VERSION,
+                "statement_parser_version": parsed.parser_version,
+                "source_start_column": start + 1,
+                "source_end_column": end + 1,
+                "statement_order": ordinal,
+            }
+
+        def identity(start: int, end: int) -> tuple[object, ...]:
+            return (INLINE_AST_ADAPTER_VERSION, start + 1, end + 1)
+
+        def statement(kind: str, start: int, end: int) -> tuple[CodeUnit, dict[str, object]]:
+            nonlocal ordinal
+            end = sentence_ends.get(end, end)
+            metadata = source_metadata(start, end)
+            unit = add_statement(kind, source_line(start, end), closes_sentence=False,
+                                 identity=identity(start, end), metadata=metadata)
+            ordinal += 1
+            return unit, metadata
+
+        def condition(kind: str, start: int, end: int, parent: str | None,
+                      expression: str) -> CodeUnit:
+            metadata = {**source_metadata(start, end), "condition": expression}
+            unit = add_unit("Condition", kind, source_line(start, end),
+                            parent_unit_id=parent, program_name=current_program_name,
+                            identity=identity(start, end), metadata=metadata)
+            add_field_relations(unit, _unique_identifiers(expression), (), metadata)
+            return unit
+
+        def terminator(node: AstStatement, word: str, kind: str) -> None:
+            # The AST has already established the compound's boundary. This
+            # only preserves an explicit syntax marker in the legacy units.
+            bounds = terminator_bounds(node, word)
+            if bounds is not None:
+                statement(kind, *bounds)
+
+        def visit(node: AstStatement) -> None:
+            start, end = node.span.start_offset, node.span.end_offset
+            if node.kind == "IF":
+                guard = node.children[0].guards[len(node.guards)]
+                header, _ = statement("IF", start, guard.span.end_offset)
+                test = condition("IF", start, guard.span.end_offset, header.unit_id,
+                                 guard.condition)
+                frame = ControlFrame("IF", test.unit_id, "true")
+                control_stack.append(frame)
+                for child in node.children:
+                    visit(child)
+                if node.else_children:
+                    frame.outcome = "false"
+                    gap_start = node.children[-1].span.end_offset
+                    gap_end = node.else_children[0].span.start_offset
+                    gap = raw[gap_start:gap_end]
+                    else_start = gap_start + len(gap) - len(gap.lstrip())
+                    statement("ELSE", else_start, else_start + len("ELSE"))
+                    for child in node.else_children:
+                        visit(child)
+                control_stack.pop()
+                terminator(node, "END-IF", "END_IF")
+            elif node.kind == "EVALUATE":
+                first_guard = node.children[0].guards[-1]
+                header_end = len(raw[:first_guard.span.start_offset].rstrip())
+                header, _ = statement("EVALUATE", start, header_end)
+                condition("EVALUATE", start, header_end, header.unit_id,
+                          first_guard.selector or "")
+                for branch in node.children:
+                    guard = branch.guards[-1]
+                    test = condition("WHEN", guard.span.start_offset, guard.span.end_offset,
+                        current_paragraph_id or current_section_id or current_program_id,
+                        guard.condition)
+                    control_stack.append(ControlFrame("EVALUATE_WHEN", test.unit_id,
+                        raw[guard.span.start_offset:guard.span.end_offset].upper(), metadata={
+                            "selector": guard.selector,
+                            "alternatives": list(guard.alternatives),
+                            "prior_alternatives": [list(group) for group in guard.prior_alternatives],
+                            "branch_index": guard.branch_index,
+                            "is_other": guard.is_other,
+                        }))
+                    for child in branch.children:
+                        visit(child)
+                    control_stack.pop()
+                terminator(node, "END-EVALUATE", "END_EVALUATE")
+            else:
+                unit, metadata = statement("STOP" if node.kind == "STOP_RUN" else node.kind,
+                                           start, end)
+                add_field_relations(unit, node.reads, node.writes, {
+                    **metadata, "operation": node.kind,
+                    "expression": node.expression or "", "rounded": node.rounded,
+                })
+
+        for node in parsed.nodes:
+            visit(node)
+        # The parser omits separator periods from spans. The raw suffix is
+        # authoritative here; it also handles a trailing comment correctly.
+        if closes_sentence:
+            control_stack.clear()
+        return True
 
     last_progress = -256
 
@@ -1174,6 +1367,10 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
                     },
                 )
             index = cursor
+            continue
+
+        if current_division == "PROCEDURE" and add_inline_ast(line):
+            index += 1
             continue
 
         if re.match(r"^END-IF\b", upper):

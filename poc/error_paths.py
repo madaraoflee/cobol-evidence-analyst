@@ -51,10 +51,16 @@ class _Facts:
             raise ValueError("Index exceeds the bounded error audit evidence budget.")
         self.units = {row["unit_id"]: dict(row) for row in connection.execute("SELECT * FROM code_units")}
         self.relations: dict[str, list[dict]] = defaultdict(list)
+        source_columns: dict[str, int] = {}
         for row in connection.execute("SELECT * FROM relations"):
             relation = dict(row)
             relation["metadata"] = json.loads(relation["metadata_json"])
             self.relations[relation["from_entity_id"]].append(relation)
+            column = relation["metadata"].get("source_start_column")
+            if (relation["relation_type"] == "CONTAINS"
+                    and relation["metadata"].get("adapter_version") == "inline-statement-ast-v1"
+                    and type(column) is int and column > 0):
+                source_columns[relation["target_entity_id"]] = column
         self.evidence = {row["evidence_id"]: dict(row) for row in connection.execute("SELECT * FROM evidence_spans")}
         self.files = dict(connection.execute("SELECT relative_path, sha256 FROM source_files"))
         self.symbols = {row["symbol_id"]: dict(row) for row in connection.execute("SELECT * FROM symbols")}
@@ -75,6 +81,7 @@ class _Facts:
                 (u for u in self.units.values() if u["program_name"] == name
                  and u["unit_type"] in {"Statement", "Condition", "Paragraph"}),
                 key=lambda u: (u["relative_path"], u["start_line"],
+                               source_columns.get(u["unit_id"], 0),
                                0 if u["unit_type"] == "Statement" else 1),
             )
             for unit in program_units:

@@ -38,6 +38,16 @@ macOS 包的最低系统版本取决于构建时的 Python 和原生依赖。脚
 
 旧脚本 `poc/build_delivery.py` 仍然生成**源码 ZIP**，其中包含 `.py` 文件，不适合“只交付应用”的需求。桌面版请使用根目录的 `build_app` 入口及其 `release` 输出，不要把项目目录、构建中间目录或源码 ZIP 发给接收者。
 
+## 在 GitHub 上构建 Windows x64 包
+
+仓库提供 [Windows desktop x64 工作流](../.github/workflows/windows-desktop.yml)，使用 `windows-2022`、Python 3.13 x64 和 MSVC，调用现有 `build_app.py`。工作流只在手动运行，或面向 `main` 的 PR（含草稿） 修改应用代码、图标、构建入口或工作流时执行；没有 `push` 构建和自动发布。首次使用手动按钮前，工作流需要先存在于默认分支；在此之前可由包含该文件的 PR 验证。触发方式见 [GitHub 官方说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch)。
+
+构建会先运行离线 Python 回归和浏览器入口自检，再编译并运行打包程序自检。自检检查资源、本机 HTTP 服务、桌面依赖导入和 TLS 初始化，模型调用数必须为零。构建依赖下载需要联网，但不需要配置模型接口或仓库 API 密钥。任何检查失败都不会上传交付包。
+
+成功后，从该次运行的 **Artifacts** 下载 `COBOLWorkbench-windows-x64-<commit>-<attempt>`，保留期为 14 天。解开 GitHub 下载的外层封装，可得到三个文件：真正的应用交付包 `COBOLWorkbench-windows-x64.zip`、其 `.zip.sha256` 校验文件、以及从包内原样复制的 `BUILD-INFO.json`。校验可在 PowerShell 执行 `Get-FileHash .\COBOLWorkbench-windows-x64.zip -Algorithm SHA256`，将结果与 `.sha256` 第一列比较；随后按下节解压内层交付包并打开 EXE。PR 产物对应待合并测试版本，以运行页的提交信息为准。
+
+工作流不会上传仓库源码 ZIP、构建中间目录或使用者配置，不生成签名安装器。当前只完成了工作流的本地配置检查；尚未由 Windows runner 编译成功，也未完成办公室电脑实机验收。即使云端自检通过，仍需按本文末尾检查窗口或浏览器启动、文件选择和真实业务问答。运行环境与构建依赖参考 [Windows runner 清单](https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md)；工作流使用官方 [checkout](https://github.com/actions/checkout)、[setup-python](https://github.com/actions/setup-python) 和 [upload-artifact](https://github.com/actions/upload-artifact) 的固定 major 版本。
+
 ## 接收者第一次打开
 
 Windows 解压整个 ZIP，打开外层 `COBOLWorkbench`，再进入同名应用文件夹，双击 `COBOLWorkbench.exe`；macOS 解压后在外层 `COBOLWorkbench` 中打开 `COBOLWorkbench.app`，也可先将它移到“应用程序”。外层的 `START-HERE.txt` 是使用说明，`BUILD-INFO.json` 记录构建信息。

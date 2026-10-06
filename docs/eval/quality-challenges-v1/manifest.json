@@ -1,0 +1,52 @@
+{
+  "schema_version": "business-challenge-manifest/v1",
+  "suite_id": "business-quality-challenges-v1",
+  "split": "development",
+  "case_count": 8,
+  "runtime_verification": "NOT_EXECUTED",
+  "groups": [
+    {
+      "id": "exception-main",
+      "source_root_from_repository": "poc/fixtures/exception-flow-v4/main",
+      "cases_file_from_repository": "docs/eval/quality-challenges-v1/exception-main.json",
+      "case_ids": [
+        "nested-exception-alternatives",
+        "cross-program-error-isolation"
+      ]
+    },
+    {
+      "id": "context-main",
+      "source_root_from_repository": "poc/fixtures/call-context-v3/main",
+      "cases_file_from_repository": "docs/eval/quality-challenges-v1/context-main.json",
+      "case_ids": [
+        "evaluate-first-match"
+      ]
+    },
+    {
+      "id": "exception-overwrite",
+      "source_root_from_repository": "poc/fixtures/exception-flow-v4/regressions/programs",
+      "cases_file_from_repository": "docs/eval/quality-challenges-v1/exception-overwrite.json",
+      "case_ids": [
+        "post-calculation-overwrite"
+      ]
+    },
+    {
+      "id": "copy-boundary",
+      "source_root_from_repository": "poc/fixtures/error-return-v5/copy-boundary/programs",
+      "cases_file_from_repository": "docs/eval/quality-challenges-v1/copy-boundary.json",
+      "case_ids": [
+        "copy-parameter-writeback"
+      ]
+    },
+    {
+      "id": "complex-main",
+      "source_root_from_repository": "poc/fixtures/complex-business-v2/main",
+      "cases_file_from_repository": "docs/eval/quality-challenges-v1/complex-main.json",
+      "case_ids": [
+        "rate-source-and-gating",
+        "dynamic-target-boundary",
+        "validation-priority-and-final-result"
+      ]
+    }
+  ]
+}

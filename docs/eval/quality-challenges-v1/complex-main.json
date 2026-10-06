@@ -1,0 +1,503 @@
+{
+  "schema_version": "business-evaluation-cases/v1",
+  "challenge_suite": "business-quality-challenges/v1",
+  "source_root_from_repository": "poc/fixtures/complex-business-v2/main",
+  "case_origin": "New source-reviewed questions over existing development fixtures; not a holdout.",
+  "cases": [
+    {
+      "id": "rate-source-and-gating",
+      "split": "development",
+      "conversation": "rate-source-and-gating",
+      "question": "BASECALC 的基础金额如何得到？请追到费率输入和查询条件，说明查不到、多条匹配、其他数据库错误或费率为零时还会不会计算。源码能给出某产品今天实际采用的费率吗？",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "programs/BASECALC.cbl",
+        "programs/RATELOOK.cbl",
+        "programs/DATECHK.cbl",
+        "copybooks/REQAREA.cpy",
+        "copybooks/CALCAREA.cpy",
+        "copybooks/ERRAREA.cpy"
+      ],
+      "review_checks": [
+        "按业务语义评分，不要求固定词句；引用存在不证明结论正确。",
+        "检查改变结果的条件、顺序、异常及最终值。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "programs/BASECALC.cbl",
+            "sha256": "6d8b448471d24ff1c634e09d35c9779264d3a2ec63b7228c2777e0526491fb7b",
+            "start_line": 1,
+            "end_line": 27,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/RATELOOK.cbl",
+            "sha256": "3684fdaf941dbf0159525608854e9381841dc7ee5b792c1bf99d1c84a4318dcd",
+            "start_line": 1,
+            "end_line": 62,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/DATECHK.cbl",
+            "sha256": "d5154964975d972d16e112513c3a7e4820e1fcf03e4ea2b8e86d020f320088b1",
+            "start_line": 1,
+            "end_line": 22,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/REQAREA.cpy",
+            "sha256": "4584fa5126930df1f9a137745750542a3c349eef00a3593fe61c3b99e2fa4510",
+            "start_line": 1,
+            "end_line": 22,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/CALCAREA.cpy",
+            "sha256": "f441b937066881d7d471a8304baea02502e664d9362e32afec2085d020e01179",
+            "start_line": 1,
+            "end_line": 11,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/ERRAREA.cpy",
+            "sha256": "3a6c740e497a0ddf8a3a5580b8dc272decdc3562ce7f67f5a398ec95aafa82f1",
+            "start_line": 1,
+            "end_line": 4,
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "positional-lineage",
+            "description": "INPUT-PRODUCT/INPUT-DATE 按位置 BY CONTENT 传为 RATE-PRODUCT/RATE-DATE；RATE-OUTPUT 引用返回 CALC-BASE-RATE。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/BASECALC.cbl",
+                "start_line": 10,
+                "end_line": 17,
+                "sha256": "6d8b448471d24ff1c634e09d35c9779264d3a2ec63b7228c2777e0526491fb7b"
+              },
+              {
+                "path": "programs/RATELOOK.cbl",
+                "start_line": 9,
+                "end_line": 14,
+                "sha256": "3684fdaf941dbf0159525608854e9381841dc7ee5b792c1bf99d1c84a4318dcd"
+              }
+            ]
+          },
+          {
+            "id": "query-predicates",
+            "description": "RATE_CONFIG.RATE_VALUE 按产品相等、EFFECTIVE_FROM<=RATE-DATE<=EFFECTIVE_TO 查询，两端包含。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/RATELOOK.cbl",
+                "start_line": 35,
+                "end_line": 42,
+                "sha256": "3684fdaf941dbf0159525608854e9381841dc7ee5b792c1bf99d1c84a4318dcd"
+              }
+            ]
+          },
+          {
+            "id": "lookup-errors",
+            "description": "SQLCODE100映射31、-811映射32、其他非零映射33；成功但费率零映射34。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/RATELOOK.cbl",
+                "start_line": 43,
+                "end_line": 61,
+                "sha256": "3684fdaf941dbf0159525608854e9381841dc7ee5b792c1bf99d1c84a4318dcd"
+              }
+            ]
+          },
+          {
+            "id": "formula-guard",
+            "description": "仅 PROCESS-STATUS=0 才 ROUNDED 计算 INPUT-SUM/1000*CALC-BASE-RATE，上述错误阻止计算；SIZE ERROR 映射35。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/BASECALC.cbl",
+                "start_line": 18,
+                "end_line": 26,
+                "sha256": "6d8b448471d24ff1c634e09d35c9779264d3a2ec63b7228c2777e0526491fb7b"
+              }
+            ]
+          },
+          {
+            "id": "data-not-in-source",
+            "description": "源码没有该产品日期的数据库记录，无法确定今天实际费率；日期检查也仅覆盖明确的范围、月和日。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/RATELOOK.cbl",
+                "start_line": 35,
+                "end_line": 42,
+                "sha256": "3684fdaf941dbf0159525608854e9381841dc7ee5b792c1bf99d1c84a4318dcd"
+              },
+              {
+                "path": "programs/DATECHK.cbl",
+                "start_line": 13,
+                "end_line": 21,
+                "sha256": "d5154964975d972d16e112513c3a7e4820e1fcf03e4ea2b8e86d020f320088b1"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "rate-source-and-gating-forbidden-1",
+            "description": "不能把 profile/README 示例费率当实际数据库事实。"
+          },
+          {
+            "id": "rate-source-and-gating-forbidden-2",
+            "description": "不能说重复记录时随便取一条或回退默认费率。"
+          },
+          {
+            "id": "rate-source-and-gating-forbidden-3",
+            "description": "不能声称 DATECHK 已校验闰年和每月实际天数。"
+          }
+        ],
+        "allowed_unknowns": [
+          "没有实际数据库内容、SQL执行结果或指定产品运行输入。",
+          "源码静态推导；未执行 COBOL、数据库或程序加载器。"
+        ],
+        "business_usefulness_checks": [
+          "先回答问题，再解释会改变结论的条件及证据，避免逐行翻译。"
+        ]
+      }
+    },
+    {
+      "id": "dynamic-target-boundary",
+      "split": "development",
+      "conversation": "dynamic-target-boundary",
+      "question": "仓库同时有 CALCSTD 和 CALCALT。只凭源码能断言 TXNCORE 实际一定调用 CALCSTD 吗？目标程序从哪里来，查不到、重复配置、空程序名、加载失败各怎样处理？",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "programs/TXNCORE.cbl",
+        "programs/ROUTESEL.cbl",
+        "programs/CALCSTD.cbl",
+        "programs/CALCALT.cbl",
+        "copybooks/REQAREA.cpy",
+        "copybooks/CALCAREA.cpy",
+        "copybooks/ERRAREA.cpy"
+      ],
+      "review_checks": [
+        "按业务语义评分，不要求固定词句；引用存在不证明结论正确。",
+        "检查改变结果的条件、顺序、异常及最终值。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "programs/TXNCORE.cbl",
+            "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138",
+            "start_line": 1,
+            "end_line": 79,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/ROUTESEL.cbl",
+            "sha256": "85152579d6aed11925ef286556844b59c9aa9ab20bc2d0b34b0139fc5d6cbcc2",
+            "start_line": 1,
+            "end_line": 42,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/CALCSTD.cbl",
+            "sha256": "73b8f80e4f2fbc024b90ae7d91729e4d7da83947797b3d170ca67aa9923b71fd",
+            "start_line": 1,
+            "end_line": 27,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/CALCALT.cbl",
+            "sha256": "c1f7bd668b1768146a326fe826019a567b3ee9cab4366afbb236606f2e6bf4f8",
+            "start_line": 1,
+            "end_line": 38,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/REQAREA.cpy",
+            "sha256": "4584fa5126930df1f9a137745750542a3c349eef00a3593fe61c3b99e2fa4510",
+            "start_line": 1,
+            "end_line": 22,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/CALCAREA.cpy",
+            "sha256": "f441b937066881d7d471a8304baea02502e664d9362e32afec2085d020e01179",
+            "start_line": 1,
+            "end_line": 11,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/ERRAREA.cpy",
+            "sha256": "3a6c740e497a0ddf8a3a5580b8dc272decdc3562ce7f67f5a398ec95aafa82f1",
+            "start_line": 1,
+            "end_line": 4,
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "data-driven-target",
+            "description": "ROUTESEL 读 ROUTE_CONFIG.PROGRAM_NAME，按产品和包含两端的有效日期过滤，经 ROUTE-OUTPUT 引用返回 CALC-ROUTE-PROGRAM。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/ROUTESEL.cbl",
+                "start_line": 11,
+                "end_line": 22,
+                "sha256": "85152579d6aed11925ef286556844b59c9aa9ab20bc2d0b34b0139fc5d6cbcc2"
+              },
+              {
+                "path": "programs/TXNCORE.cbl",
+                "start_line": 38,
+                "end_line": 47,
+                "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138"
+              }
+            ]
+          },
+          {
+            "id": "route-errors",
+            "description": "无记录100→71、重复-811→72、其他非零→73；查询成功但目标空白→74。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/ROUTESEL.cbl",
+                "start_line": 23,
+                "end_line": 41,
+                "sha256": "85152579d6aed11925ef286556844b59c9aa9ab20bc2d0b34b0139fc5d6cbcc2"
+              }
+            ]
+          },
+          {
+            "id": "dynamic-call-gate",
+            "description": "仅零状态才 CALL CALC-ROUTE-PROGRAM；加载异常映射92及 ROUTE-CALL 阶段。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNCORE.cbl",
+                "start_line": 48,
+                "end_line": 56,
+                "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138"
+              }
+            ]
+          },
+          {
+            "id": "unknown-selection",
+            "description": "两个实现的源码存在不能证明配置选谁；缺少配置记录时实际目标不确定。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNCORE.cbl",
+                "start_line": 49,
+                "end_line": 55,
+                "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138"
+              },
+              {
+                "path": "programs/ROUTESEL.cbl",
+                "start_line": 15,
+                "end_line": 22,
+                "sha256": "85152579d6aed11925ef286556844b59c9aa9ab20bc2d0b34b0139fc5d6cbcc2"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "dynamic-target-boundary-forbidden-1",
+            "description": "不能断言默认选 CALCSTD、失败自动换 CALCALT 或两个都已执行。"
+          },
+          {
+            "id": "dynamic-target-boundary-forbidden-2",
+            "description": "不能把查询71/72/74和加载异常92混为同一种失败。"
+          }
+        ],
+        "allowed_unknowns": [
+          "缺少受控路由配置快照。",
+          "源码静态推导；未执行 COBOL、数据库或程序加载器。"
+        ],
+        "business_usefulness_checks": [
+          "先回答问题，再解释会改变结论的条件及证据，避免逐行翻译。"
+        ]
+      }
+    },
+    {
+      "id": "validation-priority-and-final-result",
+      "split": "development",
+      "conversation": "validation-priority-and-final-result",
+      "question": "TXNENTRY 接到 INPUT-STATUS=X、INPUT-SUM=0、INPUT-ITEM-COUNT=7、INPUT-LOAD-PERCENT=120。假设静态 CALL 正常返回，最后返回哪个状态和错误，两个金额是什么？校验会把错误一路覆盖到13吗，后续基础计算或动态路由还会执行吗？",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "programs/TXNENTRY.cbl",
+        "programs/TXNCORE.cbl",
+        "programs/RESULTMP.cbl",
+        "copybooks/REQAREA.cpy",
+        "copybooks/CALCAREA.cpy",
+        "copybooks/ERRAREA.cpy",
+        "copybooks/RESAREA.cpy"
+      ],
+      "review_checks": [
+        "按业务语义评分，不要求固定词句；引用存在不证明结论正确。",
+        "检查改变结果的条件、顺序、异常及最终值。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "programs/TXNENTRY.cbl",
+            "sha256": "f9e129ba6f5af87e508b64332121f18fdeca187038c36b65d08c8ab27b76abc1",
+            "start_line": 1,
+            "end_line": 28,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/TXNCORE.cbl",
+            "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138",
+            "start_line": 1,
+            "end_line": 79,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/RESULTMP.cbl",
+            "sha256": "ef40647c96a762f75cbbfdd38712d7f4aba77dff03f46e34b59a76ca859e0ee5",
+            "start_line": 1,
+            "end_line": 19,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/REQAREA.cpy",
+            "sha256": "4584fa5126930df1f9a137745750542a3c349eef00a3593fe61c3b99e2fa4510",
+            "start_line": 1,
+            "end_line": 22,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/CALCAREA.cpy",
+            "sha256": "f441b937066881d7d471a8304baea02502e664d9362e32afec2085d020e01179",
+            "start_line": 1,
+            "end_line": 11,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/ERRAREA.cpy",
+            "sha256": "3a6c740e497a0ddf8a3a5580b8dc272decdc3562ce7f67f5a398ec95aafa82f1",
+            "start_line": 1,
+            "end_line": 4,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/RESAREA.cpy",
+            "sha256": "8d30ab93053f5c9ec9c75aa25b939727f28aafb7897b6f1b3b53ff6609f5a145",
+            "start_line": 1,
+            "end_line": 6,
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "first-error",
+            "description": "入口 INITIALIZE 错误和结果区；状态既非P也非I，首项置11、INPUT、INVALID-STATUS。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNENTRY.cbl",
+                "start_line": 12,
+                "end_line": 19,
+                "sha256": "f9e129ba6f5af87e508b64332121f18fdeca187038c36b65d08c8ab27b76abc1"
+              },
+              {
+                "path": "programs/TXNCORE.cbl",
+                "start_line": 58,
+                "end_line": 64,
+                "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138"
+              }
+            ]
+          },
+          {
+            "id": "validation-gates",
+            "description": "金额/数量和百分比校验都要求 PROCESS-STATUS=0，故不覆盖为12或13。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNCORE.cbl",
+                "start_line": 65,
+                "end_line": 77,
+                "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138"
+              }
+            ]
+          },
+          {
+            "id": "skip-processing",
+            "description": "BASECALC、ITEMSUM、ADJUST、ROUTESEL、动态CALL都受零状态保护，此次不执行。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNCORE.cbl",
+                "start_line": 10,
+                "end_line": 57,
+                "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138"
+              }
+            ]
+          },
+          {
+            "id": "final-mapper-still-runs",
+            "description": "入口仍调用 RESULTMP，它返回状态11、INPUT/INVALID-STATUS，并清零 RESULT-AMOUNT 和 RESULT-ANNUAL。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNENTRY.cbl",
+                "start_line": 20,
+                "end_line": 27,
+                "sha256": "f9e129ba6f5af87e508b64332121f18fdeca187038c36b65d08c8ab27b76abc1"
+              },
+              {
+                "path": "programs/RESULTMP.cbl",
+                "start_line": 10,
+                "end_line": 18,
+                "sha256": "ef40647c96a762f75cbbfdd38712d7f4aba77dff03f46e34b59a76ca859e0ee5"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "validation-priority-and-final-result-forbidden-1",
+            "description": "不能说所有校验都执行最终变13。"
+          },
+          {
+            "id": "validation-priority-and-final-result-forbidden-2",
+            "description": "不能说有业务错误就不调用 RESULTMP。"
+          },
+          {
+            "id": "validation-priority-and-final-result-forbidden-3",
+            "description": "不能把校验错误映射为加载失败91/93。"
+          }
+        ],
+        "allowed_unknowns": [
+          "源码静态推导；未执行 COBOL、数据库或程序加载器。"
+        ],
+        "business_usefulness_checks": [
+          "先回答问题，再解释会改变结论的条件及证据，避免逐行翻译。"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+name: Windows desktop x64
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '.github/workflows/windows-desktop.yml'
+      - 'build_app.py'
+      - 'build_app.bat'
+      - 'desktop-requirements.txt'
+      - 'assets/app.ico'
+      - 'poc/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-desktop-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Compile and verify Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+      WORKBENCH_DATA_DIR: ${{ runner.temp }}/workbench-ci-profile
+    steps:
+      - name: Check out the selected revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python x64
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          architecture: x64
+
+      - name: Check Windows compiler and build target
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (-not (Test-Path -LiteralPath $vswhere)) { throw 'Visual Studio locator is missing.' }
+          $compiler = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or -not $compiler) { throw 'MSVC x64 build tools are missing.' }
+          python build_app.py --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run offline Python regressions
+        timeout-minutes: 20
+        run: python -m unittest discover -s poc/tests -p 'test_*.py'
+
+      - name: Check source browser runtime without model calls
+        run: |
+          python poc/desktop_app.py --browser --self-test --data-dir "$env:RUNNER_TEMP\source-self-test-profile" --self-test-result "$env:RUNNER_TEMP\source-self-test.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Compile with MSVC and verify the compiled runtime
+        run: python build_app.py --jobs 4 --output-dir release
+
+      - name: Verify and collect only the final delivery
+        shell: python
+        run: |
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import shutil
+          import zipfile
+
+          archives = list(Path('release/windows-x64').glob('*/COBOLWorkbench-windows-x64.zip'))
+          if len(archives) != 1:
+              raise SystemExit('Expected exactly one Windows x64 delivery ZIP.')
+          archive = archives[0]
+          checksum = archive.with_suffix('.zip.sha256')
+          expected = checksum.read_text(encoding='ascii').strip()
+          with archive.open('rb') as handle:
+              digest = hashlib.file_digest(handle, 'sha256').hexdigest()
+          if expected != f'{digest}  {archive.name}':
+              raise SystemExit('Delivery checksum does not match the ZIP.')
+          with zipfile.ZipFile(archive) as package:
+              names = set(package.namelist())
+              required = {'COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe',
+                          'COBOLWorkbench/START-HERE.txt',
+                          'COBOLWorkbench/OPEN-IN-BROWSER.bat',
+                          'COBOLWorkbench/BUILD-INFO.json'}
+              if not required <= names:
+                  raise SystemExit('The delivery is missing the compiled application or instructions.')
+              metadata_bytes = package.read('COBOLWorkbench/BUILD-INFO.json')
+          metadata = json.loads(metadata_bytes)
+          checks = metadata.get('self_test', {})
+          if (metadata.get('target') != 'windows-x64' or checks.get('ok') is not True
+                  or checks.get('model_calls') != 0 or checks.get('desktop_dependencies') is not True):
+              raise SystemExit('The compiled Windows runtime did not pass its offline self-test.')
+          destination = Path('windows-delivery')
+          destination.mkdir()
+          shutil.copy2(archive, destination / archive.name)
+          shutil.copy2(checksum, destination / checksum.name)
+          (destination / 'BUILD-INFO.json').write_bytes(metadata_bytes)
+          summary = (f'Windows x64 build passed for commit `{os.environ["GITHUB_SHA"]}`.\n\n'
+                     f'Delivery: `{archive.name}`\n\nSHA-256: `{digest}`\n\n'
+                     'Download the artifact and extract its outer wrapper. The inner delivery ZIP '
+                     'contains the complete application folder; keep its EXE and DLLs together. '
+                     'Desktop GUI and target office device acceptance remain required.\n')
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as handle:
+              handle.write(summary)
+
+      - name: Upload the compiled delivery and build information
+        uses: actions/upload-artifact@v7
+        with:
+          name: COBOLWorkbench-windows-x64-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            windows-delivery/COBOLWorkbench-windows-x64.zip
+            windows-delivery/COBOLWorkbench-windows-x64.zip.sha256
+            windows-delivery/BUILD-INFO.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+          include-hidden-files: false

@@ -1,0 +1,270 @@
+{
+  "schema_version": "business-evaluation-cases/v1",
+  "challenge_suite": "business-quality-challenges/v1",
+  "source_root_from_repository": "poc/fixtures/exception-flow-v4/main",
+  "case_origin": "New source-reviewed questions over existing development fixtures; not a holdout.",
+  "cases": [
+    {
+      "id": "nested-exception-alternatives",
+      "split": "development",
+      "conversation": "nested-exception-alternatives",
+      "question": "EXWRAP 里，EXLEAF 调用失败、正常返回业务状态 21、正常返回且后续乘二溢出，这三种情况最后的状态和金额分别是什么？NOT ON EXCEPTION 或 NOT ON SIZE ERROR 会不会随后把错误清掉？请把条件讲清楚。",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "programs/EXWRAP.cbl",
+        "programs/EXLEAF.cbl"
+      ],
+      "review_checks": [
+        "按业务语义评分，不要求固定词句；引用存在不证明结论正确。",
+        "检查改变结果的条件、顺序、异常及最终值。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "programs/EXWRAP.cbl",
+            "sha256": "e8ae594ffb63a17b90321d7c603e9233fe1ce42cb341dbf413e97124e571820f",
+            "start_line": 1,
+            "end_line": 39,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/EXLEAF.cbl",
+            "sha256": "811a198c8b454edd31faafbeb9a48ca992f3436efdba5d221017d38099dd31af",
+            "start_line": 1,
+            "end_line": 18,
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "call-failure",
+            "description": "CALL 走 ON EXCEPTION 时 WRAP-STATUS=91、WRAP-OUTPUT=0，不执行该 CALL 的 NOT ON EXCEPTION 分支。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/EXWRAP.cbl",
+                "start_line": 19,
+                "end_line": 37,
+                "sha256": "e8ae594ffb63a17b90321d7c603e9233fe1ce42cb341dbf413e97124e571820f"
+              }
+            ]
+          },
+          {
+            "id": "business-return",
+            "description": "正常返回但 LEAF-STATUS=21 时透传 21 并清零，不乘二；该业务码不等于 CALL 加载异常。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/EXWRAP.cbl",
+                "start_line": 24,
+                "end_line": 36,
+                "sha256": "e8ae594ffb63a17b90321d7c603e9233fe1ce42cb341dbf413e97124e571820f"
+              },
+              {
+                "path": "programs/EXLEAF.cbl",
+                "start_line": 11,
+                "end_line": 18,
+                "sha256": "811a198c8b454edd31faafbeb9a48ca992f3436efdba5d221017d38099dd31af"
+              }
+            ]
+          },
+          {
+            "id": "arithmetic-alternatives",
+            "description": "仅调用正常且 LEAF-STATUS=0 才乘二；SIZE ERROR 时状态24、输出0，NOT ON SIZE ERROR 不再执行。算术成功才输出 BASE-AMOUNT*2、状态0。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/EXWRAP.cbl",
+                "start_line": 24,
+                "end_line": 32,
+                "sha256": "e8ae594ffb63a17b90321d7c603e9233fe1ce42cb341dbf413e97124e571820f"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "nested-exception-alternatives-forbidden-1",
+            "description": "不能把 ON 和 NOT ON 两个互斥分支当顺序执行。"
+          },
+          {
+            "id": "nested-exception-alternatives-forbidden-2",
+            "description": "不能说业务返回码21自动触发 CALL ON EXCEPTION。"
+          }
+        ],
+        "allowed_unknowns": [
+          "题目分别假定指定异常发生，不证明真实事件发生或可达。",
+          "源码静态推导；未执行 COBOL、数据库或程序加载器。"
+        ],
+        "business_usefulness_checks": [
+          "先回答问题，再解释会改变结论的条件及证据，避免逐行翻译。"
+        ]
+      }
+    },
+    {
+      "id": "cross-program-error-isolation",
+      "split": "development",
+      "conversation": "cross-program-error-isolation",
+      "question": "EXENTRY 收到 INPUT-A=0、INPUT-B=80。假设各次 CALL 正常返回、算术没有溢出，最终 OUTPUT-A、CODE-A、OUTPUT-B、CODE-B、TOTAL-AMOUNT、SUMMARY-STATUS 分别是多少？A 的错误怎样从叶子传回，为什么不会把 B 的结果一起清零？",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "programs/EXENTRY.cbl",
+        "programs/EXWRAP.cbl",
+        "programs/EXLEAF.cbl",
+        "programs/EXFINAL.cbl",
+        "programs/EXJOIN.cbl"
+      ],
+      "review_checks": [
+        "按业务语义评分，不要求固定词句；引用存在不证明结论正确。",
+        "检查改变结果的条件、顺序、异常及最终值。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "programs/EXENTRY.cbl",
+            "sha256": "1991701be4f86fef73f28226fb3ce569808662bb36fdc501b9e3a12380a9d90f",
+            "start_line": 1,
+            "end_line": 56,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/EXWRAP.cbl",
+            "sha256": "e8ae594ffb63a17b90321d7c603e9233fe1ce42cb341dbf413e97124e571820f",
+            "start_line": 1,
+            "end_line": 39,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/EXLEAF.cbl",
+            "sha256": "811a198c8b454edd31faafbeb9a48ca992f3436efdba5d221017d38099dd31af",
+            "start_line": 1,
+            "end_line": 18,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/EXFINAL.cbl",
+            "sha256": "b6c4bb60d0568342773c5a6f7d60ca930536408f00044705e3ef0e25818a45fe",
+            "start_line": 1,
+            "end_line": 19,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/EXJOIN.cbl",
+            "sha256": "ad151ed45101b07711d7218f896b0d8fe4f37a64789ddcdd0964896fe325f03b",
+            "start_line": 1,
+            "end_line": 33,
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "leaf-to-wrapper",
+            "description": "A=0 在 EXLEAF 得到金额0、码21，引用返回到 EXWRAP 的 BASE-AMOUNT/LEAF-STATUS；包装器将21复制到 WRAP-STATUS 并清零输出。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/EXLEAF.cbl",
+                "start_line": 9,
+                "end_line": 18,
+                "sha256": "811a198c8b454edd31faafbeb9a48ca992f3436efdba5d221017d38099dd31af"
+              },
+              {
+                "path": "programs/EXWRAP.cbl",
+                "start_line": 19,
+                "end_line": 36,
+                "sha256": "e8ae594ffb63a17b90321d7c603e9233fe1ce42cb341dbf413e97124e571820f"
+              }
+            ]
+          },
+          {
+            "id": "independent-branches",
+            "description": "EXENTRY 的两次调用分别使用 WORK-A/STATUS-A 和 WORK-B/STATUS-B，正常返回后 A为0/21、B为160/0。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/EXENTRY.cbl",
+                "start_line": 22,
+                "end_line": 36,
+                "sha256": "1991701be4f86fef73f28226fb3ce569808662bb36fdc501b9e3a12380a9d90f"
+              },
+              {
+                "path": "programs/EXWRAP.cbl",
+                "start_line": 24,
+                "end_line": 36,
+                "sha256": "e8ae594ffb63a17b90321d7c603e9233fe1ce42cb341dbf413e97124e571820f"
+              }
+            ]
+          },
+          {
+            "id": "final-branch-values",
+            "description": "EXFINAL 分别映射后 OUTPUT-A=0、CODE-A=21、OUTPUT-B=160、CODE-B=0。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/EXENTRY.cbl",
+                "start_line": 37,
+                "end_line": 48,
+                "sha256": "1991701be4f86fef73f28226fb3ce569808662bb36fdc501b9e3a12380a9d90f"
+              },
+              {
+                "path": "programs/EXFINAL.cbl",
+                "start_line": 10,
+                "end_line": 18,
+                "sha256": "b6c4bb60d0568342773c5a6f7d60ca930536408f00044705e3ef0e25818a45fe"
+              }
+            ]
+          },
+          {
+            "id": "join-result",
+            "description": "EXJOIN 左错误优先，TOTAL-AMOUNT=0、SUMMARY-STATUS=21；两个分支结果 BY CONTENT 传给汇总，只有汇总输出用引用，不能清掉 B 的独立结果。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/EXENTRY.cbl",
+                "start_line": 49,
+                "end_line": 55,
+                "sha256": "1991701be4f86fef73f28226fb3ce569808662bb36fdc501b9e3a12380a9d90f"
+              },
+              {
+                "path": "programs/EXJOIN.cbl",
+                "start_line": 12,
+                "end_line": 32,
+                "sha256": "ad151ed45101b07711d7218f896b0d8fe4f37a64789ddcdd0964896fe325f03b"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "cross-program-error-isolation-forbidden-1",
+            "description": "不能说 A 的21污染B或 OUTPUT-B也为0。"
+          },
+          {
+            "id": "cross-program-error-isolation-forbidden-2",
+            "description": "不能把汇总金额说成160，或漏掉汇总状态21。"
+          },
+          {
+            "id": "cross-program-error-isolation-forbidden-3",
+            "description": "不能声称这些结果已经执行验证。"
+          }
+        ],
+        "allowed_unknowns": [
+          "源码静态推导；未执行 COBOL、数据库或程序加载器。"
+        ],
+        "business_usefulness_checks": [
+          "先回答问题，再解释会改变结论的条件及证据，避免逐行翻译。"
+        ]
+      }
+    }
+  ]
+}

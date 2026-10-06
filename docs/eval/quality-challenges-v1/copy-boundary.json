@@ -1,0 +1,164 @@
+{
+  "schema_version": "business-evaluation-cases/v1",
+  "challenge_suite": "business-quality-challenges/v1",
+  "source_root_from_repository": "poc/fixtures/error-return-v5/copy-boundary/programs",
+  "case_origin": "New source-reviewed questions over existing development fixtures; not a holdout.",
+  "cases": [
+    {
+      "id": "copy-parameter-writeback",
+      "split": "development",
+      "conversation": "copy-parameter-writeback",
+      "question": "调用 COPYROOT 前 ROOT-CONTENT-STATUS=7、ROOT-VALUE-STATUS=8。假设所有 CALL 正常完成，两个叶子都 MOVE 21 到自己的状态字段，COPYROOT 返回时根层两个字段会变成21吗？请沿实际参数传递说明。",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "COPYROOT.cbl",
+        "MIDCONTENT.cbl",
+        "LEAFCONTENT.cbl",
+        "MIDVALUE.cbl",
+        "LEAFVALUE.cbl"
+      ],
+      "review_checks": [
+        "按业务语义评分，不要求固定词句；引用存在不证明结论正确。",
+        "检查改变结果的条件、顺序、异常及最终值。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "COPYROOT.cbl",
+            "sha256": "8fb978f1c07d5117f5e314994d9db46cab7a9125164d2b7ca55dbf898a117296",
+            "start_line": 1,
+            "end_line": 18,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "MIDCONTENT.cbl",
+            "sha256": "860cbd1954b90853089fc6134f0b85540fa889ec75e29e2dacd638dae4c4fcc1",
+            "start_line": 1,
+            "end_line": 13,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "LEAFCONTENT.cbl",
+            "sha256": "e8da396cf6dfe17d2bc54cd1eda197f97bddbd3f61546081251a5e7b6463a7ef",
+            "start_line": 1,
+            "end_line": 10,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "MIDVALUE.cbl",
+            "sha256": "6310b5f4068c796158c85dc6a1df0fd79e2449cd7f86be25a9b22b15ec46f959",
+            "start_line": 1,
+            "end_line": 13,
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "LEAFVALUE.cbl",
+            "sha256": "a1eac5c05049526e33f6b4c38380fdf387b3bb50798ff05d2d2851b3ca5a3c56",
+            "start_line": 1,
+            "end_line": 10,
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "reference-not-transitive",
+            "description": "根到中层使用 BY REFERENCE，不代表下一层仍与根共享同一存储。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "COPYROOT.cbl",
+                "start_line": 10,
+                "end_line": 17,
+                "sha256": "8fb978f1c07d5117f5e314994d9db46cab7a9125164d2b7ca55dbf898a117296"
+              }
+            ]
+          },
+          {
+            "id": "content-boundary",
+            "description": "中层到 LEAFCONTENT 使用 BY CONTENT；叶子改的是副本，正常返回后根值仍为7。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "MIDCONTENT.cbl",
+                "start_line": 7,
+                "end_line": 13,
+                "sha256": "860cbd1954b90853089fc6134f0b85540fa889ec75e29e2dacd638dae4c4fcc1"
+              },
+              {
+                "path": "LEAFCONTENT.cbl",
+                "start_line": 7,
+                "end_line": 10,
+                "sha256": "e8da396cf6dfe17d2bc54cd1eda197f97bddbd3f61546081251a5e7b6463a7ef"
+              }
+            ]
+          },
+          {
+            "id": "value-boundary",
+            "description": "中层到 LEAFVALUE 使用 BY VALUE，叶子也声明 USING BY VALUE，叶子21不写回，根值仍为8。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "MIDVALUE.cbl",
+                "start_line": 7,
+                "end_line": 13,
+                "sha256": "6310b5f4068c796158c85dc6a1df0fd79e2449cd7f86be25a9b22b15ec46f959"
+              },
+              {
+                "path": "LEAFVALUE.cbl",
+                "start_line": 7,
+                "end_line": 10,
+                "sha256": "a1eac5c05049526e33f6b4c38380fdf387b3bb50798ff05d2d2851b3ca5a3c56"
+              }
+            ]
+          },
+          {
+            "id": "normal-final-values",
+            "description": "题设正常返回时两个根值为7和8，失败处理90/91不适用。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "COPYROOT.cbl",
+                "start_line": 10,
+                "end_line": 18,
+                "sha256": "8fb978f1c07d5117f5e314994d9db46cab7a9125164d2b7ca55dbf898a117296"
+              },
+              {
+                "path": "MIDCONTENT.cbl",
+                "start_line": 9,
+                "end_line": 12,
+                "sha256": "860cbd1954b90853089fc6134f0b85540fa889ec75e29e2dacd638dae4c4fcc1"
+              },
+              {
+                "path": "MIDVALUE.cbl",
+                "start_line": 9,
+                "end_line": 12,
+                "sha256": "6310b5f4068c796158c85dc6a1df0fd79e2449cd7f86be25a9b22b15ec46f959"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "copy-parameter-writeback-forbidden-1",
+            "description": "不能因最外层 BY REFERENCE 就说叶子21必定传回根层。"
+          },
+          {
+            "id": "copy-parameter-writeback-forbidden-2",
+            "description": "不能把90/91失败路径当正常返回。"
+          }
+        ],
+        "allowed_unknowns": [
+          "源码静态推导；未执行 COBOL、数据库或程序加载器。"
+        ],
+        "business_usefulness_checks": [
+          "先回答问题，再解释会改变结论的条件及证据，避免逐行翻译。"
+        ]
+      }
+    }
+  ]
+}
