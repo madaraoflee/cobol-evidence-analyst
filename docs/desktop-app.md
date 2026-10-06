@@ -17,7 +17,7 @@ Windows 安装 Python 时启用 Python Launcher 与 PATH 选项。macOS 可在�
 
 第一次打包需要联网下载构建依赖，脚本会准备独立的构建环境，安装固定版本的 Nuitka 4.2.2、pywebview 6.2.1、certifi 2026.7.22 等依赖，再执行编译。依赖下载和首次编译可能耗时较长；以后直接运行同一个入口即可。pywebview 官方说明支持使用 Nuitka 打包，见 [pywebview 部署说明](https://pywebview.flowrl.com/guide/freezing.html)。
 
-应用图标使用你提供的原图 `assets/app.png`，对应的 `app.ico` 和 `app.icns` 在构建时自动纳入 Windows 与 macOS 应用；图案保持原样。
+应用图标使用你确认的透明底版本 `assets/app.png`，保留内层圆角方框和原有图案。对应的 `app.ico` 和 `app.icns` 已包含各系统所需尺寸并保留透明区域，双击 `build_app.bat` 或 `build_app.command` 时自动纳入应用，无需手动设置图标。
 
 **Windows 版须在 Windows 构建，macOS 版须在 macOS 构建。** 当前脚本不提供跨系统编译，也不生成 macOS 通用架构包：Apple 芯片与 Intel Mac 分别使用对应架构的 Python 构建、验收和交付。构建成功只说明该环境完成打包，不代表已经覆盖其他系统版本与架构。
 
