@@ -44,7 +44,7 @@ def _business_program(index, files, lines, copybooks):
 
 
 def run_benchmark(files: int, lines_per_file: int, rule_every: int = 5, progress=None,
-                  *, workload="comments", longest_program_lines=None) -> dict:
+                  *, workload="comments", longest_program_lines=None, verify_content=False) -> dict:
     if files < 1 or lines_per_file < 10 or rule_every < 1:
         raise ValueError("Use at least one file, ten lines per file and rule_every >= 1.")
     if workload not in {"comments", "business"} or (workload == "business" and lines_per_file < 100):
@@ -83,7 +83,8 @@ def run_benchmark(files: int, lines_per_file: int, rule_every: int = 5, progress
         def intake():
             started = time.perf_counter()
             report = analyze_source(source, output, index_mode="catalog", analysis_mode="business",
-                                    reading_strategy="retrieval", source_format="free", progress=progress)
+                                    reading_strategy="retrieval", source_format="free", progress=progress,
+                                    verify_content=verify_content)
             elapsed = time.perf_counter() - started
             if not report.get("source_manifest_verified") or report.get("runner_status") == "FAILED":
                 raise RuntimeError(f"Intake did not complete: {report.get('reason_code')}")
@@ -114,6 +115,7 @@ def run_benchmark(files: int, lines_per_file: int, rule_every: int = 5, progress
             relation_count = connection.execute("SELECT COUNT(*) FROM relations").fetchone()[0]
         return {
             "synthetic": True, "llm_called": False, "files": files,
+            "verify_content": verify_content,
             "lines_per_file": lines_per_file, "source_bytes": source_bytes,
             "workload": {"kind": workload, "rule_every": rule_every if workload == "comments" else None,
                          "copybooks": copybooks, "longest_program_lines": longest_program_lines or lines_per_file,
@@ -139,6 +141,8 @@ def main():
     parser.add_argument("--rule-every", type=int, default=5)
     parser.add_argument("--workload", choices=("comments", "business"), default="comments")
     parser.add_argument("--longest-program-lines", type=int)
+    parser.add_argument("--verify-content", action="store_true",
+                        help="Rehash all source content on each refresh, as the web import does.")
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
     last_update = [0.0]
@@ -149,7 +153,8 @@ def main():
                   f"{event.get('current_file') or ''}", file=sys.stderr, flush=True)
             last_update[0] = now
     report = run_benchmark(args.files, args.lines_per_file, args.rule_every, progress,
-                           workload=args.workload, longest_program_lines=args.longest_program_lines)
+                           workload=args.workload, longest_program_lines=args.longest_program_lines,
+                           verify_content=args.verify_content)
     text = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
     if args.report:
         args.report.write_text(text, encoding="utf-8")

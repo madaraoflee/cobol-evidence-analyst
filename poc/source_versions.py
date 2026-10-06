@@ -8,6 +8,10 @@ from pathlib import Path
 import sqlite3
 
 
+_SUMMARY_COLUMNS = ("source_key,version_id,snapshot_id,created_at,checked_at,file_count,"
+                    "previous_version_id,changes_json")
+
+
 def _key(source):
     return hashlib.sha256(str(Path(source).resolve()).encode("utf-8")).hexdigest()
 
@@ -32,7 +36,8 @@ def versions(output, source):
     with closing(sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)) as db:
         db.row_factory = sqlite3.Row
         return [_summary(row) for row in db.execute(
-            "SELECT * FROM source_versions WHERE source_key=? ORDER BY revision DESC LIMIT 20", (_key(source),))]
+            f"SELECT {_SUMMARY_COLUMNS} FROM source_versions WHERE source_key=? ORDER BY revision DESC LIMIT 20",
+            (_key(source),))]
 
 
 def record_version(output, source, snapshot_id):
@@ -56,20 +61,25 @@ def record_version(output, source, snapshot_id):
             changes_json TEXT NOT NULL, manifest_json TEXT NOT NULL)""")
         with db:
             db.execute("BEGIN IMMEDIATE")
-            previous = db.execute("SELECT * FROM source_versions WHERE source_key=? ORDER BY revision DESC LIMIT 1",
+            previous = db.execute(f"SELECT revision,{_SUMMARY_COLUMNS} FROM source_versions "
+                                  "WHERE source_key=? ORDER BY revision DESC LIMIT 1",
                                   (source_key,)).fetchone()
             if previous and previous["version_id"] == version_id:
                 db.execute("UPDATE source_versions SET checked_at=?,snapshot_id=? WHERE revision=?",
                            (now, snapshot_id, previous["revision"]))
+                revision = previous["revision"]
             else:
-                old = json.loads(previous["manifest_json"]) if previous else {}
+                old = json.loads(db.execute("SELECT manifest_json FROM source_versions WHERE revision=?",
+                    (previous["revision"],)).fetchone()[0]) if previous else {}
                 shared = files.keys() & old.keys()
                 changed = sum(files[name] != old[name] for name in shared)
                 changes = {"added": len(files.keys() - old.keys()), "modified": changed,
                            "removed": len(old.keys() - files.keys()), "unchanged": len(shared) - changed}
-                db.execute("""INSERT INTO source_versions
+                cursor = db.execute("""INSERT INTO source_versions
                     (source_key,version_id,snapshot_id,created_at,checked_at,file_count,
                      previous_version_id,changes_json,manifest_json) VALUES (?,?,?,?,?,?,?,?,?)""",
                     (source_key, version_id, snapshot_id, now, now, len(files),
                      previous["version_id"] if previous else None, json.dumps(changes), manifest))
-    return versions(output, source)[0]
+                revision = cursor.lastrowid
+        return _summary(db.execute(f"SELECT {_SUMMARY_COLUMNS} FROM source_versions WHERE revision=?",
+                                   (revision,)).fetchone())

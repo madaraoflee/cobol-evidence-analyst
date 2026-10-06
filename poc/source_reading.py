@@ -18,6 +18,7 @@ from typing import Callable
 MAX_OUTLINE_ITEMS = 40
 MAX_OUTLINE_FILES = 128
 MAX_CHAIN_LINKS = 80
+_LINE_ENDINGS = frozenset("\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029")
 
 
 def _cancel(check: Callable[[], None] | None) -> None:
@@ -52,7 +53,7 @@ def _safe_file(root: Path, relative: str) -> Path:
     return candidate
 
 
-def _verified_lines(root: Path, item: dict, check: Callable | None, limit: int):
+def _verified_lines(root: Path, item: dict, check: Callable | None, limit: int, *, verify_only=False):
     """Yield bounded physical lines; exhaust the iterator before trusting them.
 
     Neither an enormous source file nor a malformed enormous line is held in
@@ -88,20 +89,37 @@ def _verified_lines(root: Path, item: dict, check: Callable | None, limit: int):
                     pending_cr = False
                 if decoded.endswith("\r"):
                     pending_cr = True
-                pieces = re.split(r"(\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029])", decoded)
-                for index, piece in enumerate(pieces):
-                    if index % 2:
+                pieces = decoded.splitlines(keepends=True)
+                if verify_only:
+                    # The whole byte stream still passes the same decoder,
+                    # hash, identity and line-count checks. Cached search
+                    # pages do not need one Python yield per physical line.
+                    if pieces:
+                        length = int(pieces[-1][-1] not in _LINE_ENDINGS)
+                        line_count += len(pieces) - length
+                    if not chunk:
+                        break
+                    continue
+                for piece in pieces:
+                    complete = piece[-1] in _LINE_ENDINGS
+                    if complete:
+                        piece = piece[:-2] if piece.endswith("\r\n") else piece[:-1]
+                    if not length and complete:
                         line_count += 1
-                        yield prefix, length > limit
-                        prefix, length = "", 0
+                        yield piece[:limit], len(piece) > limit
                     else:
                         prefix += piece[:max(0, limit - len(prefix))]
                         length += len(piece)
+                        if complete:
+                            line_count += 1
+                            yield prefix, length > limit
+                            prefix, length = "", 0
                 if not chunk:
                     break
             if length:
                 line_count += 1
-                yield prefix, length > limit
+                if not verify_only:
+                    yield prefix, length > limit
             final = os.fstat(handle.fileno())
         after = _safe_file(root, item["relative_path"]).stat()
         identity = lambda value: (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns)

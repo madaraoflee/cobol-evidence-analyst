@@ -31,7 +31,7 @@ from company_api import APIClientError, APIConfigurationError, CompanyAPIConfig,
 from investigation_tools import InvestigationTools
 from repo_inventory import parse_extensions
 from framework_knowledge import framework_status, _resolve_reference
-from report_view import DIRECT_REPORT_BYTES, VIEW_REPORT_BYTES, report_sha256
+from report_view import DIRECT_REPORT_BYTES, VIEW_REPORT_BYTES, project_report, report_sha256
 from conversation_store import ConversationStore
 from runtime_settings import load_agent_policy
 from agent_policy import resolve_agent_policy
@@ -1094,6 +1094,9 @@ class WorkbenchState:
                 project.update(programs=program_report["programs"], agent=agent)
             else:
                 project["agent"] = _unaccepted_agent(agent, report.get("reason_code") or "SOURCE_SNAPSHOT_UNVERIFIED")
+            diagnosis_path = output / "diagnosis.json"
+            browser_diagnosis = (project_report(project["diagnosis"])
+                if diagnosis_path.is_file() and diagnosis_path.stat().st_size > DIRECT_REPORT_BYTES else None)
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
                     self._check_cancel()
@@ -1114,6 +1117,10 @@ class WorkbenchState:
                         project["conversations"] = self.conversation_store.list()
                     self.project = project
                     self._record_answer(options, job_id, project)
+                    # Full reports authorize the result above; browser state
+                    # retains only the bounded presentation of large reports.
+                    if browser_diagnosis is not None:
+                        project["diagnosis"] = browser_diagnosis
                     project["conversation"] = copy.deepcopy(self.conversation)
                     self._save_workspace(options)
                     if update:

@@ -7,6 +7,7 @@ module has no business-topic dictionary and never calls a remote service.
 from __future__ import annotations
 
 from collections import OrderedDict, defaultdict, deque
+from functools import lru_cache
 import hashlib
 import json
 from pathlib import Path
@@ -33,6 +34,11 @@ _STOP = frozenset("a an and are as at be by can could do does explain for from h
 _CJK_STOP = frozenset(("请", "请问", "説明", "说明", "解釋", "解释", "分析", "程序", "业务", "業務", "如何", "什么", "什麼", "哪些", "影响", "影響", "相關", "相关", "所有", "找到"))
 
 
+@lru_cache(maxsize=8192)
+def _identifier_tokens(word):
+    return (word.casefold(), *(part.casefold() for part in _PARTS.split(word) if part))
+
+
 def _tokens(text):
     """Split separators, camel case and CJK spans without a topic vocabulary."""
     result = []
@@ -46,8 +52,12 @@ def _tokens(text):
             for size in (4, 3, 2):
                 result.extend(word[start:start + size] for start in range(len(word) - size + 1))
         else:
-            result.append(word.casefold())
-            result.extend(part.casefold() for part in _PARTS.split(word) if part)
+            if len(word) <= 64:
+                result.extend(_identifier_tokens(word))
+            else:
+                # Keep the cache bounded by both item count and input size.
+                result.append(word.casefold())
+                result.extend(part.casefold() for part in _PARTS.split(word) if part)
     return list(dict.fromkeys(result))
 
 
@@ -169,7 +179,7 @@ def ensure_repository_search(database_path, source_root, check_cancel=None, prog
                         and state.get("mtime_ns") == verified_before.st_mtime_ns):
                     metadata_cached += 1
                 else:
-                    for _ in _verified_lines(root, item, check_cancel, 1):
+                    for _ in _verified_lines(root, item, check_cancel, 1, verify_only=True):
                         pass
                     verified_files += 1
                 cached += 1
@@ -656,6 +666,43 @@ def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=N
     return page
 
 
+def _session_relation_cache(connection, source_session):
+    """Reuse immutable relation facts only within this question's generation."""
+    if source_session is None:
+        return None
+    # Capture the sealed generation before bounded pages append citations.
+    # Equal source hashes alone cannot identify a parser/options rebuild.
+    generation = _graph_cache_key(connection)
+    if generation is None:
+        return None
+    state = getattr(source_session, "_repository_relation_cache", None)
+    if not isinstance(state, dict) or state.get("generation") != generation:
+        state = {"generation": generation, "relations": OrderedDict()}
+        try:
+            source_session._repository_relation_cache = state
+        except AttributeError:
+            # A provider that only supports capture need not support caching.
+            return None
+    return state["relations"]
+
+
+def _cached_context_relations(connection, paths, limit=64, *, relation_cache=None):
+    if relation_cache is None:
+        return _context_relations(connection, paths, limit)
+    key = (tuple(paths), limit)
+    if key not in relation_cache:
+        rows, omitted = _context_relations(connection, paths, limit)
+        relation_cache[key] = (tuple(dict(row) for row in rows), omitted)
+        # Eviction changes only reuse, never candidate or source coverage.
+        while len(relation_cache) > 32:
+            relation_cache.popitem(last=False)
+    relation_cache.move_to_end(key)
+    rows, omitted = relation_cache[key]
+    # These flat facts are enriched with range-specific citation lists below;
+    # those lists and caller mutations must never alter cached relation facts.
+    return [dict(row) for row in rows], omitted
+
+
 def _context_relations(connection, paths, limit=64):
     if not paths:
         return [], 0
@@ -755,7 +802,8 @@ def _retrieved_outline(connection, relative, pages, limit=24):
 
 
 def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max_chars,
-                      check_cancel=None, requested_span=None, source_session=None):
+                      check_cancel=None, requested_span=None, source_session=None,
+                      relation_cache=None):
     _state_schema(connection)
     cache = {"states": {}, "checked_files": 0, "reused_files": 0, "content_verified_files": 0}
     pages, boundaries, used, seen = [], [], 0, set()
@@ -781,7 +829,7 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
     if any(row["span_truncated"] for row in rows):
         boundaries.append({"reason": "source_line_exceeds_search_page_budget", "message": "An oversized source line has no complete source citation in this index."})
     selected = list(dict.fromkeys(page["relative_path"] for page in pages))
-    links, omitted = _context_relations(connection, selected)
+    links, omitted = _cached_context_relations(connection, selected, relation_cache=relation_cache)
     usable = []
     for link in links:
         state = _current_selected_source(connection, root, link["caller_path"], cache, check_cancel, source_session)
@@ -835,6 +883,7 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
     try:
         connection.execute("BEGIN")
         root, overview = _fast_snapshot(connection, source_root)
+        relation_cache = _session_relation_cache(connection, source_session)
         identity = resolve_source_identity(connection, question, search_terms)
         blocked = identity["status"] in {"ambiguous", "not_found"}
         scope_sql, scope_values = identity_sql_scope(identity)
@@ -903,7 +952,7 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
                     seen_rows.add(row["page_id"])
         # Reserve a small part of the bundle for called interfaces and callers.
         seeds = list(dict.fromkeys(row["relative_path"] for row in rows[:max(1, max_pages // 2)]))
-        links, _ = _context_relations(connection, seeds)
+        links, _ = _cached_context_relations(connection, seeds, relation_cache=relation_cache)
         neighbours, neighbour_ids = [], set()
         for link in links:
             for relative, line in ((link["caller_path"], link["caller_start_line"]), (link["target_path"], link["target_start_line"])):
@@ -920,7 +969,8 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
         cut = max(1, max_pages - len(neighbours))
         rows = rows[:cut] + neighbours + rows[cut:]
         result = _assemble_context(connection, root, overview, rows, terms, max_pages=max_pages,
-                                   max_chars=max_chars, check_cancel=check_cancel, source_session=source_session)
+                                   max_chars=max_chars, check_cancel=check_cancel, source_session=source_session,
+                                   relation_cache=relation_cache)
         result.update(search_terms=terms, omitted_search_terms=omitted_terms,
                       matched_page_count=matched_count, matched_file_count=matched_files,
                       source_identity=identity, fallback_all=False,
@@ -942,6 +992,7 @@ def read_repository_context(database_path, source_root, *, relative_path=None, s
     try:
         connection.execute("BEGIN")
         root, overview = _fast_snapshot(connection, source_root)
+        relation_cache = _session_relation_cache(connection, source_session)
         if evidence_id is not None:
             if not isinstance(evidence_id, str):
                 raise ValueError("EVIDENCE_ID_INVALID")
@@ -959,7 +1010,7 @@ def read_repository_context(database_path, source_root, *, relative_path=None, s
         result = _assemble_context(connection, root, overview, rows, [], max_pages=32,
                                    max_chars=max_chars, check_cancel=check_cancel,
                                    requested_span={"start_line": start_line, "end_line": end_line},
-                                   source_session=source_session)
+                                   source_session=source_session, relation_cache=relation_cache)
         last_line = max((page["end_line"] for page in result["pages"]), default=start_line - 1)
         file_row = connection.execute("SELECT line_count FROM source_files WHERE relative_path=?", (relative_path,)).fetchone()
         total_lines = file_row[0] if file_row else 0

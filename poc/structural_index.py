@@ -474,13 +474,7 @@ def _unique_identifiers(fragment: str) -> list[str]:
     return result
 
 
-def _statement_kind(text: str) -> str:
-    upper = text.strip().upper()
-    if upper.startswith("EXEC SQL"):
-        return "EXEC_SQL"
-    first = upper.split(None, 1)[0].rstrip(".") if upper else "OTHER"
-    normalized = first.replace("-", "_")
-    return normalized if normalized in {
+_STATEMENT_KINDS = frozenset({
         "ACCEPT",
         "ADD",
         "CALL",
@@ -514,7 +508,16 @@ def _statement_kind(text: str) -> str:
         "UNSTRING",
         "WHEN",
         "WRITE",
-    } else "OTHER"
+})
+
+
+def _statement_kind(text: str) -> str:
+    upper = text.strip().upper()
+    if upper.startswith("EXEC SQL"):
+        return "EXEC_SQL"
+    first = upper.split(None, 1)[0].rstrip(".") if upper else "OTHER"
+    normalized = first.replace("-", "_")
+    return normalized if normalized in _STATEMENT_KINDS else "OTHER"
 
 
 def _extract_data_access(text: str) -> tuple[list[str], list[str], dict[str, object]]:

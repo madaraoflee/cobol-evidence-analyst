@@ -32,8 +32,26 @@ CHUNK_BYTES = 1024 * 1024
 MAX_PHYSICAL_LINE_CHARS = 65536
 MAX_FACT_CHARS = 131072
 MAX_FACT_LINES = 64
+FACT_BATCH_ROWS = 1024
+FACT_BATCH_BYTES = 4 * 1024 * 1024
 COPY_EXTENSIONS = {".cpy", ".copy", ".cpb", ".inc"}
+_COLD_LOOKUP_INDEXES = frozenset({
+    "idx_units_program", "idx_symbols_lookup", "idx_symbols_path",
+    "idx_evidence_path", "idx_relations_from", "idx_relations_target",
+    "repo_relations_path", "idx_business_rules_path", "idx_business_rule_fields_name",
+})
 _LINE_END = re.compile(r"\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029]")
+_DIRECTIVE_RE = re.compile(r"^(REPLACE\b|>>|CBL\b|PROCESS\b)", re.I)
+_DIVISION_RE = re.compile(r"^(IDENTIFICATION|ENVIRONMENT|DATA|PROCEDURE)\s+DIVISION\b")
+_DIVISION_START_RE = re.compile(_DIVISION_RE.pattern, re.I)
+_CONTROL_BOUNDARY_RE = re.compile(r"^(?:ELSE|END-IF|WHEN|END-EVALUATE|GOBACK)\b", re.I)
+_PROGRAM_VALUE_RE = re.compile(r"['\"]?[A-Z0-9_$#@-]+['\"]?\.?", re.I)
+_CALL_USING_RE = re.compile(r"\bCALL\b.*\bUSING\b", re.I)
+_LITERAL_RE = re.compile(r"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"")
+_COPY_FORM_RE = re.compile(r"\b(REPLACING|OF|IN)\b")
+_END_PROGRAM_RE = re.compile(r"^END\s+PROGRAM\b")
+_PROGRAM_HEADER_RE = re.compile(r"^PROGRAM-ID\s*\.")
+_DEPENDENCY_TAIL_RE = re.compile(r"\b(?:CALL|COPY)\s*$")
 _BUSINESS_RULE_KINDS = frozenset({
     "ADD", "COMPUTE", "DIVIDE", "EVALUATE", "IF", "INITIALIZE",
     "MOVE", "MULTIPLY", "READ", "REWRITE", "SET", "SUBTRACT",
@@ -96,6 +114,19 @@ def _queue_file_deletion(connection, relative):
                        "SELECT unit_id FROM code_units WHERE relative_path=?", (relative,))
     _delete_business_rules(connection, relative)
     _delete_file_facts(connection, relative, delete_search=False)
+
+
+def _defer_cold_lookup_indexes(connection):
+    # Primary keys and the per-file unit index stay available while streaming.
+    # The other lookup indexes are used after a complete directory import;
+    # creating them once avoids maintaining their B-trees for every fact.
+    indexes = [(row[0], row[1]) for row in connection.execute(
+        "SELECT name,sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL")
+        if row[0] in _COLD_LOOKUP_INDEXES
+        and not re.match(r"\s*CREATE\s+UNIQUE\s+INDEX\b", row[1], re.I)]
+    for name, _ in indexes:
+        connection.execute(f'DROP INDEX "{name}"')
+    return [sql for _, sql in indexes]
 
 
 def _safe_path(root: Path, relative: str) -> Path:
@@ -257,6 +288,13 @@ class _Facts:
         self.rule_batch = {}
         self.rule_field_batch = {}
         self.rule_partition = _content_hash(relative)[:12]
+        self.evidence_batch = {}
+        self.unit_batch = {}
+        self.search_batch = []
+        self.symbol_batch = []
+        self.relation_batch = []
+        self.unit_end_batch = []
+        self.fact_batch_bytes = 0
         self.line_count = 0
         self.boundaries = Counter()
         self.copybook = copybook_hint or Path(relative).suffix.casefold() in COPY_EXTENSIONS
@@ -266,7 +304,11 @@ class _Facts:
         key = {"Program": "program_id", "Section": "section_id", "Paragraph": "paragraph_id"}[kind]
         identity = getattr(self, key)
         if identity:
-            self.connection.execute("UPDATE code_units SET end_line=MAX(start_line,?) WHERE unit_id=?", (end, identity))
+            row = self.unit_batch.get(identity)
+            if row is not None:
+                row[7] = max(row[6], end)
+            else:
+                self.unit_end_batch.append((end, identity))
             setattr(self, key, None)
             if kind == "Paragraph":
                 self.paragraph_name = None
@@ -317,21 +359,47 @@ class _Facts:
         self.rule_batch.clear()
         self.rule_field_batch.clear()
 
+    def _flush_facts(self):
+        # Preserve each table's insertion order, including FTS row IDs, while
+        # avoiding four separate Python-to-SQL calls for every declaration.
+        # All batches remain inside the file's rollback savepoint.
+        if self.evidence_batch:
+            self.connection.executemany("INSERT OR IGNORE INTO evidence_spans VALUES (?,?,?,?,?,?)",
+                                        self.evidence_batch.values())
+            self.evidence_batch.clear()
+        if self.unit_batch:
+            self.connection.executemany("INSERT OR IGNORE INTO code_units VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                                        self.unit_batch.values())
+            self.unit_batch.clear()
+        if self.search_batch:
+            self.connection.executemany("INSERT INTO code_units_fts(unit_id,name,program_name,normalized_text) VALUES (?,?,?,?)",
+                                        self.search_batch)
+            self.search_batch.clear()
+        if self.symbol_batch:
+            self.connection.executemany("INSERT OR IGNORE INTO symbols VALUES (?,?,?,?,?,?,?,?)", self.symbol_batch)
+            self.symbol_batch.clear()
+        if self.relation_batch:
+            self.connection.executemany("INSERT OR IGNORE INTO relations VALUES (?,?,?,?,?,?,?,?,?,?)", self.relation_batch)
+            self.relation_batch.clear()
+        if self.unit_end_batch:
+            self.connection.executemany("UPDATE code_units SET end_line=MAX(start_line,?) WHERE unit_id=?", self.unit_end_batch)
+            self.unit_end_batch.clear()
+        self.fact_batch_bytes = 0
+
     def _unit(self, kind, name, start, end, text, raw, parse_status="complete", symbol=None):
         evidence = _stable_id("ev", self.relative, self.metadata["sha256"], start, end)
-        self.connection.execute("INSERT OR IGNORE INTO evidence_spans VALUES (?,?,?,?,?,?)",
-                                (evidence, self.relative, start, end, self.metadata["sha256"], raw))
+        self.evidence_batch.setdefault(evidence, (evidence, self.relative, start, end, self.metadata["sha256"], raw))
         identity = _stable_id("unit", self.relative, kind, name, start)
         parent = self.paragraph_id or self.section_id or self.program_id
-        self.connection.execute("INSERT OR IGNORE INTO code_units VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                                (identity, self.relative, kind, name, self.program, parent, start, end,
-                                 text, _content_hash(text), evidence, parse_status))
-        self.connection.execute("INSERT INTO code_units_fts(unit_id,name,program_name,normalized_text) VALUES (?,?,?,?)",
-                                (identity, name, self.program, text))
+        self.unit_batch.setdefault(identity, [identity, self.relative, kind, name, self.program, parent, start, end,
+                                             text, _content_hash(text), evidence, parse_status])
+        self.search_batch.append((identity, name, self.program, text))
+        self.fact_batch_bytes += 4 * (len(raw) + len(text))
         if symbol:
-            self.connection.execute("INSERT OR IGNORE INTO symbols VALUES (?,?,?,?,?,?,?,?)",
-                                    (_stable_id("sym", self.relative, symbol, self.program, name, start), self.relative,
-                                     symbol, name, self.program, f"{self.program or ''}::{name}", identity, evidence))
+            self.symbol_batch.append((_stable_id("sym", self.relative, symbol, self.program, name, start), self.relative,
+                                      symbol, name, self.program, f"{self.program or ''}::{name}", identity, evidence))
+        if len(self.search_batch) >= FACT_BATCH_ROWS or self.fact_batch_bytes >= FACT_BATCH_BYTES:
+            self._flush_facts()
         return identity, evidence
 
     def _fact(self, pending):
@@ -365,13 +433,13 @@ class _Facts:
             targets, dynamic = _dependency_targets(code)
             dependencies = targets + [("CALL_TARGET_FROM", name) for name in dynamic]
             # Literal text cannot create a PERFORM relation.
-            unquoted = re.sub(r"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"", " ", upper)
+            unquoted = _LITERAL_RE.sub(" ", upper)
             for match in PERFORM_TARGET_RE.finditer(unquoted):
                 if match.group(1) not in PERFORM_NON_TARGETS:
                     dependencies.append(("PERFORMS_THRU" if match.group(2) else "PERFORMS", match.group(1)))
             for relation, target in dict.fromkeys(dependencies):
                 metadata = {"source_index_kind": "business_sparse", "semantic_binding_performed": False}
-                if relation == "INCLUDES_COPY" and re.search(r"\b(REPLACING|OF|IN)\b", unquoted):
+                if relation == "INCLUDES_COPY" and _COPY_FORM_RE.search(unquoted):
                     metadata["boundary"] = "copy_replacing_or_library_not_expanded"
                     self.boundaries[metadata["boundary"]] += 1
                 if relation == "CALL_TARGET_FROM":
@@ -379,10 +447,12 @@ class _Facts:
                     self.boundaries[metadata["boundary"]] += 1
                 if not complete:
                     metadata["boundary"] = "dependency_statement_incomplete"
-                self.connection.execute("INSERT OR IGNORE INTO relations VALUES (?,?,?,?,?,?,?,?,?,?)",
+                self.relation_batch.append(
                     (_stable_id("rel", self.relative, unit, relation, target.upper()), self.relative, unit,
                      relation, target.upper(), self.program if relation.startswith("PERFORM") or relation == "CALL_TARGET_FROM" else None,
                      None, "unresolved", evidence, json.dumps(metadata)))
+            if len(self.relation_batch) >= FACT_BATCH_ROWS:
+                self._flush_facts()
         elif kind in {"BusinessRule", "SqlRule"}:
             self._business_rule(kind, upper, start, end)
         if not complete:
@@ -419,7 +489,7 @@ class _Facts:
             return
         # Preserve preprocessing boundaries in copybooks as well as callers.
         # A later consumer must not treat the unexpanded text as its result.
-        directive = re.match(r"^(REPLACE\b|>>|CBL\b|PROCESS\b)", code, re.I)
+        directive = _DIRECTIVE_RE.match(code)
         if directive:
             self._flush()
             if self.copybook and self.program_id is None:
@@ -433,14 +503,14 @@ class _Facts:
             kind = self.pending[0]
             parameter_tail = bool(PARAGRAPH_RE.match(code) and (
                 kind == "ProcedureSignature" or (kind == "Dependency" and
-                re.search(r"\bCALL\b.*\bUSING\b", " ".join(self.pending[1]), re.I))))
+                _CALL_USING_RE.search(" ".join(self.pending[1])))))
             starts_new = bool(code and not continuation and (
-                PROGRAM_ID_RE.match(code) or SECTION_RE.match(code) or re.match(r"^(?:IDENTIFICATION|ENVIRONMENT|DATA|PROCEDURE)\s+DIVISION\b", code, re.I)
+                PROGRAM_ID_RE.match(code) or SECTION_RE.match(code) or _DIVISION_START_RE.match(code)
                 or DATA_ITEM_RE.match(code) or _statement_kind(code.upper()) != "OTHER"
-                or re.match(r"^(?:ELSE|END-IF|WHEN|END-EVALUATE|GOBACK)\b", code, re.I)
+                or _CONTROL_BOUNDARY_RE.match(code)
                 or (PARAGRAPH_RE.match(code) and self.division == "PROCEDURE" and not parameter_tail)))
             if kind == "Program":
-                starts_new = not bool(re.fullmatch(r"['\"]?[A-Z0-9_$#@-]+['\"]?\.?", code, re.I)) if code else False
+                starts_new = not bool(_PROGRAM_VALUE_RE.fullmatch(code)) if code else False
             if starts_new or len(self.pending[2]) >= MAX_FACT_LINES or sum(map(len, self.pending[2])) + len(raw) > MAX_FACT_CHARS:
                 self._flush(complete=starts_new)
             else:
@@ -468,15 +538,15 @@ class _Facts:
             if "END-EXEC" in upper:
                 self._flush(complete=True)
             return
-        if re.match(r"^END\s+PROGRAM\b", upper):
+        if _END_PROGRAM_RE.match(upper):
             self._close("Paragraph", line_number)
             self._close("Section", line_number)
             self._close("Program", line_number)
             self.program, self.section_name = None, None
             return
-        division = re.match(r"^(IDENTIFICATION|ENVIRONMENT|DATA|PROCEDURE)\s+DIVISION\b", upper)
+        division = _DIVISION_RE.match(upper)
         kind = None
-        if re.match(r"^PROGRAM-ID\s*\.", upper):
+        if _PROGRAM_HEADER_RE.match(upper):
             kind = "Program"
         elif division:
             self.division = division.group(1)
@@ -504,8 +574,8 @@ class _Facts:
             kind = "DataItem"
         elif any(word in upper for word in ("CALL", "COPY", "PERFORM")):
             targets, dynamic = _dependency_targets(code)
-            unquoted = re.sub(r"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"", " ", upper)
-            if targets or dynamic or PERFORM_TARGET_RE.search(unquoted) or re.search(r"\b(?:CALL|COPY)\s*$", unquoted):
+            unquoted = _LITERAL_RE.sub(" ", upper)
+            if targets or dynamic or PERFORM_TARGET_RE.search(unquoted) or _DEPENDENCY_TAIL_RE.search(unquoted):
                 kind = "Dependency"
         if kind is None and (self.division == "PROCEDURE" or self.copybook) and _statement_kind(upper) in _BUSINESS_RULE_KINDS:
             kind = "BusinessRule"
@@ -520,6 +590,7 @@ class _Facts:
         self._close("Paragraph", self.line_count)
         self._close("Section", self.line_count)
         self._close("Program", self.line_count)
+        self._flush_facts()
 
 
 def _resolve_copies(connection, *, affected_paths=None, affected_target_names=None):
@@ -664,7 +735,14 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
             emit("indexing", completed=len(selected) + len(input_skips), total=len(queued),
                  current_file=relative, input_skip_reason=reason)
 
+        # Include deferred index DDL in the same rollback boundary as facts.
+        connection.execute("BEGIN")
         with connection:
+            cold_empty = not previous and not closure and all(
+                connection.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone() is None
+                for table in ("code_units", "evidence_spans", "symbols", "relations",
+                              "business_rules", "business_rule_fields", "code_units_fts"))
+            deferred_indexes = _defer_cold_lookup_indexes(connection) if cold_empty else []
             connection.execute("CREATE TEMP TABLE business_deleted_units (unit_id TEXT PRIMARY KEY)")
             search_row = connection.execute("SELECT rowid FROM code_units_fts ORDER BY rowid DESC LIMIT 1").fetchone()
             previous_search_rowid = search_row[0] if search_row else 0
@@ -802,6 +880,8 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                 connection.execute("DELETE FROM code_units_fts WHERE rowid IN ("
                     "SELECT f.rowid FROM code_units_fts f WHERE f.rowid<=? "
                     "AND f.unit_id IN (SELECT unit_id FROM business_deleted_units))", (previous_search_rowid,))
+            for index_sql in deferred_indexes:
+                connection.execute(index_sql)
             if updated or removed or rebuild:
                 resolution = {}
                 if not rebuild and len(changed_paths) + len(changed_targets) + len(changed_programs) <= 500:
