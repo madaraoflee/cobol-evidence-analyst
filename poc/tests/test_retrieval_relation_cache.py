@@ -114,7 +114,7 @@ class RetrievalRelationCacheTests(unittest.TestCase):
         with QuestionSourceSession(self.database, self.source) as session, \
              patch.object(retrieval, "_context_relations", wraps=retrieval._context_relations) as query:
             first = self.read(session)
-            with sqlite3.connect(self.database) as db:
+            with closing(sqlite3.connect(self.database)) as db, db:
                 db.execute("UPDATE metadata SET value='alternate-parser/v2' WHERE key='parser_version'")
                 db.execute("UPDATE relations SET status='unresolved',target_entity_id=NULL WHERE relation_type='CALLS'")
             second = self.read(session)

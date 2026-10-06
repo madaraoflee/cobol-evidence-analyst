@@ -103,7 +103,7 @@ class IndependentBusinessQualityTests(unittest.TestCase):
                  "poc_hashes_at_import": POC_HASHES,
                  "assertions_evaluate": "encoded request evidence and bounded stopping only",
                  "timing_seconds": self.timings,
-                 "source_files": {path: {"sha256": hashlib.sha256(text.encode()).hexdigest(),
+                 "source_files": {path: {"sha256": hashlib.sha256((self.source / path).read_bytes()).hexdigest(),
                                           "text": text} for path, text in self.source_text.items()},
                  "requests": self.requests, "output": self.output}
         (folder / "record.json").write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n")
@@ -142,7 +142,7 @@ class IndependentBusinessQualityTests(unittest.TestCase):
                 text = self.source_text[page["relative_path"]]
                 self.assertEqual(page["source_text"], "\n".join(
                     text.splitlines()[page["start_line"] - 1:page["end_line"]]))
-                self.assertEqual(page["source_sha256"], hashlib.sha256(text.encode()).hexdigest())
+                self.assertEqual(page["source_sha256"], hashlib.sha256((self.source / page["relative_path"]).read_bytes()).hexdigest())
             self.requests.append({"body": body,
                 "body_sha256": hashlib.sha256(body.encode()).hexdigest(), "payload": payload,
                 "bytes": len(body.encode()),

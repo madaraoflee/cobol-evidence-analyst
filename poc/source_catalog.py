@@ -40,44 +40,48 @@ def _connect(path: Path) -> sqlite3.Connection:
         raise ValueError('Catalog database and sidecars must not be symbolic links.')
     path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(path)
-    connection.row_factory = sqlite3.Row
-    connection.executescript('''
-        PRAGMA journal_mode=WAL;
-        CREATE TABLE IF NOT EXISTS catalog_files (
-            relative_path TEXT PRIMARY KEY,
-            size_bytes INTEGER NOT NULL, mtime_ns INTEGER NOT NULL,
-            inode INTEGER NOT NULL,
-            option_key TEXT NOT NULL, payload TEXT NOT NULL
-        );
-        CREATE TEMP TABLE candidates (
-            relative_path TEXT PRIMARY KEY, size_bytes INTEGER NOT NULL,
-            mtime_ns INTEGER NOT NULL, inode INTEGER NOT NULL
-        );
-    ''')
-    columns = {row['name'] for row in connection.execute('PRAGMA table_info(catalog_files)')}
-    current_columns = {'relative_path', 'size_bytes', 'mtime_ns', 'inode', 'option_key', 'payload'}
-    if columns and columns != current_columns:
-        if current_columns.issubset(columns):
-            connection.executescript('''
-                BEGIN IMMEDIATE;
-                ALTER TABLE catalog_files RENAME TO catalog_files_legacy;
-                CREATE TABLE catalog_files (
+    try:
+        connection.row_factory = sqlite3.Row
+        connection.executescript('''
+            PRAGMA journal_mode=WAL;
+            CREATE TABLE IF NOT EXISTS catalog_files (
+                relative_path TEXT PRIMARY KEY,
+                size_bytes INTEGER NOT NULL, mtime_ns INTEGER NOT NULL,
+                inode INTEGER NOT NULL,
+                option_key TEXT NOT NULL, payload TEXT NOT NULL
+            );
+            CREATE TEMP TABLE candidates (
+                relative_path TEXT PRIMARY KEY, size_bytes INTEGER NOT NULL,
+                mtime_ns INTEGER NOT NULL, inode INTEGER NOT NULL
+            );
+        ''')
+        columns = {row['name'] for row in connection.execute('PRAGMA table_info(catalog_files)')}
+        current_columns = {'relative_path', 'size_bytes', 'mtime_ns', 'inode', 'option_key', 'payload'}
+        if columns and columns != current_columns:
+            if current_columns.issubset(columns):
+                connection.executescript('''
+                    BEGIN IMMEDIATE;
+                    ALTER TABLE catalog_files RENAME TO catalog_files_legacy;
+                    CREATE TABLE catalog_files (
+                        relative_path TEXT PRIMARY KEY,
+                        size_bytes INTEGER NOT NULL, mtime_ns INTEGER NOT NULL,
+                        inode INTEGER NOT NULL, option_key TEXT NOT NULL, payload TEXT NOT NULL
+                    );
+                    INSERT INTO catalog_files (relative_path,size_bytes,mtime_ns,inode,option_key,payload)
+                        SELECT relative_path,size_bytes,mtime_ns,inode,option_key,payload FROM catalog_files_legacy;
+                    DROP TABLE catalog_files_legacy;
+                    COMMIT;
+                ''')
+            else:
+                connection.execute('DROP TABLE catalog_files')
+                connection.execute('''CREATE TABLE catalog_files (
                     relative_path TEXT PRIMARY KEY,
                     size_bytes INTEGER NOT NULL, mtime_ns INTEGER NOT NULL,
                     inode INTEGER NOT NULL, option_key TEXT NOT NULL, payload TEXT NOT NULL
-                );
-                INSERT INTO catalog_files (relative_path,size_bytes,mtime_ns,inode,option_key,payload)
-                    SELECT relative_path,size_bytes,mtime_ns,inode,option_key,payload FROM catalog_files_legacy;
-                DROP TABLE catalog_files_legacy;
-                COMMIT;
-            ''')
-        else:
-            connection.execute('DROP TABLE catalog_files')
-            connection.execute('''CREATE TABLE catalog_files (
-                relative_path TEXT PRIMARY KEY,
-                size_bytes INTEGER NOT NULL, mtime_ns INTEGER NOT NULL,
-                inode INTEGER NOT NULL, option_key TEXT NOT NULL, payload TEXT NOT NULL
-            )''')
+                )''')
+    except BaseException:
+        connection.close()
+        raise
     return connection
 
 

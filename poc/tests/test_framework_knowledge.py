@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
@@ -97,7 +98,7 @@ class FrameworkKnowledgeTests(unittest.TestCase):
 
     def test_sparse_original_markers_retrieve_framework_without_technical_question_terms(self):
         text = self.build_sparse()
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM evidence_spans WHERE evidence_id LIKE 'ev_page_%'").fetchone()[0], 0)
             units_before = connection.execute("SELECT COUNT(*) FROM code_units").fetchone()[0]
         with mock.patch.object(Path, "read_bytes", side_effect=AssertionError("whole source read")):
@@ -107,11 +108,11 @@ class FrameworkKnowledgeTests(unittest.TestCase):
         self.assertEqual(result["coverage"]["source_scan_unit"], "physical_lines")
         terms = {term for item in result["source_matches"] for term in item["matched_terms"]}
         self.assertTrue({"FLOW-ACTION", "FLOW-RESULT"}.issubset(terms))
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM code_units").fetchone()[0], units_before)
             for item in result["source_matches"]:
                 span = connection.execute("SELECT relative_path,start_line,end_line,source_sha256,text FROM evidence_spans WHERE evidence_id=?", (item["evidence_id"],)).fetchone()
-                self.assertEqual(span, ("entry.cbl", item["start_line"], item["end_line"], hashlib.sha256(text.encode()).hexdigest(), text.splitlines()[item["start_line"] - 1]))
+                self.assertEqual(span, ("entry.cbl", item["start_line"], item["end_line"], hashlib.sha256((self.source_root / "entry.cbl").read_bytes()).hexdigest(), text.splitlines()[item["start_line"] - 1]))
         self.assertEqual(result, self.context(question="请说明处理成功和失败的业务影响。", source_root=self.source_root))
 
     def test_sparse_markers_near_large_program_end_remain_available(self):
@@ -135,7 +136,7 @@ class FrameworkKnowledgeTests(unittest.TestCase):
 
     def test_sparse_ignores_legacy_scan_cutoffs_and_still_verifies_the_whole_file(self):
         text = self.build_sparse()
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             before = connection.execute("SELECT COUNT(*) FROM evidence_spans").fetchone()[0]
         seen = []
         original = knowledge._verified_lines
@@ -149,7 +150,7 @@ class FrameworkKnowledgeTests(unittest.TestCase):
         self.assertFalse(result["coverage"]["truncated"])
         self.assertEqual(result["status"], "MATCHED")
         self.assertTrue(result["coverage"]["source_hash_verified"])
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             accepted_count = connection.execute("SELECT COUNT(*) FROM evidence_spans").fetchone()[0]
         (self.source_root / "entry.cbl").write_text(text + "*> changed after the matching budget\n", encoding="utf-8")
         with mock.patch.object(knowledge, "MAX_SOURCE_UNITS", 2):
@@ -157,7 +158,7 @@ class FrameworkKnowledgeTests(unittest.TestCase):
         self.assertEqual(rejected["status"], "LOADED")
         self.assertFalse(rejected["source_matches"])
         self.assertFalse(rejected["coverage"]["source_hash_verified"])
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM evidence_spans").fetchone()[0], accepted_count)
 
     def test_sparse_existing_evidence_never_bypasses_current_file_hash_check(self):
@@ -232,11 +233,11 @@ class FrameworkKnowledgeTests(unittest.TestCase):
             calls += 1
             if calls > 1:
                 raise Cancelled()
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             before = connection.execute("SELECT COUNT(*) FROM evidence_spans").fetchone()[0]
         with self.assertRaises(Cancelled):
             self.context(source_root=self.source_root, check_cancel=cancel)
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM evidence_spans").fetchone()[0], before)
 
     def test_bundled_local_reference_loads_without_extra_setting_and_explicit_empty_disables(self):
@@ -275,7 +276,7 @@ class FrameworkKnowledgeTests(unittest.TestCase):
     def test_source_matches_are_actual_index_evidence(self):
         self.build()
         result = self.context()
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             for match in result["source_matches"]:
                 evidence = connection.execute(
                     "SELECT relative_path, start_line, end_line, source_sha256 FROM evidence_spans WHERE evidence_id = ?",

@@ -42,7 +42,7 @@ class SemanticScopePerformanceTests(unittest.TestCase):
         ensure_repository_search(self.database, self.source)
 
     def test_no_copy_scope_does_not_scan_unrelated_program_catalog(self):
-        with sqlite3.connect(self.database) as db:
+        with closing(sqlite3.connect(self.database)) as db, db:
             template = db.execute("SELECT * FROM source_files LIMIT 1").fetchone()
             db.executemany("INSERT INTO source_files VALUES (?,?,?,?,?,?,?,?)", [
                 (f"unrelated-{i}.cbl", *template[1:]) for i in range(12000)])
@@ -92,7 +92,7 @@ class SemanticScopePerformanceTests(unittest.TestCase):
             self.assertEqual({page["source_sha256"] for page in pages}, {capture.sha256})
 
     def test_repeated_dependency_edges_select_each_path_once(self):
-        with sqlite3.connect(self.database) as db:
+        with closing(sqlite3.connect(self.database)) as db, db:
             db.execute("INSERT INTO source_files SELECT 'shared.cbl',sha256,encoding,"
                 "used_fallback_encoding,format_hint,artifact_kind,line_count,indexed_at_utc "
                 "FROM source_files WHERE relative_path='bill-rule.cbl'")
@@ -151,7 +151,7 @@ class SemanticScopePerformanceTests(unittest.TestCase):
     def test_deep_index_budget_interrupts_sql_write_and_keeps_previous_snapshot(self):
         database = self.root / "structural.sqlite"
         report = build_structural_index(self.source, database, source_format="free", verify_content=True)
-        with sqlite3.connect(database) as db:
+        with closing(sqlite3.connect(database)) as db, db:
             before = db.execute("SELECT COUNT(*) FROM code_units").fetchone()[0]
         (self.source / "bill-rule.cbl").write_text(self.text +
             "MOVE INPUT-VALUE TO RESULT-VALUE.\n" * 4000, encoding="utf-8")
@@ -174,7 +174,7 @@ class SemanticScopePerformanceTests(unittest.TestCase):
             build_structural_index(self.source, database, source_format="free", verify_content=True,
                 progress=progress, check_cancel=exhausted)
         self.assertIs(caught.exception, failure)
-        with sqlite3.connect(database) as db:
+        with closing(sqlite3.connect(database)) as db, db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM code_units").fetchone()[0], before)
             self.assertEqual(db.execute("SELECT value FROM metadata WHERE key='snapshot_id'").fetchone()[0],
                              report["snapshot_id"])

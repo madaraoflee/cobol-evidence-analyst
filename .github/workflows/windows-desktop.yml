@@ -43,11 +43,6 @@ jobs:
           python-version: '3.13'
           architecture: x64
 
-      - name: Isolate the runtime profile
-        run: |
-          $profilePath = Join-Path $env:RUNNER_TEMP 'workbench-ci-profile'
-          "WORKBENCH_DATA_DIR=$profilePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Check Windows compiler and build target
         run: |
           $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import hashlib
 import os
 from pathlib import Path
@@ -49,13 +50,14 @@ class SourceSessionTests(unittest.TestCase):
             database = root / "index.sqlite"
             build_business_index(source, database, source_format="free", verify_content=True)
             overview = ensure_repository_search(database, source)
-            with sqlite3.connect(database) as db:
+            with closing(sqlite3.connect(database)) as db, db:
                 other_before = db.execute("SELECT sha256 FROM source_files WHERE relative_path='other.cbl'").fetchone()[0]
                 old_count = db.execute("SELECT COUNT(*) FROM business_rules WHERE relative_path='change.cbl' AND normalized_text LIKE '%OLD-LEVEL%'").fetchone()[0]
             self.assertGreater(old_count, 0)
             stat = changed.stat()
             changed.write_text(changed.read_text().replace("OLD-LEVEL", "NEW-LEVEL"), encoding="utf-8")
             os.utime(changed, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+            captured_digest = hashlib.sha256(changed.read_bytes()).hexdigest()
             with QuestionSourceSession(database, source) as session:
                 capture = session.capture("change.cbl")
                 first_path = capture.path
@@ -65,7 +67,7 @@ class SourceSessionTests(unittest.TestCase):
                 refreshed = refresh_selected_sources(database, [capture], expected_snapshot_id=overview["snapshot_id"])
             self.assertEqual(refreshed["updated"], ["change.cbl"])
             self.assertNotEqual(refreshed["snapshot_id"], overview["snapshot_id"])
-            with sqlite3.connect(database) as db:
+            with closing(sqlite3.connect(database)) as db, db:
                 self.assertEqual(db.execute("SELECT sha256 FROM source_files WHERE relative_path='other.cbl'").fetchone()[0], other_before)
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM business_rules WHERE relative_path='change.cbl' AND normalized_text LIKE '%OLD-LEVEL%'").fetchone()[0], 0)
                 self.assertGreater(db.execute("SELECT COUNT(*) FROM business_rules WHERE relative_path='change.cbl' AND normalized_text LIKE '%NEW-LEVEL%'").fetchone()[0], 0)
@@ -73,7 +75,7 @@ class SourceSessionTests(unittest.TestCase):
                 self.assertGreater(db.execute("SELECT COUNT(*) FROM repo_fts WHERE repo_fts MATCH ?", ('"new-level"',)).fetchone()[0], 0)
             self.assertEqual(repository_search_overview(database, source)["snapshot_id"], refreshed["snapshot_id"])
             # A later disk edit does not rewrite this question's captured version.
-            self.assertEqual(hashlib.sha256(b"PROGRAM-ID. CHANGE.\nPROCEDURE DIVISION.\nMOVE NEW-LEVEL TO RESULT-LEVEL.\n").hexdigest(), capture.sha256)
+            self.assertEqual(captured_digest, capture.sha256)
 
     def test_failed_transaction_keeps_old_snapshot(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -106,7 +108,7 @@ class SourceSessionTests(unittest.TestCase):
             database = root / "index.sqlite"
             build_business_index(source, database, source_format="free", verify_content=True)
             overview = ensure_repository_search(database, source)
-            with sqlite3.connect(database) as db:
+            with closing(sqlite3.connect(database)) as db, db:
                 before = db.execute("SELECT status,target_entity_id FROM relations WHERE relative_path='caller.cbl' AND relation_type='CALLS'").fetchone()
             self.assertEqual(before[0], "confirmed")
             self.assertIsNotNone(before[1])
@@ -114,7 +116,7 @@ class SourceSessionTests(unittest.TestCase):
             with QuestionSourceSession(database, source) as session:
                 refreshed = refresh_selected_sources(database, [session.capture("alternate.cbl")],
                     expected_snapshot_id=overview["snapshot_id"])
-            with sqlite3.connect(database) as db:
+            with closing(sqlite3.connect(database)) as db, db:
                 after = db.execute("SELECT status,target_entity_id FROM relations WHERE relative_path='caller.cbl' AND relation_type='CALLS'").fetchone()
                 self.assertEqual(db.execute("SELECT sha256 FROM source_files WHERE relative_path='target.cbl'").fetchone()[0],
                     hashlib.sha256((source / "target.cbl").read_bytes()).hexdigest())

@@ -85,7 +85,7 @@ class CompleteSourceBudgetTests(unittest.TestCase):
         for page in self.pages(self.requests[0]):
             text = self.files[page["relative_path"]]
             self.assertEqual(page["source_text"], "\n".join(text.splitlines()[page["start_line"] - 1:page["end_line"]]))
-            self.assertEqual(page["source_sha256"], hashlib.sha256(text.encode()).hexdigest())
+            self.assertEqual(page["source_sha256"], hashlib.sha256((self.source / page["relative_path"]).read_bytes()).hexdigest())
             self.assertEqual(page["evidence_id"], _identify_page(page))
         return self.requests[0], result
 

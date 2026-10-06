@@ -53,7 +53,7 @@ class FrameworkChatSemanticsTests(unittest.TestCase):
         build_business_index(self.source, self.database, source_format="free", verify_content=True)
         ensure_repository_search(self.database, self.source)
         self.page = {"relative_path": "rule.cbl", "program_name": "ORDER-RULE",
-            "source_sha256": hashlib.sha256(source.encode()).hexdigest(), "evidence_id": "ev:caller",
+            "source_sha256": hashlib.sha256((self.source / "rule.cbl").read_bytes()).hexdigest(), "evidence_id": "ev:caller",
             "start_line": 1, "end_line": len(source.splitlines()), "source_text": source,
             "selection_reasons": ["question_match"]}
         with closing(sqlite3.connect(self.database)) as db:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
@@ -108,7 +109,7 @@ class BusinessMapSelectionTests(unittest.TestCase):
             return result, sum(work)
 
         before, baseline = measure()
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             unit = connection.execute("SELECT * FROM code_units WHERE relative_path='other.cbl' LIMIT 1").fetchone()
             for index in range(12000):
                 row = list(unit)

@@ -39,7 +39,7 @@ class BusinessDetailPlannerTests(unittest.TestCase):
         last = first if literal else len(lines)
         return {"relative_path": path, "start_line": first, "end_line": last,
                 "source_text": "\n".join(lines[first - 1:last]),
-                "source_sha256": hashlib.sha256(text.encode()).hexdigest(),
+                "source_sha256": hashlib.sha256((self.source / path).read_bytes()).hexdigest(),
                 "evidence_id": f"ev_{path}_{first}_{last}", "selection_reasons": ["question_match"]}
 
     def ask(self, question, pages, **options):

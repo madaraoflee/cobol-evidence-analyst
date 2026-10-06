@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import hashlib
 from pathlib import Path
 import sqlite3
@@ -106,11 +107,11 @@ class RepositoryFrameworkContextTests(unittest.TestCase):
         self.assertFalse(call["target_source_available"])
         self.assertFalse(call["runtime_verified"])
         self.assertFalse(call["parameter_binding_verified"])
-        self.assertEqual(call["source_sha256"], hashlib.sha256(text.encode()).hexdigest())
+        self.assertEqual(call["source_sha256"], hashlib.sha256((self.source_root / "first.cbl").read_bytes()).hexdigest())
         self.assertEqual(call["source_text"], text.splitlines()[call["start_line"] - 1])
         references = {item["reference_id"]: item for item in result["references"]}
         self.assertTrue(any("FETCH-LOCK" in references[key]["matched_terms"] for key in call["reference_ids"]))
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             span = connection.execute("SELECT relative_path,start_line,end_line,source_sha256,text "
                 "FROM evidence_spans WHERE evidence_id=?", (call["evidence_id"],)).fetchone()
         self.assertEqual(span, ("first.cbl", call["start_line"], call["end_line"], call["source_sha256"], call["source_text"]))
@@ -171,7 +172,7 @@ class RepositoryFrameworkContextTests(unittest.TestCase):
     def test_cancellation_rolls_back_new_evidence_across_files(self):
         self.build({"first.cbl": program("FIRSTENTRY", "FETCH-LOCK"),
                     "second.cbl": program("SECONDENTRY", "SAVE-ROW")})
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             before = connection.execute("SELECT COUNT(*) FROM evidence_spans").fetchone()[0]
         original = knowledge._verified_lines
         def interrupted(root, item, check, limit):
@@ -181,7 +182,7 @@ class RepositoryFrameworkContextTests(unittest.TestCase):
         with mock.patch.object(knowledge, "_verified_lines", interrupted):
             with self.assertRaisesRegex(RuntimeError, "cancelled"):
                 self.context()
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             after = connection.execute("SELECT COUNT(*) FROM evidence_spans").fetchone()[0]
         self.assertEqual(after, before)
 

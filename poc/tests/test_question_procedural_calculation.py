@@ -46,7 +46,7 @@ class ProceduralCalculationTests(unittest.TestCase):
         last = len(lines) if end is None else end
         return {"relative_path": "assign.cbl", "start_line": start, "end_line": last,
             "source_text": "\n".join(lines[start - 1:last]), "evidence_id": f"ev_assign_{start}_{last}",
-            "source_sha256": hashlib.sha256(self.text.encode()).hexdigest(),
+            "source_sha256": hashlib.sha256((self.source / "assign.cbl").read_bytes()).hexdigest(),
             "selection_reasons": ["question_match"]}
 
     def ask(self, pages, **options):

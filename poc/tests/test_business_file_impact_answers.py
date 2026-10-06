@@ -70,7 +70,7 @@ class BusinessFileImpactAnswerTests(unittest.TestCase):
             physical = (self.source / page["relative_path"]).read_text(encoding="utf-8")
             self.assertEqual(page["source_text"], "\n".join(
                 physical.splitlines()[page["start_line"] - 1:page["end_line"]]))
-            self.assertEqual(page["source_sha256"], hashlib.sha256(physical.encode()).hexdigest())
+            self.assertEqual(page["source_sha256"], hashlib.sha256((self.source / page["relative_path"]).read_bytes()).hexdigest())
         observations = payload["question_investigation"].get("file_impact", {}).get("observations", [])
         for observation in observations:
             self.assertLessEqual(set(observation["evidence_ids"]), identifiers)

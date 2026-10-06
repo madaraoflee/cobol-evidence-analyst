@@ -90,7 +90,7 @@ class WorkspaceGraphPreviewTests(unittest.TestCase):
         return result, instructions, statements
 
     def test_real_strict_copy_and_call_facts_match_original_preview(self):
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             # Strict COPY expansion creates cross-file provenance, but those
             # derived containment facts do not belong to the graph preview.
             mismatches = dict(connection.execute(
@@ -120,7 +120,7 @@ class WorkspaceGraphPreviewTests(unittest.TestCase):
                          {"CALLS", "CALL_TARGET_FROM", "INCLUDES_COPY"})
 
     def test_cross_file_graph_provenance_uses_original_global_order(self):
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             unit = connection.execute("SELECT unit_id FROM code_units WHERE relative_path='z-service.cbl' LIMIT 1").fetchone()[0]
             evidence = connection.execute("SELECT evidence_id FROM evidence_spans WHERE relative_path='a-entry.cbl' "
                                           "ORDER BY start_line LIMIT 1").fetchone()[0]
@@ -133,11 +133,11 @@ class WorkspaceGraphPreviewTests(unittest.TestCase):
         self.assertTrue(any("ORDER BY e.relative_path" in statement for statement in statements))
 
     def test_archive_without_path_index_keeps_original_preview(self):
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             connection.execute("DROP INDEX repo_relations_path")
         self.assertEqual(web_app._relationships(self.database, self.snapshot),
                          original_preview(self.database, self.snapshot, web_app.MAX_GRAPH_EDGES))
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             self.assertIsNone(connection.execute("SELECT 1 FROM sqlite_master WHERE name='repo_relations_path'").fetchone())
 
     def test_snapshot_mismatch_is_rejected(self):
@@ -146,7 +146,7 @@ class WorkspaceGraphPreviewTests(unittest.TestCase):
 
     def test_unrelated_field_growth_does_not_increase_query_work(self):
         before, before_instructions, _ = self.measured_preview()
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             unit, evidence = connection.execute("SELECT unit_id,evidence_id FROM code_units "
                                                 "WHERE relative_path='a-entry.cbl' LIMIT 1").fetchone()
             connection.executemany("INSERT INTO relations VALUES (?,?,?,?,?,?,?,?,?,?)", (

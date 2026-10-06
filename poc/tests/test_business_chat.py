@@ -379,6 +379,7 @@ class BusinessChatTests(unittest.TestCase):
 
     def test_live_edit_after_request_keeps_answer_bound_to_captured_version(self):
         path = self.write_window()
+        original_digest = hashlib.sha256(path.read_bytes()).hexdigest()
         self.build()
         def respond(payload, envelope):
             response = self.grounded_window_reply(payload, envelope)
@@ -389,7 +390,7 @@ class BusinessChatTests(unittest.TestCase):
         self.assertIn("不超过9天", output["agent_result"]["answer"])
         self.assertTrue(output["agent_result"]["model_answer_recorded"])
         self.assertEqual(output["agent_result"]["evidence_refs"][0]["source_sha256"],
-                         hashlib.sha256(path.read_text().replace("VALUE 2", "VALUE 9").encode()).hexdigest())
+                         original_digest)
 
     def test_equal_length_edit_with_preserved_mtime_reaches_actual_request(self):
         path = self.write_window()

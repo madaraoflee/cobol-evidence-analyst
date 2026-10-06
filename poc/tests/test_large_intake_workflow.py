@@ -54,7 +54,7 @@ class LargeIntakeWorkflowTests(unittest.TestCase):
         self.assertEqual(report["program_count"], 2)
         self.assertTrue(report["unresolved_dependencies"])
         self.assertTrue(report["source_manifest_verified"])
-        with sqlite3.connect(self.output / "structural-index.sqlite") as connection:
+        with closing(sqlite3.connect(self.output / "structural-index.sqlite")) as connection, connection:
             self.assertEqual(connection.execute("SELECT relative_path FROM source_files").fetchall(), [("main.cbl",)])
 
     def test_runner_rejects_entry_over_16_mib_before_detailed_parse(self):
@@ -108,7 +108,7 @@ class LargeIntakeWorkflowTests(unittest.TestCase):
                 raise AnalysisCancelled("test cancellation")
         with self.assertRaises(AnalysisCancelled):
             build_structural_index(self.source, database, include_paths=["main.cbl"], quiet=True, progress=progress)
-        with sqlite3.connect(database) as connection:
+        with closing(sqlite3.connect(database)) as connection, connection:
             self.assertEqual(connection.execute("SELECT value FROM metadata WHERE key='snapshot_id'").fetchone()[0], first["snapshot_id"])
             self.assertEqual(connection.execute("SELECT name FROM symbols WHERE symbol_type='Program'").fetchone()[0], "MAIN-PROGRAM")
 

@@ -1,6 +1,7 @@
 """Regressions for changing file metadata and previously saved local indexes."""
 from __future__ import annotations
 
+from contextlib import closing
 from contextlib import contextmanager
 import hashlib
 import json
@@ -62,7 +63,7 @@ class FileMetadataCompatibilityTests(unittest.TestCase):
             report = build_business_index(self.source, self.database, source_format='free')
             ensure_repository_search(self.database, self.source)
             item = {'relative_path': 'sample.cbl', 'encoding': 'utf-8',
-                    'sha256': hashlib.sha256(SOURCE.encode()).hexdigest(),
+                    'sha256': hashlib.sha256(self.path.read_bytes()).hexdigest(),
                     'line_count': len(SOURCE.splitlines())}
             self.assertEqual([line for line, _ in _verified_lines(self.source, item, None, 1000)], SOURCE.splitlines())
             with mock.patch('business_index._verify_file', side_effect=AssertionError('unchanged source reread')):
@@ -77,7 +78,7 @@ class FileMetadataCompatibilityTests(unittest.TestCase):
     def test_existing_catalog_schema_is_migrated_without_rereading_source(self):
         catalog = self.base / 'catalog.sqlite'
         first = refresh_source_catalog(self.source, catalog, source_format='free')
-        with sqlite3.connect(catalog) as connection:
+        with closing(sqlite3.connect(catalog)) as connection, connection:
             connection.execute('ALTER TABLE catalog_files ADD COLUMN ctime_ns INTEGER NOT NULL DEFAULT 1')
         with changing_creation_metadata() as reads, \
              mock.patch('source_catalog._read_prefix', side_effect=AssertionError('cached header reread')):
@@ -85,13 +86,13 @@ class FileMetadataCompatibilityTests(unittest.TestCase):
         self.assertEqual(second['files']['cached'], 1)
         self.assertEqual(second['snapshot_id'], first['snapshot_id'])
         self.assertEqual(reads, [])
-        with sqlite3.connect(catalog) as connection:
+        with closing(sqlite3.connect(catalog)) as connection, connection:
             self.assertNotIn('ctime_ns', {row[1] for row in connection.execute('PRAGMA table_info(catalog_files)')})
 
     def test_existing_retrieval_state_recovers_and_then_reuses_verified_text(self):
         build_business_index(self.source, self.database, source_format='free')
         ensure_repository_search(self.database, self.source)
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             connection.execute('ALTER TABLE repo_source_state ADD COLUMN ctime_ns INTEGER NOT NULL DEFAULT 1')
             stats = json.loads(connection.execute("SELECT value FROM metadata WHERE key='file_stats'").fetchone()[0])
             for values in stats.values():
@@ -122,7 +123,7 @@ class FileMetadataCompatibilityTests(unittest.TestCase):
 
     def test_actual_content_change_is_still_rejected_by_hash_verification(self):
         item = {'relative_path': 'sample.cbl', 'encoding': 'utf-8',
-                'sha256': hashlib.sha256(SOURCE.encode()).hexdigest(),
+                'sha256': hashlib.sha256(self.path.read_bytes()).hexdigest(),
                 'line_count': len(SOURCE.splitlines())}
         before = self.path.stat()
         self.path.write_text(SOURCE.replace('* 12', '* 24'), encoding='utf-8')

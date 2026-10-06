@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import sqlite3
 import sys
 import tempfile
@@ -56,7 +57,7 @@ class SourceIntakeTests(unittest.TestCase):
             self.assertEqual(report["files"]["removed"], 1)
             self.assertEqual(report["diagnostics"]["program_count"], 1)
             self.assertEqual(report["diagnostics"]["copybook_count"], 1)
-            with sqlite3.connect(database) as connection:
+            with closing(sqlite3.connect(database)) as connection, connection:
                 names = connection.execute(
                     "SELECT name FROM symbols WHERE symbol_type = 'Program'"
                 ).fetchall()
@@ -80,7 +81,7 @@ class SourceIntakeTests(unittest.TestCase):
             (empty / "binary.cbl").write_bytes(b"\x00\x01\x02\x00" * 100)
             with self.assertRaisesRegex(ValueError, "No source files could be decoded"):
                 build_structural_index(empty, database, quiet=True)
-            with sqlite3.connect(database) as connection:
+            with closing(sqlite3.connect(database)) as connection, connection:
                 self.assertEqual(connection.execute(
                     "SELECT value FROM metadata WHERE key = 'snapshot_id'"
                 ).fetchone()[0], first["snapshot_id"])
@@ -100,7 +101,7 @@ class SourceIntakeTests(unittest.TestCase):
                 database = base / "index.sqlite"
                 report = build_structural_index(source, database, encoding=encoding, quiet=True)
                 self.assertEqual(report["diagnostics"]["program_count"], 1)
-                with sqlite3.connect(database) as connection:
+                with closing(sqlite3.connect(database)) as connection, connection:
                     self.assertEqual(connection.execute(
                         "SELECT encoding FROM source_files"
                     ).fetchone()[0], encoding)
@@ -137,7 +138,7 @@ class SourceIntakeTests(unittest.TestCase):
             corrected = build_structural_index(source, database, source_format="free", quiet=True)
             self.assertTrue(corrected["source_options_rebuild_required"])
             self.assertEqual(corrected["files"]["indexed_or_updated"], 1)
-            with sqlite3.connect(database) as connection:
+            with closing(sqlite3.connect(database)) as connection, connection:
                 self.assertEqual(connection.execute(
                     "SELECT target_name FROM relations WHERE relation_type = 'CALLS'"
                 ).fetchall(), [("EXTERNAL-RATE",)])

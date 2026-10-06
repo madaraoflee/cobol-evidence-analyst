@@ -1,5 +1,6 @@
 """Offline file-impact leads from synthetic indexed source, with explicit gaps."""
 
+from contextlib import closing
 from pathlib import Path
 import shutil
 import sqlite3
@@ -124,7 +125,7 @@ class FileImpactEvidenceTests(unittest.TestCase):
 
     def test_stale_indexed_source_cannot_supply_declarations(self):
         self.build()
-        with sqlite3.connect(self.database) as db:
+        with closing(sqlite3.connect(self.database)) as db, db:
             db.execute("UPDATE repo_pages SET source_sha256='stale' WHERE relative_path='programs/debit.cbl'")
         candidates, frontier, _ = self.nominate(["programs/debit.cbl"])
         self.assertFalse(any(row["kind"] == "file_definitions" for row in candidates))

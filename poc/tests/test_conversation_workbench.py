@@ -183,7 +183,7 @@ class ConversationWorkbenchTests(unittest.TestCase):
         self.assertEqual(refreshed["source_versions"][0]["version_id"], version["version_id"])
         self.assertEqual(refreshed["conversation"]["id"], conversation_id)
         self.assertEqual(refreshed["conversation"]["messages"], original_messages)
-        with sqlite3.connect(self.output / "structural-index.sqlite") as db:
+        with closing(sqlite3.connect(self.output / "structural-index.sqlite")) as db, db:
             paths = [row[0] for row in db.execute("SELECT relative_path FROM source_files ORDER BY relative_path")]
             rules = "\n".join(row[0] for row in db.execute(
                 "SELECT normalized_text FROM business_rules WHERE relative_path='quota.cbl'"))
@@ -233,7 +233,7 @@ class ConversationWorkbenchTests(unittest.TestCase):
         state = self.app.state()
         self.assertEqual(state["project"], before["project"])
         self.assertEqual(state["conversation"], before["conversation"])
-        with sqlite3.connect(self.output / "structural-index.sqlite") as db:
+        with closing(sqlite3.connect(self.output / "structural-index.sqlite")) as db, db:
             snapshot = db.execute("SELECT value FROM metadata WHERE key='snapshot_id'").fetchone()[0]
             rules = "\n".join(row[0] for row in db.execute(
                 "SELECT normalized_text FROM business_rules WHERE relative_path='quota.cbl'"))

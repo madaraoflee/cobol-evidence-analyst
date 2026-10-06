@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
@@ -194,7 +195,7 @@ class ConversationStoreTests(unittest.TestCase):
             self.store.get(self.identifier)
         with self.assertRaisesRegex(ValueError, "CONVERSATION_NOT_FOUND"):
             self.store.delete(self.identifier)
-        with sqlite3.connect(self.store.path) as db:
+        with closing(sqlite3.connect(self.store.path)) as db, db:
             self.assertEqual(db.execute("SELECT count(*) FROM messages WHERE conversation_id=?",
                                         (self.identifier,)).fetchone()[0], 0)
         self.assertEqual(other.get(other_id)["messages"][0]["content"],

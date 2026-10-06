@@ -76,11 +76,20 @@ class OfflineFrameworkSemanticsTests(unittest.TestCase):
         return [{"evidence_id": "ev-test", "relative_path": "entry.cbl",
                  "program_name": "ENTRYJOB", "start_line": 1,
                  "end_line": len(text.splitlines()), "source_text": text,
-                 "source_sha256": hashlib.sha256(text.encode()).hexdigest(), "format_hint": "free"}]
+                 "source_sha256": hashlib.sha256(self.path.read_bytes()).hexdigest(), "format_hint": "free"}]
 
     def facts(self, pages=None, **kwargs):
         return build_framework_facts(self.database, self.pages() if pages is None else pages,
                                     reference_path=kwargs.pop("reference_path", self.manual), **kwargs)
+
+    def test_crlf_source_binds_only_its_original_byte_version(self):
+        self.path.write_bytes(SOURCE.replace("\n", "\r\n").encode("utf-8"))
+        self.assertEqual(self.build()["framework_semantics"]["fact_count"], 1)
+        page = self.pages()[0]
+        self.assertEqual(len(self.facts([page])["facts"]), 1)
+        normalized = hashlib.sha256(SOURCE.encode("utf-8")).hexdigest()
+        self.assertNotEqual(page["source_sha256"], normalized)
+        self.assertFalse(self.facts([{**page, "source_sha256": normalized}])["facts"])
 
     def test_import_persists_bound_operation_before_any_question(self):
         report = self.build()
@@ -138,7 +147,7 @@ class OfflineFrameworkSemanticsTests(unittest.TestCase):
 
     def test_older_binding_cache_is_rebuilt_for_same_source_and_manual(self):
         self.build()
-        with sqlite3.connect(self.database) as db:
+        with closing(sqlite3.connect(self.database)) as db, db:
             db.execute("UPDATE framework_file_semantics SET version='framework-semantics/v1.2'")
         from framework_binding import bind_framework_source
         with patch("framework_binding.bind_framework_source", wraps=bind_framework_source) as binding:
@@ -207,7 +216,7 @@ class OfflineFrameworkSemanticsTests(unittest.TestCase):
                     self.assertIsNotNone(directive)
                 pages = self.pages() + [{"evidence_id": "ev-copy", "relative_path": "ROW-LAYOUT.cpy",
                     "program_name": "ROW-LAYOUT", "start_line": 1, "end_line": len(contents.splitlines()),
-                    "source_text": contents, "source_sha256": hashlib.sha256(contents.encode()).hexdigest(),
+                    "source_text": contents, "source_sha256": hashlib.sha256(copy_path.read_bytes()).hexdigest(),
                     "format_hint": "free"}]
                 facts = self.facts(pages)["facts"]
                 self.assertTrue(facts)

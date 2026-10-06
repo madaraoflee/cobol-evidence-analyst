@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import http.client
 import json
 from pathlib import Path
@@ -324,7 +325,7 @@ class WebAppTests(unittest.TestCase):
             self.assertIn("STOCK-UPDATE", kwargs["entry_program"])
             self.assertEqual(kwargs["analysis_mode"], "business")
             self.assertEqual(kwargs["source_root"], source.resolve())
-            with sqlite3.connect(database) as connection:
+            with closing(sqlite3.connect(database)) as connection, connection:
                 snapshot = connection.execute("SELECT value FROM metadata WHERE key='snapshot_id'").fetchone()[0]
             return {"runner_status": "COMPLETED", "reason_code": "AGENT_RUN_COMPLETED", "agent_result": {
                 "snapshot_id": snapshot, "status": "ABSTAINED", "answer": "模拟模型没有给出业务结论。",

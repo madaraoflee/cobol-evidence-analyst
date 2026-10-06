@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import contextlib
 import hashlib
 import io
@@ -93,7 +94,7 @@ class ProjectPocTests(unittest.TestCase):
         self.assertTrue(bundle["selection"]["include_extensionless"])
         self.assertEqual(2, bundle["build_report"]["files"]["decoded"])
         self.assertEqual(2, bundle["inventory"]["snapshot"]["decoded_file_count"])
-        with sqlite3.connect(bundle["artifacts"]["database"]) as connection:
+        with closing(sqlite3.connect(bundle["artifacts"]["database"])) as connection, connection:
             names = {row[0] for row in connection.execute("SELECT name FROM symbols WHERE symbol_type='Program'")}
         self.assertEqual({"REQUESTJOB", "SECONDJOB"}, names)
 

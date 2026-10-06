@@ -43,7 +43,7 @@ class LiveBusinessEvalTests(unittest.TestCase):
             source.mkdir()
             text = "PROGRAM-ID. ENTRY.\nMOVE INPUT-VALUE TO RESULT-VALUE.\n"
             (source / "entry.cbl").write_text(text, encoding="utf-8")
-            digest = hashlib.sha256(text.encode()).hexdigest()
+            digest = hashlib.sha256((source / "entry.cbl").read_bytes()).hexdigest()
             cases = root / "cases.json"
             cases.write_text(json.dumps({"cases": [{"id": "entry", "question": "How is RESULT-VALUE set?",
                 "source_snapshot_id": "snapshot-a", "history": [{"role": "user", "content": "Earlier question"}],

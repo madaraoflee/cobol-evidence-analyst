@@ -50,7 +50,7 @@ class ProcedureExpansionTests(unittest.TestCase):
         self.assertEqual(nested["origin"]["line"], 1)
         self.assertEqual([item["copy_name"] for item in nested["include_chain"]], ["BATCHCTL", "ENDCTL"])
         self.assertEqual(nested["include_chain"][1]["line"], 2)
-        self.assertEqual(nested["origin"]["source_hash"], hashlib.sha256(b"GOBACK.\n").hexdigest())
+        self.assertEqual(nested["origin"]["source_hash"], hashlib.sha256((self.root / "endctl.cpy").read_bytes()).hexdigest())
         self.assertEqual(len(result["source_files"]), 4)
         json.dumps(result)
 

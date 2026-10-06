@@ -100,11 +100,14 @@ class DesktopAnswerParityTests(unittest.TestCase):
                        if not name.startswith(("COMPANY_", "WORKBENCH_", "PYTHON"))
                        and name not in {"FRAMEWORK_REFERENCE_PATH", "AGENT_SETTINGS_PATH"}}
         environment["PYTHONPATH"] = str(self.staged)
+        environment["PYTHONUTF8"] = "1"
+        environment["PYTHONIOENCODING"] = "utf-8"
         result = subprocess.run([sys.executable, "-c", WORKER,
                                  str(self.profile) if desktop else "source", str(self.source),
                                  str(self.root / ("desktop.sqlite" if desktop else "source.sqlite"))],
                                 cwd=self.root, env=environment, capture_output=True, text=True,
-                                check=True, timeout=30)
+                                encoding="utf-8", check=False, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)
 
     def test_same_configuration_preserves_model_requests_evidence_and_answer(self):

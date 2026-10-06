@@ -87,7 +87,7 @@ class QuestionInvestigationTests(unittest.TestCase):
         last = len(lines) if last is None else last
         return {"relative_path": path, "start_line": first, "end_line": last,
                 "source_text": "\n".join(lines[first-1:last]),
-                "source_sha256": hashlib.sha256(content.encode()).hexdigest(),
+                "source_sha256": hashlib.sha256((self.source / path).read_bytes()).hexdigest(),
                 "evidence_id": identifier or f"source_{path}_{first}_{last}",
                 "selection_reasons": ["question_match"]}
 
@@ -115,6 +115,18 @@ class QuestionInvestigationTests(unittest.TestCase):
         self.assertEqual(self.item(after, "formula")["candidate_count"], 1)
         self.assertEqual(after["open_gaps"], [])
         self.assertEqual(after["planned_actions"], [])
+
+    def test_crlf_source_keeps_raw_version_and_rejects_normalized_digest(self):
+        self.write("entry.cbl", "VALUEPLAN", "COMPUTE NET-VALUE = 11 * 2.")
+        path = self.source / "entry.cbl"
+        path.write_bytes(path.read_text(encoding="utf-8").replace("\n", "\r\n").encode("utf-8"))
+        self.build()
+        page = self.page("entry.cbl")
+        question = "VALUEPLAN NET-VALUE 怎么计算？"
+        self.assertTrue(self.investigate(question, [page])["can_answer"])
+        normalized = hashlib.sha256(path.read_text(encoding="utf-8").encode("utf-8")).hexdigest()
+        self.assertNotEqual(page["source_sha256"], normalized)
+        self.assertFalse(self.investigate(question, [{**page, "source_sha256": normalized}])["can_answer"])
 
     def test_input_field_match_keeps_later_formula_with_same_output(self):
         self.write("entry.cbl", "VALUEPLAN", "\n".join(

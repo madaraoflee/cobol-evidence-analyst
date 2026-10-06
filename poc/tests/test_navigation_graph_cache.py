@@ -68,7 +68,7 @@ class NavigationGraphCacheTests(unittest.TestCase):
 
     def test_same_content_rebuild_options_invalidate_the_cached_generation(self):
         self.mapping()
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             connection.execute("UPDATE metadata SET value=value || '-refreshed' WHERE key='indexed_at_utc'")
         with mock.patch.object(discovery, "_load_navigation_graph", wraps=discovery._load_navigation_graph) as facts:
             self.mapping()

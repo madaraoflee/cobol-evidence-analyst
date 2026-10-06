@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import hashlib
 from pathlib import Path
 import sqlite3
@@ -137,7 +138,7 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertEqual(result['files']['cached'], 0)
         self.assertTrue(result['scope']['full_file_content_verified'])
         self.assertFalse(result['source_manifest_verified'])
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             payload = connection.execute('SELECT payload FROM catalog_files').fetchone()[0]
         self.assertIn(hashlib.sha256(path.read_bytes()).hexdigest(), payload)
 
