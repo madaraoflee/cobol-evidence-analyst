@@ -52,17 +52,40 @@ jobs:
           python build_app.py --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Prepare the isolated desktop build environment
+        id: prepare
+        shell: python
+        run: |
+          from argparse import Namespace
+          import os
+          from pathlib import Path
+          import sys
+
+          sys.path.insert(0, str(Path.cwd()))
+          from build_app import prepare_environment
+
+          interpreter = prepare_environment(Namespace(skip_install=False))
+          with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as handle:
+              handle.write(f'interpreter={interpreter}\n')
+
+      - name: Check source browser runtime without model calls
+        env:
+          BUILD_PYTHON: ${{ steps.prepare.outputs.interpreter }}
+        run: |
+          & $env:BUILD_PYTHON poc/desktop_app.py --browser --self-test --data-dir "$env:RUNNER_TEMP\source-self-test-profile" --self-test-result "$env:RUNNER_TEMP\source-self-test.json"
+          $selfTestCode = $LASTEXITCODE
+          if ($selfTestCode -ne 0) {
+            $diagnostic = Join-Path $env:RUNNER_TEMP 'source-self-test-profile\desktop.log'
+            if (Test-Path -LiteralPath $diagnostic) { Get-Content -LiteralPath $diagnostic -Tail 40 }
+            exit $selfTestCode
+          }
+
       - name: Run offline Python regressions
         timeout-minutes: 20
         run: python -m unittest discover -s poc/tests -p 'test_*.py'
 
-      - name: Check source browser runtime without model calls
-        run: |
-          python poc/desktop_app.py --browser --self-test --data-dir "$env:RUNNER_TEMP\source-self-test-profile" --self-test-result "$env:RUNNER_TEMP\source-self-test.json"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
       - name: Compile with MSVC and verify the compiled runtime
-        run: python build_app.py --jobs 4 --output-dir release
+        run: python build_app.py --skip-install --jobs 4 --output-dir release
 
       - name: Verify and collect only the final delivery
         shell: python
