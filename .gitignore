@@ -38,3 +38,7 @@ repo-inventory*.json
 repo-inventory*.md
 conversations.sqlite
 conversations.sqlite-*
+
+# Private desktop build environments, compiler output, and binary deliveries
+.build/
+release/

@@ -22,10 +22,11 @@ from company_api import APIConfigurationError, PROJECT_ENV_FILE, _read_local_env
 from business_index import _clean
 from source_reading import _verified_lines
 from structural_index import _stable_id
+from app_paths import config_root, state_root
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_REFERENCE_PATH = PROJECT_ROOT / ".poc-data" / "framework" / "reference.md"
+PROJECT_ROOT = config_root()
+DEFAULT_REFERENCE_PATH = state_root() / "framework" / "reference.md"
 MAX_REFERENCE_BYTES = 2 * 1024 * 1024
 MAX_REFERENCE_DOCUMENTS = 256
 MAX_REFERENCE_COLLECTION_BYTES = 32 * 1024 * 1024

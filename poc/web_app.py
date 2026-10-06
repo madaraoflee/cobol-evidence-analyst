@@ -38,11 +38,12 @@ from agent_policy import resolve_agent_policy
 from api_error_details import build_diagnostic, build_local_diagnostic, format_diagnostic, sanitize_diagnostic
 from source_versions import record_version, versions
 from source_update import SourceUpdateBackup
+from app_paths import RESOURCE_ROOT, state_root
 
 
-WEB_ROOT = Path(__file__).resolve().parent / "web"
-FRAMEWORK_DEMO_SOURCE = Path(__file__).resolve().parent / "fixtures" / "framework-workbench" / "source"
-FRAMEWORK_DEMO_OUTPUT = Path(__file__).resolve().parents[1] / ".poc-data" / "framework-runs"
+WEB_ROOT = RESOURCE_ROOT / "web"
+FRAMEWORK_DEMO_SOURCE = RESOURCE_ROOT / "fixtures" / "framework-workbench" / "source"
+FRAMEWORK_DEMO_OUTPUT = state_root() / "framework-runs"
 STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/i18n.js": "i18n.js", "/styles.css": "styles.css",
                 "/appearance.css": "appearance.css", "/theme.js": "theme.js", "/layout.js": "layout.js",
                 "/markdown.js": "markdown.js", "/marked.umd.js": "marked.umd.js"}
@@ -1424,7 +1425,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 
 def create_server(port: int = 8765, *, app: WorkbenchState | None = None, web_root: Path = WEB_ROOT) -> LocalServer:
-    return LocalServer(port, app or WorkbenchState(state_path=Path(__file__).resolve().parents[1] / ".poc-data" / "workbench-state.json"), web_root)
+    return LocalServer(port, app or WorkbenchState(state_path=state_root() / "workbench-state.json"), web_root)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

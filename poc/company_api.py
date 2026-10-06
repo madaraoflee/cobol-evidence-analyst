@@ -30,9 +30,11 @@ from pathlib import Path
 from typing import Any
 
 try:
+    from .app_paths import config_root
     from .api_diagnostics import APIResponseDiagnostics
     from .api_error_details import MAX_ERROR_BODY_BYTES, TRANSPORT_EXPLANATIONS, build_diagnostic, is_error_envelope, sanitize_diagnostic
 except ImportError:
+    from app_paths import config_root
     from api_diagnostics import APIResponseDiagnostics
     from api_error_details import MAX_ERROR_BODY_BYTES, TRANSPORT_EXPLANATIONS, build_diagnostic, is_error_envelope, sanitize_diagnostic
 
@@ -44,7 +46,7 @@ MAX_RESPONSE_BYTES = 1_000_000
 MAX_REQUEST_BYTES = 256_000
 DEFAULT_MAX_OUTPUT_TOKENS = 1_024
 SUPPORTED_API_STYLE = "openai_compatible"
-PROJECT_ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
+PROJECT_ENV_FILE = config_root() / ".env"
 MAX_ENV_FILE_BYTES = 65_536
 CONFIG_ENV_KEYS = frozenset({
     "COMPANY_API_BASE_URL", "COMPANY_API_KEY", "COMPANY_CHAT_MODEL",

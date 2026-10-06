@@ -5,9 +5,10 @@ import os
 from pathlib import Path
 
 from agent_policy import resolve_agent_policy
+from app_paths import state_root
 
 
-DEFAULT_SETTINGS_PATH = Path(__file__).resolve().parents[1] / ".poc-data" / "agent-settings.json"
+DEFAULT_SETTINGS_PATH = state_root() / "agent-settings.json"
 MAX_SETTINGS_BYTES = 32768
 
 

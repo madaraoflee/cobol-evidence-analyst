@@ -2,7 +2,9 @@
 
 **系统的最终交付是通用业务分析：直接提出业务问题，由系统在本地代码库查找、阅读和解释相关逻辑。** 没有固定业务主题词典或预置问答路线；演示案例只是操作示例。真实作业调度作为后续可选能力，当前聚焦本地 COBOL/COPYBOOK 与用户提供的框架资料。
 
-**统一发布入口（2026-10-04）：以 GitHub 的 `main` 分支为准。** 办公室电脑只需 Python 3.10 或更高版本及 Git，不需要安装额外 Python 包或构建前端；Node 仅供开发者运行页面测试。首次下载，在 Windows 终端执行：
+**桌面应用交付：** 在允许安装构建工具的 Windows 电脑双击根目录 `build_app.bat`，macOS 双击 `build_app.command`，再把 `release` 内的 ZIP 发给使用者。办公室电脑只需解压运行，现有 Python 3.13.4 无需更换；Windows 已有桌面运行组件时打开原生窗口，缺少时改用已有浏览器，也可双击包内 `OPEN-IN-BROWSER.bat`。两种系统须分别构建，Windows 发布包尚未生成及实机验收。Python 业务模块采用编译交付，提高还原成本，但无法保证不可反编译。首次准备、配置、更新和交付验收见[桌面版打包与使用](./docs/desktop-app.md)。
+
+**源码开发入口（2026-10-04）：以 GitHub 的 `main` 分支为准。** 以下操作面向源码运行方式，与上述桌面应用交付分开。源码运行需要 Python 3.10 或更高版本，现有 Python 3.13.4 可继续使用，不需要安装额外 Python 包或构建前端；Git 用于开发者获取和更新代码，Node 仅供开发者运行页面测试。首次下载，在开发电脑的 Windows 终端执行：
 
 ```bat
 git clone --branch main https://github.com/madaraoflee/cobol-evidence-analyst.git
