@@ -46,7 +46,7 @@ macOS 包的最低系统版本取决于构建时的 Python 和原生依赖。脚
 
 成功后，从该次运行的 **Artifacts** 下载 `COBOLWorkbench-windows-x64-<commit>-<attempt>`，保留期为 14 天。解开 GitHub 下载的外层封装，可得到三个文件：真正的应用交付包 `COBOLWorkbench-windows-x64.zip`、其 `.zip.sha256` 校验文件、以及从包内原样复制的 `BUILD-INFO.json`。校验可在 PowerShell 执行 `Get-FileHash .\COBOLWorkbench-windows-x64.zip -Algorithm SHA256`，将结果与 `.sha256` 第一列比较；随后按下节解压内层交付包并打开 EXE。PR 产物对应待合并测试版本，以运行页的提交信息为准。
 
-工作流不会上传仓库源码 ZIP、构建中间目录或使用者配置，不生成签名安装器。当前只完成了工作流的本地配置检查；尚未由 Windows runner 编译成功，也未完成办公室电脑实机验收。即使云端自检通过，仍需按本文末尾检查窗口或浏览器启动、文件选择和真实业务问答。运行环境与构建依赖参考 [Windows runner 清单](https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md)；工作流使用官方 [checkout](https://github.com/actions/checkout)、[setup-python](https://github.com/actions/setup-python) 和 [upload-artifact](https://github.com/actions/upload-artifact) 的固定 major 版本。
+工作流不会上传仓库源码 ZIP、构建中间目录或使用者配置，不生成签名安装器。2026-10-07 的 [Windows 原生构建](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/37511714204) 已成功，包含 2,008 项回归（2 项既有 POSIX 条件跳过）、源码浏览器自检和编译后二进制自检；交付 ZIP 已下载并复核。完整工程与回答质量记录见[本轮报告](./reports/2026-10-07-quality-speed-windows.md)。办公室电脑实机验收尚未完成。即使云端自检通过，仍需按本文末尾检查窗口或浏览器启动、文件选择和真实业务问答。运行环境与构建依赖参考 [Windows runner 清单](https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md)；工作流使用官方 [checkout](https://github.com/actions/checkout)、[setup-python](https://github.com/actions/setup-python) 和 [upload-artifact](https://github.com/actions/upload-artifact) 的固定 major 版本。
 
 ## 接收者第一次打开
 
@@ -81,8 +81,8 @@ Windows 浏览器模式没有上述桌面菜单，会保留一个控制对话框
 
 ## 发给领导前验收一次
 
-当前尚未确认办公室 Windows 的系统版本和处理器架构，也尚未生成并实测 Windows 发布包，不能宣称该电脑已经可以运行。
+本轮已生成并在 Windows 云端完成自动自检的发布包，目标为 Windows x64。办公室电脑的系统版本、处理器架构与实际启动流程尚未确认，不能据云端结果宣称该电脑已通过验收。
 
-至少在一台实际 Windows 电脑和一台目标架构的 Mac 上，用解压出的发布包完成：打开窗口、配置接口并测试连接、选择本机源码和结果目录、提出一个业务问题、关闭后重新打开查看历史，再替换为新包确认配置保留。macOS 如果同时交付 Intel 和 Apple 芯片版本，应分别验收。
+本轮以 Windows 为主，先在目标 Windows 电脑上，用解压出的发布包完成：打开窗口、配置接口并测试连接、选择本机源码和结果目录、提出一个业务问题、关闭后重新打开查看历史，再替换为新包确认配置保留。如果另行交付 macOS 版本，应在对应目标架构的 Mac 上独立验收；Intel 和 Apple 芯片版本不能互相替代。
 
 构建阶段的自动检查不能替代桌面窗口、WebView2、系统拦截与真实接口的实机检查。若窗口未能启动，可先看数据目录中的 `desktop.log`；若编译失败，保留构建窗口中的错误输出，再检查 Python 版本、编译器和依赖下载是否正常。

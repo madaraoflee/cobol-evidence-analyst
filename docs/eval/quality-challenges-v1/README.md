@@ -14,7 +14,7 @@
 | `copy-boundary.json` | `poc/fixtures/error-return-v5/copy-boundary/programs` | `copy-parameter-writeback`：BY CONTENT / BY VALUE 阻断写回 |
 | `complex-main.json` | `poc/fixtures/complex-business-v2/main` | `rate-source-and-gating`：数据来源、查询条件、公式及失败门槛；`dynamic-target-boundary`：配置决定的动态目标及不能推断的部分；`validation-priority-and-final-result`：首个错误保留、后续步骤跳过及最终结果映射 |
 
-每题包含 `required_findings`、禁止断言、允许未知、预期来源，以及人工供证的完整必要小文件。`supporting_ranges` 指向支撑每项判断的精确行段；它和 `reviewed_context.source_ranges` 均保存整个源文件 SHA-256。完整文件用于保留控制上下文，不把参考答案或 profile 注入模型。`expected_source_paths` 仅是定位诊断；路径齐全、引用齐全都不能代替答案评分。不要将 fixture 根目录的 README、profile 或其他答案资料加入模型证据。
+每题包含 `required_findings`、禁止断言、允许未知、预期来源，以及预先整理的完整必要小文件。`supporting_ranges` 指向支撑每项判断的精确行段；它和 `reviewed_context.source_ranges` 均保存整个源文件 SHA-256。完整文件用于保留控制上下文，不把参考答案或 profile 注入模型。`expected_source_paths` 仅是定位诊断；路径齐全、引用齐全都不能代替答案评分。不要将 fixture 根目录的 README、profile 或其他答案资料加入模型证据。
 
 ## 运行方式
 
@@ -48,4 +48,4 @@ python3 "$task_repo/poc/live_business_eval.py" \
 
 索引建立耗时在 `index_seconds`/`search_index_seconds`，不包含在 automatic 单题延迟里，需另报；不把 paired 两支合计耗时与 automatic 单题耗时相减。不能通过减少必要源码、降低输出完整度或省略错误处理来换取速度通过。
 
-本目录只交付离线题目与金标准，不代表已连接模型、完成模型评测或人工评分。
+本目录保存题目与金标准；本轮真实接口对比和独立代理审读结果见[质量与速度评估报告](../../reports/2026-10-07-quality-speed-windows.md)。代理审读不等于人工业务验收。
