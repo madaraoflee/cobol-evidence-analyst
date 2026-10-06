@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 import sys
 import tempfile
@@ -50,6 +51,39 @@ class FrameworkReferenceCacheTests(unittest.TestCase):
         self.assertNotEqual(previous.sha256, current.sha256)
         self.assertEqual(len(knowledge._CACHE), 1)
         self.assertIs(next(iter(knowledge._CACHE.values()))[1], current)
+
+    def test_same_metadata_rewrite_still_refreshes_the_content_revision(self):
+        path = self.reference("reference.md")
+        previous = knowledge._load_file(path)
+        metadata = path.stat()
+        original = path.read_bytes()
+        changed = original.replace(b"FLOW-RESULT", b"FLOW-STATUS")
+        self.assertNotEqual(changed, original)
+        self.assertEqual(len(changed), len(original))
+        path.write_bytes(changed)
+        # Model a filesystem that reports identical metadata for this rewrite.
+        with patch.object(Path, "stat", return_value=metadata), \
+             patch.object(knowledge.os, "fstat", return_value=metadata):
+            current = knowledge._load_file(path)
+        self.assertNotEqual(current.sha256, previous.sha256)
+        self.assertEqual(current.sha256, hashlib.sha256(changed).hexdigest())
+        self.assertIn("FLOW-STATUS", current.sections[0].text)
+        self.assertEqual(len(knowledge._CACHE), 1)
+        self.assertIs(next(iter(knowledge._CACHE.values()))[1], current)
+
+    def test_unchanged_content_reuses_the_parsed_document(self):
+        path = self.reference("reference.md")
+        previous = knowledge._load_file(path)
+        with patch.object(knowledge, "_parse_document", side_effect=AssertionError("unexpected reparsing")):
+            self.assertIs(knowledge._load_file(path), previous)
+
+    def test_cached_reference_must_still_be_readable(self):
+        path = self.reference("reference.md")
+        knowledge._load_file(path)
+        with patch.object(Path, "open", side_effect=PermissionError("synthetic read failure")):
+            with self.assertRaises(knowledge._ReferenceError) as raised:
+                knowledge._load_file(path)
+        self.assertEqual(raised.exception.code, "FRAMEWORK_REFERENCE_UNREADABLE")
 
     def test_accounting_includes_parsed_sections_and_term_sets(self):
         path = self.reference("reference.md")

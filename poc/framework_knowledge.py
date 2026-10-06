@@ -281,11 +281,6 @@ def _load_file(path: Path) -> _Document:
         if stat.st_size > MAX_REFERENCE_BYTES:
             raise _ReferenceError("FRAMEWORK_REFERENCE_TOO_LARGE")
         identity = (str(path.absolute()), stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns)
-        with _CACHE_LOCK:
-            cached = _CACHE.get(identity)
-            if cached is not None:
-                _CACHE.move_to_end(identity)
-                return cached[1]
         with path.open("rb") as handle:
             raw = handle.read(MAX_REFERENCE_BYTES + 1)
             opened_stat = os.fstat(handle.fileno())
@@ -296,12 +291,21 @@ def _load_file(path: Path) -> _Document:
                            opened_stat.st_mtime_ns)
         if identity != opened_identity or len(raw) != opened_stat.st_size:
             raise _ReferenceError("FRAMEWORK_REFERENCE_CHANGED")
+        # Equal size and timestamps do not prove unchanged content, notably
+        # for rapid same-length rewrites on Windows. Reuse parsing only after
+        # verifying the bounded original bytes against the cached revision.
+        digest = hashlib.sha256(raw).hexdigest()
+        with _CACHE_LOCK:
+            cached = _CACHE.get(identity)
+            if cached is not None and cached[1].sha256 == digest:
+                _CACHE.move_to_end(identity)
+                return cached[1]
         # Text exported by Windows editors can use a UTF-16 byte-order mark.
         encoding = "utf-16" if raw.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig"
         text = raw.decode(encoding)
         if not text.strip() or "\x00" in text:
             raise _ReferenceError("FRAMEWORK_REFERENCE_INVALID")
-        document = _parse_document(text, hashlib.sha256(raw).hexdigest())
+        document = _parse_document(text, digest)
         document = replace(document, documents=({"name": path.name, "title": document.title,
                            "sha256": document.sha256, "section_count": len(document.sections),
                            "encoding": encoding},))

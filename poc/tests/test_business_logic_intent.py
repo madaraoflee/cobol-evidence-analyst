@@ -51,7 +51,7 @@ class BusinessLogicIntentTests(unittest.TestCase):
         end = len(lines) if complete else 4
         page = {"relative_path": "billing.cbl", "start_line": 1, "end_line": end,
                 "source_text": "\n".join(lines[:end]),
-                "source_sha256": hashlib.sha256(self.text.encode()).hexdigest(),
+                "source_sha256": hashlib.sha256((self.source / "billing.cbl").read_bytes()).hexdigest(),
                 "evidence_id": "ev_logic_source", "selection_reasons": ["question_match"]}
         return build_question_investigation(question,
             build_business_map(self.database, self.source, question),
