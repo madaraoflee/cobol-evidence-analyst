@@ -54,7 +54,7 @@ class TableContinuationTests(unittest.TestCase):
                 ("Condition | Result\n:--- | ---:\nReady | ", "是；若", "是；若条件成立则继续。"),
                 ("| A | B | C |\n|---|---|---|\n| 是；若", "", "是；若条件成立 | Value | End |"),
                 ("| A | B | C |\n|---|---|---|\n| Value | ", "是；若", "是；若条件成立 | End |"),
-                ("| Condition | Result |\n|---|---|\n| `A|B` | ", "是；若", "是；若条件成立。 |"),
+                ("| Condition | Result |\n|---|---|\n| `A\\|B` | ", "是；若", "是；若条件成立。 |"),
                 ("| Condition | Result |\n|---|---|\n| A\\|B | ", "是；若", "是；若条件成立。 |")):
             with self.subTest(table=table, tail=tail):
                 draft = table + tail
@@ -107,6 +107,46 @@ class TableContinuationTests(unittest.TestCase):
             with self.subTest(block=block):
                 draft = "| A | B |\n|---|---|\n" + block + " | 是；若"
                 self.assertEqual(join_answer_continuation(draft, "是；若继续。"), draft + "是；若继续。")
+
+    def test_space_tab_indented_code_preserves_short_repetition(self):
+        for indentation in ("\t", " \t", "  \t", "   \t", "    "):
+            with self.subTest(indentation=indentation):
+                draft = "\n".join(indentation + line for line in
+                                  ("| A | B |", "|---|---|", "| Ready | 是；若"))
+                self.assertEqual(join_answer_continuation(draft, "是；若继续。"),
+                                 draft + "是；若继续。")
+
+    def test_up_to_three_spaces_still_allow_a_table_restart(self):
+        for indentation in ("", " ", "  ", "   "):
+            with self.subTest(indentation=indentation):
+                draft = "\n".join(indentation + line for line in
+                                  ("| A | B |", "|---|---|", "| Ready | 是；若"))
+                self.assertEqual(join_answer_continuation(draft, "是；若继续。"),
+                                 draft + "继续。")
+
+    def test_gfm_unescaped_code_pipe_does_not_hide_a_column_mismatch(self):
+        # GFM splits table columns before parsing inline code. These headers
+        # have three columns, so the two-column delimiter cannot form a table.
+        for header in ("| `A|B` | C |", "| ``A|B`` | C |", r"| `A\\|B` | C |"):
+            with self.subTest(header=header):
+                draft = header + "\n|---|---|\n| Ready | 是；若"
+                self.assertEqual(join_answer_continuation(draft, "是；若继续。"),
+                                 draft + "是；若继续。")
+        # An extra pipe in an unfinished body row also fails the conservative
+        # column check; text beyond the declared cells is not a restart target.
+        draft = "| A | B |\n|---|---|\n| `A|B` | 是；若"
+        self.assertEqual(join_answer_continuation(draft, "是；若继续。"),
+                         draft + "是；若继续。")
+
+    def test_gfm_escaped_pipes_and_matching_columns_allow_a_table_restart(self):
+        for header, delimiter in ((r"| A\|B | C |", "|---|---|"),
+                                  (r"| `A\|B` | C |", "|---|---|"),
+                                  (r"| `A\\\|B` | C |", "|---|---|"),
+                                  ("| `A|B` | C |", "|---|---|---|")):
+            with self.subTest(header=header):
+                draft = header + "\n" + delimiter + "\n| Ready | 是；若"
+                self.assertEqual(join_answer_continuation(draft, "是；若继续。"),
+                                 draft + "继续。")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # 桌面版打包与使用
 
-需要同时保留原版与改进版、在办公室快速切换时，按[双版本使用说明](./version-switching.md)准备独立目录和启动入口；该方式也覆盖原有 `run_web.bat` 源码版。
+当前统一使用 `main`，Windows 和 Mac 从同一冻结提交构建，下载入口与更新步骤见[统一版本说明](./unified-release.md)。[双版本使用说明](./version-switching.md)只作为历史对照和回退操作记录。
 
 **以后每次修改代码，只需在对应系统重新运行根目录的打包入口，把生成的 ZIP 交付给使用者。** Windows 生成包含 `.exe` 的完整应用文件夹，macOS 生成 `.app`；接收者不需要 Python、Git 或项目源码。当前采用 Nuitka 编译 Python 业务模块，以 pywebview 提供桌面窗口，原有源码分析与问答界面继续使用。
 
