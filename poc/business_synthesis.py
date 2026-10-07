@@ -487,21 +487,19 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
 
 def needs_synthesis_review(question, answer, investigation, *, source_available=False, source_pages=(),
                            answer_detail="detailed", assessment=None):
-    """Nominate a bounded review when useful material got a blanket limitation."""
+    """Review a detected omission or unfinished answer against supplied material."""
     items = investigation.get("required_items", [])
     supplied = source_available or any(item.get("evidence_ids") for item in items)
     if not supplied:
         return False
     completion = (assess_business_answer(question, answer, investigation, source_pages, answer_detail=answer_detail)
                   if assessment is None else assessment)
-    if completion["status"] == "incomplete":
-        return True
-    # A useful explanation can legitimately bound an unavailable implementation.
-    # That known boundary does not call for another synthesis of the same facts.
-    if any(item.get("reason") in {"external_implementation_unavailable", "runtime_target_unresolved"}
-           for item in items):
-        return False
-    return completion["limitation_detected"]
+    # A local qualification is normal in a detailed explanation. Its wording
+    # alone is not an omitted business point and cannot justify regenerating
+    # the same answer from the same evidence. Blanket deferrals, outstanding
+    # investigation and supplied-aspect omissions are already incomplete.
+    # The caller independently revises when it acquires new source material.
+    return completion["status"] == "incomplete"
 
 
 def build_analysis_brief(question, investigation, source_pages, framework_references, max_output_tokens,
@@ -524,7 +522,7 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
         for target in item.get("targets", [])))
     behavior_guide = build_behavior_guide(question, investigation, source_pages)
     from syntax_evidence import build_inline_syntax_guide
-    syntax_guide = build_inline_syntax_guide(source_pages)
+    syntax_guide = build_inline_syntax_guide(source_pages, include_priority_branches=True)
     from answer_grounding import answer_grounding_risks
     call_boundaries = answer_grounding_risks(source_pages, business_map=business_map,
         framework_references=framework_references, framework_facts=framework_facts)
@@ -558,6 +556,8 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
                 "正文、表格和总结均只陈述调用方可见动作，外部效果由实际实现或适用约定支持。"
                 "按问题所问时点区分调用前传入值与调用后返回值：actual_parameters 给出实参与传递方式，"
                 "mutable_outputs 中的参数及下级字段可能被外部调用改写；返回后的值须沿返回约定或后续本地赋值追踪。"
+                "mutable_output_groups.observed_fields 列出从当前调用方或明确 COPY 引入的具体下级字段，"
+                "这些字段同样遵守调用后的取值规则；按当前问题选取相关字段解释。"
                 "SQL 的 host_outputs 是 INTO 输出，须结合执行语义与后续赋值判断；处理分支中未出现 MOVE，"
                 "本身不构成这些输出仍保留调用前值的依据。问题仅问某次调用的输入时，解释到该输入形成即结束。"
                 + ("syntax_guide 的 IF outcome=false 表示条件不成立；"

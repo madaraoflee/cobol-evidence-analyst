@@ -43,6 +43,19 @@ SOURCE_MARKERS = (
 
 
 class AnswerCompletionTests(unittest.TestCase):
+    def test_local_qualification_does_not_regenerate_a_substantive_answer(self):
+        answer = ("发给保存调用的金额为5000，审批状态为APPROVED。"
+                  "保存返回FAIL后登记错误并选择错误页。"
+                  "无法确认存储侧是否部分写入，须结合被调用实现。")
+        completion = assess_answer_completion(answer)
+        self.assertTrue(completion["limitation_detected"])
+        self.assertNotEqual(completion["status"], "incomplete")
+        # No catalog gap is required to recognize a useful bounded answer.
+        self.assertFalse(needs_synthesis_review("保存失败后跳去哪？", answer, {},
+                                               source_available=True))
+        self.assertTrue(needs_synthesis_review("保存失败后跳去哪？", BLANKET_LIMITATION, {},
+                                              source_available=True))
+
     def test_conditional_uncertainty_is_not_itself_an_unfinished_answer(self):
         for answer in ("若资料不足以确认身份则拒绝申请。",
                        "If the evidence is insufficient to confirm identity the request is rejected."):
@@ -319,8 +332,10 @@ class AnswerCompletionTests(unittest.TestCase):
                           + BUSINESS_ANSWER + f"[{identifier}]")
             return drafts[0]
 
-        output = self.ask([first_reply, BLANKET_LIMITATION],
-                          question="请详细解释 rule.cbl 的 FINAL-AMOUNT 怎么计算？")
+        # Exercise candidate retention independently of lexical review routing.
+        with mock.patch("business_chat.needs_synthesis_review", return_value=True):
+            output = self.ask([first_reply, BLANKET_LIMITATION],
+                              question="请详细解释 rule.cbl 的 FINAL-AMOUNT 怎么计算？")
         self.assert_complete_source_supplied()
         self.assertEqual(len(self.requests), 2)
         result = output["agent_result"]

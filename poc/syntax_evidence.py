@@ -266,12 +266,12 @@ def build_syntax_guide(source_pages):
     return result
 
 
-def build_inline_syntax_guide(source_pages):
-    """Default only to units whose same-line syntax the legacy collector loses.
+def build_inline_syntax_guide(source_pages, *, include_priority_branches=False):
+    """Select inline structure and optionally explicit first-match branch guards.
 
-    Wider AST guidance remains available for evaluation. Its contribution to
-    model quality and latency has not been established, so ordinary multiline
-    evidence does not automatically acquire a second derived representation.
+    Ordinary multiline statements need no duplicate representation. Priority
+    branches carry the specific earlier predicates that must not match, so a
+    later branch cannot be described as evaluated after an earlier match.
     """
     guide = build_syntax_guide(source_pages)
     counts, selected = {}, set()
@@ -288,5 +288,10 @@ def build_inline_syntax_guide(source_pages):
             selected.add(key)
     selected.update(key for (key, _), count in counts.items() if count > 1)
     facts = [fact for fact in guide["facts"] if unit_key(fact) in selected]
-    return {**guide, "facts": facts, "scope": "supported_inline_units_only",
+    if include_priority_branches:
+        facts = [fact for fact in guide["facts"] if unit_key(fact) in selected
+                 or any(guard["kind"] == "EVALUATE" for guard in fact["guards"])]
+    return {**guide, "facts": facts,
+            "scope": ("supported_inline_and_priority_branches" if include_priority_branches
+                      else "supported_inline_units_only"),
             "omitted_facts": guide["omitted_facts"] + len(guide["facts"]) - len(facts)}

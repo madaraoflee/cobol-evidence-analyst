@@ -3,7 +3,9 @@
 import hashlib
 from pathlib import Path
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -276,6 +278,166 @@ class GroundingRiskTests(unittest.TestCase):
                 self.assertEqual({row["target"] for row in rows}, {"REAL-ACCESS"})
                 self.assertEqual(rows[0]["mutable_outputs"], ["CONTROL-AREA"])
                 self.assertEqual(rows[0]["start_line"], 9)
+
+
+class MutableGroupScopeTests(unittest.TestCase):
+    @staticmethod
+    def source(path, text, *, chain=None, start=1, digest=None):
+        return {"evidence_id": "ev_" + path + "_" + str(start), "relative_path": path,
+                "source_text": text, "source_sha256": digest or hashlib.sha256(text.encode()).hexdigest(),
+                "start_line": start, "end_line": start + len(text.splitlines()) - 1,
+                "include_chain": chain or []}
+
+    def caller(self, declarations, *, body="CALL 'REMOTE' USING CONTROL-AREA END-CALL."):
+        return self.source("caller.cbl", "IDENTIFICATION DIVISION.\nPROGRAM-ID. CALLER.\n"
+            "DATA DIVISION.\nWORKING-STORAGE SECTION.\n" + declarations +
+            "\nPROCEDURE DIVISION.\nMAIN.\n" + body + "\nGOBACK.\n")
+
+    @staticmethod
+    def navigation(path="copy/control.cpy", *, line=5):
+        return {"relations": [{"relation_type": "INCLUDES_COPY", "caller_path": "caller.cbl",
+            "caller_line": line, "target_name": "CONTROL.CPY", "target_path": path,
+            "resolution": "unbound_copy_candidate"}]}
+
+    @staticmethod
+    def groups(pages, navigation=None):
+        rows = answer_grounding_risks(pages, business_map=navigation)["reasons"]
+        return next(row for row in rows if row.get("target") == "REMOTE")["mutable_output_groups"]
+
+    def test_local_group_children_have_physical_provenance_and_exclude_other_storage(self):
+        caller = self.caller("01 CONTROL-AREA.\n05 OUTPUT-AMOUNT PIC 9(5).\n"
+            "05 DETAIL-AREA.\n10 OUTPUT-STATE PIC X.\n88 ACCEPTED VALUE 'A'.\n"
+            "01 UNRELATED-AREA.\n05 OTHER-STATE PIC X.")
+        groups = self.groups([caller])
+        self.assertEqual(len(groups), 1)
+        group = groups[0]
+        self.assertEqual([field["name"] for field in group["observed_fields"]],
+                         ["OUTPUT-AMOUNT", "DETAIL-AREA", "OUTPUT-STATE"])
+        self.assertEqual((group["relative_path"], group["source_sha256"]),
+                         (caller["relative_path"], caller["source_sha256"]))
+        self.assertEqual((group["start_line"], group["end_line"]), (5, 8))
+        self.assertEqual(group["supplied_reference_ids"], [caller["evidence_id"]])
+        self.assertFalse(group["complete_layout_verified"])
+        self.assertFalse(group["return_values_verified"])
+
+    def test_direct_copy_uses_selected_path_not_a_same_named_other_program_or_copy(self):
+        caller = self.caller('COPY "control.cpy".')
+        selected = self.source("copy/control.cpy", "01 CONTROL-AREA.\n05 OUTPUT-STATE PIC X.\n")
+        namesake = self.source("other/control.cpy", "01 CONTROL-AREA.\n05 WRONG-FIELD PIC X.\n")
+        other = self.caller("01 CONTROL-AREA.\n05 FOREIGN-FIELD PIC X.")
+        other.update(relative_path="other.cbl", evidence_id="ev_other")
+        group = self.groups([caller, selected, namesake, other], self.navigation())[0]
+        self.assertEqual([field["name"] for field in group["observed_fields"]], ["OUTPUT-STATE"])
+        self.assertEqual(group["binding"], "direct_copy")
+        self.assertEqual(group["include_site"]["source_sha256"], caller["source_sha256"])
+        self.assertEqual(group["relative_path"], selected["relative_path"])
+        self.assertEqual(group["source_sha256"], selected["source_sha256"])
+        self.assertEqual(self.groups([caller, selected]), [])
+
+    def test_copy_chain_requires_exact_caller_version_site_and_context(self):
+        caller = self.caller('COPY "control.cpy".')
+        site = {"relative_path": "caller.cbl", "source_hash": caller["source_sha256"],
+                "line": 5, "copy_name": "CONTROL.CPY"}
+        copy = self.source("copy/control.cpy", "01 CONTROL-AREA.\n05 OUTPUT-STATE PIC X.\n", chain=[site])
+        self.assertEqual(self.groups([caller, copy])[0]["include_chain"], [site])
+        for changed in ({**site, "source_hash": "old-version"}, {**site, "line": 6},
+                        {**site, "relative_path": "other.cbl"}):
+            with self.subTest(site=changed):
+                self.assertEqual(self.groups([caller, {**copy, "include_chain": [changed]}]), [])
+
+    def test_copy_replacing_repeated_inclusions_and_multiple_versions_stay_unbound(self):
+        copy = self.source("copy/control.cpy", "01 CONTROL-AREA.\n05 OUTPUT-STATE PIC X.\n")
+        caller = self.caller('COPY "control.cpy".')
+        changed = {**copy, "source_sha256": "another-version", "evidence_id": "ev_other_version"}
+        self.assertEqual(self.groups([caller, copy, changed], self.navigation()), [])
+        partial = {**changed, "source_text": "05 NEW-FIELD PIC X.", "start_line": 2, "end_line": 2}
+        self.assertEqual(self.groups([caller, copy, partial], self.navigation()), [])
+        replaced = self.caller('COPY "control.cpy" REPLACING ==OUTPUT-STATE== BY ==OTHER-STATE==.')
+        self.assertEqual(self.groups([replaced, copy], self.navigation()), [])
+        repeated = self.caller('COPY "control.cpy".\nCOPY "control.cpy".')
+        navigation = self.navigation()
+        navigation["relations"] += self.navigation(line=6)["relations"]
+        self.assertEqual(self.groups([repeated, copy], navigation), [])
+        nested = self.source("copy/control.cpy", 'COPY INNER.\n01 CONTROL-AREA.\n05 OUTPUT-STATE PIC X.\n')
+        self.assertEqual(self.groups([caller, nested], self.navigation()), [])
+
+    def test_missing_copy_or_program_context_cannot_supply_same_named_children(self):
+        caller = self.caller("01 CONTROL-AREA.\n05 OUTPUT-STATE PIC X.\nCOPY UNKNOWN.")
+        self.assertEqual(self.groups([caller]), [])
+        complete = self.caller("01 CONTROL-AREA.\n05 OUTPUT-STATE PIC X.")
+        lines = complete["source_text"].splitlines()
+        data = {**complete, "source_text": "\n".join(lines[:6]), "end_line": 6}
+        procedure = {**complete, "source_text": "\n".join(lines[7:]), "start_line": 8,
+                     "evidence_id": "ev_procedure"}
+        self.assertEqual(self.groups([data, procedure]), [])
+        compound = self.source("caller.cbl", complete["source_text"] +
+            "IDENTIFICATION DIVISION.\nPROGRAM-ID. OTHER.\nDATA DIVISION.\n"
+            "WORKING-STORAGE SECTION.\n01 CONTROL-AREA.\n05 FOREIGN-FIELD PIC X.\n")
+        self.assertEqual(self.groups([compound]), [])
+
+    def test_copy_mode_and_observation_limits_do_not_expand_mutable_storage(self):
+        caller = self.caller("01 CONTROL-AREA.\n05 OUTPUT-STATE PIC X.",
+                             body="CALL 'REMOTE' USING BY CONTENT CONTROL-AREA END-CALL.")
+        self.assertEqual(self.groups([caller]), [])
+        caller = self.caller("01 CONTROL-AREA.\n05 FIRST-FIELD PIC X.\n05 SECOND-FIELD PIC X.")
+        with mock.patch("answer_grounding._MAX_GROUP_FIELDS", 1):
+            self.assertEqual(self.groups([caller]), [])
+
+    def test_copy_instances_do_not_share_an_evidence_id_lookup_and_conflicts_do_not_bind(self):
+        caller = self.caller('COPY "control.cpy".')
+        site = {"relative_path": "caller.cbl", "source_hash": caller["source_sha256"],
+                "line": 5, "copy_name": "CONTROL.CPY"}
+        copy = self.source("copy/control.cpy", "01 CONTROL-AREA.\n05 OUTPUT-STATE PIC X.\n", chain=[site])
+        other = {**copy, "include_chain": [{**site, "relative_path": "other.cbl"}]}
+        group = self.groups([caller, other, copy])[0]
+        self.assertEqual(group["include_chain"], [site])
+        conflict = {**copy, "source_text": "05 DIFFERENT-STATE PIC X.", "start_line": 2,
+                    "end_line": 2, "evidence_id": "ev_conflict"}
+        self.assertEqual(self.groups([caller, copy, conflict]), [])
+
+    def test_global_group_budget_limits_repeated_calls_with_explicit_omission(self):
+        import json
+
+        caller = self.caller("01 CONTROL-AREA.\n05 FIRST-FIELD PIC X.\n05 SECOND-FIELD PIC X.",
+            body="\n".join("CALL 'REMOTE' USING CONTROL-AREA END-CALL." for _ in range(8)))
+        with mock.patch("answer_grounding._MAX_MUTABLE_FIELD_OBSERVATIONS", 3):
+            rows = answer_grounding_risks([caller])["reasons"]
+        self.assertEqual(sum(len(group["observed_fields"]) for row in rows
+                            for group in row["mutable_output_groups"]), 3)
+        self.assertEqual(sum(row["mutable_output_fields_omitted"] for row in rows), 13)
+        self.assertTrue(rows[-1]["mutable_output_observation_truncated"])
+        with mock.patch("answer_grounding._MAX_MUTABLE_GROUP_BYTES", 1000):
+            rows = answer_grounding_risks([caller])["reasons"]
+        size = sum(len(json.dumps(group, ensure_ascii=False, separators=(",", ":")).encode()) + 1
+                   for row in rows for group in row["mutable_output_groups"])
+        self.assertLessEqual(size, 1000)
+        self.assertTrue(any(row["mutable_output_fields_omitted"] for row in rows))
+
+    def test_real_neutral_source_binds_reference_record_and_io_children(self):
+        from business_map import build_business_map
+        from business_index import build_business_index
+        from repository_discovery import ensure_repository_search
+
+        root = Path(__file__).resolve().parents[1] / "fixtures/framework-workbench/source"
+        paths = ["programs/service-entry.cbl", "copybooks/shared-context.cpy", "copybooks/request-record.cpy",
+                 "copybooks/io-parameters.cpy", "copybooks/screen-fields.cpy", "copybooks/online-flow.cpy"]
+        pages = []
+        for path in paths:
+            raw = (root / path).read_bytes()
+            pages.append(self.source(path, raw.decode("utf-8"), digest=hashlib.sha256(raw).hexdigest()))
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "index.sqlite3"
+            build_business_index(root, database, verify_content=True)
+            ensure_repository_search(database, root)
+            navigation = build_business_map(database, root, "SERVICEENTRY")
+            rows = answer_grounding_risks(pages, business_map=navigation)["reasons"]
+        store_calls = [row for row in rows if row.get("target") == "REQUESTSTORE"]
+        self.assertEqual({row["start_line"] for row in store_calls}, {19, 25, 57, 67})
+        for row in store_calls:
+            fields = {group["argument"]: {field["name"] for field in group["observed_fields"]}
+                      for group in row["mutable_output_groups"]}
+            self.assertTrue({"REQUEST-STATE", "REQUEST-AMOUNT"} <= fields["REQUEST-RECORD"])
+            self.assertTrue({"IO-KEY", "IO-FORMAT", "IO-VIEW"} <= fields["IO-PARAMETERS"])
 
 
 

@@ -39,6 +39,24 @@ class SyntaxEvidenceTests(unittest.TestCase):
     def test_fragment_without_visible_unit_start_is_not_unconditional_fact(self):
         self.assertEqual(build_syntax_guide([page("MOVE 1 TO RESULT-VALUE.", start=20)])["facts"], [])
 
+    def test_answer_guide_supplies_priority_guards_without_inventing_branch_outcomes(self):
+        source = page("MAIN.\nEVALUATE TRUE\nWHEN ERROR-CODE NOT = SPACE\n"
+                      "MOVE 'ERROR' TO NEXT-PAGE\nWHEN REVIEW-FLAG = 'Y'\n"
+                      "MOVE 'REVIEW' TO NEXT-PAGE\nWHEN OTHER\n"
+                      "MOVE 'SUMMARY' TO NEXT-PAGE\nEND-EVALUATE.")
+        facts = build_analysis_brief("失败后去哪？", {}, [source], [], 8192)["syntax_guide"]["facts"]
+        self.assertEqual(len(facts), 3)
+        later = facts[1]["guards"][0]
+        self.assertEqual(later["prior_branches_must_not_match"], [["ERROR-CODE NOT = SPACE"]])
+        self.assertEqual(later["condition"], "REVIEW-FLAG = 'Y'")
+        self.assertEqual(facts[1]["statement"], "MOVE 'REVIEW' TO NEXT-PAGE")
+        # These are conditional source facts, not an evaluation of this case.
+        self.assertFalse(build_analysis_brief("失败后去哪？", {}, [source], [], 8192)
+                         ["syntax_guide"]["semantic_execution_verified"])
+        clipped = {**source, "source_text": "\n".join(source["source_text"].splitlines()[:-1]),
+                   "end_line": source["end_line"] - 1}
+        self.assertNotIn("syntax_guide", build_analysis_brief("失败后去哪？", {}, [clipped], [], 8192))
+
     def test_clipped_tail_is_not_completed_unit(self):
         self.assertEqual(build_syntax_guide([page("MAIN.\nMOVE 1 TO RESULT-VALUE")])["facts"], [])
 

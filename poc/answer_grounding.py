@@ -15,6 +15,10 @@ from framework_semantics import visible_framework_facts
 
 _MAX_SCAN_CHARACTERS = 80000
 _MAX_RISKS = 32
+_MAX_DATA_DOCUMENTS = 128
+_MAX_GROUP_FIELDS = 256
+_MAX_MUTABLE_FIELD_OBSERVATIONS = 128
+_MAX_MUTABLE_GROUP_BYTES = 16000
 _PROGRAM = re.compile(r"^\s*PROGRAM-ID\s*\.\s*['\"]?([A-Z0-9_$#@-]+)", re.I)
 
 
@@ -209,6 +213,163 @@ def _sql_output_observations(pages):
     return observations, truncated
 
 
+def _supplied_data_documents(pages):
+    """Parse contiguous physical excerpts without inventing missing ancestry."""
+    from business_synthesis import _supplied_source_spans
+    from structural_index import SourceDocument, normalize_cobol_lines, parse_document
+
+    documents, scanned, truncated = [], 0, False
+    spans = _supplied_source_spans(pages, {page["evidence_id"] for page in pages})
+    ends, conflicting = {}, set()
+    # Compatible overlaps have already merged. Remaining overlaps of one
+    # physical version contradict each other and cannot support a binding.
+    for span in spans:
+        if span["lines"]:
+            key = span["key"]
+            if min(span["lines"]) <= ends.get(key, 0):
+                conflicting.add(key)
+            ends[key] = max(ends.get(key, 0), max(span["lines"]))
+    for span in spans:
+        text = span["source_text"]
+        if not span["lines"] or span["key"] in conflicting:
+            continue
+        if scanned + len(text) > _MAX_SCAN_CHARACTERS or len(documents) >= _MAX_DATA_DOCUMENTS:
+            truncated = True
+            break
+        scanned += len(text)
+        lines, hint = normalize_cobol_lines(text)
+        # A fragment may expose definitions, but is never a caller namespace
+        # unless a real Program unit and the call site are both present.
+        document = SourceDocument(span["key"][0], span["key"][1], "utf-8", False,
+            hint, "cobol_fragment_or_copybook", tuple(text.splitlines()), lines)
+        parsed = parse_document(document)
+        documents.append({"span": span, "parsed": parsed,
+            "units": {unit.unit_id: unit for unit in parsed.code_units},
+            "programs": [unit for unit in parsed.code_units if unit.unit_type == "Program"],
+            "first_line": min(span["lines"])})
+    return documents, truncated
+
+
+def _mutable_output_groups(call, pages, documents, business_map):
+    """Bind observed children to a supplied caller or one explicit data COPY.
+
+    This lists possible storage writes, not a complete layout or return values.
+    Nested, replaced, disconnected, or ambiguous definitions remain unbound.
+    """
+    from procedure_expansion import _COPY, _REPLACE_WORD
+    from structural_index import DATA_ITEM_RE
+
+    key = (call["relative_path"], call["source_sha256"], repr(call.get("include_chain") or []))
+    callers = [doc for doc in documents if doc["span"]["key"] == key
+        and min(doc["span"]["lines"]) <= call["start_line"] <= max(doc["span"]["lines"])
+        and len(doc["programs"]) == 1
+        and doc["first_line"] + doc["programs"][0].start_line - 1 <= call["start_line"]]
+    if len(callers) != 1:
+        return []
+    caller = callers[0]
+    program = caller["programs"][0].name
+    # A visible REPLACE can change declaration names/levels across an include.
+    if any(unit.name == "REPLACE" or (unit.unit_type == "Statement"
+           and _REPLACE_WORD.search(unit.normalized_text)) for unit in caller["units"].values()):
+        return []
+    scopes = [(caller, None)]
+    for unit in caller["units"].values():
+        if unit.unit_type != "Statement" or unit.name != "COPY" or unit.program_name != program:
+            continue
+        parent = caller["units"].get(unit.parent_unit_id)
+        # Procedure COPYs do not provide a data declaration namespace.
+        if parent is None or parent.unit_type != "Section" or parent.name not in {
+                "WORKING-STORAGE", "LOCAL-STORAGE", "LINKAGE"}:
+            continue
+        match = _COPY.fullmatch(unit.normalized_text)
+        if match is None:
+            return []
+        name = next(value for value in match.groups() if value is not None).upper()
+        line = caller["first_line"] + unit.start_line - 1
+        edges = [edge for edge in (business_map or {}).get("relations", [])
+            if edge.get("relation_type") == "INCLUDES_COPY"
+            and edge.get("caller_path") == call["relative_path"] and edge.get("caller_line") == line
+            and str(edge.get("target_name", "")).upper() == name
+            and edge.get("resolution") in {"confirmed", "unbound_copy_candidate"}
+            and edge.get("target_path")]
+        paths = {edge["target_path"] for edge in edges}
+        candidates = []
+        for doc in documents:
+            if doc["programs"] or doc["first_line"] != 1:
+                continue
+            doc_key = doc["span"]["key"]
+            chain = next((page.get("include_chain") or [] for page in pages
+                if (page.get("relative_path"), page.get("source_sha256"),
+                    repr(page.get("include_chain") or [])) == doc_key), [])
+            versions = {page["source_sha256"] for page in pages
+                if page.get("relative_path") == doc_key[0]
+                and (page.get("include_chain") or []) == chain}
+            if len(versions) != 1:
+                continue
+            direct_chain = (len(chain) == len(call.get("include_chain") or []) + 1
+                and chain[:-1] == (call.get("include_chain") or []) and isinstance(chain[-1], dict)
+                and chain[-1].get("relative_path") == call["relative_path"]
+                and chain[-1].get("source_hash") == call["source_sha256"]
+                and chain[-1].get("line") == line and chain[-1].get("copy_name", "").upper() == name)
+            mapped = not chain and len(paths) == 1 and doc_key[0] in paths and not call.get("include_chain")
+            if direct_chain or mapped:
+                candidates.append(doc)
+        if len(candidates) == 1:
+            # Unexpanded nested COPYs or REPLACE can introduce competing names
+            # or alter a declaration's ancestry. Do not guess a partial scope.
+            if any(member.unit_type == "Statement" and (member.name == "COPY"
+                   or _REPLACE_WORD.search(member.normalized_text))
+                   for member in candidates[0]["units"].values()):
+                return []
+            site = _source_location(pages, caller["span"], line, caller["first_line"] + unit.end_line - 1)
+            scopes.append((candidates[0], site))
+        else:
+            return []
+
+    groups = []
+    for argument in call.get("mutable_outputs") or []:
+        matches = [(doc, site, unit) for doc, site in scopes for unit in doc["units"].values()
+            if unit.unit_type == "DataItem" and unit.name == argument
+            and (site is not None or unit.program_name == program)]
+        if len(matches) != 1:
+            continue
+        doc, site, root = matches[0]
+        declaration = DATA_ITEM_RE.match(root.normalized_text)
+        if declaration is None or declaration.group(3).strip().rstrip("."):
+            continue
+        level = int(declaration.group(1))
+        if not 1 <= level <= 49:
+            continue
+        children = []
+        for unit in doc["units"].values():
+            if unit.unit_type != "DataItem" or unit.start_line <= root.start_line:
+                continue
+            child = DATA_ITEM_RE.match(unit.normalized_text)
+            if (unit.parent_unit_id != root.parent_unit_id or unit.program_name != root.program_name
+                    or child is None or int(child.group(1)) <= level):
+                break
+            if int(child.group(1)) <= 49 and unit.name != "FILLER":
+                children.append(unit)
+            if len(children) > _MAX_GROUP_FIELDS:
+                children = []
+                break
+        if not children:
+            continue
+        # An unexpanded COPY/REPLACE between declarations could reset levels.
+        if any(unit.name in {"COPY", "REPLACE"} and root.start_line < unit.start_line <= children[-1].end_line
+               for unit in doc["units"].values()):
+            continue
+        start = doc["first_line"] + root.start_line - 1
+        end = doc["first_line"] + children[-1].end_line - 1
+        groups.append({"argument": argument, **_source_location(pages, doc["span"], start, end),
+            "binding": "direct_copy" if site else "caller_declaration",
+            "include_site": site, "observed_fields": [
+                {"name": unit.name, "start_line": doc["first_line"] + unit.start_line - 1,
+                 "end_line": doc["first_line"] + unit.end_line - 1} for unit in children],
+            "complete_layout_verified": False, "return_values_verified": False})
+    return groups
+
+
 def answer_grounding_risks(source_pages, *, framework_references=(), framework_facts=(), business_map=None):
     """Nominate high-risk call boundaries using supplied syntax and navigation."""
     from structural_index import normalize_cobol_lines
@@ -253,13 +414,39 @@ def answer_grounding_risks(source_pages, *, framework_references=(), framework_f
             "supplied_reference_ids": sorted({item["evidence_id"] for item in matches})})
 
     reasons, seen = [], set()
+    remaining_fields = _MAX_MUTABLE_FIELD_OBSERVATIONS
+    # Reserve each retained reason's JSON list delimiters; every group below
+    # is charged its full UTF-8 representation plus a possible comma.
+    remaining_group_bytes = max(0, _MAX_MUTABLE_GROUP_BYTES - 2 * _MAX_RISKS)
     def add(kind, call):
+        nonlocal remaining_fields, remaining_group_bytes
         row = {"kind": kind, **call}
         key = json.dumps(row, ensure_ascii=False, sort_keys=True)
         if key not in seen:
             seen.add(key)
+            if "mutable_output_groups" in row:
+                groups, omitted = [], 0
+                for group in row["mutable_output_groups"]:
+                    fields = group["observed_fields"]
+                    selected = fields[:remaining_fields]
+                    bounded = {**group, "observed_fields": selected}
+                    size = len(json.dumps(bounded, ensure_ascii=False, separators=(",", ":")).encode("utf-8")) + 1
+                    while selected and size > remaining_group_bytes:
+                        selected = selected[:-1]
+                        bounded["observed_fields"] = selected
+                        size = len(json.dumps(bounded, ensure_ascii=False, separators=(",", ":")).encode("utf-8")) + 1
+                    omitted += len(fields) - len(selected)
+                    if selected:
+                        groups.append(bounded)
+                        remaining_fields -= len(selected)
+                        remaining_group_bytes -= size
+                row["mutable_output_groups"] = groups
+                row["mutable_output_fields_omitted"] = omitted
+                row["mutable_output_observation_truncated"] = omitted > 0
             reasons.append(row)
 
+    data_documents, data_truncated = _supplied_data_documents(pages) if any(
+        call.get("actual_parameters") for call in calls) else ([], False)
     for call in calls:
         # A resolved path identifies the selected implementation. A namesake
         # elsewhere cannot stand in for it; names are only a fallback when the
@@ -277,6 +464,7 @@ def answer_grounding_risks(source_pages, *, framework_references=(), framework_f
             call["mutable_output_scope"] = "argument_storage_including_subordinate_fields"
             call["post_call_value_status"] = "requires_return_effects_or_subsequent_local_assignment"
             call["unchanged_value_guaranteed"] = False
+            call["mutable_output_groups"] = _mutable_output_groups(call, pages, data_documents, business_map)
         if call["copy_modes"]:
             add("parameter_copy_boundary", call)
         if call["dynamic"]:
@@ -299,5 +487,6 @@ def answer_grounding_risks(source_pages, *, framework_references=(), framework_f
     for observation in sql_outputs:
         add("sql_select_into_effect_boundary", observation)
     return {"required": bool(reasons), "reasons": reasons[:_MAX_RISKS],
-            "omitted_risks": max(0, len(reasons) - _MAX_RISKS), "source_scan_truncated": truncated or sql_truncated,
+            "omitted_risks": max(0, len(reasons) - _MAX_RISKS),
+            "source_scan_truncated": truncated or sql_truncated or data_truncated,
             "semantic_execution_verified": False}
