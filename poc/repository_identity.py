@@ -68,11 +68,9 @@ def _call_analysis_subject(connection, text):
     suffix = text[call.end():]
     # Relative clauses can make the callee the object of the question, and
     # a later analysis request can explicitly change the topic again.
-    if re.match(r"\s*的(?!\s*是)", suffix) or _LATER_ANALYSIS_REQUEST.search(suffix):
+    if re.match(r"\s*的(?!\s*是)", suffix):
         return None
-    if _SUBJECT_COORDINATION.search(prefix):
-        return None
-    subjects = [(match[1], False)
+    subjects = [(match[1], False, match.end())
                 for match in _PROGRAM_SUBJECT.finditer(prefix)]
     # A Chinese topic declaration ("X 这个程序") or a question preceding
     # the relationship fixes the focus. "program X calls Y, how does Y ..."
@@ -85,16 +83,33 @@ def _call_analysis_subject(connection, text):
             preceding = prefix[match.start(1) - 1:match.start(1)]
             if (pattern is _PROGRAM_LABEL or _program_paths(connection, name)
                     or preceding in {"`", '"', "'"}):
-                subjects.append((name, True))
-    names = list(dict.fromkeys(name.upper() for name, _ in subjects))
+                subjects.append((name, True, match.end()))
+    names = list(dict.fromkeys(name.upper() for name, _, _ in subjects))
     if len(names) != 1:
+        return None
+    if _SUBJECT_COORDINATION.search(prefix[:max(end for _, _, end in subjects)]):
         return None
     # An independently supplied file/path before the relationship still has
     # its normal identity semantics; do not silently overrule that selection.
     if any(PurePosixPath(match[0].rstrip(".")).suffix.casefold() in DEFAULT_EXTENSIONS
            for match in _FILENAME.finditer(prefix)) or _PATH.search(prefix):
         return None
-    return subjects[0][0], any(explicit_program for _, explicit_program in subjects)
+    name = subjects[0][0]
+    explicit_program = any(explicit for _, explicit, _ in subjects)
+    subject_paths = (_program_paths(connection, name) if explicit_program
+                     else _resolve_identifiers(connection, name)["direct_paths"])
+    for request in _LATER_ANALYSIS_REQUEST.finditer(suffix):
+        # Parenthetical call-target clarification is separate from the new
+        # request's object. "Explain the conditions (calls X.cbl)" keeps the
+        # subject; "Explain X.cbl's output" explicitly changes it.
+        clause = re.split(r"[。；;！？!?\n（]|(?:^|\s)\(", suffix[request.end():], maxsplit=1)[0]
+        later = _resolve_identifiers(connection, clause)
+        if later["status"] == "none" or {item.casefold() for item in later["requested"]} == {name.casefold()}:
+            continue
+        if subject_paths and set(later["direct_paths"]) == set(subject_paths):
+            continue
+        return None
+    return name, explicit_program
 
 
 def _resolve_input(connection, text):

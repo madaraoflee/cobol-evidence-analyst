@@ -443,6 +443,9 @@ class SourceIdentityTests(unittest.TestCase):
             "MAINJOB 这个程序，什么情况会跳过调用 DETAILWRITE（调用的是 DETAILWRITE.CBL ）",
             "程序 MAINJOB 什么情况下会调用 DETAILWRITE（文件是 DETAILWRITE.CBL ）？",
             "When does program MAINJOB not call DETAILWRITE (file `DETAILWRITE.CBL`)?",
+            "MAINJOB这个程序，什么情况下验证金额和状态后跳过写DETAILWRITE？（调用的是 `DETAILWRITE.CBL`）",
+            "MAINJOB程序什么情况下调用DETAILWRITE？请详细说明跳过条件（调用的是 `DETAILWRITE.CBL`）",
+            "MAINJOB程序什么情况下调用DETAILWRITE？请详细说明 MAINJOB 的跳过条件（调用的是 `DETAILWRITE.CBL`）",
         ):
             with self.subTest(question=question):
                 mapping, context = self.assert_map_and_retrieval_identity(
