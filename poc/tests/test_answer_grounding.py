@@ -122,6 +122,161 @@ class GroundingRiskTests(unittest.TestCase):
             self.assertTrue(answer_grounding_risks([source], framework_references=[reference], framework_facts=[changed])["required"])
         self.assertTrue(answer_grounding_risks([source], framework_facts=[fact])["required"])
 
+    def test_external_call_parameters_preserve_position_and_passing_mode(self):
+        source = page("ROOT", "CALL 'RECORD-ACCESS' USING CONTROL-AREA\n"
+                      "BY CONTENT REQUEST-KEY REQUEST-DATE BY VALUE RETRY-LIMIT\n"
+                      "BY REFERENCE RESULT-AREA STATUS-CODE\n"
+                      "ON EXCEPTION MOVE 1 TO STATUS-CODE END-CALL.")
+        row = answer_grounding_risks([source])["reasons"][0]
+        self.assertEqual(row["parameter_parse_status"], "parsed")
+        self.assertEqual(row["actual_parameters"], [
+            {"position": 1, "name": "CONTROL-AREA", "mode": "REFERENCE"},
+            {"position": 2, "name": "REQUEST-KEY", "mode": "CONTENT"},
+            {"position": 3, "name": "REQUEST-DATE", "mode": "CONTENT"},
+            {"position": 4, "name": "RETRY-LIMIT", "mode": "VALUE"},
+            {"position": 5, "name": "RESULT-AREA", "mode": "REFERENCE"},
+            {"position": 6, "name": "STATUS-CODE", "mode": "REFERENCE"}])
+        self.assertEqual(row["callee_source_status"], "not_supplied")
+        self.assertEqual(row["mutable_outputs"], ["CONTROL-AREA", "RESULT-AREA", "STATUS-CODE"])
+        self.assertEqual(row["mutable_output_scope"], "argument_storage_including_subordinate_fields")
+        self.assertFalse(row["unchanged_value_guaranteed"])
+        self.assertEqual((row["start_line"], row["end_line"]), (5, 7))
+        self.assertEqual(row["supplied_reference_ids"], ["ev_ROOT"])
+
+    def test_content_and_value_are_not_caller_mutable_outputs(self):
+        source = page("ROOT", "CALL 'RECORD-ACCESS' USING BY CONTENT REQUEST-AREA\n"
+                      "BY VALUE RETRY-LIMIT END-CALL.")
+        result = answer_grounding_risks([source])
+        self.assertTrue(result["required"])
+        self.assertTrue(all(row["mutable_outputs"] == [] for row in result["reasons"]))
+        self.assertTrue(all(row["parameter_parse_status"] == "parsed" for row in result["reasons"]))
+
+    def test_operation_contract_does_not_hide_reference_parameter_boundary(self):
+        source = page("ROOT", "CALL 'REMOTE' USING CONTROL-AREA END-CALL.")
+        reference = {"reference_id": "fw:operation", "document_sha256": "manual-version",
+                     "text": "The operation requests a record."}
+        fact = {"fact_id": "binding", "relative_path": source["relative_path"],
+                "source_sha256": source["source_sha256"], "start_line": 5, "end_line": 5,
+                "source_ranges": [{"start_line": 5, "end_line": 5}], "reference_ids": ["fw:operation"],
+                "target_name": "REMOTE", "dependency_covered": True}
+        result = answer_grounding_risks([source], framework_references=[reference], framework_facts=[fact])
+        self.assertEqual(self.kinds(result), {"call_reference_effect_boundary"})
+        self.assertEqual(result["reasons"][0]["mutable_outputs"], ["CONTROL-AREA"])
+
+    def test_unsupported_parameter_forms_remain_unknown_not_empty(self):
+        for parameters in ("RESULT-AREA(1)", "RESULT-FIELD OF RESULT-AREA", "RESULT-AREA RETURNING STATUS-CODE",
+                           "RESULT-AREA, STATUS-CODE", "ADDRESS OF RESULT-AREA", "9000-FIELD"):
+            with self.subTest(parameters=parameters):
+                row = answer_grounding_risks([page("ROOT", f"CALL 'REMOTE' USING {parameters} END-CALL.")])["reasons"][0]
+                self.assertEqual(row["parameter_parse_status"], "unknown")
+                self.assertIsNone(row["actual_parameters"])
+                self.assertIsNone(row["mutable_outputs"])
+                self.assertFalse(row["unchanged_value_guaranteed"])
+
+    def test_numeric_perform_does_not_truncate_multiline_call_parameters(self):
+        for fixed in (False, True):
+            with self.subTest(fixed=fixed):
+                source = page("ROOT", "PERFORM 9000-CHECK.\n"
+                              "CALL 'RECORD-ACCESS' USING CONTROL-AREA\n"
+                              "    RECORD-AREA\nPERFORM 9000-CHECK.")
+                if fixed:
+                    source["source_text"] = "\n".join("       " + line
+                        for line in source["source_text"].splitlines()) + "\n"
+                    source["source_sha256"] = hashlib.sha256(source["source_text"].encode()).hexdigest()
+                row = answer_grounding_risks([source])["reasons"][0]
+                self.assertEqual(row["parameter_parse_status"], "parsed")
+                self.assertEqual(row["mutable_outputs"], ["CONTROL-AREA", "RECORD-AREA"])
+                self.assertEqual((row["start_line"], row["end_line"]), (6, 7))
+
+    def test_legacy_first_line_fallback_is_not_a_complete_parameter_list(self):
+        source = page("ROOT", "EXEC SQL SELECT AMOUNT INTO :OUTPUT-AMOUNT FROM RECORD_CONFIG END-EXEC.\n"
+                      "CALL 'RECORD-ACCESS' USING CONTROL-AREA\n"
+                      "    RECORD-AREA\nPERFORM CHECK-STATUS.")
+        rows = answer_grounding_risks([source])["reasons"]
+        call = next(row for row in rows if row["kind"] == "call_implementation_not_supplied")
+        self.assertEqual(call["parameter_parse_status"], "unknown")
+        self.assertIsNone(call["actual_parameters"])
+        self.assertIsNone(call["mutable_outputs"])
+
+    def test_ambiguous_target_does_not_hide_reference_mutability(self):
+        caller = page("ROOT", "CALL 'LEAF' USING CONTROL-AREA END-CALL.")
+        first = page("LEAF", "CONTINUE.")
+        second = {**first, "relative_path": "other/LEAF.cbl", "evidence_id": "ev_other"}
+        row = answer_grounding_risks([caller, first, second])["reasons"][0]
+        self.assertEqual(row["callee_source_status"], "ambiguous")
+        self.assertEqual(row["mutable_outputs"], ["CONTROL-AREA"])
+
+    def test_select_into_names_outputs_without_interpreting_sqlcode_or_final_values(self):
+        source = page("ROOT", "EXEC SQL\n"
+                      "SELECT AMOUNT, STATE INTO :OUTPUT-AMOUNT, :OUTPUT-STATE :STATE-INDICATOR\n"
+                      "FROM RECORD_CONFIG WHERE RECORD_KEY = :INPUT-KEY\nEND-EXEC.\n"
+                      "IF SQLCODE NOT = ZERO MOVE 1 TO STATUS-CODE END-IF.\n"
+                      "MOVE ZERO TO OUTPUT-AMOUNT.")
+        rows = answer_grounding_risks([source])["reasons"]
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["kind"], "sql_select_into_effect_boundary")
+        self.assertEqual(row["host_outputs"], ["OUTPUT-AMOUNT", "OUTPUT-STATE", "STATE-INDICATOR"])
+        self.assertFalse(row["sqlcode_semantics_interpreted"])
+        self.assertFalse(row["absence_of_local_assignment_proves_unchanged"])
+        self.assertFalse(row["unchanged_value_guaranteed"])
+        self.assertEqual((row["start_line"], row["end_line"]), (5, 8))
+        self.assertEqual(row["supplied_reference_ids"], ["ev_ROOT"])
+        self.assertNotIn("final_value", row)
+
+    def test_sql_and_calls_survive_numeric_perform_and_ignore_sql_comment_markers(self):
+        source = page("ROOT", "PERFORM 1000-CHECK.\n"
+                      "EXEC SQL SELECT MESSAGE_TEXT || 'END-EXEC INTO :FAKE'\n"
+                      "-- END-EXEC INTO :COMMENT-OUTPUT\n"
+                      "INTO :OUTPUT-TEXT FROM RECORD_CONFIG\n"
+                      "WHERE RECORD_KEY = :INPUT-KEY END-EXEC.\n"
+                      "CALL 'RECORD-ACCESS' USING CONTROL-AREA END-CALL.")
+        rows = answer_grounding_risks([source])["reasons"]
+        sql = next(row for row in rows if row["kind"] == "sql_select_into_effect_boundary")
+        call = next(row for row in rows if row["kind"] == "call_implementation_not_supplied")
+        self.assertEqual(sql["host_outputs"], ["OUTPUT-TEXT"])
+        self.assertEqual((sql["start_line"], sql["end_line"]), (6, 9))
+        self.assertEqual(call["mutable_outputs"], ["CONTROL-AREA"])
+        self.assertEqual(call["start_line"], 10)
+
+    def test_unparsed_or_non_select_sql_never_publishes_host_outputs(self):
+        for statement in (
+            "EXEC SQL SELECT AMOUNT INTO :OUTPUT-AREA.AMOUNT FROM RECORD_CONFIG END-EXEC.",
+            "EXEC SQL SELECT AMOUNT INTO :OUTPUT-TABLE(2) FROM RECORD_CONFIG END-EXEC.",
+            "EXEC SQL SELECT AMOUNT INTO :OUTPUT-AMOUNT FROM RECORD_CONFIG",
+            "EXEC SQL SELECT AMOUNT INTO :OUTPUT-AMOUNT FROM RECORD_CONFIG /* END-EXEC.",
+            "EXEC SQL FETCH RECORD-CURSOR INTO :OUTPUT-AMOUNT END-EXEC.",
+            "EXEC SQL EXECUTE QUERY-NAME INTO :OUTPUT-AMOUNT END-EXEC.",
+            "EXEC SQL SELECT AMOUNT FROM RECORD_CONFIG END-EXEC.",
+            "MOVE 'EXEC SQL SELECT AMOUNT INTO :FAKE FROM RECORD_CONFIG END-EXEC' TO MESSAGE-TEXT.",
+        ):
+            with self.subTest(statement=statement):
+                result = answer_grounding_risks([page("ROOT", "PERFORM CHECK-INPUT.\n" + statement)])
+                self.assertNotIn("sql_select_into_effect_boundary", self.kinds(result))
+
+    def test_complete_sql_envelope_does_not_need_a_cobol_paragraph_header(self):
+        text = "EXEC SQL\n    SELECT AMOUNT\n        INTO :OUTPUT-AMOUNT\n    FROM RECORD_CONFIG\nEND-EXEC."
+        source = {"evidence_id": "ev_sql", "relative_path": "lookup.cbl", "include_chain": [],
+                  "source_text": text, "source_sha256": hashlib.sha256(text.encode()).hexdigest(),
+                  "start_line": 35, "end_line": 39}
+        row = answer_grounding_risks([source])["reasons"][0]
+        self.assertEqual(row["kind"], "sql_select_into_effect_boundary")
+        self.assertEqual(row["host_outputs"], ["OUTPUT-AMOUNT"])
+        self.assertEqual((row["start_line"], row["end_line"]), (35, 39))
+        self.assertEqual(row["supplied_reference_ids"], ["ev_sql"])
+
+    def test_sql_comment_end_marker_does_not_expose_a_fake_call(self):
+        for comment in ("-- END-EXEC CALL 'FAKE' USING RESULT-AREA",
+                        "/* END-EXEC CALL 'FAKE' USING RESULT-AREA */"):
+            with self.subTest(comment=comment):
+                source = page("ROOT", "EXEC SQL\n" + comment + "\n"
+                              "SELECT 1 FROM RECORD_CONFIG\nEND-EXEC.\n"
+                              "CALL 'REAL-ACCESS' USING CONTROL-AREA END-CALL.")
+                rows = answer_grounding_risks([source])["reasons"]
+                self.assertEqual({row["target"] for row in rows}, {"REAL-ACCESS"})
+                self.assertEqual(rows[0]["mutable_outputs"], ["CONTROL-AREA"])
+                self.assertEqual(rows[0]["start_line"], 9)
+
 
 
 if __name__ == "__main__":

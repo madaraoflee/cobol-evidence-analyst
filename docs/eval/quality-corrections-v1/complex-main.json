@@ -1,0 +1,338 @@
+{
+  "schema_version": "business-evaluation-cases/v1",
+  "challenge_suite": "corrective-fresh-probes-v1",
+  "source_root_from_repository": "poc/fixtures/complex-business-v2/main",
+  "case_origin": "New questions authored from source before corrective answer outputs; subsequently used in development verification.",
+  "cases": [
+    {
+      "id": "route-failure-stage-comparison",
+      "split": "development",
+      "conversation": "route-failure-stage-comparison",
+      "question": "有两笔交易都没有得到计算金额：甲在路由查询时返回 SQLCODE=100；乙成功查到非空程序名，随后加载这个计算程序失败。假设此前各步骤成功，RESULTMP 也正常完成。两笔最终返回的状态、错误阶段、错误码和金额分别是什么？它们在处理流程中停在同一步吗？",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "programs/TXNENTRY.cbl",
+        "programs/TXNCORE.cbl",
+        "programs/RESULTMP.cbl",
+        "copybooks/ERRAREA.cpy",
+        "copybooks/RESAREA.cpy",
+        "programs/ROUTESEL.cbl",
+        "copybooks/CALCAREA.cpy"
+      ],
+      "review_checks": [
+        "只按本题场景的业务语义评分；关键结论、条件与结果须在全文一致。",
+        "检查引用是否支持对应结论，附加解释中的错误同样影响整题质量。",
+        "评价完成度、可读性与问题相关性；不要求固定措辞或固定篇幅。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "programs/TXNENTRY.cbl",
+            "start_line": 1,
+            "end_line": 28,
+            "sha256": "f9e129ba6f5af87e508b64332121f18fdeca187038c36b65d08c8ab27b76abc1",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/TXNCORE.cbl",
+            "start_line": 1,
+            "end_line": 79,
+            "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/RESULTMP.cbl",
+            "start_line": 1,
+            "end_line": 19,
+            "sha256": "ef40647c96a762f75cbbfdd38712d7f4aba77dff03f46e34b59a76ca859e0ee5",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/ERRAREA.cpy",
+            "start_line": 1,
+            "end_line": 4,
+            "sha256": "3a6c740e497a0ddf8a3a5580b8dc272decdc3562ce7f67f5a398ec95aafa82f1",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/RESAREA.cpy",
+            "start_line": 1,
+            "end_line": 6,
+            "sha256": "8d30ab93053f5c9ec9c75aa25b939727f28aafb7897b6f1b3b53ff6609f5a145",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/ROUTESEL.cbl",
+            "start_line": 1,
+            "end_line": 42,
+            "sha256": "85152579d6aed11925ef286556844b59c9aa9ab20bc2d0b34b0139fc5d6cbcc2",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/CALCAREA.cpy",
+            "start_line": 1,
+            "end_line": 11,
+            "sha256": "f441b937066881d7d471a8304baea02502e664d9362e32afec2085d020e01179",
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "missing-route-outcome",
+            "description": "甲最终状态71，错误阶段 ROUTE-LOOKUP，错误码 ROUTE-MISSING。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/ROUTESEL.cbl",
+                "start_line": 23,
+                "end_line": 35,
+                "sha256": "85152579d6aed11925ef286556844b59c9aa9ab20bc2d0b34b0139fc5d6cbcc2"
+              },
+              {
+                "path": "programs/RESULTMP.cbl",
+                "start_line": 9,
+                "end_line": 12,
+                "sha256": "ef40647c96a762f75cbbfdd38712d7f4aba77dff03f46e34b59a76ca859e0ee5"
+              }
+            ]
+          },
+          {
+            "id": "missing-route-skips-target",
+            "description": "甲在查路由后状态已非零，因此跳过后面的动态 CALL。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNCORE.cbl",
+                "start_line": 38,
+                "end_line": 56,
+                "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138"
+              }
+            ]
+          },
+          {
+            "id": "target-load-outcome",
+            "description": "乙已进入动态 CALL，加载目标失败触发该 CALL 的 ON EXCEPTION，最终状态92、ROUTE-CALL、PROGRAM-UNAVAILABLE。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNCORE.cbl",
+                "start_line": 48,
+                "end_line": 56,
+                "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138"
+              },
+              {
+                "path": "programs/RESULTMP.cbl",
+                "start_line": 9,
+                "end_line": 12,
+                "sha256": "ef40647c96a762f75cbbfdd38712d7f4aba77dff03f46e34b59a76ca859e0ee5"
+              }
+            ]
+          },
+          {
+            "id": "both-zero-results",
+            "description": "两种错误都会进入 RESULTMP 的非零状态映射，RESULT-AMOUNT 与 RESULT-ANNUAL 均为0。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNENTRY.cbl",
+                "start_line": 20,
+                "end_line": 27,
+                "sha256": "f9e129ba6f5af87e508b64332121f18fdeca187038c36b65d08c8ab27b76abc1"
+              },
+              {
+                "path": "programs/RESULTMP.cbl",
+                "start_line": 10,
+                "end_line": 18,
+                "sha256": "ef40647c96a762f75cbbfdd38712d7f4aba77dff03f46e34b59a76ca859e0ee5"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "route-failure-stage-comparison-forbidden-1",
+            "description": "把乙说成尚未尝试动态调用，或把两种错误都说成被调用前的守卫拦截。"
+          },
+          {
+            "id": "route-failure-stage-comparison-forbidden-2",
+            "description": "把加载目标失败错误92混成调用 ROUTESEL 失败的91。"
+          },
+          {
+            "id": "route-failure-stage-comparison-forbidden-3",
+            "description": "声称存在备用计算器、默认程序或错误后仍用已有金额。"
+          }
+        ],
+        "allowed_unknowns": [
+          "外部运行时或存储组件的内部实现没有包含在这些源码中；可以简短指出与本题结果直接相关的缺失。"
+        ],
+        "business_usefulness_checks": [
+          "先给本题结论，再用与结果有关的顺序、分支或参数传递解释原因。",
+          "一个错误在表格与后文应保持相同归属；避免补充无关代码修改建议。"
+        ]
+      }
+    },
+    {
+      "id": "validation-priority-counterexamples",
+      "split": "development",
+      "conversation": "validation-priority-counterexamples",
+      "question": "从 TXNENTRY 开始处理两笔请求：甲的 INPUT-STATUS=\"I\"、INPUT-SUM=0、INPUT-ITEM-COUNT=7、INPUT-LOAD-PERCENT=150、INPUT-DISCOUNT-PERCENT=0；乙的 INPUT-STATUS=\"P\"、INPUT-SUM=1000、INPUT-ITEM-COUNT=6、INPUT-LOAD-PERCENT=100、INPUT-DISCOUNT-PERCENT=101。假设所有程序都能正常加载。两笔最终报哪个问题、返回多少金额，后面的计算还会执行吗？",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "programs/TXNENTRY.cbl",
+        "programs/TXNCORE.cbl",
+        "programs/RESULTMP.cbl",
+        "copybooks/ERRAREA.cpy",
+        "copybooks/RESAREA.cpy",
+        "copybooks/REQAREA.cpy"
+      ],
+      "review_checks": [
+        "只按本题场景的业务语义评分；关键结论、条件与结果须在全文一致。",
+        "检查引用是否支持对应结论，附加解释中的错误同样影响整题质量。",
+        "评价完成度、可读性与问题相关性；不要求固定措辞或固定篇幅。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "programs/TXNENTRY.cbl",
+            "start_line": 1,
+            "end_line": 28,
+            "sha256": "f9e129ba6f5af87e508b64332121f18fdeca187038c36b65d08c8ab27b76abc1",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/TXNCORE.cbl",
+            "start_line": 1,
+            "end_line": 79,
+            "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "programs/RESULTMP.cbl",
+            "start_line": 1,
+            "end_line": 19,
+            "sha256": "ef40647c96a762f75cbbfdd38712d7f4aba77dff03f46e34b59a76ca859e0ee5",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/ERRAREA.cpy",
+            "start_line": 1,
+            "end_line": 4,
+            "sha256": "3a6c740e497a0ddf8a3a5580b8dc272decdc3562ce7f67f5a398ec95aafa82f1",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/RESAREA.cpy",
+            "start_line": 1,
+            "end_line": 6,
+            "sha256": "8d30ab93053f5c9ec9c75aa25b939727f28aafb7897b6f1b3b53ff6609f5a145",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/REQAREA.cpy",
+            "start_line": 1,
+            "end_line": 22,
+            "sha256": "4584fa5126930df1f9a137745750542a3c349eef00a3593fe61c3b99e2fa4510",
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "first-valid-status",
+            "description": "I 和 P 都通过第一项状态校验，两笔均不应报11。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNCORE.cbl",
+                "start_line": 58,
+                "end_line": 64,
+                "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138"
+              }
+            ]
+          },
+          {
+            "id": "amount-count-before-percent",
+            "description": "甲先由金额为0或明细数大于6触发12、INPUT、INVALID-AMOUNT-OR-COUNT；后续百分比校验受状态为0的条件控制，150不会把12覆盖成13。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNCORE.cbl",
+                "start_line": 65,
+                "end_line": 77,
+                "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138"
+              }
+            ]
+          },
+          {
+            "id": "percent-boundary",
+            "description": "乙金额非零、明细数等于6且加载百分比等于100通过相应检查；折扣101触发13、INPUT、INVALID-PERCENT。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNCORE.cbl",
+                "start_line": 65,
+                "end_line": 77,
+                "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138"
+              }
+            ]
+          },
+          {
+            "id": "skip-computation-map-error",
+            "description": "两笔状态均非零，因此后续 BASECALC、ITEMSUM、ADJUST、路由选择及动态计算不执行；TXNENTRY 仍调用 RESULTMP，返回对应错误且两个结果金额均为0。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/TXNCORE.cbl",
+                "start_line": 10,
+                "end_line": 56,
+                "sha256": "cbb950ca3c02405a74cb0020327cd9a73a38393a44a19357e440750d9910b138"
+              },
+              {
+                "path": "programs/TXNENTRY.cbl",
+                "start_line": 12,
+                "end_line": 27,
+                "sha256": "f9e129ba6f5af87e508b64332121f18fdeca187038c36b65d08c8ab27b76abc1"
+              },
+              {
+                "path": "programs/RESULTMP.cbl",
+                "start_line": 10,
+                "end_line": 18,
+                "sha256": "ef40647c96a762f75cbbfdd38712d7f4aba77dff03f46e34b59a76ca859e0ee5"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "validation-priority-counterexamples-forbidden-1",
+            "description": "把甲百分比错误作为最终错误，或声称所有输入问题会合并返回。"
+          },
+          {
+            "id": "validation-priority-counterexamples-forbidden-2",
+            "description": "把等于6或等于100判断为超界。"
+          },
+          {
+            "id": "validation-priority-counterexamples-forbidden-3",
+            "description": "声称错误使 RESULTMP 跳过，或继续正常金额计算。"
+          }
+        ],
+        "allowed_unknowns": [
+          "外部运行时或存储组件的内部实现没有包含在这些源码中；可以简短指出与本题结果直接相关的缺失。"
+        ],
+        "business_usefulness_checks": [
+          "先给本题结论，再用与结果有关的顺序、分支或参数传递解释原因。",
+          "一个错误在表格与后文应保持相同归属；避免补充无关代码修改建议。"
+        ]
+      }
+    }
+  ]
+}

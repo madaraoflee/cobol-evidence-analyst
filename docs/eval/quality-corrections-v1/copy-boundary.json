@@ -1,0 +1,170 @@
+{
+  "schema_version": "business-evaluation-cases/v1",
+  "challenge_suite": "corrective-fresh-probes-v1",
+  "source_root_from_repository": "poc/fixtures/error-return-v5/copy-boundary/programs",
+  "case_origin": "New questions authored from source before corrective answer outputs; subsequently used in development verification.",
+  "cases": [
+    {
+      "id": "copy-load-failure-levels",
+      "split": "development",
+      "conversation": "copy-load-failure-levels",
+      "question": "排查 COPYROOT 时发现两种故障：甲是 MIDCONTENT 没有加载成功；乙是 MIDCONTENT 已正常进入，但 LEAFCONTENT 没有加载成功。两次调用前 ROOT-CONTENT-STATUS 都是12，ROOT-VALUE-STATUS 都是34，其余调用正常完成，已处理的故障不再向外抛出。两次返回时根层这两个状态各是多少，为什么？",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "COPYROOT.cbl",
+        "MIDCONTENT.cbl",
+        "LEAFCONTENT.cbl",
+        "MIDVALUE.cbl",
+        "LEAFVALUE.cbl"
+      ],
+      "review_checks": [
+        "只按本题场景的业务语义评分；关键结论、条件与结果须在全文一致。",
+        "检查引用是否支持对应结论，附加解释中的错误同样影响整题质量。",
+        "评价完成度、可读性与问题相关性；不要求固定措辞或固定篇幅。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "COPYROOT.cbl",
+            "start_line": 1,
+            "end_line": 18,
+            "sha256": "8fb978f1c07d5117f5e314994d9db46cab7a9125164d2b7ca55dbf898a117296",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "MIDCONTENT.cbl",
+            "start_line": 1,
+            "end_line": 13,
+            "sha256": "860cbd1954b90853089fc6134f0b85540fa889ec75e29e2dacd638dae4c4fcc1",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "LEAFCONTENT.cbl",
+            "start_line": 1,
+            "end_line": 10,
+            "sha256": "e8da396cf6dfe17d2bc54cd1eda197f97bddbd3f61546081251a5e7b6463a7ef",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "MIDVALUE.cbl",
+            "start_line": 1,
+            "end_line": 13,
+            "sha256": "6310b5f4068c796158c85dc6a1df0fd79e2449cd7f86be25a9b22b15ec46f959",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "LEAFVALUE.cbl",
+            "start_line": 1,
+            "end_line": 10,
+            "sha256": "a1eac5c05049526e33f6b4c38380fdf387b3bb50798ff05d2d2851b3ca5a3c56",
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "root-handler-90",
+            "description": "甲在 COPYROOT 对 MIDCONTENT 的 CALL 触发异常分支，将 ROOT-CONTENT-STATUS 置90；不会执行 MIDCONTENT 中的91赋值。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "COPYROOT.cbl",
+                "start_line": 10,
+                "end_line": 13,
+                "sha256": "8fb978f1c07d5117f5e314994d9db46cab7a9125164d2b7ca55dbf898a117296"
+              }
+            ]
+          },
+          {
+            "id": "middle-handler-91",
+            "description": "乙在 MIDCONTENT 对 LEAFCONTENT 的 CALL 触发异常分支，将 MIDDLE-CONTENT-STATUS 置91；根到中层 BY REFERENCE 使根字段也为91。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "COPYROOT.cbl",
+                "start_line": 10,
+                "end_line": 13,
+                "sha256": "8fb978f1c07d5117f5e314994d9db46cab7a9125164d2b7ca55dbf898a117296"
+              },
+              {
+                "path": "MIDCONTENT.cbl",
+                "start_line": 7,
+                "end_line": 13,
+                "sha256": "860cbd1954b90853089fc6134f0b85540fa889ec75e29e2dacd638dae4c4fcc1"
+              }
+            ]
+          },
+          {
+            "id": "handled-failure-not-overwritten",
+            "description": "乙的已处理异常正常返回，题设下根层90分支不再覆盖91。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "COPYROOT.cbl",
+                "start_line": 10,
+                "end_line": 13,
+                "sha256": "8fb978f1c07d5117f5e314994d9db46cab7a9125164d2b7ca55dbf898a117296"
+              },
+              {
+                "path": "MIDCONTENT.cbl",
+                "start_line": 9,
+                "end_line": 13,
+                "sha256": "860cbd1954b90853089fc6134f0b85540fa889ec75e29e2dacd638dae4c4fcc1"
+              }
+            ]
+          },
+          {
+            "id": "independent-normal-value",
+            "description": "两次 ROOT-VALUE-STATUS 均仍为34；第二个根层调用会继续，叶子 BY VALUE 的21不写回。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "COPYROOT.cbl",
+                "start_line": 14,
+                "end_line": 18,
+                "sha256": "8fb978f1c07d5117f5e314994d9db46cab7a9125164d2b7ca55dbf898a117296"
+              },
+              {
+                "path": "MIDVALUE.cbl",
+                "start_line": 7,
+                "end_line": 13,
+                "sha256": "6310b5f4068c796158c85dc6a1df0fd79e2449cd7f86be25a9b22b15ec46f959"
+              },
+              {
+                "path": "LEAFVALUE.cbl",
+                "start_line": 7,
+                "end_line": 10,
+                "sha256": "a1eac5c05049526e33f6b4c38380fdf387b3bb50798ff05d2d2851b3ca5a3c56"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "copy-load-failure-levels-forbidden-1",
+            "description": "把两个故障一律归为90或一律归为91。"
+          },
+          {
+            "id": "copy-load-failure-levels-forbidden-2",
+            "description": "声称 BY CONTENT 阻止中层异常处理写回根字段。"
+          },
+          {
+            "id": "copy-load-failure-levels-forbidden-3",
+            "description": "声称第一个已处理异常阻止第二个 CALL，或声称叶子的21写回 ROOT-VALUE-STATUS。"
+          }
+        ],
+        "allowed_unknowns": [
+          "外部运行时或存储组件的内部实现没有包含在这些源码中；可以简短指出与本题结果直接相关的缺失。"
+        ],
+        "business_usefulness_checks": [
+          "先给本题结论，再用与结果有关的顺序、分支或参数传递解释原因。",
+          "一个错误在表格与后文应保持相同归属；避免补充无关代码修改建议。"
+        ]
+      }
+    }
+  ]
+}

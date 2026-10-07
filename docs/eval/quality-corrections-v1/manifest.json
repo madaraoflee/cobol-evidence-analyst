@@ -1,0 +1,36 @@
+{
+  "schema_version": "business-challenge-manifest/v1",
+  "suite_id": "corrective-fresh-probes-v1",
+  "split": "development",
+  "case_count": 5,
+  "runtime_verification": "NOT_EXECUTED",
+  "case_origin": "Source-reviewed questions written before corrective answer outputs and subsequently used for development verification.",
+  "groups": [
+    {
+      "id": "copy-boundary",
+      "source_root_from_repository": "poc/fixtures/error-return-v5/copy-boundary/programs",
+      "cases_file_from_repository": "docs/eval/quality-corrections-v1/copy-boundary.json",
+      "case_ids": [
+        "copy-load-failure-levels"
+      ]
+    },
+    {
+      "id": "complex-main",
+      "source_root_from_repository": "poc/fixtures/complex-business-v2/main",
+      "cases_file_from_repository": "docs/eval/quality-corrections-v1/complex-main.json",
+      "case_ids": [
+        "route-failure-stage-comparison",
+        "validation-priority-counterexamples"
+      ]
+    },
+    {
+      "id": "request-operations",
+      "source_root_from_repository": "poc/fixtures/framework-workbench/source",
+      "cases_file_from_repository": "docs/eval/quality-corrections-v1/request-operations.json",
+      "case_ids": [
+        "save-failure-after-local-decision",
+        "screen-amount-after-restore"
+      ]
+    }
+  ]
+}

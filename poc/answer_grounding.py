@@ -16,6 +16,8 @@ from framework_semantics import visible_framework_facts
 _MAX_SCAN_CHARACTERS = 80000
 _MAX_RISKS = 32
 _PROGRAM = re.compile(r"^\s*PROGRAM-ID\s*\.\s*['\"]?([A-Z0-9_$#@-]+)", re.I)
+
+
 def _eligible_pages(source_pages):
     return [page for page in source_pages if page.get("evidence_id") and page.get("source_sha256")
             and isinstance(page.get("source_text"), str) and page["source_text"]
@@ -24,35 +26,90 @@ def _eligible_pages(source_pages):
             and page["end_line"] - page["start_line"] + 1 == len(page["source_text"].splitlines())]
 
 
-def _call_tokens(body, first_line, source_format):
-    from statement_parser import _BoundaryError, _Source, _lex
-
-    location = _Source(body, first_line)
-    try:
-        yield location, _lex(location, source_format, 16000), None
-        return
-    except _BoundaryError:
-        pass
-    # The bounded AST lexer rejects numeric paragraph names such as
-    # 1000-CHECK. The existing structural parser still isolates CALL headers
-    # after those PERFORMs, without interpreting their execution or effects.
+def _fragment_units(body, source_format):
     from structural_index import SourceDocument, normalize_cobol_lines, parse_document
+
     lines, hint = normalize_cobol_lines(body, source_format)
     document = SourceDocument("supplied-fragment.cbl", "supplied", "utf-8", False,
                               hint, "COBOL", tuple(body.splitlines()), lines)
-    for unit in parse_document(document).code_units:
+    return parse_document(document).code_units
+
+
+def _call_tokens(body, first_line, source_format):
+    from statement_parser import _BoundaryError, _CLAUSES, _Source, _TERMINATORS, _Token, _lex
+
+    location = _Source(body, first_line)
+    # Numeric paragraph names are outside the AST lexer's identifier subset.
+    # Mask just their first character for tokenization, then restore the exact
+    # token value before parse_call. This cannot make such a parameter valid.
+    lexical_text, numeric_names = body, set()
+    for _ in range(64):
+        try:
+            tokens = _lex(_Source(lexical_text, first_line), source_format, 16000)
+            tokens = tuple(_Token(body[token.start:token.end].upper(), "word", token.start, token.end)
+                           if token.start in numeric_names else token for token in tokens)
+            yield location, tokens, None, True
+            return
+        except _BoundaryError as exc:
+            if exc.reason != "numeric_or_identifier_form_not_supported":
+                break
+            numeric_names.add(exc.offset)
+            lexical_text = lexical_text[:exc.offset] + "N" + lexical_text[exc.offset + 1:]
+    # The bounded AST lexer rejects numeric paragraph names such as
+    # 1000-CHECK. The existing structural parser still isolates CALL headers
+    # after those PERFORMs, without interpreting their execution or effects.
+    for unit in _fragment_units(body, source_format):
         if unit.unit_type != "Statement" or unit.name != "CALL":
             continue
         location = _Source(unit.normalized_text, first_line + unit.start_line - 1)
         try:
-            yield location, _lex(location, "free", 16000), first_line + unit.end_line - 1
-        except _BoundaryError:
-            continue
+            tokens = _lex(location, "free", 16000)
+            # The legacy collector can isolate only the first physical line
+            # of a multiline CALL. A visible clause/terminator is required
+            # before its parameter list can be called complete.
+            complete = any(token.value in _CLAUSES | _TERMINATORS for token in tokens[2:])
+            yield location, tokens, first_line + unit.end_line - 1, complete
+        except _BoundaryError as exc:
+            # A recognizable CALL prefix still identifies an unknown boundary.
+            # Never present its partial parameter list as a complete signature.
+            prefix = _Source(unit.normalized_text[:exc.offset], location.start_line)
+            try:
+                yield location, _lex(prefix, "free", 16000), first_line + unit.end_line - 1, False
+            except _BoundaryError:
+                continue
+
+
+def _actual_parameters(tokens, lexical_complete):
+    from call_bindings import parse_call
+
+    try:
+        if not lexical_complete:
+            raise ValueError("call_header_lexically_incomplete")
+        form = parse_call(" ".join(token.value for token in tokens))
+    except ValueError as exc:
+        return {"parameter_parse_status": "unknown", "parameter_parse_reason": str(exc),
+                "actual_parameters": None}
+    return {"parameter_parse_status": "parsed", "actual_parameters": [
+        {"position": position, "name": parameter.name, "mode": parameter.mode}
+        for position, parameter in enumerate(form.parameters, 1)]}
+
+
+def _source_location(pages, span, start_line, end_line):
+    references = [page for page in pages
+        if page.get("relative_path") == span["key"][0]
+        and page.get("source_sha256") == span["key"][1]
+        and repr(page.get("include_chain") or []) == span["key"][2]
+        and page["start_line"] <= end_line and page["end_line"] >= start_line]
+    return {"relative_path": span["key"][0], "source_sha256": span["key"][1],
+            "start_line": start_line, "end_line": end_line,
+            "include_chain": deepcopy(references[0].get("include_chain", []) if references else []),
+            "supplied_reference_ids": sorted({page["evidence_id"] for page in references})}
 
 
 def _call_observations(pages):
     from business_synthesis import _supplied_source_spans
     from statement_parser import _CLAUSES, _TERMINATORS, _VERBS
+    from structural_index import _SQLCodeScanner
     from syntax_evidence import _bodies
 
     calls, scanned, truncated = [], 0, False
@@ -67,13 +124,26 @@ def _call_observations(pages):
         units, _ = _bodies(text, min(span["lines"]))
         streams = (stream for _, body, first_line, source_format in units
                    for stream in _call_tokens(body, first_line, source_format))
-        for location, tokens, header_end_line in streams:
+        for location, tokens, header_end_line, lexical_complete in streams:
             # Call-risk nomination needs lexical call headers, not a completed
             # value-flow AST. An unsupported earlier statement must not hide a
             # later call. The existing lexer masks comments and fixed columns,
             # and keeps quoted values as literal tokens.
-            embedded = False
+            embedded, sql_end = False, -1
             for index, token in enumerate(tokens):
+                if token.start < sql_end:
+                    continue
+                if (token.kind == "word" and token.value == "EXEC"
+                        and index + 1 < len(tokens) and tokens[index + 1].value == "SQL"):
+                    # COBOL tokens alone cannot distinguish END-EXEC inside
+                    # SQL comments. Match a real token against SQL-masked code.
+                    sql_code = _SQLCodeScanner().feed(location.text[token.start:])
+                    end = next((candidate.end for candidate in tokens[index + 2:]
+                        if candidate.kind == "word" and candidate.value == "END-EXEC"
+                        and sql_code[candidate.start - token.start:candidate.end - token.start] == "END-EXEC"),
+                        len(location.text))
+                    sql_end = end
+                    continue
                 if token.kind == "word" and token.value in {"EXEC", "END-EXEC"}:
                     embedded = token.value == "EXEC"
                     continue
@@ -94,20 +164,49 @@ def _call_observations(pages):
                 call_span = location.span(token.start, tokens[max(index + 1, cursor - 1)].end)
                 end_line = max(call_span.end_line, header_end_line or 0)
                 suffix = [item.value for item in tokens[cursor:cursor + 3]]
-                references = [page["evidence_id"] for page in pages
-                    if page.get("relative_path") == span["key"][0]
-                    and page.get("source_sha256") == span["key"][1]
-                    and repr(page.get("include_chain") or []) == span["key"][2]
-                    and page["start_line"] <= end_line and page["end_line"] >= call_span.start_line]
-                calls.append({"relative_path": span["key"][0], "source_sha256": span["key"][1],
-                    "start_line": call_span.start_line, "end_line": end_line,
-                    "include_chain": deepcopy(next((page.get("include_chain", []) for page in pages
-                        if page["evidence_id"] in references), [])),
+                calls.append({**_source_location(pages, span, call_span.start_line, end_line),
                     "target": target.value[1:-1].upper() if target.kind == "literal" else target.value,
                     "dynamic": target.kind != "literal", "copy_modes": sorted(set(modes)),
                     "has_exception_handler": suffix[:2] == ["ON", "EXCEPTION"] or suffix == ["NOT", "ON", "EXCEPTION"],
-                    "supplied_reference_ids": sorted(set(references))})
+                    **_actual_parameters(tokens[index:cursor], lexical_complete)})
     return calls, truncated
+
+
+def _sql_output_observations(pages):
+    from business_synthesis import _supplied_source_spans
+    from statement_facts import sql_code_only, sql_host_access
+
+    observations, scanned, truncated = [], 0, False
+    for span in _supplied_source_spans(pages, {page["evidence_id"] for page in pages}):
+        if not span["lines"]:
+            continue
+        text = span["source_text"]
+        if scanned + len(text) > _MAX_SCAN_CHARACTERS:
+            truncated = True
+            break
+        scanned += len(text)
+        if "EXEC" not in text.upper():
+            continue
+        # SQL owns an explicit EXEC/END-EXEC envelope. It does not need a
+        # complete COBOL paragraph or the AST adapter's stricter format vote.
+        for unit in _fragment_units(text, "auto"):
+            if unit.name != "EXEC_SQL" or unit.parse_status != "complete":
+                continue
+            code, complete = sql_code_only(unit.normalized_text)
+            if not complete or code.split()[:3] != ["EXEC", "SQL", "SELECT"]:
+                continue
+            _, outputs, supported = sql_host_access(code)
+            if not supported or not outputs:
+                continue
+            first_line = min(span["lines"])
+            observations.append({**_source_location(pages, span,
+                first_line + unit.start_line - 1, first_line + unit.end_line - 1),
+                "host_outputs": outputs, "operation": "SELECT_INTO",
+                "post_sql_value_status": "depends_on_sql_execution_semantics_and_subsequent_assignments",
+                "unchanged_value_guaranteed": False,
+                "absence_of_local_assignment_proves_unchanged": False,
+                "sqlcode_semantics_interpreted": False})
+    return observations, truncated
 
 
 def answer_grounding_risks(source_pages, *, framework_references=(), framework_facts=(), business_map=None):
@@ -149,6 +248,8 @@ def answer_grounding_risks(source_pages, *, framework_references=(), framework_f
             "target_path": edge.get("target_path"),
             "target_resolution": edge.get("resolution"),
             "copy_modes": [], "has_exception_handler": False,
+            "parameter_parse_status": "unknown", "parameter_parse_reason": "call_header_not_parsed",
+            "actual_parameters": None,
             "supplied_reference_ids": sorted({item["evidence_id"] for item in matches})})
 
     reasons, seen = [], set()
@@ -169,6 +270,13 @@ def answer_grounding_risks(source_pages, *, framework_references=(), framework_f
         source_supplied = (target_path in supplied_paths if target_path else
                            len(candidates) == 1 and not ambiguous)
         call["source_status"] = "supplied_excerpt" if source_supplied else "ambiguous" if ambiguous else "not_supplied"
+        call["callee_source_status"] = call["source_status"]
+        if not source_supplied:
+            call["mutable_outputs"] = ([parameter["name"] for parameter in call["actual_parameters"]
+                if parameter["mode"] == "REFERENCE"] if call["actual_parameters"] is not None else None)
+            call["mutable_output_scope"] = "argument_storage_including_subordinate_fields"
+            call["post_call_value_status"] = "requires_return_effects_or_subsequent_local_assignment"
+            call["unchanged_value_guaranteed"] = False
         if call["copy_modes"]:
             add("parameter_copy_boundary", call)
         if call["dynamic"]:
@@ -179,10 +287,17 @@ def answer_grounding_risks(source_pages, *, framework_references=(), framework_f
             and fact.get("start_line", 0) <= call["start_line"] <= fact.get("end_line", 0) for fact in facts)
         if not call["dynamic"] and not source_supplied and not covered:
             add("call_implementation_not_supplied", call)
+        elif not source_supplied and covered and call.get("mutable_outputs") != []:
+            # A visible operation contract does not by itself establish that
+            # every referenced argument retains its pre-call value.
+            add("call_reference_effect_boundary", call)
     handlers = [call for call in calls if call["has_exception_handler"]]
     if len(handlers) > 1:
         for call in handlers:
             add("multiple_call_exception_sites", call)
+    sql_outputs, sql_truncated = _sql_output_observations(pages)
+    for observation in sql_outputs:
+        add("sql_select_into_effect_boundary", observation)
     return {"required": bool(reasons), "reasons": reasons[:_MAX_RISKS],
-            "omitted_risks": max(0, len(reasons) - _MAX_RISKS), "source_scan_truncated": truncated,
+            "omitted_risks": max(0, len(reasons) - _MAX_RISKS), "source_scan_truncated": truncated or sql_truncated,
             "semantic_execution_verified": False}

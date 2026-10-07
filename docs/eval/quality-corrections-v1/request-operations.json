@@ -1,0 +1,318 @@
+{
+  "schema_version": "business-evaluation-cases/v1",
+  "challenge_suite": "corrective-fresh-probes-v1",
+  "source_root_from_repository": "poc/fixtures/framework-workbench/source",
+  "case_origin": "New questions authored from source before corrective answer outputs; subsequently used in development verification.",
+  "cases": [
+    {
+      "id": "save-failure-after-local-decision",
+      "split": "development",
+      "conversation": "save-failure-after-local-decision",
+      "question": "SERVICEENTRY 接受了用户填写的5000元，进入更新时 ORIGINAL-ERROR 和 FINAL-ERROR 都为空。RESTORE 返回OK，但随后的 SAVE 返回FAIL。程序发给 SAVE 的金额和审批状态是什么，界面最终跳去哪？这次处理可以按保存成功结案吗？",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "programs/service-entry.cbl",
+        "copybooks/online-flow.cpy",
+        "copybooks/request-record.cpy",
+        "copybooks/io-parameters.cpy",
+        "copybooks/shared-context.cpy",
+        "copybooks/screen-fields.cpy"
+      ],
+      "review_checks": [
+        "只按本题场景的业务语义评分；关键结论、条件与结果须在全文一致。",
+        "检查引用是否支持对应结论，附加解释中的错误同样影响整题质量。",
+        "评价完成度、可读性与问题相关性；不要求固定措辞或固定篇幅。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "programs/service-entry.cbl",
+            "start_line": 1,
+            "end_line": 98,
+            "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/online-flow.cpy",
+            "start_line": 1,
+            "end_line": 11,
+            "sha256": "5ef4ba4dfe197721dda0695131ccd2282f08a380f466a7114c3200470dd9c519",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/request-record.cpy",
+            "start_line": 1,
+            "end_line": 6,
+            "sha256": "966e872a427e500b8339a7f43658ebc8167a8f327c4084700248af0686942604",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/io-parameters.cpy",
+            "start_line": 1,
+            "end_line": 6,
+            "sha256": "66e915014c01164dd5321fc9084bb63de0fa46067eed5012f8023f60f93d821e",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/shared-context.cpy",
+            "start_line": 1,
+            "end_line": 8,
+            "sha256": "5ee5e5ebedb0cfe1c17175cdbd5a5a3f7bc8cd3d83471edf5d7f2e8d1d77f585",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/screen-fields.cpy",
+            "start_line": 1,
+            "end_line": 8,
+            "sha256": "9e17497ef76c3cdd409f0b7a3ac78d6254a5759051c2d85eaed9f9a8afc3eb9c",
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "pre-save-record-values",
+            "description": "RESTORE 成功后，调用方先把5000赋给 REQUEST-AMOUNT；由于判断是<=5000，将 REQUEST-STATE 设为 APPROVED，再以该记录发出 SAVE。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/service-entry.cbl",
+                "start_line": 55,
+                "end_line": 70,
+                "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3"
+              }
+            ]
+          },
+          {
+            "id": "save-failure-error-state",
+            "description": "SAVE 返回FAIL后执行9000-CHECK-IO，ORIGINAL-ERROR与FINAL-ERROR均为FAIL，EDIT-STATE为ERROR。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/service-entry.cbl",
+                "start_line": 66,
+                "end_line": 69,
+                "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3"
+              },
+              {
+                "path": "programs/service-entry.cbl",
+                "start_line": 89,
+                "end_line": 96,
+                "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3"
+              }
+            ]
+          },
+          {
+            "id": "error-route-first",
+            "description": "4000-WHERE-NEXT先判断FINAL-ERROR，最终选择ERRORPAGE；不会因此前的 APPROVED 去 REQUESTSUMMARY。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "copybooks/online-flow.cpy",
+                "start_line": 7,
+                "end_line": 11,
+                "sha256": "5ef4ba4dfe197721dda0695131ccd2282f08a380f466a7114c3200470dd9c519"
+              },
+              {
+                "path": "programs/service-entry.cbl",
+                "start_line": 74,
+                "end_line": 85,
+                "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3"
+              }
+            ]
+          },
+          {
+            "id": "save-not-success",
+            "description": "本次调用方按保存错误处理；本地已设 APPROVED 和已请求 SAVE，不足以作为保存成功结案依据。源码没有 REQUESTSTORE 实现或实际存储结果，既不保证已持久化，也不保证已回滚。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/service-entry.cbl",
+                "start_line": 55,
+                "end_line": 70,
+                "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3"
+              },
+              {
+                "path": "programs/service-entry.cbl",
+                "start_line": 89,
+                "end_line": 96,
+                "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "save-failure-after-local-decision-forbidden-1",
+            "description": "把本地 APPROVED 赋值当成已经成功保存或提交。"
+          },
+          {
+            "id": "save-failure-after-local-decision-forbidden-2",
+            "description": "声称 SAVE 失败必然回滚数据库、必然保留旧金额，或已把新记录持久化。"
+          },
+          {
+            "id": "save-failure-after-local-decision-forbidden-3",
+            "description": "把5000分入REVIEW，或忽略FINAL-ERROR而走正常汇总页。"
+          }
+        ],
+        "allowed_unknowns": [
+          "外部运行时或存储组件的内部实现没有包含在这些源码中；可以简短指出与本题结果直接相关的缺失。"
+        ],
+        "business_usefulness_checks": [
+          "先给本题结论，再用与结果有关的顺序、分支或参数传递解释原因。",
+          "一个错误在表格与后文应保持相同归属；避免补充无关代码修改建议。"
+        ]
+      }
+    },
+    {
+      "id": "screen-amount-after-restore",
+      "split": "development",
+      "conversation": "screen-amount-after-restore",
+      "question": "在 SERVICEENTRY 确认6000元改动时，RESTORE、新金额赋值、SAVE 是什么先后关系？假设 RESTORE 返回OK，发出 SAVE 时会用屏幕上的6000元，还是恢复后的旧金额，审批状态又是什么？",
+      "source_snapshot_id": null,
+      "framework_revision": null,
+      "history": [],
+      "expected_source_paths": [
+        "programs/service-entry.cbl",
+        "copybooks/online-flow.cpy",
+        "copybooks/request-record.cpy",
+        "copybooks/io-parameters.cpy",
+        "copybooks/shared-context.cpy",
+        "copybooks/screen-fields.cpy"
+      ],
+      "review_checks": [
+        "只按本题场景的业务语义评分；关键结论、条件与结果须在全文一致。",
+        "检查引用是否支持对应结论，附加解释中的错误同样影响整题质量。",
+        "评价完成度、可读性与问题相关性；不要求固定措辞或固定篇幅。"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "programs/service-entry.cbl",
+            "start_line": 1,
+            "end_line": 98,
+            "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/online-flow.cpy",
+            "start_line": 1,
+            "end_line": 11,
+            "sha256": "5ef4ba4dfe197721dda0695131ccd2282f08a380f466a7114c3200470dd9c519",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/request-record.cpy",
+            "start_line": 1,
+            "end_line": 6,
+            "sha256": "966e872a427e500b8339a7f43658ebc8167a8f327c4084700248af0686942604",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/io-parameters.cpy",
+            "start_line": 1,
+            "end_line": 6,
+            "sha256": "66e915014c01164dd5321fc9084bb63de0fa46067eed5012f8023f60f93d821e",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/shared-context.cpy",
+            "start_line": 1,
+            "end_line": 8,
+            "sha256": "5ee5e5ebedb0cfe1c17175cdbd5a5a3f7bc8cd3d83471edf5d7f2e8d1d77f585",
+            "role": "source_definition_and_control_context"
+          },
+          {
+            "path": "copybooks/screen-fields.cpy",
+            "start_line": 1,
+            "end_line": 8,
+            "sha256": "9e17497ef76c3cdd409f0b7a3ac78d6254a5759051c2d85eaed9f9a8afc3eb9c",
+            "role": "source_definition_and_control_context"
+          }
+        ],
+        "framework_ranges": []
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "restore-request-and-check",
+            "description": "先设置 IO-FUNCTION=RESTORE 并调用 REQUESTSTORE，然后检查 IO-STATUS；成功分支才继续后续赋值与SAVE。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/service-entry.cbl",
+                "start_line": 55,
+                "end_line": 60,
+                "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3"
+              }
+            ]
+          },
+          {
+            "id": "screen-overwrites-before-save",
+            "description": "RESTORE返回后，调用方把 SCREEN-AMOUNT 覆盖到 REQUEST-AMOUNT，所以发出SAVE时金额为6000，而不是继续沿用RESTORE返回的原金额。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/service-entry.cbl",
+                "start_line": 59,
+                "end_line": 68,
+                "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3"
+              }
+            ]
+          },
+          {
+            "id": "review-before-save",
+            "description": "6000大于5000，调用方把 REQUEST-STATE 设为REVIEW，再用 REQUEST-RECORD 发出 SAVE。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/service-entry.cbl",
+                "start_line": 60,
+                "end_line": 68,
+                "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3"
+              }
+            ]
+          },
+          {
+            "id": "operation-versus-implementation",
+            "description": "对 RESTORE 的说明限于调用方发出的操作及可见赋值顺序；REQUESTSTORE实现未随源码提供，不把操作名扩展成重新读数据库、回滚、恢复某个事务快照或保证持久化的事实。",
+            "critical": true,
+            "supporting_ranges": [
+              {
+                "path": "programs/service-entry.cbl",
+                "start_line": 55,
+                "end_line": 70,
+                "sha256": "dec1b9da8bbeba59f8e035e6bbb9c3e6d70eb0d2d0861b9212546f94c8ce80e3"
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "screen-amount-after-restore-forbidden-1",
+            "description": "声称RESTORE把用户的6000元永久丢弃，导致SAVE仍收到旧金额。"
+          },
+          {
+            "id": "screen-amount-after-restore-forbidden-2",
+            "description": "凭RESTORE名字断言其必定重读数据库、丢弃内存修改或回滚事务。"
+          },
+          {
+            "id": "screen-amount-after-restore-forbidden-3",
+            "description": "把请求SAVE表述为存储层已持久化、事务已提交，或自动进入实际审批完成状态。"
+          }
+        ],
+        "allowed_unknowns": [
+          "外部运行时或存储组件的内部实现没有包含在这些源码中；可以简短指出与本题结果直接相关的缺失。"
+        ],
+        "business_usefulness_checks": [
+          "先给本题结论，再用与结果有关的顺序、分支或参数传递解释原因。",
+          "一个错误在表格与后文应保持相同归属；避免补充无关代码修改建议。"
+        ]
+      }
+    }
+  ]
+}
