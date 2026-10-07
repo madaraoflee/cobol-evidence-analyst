@@ -16,7 +16,7 @@ import sqlite3
 import sys
 from threading import RLock
 
-from repository_identity import identity_boundaries, identity_sql_scope, resolve_source_identity
+from repository_identity import identity_blocks_analysis, identity_boundaries, identity_sql_scope, resolve_source_identity
 from source_reading import _cancel, _identify_page, _persist_page, _relative_path, _safe_file, _verified_lines, _verified_pages
 
 
@@ -419,7 +419,7 @@ def _dependency_selection(connection, seeds, all_paths, check_cancel):
     return sorted(selected), [{"relative_path": relative, "reasons": sorted(reasons[relative])} for relative in sorted(reasons)], deferred, unresolved
 
 
-def discover_repository(database_path, question, *, search_terms=None, check_cancel=None,
+def discover_repository(database_path, question, *, search_terms=None, focus_paths=None, check_cancel=None,
                         fallback_to_repository=True):
     """Retrieve all matching files, then expand supported static dependencies.
 
@@ -442,8 +442,8 @@ def discover_repository(database_path, question, *, search_terms=None, check_can
         if stale or missing:
             raise ValueError("REPOSITORY_SEARCH_STALE")
         overview = json.loads(search_metadata["overview"])
-        identity = resolve_source_identity(connection, question, search_terms)
-        blocked = identity["status"] in {"ambiguous", "not_found"}
+        identity = resolve_source_identity(connection, question, search_terms, focus_paths=focus_paths)
+        blocked = identity_blocks_analysis(identity)
         scope_sql, scope_values = identity_sql_scope(identity)
         all_paths = {row[0] for row in connection.execute("SELECT relative_path FROM source_files")}
         query = " OR ".join('"' + term.replace('"', '""') + '"' for term in terms)
@@ -480,7 +480,7 @@ def discover_repository(database_path, question, *, search_terms=None, check_can
                 matches.append({key: row[key] for key in ("evidence_id", "relative_path", "start_line", "end_line", "source_sha256", "span_truncated", "score")} | {"snippet": snippet, "snippet_char_offset": offset})
                 if pages:
                     preview_queue.append(pages)
-        if identity["status"] == "resolved" and not matches:
+        if not blocked and identity["direct_paths"] and not matches:
             for relative in identity["direct_paths"][:MAX_MATCHED_PAGES]:
                 row = connection.execute("SELECT * FROM repo_pages WHERE relative_path=? ORDER BY start_line LIMIT 1", (relative,)).fetchone()
                 if row:
@@ -493,10 +493,10 @@ def discover_repository(database_path, question, *, search_terms=None, check_can
         if fallback:
             paths = sorted(all_paths)
             reasons = [{"relative_path": relative, "reasons": ["no_text_match_repository_fallback"]} for relative in paths]
-        if identity["status"] == "resolved":
+        if not blocked and identity["direct_paths"]:
             for item in reasons:
-                if item["relative_path"] in seeds:
-                    item["reasons"] = ["source_identity"]
+                if item["relative_path"] in identity["direct_paths"]:
+                    item["reasons"] = ["source_identity" if identity["status"] == "resolved" else "source_candidate"]
         boundaries = list(overview.get("boundaries", [])) + unresolved + identity_boundaries(identity)
         if deferred:
             boundaries.append({"reason": "shared_dependency_reverse_expansion_deferred", "candidate_count": len(deferred),
@@ -868,7 +868,7 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
             "cache": cache_report, "needs_refresh": bool(boundaries and any(item.get("needs_refresh") for item in boundaries))}
 
 
-def retrieve_repository_context(database_path, source_root, question, *, search_terms=None,
+def retrieve_repository_context(database_path, source_root, question, *, search_terms=None, focus_paths=None,
                                 prior_paths=None, max_pages=8, max_chars=32000, check_cancel=None,
                                 source_session=None):
     """Retrieve a small evidence bundle and neighbouring structure from SQLite.
@@ -884,8 +884,8 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
         connection.execute("BEGIN")
         root, overview = _fast_snapshot(connection, source_root)
         relation_cache = _session_relation_cache(connection, source_session)
-        identity = resolve_source_identity(connection, question, search_terms)
-        blocked = identity["status"] in {"ambiguous", "not_found"}
+        identity = resolve_source_identity(connection, question, search_terms, focus_paths=focus_paths)
+        blocked = identity_blocks_analysis(identity)
         scope_sql, scope_values = identity_sql_scope(identity)
         query = " OR ".join('"' + term.replace('"', '""') + '"' for term in terms)
         ranked, matched_count, matched_files = [], 0, 0
@@ -917,6 +917,22 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
             rows.append(group.popleft())
             if group:
                 queue.append(group)
+        if (identity["status"] == "resolved" and not identity.get("hard_constraint", True)
+                and (not search_terms or identity.get("selection_source") == "focus")):
+            # A natural-language subject is a priority hint, not a search
+            # boundary. Keep its source ahead of incidental callee matches;
+            # an explicit follow-up search can still retrieve other files.
+            focused = []
+            for relative in identity["direct_paths"][:max_pages]:
+                row = next((item for item in rows if item["relative_path"] == relative), None)
+                if row is None:
+                    row = connection.execute("SELECT * FROM repo_pages WHERE relative_path=? ORDER BY start_line LIMIT 1", (relative,)).fetchone()
+                    if row:
+                        row = {**dict(row), "selection_reason": "source_identity"}
+                if row:
+                    focused.append(dict(row))
+            focused_ids = {row["page_id"] for row in focused}
+            rows = focused + [row for row in rows if row["page_id"] not in focused_ids]
         preferred, preferred_ids = [], set()
         for requested in ([] if blocked else prior_paths or [])[:max_pages]:
             if not isinstance(requested, str):
@@ -924,7 +940,7 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
             candidate = requested.split("::", 1)[0]
             _relative_path(candidate)
             paths = [row[0] for row in connection.execute("SELECT relative_path FROM source_files WHERE relative_path=? COLLATE NOCASE UNION SELECT relative_path FROM symbols WHERE symbol_type='Program' AND name=? LIMIT 2", (candidate, requested.upper()))]
-            if identity["status"] == "resolved":
+            if identity["status"] == "resolved" and identity.get("hard_constraint", True):
                 paths = [relative for relative in paths if relative in identity["direct_paths"]]
             for relative in paths:
                 row = None
@@ -936,7 +952,12 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
                     preferred.append({**dict(row), "selection_reason": "conversation_context"})
                     preferred_ids.add(row["page_id"])
         if not rows:
-            rows = preferred or [dict(row, selection_reason="source_identity" if identity["status"] == "resolved" else "repository_orientation")
+            focused = []
+            for relative in ([] if blocked else identity["direct_paths"])[:max_pages]:
+                row = connection.execute("SELECT * FROM repo_pages WHERE relative_path=? ORDER BY start_line LIMIT 1", (relative,)).fetchone()
+                if row:
+                    focused.append({**dict(row), "selection_reason": "source_identity" if identity["status"] == "resolved" else "source_candidate"})
+            rows = preferred or focused or [dict(row, selection_reason="source_identity" if identity["status"] == "resolved" else "repository_orientation")
                 for row in connection.execute("SELECT p.* FROM repo_pages p JOIN (SELECT relative_path,MIN(start_line) AS first_line FROM repo_pages GROUP BY relative_path) f "
                     "ON p.relative_path=f.relative_path AND p.start_line=f.first_line WHERE 1" + scope_sql + " ORDER BY p.relative_path LIMIT ?", (*scope_values, max_pages))]
         else:
@@ -974,7 +995,7 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
         result.update(search_terms=terms, omitted_search_terms=omitted_terms,
                       matched_page_count=matched_count, matched_file_count=matched_files,
                       source_identity=identity, fallback_all=False,
-                      orientation_only=not matched_count and identity["status"] == "none",
+                      orientation_only=not matched_count and not identity["direct_paths"] and not blocked,
                       omitted_matched_pages=max(0, matched_count - sum("question_match" in page["selection_reasons"] for page in result["pages"])))
         result["boundaries"].extend(identity_boundaries(identity))
         return result

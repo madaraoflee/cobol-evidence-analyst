@@ -406,14 +406,36 @@ class IndependentBusinessQualityTests(unittest.TestCase):
         self.assert_request_has(self.requests[-1]["payload"], [known, "CALL 'UNAVAILABLECALC' USING NET-VALUE."])
         self.assert_trace_and_budget(result)
 
-    def test_duplicate_program_ids_keep_all_candidates_unselected(self):
-        self.write("one.cbl", cobol("DUPLICATEFLOW", "COMPUTE NET-VALUE = 2.", DATA))
-        self.write("two.cbl", cobol("DUPLICATEFLOW", "COMPUTE NET-VALUE = 7.", DATA))
+    def test_duplicate_program_ids_supply_separate_candidates_without_selecting_a_version(self):
+        versions = {"one.cbl": "COMPUTE NET-VALUE = 2.",
+                    "two.cbl": "COMPUTE NET-VALUE = 7."}
+        for path, statement in versions.items():
+            self.write(path, cobol("DUPLICATEFLOW", statement, DATA))
+        self.write("comment.cbl", cobol("NOTEONLY", "*> DUPLICATEFLOW\nCONTINUE.", DATA))
         self.build()
+        # A plausible reply selecting one implementation cannot turn unresolved
+        # version candidates into a verified single-program answer.
         result = self.ask("DUPLICATEFLOW 的计算规则是什么？", lambda _p, _t: "结果等于2。")
-        self.assertNotEqual(result["status"], "ANALYZED")
-        self.assertEqual(self.requests[0]["payload"]["business_map"]["source_identity"]["status"], "ambiguous")
-        self.assertTrue(all(not pages(sent["payload"]) for sent in self.requests))
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertNotEqual(result["stop_reason"], "sufficient_material")
+        identity = self.requests[0]["payload"]["business_map"]["source_identity"]
+        self.assertEqual(identity["status"], "ambiguous")
+        self.assertFalse(identity["hard_constraint"])
+        candidates = {path for row in identity["candidates"] for path in row["relative_paths"]}
+        self.assertEqual(candidates, set(versions))
+        self.assertEqual(set(self.requests[0]["payload"]["business_map"]["direct_paths"]), set(versions))
+        supplied = {page["relative_path"]: page for page in pages(self.requests[0]["payload"])
+                    if page["relative_path"] in versions}
+        self.assertEqual(set(supplied), set(versions))
+        for path, statement in versions.items():
+            page = supplied[path]
+            self.assertIn(statement, page["source_text"])
+            for other_path, other_statement in versions.items():
+                if other_path != path:
+                    self.assertNotIn(other_statement, page["source_text"])
+            self.assertEqual(page["source_sha256"], hashlib.sha256((self.source / path).read_bytes()).hexdigest())
+        self.assertEqual(len({page["source_sha256"] for page in supplied.values()}), 2)
+        self.assertEqual(len({page["evidence_id"] for page in supplied.values()}), 2)
         self.assert_trace_and_budget(result)
 
     def test_explicit_read_past_eof_finishes_at_physical_end_without_phantom_gap(self):

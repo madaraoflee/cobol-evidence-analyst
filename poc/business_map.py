@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 
 from repository_discovery import _connect, _fast_snapshot, _navigation_graph, _query_terms, discover_repository
-from repository_identity import resolve_source_identity
+from repository_identity import identity_blocks_analysis, resolve_source_identity
 from source_reading import _cancel
 from file_impact_evidence import is_file_impact_question
 
@@ -364,23 +364,26 @@ def _related_program_rules(connection, selected, direct, distance, existing, che
     return existing
 
 
-def build_business_map(database_path, source_root, question, *, search_terms=None, prior_paths=None,
+def build_business_map(database_path, source_root, question, *, search_terms=None, focus_paths=None, prior_paths=None,
                        check_cancel=None):
     """Map direct matches, transitive static callers and nearby rule operations.
 
     It reads the saved index only. In particular, it does not rescan source files
     or ask the model to summarise individual pages.
     """
-    discovery = discover_repository(database_path, question, search_terms=search_terms,
+    discovery = discover_repository(database_path, question, search_terms=search_terms, focus_paths=focus_paths,
                                     check_cancel=check_cancel, fallback_to_repository=False)
     connection = _connect(database_path)
     try:
         connection.execute("BEGIN")
         _, overview = _fast_snapshot(connection, source_root)
         identity = discovery["source_identity"]
+        blocked = identity_blocks_analysis(identity)
         direct = {item["relative_path"] for item in discovery["selection_reasons"]
                   if "text_match" in item["reasons"]}
-        if identity["status"] != "none":
+        if blocked:
+            direct = set()
+        elif identity["direct_paths"]:
             direct = set(identity["direct_paths"])
         else:
             exact_lexical = _lexical_identifier_paths(connection, question + " " + " ".join(search_terms or []))
@@ -388,7 +391,7 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
                 direct = exact_lexical
         query_direct = set(direct)
         historical = _paths_from_history(connection, prior_paths)
-        if not direct and identity["status"] == "none":
+        if not direct and not blocked:
             direct.update(historical)
         intent = "impact" if _IMPACT_LANGUAGE.search(question) else "explain"
         incoming, all_edges = _call_graph(connection, check_cancel) if direct else ({}, [])

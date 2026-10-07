@@ -15,7 +15,7 @@ from business_index import build_business_index
 from business_map import build_business_map
 from company_api import CompanyAPIConfig, TransportResponse
 from repository_discovery import ensure_repository_search, retrieve_repository_context
-from repository_identity import resolve_source_identity
+from repository_identity import identity_blocks_analysis, identity_sql_scope, resolve_source_identity
 
 
 class SourceIdentityTests(unittest.TestCase):
@@ -109,10 +109,10 @@ class SourceIdentityTests(unittest.TestCase):
         )
         self.build()
 
-    def identity(self, question, search_terms=None):
+    def identity(self, question, search_terms=None, *, focus_paths=None):
         with closing(sqlite3.connect(self.database)) as connection:
             connection.row_factory = sqlite3.Row
-            return resolve_source_identity(connection, question, search_terms=search_terms)
+            return resolve_source_identity(connection, question, search_terms=search_terms, focus_paths=focus_paths)
 
     def map_and_retrieve(self, question, **options):
         mapping = build_business_map(self.database, self.source, question, **options)
@@ -221,39 +221,37 @@ class SourceIdentityTests(unittest.TestCase):
                 self.assertEqual(mapping["selected_paths"], [])
                 self.assertEqual(context["pages"], [])
 
-    def test_shared_basename_and_stem_are_ambiguous_and_supply_no_source_pages(self):
+    def test_explicit_basename_is_hard_but_stem_ambiguity_remains_investigable(self):
         self.collision_fixture()
-        for identifier in ("target.cbl", "target"):
-            with self.subTest(identifier=identifier):
-                question = f"请说明 {identifier} 的计算公式。"
-                identity = self.identity(question)
-                self.assert_identity_result(identity, "ambiguous", [])
-                candidate_paths = {
-                    path for candidate in identity["candidates"]
-                    for path in candidate["relative_paths"]
-                }
-                self.assertEqual(candidate_paths, {"aa/target.cbl", "bb/target.cbl"})
-                mapping, context = self.assert_map_and_retrieval_identity(
-                    question, "ambiguous", [],
-                )
-                self.assertEqual(mapping["selected_paths"], [])
-                self.assertEqual(context["pages"], [])
+        explicit = self.identity("请说明 target.cbl 的计算公式。")
+        self.assert_identity_result(explicit, "ambiguous", [])
+        self.assertTrue(identity_blocks_analysis(explicit))
+        _, context = self.map_and_retrieve("请说明 target.cbl 的计算公式。")
+        self.assertEqual(context["pages"], [])
+        hinted = self.identity("请说明 target 的计算公式。")
+        self.assert_identity_result(hinted, "ambiguous", ["aa/target.cbl", "bb/target.cbl"])
+        self.assertFalse(identity_blocks_analysis(hinted))
+        _, context = self.map_and_retrieve("请说明 target 的计算公式。")
+        self.assertTrue({"aa/target.cbl", "bb/target.cbl"} <= {p["relative_path"] for p in context["pages"]})
+        self.assertEqual(context["source_identity"]["status"], "ambiguous")
 
-    def test_duplicate_program_definitions_are_ambiguous_despite_comment_mentions(self):
+    def test_duplicate_program_definitions_keep_separate_source_candidates(self):
         self.write_source("aa/first.cbl", "SHAREDRULE", "COMPUTE OUTPUT-123 = BASE-AMOUNT + 11.")
         self.write_source("bb/second.cbl", "SHAREDRULE", "COMPUTE OUTPUT-123 = BASE-AMOUNT + 29.")
         self.write_source("noise.cbl", "ONLYNOISE", "*> SHAREDRULE\nMOVE ZERO TO OUTPUT-123.")
         self.build()
         question = "请说明 SHAREDRULE 的计算公式。"
         identity = self.identity(question)
-        self.assert_identity_result(identity, "ambiguous", [])
-        self.assertEqual(
-            {path for candidate in identity["candidates"] for path in candidate["relative_paths"]},
-            {"aa/first.cbl", "bb/second.cbl"},
-        )
-        mapping, context = self.assert_map_and_retrieval_identity(question, "ambiguous", [])
-        self.assertEqual(mapping["selected_paths"], [])
-        self.assertEqual(context["pages"], [])
+        self.assert_identity_result(identity, "ambiguous", ["aa/first.cbl", "bb/second.cbl"])
+        self.assertFalse(identity_blocks_analysis(identity))
+        self.assertNotIn("noise.cbl", identity["direct_paths"])
+        mapping, context = self.assert_map_and_retrieval_identity(
+            question, "ambiguous", ["aa/first.cbl", "bb/second.cbl"])
+        supplied = {page["relative_path"]: page for page in context["pages"]}
+        self.assertIn("+ 11", supplied["aa/first.cbl"]["source_text"])
+        self.assertIn("+ 29", supplied["bb/second.cbl"]["source_text"])
+        self.assertNotEqual(supplied["aa/first.cbl"]["source_sha256"],
+                            supplied["bb/second.cbl"]["source_sha256"])
 
     def test_alphabetic_and_numeric_programs_resolve_definitions_not_callers_or_comments(self):
         self.write_source("alphabetic.cbl", "ALPHARULE", "COMPUTE OUTPUT-123 = BASE-AMOUNT + 17.")
@@ -301,7 +299,8 @@ class SourceIdentityTests(unittest.TestCase):
         _, context = self.assert_map_and_retrieval_identity(
             question, "resolved", ["bb/target.cbl"], search_terms=search_terms,
         )
-        self.assertEqual({page["relative_path"] for page in context["pages"]}, {"bb/target.cbl"})
+        self.assertIn("bb/target.cbl", {page["relative_path"] for page in context["pages"]})
+        self.assertFalse(context["source_identity"]["hard_constraint"])
 
     def test_followup_terms_do_not_replace_the_explicit_question_path(self):
         self.collision_fixture()
@@ -358,9 +357,10 @@ class SourceIdentityTests(unittest.TestCase):
         self.write_source(path, "OUTPUT-123", "COMPUTE OUTPUT-123 = BASE-AMOUNT + 53.")
         self.build()
         question = "OUTPUT-123 的计算公式是什么？"
-        self.assert_identity_result(self.identity(question), "ambiguous", [])
-        _, context = self.assert_map_and_retrieval_identity(question, "ambiguous", [])
-        self.assertEqual(context["pages"], [])
+        self.assert_identity_result(self.identity(question), "ambiguous", [path])
+        _, context = self.assert_map_and_retrieval_identity(question, "ambiguous", [path])
+        self.assertTrue(context["pages"])
+        self.assertFalse(identity_blocks_analysis(context["source_identity"]))
         for program_question in (
             "请说明 PROGRAM-ID OUTPUT-123 的计算规则。",
             "What does program OUTPUT-123 calculate?",
@@ -452,17 +452,23 @@ class SourceIdentityTests(unittest.TestCase):
                     question, "resolved", ["main.cbl"])
                 self.assertEqual(mapping["source_identity"]["requested"], ["MAINJOB"])
                 self.assertTrue(context["pages"])
-                self.assertEqual({page["relative_path"] for page in context["pages"]}, {"main.cbl"})
+                self.assertIn("main.cbl", {page["relative_path"] for page in context["pages"]})
+                self.assertFalse(mapping["source_identity"]["hard_constraint"])
                 self.assertTrue(any("IF BASE-AMOUNT > 0" in page["source_text"] for page in context["pages"]))
 
-    def test_explicit_caller_ambiguity_and_absence_do_not_fall_back_to_callee(self):
+    def test_soft_caller_ambiguity_and_absence_preserve_the_requested_subject(self):
         self.call_subject_fixture(duplicate_subject=True)
-        for name, status in (("MAINJOB", "ambiguous"), ("UNKNOWNJOB", "not_found")):
+        for name, status, paths in (("MAINJOB", "ambiguous", ["main.cbl", "other/main.cbl"]),
+                                     ("UNKNOWNJOB", "not_found", [])):
             with self.subTest(name=name):
                 question = f"请分析 {name} 这个程序，它调用 DETAILWRITE（文件 `DETAILWRITE.CBL`）。"
-                _, context = self.assert_map_and_retrieval_identity(question, status, [])
-                self.assertEqual(context["pages"], [])
+                identity = self.identity(question)
+                self.assert_identity_result(identity, status, paths)
+                self.assertFalse(identity_blocks_analysis(identity))
+                self.assertEqual(identity["requested"], [name])
+                _, context = self.map_and_retrieve(question)
                 self.assertEqual(context["source_identity"]["requested"], [name])
+                self.assertTrue(context["pages"])
 
     def test_explicit_caller_keeps_stem_resolution_and_symbol_collision_protection(self):
         self.write_source("MAINJOB.cbl", "DIFFERENTENTRY",
@@ -473,7 +479,7 @@ class SourceIdentityTests(unittest.TestCase):
         self.assert_map_and_retrieval_identity(question, "resolved", ["MAINJOB.cbl"])
         self.write_source("field-owner.cbl", "MAINJOB", "MOVE 1 TO MAINJOB.")
         self.build()
-        self.assert_map_and_retrieval_identity(question, "ambiguous", [])
+        self.assert_map_and_retrieval_identity(question, "ambiguous", ["field-owner.cbl"])
         self.assert_map_and_retrieval_identity(
             "When does program MAINJOB call DETAILWRITE (file `DETAILWRITE.CBL`)?",
             "resolved", ["field-owner.cbl"])
@@ -493,7 +499,12 @@ class SourceIdentityTests(unittest.TestCase):
             "MAINJOB 这个程序调用 DETAILWRITE。请分析 `DETAILWRITE.CBL` 的输出。",
         ):
             with self.subTest(question=question):
-                self.assert_map_and_retrieval_identity(question, "resolved", ["DETAILWRITE.CBL"])
+                mapping, context = self.map_and_retrieve(question)
+                self.assertIn("DETAILWRITE.CBL", mapping["direct_paths"])
+                self.assertFalse(mapping["source_identity"]["hard_constraint"])
+                self.assertIn("DETAILWRITE.CBL", {page["relative_path"] for page in context["pages"]})
+                focused = self.identity(question, focus_paths=["DETAILWRITE.CBL"])
+                self.assert_identity_result(focused, "resolved", ["DETAILWRITE.CBL"])
         identity = self.identity("MAINJOB 调用的 DETAILWRITE 程序如何计算？")
         self.assertIn("DETAILWRITE.CBL", identity["direct_paths"])
         for question in (
@@ -504,6 +515,52 @@ class SourceIdentityTests(unittest.TestCase):
             with self.subTest(question=question):
                 identity = self.identity(question)
                 self.assertNotEqual(identity.get("selection_basis"), "explicit_analysis_subject_before_call")
+
+    def test_soft_search_can_correct_candidates_without_inventing_missing_identity(self):
+        self.collision_fixture()
+        initial = self.identity("ALPHARULE 和 BETARULE 的处理有什么区别？")
+        self.assertFalse(initial["hard_constraint"])
+        selected = self.identity("ALPHARULE 和 BETARULE 的处理有什么区别？", ["program BETARULE"])
+        self.assert_identity_result(selected, "resolved", ["bb/target.cbl"])
+        self.assertEqual(selected["selection_source"], "search_terms")
+        retained = self.identity("ALPHARULE 的规则", ["unknown-business-word", "missing/target.cbl"])
+        self.assert_identity_result(retained, "resolved", ["aa/target.cbl"])
+        self.assertFalse(retained["hard_constraint"])
+        self.assertEqual(identity_sql_scope(retained), ("", ()))
+
+    def test_supplementary_callee_search_preserves_caller_but_valid_focus_can_change_it(self):
+        self.call_subject_fixture(duplicate_callee=True)
+        question = "MAINJOB 这个程序，何时调用 DETAILWRITE？"
+        searched = self.identity(question, ["DETAILWRITE", "other/DETAILWRITE.CBL"])
+        self.assert_identity_result(searched, "resolved", ["main.cbl"])
+        self.assertEqual(searched["selection_source"], "question")
+        focused = self.identity(question, focus_paths=["other/DETAILWRITE.CBL"])
+        self.assert_identity_result(focused, "resolved", ["other/DETAILWRITE.CBL"])
+        self.assertEqual(focused["selection_source"], "focus")
+        self.assertFalse(focused["hard_constraint"])
+
+    def test_focus_is_atomic_and_cannot_replace_explicit_user_paths(self):
+        self.collision_fixture()
+        for paths in (["bb/target.cbl", "missing/target.cbl"], ["../target.cbl"], [], [None]):
+            with self.subTest(paths=paths):
+                rejected = self.identity("ALPHARULE 的规则", focus_paths=paths)
+                self.assert_identity_result(rejected, "resolved", ["aa/target.cbl"])
+                self.assertEqual(rejected["focus_rejected"], "indexed_source_paths_required")
+        for question, status, selected in (("aa/target.cbl", "resolved", ["aa/target.cbl"]),
+                                             ("missing/target.cbl", "not_found", []),
+                                             ("target.cbl", "ambiguous", [])):
+            with self.subTest(question=question):
+                rejected = self.identity(question, ["BETARULE"], focus_paths=["bb/target.cbl"])
+                self.assert_identity_result(rejected, status, selected)
+                self.assertTrue(rejected["hard_constraint"])
+                self.assertEqual(rejected["focus_rejected"], "explicit_source_constraint")
+
+    def test_qualified_path_stays_hard_even_after_a_caller_relationship(self):
+        self.call_subject_fixture()
+        self.assert_identity_result(self.identity(
+            "MAINJOB 这个程序，为什么调用 missing/DETAILWRITE.CBL？"), "not_found", [])
+        self.assertTrue(identity_blocks_analysis(self.identity(
+            "MAINJOB 这个程序，为什么调用 missing/DETAILWRITE.CBL？")))
 
     def test_default_business_chat_receives_caller_source_for_call_condition_question(self):
         self.call_subject_fixture()

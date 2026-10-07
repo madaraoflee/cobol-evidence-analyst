@@ -112,7 +112,22 @@ def _call_analysis_subject(connection, text):
     return name, explicit_program
 
 
+def _with_constraint(result, *, hard, source="question"):
+    result = {**result, "hard_constraint": hard, "selection_source": source}
+    if not hard and result["status"] in {"ambiguous", "not_found"}:
+        # These paths are investigation candidates, never a chosen runtime
+        # implementation. A missing mention must not hide known candidates.
+        result["direct_paths"] = sorted({path for item in result["candidates"]
+                                         for path in item["relative_paths"]})
+    return result
+
+
 def _resolve_input(connection, text):
+    named = _resolve_identifiers(connection, text)
+    # An explicit qualified path is an identity constraint, even when the
+    # surrounding sentence also mentions a caller or another program.
+    if any(item["kind"] == "relative_path" for item in named["candidates"]):
+        return _with_constraint(named, hard=True)
     subject = _call_analysis_subject(connection, text)
     if subject is not None:
         name, explicit_program = subject
@@ -124,8 +139,18 @@ def _resolve_input(connection, text):
         for candidate in result["candidates"]:
             candidate["role"] = "analysis_subject"
         result["selection_basis"] = "explicit_analysis_subject_before_call"
-        return result
-    return _resolve_identifiers(connection, text)
+        return _with_constraint(result, hard=False)
+    if named["kind"] == "basename":
+        # A filename alongside a separately named program can describe a
+        # relationship. Keep both as soft candidates rather than treating the
+        # filename mention as an exclusive user selection.
+        programs = [{"identifier": name, "kind": "program", "relative_paths": paths}
+                    for name in dict.fromkeys(_NAME.findall(text))
+                    if (paths := _program_paths(connection, name))]
+        if programs:
+            return _with_constraint(_result([*programs, *named["candidates"]]), hard=False)
+        return _with_constraint(named, hard=True)
+    return _with_constraint(named, hard=False)
 
 
 def _resolve_identifiers(connection, text):
@@ -241,24 +266,55 @@ def _resolve_identifiers(connection, text):
     return _result(candidates)
 
 
-def resolve_source_identity(connection, question, search_terms=None):
-    """Keep an explicit question identity while refining its lexical search.
+def resolve_source_identity(connection, question, search_terms=None, *, focus_paths=None):
+    """Separate user file constraints from revisable source-navigation hints.
 
-    Definitions are authoritative; CALL and comment references never establish
-    identity. Unknown ordinary words and fields preserve lexical behavior.
+    Search terms may improve a soft candidate set. An established caller hint
+    survives supplementary callee searches; an explicit focus action can revise
+    it after every requested path has been checked against indexed files.
     """
     result = _resolve_input(connection, question)
-    if result["status"] != "none":
+    if focus_paths is not None:
+        if result["hard_constraint"]:
+            return {**result, "focus_rejected": "explicit_source_constraint"}
+        valid = (isinstance(focus_paths, (list, tuple)) and 0 < len(focus_paths) <= 8
+                 and all(isinstance(path, str) and path for path in focus_paths))
+        candidates = []
+        if valid:
+            for path in dict.fromkeys(focus_paths):
+                matches = [row[0] for row in connection.execute(
+                    "SELECT relative_path FROM source_files WHERE relative_path=?", (path,))]
+                if len(matches) != 1:
+                    valid = False
+                    break
+                candidates.append({"identifier": path, "kind": "relative_path", "relative_paths": matches,
+                                   "role": "analysis_subject"})
+        if not valid:
+            return {**result, "focus_rejected": "indexed_source_paths_required"}
+        return {**_with_constraint(_result(candidates), hard=False, source="focus"),
+                "selection_basis": "model_selected_source_paths"}
+    if result["hard_constraint"]:
         return result
+    if (result["status"] == "resolved" and
+            any(item.get("role") == "analysis_subject" for item in result["candidates"])):
+        return result
+    # Supplementary business words without definitions cannot create a new
+    # hard missing-file constraint or discard the existing candidate set.
     for value in search_terms or ():
         candidate = _resolve_input(connection, value)
-        if candidate["status"] != "none":
-            return candidate
+        if candidate["status"] != "none" and any(item["relative_paths"] for item in candidate["candidates"]):
+            return _with_constraint(candidate, hard=False, source="search_terms")
     return result
 
 
+def identity_blocks_analysis(identity):
+    """Only unresolved user file constraints block evidence investigation."""
+    return bool(identity.get("hard_constraint", True) and
+                identity.get("status") in {"ambiguous", "not_found"})
+
+
 def identity_boundaries(identity):
-    if identity["status"] not in {"ambiguous", "not_found"}:
+    if not identity_blocks_analysis(identity):
         return []
     return [{"reason": "source_identity_" + identity["status"],
              "requested": identity["requested"], "candidates": identity["candidates"],
@@ -267,8 +323,8 @@ def identity_boundaries(identity):
 
 
 def identity_sql_scope(identity, alias="p"):
-    """Return a parameterized path filter shared by discovery and retrieval."""
-    if identity["status"] == "none":
+    """Constrain explicit user file identities; soft hints stay searchable."""
+    if identity["status"] == "none" or not identity.get("hard_constraint", True):
         return "", ()
     paths = identity["direct_paths"]
     if not paths:

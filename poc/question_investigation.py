@@ -18,6 +18,7 @@ from urllib.parse import quote
 from file_impact_evidence import is_file_impact_question, nominate_file_impact_evidence
 from business_behavior import wants_behavior_explanation
 from question_intent import calculation_intent
+from repository_identity import identity_blocks_analysis
 
 
 _BUSINESS_DETAIL = re.compile(r"流程|(?:逻辑|邏輯)(?!\s*(?:标志|標誌|字段|欄位|栏位|变量|變量|类型|類型))|"
@@ -527,7 +528,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
     base = {"scope": "source_candidates", "semantic_execution_verified": False,
             "required_items": [], "planned_actions": [], "open_gaps": [],
             "state": "located" if located else "unresolved", "can_answer": located}
-    if identity.get("status") in {"ambiguous", "not_found"}:
+    if identity_blocks_analysis(identity):
         return {**base, "state": "unresolved", "can_answer": False}
     calculation_kind = calculation_intent(question)
     calculation = calculation_kind == "rules"

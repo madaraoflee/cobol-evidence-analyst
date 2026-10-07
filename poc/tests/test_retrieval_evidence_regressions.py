@@ -233,15 +233,35 @@ class RetrievalEvidenceRegressionTests(unittest.TestCase):
         self.assertNotEqual(result["agent_result"]["metrics"]["quality_stop_reason"], "sufficient_material")
 
     def test_duplicate_program_declarations_do_not_promote_comment_or_pick_one(self):
-        self.write("one.cbl", small_source("COUNTPLAN"))
-        self.write("two.cbl", small_source("COUNTPLAN"))
+        versions = {"one.cbl": "COMPUTE LOCAL-VALUE = 2 + 1.",
+                    "two.cbl": "COMPUTE LOCAL-VALUE = 7 + 3."}
+        for path, statement in versions.items():
+            self.write(path, small_source("COUNTPLAN", statement))
         self.write("comment.cbl", small_source("NOTEONLY", "*> COUNTPLAN"))
         self.build()
-        mapping = build_business_map(self.database, self.source, "Explain COUNTPLAN calculation")
+        question = "Explain COUNTPLAN calculation"
+        mapping = build_business_map(self.database, self.source, question)
         self.assertEqual(mapping["source_identity"]["status"], "ambiguous")
-        self.assertEqual(mapping["direct_paths"], [])
+        self.assertFalse(mapping["source_identity"]["hard_constraint"])
+        self.assertEqual(set(mapping["direct_paths"]), set(versions))
         candidates = {path for row in mapping["source_identity"]["candidates"] for path in row["relative_paths"]}
-        self.assertEqual(candidates, {"one.cbl", "two.cbl"})
+        self.assertEqual(candidates, set(versions))
+        context = retrieve_repository_context(self.database, self.source, question)
+        self.assert_physical_pages(context["pages"])
+        supplied = {page["relative_path"]: page for page in context["pages"]
+                    if page["relative_path"] in versions}
+        self.assertEqual(set(supplied), set(versions))
+        for path, statement in versions.items():
+            self.assertIn(statement, supplied[path]["source_text"])
+            for other_path, other_statement in versions.items():
+                if other_path != path:
+                    self.assertNotIn(other_statement, supplied[path]["source_text"])
+        self.assertEqual(len({page["source_sha256"] for page in supplied.values()}), 2)
+        self.assertEqual(len({page["evidence_id"] for page in supplied.values()}), 2)
+        result = self.ask(question)
+        self.assertEqual(result["agent_result"]["status"], "PARTIAL")
+        self.assertNotEqual(result["agent_result"]["stop_reason"], "sufficient_material")
+        self.assert_visible_citations_and_budgets(result, AgentPolicy())
 
     def test_unresolved_identity_cannot_be_bypassed_by_read_or_inspect_actions(self):
         self.write("one/z-result.cbl", small_source("FIRSTPLAN", "COMPUTE LOCAL-VALUE = 2 + 1."))
