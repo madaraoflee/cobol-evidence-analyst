@@ -46,6 +46,13 @@ _SYSTEM += "\nresponse_mode=source_discovery 时，本轮只按 response_contrac
     "问调用后的结果，再根据该次返回值及后续赋值推导。" \
     "在没有给出调用返回结果的问题中，不把调用前的状态延伸为返回后的状态或后续页面结论。"
 
+_SYSTEM += '\n补查动作参数示例（替换为本轮实际标识或路径，只发送需要的项）：' \
+    '{"inspect_business_context":[{"relative_path":"programs/example.cbl","line":100}]}；' \
+    '{"list_impact":"SHARED-RECORD"}；{"search_concepts":"account balance"}。' \
+    'list_impact 与 search_concepts 各接受一个字符串；focus 不需要时省略或留空数组。' \
+    'impact_result.total 是完整静态候选数量，rows 是预览；完整清单保存在相关对象中。' \
+    '不要把预览当成全量，也不要为同一清单反复补查。最终答案使用 Markdown，不输出空动作。'
+
 
 def _action_json_text(text):
     """Accept one whole object or a standalone terminal object after prose.
@@ -76,6 +83,15 @@ def _action_json_text(text):
     return fenced[1].strip() if fenced else candidate
 
 
+def _single_action_argument(value, name):
+    """Normalize an unambiguous scalar argument without choosing among targets."""
+    if isinstance(value, list) and len(value) == 1:
+        value = value[0]
+    if isinstance(value, dict) and set(value) == {name}:
+        value = value[name]
+    return value.strip() if isinstance(value, str) else ""
+
+
 def _actions(text, policy=None):
     policy = resolve_agent_policy(policy)
     value = _action_json_text(text)
@@ -95,8 +111,10 @@ def _actions(text, policy=None):
     if isinstance(framework_searches, str):
         framework_searches = [framework_searches]
     focus = item.get("focus", [])
+    if isinstance(focus, str):
+        focus = [focus] if focus.strip() else []
     if isinstance(focus, list) and "focus" in item:
-        if (not 0 < len(focus) <= 8 or not all(isinstance(path, str) and path.strip()
+        if (len(focus) > 8 or not all(isinstance(path, str) and path.strip()
                 and len(path) <= 500 for path in focus)):
             return None
     focus = focus if isinstance(focus, list) and policy.max_searches_per_turn else []
@@ -117,17 +135,19 @@ def _actions(text, policy=None):
         action["inspect_business_context"] = inspections
     if "framework_search" in item:
         action["framework_search"] = framework_searches
-    if isinstance(item.get("list_impact"), str):
-        action["list_impact"] = item["list_impact"][:128]
-    if isinstance(item.get("search_concepts"), str):
-        action["search_concepts"] = item["search_concepts"][:500]
+    for key, parameter, limit in (("list_impact", "identifier", 128),
+                                  ("search_concepts", "query", 500)):
+        if key in item:
+            action[key] = _single_action_argument(item[key], parameter)[:limit]
     return action
 
 
 def _action_reply_invalid(text, action):
     """Keep malformed investigation requests out of the answer channel."""
     if action is not None:
-        return not any(action.values())
+        # A valid request can have no executable items after budget clipping.
+        # That is a scheduling condition, not malformed model output.
+        return not any(action.values()) and not any((_actions(text) or {}).values())
     value = _action_json_text(text)
     tool_keys = {"search", "read", "framework_search", "inspect_business_context", "focus",
                  "list_impact", "search_concepts"}
@@ -702,6 +722,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     synthesis_review_attempted = False
     last_investigation = None
     investigation_reprompted = False
+    protocol_answer_pending = False
+    pending_model_actions = []
     recovery_reason = None
     automatic_actions = set()
     framework_source_reads = set()
@@ -1304,20 +1326,23 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 for ref in observation.source_refs})
         return selected
 
-    def advance_question(investigation):
+    def advance_question(investigation, *, model_requested=False):
         """Spend only the existing per-turn tool allowance on concrete gaps."""
         nonlocal tool_problem, priority_targets
         progressed = deferred_for_budget = False
         # A transmission limit cannot be repaired by acquiring the same source
         # again. Keep its visible-material gap and reserve tools for source that
         # the question-local pool still lacks.
-        pool_investigation = question_investigation(list(evidence.pages.values()))
         def plan_key(candidate):
             return json.dumps({"tool": candidate.get("tool"),
                 "arguments": candidate.get("arguments", {})}, sort_keys=True)
-        pool_plans = {plan_key(candidate) for candidate in pool_investigation.get("planned_actions", [])}
         requested = list(investigation.get("planned_actions", []))
-        candidates = [candidate for candidate in requested if plan_key(candidate) in pool_plans]
+        if model_requested:
+            candidates = requested
+        else:
+            pool_investigation = question_investigation(list(evidence.pages.values()))
+            pool_plans = {plan_key(candidate) for candidate in pool_investigation.get("planned_actions", [])}
+            candidates = [candidate for candidate in requested if plan_key(candidate) in pool_plans]
         omitted = len(requested) - len(candidates)
         if omitted:
             investigation["planned_actions"] = list(candidates)
@@ -1388,6 +1413,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             automatic_turn_usage = {"read": 0, "inspect_business_context": 0}
             emit("answering")
             assembly_started = time.monotonic()
+            if pending_model_actions:
+                advance_question({"planned_actions": pending_model_actions}, model_requested=True)
+                pending_model_actions = []
             if turn == policy.max_model_requests - 1:
                 for task in list(evidence.tasks.values()):
                     if task.state != "open" or task.next_start_line is None:
@@ -1432,7 +1460,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             source_required = any(item.get("kind") == "formula" for item in
                                   current_investigation.get("required_items", []))
             discovery_pending = can_discover(current_investigation) and (not framework_only or source_required)
-            force_answer = turn == policy.max_model_requests - 1
+            force_answer = protocol_answer_pending or turn == policy.max_model_requests - 1
             graph_prompt = {"intent": business_map["intent"],
                             "direct_path_count": len(business_map["direct_paths"]),
                             "direct_paths": business_map["direct_paths"][:500],
@@ -1525,11 +1553,15 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 payload["source_context"] = [{**payload["source_context"][0],
                     "pages": [], "call_chain": {"links": [], "omitted_links": 0},
                     "outline": [], "notices": [], "open_reads": []}]
-            if recovery_reason and not discovery_pending:
+            if recovery_reason and not discovery_pending and not force_answer:
                 payload["task"] += (" 上一轮尚未给出可用业务答案（" + recovery_reason + "）。"
                     "先检查 question_investigation 的必答项及本轮实际原文；"
                     "已有公式、条件、赋值或资料时直接解释，存在具体缺口时返回有效 JSON 补查动作。"
                     "外部实现缺失只限定依赖该实现的结论，简要回答当前材料支持的部分。")
+            if protocol_answer_pending:
+                payload["task"] = ("补查动作未能执行。现在直接根据已供应的源码、框架资料和 impact_result "
+                    "回答原问题，使用 Markdown，保留业务细节和来源引用；不要再次输出动作 JSON 或承诺补查。"
+                    "已有完整候选清单时说明数量和分类，不把预览写成全量；未知事项只限定相关结论。")
             if identity_blocks_analysis(identity) and identity.get("status") == "ambiguous":
                 payload["task"] = "源码身份存在多个候选，尚未选定程序。说明需要明确的文件路径或程序名，不把候选源码当作选定来源。"
             elif identity_blocks_analysis(identity) and identity.get("status") == "not_found":
@@ -1644,17 +1676,24 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 max_reads_per_turn=max(0, policy.max_reads_per_turn - automatic_turn_usage["read"]),
                 max_business_context_actions_per_turn=max(0, policy.max_business_context_actions_per_turn - automatic_turn_usage["inspect_business_context"]))
             action = _actions(reply.text, action_policy)
+            invalid_action = _action_reply_invalid(reply.text, action)
             quality.finish_round(finish_reason=finish_reason,
                                  parsed_action=[key for key, value in action.items() if value] if action else None,
+                                 error="INVALID_INVESTIGATION_ACTION" if invalid_action else None,
                                  usage=raw.get("usage"), **response_character_counts(raw, reply))
+            if invalid_action:
+                if not force_answer and not investigation_reprompted:
+                    investigation_reprompted = True
+                    recovery_reason = "补查动作格式无效"
+                    protocol_answer_pending = not discovery_pending and bool(
+                        visible["source_ids"] or visible["framework_ids"])
+                    boundaries.append({"reason": "investigation_action_recovery",
+                        "from_round_id": f"round-{turns}",
+                        "next_step": "answer_from_evidence" if protocol_answer_pending else "correct_action"})
+                    continue
+                failure = "INVALID_INVESTIGATION_ACTION"
+                break
             if not action:
-                if _action_reply_invalid(reply.text, action):
-                    if not force_answer and not investigation_reprompted:
-                        investigation_reprompted = True
-                        recovery_reason = "补查动作格式无效"
-                        continue
-                    failure = "INVALID_INVESTIGATION_ACTION"
-                    break
                 if discovery_pending:
                     if (not discovery_attempted and not discovery_reprompted and not force_answer
                             and policy.max_searches_per_turn):
@@ -1708,16 +1747,21 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 answer_investigation = current_investigation
                 break
             key = json.dumps(action, sort_keys=True, ensure_ascii=False)
-            if _action_reply_invalid(reply.text, action):
-                if not force_answer and not investigation_reprompted:
-                    investigation_reprompted = True
-                    recovery_reason = "补查动作没有可执行内容"
-                    continue
-                failure = "INVALID_INVESTIGATION_ACTION"
-                break
             if force_answer:
                 failure = "RETRIEVAL_UNRESOLVED" if discovery_pending else "ANSWER_NOT_PRODUCED"
                 break
+            requested_action = _actions(reply.text, policy) or {}
+            for tool in ("read", "inspect_business_context"):
+                pending_model_actions.extend({"tool": tool, "arguments": arguments,
+                    "reason": "model_action_deferred_for_budget"}
+                    for arguments in requested_action.get(tool, [])[len(action.get(tool, [])):])
+            if pending_model_actions:
+                boundaries.append({"reason": "model_action_deferred_for_budget",
+                                   "count": len(pending_model_actions)})
+            if not any(action.values()):
+                recovery_reason = "本轮补查额度已用完"
+                protocol_answer_pending = not pending_model_actions and not discovery_pending
+                continue
             if key in seen_actions:
                 contexts.append({"notice": "该检索已执行，无新来源。请根据当前资料直接回答。"})
                 continue

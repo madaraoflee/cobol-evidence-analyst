@@ -84,6 +84,17 @@ jobs:
         timeout-minutes: 20
         run: python -m unittest discover -s poc/tests -p 'test_*.py'
 
+      - name: Run browser regressions
+        shell: python
+        run: |
+          from pathlib import Path
+          import subprocess
+
+          tests = sorted(str(path) for path in Path('poc/tests').glob('*.test.cjs'))
+          if not tests:
+              raise SystemExit('No browser regression tests were found.')
+          subprocess.run(['node', '--test', *tests], check=True)
+
       - name: Compile with MSVC and verify the compiled runtime
         run: python build_app.py --skip-install --jobs 4 --output-dir release
 
