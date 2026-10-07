@@ -38,6 +38,11 @@ framework_facts 是手册规则与当前调用点的绑定。结合 operation、
 询问文件或字段影响时，逐项区分显式写入、只读依赖和候选间接影响，引用文件声明、ASSIGN、record 与赋值原文。WRITE/REWRITE 的 record 经 FD 映射文件；LF/PF 关系须有 DDS 等定义支持。缺少某项资料时保留已有明确结论。
 关键判断在句末使用提供的 [evidence_id] 或 [reference_id]。先使用已经可见的源码结论；只对确实影响当前问题的缺口作具体说明。追问承接前文，避免重复整篇初始报告。""" + "\n" + BUSINESS_ANSWER_POLICY + "\n" + ANSWER_MARKDOWN_POLICY
 
+_SYSTEM += "\nresponse_contract 是最终答案的交付约束，首段结论、表格和补读后的答案都遵守它。" \
+    "只解释当前问题所问的时点：问某次调用的输入，就在输入值形成和调用发出处结束；" \
+    "问调用后的结果，再根据该次返回值及后续赋值推导。" \
+    "在没有给出调用返回结果的问题中，不把调用前的状态延伸为返回后的状态或后续页面结论。"
+
 
 def _action_json_text(text):
     """Accept one whole object or a standalone terminal object after prose.
@@ -306,16 +311,27 @@ def _compact_prompt_payload(payload):
 
 
 def _prompt_payload(payload):
-    # UI detail preference controls evidence coverage. The model's explanation
-    # depth follows the question; lossless navigation compression is separate.
+    # Keep the requested explanation depth and evidence coverage aligned;
+    # navigation compression only changes the wire representation.
     projected = _compact_prompt_payload(payload)
-    if projected.get("answer_detail") == "detailed":
-        projected = {**projected, "answer_detail": "question_scoped"}
     # Keep the current request adjacent to generation, after long evidence and
     # navigation. Otherwise a small question can be buried before tens of
     # thousands of tokens of unrelated dependency metadata.
-    trailing = {key: projected[key] for key in ("task", "question") if key in projected}
-    return {**{key: value for key, value in projected.items() if key not in trailing}, **trailing}
+    trailing = {key: projected[key] for key in ("business_analysis_brief", "task", "question")
+                if key in projected}
+    detailed = (projected.get("answer_detail", "detailed") != "brief"
+                and projected.get("business_analysis_brief", {}).get("detail_requested", True))
+    contract = {"detail": ("Explain the requested business behavior thoroughly, including relevant inputs, "
+                            "conditions, processing order, field changes, exceptions, results and source evidence."
+                            if detailed else "Give a concise answer while preserving decisive conditions and evidence."),
+                "organization": "Use short headings, steps and comparison tables where they help explain the details.",
+                "content": "Lead with the conclusion, then show how the supplied source and assumptions establish it.",
+                "time_scope": "Distinguish values passed into each call from its returned values. "
+                              "For additional scenarios, state their own required conditions before giving outcomes."}
+    return {**{key: value for key, value in projected.items() if key not in trailing},
+            **{key: value for key, value in trailing.items() if key != "question"},
+            "response_contract": contract,
+            **({"question": trailing["question"]} if "question" in trailing else {})}
 
 
 def _fit_request(config, payload, history, policy=None, *, trim_events=None, investigation_builder=None,
@@ -1782,19 +1798,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         "searches_per_turn": 0, "reads_per_turn": 0, "framework_searches_per_turn": 0},
                     "draft_answer": answer,
                     "answer_review": draft_completion,
-                    "task": ("逐项复核初稿中的业务判断是否有本轮原文支持，并综合解释当前业务行为、处理顺序、"
-                        "输入来源、计算条件、分支例外和结果影响。已供应内部实现时不能仅以片段不足拒答或要求用户补源码；"
-                        "直接回答用户提出的业务点。answer_review.missing_aspects 是按表达特征提示的待复核业务点，"
-                        "须对照本轮实际原文及初稿判断是否已解释，已经说明的内容保留。"
-                        "逐项给出具体运算、来源、条件和对应分支，不只说程序处理金额或按参数计算。"
-                        "流程问题说明具体准入条件、跳过或失败后的处理、最终记录或状态；结合原文核对退出范围，"
-                        "不能仅列校验、计算、更新等环节，不能把写入说成已提交或单笔退出说成整批终止。"
-                        "初稿声称无法确认时，逐项指出缺少的具体字段、赋值、条件或外部数据，"
-                        "并检查它是否已经在本轮原文中；已提供的算式与条件应解释为静态规则，"
-                        "未知运行数据只限制依赖该数据的实际结果。"
-                        "缺外部实现只限制相关判断，保留并具体解释调用者已知业务。关键判断附实际来源引用，"
-                        "不编造完整性。输出普通 Markdown，不请求工具。" if review_synthesis else
-                        "只根据新增的相关原文修订初稿；若新增原文不改变解释，保留原结论。输出普通 Markdown，不请求工具。")}
+                    "task": "综合本轮相关原文，在内部核对 draft_answer。按当前 question 的业务对象、"
+                        "输入假设和所问时点作答；保留正确内容，修正证据不支持或新增相关证据影响的判断。"
+                        "answer_review.missing_aspects 只是候选线索，只补充与当前问题有关且确实缺失的解释。"
+                        "输出完整、可直接给用户的业务答案：先给结论，再说明必要条件、顺序和结果，关键判断引用来源。"
+                        "未知事项只限定受影响的结论，答完所问业务点就结束。"
+                        "不要输出复核过程、审稿意见、初稿评价或修改说明。使用普通 Markdown，不请求工具。"}
                 synthesis_review_attempted = review_synthesis
                 trims = selection_events()
                 failure_stage = "context_assembly"

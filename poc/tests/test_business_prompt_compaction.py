@@ -127,7 +127,9 @@ class BusinessPromptCompactionTests(unittest.TestCase):
                                                       investigation_builder=investigation)
         wire = json.loads(first[-1]["content"])
         self.assertIn("navigation_encoding", wire)
-        self.assertEqual(encoded(decoded_navigation(wire)), encoded(payload))
+        restored = decoded_navigation(wire)
+        restored.pop("response_contract")
+        self.assertEqual(encoded(restored), encoded(payload))
         self.assertEqual(first_size, len(json.dumps({"model": config.chat_model, "messages": first,
             "max_tokens": config.max_output_tokens}, ensure_ascii=False, separators=(",", ":")).encode()))
         del payload["source_context"][0]["pages"][:]
@@ -135,6 +137,7 @@ class BusinessPromptCompactionTests(unittest.TestCase):
                                              investigation_builder=investigation)
         actual = json.loads(second[-1]["content"])
         restored = decoded_navigation(actual)
+        restored.pop("response_contract")
         self.assertEqual(encoded(restored), encoded(payload))
         self.assertEqual(restored["question_investigation"]["required_items"][0]["status"], "OPEN")
         self.assertTrue(all(link["requires_source_read"] for link in restored["source_context"][0]["call_chain"]["links"]))

@@ -25,7 +25,7 @@ class QualityTrace:
                      "question_id": question_id or "sha256:" + _digest(question.encode()),
                      "conversation_id": conversation_id,
                      "created_at_utc": datetime.now(timezone.utc).isoformat(),
-                     "pipeline_version": "question-evidence-v7", "prompt_version": "business-chat-v8",
+                     "pipeline_version": "question-evidence-v7", "prompt_version": "business-chat-v13",
                      "configuration": {"model_fingerprint": _digest(config.chat_model.encode()),
                          "configuration_fingerprint": _digest(json.dumps({
                              "base_url": config.base_url, "model": config.chat_model,
