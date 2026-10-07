@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 
 from business_behavior import build_behavior_guide
 from file_impact_evidence import is_file_impact_question
+from question_intent import calculation_intent
 
 
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
@@ -132,8 +133,6 @@ def wants_business_detail(question, *, answer_detail="detailed"):
     return answer_detail != "brief" and not _BRIEF.search(preference)
 
 
-_FORMULA_QUESTION = re.compile(
-    r"计算|計算|公式|算式|怎么算|怎麼算|如何算|算出|\b(?:calculation|calculate[ds]?|calculating|formula|computed?)\b", re.I)
 _EXPLICIT_DETAIL_REQUEST = re.compile(
     r"详细|詳細|详尽|詳盡|细致|細緻|完整|逐步|流程|\b(?:detailed|thorough|step.by.step|workflow)\b", re.I)
 _INPUT_QUESTION = re.compile(
@@ -399,7 +398,7 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
     short answer can cover them; there is deliberately no minimum word count.
     """
     question = str(question)
-    calculation = bool(_FORMULA_QUESTION.search(question))
+    calculation = calculation_intent(question) == "rules"
     detail_requested = wants_business_detail(question, answer_detail=answer_detail)
     # Default depth governs the synthesis prompt. Coverage checks remain tied
     # to the question so a concrete short answer is not rejected for omitting
@@ -506,7 +505,7 @@ def needs_synthesis_review(question, answer, investigation, *, source_available=
 
 
 def build_analysis_brief(question, investigation, source_pages, framework_references, max_output_tokens,
-                         *, answer_detail="detailed"):
+                         *, answer_detail="detailed", business_map=None, framework_facts=()):
     """Bind the synthesis brief to excerpts surviving actual request trimming."""
     visible = {page["evidence_id"] for page in source_pages if page.get("evidence_id")}
     visible.update(row["reference_id"] for row in framework_references if row.get("reference_id"))
@@ -526,43 +525,43 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
     behavior_guide = build_behavior_guide(question, investigation, source_pages)
     from syntax_evidence import build_inline_syntax_guide
     syntax_guide = build_inline_syntax_guide(source_pages)
+    from answer_grounding import answer_grounding_risks
+    call_boundaries = answer_grounding_risks(source_pages, business_map=business_map,
+        framework_references=framework_references, framework_facts=framework_facts)
+    external = list(dict.fromkeys([*external, *(row["target"] for row in call_boundaries["reasons"]
+        if row["kind"] in {"call_implementation_not_supplied", "runtime_call_target"} and row.get("target"))]))
     return {"detail_requested": wants_business_detail(question, answer_detail=answer_detail),
             "output_budget_tokens": max_output_tokens,
             "required_answer_aspects": answer_requirements(question, investigation, source_pages,
                                                             answer_detail=answer_detail, behavior_guide=behavior_guide),
             **({"behavior_guide": behavior_guide} if behavior_guide.get("observations") else {}),
             **({"syntax_guide": syntax_guide} if syntax_guide.get("facts") else {}),
+            **({"call_effect_boundaries": call_boundaries} if call_boundaries["required"] else {}),
             "available_source_paths": list(dict.fromkeys(page["relative_path"] for page in source_pages
                                                          if page.get("relative_path")))[:8],
             "supplied_material": items,
             "unavailable_or_runtime_targets": external[:8],
             "remaining_gaps": [{key: gap[key] for key in ("kind", "reason") if key in gap} for gap in gaps[:8]],
             "semantic_execution_verified": False,
-            "task": ("先简要回答结论和关键条件，保留必要来源引用。" if not wants_business_detail(
-                question, answer_detail=answer_detail) else "按问题需要充分解释，默认不因用户未写‘详细’而缩成概述。")
-                + "解释当前系统实际实现的业务行为、处理先后、输入来源、计算口径、适用条件、例外和结果影响，"
-                "只展开与问题有关的内容。关键结论逐项附实际来源引用。已有证据的结论直接说明；"
-                "没有直接 COMPUTE 或具体数值不妨碍解释已知步骤、条件或符号关系；只限定未知数值或算法。"
-                "内部尚可补读的程序、段落、赋值和依赖由调查工具读取，不要求用户补交已入库源码。"
-                "缺外部实现或运行时目标只限制依赖它的结论，继续解释调用者已知的输入、条件和返回处理。"
-                "framework_facts 是离线绑定到当前调用点的框架规则；可以说明其约定操作，"
-                "不把已由该规则解释的公共调用重复列为资料缺失，也不据此推断运行结果或缺失算式。"
-                "最终计算按源码顺序串起适用条件、分支、舍入和后续结果覆盖；"
-                "不能把中间算式写成无条件的最终结果，后续赋值有影响时明确其优先关系。"
-                "将校验、按配置处理、更新状态展开为具体条件、实际采用的值或日期及结果，让用户能判断自己的场景；"
-                "业务对象和后果是正文主线，标识和调用列表不能代替解释。不要推测历史设计动机或行业惯例。"
-                "用户未请求修改方案时，只解释现有实现，不主动提出改码建议。"
-                "解释跨程序参数是否回写时，同时核对调用方传递方式与被调程序入口声明。"
-                + ("syntax_guide 绑定同行复合语句的条件与赋值。IF outcome=false表示条件不成立；"
-                   "EVALUATE的prior_branches_must_not_match表示此前分支必须均不命中。"
-                   "syntax_order_in_unit只是源码顺序；effects_unknown不是执行或最终值证明。"
+            "task": ("简要给出结论、决定性条件和来源。" if not wants_business_detail(
+                question, answer_detail=answer_detail) else "给出结论及足以推导该结论的业务解释。")
+                + "以用户所问的对象、场景和假设为范围，沿相关条件、赋值、调用及返回处理说明结果。"
+                "required_answer_aspects 是从词面和可见源码提取的候选要点，按问题选择；"
+                "未执行的路径说明为何跳过及其结果，只有用户问其算法时才展开计算。"
+                "没有直接 COMPUTE 时仍可根据赋值、分支与调用解释已知规则。"
+                "计算发生时核对输入、顺序、舍入和后续覆盖；跨程序参数沿每一层传递与入口声明追踪。"
+                "异常或状态码逐项绑定产生它的调用点、条件和后续动作，再作范围一致的归纳。"
+                "framework_facts 中适用的约定可解释当前调用；缺少实现与约定时，"
+                "解释可见的操作请求、传入值、状态检查与后续分支。"
+                "call_effect_boundaries 逐调用标明需要核对的效果：call_implementation_not_supplied 的调用"
+                "按‘发起某操作请求并检查返回状态’描述；即使操作码名为保存、恢复或锁定，"
+                "正文、表格和总结均只陈述调用方可见动作，外部效果由实际实现或适用约定支持。"
+                + ("syntax_guide 的 IF outcome=false 表示条件不成立；"
+                   "EVALUATE prior_branches_must_not_match 表示此前分支均不命中。"
+                   "syntax_order_in_unit 是源码顺序，effects_unknown 表示该语句效果尚未解析。"
                    if syntax_guide.get("facts") else "")
-                + "behavior_guide 只提示本轮可见的语法位置；结合完整上下文解释具体条件、满足与不满足时的处理、"
-                "输出或状态变化，以及跳过或失败后哪些步骤继续、哪些不执行。不能把源码排列顺序当执行顺序，"
-                "不能把单笔返回推定为整批停止，或把写入推定为已提交。原文未证明的分支后果须明确限定。"
-                "对未被framework_facts覆盖且缺少实现的外部调用，名称或功能码只证明调用请求；"
-                "不能写成已读取、保存、锁定或提交成功，应按可见返回状态解释调用方后续处理。"
-                "不把必答项状态、检索覆盖或索引数量写成业务结论或完整值流证明。"}
+                + "behavior_guide 是语法位置导航；结合相关原文推导。内部可读缺口用工具补查，"
+                "真实缺失只限定受影响的结论。正文围绕业务结果推进，关键判断附实际来源引用。"}
 
 
 def link_answer_claims(answer, allowed):

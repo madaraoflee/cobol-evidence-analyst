@@ -111,7 +111,7 @@ class BusinessChatTests(unittest.TestCase):
 
         def respond(payload, envelope):
             self.assertEqual(payload["question"], "请给我 TIDE-WINDOW 判断条件的具体源码。")
-            self.assertIn("只有用户明确要求查看源码、具体语句或开发实现时", envelope["messages"][0]["content"])
+            self.assertIn(BUSINESS_ANSWER_POLICY, envelope["messages"][0]["content"])
             page = next(page for page in source_pages(payload) if "IF HOLD-DAYS" in page["source_text"])
             return reply(f"判断条件如下：\n\n```cobol\nIF HOLD-DAYS <= TIDE-WINDOW\n```\n\n[{page['evidence_id']}]")
 

@@ -101,7 +101,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
             self.assertNotIn(forbidden, surface)
         return error
 
-    def draft_followup(self, respond):
+    def draft_followup(self, respond, *, draft_finish_reason="stop"):
         """Create a real bounded reading gap before accepting the first draft."""
         (self.source / "rule.cbl").write_text(
             "IDENTIFICATION DIVISION.\nPROGRAM-ID. FINAL-RULE.\n"
@@ -133,7 +133,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
                 page = payload["source_context"][0]["pages"][0]
                 text = f"已知本程序处理金额，公式仍待补充。[{page['evidence_id']}]"
                 draft.append(text)
-                return completion(text)
+                return completion(text, finish_reason=draft_finish_reason)
             return respond(payload)
 
         with mock.patch.object(business_chat, "build_business_map", side_effect=limited_map):
@@ -144,6 +144,25 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
                                    max_source_characters=512, max_complete_source_characters=512,
                                    initial_pages=1, initial_source_characters=512))
         return output, draft[0]
+
+    def test_failed_empty_recovery_preserves_retained_draft_finish_state(self):
+        for finish_reason in ("stop", "length"):
+            with self.subTest(finish_reason=finish_reason):
+                output, draft = self.draft_followup(
+                    lambda _: completion(None, finish_reason="length"),
+                    draft_finish_reason=finish_reason)
+                result = output["agent_result"]
+                self.assertEqual(result["answer"], draft)
+                self.assertEqual(result["finish_reason"], finish_reason)
+                self.assertEqual(result["answer_truncated"], finish_reason == "length")
+                self.assertEqual(output["reason_code"], "MODEL_TEXT_EMPTY")
+                self.assertEqual(result["metrics"]["model_requests"], 3)
+                self.assertTrue(result["metrics"]["empty_length_recovery_attempted"])
+                self.assertEqual(self.requests[1]["source_context"], self.requests[2]["source_context"])
+                trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
+                self.assertEqual(trace["final"]["final_answer_round_ids"], ["round-1"])
+                self.assertEqual([row["response"]["error"] for row in trace["rounds"]],
+                                 [None, "MODEL_TEXT_EMPTY", "MODEL_TEXT_EMPTY"])
 
     def assert_retained_draft(self, output, draft, code, stage, *, http_status=None):
         result = output["agent_result"]

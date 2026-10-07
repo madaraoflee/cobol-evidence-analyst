@@ -13,6 +13,7 @@ POC_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(POC_ROOT))
 
 from business_analysis import run_business_analysis  # noqa: E402
+from answer_markdown import BUSINESS_ANSWER_POLICY
 from company_api import CompanyAPIConfig, MAX_REQUEST_BYTES, TransportResponse  # noqa: E402
 from structural_index import build_structural_index  # noqa: E402
 
@@ -81,10 +82,7 @@ class BusinessAnalysisTests(unittest.TestCase):
         self.assertNotIn("tools", payload)
         self.assertNotIn("response_format", payload)
         system = payload["messages"][0]["content"]
-        self.assertIn("默认交付给业务分析师可直接使用的业务知识", system)
-        self.assertIn("默认不展示源代码段、伪代码、逐句代码翻译或框架内部实现细节", system)
-        self.assertIn("仅询问如何计算、为什么、影响什么或改哪些程序，不表示用户要求看代码", system)
-        self.assertIn("不能只讲通用 COBOL 语法或复述框架目录", system)
+        self.assertIn(BUSINESS_ANSWER_POLICY, system)
         supplied = json.loads(payload["messages"][-1]["content"])
         for concept in ("业务目的", "触发输入", "准入与排除规则", "关键业务决策",
                         "状态与业务数据变化", "异常的业务影响和处理"):

@@ -7,10 +7,12 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from agent_policy import AgentPolicy
+import business_chat
 from business_chat import run_business_chat
 from business_index import build_business_index
 from company_api import APIClientError, CompanyAPIConfig, TransportResponse
@@ -48,7 +50,7 @@ class EmptyLengthRecoveryTests(unittest.TestCase):
         self.envelopes = []
         self.hidden = "HIDDEN_REASONING_MUST_NOT_BECOME_AN_ANSWER"
 
-    def ask(self, respond, *, budget=5, revisions=1):
+    def ask(self, respond, *, budget=5, revisions=1, question=None, framework_path=""):
         self.requests.clear()
         self.envelopes.clear()
 
@@ -59,8 +61,8 @@ class EmptyLengthRecoveryTests(unittest.TestCase):
             self.requests.append(payload)
             return respond(len(self.requests), payload)
 
-        output = run_business_chat("AMOUNT-RULE 的 FINAL-AMOUNT 怎么计算？", self.database, self.source,
-            self.config, transport=transport, framework_reference_path="",
+        output = run_business_chat(question or "AMOUNT-RULE 的 FINAL-AMOUNT 怎么计算？", self.database, self.source,
+            self.config, transport=transport, framework_reference_path=framework_path,
             policy=AgentPolicy(max_model_requests=budget, max_answer_revisions=revisions))
         self.result = output["agent_result"]
         self.trace = json.loads(Path(self.result["metrics"]["quality_trace_path"]).read_text())
@@ -157,12 +159,123 @@ class EmptyLengthRecoveryTests(unittest.TestCase):
         self.assertFalse(self.result["continuation_attempted"])
         self.assertEqual(self.trace["final"]["final_answer_round_ids"], ["round-2"])
 
-    def test_empty_length_after_an_investigation_round_does_not_retry(self):
-        output = self.ask(lambda turn, _: response('{"search":["FINAL-AMOUNT"]}') if turn == 1
-                          else response(None, finish="length"), budget=8)
-        self.assertEqual(len(self.requests), 2)
-        self.assertEqual(output["runner_status"], "NOT_READY")
+    @staticmethod
+    def read_action():
+        return response('{"read":[{"relative_path":"rule.cbl","start_line":1,"end_line":15}]}')
+
+    def test_empty_length_after_a_read_recovers_with_that_rounds_evidence(self):
+        def respond(turn, payload):
+            if turn == 1:
+                return self.read_action()
+            if turn == 2:
+                return response(None, finish="length", reasoning_content=self.hidden)
+            return self.grounded(payload)
+        output = self.ask(respond, budget=3)
+        self.assertEqual(output["runner_status"], "COMPLETED")
+        self.assertEqual(len(self.requests), 3)
+        self.assertEqual(self.result["metrics"]["model_requests"], 3)
+        self.assertEqual(len(self.result["metrics"]["request_bytes"]), 3)
+        self.assertEqual(self.result["metrics"]["tool_calls"]["read"], 1)
+        for key in ("source_context", "framework_references", "framework_facts", "completed_actions"):
+            self.assertEqual(self.requests[1][key], self.requests[2][key])
+        self.assertEqual(self.envelopes[1]["messages"][:-1], self.envelopes[2]["messages"][:-1])
+        self.assertEqual(self.requests[2]["investigation_budget"], {
+            "remaining_model_requests": 1, "searches_per_turn": 0, "reads_per_turn": 0,
+            "framework_searches_per_turn": 0, "business_context_actions_per_turn": 0})
+        self.assertTrue(self.result["metrics"]["empty_length_recovery_attempted"])
+        self.assertEqual(self.trace["rounds"][1]["response"]["error"], "MODEL_TEXT_EMPTY")
+        self.assertEqual(self.trace["rounds"][2]["stage"], "empty_length_recovery")
+        self.assertEqual(self.trace["final"]["final_answer_round_ids"], ["round-3"])
+        boundary = next(row for row in self.result["boundaries"] if row["reason"] == "model_empty_length_recovery")
+        self.assertEqual(boundary["from_round_id"], "round-2")
+        self.assertNotIn(self.hidden, json.dumps([output, self.trace, self.envelopes]))
+
+    def test_second_empty_after_a_read_stops_once_and_budget_still_applies(self):
+        for budget, expected_requests, attempted in ((8, 3, True), (2, 2, False)):
+            with self.subTest(budget=budget):
+                output = self.ask(lambda turn, _: self.read_action() if turn == 1
+                                  else response(None, finish="length"), budget=budget)
+                self.assertEqual(len(self.requests), expected_requests)
+                self.assertEqual(output["runner_status"], "NOT_READY")
+                self.assertEqual(output["reason_code"], "MODEL_TEXT_EMPTY")
+                self.assertEqual(self.result["metrics"]["empty_length_recovery_attempted"], attempted)
+                self.assertTrue(all(row["response"]["error"] == "MODEL_TEXT_EMPTY"
+                                    for row in self.trace["rounds"][1:]))
+
+    def test_other_failures_after_a_read_are_not_recovered(self):
+        cases = [response(""), response(None, finish="content_filter"),
+                 response(None, finish="length", refusal="Cannot provide an answer"),
+                 TransportResponse(401, '{"error":{"message":"no access"}}'),
+                 APIClientError("REQUEST_TIMEOUT")]
+        for failed in cases:
+            with self.subTest(reply=type(failed).__name__):
+                def respond(turn, _):
+                    if turn == 1:
+                        return self.read_action()
+                    if isinstance(failed, Exception):
+                        raise failed
+                    return failed
+                output = self.ask(respond)
+                self.assertEqual(len(self.requests), 2)
+                self.assertEqual(output["runner_status"], "NOT_READY")
+                self.assertFalse(self.result["metrics"]["empty_length_recovery_attempted"])
+
+    def test_later_recovery_transport_failure_preserves_all_round_diagnostics(self):
+        def respond(turn, _):
+            if turn == 1:
+                return self.read_action()
+            if turn == 2:
+                return response(None, finish="length")
+            raise APIClientError("REQUEST_TIMEOUT")
+        output = self.ask(respond)
+        self.assertEqual(len(self.requests), 3)
+        self.assertEqual(output["reason_code"], "REQUEST_TIMEOUT")
+        self.assertEqual([row["response"]["error"] for row in self.trace["rounds"]],
+                         [None, "MODEL_TEXT_EMPTY", "REQUEST_TIMEOUT"])
+        self.assertEqual(self.result["metrics"]["model_requests"], 3)
+
+    def test_empty_discovery_without_evidence_does_not_recover(self):
+        output = self.ask(lambda *_: response(None, finish="length"),
+                          question="How is a shipping schedule allocated?")
+        self.assertEqual(len(self.requests), 1)
+        self.assertEqual(self.requests[0]["source_context"][0]["pages"], [])
+        self.assertEqual(self.trace["rounds"][0]["stage"], "discover")
         self.assertFalse(self.result["metrics"]["empty_length_recovery_attempted"])
+        self.assertEqual(output["reason_code"], "MODEL_TEXT_EMPTY")
+
+    def test_source_metadata_without_text_is_not_recovery_evidence(self):
+        fit = business_chat._fit_request
+
+        def metadata_only(config, payload, *args, **kwargs):
+            for bundle in payload["source_context"]:
+                for page in bundle.get("pages", []):
+                    page["source_text"] = ""
+            payload["framework_references"] = []
+            return fit(config, payload, *args, **kwargs)
+
+        with mock.patch.object(business_chat, "_fit_request", side_effect=metadata_only):
+            output = self.ask(lambda *_: response(None, finish="length"))
+        self.assertTrue(self.requests[0]["source_context"][0]["pages"])
+        self.assertEqual(len(self.requests), 1)
+        self.assertFalse(self.result["metrics"]["empty_length_recovery_attempted"])
+        self.assertEqual(output["reason_code"], "MODEL_TEXT_EMPTY")
+
+    def test_framework_text_without_source_can_support_recovery(self):
+        manual = self.root / "record-guide.md"
+        manual.write_text("# Record operations\n\nFETCH-ROW requests a row by key. A zero return code means a row was found.\n", encoding="utf-8")
+
+        def respond(turn, payload):
+            self.assertFalse(payload["source_context"][0]["pages"])
+            reference = next(row for row in payload["framework_references"] if "row by key" in row["text"])
+            return (response(None, finish="length") if turn == 1 else
+                    response("资料约定，FETCH-ROW 按键请求记录，零返回码表示找到记录。"
+                             f"[{reference['reference_id']}]"))
+
+        output = self.ask(respond, question="FETCH-ROW 的返回状态含义是什么？", framework_path=manual)
+        self.assertEqual(output["runner_status"], "COMPLETED")
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(self.requests[0]["framework_references"], self.requests[1]["framework_references"])
+        self.assertTrue(self.result["metrics"]["empty_length_recovery_attempted"])
 
     def test_ambiguous_choices_do_not_infer_a_length_failure(self):
         choices = [{"message": {"role": "assistant", "content": None}, "finish_reason": reason}

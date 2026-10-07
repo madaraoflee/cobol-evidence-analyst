@@ -17,9 +17,9 @@ from urllib.parse import quote
 
 from file_impact_evidence import is_file_impact_question, nominate_file_impact_evidence
 from business_behavior import wants_behavior_explanation
+from question_intent import calculation_intent
 
 
-_CALCULATION = re.compile(r"计算|計算|公式|算式|怎么算|怎麼算|如何算|算出|\b(?:calculation|calculate[ds]?|calculating|formula|computed?)\b", re.I)
 _BUSINESS_DETAIL = re.compile(r"流程|(?:逻辑|邏輯)(?!\s*(?:标志|標誌|字段|欄位|栏位|变量|變量|类型|類型))|"
     r"处理目的|處理目的|业务目的|業務目的|业务功能|業務功能|程序(?:功能|作用)|"
     r"业务规则|業務規則|处理规则|處理規則|返回(?:标志|標誌|状态|狀態|结果|結果|码|碼|值)|"
@@ -529,9 +529,10 @@ def build_question_investigation(question, business_map, *, database_path=None,
             "state": "located" if located else "unresolved", "can_answer": located}
     if identity.get("status") in {"ambiguous", "not_found"}:
         return {**base, "state": "unresolved", "can_answer": False}
-    calculation = bool(_CALCULATION.search(question))
+    calculation_kind = calculation_intent(question)
+    calculation = calculation_kind == "rules"
     file_impact = is_file_impact_question(question)
-    business_steps = not calculation and (bool(_BUSINESS_DETAIL.search(question))
+    business_steps = not calculation and (calculation_kind == "execution" or bool(_BUSINESS_DETAIL.search(question))
                                          or wants_behavior_explanation(question) or file_impact)
     if not calculation and not business_steps:
         return base
