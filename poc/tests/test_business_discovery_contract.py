@@ -55,6 +55,31 @@ class BusinessDiscoveryContractTests(unittest.TestCase):
         self.assertEqual(wire["response_mode"], "business_analysis")
         self.assertNotIn("format", wire["response_contract"])
 
+    def test_explicit_caller_contract_separates_call_gates_from_callee_validation(self):
+        payload = self.payload()
+        payload["retrieval_status"]["state"] = "source_candidates"
+        payload["business_map"].update(direct_paths=["entry.cbl"], source_identity={
+            "status": "resolved", "selection_basis": "explicit_analysis_subject_before_call"})
+        payload["source_context"][0]["pages"] = [
+            {"relative_path": "entry.cbl", "source_text": "CALL 'DETAIL-STEP'."},
+            {"relative_path": "detail.cbl", "source_text": "IF AMOUNT > 50000 GOBACK END-IF."}]
+        wire = _prompt_payload(payload)
+        scope = wire["response_contract"]["call_analysis"]
+        self.assertEqual(scope["primary_caller_paths"], ["entry.cbl"])
+        self.assertIn("发起 CALL", scope["processing_phases"])
+        self.assertIn("此前优先分支未命中", scope["branch_conditions"])
+        self.assertIn("ambiguous", scope["source_state"])
+        self.assertIn("thoroughly", wire["response_contract"]["detail"])
+        self.assertEqual(wire["source_context"], payload["source_context"])
+
+    def test_call_contract_does_not_change_other_questions_or_unresolved_identity(self):
+        for status, basis in (("none", None), ("resolved", None),
+                              ("ambiguous", "explicit_analysis_subject_before_call")):
+            with self.subTest(status=status, basis=basis):
+                payload = self.payload()
+                payload["business_map"]["source_identity"].update(status=status, selection_basis=basis)
+                self.assertNotIn("call_analysis", _prompt_payload(payload)["response_contract"])
+
     def test_unresolved_identity_is_explicit_without_becoming_lexical_discovery(self):
         for identity in ("ambiguous", "not_found"):
             with self.subTest(identity=identity):

@@ -347,6 +347,18 @@ def _prompt_payload(payload):
                     "content": "Choose likely source terms, synonyms or abbreviations for the current question. "
                                "Respect investigation_budget.searches_per_turn; use the returned source in a later round.",
                     "scope": "This round plans source discovery only. Do not write a business answer or a material-gap report."}
+    identity = projected.get("business_map", {}).get("source_identity", {})
+    if (not discovery_only and identity.get("status") == "resolved"
+            and identity.get("selection_basis") == "explicit_analysis_subject_before_call"):
+        contract["call_analysis"] = {
+            "primary_caller_paths": projected["business_map"].get("direct_paths", []),
+            "processing_phases": "先根据主程序原文判断是否发起 CALL。被调用方进入后的参数校验，"
+                "不构成主程序发起 CALL 的门槛。分别解释跳过 CALL、CALL 异常、被调用方拒绝及写入失败；"
+                "按问题选择相关阶段。",
+            "branch_conditions": "补充被调用方的某个返回结果时，保留该结果的完整条件："
+                "包括此前优先分支未命中及相关早退未发生。不能把后续拒绝范围写成主程序的可调用范围。",
+            "source_state": "使用当前原文及 callee_source_status。ambiguous 表示有多个实现候选，"
+                "只限制被调用实现的结论；not_supplied 表示本轮未供应实现原文，不能据此声称仓库没有实现。"}
     return {**{key: value for key, value in projected.items() if key not in trailing},
             **{key: value for key, value in trailing.items() if key != "question"},
             "source_selection": source_selection,
@@ -1369,12 +1381,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             identity = business_map.get("source_identity", {})
             candidates = identity.get("candidates", [])
             graph_prompt["source_identity"] = {**{key: identity.get(key) for key in ("status", "kind")},
+                **({"selection_basis": identity["selection_basis"]} if identity.get("selection_basis") else {}),
                 "requested": [str(value)[:256] for value in identity.get("requested", [])[:8]],
                 "requested_count": len(identity.get("requested", [])), "candidate_count": len(candidates),
                 "candidates": [{"identifier": str(row.get("identifier", ""))[:256], "kind": row.get("kind"),
                     "relative_paths": row.get("relative_paths", [])[:4],
                     "path_count": len(row.get("relative_paths", [])),
-                    "omitted_paths": max(0, len(row.get("relative_paths", [])) - 4)} for row in candidates[:4]],
+                    "omitted_paths": max(0, len(row.get("relative_paths", [])) - 4),
+                    **({"role": row["role"]} if row.get("role") else {})} for row in candidates[:4]],
                 "omitted_candidates": max(0, len(candidates) - 4)}
             coverage = business_map.get("rule_lead_coverage", {})
             graph_prompt["rule_lead_coverage"] = {**coverage,

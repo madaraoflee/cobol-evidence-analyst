@@ -514,6 +514,10 @@ class SourceIdentityTests(unittest.TestCase):
             requests.append(payload)
             self.assertEqual(payload["business_map"]["direct_paths"], ["main.cbl"])
             self.assertEqual(payload["business_map"]["source_identity"]["status"], "resolved")
+            self.assertEqual(payload["business_map"]["source_identity"]["selection_basis"],
+                             "explicit_analysis_subject_before_call")
+            self.assertEqual(payload["response_contract"]["call_analysis"]["primary_caller_paths"],
+                             ["main.cbl"])
             pages = [page for bundle in payload["source_context"] for page in bundle.get("pages", [])]
             target = next(page for page in pages if page["relative_path"] == "main.cbl"
                           and "IF BASE-AMOUNT > 0" in page["source_text"])
