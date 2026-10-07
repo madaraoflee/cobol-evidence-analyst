@@ -357,6 +357,20 @@ def _prompt_payload(payload):
                 "按问题选择相关阶段。",
             "branch_conditions": "补充被调用方的某个返回结果时，保留该结果的完整条件："
                 "包括此前优先分支未命中及相关早退未发生。不能把后续拒绝范围写成主程序的可调用范围。",
+            "entry_ranges": "分别推导发起 CALL、进入被调用方、通过其校验、执行写入的输入条件。"
+                "调用入口可达值从调用前路径及实参赋值得出，不叠加被调用方的校验条件；"
+                "满足调用方门槛但不满足被调用方校验的值，是传入后被拒。"
+                "若源码能确定存在这样的输入，以此在内部核对正文、表格和总结的阶段名称，"
+                "确保没有把通过校验的范围改称调用入口范围，无需另添题外示例。",
+            "caller_outcomes": "解释跳过调用时，完整说明主程序自己的提前返回、实际 CALL、"
+                "ON EXCEPTION 与正常返回分支及最终状态来源。即使被调用实现有多个候选，"
+                "主程序原文已经确定的调用与返回处理仍可直接说明。"
+                "CALL 异常按异常分支解释，不能仅凭 ON EXCEPTION 推定被调用方必未进入。",
+            "parameter_scope": "追踪状态值从被调用方参数到调用方字段，再到调用方对外参数或返回值的路径。"
+                "依据 PROCEDURE DIVISION USING、BY REFERENCE、BY CONTENT、BY VALUE、RETURNING 及显式赋值说明可见性；"
+                "调用方自己的 WORKING-STORAGE 临时字段不因接收被调用返回参数就自动成为对外输出。",
+            "operation_status": "返回状态的含义以实际赋值和检查为准。涉及文件时，核对 OPEN、WRITE、CLOSE"
+                "及其后的 FILE STATUS 检查；程序未检查或未传出的后续状态，不扩写成全部操作正常的保证。",
             "source_state": "使用当前原文及 callee_source_status。ambiguous 表示有多个实现候选，"
                 "只限制被调用实现的结论；not_supplied 表示本轮未供应实现原文，不能据此声称仓库没有实现。"}
     return {**{key: value for key, value in projected.items() if key not in trailing},
