@@ -17,6 +17,19 @@ _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_$#@-]*(?:\.[A-Za-z0-9]+)?")
 _PROGRAM = re.compile(r"(?:\bprogram(?:-id)?\b|程序)\s*[:：]?\s*[`\"']?([A-Za-z0-9][A-Za-z0-9_$#@-]*)", re.I)
 _FIELD = re.compile(r"(?:\bfield\b|字段|欄位|变量|變量)\s*[:：]?\s*[`\"']?([A-Za-z0-9][A-Za-z0-9_$#@-]*)", re.I)
 _PROGRAM_LABEL = re.compile(r"(?:\bprogram-id\b|程序名)\s*[:：]?\s*[`\"']?([A-Za-z0-9][A-Za-z0-9_$#@-]*)", re.I)
+_PROGRAM_SUBJECT = re.compile(
+    r"(?<![A-Za-z0-9_$#@.-])[`\"']?([A-Za-z0-9][A-Za-z0-9_$#@-]*)[`\"']?"
+    r"\s*(?:这个|這個|这支|這支|该|該)?(?:程序|程式)(?!名)")
+_CALL_MENTION = re.compile(r"调用|調用|呼叫|\bcall(?:s|ed|ing)?\b", re.I)
+_CALL_QUESTION = re.compile(r"什么|甚麼|何时|何時|为何|為何|为什么|為什麼|是否|如何|"
+                            r"\b(?:when|why|how|what)\b", re.I)
+_MULTIPLE_OR_NEGATED_SUBJECT = re.compile(
+    r"比较|比較|对比|對比|分别|分別|各自|不是|并非|並非|"
+    r"\b(?:compare|comparison|both|respectively|instead\s+of)\b|\bnot\s+(?:the\s+)?program\b", re.I)
+_SUBJECT_COORDINATION = re.compile(r"和|与|與|及|或者|\b(?:and|or)\b", re.I)
+_LATER_ANALYSIS_REQUEST = re.compile(
+    r"(?:请|請)?(?:分析|解释|解釋|说明|說明|查看|检查|檢查)|"
+    r"\b(?:analy[sz]e|explain|describe|inspect)\b", re.I)
 
 
 def _result(candidates):
@@ -42,7 +55,65 @@ def _like_literal(value):
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def _call_analysis_subject(connection, text):
+    """Recognize an explicit program subject before a call relationship.
+
+    A later callee filename describes the relationship, not the source owner.
+    Do not rank a list of subjects or infer an owner from ordinary prose.
+    """
+    call = _CALL_MENTION.search(text)
+    if call is None or _MULTIPLE_OR_NEGATED_SUBJECT.search(text):
+        return None
+    prefix = text[:call.start()]
+    suffix = text[call.end():]
+    # Relative clauses can make the callee the object of the question, and
+    # a later analysis request can explicitly change the topic again.
+    if re.match(r"\s*的(?!\s*是)", suffix) or _LATER_ANALYSIS_REQUEST.search(suffix):
+        return None
+    if _SUBJECT_COORDINATION.search(prefix):
+        return None
+    subjects = [(match[1], False)
+                for match in _PROGRAM_SUBJECT.finditer(prefix)]
+    # A Chinese topic declaration ("X 这个程序") or a question preceding
+    # the relationship fixes the focus. "program X calls Y, how does Y ..."
+    # does not: keep the normal resolver for that later change of subject.
+    if not subjects and not _CALL_QUESTION.search(prefix):
+        return None
+    for pattern in (_PROGRAM_LABEL, _PROGRAM):
+        for match in pattern.finditer(prefix):
+            name = match[1]
+            preceding = prefix[match.start(1) - 1:match.start(1)]
+            if (pattern is _PROGRAM_LABEL or _program_paths(connection, name)
+                    or preceding in {"`", '"', "'"}):
+                subjects.append((name, True))
+    names = list(dict.fromkeys(name.upper() for name, _ in subjects))
+    if len(names) != 1:
+        return None
+    # An independently supplied file/path before the relationship still has
+    # its normal identity semantics; do not silently overrule that selection.
+    if any(PurePosixPath(match[0].rstrip(".")).suffix.casefold() in DEFAULT_EXTENSIONS
+           for match in _FILENAME.finditer(prefix)) or _PATH.search(prefix):
+        return None
+    return subjects[0][0], any(explicit_program for _, explicit_program in subjects)
+
+
 def _resolve_input(connection, text):
+    subject = _call_analysis_subject(connection, text)
+    if subject is not None:
+        name, explicit_program = subject
+        programs = _program_paths(connection, name) if explicit_program else []
+        result = (_result([{"identifier": name, "kind": "program", "relative_paths": programs}])
+                  if programs else _resolve_identifiers(connection, name))
+        if result["status"] == "none":
+            result = _result([{"identifier": name, "kind": "program", "relative_paths": []}])
+        for candidate in result["candidates"]:
+            candidate["role"] = "analysis_subject"
+        result["selection_basis"] = "explicit_analysis_subject_before_call"
+        return result
+    return _resolve_identifiers(connection, text)
+
+
+def _resolve_identifiers(connection, text):
     # Paths with directories take precedence over words derived from filenames.
     paths = []
     quoted_paths = [match[1] for match in _QUOTED.finditer(text)

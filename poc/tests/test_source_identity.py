@@ -424,6 +424,116 @@ class SourceIdentityTests(unittest.TestCase):
                 self.assertIn(expected, outcome["agent_result"]["answer"])
                 self.assertNotIn(other, outcome["agent_result"]["answer"])
 
+    def call_subject_fixture(self, *, duplicate_callee=False, duplicate_subject=False):
+        self.write_source("main.cbl", "MAINJOB",
+            "IF BASE-AMOUNT > 0\nCALL 'DETAILWRITE'\nEND-IF.")
+        self.write_source("DETAILWRITE.CBL", "DETAILWRITE",
+            "IF OUTPUT-123 = 7\nMOVE 99 TO OUTPUT-123\nEND-IF.")
+        if duplicate_callee:
+            self.write_source("other/DETAILWRITE.CBL", "DETAILWRITE", "CONTINUE.")
+        if duplicate_subject:
+            self.write_source("other/main.cbl", "MAINJOB", "CONTINUE.")
+        self.build()
+
+    def test_explicit_caller_remains_the_subject_when_callee_filename_is_clarified(self):
+        self.call_subject_fixture(duplicate_callee=True)
+        for question in (
+            "MAINJOB 这个程序，什么情况会 skip record 写 DETAILWRITE?（调用的是 DETAILWRITE.CBL）",
+            "MAINJOB 这个程序，什么情况会跳过调用 DETAILWRITE（调用的是 `DETAILWRITE.CBL`）",
+            "MAINJOB 这个程序，什么情况会跳过调用 DETAILWRITE（调用的是 DETAILWRITE.CBL ）",
+            "程序 MAINJOB 什么情况下会调用 DETAILWRITE（文件是 DETAILWRITE.CBL ）？",
+            "When does program MAINJOB not call DETAILWRITE (file `DETAILWRITE.CBL`)?",
+        ):
+            with self.subTest(question=question):
+                mapping, context = self.assert_map_and_retrieval_identity(
+                    question, "resolved", ["main.cbl"])
+                self.assertEqual(mapping["source_identity"]["requested"], ["MAINJOB"])
+                self.assertTrue(context["pages"])
+                self.assertEqual({page["relative_path"] for page in context["pages"]}, {"main.cbl"})
+                self.assertTrue(any("IF BASE-AMOUNT > 0" in page["source_text"] for page in context["pages"]))
+
+    def test_explicit_caller_ambiguity_and_absence_do_not_fall_back_to_callee(self):
+        self.call_subject_fixture(duplicate_subject=True)
+        for name, status in (("MAINJOB", "ambiguous"), ("UNKNOWNJOB", "not_found")):
+            with self.subTest(name=name):
+                question = f"请分析 {name} 这个程序，它调用 DETAILWRITE（文件 `DETAILWRITE.CBL`）。"
+                _, context = self.assert_map_and_retrieval_identity(question, status, [])
+                self.assertEqual(context["pages"], [])
+                self.assertEqual(context["source_identity"]["requested"], [name])
+
+    def test_explicit_caller_keeps_stem_resolution_and_symbol_collision_protection(self):
+        self.write_source("MAINJOB.cbl", "DIFFERENTENTRY",
+            "IF BASE-AMOUNT > 0\nCALL 'DETAILWRITE'\nEND-IF.")
+        self.write_source("DETAILWRITE.CBL", "DETAILWRITE", "CONTINUE.")
+        self.build()
+        question = "MAINJOB 这个程序，什么情况下调用 DETAILWRITE（文件 `DETAILWRITE.CBL`）？"
+        self.assert_map_and_retrieval_identity(question, "resolved", ["MAINJOB.cbl"])
+        self.write_source("field-owner.cbl", "MAINJOB", "MOVE 1 TO MAINJOB.")
+        self.build()
+        self.assert_map_and_retrieval_identity(question, "ambiguous", [])
+        self.assert_map_and_retrieval_identity(
+            "When does program MAINJOB call DETAILWRITE (file `DETAILWRITE.CBL`)?",
+            "resolved", ["field-owner.cbl"])
+
+    def test_relationship_mentions_do_not_shrink_comparisons_or_later_callee_questions(self):
+        self.call_subject_fixture()
+        for question in (
+            "比较程序 MAINJOB 和程序 DETAILWRITE 调用 ENDSTEP 后的处理。",
+            "请分析 main.cbl 和 DETAILWRITE.CBL 的调用关系。",
+            "MAINJOB 和 DETAILWRITE 程序什么情况下调用 ENDSTEP？",
+        ):
+            with self.subTest(question=question):
+                self.assert_identity_result(self.identity(question), "resolved", ["main.cbl", "DETAILWRITE.CBL"])
+        for question in (
+            "MAINJOB 程序调用的 `DETAILWRITE.CBL` 如何计算？",
+            "MAINJOB 这个程序调用的 `DETAILWRITE.CBL` 如何计算？",
+            "MAINJOB 这个程序调用 DETAILWRITE。请分析 `DETAILWRITE.CBL` 的输出。",
+        ):
+            with self.subTest(question=question):
+                self.assert_map_and_retrieval_identity(question, "resolved", ["DETAILWRITE.CBL"])
+        identity = self.identity("MAINJOB 调用的 DETAILWRITE 程序如何计算？")
+        self.assertIn("DETAILWRITE.CBL", identity["direct_paths"])
+        for question in (
+            "主程序 MAINJOB 和它调用的 DETAILWRITE 分别做什么？",
+            "程序 MAINJOB 调用 DETAILWRITE 后，DETAILWRITE 如何改写参数？",
+            "不是程序 MAINJOB，请说明 DETAILWRITE 调用 ENDSTEP 的行为。",
+        ):
+            with self.subTest(question=question):
+                identity = self.identity(question)
+                self.assertNotEqual(identity.get("selection_basis"), "explicit_analysis_subject_before_call")
+
+    def test_default_business_chat_receives_caller_source_for_call_condition_question(self):
+        self.call_subject_fixture()
+        requests = []
+
+        def transport(request):
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            requests.append(payload)
+            self.assertEqual(payload["business_map"]["direct_paths"], ["main.cbl"])
+            self.assertEqual(payload["business_map"]["source_identity"]["status"], "resolved")
+            pages = [page for bundle in payload["source_context"] for page in bundle.get("pages", [])]
+            target = next(page for page in pages if page["relative_path"] == "main.cbl"
+                          and "IF BASE-AMOUNT > 0" in page["source_text"])
+            self.assertIn("CALL 'DETAILWRITE'", target["source_text"])
+            self.assertIn("GOBACK.", target["source_text"])
+            self.assertNotIn("IF OUTPUT-123 = 7", target["source_text"])
+            links = [link for bundle in payload["source_context"]
+                     for link in bundle.get("call_chain", {}).get("links", [])]
+            self.assertTrue(any(link["caller_path"] == "main.cbl"
+                                and link.get("target_path") == "DETAILWRITE.CBL" for link in links))
+            answer = f"主程序在 BASE-AMOUNT 大于零时执行调用，否则跳过。[{target['evidence_id']}]"
+            return TransportResponse(200, json.dumps({"choices": [{"message": {
+                "role": "assistant", "content": answer}, "finish_reason": "stop"}]}, ensure_ascii=False))
+
+        outcome = run_business_chat(
+            "MAINJOB 这个程序，什么情况会跳过调用 DETAILWRITE（调用的是 `DETAILWRITE.CBL`）？",
+            self.database, self.source,
+            CompanyAPIConfig("https://offline.example.invalid/v1", "neutral-model", api_key="offline-fake-key"),
+            transport=transport, allow_network=False, framework_reference_path="",
+        )
+        self.assertEqual(len(requests), 1)
+        self.assertIn("BASE-AMOUNT", outcome["agent_result"]["answer"])
+
 
 if __name__ == "__main__":
     unittest.main()

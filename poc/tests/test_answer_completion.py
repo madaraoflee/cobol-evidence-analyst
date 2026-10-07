@@ -21,7 +21,7 @@ from business_chat import run_business_chat
 from business_index import build_business_index
 from company_api import CompanyAPIConfig, TransportResponse
 from repository_discovery import ensure_repository_search
-from business_synthesis import assess_answer_completion, needs_synthesis_review
+from business_synthesis import assess_answer_completion, assess_business_answer, needs_synthesis_review
 
 
 QUESTION = "rule.cbl 的 FINAL-AMOUNT 怎么计算？"
@@ -43,6 +43,58 @@ SOURCE_MARKERS = (
 
 
 class AnswerCompletionTests(unittest.TestCase):
+    def test_source_selection_denial_is_checked_against_actual_answer_material(self):
+        page = {"evidence_id": "ev_test", "relative_path": "entry.cbl",
+                "source_text": "IF READY = 'Y'\nCALL 'DETAIL-STEP'\nEND-IF."}
+        answer = "当前索引列出不同程序候选。现有材料还没有选定源码，也没有命中相关代码。"
+        assessment = assess_business_answer("何时跳过调用？", answer, {"state": "located"}, [page])
+        self.assertTrue(assessment["source_availability_contradiction"])
+        self.assertEqual(assessment["status"], "incomplete")
+        self.assertEqual(assessment["reason"], "source_availability_contradiction")
+        for prefix in ("因此", "所以", "不过"):
+            with self.subTest(prefix=prefix):
+                self.assertTrue(assess_business_answer("何时跳过调用？", prefix + "现有材料还没有选定源码。",
+                    {"state": "located"}, [page])["source_availability_contradiction"])
+        for pages, state in (([], "located"), ([page], "unresolved"),
+                             ([{**page, "selection_reasons": ["repository_orientation"]}], "located")):
+            with self.subTest(pages=bool(pages), state=state):
+                assessment = assess_business_answer("何时跳过调用？", answer, {"state": state}, pages)
+                self.assertFalse(assessment["source_availability_contradiction"])
+
+    def test_source_selection_quotes_conditions_and_local_dependency_gaps_are_preserved(self):
+        answers = (
+            "程序在未选定源码时显示“请先选定源码”。",
+            "如果尚未选定源码，界面会禁用按钮。",
+            "源码未选定时，界面会禁用按钮。",
+            "未选定源码时，程序返回错误并结束。",
+            "不是没有选定源码；本轮已读取调用方。",
+            "没有选定源码并不是当前的限制，缺少的只是被调实现。",
+            "调用方已经读取，但被调用程序实现未提供，无法确认调用后的字段值。",
+            "历史回答曾称“现有材料还没有选定源码”，本轮已经读取调用方。",
+            "示例文字如下：\n```text\n现有材料还没有选定源码。\n```\n本轮已读取源码。",
+        )
+        for answer in answers:
+            with self.subTest(answer=answer):
+                self.assertFalse(assess_answer_completion(answer)["source_selection_limitation_detected"])
+
+    def test_false_source_selection_denial_recovers_once_with_supplied_source(self):
+        self.build_source()
+        output = self.ask(["现有材料还没有选定源码。", BUSINESS_ANSWER])
+        self.assert_complete_source_supplied()
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(output["agent_result"]["answer"], BUSINESS_ANSWER)
+        self.assertTrue(output["agent_result"]["business_review"]["synthesis_review_attempted"])
+        review = self.requests[1]["answer_review"]
+        self.assertTrue(review["source_availability_contradiction"])
+        self.assertEqual(self.requests[0]["source_context"][0]["pages"],
+                         self.requests[1]["source_context"][0]["pages"])
+
+    def test_repeated_selection_denial_does_not_become_a_successful_business_answer(self):
+        self.build_source()
+        output = self.ask(["现有材料还没有选定源码。"])
+        self.assertEqual(len(self.requests), 2)
+        self.assert_not_successful_answer(output)
+
     def test_local_qualification_does_not_regenerate_a_substantive_answer(self):
         answer = ("发给保存调用的金额为5000，审批状态为APPROVED。"
                   "保存返回FAIL后登记错误并选择错误页。"

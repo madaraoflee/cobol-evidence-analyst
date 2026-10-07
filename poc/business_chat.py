@@ -38,7 +38,9 @@ framework_facts 是手册规则与当前调用点的绑定。结合 operation、
 询问文件或字段影响时，逐项区分显式写入、只读依赖和候选间接影响，引用文件声明、ASSIGN、record 与赋值原文。WRITE/REWRITE 的 record 经 FD 映射文件；LF/PF 关系须有 DDS 等定义支持。缺少某项资料时保留已有明确结论。
 关键判断在句末使用提供的 [evidence_id] 或 [reference_id]。先使用已经可见的源码结论；只对确实影响当前问题的缺口作具体说明。追问承接前文，避免重复整篇初始报告。""" + "\n" + BUSINESS_ANSWER_POLICY + "\n" + ANSWER_MARKDOWN_POLICY
 
-_SYSTEM += "\nresponse_contract 是最终答案的交付约束，首段结论、表格和补读后的答案都遵守它。" \
+_SYSTEM += "\nresponse_mode=source_discovery 时，本轮只按 response_contract 返回检索动作 JSON；" \
+    "检索完成后再写业务答案。其他轮次的 response_contract 是最终业务答案的交付约束，" \
+    "首段结论、表格和补读后的答案都遵守它。" \
     "只解释当前问题所问的时点：问某次调用的输入，就在输入值形成和调用发出处结束；" \
     "问调用后的结果，再根据该次返回值及后续赋值推导。" \
     "在没有给出调用返回结果的问题中，不把调用前的状态延伸为返回后的状态或后续页面结论。"
@@ -319,8 +321,20 @@ def _prompt_payload(payload):
     # thousands of tokens of unrelated dependency metadata.
     trailing = {key: projected[key] for key in ("business_analysis_brief", "task", "question")
                 if key in projected}
+    supplied_pages = [page for bundle in projected.get("source_context", []) for page in bundle.get("pages", [])
+                      if page.get("source_text", "").strip()]
+    supplied_paths = list(dict.fromkeys(page["relative_path"] for page in supplied_pages
+                                       if page.get("relative_path")))
+    identity_status = projected.get("business_map", {}).get("source_identity", {}).get("status", "none")
+    source_selection = {"source_supplied": bool(supplied_pages), "page_count": len(supplied_pages),
+                        "relative_paths": supplied_paths[:8], "omitted_paths": max(0, len(supplied_paths) - 8),
+                        "identity_status": identity_status,
+                        "identity_unresolved": identity_status in {"ambiguous", "not_found"}}
     detailed = (projected.get("answer_detail", "detailed") != "brief"
                 and projected.get("business_analysis_brief", {}).get("detail_requested", True))
+    discovery_only = (projected.get("retrieval_status", {}).get("state") == "needs_discovery"
+                      and not any(bundle.get("pages") for bundle in projected.get("source_context", []))
+                      and projected.get("investigation_budget", {}).get("searches_per_turn", 0) > 0)
     contract = {"detail": ("Explain the requested business behavior thoroughly, including relevant inputs, "
                             "conditions, processing order, field changes, exceptions, results and source evidence."
                             if detailed else "Give a concise answer while preserving decisive conditions and evidence."),
@@ -328,8 +342,15 @@ def _prompt_payload(payload):
                 "content": "Lead with the conclusion, then show how the supplied source and assumptions establish it.",
                 "time_scope": "Distinguish values passed into each call from its returned values. "
                               "For additional scenarios, state their own required conditions before giving outcomes."}
+    if discovery_only:
+        contract = {"format": "Return one JSON object containing a nonempty search array.",
+                    "content": "Choose likely source terms, synonyms or abbreviations for the current question. "
+                               "Respect investigation_budget.searches_per_turn; use the returned source in a later round.",
+                    "scope": "This round plans source discovery only. Do not write a business answer or a material-gap report."}
     return {**{key: value for key, value in projected.items() if key not in trailing},
             **{key: value for key, value in trailing.items() if key != "question"},
+            "source_selection": source_selection,
+            "response_mode": "source_discovery" if discovery_only else "business_analysis",
             "response_contract": contract,
             **({"question": trailing["question"]} if "question" in trailing else {})}
 
@@ -1804,6 +1825,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         "输出完整、可直接给用户的业务答案：先给结论，再说明必要条件、顺序和结果，关键判断引用来源。"
                         "未知事项只限定受影响的结论，答完所问业务点就结束。"
                         "不要输出复核过程、审稿意见、初稿评价或修改说明。使用普通 Markdown，不请求工具。"}
+                if draft_completion.get("source_availability_contradiction"):
+                    revised_payload["task"] += (" 若 answer_review.source_availability_contradiction 为 true，"
+                        "本轮已供应相关源码；直接根据 source_context 原文解释业务，不再要求用户选择已定位的源码。")
                 synthesis_review_attempted = review_synthesis
                 trims = selection_events()
                 failure_stage = "context_assembly"

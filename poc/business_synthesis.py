@@ -60,6 +60,16 @@ _FOLLOWING_EXPLANATION = re.compile(
     r"(?:时|時)(?:会|會|将|將|则|則|直接)?(?:拒绝|拒絕|返回|归零|歸零|计算|計算)|"
     r"\b(?:and|then)\s+(?:\w+\s+){0,3}(?:multiply|divide|add|subtract|calculate|compute|set|return)\b", re.I)
 _CONDITIONAL_STATEMENT = re.compile(r"^(?:若|如果|当(?!前)|當(?!前)|只要|除非|一旦|(?:if|when|unless)\b)", re.I)
+_SOURCE_SELECTION_LIMITATION = re.compile(
+    r"^(?:(?:现有|現有|当前|當前|本轮|本輪|目前|所给|所給)?"
+    r"(?:材料|资料|資料|证据|證據|上下文)(?:中|里|裡)?\s*)?"
+    r"(?:(?:目前|当前|當前|本轮|本輪)\s*)?(?:还|還|仍|尚|暂|暫)?"
+    r"(?:没有|沒有|没|沒|未)(?:选定|選定|选择|選擇|指定)"
+    r"(?:相关|相關|对应|對應|具体|具體|实际|實際|任何)?(?:的)?(?:源代码|源代碼|源码|源碼)|"
+    r"^(?:源代码|源代碼|源码|源碼)(?:还|還|仍|尚|暂|暫)?"
+    r"(?:没有|沒有|没|沒|未)(?:被)?(?:选定|選定|选择|選擇|指定)|"
+    r"^(?:no (?:relevant )?source(?: code)? (?:has been|is) selected|"
+    r"(?:the )?(?:current |supplied )?(?:material|context) (?:has|contains) no selected source)", re.I)
 _EXPLICIT_DEFERRAL = re.compile(
     r"^(?:我|我们|我們).{0,120}(?:需要|必须|必須|待).{0,240}(?:才能|才可|再)(?:回答|解释|解釋|确认|確認)|"
     r"^(?:I|we)\s+(?:(?:still|first)\s+)?(?:need|must|have to)\b.{0,480}"
@@ -96,8 +106,20 @@ def assess_answer_completion(answer):
     commitment_text = re.sub(r'''“[^”]*”|「[^」]*」|『[^』]*』|‘[^’]*’|"[^"\n]*"|(?<!\w)'[^'\n]*' ''',
                              "", commitment_text, flags=re.X)
     pending_investigation = bool(_PENDING_INVESTIGATION.search(commitment_text))
+    selection_statements = set()
+    for clause in re.split(r"[\n。！？；;，,:：]+|(?<=[.!?])\s+", commitment_text):
+        clause = re.sub(r"^[\s*#>\-:：]+|[\s*。.!?]+$", "", clause)
+        clause = re.sub(r"^(?:但是|但|因此|所以|不过|不過|然而|而且)\s*", "", clause)
+        selection = _SOURCE_SELECTION_LIMITATION.search(clause)
+        conditional_tail = selection and re.match(
+            r"\s*(?:时|時|的?情况下|的?情況下|\b(?:when|if|unless)\b)", clause[selection.end():], re.I)
+        negated = re.search(r"并不是|並不是|并非|並非|不是.{0,12}(?:限制|问题|問題)|"
+                            r"不成立|不准确|不準確|不属实|不屬實", clause)
+        if (selection and not conditional_tail and not negated
+                and not (_REPORTED_BEHAVIOR.search(clause) or _CONDITIONAL_STATEMENT.search(clause))):
+            selection_statements.add(clause)
     clauses = re.split(r"[\n。！？；;，,:：]+|(?<=[.!?])\s+|\b(?:but|however)\b", text, flags=re.I)
-    deferred = substantive = limitation = False
+    deferred = substantive = limitation = selection_limitation = False
     for clause in clauses:
         clause = re.sub(r"^[\s*#>\-:：]+|[\s*。.!?]+$", "", clause)
         clause = re.sub(r"^(?:但是|但|因此|所以|不过|不過|然而|而且)\s*", "", clause)
@@ -108,6 +130,8 @@ def assess_answer_completion(answer):
         elif (_REPORTED_BEHAVIOR.search(clause) or _FOLLOWING_EXPLANATION.search(clause)
               or _CONDITIONAL_STATEMENT.search(clause)):
             substantive = True
+        elif clause in selection_statements:
+            deferred = limitation = selection_limitation = True
         elif _LIMITATION.search(clause):
             deferred = limitation = True
         elif _INVESTIGATION_STATEMENT.search(clause):
@@ -120,6 +144,7 @@ def assess_answer_completion(answer):
                       "investigation_without_business_answer" if incomplete else None,
             "pending_investigation": pending_investigation,
             "limitation_detected": limitation,
+            "source_selection_limitation_detected": selection_limitation,
             "method": "bounded_text_check", "semantic_verification": "unverified"}
 
 
@@ -447,6 +472,17 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
 def assess_business_answer(question, answer, investigation, source_pages, *, answer_detail="detailed"):
     """Detect obvious omissions without treating source supply as answer quality."""
     completion = assess_answer_completion(answer)
+    # Only the excerpts actually sent to this answer can contradict a global
+    # source-selection denial. Navigation, an unresolved identity, and a local
+    # missing callee implementation cannot establish that contradiction.
+    source_supplied = (investigation.get("state") != "unresolved" and any(
+        str(page.get("source_text", "")).strip()
+        and "repository_orientation" not in page.get("selection_reasons", [])
+        for page in source_pages))
+    selection_contradiction = source_supplied and completion["source_selection_limitation_detected"]
+    if selection_contradiction:
+        completion.update(status="incomplete", reason="source_availability_contradiction")
+    completion["source_availability_contradiction"] = bool(selection_contradiction)
     requirements = answer_requirements(question, investigation, source_pages, answer_detail=answer_detail)
     text = _REFERENCE.sub("", str(answer))
     text = re.sub(r"\[([^\]\n]+)\]\([^\)\n]+\)", r"\1", text)
