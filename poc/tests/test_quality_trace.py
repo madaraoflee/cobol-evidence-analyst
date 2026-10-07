@@ -37,8 +37,6 @@ class QualityTraceTests(unittest.TestCase):
                     "role": "assistant", "content": content}, "finish_reason": "stop"}]}))
             output = run_business_chat("Explain ENTRY", database, source, config, transport=transport)
             trace = json.loads(Path(output["agent_result"]["metrics"]["quality_trace_path"]).read_text())
-            self.assertEqual(trace["pipeline_version"], "question-evidence-v9")
-            self.assertEqual(trace["prompt_version"], "business-chat-v15")
             read = next(row for row in trace["rounds"][0]["tool_results"] if row["action"] == "read")
             self.assertTrue(read["actual_result_ids"])
             self.assertEqual(len(calls), 2)

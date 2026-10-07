@@ -153,44 +153,6 @@ class GroundingRiskTests(unittest.TestCase):
         self.assertTrue(all(row["mutable_outputs"] == [] for row in result["reasons"]))
         self.assertTrue(all(row["parameter_parse_status"] == "parsed" for row in result["reasons"]))
 
-    def test_possible_call_writes_do_not_assert_entry_or_preserve_returned_fields(self):
-        for target in ("'REMOTE'", "TARGET-NAME"):
-            for handler in ("", "ON EXCEPTION MOVE 8 TO STATUS-CODE "):
-                with self.subTest(target=target, handler=handler):
-                    source = page("ROOT", "MOVE 'PENDING' TO RECORD-STATE.\n"
-                        "IF ENABLED-FLAG = 'Y'\n"
-                        f"CALL {target} USING RECORD-AREA STATUS-CODE {handler}END-CALL\n"
-                        "END-IF.\nIF STATUS-CODE = ZERO\n"
-                        "IF RECORD-STATE = 'PENDING' MOVE 1 TO NEXT-STEP END-IF\nEND-IF.")
-                    rows = answer_grounding_risks([source])["reasons"]
-                    self.assertTrue(rows)
-                    for row in rows:
-                        self.assertEqual(row["mutable_outputs"], ["RECORD-AREA", "STATUS-CODE"])
-                        self.assertEqual(row["has_exception_handler"], bool(handler))
-                        applicability = row["effect_applicability"]
-                        self.assertEqual(applicability["callee_entry"], "not_established_by_call_syntax")
-                        self.assertEqual(applicability["callee_writes_require"], "callee_entered_and_executed")
-                        self.assertEqual(applicability["if_skipped_or_load_failed_before_entry"], "no_callee_writes")
-                        self.assertEqual(applicability["caller_exception_handler"], "follow_its_local_assignments")
-                        self.assertFalse(applicability["return_status_alone_preserves_reference_fields"])
-
-    def test_call_applicability_survives_brief_projection_without_new_investigation(self):
-        from business_synthesis import build_analysis_brief
-
-        source = page("ROOT", "CALL TARGET-NAME USING RECORD-AREA\n"
-                      "ON EXCEPTION MOVE 8 TO STATUS-CODE END-CALL.")
-        investigation = {"required_items": [], "open_gaps": []}
-        brief = build_analysis_brief("What happens if loading the target fails?",
-                                     investigation, [source], [], 8192)
-        self.assertTrue(brief["detail_requested"])
-        row = next(row for row in brief["call_effect_boundaries"]["reasons"]
-                   if row["kind"] == "runtime_call_target")
-        self.assertEqual(row["effect_applicability"]["if_skipped_or_load_failed_before_entry"],
-                         "no_callee_writes")
-        self.assertEqual(row["supplied_reference_ids"], [source["evidence_id"]])
-        self.assertEqual(brief["remaining_gaps"], [])
-        self.assertEqual(investigation, {"required_items": [], "open_gaps": []})
-
     def test_operation_contract_does_not_hide_reference_parameter_boundary(self):
         source = page("ROOT", "CALL 'REMOTE' USING CONTROL-AREA END-CALL.")
         reference = {"reference_id": "fw:operation", "document_sha256": "manual-version",
@@ -212,8 +174,6 @@ class GroundingRiskTests(unittest.TestCase):
                 self.assertIsNone(row["actual_parameters"])
                 self.assertIsNone(row["mutable_outputs"])
                 self.assertFalse(row["unchanged_value_guaranteed"])
-                self.assertEqual(row["effect_applicability"]["callee_entry"],
-                                 "not_established_by_call_syntax")
 
     def test_numeric_perform_does_not_truncate_multiline_call_parameters(self):
         for fixed in (False, True):

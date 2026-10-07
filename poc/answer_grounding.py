@@ -462,16 +462,7 @@ def answer_grounding_risks(source_pages, *, framework_references=(), framework_f
             call["mutable_outputs"] = ([parameter["name"] for parameter in call["actual_parameters"]
                 if parameter["mode"] == "REFERENCE"] if call["actual_parameters"] is not None else None)
             call["mutable_output_scope"] = "argument_storage_including_subordinate_fields"
-            # A source callsite nominates possible effects; it does not prove
-            # entry. In particular, a handler alone does not identify whether
-            # failure happened before entry or after any callee execution.
-            call["effect_applicability"] = {
-                "callee_entry": "not_established_by_call_syntax",
-                "callee_writes_require": "callee_entered_and_executed",
-                "if_skipped_or_load_failed_before_entry": "no_callee_writes",
-                "caller_exception_handler": "follow_its_local_assignments",
-                "return_status_alone_preserves_reference_fields": False}
-            call["post_call_value_status"] = "if_callee_entered_requires_return_effects_or_subsequent_local_assignment"
+            call["post_call_value_status"] = "requires_return_effects_or_subsequent_local_assignment"
             call["unchanged_value_guaranteed"] = False
             call["mutable_output_groups"] = _mutable_output_groups(call, pages, data_documents, business_map)
         if call["copy_modes"]:
