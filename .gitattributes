@@ -1,1 +1,8 @@
 /version-launchers/*.bat text eol=crlf
+*.py text eol=lf
+*.json text eol=lf
+*.cbl text eol=lf
+*.cpy text eol=lf
+*.crt text eol=lf
+*.key text eol=lf
+*.yml text eol=lf

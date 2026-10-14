@@ -1,0 +1,44 @@
+# 联合验收与发布流程
+
+正式发布要求同一份 Windows ZIP 同时具备原生离线回归、真实模型问答、逐条人工评审与目标办公设备验收。缺任何一项就保留为候选。构建成功或填写完评分表不代表答案正确。
+
+`windows-desktop.yml` 在相关主分支推送、PR 和手动构建时运行：固定公开语料校验 → Python/浏览器回归 → MSVC 编译 → 启动最终 EXE 联合回归 → 候选门禁 → 上传白名单产物。失败会阻断候选上传；合成模型不能授权正式发布。候选产物含 ZIP、校验和、BUILD-INFO、逐样本原生报告、合同、候选策略与门禁结果。
+
+真实验收只在获准设备上执行，报告保留本地。维护者先准备已经审阅的案例 JSON，使用现有 `live-business-eval/v3` 案例结构；每项关键结论须包含 `gold.required_findings[].supporting_ranges`，记录路径、行段与源码 SHA。`reviewed_context.source_ranges` 提供相同版本的冻结源码范围。多轮问题用 `turns`，不要手写一份虚假的初始历史。公共开发题和独立留出题应分别标明。
+
+先冻结正式策略，不能在看到结果后修改速度目标。策略继承候选的 `source_commit` 与 `manifest_sha256`，并增加 `live_cases_sha256`、`live_limits`（`question_seconds`、`p95_question_seconds`、`min_evidence_recall`）和非空 `office_required_checks`。办公设备检查至少覆盖启动、源码导入、连续问答、取消恢复、原版本证据及公司 CA/接口配置。阈值应基于实际模型基线确定；未测基线时不能宣称精度提升。
+
+以下命令默认只计划，不启动模型请求：
+
+```powershell
+python tools/desktop_live_acceptance.py --archive <最终WindowsZIP> --source-commit <完整commit> `
+  --source <获准源码目录> --cases <冻结案例JSON> --output <新的本地验收目录> --plan
+```
+
+获得真实模型与材料发送授权后，维护者在 Windows 上执行同一最终 EXE：
+
+```powershell
+python tools/desktop_live_acceptance.py --archive <最终WindowsZIP> --source-commit <完整commit> `
+  --source <获准源码目录> --cases <冻结案例JSON> --output <新的本地验收目录> `
+  --profile-config <显式.env文件> --allow-network --request-budget <总请求上限> `
+  --max-model-requests 5 --max-question-seconds 120 --source-format auto `
+  --office-check desktop_start --office-check source_import --office-check conversation_recovery
+```
+
+总请求上限至少覆盖计划的轮数乘单轮预算。没有额外 ping，不自动重试失败或不确定的远程请求。使用公司 CA 时显式加 `--ca-file <证书文件>`。运行隔离配置，不继承开发者环境。用户应用本身仍无需 Python、Git 或编译器；这些命令供维护者验收使用。
+
+工具产生 `LIVE-ACCEPTANCE.json` 和未评分的 `HUMAN-REVIEW-TEMPLATE.json`。人工检查实际回答与证据后另存评分文件：每条 required finding 记录 met/partial/missed，每条 forbidden claim 记录是否出现；填写可用性、追问连续性、评审人和时间。办公验收记录绑定 ZIP/EXE/commit、evaluation_run_id 和最终报告 SHA。改答案、模型、prompt、policy、gold、供证范围、用时或包文件都会使旧评审失效。报告中的实际历史与 prompt 哈希来自 EXE 发出的请求，不能用维护脚本当前代码代替。
+
+唯一受支持的正式发布入口是以下工具，默认仅本地检查：
+
+```powershell
+python tools/publish_desktop_release.py --package <最终WindowsZIP> `
+  --compiled-report <COMPILED-ACCEPTANCE.json> --manifest <ACCEPTANCE-MANIFEST.json> `
+  --policy <冻结正式策略JSON> --live-report <LIVE-ACCEPTANCE.json> --live-cases <冻结案例JSON> `
+  --reviews <已完成评分JSON> --repo madaraoflee/cobol-evidence-analyst --tag <现有草稿tag> `
+  --output <本地发布决定JSON>
+```
+
+检查完整通过且用户明确授权正式发布时，再加 `--publish`。该入口核对现有草稿目标 commit、tag、Windows 资产字节 SHA，拒绝顺带发布未经验收的其他平台包；只上传经过白名单筛选的哈希凭据，再转为正式版本。企业问题、回答、原始节录与评审人不上传。门禁失败时零 GitHub 调用。
+
+仓库管理员仍可在 GitHub UI 或其他命令中绕过此工具；本地流程不冒充服务器访问控制。维护流程禁止直接使用 `gh release edit --draft=false` 绕过联合门禁。现有正式版本不会因为新候选构建成功而自动替换。

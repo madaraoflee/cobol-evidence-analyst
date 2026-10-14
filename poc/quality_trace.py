@@ -72,6 +72,7 @@ class QualityTrace:
         framework = payload.get("framework_references", [])
         record = {"round_id": f"round-{len(self.data['rounds']) + 1}", "stage": stage,
                   "request_bytes": len(request_body), "request_body_sha256": _digest(request_body),
+                  "system_prompt_sha256": _digest(messages[0]["content"].encode()),
                   "sources": [{"evidence_id": p["evidence_id"], "path": p["relative_path"],
                       "source_sha256": p["source_sha256"], "start_line": p["start_line"],
                       "end_line": p["end_line"], "excerpt_sha256": _digest(p["source_text"].encode()),

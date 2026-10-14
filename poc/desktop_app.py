@@ -224,6 +224,26 @@ def run_browser(root: Path) -> int:
     return 0
 
 
+def run_acceptance_server(root: Path, information_path: Path) -> int:
+    """Expose the same local HTTP application to an isolated build verifier."""
+    target = information_path.expanduser().absolute()
+    if target.parent.resolve() != root.resolve() or target.is_symlink() or target.exists():
+        raise ValueError("DESKTOP_ACCEPTANCE_INFO_NOT_PRIVATE")
+    service = DesktopServer().start()
+    try:
+        # Exclusive creation prevents overwriting a profile file. The verifier
+        # retries incomplete JSON while this small startup record is written.
+        descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump({"schema_version": 1, "origin": service.server.origin,
+                       "pid": os.getpid()}, handle)
+            handle.write("\n")
+        service.thread.join()
+    finally:
+        service.close()
+    return 0
+
+
 def open_profile(root: Path, *, edit_config=False):
     target = root / ".env" if edit_config else root
     if sys.platform == "win32":
@@ -362,9 +382,18 @@ def main(argv=None) -> int:
     parser.add_argument("--self-test", action="store_true", help="Check packaged resources without opening a window.")
     parser.add_argument("--self-test-result", "--self-test-report", dest="self_test_result", type=Path,
                         help="Write the headless check result to this JSON file.")
+    parser.add_argument("--acceptance-server-info", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--acceptance-capture-context", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     if args.self_test_result and not args.self_test:
         parser.error("--self-test-result requires --self-test")
+    if args.acceptance_server_info and (not args.data_dir or args.self_test or args.open_config or args.browser):
+        parser.error("--acceptance-server-info requires explicit --data-dir and excludes other launch modes")
+    if args.acceptance_capture_context and not args.acceptance_server_info:
+        parser.error("--acceptance-capture-context requires --acceptance-server-info")
+    os.environ.pop("WORKBENCH_ACCEPTANCE_CAPTURE_CONTEXT", None)
+    if args.acceptance_capture_context:
+        os.environ["WORKBENCH_ACCEPTANCE_CAPTURE_CONTEXT"] = "1"
     try:
         root = prepare_profile(args.data_dir)
         logging.basicConfig(filename=root / "desktop.log", level=logging.WARNING,
@@ -373,6 +402,8 @@ def main(argv=None) -> int:
             open_profile(root, edit_config=True)
             return 0
         configure_tls()
+        if args.acceptance_server_info:
+            return run_acceptance_server(root, args.acceptance_server_info)
         if args.self_test:
             import ssl
             if not args.browser:
@@ -397,7 +428,7 @@ def main(argv=None) -> int:
         logging.error("DESKTOP_START_FAILED %s", type(exc).__name__)
         if sys.stderr is not None:
             print("工作台未能启动。请查看应用数据目录中的 desktop.log。", file=sys.stderr)
-        if not args.self_test:
+        if not args.self_test and not args.acceptance_server_info:
             show_startup_error()
         return 1
 

@@ -14,11 +14,57 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from company_api import APIClientError, CompanyAPIConfig
 from agent_policy import AgentPolicy
 from live_business_eval import (evaluate, main, review_template, _review_status, _review_summary,
-                                SYNTHESIS_PROMPT_VERSION, _review_identity, apply_reviews)
+                                SYNTHESIS_PROMPT_VERSION, _review_identity, apply_reviews,
+                                _fingerprint, _measurement, _runtime_provenance, _cases)
 from company_api import TransportResponse
 
 
 class LiveBusinessEvalTests(unittest.TestCase):
+    def test_turn_identifiers_are_nonempty_and_unique_within_each_case(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "cases.json"
+            for identifiers in (["first", "first"], [""], ["   "]):
+                with self.subTest(identifiers=identifiers):
+                    path.write_text(json.dumps({"cases": [{"id": "flow", "turns": [
+                        {"id": value, "question": "Why?"} for value in identifiers]}]}), encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, "EVALUATION_CASES_INVALID"):
+                        _cases(path)
+            path.write_text(json.dumps({"cases": [{"id": "flow", "turns": [
+                {"id": value, "question": "Why?"} for value in ("first", "second")]}]}), encoding="utf-8")
+            self.assertEqual(len(_cases(path)[0]["turns"]), 2)
+
+    def test_source_runner_provenance_never_claims_native_execution(self):
+        fake = _runtime_provenance(lambda request: None)
+        remote = _runtime_provenance(None)
+        self.assertEqual(fake["execution_surface"], "source_python")
+        self.assertEqual(remote["execution_surface"], "source_python")
+        self.assertEqual(fake["transport_kind"], "synthetic")
+        self.assertEqual(remote["transport_kind"], "remote_http")
+        self.assertEqual(fake["implementation_sha256"], remote["implementation_sha256"])
+        self.assertEqual(len(fake["implementation_sha256"]), 64)
+        self.assertIn("source_commit", fake)
+        self.assertIn("source_dirty", fake)
+
+    def test_runtime_and_same_answer_timing_extend_identity_without_rebinding_history(self):
+        item, report, review = self._archived_answer()
+        row = report["cases"][0]
+        runtime = {"execution_surface": "source_python", "transport_kind": "synthetic"}
+        report["runtime_provenance"] = runtime
+        row["elapsed_seconds"] = 3
+        row["measurement"] = _measurement(row, runtime, "a" * 64)
+        row["review_identity"].update(runtime_sha256=_fingerprint(runtime),
+                                      measurement_sha256=_fingerprint(row["measurement"]))
+        row["review_identity"]["identity_sha256"] = _fingerprint({key: value for key, value
+            in row["review_identity"].items() if key != "identity_sha256"})
+        review["identity"] = copy.deepcopy(row["review_identity"])
+        self.assertEqual(apply_reviews(copy.deepcopy(report), [item], [review])["correctness_counts"]["correct"], 1)
+        for mutation in (lambda doc: doc["runtime_provenance"].update(execution_surface="native_windows_http"),
+                         lambda doc: doc["cases"][0].update(elapsed_seconds=1),
+                         lambda doc: doc["cases"][0]["measurement"].update(elapsed_seconds=1)):
+            changed = copy.deepcopy(report)
+            mutation(changed)
+            self.assertEqual(apply_reviews(changed, [item], [review])["correctness_counts"]["correct"], 0)
+
     def _archived_answer(self, *, run_id="run-a", branch="automatic", answer="The result doubles."):
         item = {"id": "flow", "question": "How is the result computed?", "gold": {
             "required_findings": [{"id": "formula"}], "forbidden_claims": [{"id": "extra"}]}}

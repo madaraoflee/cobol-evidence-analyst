@@ -19,6 +19,7 @@ import sys
 import time
 import hashlib
 import secrets
+import subprocess
 
 from business_analysis import _TextResponseError, _extract_text
 from agent_policy import resolve_agent_policy
@@ -46,7 +47,10 @@ def _cases(path: Path) -> list[dict]:
         single = isinstance(item.get("question"), str) and bool(item["question"].strip())
         multiple = isinstance(turns, list) and bool(turns) and all(
             isinstance(turn, dict) and isinstance(turn.get("id"), str)
+            and bool(turn["id"].strip())
             and isinstance(turn.get("question"), str) and turn["question"].strip() for turn in turns)
+        if multiple and len({turn["id"] for turn in turns}) != len(turns):
+            raise ValueError("EVALUATION_CASES_INVALID")
         if item["id"] in seen or single == multiple:
             raise ValueError("EVALUATION_CASES_INVALID")
         if any(not isinstance(item.get(key, []), list) or
@@ -90,6 +94,40 @@ def _fingerprint(value):
                                     separators=(",", ":")).encode()).hexdigest()
 
 
+def _runtime_provenance(transport):
+    """Record the implementation actually loaded; this runner is never a native app."""
+    root = Path(__file__).resolve().parent
+    files = sorted([*root.glob("*.py"), *[path for path in (root / "web").glob("*") if path.is_file()]])
+    implementation = hashlib.sha256()
+    for path in files:
+        name = path.relative_to(root).as_posix().encode()
+        data = path.read_bytes()
+        implementation.update(len(name).to_bytes(8, "big") + name)
+        implementation.update(len(data).to_bytes(8, "big") + data)
+    commit, dirty = None, None
+    try:
+        commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, check=True,
+                                capture_output=True, text=True, timeout=5).stdout.strip()
+        dirty = bool(subprocess.run(["git", "status", "--porcelain", "--untracked-files=normal"],
+                     cwd=root, check=True, capture_output=True, text=True, timeout=5).stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return {"schema_version": "business-runtime-provenance/v1",
+            "execution_surface": "source_python", "runtime_platform": sys.platform,
+            "transport_kind": "synthetic" if transport is not None else "remote_http",
+            "source_commit": commit, "source_dirty": dirty,
+            "implementation_sha256": implementation.hexdigest()}
+
+
+def _measurement(row, runtime, cases_sha256, *, scope="full_question"):
+    """Bind timing to the same answer and run as the human review."""
+    return {"scope": scope, "case_id": row["id"], "turn_id": row["turn_id"],
+            "branch": row.get("name", "automatic"), "run_id": row["run_id"],
+            "answer_sha256": hashlib.sha256(row.get("answer", "").encode()).hexdigest(),
+            "elapsed_seconds": row["elapsed_seconds"], "cases_sha256": cases_sha256,
+            "runtime_sha256": _fingerprint(runtime)}
+
+
 def _evidence_metadata(context):
     """Keep actual supplied evidence identity without copying source into the form."""
     sources = []
@@ -116,7 +154,8 @@ def _evidence_metadata(context):
 
 def _review_identity(*, run_id, case_id, turn_id, branch, answer, model, prompt,
                      policy, gold, context, source_snapshot_id=None,
-                     framework_revision=None, evidence_status="supplied", question="", history=()):
+                     framework_revision=None, evidence_status="supplied", question="", history=(),
+                     runtime_provenance=None, measurement=None):
     evidence = _evidence_metadata(context)
     identity = {"schema_version": REVIEW_IDENTITY_VERSION, "run_id": run_id,
         "case_id": case_id, "turn_id": turn_id, "branch": branch,
@@ -132,6 +171,12 @@ def _review_identity(*, run_id, case_id, turn_id, branch, answer, model, prompt,
                                       if row.get("document_sha256")}),
         "evidence_fingerprint_status": evidence_status,
         "evidence_sha256": _fingerprint(evidence)}
+    # Optional extensions preserve archived v2 identities. Release acceptance
+    # requires these extensions; historical review display does not.
+    if runtime_provenance is not None:
+        identity["runtime_sha256"] = _fingerprint(runtime_provenance)
+    if measurement is not None:
+        identity["measurement_sha256"] = _fingerprint(measurement)
     identity["identity_sha256"] = _fingerprint(identity)
     return identity
 
@@ -190,6 +235,17 @@ def apply_reviews(report, items, reviews):
                 and identity.get("question_sha256") == hashlib.sha256(case.get("question", "").encode()).hexdigest()
                 and case.get("question", "") == turn.get("question", "")
                 and identity.get("gold_sha256") == _fingerprint(turn.get("gold") or {}))
+            if valid_identity and "runtime_sha256" in identity:
+                runtime = row.get("runtime_provenance", report.get("runtime_provenance"))
+                valid_identity = (isinstance(runtime, dict)
+                                  and identity["runtime_sha256"] == _fingerprint(runtime))
+            if valid_identity and "measurement_sha256" in identity:
+                measurement = row.get("measurement")
+                valid_identity = (isinstance(measurement, dict)
+                    and identity["measurement_sha256"] == _fingerprint(measurement)
+                    and measurement.get("elapsed_seconds") == row.get("elapsed_seconds")
+                    and measurement.get("answer_sha256") == identity["answer_sha256"]
+                    and measurement.get("run_id") == row.get("run_id"))
             if not valid_identity:
                 row.update(human_review=None, review_binding_status="stale",
                            quality_status="not_reviewed", review_completion="not_reviewed",
@@ -388,6 +444,8 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
     missing_captures = [f"{item['id']}/{turn['id']}" for item in items for turn in _turns(item)
         if mode == "paired-synthesis" and not (evaluation_dir / "captures" / f"{item['id']}-{turn['id']}.json").is_file()]
     report = {"schema_version": "live-business-eval/v3", "evaluation_run_id": secrets.token_hex(12),
+              "runtime_provenance": _runtime_provenance(transport),
+              "cases_sha256": hashlib.sha256(cases_file.read_bytes()).hexdigest(),
               "created_at_utc": datetime.now(timezone.utc).isoformat(),
               "configuration": config.safe_summary(), "case_count": len(items),
               "plan": {"case_count": len(items), "user_turn_count": turns, "mode": mode,
@@ -460,6 +518,7 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                         history = frozen.get("history", [])
                         branches.insert(0, ("automatic_context", frozen["context"]))
                     for branch_name, context in branches:
+                        branch_started = time.monotonic()
                         messages = synthesis_messages(turn["question"], history, context)
                         request = json.dumps({"model": config.chat_model, "messages": messages,
                             "max_tokens": config.max_output_tokens}, ensure_ascii=False,
@@ -469,10 +528,14 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                         response = client.complete(messages=messages)
                         answer = _extract_text(response)
                         branch_result = {"name": branch_name, "answer": answer.text,
+                            "id": item["id"], "turn_id": turn["id"],
+                            "elapsed_seconds": round(time.monotonic() - branch_started, 3),
                             "run_id": report["evaluation_run_id"] + ":" + branch_name,
                             "quality_status": "not_reviewed",
                             "request_bytes": len(request), "request_sha256": hashlib.sha256(request).hexdigest(),
                             "usage": response.get("usage"), "truncated": answer.truncated}
+                        branch_result["measurement"] = _measurement(branch_result,
+                            report["runtime_provenance"], report["cases_sha256"], scope="synthesis_only")
                         branch_result["review_identity"] = _review_identity(
                             run_id=branch_result["run_id"], case_id=item["id"], turn_id=turn["id"],
                             branch=branch_name, answer=answer.text, model=config.chat_model,
@@ -481,7 +544,8 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                                     "request_sha256": hashlib.sha256(request).hexdigest()},
                             policy=policy.to_dict(), gold=turn.get("gold", item.get("gold", {})) or {},
                             context=context, source_snapshot_id=item.get("source_snapshot_id"),
-                            framework_revision=item.get("framework_revision"), question=turn["question"], history=history)
+                            framework_revision=item.get("framework_revision"), question=turn["question"], history=history,
+                            runtime_provenance=report["runtime_provenance"], measurement=branch_result["measurement"])
                         case_result["branches"].append(branch_result)
                 except (ValueError, OSError, APIClientError, _TextResponseError) as exc:
                     case_result["error"] = getattr(exc, "code", str(exc))
@@ -528,6 +592,7 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
         metrics = agent.get("metrics", {})
         expected = list(dict.fromkeys(item.get("expected_source_paths", [])))
         result = {"id": item["id"], "question": item["question"], "conversation": conversation,
+                  "history": frozen_history,
                   "turn_id": item["turn_id"], "quality_status": "not_reviewed",
                   "elapsed_seconds": elapsed, "model_requests": metrics.get("model_requests"),
                   "metrics": metrics, "policy": metrics.get("policy", policy.to_dict()),
@@ -555,6 +620,8 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
         actual_rounds = [row for row in trace.get("rounds", []) if row.get("round_id") in final_rounds]
         actual_context = {kind: [entry for row in actual_rounds for entry in row.get(kind, [])]
                           for kind in ("sources", "framework")}
+        result["supplied_evidence"] = _evidence_metadata(actual_context)
+        result["measurement"] = _measurement(result, report["runtime_provenance"], report["cases_sha256"])
         result["review_identity"] = _review_identity(
             run_id=result["run_id"], case_id=item["id"], turn_id=item["turn_id"], branch="automatic",
             answer=result["answer"], model=config.chat_model,
@@ -564,7 +631,8 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
             policy=result["policy"], gold=item.get("gold") or {}, context=actual_context,
             source_snapshot_id=trace.get("analysis_revision", agent.get("snapshot_id", overview["snapshot_id"])),
             framework_revision=item.get("framework_revision"),
-            evidence_status="supplied" if actual_rounds else "unavailable", question=item["question"], history=frozen_history)
+            evidence_status="supplied" if actual_rounds else "unavailable", question=item["question"], history=frozen_history,
+            runtime_provenance=report["runtime_provenance"], measurement=result["measurement"])
         result["supplied_source_paths"] = sorted({row.get("path", row.get("relative_path"))
             for row in actual_context["sources"] if row.get("path", row.get("relative_path"))})
         result["expected_paths_supplied"] = sorted(set(expected) & set(result["supplied_source_paths"]))

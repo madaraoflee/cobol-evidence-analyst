@@ -30,6 +30,20 @@ FORBIDDEN_SUFFIXES = {".py", ".pyc", ".pyo", ".pyw", ".sqlite", ".db", ".pem", "
 FORBIDDEN_PARTS = {".git", ".poc-data", "__pycache__", "tests", ".env"}
 
 
+def source_identity(root=ROOT):
+    """Record build provenance; a source archive without Git stays unverified."""
+    try:
+        commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root,
+                                         stderr=subprocess.DEVNULL, text=True).strip()
+        changes = subprocess.check_output(["git", "status", "--porcelain"], cwd=root,
+                                          stderr=subprocess.DEVNULL, text=True)
+        if not re.fullmatch(r"[0-9a-f]{40}", commit):
+            raise ValueError("BUILD_COMMIT_INVALID")
+        return {"source_commit": commit, "source_dirty": bool(changes)}
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return {"source_commit": None, "source_dirty": True}
+
+
 def target_label(system=None, machine=None):
     system = sys.platform if system is None else system
     machine = platform.machine().lower() if machine is None else machine.lower()
@@ -218,6 +232,7 @@ def build(args):
         raise ValueError("Windows 桌面依赖请使用 Python 3.10–3.13，推荐 Python 3.12。")
     BUILD_ROOT.mkdir(parents=True, exist_ok=True)
     run = Path(tempfile.mkdtemp(prefix="run-", dir=BUILD_ROOT))
+    (run / "source-identity.json").write_text(json.dumps(source_identity()), encoding="utf-8")
     source = stage_sources(run / "source")
     collect_licenses(source / "licenses")
     output = run / "compiled"
@@ -270,7 +285,13 @@ def finish_delivery(args, source, output, run, target):
     if sys.platform == "win32":
         (package / "OPEN-IN-BROWSER.bat").write_bytes(
             b'@echo off\r\nsetlocal\r\nstart "" "%~dp0COBOLWorkbench\\COBOLWorkbench.exe" --browser\r\n')
+    identity_path = run / "source-identity.json"
+    identity = json.loads(identity_path.read_text(encoding="utf-8")) if identity_path.is_file() else {
+        "source_commit": None, "source_dirty": True, "source_identity_missing_at_build_start": True}
+    if identity != source_identity():
+        identity.update(source_dirty=True, source_identity_changed_during_build=True)
     metadata = {"application": APP_NAME, "target": target, "built_at": datetime.now(timezone.utc).isoformat(),
+                **identity, "release_status": "candidate_unaccepted",
                 "python": platform.python_version(), "self_test": result, "minimum_macos": minimum_macos,
                 "icons": {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
                           for path in (ROOT / "assets" / "app.ico", ROOT / "assets" / "app.icns") if path.is_file()},

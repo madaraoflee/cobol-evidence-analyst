@@ -1,0 +1,841 @@
+{
+  "schema_version": "desktop-joint-acceptance/v1",
+  "suite_id": "desktop-joint-v1",
+  "policy": "All fixed cases and checks are mandatory. Missing evidence, missing public corpus, skipped cases, nonfinite times and missing samples fail. Fake responses do not measure live model quality.",
+  "transport": "loopback_https_fake",
+  "model_accuracy_measured": false,
+  "business_answer_correctness": null,
+  "timing_scope": "Cold index is a normal desktop import into an empty workspace. Question timings exclude generation/import/startup. Repeated questions use the same index and separate conversations.",
+  "threshold_basis": "Conservative regression ceilings from recorded native local mechanism runs; not a live-model or enterprise-device SLA. Windows cold intake has separate headroom and no imported seed database.",
+  "source_files": {
+    "entry.cbl": {
+      "path": "entry.cbl",
+      "sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb"
+    },
+    "frontend.cbl": {
+      "path": "frontend.cbl",
+      "sha256": "1b6b9654ace38f39541180c89f6f569ab34fc611afe85649554944a477105156"
+    },
+    "leaf.cbl": {
+      "path": "leaf.cbl",
+      "sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc"
+    },
+    "middle.cbl": {
+      "path": "middle.cbl",
+      "sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070"
+    },
+    "overwrite.cbl": {
+      "path": "overwrite.cbl",
+      "sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605"
+    }
+  },
+  "public_corpus": {
+    "manifest_path": "docs/eval/public-business-v1/manifest.json",
+    "manifest_sha256": "e1ae2ff544272b524e7863dce0b9c972e29d1c35f2d93765fce2dc058012d81b",
+    "cases_path": "docs/eval/public-business-v1/cases.json",
+    "cases_sha256": "320343db243281ebdc43784c3a9df4cd8a05893ce558c4d0edc96f920033963f",
+    "required": true,
+    "source_commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e"
+  },
+  "large_corpus": {
+    "generator_version": "neutral-business-12024-v1",
+    "programs": 12000,
+    "copybooks": 24,
+    "lines_per_program": 224,
+    "longest_program_lines": 25000,
+    "expected": {
+      "files": 12024,
+      "lines": 2712992,
+      "source_bytes": 59039908,
+      "source_fingerprint": "f84c540ea17f72ec93e7a1137ed891418f03e516c2eaff21aeeba893ce936204"
+    }
+  },
+  "cases": [
+    {
+      "id": "claim_repair",
+      "owner": "runtime",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "quality_wrong_formula_repaired",
+        "quality_independent_move_preserved",
+        "completeness_critical_claims_verified",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "lifecycle_old_index_requires_explicit_update"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_wrong_formula_repaired",
+          "quality_independent_move_preserved"
+        ],
+        "completeness": [
+          "completeness_critical_claims_verified"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches"
+        ],
+        "lifecycle": [
+          "lifecycle_old_index_requires_explicit_update"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "runtime_claim"
+    },
+    {
+      "id": "cancel_unknown",
+      "owner": "runtime",
+      "kind": "lifecycle",
+      "repeats": 3,
+      "assertions": [
+        "lifecycle_cancel_prompt",
+        "lifecycle_remote_unknown_preserved",
+        "lifecycle_no_automatic_resend",
+        "lifecycle_restart_restored",
+        "lifecycle_unknown_isolated_between_conversations"
+      ],
+      "assertion_groups": {
+        "quality": [],
+        "completeness": [],
+        "evidence": [],
+        "lifecycle": [
+          "lifecycle_cancel_prompt",
+          "lifecycle_remote_unknown_preserved",
+          "lifecycle_no_automatic_resend",
+          "lifecycle_restart_restored",
+          "lifecycle_unknown_isolated_between_conversations"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 20,
+        "cancel_seconds": 2
+      },
+      "corpus": "runtime_claim"
+    },
+    {
+      "id": "deadline_unknown",
+      "owner": "runtime",
+      "kind": "lifecycle",
+      "repeats": 3,
+      "assertions": [
+        "lifecycle_total_deadline_enforced",
+        "lifecycle_remote_unknown_preserved",
+        "lifecycle_no_automatic_resend",
+        "lifecycle_restart_restored",
+        "lifecycle_unknown_isolated_between_conversations"
+      ],
+      "assertion_groups": {
+        "quality": [],
+        "completeness": [],
+        "evidence": [],
+        "lifecycle": [
+          "lifecycle_total_deadline_enforced",
+          "lifecycle_remote_unknown_preserved",
+          "lifecycle_no_automatic_resend",
+          "lifecycle_restart_restored",
+          "lifecycle_unknown_isolated_between_conversations"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 2.5,
+        "question_seconds": 8
+      },
+      "corpus": "runtime_claim"
+    },
+    {
+      "id": "conversation",
+      "owner": "runtime",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "quality_followup_correct",
+        "completeness_history_isolated",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_historical_version_survives_live_change"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_followup_correct"
+        ],
+        "completeness": [
+          "completeness_history_isolated"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_historical_version_survives_live_change"
+        ],
+        "lifecycle": []
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "runtime_conversation"
+    },
+    {
+      "id": "dense_record",
+      "owner": "runtime",
+      "kind": "answer",
+      "repeats": 5,
+      "assertions": [
+        "quality_formula_verified",
+        "completeness_source_supplied",
+        "completeness_dense_ir_fields",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "lifecycle_index_reused"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_formula_verified"
+        ],
+        "completeness": [
+          "completeness_source_supplied",
+          "completeness_dense_ir_fields"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "runtime_dense"
+    },
+    {
+      "id": "frontend_semantics",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "quality_add_giving_roles",
+        "quality_scope_words_not_operands",
+        "quality_same_line_occurrences",
+        "quality_literal_dependencies_absent",
+        "quality_literal_comment_marker",
+        "quality_qualified_fields_distinct",
+        "quality_section_binding",
+        "quality_section_flow",
+        "quality_explicit_formulas_supported",
+        "completeness_reviewed_ranges_supplied",
+        "quality_semantic_ir_agrees"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_add_giving_roles",
+          "quality_scope_words_not_operands",
+          "quality_same_line_occurrences",
+          "quality_literal_dependencies_absent",
+          "quality_literal_comment_marker",
+          "quality_qualified_fields_distinct",
+          "quality_section_binding",
+          "quality_section_flow",
+          "quality_explicit_formulas_supported",
+          "quality_semantic_ir_agrees"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_reviewed_ranges_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "frozen",
+      "files": [
+        "frontend.cbl"
+      ],
+      "question": "SEMANTIC-CASE 的 C 和 AMOUNT OF OUTPUT-REC 怎样计算？ADD GIVING 的读取写入、字符串和 CALCULATE-SECTION 的执行范围是什么？",
+      "semantic_tool": {
+        "tool": "backward_slice",
+        "path": "frontend.cbl",
+        "contains": "MOVE A TO C."
+      }
+    },
+    {
+      "id": "overwrite_condition",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "quality_conditional_reaching_definitions",
+        "quality_formula_condition_overwrite_supported",
+        "completeness_both_branches_preserved",
+        "completeness_reviewed_ranges_supplied"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_conditional_reaching_definitions",
+          "quality_formula_condition_overwrite_supported"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_both_branches_preserved",
+          "completeness_reviewed_ranges_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "frozen",
+      "files": [
+        "overwrite.cbl"
+      ],
+      "question": "OVERWRITE-CASE 前面的 OUT-AMOUNT 计算为什么没有生效，为什么最后变成零？请区分 FLAG 条件和最终读取。",
+      "semantic_tool": {
+        "tool": "backward_slice",
+        "path": "overwrite.cbl",
+        "contains": "MOVE OUT-AMOUNT TO FINAL-AMOUNT."
+      }
+    },
+    {
+      "id": "static_call_chain",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "quality_static_chain_return_binding",
+        "quality_leaf_formula_supported",
+        "completeness_three_program_path",
+        "completeness_reviewed_ranges_supplied"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_static_chain_return_binding",
+          "quality_leaf_formula_supported"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_three_program_path",
+          "completeness_reviewed_ranges_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "frozen",
+      "files": [
+        "entry.cbl",
+        "middle.cbl",
+        "leaf.cbl"
+      ],
+      "question": "ENTRYPOINT 的 FINAL-AMOUNT 从哪里来的？请追踪 MIDDLE、LEAF 的调用参数和正常返回。",
+      "semantic_tool": {
+        "tool": "backward_slice",
+        "path": "entry.cbl",
+        "contains": "MOVE OUT-AMOUNT TO FINAL-AMOUNT."
+      }
+    },
+    {
+      "id": "forward_impact",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "quality_conditional_reaching_definitions",
+        "quality_formula_condition_overwrite_supported",
+        "completeness_both_branches_preserved",
+        "completeness_reviewed_ranges_supplied",
+        "quality_forward_slice_reaches_output"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_conditional_reaching_definitions",
+          "quality_formula_condition_overwrite_supported",
+          "quality_forward_slice_reaches_output"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_both_branches_preserved",
+          "completeness_reviewed_ranges_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "frozen",
+      "files": [
+        "overwrite.cbl"
+      ],
+      "question": "OVERWRITE-CASE 修改 IN-AMOUNT 会影响哪些结果？请指出影响路径和 FLAG 覆盖条件。",
+      "semantic_tool": {
+        "tool": "forward_slice",
+        "path": "overwrite.cbl",
+        "contains": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2."
+      }
+    },
+    {
+      "id": "public_limit_rejection",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "quality_critical_answer_preserved",
+        "completeness_reviewed_ranges_supplied",
+        "quality_frozen_source_assertions"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_critical_answer_preserved",
+          "quality_frozen_source_assertions"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_reviewed_ranges_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 180,
+        "first_provider_seconds": 20,
+        "question_seconds": 40
+      },
+      "corpus": "public",
+      "public_case_id": "limit-rejection",
+      "source_format": "fixed",
+      "question": "CBTRN02C 的 1500-B-LOOKUP-ACCT 如何判断超限，为什么拒绝码后来可能改变？",
+      "required_answer_text": [
+        "102",
+        "103",
+        "覆盖",
+        "ACCT-CREDIT-LIMIT >= WS-TEMP-BAL"
+      ],
+      "unverified_prose": false
+    },
+    {
+      "id": "public_account_update",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "quality_critical_answer_preserved",
+        "completeness_reviewed_ranges_supplied",
+        "quality_frozen_source_assertions"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_critical_answer_preserved",
+          "quality_frozen_source_assertions"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_reviewed_ranges_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 180,
+        "first_provider_seconds": 20,
+        "question_seconds": 40
+      },
+      "corpus": "public",
+      "public_case_id": "account-update",
+      "source_format": "fixed",
+      "question": "CBACT04C 的 1050-UPDATE-ACCOUNT 如何更新账户，写入失败怎样处理？",
+      "required_answer_text": [
+        "REWRITE",
+        "ACCT-CURR-CYC-CREDIT",
+        "ACCT-CURR-CYC-DEBIT",
+        "12",
+        "错误"
+      ],
+      "unverified_prose": false
+    },
+    {
+      "id": "public_monthly_interest",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "quality_critical_answer_preserved",
+        "completeness_reviewed_ranges_supplied",
+        "quality_frozen_source_assertions"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_critical_answer_preserved",
+          "quality_frozen_source_assertions"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_reviewed_ranges_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 180,
+        "first_provider_seconds": 20,
+        "question_seconds": 40
+      },
+      "corpus": "public",
+      "public_case_id": "monthly-interest",
+      "source_format": "fixed",
+      "question": "CBACT04C 的 1300-COMPUTE-INTEREST 中月息如何计算并累加？",
+      "required_answer_text": [
+        "1200",
+        "WS-TOTAL-INT",
+        "1300-B-WRITE-TX"
+      ],
+      "unverified_prose": false
+    },
+    {
+      "id": "public_monthly_interest_repair",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "quality_injected_error_revised",
+        "quality_invalid_claim_absent",
+        "quality_frozen_source_assertions",
+        "completeness_reviewed_ranges_supplied"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_injected_error_revised",
+          "quality_invalid_claim_absent",
+          "quality_frozen_source_assertions"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_reviewed_ranges_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 180,
+        "first_provider_seconds": 20,
+        "question_seconds": 40
+      },
+      "corpus": "public",
+      "public_case_id": "monthly-interest",
+      "source_format": "fixed",
+      "question": "CBACT04C 的 1300-COMPUTE-INTEREST 中月息如何计算并累加？",
+      "inject_error": true,
+      "required_answer_text": [
+        "1200"
+      ],
+      "forbidden_answer_text": [
+        "/ 999"
+      ]
+    },
+    {
+      "id": "public_file_record_mapping",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "quality_critical_answer_preserved",
+        "completeness_reviewed_ranges_supplied",
+        "quality_prose_not_falsely_verified"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_critical_answer_preserved",
+          "quality_prose_not_falsely_verified"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_reviewed_ranges_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 180,
+        "first_provider_seconds": 20,
+        "question_seconds": 40
+      },
+      "corpus": "public",
+      "public_case_id": "file-record-mapping",
+      "source_format": "fixed",
+      "question": "CBACT04C 中 ACCOUNT-FILE、ACCTFILE、FD-ACCTFILE-REC 和 ACCOUNT-RECORD 如何对应？",
+      "required_answer_text": [
+        "ACCOUNT-FILE",
+        "ACCTFILE",
+        "FD-ACCT-ID",
+        "ACCTFILE-STATUS",
+        "ACCOUNT-RECORD",
+        "不能证明"
+      ],
+      "unverified_prose": true
+    },
+    {
+      "id": "public_unimplemented_procedure",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "quality_critical_answer_preserved",
+        "completeness_reviewed_ranges_supplied",
+        "quality_prose_not_falsely_verified"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_critical_answer_preserved",
+          "quality_prose_not_falsely_verified"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_reviewed_ranges_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 180,
+        "first_provider_seconds": 20,
+        "question_seconds": 40
+      },
+      "corpus": "public",
+      "public_case_id": "unimplemented-procedure",
+      "source_format": "fixed",
+      "question": "CBACT04C 的 1400-COMPUTE-FEES 实现了哪些手续费规则？",
+      "required_answer_text": [
+        "1400-COMPUTE-FEES",
+        "EXIT",
+        "没有手续费"
+      ],
+      "unverified_prose": true
+    },
+    {
+      "id": "public_unimplemented_procedure_repair",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "quality_injected_error_revised",
+        "quality_invalid_claim_absent",
+        "quality_frozen_source_assertions",
+        "completeness_reviewed_ranges_supplied"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_injected_error_revised",
+          "quality_invalid_claim_absent",
+          "quality_frozen_source_assertions"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_reviewed_ranges_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 180,
+        "first_provider_seconds": 20,
+        "question_seconds": 40
+      },
+      "corpus": "public",
+      "public_case_id": "unimplemented-procedure",
+      "source_format": "fixed",
+      "question": "CBACT04C 的 1400-COMPUTE-FEES 实现了哪些手续费规则？",
+      "inject_error": true,
+      "required_answer_text": [
+        "EXIT"
+      ],
+      "forbidden_answer_text": [
+        "按余额的1%计算手续费"
+      ]
+    },
+    {
+      "id": "large_repository",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 5,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "quality_formula_and_condition_supported",
+        "quality_unknown_not_verified",
+        "completeness_formula_control_supplied"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_formula_and_condition_supported",
+          "quality_unknown_not_verified"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_formula_control_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 1800,
+        "first_provider_seconds": 30,
+        "question_seconds": 60
+      },
+      "corpus": "large",
+      "question": "BILL-AMOUNT 怎么计算？有哪些触发条件？"
+    }
+  ]
+}

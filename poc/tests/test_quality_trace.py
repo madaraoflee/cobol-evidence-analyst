@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -64,6 +66,9 @@ class QualityTraceTests(unittest.TestCase):
             row = trace["rounds"][0]
             self.assertEqual(row["request_bytes"], len(bodies[0]))
             self.assertEqual(row["request_body_sha256"], hashlib.sha256(bodies[0]).hexdigest())
+            wire_messages = json.loads(bodies[0])["messages"]
+            self.assertEqual(row["system_prompt_sha256"],
+                             hashlib.sha256(wire_messages[0]["content"].encode()).hexdigest())
             self.assertGreater(len(row["sources"]), 0)
             self.assertNotIn("context", row)
             self.assertNotIn("local-test-secret", json.dumps(trace))
@@ -71,6 +76,16 @@ class QualityTraceTests(unittest.TestCase):
                                        transport=transport, capture_context=True)
             captured = json.loads(Path(output["agent_result"]["metrics"]["quality_trace_path"]).read_text())
             self.assertTrue(captured["rounds"][0]["context"]["sources"][0]["excerpt"])
+            with mock.patch.dict(os.environ, {"WORKBENCH_ACCEPTANCE_CAPTURE_CONTEXT": "1"}):
+                output = run_business_chat("RESULT-VALUE 如何计算？", database, source, config, transport=transport,
+                    history=[{"role": "user", "content": "INPUT-VALUE 是什么？"},
+                             {"role": "assistant", "content": "INPUT-VALUE 是输入字段。"}])
+            diagnostic = json.loads(Path(output["agent_result"]["metrics"]["quality_trace_path"]).read_text())
+            actual_messages = json.loads(bodies[-1])["messages"]
+            self.assertTrue(actual_messages[1:-1])
+            self.assertEqual(diagnostic["rounds"][0]["context"]["history"], actual_messages[1:-1])
+            self.assertEqual(diagnostic["rounds"][0]["system_prompt_sha256"],
+                             hashlib.sha256(actual_messages[0]["content"].encode()).hexdigest())
 
 
 if __name__ == "__main__":

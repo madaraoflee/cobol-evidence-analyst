@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sqlite3
 from contextlib import closing
@@ -917,7 +918,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     investigation_cache = {}
     investigation_calls, investigation_queries = 0, 0
     quality = QualityTrace(database_path, question=question, config=config, policy=policy,
-                           capture_context=capture_context, resume_state=resume_state,
+                           capture_context=(capture_context or os.environ.get("WORKBENCH_ACCEPTANCE_CAPTURE_CONTEXT") == "1"),
+                           resume_state=resume_state,
                            analysis_identity=analysis_identity)
     def save_budget_stop():
         checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]

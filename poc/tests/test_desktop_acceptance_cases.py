@@ -1,0 +1,127 @@
+"""The release runner must reject incomplete or mismatched evidence offline."""
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from tools.desktop_acceptance_cases import (DEFAULT_MANIFEST, _large_program, _quality_checks,
+    corpus_fingerprint, ledger_versions_match, prepare_source, ranges_supplied, replacement_supported,
+    run_cases, verify_pages)
+
+
+class DesktopAcceptanceEvidenceTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        (self.root / "entry.cbl").write_bytes(b"MOVE 1 TO A.\nMOVE A TO B.\nGOBACK.\n")
+        self.version = hashlib.sha256((self.root / "entry.cbl").read_bytes()).hexdigest()
+        self.page = {"relative_path": "entry.cbl", "source_sha256": self.version,
+            "evidence_id": "ev_page_example", "start_line": 1, "end_line": 2,
+            "source_text": "MOVE 1 TO A.\nMOVE A TO B.", "span_truncated": False}
+
+    def test_actual_text_hash_and_range_are_all_required(self):
+        self.assertEqual(verify_pages(self.root, [self.page])[0]["source_sha256"], self.version)
+        for change in ({"source_sha256": "0" * 64}, {"source_text": "MOVE 999 TO A."},
+                       {"start_line": 0}, {"end_line": 99}, {"start_line": True}):
+            with self.subTest(change=change), self.assertRaises(AssertionError):
+                verify_pages(self.root, [{**self.page, **change}])
+        with self.assertRaises(AssertionError):
+            verify_pages(self.root, [])
+
+    def test_path_hit_truncated_page_and_wrong_version_do_not_cover_gold(self):
+        required = [{"path": "entry.cbl", "sha256": self.version, "start_line": 1, "end_line": 3}]
+        self.assertFalse(ranges_supplied([self.page], required))
+        last = {**self.page, "start_line": 3, "end_line": 3}
+        self.assertTrue(ranges_supplied([self.page, last], required))
+        self.assertFalse(ranges_supplied([self.page, {**last, "source_sha256": "0" * 64}], required))
+        self.assertFalse(ranges_supplied([{**self.page, "end_line": 3, "span_truncated": True}], required))
+        self.assertFalse(ranges_supplied([self.page], []))
+
+    def test_missing_fixed_public_corpus_is_failure_not_skip(self):
+        manifest = json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+        case = next(row for row in manifest["cases"] if row["corpus"] == "public")
+        with self.assertRaisesRegex(AssertionError, "skipping is forbidden"):
+            prepare_source(case, manifest, self.root / "missing", None)
+
+    def test_frozen_sources_are_byte_identical_and_manifest_has_required_risks(self):
+        manifest = json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+        case = next(row for row in manifest["cases"] if row["id"] == "frontend_semantics")
+        source = self.root / "frozen"
+        info = prepare_source(case, manifest, source, None)
+        self.assertEqual(info["files"], 1)
+        self.assertNotIn(b"\r\n", (source / "frontend.cbl").read_bytes())
+        self.assertEqual(hashlib.sha256((source / "frontend.cbl").read_bytes()).hexdigest(),
+            manifest["source_files"]["frontend.cbl"]["sha256"])
+        self.assertTrue({"quality_add_giving_roles", "quality_scope_words_not_operands",
+            "quality_same_line_occurrences", "quality_literal_dependencies_absent", "quality_literal_comment_marker",
+            "quality_qualified_fields_distinct", "quality_section_binding", "quality_section_flow",
+            "quality_semantic_ir_agrees"} <= set(case["assertions"]))
+        for row in manifest["cases"]:
+            self.assertGreaterEqual(row["repeats"], 3)
+            self.assertEqual(len(row["assertions"]), len(set(row["assertions"])))
+            for group in ("quality", "completeness", "evidence") if row["kind"] == "answer" else ("lifecycle",):
+                self.assertTrue(row["assertion_groups"][group])
+                self.assertTrue(set(row["assertion_groups"][group]) <= set(row["assertions"]))
+
+    def test_large_shape_matches_previously_measured_program_bytes(self):
+        text = _large_program(0, 12000, 224, 24)
+        self.assertEqual(len(text.splitlines()), 224)
+        self.assertEqual(hashlib.sha256(text.encode()).hexdigest(),
+            "5e0b7fa10e8ac65df18265ccdbd318fd24e7710bebe457426dee03b1a6ef08dc")
+        self.assertEqual(len(_large_program(11999, 12000, 25000, 24).splitlines()), 25000)
+        self.assertEqual(corpus_fingerprint(self.root)["files"], 1)
+
+    def test_partial_without_critical_ledger_facts_does_not_pass_quality(self):
+        case = {"id": "overwrite_condition", "corpus": "frozen"}
+        with mock.patch("tools.desktop_acceptance_cases.flow_checks", return_value={
+                "quality_conditional_reaching_definitions": True}):
+            checks = _quality_checks(case, {"status": "PARTIAL", "answer": "FLAG 覆盖条件未成立计算",
+                "claim_ledger": {"entries": [], "counts": {"contradicted": 0}}}, self.root, [self.page])
+        self.assertFalse(checks["quality_formula_condition_overwrite_supported"])
+
+    def test_revision_count_and_correct_text_cannot_replace_structured_support(self):
+        assertion = {"predicate": "assignment_statement", "target": "RESULT", "expression": ["INPUT", "*", "2"]}
+        self.assertFalse(replacement_supported({"revised_claim_count": 1, "entries": []}, assertion))
+        for result in ({"support_status": "unsupported", "assertion": assertion},
+                       {"support_status": "supported", "assertion": {**assertion, "expression": ["INPUT", "*", "999"]}}):
+            self.assertFalse(replacement_supported({"entries": [{"revised_claims": [result]}]}, assertion))
+        self.assertTrue(replacement_supported({"entries": [{"revised_claims": [
+            {"support_status": "supported", "assertion": assertion}]}]}, assertion))
+
+    def test_supported_ledger_cannot_bind_another_source_version_or_unsupplied_id(self):
+        reference = {"relative_path": "entry.cbl", "source_sha256": self.version, "start_line": 1, "end_line": 1}
+        entry = {"support_status": "supported", "evidence_ids": [self.page["evidence_id"]], "source_versions": [reference]}
+        self.assertTrue(ledger_versions_match({"entries": [entry]}, [self.page]))
+        for change in ({"source_versions": [{**reference, "source_sha256": "0" * 64}]},
+                       {"source_versions": [{**reference, "end_line": 3}]},
+                       {"evidence_ids": ["ev_not_supplied"]}, {"invalid_evidence_ids": ["ev_bad"]}):
+            self.assertFalse(ledger_versions_match({"entries": [{**entry, **change}]}, [self.page]))
+
+    def test_previous_sample_directory_is_never_reused(self):
+        manifest = json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+        case = next(row for row in manifest["cases"] if row["id"] == "frontend_semantics")
+        (self.root / case["id"]).mkdir()
+        with self.assertRaisesRegex(AssertionError, "previous samples cannot be reused"), \
+                mock.patch("tools.desktop_acceptance_cases.LoopbackProvider", side_effect=AssertionError("provider")):
+            run_cases([], self.root, manifest, None, case_ids=[case["id"]])
+
+    def test_execution_failure_keeps_every_required_sample_failed(self):
+        manifest = json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+        case = next(row for row in manifest["cases"] if row["id"] == "frontend_semantics")
+        with mock.patch("tools.desktop_acceptance_cases._run_cases", side_effect=TimeoutError("deadline")):
+            rows = run_cases([], self.root, manifest, None, case_ids=[case["id"]])
+        self.assertEqual(len(rows), case["repeats"])
+        self.assertTrue(all(row["status"] == "failed" and not any(row["checks"].values()) for row in rows))
+        self.assertTrue(all(row["business_answer_correctness"] is None for row in rows))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -2,6 +2,16 @@ name: Windows desktop x64
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/windows-desktop.yml'
+      - '.gitattributes'
+      - 'build_app.py'
+      - 'desktop-requirements.txt'
+      - 'poc/**'
+      - 'tools/**'
+      - 'docs/eval/**'
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
@@ -12,6 +22,9 @@ on:
       - 'desktop-requirements.txt'
       - 'assets/app.ico'
       - 'poc/**'
+      - 'tools/**'
+      - 'docs/eval/**'
+      - '.gitattributes'
 
 permissions:
   contents: read
@@ -24,13 +37,14 @@ jobs:
   build:
     name: Compile and verify Windows x64
     runs-on: windows-2022
-    timeout-minutes: 90
+    timeout-minutes: 120
     defaults:
       run:
         shell: pwsh
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
+      PUBLIC_BUSINESS_SOURCE_ROOT: ${{ runner.temp }}/public-business-source
     steps:
       - name: Check out the selected revision
         uses: actions/checkout@v7
@@ -42,6 +56,30 @@ jobs:
         with:
           python-version: '3.13'
           architecture: x64
+
+      - name: Fetch and verify the mandatory frozen public corpus
+        shell: python
+        run: |
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+
+          manifest = json.loads(Path('docs/eval/public-business-v1/manifest.json').read_text(encoding='utf-8'))
+          target = Path(os.environ['PUBLIC_BUSINESS_SOURCE_ROOT'])
+          target.mkdir()
+          for arguments in (['init'], ['config', 'core.autocrlf', 'false'],
+                            ['remote', 'add', 'origin', manifest['repository']],
+                            ['fetch', '--depth', '1', 'origin', manifest['commit']],
+                            ['checkout', '--detach', 'FETCH_HEAD']):
+              subprocess.run(['git', '-C', str(target), *arguments], check=True)
+          actual = subprocess.check_output(['git', '-C', str(target), 'rev-parse', 'HEAD'], text=True).strip()
+          if actual != manifest['commit']:
+              raise SystemExit('Frozen public corpus revision mismatch.')
+          for item in manifest['files']:
+              if hashlib.sha256((target / item['path']).read_bytes()).hexdigest() != item['sha256']:
+                  raise SystemExit('Frozen public corpus content mismatch.')
 
       - name: Check Windows compiler and build target
         run: |
@@ -98,54 +136,44 @@ jobs:
       - name: Compile with MSVC and verify the compiled runtime
         run: python build_app.py --skip-install --jobs 4 --output-dir release
 
-      - name: Verify and collect only the final delivery
+      - name: Exercise final EXE through the default workbench and enforce joint acceptance
+        timeout-minutes: 45
         shell: python
         run: |
           import hashlib
           import json
           import os
           from pathlib import Path
-          import shutil
-          import zipfile
+          import subprocess
+          import sys
 
           archives = list(Path('release/windows-x64').glob('*/COBOLWorkbench-windows-x64.zip'))
           if len(archives) != 1:
               raise SystemExit('Expected exactly one Windows x64 delivery ZIP.')
           archive = archives[0]
-          checksum = archive.with_suffix('.zip.sha256')
-          expected = checksum.read_text(encoding='ascii').strip()
-          with archive.open('rb') as handle:
-              digest = hashlib.file_digest(handle, 'sha256').hexdigest()
-          if expected != f'{digest}  {archive.name}':
-              raise SystemExit('Delivery checksum does not match the ZIP.')
-          with zipfile.ZipFile(archive) as package:
-              names = set(package.namelist())
-              required = {'COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe',
-                          'COBOLWorkbench/START-HERE.txt',
-                          'COBOLWorkbench/OPEN-IN-BROWSER.bat',
-                          'COBOLWorkbench/BUILD-INFO.json'}
-              if not required <= names:
-                  raise SystemExit('The delivery is missing the compiled application or instructions.')
-              metadata_bytes = package.read('COBOLWorkbench/BUILD-INFO.json')
-          metadata = json.loads(metadata_bytes)
-          checks = metadata.get('self_test', {})
-          if (metadata.get('target') != 'windows-x64' or checks.get('ok') is not True
-                  or checks.get('model_calls') != 0 or checks.get('desktop_dependencies') is not True):
-              raise SystemExit('The compiled Windows runtime did not pass its offline self-test.')
-          destination = Path('windows-delivery')
-          destination.mkdir()
-          shutil.copy2(archive, destination / archive.name)
-          shutil.copy2(checksum, destination / checksum.name)
-          (destination / 'BUILD-INFO.json').write_bytes(metadata_bytes)
-          summary = (f'Windows x64 build passed for commit `{os.environ["GITHUB_SHA"]}`.\n\n'
-                     f'Delivery: `{archive.name}`\n\nSHA-256: `{digest}`\n\n'
-                     'Download the artifact and extract its outer wrapper. The inner delivery ZIP '
-                     'contains the complete application folder; keep its EXE and DLLs together. '
-                     'Desktop GUI and target office device acceptance remain required.\n')
+          manifest = Path('docs/eval/desktop-joint-v1/manifest.json')
+          temporary = Path(os.environ['RUNNER_TEMP'])
+          output = temporary / 'compiled-joint-acceptance'
+          policy = temporary / 'candidate-policy.json'
+          policy.write_text(json.dumps({'schema_version': 'release-acceptance-policy/v1',
+              'source_commit': os.environ['GITHUB_SHA'],
+              'manifest_sha256': hashlib.sha256(manifest.read_bytes()).hexdigest()}), encoding='utf-8')
+          subprocess.run([sys.executable, 'tools/desktop_acceptance.py', '--archive', str(archive),
+              '--source-commit', os.environ['GITHUB_SHA'], '--public-source', os.environ['PUBLIC_BUSINESS_SOURCE_ROOT'],
+              '--manifest', str(manifest), '--output', str(output)], check=True)
+          subprocess.run([sys.executable, 'tools/collect_desktop_candidate.py', '--package', str(archive),
+              '--report', str(output / 'COMPILED-ACCEPTANCE.json'), '--manifest', str(manifest),
+              '--policy', str(policy), '--destination', 'windows-delivery'], check=True)
+          report = json.loads((output / 'COMPILED-ACCEPTANCE.json').read_text(encoding='utf-8'))
+          summary = (f'Windows native EXE joint offline acceptance passed for `{os.environ["GITHUB_SHA"]}`.\n\n'
+                     f'Samples: {len(report["cases"])}. ZIP SHA-256: `{report["archive_sha256"]}`.\n\n'
+                     'This is a candidate: synthetic provider results do not measure real-model accuracy. '
+                     'Formal publication remains blocked until the same ZIP has bound real-model, human, '
+                     'and target office-device acceptance. No release is published by this workflow.\n')
           with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as handle:
               handle.write(summary)
 
-      - name: Upload the compiled delivery and build information
+      - name: Upload only the accepted candidate and its bound reports
         uses: actions/upload-artifact@v7
         with:
           name: COBOLWorkbench-windows-x64-${{ github.sha }}-${{ github.run_attempt }}
@@ -153,7 +181,20 @@ jobs:
             windows-delivery/COBOLWorkbench-windows-x64.zip
             windows-delivery/COBOLWorkbench-windows-x64.zip.sha256
             windows-delivery/BUILD-INFO.json
+            windows-delivery/COMPILED-ACCEPTANCE.json
+            windows-delivery/CANDIDATE-GATE.json
+            windows-delivery/ACCEPTANCE-MANIFEST.json
+            windows-delivery/CANDIDATE-POLICY.json
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
           include-hidden-files: false
+
+      - name: Preserve sanitized offline failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: failed-native-acceptance-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/compiled-joint-acceptance/COMPILED-ACCEPTANCE.json
+          if-no-files-found: ignore
+          retention-days: 14
