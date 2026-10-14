@@ -420,7 +420,7 @@ def _dependency_selection(connection, seeds, all_paths, check_cancel):
 
 
 def discover_repository(database_path, question, *, search_terms=None, focus_paths=None, check_cancel=None,
-                        fallback_to_repository=True, entry_program=None):
+                        fallback_to_repository=True, entry_program=None, history=()):
     """Retrieve all matching files, then expand supported static dependencies.
 
     The evidence preview is bounded, but matching paths are not top-k clipped.
@@ -443,7 +443,7 @@ def discover_repository(database_path, question, *, search_terms=None, focus_pat
             raise ValueError("REPOSITORY_SEARCH_STALE")
         overview = json.loads(search_metadata["overview"])
         identity = resolve_source_identity(connection, question, search_terms, focus_paths=focus_paths,
-                                           entry_program=entry_program)
+                                           entry_program=entry_program, history=history)
         blocked = identity_blocks_analysis(identity)
         scope_sql, scope_values = identity_sql_scope(identity, supplemental=bool(search_terms))
         all_paths = {row[0] for row in connection.execute("SELECT relative_path FROM source_files")}
@@ -875,7 +875,7 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
 
 def retrieve_repository_context(database_path, source_root, question, *, search_terms=None, focus_paths=None,
                                 prior_paths=None, max_pages=8, max_chars=32000, check_cancel=None,
-                                source_session=None, entry_program=None):
+                                source_session=None, entry_program=None, history=()):
     """Retrieve a small evidence bundle and neighbouring structure from SQLite.
 
     No-match questions get representative indexed pages, never a full-repository
@@ -890,7 +890,7 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
         root, overview = _fast_snapshot(connection, source_root)
         relation_cache = _session_relation_cache(connection, source_session)
         identity = resolve_source_identity(connection, question, search_terms, focus_paths=focus_paths,
-                                           entry_program=entry_program)
+                                           entry_program=entry_program, history=history)
         blocked = identity_blocks_analysis(identity)
         scope_sql, scope_values = identity_sql_scope(identity, supplemental=bool(search_terms))
         query = " OR ".join('"' + term.replace('"', '""') + '"' for term in terms)
@@ -946,7 +946,8 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
             candidate = requested.split("::", 1)[0]
             _relative_path(candidate)
             paths = [row[0] for row in connection.execute("SELECT relative_path FROM source_files WHERE relative_path=? COLLATE NOCASE UNION SELECT relative_path FROM symbols WHERE symbol_type='Program' AND name=? LIMIT 2", (candidate, requested.upper()))]
-            if identity["status"] == "resolved" and identity.get("hard_constraint", True):
+            if identity["status"] == "resolved":
+                # Prior citations nominate evidence, not a competing subject.
                 paths = [relative for relative in paths if relative in identity["direct_paths"]]
             for relative in paths:
                 row = None

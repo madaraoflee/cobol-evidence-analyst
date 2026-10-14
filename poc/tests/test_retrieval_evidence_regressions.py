@@ -369,7 +369,8 @@ class RetrievalEvidenceRegressionTests(unittest.TestCase):
                                    investigation_builder=None, source_fallback_builder=None):
             # Exercise the flow contract after transport fitting omits every
             # already located excerpt; selector behavior is covered separately.
-            self.assertEqual(payload["business_map"]["source_identity"]["status"], "none")
+            self.assertEqual(payload["business_map"]["source_identity"]["status"], "resolved")
+            self.assertEqual(payload["business_map"]["source_identity"]["kind"], "field")
             pages = source_pages(payload)
             self.assertTrue(pages)
             for page in pages:

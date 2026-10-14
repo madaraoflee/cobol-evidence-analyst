@@ -1,0 +1,1000 @@
+{
+  "schema_version": "conversation-followup-verification/v1",
+  "recorded_at_utc": "2026-10-14T03:39:34.333122+00:00",
+  "scope": "default_workbench_multi_turn_subject_and_evidence_supply",
+  "repository_base_commit": "1dfd1645e91e61c0935fd6eb9c7609ea09007b3b",
+  "baseline_implementation_sha256": "5bf67681311c1f9c6cdac25c786248c48be6a89aa93e73616faf1ac593598fbc",
+  "implementation_sha256": "c891e86125a3c53cb74f37231cc49c4c9154baf19204c0cfb3d09ce1c7d3c099",
+  "implementation_fingerprint_method": "SHA256 sorted non-test poc/**/*.py: relative UTF-8 path + NUL + bytes + newline",
+  "implementation_unchanged_during_public_run": true,
+  "versions": {
+    "pipeline": "question-evidence-v12",
+    "prompt": "business-chat-v17",
+    "plan": "business-analysis-plan/v3",
+    "subject": "conversation-subject/v1"
+  },
+  "verification": {
+    "full_python_suite": {
+      "command": "PUBLIC_BUSINESS_SOURCE_ROOT=/path/to/fixed-public-corpus python3 -m unittest discover -s poc/tests -p 'test_*.py'",
+      "python": "3.14.4",
+      "tests_run": 2382,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 122.554,
+      "exit_code": 0,
+      "new_tests_since_base": 46,
+      "new_dedicated_conversation_tests": 41,
+      "transport": "offline mocks and local loopback HTTP test servers",
+      "log_sha256": "e075fc8c007ca21e12273c6e39937d313e47447ca0f514b6248596de4a7db294"
+    },
+    "public_development_mechanism": {
+      "source_commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "fixed_manifest_file_count": 14,
+      "original_frozen_identity": {
+        "cases_sha256": "b517262a24edeab0c227809df12f2c523914e60325f4bb10d4ec6c597416b907",
+        "manifest_sha256": "679c7e82e148e0f02f126849d7ac2a3a996daa258db8109ef6eb2c186375d893",
+        "frozen_at_utc": "2026-10-13T16:38:50.728454+00:00",
+        "source_commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e"
+      },
+      "formerly_reserved": true,
+      "old_gold_now_used_for_development": true,
+      "independent_holdout": false,
+      "original_frozen_files_unchanged": true,
+      "original_frozen_file_sha256": {
+        "README.md": "cb30922174ae3f97b77ddacd634b9c507a67addc5e6ccf09331adbdd0da4d63a",
+        "annotation-erratum.json": "3281999b6402f9824ed211da0bba4b16a2714f3abaebbe0f19875884f4e56ccf",
+        "cases.json": "b517262a24edeab0c227809df12f2c523914e60325f4bb10d4ec6c597416b907",
+        "dry-run.json": "4901b528757d8d31752e8cc9052b48fd1ae10283158f9d35830b107561ae3110",
+        "freeze.json": "5627a8ee12a9d40dff383960ef7ce52705e8e5666ea2e40cfc55d0ea20cdffe1",
+        "manifest.json": "679c7e82e148e0f02f126849d7ac2a3a996daa258db8109ef6eb2c186375d893",
+        "mechanism-results.json": "8c627caa0a6509305438bc418892f7caed33864dfdd70d222d48b27b043eeb2b",
+        "run_mechanism.py": "09a3a95c95814907dfaa309cf06dd2d8b32a9a7bad636a48521f03f83c549abe",
+        "withdrawn-mechanism-results.json": "0878b2c144da56761d63e20a53a240663a9f517f41be985f602b6b86653afba4"
+      },
+      "before_counts": {
+        "turns": 6,
+        "expected_paths_supplied": 6,
+        "all_reviewed_ranges_supplied": 3,
+        "reviewed_ranges": 19,
+        "reviewed_ranges_supplied": 10,
+        "invalid_frozen_ranges": 1,
+        "all_reviewed_ranges_supplied_after_documented_annotation_correction": 4
+      },
+      "after_counts": {
+        "turns": 6,
+        "expected_paths_supplied": 6,
+        "all_reviewed_ranges_supplied": 5,
+        "reviewed_ranges": 19,
+        "reviewed_ranges_supplied": 18,
+        "invalid_frozen_ranges": 1,
+        "all_reviewed_ranges_supplied_after_documented_annotation_correction": 6
+      },
+      "annotation_erratum": {
+        "schema_version": "public-reserved-annotation-erratum/v1",
+        "original_cases_sha256": "b517262a24edeab0c227809df12f2c523914e60325f4bb10d4ec6c597416b907",
+        "original_frozen_cases_modified": false,
+        "business_findings_or_questions_changed": false,
+        "case_id": "reserved-date-feedback",
+        "path": "app/cbl/CSUTLDTC.cbl",
+        "source_sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+        "original_range": {
+          "start_line": 81,
+          "end_line": 159
+        },
+        "actual_file_line_count": 157,
+        "valid_range_if_corrected": {
+          "start_line": 81,
+          "end_line": 157
+        },
+        "reason": "The reserved gold author selected an end line beyond the original file EOF by two lines. The default pipeline supplied the entire real file. Preserve frozen identity and report this annotation defect independently from product evidence gaps.",
+        "scoring_policy": "Keep original raw-range results; mark the impossible range invalid. Do not infer business-answer correctness or silently count this as a product failure."
+      },
+      "network_requests": 0,
+      "paid_model_requests": 0,
+      "network_forbidden_by_local_guard": true,
+      "real_model_accuracy": null,
+      "business_answer_correctness": null,
+      "cost_latency_interpretation": "single offline fake run; request bytes are measured, not a stable latency benchmark or a monetary cost estimate",
+      "development_runner_sha256": "541d9bacb1dce202e7828688dc4c233d707f4c5f480dd28c9879989127b05549",
+      "turns": [
+        {
+          "case_id": "reserved-array-population",
+          "turn_id": "reserved-array-population",
+          "question": "CBACT01C 输出数组有五项，1400-POPUL-ARRAY-RECORD 实际给哪些项赋值？这些余额和借记金额从哪里来？",
+          "before_request_bytes": [
+            106808
+          ],
+          "after_request_bytes": [
+            107262
+          ],
+          "before_model_requests": 1,
+          "after_model_requests": 1,
+          "before_all_reviewed_ranges_supplied": true,
+          "after_all_reviewed_ranges_supplied": true,
+          "before_all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+          "after_all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+          "after_session_subject": {
+            "schema": "conversation-subject/v1",
+            "status": "resolved",
+            "root_paths": [
+              "app/cbl/CBACT01C.cbl"
+            ],
+            "focus_entities": [],
+            "ordinal_subjects": [],
+            "version_changed": false,
+            "unresolved": [
+              "conversation_field_not_bound"
+            ]
+          },
+          "after_investigation_state": "bounded_partial",
+          "after_working_sets": [
+            {
+              "root_paths": [
+                "app/cbl/CBACT01C.cbl"
+              ],
+              "physical_complete": true,
+              "physical_completeness_scope": "candidate_paths",
+              "closure_complete": false,
+              "semantic_execution_verified": false,
+              "source_characters": 21243,
+              "max_source_characters": 36000,
+              "max_complete_source_characters": 128000,
+              "complete_root_budget_applied": false,
+              "root_source_characters": 17449,
+              "non_root_source_characters": 3794
+            }
+          ],
+          "after_reviewed_ranges": [
+            {
+              "path": "app/cbl/CBACT01C.cbl",
+              "sha256": "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551",
+              "start_line": 70,
+              "end_line": 78,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 70,
+                "end_line": 78
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 430,
+              "annotation_valid": true,
+              "expected_raw_lines": 9,
+              "supplied_raw_lines": 9,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CBACT01C.cbl",
+              "sha256": "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551",
+              "start_line": 165,
+              "end_line": 180,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 165,
+                "end_line": 180
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 430,
+              "annotation_valid": true,
+              "expected_raw_lines": 16,
+              "supplied_raw_lines": 16,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CBACT01C.cbl",
+              "sha256": "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551",
+              "start_line": 253,
+              "end_line": 276,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 253,
+                "end_line": 276
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 430,
+              "annotation_valid": true,
+              "expected_raw_lines": 24,
+              "supplied_raw_lines": 24,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            }
+          ],
+          "after_review_identity": {
+            "schema_version": "business-review-identity/v2",
+            "run_id": "22c6466b8bf98deb63cbcb71",
+            "case_id": "reserved-array-population",
+            "turn_id": "reserved-array-population",
+            "branch": "automatic",
+            "question_sha256": "0d1b8a87760d4839b58a68f8e10c88164138b38c498e7dce6c34712a19ee424b",
+            "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "answer_sha256": "ba9b44c1e94a3d3669d34482564bcfb9d2954376febd83062f8b31c6002d89da",
+            "model": "offline-reserve-mechanism",
+            "prompt": {
+              "version": "business-chat-v17",
+              "system_sha256": "f2850b6a6bdbab0c6b9c361b8683d6db3c0dc0712df621a7b5c0293a4b671ec9",
+              "request_sha256": [
+                "ef21597dc4e1778f08c4d0aaa3afa04d4f7266c59f3a39f9164021832eea1fb7"
+              ]
+            },
+            "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+            "gold_sha256": "3b61819403afa86e74c3afda831367d2064aab517ccf55090edcda92fcfbd973",
+            "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+            "source_versions": [
+              "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+              "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+              "8efc6b6d79bd46d65fcdc4e6a8e3778511fca76054f3fbae8e3075b0a2aa8fb1",
+              "916a5fe2279ad626147990d8f86fac1e4b296f827889485b020cc310b5323601",
+              "d6a9210ad3062bd657881fc3f0d2a7368db3ff4869594e0d6a878d8f410d87b6",
+              "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551"
+            ],
+            "framework_revision": null,
+            "framework_versions": [],
+            "evidence_fingerprint_status": "supplied",
+            "evidence_sha256": "3d3ea3994ddb97b0e94fa1195f666a45084f99681f2852dbcc1b412430dc5b88",
+            "identity_sha256": "f813c3d08e9c5938d2a5f03fb435ed3ca9564b11715339b8f79361a27232340d"
+          }
+        },
+        {
+          "case_id": "reserved-lookup-gate",
+          "turn_id": "reserved-lookup-gate",
+          "question": "CBTRN01C 中卡号在交叉引用文件查不到时，还会读取账户吗？请解释卡号、账户号及错误状态怎样传递。",
+          "before_request_bytes": [
+            91488
+          ],
+          "after_request_bytes": [
+            91878
+          ],
+          "before_model_requests": 1,
+          "after_model_requests": 1,
+          "before_all_reviewed_ranges_supplied": true,
+          "after_all_reviewed_ranges_supplied": true,
+          "before_all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+          "after_all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+          "after_session_subject": {
+            "schema": "conversation-subject/v1",
+            "status": "resolved",
+            "root_paths": [
+              "app/cbl/CBTRN01C.cbl"
+            ],
+            "focus_entities": [],
+            "ordinal_subjects": [],
+            "version_changed": false,
+            "unresolved": []
+          },
+          "after_investigation_state": "bounded_partial",
+          "after_working_sets": [
+            {
+              "root_paths": [
+                "app/cbl/CBTRN01C.cbl"
+              ],
+              "physical_complete": true,
+              "physical_completeness_scope": "candidate_paths",
+              "closure_complete": false,
+              "semantic_execution_verified": false,
+              "source_characters": 25223,
+              "max_source_characters": 36000,
+              "max_complete_source_characters": 128000,
+              "complete_root_budget_applied": false,
+              "root_source_characters": 17966,
+              "non_root_source_characters": 7257
+            }
+          ],
+          "after_reviewed_ranges": [
+            {
+              "path": "app/cbl/CBTRN01C.cbl",
+              "sha256": "55c2aebd59528aa42b28878ba5ca4d17a00b3548fc25e4ce1529710d366fd576",
+              "start_line": 151,
+              "end_line": 194,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 151,
+                "end_line": 194
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 494,
+              "annotation_valid": true,
+              "expected_raw_lines": 44,
+              "supplied_raw_lines": 44,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CBTRN01C.cbl",
+              "sha256": "55c2aebd59528aa42b28878ba5ca4d17a00b3548fc25e4ce1529710d366fd576",
+              "start_line": 227,
+              "end_line": 251,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 227,
+                "end_line": 251
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 494,
+              "annotation_valid": true,
+              "expected_raw_lines": 25,
+              "supplied_raw_lines": 25,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            }
+          ],
+          "after_review_identity": {
+            "schema_version": "business-review-identity/v2",
+            "run_id": "762c575341974f4ac7fa550a",
+            "case_id": "reserved-lookup-gate",
+            "turn_id": "reserved-lookup-gate",
+            "branch": "automatic",
+            "question_sha256": "4ecbb0d36c265b943e958d4d28c119fbab82233eb9a1b437d5933180595fb67c",
+            "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "answer_sha256": "978fb4cd2e7a8ddc3f41281643a37632c2c2d49622764bf5d5a6a821b064885e",
+            "model": "offline-reserve-mechanism",
+            "prompt": {
+              "version": "business-chat-v17",
+              "system_sha256": "f2850b6a6bdbab0c6b9c361b8683d6db3c0dc0712df621a7b5c0293a4b671ec9",
+              "request_sha256": [
+                "70666cce10efbf3bafc7b2e97dd78a9fa5f0889ca1cc2703434969faee70e975"
+              ]
+            },
+            "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+            "gold_sha256": "034f83e106277aa1eecc0b5b5363fe4cc3bb4d66bb2a95c2b47e6c7872afefe0",
+            "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+            "source_versions": [
+              "55c2aebd59528aa42b28878ba5ca4d17a00b3548fc25e4ce1529710d366fd576",
+              "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+              "944fd9a8eb10a683d0db97b9a87f2151982f649970287eb74358826056af25f8",
+              "9f1c62ef31b9d541712f1ed28f79e011ea7338611f5e0f30f2e1cbf624181223",
+              "c5c69f1b86c5a10156d3c5881d7cf387e6b925aae32825360f85bf4056a554a1",
+              "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+              "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+            ],
+            "framework_revision": null,
+            "framework_versions": [],
+            "evidence_fingerprint_status": "supplied",
+            "evidence_sha256": "d137c0a0585f9c76b853ebf33a667c8ebeda03797dc01584b76cc2eb84267a6f",
+            "identity_sha256": "d00c494f68c133d2ae31cda71d53669ca61acd09282ecb74834c47f8cd8a5537"
+          }
+        },
+        {
+          "case_id": "reserved-date-feedback",
+          "turn_id": "reserved-date-feedback",
+          "question": "CSUTLDTC 的 LS-RESULT 和 RETURN-CODE 是怎样得到的？日期转换调用未知时，可以确认哪些直接源码事实？",
+          "before_request_bytes": [
+            140154
+          ],
+          "after_request_bytes": [
+            142570
+          ],
+          "before_model_requests": 1,
+          "after_model_requests": 1,
+          "before_all_reviewed_ranges_supplied": false,
+          "after_all_reviewed_ranges_supplied": false,
+          "before_all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+          "after_all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+          "after_session_subject": {
+            "schema": "conversation-subject/v1",
+            "status": "resolved",
+            "root_paths": [
+              "app/cbl/CSUTLDTC.cbl"
+            ],
+            "focus_entities": [
+              "LS-RESULT"
+            ],
+            "ordinal_subjects": [],
+            "version_changed": false,
+            "unresolved": [
+              "conversation_field_not_bound"
+            ]
+          },
+          "after_investigation_state": "bounded_partial",
+          "after_working_sets": [
+            {
+              "root_paths": [
+                "app/cbl/CSUTLDTC.cbl"
+              ],
+              "physical_complete": true,
+              "physical_completeness_scope": "candidate_paths",
+              "closure_complete": false,
+              "semantic_execution_verified": false,
+              "source_characters": 11607,
+              "max_source_characters": 36000,
+              "max_complete_source_characters": 128000,
+              "complete_root_budget_applied": false,
+              "root_source_characters": 11607,
+              "non_root_source_characters": 0
+            }
+          ],
+          "after_reviewed_ranges": [
+            {
+              "path": "app/cbl/CSUTLDTC.cbl",
+              "sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+              "start_line": 23,
+              "end_line": 80,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 23,
+                "end_line": 80
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 157,
+              "annotation_valid": true,
+              "expected_raw_lines": 58,
+              "supplied_raw_lines": 58,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CSUTLDTC.cbl",
+              "sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+              "start_line": 81,
+              "end_line": 159,
+              "supplied": false,
+              "range_after_documented_annotation_correction": {
+                "start_line": 81,
+                "end_line": 157
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 157,
+              "annotation_valid": false,
+              "expected_raw_lines": 79,
+              "supplied_raw_lines": 77,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            }
+          ],
+          "after_review_identity": {
+            "schema_version": "business-review-identity/v2",
+            "run_id": "0c979f133e1b2c40085e2f77",
+            "case_id": "reserved-date-feedback",
+            "turn_id": "reserved-date-feedback",
+            "branch": "automatic",
+            "question_sha256": "f421d2b0601cbe74d6c24dc1331c8f73a232fef8b89555e5550de621c9554ee5",
+            "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "answer_sha256": "3505b55599c0238a8633ed0f6e8497abe2e06db81e3da01c4e916a9688e9a482",
+            "model": "offline-reserve-mechanism",
+            "prompt": {
+              "version": "business-chat-v17",
+              "system_sha256": "f2850b6a6bdbab0c6b9c361b8683d6db3c0dc0712df621a7b5c0293a4b671ec9",
+              "request_sha256": [
+                "0e766c50b9da4db954f402faf48016f8e80714d57d917d47adc77097a4ed1232"
+              ]
+            },
+            "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+            "gold_sha256": "52a4b748b8569b74f3aa98ced9bcc345bcb11001522e407df28f71bc79a10928",
+            "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+            "source_versions": [
+              "0b06bd5d4f38f17871de8985c439dfce7ed30d28e02b6ffeb8459e0cd8db4fc2",
+              "45000f93a9be6e8132262e53faa1db03ab1f20fbee4063272b890837216d1fcb",
+              "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+              "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+              "751bc1a625114a8660ee2172b70cdea135c259652d2305a2bfda25ff4cf34853",
+              "77097557ee4c365f62138328d3e280ce7aba5f81d418c6f16434f0fbb2aafa6c",
+              "7da2980799bcc3df642d02d09fd00fafb890cdb487e034f2f9b5b0e0767ce03b",
+              "b5bb7d6ccad022e0fc91b4dd1e971f49d184adf89b56abdce14eccff35b39396",
+              "dc33b4c797a98d2732070a223f43cc78992c2846681163a032e376630742b1ed"
+            ],
+            "framework_revision": null,
+            "framework_versions": [],
+            "evidence_fingerprint_status": "supplied",
+            "evidence_sha256": "c3ca63e1b90b46213957bea3947c1b0fa1711f4bde204fe2128c4448e7f5b347",
+            "identity_sha256": "16b07a1220c09f1e21cf176cdb1c7f6a3873def3ae4a2f3fd56149e55b80c098"
+          }
+        },
+        {
+          "case_id": "reserved-report-conversation",
+          "turn_id": "1",
+          "question": "CBTRN03C 里第一种页汇总 WS-PAGE-TOTAL 和第二种账户汇总 WS-ACCOUNT-TOTAL，各自从哪里累加，什么时候清零？",
+          "before_request_bytes": [
+            158784
+          ],
+          "after_request_bytes": [
+            181412
+          ],
+          "before_model_requests": 1,
+          "after_model_requests": 1,
+          "before_all_reviewed_ranges_supplied": true,
+          "after_all_reviewed_ranges_supplied": true,
+          "before_all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+          "after_all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+          "after_session_subject": {
+            "schema": "conversation-subject/v1",
+            "status": "resolved",
+            "root_paths": [
+              "app/cbl/CBTRN03C.cbl"
+            ],
+            "focus_entities": [
+              "WS-PAGE-TOTAL OF WS-REPORT-VARS",
+              "WS-ACCOUNT-TOTAL OF WS-REPORT-VARS"
+            ],
+            "ordinal_subjects": [
+              {
+                "ordinal": 1,
+                "entities": [
+                  "WS-PAGE-TOTAL OF WS-REPORT-VARS"
+                ]
+              },
+              {
+                "ordinal": 2,
+                "entities": [
+                  "WS-ACCOUNT-TOTAL OF WS-REPORT-VARS"
+                ]
+              }
+            ],
+            "version_changed": false,
+            "unresolved": []
+          },
+          "after_investigation_state": "bounded_partial",
+          "after_working_sets": [
+            {
+              "root_paths": [
+                "app/cbl/CBTRN03C.cbl"
+              ],
+              "physical_complete": true,
+              "physical_completeness_scope": "candidate_paths",
+              "closure_complete": false,
+              "semantic_execution_verified": false,
+              "source_characters": 61745,
+              "max_source_characters": 36000,
+              "max_complete_source_characters": 128000,
+              "complete_root_budget_applied": true,
+              "root_source_characters": 52238,
+              "non_root_source_characters": 9507
+            }
+          ],
+          "after_reviewed_ranges": [
+            {
+              "path": "app/cbl/CBTRN03C.cbl",
+              "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "start_line": 126,
+              "end_line": 137,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 126,
+                "end_line": 137
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 649,
+              "annotation_valid": true,
+              "expected_raw_lines": 12,
+              "supplied_raw_lines": 12,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CBTRN03C.cbl",
+              "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "start_line": 171,
+              "end_line": 206,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 171,
+                "end_line": 206
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 649,
+              "annotation_valid": true,
+              "expected_raw_lines": 36,
+              "supplied_raw_lines": 36,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CBTRN03C.cbl",
+              "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "start_line": 274,
+              "end_line": 323,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 274,
+                "end_line": 323
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 649,
+              "annotation_valid": true,
+              "expected_raw_lines": 50,
+              "supplied_raw_lines": 50,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CBTRN03C.cbl",
+              "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "start_line": 343,
+              "end_line": 375,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 343,
+                "end_line": 375
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 649,
+              "annotation_valid": true,
+              "expected_raw_lines": 33,
+              "supplied_raw_lines": 33,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            }
+          ],
+          "after_review_identity": {
+            "schema_version": "business-review-identity/v2",
+            "run_id": "5d6488a8708a123ea916f8f3",
+            "case_id": "reserved-report-conversation",
+            "turn_id": "1",
+            "branch": "automatic",
+            "question_sha256": "2b15e25ae8da1aed31a6b8174e927be4cb87e96d1caa8a40c3db5d2efd9cd246",
+            "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "answer_sha256": "b0e9b5c1859fe619f02bbeb5fbfaf31bc533bdef49d2c7628cf3ac8af7ea0b3b",
+            "model": "offline-reserve-mechanism",
+            "prompt": {
+              "version": "business-chat-v17",
+              "system_sha256": "f2850b6a6bdbab0c6b9c361b8683d6db3c0dc0712df621a7b5c0293a4b671ec9",
+              "request_sha256": [
+                "cc998f67cd7cd872b1b38ae8fd9420dde097d8fff55158fb7de82893ac50a184"
+              ]
+            },
+            "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+            "gold_sha256": "2eecab930d1ad7ef084323b743ece68affdb2e6e907b6efb3fdf905f28123422",
+            "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+            "source_versions": [
+              "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+              "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa",
+              "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "89803bc13a06347e1f3d8a599a5383b87235b203dce9f18a486bc233186479f8",
+              "d207911955e1198e27b1c8e2f16c8fdc42b78029f7e152f86c4c10764ab1986c",
+              "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+              "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667",
+              "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+            ],
+            "framework_revision": null,
+            "framework_versions": [],
+            "evidence_fingerprint_status": "supplied",
+            "evidence_sha256": "bf3b1ab894e81661676b9acfd3f418387062f85f4bf6274d5c9dbeadcc3dd9a6",
+            "identity_sha256": "d8a7d3e6a3388a2dc854b61757045e4b0dceaeab9c654a0c9a7c32e087639818"
+          }
+        },
+        {
+          "case_id": "reserved-report-conversation",
+          "turn_id": "2",
+          "question": "刚才第二种情况呢？换页也会让它归零吗？",
+          "before_request_bytes": [
+            209499
+          ],
+          "after_request_bytes": [
+            188202
+          ],
+          "before_model_requests": 1,
+          "after_model_requests": 1,
+          "before_all_reviewed_ranges_supplied": false,
+          "after_all_reviewed_ranges_supplied": true,
+          "before_all_reviewed_ranges_supplied_after_documented_annotation_correction": false,
+          "after_all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+          "after_session_subject": {
+            "schema": "conversation-subject/v1",
+            "status": "resolved",
+            "root_paths": [
+              "app/cbl/CBTRN03C.cbl"
+            ],
+            "focus_entities": [
+              "WS-ACCOUNT-TOTAL OF WS-REPORT-VARS"
+            ],
+            "ordinal_subjects": [
+              {
+                "ordinal": 1,
+                "entities": [
+                  "WS-PAGE-TOTAL OF WS-REPORT-VARS"
+                ]
+              },
+              {
+                "ordinal": 2,
+                "entities": [
+                  "WS-ACCOUNT-TOTAL OF WS-REPORT-VARS"
+                ]
+              }
+            ],
+            "version_changed": false,
+            "unresolved": []
+          },
+          "after_investigation_state": "bounded_partial",
+          "after_working_sets": [
+            {
+              "root_paths": [
+                "app/cbl/CBTRN03C.cbl"
+              ],
+              "physical_complete": true,
+              "physical_completeness_scope": "candidate_paths",
+              "closure_complete": false,
+              "semantic_execution_verified": false,
+              "source_characters": 61745,
+              "max_source_characters": 36000,
+              "max_complete_source_characters": 128000,
+              "complete_root_budget_applied": true,
+              "root_source_characters": 52238,
+              "non_root_source_characters": 9507
+            }
+          ],
+          "after_reviewed_ranges": [
+            {
+              "path": "app/cbl/CBTRN03C.cbl",
+              "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "start_line": 126,
+              "end_line": 137,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 126,
+                "end_line": 137
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 649,
+              "annotation_valid": true,
+              "expected_raw_lines": 12,
+              "supplied_raw_lines": 12,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CBTRN03C.cbl",
+              "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "start_line": 171,
+              "end_line": 206,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 171,
+                "end_line": 206
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 649,
+              "annotation_valid": true,
+              "expected_raw_lines": 36,
+              "supplied_raw_lines": 36,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CBTRN03C.cbl",
+              "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "start_line": 274,
+              "end_line": 323,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 274,
+                "end_line": 323
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 649,
+              "annotation_valid": true,
+              "expected_raw_lines": 50,
+              "supplied_raw_lines": 50,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CBTRN03C.cbl",
+              "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "start_line": 343,
+              "end_line": 375,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 343,
+                "end_line": 375
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 649,
+              "annotation_valid": true,
+              "expected_raw_lines": 33,
+              "supplied_raw_lines": 33,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            }
+          ],
+          "after_review_identity": {
+            "schema_version": "business-review-identity/v2",
+            "run_id": "a0cbf2d1e4e2703ab3324c77",
+            "case_id": "reserved-report-conversation",
+            "turn_id": "2",
+            "branch": "automatic",
+            "question_sha256": "dd754faaaf96c806b366fd42ec3074b6373f1961e6017a021d9eb00e94bb4bc8",
+            "history_sha256": "c31c45f2874aad3092e0d5d9189bb2671f36352a1e49cdeb959101caa73e7c77",
+            "answer_sha256": "7a2761edf21e746602c48ebae79644ebba3b078c3d2bd875ed9d4c0a938d6ba0",
+            "model": "offline-reserve-mechanism",
+            "prompt": {
+              "version": "business-chat-v17",
+              "system_sha256": "f2850b6a6bdbab0c6b9c361b8683d6db3c0dc0712df621a7b5c0293a4b671ec9",
+              "request_sha256": [
+                "4fc7f2d606b82ab85759b44c1a03d0919670a7bddd09215633164523c7d0b15c"
+              ]
+            },
+            "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+            "gold_sha256": "87ce9abbe98a1ee760ce9809ac3ef21b46e7ea4e052f6a41b7ef653af859921e",
+            "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+            "source_versions": [
+              "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa",
+              "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "89803bc13a06347e1f3d8a599a5383b87235b203dce9f18a486bc233186479f8",
+              "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+              "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667",
+              "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+            ],
+            "framework_revision": null,
+            "framework_versions": [],
+            "evidence_fingerprint_status": "supplied",
+            "evidence_sha256": "641a93efb5b8991bd8ed3ed383f563687b2c1f78df379550a6fc473cb634184d",
+            "identity_sha256": "a6b19200580b2ad197763b2cc3569b2da44b6afbb068479209a13950d4cfa2c5"
+          }
+        },
+        {
+          "case_id": "reserved-report-conversation",
+          "turn_id": "3",
+          "question": "换句话说：前面交易金额明明累加过，为什么后来 WS-ACCOUNT-TOTAL 会变成零？这会把 WS-GRAND-TOTAL 一起抹掉吗？",
+          "before_request_bytes": [
+            223775
+          ],
+          "after_request_bytes": [
+            211812
+          ],
+          "before_model_requests": 1,
+          "after_model_requests": 1,
+          "before_all_reviewed_ranges_supplied": false,
+          "after_all_reviewed_ranges_supplied": true,
+          "before_all_reviewed_ranges_supplied_after_documented_annotation_correction": false,
+          "after_all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+          "after_session_subject": {
+            "schema": "conversation-subject/v1",
+            "status": "resolved",
+            "root_paths": [
+              "app/cbl/CBTRN03C.cbl"
+            ],
+            "focus_entities": [
+              "WS-ACCOUNT-TOTAL OF WS-REPORT-VARS",
+              "WS-GRAND-TOTAL OF WS-REPORT-VARS"
+            ],
+            "ordinal_subjects": [
+              {
+                "ordinal": 1,
+                "entities": [
+                  "WS-PAGE-TOTAL OF WS-REPORT-VARS"
+                ]
+              },
+              {
+                "ordinal": 2,
+                "entities": [
+                  "WS-ACCOUNT-TOTAL OF WS-REPORT-VARS"
+                ]
+              }
+            ],
+            "version_changed": false,
+            "unresolved": []
+          },
+          "after_investigation_state": "bounded_partial",
+          "after_working_sets": [
+            {
+              "root_paths": [
+                "app/cbl/CBTRN03C.cbl"
+              ],
+              "physical_complete": true,
+              "physical_completeness_scope": "candidate_paths",
+              "closure_complete": false,
+              "semantic_execution_verified": false,
+              "source_characters": 61745,
+              "max_source_characters": 36000,
+              "max_complete_source_characters": 128000,
+              "complete_root_budget_applied": true,
+              "root_source_characters": 52238,
+              "non_root_source_characters": 9507
+            }
+          ],
+          "after_reviewed_ranges": [
+            {
+              "path": "app/cbl/CBTRN03C.cbl",
+              "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "start_line": 126,
+              "end_line": 137,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 126,
+                "end_line": 137
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 649,
+              "annotation_valid": true,
+              "expected_raw_lines": 12,
+              "supplied_raw_lines": 12,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CBTRN03C.cbl",
+              "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "start_line": 171,
+              "end_line": 206,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 171,
+                "end_line": 206
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 649,
+              "annotation_valid": true,
+              "expected_raw_lines": 36,
+              "supplied_raw_lines": 36,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CBTRN03C.cbl",
+              "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "start_line": 274,
+              "end_line": 323,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 274,
+                "end_line": 323
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 649,
+              "annotation_valid": true,
+              "expected_raw_lines": 50,
+              "supplied_raw_lines": 50,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            },
+            {
+              "path": "app/cbl/CBTRN03C.cbl",
+              "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "start_line": 343,
+              "end_line": 375,
+              "supplied": true,
+              "range_after_documented_annotation_correction": {
+                "start_line": 343,
+                "end_line": 375
+              },
+              "supplied_after_documented_annotation_correction": true,
+              "source_line_count": 649,
+              "annotation_valid": true,
+              "expected_raw_lines": 33,
+              "supplied_raw_lines": 33,
+              "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+            }
+          ],
+          "after_review_identity": {
+            "schema_version": "business-review-identity/v2",
+            "run_id": "822647f747247bcb6dce4375",
+            "case_id": "reserved-report-conversation",
+            "turn_id": "3",
+            "branch": "automatic",
+            "question_sha256": "306352b1d57d61d02269a3066e2f010359ffadeaef97e7cb4dc8de9439bb6367",
+            "history_sha256": "a4c0b37adb109630a7e14e35057529f50b3b9db8537d044a9b1901e2d1216c6a",
+            "answer_sha256": "7a2761edf21e746602c48ebae79644ebba3b078c3d2bd875ed9d4c0a938d6ba0",
+            "model": "offline-reserve-mechanism",
+            "prompt": {
+              "version": "business-chat-v17",
+              "system_sha256": "f2850b6a6bdbab0c6b9c361b8683d6db3c0dc0712df621a7b5c0293a4b671ec9",
+              "request_sha256": [
+                "8c5d1d484fccf1e38b55d92f14efb4ec4b042096a0af70fba387d2f221cc3c62"
+              ]
+            },
+            "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+            "gold_sha256": "96b3ea38fd51c220cc97d5b7f24f57003af55b75078d06662da2c7c298608724",
+            "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+            "source_versions": [
+              "0eccb28695cb3a8ea6f6ea7da26d1b48a4529787f6130b2c98bead33bc661967",
+              "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+              "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+              "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa",
+              "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+              "89803bc13a06347e1f3d8a599a5383b87235b203dce9f18a486bc233186479f8",
+              "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+              "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667",
+              "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+            ],
+            "framework_revision": null,
+            "framework_versions": [],
+            "evidence_fingerprint_status": "supplied",
+            "evidence_sha256": "cdb12fcbbc4cd6c00904cb0b45f2feed652f4ac77edb9979025798699740d453",
+            "identity_sha256": "895e97df1328ecbfe9b6615bead893280f599c6d9636c4973d94eb712405ee92"
+          }
+        }
+      ]
+    }
+  },
+  "delivery": {
+    "code_implemented": true,
+    "offline_mechanism_verified": true,
+    "real_model_verified": false,
+    "pushed_this_batch": false,
+    "released_this_batch": false,
+    "exe_built_this_batch": false,
+    "previous_release_tag": "v2026.10.14.1"
+  },
+  "local_full_artifacts": {
+    "baseline": "release/next-followup/baseline/mechanism-results.json",
+    "final": "release/next-followup/final/mechanism-results.json",
+    "wire_diagnostics": "release/next-followup/final/request-diagnostics.json"
+  },
+  "limitations": [
+    "Evidence range coverage does not establish business answer correctness.",
+    "Whole candidate source supply does not resolve missing external implementations.",
+    "This public set is now development regression data; future accuracy evaluation needs new holdouts."
+  ]
+}

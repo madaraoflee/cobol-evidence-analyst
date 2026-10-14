@@ -30,10 +30,16 @@ class QuestionInvestigationTests(unittest.TestCase):
         self.write("entry.cbl", "VALUEPLAN", "\n".join(
             f"COMPUTE OUT-{index} = IN-AMOUNT * {index}." for index in range(1, 41)), data=data)
         self.build()
-        mapping = build_business_map(self.database, self.source, "VALUEPLAN")
         cache = {}
         for target in ("OUT-40", "OUT-39"):
-            history = [{"investigation_state": {"analysis_plan": {"entities": [target]}}}]
+            question = f"VALUEPLAN 第一种 IN-AMOUNT 和第二种 {target} 从哪里来？"
+            prior = build_business_map(self.database, self.source, question)
+            history = [{"role": "user", "content": question}, {"role": "assistant",
+                "investigation_state": {"session_subject": prior["session_subject"]}}]
+            mapping = build_business_map(self.database, self.source, "刚才第二种情况呢？", history=history)
+            # A navigation preview can omit the referred field. Its binding
+            # comes from the saved user referent and the current symbol table.
+            mapping["rule_leads"] = []
             result = build_question_investigation("刚才第二种情况呢？", mapping, database_path=self.database,
                 source_pages=[self.page("entry.cbl")], history=history, candidate_cache=cache)
             self.assertEqual(result["analysis_plan"]["entities"], (target,))

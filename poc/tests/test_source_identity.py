@@ -47,6 +47,31 @@ class SourceIdentityTests(unittest.TestCase):
         )
         ensure_repository_search(self.database, self.source)
 
+    def test_followup_keeps_user_source_only_scope_with_or_without_persistent_entry(self):
+        self.write_source("entry.cbl", "ENTRYPLAN", "CALL 'DETAILPLAN'.\nMOVE 0 TO OUTPUT-123.")
+        self.write_source("detail.cbl", "DETAILPLAN", "MOVE 7 TO OUTPUT-123.")
+        self.build()
+        question = "只看 entry.cbl 的 OUTPUT-123 怎么计算？"
+        first = build_business_map(self.database, self.source, question)
+        history = [{"role": "user", "content": question}, {"role": "assistant",
+            "investigation_state": {"session_subject": first["session_subject"]}}]
+        for entry in (None, "ENTRYPLAN"):
+            with self.subTest(entry=entry):
+                mapped = build_business_map(self.database, self.source, "这个字段从哪里来的？",
+                    entry_program=entry, history=history)
+                self.assertTrue(mapped["source_identity"]["exclusive_source_scope"])
+                self.assertEqual(mapped["selected_paths"], ["entry.cbl"])
+                context = retrieve_repository_context(self.database, self.source, "这个字段从哪里来的？",
+                    entry_program=entry, history=history)
+                self.assertEqual({row["relative_path"] for row in context["pages"]}, {"entry.cbl"})
+                rejected = build_business_map(self.database, self.source, "这个字段从哪里来的？",
+                    entry_program=entry, history=history, focus_paths=["detail.cbl"])
+                self.assertEqual(rejected["source_identity"]["focus_rejected"], "explicit_source_constraint")
+        switched = build_business_map(self.database, self.source, "现在分析 DETAILPLAN 的 OUTPUT-123",
+            history=history)
+        self.assertEqual(switched["direct_paths"], ["detail.cbl"])
+        self.assertFalse(switched["source_identity"]["exclusive_source_scope"])
+
     def test_normalized_definition_lookup_preserves_case_and_avoids_unrelated_rows(self):
         self.write_source("entry.cbl", "MixedPlan", "COMPUTE CHARGE-VALUE = BASE-AMOUNT * 2.")
         self.build()
@@ -370,20 +395,24 @@ class SourceIdentityTests(unittest.TestCase):
                 _, context = self.assert_map_and_retrieval_identity(program_question, "resolved", [path])
                 self.assertIn(path, {page["relative_path"] for page in context["pages"]})
         field_question = "字段 OUTPUT-123 如何计算？"
-        self.assert_identity_result(self.identity(field_question), "none", [])
+        self.assert_identity_result(self.identity(field_question), "resolved", [path])
         mapping, context = self.map_and_retrieve(field_question)
         for result in (mapping, context):
-            self.assert_identity_result(result["source_identity"], "none", [])
+            self.assert_identity_result(result["source_identity"], "resolved", [path])
+            self.assertEqual(result["source_identity"]["kind"], "field")
+            self.assertFalse(result["source_identity"]["hard_constraint"])
 
     def test_linkage_field_definition_matching_a_stem_preserves_field_retrieval(self):
         path = "OUTPUT-123.cbl"
         self.write_source(path, "FIELDRULE", "CONTINUE.", linkage=True)
         self.build()
         question = "OUTPUT-123 如何传入？"
-        self.assert_identity_result(self.identity(question), "none", [])
+        self.assert_identity_result(self.identity(question), "resolved", [path])
         mapping, context = self.map_and_retrieve(question)
         for result in (mapping, context):
-            self.assert_identity_result(result["source_identity"], "none", [])
+            self.assert_identity_result(result["source_identity"], "resolved", [path])
+            self.assertEqual(result["source_identity"]["kind"], "field")
+            self.assertFalse(result["source_identity"]["hard_constraint"])
         self.assertIn(path, {page["relative_path"] for page in context["pages"]})
 
     def test_default_business_chat_sends_the_requested_formula_without_the_other_definition(self):

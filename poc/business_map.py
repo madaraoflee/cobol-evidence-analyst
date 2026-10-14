@@ -13,6 +13,7 @@ import re
 
 from repository_discovery import _connect, _fast_snapshot, _navigation_graph, _query_terms, discover_repository
 from repository_identity import identity_blocks_analysis, resolve_source_identity
+from conversation_focus import build_session_subject
 from source_reading import _cancel
 from file_impact_evidence import is_file_impact_question
 
@@ -375,7 +376,7 @@ def _related_program_rules(connection, selected, direct, distance, existing, che
 
 
 def build_business_map(database_path, source_root, question, *, search_terms=None, focus_paths=None, prior_paths=None,
-                       check_cancel=None, entry_program=None):
+                       check_cancel=None, entry_program=None, history=()):
     """Map direct matches, transitive static callers and nearby rule operations.
 
     It reads the saved index only. In particular, it does not rescan source files
@@ -383,12 +384,25 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
     """
     discovery = discover_repository(database_path, question, search_terms=search_terms, focus_paths=focus_paths,
                                     check_cancel=check_cancel, fallback_to_repository=False,
-                                    entry_program=entry_program)
+                                    entry_program=entry_program, history=history)
     connection = _connect(database_path)
     try:
         connection.execute("BEGIN")
         _, overview = _fast_snapshot(connection, source_root)
         identity = discovery["source_identity"]
+        previous = identity.get("session_subject")
+        if previous is None and identity.get("status") == "resolved":
+            # The desktop can keep an explicit entry selected across turns.
+            # It constrains the source, but must not erase a same-source field
+            # referent. Only the most recent completed answer may nominate it.
+            recent = next((message for message in reversed(list(history))
+                           if message.get("role") == "assistant"), {})
+            candidate = (recent.get("investigation_state") or {}).get("session_subject")
+            if (isinstance(candidate, dict) and candidate.get("status") == "resolved"
+                    and set(candidate.get("root_paths", ())) == set(identity.get("direct_paths", ()))):
+                previous = candidate
+        subject = build_session_subject(connection, question, identity,
+                                        previous=previous)
         blocked = identity_blocks_analysis(identity)
         direct = {item["relative_path"] for item in discovery["selection_reasons"]
                   if "text_match" in item["reasons"]}
@@ -443,6 +457,7 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
                           (edge["target_path"] in selected or not edge["target_path"])]
         relevant_edges.sort(key=lambda edge: (distance.get(edge["caller_path"], 0), edge["caller_path"], edge["caller_line"]))
         rule_query = " ".join(search_terms or []) + " " + question
+        rule_query += " " + " ".join(subject.get("focus_entities", []))
         rule_coverage = {}
         leads = _rule_leads(connection, query_direct, discovery["matched_pages"], rule_query, check_cancel,
                             coverage=rule_coverage, diversify=identity["status"] == "resolved")
@@ -506,6 +521,7 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
                 "programs": programs, "relations": relevant_edges,
                 "rule_leads": leads, "spotlights": spotlights,
                 "source_identity": identity, "boundaries": discovery["boundaries"],
+                "session_subject": subject,
                 "rule_lead_coverage": rule_coverage, "semantic_anchors": anchors[:4],
                 "matched_files": discovery["matched_file_count"],
                 "matched_pages": discovery["matched_page_count"],

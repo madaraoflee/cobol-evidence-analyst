@@ -16,6 +16,7 @@ MODEL_HISTORY_CHARACTERS = 24_000
 MAX_MODEL_HISTORY_CHARACTERS = 128_000
 MODEL_HISTORY_DETAILS_BYTES = 64_000
 MODEL_HISTORY_REFERENCE_MESSAGES = 8
+MODEL_HISTORY_SUBJECT_BYTES = 8_192
 _CONVERSATION_METADATA_COLUMNS = (
     "c.id,c.title,c.snapshot_id,c.created_at,c.updated_at,"
     "COALESCE((SELECT m.created_at FROM messages AS m "
@@ -26,6 +27,18 @@ _CONVERSATION_METADATA_COLUMNS = (
 
 def _now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _history_subject(db, position):
+    """Project local subject memory without loading the surrounding diagnostics."""
+    row = db.execute(
+        "SELECT CASE WHEN json_valid(details) THEN CASE "
+        "WHEN json_type(details,'$.investigation_state.session_subject')='object' "
+        "AND json_extract(details,'$.investigation_state.session_subject.schema')='conversation-subject/v1' "
+        "THEN CASE WHEN length(CAST(json_extract(details,'$.investigation_state.session_subject') AS BLOB))<=? "
+        "THEN json_extract(details,'$.investigation_state.session_subject') END END END "
+        "FROM messages WHERE position=?", (MODEL_HISTORY_SUBJECT_BYTES, position)).fetchone()
+    return json.loads(row[0]) if row is not None and row[0] is not None else None
 
 
 class ConversationStore:
@@ -87,7 +100,8 @@ class ConversationStore:
         """Read a bounded provider context; the complete transcript stays on disk.
 
         Large response diagnostics and framework excerpts are display records,
-        not conversation memory. Only recent source references are restored.
+        not conversation memory. Recent source references and a separately
+        bounded local session subject are restored.
         Length checks happen in SQLite before text is returned to Python.
         """
         if not 1 <= max_messages <= MODEL_HISTORY_MESSAGES or not 0 <= max_characters <= MAX_MODEL_HISTORY_CHARACTERS:
@@ -135,6 +149,15 @@ class ConversationStore:
                     for key in ("evidence_refs", "cited_evidence_ids", "investigation_state"):
                         if isinstance(details.get(key), (list, dict)):
                             message[key] = details[key]
+                    if isinstance(message.get("investigation_state"), dict):
+                        # The subject has its own byte limit even when the
+                        # complete details document fits the reference budget.
+                        message["investigation_state"].pop("session_subject", None)
+                if offset < MODEL_HISTORY_REFERENCE_MESSAGES and row["role"] == "assistant":
+                    subject = _history_subject(db, row["position"])
+                    if subject is not None:
+                        state = message.setdefault("investigation_state", {})
+                        state["session_subject"] = subject
                 messages.append(message)
         messages.reverse()
         return messages

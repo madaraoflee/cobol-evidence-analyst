@@ -342,7 +342,7 @@ def resolve_entry_identity(connection, entry_program):
 
 
 def resolve_source_identity(connection, question, search_terms=None, *, focus_paths=None,
-                            entry_program=None):
+                            entry_program=None, history=()):
     """Separate user file constraints from revisable source-navigation hints.
 
     Search terms may improve a soft candidate set. An established caller hint
@@ -350,9 +350,29 @@ def resolve_source_identity(connection, question, search_terms=None, *, focus_pa
     it after every requested path has been checked against indexed files.
     """
     result = _resolve_input(connection, question)
+    question_has_identity = result["status"] != "none"
     if result["status"] == "none" and entry_program is not None:
         result = resolve_entry_identity(connection, entry_program)
-    result["exclusive_source_scope"] = _exclusive_source_scope(question, result)
+    if not question_has_identity and history:
+        from conversation_focus import resolve_conversation_subject
+        inherited = resolve_conversation_subject(connection, question, history,
+            current_identity={"status": "none", "hard_constraint": False})
+        if inherited is not None:
+            if result["status"] == "none":
+                result = inherited
+            elif (result["status"] == "resolved"
+                    and set(result["direct_paths"]) == set(inherited["direct_paths"])):
+                # A persistent desktop entry constrains identity. Preserve the
+                # user's same-root referent and explicit source-only boundary.
+                result = {**result, **{key: inherited[key] for key in
+                    ("session_subject", "focused_entities", "exclusive_source_scope") if key in inherited}}
+    if result["status"] == "none":
+        from conversation_focus import resolve_question_field_subject
+        field_subject = resolve_question_field_subject(connection, question)
+        if field_subject is not None:
+            result = field_subject
+    result["exclusive_source_scope"] = bool(result.get("exclusive_source_scope") or
+                                              _exclusive_source_scope(question, result))
     if focus_paths is not None:
         if result["hard_constraint"] or result["exclusive_source_scope"]:
             return {**result, "focus_rejected": "explicit_source_constraint"}

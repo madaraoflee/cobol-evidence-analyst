@@ -534,6 +534,10 @@ class BusinessChatTests(unittest.TestCase):
                 self.assertEqual([ref["evidence_id"] for ref in result["narrative"]["citations"]], saved)
                 self.assertEqual(result["metrics"]["model_requests"], 3)
 
+                # A failed revision keeps the subject of the retained draft,
+                # just as it keeps that draft's supplied evidence manifest.
+                self.assertEqual(result["investigation_state"]["session_subject"]["root_paths"], ["long.cbl"])
+
     def test_unknown_citations_are_removed_but_supported_answer_is_retained(self):
         self.write_window()
         self.build()

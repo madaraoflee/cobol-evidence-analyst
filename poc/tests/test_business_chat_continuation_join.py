@@ -69,6 +69,8 @@ class ChatContinuationJoinTests(unittest.TestCase):
                          [len(text) for text in self.responses])
         self.assertEqual(summary["output"]["final_answer_characters"], len(result["answer"]))
         self.assertTrue(result["narrative"]["citations"])
+        self.assertEqual(result["investigation_state"]["session_subject"]["root_paths"], ["decision.cbl"])
+        self.assertEqual(self.requests[0]["session_subject"], self.requests[1]["session_subject"])
 
     def test_second_length_keeps_partial_status_without_third_request(self):
         result = self.ask(second_finish="length")

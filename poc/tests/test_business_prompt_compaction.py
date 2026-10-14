@@ -113,6 +113,25 @@ class BusinessPromptCompactionTests(unittest.TestCase):
         payload["business_map"]["relations"] = []
         self.assertIs(business_chat._compact_prompt_payload(payload), payload)
 
+    def test_budget_compaction_preserves_referent_and_manifest_keeps_bindings(self):
+        payload = self.payload()
+        payload["budget_wire_compact"] = True
+        payload["session_subject"] = {"schema": "conversation-subject/v1", "status": "resolved",
+            "root_paths": ["rule.cbl"], "focus_entities": ["ACCOUNT-SUM"],
+            "ordinal_subjects": [{"ordinal": 1, "entities": ["PAGE-SUM"]},
+                                 {"ordinal": 2, "entities": ["ACCOUNT-SUM"]}],
+            "entity_bindings": [{"qualified_name": "REPORT::ACCOUNT-SUM", "source_sha256": "a" * 64}]}
+        payload["question_investigation"]["analysis_plan"] = {"entities": ["ACCOUNT-SUM"]}
+        original = deepcopy(payload["session_subject"])
+        wire = business_chat._prompt_payload(payload)
+        self.assertTrue(wire["question_investigation"]["analysis_plan_omitted"])
+        self.assertEqual(wire["session_subject"]["focus_entities"], ["ACCOUNT-SUM"])
+        self.assertNotIn("entity_bindings", wire["session_subject"])
+        self.assertEqual(payload["session_subject"], original)
+        manifest = business_chat._request_manifest(payload)
+        payload["session_subject"]["focus_entities"][:] = ["PAGE-SUM"]
+        self.assertEqual(manifest["session_subject"], original)
+
     def test_fit_rebuilds_tables_and_brief_after_source_removal(self):
         payload = self.payload()
         config = CompanyAPIConfig("https://neutral.example.invalid/v1", "offline-model", api_key="offline-only")

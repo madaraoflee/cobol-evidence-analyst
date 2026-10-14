@@ -46,3 +46,21 @@ class QuestionPlannerTests(unittest.TestCase):
     def test_unresolved_reference_stays_explicit(self):
         plan = QuestionPlanner().plan("刚才第二种情况呢？", {})
         self.assertIn("conversation_entity_not_resolved", plan.unresolved)
+
+    def test_assistant_prose_cannot_establish_field_referent(self):
+        plan = QuestionPlanner().plan("这个字段从哪里来的？", self.map,
+            history=[{"role": "assistant", "content": "OUT-AMOUNT 是第二种情况。"}])
+        self.assertEqual(plan.entities, ())
+        self.assertIn("conversation_entity_not_resolved", plan.unresolved)
+
+    def test_local_subject_survives_missing_history_and_selects_exact_ordinal(self):
+        mapped = {**self.map, "session_subject": {"status": "resolved", "focus_entities": ["OUT-AMOUNT"]}}
+        plan = QuestionPlanner().plan("刚才第二种情况呢？也会归零吗？", mapped)
+        self.assertEqual(plan.entities, ("OUT-AMOUNT",))
+        self.assertIn("later_writes", plan.required_obligations)
+
+    def test_explicit_source_switch_cannot_reuse_old_plan_entity(self):
+        mapped = {**self.map, "source_identity": {"status": "resolved", "direct_paths": ["other.cbl"]}}
+        plan = QuestionPlanner().plan("other.cbl 的这个字段呢？", mapped,
+            history=[{"investigation_state": {"analysis_plan": {"entities": ["OUT-AMOUNT"]}}}])
+        self.assertEqual(plan.entities, ())
