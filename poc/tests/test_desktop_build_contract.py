@@ -150,6 +150,13 @@ class WindowsAcceptanceWorkflowTests(unittest.TestCase):
         self.assertNotIn(".zip", failure)
         self.assertNotIn("windows-delivery", failure)
 
+    def test_context_lint_precedes_native_build_and_corpus_path_is_step_runtime(self):
+        self.assertIn("needs: workflow_lint", self.text)
+        self.assertIn("actionlint/cmd/actionlint@v1.7.7", self.text)
+        self.assertIn("Path(os.environ['RUNNER_TEMP']) / 'public-business-source'", self.text)
+        self.assertIn("PUBLIC_BUSINESS_SOURCE_ROOT={target}", self.text)
+        self.assertNotIn("PUBLIC_BUSINESS_SOURCE_ROOT: ${{ runner.temp }}", self.text)
+
     def test_python_workflow_blocks_compile_without_shell_expansion_or_posix_tools(self):
         for name, body in self.steps:
             if "shell: python" not in body:

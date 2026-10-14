@@ -73,8 +73,23 @@ def _tag_commit(repo, tag):
     raise PublicationError("RELEASE_TAG_DEPTH_EXCEEDED")
 
 
+def _release_for_tag(repo, tag):
+    """Resolve drafts through gh; REST's release-by-tag route excludes drafts."""
+    raw = _gh(["release", "view", tag, "--repo", repo, "--json", "databaseId"])
+    try:
+        reference = json.loads(raw)
+    except (ValueError, TypeError) as exc:
+        raise PublicationError("GITHUB_RESPONSE_INVALID") from exc
+    release_id = reference.get("databaseId") if isinstance(reference, dict) else None
+    _require(type(release_id) is int and release_id > 0, "DRAFT_RELEASE_ID_INVALID")
+    release = _api(f"repos/{repo}/releases/{release_id}")
+    _require(release.get("id") == release_id and release.get("tag_name") == tag,
+             "DRAFT_RELEASE_ID_MISMATCH")
+    return release
+
+
 def _verified_draft(repo, tag, package, artifact):
-    release = _api(f"repos/{repo}/releases/tags/{quote(tag, safe='')}")
+    release = _release_for_tag(repo, tag)
     _require(release.get("draft") is True and release.get("tag_name") == tag, "RELEASE_IS_NOT_MATCHING_DRAFT")
     _require(release.get("target_commitish") == artifact["source_commit"], "DRAFT_SOURCE_COMMIT_MISMATCH")
     tagged = _tag_commit(repo, tag)
@@ -154,9 +169,11 @@ def publish_release(*, package, compiled_report, manifest, policy, live_report, 
         current_id, current_asset_id = _verified_draft(repo, tag, package, decision["artifact"])
         _require((current_id, current_asset_id) == (release_id, asset_id), "DRAFT_CHANGED_DURING_PUBLICATION")
         _unchanged(inputs, decision)
-        _gh(["release", "edit", tag, "--repo", repo, "--draft=false", "--latest"])
-        confirmed = _api(f"repos/{repo}/releases/tags/{quote(tag, safe='')}")
-        _require(confirmed.get("id") == release_id and confirmed.get("draft") is False,
+        _gh(["release", "edit", tag, "--repo", repo, "--draft=false", "--prerelease=false", "--latest"])
+        confirmed = _api(f"repos/{repo}/releases/{release_id}")
+        _require(confirmed.get("id") == release_id and confirmed.get("tag_name") == tag
+                 and confirmed.get("draft") is False and confirmed.get("prerelease") is False
+                 and confirmed.get("target_commitish") == decision["artifact"]["source_commit"],
                  "PUBLICATION_OUTCOME_UNCONFIRMED")
         result.update(status="published", published=True)
     except (OSError, PublicationError) as exc:

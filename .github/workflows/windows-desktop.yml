@@ -34,9 +34,27 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  workflow_lint:
+    name: Validate Actions semantics before compiling
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.23.4'
+          cache: false
+      - name: Check workflow context and expressions with pinned actionlint
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$(go env GOPATH)/bin/actionlint" -shellcheck= -pyflakes= .github/workflows/windows-desktop.yml
+
   build:
     name: Compile and verify Windows x64
     runs-on: windows-2022
+    needs: workflow_lint
     timeout-minutes: 120
     defaults:
       run:
@@ -44,7 +62,6 @@ jobs:
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
-      PUBLIC_BUSINESS_SOURCE_ROOT: ${{ runner.temp }}/public-business-source
     steps:
       - name: Check out the selected revision
         uses: actions/checkout@v7
@@ -67,7 +84,7 @@ jobs:
           import subprocess
 
           manifest = json.loads(Path('docs/eval/public-business-v1/manifest.json').read_text(encoding='utf-8'))
-          target = Path(os.environ['PUBLIC_BUSINESS_SOURCE_ROOT'])
+          target = Path(os.environ['RUNNER_TEMP']) / 'public-business-source'
           target.mkdir()
           for arguments in (['init'], ['config', 'core.autocrlf', 'false'],
                             ['remote', 'add', 'origin', manifest['repository']],
@@ -80,6 +97,8 @@ jobs:
           for item in manifest['files']:
               if hashlib.sha256((target / item['path']).read_bytes()).hexdigest() != item['sha256']:
                   raise SystemExit('Frozen public corpus content mismatch.')
+          with Path(os.environ['GITHUB_ENV']).open('a', encoding='utf-8') as handle:
+              handle.write(f'PUBLIC_BUSINESS_SOURCE_ROOT={target}\n')
 
       - name: Check Windows compiler and build target
         run: |

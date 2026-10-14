@@ -2,7 +2,7 @@
 
 正式发布要求同一份 Windows ZIP 同时具备原生离线回归、真实模型问答、逐条人工评审与目标办公设备验收。缺任何一项就保留为候选。构建成功或填写完评分表不代表答案正确。
 
-`windows-desktop.yml` 在相关主分支推送、PR 和手动构建时运行：固定公开语料校验 → Python/浏览器回归 → MSVC 编译 → 启动最终 EXE 联合回归 → 候选门禁 → 上传白名单产物。失败会阻断候选上传；合成模型不能授权正式发布。候选产物含 ZIP、校验和、BUILD-INFO、逐样本原生报告、合同、候选策略与门禁结果。
+`windows-desktop.yml` 在相关主分支推送、PR 和手动构建时运行：固定版本 actionlint 校验 Actions 表达式 → 固定公开语料校验 → Python/浏览器回归 → MSVC 编译 → 启动最终 EXE 联合回归 → 候选门禁 → 上传白名单产物。失败会阻断候选上传；合成模型不能授权正式发布。候选产物含 ZIP、校验和、BUILD-INFO、逐样本原生报告、合同、候选策略与门禁结果。工作流语义检查使用 [actionlint 官方用法](https://github.com/rhysd/actionlint/blob/v1.7.7/docs/usage.md)，只在维护/CI 环境运行，不进入用户应用。
 
 真实验收只在获准设备上执行，报告保留本地。维护者先准备已经审阅的案例 JSON，使用现有 `live-business-eval/v3` 案例结构；每项关键结论须包含 `gold.required_findings[].supporting_ranges`，记录路径、行段与源码 SHA。`reviewed_context.source_ranges` 提供相同版本的冻结源码范围。多轮问题用 `turns`，不要手写一份虚假的初始历史。公共开发题和独立留出题应分别标明。
 

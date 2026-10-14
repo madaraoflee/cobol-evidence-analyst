@@ -20,7 +20,7 @@ class PublishDesktopReleaseTests(unittest.TestCase):
         self.arguments = {**self.fixture.paths, "repo": "example/workbench", "tag": "v1-candidate",
                           "output": self.fixture.root / "publication.json"}
         compiled = self.fixture.read("compiled_report")
-        self.release = {"id": 10, "tag_name": "v1-candidate", "draft": True,
+        self.release = {"id": 10, "tag_name": "v1-candidate", "draft": True, "prerelease": True,
             "target_commitish": self.fixture.commit, "assets": [{"id": 20,
                 "name": self.fixture.paths["package"].name,
                 "size": self.fixture.paths["package"].stat().st_size,
@@ -29,18 +29,26 @@ class PublishDesktopReleaseTests(unittest.TestCase):
 
     def fake_gh(self, arguments, **options):
         self.commands.append(arguments)
+        if arguments[:2] == ["release", "view"]:
+            return json.dumps({"databaseId": 10}).encode()
         if arguments[0] == "api":
             path = arguments[1]
             if "/git/ref/tags/" in path:
                 return None
             if "/releases/assets/" in path:
                 return self.fixture.paths["package"].read_bytes()
-            if "/releases/tags/" in path:
+            if path == "repos/example/workbench/releases/10":
                 document = copy.deepcopy(self.release)
                 if any(command[:2] == ["release", "edit"] for command in self.commands):
                     document["draft"] = False
+                    document["prerelease"] = False
                 return json.dumps(document).encode()
+            raise AssertionError("Unexpected API path: " + path)
         return b""
+
+    def mutations(self):
+        return [command for command in self.commands if command[:2] in
+                (["release", "upload"], ["release", "edit"])]
 
     def test_failed_gate_never_calls_github_even_with_publish_flag(self):
         compiled = self.fixture.read("compiled_report")
@@ -66,12 +74,14 @@ class PublishDesktopReleaseTests(unittest.TestCase):
         with mock.patch.object(publisher, "_gh", side_effect=self.fake_gh):
             result = publisher.publish_release(**self.arguments, publish=True)
         self.assertTrue(result["published"], result)
-        mutations = [command for command in self.commands if command[0] == "release"]
+        mutations = self.mutations()
         self.assertEqual([command[1] for command in mutations], ["upload", "edit"])
         self.assertEqual(Path(mutations[0][3]).name, "release-acceptance-receipt.json")
         self.assertIn("--draft=false", mutations[1])
-        self.assertEqual(sum(command[0] == "api" and "/releases/tags/" in command[1]
+        self.assertIn("--prerelease=false", mutations[1])
+        self.assertEqual(sum(command[0] == "api" and command[1] == "repos/example/workbench/releases/10"
                              for command in self.commands), 3)
+        self.assertEqual(sum(command[:2] == ["release", "view"] for command in self.commands), 2)
 
     def test_wrong_remote_commit_hash_state_or_extra_binary_blocks_writes(self):
         original = copy.deepcopy(self.release)
@@ -87,7 +97,7 @@ class PublishDesktopReleaseTests(unittest.TestCase):
                 with mock.patch.object(publisher, "_gh", side_effect=self.fake_gh):
                     result = publisher.publish_release(**self.arguments, publish=True)
                 self.assertFalse(result["published"])
-                self.assertFalse(any(command[0] == "release" for command in self.commands))
+                self.assertFalse(self.mutations())
 
     def test_existing_tag_must_resolve_to_accepted_commit(self):
         def different_tag(arguments, **options):
@@ -97,7 +107,7 @@ class PublishDesktopReleaseTests(unittest.TestCase):
         with mock.patch.object(publisher, "_gh", side_effect=different_tag):
             result = publisher.publish_release(**self.arguments, publish=True)
         self.assertEqual(result["error"], "RELEASE_TAG_COMMIT_MISMATCH")
-        self.assertFalse(any(command[0] == "release" for command in self.commands))
+        self.assertFalse(self.mutations())
 
     def test_missing_asset_digest_downloads_and_hashes_bytes(self):
         self.release["assets"][0].pop("digest")
@@ -120,7 +130,7 @@ class PublishDesktopReleaseTests(unittest.TestCase):
                 mock.patch.object(publisher, "_gh", side_effect=self.fake_gh):
             result = publisher.publish_release(**self.arguments, publish=True)
         self.assertEqual(result["error"], "DRAFT_CHANGED_DURING_PUBLICATION")
-        self.assertEqual([command[1] for command in self.commands if command[0] == "release"], ["upload"])
+        self.assertEqual([command[1] for command in self.mutations()], ["upload"])
 
     def test_uncertain_publish_is_not_retried_or_claimed_successful(self):
         def uncertain(arguments, **options):
@@ -132,6 +142,34 @@ class PublishDesktopReleaseTests(unittest.TestCase):
             result = publisher.publish_release(**self.arguments, publish=True)
         self.assertFalse(result["published"])
         self.assertEqual(result["status"], "publication_not_confirmed")
+        self.assertEqual(sum(command[:2] == ["release", "edit"] for command in self.commands), 1)
+
+    def test_draft_id_resolution_is_verified_before_any_write(self):
+        def inconsistent_id(arguments, **options):
+            raw = self.fake_gh(arguments, **options)
+            if arguments == ["api", "repos/example/workbench/releases/10"]:
+                document = json.loads(raw)
+                document["id"] = 11
+                return json.dumps(document).encode()
+            return raw
+        with mock.patch.object(publisher, "_gh", side_effect=inconsistent_id):
+            result = publisher.publish_release(**self.arguments, publish=True)
+        self.assertEqual(result["error"], "DRAFT_RELEASE_ID_MISMATCH")
+        self.assertFalse(self.mutations())
+
+    def test_final_prerelease_state_cannot_be_mistaken_for_formal_publication(self):
+        def remaining_prerelease(arguments, **options):
+            raw = self.fake_gh(arguments, **options)
+            if (arguments == ["api", "repos/example/workbench/releases/10"]
+                    and any(command[:2] == ["release", "edit"] for command in self.commands)):
+                document = json.loads(raw)
+                document["prerelease"] = True
+                return json.dumps(document).encode()
+            return raw
+        with mock.patch.object(publisher, "_gh", side_effect=remaining_prerelease):
+            result = publisher.publish_release(**self.arguments, publish=True)
+        self.assertFalse(result["published"])
+        self.assertEqual(result["error"], "PUBLICATION_OUTCOME_UNCONFIRMED")
         self.assertEqual(sum(command[:2] == ["release", "edit"] for command in self.commands), 1)
 
     def test_output_cannot_replace_any_gate_input(self):
