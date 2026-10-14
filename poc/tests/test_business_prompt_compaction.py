@@ -38,6 +38,11 @@ def decoded_navigation(payload):
         for outline in context.get("outline", []):
             expand(outline, "units")
     expand(result.get("business_map", {}), "relations")
+    for group in result.get("evidence_groups", []):
+        analysis = group.get("semantic_analysis", {})
+        expand(analysis, "slice_statements")
+        for tool_result in analysis.get("tool_results", []):
+            expand(tool_result, "statements")
     return result
 
 
@@ -105,6 +110,32 @@ class BusinessPromptCompactionTests(unittest.TestCase):
         self.assertEqual(encoded(decoded_navigation(compact)), encoded(payload))
         payload["navigation_encoding"] = {"format": "existing"}
         self.assertEqual(business_chat._compact_prompt_payload(payload), payload)
+
+    def test_semantic_occurrences_guards_and_unknowns_round_trip(self):
+        payload = self.payload()
+        statements = [{"occurrence_id": f"write:{index}", "kind": "MOVE",
+            "reads": ["INPUT-AMOUNT"], "writes": ["RESULT-AMOUNT"],
+            "guards": [{"expression": "INPUT-AMOUNT > ZERO", "branch": index % 2}],
+            "source_ref": {"source_sha256": "a" * 64, "start_line": index + 1},
+            "evidence_ids": [f"ev:source-{index % 4}"], "effects_unknown": False}
+            for index in range(8)]
+        statements[1]["optional"] = None
+        payload["evidence_groups"] = [{"semantic_analysis": {
+            "slice_statements": statements,
+            "tool_results": [{"statements": deepcopy(statements), "unknowns": ["runtime_input"]}],
+            "query_count": 19}}]
+        original = deepcopy(payload)
+        compact = business_chat._compact_prompt_payload(payload)
+        self.assertEqual(decoded_navigation(compact), original)
+        self.assertEqual(payload, original)
+        analysis = compact["evidence_groups"][0]["semantic_analysis"]
+        for key, owner in (("slice_statements", analysis),
+                           ("statements", analysis["tool_results"][0])):
+            self.assertIn(key + "_columns", owner)
+            self.assertEqual([row["occurrence_id"] for row in owner[key]],
+                             [row["occurrence_id"] for row in statements])
+        self.assertEqual(analysis["query_count"], 19)
+        self.assertEqual(analysis["tool_results"][0]["unknowns"], ["runtime_input"])
 
     def test_small_payload_is_not_expanded_with_encoding_overhead(self):
         payload = self.payload()
@@ -208,7 +239,7 @@ class BusinessPromptCompactionTests(unittest.TestCase):
             def transport(request):
                 body = json.loads(request.body)
                 wire = json.loads(body["messages"][-1]["content"])
-                requests.append((len(request.body), wire))
+                requests.append((request.body, body, wire))
                 page = next(p for p in wire["source_context"][0]["pages"]
                             if p["relative_path"] == "programs/service-entry.cbl" and p["start_line"] == 1)
                 answer = ("金额大于5000时进入复核，不超过5000时获批。更新前先恢复并检查状态，"
@@ -234,23 +265,43 @@ class BusinessPromptCompactionTests(unittest.TestCase):
                 self.assertEqual(output["agent_result"]["metrics"]["model_requests"], 1)
                 trace = json.loads(Path(output["agent_result"]["metrics"]["quality_trace_path"]).read_text())
                 traces.append(trace["rounds"][0])
-            before_bytes, before = requests[0]
-            after_bytes, after = requests[1]
-            self.assertGreater(before_bytes - after_bytes, before_bytes * 0.10)
-            stable_before, stable_after = deepcopy(before), decoded_navigation(after)
-            for payload in (stable_before, stable_after):
-                for group in payload.get("evidence_groups", []):
-                    analysis = group.get("semantic_analysis", {})
-                    if "query_count" in analysis:
-                        # A warm flow cache performs fewer SQL queries. This
-                        # run diagnostic is not a source or semantic fact.
-                        count = analysis.pop("query_count")
-                        self.assertIs(type(count), int)
-                        self.assertGreaterEqual(count, 0)
-            self.assertEqual(encoded(stable_after), encoded(stable_before))
-            self.assertEqual(traces[0]["sources"], traces[1]["sources"])
-            self.assertEqual(traces[0]["context"]["sources"], traces[1]["context"]["sources"])
-            self.assertEqual(after_bytes, traces[1]["request_bytes"])
+            self.assertEqual(len(requests), 2)
+            self.assertIn("navigation_encoding", requests[1][2])
+            for (actual_bytes, body, wire), trace in zip(requests, traces):
+                # The local deadline can produce different material in cold
+                # and warm investigations. Compare both encodings of THIS
+                # actual request, including its counters and unknowns.
+                canonical = decoded_navigation(wire)
+                compacted = original_project(canonical)
+                self.assertEqual(encoded(decoded_navigation(compacted)), encoded(canonical))
+                if "navigation_encoding" in wire:
+                    self.assertEqual(compacted, wire)
+
+                def request_bytes(payload):
+                    envelope = deepcopy(body)
+                    envelope["messages"][-1]["content"] = json.dumps(
+                        payload, ensure_ascii=False, separators=(",", ":"))
+                    return json.dumps(envelope, ensure_ascii=False, separators=(",", ":")).encode()
+
+                before_bytes = len(request_bytes(canonical))
+                after_bytes = len(request_bytes(compacted))
+                self.assertGreater(before_bytes - after_bytes, before_bytes * 0.10,
+                                   f"same-request bytes: {before_bytes} -> {after_bytes}")
+                self.assertEqual(len(actual_bytes), trace["request_bytes"])
+                self.assertEqual(hashlib.sha256(actual_bytes).hexdigest(), trace["request_body_sha256"])
+                pages = canonical["source_context"][0]["pages"]
+                self.assertEqual(len(pages), len(trace["sources"]))
+                self.assertEqual(len(pages), len(trace["context"]["sources"]))
+                for page, captured, context in zip(pages, trace["sources"], trace["context"]["sources"]):
+                    self.assertEqual(page["evidence_id"], captured["evidence_id"])
+                    self.assertEqual(page["relative_path"], captured["path"])
+                    self.assertEqual(page["source_sha256"], captured["source_sha256"])
+                    self.assertEqual(page["start_line"], captured["start_line"])
+                    self.assertEqual(page["end_line"], captured["end_line"])
+                    self.assertEqual(page.get("include_chain", []), captured["include_chain"])
+                    self.assertEqual(page["source_text"], context["excerpt"])
+                    self.assertEqual(hashlib.sha256(page["source_text"].encode()).hexdigest(),
+                                     captured["excerpt_sha256"])
 
 
 if __name__ == "__main__":
