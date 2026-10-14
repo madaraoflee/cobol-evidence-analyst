@@ -144,7 +144,7 @@ class WindowsAcceptanceWorkflowTests(unittest.TestCase):
 
     def test_workflow_has_no_formal_release_or_unconditional_binary_upload(self):
         self.assertRegex(self.text, r"permissions:\s*\n\s+contents: read")
-        self.assertNotRegex(self.text, r"(?i)gh\s+release|publish_desktop_release\.py|action-gh-release|contents:\s*write")
+        self.assertNotRegex(self.text, r"(?i)gh\s+release|(?<![A-Za-z0-9_])publish_desktop_release\.py|action-gh-release|contents:\s*write")
         _, failure = self.step("failure diagnostics")
         self.assertIn("if: failure()", failure)
         self.assertNotIn(".zip", failure)
@@ -156,6 +156,11 @@ class WindowsAcceptanceWorkflowTests(unittest.TestCase):
         self.assertIn("Path(os.environ['RUNNER_TEMP']) / 'public-business-source'", self.text)
         self.assertIn("PUBLIC_BUSINESS_SOURCE_ROOT={target}", self.text)
         self.assertNotIn("PUBLIC_BUSINESS_SOURCE_ROOT: ${{ runner.temp }}", self.text)
+        first, fast = self.step("Fail fast")
+        full, _ = self.step("offline Python regressions")
+        self.assertLess(first, full)
+        self.assertIn("test_desktop_acceptance_runtime.py", fast)
+        self.assertIn("test_publish_desktop_release.py", fast)
 
     def test_python_workflow_blocks_compile_without_shell_expansion_or_posix_tools(self):
         for name, body in self.steps:

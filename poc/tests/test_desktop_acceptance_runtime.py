@@ -87,6 +87,7 @@ class DesktopAcceptanceRuntimeTests(unittest.TestCase):
         prepare.assert_not_called()
         with tempfile.TemporaryDirectory() as directory, mock.patch.dict(os.environ, {}, clear=False), \
                 mock.patch("desktop_app.prepare_profile", return_value=Path(directory)), \
+                mock.patch("desktop_app.logging.basicConfig"), \
                 mock.patch("desktop_app.configure_tls"), \
                 mock.patch("desktop_app.run_acceptance_server", return_value=0):
             arguments = ["--data-dir", directory, "--acceptance-server-info", str(Path(directory) / "info.json")]
@@ -126,8 +127,11 @@ class DesktopAcceptanceRuntimeTests(unittest.TestCase):
                 self.assertEqual(server.call_count, 1)
 
     def test_acceptance_startup_failure_never_opens_native_dialog(self):
+        # This in-process dispatch test does not exit like the real CLI. Keep
+        # its mocked profile out of the process-wide logging configuration.
         with tempfile.TemporaryDirectory() as directory, \
                 mock.patch("desktop_app.prepare_profile", return_value=Path(directory)), \
+                mock.patch("desktop_app.logging.basicConfig"), \
                 mock.patch("desktop_app.configure_tls"), \
                 mock.patch("desktop_app.run_acceptance_server", side_effect=ValueError("fixture")), \
                 mock.patch("desktop_app.show_startup_error") as dialog, mock.patch("sys.stderr"):

@@ -137,6 +137,19 @@ jobs:
             exit $selfTestCode
           }
 
+      - name: Fail fast on desktop acceptance and publication contracts
+        shell: python
+        run: |
+          import subprocess
+          import sys
+
+          for pattern in ('test_desktop_acceptance_runtime.py', 'test_desktop_build_contract.py',
+                          'test_release_acceptance.py', 'test_publish_desktop_release.py',
+                          'test_desktop_live_acceptance.py', 'test_desktop_candidate_collection.py',
+                          'test_desktop_acceptance_cases.py'):
+              subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', 'poc/tests',
+                              '-p', pattern], check=True)
+
       - name: Run offline Python regressions
         timeout-minutes: 30
         run: python -m unittest discover -s poc/tests -p 'test_*.py'
