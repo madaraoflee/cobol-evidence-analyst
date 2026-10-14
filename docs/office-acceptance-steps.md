@@ -11,6 +11,10 @@
 
 报告目录含回答、源码节录、运行日志及用于隔离会话的配置副本，只留在获准环境。不要把整个目录上传 GitHub。可先将窗口显示的错误代码和不含密钥的验收决定交回维护者；原始材料与评审是否可移出仍按现有公司授权处理。未完成真实模型/现场验收时，保留候选，不替换正式版本。
 
+现场重启与历史证据检查使用副本：将包内 `sources/synthetic/overwrite.cbl` 复制到包外新建的 `manual-source` 文件夹，在向导打开的隔离工作台中导入这个文件夹。在已有获准预算内询问 `OVERWRITE-CASE 在 FLAG=1 时，OUT-AMOUNT 和 FINAL-AMOUNT 怎样变化？`，保留答案及其源码引用。然后用记事本把副本的 `MOVE 0 TO OUT-AMOUNT` 改为 `MOVE 7 TO OUT-AMOUNT`，以 UTF-8 保存并刷新索引；打开旧答案的引用，应仍显示原版本的 `MOVE 0` 及原哈希。关闭并从同一向导入口重开工作台，再检查对话、原问题和旧引用恢复。不要改验收包内的冻结源码，也不要用新答案给旧答案评分。
+
+取消检查在工作台实际操作：优先在明确尚未发出模型请求的准备阶段取消，再确认可以继续操作。如果取消时请求已经发出，查看本地运行记录；远程结果不确定必须保留不确定状态，不能自动重发。手动题和取消实验只在既有获准预算内进行；没有额外调用授权时保留该项未验收。上述操作完成后才逐项确认对应现场检查，不用自动回归的通过状态代填。
+
 96 次是自动题集的请求上限。打开隔离工作台本身不发模型请求；手动另问、取消及恢复实验可能产生额外请求，只在既有获准预算内操作，远程状态不确定时不得自动重复。
 
 维护命令和门禁合同见仓库 `docs/joint-release-acceptance.md`。跨构建取得冻结候选产物使用 [GitHub 官方 download-artifact](https://github.com/actions/download-artifact/blob/v7/README.md) 的 run-id/artifact-ids 接口；辅助工具采用 [Nuitka standalone](https://nuitka.net/user-documentation/user-manual.html) 并在 Windows 实际启动 Tk 自检，使用者不需要打包工具。
