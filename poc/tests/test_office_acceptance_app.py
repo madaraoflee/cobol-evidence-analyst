@@ -417,7 +417,7 @@ class OfficeEvidenceDisplayTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary).resolve()
             content = "MOVE 0 TO RESULT.\n"
-            (source / "gold.cbl").write_text(content, encoding="utf-8")
+            (source / "gold.cbl").write_bytes(content.encode("utf-8"))
             span = {"path": "gold.cbl", "sha256": hashlib.sha256(content.encode()).hexdigest(),
                     "start_line": 1, "end_line": 1}
             key, row = ("formula", "turn"), self.row()
