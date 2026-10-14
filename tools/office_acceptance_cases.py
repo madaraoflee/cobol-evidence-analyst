@@ -149,6 +149,36 @@ GOBACK.
 """
 
 
+def record_binding_cases(source):
+    """Review bare and qualified references against frozen declarations/rules."""
+    record, front = "synthetic/record.cbl", "synthetic/frontend.cbl"
+    record_layout = source_range(source, record, 5, 7, "declaration")
+    record_formula = anchor(source, record, "COMPUTE VALUE-00000 = VALUE-00001 * 2.")
+    record_body = source_range(source, record, 1, 11, "complete-program")
+    qualified_layout = source_range(source, front, 9, 12, "declaration")
+    qualified_formula = anchor(source, front, "COMPUTE AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2")
+    return [
+        question("bare_group_field", "RECORD-RULE 中 VALUE-00000 是怎么计算的？裸字段名对应哪个记录，输入运行值可以确认吗？",
+            [finding("bare-group-formula", "真实语句读取VALUE-00001，写VALUE-00000，公式VALUE-00000 = VALUE-00001 * 2；常量是2。", record_formula),
+             finding("bare-group-binding", "两个裸字段分别唯一绑定SOURCE-RECORD下的VALUE-00000和VALUE-00001；均声明PIC9(9)，SOURCE-RECORD是层级限定而非额外算术操作数。", record_layout, record_formula),
+             finding("bare-group-runtime-unknown", "完整源码未给出VALUE-00001的本次运行值或VALUE初值；PIC说明布局，不能凭声明断言输出具体数值。", record_body)],
+            ["因声明是组内字段而称真实乘2公式不存在。", "把SOURCE-RECORD当作第三个算术输入。", "声称裸字段无法绑定或任意另选别的组。", "编造输入或输出运行数值。"],
+            coverage=["bare_group_field", "field_hierarchy", "bare_reference_binding"]),
+        question("qualified_output_scope", "SEMANTIC-CASE 的 AMOUNT IN OUTPUT-REC 从哪里来？它和 AMOUNT IN INPUT-REC 是同一字段吗？请核对本处公式和记录限定。",
+            [finding("qualified-in-alias", "问题中的IN限定和源码OF限定标识同一声明身份：AMOUNT IN OUTPUT-REC对应AMOUNT OF OUTPUT-REC，输入同理；两个记录下的AMOUNT是不同字段。", qualified_layout, qualified_formula),
+             finding("qualified-output-formula", "本处读取AMOUNT OF INPUT-REC乘2，只写AMOUNT OF OUTPUT-REC；INPUT-REC和OUTPUT-REC用于限定字段，不是额外算术操作数。", qualified_formula, qualified_layout),
+             finding("qualified-output-layout", "两个AMOUNT都声明PIC9(6)V99，没有VALUE初值；本处规则可以确认，实际输入金额及具体输出数值未给出。", qualified_layout, qualified_formula)],
+            ["把IN/OF当作不同字段，或将两个记录下的AMOUNT合并。", "把记录限定词当作额外读写操作数。", "以其他A/B/C字段的运算替代这个明确输出的乘2规则。", "凭PIC声明编造实际输入金额。"],
+            coverage=["qualified_output_scope", "qualified_in_alias", "qualified_identity"]),
+        question("ambiguous_group_field", "SEMANTIC-CASE AMOUNT 怎样计算？",
+            [finding("ambiguous-group-candidates", "裸AMOUNT有AMOUNT OF INPUT-REC和AMOUNT OF OUTPUT-REC两个声明候选；应说明歧义并保留两者，不能自动任选其一为所问对象。", qualified_layout),
+             finding("ambiguous-independent-formula", "对象仍待明确时，也能独立解释真实COMPUTE：写AMOUNT OF OUTPUT-REC，值为AMOUNT OF INPUT-REC * 2；这条规则不等于已确认用户指的是输出字段。", qualified_formula, qualified_layout),
+             finding("ambiguous-qualified-operands", "INPUT-REC与OUTPUT-REC是AMOUNT的限定层级，不是额外算术输入；两个候选都PIC9(6)V99，声明不能提供本次运行输入金额。", qualified_layout, qualified_formula)],
+            ["隐去裸AMOUNT的两个候选，自动选一个并宣称目标确定。", "因歧义整题拒答而遗漏已知直接乘2规则。", "把组名作为额外乘数或输入变量。", "编造未给出的运行金额。"],
+            coverage=["ambiguous_group_field", "qualified_identity", "independent_direct_fact"]),
+    ]
+
+
 def synthetic_cases(source):
     front = "synthetic/frontend.cbl"
     def front_at(needle, **options):
@@ -225,6 +255,7 @@ def synthetic_cases(source):
         [finding("reserved-base", "BASE-AMOUNT初值5，经乘3得到TOTAL-AMOUNT=15。", source_range(source, reserved, 5, 8, "declaration"), source_range(source, reserved, 11)),
          finding("reserved-merge", "STATUS-FLAG=1则后续总额置0；=2则再加1成16；WHEN OTHER保留15；最终MOVE读取分支合并结果。", source_range(source, reserved, 11, 18))],
         ["仅按段落/变量名字推断。", "遗漏WHEN2或OTHER分支。"], split="holdout", coverage=["evaluate_merge", "reserved_question"]))
+    result.extend(record_binding_cases(source))
     return result
 
 

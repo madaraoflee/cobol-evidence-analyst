@@ -35,6 +35,7 @@ OFFICE_BASELINE_CHECKS = ("desktop_start", "source_import", "conversation_recove
                           "cancellation_recovery", "historical_evidence", "company_api_ca")
 OFFICE_REGRESSION_BASELINE = ("add_giving", "end_words", "same_line_occurrences",
     "display_literal_relations", "literal_comment_marker", "qualified_identity", "perform_section",
+    "bare_group_field", "qualified_in_alias", "ambiguous_group_field",
     "wrong_formula_999", "input_origin", "later_overwrite", "three_turn_focus", "forward_slice",
     "static_a_b_c", "parameter_binding", "size_error", "decimal_scale", "unknown_effect",
     "independent_direct_fact", "legal_continuation", "evaluate_merge", "public_limit_rejection",

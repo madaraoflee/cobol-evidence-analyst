@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import types
 import unittest
 from unittest.mock import patch
 
@@ -349,6 +350,95 @@ class OfficeHelperBuildTests(unittest.TestCase):
     def test_native_builder_does_not_cross_compile_or_rebuild_application(self):
         with patch.object(builder.sys, "platform", "darwin"), self.assertRaisesRegex(ValueError, "WINDOWS_X64"):
             builder.build(output=Path("unused"))
+
+
+class OfficeEvidenceDisplayTests(unittest.TestCase):
+    def row(self):
+        excerpt = "COMPUTE RESULT = INPUT * 2."
+        framework = "A successful call returns the modified output record."
+        context = {"sources": [{"evidence_id": "ev-actual", "relative_path": "entry.cbl",
+            "source_sha256": "a" * 64, "start_line": 21, "end_line": 21,
+            "excerpt": excerpt, "excerpt_sha256": hashlib.sha256(excerpt.encode()).hexdigest(),
+            "profile_config": "credential-must-not-be-displayed"}],
+            "framework": [{"reference_id": "fw-actual", "document_name": "effects.txt",
+                "document_sha256": "b" * 64, "range": {"start_line": 7, "end_line": 7},
+                "excerpt": framework, "excerpt_sha256": hashlib.sha256(framework.encode()).hexdigest()}]}
+        return {"actual_evidence_context": context, "supplied_evidence": office._evidence_metadata(context),
+                "private_profile": "credential-must-not-be-displayed"}
+
+    def test_displays_archived_source_and_framework_with_identity_without_config_fields(self):
+        row = self.row()
+        frozen = copy.deepcopy(row)
+        with patch.object(office, "_source_excerpt") as read_current, \
+             patch.object(office, "evaluate_native") as runner:
+            shown = office.review_actual_evidence_text(row)
+        self.assertIn("实际源码证据 ev-actual", shown)
+        self.assertIn("entry.cbl:21-21", shown)
+        self.assertIn("源文件 SHA256：" + "a" * 64, shown)
+        self.assertIn("COMPUTE RESULT = INPUT * 2.", shown)
+        self.assertIn("实际框架证据 fw-actual", shown)
+        self.assertIn("文档 SHA256：" + "b" * 64, shown)
+        self.assertIn("modified output record", shown)
+        self.assertNotIn("credential-must-not-be-displayed", shown)
+        self.assertEqual(row, frozen)
+        read_current.assert_not_called()
+        runner.assert_not_called()
+
+    def test_missing_or_changed_supply_cannot_be_displayed_as_gold_source(self):
+        for mutation, code in (("missing", "EXCERPTS_MISSING"), ("identity", "IDENTITY_MISMATCH"),
+                               ("excerpt", "EXCERPT_CHANGED")):
+            with self.subTest(mutation=mutation):
+                row = self.row()
+                if mutation == "missing":
+                    row.pop("actual_evidence_context")
+                elif mutation == "identity":
+                    row["actual_evidence_context"]["sources"][0]["source_sha256"] = "c" * 64
+                else:
+                    row["actual_evidence_context"]["sources"][0]["excerpt"] = "COMPUTE RESULT = INPUT * 999."
+                with self.assertRaisesRegex(ValueError, code):
+                    office.review_actual_evidence_text(row)
+
+    def test_review_details_keep_actual_archived_supply_distinct_from_gold(self):
+        class Widget:
+            def __init__(self, *args, **kwargs):
+                self.text = ""
+            def configure(self, **kwargs):
+                pass
+            def grid(self, **kwargs):
+                pass
+            def delete(self, *args):
+                self.text = ""
+            def insert(self, _position, text):
+                self.text += text
+            def winfo_children(self):
+                return []
+        fake_ttk = types.SimpleNamespace(Label=Widget, Combobox=Widget, Entry=Widget)
+        fake_tk = types.SimpleNamespace(ttk=fake_ttk)
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary).resolve()
+            content = "MOVE 0 TO RESULT.\n"
+            (source / "gold.cbl").write_text(content, encoding="utf-8")
+            span = {"path": "gold.cbl", "sha256": hashlib.sha256(content.encode()).hexdigest(),
+                    "start_line": 1, "end_line": 1}
+            key, row = ("formula", "turn"), self.row()
+            row.update(question="How is RESULT computed?", answer="The archived rule multiplies by 2.")
+            window = office.ReviewWindow.__new__(office.ReviewWindow)
+            window.owner = types.SimpleNamespace(tk=types.SimpleNamespace(
+                StringVar=lambda **kwargs: types.SimpleNamespace(get=lambda: kwargs.get("value", ""))))
+            window.source, window.current, window.keys = source, None, [key]
+            window.selector, window.details, window.form = types.SimpleNamespace(current=lambda: 0), Widget(), Widget()
+            window.rows, window.scores = {key: row}, {}
+            window.actual_evidence_text = {key: office.review_actual_evidence_text(row)}
+            window.items = {key: {"gold": {}, "reviewed_context": {"source_ranges": [span]}}}
+            window.template = {"reviews": [{"case_id": key[0], "turn_id": key[1]}]}
+            with patch.dict(sys.modules, {"tkinter": fake_tk}):
+                window.select()
+            self.assertIn("实际源码证据 ev-actual", window.details.text)
+            self.assertIn("COMPUTE RESULT = INPUT * 2.", window.details.text)
+            self.assertIn("冻结金标准源码 gold.cbl:1-1", window.details.text)
+            self.assertIn("MOVE 0 TO RESULT.", window.details.text)
+            self.assertLess(window.details.text.index("实际源码证据"),
+                            window.details.text.index("冻结金标准源码"))
 
 
 if __name__ == "__main__":

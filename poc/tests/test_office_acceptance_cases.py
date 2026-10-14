@@ -11,9 +11,13 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "poc"))
+sys.path.insert(0, str(ROOT / "tools"))
 from tools import office_acceptance_cases as suite
 from live_business_eval import _cases, _reviewed_context, _turns
+from parser_adapter import BuiltinParserAdapter
 from release_acceptance import _live_case_scope, _range_covered, _required_ranges
+from statement_facts import assignment_facts, data_references
+from tools.desktop_live_acceptance import validate_gold
 
 
 class OfficeAcceptanceGoldTests(unittest.TestCase):
@@ -38,14 +42,15 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         self.assertTrue({"add_giving", "same_entity_input_output", "end_words", "same_line_occurrences",
                          "display_literal_relations", "literal_comment_marker", "qualified_identity",
                          "perform_section", "wrong_formula_999", "static_a_b_c", "later_overwrite",
-                         "forward_slice", "size_error", "unknown_effect", "legal_continuation"} <= coverage)
+                         "forward_slice", "size_error", "unknown_effect", "legal_continuation",
+                         "bare_group_field", "qualified_in_alias", "ambiguous_group_field"} <= coverage)
         path = self.root / "cases.json"
         suite.write_json(path, {"cases": items})
         self.assertEqual(_cases(path), items)
         errors = []
         self.assertTrue(_live_case_scope(items, errors))
         self.assertEqual(errors, [])
-        self.assertEqual(sum(len(_turns(item)) for item in items), 17)
+        self.assertEqual(sum(len(_turns(item)) for item in items), 20)
         for item in items:
             for turn in _turns(item):
                 merged = {**item, **turn}
@@ -67,6 +72,93 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         unknown = next(item for item in items if item["id"] == "unknown-effect-boundary")
         self.assertEqual(len(unknown["gold"]["required_findings"]), 2)
         self.assertTrue(any("未知调用" in row["description"] for row in unknown["gold"]["forbidden_claims"]))
+
+    def test_three_group_reference_questions_require_real_fields_formula_and_candidates(self):
+        items = suite.record_binding_cases(self.source)
+        by_id = {item["id"]: item for item in items}
+        self.assertEqual(set(by_id), {"bare_group_field", "qualified_output_scope", "ambiguous_group_field"})
+        validate_gold(self.source, items, "")
+        for item in items:
+            self.assertEqual(item["split"], "regression")
+            self.assertEqual(len(item["gold"]["required_findings"]), 3)
+            self.assertTrue(item["gold"]["forbidden_claims"])
+            self.assertNotIn("score", item)
+            self.assertNotIn("passed", item)
+            self.assertNotIn("fake_correct_answer", item)
+            spans = _required_ranges(item)
+            context = _reviewed_context(self.source, item, "")
+            self.assertTrue(all(_range_covered(span, context["sources"]) for span in spans))
+            for span in spans:
+                self.assertEqual(span["source_sha256"], suite.digest(self.source / span["path"]))
+
+        bare = by_id["bare_group_field"]
+        self.assertEqual(bare["expected_source_paths"], ["synthetic/record.cbl"])
+        self.assertIn("bare_group_field", bare["coverage"])
+        bare_context = _reviewed_context(self.source, bare, "")
+        bare_text = "\n".join(row["excerpt"] for row in bare_context["sources"])
+        literal = "COMPUTE VALUE-00000 = VALUE-00001 * 2."
+        self.assertIn(literal, bare_text)
+        facts = assignment_facts(literal)
+        self.assertEqual(facts.reads, ("VALUE-00001",))
+        self.assertEqual(facts.writes, ("VALUE-00000",))
+        self.assertEqual(dict(facts.expressions)["VALUE-00000"], "VALUE-00001 * 2")
+        record = self.source / "synthetic/record.cbl"
+        ir = BuiltinParserAdapter().parse(record.read_text(), relative_path="synthetic/record.cbl",
+                                         source_sha256=suite.digest(record))
+        declarations = {item.item_id: item for item in ir.data_items}
+        formula = next(statement for statement in ir.statements if statement.statement_type == "COMPUTE")
+        self.assertEqual(formula.binding_status, "bound")
+        for references, name in ((formula.reads, "VALUE-00001"), (formula.writes, "VALUE-00000")):
+            self.assertEqual(len(references), 1)
+            self.assertEqual(len(references[0].candidates), 1)
+            item = declarations[references[0].candidates[0]]
+            self.assertEqual((item.name, item.ancestors, item.picture), (name, ("SOURCE-RECORD",), "9(9)"))
+
+        qualified = by_id["qualified_output_scope"]
+        self.assertIn("qualified_in_alias", qualified["coverage"])
+        for reference in ("AMOUNT IN OUTPUT-REC", "AMOUNT IN INPUT-REC"):
+            self.assertIn(reference, qualified["question"])
+        self.assertEqual(tuple(ref.identity for ref in data_references("AMOUNT IN OUTPUT-REC")),
+                         ("AMOUNT OF OUTPUT-REC",))
+        qualified_context = _reviewed_context(self.source, qualified, "")
+        qualified_text = "\n".join(row["excerpt"] for row in qualified_context["sources"])
+        literal = "COMPUTE AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2 END-COMPUTE."
+        self.assertIn(literal, qualified_text)
+        facts = assignment_facts(literal)
+        self.assertEqual(facts.reads, ("AMOUNT OF INPUT-REC",))
+        self.assertEqual(facts.writes, ("AMOUNT OF OUTPUT-REC",))
+        self.assertEqual(dict(facts.expressions)["AMOUNT OF OUTPUT-REC"], "AMOUNT OF INPUT-REC * 2")
+
+        ambiguous = by_id["ambiguous_group_field"]
+        self.assertEqual(ambiguous["question"], "SEMANTIC-CASE AMOUNT 怎样计算？")
+        self.assertIn("ambiguous_group_field", ambiguous["coverage"])
+        front = self.source / "synthetic/frontend.cbl"
+        ir = BuiltinParserAdapter().parse(front.read_text(), relative_path="synthetic/frontend.cbl",
+                                         source_sha256=suite.digest(front))
+        candidates = {item.qualified_name for item in ir.data_items if item.name == "AMOUNT"}
+        self.assertEqual(candidates, {"AMOUNT OF INPUT-REC", "AMOUNT OF OUTPUT-REC"})
+        gold_text = "\n".join(row["description"] for row in ambiguous["gold"]["required_findings"])
+        self.assertTrue(all(name in gold_text for name in candidates))
+        self.assertIn("不能自动任选", gold_text)
+        self.assertIn("* 2", gold_text)
+        self.assertEqual(ambiguous["expected_source_paths"], ["synthetic/frontend.cbl"])
+
+    def test_group_reference_gold_rejects_changed_record_and_missing_qualified_formula(self):
+        items = suite.record_binding_cases(self.source)
+        bare = next(item for item in items if item["id"] == "bare_group_field")
+        record = self.source / "synthetic/record.cbl"
+        original = record.read_bytes()
+        record.write_bytes(original.replace(b"* 2.", b"* 999."))
+        with self.assertRaisesRegex(ValueError, "REVIEWED_SOURCE_CHANGED"):
+            _reviewed_context(self.source, bare, "")
+        with self.assertRaisesRegex(ValueError, "ANCHOR_MISSING"):
+            suite.record_binding_cases(self.source)
+        record.write_bytes(original)
+        front = self.source / "synthetic/frontend.cbl"
+        front.write_bytes(front.read_bytes().replace(
+            b"COMPUTE AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2", b"DISPLAY AMOUNT OF OUTPUT-REC"))
+        with self.assertRaisesRegex(ValueError, "ANCHOR_MISSING"):
+            suite.record_binding_cases(self.source)
 
     def test_review_ranges_cannot_escape_or_have_unreviewed_line_numbers(self):
         with self.assertRaisesRegex(ValueError, "RANGE_INVALID"):
@@ -97,18 +189,18 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         suite.write_json(manifest, original)
         return public, manifest
 
-    def test_generated_delivery_is_deterministic_and_has_24_frozen_turns(self):
+    def test_generated_delivery_is_deterministic_and_has_27_frozen_turns(self):
         public, manifest = self.fake_public_root()
         with patch.object(suite, "PUBLIC_MANIFEST", manifest):
             first = suite.generate_suite(self.root / "suite-a", public)
             second = suite.generate_suite(self.root / "suite-b", public)
-        self.assertEqual(first["user_turn_count"], 24)
-        self.assertEqual(first["maximum_model_requests"], 72)
+        self.assertEqual(first["user_turn_count"], 27)
+        self.assertEqual(first["maximum_model_requests"], 81)
         self.assertEqual(first["source_files"], 18)
         self.assertEqual(suite.digest(first["cases"]), suite.digest(second["cases"]))
         self.assertEqual(suite.digest(first["lock"]), suite.digest(second["lock"]))
         document = json.loads(first["cases"].read_text(encoding="utf-8"))
-        self.assertEqual(len(document["cases"]), 22)
+        self.assertEqual(len(document["cases"]), 25)
         self.assertEqual(document["budget"]["real_model_calls_performed"], 0)
         public_cases = [item for item in document["cases"] if item["id"].startswith("public-")]
         self.assertEqual(len(public_cases), 7)
@@ -139,8 +231,8 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         public, manifest = self.fake_public_root()
         with patch.object(suite, "PUBLIC_MANIFEST", manifest):
             result = suite.generate_suite(self.root / "large-suite", public, include_scale=True)
-        self.assertEqual(result["user_turn_count"], 29)
-        self.assertEqual(result["maximum_model_requests"], 87)
+        self.assertEqual(result["user_turn_count"], 32)
+        self.assertEqual(result["maximum_model_requests"], 96)
         self.assertEqual(result["source_files"], 12042)
         self.assertTrue((result["source"] / "scale/member-11999.cbl").is_file())
         self.assertFalse((result["source"].parent / "scale-source").exists())

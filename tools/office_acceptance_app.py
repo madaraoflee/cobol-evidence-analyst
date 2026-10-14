@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from desktop_live_acceptance import evaluate_native, validate_gold
 from desktop_acceptance import digest, inspect_package, require, BINARY_MEMBER
 from desktop_acceptance_runtime import isolated_environment
-from live_business_eval import _cases, _safe_write, _turns, _source_excerpt
+from live_business_eval import _cases, _safe_write, _turns, _source_excerpt, _evidence_metadata
 from release_acceptance import evaluate_release, OFFICE_BASELINE_CHECKS, OFFICE_REGRESSION_BASELINE, _live_case_scope
 
 
@@ -256,6 +256,35 @@ def restore_review(template, path):
     require(all(office.get(key) == original.get(key) for key in ("source_commit", "archive_sha256", "binary_sha256",
                 "evaluation_run_id", "live_report_sha256")), "OFFICE_REVIEW_RESUME_STALE")
     return restored
+
+
+def review_actual_evidence_text(row):
+    """Display the archived supply, without substituting current or gold source."""
+    context = row.get("actual_evidence_context")
+    require(isinstance(context, dict) and isinstance(context.get("sources"), list)
+            and bool(context["sources"]) and isinstance(context.get("framework", []), list),
+            "OFFICE_REVIEW_SUPPLY_EXCERPTS_MISSING")
+    require(all(isinstance(page, dict) and isinstance(page.get("excerpt"), str)
+                and bool(page["excerpt"]) for kind in ("sources", "framework")
+                for page in context.get(kind, [])), "OFFICE_REVIEW_SUPPLY_EXCERPTS_MISSING")
+    metadata = _evidence_metadata(context)
+    require(metadata == row.get("supplied_evidence"), "OFFICE_REVIEW_SUPPLY_IDENTITY_MISMATCH")
+    chunks = ["本次实际供应节录（读取已归档模型请求；与下方冻结金标准分别核对）："]
+    for kind in ("sources", "framework"):
+        for page in context.get(kind, []):
+            identity = _evidence_metadata({kind: [page]})[kind][0]
+            actual_hash = hashlib.sha256(page["excerpt"].encode()).hexdigest()
+            require(actual_hash == identity["excerpt_sha256"], "OFFICE_REVIEW_SUPPLY_EXCERPT_CHANGED")
+            if kind == "sources":
+                heading = (f"实际源码证据 {identity['evidence_id']}\n"
+                    f"{identity['path']}:{identity['start_line']}-{identity['end_line']}\n"
+                    f"源文件 SHA256：{identity['source_sha256']}")
+            else:
+                heading = (f"实际框架证据 {identity['reference_id']}\n"
+                    f"{identity['document']} · 行段 {json.dumps(identity['range'], ensure_ascii=False)}\n"
+                    f"文档 SHA256：{identity['document_sha256']}")
+            chunks.append(f"{heading}\n节录 SHA256：{actual_hash}\n{page['excerpt']}")
+    return "\n\n".join(chunks)
 
 
 def default_kit_path():
@@ -539,6 +568,7 @@ class ReviewWindow:
                       for item in _cases(kit["inputs"]["cases"]) for turn in _turns(item)}
         self.keys = list(self.rows)
         require(set(self.keys) == set(self.items), "OFFICE_REVIEW_CASES_INCOMPLETE")
+        self.actual_evidence_text = {key: review_actual_evidence_text(row) for key, row in self.rows.items()}
         self.scores = {}
         restored = None
         if (evaluation_dir / "HUMAN-REVIEW.json").is_file():
@@ -618,11 +648,12 @@ class ReviewWindow:
         chunks = ["问题：" + row["question"], "实际答案：\n" + row["answer"],
                   f"实际状态：{row.get('agent_status')}，原因：{row.get('reason_code') or row.get('stop_reason')}，耗时：{row.get('elapsed_seconds')} 秒",
                   "本次实际供证身份：\n" + json.dumps(row.get("supplied_evidence", {}), ensure_ascii=False, indent=2),
+                  self.actual_evidence_text[self.current],
                   "实际调查诊断（义务/缺口/停止原因）：\n" + json.dumps(row.get("acceptance_diagnostics", {}), ensure_ascii=False, indent=2),
-                  "冻结关键结论与禁增结论：\n" + json.dumps(item.get("gold", {}), ensure_ascii=False, indent=2)]
+                  "冻结金标准：关键结论与禁增结论（不代表本次实际供证）：\n" + json.dumps(item.get("gold", {}), ensure_ascii=False, indent=2)]
         for span in item.get("reviewed_context", {}).get("source_ranges", []):
             excerpt = _source_excerpt(self.source, span)
-            chunks.append(f"冻结源码 {excerpt['path']}:{excerpt['start_line']}-{excerpt['end_line']}\n{excerpt['excerpt']}")
+            chunks.append(f"冻结金标准源码 {excerpt['path']}:{excerpt['start_line']}-{excerpt['end_line']}\n{excerpt['excerpt']}")
         self.details.configure(state="normal")
         self.details.delete("1.0", "end")
         self.details.insert("1.0", "\n\n".join(chunks))

@@ -243,12 +243,15 @@ class ReleaseAcceptanceTests(unittest.TestCase):
                 self.assertTrue(result["candidate_allowed"], result)
 
     def test_prior_problem_coverage_cannot_be_replaced_by_easy_live_suite(self):
-        items = self.read("live_cases")["cases"]
-        items[0]["coverage"].remove("qualified_identity")
-        self.replace_live_suite(items)
-        result = self.run_gate()
-        self.assertFalse(result["publish_allowed"])
-        self.assertIn("LIVE_PRIOR_REGRESSIONS_MISSING", {row["code"] for row in result["publish_errors"]})
+        originals = self.read("live_cases")["cases"]
+        for missing in ("qualified_identity", "bare_group_field", "qualified_in_alias", "ambiguous_group_field"):
+            with self.subTest(missing=missing):
+                items = copy.deepcopy(originals)
+                items[0]["coverage"].remove(missing)
+                self.replace_live_suite(items)
+                result = self.run_gate()
+                self.assertFalse(result["publish_allowed"])
+                self.assertIn("LIVE_PRIOR_REGRESSIONS_MISSING", {row["code"] for row in result["publish_errors"]})
 
     def test_partial_requires_bound_diagnostics_and_specific_human_resolution(self):
         live = self.read("live_report")
