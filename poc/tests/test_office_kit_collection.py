@@ -72,6 +72,12 @@ class OfficeKitCollectionTests(unittest.TestCase):
             archive.writestr("OfficeAcceptance/HELPER-BUILD-INFO.json", json.dumps(metadata or self.helper_metadata))
             archive.writestr("OfficeAcceptance/runtime.dll", b"unit DLL fixture, never loaded")
             for name, value in extra:
+                if isinstance(name, str) and "\\" in name:
+                    # ZipInfo normalizes native separators on Windows. Write
+                    # the deliberately malformed header bytes on every host.
+                    malformed = zipfile.ZipInfo(name)
+                    malformed.filename = malformed.orig_filename = name
+                    name = malformed
                 archive.writestr(name, value)
 
     def generate_small_suite(self, destination, public_source, *, include_scale):

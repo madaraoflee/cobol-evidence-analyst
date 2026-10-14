@@ -117,9 +117,10 @@ def _package_identity(package, compiled, policy, errors):
         if not _check(errors, sum(entry.file_size for entry in entries) <= 1024 ** 3, "ARCHIVE_EXPANDED_SIZE_INVALID"):
             return identity
         for entry in entries:
-            path = PurePosixPath(entry.filename)
+            path = PurePosixPath(entry.orig_filename)
             if not _check(errors, not path.is_absolute() and ".." not in path.parts
                           and "\\" not in entry.filename and ":" not in entry.filename
+                          and entry.orig_filename == entry.filename
                           and not stat.S_ISLNK(entry.external_attr >> 16), "ARCHIVE_UNSAFE_MEMBER"):
                 return identity
         _check(errors, archive.testzip() is None, "ARCHIVE_CRC_FAILED")

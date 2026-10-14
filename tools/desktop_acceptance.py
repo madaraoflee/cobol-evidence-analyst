@@ -49,10 +49,11 @@ def inspect_package(archive, source_commit):
                 "DELIVERY_DUPLICATE_OR_EXCESSIVE_MEMBERS")
         require(sum(item.file_size for item in entries) <= 1024 ** 3, "DELIVERY_EXPANDED_SIZE")
         for item in entries:
-            path = PurePosixPath(item.filename)
+            path = PurePosixPath(item.orig_filename)
             require(not path.is_absolute() and ".." not in path.parts and "\\" not in item.filename
                     and ":" not in item.filename and not stat.S_ISLNK(item.external_attr >> 16),
                     "DELIVERY_UNSAFE_MEMBER")
+            require(item.orig_filename == item.filename, "DELIVERY_UNSAFE_MEMBER")
         require(BINARY_MEMBER in names and BUILD_MEMBER in names, "DELIVERY_MEMBERS_MISSING")
         require(package.testzip() is None, "DELIVERY_CRC_FAILED")
         metadata = json.loads(package.read(BUILD_MEMBER))

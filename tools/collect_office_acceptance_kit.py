@@ -68,10 +68,12 @@ def assemble(*, candidate, helper_archive, public_source, destination, source_co
                     "OFFICE_HELPER_ARCHIVE_DUPLICATES")
             require(sum(entry.file_size for entry in entries) <= 1024 ** 3, "OFFICE_HELPER_EXPANDED_SIZE")
             for entry in entries:
-                name, relative = entry.filename, PurePosixPath(entry.filename)
+                name = entry.orig_filename
+                relative = PurePosixPath(name)
                 require(not relative.is_absolute() and ".." not in relative.parts and ":" not in name
                     and "\\" not in name and not stat.S_ISLNK(entry.external_attr >> 16),
                     "OFFICE_HELPER_ARCHIVE_UNSAFE")
+                require(name == entry.filename, "OFFICE_HELPER_ARCHIVE_UNSAFE")
             require(archive.testzip() is None, "OFFICE_HELPER_CRC_FAILED")
             archive.extractall(stage / "helper")
         helper = stage / "helper/OfficeAcceptance/OfficeAcceptance.exe"
