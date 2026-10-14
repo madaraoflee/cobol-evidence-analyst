@@ -2,11 +2,11 @@
 
 正式发布要求同一份 Windows ZIP 同时具备原生离线回归、真实模型问答、逐条人工评审与目标办公设备验收。缺任何一项就保留为候选。构建成功或填写完评分表不代表答案正确。
 
-公司 Windows 设备优先使用[直接运行的验收包与步骤](office-acceptance-steps.md)：独立编译的向导带 Tk/运行时，冻结原应用 EXE，默认无调用计划、本机完整 55 样本回归、32 轮真实问答、逐项人工评审及本地门禁。无需使用者安装 Python、Git 或开发工具。`windows-office-acceptance.yml` 只编译辅助工具，在 Windows 启动它并复跑原 EXE；不将 CI 机器冒充公司设备，不调用公司模型或发布。
+公司 Windows 设备优先使用[直接运行的验收包与步骤](office-acceptance-steps.md)：独立编译的向导带 Tk/运行时，冻结原应用 EXE，默认无调用计划、本机完整 55 样本回归、35 轮真实问答、逐项人工评审及本地门禁。无需使用者安装 Python、Git 或开发工具。`windows-office-acceptance.yml` 只编译辅助工具，在 Windows 启动它并复跑原 EXE；不将 CI 机器冒充公司设备，不调用公司模型或发布。
 
 桌面主分支构建成功后，通过 `workflow_run` 自动生成与该次构建绑定的验收包。解析器只接受本仓库 main 的成功桌面 run，核对提交、attempt 与唯一候选 artifact；缺包、过期、重复或版本不符都会停止，不回退到旧 EXE。编译辅助工具前重算候选门禁，并核对同一验收合同及应用输入树。手动运行可明确指定该三项，全部留空时选择最新成功 main 构建；普通 push/PR 只检查辅助工作流，不会使用旧的默认包重编译套件。
 
-离线合同在原 17 案例、55 样本中嵌入 14 次独立默认 HTTP 问答，覆盖组字段与限定身份、歧义、明确的两条 IF 和 PIC 供证。每次有独立 run、答案及证据哈希、请求和耗时，耗时计入原样本门槛；静态调用来源与未实现段落还增加了实际诊断闭合检查。32 轮真实模型题集及 96 次自动请求上限保持单独记录；组内裸字段、IN 限定别名和同名字段歧义也必须完成真实问答与人工评审，正式门禁要求全部回归覆盖标签。
+离线合同在原 17 案例、55 样本中嵌入 14 次独立默认 HTTP 问答，覆盖组字段与限定身份、歧义、明确的两条 IF 和 PIC 供证。每次有独立 run、答案及证据哈希、请求和耗时，耗时计入原样本门槛；静态调用来源与未实现段落还增加了实际诊断闭合检查。35 轮真实模型题集及 105 次自动请求上限保持单独记录；组内裸字段、IN 限定别名和同名字段歧义也必须完成真实问答与人工评审，正式门禁要求全部回归覆盖标签。
 
 `windows-desktop.yml` 在相关主分支推送、PR 和手动构建时运行：固定版本 actionlint 校验 Actions 表达式 → 固定公开语料校验 → Python/浏览器回归 → MSVC 编译 → 启动最终 EXE 联合回归 → 候选门禁 → 上传白名单产物。失败会阻断候选上传；合成模型不能授权正式发布。候选产物含 ZIP、校验和、BUILD-INFO、逐样本原生报告、合同、候选策略与门禁结果。工作流语义检查使用 [actionlint 官方用法](https://github.com/rhysd/actionlint/blob/v1.7.7/docs/usage.md)，只在维护/CI 环境运行，不进入用户应用。
 
@@ -33,7 +33,7 @@ python tools/desktop_live_acceptance.py --archive <最终WindowsZIP> --source-co
 
 总请求上限至少覆盖计划的轮数乘单轮预算。没有额外 ping，不自动重试失败或不确定的远程请求。使用公司 CA 时显式加 `--ca-file <证书文件>`，目标方言/COPY 编译配置使用现有 `--compilation-context <JSON>`；配置哈希绑定到评审，逐轮检查未改变。运行隔离配置，不继承开发者环境。报告记录 EXE 实际生成的索引文件数、字节数、快照及源码选项，明确这是索引快照而非全库实时状态。用户应用本身仍无需 Python、Git 或编译器；这些命令供维护者验收使用。
 
-工具产生 `LIVE-ACCEPTANCE.json` 和未评分的 `HUMAN-REVIEW-TEMPLATE.json`。人工检查实际回答与证据后另存评分文件：每条 required finding 记录 met/partial/missed，每条 forbidden claim 记录是否出现；填写可用性、追问连续性、评审人和时间。办公验收记录绑定 ZIP/EXE/commit、evaluation_run_id 和最终报告 SHA。改答案、模型、prompt、policy、gold、供证范围、用时或包文件都会使旧评审失效。报告中的实际历史与 prompt 哈希来自 EXE 发出的请求，不能用维护脚本当前代码代替。
+工具产生 `LIVE-ACCEPTANCE.json` 和未评分的 `HUMAN-REVIEW-TEMPLATE.json`。人工检查实际回答与证据后另存评分文件：每条 required finding 记录 met/omitted/incorrect，每条 forbidden claim 记录是否出现；填写可用性、追问连续性、评审人和时间。办公验收记录绑定 ZIP/EXE/commit、evaluation_run_id 和最终报告 SHA。改答案、模型、prompt、policy、gold、供证范围、用时或包文件都会使旧评审失效。报告中的实际历史与 prompt 哈希来自 EXE 发出的请求，不能用维护脚本当前代码代替。
 
 唯一受支持的正式发布入口是以下工具，默认仅本地检查：
 

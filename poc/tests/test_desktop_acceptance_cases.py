@@ -158,6 +158,34 @@ class DesktopAcceptanceEvidenceTests(unittest.TestCase):
             items[1]["candidate_count"] = 1
             self.assertFalse(_quality_checks(case, agent, self.root, [self.page], trace)["quality_noop_scope_not_monthly_interest"])
 
+    def test_file_mapping_requires_bound_file_and_actual_layout_and_io_evidence(self):
+        import copy
+        case = {"id": "public_file_record_mapping", "corpus": "public", "public_case_id": "file-record-mapping",
+                "required_answer_text": [], "unverified_prose": True}
+        agent = {"status": "ANALYZED", "answer": "ACCOUNT-FILE", "claim_ledger": {}}
+        entity = {"entity_type": "FileRef", "file_name": "ACCOUNT-FILE", "binding_status": "bound",
+            "external_identity_verified": False, "diagnostics": [], "source_versions": [{
+                "relative_path": "entry.cbl", "source_sha256": self.version, "start_line": 1, "end_line": 2}]}
+        trace = {"final": {"question_investigation": {"analysis_plan": {"file_entities": [entity]},
+            "required_items": [{"kind": kind, "status": "SATISFIED", "evidence_ids": [self.page["evidence_id"]]}
+                for kind in ("file_definitions", "file_layout", "copy_layout", "file_io")], "open_gaps": []}}}
+        def checked(value, pages):
+            with mock.patch("tools.desktop_acceptance_cases._public_case", return_value={
+                    "mechanism": {"source_assertions": []}}):
+                return _quality_checks(case, agent, self.root, pages, value)["completeness_file_entity_bound"]
+        self.assertTrue(checked(trace, [self.page]))
+        self.assertFalse(checked({}, [self.page]))
+        self.assertFalse(checked(trace, [{**self.page, "source_sha256": "0" * 64}]))
+        for change in ({"binding_status": "candidate"}, {"external_identity_verified": True},
+                       {"source_versions": []}, {"diagnostics": ["file_reference_ambiguous"]}):
+            changed = copy.deepcopy(trace)
+            changed["final"]["question_investigation"]["analysis_plan"]["file_entities"][0].update(change)
+            self.assertFalse(checked(changed, [self.page]))
+        for change in ({"status": "OPEN"}, {"evidence_ids": ["not_supplied"]}):
+            changed = copy.deepcopy(trace)
+            changed["final"]["question_investigation"]["required_items"][-1].update(change)
+            self.assertFalse(checked(changed, [self.page]))
+
     def test_ambiguity_requires_preserved_qualified_candidates_and_real_obligation(self):
         probe = {"id": "ambiguous_group_field", "expected_candidate_count": 1}
         investigation = {"required_items": [{"kind": "formula", "status": "SATISFIED",

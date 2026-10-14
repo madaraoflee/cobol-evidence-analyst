@@ -454,6 +454,23 @@ def _quality_checks(case, agent, output, pages, trace=None):
                 and _obligation(trace or {}, "dependencies").get("status") in {"SATISFIED", "NOT_APPLICABLE"}
                 and not _obligation(trace or {}, "dependencies").get("targets")
                 and not investigation.get("open_gaps"))
+        if case["public_case_id"] == "file-record-mapping":
+            investigation = _investigation(trace or {})
+            entities = investigation.get("analysis_plan", {}).get("file_entities", [])
+            file_entities = [entity for entity in entities if entity.get("file_name") == "ACCOUNT-FILE"]
+            supplied_ids = {page["evidence_id"] for page in pages}
+            obligations = [_obligation(trace or {}, kind) for kind in
+                           ("file_definitions", "file_layout", "copy_layout", "file_io")]
+            bound = bool(file_entities) and all(entity.get("entity_type") == "FileRef"
+                and entity.get("binding_status") == "bound" and entity.get("external_identity_verified") is False
+                and not entity.get("diagnostics") and ranges_supplied(pages, [{
+                    "path": ref["relative_path"], "sha256": ref["source_sha256"],
+                    "start_line": ref["start_line"], "end_line": ref["end_line"]}
+                    for ref in entity.get("source_versions", [])]) for entity in file_entities)
+            result["completeness_file_entity_bound"] = bool(bound and all(item.get("status") == "SATISFIED"
+                and item.get("evidence_ids") and set(item["evidence_ids"]) <= supplied_ids for item in obligations)
+                and not any(gap.get("reason") in {"requested_field_not_bound", "business_steps_not_located"}
+                            for gap in investigation.get("open_gaps", [])))
     return result
 
 

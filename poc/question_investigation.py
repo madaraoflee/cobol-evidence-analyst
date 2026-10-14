@@ -37,6 +37,171 @@ _MAX_FIELDS = 32
 _MAX_INPUT_DEPTH = 4
 
 
+def _file_mapping_candidates(database_path, paths, question, source_scopes=()):
+    """Nominate file identity/layout from versioned local source, not DataRefs."""
+    references = set(question_references(question))
+    requested_names = {name for name in references if name.endswith("-FILE")}
+    explicit_mapping = bool(re.search(r"(?:文件|\bfiles?\b).*(?:映射|布局|对应|對應|路径|路徑|mapping|layout)|"
+        r"(?:SELECT|FD|ASSIGN)\b", question, re.I))
+    if not requested_names and not explicit_mapping:
+        return [], [], {}, []
+    from file_impact_evidence import _definitions, _lines
+
+    candidates, frontier, entities, hashes = [], [], [], {}
+    encoded = quote(Path(database_path).resolve().as_posix(), safe="/:")
+    with closing(sqlite3.connect(f"file:{encoded}?mode=ro", uri=True)) as db:
+        db.row_factory = sqlite3.Row
+        tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type IN ('table','view')")}
+        if "repo_pages" not in tables:
+            return [], [{"kind": "file_definitions", "reason": "indexed_source_pages_unavailable"}], {}, []
+        scoped = paths[:_MAX_PATHS]
+        slots = ",".join("?" for _ in scoped)
+        files = {row["relative_path"]: dict(row) for row in db.execute(
+            f"SELECT relative_path,sha256,artifact_kind FROM source_files WHERE relative_path IN ({slots})", scoped)}
+        hashes = {path: row["sha256"] for path, row in files.items()}
+        definitions, layouts, compilation_lines = [], {}, {}
+        options = db.execute("SELECT value FROM metadata WHERE key='source_options'").fetchone()
+        context = json.loads(options[0]).get("compilation_context", {}) if options else {}
+        def apply_compilation(row):
+            statuses = compilation_lines[row["relative_path"]]
+            guards = [guard for number in range(row["start_line"], row["end_line"] + 1)
+                      for guard in statuses.get(number, {}).get("guards", ())]
+            unknown = any(statuses.get(number, {}).get("status") is None
+                          for number in range(row["start_line"], row["end_line"] + 1))
+            if unknown:
+                return {**row, "compilation_status": "candidate", "unresolved": True,
+                        "unresolved_reason": "compile_condition_unknown", "target_name": named(row)[1],
+                        "compilation_guards": list({json.dumps(guard, sort_keys=True): guard for guard in guards}.values())}
+            return row
+        def words(text):
+            try:
+                return [token.value for token in lex_cobol(text)]
+            except CobolLexError:
+                return []
+        def named(row):
+            tokens = words(row["statement"])
+            offset = 2 if tokens[:2] == ["SELECT", "OPTIONAL"] else 1
+            return (tokens[0], tokens[offset]) if len(tokens) > offset else (None, None)
+        for path, file in files.items():
+            local_frontier = []
+            lines = _lines(db, path, file["sha256"], tables, local_frontier)
+            from statement_facts import CompilationGuardState
+            compilation = CompilationGuardState(context)
+            statuses, active_lines = {}, {}
+            for number, code in sorted(lines.items()):
+                directive = compilation.feed(code, number)
+                statuses[number] = {"status": compilation.status, "guards": compilation.guards}
+                active_lines[number] = "" if directive or compilation.status is False else code
+            for guard in compilation.finish():
+                for number in statuses:
+                    if number >= guard["source_line"] and statuses[number]["status"] is True:
+                        statuses[number]["status"] = None
+            compilation_lines[path], lines = statuses, active_lines
+            rows, _ = _definitions(path, lines, file["sha256"], False, local_frontier)
+            definitions.extend(apply_compilation(row) for row in rows if named(row)[0] in {"SELECT", "FD"})
+            layout_rows, _ = _definitions(path, lines, file["sha256"], True, local_frontier)
+            layouts[path] = [apply_compilation(row) for row in layout_rows if named(row)[0] in {"01", "77"}]
+            frontier.extend(local_frontier)
+        available = {named(row)[1] for row in definitions}
+        path_index = " INDEXED BY idx_symbols_path" if db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_symbols_path'").fetchone() else ""
+        requested_names = {name for name in requested_names if name in available or not db.execute(
+            "SELECT 1 FROM symbols" + path_index + f" WHERE relative_path IN ({slots}) AND name=? "
+            "AND symbol_type IN ('Field','ConditionName') LIMIT 1", (*scoped, name)).fetchone()}
+        requested_names.update(references.intersection(available))
+        if not requested_names:
+            if not explicit_mapping:
+                return [], [], {}, []
+            return [], [{"kind": "file_definitions", "reason": "file_entity_not_located"}], hashes, []
+        for name in sorted(requested_names):
+            selected = [row for row in definitions if named(row)[1] == name]
+            selects = [row for row in selected if named(row)[0] == "SELECT"]
+            descriptions = [row for row in selected if named(row)[0] == "FD"]
+            bound = len(selects) == len(descriptions) == 1 and selects[0]["relative_path"] == descriptions[0]["relative_path"]
+            reasons = []
+            if not selects or not descriptions:
+                reasons.append("file_declaration_missing")
+            if len(selects) > 1 or len(descriptions) > 1:
+                reasons.append("file_reference_ambiguous")
+            if not selected:
+                reasons = ["file_entity_not_located"]
+            if any(row.get("compilation_status") == "candidate" for row in selected):
+                bound = False
+                reasons.append("compile_condition_unknown")
+            for reason in reasons:
+                frontier.append({"kind": "file_definitions", "reason": reason, "file_name": name,
+                                 "select_count": len(selects), "fd_count": len(descriptions)})
+            entities.append({"entity_type": "FileRef", "file_name": name, "binding_status": "bound" if bound else "candidate",
+                "source_versions": [{"relative_path": row["relative_path"], "source_sha256": row["source_sha256"],
+                    "start_line": row["start_line"], "end_line": row["end_line"]} for row in selected],
+                "external_identity_verified": False, "diagnostics": reasons})
+            candidates.extend({**row, "file_name": name} for row in selected)
+            records = set()
+            for row in descriptions:
+                record_rows = [layout for layout in layouts[row["relative_path"]]
+                    if row["start_line"] <= layout["start_line"] <= row["end_line"]]
+                records.update(named(layout)[1] for layout in record_rows)
+                candidates.append({**row, "kind": "file_layout", "file_name": name})
+                if len(record_rows) != 1:
+                    frontier.append({"kind": "file_layout", "reason": "file_record_layout_ambiguous_or_missing", "file_name": name})
+            work_records = set()
+            host_paths = {row["relative_path"] for row in selected}
+            for path in host_paths:
+                rows = db.execute("SELECT b.* FROM business_rules b WHERE relative_path=? "
+                    "AND rule_kind IN ('READ','START','WRITE','REWRITE','DELETE') ORDER BY first_line,rule_id LIMIT 65", (path,)).fetchall()
+                if len(rows) > 64:
+                    frontier.append({"kind": "file_io", "reason": "file_io_candidate_budget", "relative_path": path})
+                for row in rows[:64]:
+                    statuses = compilation_lines[path]
+                    if any(statuses.get(number, {}).get("status") is False
+                           for number in range(row["first_line"], row["last_line"] + 1)):
+                        continue
+                    tokens = words(row["normalized_text"])
+                    if len(tokens) < 2 or tokens[1] not in {name, *records}:
+                        continue
+                    limits = [scope for scope in source_scopes if scope["relative_path"] == path and scope.get("exclusive") is not False]
+                    if limits and not any(scope["start_line"] <= row["first_line"] <= row["last_line"] <= scope["end_line"] for scope in limits):
+                        continue
+                    candidates.append(apply_compilation({**_rule(row, "file_io"), "reads": [], "writes": [],
+                                                        "source_sha256": hashes[path], "file_name": name}))
+                    for marker in ("INTO", "FROM"):
+                        if marker in tokens and tokens.index(marker) + 1 < len(tokens):
+                            work_records.add(tokens[tokens.index(marker) + 1])
+            for record in sorted(work_records):
+                local = [row for path in host_paths for row in layouts[path] if named(row)[1] == record]
+                copied = []
+                for path in host_paths:
+                    for edge in db.execute("SELECT r.status,r.target_name,s.relative_path AS target_path,e.* FROM relations r "
+                        "JOIN evidence_spans e USING(evidence_id) LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
+                        "WHERE r.relative_path=? AND r.relation_type='INCLUDES_COPY' ORDER BY e.start_line LIMIT 65", (path,)):
+                        member = [row for row in layouts.get(edge["target_path"], ()) if named(row)[1] == record]
+                        if not member:
+                            if edge["status"] != "confirmed":
+                                frontier.append({"kind": "copy_layout", "reason": "copy_layout_member_not_located",
+                                                 "target_name": edge["target_name"], "record_name": record})
+                            continue
+                        call = {"kind": "copy_layout", "relative_path": path, "source_sha256": hashes[path],
+                            "start_line": edge["start_line"], "end_line": edge["end_line"], "statement": edge["text"],
+                            "reads": [], "writes": [], "occurrence_count": 1, "file_name": name, "record_name": record}
+                        candidates.append(call)
+                        status = compilation_lines[path].get(edge["start_line"], {}).get("status")
+                        if status is not True or any(row.get("compilation_status") == "candidate" for row in member):
+                            candidates[-1] = {**call, "unresolved": True, "unresolved_reason": "compile_condition_unknown",
+                                              "target_name": edge["target_name"]}
+                            frontier.append({"kind": "copy_layout", "reason": "compile_condition_unknown", "record_name": record})
+                            continue
+                        if edge["status"] != "confirmed" or words(edge["text"]) != ["COPY", edge["target_name"], "."]:
+                            frontier.append({"kind": "copy_layout", "reason": "copy_layout_binding_unresolved", "record_name": record})
+                        else:
+                            copied.extend(member)
+                if len(local) + len(copied) != 1:
+                    frontier.append({"kind": "file_layout", "reason": "work_record_layout_ambiguous_or_missing", "record_name": record})
+                candidates.extend({**row, "kind": "file_layout" if row in local else "copy_layout", "file_name": name,
+                                   "record_name": record} for row in [*local, *copied])
+            entities[-1]["record_names"] = sorted(records | work_records)
+    return candidates, frontier, hashes, entities
+
+
 def _get(value, name, default=None):
     return value.get(name, default) if isinstance(value, Mapping) else getattr(value, name, default)
 
@@ -326,11 +491,11 @@ def _parsed_controlled_rules(db, headers, tokens, rules_table, occurrence_table)
 
 
 def _indexed_candidates(database_path, paths, question, *, business_steps=False, root_paths=None,
-                        file_impact=False, source_scopes=(), discovery_terms=()):
+                        file_impact=False, source_scopes=(), discovery_terms=(), nondata_entities=()):
     """Select exact field obligations before applying bounded source budgets."""
     candidates, frontier, hashes = [], [], {}
     primary_kind = "business_steps" if business_steps else "formula"
-    tokens = set(question_references(question))
+    tokens = set(question_references(question)) - set(nondata_entities)
     encoded = quote(Path(database_path).resolve().as_posix(), safe="/:")
     with closing(sqlite3.connect(f"file:{encoded}?mode=ro", uri=True)) as db:
         db.row_factory = sqlite3.Row
@@ -777,10 +942,8 @@ def _flow_input_origins(candidates, pages, evidence_groups):
             pair = candidate["relative_path"], field
             reads.setdefault(pair, []).append((candidate, occurrences))
     resolved, invalidated, witnesses = set(), set(), []
-    unsafe_reasons = {"reaching_write_effect_not_bounded", "call_binding_or_normal_return_not_demonstrated",
-                      "read_storage_not_exact", "source_flow_incomplete"}
     for pair, candidates_and_occurrences in reads.items():
-        matched, complete, identifiers = [], True, []
+        matched, complete, identifiers, missing_readers = [], True, [], []
         for candidate, occurrences in candidates_and_occurrences:
             if not occurrences:
                 complete = False
@@ -793,24 +956,44 @@ def _flow_input_origins(candidates, pages, evidence_groups):
                         for ref in proof.get("reader_source_refs", []))]
                 if not matches:
                     complete = False
+                    missing_readers.append({"relative_path": pair[0], "source_sha256": candidate.get("source_sha256"),
+                        "field": pair[1], "statement": candidate["statement"], "start_line": occurrence["start_line"],
+                        "end_line": occurrence["end_line"], "start_column": occurrence.get("start_column")})
                 for proof in matches:
+                    # A source-flow proof matched to this read still controls
+                    # closure when one of its required excerpts is absent.
+                    # A supplied VALUE declaration cannot substitute for the
+                    # missing assignment/call/context that this proof needs.
+                    matched.append(proof)
                     reference_ids = [supplied(ref) for ref in proof.get("source_refs", [])]
                     if not reference_ids or not all(reference_ids):
                         complete = False
                         continue
                     identifiers.extend(identifier for values in reference_ids for identifier in values)
-                    matched.append(proof)
                     if proof.get("status") != "resolved_source_origin":
                         complete = False
-                        if unsafe_reasons.intersection(proof.get("unknown_reasons", [])):
+                        if proof.get("status") == "unresolved_source_origin":
+                            # A version- and occurrence-matched flow proof
+                            # takes precedence over a standalone VALUE clause.
+                            # Retain its exact unknown rather than allowing a
+                            # declaration to close loop/reentry/read provenance.
                             invalidated.add(pair)
         if matched:
+            if not complete:
+                invalidated.add(pair)
+            initial_definitions = {json.dumps(definition, sort_keys=True): definition for proof in matched
+                                   for definition in proof.get("initial_definitions", [])}
             witnesses.append({"relative_path": pair[0], "field": pair[1],
                 "status": "source_origin_supplied" if complete else "source_origin_unresolved",
                 "basis": "reaching_definitions_and_confirmed_call_returns",
                 "evidence_ids": list(dict.fromkeys(identifiers)),
                 "reader_occurrences": list(dict.fromkeys(proof["reader_occurrence_id"] for proof in matched)),
                 "unknown_reasons": sorted({reason for proof in matched for reason in proof.get("unknown_reasons", [])}),
+                "initial_definitions": list(initial_definitions.values()),
+                "activation_semantics": sorted({definition["activation_semantics"] for definition in initial_definitions.values()
+                                                if definition.get("activation_semantics")}),
+                "runtime_value_known": False,
+                "missing_reader_occurrences": list({json.dumps(row, sort_keys=True): row for row in missing_readers}.values()),
                 "execution_verified": False})
         if complete and matched:
             resolved.add(pair)
@@ -1086,9 +1269,16 @@ def build_question_investigation(question, business_map, *, database_path=None,
     else:
         source_scopes = _question_scopes(database_path, _calculation_roots(business_map, source_pages),
                                         str(question), history) if database_path else []
+    file_key = (str(database_path), business_map.get("snapshot_id"), tuple(paths[:_MAX_PATHS]), str(question))
+    if isinstance(candidate_cache, dict) and candidate_cache.get("file_question_key") == file_key:
+        file_candidates, file_frontier, file_hashes, file_entities = candidate_cache["file_question_facts"]
+    else:
+        file_candidates, file_frontier, file_hashes, file_entities = _file_mapping_candidates(
+            database_path, paths, str(question), source_scopes) if database_path and paths else ([], [], {}, [])
     plan = QuestionPlanner().plan(question, business_map, source_pages=source_pages, history=history,
                                   entity_validator=validate_entity if database_path else None,
-                                  source_scopes=source_scopes)
+                                  source_scopes=source_scopes, file_entities=file_entities,
+                                  file_impact=is_file_impact_question(question))
     candidate_question = str(question) + (" " + " ".join(plan.entities) if plan.entities else "")
     base = {"scope": "source_candidates", "semantic_execution_verified": False,
             "analysis_plan": plan.to_dict(),
@@ -1104,8 +1294,10 @@ def build_question_investigation(question, business_map, *, database_path=None,
     calculation_kind = calculation_intent(intent_question)
     calculation = calculation_kind == "rules"
     file_impact = is_file_impact_question(question)
+    file_mapping = bool(file_entities or file_frontier)
+    file_only = bool(file_entities) and not file_impact and set(plan.intents) == {"file_mapping"}
     business_steps = not calculation and (calculation_kind == "execution" or bool(_BUSINESS_DETAIL.search(question))
-        or wants_behavior_explanation(question) or file_impact or
+        or wants_behavior_explanation(question) or file_impact or file_mapping or
         bool(set(plan.intents) & {"origin", "overwrite", "impact", "condition", "exception"}) or bool(source_scopes))
     if not calculation and not business_steps:
         supplied = [page.get("evidence_id") for page in source_pages if page.get("evidence_id")
@@ -1136,6 +1328,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
         paths = _calculation_paths(business_map, source_pages, source_scopes=source_scopes)
         root_paths = _calculation_roots(business_map, source_pages)
     scope_cache = {"scope_map": business_map, "scope_history_roots": history_roots,
+                   "file_question_key": file_key, "file_question_facts": (file_candidates, file_frontier, file_hashes, file_entities),
                    "question_scope_key": scope_key, "question_scopes": source_scopes,
                    "planner_entities": planner_entities,
                    "scope_snapshot": business_map.get("snapshot_id"),
@@ -1154,25 +1347,32 @@ def build_question_investigation(question, business_map, *, database_path=None,
             candidates, frontier, hashes = candidate_cache["value"]
             business_steps = candidate_cache.get("business_steps", business_steps)
         else:
-            candidates, frontier, hashes = _indexed_candidates(database_path, paths, candidate_question,
+            if file_only:
+                candidates, frontier, hashes = list(file_candidates), list(file_frontier), dict(file_hashes)
+            else:
+                candidates, frontier, hashes = _indexed_candidates(database_path, paths, candidate_question,
                 business_steps=business_steps, root_paths=root_paths, file_impact=file_impact, source_scopes=source_scopes,
-                discovery_terms=business_map.get("search_terms", ()))
-            if calculation and not any(row["kind"] == "formula" for row in candidates):
+                discovery_terms=business_map.get("search_terms", ()), nondata_entities=[entity["file_name"] for entity in file_entities])
+            if calculation and not file_only and not any(row["kind"] == "formula" for row in candidates):
                 # Some calculations select or transfer values through branches.
                 # Reuse the existing bounded step selection without asserting a
                 # formula, complete value flow, or any actual runtime result.
                 steps, step_frontier, step_hashes = _indexed_candidates(database_path, paths, candidate_question,
                     business_steps=True, root_paths=root_paths, file_impact=file_impact, source_scopes=source_scopes,
-                    discovery_terms=business_map.get("search_terms", ()))
+                    discovery_terms=business_map.get("search_terms", ()), nondata_entities=[entity["file_name"] for entity in file_entities])
                 if any(row["kind"] == "business_steps" for row in steps):
                     business_steps = True
                     candidates, frontier, hashes = steps, step_frontier, step_hashes
             if file_impact:
-                file_candidates, file_frontier, file_hashes = nominate_file_impact_evidence(database_path, paths)
+                impact_candidates, impact_frontier, impact_hashes = nominate_file_impact_evidence(database_path, paths)
+                candidates.extend(impact_candidates)
+                frontier.extend(impact_frontier)
+                hashes.update(impact_hashes)
+            if file_mapping and not file_only:
                 candidates.extend(file_candidates)
                 frontier.extend(file_frontier)
                 hashes.update(file_hashes)
-            dependencies, dependency_frontier = _dependencies(database_path, list(hashes), candidates, hashes,
+            dependencies, dependency_frontier = ([], []) if file_only else _dependencies(database_path, list(hashes), candidates, hashes,
                                                               business_steps=business_steps, source_scopes=source_scopes)
             candidates.extend(dependencies)
             frontier.extend(dependency_frontier)
@@ -1216,6 +1416,8 @@ def build_question_investigation(question, business_map, *, database_path=None,
         kinds.insert(0, "business_steps")
     if file_impact:
         kinds.extend(("file_io", "file_definitions", "dds_definitions"))
+    if file_mapping:
+        kinds.extend(kind for kind in ("file_definitions", "file_layout", "copy_layout", "file_io") if kind not in kinds)
     for kind in kinds:
         related = [row for row in candidates if row["kind"] == kind]
         supplied, absent, unresolved = [], [], []
@@ -1228,7 +1430,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
             if row.get("unresolved"):
                 unresolved.append(row)
         missing.extend(absent)
-        primary = ("procedure_body" if any(row["kind"] == "procedure_body" for row in candidates)
+        primary = ("file_definitions" if file_only else "procedure_body" if any(row["kind"] == "procedure_body" for row in candidates)
                    and not any(row["kind"] in {"business_steps", "formula"} for row in candidates)
                    else "business_steps" if business_steps else "formula")
         required = kind == primary
@@ -1258,6 +1460,12 @@ def build_question_investigation(question, business_map, *, database_path=None,
                                    *row.get("input_fields", [])]}
     flow_origins, invalidated_origins, origin_witnesses = _flow_input_origins(candidates, pages, evidence_groups)
     input_origins = (input_origins - invalidated_origins) | flow_origins
+    # The field-name graph is an overapproximation without occurrence order.
+    # Replace only its cycle warning for reads whose stronger source-flow
+    # witnesses are closed for every supplied version/context/occurrence.
+    frontier = [gap for gap in frontier if not (gap.get("reason") == "input_dependency_cycle"
+        and (gap.get("relative_path"), gap.get("field")) in flow_origins
+        and (gap.get("relative_path"), gap.get("field")) not in invalidated_origins)]
     if origin_witnesses:
         item = next(item for item in items if item["kind"] == "inputs")
         item["source_flow_origins"] = origin_witnesses
@@ -1322,7 +1530,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
         last = row["end_line"] if row.get("occurrence_count", 1) == 1 else key[1] + 8
         read = {"relative_path": key[0], "start_line": max(1, key[1] - 4),
                 "end_line": min(max(key[1] + 8, last), key[1] + 96)}
-        file_source = row["kind"] in {"procedure_body", "declarations", "file_io", "file_definitions", "dds_definitions"}
+        file_source = row["kind"] in {"procedure_body", "declarations", "file_io", "file_definitions", "file_layout", "copy_layout", "dds_definitions"}
         if file_source:
             read = {"relative_path": key[0], "start_line": key[1], "end_line": last}
         if scope_read:
@@ -1392,6 +1600,13 @@ def build_question_investigation(question, business_map, *, database_path=None,
     input_coverage = next(item for item in items if item["kind"] == "inputs")
     for group in evidence_groups:
         for gap in _get(group, "open_frontier", ()):
+            if (file_only and gap.get("relation_type") in {"CALLS", "CALL_TARGET_FROM", "PERFORMS", "PERFORMS_THRU"}
+                    and all(item["status"] in {"SATISFIED", "NOT_APPLICABLE"} for item in items
+                            if item["kind"] in {"file_definitions", "file_layout", "copy_layout", "file_io"})
+                    and all(entity["binding_status"] == "bound" for entity in file_entities)):
+                base.setdefault("scope_exclusions", []).append({"frontier": dict(gap),
+                    "basis": "supplied_static_file_mapping_does_not_establish_runtime_effects_or_external_identity"})
+                continue
             if (gap.get("reason") in {"caller_candidates_limited", "caller_expansion_candidates_limited",
                                       "caller_nearby_candidates_limited"}
                     and input_coverage["status"] in {"SATISFIED", "NOT_APPLICABLE"}):
@@ -1408,11 +1623,13 @@ def build_question_investigation(question, business_map, *, database_path=None,
     boundary_supplied = bool(external and external["evidence_ids"])
     state = "needs_evidence" if plans else "bounded_partial" if gaps else "located"
     file_observations = {}
-    if file_impact:
+    if file_impact or file_mapping:
         from file_impact import collect_file_impact
         file_observations = {"file_impact": collect_file_impact(pages)}
-    known_file_supplied = any(row["kind"] in {"io_operation", "field_assignment"}
-        for row in file_observations.get("file_impact", {}).get("observations", []))
+    known_file_supplied = (any(item["kind"] in {"file_definitions", "file_layout", "copy_layout", "file_io"}
+        and item["evidence_ids"] for item in items) if file_only else any(row["kind"] in
+        {"io_operation", "field_assignment", "file_declaration", "record_binding"}
+        for row in file_observations.get("file_impact", {}).get("observations", [])))
     return {**base, **file_observations, "required_items": items, "planned_actions": plans, "open_gaps": gaps[:16],
             "state": state, "can_answer": (formula_supplied or boundary_supplied or known_file_supplied) and not plans,
             "candidate_paths": paths[:_MAX_PATHS],

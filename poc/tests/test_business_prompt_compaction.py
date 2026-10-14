@@ -170,7 +170,9 @@ class BusinessPromptCompactionTests(unittest.TestCase):
             "kind": "inputs", "status": "SATISFIED", "evidence_ids": ["ev:source-0"],
             "source_flow_origins": [{"relative_path": "rule.cbl", "field": "INPUT-AMOUNT",
                 "status": "closed", "basis": "supplied_source_flow", "unknown_reasons": [],
-                "execution_verified": False, "reader_occurrences": [{"occurrence_id": "read-1",
+                "execution_verified": False, "runtime_value_known": False,
+                "activation_semantics": ["first_activation_or_initial_or_cancelled_program"],
+                "reader_occurrences": [{"occurrence_id": "read-1",
                     "source_refs": [{"source_sha256": "a" * 64, "start_line": 4,
                                      "end_line": 4}], "definitions": ["write-1"]}]}]}]
         original = deepcopy(payload)
@@ -180,6 +182,9 @@ class BusinessPromptCompactionTests(unittest.TestCase):
         self.assertEqual(item["source_flow_origin_occurrences_omitted"], 1)
         self.assertNotIn("reader_occurrences", item["source_flow_origins"][0])
         self.assertIs(item["source_flow_origins"][0]["execution_verified"], False)
+        self.assertIs(item["source_flow_origins"][0]["runtime_value_known"], False)
+        self.assertEqual(item["source_flow_origins"][0]["activation_semantics"],
+                         ["first_activation_or_initial_or_cancelled_program"])
         self.assertEqual(wire["source_context"][0]["pages"], original["source_context"][0]["pages"])
         self.assertEqual(payload, original)
         self.assertEqual(payload["question_investigation"]["required_items"][0]

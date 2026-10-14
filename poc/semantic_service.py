@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from contextlib import closing
 from dataclasses import asdict, dataclass, field, replace
+from decimal import Decimal, InvalidOperation
 import hashlib
 import json
 from pathlib import Path
@@ -17,18 +18,57 @@ import sqlite3
 
 from call_bindings import parse_call, parse_signature
 from statement_parser import parse_statements, SourceSpan
-from statement_facts import data_references, CompilationGuardState, program_identifier, program_identifiers
+from statement_facts import data_references, CompilationGuardState, program_identifier, program_identifiers, lex_cobol, CobolLexError
 from numeric_semantics import receiving_contract, store_decimal
 from parser_adapter import BuiltinParserAdapter
 from semantic_ir import bind_reference, compilation_ir_from_dict, unbounded_region_ids
 from structural_index import read_source_document, DIVISION_RE, SECTION_RE, PARAGRAPH_RE, PARAGRAPH_EXCLUSIONS
 
 
-SERVICE_VERSION = "bounded-semantic-service/v9"
+SERVICE_VERSION = "bounded-semantic-service/v10"
 
 
 def _key(*parts):
     return hashlib.sha256(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:24]
+
+
+def _supported_initial_literal(item):
+    """Recognize a bounded legal VALUE literal, without evaluating runtime bytes."""
+    try:
+        tokens = lex_cobol(item.value, max_tokens=8)
+    except (CobolLexError, TypeError):
+        return False
+    if not tokens or len(tokens) > 2:
+        return False
+    value = "".join(token.value for token in tokens)
+    if item.digits is not None and item.scale is not None:
+        if item.digits > 31 or item.usage not in {"DISPLAY", "COMP-3", "COMPUTATIONAL-3", "PACKED-DECIMAL"}:
+            return False
+        if len(tokens) == 1 and value in {"ZERO", "ZEROS", "ZEROES"}:
+            return True
+        if not (tokens[-1].kind == "number" and (len(tokens) == 1 or
+                tokens[0].kind == "symbol" and tokens[0].value in {"+", "-"})):
+            return False
+        try:
+            number = Decimal(value)
+        except InvalidOperation:
+            return False
+        if not number.is_finite() or number.is_signed() and not item.signed:
+            return False
+        return (abs(number) < Decimal(10) ** (item.digits - item.scale)
+                and max(0, -number.as_tuple().exponent) <= item.scale)
+    if (item.usage != "DISPLAY" or not item.picture or
+            not re.fullmatch(r"[XA](?:\([1-9][0-9]*\))?(?:[XA](?:\([1-9][0-9]*\))?)*", item.picture)):
+        return False
+    if len(tokens) != 1:
+        return False
+    if value in {"SPACE", "SPACES"}:
+        return True
+    if tokens[0].kind != "literal":
+        return False
+    content = value[1:-1].replace(value[0] * 2, value[0])
+    capacity = sum(int(match[1] or 1) for match in re.finditer(r"[XA](?:\(([1-9][0-9]*)\))?", item.picture))
+    return len(content) <= capacity and ("A" not in item.picture or all(char.isalpha() or char == " " for char in content))
 
 
 class FactStore:
@@ -41,6 +81,7 @@ class FactStore:
                                 {item["relative_path"]: item for item in source_manifest or ()})
         self._programs, self._parses = {}, {}
         self._storage_refs = {}
+        self._initial_sources = {}
         self.query_count = 0
         with closing(sqlite3.connect(self.database_path)) as db:
             self._has_ir = bool(db.execute("SELECT 1 FROM sqlite_master WHERE name='semantic_ir_documents'").fetchone())
@@ -164,7 +205,8 @@ class FactStore:
             if cache_key not in self._parses:
                 self._parses[cache_key] = parse_statements(text, start_line=first, source_format=parse_format, check_cancel=self.check_cancel)
             parsed[block] = self._parses[cache_key]
-        fields = self.rows("SELECT s.symbol_id,s.name,s.qualified_name,u.normalized_text,p.name AS storage_section FROM symbols s "
+        fields = self.rows("SELECT s.symbol_id,s.name,s.qualified_name,u.normalized_text,p.name AS storage_section,"
+                           "p.start_line AS section_start_line,p.end_line AS section_end_line FROM symbols s "
                            "JOIN code_units u ON u.unit_id=s.definition_unit_id "
                            "LEFT JOIN code_units p ON p.unit_id=u.parent_unit_id AND p.unit_type='Section' "
                            "WHERE s.relative_path=? AND s.symbol_type IN ('Field','ConditionName')", (path,))
@@ -195,6 +237,7 @@ class FactStore:
         unbounded = unbounded_region_ids(ir.storage_regions, check_cancel=self.check_cancel)
         result.update(items_by_name=items_by_name, children=children, roots=roots,
                       items={item.item_id: item for item in ir.data_items},
+                      canonical_ids={name: identifier for identifier, name in canonical.items()},
                       item_order={item.item_id: index for index, item in enumerate(ir.data_items)},
                       regions={region.item_id: region for region in ir.storage_regions},
                       alias_roots={region.root_id for region in ir.storage_regions
@@ -203,9 +246,20 @@ class FactStore:
                       fields_by_name=fields_by_name, fields_by_qualified=fields_by_qualified)
         self._programs[path] = result
         result["identity_source_refs"] = []
+        result["initial_program"] = False
         identities = program_identifiers(identity_source)
         if len(identities) == 1:
             _, start, end = identities[0]
+            clause_end = identity_source.find(".", end)
+            if clause_end >= 0 and clause_end - end < 256:
+                try:
+                    clause = [token.value for token in lex_cobol(identity_source[end:clause_end])]
+                except CobolLexError:
+                    clause = []
+                if clause in (["IS", "INITIAL"], ["IS", "INITIAL", "PROGRAM"],
+                              ["INITIAL"], ["INITIAL", "PROGRAM"]):
+                    result["initial_program"] = True
+                    end = clause_end + 1
             offset, covered = 0, []
             for line in identity_lines:
                 if offset < end and offset + len(line.text) > start:
@@ -214,6 +268,106 @@ class FactStore:
             if covered:
                 result["identity_source_refs"] = self.source_ref(path, SourceSpan(
                     covered[0].start_line, covered[-1].end_line, 1, 1, 0, 0))
+        return result
+
+    def initial_source_definition(self, path, name):
+        """Return a declared initialization source with its activation contract.
+
+        A VALUE in LINKAGE/file storage, an alias, an uncertain array or an
+        unsupported literal cannot establish a program-entry definition.
+        """
+        key = path, name
+        if key in self._initial_sources:
+            return self._initial_sources[key]
+        program = self.program(path)
+        reference = self.storage_reference(path, name)
+        canonical = reference.get("canonical")
+        item = program["items"].get(program["canonical_ids"].get(canonical))
+        if item is None or item.value is None:
+            self._initial_sources[key] = None
+            return None
+        rows = program["fields_by_qualified"].get(item.qualified_name, ())
+        section = rows[0].get("storage_section") if len(rows) == 1 else None
+        ancestors, seen, parent_id, parent_reason = [], {item.item_id}, item.parent_id, None
+        while parent_id is not None:
+            if self.check_cancel:
+                self.check_cancel()
+            if parent_id in seen or parent_id not in program["items"] or len(ancestors) >= 128:
+                parent_reason = "initialization_parent_layout_not_confirmed"
+                break
+            parent = program["items"][parent_id]
+            ancestors.append(parent)
+            seen.add(parent_id)
+            parent_id = parent.parent_id
+        if tuple(parent.name for parent in ancestors) != item.ancestors:
+            parent_reason = "initialization_parent_layout_not_confirmed"
+        refs = [asdict(ref) for declared in (item, *ancestors) for ref in declared.source_refs]
+        for ref in tuple(refs):
+            for index, site in enumerate(ref.get("include_chain", ())):
+                refs.append({"relative_path": site["relative_path"], "source_sha256": site.get("source_hash"),
+                    "start_line": site["line"], "end_line": site.get("end_line", site["line"]),
+                    "include_chain": list(ref["include_chain"][:index]), "replacement_trace": []})
+        refs.extend(program["identity_source_refs"])
+        if len(rows) == 1 and rows[0].get("section_start_line"):
+            refs.extend(self.source_ref(path, SourceSpan(rows[0]["section_start_line"],
+                rows[0]["section_start_line"], 1, 1, 0, 0)))
+        if "origin_versions" not in program:
+            versions = defaultdict(set)
+            mapping = self.source_map.get(path)
+            if not mapping:
+                versions[path].add(program["sha256"])
+            for index, row in enumerate(mapping or ()):
+                if self.check_cancel and index % 128 == 0:
+                    self.check_cancel()
+                origin = row["origin"]
+                versions[origin["relative_path"]].add(origin.get("source_hash", origin.get("sha256")))
+                for site in row.get("include_chain", ()):
+                    versions[site["relative_path"]].add(site.get("source_hash"))
+            program["origin_versions"] = dict(versions)
+        reason = None
+        try:
+            declaration_tokens = [(token.kind, token.value) for token in lex_cobol(item.declaration.rstrip("."))]
+            indexed_tokens = [(token.kind, token.value) for token in lex_cobol(rows[0]["normalized_text"].rstrip("."))] if len(rows) == 1 else []
+            ancestor_tokens = [token for parent in ancestors for token in lex_cobol(parent.declaration.rstrip("."))]
+            for parent in ancestors:
+                parent_rows = program["fields_by_qualified"].get(parent.qualified_name, ())
+                if (len(parent_rows) != 1 or parent_rows[0].get("storage_section") != section or
+                        [(token.kind, token.value) for token in lex_cobol(parent_rows[0]["normalized_text"].rstrip("."))] !=
+                        [(token.kind, token.value) for token in lex_cobol(parent.declaration.rstrip("."))]):
+                    parent_reason = "initialization_parent_declaration_binding_not_confirmed"
+        except CobolLexError:
+            declaration_tokens, indexed_tokens, ancestor_tokens = [], [], []
+            parent_reason = "initialization_parent_layout_not_confirmed"
+        if section not in {"WORKING-STORAGE", "LOCAL-STORAGE"}:
+            reason = "value_clause_not_program_storage_initialization"
+        elif (reference.get("binding_status") != "bound" or not reference.get("exact") or
+                reference.get("group") or item.level in {66, 78, 88} or item.compilation_status != "active"):
+            reason = "initialization_storage_not_exact"
+        elif not declaration_tokens or len(rows) != 1 or declaration_tokens != indexed_tokens:
+            reason = "initialization_declaration_binding_not_confirmed"
+        elif parent_reason or any(parent.compilation_status != "active" for parent in ancestors):
+            reason = parent_reason or "initialization_parent_compilation_not_confirmed"
+        elif (any(kind == "word" and value in {"EXTERNAL", "GLOBAL", "BASED"} for kind, value in declaration_tokens)
+                or any(token.kind == "word" and token.value in {"EXTERNAL", "GLOBAL", "BASED"} for token in ancestor_tokens)):
+            reason = "initialization_shared_storage_requires_context"
+        elif any(parent.value is not None for parent in ancestors):
+            reason = "overlapping_group_initialization_not_supported"
+        elif not refs or not all(ref.get("source_sha256") and
+                program["origin_versions"].get(ref["relative_path"]) == {ref["source_sha256"]} for ref in refs):
+            reason = "initialization_source_version_not_confirmed"
+        elif any(ref["end_line"] - ref["start_line"] >= 96 for ref in refs):
+            reason = "initialization_source_span_budget"
+        elif not _supported_initial_literal(item):
+            reason = "initialization_literal_or_layout_not_supported"
+        result = {"field": canonical, "value": item.value, "declaration": item.declaration,
+            "storage_section": section, "source_refs": refs,
+            "status": "conditional_initialization_source" if reason is None else "initialization_not_established",
+            "unknown_reason": reason, "runtime_value_known": False,
+            "initial_program": program["initial_program"],
+            "activation_semantics": ("each_program_activation" if section == "LOCAL-STORAGE" else
+                "each_program_activation_for_initial_program" if program["initial_program"] else
+                "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state")}
+        self._initial_sources[key] = result
         return result
 
     def storage_reference(self, path, name):
@@ -320,6 +474,7 @@ class FlowNode:
     definite_writes: tuple[str, ...] = ()
     read_bindings: dict[str, tuple[str, ...]] = field(default_factory=dict)
     call_contract: dict = field(default_factory=dict)
+    entry_sources: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -358,6 +513,8 @@ class SemanticService:
         self._section_exits = defaultdict(set)
         self._built = False
         self._flow_complete = True
+        self._entry_provenance = {}
+        self._activation_counts = defaultdict(int)
 
     def _node(self, statement, path, context, aliases, *, kind=None, reads=None, writes=None, unknown=None):
         if self.check_cancel:
@@ -398,6 +555,9 @@ class SemanticService:
                 bound_reads = (bind(name),)
             expanded_reads.extend(bound_reads)
             node.read_bindings[name] = bound_reads
+            for field_name in bound_reads:
+                if field_name in self._entry_provenance:
+                    node.entry_sources[field_name] = dict(self._entry_provenance[field_name])
             if reference["binding_status"] != "bound":
                 self.frontier.append({"reason": "read_storage_binding_" + reference["binding_status"],
                     "occurrence_id": identifier, "reference": name,
@@ -542,6 +702,12 @@ class SemanticService:
                 actual_name = self.facts.storage_reference(path, binding["caller_qualified"].split("::")[-1])["canonical"]
                 formal_name = self.facts.storage_reference(target_path, binding["callee_qualified"].split("::")[-1])["canonical"]
                 mapped[formal_name] = aliases.get(actual_name, actual_name)
+            self._activation_counts[target_path] += 1
+            for name, binding in mapped.items():
+                if binding.startswith("@local:" + header + ":"):
+                    self._entry_provenance[binding] = {"relative_path": target_path, "field": name,
+                        "whole_program_entry": True, "source_activation": self._activation_counts[target_path],
+                        "activation_in_loop": any(marker.startswith("loop:") for marker in context)}
             entry, exits = self._blocks(target_path, callee["order"], context + ("call:" + header,), mapped,
                                        stack + ((target_path, "@PROGRAM"),))
             exits.update(self._return_nodes["call:" + header])
@@ -725,6 +891,10 @@ class SemanticService:
 
     def build(self, path, *, procedure=None):
         program = self.facts.program(path)
+        self._activation_counts[path] += 1
+        self._entry_provenance.update({name: {"relative_path": path, "field": name,
+            "whole_program_entry": procedure is None, "source_activation": self._activation_counts[path],
+            "activation_in_loop": False} for name in program["canonical_items"].values()})
         names = [procedure] if procedure else program["order"]
         try:
             self.entry, self.exits = self._blocks(path, names, (program["name"] or path,), {}, ((path, "@PROGRAM"),))
@@ -790,6 +960,7 @@ class SemanticService:
     def explain_assignment(self, occurrence_id):
         self._check_work(force=True)
         node = self.nodes[occurrence_id]
+        written_storage = set(node.definite_writes or node.writes)
         reachable, queue = set(), deque([occurrence_id])
         successors = defaultdict(set)
         for first, last, _ in self.edges:
@@ -802,8 +973,10 @@ class SemanticService:
                 queue.append(following)
         return {"statement": asdict(node), "reaching_definitions": {name: sorted(self.reaching_in[occurrence_id].get(name, ())) for name in node.reads},
                 "read_origins": self.read_origins(occurrence_id),
+                "later_reads": [key for key, following in self.nodes.items() if key != occurrence_id and key in reachable
+                                and written_storage.intersection(following.reads)],
                 "later_writes": [key for key in reachable if key != occurrence_id and
-                                 set(node.definite_writes or node.writes).intersection(
+                                 written_storage.intersection(
                                      (*self.nodes[key].definite_writes, *self.nodes[key].writes, *(self.nodes[key].unknown_storage or ())))],
                 "flow_status": "possible_source_flow" if self._flow_complete else "incomplete_source_flow", "frontier": self.frontier}
 
@@ -835,6 +1008,7 @@ class SemanticService:
         for original, bound in reader.read_bindings.items():
             reference = reader.storage_effects.get("read:" + original, {})
             refs, writes, calls, reasons = list(reader.source_refs), set(), set(), set()
+            initial_definitions = {}
             memo, active = {}, set()
             def visit(read_id, field):
                 self._check_work()
@@ -842,7 +1016,8 @@ class SemanticService:
                 if pair in memo:
                     return memo[pair]
                 if pair in active:
-                    reasons.add("loop_carried_origin_not_closed")
+                    reasons.add("loop_carried_origin_not_closed" if any(marker.startswith("loop:")
+                        for marker in self.nodes[read_id].context) else "reaching_definition_cycle_not_closed")
                     return False
                 if len(active) >= 128 or len(memo) + len(active) >= min(self.max_nodes, 512):
                     reasons.add("input_origin_proof_budget")
@@ -856,6 +1031,24 @@ class SemanticService:
                     self._check_work()
                     writer = self.nodes.get(definition)
                     if writer is None:
+                        entry = self.nodes[read_id].entry_sources.get(field, {})
+                        initial = (self.facts.initial_source_definition(entry["relative_path"], entry["field"])
+                                   if definition == "@entry:" + field and entry else None)
+                        if initial is not None:
+                            initial = {**initial, "source_refs": [dict(ref) for ref in initial["source_refs"]]}
+                            refs.extend(initial["source_refs"])
+                            initial_definitions[(entry["relative_path"], entry["field"])] = dict(initial)
+                            reason = initial.get("unknown_reason")
+                            if not entry.get("whole_program_entry"):
+                                reason = "procedure_entry_initial_state_not_demonstrated"
+                            elif (initial["storage_section"] == "WORKING-STORAGE" and
+                                    not initial["initial_program"] and
+                                    (entry.get("source_activation", 0) > 1 or entry.get("activation_in_loop"))):
+                                reason = "working_storage_reentry_state_not_defined"
+                            if reason is not None:
+                                reasons.add(reason)
+                                resolved = False
+                            continue
                         reasons.add("entry_state_or_external_input_not_defined")
                         resolved = False
                         continue
@@ -906,6 +1099,7 @@ class SemanticService:
                 "reader_source_refs": reader.source_refs,
                 "status": "resolved_source_origin" if resolved else "unresolved_source_origin",
                 "basis": "reaching_definitions_and_confirmed_call_returns",
+                "initial_definitions": list(initial_definitions.values()),
                 "write_occurrences": sorted(writes), "call_occurrences": sorted(calls),
                 "source_refs": list({json.dumps(ref, sort_keys=True): ref for ref in refs}.values()),
                 "unknown_reasons": sorted(reasons), "source_supply_status": "not_assessed",

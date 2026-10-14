@@ -7,7 +7,7 @@ import re
 from statement_facts import data_references
 
 
-PLAN_VERSION = "business-analysis-plan/v4"
+PLAN_VERSION = "business-analysis-plan/v5"
 _IDENTIFIER = re.compile(r"(?<![A-Za-z0-9_$#@-])[A-Z0-9_$#@-]+(?:\s+(?:OF|IN)\s+[A-Z0-9_$#@-]+)*(?:\([^()\r\n]*\)(?:\s+(?:OF|IN)\s+[A-Z0-9_$#@-]+)*)?", re.I)
 _HINTS = {
     "origin": r"从哪里|從哪裡|来源|來源|哪里来的|哪裡來的|\b(?:origin|source\s+of|where.+from)\b",
@@ -52,6 +52,7 @@ class AnalysisPlan:
     focus_basis: str
     unresolved: tuple[str, ...] = ()
     source_scopes: tuple[dict, ...] = ()
+    file_entities: tuple[dict, ...] = ()
     version: str = PLAN_VERSION
 
     def to_dict(self):
@@ -60,7 +61,7 @@ class AnalysisPlan:
 
 class QuestionPlanner:
     def plan(self, question, business_map, *, source_pages=(), history=(), candidate=None, entity_validator=None,
-             source_scopes=()):
+             source_scopes=(), file_entities=(), file_impact=False):
         """Facts and conversation focus determine depth even without a trigger word."""
         facts = business_map.get("rule_leads", ())
         known = {str(field).upper() for fact in facts for role in ("reads", "writes")
@@ -115,10 +116,19 @@ class QuestionPlanner:
             intents = ["origin"]
         if not intents:
             intents = ["explanation"]
-        tools = list(dict.fromkeys(tool for intent in intents for tool in _TOOLS[intent]))
+        if file_impact and "impact" not in intents:
+            intents.append("impact")
+        if file_entities:
+            records = {name for entity in file_entities for name in entity.get("record_names", ())}
+            if not set(intents) & {"calculation", "flow", "impact", "overwrite", "condition", "exception"} and set(entities) <= records:
+                intents = ["file_mapping"]
+            else:
+                intents.append("file_mapping")
+        tools = list(dict.fromkeys(tool for intent in intents for tool in
+                    (_TOOLS[intent] if intent != "file_mapping" else ("explain_external_effect", "inspect_business_context"))))
         unresolved = []
         unresolved.extend(reason for reason in subject.get("unresolved", ())
-                          if not (source_scopes and not referring and reason == "conversation_field_not_bound"))
+                          if not ((source_scopes or file_entities) and not referring and reason == "conversation_field_not_bound"))
         if referring and not entities:
             unresolved.append("conversation_entity_not_resolved")
         if not paths:
@@ -136,13 +146,15 @@ class QuestionPlanner:
                 "calculation": ("assignment_expression", "input_definitions", "numeric_layout"),
                 "flow": ("control_conditions", "calls", "external_effects"),
                 "declaration": ("declaration_layout",)}.get(intent, ()))
+        if file_entities:
+            obligations.extend(("file_assignment", "file_record_layout", "copy_layout", "file_io_mapping"))
         return AnalysisPlan(tuple(intents), tuple(dict.fromkeys(entities)), tuple(dict.fromkeys(paths)),
-            tuple(tools), tuple(dict.fromkeys(obligations)), basis, tuple(unresolved), tuple(source_scopes))
+            tuple(tools), tuple(dict.fromkeys(obligations)), basis, tuple(unresolved), tuple(source_scopes), tuple(file_entities))
 
 
 class EvidencePlanner:
     def organize(self, plan, candidates):
-        order = {kind: index for index, kind in enumerate(("procedure_body", "formula", "business_steps", "result_adjustments",
-                    "conditions", "declarations", "inputs", "dependencies", "file_io", "file_definitions", "dds_definitions"))}
+        order = {kind: index for index, kind in enumerate(("file_definitions", "file_layout", "copy_layout", "file_io", "procedure_body", "formula", "business_steps", "result_adjustments",
+                    "conditions", "declarations", "inputs", "dependencies", "dds_definitions"))}
         return sorted(candidates, key=lambda item: (order.get(item.get("kind"), len(order)),
                       item.get("relative_path", ""), item.get("start_line", 0), item.get("statement", "")))

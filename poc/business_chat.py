@@ -481,10 +481,12 @@ def _prompt_payload(payload):
                 origins = original.get("source_flow_origins")
                 if isinstance(origins, list):
                     # The containing obligation already carries the supplied
-                    # evidence IDs. Keep outcome and unknown reasons on wire;
+                    # evidence IDs. Keep outcome, activation conditions and
+                    # runtime uncertainty on wire;
                     # retain full occurrence witnesses in the local ledger.
                     item["source_flow_origins"] = [{key: origin[key] for key in
-                        ("relative_path", "field", "status", "basis", "unknown_reasons", "execution_verified")
+                        ("relative_path", "field", "status", "basis", "unknown_reasons",
+                         "activation_semantics", "runtime_value_known", "execution_verified")
                         if key in origin} for origin in origins]
                     item["source_flow_origin_occurrences_omitted"] = sum(
                         len(origin.get("reader_occurrences", [])) for origin in origins)
@@ -1762,14 +1764,26 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         return context, references, combined, facts, selected
 
     def source_fallback(payload, *, max_page_bytes=None):
+        # Exact semantic occurrences remain useful even when a full-program
+        # page must shrink. Preserve distant writes/guards before filler text;
+        # otherwise a larger provenance packet can trim the relevant tail.
+        fallback_targets = [dict(action["arguments"]) for action in
+            payload.get("question_investigation", {}).get("planned_actions", [])
+            if action.get("tool") in {"inspect_business_context", "read"}
+            and isinstance(action.get("arguments"), dict)]
+        fallback_targets.extend({"relative_path": ref.original_relative_path, "line": ref.start_line}
+            for group in evidence_groups for observation in group.observations
+            if observation.semantic_role in {"anchor", "result", "condition", "input", "flow_context"}
+            for ref in observation.source_refs if ref.end_line - ref.start_line < 96)
+        fallback_targets.extend(priority_targets)
         if max_page_bytes is None:
             selected = evidence.fallback_pages(policy.max_source_characters,
-                evidence_groups=evidence_groups, priority_targets=priority_targets)
+                evidence_groups=evidence_groups, priority_targets=fallback_targets)
         else:
             supplied_pages = payload["source_context"][0]["pages"]
             largest = max(supplied_pages, key=lambda p: len(p.get("source_text", "").encode("utf-8")))
             page = evidence.narrow_page(largest, max_page_bytes,
-                                        priority_targets=priority_targets)
+                                        priority_targets=fallback_targets)
             if page is None:
                 return []
             selected = [page if p is largest else p for p in supplied_pages]

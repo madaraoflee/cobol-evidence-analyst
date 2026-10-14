@@ -244,7 +244,8 @@ class ReleaseAcceptanceTests(unittest.TestCase):
 
     def test_prior_problem_coverage_cannot_be_replaced_by_easy_live_suite(self):
         originals = self.read("live_cases")["cases"]
-        for missing in ("qualified_identity", "bare_group_field", "qualified_in_alias", "ambiguous_group_field"):
+        for missing in ("qualified_identity", "bare_group_field", "qualified_in_alias", "ambiguous_group_field",
+                        "value_initialization_source", "page_account_multiturn"):
             with self.subTest(missing=missing):
                 items = copy.deepcopy(originals)
                 items[0]["coverage"].remove(missing)

@@ -294,6 +294,38 @@ def _aggregate_conversation(rows, *, started, finished, first_provider_seconds, 
         "answer": rows[-1].get("answer"), "stop_reason": rows[-1].get("stop_reason")}
 
 
+def _conversation_origin_checks(trace, pages, expected_fields):
+    """VALUE provenance must be established by the executable's actual evidence."""
+    from tools.desktop_acceptance_cases import ranges_supplied
+    investigation = (trace.get("final") or {}).get("question_investigation") or {}
+    inputs = next((item for item in investigation.get("required_items", []) if item.get("kind") == "inputs"), {})
+    witnesses = inputs.get("source_flow_origins") or []
+    ids = {page["evidence_id"] for page in pages}
+    matched = {field: [witness for witness in witnesses if witness.get("field") == field]
+               for field in expected_fields}
+    closed = inputs.get("status") == "SATISFIED" and all(matched.values())
+    conditional = True
+    for field, proofs in matched.items():
+        for proof in proofs:
+            closed &= (proof.get("status") == "source_origin_supplied" and not proof.get("unknown_reasons")
+                       and bool(proof.get("reader_occurrences")) and bool(proof.get("evidence_ids"))
+                       and set(proof["evidence_ids"]) <= ids)
+            initial = [item for item in proof.get("initial_definitions", []) if item.get("field") == field]
+            conditional &= (proof.get("runtime_value_known") is False and proof.get("execution_verified") is False
+                            and bool(initial) and bool(proof.get("activation_semantics")))
+            for item in initial:
+                locations = [{"path": ref["relative_path"], "sha256": ref["source_sha256"],
+                              "start_line": ref["start_line"], "end_line": ref["end_line"]}
+                             for ref in item.get("source_refs", [])]
+                conditional &= (item.get("runtime_value_known") is False
+                                and item.get("status") == "conditional_initialization_source"
+                                and item.get("value") == ("25.00" if field == "TRAN-AMT" else "0")
+                                and "first_activation" in item.get("activation_semantics", "")
+                                and ranges_supplied(pages, locations))
+    return {"completeness_value_origin_closed": bool(closed),
+            "quality_value_activation_not_runtime_proof": bool(closed and conditional)}
+
+
 def _conversation(command, root, case, sample_index):
     source = _source(root, _conversation_source(), "report.cbl")
     output = root / "workspace"
@@ -341,6 +373,9 @@ def _conversation(command, root, case, sample_index):
                     "evidence_supplied_hashes_match": all(page["source_sha256"] == source_hash
                         for page in provider.requests[-1]["source_pages"]),
                     "evidence_visible_answer_matches": conversation["messages"][-1]["content"] == agent["answer"]}
+                trace = json.loads(Path(agent["metrics"]["quality_trace_path"]).read_text(encoding="utf-8"))
+                checks.update(_conversation_origin_checks(trace, provider.requests[-1]["source_pages"],
+                    ["TRAN-AMT", "PAGE-SUM", "ACCOUNT-SUM"] if index == 0 else ["TRAN-AMT", "ACCOUNT-SUM"]))
                 if index == 0:
                     cited = next(page for page in provider.requests[0]["source_pages"] if
                         page["evidence_id"] in agent["answer"])

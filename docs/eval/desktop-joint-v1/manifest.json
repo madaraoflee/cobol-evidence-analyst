@@ -164,14 +164,18 @@
         "completeness_history_isolated",
         "evidence_supplied_hashes_match",
         "evidence_visible_answer_matches",
-        "evidence_historical_version_survives_live_change"
+        "evidence_historical_version_survives_live_change",
+        "completeness_value_origin_closed",
+        "quality_value_activation_not_runtime_proof"
       ],
       "assertion_groups": {
         "quality": [
-          "quality_followup_correct"
+          "quality_followup_correct",
+          "quality_value_activation_not_runtime_proof"
         ],
         "completeness": [
-          "completeness_history_isolated"
+          "completeness_history_isolated",
+          "completeness_value_origin_closed"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",
@@ -717,7 +721,8 @@
         "lifecycle_index_reused",
         "quality_critical_answer_preserved",
         "completeness_reviewed_ranges_supplied",
-        "quality_prose_not_falsely_verified"
+        "quality_prose_not_falsely_verified",
+        "completeness_file_entity_bound"
       ],
       "assertion_groups": {
         "quality": [
@@ -726,7 +731,8 @@
         ],
         "completeness": [
           "completeness_answer_recorded",
-          "completeness_reviewed_ranges_supplied"
+          "completeness_reviewed_ranges_supplied",
+          "completeness_file_entity_bound"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",

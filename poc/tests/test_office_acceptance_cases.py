@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -18,6 +19,7 @@ from parser_adapter import BuiltinParserAdapter
 from release_acceptance import _live_case_scope, _range_covered, _required_ranges
 from statement_facts import assignment_facts, data_references
 from tools.desktop_live_acceptance import validate_gold
+from tools.desktop_acceptance_scenarios import CONVERSATION_QUESTIONS, _conversation_source
 
 
 class OfficeAcceptanceGoldTests(unittest.TestCase):
@@ -33,8 +35,15 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
             file = suite.checked_file(suite.SYNTHETIC_MANIFEST.parent / "source", item["path"], item["sha256"])
             shutil.copyfile(file, synthetic / name)
         for name, text in (("exception.cbl", suite.EXCEPTION_SOURCE), ("unknown.cbl", suite.UNKNOWN_SOURCE),
-                           ("continuation.cbl", suite.CONTINUATION_SOURCE), ("reserved.cbl", suite.RESERVED_SOURCE)):
-            (synthetic / name).write_bytes(text.encode())
+                           ("continuation.cbl", suite.CONTINUATION_SOURCE), ("reserved.cbl", suite.RESERVED_SOURCE),
+                           ("report.cbl", _conversation_source())):
+            (synthetic / name).write_bytes(text.encode("utf-8"))
+
+    def test_suite_can_be_invoked_as_script_outside_repository(self):
+        result = subprocess.run([sys.executable, str(ROOT / "tools/office_acceptance_cases.py"), "--help"],
+                                cwd=self.root, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--include-scale", result.stdout)
 
     def test_all_prior_semantics_have_separate_real_question_and_source_bound_gold(self):
         items = suite.synthetic_cases(self.source)
@@ -43,14 +52,15 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
                          "display_literal_relations", "literal_comment_marker", "qualified_identity",
                          "perform_section", "wrong_formula_999", "static_a_b_c", "later_overwrite",
                          "forward_slice", "size_error", "unknown_effect", "legal_continuation",
-                         "bare_group_field", "qualified_in_alias", "ambiguous_group_field"} <= coverage)
+                         "bare_group_field", "qualified_in_alias", "ambiguous_group_field",
+                         "value_initialization_source", "page_account_multiturn"} <= coverage)
         path = self.root / "cases.json"
         suite.write_json(path, {"cases": items})
         self.assertEqual(_cases(path), items)
         errors = []
         self.assertTrue(_live_case_scope(items, errors))
         self.assertEqual(errors, [])
-        self.assertEqual(sum(len(_turns(item)) for item in items), 20)
+        self.assertEqual(sum(len(_turns(item)) for item in items), 23)
         for item in items:
             for turn in _turns(item):
                 merged = {**item, **turn}
@@ -160,6 +170,72 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "ANCHOR_MISSING"):
             suite.record_binding_cases(self.source)
 
+    def test_actual_native_report_conversation_has_source_bound_control_and_value_gold(self):
+        items = suite.report_conversation_cases(self.source)
+        self.assertEqual(len(items), 1)
+        case = items[0]
+        self.assertEqual(case["id"], "report-summary-multiturn")
+        self.assertEqual([turn["question"] for turn in case["turns"]], CONVERSATION_QUESTIONS)
+        self.assertTrue({"value_initialization_source", "page_account_multiturn"} <= set(case["coverage"]))
+        report = self.source / "synthetic/report.cbl"
+        self.assertEqual(report.read_bytes(), _conversation_source().encode("utf-8"))
+        validate_gold(self.source, items, "")
+        ir = BuiltinParserAdapter().parse(report.read_text(encoding="utf-8"),
+            relative_path="synthetic/report.cbl", source_sha256=suite.digest(report))
+        declarations = {item.name: item for item in ir.data_items}
+        self.assertEqual(declarations["TRAN-AMT"].value, "25.00")
+        for name in ("PAGE-SUM", "ACCOUNT-SUM", "GRAND-SUM"):
+            self.assertEqual(declarations[name].value, "0")
+        adds = assignment_facts("ADD TRAN-AMT TO PAGE-SUM ACCOUNT-SUM.")
+        self.assertEqual(set(adds.reads), {"TRAN-AMT", "PAGE-SUM", "ACCOUNT-SUM"})
+        self.assertEqual(set(adds.writes), {"PAGE-SUM", "ACCOUNT-SUM"})
+        for turn in case["turns"]:
+            merged = {**case, **turn}
+            self.assertNotIn("score", merged)
+            self.assertNotIn("passed", merged)
+            self.assertNotIn("history", merged)
+            spans = _required_ranges(merged)
+            context = _reviewed_context(self.source, merged, "")
+            self.assertTrue(all(_range_covered(span, context["sources"]) for span in spans))
+            self.assertEqual({span["path"] for span in spans}, {"synthetic/report.cbl"})
+            self.assertTrue(all(span["source_sha256"] == suite.digest(report) for span in spans))
+            text = "\n".join(row["excerpt"] for row in context["sources"])
+            for actual in ("WORKING-STORAGE SECTION.", "VALUE 25.00", "VALUE 0",
+                           "ADD TRAN-AMT TO PAGE-SUM ACCOUNT-SUM.",
+                           "IF CURR-CARD NOT = TRAN-CARD", "IF FIRST-ITEM = 'N'",
+                           "MOVE ACCOUNT-SUM TO REPORT-ACCOUNT-SUM.", "MOVE 0 TO ACCOUNT-SUM."):
+                self.assertIn(actual, text)
+            gold = "\n".join(row["description"] for row in turn["gold"]["required_findings"])
+            self.assertIn("首次激活", gold)
+            self.assertIn("不能", gold)
+            self.assertTrue(turn["gold"]["forbidden_claims"])
+        first = _reviewed_context(self.source, {**case, **case["turns"][0]}, "")
+        first_text = "\n".join(row["excerpt"] for row in first["sources"])
+        for actual in ("IF LINE-COUNT >= PAGE-SIZE", "MOVE PAGE-SUM TO REPORT-PAGE-SUM.",
+                       "ADD PAGE-SUM TO GRAND-SUM.", "MOVE 0 TO PAGE-SUM."):
+            self.assertIn(actual, first_text)
+        for turn in case["turns"][1:]:
+            focus = next(row for row in turn["gold"]["required_findings"]
+                         if row["id"] == "report-second-account-focus")
+            self.assertIn("前一轮第二种情况指ACCOUNT-SUM", focus["description"])
+
+    def test_report_conversation_gold_does_not_accept_changed_value_or_removed_reset(self):
+        items = suite.report_conversation_cases(self.source)
+        case = items[0]
+        report = self.source / "synthetic/report.cbl"
+        original = report.read_bytes()
+        report.write_bytes(original.replace(b"VALUE 25.00", b"VALUE 999.00"))
+        with self.assertRaisesRegex(ValueError, "NATIVE_FIXTURE_CHANGED"):
+            suite.report_conversation_cases(self.source)
+        for turn in case["turns"]:
+            with self.assertRaisesRegex(ValueError, "REVIEWED_SOURCE_CHANGED"):
+                _reviewed_context(self.source, {**case, **turn}, "")
+        report.write_bytes(original.replace(b"MOVE 0 TO ACCOUNT-SUM.", b"DISPLAY ACCOUNT-SUM."))
+        with self.assertRaisesRegex(ValueError, "NATIVE_FIXTURE_CHANGED"):
+            suite.report_conversation_cases(self.source)
+        with self.assertRaisesRegex(ValueError, "REVIEWED_SOURCE_CHANGED"):
+            validate_gold(self.source, items, "")
+
     def test_review_ranges_cannot_escape_or_have_unreviewed_line_numbers(self):
         with self.assertRaisesRegex(ValueError, "RANGE_INVALID"):
             suite.source_range(self.source, "synthetic/overwrite.cbl", 1, 999)
@@ -189,18 +265,18 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         suite.write_json(manifest, original)
         return public, manifest
 
-    def test_generated_delivery_is_deterministic_and_has_27_frozen_turns(self):
+    def test_generated_delivery_is_deterministic_and_has_30_frozen_turns(self):
         public, manifest = self.fake_public_root()
         with patch.object(suite, "PUBLIC_MANIFEST", manifest):
             first = suite.generate_suite(self.root / "suite-a", public)
             second = suite.generate_suite(self.root / "suite-b", public)
-        self.assertEqual(first["user_turn_count"], 27)
-        self.assertEqual(first["maximum_model_requests"], 81)
-        self.assertEqual(first["source_files"], 18)
+        self.assertEqual(first["user_turn_count"], 30)
+        self.assertEqual(first["maximum_model_requests"], 90)
+        self.assertEqual(first["source_files"], 19)
         self.assertEqual(suite.digest(first["cases"]), suite.digest(second["cases"]))
         self.assertEqual(suite.digest(first["lock"]), suite.digest(second["lock"]))
         document = json.loads(first["cases"].read_text(encoding="utf-8"))
-        self.assertEqual(len(document["cases"]), 25)
+        self.assertEqual(len(document["cases"]), 26)
         self.assertEqual(document["budget"]["real_model_calls_performed"], 0)
         public_cases = [item for item in document["cases"] if item["id"].startswith("public-")]
         self.assertEqual(len(public_cases), 7)
@@ -231,9 +307,9 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         public, manifest = self.fake_public_root()
         with patch.object(suite, "PUBLIC_MANIFEST", manifest):
             result = suite.generate_suite(self.root / "large-suite", public, include_scale=True)
-        self.assertEqual(result["user_turn_count"], 32)
-        self.assertEqual(result["maximum_model_requests"], 96)
-        self.assertEqual(result["source_files"], 12042)
+        self.assertEqual(result["user_turn_count"], 35)
+        self.assertEqual(result["maximum_model_requests"], 105)
+        self.assertEqual(result["source_files"], 12043)
         self.assertTrue((result["source"] / "scale/member-11999.cbl").is_file())
         self.assertFalse((result["source"].parent / "scale-source").exists())
         lock = json.loads(result["lock"].read_text(encoding="utf-8"))

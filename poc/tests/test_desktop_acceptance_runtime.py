@@ -15,10 +15,38 @@ sys.path.insert(0, str(ROOT))
 import desktop_app
 from tools.desktop_acceptance_runtime import (FIXTURES, LoopbackProvider,
     NativeWorkbench, isolated_environment, write_profile)
-from tools.desktop_acceptance_scenarios import _aggregate_conversation, run_scenarios
+from tools.desktop_acceptance_scenarios import _aggregate_conversation, _conversation_origin_checks, run_scenarios
 
 
 class DesktopAcceptanceRuntimeTests(unittest.TestCase):
+    def test_value_acceptance_requires_supplied_declarations_and_activation_conditions(self):
+        import copy
+        page = {"relative_path": "report.cbl", "source_sha256": "a" * 64,
+                "evidence_id": "ev_initial", "start_line": 5, "end_line": 7}
+        fields = ["TRAN-AMT", "PAGE-SUM", "ACCOUNT-SUM"]
+        witnesses = [{"field": field, "status": "source_origin_supplied", "unknown_reasons": [],
+            "reader_occurrences": ["read-" + field], "evidence_ids": ["ev_initial"],
+            "execution_verified": False, "runtime_value_known": False,
+            "activation_semantics": ["first_activation_or_initial_or_cancelled_program"],
+            "initial_definitions": [{"field": field, "value": "25.00" if field == "TRAN-AMT" else "0",
+                "status": "conditional_initialization_source", "runtime_value_known": False,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program",
+                "source_refs": [{"relative_path": "report.cbl", "source_sha256": "a" * 64,
+                                 "start_line": line, "end_line": line}]}]}
+            for line, field in enumerate(fields, 5)]
+        trace = {"final": {"question_investigation": {"required_items": [{
+            "kind": "inputs", "status": "SATISFIED", "source_flow_origins": witnesses}]}}}
+        self.assertTrue(all(_conversation_origin_checks(trace, [page], fields).values()))
+        for change in ({"evidence_ids": ["not-supplied"]}, {"status": "source_origin_unresolved"},
+                       {"runtime_value_known": True}, {"activation_semantics": []},
+                       {"initial_definitions": []}):
+            changed = copy.deepcopy(trace)
+            changed["final"]["question_investigation"]["required_items"][0]["source_flow_origins"][0].update(change)
+            self.assertFalse(all(_conversation_origin_checks(changed, [page], fields).values()))
+        for change in ({"source_sha256": "b" * 64}, {"start_line": 6}, {"span_truncated": True}):
+            self.assertFalse(all(_conversation_origin_checks(trace, [{**page, **change}], fields).values()))
+        self.assertFalse(all(_conversation_origin_checks(trace, [page], [*fields, "MISSING"]).values()))
+
     def test_conversation_sample_covers_three_turns_without_inventing_extra_samples(self):
         turns = [{"id": "conversation", "turn_id": str(index), "sample_index": 1,
             "run_id": f"run-{index}", "answer_sha256": str(index) * 64,

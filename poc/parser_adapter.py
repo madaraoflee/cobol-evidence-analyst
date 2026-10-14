@@ -167,14 +167,32 @@ def _data_items(normalized, relative_path, source_hash, source_map, compilation_
         occurs = re.search(r"\bOCCURS\s+(\d+)(?:\s+TO\s+(\d+))?", declaration, re.I)
         depending = re.search(r"\bDEPENDING\s+(?:ON\s+)?([A-Z0-9_$#@-]+)", declaration, re.I)
         redefines = re.search(r"\bREDEFINES\s+([A-Z0-9_$#@-]+)", declaration, re.I)
-        value = re.search(r"\bVALUE\s+(?:IS\s+)?(.+?)\.?$", declaration, re.I)
+        # Declaration names and quoted text are operands, including names such
+        # as BASE-VALUE. Only a complete word after level/name starts a clause.
+        try:
+            declaration_tokens = lex_cobol(declaration, check_cancel=check_cancel)
+        except CobolLexError:
+            declaration_tokens = ()
+        value_index = next((position for position, token in enumerate(declaration_tokens[2:], 2)
+                            if token.kind == "word" and token.value in {"VALUE", "VALUES"}), None)
+        value = None
+        if value_index is not None:
+            first_value = value_index + 1
+            if (first_value < len(declaration_tokens) and declaration_tokens[first_value].kind == "word"
+                    and declaration_tokens[first_value].value in {"IS", "ARE"}):
+                first_value += 1
+            end_value = len(declaration_tokens)
+            if end_value and declaration_tokens[-1].kind == "symbol" and declaration_tokens[-1].value == ".":
+                end_value -= 1
+            value = (declaration[declaration_tokens[first_value].start:declaration_tokens[end_value-1].end]
+                     if first_value < end_value else "")
         digits, scale, signed, _ = _picture_info(picture)
         item = DataItem("item_" + digest([relative_path, [asdict(ref) for ref in refs], first, name])[:24],
             name, level, ancestors, parent.item_id if parent else None, declaration, refs,
             picture, usage[1].upper() if usage else "DISPLAY", scale, digits, signed,
             (int(occurs[1]), int(occurs[2] or occurs[1])) if occurs else None,
             depending[1].upper() if depending else None,
-            redefines[1].upper() if redefines else None, value[1] if value else None,
+            redefines[1].upper() if redefines else None, value,
             diagnostics=("condition_name_not_separate_storage",) if level == 88 else
                         ("renames_layout_unsupported",) if level == 66 else ())
         if compilation_statuses is not None and any(compilation_statuses.get(number) is None for number in range(first, last+1)):
@@ -230,7 +248,7 @@ def _regions(items, check_cancel=None):
 
 class BuiltinParserAdapter:
     name = "builtin"
-    version = "builtin-ir-adapter-v3"
+    version = "builtin-ir-adapter-v4"
 
     def parse(self, source, *, relative_path, context=None, source_map=None, source_sha256=None, check_cancel=None):
         if check_cancel:

@@ -567,14 +567,27 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
         service = scope._semantic_services[unit_path]
         anchors = [key for key, node in service.nodes.items() if node.kind not in {"IF", "EVALUATE", "WHEN"}
             and any(ref["relative_path"] == path and ref["start_line"] <= line <= ref["end_line"] for ref in node.source_refs)]
-        needed, explanations = set(), []
+        needed, explanations, proof_anchors = set(), [], []
+        later_reads = []
         for key in anchors[:4]:
             needed.update(service.backward_slice(key)["occurrences"])
             if purpose in {"impact", "forward_slice"}:
                 needed.update(service.forward_slice(key)["occurrences"])
             explanation = service.explain_assignment(key)
             explanations.append(explanation)
+            proof_anchors.append(key)
+            if service._flow_complete:
+                later_reads.extend(explanation["later_reads"])
             needed.update(explanation["later_writes"])
+        related_readers = [key for key in dict.fromkeys(later_reads) if key not in proof_anchors]
+        allowance = max(0, 16 - len(proof_anchors))
+        if len(related_readers) > allowance:
+            frontier.append({"reason": "input_origin_reader_budget", "reader_count": len(related_readers),
+                             "supplied_reader_count": allowance, **anchor})
+        for key in related_readers[:allowance]:
+            proof_anchors.append(key)
+            needed.add(key)
+            explanations.append(service.explain_assignment(key))
         flow_nodes = [node for key, node in service.nodes.items() if key in needed][:16]
         supplied_ids = {page["evidence_id"] for page in supplied}
         flow_refs = []
@@ -600,7 +613,32 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
         if flow_refs:
             observations.append(Observation("flow_" + scope.scope_key[:16], "flow_context", flow_refs,
                 interpretation_basis="possible_source_flow"))
-        for key, explanation in zip(anchors[:4], explanations):
+        supplied_by_id = {page["evidence_id"]: page for page in supplied}
+        def supply_origin_page(page):
+            previous = supplied_by_id.get(page["evidence_id"])
+            if previous is None:
+                supplied.append(page)
+                supplied_ids.add(page["evidence_id"])
+                supplied_by_id[page["evidence_id"]] = page
+            elif (any(previous.get(key) != page.get(key) for key in
+                    ("relative_path", "source_sha256", "start_line", "end_line", "source_text"))
+                    or tuple(previous.get("include_chain") or ()) != tuple(page.get("include_chain") or ())
+                    or previous.get("copy_instance") and page.get("copy_instance")
+                       and previous["copy_instance"] != page["copy_instance"]):
+                frontier.append({"reason": "source_evidence_context_conflict", "evidence_id": page["evidence_id"]})
+                return False
+            elif page.get("replacement_trace"):
+                if previous.get("replacement_trace") and previous["replacement_trace"] != page["replacement_trace"]:
+                    frontier.append({"reason": "source_replacement_trace_conflict", "evidence_id": page["evidence_id"]})
+                    return False
+                else:
+                    # Same original bytes and COPY instance; retain the verified
+                    # preprocessing trace that a plain declaration page omitted.
+                    previous["replacement_trace"] = page["replacement_trace"]
+                    if page.get("copy_instance"):
+                        previous["copy_instance"] = page["copy_instance"]
+            return True
+        for key, explanation in zip(proof_anchors, explanations):
             explanation["statement"] = asdict(service.nodes[key])
             for origin in explanation.get("read_origins", []):
                 for ref in origin.get("source_refs", []):
@@ -610,8 +648,45 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
                     lines = _captured_lines(scope, captured)
                     text = "\n".join(lines[ref["start_line"] - 1:ref["end_line"]])
                     ref["excerpt_sha256"] = hashlib.sha256(text.encode()).hexdigest()
+                    if ref["end_line"] - ref["start_line"] >= 96:
+                        frontier.append({"reason": "input_origin_source_span_budget", **ref})
+                        continue
+                    covered = any(page["relative_path"] == ref["relative_path"]
+                        and page["source_sha256"] == ref["source_sha256"]
+                        and page["start_line"] <= ref["start_line"] <= ref["end_line"] <= page["end_line"]
+                        and tuple(page.get("include_chain") or ()) == tuple(ref.get("include_chain") or ())
+                        and tuple(page.get("replacement_trace") or ()) == tuple(ref.get("replacement_trace") or ())
+                        and not page.get("span_truncated") for page in supplied)
+                    if not covered:
+                        page = {**ref, "source_text": text, "selection_reasons": ["semantic_input_origin"],
+                                "semantic_roles": ["input_definition"],
+                                "interpretation_basis": "possible_source_origin_not_runtime_value", "runtime_value_known": False}
+                        page["evidence_id"] = _identify_page(page)
+                        if not supply_origin_page(page):
+                            origin["status"] = "unresolved_source_origin"
+                            origin["unknown_reasons"] = sorted({*origin["unknown_reasons"], "source_evidence_context_conflict"})
+                for initial in origin.get("initial_definitions", []):
+                    for ref in initial.get("source_refs", []):
+                        if ref["end_line"] - ref["start_line"] >= 96:
+                            frontier.append({"reason": "initialization_source_span_budget", **ref})
+                            continue
+                        captured = source_session.capture(ref["relative_path"])
+                        if captured.sha256 != ref["source_sha256"]:
+                            raise ValueError("SEMANTIC_INITIALIZATION_SOURCE_VERSION_MISMATCH")
+                        text = "\n".join(_captured_lines(scope, captured)[ref["start_line"] - 1:ref["end_line"]])
+                        ref["excerpt_sha256"] = hashlib.sha256(text.encode()).hexdigest()
+                        # Declare the activation condition next to the raw VALUE
+                        # source. It never establishes a current runtime value.
+                        page = {**ref, "source_text": text, "selection_reasons": ["semantic_initialization"],
+                            "semantic_roles": ["input_definition"],
+                            "interpretation_basis": "conditional_source_initialization",
+                            "activation_semantics": initial["activation_semantics"], "runtime_value_known": False}
+                        page["evidence_id"] = _identify_page(page)
+                        if not supply_origin_page(page):
+                            origin["status"] = "unresolved_source_origin"
+                            origin["unknown_reasons"] = sorted({*origin["unknown_reasons"], "source_evidence_context_conflict"})
         semantic_analysis = {"version": SERVICE_VERSION,
-            "flow_status": "possible_source_flow" if service._flow_complete else "incomplete_source_flow", "anchors": anchors[:4],
+            "flow_status": "possible_source_flow" if service._flow_complete else "incomplete_source_flow", "anchors": proof_anchors,
             "assignments": explanations, "slice_statements": [asdict(node) for node in flow_nodes],
             "dependencies": sorted(service.dependencies), "unknown_effects": service.frontier[:16]}
         frontier.extend(service.frontier[:8])

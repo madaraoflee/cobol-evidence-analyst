@@ -11,9 +11,14 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
-
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from tools.desktop_acceptance_scenarios import CONVERSATION_QUESTIONS, _conversation_source
+
+
 SYNTHETIC_MANIFEST = ROOT / "docs/eval/desktop-joint-v1/manifest.json"
 PUBLIC_MANIFEST = ROOT / "docs/eval/public-business-v1/manifest.json"
 PUBLIC_CASES = ROOT / "docs/eval/public-business-v1/cases.json"
@@ -179,6 +184,50 @@ def record_binding_cases(source):
     ]
 
 
+def report_conversation_cases(source):
+    """Review the same page/account conversation used by native regressions."""
+    report = "synthetic/report.cbl"
+    require((Path(source) / report).read_bytes() == _conversation_source().encode("utf-8"),
+            "OFFICE_REPORT_NATIVE_FIXTURE_CHANGED")
+    initial = source_range(source, report, 4, 8, "initialization-declaration")
+    additions = anchor(source, report, "ADD TRAN-AMT TO PAGE-SUM ACCOUNT-SUM.", role="accumulation")
+    page_guard = anchor(source, report, "IF LINE-COUNT >= PAGE-SIZE", count=3, role="page-control")
+    account_guard = anchor(source, report, "IF CURR-CARD NOT = TRAN-CARD", count=6, role="account-control")
+    page_effect = anchor(source, report, "MOVE PAGE-SUM TO REPORT-PAGE-SUM.", count=4, role="page-effects")
+    account_effect = anchor(source, report, "MOVE ACCOUNT-SUM TO REPORT-ACCOUNT-SUM.", count=3,
+                            role="account-effects")
+    initialization = finding("report-value-source",
+        "WORKING-STORAGE的VALUE声明给出TRAN-AMT初值25.00，PAGE-SUM、ACCOUNT-SUM和GRAND-SUM初值0；这是首次激活时的初始化来源。后续激活的保留状态和本次进入情况需运行上下文确认，不能把声明初值直接说成本次运行值。", initial)
+    accumulation = finding("report-shared-accumulation",
+        "ADD-TRANSACTION的ADD读取TRAN-AMT及原PAGE-SUM/ACCOUNT-SUM，并分别写回两个累计项；两项各累加TRAN-AMT，而非把PAGE-SUM转入ACCOUNT-SUM。", additions)
+    page = finding("report-page-control-and-effects",
+        "ADD-TRANSACTION在LINE-COUNT >= PAGE-SIZE时PERFORM PAGE-TOTALS：先把PAGE-SUM复制到REPORT-PAGE-SUM，再加到GRAND-SUM，最后MOVE 0覆盖PAGE-SUM；这一页汇总段不清零ACCOUNT-SUM。", page_guard, page_effect)
+    account = finding("report-account-control-and-effects",
+        "MAIN仅在CURR-CARD NOT = TRAN-CARD且FIRST-ITEM = 'N'时PERFORM ACCOUNT-TOTALS：先复制ACCOUNT-SUM到REPORT-ACCOUNT-SUM，随后MOVE 0覆盖ACCOUNT-SUM。在卡号变化分支内，内层判断之后MOVE TRAN-CARD TO CURR-CARD；账户清零由这两个条件共同控制。", account_guard, account_effect)
+    account_focus = finding("report-second-account-focus",
+        "前一轮第二种情况指ACCOUNT-SUM账户汇总，应保留这个会话对象；PAGE-TOTALS只把PAGE-SUM清零，换页本身不是ACCOUNT-SUM清零的依据。", page_guard, page_effect, account_guard, account_effect)
+    overwrite = finding("report-account-later-overwrite",
+        "ACCOUNT-SUM来自ADD-TRANSACTION对TRAN-AMT的累加；满足卡号变化且FIRST-ITEM='N'时，ACCOUNT-TOTALS先保存到REPORT-ACCOUNT-SUM，再以MOVE 0覆盖累计项。所以累计曾经生效，零是后续清零，不表示先前ADD未执行或报告金额也归零。", additions, account_guard, account_effect)
+    forbidden = ["把声明VALUE初值当作任意本次激活的确定运行值。",
+                 "说PAGE-TOTALS或换页会把ACCOUNT-SUM清零。",
+                 "遗漏账户清零的卡号变化条件或FIRST-ITEM='N'条件。",
+                 "把后续清零说成先前ADD未生效，或声称已保存的报告金额也被清零。",
+                 "仅凭CFG候选周期便声称源码有循环或无限重复累计。"]
+    turns = [
+        question("report-origin", CONVERSATION_QUESTIONS[0],
+            [copy.deepcopy(initialization), copy.deepcopy(accumulation), copy.deepcopy(page), copy.deepcopy(account)],
+            forbidden),
+        question("report-second", CONVERSATION_QUESTIONS[1],
+            [copy.deepcopy(account_focus), copy.deepcopy(accumulation), copy.deepcopy(account),
+             copy.deepcopy(initialization)], forbidden),
+        question("report-account-zero", CONVERSATION_QUESTIONS[2],
+            [copy.deepcopy(account_focus), copy.deepcopy(overwrite), copy.deepcopy(initialization)], forbidden),
+    ]
+    return [{"id": "report-summary-multiturn", "split": "regression",
+             "coverage": ["value_initialization_source", "page_account_multiturn", "input_origin",
+                          "later_overwrite", "three_turn_focus"], "turns": turns}]
+
+
 def synthetic_cases(source):
     front = "synthetic/frontend.cbl"
     def front_at(needle, **options):
@@ -256,6 +305,7 @@ def synthetic_cases(source):
          finding("reserved-merge", "STATUS-FLAG=1则后续总额置0；=2则再加1成16；WHEN OTHER保留15；最终MOVE读取分支合并结果。", source_range(source, reserved, 11, 18))],
         ["仅按段落/变量名字推断。", "遗漏WHEN2或OTHER分支。"], split="holdout", coverage=["evaluate_merge", "reserved_question"]))
     result.extend(record_binding_cases(source))
+    result.extend(report_conversation_cases(source))
     return result
 
 
@@ -377,7 +427,8 @@ def generate_suite(output, public_source, *, include_scale=False):
     for name, path in synthetic_files:
         shutil.copyfile(path, synthetic / name)
     for name, text in (("exception.cbl", EXCEPTION_SOURCE), ("unknown.cbl", UNKNOWN_SOURCE),
-                       ("continuation.cbl", CONTINUATION_SOURCE), ("reserved.cbl", RESERVED_SOURCE)):
+                       ("continuation.cbl", CONTINUATION_SOURCE), ("reserved.cbl", RESERVED_SOURCE),
+                       ("report.cbl", _conversation_source())):
         (synthetic / name).write_bytes(text.encode("utf-8"))
     shutil.copyfile(license_file, output / "PUBLIC-SOURCE-LICENSE.txt")
     cases = synthetic_cases(source) + public_cases(source)

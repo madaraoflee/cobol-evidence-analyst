@@ -168,6 +168,10 @@ class QuestionInvestigationChatTests(unittest.TestCase):
         self.assertEqual(result["metrics"]["question_investigation"]["candidate_queries"], 1)
         self.assertLessEqual(result["metrics"]["request_bytes"][0], 32768)
         visible = {page["evidence_id"] for page in self.requests[0]["source_context"][0]["pages"]}
+        supplied_text = "\n".join(page["source_text"] for page in self.requests[0]["source_context"][0]["pages"])
+        self.assertIn("IF BASIS > 1", supplied_text)
+        self.assertIn("ADD 2 TO FINAL-AMOUNT", supplied_text)
+        self.assertIn("01 FACTOR PIC 9V99 VALUE 1.25", supplied_text)
         for item in self.requests[0]["question_investigation"]["required_items"]:
             self.assertTrue(set(item["evidence_ids"]).issubset(visible))
         self.assertEqual(result["status"], "PARTIAL")
