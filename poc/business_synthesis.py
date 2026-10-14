@@ -317,14 +317,16 @@ def _supplied_calculation_hints(question, investigation, source_pages):
     Inspect only its actually supplied pages and target writes instead, so an
     unconditional formula does not acquire an invented exception requirement.
     """
-    from structural_index import _extract_data_access, _unique_identifiers, normalize_cobol_lines
+    from statement_facts import data_references
+    from structural_index import _extract_data_access, normalize_cobol_lines
 
     supplied = {identifier for item in investigation.get("required_items", [])
                 if item.get("kind") in {"formula", "business_steps", "conditions", "result_adjustments"}
                 and item.get("status") == "SATISFIED"
                 for identifier in item.get("evidence_ids", [])}
     from question_planner import question_references
-    question_fields = set(question_references(question))
+    question_refs = tuple(reference for identity in question_references(question)
+                          for reference in data_references(identity))
     conditions, adjustments, hints = False, False, []
     seen, scopes = set(), []
     scoped_pages = []
@@ -370,10 +372,6 @@ def _supplied_calculation_hints(question, investigation, source_pages):
             elif verb in _ARITHMETIC_VERBS | {"MOVE"}:
                 reads, targets, metadata = _extract_data_access(statement)
                 syntax = masked[event.start():end]
-                if verb in _ARITHMETIC_VERBS and re.search(r"\bGIVING\b", syntax, re.I):
-                    giving = re.split(r"\bGIVING\b", syntax, flags=re.I)[1]
-                    targets = _unique_identifiers(re.split(r"\b(?:ON|NOT|END-\w+)\b", giving)[0])
-                    reads = [field for field in reads if field not in targets]
                 if targets:
                     writes.append({"verb": verb, "targets": targets, "reads": reads, "statement": statement,
                                    "syntax": syntax, "unknown_branch": unknown_branch,
@@ -389,8 +387,23 @@ def _supplied_calculation_hints(question, investigation, source_pages):
                           if row["verb"] in _ARITHMETIC_VERBS for field in row["targets"]}
     arithmetic_inputs = {field for _, writes in scopes for row in writes
                          if row["verb"] in _ARITHMETIC_VERBS for field in row["reads"]}
-    matched = (arithmetic_targets.intersection(question_fields) or
-               all_targets.intersection(question_fields).difference(arithmetic_inputs))
+    references = {field: data_references(field) for field in all_targets | arithmetic_inputs}
+
+    def matches(fields):
+        # Select coverage candidates from this supplied material only. A bare
+        # reference can nominate every qualified occurrence of the same name;
+        # it does not resolve ambiguity or establish a storage identity. An
+        # explicit qualifier/index/modification must match its lexical DataRef.
+        return {field for field in fields for candidate in references[field]
+                if any(requested.name == candidate.name
+                       and (not requested.qualifiers or requested.qualifiers == candidate.qualifiers)
+                       and (not requested.subscripts or requested.subscripts == candidate.subscripts)
+                       and (requested.reference_modification is None
+                            or requested.reference_modification == candidate.reference_modification)
+                       for requested in question_refs)}
+
+    matched = (matches(arithmetic_targets) or
+               matches(all_targets).difference(arithmetic_inputs))
     # A program-level question can supply many intermediate counters. Their
     # independent writes do not establish which one is the requested result.
     override_targets = matched or (arithmetic_targets if len(arithmetic_targets) == 1 else set())

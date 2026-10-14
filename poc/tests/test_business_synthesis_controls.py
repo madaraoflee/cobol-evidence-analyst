@@ -4,13 +4,17 @@ These are bounded lexical checks. Rejecting a known omission does not establish
 that an arbitrary answer is correct, nor that the source has been executed.
 """
 
+from copy import deepcopy
+import hashlib
 from pathlib import Path
 import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from business_synthesis import answer_requirements, assess_business_answer, needs_synthesis_review
+from business_synthesis import (_supplied_calculation_hints, answer_requirements,
+                                assess_business_answer, needs_synthesis_review)
+from structural_index import _extract_data_access
 
 
 class SuppliedCalculationControlTests(unittest.TestCase):
@@ -179,6 +183,135 @@ class SuppliedCalculationControlTests(unittest.TestCase):
         answer = "最终结果是基础值乘以2再加一。"
         self.assertEqual(assess_business_answer("RESULT 怎么计算？", answer,
                                                 investigation, pages)["missing_aspects"], [])
+
+
+class SuppliedCalculationReferenceScopeTests(unittest.TestCase):
+    """Selection uses lexical candidates, without resolving ambiguous names."""
+
+    material = SuppliedCalculationControlTests.material
+
+    def native_frontend_material(self):
+        fixture = (Path(__file__).resolve().parents[2]
+                   / "docs/eval/desktop-joint-v1/source/frontend.cbl")
+        raw = fixture.read_bytes()
+        text = raw.decode("utf-8")
+        investigation, pages = self.material(text, identifier="ev:native-frontend")
+        pages[0].update(relative_path="frontend.cbl", start_line=1,
+                        end_line=len(text.splitlines()), source_sha256=hashlib.sha256(raw).hexdigest())
+        self.assertEqual(pages[0]["end_line"], 31)
+        self.assertIn("COMPUTE C ROUNDED = A * 2", text)
+        return investigation, pages
+
+    def test_native_bare_amount_short_answer_does_not_acquire_c_rounding(self):
+        investigation, pages = self.native_frontend_material()
+        investigation["open_gaps"] = [{"reason": "field_reference_ambiguous", "field": "AMOUNT",
+            "candidates": ["AMOUNT OF INPUT-REC", "AMOUNT OF OUTPUT-REC"]}]
+        before = deepcopy(investigation)
+        question = "SEMANTIC-CASE AMOUNT 怎样计算？"
+        answer = ("AMOUNT 的限定记录存在歧义，需保留两个候选。"
+                  "AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2。[ev:native-frontend] "
+                  "两个字段分别属于 OUTPUT-REC 与 INPUT-REC，输入运行值尚未给出。")
+        review = assess_business_answer(question, answer, investigation, pages)
+        self.assertEqual(review["required_aspects"], ["formula"])
+        self.assertEqual(review["missing_aspects"], [])
+        self.assertFalse(needs_synthesis_review(question, answer, investigation, source_pages=pages))
+        self.assertEqual(review["semantic_verification"], "unverified")
+        self.assertEqual(investigation, before)
+
+    def test_native_in_of_output_aliases_keep_the_same_formula_scope(self):
+        investigation, pages = self.native_frontend_material()
+        for qualifier in ("OF", "IN", "in"):
+            with self.subTest(qualifier=qualifier):
+                question = f"SEMANTIC-CASE AMOUNT {qualifier} OUTPUT-REC 怎样计算？"
+                hints = _supplied_calculation_hints(question, investigation, pages)
+                self.assertEqual(hints, {"conditions": False, "result_adjustments": False,
+                                         "coverage_hints": []})
+                self.assertEqual(assess_business_answer(question,
+                    "AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2。", investigation, pages)
+                    ["missing_aspects"], [])
+
+    def test_explicit_move_target_origin_does_not_request_consumer_calculation(self):
+        investigation, pages = self.material(
+            "MOVE 11 TO A.\nCOMPUTE C ROUNDED = A / 3.")
+        investigation["required_items"].append({"kind": "inputs", "status": "SATISFIED",
+            "candidate_count": 1, "evidence_ids": ["ev:rule"]})
+        review = assess_business_answer("A 的输入来源是什么？", "A 的输入来自 MOVE 11 TO A。",
+                                        investigation, pages)
+        self.assertIn("inputs", review["required_aspects"])
+        self.assertNotIn("formula", review["required_aspects"])
+        self.assertNotIn("result_adjustments", review["required_aspects"])
+        self.assertEqual(review["missing_aspects"], [])
+
+    def test_native_c_question_still_requires_real_rounding_and_later_writes(self):
+        investigation, pages = self.native_frontend_material()
+        review = assess_business_answer("SEMANTIC-CASE C 怎样计算？", "C 等于 A 乘以2。",
+                                        investigation, pages)
+        self.assertIn("rounding", review["missing_aspects"])
+        self.assertIn("result_overrides", review["missing_aspects"])
+        hints = _supplied_calculation_hints("SEMANTIC-CASE C 怎样计算？", investigation, pages)
+        self.assertEqual({hint["target_field"] for hint in hints["coverage_hints"]}, {"C"})
+        self.assertTrue(any("COMPUTE C ROUNDED" in hint["source_statement"]
+                            for hint in hints["coverage_hints"] if hint["kind"] == "rounding"))
+
+    def test_native_program_question_keeps_all_arithmetic_candidates(self):
+        investigation, pages = self.native_frontend_material()
+        hints = _supplied_calculation_hints("SEMANTIC-CASE 全程序怎样计算？", investigation, pages)
+        self.assertTrue(any(hint["kind"] == "rounding" and hint["target_field"] == "C"
+                            for hint in hints["coverage_hints"]))
+        review = assess_business_answer("SEMANTIC-CASE 全程序怎样计算？", "输出金额为输入金额的两倍。",
+                                        investigation, pages)
+        self.assertIn("rounding", review["missing_aspects"])
+
+    def test_bare_unique_group_field_does_not_fall_back_to_other_calculations(self):
+        investigation, pages = self.material(
+            "COMPUTE AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2.\n"
+            "COMPUTE OTHER-RESULT ROUNDED = BASIS / 3.\nMOVE 99 TO OTHER-RESULT.")
+        review = assess_business_answer("AMOUNT 怎样计算？", "输出金额为输入金额的两倍。",
+                                        investigation, pages)
+        self.assertEqual(review["required_aspects"], ["formula"])
+        self.assertEqual(review["missing_aspects"], [])
+
+    def test_bare_ambiguous_outputs_preserve_both_local_candidates(self):
+        investigation, pages = self.material(
+            "COMPUTE AMOUNT OF INPUT-REC ROUNDED = BASIS / 3.\n"
+            "COMPUTE AMOUNT OF OUTPUT-REC = BASIS * 2.\nMOVE 19 TO AMOUNT OF OUTPUT-REC.\n"
+            "COMPUTE OTHER-RESULT ROUNDED = BASIS / 7.")
+        hints = _supplied_calculation_hints("AMOUNT 怎样计算？", investigation, pages)
+        self.assertEqual([(hint["kind"], hint["target_field"]) for hint in hints["coverage_hints"]],
+                         [("rounding", "AMOUNT OF INPUT-REC"),
+                          ("result_overrides", "AMOUNT OF OUTPUT-REC")])
+        for qualifier in ("OF", "IN"):
+            scoped = _supplied_calculation_hints(f"AMOUNT {qualifier} OUTPUT-REC 怎样计算？",
+                                                 investigation, pages)
+            self.assertEqual([(hint["kind"], hint["target_field"]) for hint in scoped["coverage_hints"]],
+                             [("result_overrides", "AMOUNT OF OUTPUT-REC")])
+
+    def test_giving_uses_shared_roles_including_one_field_as_input_and_output(self):
+        for statement, reads, writes in (
+                ("ADD A TO B GIVING C END-ADD.", ["A", "B"], ["C"]),
+                ("ADD A TO B GIVING A END-ADD.", ["A", "B"], ["A"]),
+                ("ADD AMOUNT IN INPUT-REC TO BASIS GIVING AMOUNT OF INPUT-REC END-ADD.",
+                 ["AMOUNT OF INPUT-REC", "BASIS"], ["AMOUNT OF INPUT-REC"])):
+            with self.subTest(statement=statement):
+                actual_reads, actual_writes, _ = _extract_data_access(statement)
+                self.assertEqual(actual_reads, reads)
+                self.assertEqual(actual_writes, writes)
+        investigation, pages = self.material(
+            "ADD AMOUNT IN INPUT-REC TO BASIS GIVING AMOUNT OF INPUT-REC END-ADD.\n"
+            "COMPUTE C ROUNDED = BASIS / 3.")
+        hints = _supplied_calculation_hints("AMOUNT 怎样计算？", investigation, pages)
+        self.assertEqual(hints["coverage_hints"], [])
+        self.assertFalse(hints["result_adjustments"])
+
+    def test_subscript_in_question_keeps_only_the_matching_supplied_occurrence(self):
+        investigation, pages = self.material(
+            "COMPUTE AMOUNT(1) OF OUTPUT-REC = BASIS * 2.\n"
+            "COMPUTE AMOUNT(2) OF OUTPUT-REC ROUNDED = BASIS / 3.")
+        scoped = _supplied_calculation_hints("AMOUNT(1) IN OUTPUT-REC 怎样计算？", investigation, pages)
+        self.assertEqual(scoped["coverage_hints"], [])
+        bare = _supplied_calculation_hints("AMOUNT 怎样计算？", investigation, pages)
+        self.assertEqual([(hint["kind"], hint["target_field"]) for hint in bare["coverage_hints"]],
+                         [("rounding", "AMOUNT OF OUTPUT-REC(2)")])
 
 
 if __name__ == "__main__":

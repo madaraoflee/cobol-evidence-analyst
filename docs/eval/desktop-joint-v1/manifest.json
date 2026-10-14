@@ -255,7 +255,8 @@
         "evidence_scope_probe_versions_match",
         "lifecycle_scope_probe_index_reused",
         "performance_scope_probe_bounded",
-        "evidence_scope_probe_answers_bound"
+        "evidence_scope_probe_answers_bound",
+        "quality_ambiguous_completion_relevant"
       ],
       "assertion_groups": {
         "quality": [
@@ -271,7 +272,8 @@
           "quality_semantic_ir_agrees",
           "quality_bare_group_field_formula_supplied",
           "quality_qualified_output_scope",
-          "quality_ambiguous_group_field_candidates"
+          "quality_ambiguous_group_field_candidates",
+          "quality_ambiguous_completion_relevant"
         ],
         "completeness": [
           "completeness_answer_recorded",

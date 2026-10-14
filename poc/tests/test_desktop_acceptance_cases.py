@@ -200,6 +200,17 @@ class DesktopAcceptanceEvidenceTests(unittest.TestCase):
         self.assertFalse(_scope_probe_checks(probe, trace, {"status": "PARTIAL"}, [self.page])[
             "quality_ambiguous_group_field_candidates"])
 
+    def test_ambiguous_completion_cannot_demand_other_field_rounding_or_omit_the_check(self):
+        probe = {"id": "ambiguous_group_field", "expected_candidate_count": 1}
+        def checked(completion):
+            return _scope_probe_checks(probe, {"final": {"answer_completion": completion}},
+                {"status": "PARTIAL"}, [self.page])["quality_ambiguous_completion_relevant"]
+        valid = {"semantic_verification": "unverified", "required_aspects": ["formula"], "missing_aspects": []}
+        self.assertTrue(checked(valid))
+        self.assertFalse(checked({}))
+        self.assertFalse(checked({**valid, "required_aspects": ["formula", "result_adjustments"]}))
+        self.assertFalse(checked({**valid, "missing_aspects": ["rounding"]}))
+
 
 if __name__ == "__main__":
     unittest.main()

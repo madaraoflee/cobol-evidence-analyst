@@ -543,9 +543,14 @@ def _scope_probe_checks(probe, trace, agent, pages, output=None):
     if probe["id"] == "ambiguous_group_field":
         ambiguity = [gap for gap in investigation.get("open_gaps", [])
                      if gap.get("reason") == "field_reference_ambiguous"]
+        completion = (trace.get("final") or {}).get("answer_completion") or {}
         return {"quality_ambiguous_group_field_candidates": basic and any(
             set(gap.get("candidates", [])) == {"AMOUNT OF INPUT-REC", "AMOUNT OF OUTPUT-REC"}
-            for gap in ambiguity) and agent.get("status") == "PARTIAL"}
+            for gap in ambiguity) and agent.get("status") == "PARTIAL",
+            "quality_ambiguous_completion_relevant": (completion.get("semantic_verification") == "unverified"
+                and "formula" in completion.get("required_aspects", [])
+                and "result_adjustments" not in completion.get("required_aspects", [])
+                and "rounding" not in completion.get("missing_aspects", ["rounding"]))}
     if probe["id"] == "large_two_if_pic":
         conditions, declarations, inputs = [_obligation(trace, kind) for kind in ("conditions", "declarations", "inputs")]
         expected = {9: "01 INPUT-000 PIC 9(9).", 10: "01 INPUT-001 PIC 9(9).", 33: "01 BILL-AMOUNT PIC 9(9)."}
