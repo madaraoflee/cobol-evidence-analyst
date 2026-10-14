@@ -2,6 +2,8 @@
 
 正式发布要求同一份 Windows ZIP 同时具备原生离线回归、真实模型问答、逐条人工评审与目标办公设备验收。缺任何一项就保留为候选。构建成功或填写完评分表不代表答案正确。
 
+公司 Windows 设备优先使用[直接运行的验收包与步骤](office-acceptance-steps.md)：独立编译的向导带 Tk/运行时，冻结原应用 EXE，默认无调用计划、本机完整 55 样本回归、29 轮真实问答、逐项人工评审及本地门禁。无需使用者安装 Python、Git 或开发工具。`windows-office-acceptance.yml` 只编译辅助工具，在 Windows 启动它并复跑原 EXE；不将 CI 机器冒充公司设备，不调用公司模型或发布。
+
 `windows-desktop.yml` 在相关主分支推送、PR 和手动构建时运行：固定版本 actionlint 校验 Actions 表达式 → 固定公开语料校验 → Python/浏览器回归 → MSVC 编译 → 启动最终 EXE 联合回归 → 候选门禁 → 上传白名单产物。失败会阻断候选上传；合成模型不能授权正式发布。候选产物含 ZIP、校验和、BUILD-INFO、逐样本原生报告、合同、候选策略与门禁结果。工作流语义检查使用 [actionlint 官方用法](https://github.com/rhysd/actionlint/blob/v1.7.7/docs/usage.md)，只在维护/CI 环境运行，不进入用户应用。
 
 真实验收只在获准设备上执行，报告保留本地。维护者先准备已经审阅的案例 JSON，使用现有 `live-business-eval/v3` 案例结构；每项关键结论须包含 `gold.required_findings[].supporting_ranges`，记录路径、行段与源码 SHA。`reviewed_context.source_ranges` 提供相同版本的冻结源码范围。正式题集至少含一个三轮 `turns` 场景、一项 `split=holdout` 留出题和一项 `split=regression` 或 `public-development` 回归题；后两轮必须实际供应前序 user/assistant 历史。不能用单个容易的单轮题代替联合质量验收。这些要求在任何模型请求之前检查。
@@ -35,6 +37,7 @@ python tools/desktop_live_acceptance.py --archive <最终WindowsZIP> --source-co
 python tools/publish_desktop_release.py --package <最终WindowsZIP> `
   --compiled-report <COMPILED-ACCEPTANCE.json> --manifest <ACCEPTANCE-MANIFEST.json> `
   --policy <冻结正式策略JSON> --live-report <LIVE-ACCEPTANCE.json> --live-cases <冻结案例JSON> `
+  --office-report <本机重新生成的COMPILED-ACCEPTANCE.json> `
   --reviews <已完成评分JSON> --repo madaraoflee/cobol-evidence-analyst --tag <现有草稿tag> `
   --output <本地发布决定JSON>
 ```
@@ -42,3 +45,5 @@ python tools/publish_desktop_release.py --package <最终WindowsZIP> `
 检查完整通过且用户明确授权正式发布时，再加 `--publish`。该入口核对现有草稿目标 commit、tag、Windows 资产字节 SHA，拒绝顺带发布未经验收的其他平台包；只上传经过白名单筛选的哈希凭据，再转为正式版本。企业问题、回答、原始节录与评审人不上传。门禁失败时零 GitHub 调用。
 
 仓库管理员仍可在 GitHub UI 或其他命令中绕过此工具；本地流程不冒充服务器访问控制。维护流程禁止直接使用 `gh release edit --draft=false` 绕过联合门禁。现有正式版本不会因为新候选构建成功而自动替换。
+
+门禁现同时重算本机原生报告的全部案例，要求同一 EXE/合同、与 CI 不重叠的新运行身份和与真实报告相同的匿名设备观察。真实题集不可删掉旧语义、公式、调用链、异常与公开业务回归。逐题保留实际 EXE 的完整诊断并绑定评审身份；缺状态、缺停止原因、改诊断或用旧评分均失效。PARTIAL 必须逐题记录具体分类、原因、受影响关键结论及是否查清；仍有错误/遗漏的答案不能因“已查清”勾选而通过。原归档记录保持原版本，不用新重跑覆写历史结果。

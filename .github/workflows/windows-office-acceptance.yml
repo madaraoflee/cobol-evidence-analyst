@@ -1,0 +1,199 @@
+name: Frozen Windows office acceptance kit
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_commit:
+        description: 'Accepted application commit (40 hexadecimal characters)'
+        type: string
+        default: '44fcb5f9e769ae559c9cd6b5b12d396959613998'
+      candidate_run_id:
+        description: 'Successful Windows candidate workflow run'
+        type: string
+        default: '38593469204'
+      candidate_artifact_id:
+        description: 'Exact accepted candidate artifact ID'
+        type: string
+        default: '11913165911'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/windows-office-acceptance.yml'
+      - 'tools/office_acceptance_*.py'
+      - 'tools/build_office_acceptance.py'
+      - 'tools/collect_office_acceptance_kit.py'
+      - 'tools/acceptance_diagnostics.py'
+      - 'docs/office-acceptance-steps.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/windows-office-acceptance.yml'
+      - 'tools/office_acceptance_*.py'
+      - 'tools/build_office_acceptance.py'
+      - 'tools/collect_office_acceptance_kit.py'
+      - 'tools/acceptance_diagnostics.py'
+      - 'docs/office-acceptance-steps.md'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.23.4'
+          cache: false
+      - run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$(go env GOPATH)/bin/actionlint" -shellcheck= -pyflakes= .github/workflows/windows-office-acceptance.yml
+
+  kit:
+    runs-on: windows-2022
+    needs: lint
+    timeout-minutes: 75
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+      FROZEN_APP_COMMIT: ${{ inputs.app_commit || '44fcb5f9e769ae559c9cd6b5b12d396959613998' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          architecture: x64
+      - name: Obtain the unchanged accepted EXE and its original reports
+        uses: actions/download-artifact@v7
+        with:
+          artifact-ids: ${{ inputs.candidate_artifact_id || '11913165911' }}
+          run-id: ${{ inputs.candidate_run_id || '38593469204' }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/frozen-candidate
+      - name: Verify original archive identity and fetch frozen public sources
+        shell: python
+        run: |
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          sys.path.insert(0, str(Path.cwd() / 'tools'))
+          from desktop_acceptance import inspect_package
+          candidate = Path(os.environ['RUNNER_TEMP']) / 'frozen-candidate'
+          artifact = inspect_package(candidate / 'COBOLWorkbench-windows-x64.zip', os.environ['FROZEN_APP_COMMIT'])
+          if (os.environ['FROZEN_APP_COMMIT'] == '44fcb5f9e769ae559c9cd6b5b12d396959613998'
+              and artifact['archive_sha256'] != '065f1ea39e1cdd6313b9eb2d826f987af1286ef56bf8de733450df86d2f947e0'):
+              raise SystemExit('The frozen EXE archive has changed.')
+          manifest = json.loads(Path('docs/eval/public-business-v1/manifest.json').read_text(encoding='utf-8'))
+          target = Path(os.environ['RUNNER_TEMP']) / 'office-public-source'
+          target.mkdir()
+          for arguments in (['init'], ['config', 'core.autocrlf', 'false'],
+                            ['remote', 'add', 'origin', manifest['repository']],
+                            ['fetch', '--depth', '1', 'origin', manifest['commit']],
+                            ['checkout', '--detach', 'FETCH_HEAD']):
+              subprocess.run(['git', '-C', str(target), *arguments], check=True)
+          for item in manifest['files']:
+              if hashlib.sha256((target / item['path']).read_bytes()).hexdigest() != item['sha256']:
+                  raise SystemExit('Frozen source content mismatch.')
+
+      - name: Validate office contracts before compilation
+        shell: python
+        run: |
+          import subprocess
+          import sys
+          for pattern in ('test_office_acceptance*.py', 'test_office_kit_collection.py',
+                          'test_office_release_invariants.py', 'test_partial_acceptance_audit.py',
+                          'test_desktop_live_acceptance.py', 'test_release_acceptance.py',
+                          'test_publish_desktop_release.py'):
+              subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', 'poc/tests', '-p', pattern], check=True)
+
+      - name: Prepare pinned compiler environment
+        id: prepare
+        shell: python
+        run: |
+          from argparse import Namespace
+          import os
+          from pathlib import Path
+          from build_app import prepare_environment
+          interpreter = prepare_environment(Namespace(skip_install=False))
+          with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as handle:
+              handle.write(f'interpreter={interpreter}\n')
+
+      - name: Compile standalone helper and start actual Tk on Windows
+        env:
+          BUILD_PYTHON: ${{ steps.prepare.outputs.interpreter }}
+        run: |
+          & $env:BUILD_PYTHON tools/build_office_acceptance.py --output "$env:RUNNER_TEMP\office-helper" --jobs 4
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Assemble portable kit with the original EXE and frozen cases
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          temporary = Path(os.environ['RUNNER_TEMP'])
+          subprocess.run([sys.executable, 'tools/collect_office_acceptance_kit.py',
+              '--candidate', str(temporary / 'frozen-candidate'),
+              '--helper-archive', str(temporary / 'office-helper/OfficeAcceptance-windows-x64.zip'),
+              '--public-source', str(temporary / 'office-public-source'),
+              '--source-commit', os.environ['FROZEN_APP_COMMIT'],
+              '--helper-commit', os.environ['GITHUB_SHA'],
+              '--destination', str(temporary / 'office-kit-delivery')], check=True)
+
+      - name: Run the delivered helper plan and all 55 native samples without external models
+        timeout-minutes: 35
+        shell: python
+        run: |
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import zipfile
+          temporary = Path(os.environ['RUNNER_TEMP'])
+          archive = temporary / 'office-kit-delivery/COBOLWorkbench-office-acceptance-windows-x64.zip'
+          with zipfile.ZipFile(archive) as package:
+              package.extractall(temporary / 'office-kit-extracted')
+          root = temporary / 'office-kit-extracted/OfficeAcceptanceKit'
+          helper = root / 'helper/OfficeAcceptance/OfficeAcceptance.exe'
+          subprocess.run([helper, '--kit', root / 'OFFICE-KIT.json', '--plan',
+                          '--output', temporary / 'office-native-plan'], check=True, timeout=180)
+          plan = json.loads((temporary / 'office-native-plan/LIVE-ACCEPTANCE.json').read_text(encoding='utf-8'))
+          if plan['plan']['user_turn_count'] != 29 or plan['plan']['max_model_requests'] != 87 or plan['cases']:
+              raise SystemExit('Frozen no-call plan mismatch.')
+          subprocess.run([helper, '--kit', root / 'OFFICE-KIT.json', '--offline',
+                          '--output', temporary / 'office-native-check'], check=True, timeout=1800)
+          report = json.loads((temporary / 'office-native-check/COMPILED-ACCEPTANCE.json').read_text(encoding='utf-8'))
+          if report['status'] != 'passed' or len(report['cases']) != 55:
+              raise SystemExit('Actual helper did not complete all native regressions.')
+          if any(not row.get('acceptance_diagnostics') for row in report['cases'] if row['kind'] == 'answer'):
+              raise SystemExit('Executable answer diagnostics were not retained.')
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as handle:
+              handle.write('Portable helper started on Windows; original EXE reran 55 offline samples. '
+                           'No real-model or company-device acceptance is claimed; formal publication remains blocked.\n')
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Windows-office-acceptance-kit-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/office-kit-delivery/COBOLWorkbench-office-acceptance-windows-x64.zip
+            ${{ runner.temp }}/office-kit-delivery/COBOLWorkbench-office-acceptance-windows-x64.zip.sha256
+            ${{ runner.temp }}/office-kit-delivery/KIT-BUILD-RECEIPT.json
+            ${{ runner.temp }}/office-native-check/COMPILED-ACCEPTANCE.json
+            ${{ runner.temp }}/office-native-check/OFFICE-ENVIRONMENT.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

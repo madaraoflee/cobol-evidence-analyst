@@ -246,6 +246,10 @@ def apply_reviews(report, items, reviews):
                     and measurement.get("elapsed_seconds") == row.get("elapsed_seconds")
                     and measurement.get("answer_sha256") == identity["answer_sha256"]
                     and measurement.get("run_id") == row.get("run_id"))
+            if valid_identity and "acceptance_diagnostics_sha256" in identity:
+                diagnostics = row.get("acceptance_diagnostics")
+                valid_identity = (isinstance(diagnostics, dict)
+                                  and identity["acceptance_diagnostics_sha256"] == _fingerprint(diagnostics))
             if not valid_identity:
                 row.update(human_review=None, review_binding_status="stale",
                            quality_status="not_reviewed", review_completion="not_reviewed",

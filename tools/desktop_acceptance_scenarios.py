@@ -15,6 +15,7 @@ from urllib.parse import urlencode
 
 from tools.desktop_acceptance_runtime import (LoopbackProvider, NativeWorkbench, SlowHeaders,
     read_journal, require, sha256, supplied_pages, write_profile)
+from tools.acceptance_diagnostics import capture_diagnostics
 
 
 RUNTIME_CASES = {"claim_repair", "cancel_unknown", "deadline_unknown", "conversation", "dense_record"}
@@ -66,6 +67,10 @@ def _row(case, sample_index, observation, provider, *, turn_id="1", cold=None, c
     answer = agent.get("answer")
     run_path = (agent.get("metrics") or {}).get("quality_trace_path")
     request = provider.requests[-1] if provider.requests else None
+    diagnostics = None
+    if run_path:
+        trace = json.loads(Path(run_path).read_text(encoding="utf-8"))
+        diagnostics = capture_diagnostics(trace, agent, trace_sha256=sha256(run_path))
     return {"id": case["id"], "turn_id": turn_id, "sample_index": sample_index,
         "run_id": Path(run_path).stem if run_path else None,
         "answer_sha256": hashlib.sha256(answer.encode()).hexdigest() if answer else None,
@@ -76,7 +81,8 @@ def _row(case, sample_index, observation, provider, *, turn_id="1", cold=None, c
         "phase_timings_seconds": (agent.get("metrics") or {}).get("timing_seconds", {}),
         "status": "passed", "kind": "answer", "index_reused": cold is None,
         "question_index_reused": (agent.get("metrics") or {}).get("repository_rebuilt") is False,
-        "agent_status": agent.get("status"), "real_model_accuracy": None, "business_answer_correctness": None}
+        "agent_status": agent.get("status"), "real_model_accuracy": None, "business_answer_correctness": None,
+        "acceptance_diagnostics": diagnostics, "answer": answer, "stop_reason": agent.get("stop_reason")}
 
 
 def _formula_checks(observation, provider, source_hash):
@@ -284,7 +290,8 @@ def _aggregate_conversation(rows, *, started, finished, first_provider_seconds, 
         "checks": checks, "status": "passed" if all(checks.values()) else "failed", "kind": "answer",
         "index_reused": False, "question_index_reused": all(row["question_index_reused"] for row in rows),
         "agent_status": rows[-1].get("agent_status"), "real_model_accuracy": None, "business_answer_correctness": None,
-        "turns": rows}
+        "turns": rows, "acceptance_diagnostics": rows[-1].get("acceptance_diagnostics"),
+        "answer": rows[-1].get("answer"), "stop_reason": rows[-1].get("stop_reason")}
 
 
 def _conversation(command, root, case, sample_index):

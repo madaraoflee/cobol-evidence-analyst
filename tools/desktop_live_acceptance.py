@@ -27,6 +27,8 @@ from live_business_eval import (_cases, _turns, _reviewed_context, _safe_write, 
 from release_acceptance import _required_ranges, _range_covered, _live_case_scope, OFFICE_BASELINE_CHECKS
 from desktop_acceptance import inspect_package, extract_package, digest, require
 from desktop_acceptance_runtime import NativeWorkbench, isolated_environment, read_journal
+from acceptance_diagnostics import capture_diagnostics
+from live_business_eval import _fingerprint
 
 
 def require_remote_profile(settings):
@@ -109,6 +111,14 @@ def live_row(observation, item, runtime, cases_sha256, model):
         source_snapshot_id=trace.get("analysis_revision", agent.get("snapshot_id")),
         framework_revision=item.get("framework_revision"), question=item["question"], history=history,
         runtime_provenance=runtime, measurement=row["measurement"])
+    row["acceptance_diagnostics"] = capture_diagnostics(trace, agent, trace_sha256=digest(trace_path))
+    identity = row["review_identity"]
+    identity["acceptance_diagnostics_sha256"] = _fingerprint(row["acceptance_diagnostics"])
+    identity["identity_sha256"] = _fingerprint({key: value for key, value in identity.items()
+                                              if key != "identity_sha256"})
+    row["actual_evidence_context"] = {"sources": [entry for part in rounds
+        for entry in part["context"].get("sources", [])], "framework": [entry for part in rounds
+        for entry in part["context"].get("framework", [])]}
     return row
 
 
@@ -146,6 +156,8 @@ def evaluate_native(*, archive, source_commit, source, cases, output, profile_co
                  "office_required_checks": office_checks},
         "index_seconds": None, "latency_seconds": {"p50": None, "p95": None},
         "quality_status": "not_reviewed", "status": "planned"}
+    from office_acceptance_checks import office_environment
+    report["office_environment"] = office_environment()
     output.mkdir(parents=True, exist_ok=False)
     report_path = output / "LIVE-ACCEPTANCE.json"
     _safe_write(report_path, report)
@@ -230,6 +242,10 @@ def evaluate_native(*, archive, source_commit, source, cases, output, profile_co
                   latency_seconds={"p50": statistics.median(durations), "p95": _percentile(durations, .95)})
     _safe_write(report_path, report)
     template = review_template(items, report)
+    for row, review in zip(report["cases"], template["reviews"]):
+        if row.get("agent_status") == "PARTIAL":
+            review["partial_review"] = {"classification": None, "reason": "",
+                                        "affected_findings": [], "resolved": None}
     template["office_acceptance"] = {**{key: artifact[key] for key in
         ("source_commit", "archive_sha256", "binary_sha256")}, "evaluation_run_id": report["evaluation_run_id"],
         "live_report_sha256": digest(report_path), "reviewer": "", "reviewed_at": None,

@@ -189,8 +189,8 @@ def main(argv=None):
             source_root = args.source_root.resolve(strict=True)
             report.update(source_provenance(source_root, args.source_commit))
             command = [sys.executable, str(source_root / "poc/desktop_app.py")]
-        from desktop_acceptance_scenarios import run_scenarios
-        from desktop_acceptance_cases import run_cases
+        from tools.desktop_acceptance_scenarios import run_scenarios
+        from tools.desktop_acceptance_cases import run_cases
         for owner, runner in (("runtime", run_scenarios), ("cases", run_cases)):
             selected = {**manifest, "cases": [row for row in manifest["cases"] if row["owner"] == owner]}
             if not selected["cases"]:

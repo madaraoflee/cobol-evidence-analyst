@@ -33,6 +33,15 @@ INCOMPLETE_ANSWER_CODES = {"QUESTION_TIME_BUDGET_EXHAUSTED", "REMOTE_REQUEST_OUT
                            "MODEL_OUTPUT_TRUNCATED"}
 OFFICE_BASELINE_CHECKS = ("desktop_start", "source_import", "conversation_recovery",
                           "cancellation_recovery", "historical_evidence", "company_api_ca")
+OFFICE_REGRESSION_BASELINE = ("add_giving", "end_words", "same_line_occurrences",
+    "display_literal_relations", "literal_comment_marker", "qualified_identity", "perform_section",
+    "wrong_formula_999", "input_origin", "later_overwrite", "three_turn_focus", "forward_slice",
+    "static_a_b_c", "parameter_binding", "size_error", "decimal_scale", "unknown_effect",
+    "independent_direct_fact", "legal_continuation", "evaluate_merge", "public_limit_rejection",
+    "public_account_update", "public_monthly_interest", "public_file_record_mapping",
+    "public_unimplemented_procedure")
+PARTIAL_CLASSIFICATIONS = {"scope_mismatch", "answer_omission", "evidence_gap",
+                           "explicit_unknown", "unsupported_semantics"}
 
 
 def file_sha256(path):
@@ -63,6 +72,30 @@ def _check(errors, condition, code, context=None):
     if not condition:
         errors.append({"code": code, **({"case": context} if context else {})})
     return condition
+
+
+def _valid_answer_diagnostics(row):
+    diagnostics = row.get("acceptance_diagnostics")
+    if not isinstance(diagnostics, dict):
+        return False
+    answer_sha = row.get("answer_sha256") or hashlib.sha256(row.get("answer", "").encode()).hexdigest()
+    final = diagnostics.get("final")
+    return (diagnostics.get("schema_version") == "executable-answer-diagnostics/v1"
+        and _text(row.get("answer")) and hashlib.sha256(row["answer"].encode()).hexdigest() == answer_sha
+        and diagnostics.get("run_id") == row.get("run_id")
+        and diagnostics.get("answer_sha256") == answer_sha
+        and row.get("agent_status") in {"ANALYZED", "PARTIAL"}
+        and diagnostics.get("agent_status") == row.get("agent_status")
+        and _sha(diagnostics.get("trace_sha256")) and isinstance(final, dict)
+        and isinstance(final.get("question_investigation"), dict)
+        and isinstance(final.get("answer_completion"), dict)
+        and isinstance(final["question_investigation"].get("required_items"), list)
+        and isinstance(final["question_investigation"].get("open_gaps"), list)
+        and _text(final["answer_completion"].get("status"))
+        and isinstance(final["answer_completion"].get("missing_aspects"), list)
+        and _text(final.get("stop_reason"))
+        and final["stop_reason"] == row.get("stop_reason") == diagnostics.get("stop_reason")
+        and diagnostics.get("final_sha256") == _fingerprint(final))
 
 
 def _package_identity(package, compiled, policy, errors):
@@ -275,6 +308,8 @@ def _live_case_scope(items, errors):
 
 def _live_acceptance(report, items, reviews, cases_sha256, policy, artifact, errors):
     _live_case_scope(items, errors)
+    coverage = {tag for item in items for tag in (item.get("coverage") or []) if isinstance(tag, str)}
+    _check(errors, set(OFFICE_REGRESSION_BASELINE) <= coverage, "LIVE_PRIOR_REGRESSIONS_MISSING")
     _check(errors, report.get("schema_version") == "live-business-eval/v3", "LIVE_SCHEMA_INVALID")
     _check(errors, _text(report.get("evaluation_run_id")), "LIVE_RUN_ID_MISSING")
     _check(errors, report.get("errors") == [] and report.get("status") == "completed_not_reviewed",
@@ -330,8 +365,23 @@ def _live_acceptance(report, items, reviews, cases_sha256, policy, artifact, err
         if not all(isinstance(value, dict) for value in (identity, measurement, evidence)):
             _check(errors, False, "LIVE_IDENTITY_INVALID", context)
             continue
+        diagnostics = row.get("acceptance_diagnostics") or {}
+        valid_diagnostics = (_valid_answer_diagnostics(row)
+            and identity.get("acceptance_diagnostics_sha256") == _fingerprint(diagnostics))
+        _check(errors, valid_diagnostics, "LIVE_DIAGNOSTICS_MISSING_OR_STALE", context)
         policy_value = row.get("policy")
         history = row.get("history")
+        _check(errors, isinstance(policy_value, dict)
+            and type(policy_value.get("max_model_requests")) is int and policy_value["max_model_requests"] > 0
+            and type(row.get("model_requests")) is int
+            and 0 < row["model_requests"] <= policy_value["max_model_requests"],
+            "LIVE_REQUEST_BUDGET_EXCEEDED", context)
+        execution = policy.get("live_execution") or {}
+        if execution:
+            _check(errors, isinstance(execution, dict) and isinstance(policy_value, dict)
+                and policy_value.get("max_model_requests") == execution.get("max_model_requests")
+                and policy_value.get("max_question_seconds") == execution.get("max_question_seconds"),
+                "LIVE_EXECUTION_POLICY_MISMATCH", context)
         if key in followup_turns:
             valid_history = (isinstance(history, list) and bool(history)
                 and all(isinstance(entry, dict) and entry.get("role") in ("user", "assistant")
@@ -388,6 +438,15 @@ def _live_acceptance(report, items, reviews, cases_sha256, policy, artifact, err
                          for index, entry in enumerate(forbidden, 1)]
         reviewed_findings = review.get("required_findings", [])
         reviewed_forbidden = review.get("forbidden_claims", [])
+        if row.get("agent_status") == "PARTIAL":
+            partial = review.get("partial_review") or {}
+            _check(errors, isinstance(partial, dict)
+                and partial.get("classification") in PARTIAL_CLASSIFICATIONS
+                and _text(partial.get("reason")) and partial.get("resolved") is True
+                and isinstance(partial.get("affected_findings"), list)
+                and bool(partial["affected_findings"])
+                and set(partial["affected_findings"]) <= set(finding_ids),
+                "LIVE_PARTIAL_NOT_EXPLAINED", context)
         _check(errors, bool(findings) and len(set(finding_ids)) == len(finding_ids)
                and sorted(entry.get("id", "") for entry in reviewed_findings) == sorted(finding_ids)
                and all(entry.get("result") == "met" for entry in reviewed_findings)
@@ -413,7 +472,8 @@ def _live_acceptance(report, items, reviews, cases_sha256, policy, artifact, err
     return results
 
 
-def evaluate_release(*, package, compiled_report, manifest, policy, live_report=None, live_cases=None, reviews=None):
+def evaluate_release(*, package, compiled_report, manifest, policy, live_report=None, live_cases=None, reviews=None,
+                     office_report=None):
     """Return detailed reasons, never infer permission from a report's green summary."""
     result = {"schema_version": SCHEMA, "candidate_allowed": False, "publish_allowed": False,
               "candidate_errors": [], "publish_errors": [], "compiled_cases": [], "live_cases": []}
@@ -443,6 +503,33 @@ def evaluate_release(*, package, compiled_report, manifest, policy, live_report=
         live_hash, cases_hash = file_sha256(live_report), file_sha256(live_cases)
         result["input_sha256"].update(live_report=live_hash, live_cases=cases_hash, reviews=file_sha256(reviews))
         result["live_cases"] = _live_acceptance(live, items, review_document, cases_hash, config, artifact, publish_errors)
+        if office_report:
+            native_office = _read(office_report)
+            result["input_sha256"]["office_report"] = file_sha256(office_report)
+            _check(publish_errors, all(native_office.get(key) == compiled.get(key) for key in
+                ("archive_sha256", "binary_sha256", "application_sha256", "source_commit", "source_dirty")),
+                "OFFICE_NATIVE_ARTIFACT_MISMATCH")
+            _check(publish_errors, native_office.get("report_execution_id") != compiled.get("report_execution_id"),
+                "OFFICE_NATIVE_REPORT_REUSED")
+            prior_ids = {row.get("run_id") for row in compiled.get("cases", [])}
+            office_rows = native_office.get("cases") or []
+            _check(publish_errors, isinstance(office_rows, list)
+                and all(isinstance(row, dict) and row.get("run_id") not in prior_ids for row in office_rows),
+                "OFFICE_NATIVE_SAMPLE_REUSED")
+            if isinstance(office_rows, list):
+                for row in office_rows:
+                    if isinstance(row, dict) and row.get("kind", "answer") == "answer":
+                        _check(publish_errors, _valid_answer_diagnostics(row), "OFFICE_NATIVE_DIAGNOSTICS_MISSING_OR_STALE",
+                               str(row.get("id", "")) + "/" + str(row.get("sample_index", "")))
+            native_environment, live_environment = native_office.get("office_environment"), live.get("office_environment")
+            _check(publish_errors, isinstance(native_environment, dict) and isinstance(live_environment, dict)
+                and native_environment == live_environment
+                and native_environment.get("schema_version") == "office-execution-environment/v1"
+                and _sha(native_environment.get("machine_sha256"))
+                and native_environment.get("system") == "Windows", "OFFICE_ENVIRONMENT_MISMATCH")
+            result["office_cases"] = _compiled_acceptance(native_office, specs, manifest_hash, publish_errors)
+        else:
+            publish_errors.append({"code": "OFFICE_NATIVE_REPORT_REQUIRED"})
         office = review_document.get("office_acceptance") or {}
         required = config.get("office_required_checks")
         _check(publish_errors, isinstance(required, list) and bool(required) and all(_text(item) for item in required)
@@ -452,6 +539,8 @@ def evaluate_release(*, package, compiled_report, manifest, policy, live_report=
         _check(publish_errors, all(office.get(key) == artifact.get(key) for key in ("source_commit", "archive_sha256", "binary_sha256"))
                and office.get("evaluation_run_id") == live.get("evaluation_run_id")
                and office.get("live_report_sha256") == live_hash
+               and office.get("office_report_sha256") == result["input_sha256"].get("office_report")
+               and office_report is not None
                and _text(office.get("reviewer")) and _text(office.get("reviewed_at"))
                and isinstance(required, list) and isinstance(office_checks, dict)
                and all(office_checks.get(key) is True for key in required), "OFFICE_ACCEPTANCE_MISSING_OR_STALE")
@@ -465,14 +554,15 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("package", "compiled-report", "manifest", "policy", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
-    for name in ("live-report", "live-cases", "reviews"):
+    for name in ("live-report", "live-cases", "reviews", "office-report"):
         parser.add_argument("--" + name, type=Path)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--candidate", action="store_true", help="Only allow an offline candidate, never formal publication.")
     mode.add_argument("--require-publish", action="store_true", help="Fail unless the exact package has complete joint acceptance.")
     args = parser.parse_args(argv)
     result = evaluate_release(package=args.package, compiled_report=args.compiled_report, manifest=args.manifest,
-        policy=args.policy, live_report=args.live_report, live_cases=args.live_cases, reviews=args.reviews)
+        policy=args.policy, live_report=args.live_report, live_cases=args.live_cases, reviews=args.reviews,
+        office_report=args.office_report)
     result["requested_mode"] = "candidate" if args.candidate else "publish"
     _safe_write(args.output, result)
     allowed = result["candidate_allowed"] if args.candidate else result["publish_allowed"]

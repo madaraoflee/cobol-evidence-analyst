@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = ROOT / "docs/eval/desktop-joint-v1/manifest.json"
 PUBLIC_MANIFEST = ROOT / "docs/eval/public-business-v1/manifest.json"
 PUBLIC_CASES = ROOT / "docs/eval/public-business-v1/cases.json"
+FROZEN_SOURCE_ROOT = None
 
 
 def digest(path):
@@ -163,7 +164,7 @@ def prepare_source(case, manifest, destination, public_source):
         source_root = Path(public_source).resolve(strict=True)
         files = public["files"]
     else:
-        source_root = DEFAULT_MANIFEST.parent / "source"
+        source_root = Path(FROZEN_SOURCE_ROOT) if FROZEN_SOURCE_ROOT else DEFAULT_MANIFEST.parent / "source"
         files = [manifest["source_files"][name] for name in case["files"]]
     for item in files:
         path = (source_root / item["path"]).resolve(strict=True)
@@ -494,6 +495,7 @@ def _run_cases(command, root, manifest, public_source, *, case_ids=None):
                         lifecycle_index_reused=diagnosis.get("index_reused") is True)
                     if case["corpus"] != "large":
                         checks["completeness_reviewed_ranges_supplied"] = ranges_supplied(pages, _required_ranges(case, source))
+                    from tools.acceptance_diagnostics import capture_diagnostics
                     row = {"id": case["id"], "turn_id": "1", "sample_index": number,
                         "run_id": trace["run_id"], "answer_sha256": hashlib.sha256(answer.encode()).hexdigest(),
                         "elapsed_seconds": response["elapsed_seconds"], "index_reused": number > 1,
@@ -503,7 +505,9 @@ def _run_cases(command, root, manifest, public_source, *, case_ids=None):
                             "question_seconds": response["elapsed_seconds"]},
                         "checks": {label: checks.get(label, False) for label in case["assertions"]},
                         "corpus": corpus, "answer": answer, "agent_status": agent.get("status"),
-                        "stop_reason": agent.get("stop_reason"), "claim_ledger": ledger, "review_identity": {
+                        "stop_reason": agent.get("stop_reason"), "claim_ledger": ledger,
+                        "acceptance_diagnostics": capture_diagnostics(trace, agent, trace_sha256=digest(trace_path)),
+                        "review_identity": {
                             "run_id": trace["run_id"], "pipeline_version": trace.get("pipeline_version"),
                             "prompt_version": trace.get("prompt_version"), "configuration": trace.get("configuration"),
                             "request_sha256": [entry["request_sha256"] for entry in final_requests]},

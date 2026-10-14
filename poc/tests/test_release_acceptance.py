@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from live_business_eval import (_evidence_metadata, _measurement, _review_identity,
                                 review_template, _fingerprint, _turns)
 from release_acceptance import (evaluate_release, file_sha256, main,
-                                OFFICE_BASELINE_CHECKS, _live_case_scope)
+                                OFFICE_BASELINE_CHECKS, OFFICE_REGRESSION_BASELINE, _live_case_scope)
 
 
 class ReleaseAcceptanceTests(unittest.TestCase):
@@ -25,7 +25,7 @@ class ReleaseAcceptanceTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.paths = {key: self.root / (key + ".json") for key in
-                      ("compiled_report", "manifest", "policy", "live_report", "live_cases", "reviews")}
+                      ("compiled_report", "manifest", "policy", "live_report", "live_cases", "reviews", "office_report")}
         self.paths["package"] = self.root / "desktop.zip"
         self.commit, self.application = "a" * 40, "b" * 64
         binary = bytearray(128)
@@ -64,6 +64,21 @@ class ReleaseAcceptanceTests(unittest.TestCase):
                  "checks": {key: True for key in manifest["cases"][0]["assertions"]}}
                 for sample in (1, 2)]}
         self.write("compiled_report", compiled)
+        environment = {"schema_version": "office-execution-environment/v1", "machine_sha256": "9" * 64,
+                       "system": "Windows"}
+        office_rows = copy.deepcopy(compiled["cases"])
+        for row in office_rows:
+            row.update(run_id="office-" + row["run_id"], kind="answer", agent_status="ANALYZED", stop_reason="sufficient_material")
+            row["answer"] = "The result is twice the input under the stated condition."
+            row["answer_sha256"] = hashlib.sha256(row["answer"].encode()).hexdigest()
+            final = {"question_investigation": {"required_items": [], "open_gaps": []},
+                     "answer_completion": {"status": "not_assessed", "missing_aspects": []}, "stop_reason": "sufficient_material"}
+            row["acceptance_diagnostics"] = {"schema_version": "executable-answer-diagnostics/v1",
+                "run_id": row["run_id"], "answer_sha256": row["answer_sha256"], "trace_sha256": "8" * 64,
+                "agent_status": "ANALYZED", "stop_reason": "sufficient_material", "final": final,
+                "final_sha256": _fingerprint(final)}
+        self.write("office_report", {**compiled, "cases": office_rows, "report_execution_id": "office-native-run",
+                                     "office_environment": environment})
         source_hash = "d" * 64
         gold = {
             "required_findings": [{"id": "formula", "supporting_ranges": [
@@ -75,6 +90,7 @@ class ReleaseAcceptanceTests(unittest.TestCase):
             {"id": "overwrite", "question": "Can that result be overwritten later?"}]},
             {"id": "reserved", "split": "holdout", "gold": copy.deepcopy(gold),
              "question": "How does the input determine the final amount?"}]
+        items[0]["coverage"] = list(OFFICE_REGRESSION_BASELINE)
         self.write("live_cases", {"cases": items})
         runtime = {key: compiled[key] for key in ("source_commit", "source_dirty", "runtime_platform",
             "execution_surface", "archive_sha256", "binary_path", "binary_sha256", "application_sha256")}
@@ -90,7 +106,7 @@ class ReleaseAcceptanceTests(unittest.TestCase):
         live = {"schema_version": "live-business-eval/v3", "evaluation_run_id": "evaluation-1",
                 "errors": [], "status": "completed_not_reviewed",
                 "runtime_provenance": runtime, "cases_sha256": file_sha256(self.paths["live_cases"]),
-                "plan": {"mode": "automatic"}, "cases": rows}
+                "plan": {"mode": "automatic"}, "cases": rows, "office_environment": environment}
         self.write("live_report", live)
         reviews = review_template(items, live)["reviews"]
         for row, review in zip(rows, reviews):
@@ -101,6 +117,7 @@ class ReleaseAcceptanceTests(unittest.TestCase):
         office = {key: compiled[key] for key in ("source_commit", "archive_sha256", "binary_sha256")}
         office.update(evaluation_run_id="evaluation-1", live_report_sha256=file_sha256(self.paths["live_report"]),
                       reviewer="local-reviewer", reviewed_at="2026-10-14T11:00:00Z",
+                      office_report_sha256=file_sha256(self.paths["office_report"]),
                       checks={name: True for name in OFFICE_BASELINE_CHECKS})
         self.write("reviews", {"reviews": reviews, "office_acceptance": office})
         self.write("policy", {"schema_version": "release-acceptance-policy/v1", "source_commit": self.commit,
@@ -115,8 +132,16 @@ class ReleaseAcceptanceTests(unittest.TestCase):
         row = {"id": item["id"], "turn_id": turn["id"], "run_id": f"live-run:{item['id']}:{turn['id']}",
                "question": turn["question"], "conversation": item["id"],
                "answer": "The result is twice the input under the stated condition.", "elapsed_seconds": 2,
-               "model_requests": 1, "remote_result_unknown": False, "reason_code": None, "stop_reason": None,
+               "model_requests": 1, "remote_result_unknown": False, "reason_code": None, "stop_reason": "sufficient_material",
+               "agent_status": "ANALYZED",
                "history": copy.deepcopy(history), "policy": {"max_model_requests": 2}, "quality_status": "not_reviewed"}
+        final = {"question_investigation": {"required_items": [], "open_gaps": []},
+                 "answer_completion": {"status": "not_assessed", "missing_aspects": []}, "stop_reason": "sufficient_material"}
+        row["acceptance_diagnostics"] = {"schema_version": "executable-answer-diagnostics/v1",
+            "run_id": row["run_id"], "trace_sha256": "8" * 64,
+            "answer_sha256": hashlib.sha256(row["answer"].encode()).hexdigest(),
+            "agent_status": row.get("agent_status"), "stop_reason": "sufficient_material",
+            "final": final, "final_sha256": _fingerprint(final)}
         evidence = {"sources": [{"evidence_id": "ev-1", "path": "entry.cbl", "source_sha256": "d" * 64,
                                 "start_line": 3, "end_line": 5, "excerpt_sha256": "e" * 64}], "framework": []}
         row["supplied_evidence"] = _evidence_metadata(evidence)
@@ -126,6 +151,9 @@ class ReleaseAcceptanceTests(unittest.TestCase):
             prompt={"version": "business-v1", "system_sha256": "f" * 64, "request_sha256": ["1" * 64]},
             policy=row["policy"], gold=merged["gold"], context=evidence, source_snapshot_id="snapshot-1",
             question=turn["question"], history=row["history"], runtime_provenance=runtime, measurement=row["measurement"])
+        row["review_identity"]["acceptance_diagnostics_sha256"] = _fingerprint(row["acceptance_diagnostics"])
+        row["review_identity"]["identity_sha256"] = _fingerprint({key: value for key, value in
+            row["review_identity"].items() if key != "identity_sha256"})
         return row
 
     def read(self, key):
@@ -190,6 +218,59 @@ class ReleaseAcceptanceTests(unittest.TestCase):
         serialized = json.dumps(result)
         self.assertNotIn("The result is twice", serialized)
         self.assertNotIn("local-reviewer", serialized)
+
+    def test_actual_office_report_cannot_be_missing_reused_or_from_another_machine(self):
+        report = self.read("office_report")
+        for defect in ("missing", "reuse", "machine", "assertion", "hash"):
+            with self.subTest(defect=defect):
+                self.write("office_report", copy.deepcopy(report))
+                if defect == "missing":
+                    paths = {key: value for key, value in self.paths.items() if key != "office_report"}
+                    result = evaluate_release(**paths)
+                else:
+                    changed = copy.deepcopy(report)
+                    if defect == "reuse":
+                        changed["report_execution_id"] = "compiled-run"
+                    elif defect == "machine":
+                        changed["office_environment"]["machine_sha256"] = "0" * 64
+                    elif defect == "assertion":
+                        changed["cases"][0]["checks"]["quality_formula"] = False
+                    else:
+                        changed["archive_sha256"] = "0" * 64
+                    self.write("office_report", changed)
+                    result = self.run_gate()
+                self.assertFalse(result["publish_allowed"], result)
+                self.assertTrue(result["candidate_allowed"], result)
+
+    def test_prior_problem_coverage_cannot_be_replaced_by_easy_live_suite(self):
+        items = self.read("live_cases")["cases"]
+        items[0]["coverage"].remove("qualified_identity")
+        self.replace_live_suite(items)
+        result = self.run_gate()
+        self.assertFalse(result["publish_allowed"])
+        self.assertIn("LIVE_PRIOR_REGRESSIONS_MISSING", {row["code"] for row in result["publish_errors"]})
+
+    def test_partial_requires_bound_diagnostics_and_specific_human_resolution(self):
+        live = self.read("live_report")
+        row = live["cases"][0]
+        row["agent_status"] = row["acceptance_diagnostics"]["agent_status"] = "PARTIAL"
+        identity = row["review_identity"]
+        identity["acceptance_diagnostics_sha256"] = _fingerprint(row["acceptance_diagnostics"])
+        self.refresh_live_review(live)
+        result = self.run_gate()
+        self.assertFalse(result["publish_allowed"])
+        self.assertIn("LIVE_PARTIAL_NOT_EXPLAINED", {entry["code"] for entry in result["publish_errors"]})
+        reviews = self.read("reviews")
+        reviews["reviews"][0]["partial_review"] = {"classification": "explicit_unknown",
+            "reason": "The source does not initialize the runtime input, but the rule is independently supported.",
+            "affected_findings": ["formula"], "resolved": True}
+        self.write("reviews", reviews)
+        self.assertTrue(self.run_gate()["publish_allowed"])
+        live["cases"][0]["acceptance_diagnostics"]["final"]["new_gap"] = "unreviewed"
+        self.write("live_report", live)
+        result = self.run_gate()
+        self.assertFalse(result["publish_allowed"])
+        self.assertIn("LIVE_DIAGNOSTICS_MISSING_OR_STALE", {entry["code"] for entry in result["publish_errors"]})
 
     def test_office_baseline_cannot_be_reduced_by_policy_or_completed_form(self):
         original_policy, original_reviews = self.read("policy"), self.read("reviews")
@@ -426,7 +507,8 @@ class ReleaseAcceptanceTests(unittest.TestCase):
         trace = {"run_id": old["run_id"], "analysis_revision": "snapshot-1", "prompt_version": "business-v1",
                  "configuration": {"policy": old["policy"],
                                    "model_fingerprint": hashlib.sha256(b"test-model").hexdigest()},
-                 "final": {"final_answer_round_ids": ["final"]}, "rounds": [{"round_id": "final",
+                 "final": {"final_answer_round_ids": ["final"], "question_investigation": {"required_items": [], "open_gaps": []},
+                           "answer_completion": {"status": "not_assessed", "missing_aspects": []}, "stop_reason": "sufficient_material"}, "rounds": [{"round_id": "final",
                      "system_prompt_sha256": "f" * 64, "request_body_sha256": "1" * 64,
                      "context": {"history": []}, **old["supplied_evidence"]}]}
         trace_path = self.root / "trace.json"
@@ -434,7 +516,8 @@ class ReleaseAcceptanceTests(unittest.TestCase):
         observation = {"job": {"status": "COMPLETED"}, "elapsed_seconds": 2,
             "state": {"conversation": {"messages": [{"content": old["answer"]}]}},
             "result": {"runner_status": "READY", "agent_result": {"answer": old["answer"],
-                "model_answer_recorded": True, "metrics": {"quality_trace_path": str(trace_path), "model_requests": 1}}}}
+                "model_answer_recorded": True, "status": "ANALYZED", "stop_reason": "sufficient_material",
+                "metrics": {"quality_trace_path": str(trace_path), "model_requests": 1}}}}
         journal = {"requests": [{"run_id": old["run_id"], "state": "completed", "request_hash": "1" * 64}]}
         with mock.patch("desktop_live_acceptance.read_journal", return_value=journal) as read_journal:
             live["cases"][0] = live_row(observation, {**item, "turn_id": "flow", "conversation": "flow"},

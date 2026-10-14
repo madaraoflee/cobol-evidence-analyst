@@ -124,7 +124,7 @@ def public_receipt(decision):
             "artifact": {key: artifact.get(key) for key in
                          ("source_commit", "archive_sha256", "binary_sha256", "application_sha256")},
             "input_sha256": {key: (decision.get("input_sha256") or {}).get(key) for key in
-                             ("policy", "manifest", "compiled_report", "live_report", "live_cases", "reviews")}}
+                             ("policy", "manifest", "compiled_report", "live_report", "live_cases", "reviews", "office_report")}}
 
 
 def _unchanged(inputs, decision):
@@ -134,10 +134,12 @@ def _unchanged(inputs, decision):
 
 
 def publish_release(*, package, compiled_report, manifest, policy, live_report, live_cases, reviews,
-                    repo, tag, output, receipt=None, publish=False):
+                    repo, tag, output, receipt=None, publish=False, office_report=None):
     """Return a local decision; only explicit publish permits GitHub writes."""
     inputs = dict(package=package, compiled_report=compiled_report, manifest=manifest, policy=policy,
                   live_report=live_report, live_cases=live_cases, reviews=reviews)
+    if office_report is not None:
+        inputs["office_report"] = office_report
     decision = evaluate_release(**inputs)
     result = {"schema_version": "desktop-publication/v1", "requested_publish": publish,
               "published": False, "status": "gate_rejected", "acceptance": decision}
@@ -190,6 +192,7 @@ def main(argv=None):
     parser.add_argument("--repo", required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--receipt", type=Path)
+    parser.add_argument("--office-report", type=Path)
     parser.add_argument("--publish", action="store_true")
     args = parser.parse_args(argv)
     try:

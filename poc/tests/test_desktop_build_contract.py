@@ -207,8 +207,8 @@ class WindowsAcceptanceWorkflowTests(unittest.TestCase):
             with mock.patch.object(desktop_acceptance.sys, "platform", "win32"), \
                     mock.patch.object(desktop_acceptance, "inspect_package", return_value=provenance), \
                     mock.patch.object(desktop_acceptance, "extract_package", return_value=native), \
-                    mock.patch.dict(sys.modules, {"desktop_acceptance_scenarios": scenarios,
-                        "desktop_acceptance_cases": cases}), mock.patch("sys.stdout", new_callable=io.StringIO):
+                    mock.patch.dict(sys.modules, {"tools.desktop_acceptance_scenarios": scenarios,
+                        "tools.desktop_acceptance_cases": cases}), mock.patch("sys.stdout", new_callable=io.StringIO):
                 result = desktop_acceptance.main(["--archive", str(archive), "--manifest", str(manifest),
                     "--source-commit", "a" * 40, "--public-source", str(root), "--output", str(root / "report")])
             report = json.loads((root / "report/COMPILED-ACCEPTANCE.json").read_text())
