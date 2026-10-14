@@ -332,7 +332,7 @@ class OfficeHelperBuildTests(unittest.TestCase):
         self.assertIn("--mode=standalone", command)
         self.assertIn("--output-filename=OfficeAcceptance.exe", command)
         self.assertIn("--windows-console-mode=force", command)
-        self.assertTrue(command[-1].endswith("tools/office_acceptance_app.py"))
+        self.assertEqual(Path(command[-1]).parts[-2:], ("tools", "office_acceptance_app.py"))
         self.assertFalse(any("desktop_app.py" in value for value in command))
 
     def test_stage_has_only_selected_public_python_inputs_and_no_local_env(self):

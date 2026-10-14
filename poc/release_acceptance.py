@@ -447,6 +447,8 @@ def _live_acceptance(report, items, reviews, cases_sha256, policy, artifact, err
                 and bool(partial["affected_findings"])
                 and set(partial["affected_findings"]) <= set(finding_ids),
                 "LIVE_PARTIAL_NOT_EXPLAINED", context)
+            _check(errors, partial.get("classification") != "scope_mismatch",
+                   "LIVE_ANALYSIS_SCOPE_INVALID", context)
         _check(errors, bool(findings) and len(set(finding_ids)) == len(finding_ids)
                and sorted(entry.get("id", "") for entry in reviewed_findings) == sorted(finding_ids)
                and all(entry.get("result") == "met" for entry in reviewed_findings)
