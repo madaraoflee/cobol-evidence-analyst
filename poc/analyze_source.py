@@ -228,6 +228,7 @@ def analyze_source(
     reading_strategy: str = "focused",
     answer_detail: str = "detailed",
     conversation_history: list[dict] | None = None,
+    conversation_id: str | None = None,
     agent_policy=None,
     compilation_context_path=None,
 ) -> dict:
@@ -267,7 +268,8 @@ def analyze_source(
             extensions=extensions, include_extensionless=include_extensionless, encoding=encoding,
             source_format=source_format, config=config, api_options=api_options, transport=transport,
             framework_reference_path=framework_reference_path, capture_api_responses=capture_api_responses,
-            history=conversation_history, progress=progress, check_cancel=check_cancel,
+            history=conversation_history, conversation_id=conversation_id,
+            progress=progress, check_cancel=check_cancel,
             policy=agent_policy, answer_detail=answer_detail, compilation_context=compilation_context)
         if cached is not None:
             return cached
@@ -477,7 +479,8 @@ def analyze_source(
                                           max_source_pages=max_source_pages, reading_strategy=reading_strategy,
                                           answer_detail=answer_detail,
                                           progress=progress, check_cancel=check_cancel,
-                                          conversation_history=conversation_history, agent_policy=agent_policy)
+                                          conversation_history=conversation_history, conversation_id=conversation_id,
+                                          agent_policy=agent_policy)
             except APIConfigurationError as exc:
                 agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
                 diagnostic = sanitize_diagnostic(getattr(exc, "diagnostic", None))

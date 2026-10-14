@@ -20,6 +20,7 @@ import re
 import sys
 import socket
 import ssl
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -44,6 +45,10 @@ DEFAULT_API_KEY_ENV = "COMPANY_API_KEY"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_RESPONSE_BYTES = 1_000_000
 MAX_REQUEST_BYTES = 256_000
+# DNS and TLS setup cannot always be interrupted by urllib. Abandoned native
+# requests keep their slot until their worker actually exits.
+MAX_PENDING_NATIVE_REQUESTS = 4
+_NATIVE_REQUEST_SLOTS = threading.BoundedSemaphore(MAX_PENDING_NATIVE_REQUESTS)
 DEFAULT_MAX_OUTPUT_TOKENS = 1_024
 SUPPORTED_API_STYLE = "openai_compatible"
 PROJECT_ENV_FILE = config_root() / ".env"
@@ -523,20 +528,89 @@ class UrllibTransport:
                     return
             current = getattr(current, "fp", None)
 
-    def __call__(self, request: TransportRequest) -> TransportResponse:
+    @staticmethod
+    def _abort_socket(response: object) -> None:
+        """Interrupt an available local socket without claiming remote cancellation."""
+        current: object | None = response
+        for _ in range(4):
+            if current is None:
+                return
+            candidates = [getattr(current, "_sock", None),
+                          getattr(getattr(current, "raw", None), "_sock", None)]
+            for candidate in candidates:
+                shutdown = getattr(candidate, "shutdown", None)
+                if callable(shutdown):
+                    try:
+                        shutdown(socket.SHUT_RDWR)
+                    except (OSError, ValueError):
+                        pass
+                    return
+            current = getattr(current, "fp", None)
+
+    def __call__(self, request: TransportRequest, *, check_cancel=None) -> TransportResponse:
+        """Bound the entire native exchange, including DNS and response headers.
+
+        A socket timeout is an inactivity timeout and does not bound repeated
+        header reads. The caller therefore waits against one monotonic deadline.
+        A timed-out exchange is never repeated and a late result is discarded;
+        a provider may still complete or charge for the original request.
+        """
+        if check_cancel:
+            check_cancel()
+        deadline = time.monotonic() + request.timeout_seconds
+        slots = _NATIVE_REQUEST_SLOTS
+        if not slots.acquire(blocking=False):
+            raise APIClientError("TRANSPORT_BUSY")
+        done, abandoned = threading.Event(), threading.Event()
+        exchange: dict[str, object] = {}
+
+        def send():
+            try:
+                exchange["result"] = self._send(request, deadline, abandoned, exchange)
+            except BaseException as error:
+                exchange["error"] = error
+            finally:
+                slots.release()
+                done.set()
+
+        try:
+            worker = threading.Thread(target=send, name="model-http-request", daemon=True)
+            worker.start()
+        except BaseException:
+            slots.release()
+            raise
+        try:
+            while not done.is_set():
+                if check_cancel:
+                    check_cancel()
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
+                done.wait(min(0.05, remaining))
+            if "error" in exchange:
+                raise exchange["error"]
+            if time.monotonic() >= deadline:
+                raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
+            return exchange["result"]
+        except BaseException:
+            abandoned.set()
+            self._abort_socket(exchange.get("response"))
+            raise
+
+    def _send(self, request, deadline, abandoned, exchange):
         raw_request = urllib.request.Request(
             request.url,
             data=request.body,
             headers=dict(request.headers),
             method=request.method,
         )
-        deadline = time.monotonic() + request.timeout_seconds
         opening_connection = True
         try:
             with self._opener.open(  # noqa: S310 - explicit opt-in only
                 raw_request, timeout=request.timeout_seconds
             ) as response:
                 opening_connection = False
+                exchange["response"] = response
                 chunks: list[bytes] = []
                 body_size = 0
                 read_chunk = getattr(response, "read1", None)
@@ -544,7 +618,7 @@ class UrllibTransport:
                     read_chunk = response.read
                 while body_size <= MAX_RESPONSE_BYTES:
                     remaining = deadline - time.monotonic()
-                    if remaining <= 0:
+                    if remaining <= 0 or abandoned.is_set():
                         raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
                     self._apply_remaining_socket_timeout(response, remaining)
                     chunk = read_chunk(
@@ -572,7 +646,7 @@ class UrllibTransport:
                     read_chunk = exc.read
                 while size <= MAX_ERROR_BODY_BYTES:
                     remaining = deadline - time.monotonic()
-                    if remaining <= 0:
+                    if remaining <= 0 or abandoned.is_set():
                         break
                     self._apply_remaining_socket_timeout(exc, remaining)
                     chunk = read_chunk(min(8192, MAX_ERROR_BODY_BYTES + 1 - size))
@@ -594,6 +668,11 @@ class UrllibTransport:
             raise
         except (OSError, urllib.error.URLError) as exc:
             raise _transport_failure(exc, opening_connection=opening_connection) from None
+
+
+# Keep type identity separate from the injectable constructor. Offline callers
+# can prohibit native transport construction without changing type inspection.
+_NATIVE_TRANSPORT_CLASS = UrllibTransport
 
 
 def _redact_secret(value: Any, secret: str | None) -> Any:
@@ -653,6 +732,8 @@ class OpenAICompatibleChatClient:
         tools: Sequence[Mapping[str, object]] | None = None,
         response_format: Mapping[str, object] | None = None,
         tool_choice: str | Mapping[str, object] | None = "auto",
+        timeout_seconds: float | None = None,
+        check_cancel=None,
     ) -> dict[str, object]:
         """Create one chat completion and return the parsed response unchanged.
 
@@ -685,7 +766,8 @@ class OpenAICompatibleChatClient:
             except (TypeError, ValueError):
                 raise APIClientError("RESPONSE_FORMAT_INVALID") from None
 
-        response, _ = self._request_json("POST", "chat/completions", payload)
+        response, _ = self._request_json("POST", "chat/completions", payload,
+                                       timeout_seconds=timeout_seconds, check_cancel=check_cancel)
         return response
 
     def suppress_error_capture(self, code: str) -> None:
@@ -699,6 +781,7 @@ class OpenAICompatibleChatClient:
         payload: Mapping[str, object] | None = None,
         *,
         timeout_seconds: float | None = None,
+        check_cancel=None,
     ) -> tuple[dict[str, object], int]:
         if self._transport is None:
             raise APIClientError("NETWORK_DISABLED")
@@ -728,7 +811,8 @@ class OpenAICompatibleChatClient:
         safe_endpoint = endpoint.strip("/")
         effective_timeout = float(self.config.timeout_seconds)
         if timeout_seconds is not None:
-            if not isinstance(timeout_seconds, (int, float)) or timeout_seconds <= 0:
+            if (type(timeout_seconds) not in (int, float)
+                    or not math.isfinite(timeout_seconds) or timeout_seconds <= 0):
                 raise APIClientError("REQUEST_TIMEOUT")
             effective_timeout = min(effective_timeout, float(timeout_seconds))
         request = TransportRequest(
@@ -743,19 +827,44 @@ class OpenAICompatibleChatClient:
             timeout_seconds=effective_timeout,
             endpoint=safe_endpoint,
         )
+        if check_cancel:
+            check_cancel()
         if self._request_observer is not None and request_body is not None:
             self._request_observer(request_body)
         started = time.monotonic()
         response: object = None
         response_received = False
         exchange: dict[str, object] | None = None
+        cancellation = []
+
+        def cancel():
+            try:
+                if check_cancel:
+                    check_cancel()
+            except BaseException as error:
+                cancellation.append(error)
+                raise
+
         try:
             try:
-                response = self._transport(request)
+                if isinstance(self._transport, _NATIVE_TRANSPORT_CLASS):
+                    response = self._transport(request, check_cancel=cancel if check_cancel else None)
+                else:
+                    response = self._transport(request)
+                # A completed response must reach the caller's durable journal
+                # before it observes cancellation. Waiting is interruptible in
+                # the native transport; post-response cancellation belongs to
+                # the business workflow after record_remote_response.
+                if (not isinstance(self._transport, _NATIVE_TRANSPORT_CLASS)
+                        and safe_endpoint == "chat/completions"
+                        and time.monotonic() - started >= effective_timeout):
+                    raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
                 response_received = True
             except APIClientError:
                 raise
             except Exception as exc:  # injected transports are untrusted at this boundary
+                if cancellation and exc is cancellation[-1]:
+                    raise
                 raise _transport_failure(exc) from None
             # Capture before HTTP status, body shape, or JSON validation. The
             # shared collector redacts first and stores a bounded text preview.

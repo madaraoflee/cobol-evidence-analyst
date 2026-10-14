@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass, fields
 @dataclass(frozen=True)
 class AgentPolicy:
     max_model_requests: int = 5
+    max_question_seconds: int = 120
     max_source_characters: int = 36000
     max_complete_source_characters: int = 128000
     max_history_characters: int = 18000
@@ -39,6 +40,7 @@ class AgentPolicy:
     def __post_init__(self):
         limits = {
             "max_model_requests": (1, 32),
+            "max_question_seconds": (1, 1800),
             "max_source_characters": (512, 128000),
             "max_complete_source_characters": (512, 128000),
             "max_history_characters": (0, 128000),

@@ -1,0 +1,722 @@
+{
+  "schema_version": "semantic-layout-benchmark/v1",
+  "baseline_commit": "b8b63899080e2fe52f18c24159da21254b5f11c0",
+  "synthetic": true,
+  "real_model_called": false,
+  "answer_accuracy_measured": false,
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "python": "3.14.4",
+  "before": [
+    {
+      "synthetic": true,
+      "model_called": false,
+      "fields": 500,
+      "source_sha256": "b117b87832770ab332063843ef70446e625783cddb29aed10facae88ce471c7d",
+      "source_bytes": 12680,
+      "adapter": {
+        "name": "builtin",
+        "version": "builtin-ir-adapter-v2",
+        "statement_parser_version": "bounded-statement-ast-v3",
+        "program_identifiers": [
+          {
+            "name": "FIELD-RULE",
+            "compilation_status": "active"
+          }
+        ]
+      },
+      "parse_seconds": 0.033301,
+      "serialization_seconds": 0.043719,
+      "fingerprint_seconds": 0.053312,
+      "overlap_entries": 250500,
+      "serialized_ir_bytes": 10581235,
+      "ir_fingerprint": "59c20445499cea385902337cb8f59228208cd40a29205e0b235367474cbb1bb9",
+      "statements": 2,
+      "parse_complete": true
+    },
+    {
+      "synthetic": true,
+      "model_called": false,
+      "fields": 1000,
+      "source_sha256": "bf972b992c770b401d032b1ee59e7834d1773f293868b34d34402c94a49a0d1e",
+      "source_bytes": 25180,
+      "adapter": {
+        "name": "builtin",
+        "version": "builtin-ir-adapter-v2",
+        "statement_parser_version": "bounded-statement-ast-v3",
+        "program_identifiers": [
+          {
+            "name": "FIELD-RULE",
+            "compilation_status": "active"
+          }
+        ]
+      },
+      "parse_seconds": 0.09159,
+      "serialization_seconds": 0.157887,
+      "fingerprint_seconds": 0.206025,
+      "overlap_entries": 1001000,
+      "serialized_ir_bytes": 41158255,
+      "ir_fingerprint": "efd7ced6a1eef3d6731a1454d9f79b5f9d791b13efbf45b4676997e35c6db4c4",
+      "statements": 2,
+      "parse_complete": true
+    },
+    {
+      "synthetic": true,
+      "model_called": false,
+      "fields": 2000,
+      "source_sha256": "2724759cb5e34686891f20850fc97a6e54afb4504b8e7563e2598b757ad5b103",
+      "source_bytes": 50180,
+      "adapter": {
+        "name": "builtin",
+        "version": "builtin-ir-adapter-v2",
+        "statement_parser_version": "bounded-statement-ast-v3",
+        "program_identifiers": [
+          {
+            "name": "FIELD-RULE",
+            "compilation_status": "active"
+          }
+        ]
+      },
+      "parse_seconds": 0.299964,
+      "serialization_seconds": 0.613788,
+      "fingerprint_seconds": 0.795115,
+      "overlap_entries": 4002000,
+      "serialized_ir_bytes": 162314255,
+      "ir_fingerprint": "a0e1bfa7566dbc44f2161ba095ef4953b6d47a328d3727e143796e89a71ea02e",
+      "statements": 2,
+      "parse_complete": true
+    }
+  ],
+  "after": [
+    {
+      "synthetic": true,
+      "model_called": false,
+      "fields": 500,
+      "source_sha256": "b117b87832770ab332063843ef70446e625783cddb29aed10facae88ce471c7d",
+      "source_bytes": 12680,
+      "adapter": {
+        "name": "builtin",
+        "version": "builtin-ir-adapter-v3",
+        "statement_parser_version": "bounded-statement-ast-v3",
+        "program_identifiers": [
+          {
+            "name": "FIELD-RULE",
+            "compilation_status": "active"
+          }
+        ]
+      },
+      "parse_seconds": 0.018198,
+      "serialization_seconds": 0.00577,
+      "fingerprint_seconds": 0.007138,
+      "overlap_entries": 0,
+      "serialized_ir_bytes": 584782,
+      "ir_fingerprint": "b76681094dbc6124b1c74bd07317ddb2e6b4e2bc7f1bdea7dec9bac949a47224",
+      "statements": 2,
+      "parse_complete": true
+    },
+    {
+      "synthetic": true,
+      "model_called": false,
+      "fields": 1000,
+      "source_sha256": "bf972b992c770b401d032b1ee59e7834d1773f293868b34d34402c94a49a0d1e",
+      "source_bytes": 25180,
+      "adapter": {
+        "name": "builtin",
+        "version": "builtin-ir-adapter-v3",
+        "statement_parser_version": "bounded-statement-ast-v3",
+        "program_identifiers": [
+          {
+            "name": "FIELD-RULE",
+            "compilation_status": "active"
+          }
+        ]
+      },
+      "parse_seconds": 0.033939,
+      "serialization_seconds": 0.011386,
+      "fingerprint_seconds": 0.014363,
+      "overlap_entries": 0,
+      "serialized_ir_bytes": 1165302,
+      "ir_fingerprint": "8eb239359e4c71e83c27e9175d8e3acb3253c2a2f055439f9554f22a6a1ed335",
+      "statements": 2,
+      "parse_complete": true
+    },
+    {
+      "synthetic": true,
+      "model_called": false,
+      "fields": 2000,
+      "source_sha256": "2724759cb5e34686891f20850fc97a6e54afb4504b8e7563e2598b757ad5b103",
+      "source_bytes": 50180,
+      "adapter": {
+        "name": "builtin",
+        "version": "builtin-ir-adapter-v3",
+        "statement_parser_version": "bounded-statement-ast-v3",
+        "program_identifiers": [
+          {
+            "name": "FIELD-RULE",
+            "compilation_status": "active"
+          }
+        ]
+      },
+      "parse_seconds": 0.067653,
+      "serialization_seconds": 0.023464,
+      "fingerprint_seconds": 0.028748,
+      "overlap_entries": 0,
+      "serialized_ir_bytes": 2328302,
+      "ir_fingerprint": "99a2c4ac937ddf0bd3664c7d17424d6f1ce85d5a0fa0664836caebbf884365c1",
+      "statements": 2,
+      "parse_complete": true
+    },
+    {
+      "synthetic": true,
+      "model_called": false,
+      "fields": 10000,
+      "source_sha256": "436831e810ceb4d236d09fc881aeb3084e8202fe449f2b39d54d7709071ccc16",
+      "source_bytes": 250180,
+      "adapter": {
+        "name": "builtin",
+        "version": "builtin-ir-adapter-v3",
+        "statement_parser_version": "bounded-statement-ast-v3",
+        "program_identifiers": [
+          {
+            "name": "FIELD-RULE",
+            "compilation_status": "active"
+          }
+        ]
+      },
+      "parse_seconds": 0.335705,
+      "serialization_seconds": 0.116032,
+      "fingerprint_seconds": 0.144482,
+      "overlap_entries": 0,
+      "serialized_ir_bytes": 11632322,
+      "ir_fingerprint": "350e60d1b2c4c88c78a744741e872d7b01ab43d3da956fbc78062cbf938a21f1",
+      "statements": 2,
+      "parse_complete": true
+    }
+  ],
+  "default_first_request": {
+    "default-record-before-repeat": [
+      {
+        "fields": 2000,
+        "build_seconds": 0.07222899999760557
+      },
+      {
+        "repeat": 0,
+        "result": {
+          "llm_called": false,
+          "answer_quality_measured": false,
+          "first_request_seconds": 3.241,
+          "source_file_count": 1,
+          "largest_provided_file_line_count": 2009,
+          "source_page_count": 1,
+          "source_characters": 50179,
+          "request_bytes": 75043,
+          "retrieval_status": "source_candidates",
+          "first_request_reached": true,
+          "phases": [
+            {
+              "phase": "retrieving",
+              "elapsed_seconds": 0.0103
+            },
+            {
+              "phase": "locating_sources",
+              "elapsed_seconds": 0.0108
+            },
+            {
+              "phase": "retrieving",
+              "elapsed_seconds": 0.0145
+            },
+            {
+              "phase": "supplementing_evidence",
+              "elapsed_seconds": 0.0259
+            },
+            {
+              "phase": "answering",
+              "elapsed_seconds": 3.1091
+            },
+            {
+              "phase": "waiting_for_model",
+              "elapsed_seconds": 3.2384
+            }
+          ]
+        }
+      },
+      {
+        "repeat": 1,
+        "result": {
+          "llm_called": false,
+          "answer_quality_measured": false,
+          "first_request_seconds": 0.5679,
+          "source_file_count": 1,
+          "largest_provided_file_line_count": 2009,
+          "source_page_count": 1,
+          "source_characters": 50179,
+          "request_bytes": 79614,
+          "retrieval_status": "source_candidates",
+          "first_request_reached": true,
+          "phases": [
+            {
+              "phase": "retrieving",
+              "elapsed_seconds": 0.002
+            },
+            {
+              "phase": "locating_sources",
+              "elapsed_seconds": 0.0025
+            },
+            {
+              "phase": "retrieving",
+              "elapsed_seconds": 0.0062
+            },
+            {
+              "phase": "supplementing_evidence",
+              "elapsed_seconds": 0.0173
+            },
+            {
+              "phase": "answering",
+              "elapsed_seconds": 0.4398
+            },
+            {
+              "phase": "waiting_for_model",
+              "elapsed_seconds": 0.565
+            }
+          ]
+        }
+      }
+    ],
+    "default-record-after-repeat": [
+      {
+        "fields": 2000,
+        "build_seconds": 0.07267337500525173
+      },
+      {
+        "repeat": 0,
+        "result": {
+          "llm_called": false,
+          "answer_quality_measured": false,
+          "first_request_seconds": 0.5326,
+          "source_file_count": 1,
+          "largest_provided_file_line_count": 2009,
+          "source_page_count": 1,
+          "source_characters": 50179,
+          "request_bytes": 79614,
+          "retrieval_status": "source_candidates",
+          "first_request_reached": true,
+          "phases": [
+            {
+              "phase": "retrieving",
+              "elapsed_seconds": 0.0123
+            },
+            {
+              "phase": "locating_sources",
+              "elapsed_seconds": 0.0128
+            },
+            {
+              "phase": "retrieving",
+              "elapsed_seconds": 0.0166
+            },
+            {
+              "phase": "supplementing_evidence",
+              "elapsed_seconds": 0.0283
+            },
+            {
+              "phase": "answering",
+              "elapsed_seconds": 0.4114
+            },
+            {
+              "phase": "waiting_for_model",
+              "elapsed_seconds": 0.5303
+            }
+          ]
+        }
+      },
+      {
+        "repeat": 1,
+        "result": {
+          "llm_called": false,
+          "answer_quality_measured": false,
+          "first_request_seconds": 0.1427,
+          "source_file_count": 1,
+          "largest_provided_file_line_count": 2009,
+          "source_page_count": 1,
+          "source_characters": 50179,
+          "request_bytes": 79614,
+          "retrieval_status": "source_candidates",
+          "first_request_reached": true,
+          "phases": [
+            {
+              "phase": "retrieving",
+              "elapsed_seconds": 0.0018
+            },
+            {
+              "phase": "locating_sources",
+              "elapsed_seconds": 0.0024
+            },
+            {
+              "phase": "retrieving",
+              "elapsed_seconds": 0.006
+            },
+            {
+              "phase": "supplementing_evidence",
+              "elapsed_seconds": 0.0165
+            },
+            {
+              "phase": "answering",
+              "elapsed_seconds": 0.0241
+            },
+            {
+              "phase": "waiting_for_model",
+              "elapsed_seconds": 0.1402
+            }
+          ]
+        }
+      }
+    ],
+    "default-record-large-after-repeat": [
+      {
+        "fields": 10000,
+        "build_seconds": 0.2976532910106471
+      },
+      {
+        "repeat": 0,
+        "result": {
+          "llm_called": false,
+          "answer_quality_measured": false,
+          "first_request_seconds": 1.6546,
+          "source_file_count": 1,
+          "largest_provided_file_line_count": 10009,
+          "source_page_count": 6,
+          "source_characters": 23974,
+          "request_bytes": 53350,
+          "retrieval_status": "source_candidates",
+          "first_request_reached": true,
+          "phases": [
+            {
+              "phase": "retrieving",
+              "elapsed_seconds": 0.0105
+            },
+            {
+              "phase": "locating_sources",
+              "elapsed_seconds": 0.011
+            },
+            {
+              "phase": "retrieving",
+              "elapsed_seconds": 0.0191
+            },
+            {
+              "phase": "supplementing_evidence",
+              "elapsed_seconds": 0.0358
+            },
+            {
+              "phase": "answering",
+              "elapsed_seconds": 1.5933
+            },
+            {
+              "phase": "waiting_for_model",
+              "elapsed_seconds": 1.6523
+            }
+          ]
+        }
+      },
+      {
+        "repeat": 1,
+        "result": {
+          "llm_called": false,
+          "answer_quality_measured": false,
+          "first_request_seconds": 0.0946,
+          "source_file_count": 1,
+          "largest_provided_file_line_count": 10009,
+          "source_page_count": 6,
+          "source_characters": 23974,
+          "request_bytes": 53350,
+          "retrieval_status": "source_candidates",
+          "first_request_reached": true,
+          "phases": [
+            {
+              "phase": "retrieving",
+              "elapsed_seconds": 0.0018
+            },
+            {
+              "phase": "locating_sources",
+              "elapsed_seconds": 0.0023
+            },
+            {
+              "phase": "retrieving",
+              "elapsed_seconds": 0.0106
+            },
+            {
+              "phase": "supplementing_evidence",
+              "elapsed_seconds": 0.0266
+            },
+            {
+              "phase": "answering",
+              "elapsed_seconds": 0.0361
+            },
+            {
+              "phase": "waiting_for_model",
+              "elapsed_seconds": 0.0926
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "current_files_sha256": {
+    "poc/parser_adapter.py": "292b9ee28fdc5097287d20d267395f644d22584b66cd9beda19aec6f5cec73ba",
+    "poc/semantic_ir.py": "9ff917f31a991d917bedbc3adf644775e1365ee552939a9abbcb413e0c204159",
+    "poc/semantic_scope.py": "5249aea5187a52935cc572b900bdd79d3e024a77a6791b20f4746b89e5ba4444",
+    "poc/semantic_service.py": "cd66e6c136a654f6ad938d6c52acac0d84fe6313e924f2dfb51281a71767571a",
+    "poc/statement_facts.py": "60b2de17f9e121e8039ae1cadb796391f84b4ed55ca7db16d667a12431e50886",
+    "poc/statement_parser.py": "e1d5751f81bdc467bfe690f2c28362508ea21e97020389f98d1cd8c5dedb5360",
+    "poc/benchmark_semantic_layout.py": "a962ac9238d1d9af980870ae60f0b992f6a99bd5438d5e8fcd2f68c261925881",
+    "poc/benchmark_chat_latency.py": "8f8a1d40d81b68ba784d319126b883dcdb8e80af098e444b90acd7ee99ed3723"
+  },
+  "final_current": {
+    "results": [
+      {
+        "synthetic": true,
+        "model_called": false,
+        "fields": 500,
+        "source_sha256": "b117b87832770ab332063843ef70446e625783cddb29aed10facae88ce471c7d",
+        "source_bytes": 12680,
+        "adapter": {
+          "name": "builtin",
+          "version": "builtin-ir-adapter-v3",
+          "statement_parser_version": "bounded-statement-ast-v3",
+          "program_identifiers": [
+            {
+              "name": "FIELD-RULE",
+              "compilation_status": "active"
+            }
+          ]
+        },
+        "parse_seconds": 0.019306,
+        "serialization_seconds": 0.005994,
+        "fingerprint_seconds": 0.007685,
+        "overlap_entries": 0,
+        "serialized_ir_bytes": 584782,
+        "ir_fingerprint": "b76681094dbc6124b1c74bd07317ddb2e6b4e2bc7f1bdea7dec9bac949a47224",
+        "statements": 2,
+        "parse_complete": true
+      },
+      {
+        "synthetic": true,
+        "model_called": false,
+        "fields": 1000,
+        "source_sha256": "bf972b992c770b401d032b1ee59e7834d1773f293868b34d34402c94a49a0d1e",
+        "source_bytes": 25180,
+        "adapter": {
+          "name": "builtin",
+          "version": "builtin-ir-adapter-v3",
+          "statement_parser_version": "bounded-statement-ast-v3",
+          "program_identifiers": [
+            {
+              "name": "FIELD-RULE",
+              "compilation_status": "active"
+            }
+          ]
+        },
+        "parse_seconds": 0.036504,
+        "serialization_seconds": 0.011164,
+        "fingerprint_seconds": 0.014683,
+        "overlap_entries": 0,
+        "serialized_ir_bytes": 1165302,
+        "ir_fingerprint": "8eb239359e4c71e83c27e9175d8e3acb3253c2a2f055439f9554f22a6a1ed335",
+        "statements": 2,
+        "parse_complete": true
+      },
+      {
+        "synthetic": true,
+        "model_called": false,
+        "fields": 2000,
+        "source_sha256": "2724759cb5e34686891f20850fc97a6e54afb4504b8e7563e2598b757ad5b103",
+        "source_bytes": 50180,
+        "adapter": {
+          "name": "builtin",
+          "version": "builtin-ir-adapter-v3",
+          "statement_parser_version": "bounded-statement-ast-v3",
+          "program_identifiers": [
+            {
+              "name": "FIELD-RULE",
+              "compilation_status": "active"
+            }
+          ]
+        },
+        "parse_seconds": 0.068358,
+        "serialization_seconds": 0.023842,
+        "fingerprint_seconds": 0.029153,
+        "overlap_entries": 0,
+        "serialized_ir_bytes": 2328302,
+        "ir_fingerprint": "99a2c4ac937ddf0bd3664c7d17424d6f1ce85d5a0fa0664836caebbf884365c1",
+        "statements": 2,
+        "parse_complete": true
+      },
+      {
+        "synthetic": true,
+        "model_called": false,
+        "fields": 10000,
+        "source_sha256": "436831e810ceb4d236d09fc881aeb3084e8202fe449f2b39d54d7709071ccc16",
+        "source_bytes": 250180,
+        "adapter": {
+          "name": "builtin",
+          "version": "builtin-ir-adapter-v3",
+          "statement_parser_version": "bounded-statement-ast-v3",
+          "program_identifiers": [
+            {
+              "name": "FIELD-RULE",
+              "compilation_status": "active"
+            }
+          ]
+        },
+        "parse_seconds": 0.34103,
+        "serialization_seconds": 0.117546,
+        "fingerprint_seconds": 0.147738,
+        "overlap_entries": 0,
+        "serialized_ir_bytes": 11632322,
+        "ir_fingerprint": "350e60d1b2c4c88c78a744741e872d7b01ab43d3da956fbc78062cbf938a21f1",
+        "statements": 2,
+        "parse_complete": true
+      }
+    ],
+    "implementation_fingerprint": "9261d3d8e53af8b48a36cead932457b8a6e2ed15cc88d8228ea36c2183453fa1",
+    "current_files_sha256": {
+      "poc/parser_adapter.py": "292b9ee28fdc5097287d20d267395f644d22584b66cd9beda19aec6f5cec73ba",
+      "poc/semantic_ir.py": "9c687f15823a0cba25fdad5b3f5ae2eaf65ea9327299b75c9a3efe0d8fe3f375",
+      "poc/semantic_scope.py": "5249aea5187a52935cc572b900bdd79d3e024a77a6791b20f4746b89e5ba4444",
+      "poc/semantic_service.py": "38f40ae4e66f961ffc598c8e3400ee109feb243db97bceb2b28cba900c1c4853",
+      "poc/statement_facts.py": "60b2de17f9e121e8039ae1cadb796391f84b4ed55ca7db16d667a12431e50886",
+      "poc/statement_parser.py": "e1d5751f81bdc467bfe690f2c28362508ea21e97020389f98d1cd8c5dedb5360",
+      "poc/benchmark_semantic_layout.py": "a962ac9238d1d9af980870ae60f0b992f6a99bd5438d5e8fcd2f68c261925881",
+      "poc/benchmark_chat_latency.py": "8f8a1d40d81b68ba784d319126b883dcdb8e80af098e444b90acd7ee99ed3723"
+    },
+    "semantic_service_version": "bounded-semantic-service/v8",
+    "review_regressions": [
+      "unknown_group_descendant_ancestor_and_alias_cross_root_effect_closure",
+      "cross_root_reaching_definition_preserves_direct_assignment",
+      "unknown_layout_cancellation_does_not_cache_incomplete_program"
+    ]
+  },
+  "previous_frozen_current": [
+    {
+      "results": [
+        {
+          "synthetic": true,
+          "model_called": false,
+          "fields": 500,
+          "source_sha256": "b117b87832770ab332063843ef70446e625783cddb29aed10facae88ce471c7d",
+          "source_bytes": 12680,
+          "adapter": {
+            "name": "builtin",
+            "version": "builtin-ir-adapter-v3",
+            "statement_parser_version": "bounded-statement-ast-v3",
+            "program_identifiers": [
+              {
+                "name": "FIELD-RULE",
+                "compilation_status": "active"
+              }
+            ]
+          },
+          "parse_seconds": 0.01844,
+          "serialization_seconds": 0.005726,
+          "fingerprint_seconds": 0.007308,
+          "overlap_entries": 0,
+          "serialized_ir_bytes": 584782,
+          "ir_fingerprint": "b76681094dbc6124b1c74bd07317ddb2e6b4e2bc7f1bdea7dec9bac949a47224",
+          "statements": 2,
+          "parse_complete": true
+        },
+        {
+          "synthetic": true,
+          "model_called": false,
+          "fields": 1000,
+          "source_sha256": "bf972b992c770b401d032b1ee59e7834d1773f293868b34d34402c94a49a0d1e",
+          "source_bytes": 25180,
+          "adapter": {
+            "name": "builtin",
+            "version": "builtin-ir-adapter-v3",
+            "statement_parser_version": "bounded-statement-ast-v3",
+            "program_identifiers": [
+              {
+                "name": "FIELD-RULE",
+                "compilation_status": "active"
+              }
+            ]
+          },
+          "parse_seconds": 0.0346,
+          "serialization_seconds": 0.011357,
+          "fingerprint_seconds": 0.014874,
+          "overlap_entries": 0,
+          "serialized_ir_bytes": 1165302,
+          "ir_fingerprint": "8eb239359e4c71e83c27e9175d8e3acb3253c2a2f055439f9554f22a6a1ed335",
+          "statements": 2,
+          "parse_complete": true
+        },
+        {
+          "synthetic": true,
+          "model_called": false,
+          "fields": 2000,
+          "source_sha256": "2724759cb5e34686891f20850fc97a6e54afb4504b8e7563e2598b757ad5b103",
+          "source_bytes": 50180,
+          "adapter": {
+            "name": "builtin",
+            "version": "builtin-ir-adapter-v3",
+            "statement_parser_version": "bounded-statement-ast-v3",
+            "program_identifiers": [
+              {
+                "name": "FIELD-RULE",
+                "compilation_status": "active"
+              }
+            ]
+          },
+          "parse_seconds": 0.068519,
+          "serialization_seconds": 0.023765,
+          "fingerprint_seconds": 0.029097,
+          "overlap_entries": 0,
+          "serialized_ir_bytes": 2328302,
+          "ir_fingerprint": "99a2c4ac937ddf0bd3664c7d17424d6f1ce85d5a0fa0664836caebbf884365c1",
+          "statements": 2,
+          "parse_complete": true
+        },
+        {
+          "synthetic": true,
+          "model_called": false,
+          "fields": 10000,
+          "source_sha256": "436831e810ceb4d236d09fc881aeb3084e8202fe449f2b39d54d7709071ccc16",
+          "source_bytes": 250180,
+          "adapter": {
+            "name": "builtin",
+            "version": "builtin-ir-adapter-v3",
+            "statement_parser_version": "bounded-statement-ast-v3",
+            "program_identifiers": [
+              {
+                "name": "FIELD-RULE",
+                "compilation_status": "active"
+              }
+            ]
+          },
+          "parse_seconds": 0.339066,
+          "serialization_seconds": 0.115893,
+          "fingerprint_seconds": 0.145846,
+          "overlap_entries": 0,
+          "serialized_ir_bytes": 11632322,
+          "ir_fingerprint": "350e60d1b2c4c88c78a744741e872d7b01ab43d3da956fbc78062cbf938a21f1",
+          "statements": 2,
+          "parse_complete": true
+        }
+      ],
+      "implementation_fingerprint": "9ce1d2da630bce1c60d1d7bf8b531ed42d42491a7508951324744b6c4bb381f5",
+      "current_files_sha256": {
+        "poc/parser_adapter.py": "292b9ee28fdc5097287d20d267395f644d22584b66cd9beda19aec6f5cec73ba",
+        "poc/semantic_ir.py": "c5dd0c944881c920adf35ca1a871a31309f042e83bcf651986895ab6df5d5b22",
+        "poc/semantic_scope.py": "5249aea5187a52935cc572b900bdd79d3e024a77a6791b20f4746b89e5ba4444",
+        "poc/semantic_service.py": "b0a5a9f0d3814b0d37414ec3709a2a26e991e092c3a9df09549e5456795e7e40",
+        "poc/statement_facts.py": "60b2de17f9e121e8039ae1cadb796391f84b4ed55ca7db16d667a12431e50886",
+        "poc/statement_parser.py": "e1d5751f81bdc467bfe690f2c28362508ea21e97020389f98d1cd8c5dedb5360",
+        "poc/benchmark_semantic_layout.py": "a962ac9238d1d9af980870ae60f0b992f6a99bd5438d5e8fcd2f68c261925881",
+        "poc/benchmark_chat_latency.py": "8f8a1d40d81b68ba784d319126b883dcdb8e80af098e444b90acd7ee99ed3723"
+      },
+      "semantic_service_version": "bounded-semantic-service/v8",
+      "review_regressions": [
+        "unknown_group_descendant_and_alias_cross_root_effects",
+        "unknown_layout_cancellation_does_not_cache_incomplete_program"
+      ]
+    }
+  ]
+}

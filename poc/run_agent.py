@@ -104,6 +104,7 @@ def run_investigation(
     reading_strategy: str = "focused",
     answer_detail: str = "detailed",
     conversation_history: list[dict] | None = None,
+    conversation_id: str | None = None,
     agent_policy=None,
     progress: Callable | None = None,
     check_cancel: Callable | None = None,
@@ -122,7 +123,7 @@ def run_investigation(
         if reading_strategy == "retrieval":
             from business_chat import run_business_chat
             return run_business_chat(question, database_path, source_root, config,
-                history=conversation_history, entry_program=entry_program,
+                history=conversation_history, conversation_id=conversation_id, entry_program=entry_program,
                 framework_reference_path=framework_reference_path, transport=transport,
                 allow_network=allow_network, capture_api_responses=capture_api_responses,
                 progress=progress, check_cancel=check_cancel, policy=agent_policy, answer_detail=answer_detail)

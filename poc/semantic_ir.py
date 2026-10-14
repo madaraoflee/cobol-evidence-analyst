@@ -90,6 +90,9 @@ class StorageRegion:
     length_bytes: int | None = None
     layout_status: str = "conservative"
     diagnostics: tuple[str, ...] = ()
+    # Parent links encode containment; overlaps stores direct alias edges.
+    # Unknown layouts apply to all visible storage without a quadratic list.
+    overlap_scope: str = "explicit_and_containment"
 
 
 @dataclass(frozen=True)
@@ -165,6 +168,90 @@ def bind_reference(reference, items, source_refs=()):
     return DataRef(ref.name, ref.qualifiers, ref.subscripts, ref.reference_modification,
                    tuple(candidates), "candidate" if uncertain else "bound" if len(candidates) == 1 else
                    "ambiguous" if candidates else "unresolved", tuple(source_refs))
+
+
+def unbounded_region_ids(regions, *, check_cancel=None):
+    """Find storage affected by an unresolved layout, without pairwise edges.
+
+    A descendant or explicit alias of unknown storage cannot establish a narrower
+    address range. Containing groups also have an unknown extent; without byte
+    offsets, their connected descendants and aliases stay conservative as well.
+    """
+    children, parents, aliases, pending = {}, {}, {}, []
+    for index, region in enumerate(regions):
+        if check_cancel and index % 128 == 0:
+            check_cancel()
+        children.setdefault(region.parent_region_id, []).append(region.region_id)
+        parents[region.region_id] = region.parent_region_id
+        aliases.setdefault(region.region_id, set()).update(region.overlaps)
+        for other in region.overlaps:
+            aliases.setdefault(other, set()).add(region.region_id)
+        if region.overlap_scope == "all_visible_storage" or region.layout_status == "unresolved":
+            pending.append(region.region_id)
+    uncertain = set()
+    while pending:
+        if check_cancel and len(uncertain) % 128 == 0:
+            check_cancel()
+        key = pending.pop()
+        if key in uncertain:
+            continue
+        uncertain.add(key)
+        pending.extend(children.get(key, ()))
+        pending.extend(aliases.get(key, ()))
+        if parents.get(key):
+            pending.append(parents[key])
+    return frozenset(uncertain)
+
+
+def overlapping_region_ids(regions, region_id, *, check_cancel=None):
+    """Expand one conservative overlap query from compact containment/alias edges.
+
+    Ordinary siblings occupy distinct storage. A group contains its descendants;
+    an alias to a group may overlap any descendant because offsets are unknown.
+    Unknown layouts retain the prior all-storage uncertainty explicitly.
+    """
+    regions = tuple(regions)
+    by_id, children, aliases = {}, {}, {}
+    for index, region in enumerate(regions):
+        if check_cancel and index % 128 == 0:
+            check_cancel()
+        by_id[region.region_id] = region
+        children.setdefault(region.parent_region_id, []).append(region.region_id)
+        aliases.setdefault(region.region_id, set()).update(region.overlaps)
+        for other in region.overlaps:
+            aliases.setdefault(other, set()).add(region.region_id)
+    uncertain = unbounded_region_ids(regions, check_cancel=check_cancel)
+    if region_id not in by_id:
+        return ()
+    if region_id in uncertain:
+        return tuple(key for key in by_id if key != region_id)
+    selected, pending = set(uncertain), [region_id]
+    expanded = set()
+    while pending:
+        if check_cancel:
+            check_cancel()
+        key = pending.pop()
+        if key in expanded or key not in by_id:
+            continue
+        expanded.add(key)
+        subtree, queue = set(), [key]
+        while queue:
+            current = queue.pop()
+            if current in subtree:
+                continue
+            subtree.add(current)
+            queue.extend(children.get(current, ()))
+        if subtree.intersection(uncertain):
+            return tuple(key for key in by_id if key != region_id)
+        related = set(subtree)
+        parent = by_id[key].parent_region_id
+        while parent in by_id and parent not in related:
+            related.add(parent)
+            parent = by_id[parent].parent_region_id
+        selected.update(related)
+        for current in related:
+            pending.extend(aliases.get(current, set()) - expanded)
+    return tuple(key for key in by_id if key in selected and key != region_id)
 
 
 def compilation_ir_from_dict(document):

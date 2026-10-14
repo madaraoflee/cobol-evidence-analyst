@@ -8,6 +8,7 @@ import socket
 import sys
 import tempfile
 from types import SimpleNamespace
+from dataclasses import replace
 import unittest
 from unittest import mock
 
@@ -52,6 +53,7 @@ class BusinessChatLatencyTests(unittest.TestCase):
         self.clock = SimpleNamespace(monotonic=lambda: self.clock_value)
         self.requests = []
         self.transport_calls = []
+        self.request_timeouts = []
         for owner, attribute in ((socket, "create_connection"), (socket.socket, "connect"),
                                   (socket.socket, "connect_ex")):
             patcher = mock.patch.object(owner, attribute, side_effect=AssertionError("Network forbidden"))
@@ -71,6 +73,7 @@ class BusinessChatLatencyTests(unittest.TestCase):
     def ask(self, *, question="billing notice 的触发条件和premium金额如何计算？",
             respond=None, policy=None, check_cancel=None):
         def transport(request):
+            self.request_timeouts.append(request.timeout_seconds)
             payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
             self.requests.append(payload)
             self.transport_calls.append(self.clock_value)
@@ -168,7 +171,7 @@ class BusinessChatLatencyTests(unittest.TestCase):
             return self.answer(payload)
 
         with mock.patch.object(semantic_scope, "build_business_evidence", side_effect=inspected):
-            result = self.ask(respond=respond, policy=AgentPolicy(max_model_requests=2))
+            result = self.ask(respond=respond, policy=AgentPolicy(max_model_requests=2, max_question_seconds=300))
         self.assertEqual(len(self.requests), 2)
         self.assertTrue(followup_inspections)
         self.assertTrue(result["model_answer_recorded"])
@@ -177,6 +180,45 @@ class BusinessChatLatencyTests(unittest.TestCase):
         self.assertEqual(timings["provider_wait_seconds"], 240.0)
         self.assertEqual(timings["local_processing_seconds"], 4.0)
         self.assertEqual(timings["total_seconds"], 244.0)
+
+    def test_request_timeout_uses_remaining_question_budget(self):
+        result = self.ask(policy=AgentPolicy(max_question_seconds=7, max_model_requests=1))
+        self.assertEqual(self.request_timeouts, [7.0])
+        self.assertTrue(result["model_answer_recorded"])
+
+    def test_slow_first_request_reserves_last_interval_for_answer(self):
+        self.config = replace(self.config, timeout_seconds=60)
+
+        def respond(payload):
+            if len(self.requests) == 1:
+                self.clock_value = 75.0
+                return json.dumps({"read": [{"relative_path": "rule.cbl", "start_line": 1, "end_line": 17}]})
+            self.clock_value = 95.0
+            return self.answer(payload)
+
+        result = self.ask(respond=respond)
+        self.assertEqual(self.request_timeouts, [60.0, 45.0])
+        self.assertEqual(self.requests[-1]["investigation_budget"]["remaining_model_requests"], 1)
+        self.assertEqual(self.requests[-1]["investigation_budget"]["reads_per_turn"], 0)
+        self.assertTrue(result["model_answer_recorded"])
+
+    def test_deadline_before_model_checkpoints_local_work_without_sending(self):
+        original = business_chat.build_business_map
+
+        def slow_map(*args, check_cancel, **kwargs):
+            self.clock_value = 121.0
+            check_cancel()
+            return original(*args, check_cancel=check_cancel, **kwargs)
+
+        with mock.patch.object(business_chat, "build_business_map", side_effect=slow_map):
+            result = self.ask()
+        self.assertEqual(self.requests, [])
+        self.assertEqual(result["stop_reason"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+        from run_store import RunStore
+        saved = RunStore(self.root / "investigation-runs.sqlite").load(result["run_id"])
+        self.assertEqual(saved["state"], "running")
+        self.assertEqual(saved["uncertain_requests"], [])
+        self.assertEqual(saved["checkpoint"]["budget_stop"]["phase"], "locating_sources")
 
     def test_complete_program_is_supplied_before_optional_deep_parsing(self):
         with mock.patch.object(semantic_scope, "prepare_semantic_scope",

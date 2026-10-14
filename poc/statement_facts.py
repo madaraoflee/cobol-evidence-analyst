@@ -195,9 +195,11 @@ def join_continuation(previous: str, following: str) -> str:
     return previous.rstrip() + " " + tail
 
 
-def _masked_fixed(text: str) -> tuple[str, frozenset[int]]:
+def _masked_fixed(text: str, check_cancel=None) -> tuple[str, frozenset[int]]:
     masked, continuations, offset = [], set(), 0
-    for physical in text.splitlines(keepends=True):
+    for number, physical in enumerate(text.splitlines(keepends=True)):
+        if check_cancel and number % 128 == 0:
+            check_cancel()
         line = physical.rstrip("\r\n")
         ending = physical[len(line):]
         if line.strip() and len(line) < 7:
@@ -217,19 +219,27 @@ def _masked_fixed(text: str) -> tuple[str, frozenset[int]]:
     return "".join(masked), frozenset(continuations)
 
 
-def lex_cobol(source: str, *, source_format: str = "free", max_tokens: int = 50000) -> tuple[CobolToken, ...]:
+def lex_cobol(source: str, *, source_format: str = "free", max_tokens: int = 50000, check_cancel=None) -> tuple[CobolToken, ...]:
     """Tokenize with original offsets; quoted words never become executable syntax."""
     if source_format not in {"free", "fixed"}:
         raise ValueError("source format must be free or fixed")
-    text, continuations = _masked_fixed(source) if source_format == "fixed" else (source, frozenset())
-    tokens, position = [], 0
+    if check_cancel:
+        check_cancel()
+    text, continuations = _masked_fixed(source, check_cancel) if source_format == "fixed" else (source, frozenset())
+    tokens, position, next_check = [], 0, 4096
     while position < len(text):
+        if check_cancel and position >= next_check:
+            check_cancel()
+            next_check = position + 4096
         char = text[position]
         if char.isspace():
             position += 1
             continue
         if text.startswith("*>", position):
             while position < len(text) and text[position] not in "\r\n":
+                if check_cancel and position >= next_check:
+                    check_cancel()
+                    next_check = position + 4096
                 position += 1
             continue
         start = position
@@ -241,6 +251,9 @@ def lex_cobol(source: str, *, source_format: str = "free", max_tokens: int = 500
             quote, value = char, char
             position += 1
             while position < len(text):
+                if check_cancel and position >= next_check:
+                    check_cancel()
+                    next_check = position + 4096
                 if text[position] in "\r\n":
                     newline = re.match(r"\r\n|\r|\n", text[position:])[0]
                     following = position + len(newline)

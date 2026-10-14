@@ -253,3 +253,21 @@ test('typed transport reasons are rebuilt and correlation IDs stay in the single
   const remote=run(`safeApiDiagnostic(${JSON.stringify(diagnostic({transport_reason:'dns_resolution_failed'}))})`);
   assert.equal(Object.hasOwn(remote,'transport_reason'),false);assert.equal(remote.category,'quota_exhausted');
 });
+
+test('investigation timeout, incompatible index, and pending transport have fixed localized diagnostics',()=>{
+  const patterns={
+    index_update_required:{'zh-CN':/索引.*不兼容.*更新源码/,'zh-HK':/索引.*不相容.*更新源碼/,en:/index.*incompatible.*Update source/},
+    transport_busy:{'zh-CN':/未结束.*未发送.*手动重试/,'zh-HK':/未結束.*未發送.*手動重試/,en:/connections.*pending.*not sent.*manually/},
+    question_time_budget:{'zh-CN':/时间预算.*停止.*结果未知.*确认请求状态/,'zh-HK':/時間預算.*停止.*結果未知.*確認請求狀態/,en:/time limit.*stopped.*unknown outcome.*confirm its status/},
+  };
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const run=harness(locale);
+    for(const [category,expected] of Object.entries(patterns)){
+      const safe=run(`safeApiDiagnostic(${JSON.stringify(diagnostic({category,evidence_source:'local',reason:'private-marker',next_step:'private-marker'}))})`);
+      assert.ok(safe);assert.equal(safe.category,category);
+      assert.match(safe.reason+' '+safe.next_step,expected[locale]);
+      assert.doesNotMatch(JSON.stringify(safe),/private-marker/);
+      if(locale==='en')assert.doesNotMatch(safe.reason+' '+safe.next_step,/[\u3400-\u9fff]/);
+    }
+  }
+});

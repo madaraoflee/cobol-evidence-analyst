@@ -10,19 +10,109 @@ import json
 import sqlite3
 
 from company_api import APIConfigurationError, CompanyAPIConfig
-from api_error_details import format_diagnostic, sanitize_diagnostic
+from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
 from report_view import write_report_view
+
+
+def _index_update_requirements(database, source, requested_options):
+    """Check compatibility before a question can fall back to full intake.
+
+    No index is a first import. A different source root is a new selection.
+    An existing index for this root must be explicitly updated when its
+    semantics change; it cannot be safely reused or silently rebuilt here.
+    """
+    from business_index import PARSER_VERSION
+    from repository_discovery import _connect, _fast_snapshot
+
+    if not database.is_file():
+        return []
+    try:
+        with closing(_connect(database)) as connection:
+            metadata = dict(connection.execute("SELECT key,value FROM metadata WHERE key IN "
+                "('parser_version','source_options','source_root_hash','index_kind')"))
+        root_hash = hashlib.sha256(str(source).encode()).hexdigest()
+        if metadata.get("source_root_hash") and metadata["source_root_hash"] != root_hash:
+            return []
+        reasons = []
+        if metadata.get("parser_version") != PARSER_VERSION:
+            reasons.append("parser_version_changed")
+        if metadata.get("index_kind") != "business_sparse":
+            reasons.append("index_kind_changed")
+        database_options = json.loads(metadata.get("source_options", "{}"))
+        if not isinstance(database_options, dict):
+            return [*reasons, "index_metadata_invalid"]
+        if any(database_options.get(key) != value for key, value in requested_options.items()
+               if key != "compilation_context"):
+            reasons.append("source_options_changed")
+        if database_options.get("compilation_context") != requested_options["compilation_context"]:
+            reasons.append("compilation_context_changed")
+        if not reasons:
+            with closing(_connect(database)) as connection:
+                try:
+                    _fast_snapshot(connection, source)
+                except (ValueError, KeyError, sqlite3.Error):
+                    reasons.append("search_index_version_changed")
+        return reasons
+    except (OSError, ValueError, sqlite3.Error):
+        return ["index_metadata_invalid"]
+
+
+def _write_index_update_required(source, output, *, question, entry, reasons):
+    from analyze_source import _write
+    from business_index import PARSER_VERSION
+
+    try:
+        previous = json.loads((output / "diagnosis.json").read_text(encoding="utf-8"))
+        report = copy.deepcopy(previous) if isinstance(previous, dict) else {}
+    except (OSError, ValueError):
+        report = {}
+    explanations = {
+        "parser_version_changed": "已有索引的解析器版本与当前版本不同。",
+        "index_kind_changed": "已有索引类型与当前业务分析方式不同。",
+        "source_options_changed": "源码编码、格式或文件选择设置已改变。",
+        "compilation_context_changed": "编译条件、COPY 配置或框架版本等编译上下文已改变。",
+        "index_metadata_invalid": "已有索引的版本或配置记录无法读取。",
+        "search_index_version_changed": "已有检索索引的版本或快照需要更新。",
+    }
+    diagnostic = build_diagnostic("SOURCE_INDEX_UPDATE_REQUIRED")
+    message = "".join(explanations[reason] for reason in reasons) + "请先使用“更新源码”完成索引更新，再继续提问。"
+    report.update(generated_at_utc=datetime.now(timezone.utc).isoformat(), source_root=str(source),
+        question=question, entry_requested=entry, runner_status="BLOCKED", question_status="NOT_READY",
+        reason_code="SOURCE_INDEX_UPDATE_REQUIRED", index_reused=False, source_manifest_verified=False,
+        diagnostic=diagnostic, messages=[message], metrics={"model_requests": 0}, investigation={},
+        index_update={"required": True, "reasons": reasons, "expected_parser_version": PARSER_VERSION,
+                      "source_directory_scanned": False, "model_requests": 0})
+    agent = {"runner_status": "NOT_READY", "reason_code": "SOURCE_INDEX_UPDATE_REQUIRED",
+             "agent_result": None, "diagnostic": diagnostic}
+    _write(output / "diagnosis.json", report)
+    write_report_view(output / "diagnosis.json", report)
+    _write(output / "diagnosis.md", "# 索引需要更新\n\n" + message + "\n", markdown=True)
+    _write(output / "agent-result.json", agent)
+    write_report_view(output / "agent-result.json", agent)
+    _write(output / "agent-result.md", message + "\n", markdown=True)
+    return report
 
 
 def try_indexed_question(source, output, *, question, entry, extensions, include_extensionless,
                          encoding, source_format, config, api_options, transport,
                          framework_reference_path, capture_api_responses, history,
-                         progress, check_cancel, policy=None, answer_detail="detailed", compilation_context=None):
+                         progress, check_cancel, policy=None, answer_detail="detailed", compilation_context=None,
+                         conversation_id=None):
     from repository_discovery import _connect, repository_search_overview
     from business_chat import run_business_chat
     from business_index import PARSER_VERSION
     from analyze_source import _write
+    from compilation_context import resolve_compilation_context
     from repository_identity import resolve_entry_identity
+    requested_options = {"extensions": sorted(extensions),
+        "include_extensionless": include_extensionless, "encoding": encoding, "source_format": source_format}
+    requested_options["compilation_context"] = resolve_compilation_context(
+        compilation_context, source_options=requested_options).to_dict()
+    if check_cancel:
+        check_cancel()
+    requirements = _index_update_requirements(output / "structural-index.sqlite", source, requested_options)
+    if requirements:
+        return _write_index_update_required(source, output, question=question, entry=entry, reasons=requirements)
     try:
         path = output / "diagnosis.json"
         if path.is_symlink():
@@ -57,11 +147,6 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
                 or metadata.get("source_root_hash") != hashlib.sha256(str(source).encode()).hexdigest()):
             return None
         database_options = json.loads(metadata["source_options"])
-        requested_options = {"extensions": sorted(extensions),
-            "include_extensionless": include_extensionless,
-            "encoding": encoding, "source_format": source_format}
-        if compilation_context is not None:
-            requested_options["compilation_context"] = json.loads(json.dumps(compilation_context))
         if any(database_options.get(key) != value for key, value in requested_options.items()):
             return None
         previous["source_root"] = str(source)
@@ -89,7 +174,8 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
     try:
         selected_config = config or CompanyAPIConfig.from_env(**(api_options or {}))
         agent = run_business_chat(question, output / "structural-index.sqlite", source, selected_config,
-            history=history, entry_program=entry, framework_reference_path=framework_reference_path,
+            history=history, conversation_id=conversation_id,
+            entry_program=entry, framework_reference_path=framework_reference_path,
             capture_api_responses=capture_api_responses, allow_network=True, transport=transport,
             progress=progress, check_cancel=check_cancel, policy=policy, answer_detail=answer_detail)
     except APIConfigurationError as exc:

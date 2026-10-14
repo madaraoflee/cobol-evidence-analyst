@@ -10,13 +10,16 @@ import sys
 import tempfile
 import threading
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from analyze_source import analyze_source
 from agent_policy import AgentPolicy
-from company_api import CompanyAPIConfig, TransportResponse
+import business_chat
+from company_api import APIClientError, CompanyAPIConfig, TransportResponse
+from run_store import RunStore
 from web_app import RequestError, WorkbenchState
 
 
@@ -600,6 +603,98 @@ class ConversationWorkbenchTests(unittest.TestCase):
         self.assertFalse(any(message.get("content") == question
                              for message in self.calls[0]["messages"][1:-1]))
         self.assertEqual(len(self.app.conversation_store.get(original["id"])["messages"]), 2)
+
+    def test_unknown_request_is_not_repeated_but_does_not_block_another_conversation(self):
+        self.run_job()
+        question = "How is CAPACITY checked?"
+        working_transport = self.transport
+        attempts = []
+
+        def timed_out(request):
+            attempts.append(request)
+            raise APIClientError("REQUEST_TIMEOUT")
+
+        self.transport = timed_out
+        first = self.run_job(question=question, allow_network=True)
+        conversation = first["conversation"]
+        original_run = first["agent"]["agent_result"]["run_id"]
+        retry = self.run_job(question=question, allow_network=True,
+            conversation_id=conversation["id"], retry_message_id=conversation["messages"][0]["id"])
+        self.assertEqual(retry["agent"]["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
+        self.assertEqual(retry["agent"]["agent_result"]["run_id"], original_run)
+        self.assertEqual(len(attempts), 1)
+
+        fresh = self.app.new_conversation({})["conversation"]
+        self.transport = working_transport
+        second = self.run_job(question=question, allow_network=True, conversation_id=fresh["id"])
+        self.assertNotEqual(second["agent"]["agent_result"]["run_id"], original_run)
+        self.assertTrue(second["agent"]["agent_result"]["model_answer_recorded"])
+        self.assertEqual(len(self.calls), 1)
+        saved = RunStore(self.output / "investigation-runs.sqlite").load(original_run)
+        self.assertEqual(saved["state"], "attention")
+        self.assertEqual(len(saved["uncertain_requests"]), 1)
+
+    def _assert_budget_retry_reuses_frontier(self, *, import_first):
+        if import_first:
+            self.run_job()
+        clock = {"value": 0.0}
+        state = {"received": False, "stop": True}
+        working_transport = self.transport
+
+        def request_read(request):
+            self.calls.append(json.loads(request.body))
+            state["received"] = True
+            return TransportResponse(200, json.dumps({"choices": [{"message": {"content": json.dumps({
+                "read": [{"relative_path": "quota.cbl", "start_line": 1, "end_line": 9}]})},
+                "finish_reason": "stop"}]}))
+
+        def analyzer(source, output, **options):
+            original_progress = options.get("progress")
+
+            def progress(event):
+                if state["stop"] and state["received"] and event.get("phase") == "retrieving":
+                    clock["value"] = 121.0
+                if original_progress:
+                    original_progress(event)
+
+            options["progress"] = progress
+            return self.analyzer(source, output, **options)
+
+        self.transport = request_read
+        self.app.analyzer = analyzer
+        question = "How is CAPACITY checked?"
+        with patch.object(business_chat, "time", SimpleNamespace(monotonic=lambda: clock["value"])):
+            first = self.run_job(question=question, allow_network=True)
+            result, conversation = first["agent"]["agent_result"], first["conversation"]
+            self.assertEqual(result["stop_reason"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+            saved = RunStore(self.output / "investigation-runs.sqlite").load(result["run_id"])
+            self.assertEqual(saved["state"], "running")
+            self.assertEqual(saved["checkpoint"]["frontier"], [{"tool": "read", "arguments": {
+                "relative_path": "quota.cbl", "start_line": 1, "end_line": 9}}])
+            self.assertFalse(saved["uncertain_requests"])
+            self.assertEqual(self.app.conversation_store.model_history(conversation["id"]), [])
+            state["stop"] = False
+            clock["value"] = 130.0
+            self.transport = working_transport
+            resumed = self.run_job(question=question, allow_network=True,
+                conversation_id=conversation["id"], retry_message_id=conversation["messages"][0]["id"])
+        final = resumed["agent"]["agent_result"]
+        self.assertEqual(final["run_id"], result["run_id"])
+        self.assertTrue(final["model_answer_recorded"])
+        self.assertEqual(len(self.calls), 2)
+        self.assertGreaterEqual(final["metrics"]["tool_calls"]["read"], 1)
+        self.assertTrue(any(step["tool"] == "read" for step in final["tool_trace"]))
+        self.assertIn("claim_ledger", final)
+        self.assertEqual([message["id"] for message in resumed["conversation"]["messages"]],
+                         [message["id"] for message in conversation["messages"]])
+        self.assertEqual([message["status"] for message in resumed["conversation"]["messages"]],
+                         ["completed", "completed"])
+
+    def test_budget_retry_reuses_frontier_after_indexed_question(self):
+        self._assert_budget_retry_reuses_frontier(import_first=True)
+
+    def test_budget_retry_reuses_frontier_after_first_import_question(self):
+        self._assert_budget_retry_reuses_frontier(import_first=False)
 
 
 if __name__ == "__main__":

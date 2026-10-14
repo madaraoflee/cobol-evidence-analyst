@@ -50,7 +50,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
         self.requests = []
         self.provider_echo = "PRIVATE_REMOTE_FAILURE_MARKER"
 
-    def ask(self, respond):
+    def ask(self, respond, *, conversation_id=None):
         self.requests.clear()
 
         def transport(request):
@@ -66,6 +66,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
 
         return run_business_chat("FINAL-AMOUNT 怎么计算？", self.database, self.source,
             self.config, transport=transport, framework_reference_path="",
+            conversation_id=conversation_id,
             policy=AgentPolicy(max_model_requests=1, max_answer_revisions=0))
 
     def assert_answer(self, output, expected):
@@ -480,7 +481,9 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
                 def respond(payload):
                     raise APIClientError("TRANSPORT_ERROR", transport_reason=reason)
 
-                output = self.ask(respond)
+                # A distinct connection failure must not resume the previous
+                # independent scenario's uncertain remote request.
+                output = self.ask(respond, conversation_id=f"fault-{reason}")
                 error = self.assert_safe_failure(output, "TRANSPORT_ERROR", "provider_request")
                 self.assertEqual(error["transport_reason"], reason)
                 result = output["agent_result"]

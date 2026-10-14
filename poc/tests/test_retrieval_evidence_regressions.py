@@ -366,7 +366,7 @@ class RetrievalEvidenceRegressionTests(unittest.TestCase):
         original_fit = business_chat._fit_request
 
         def drop_source_before_fit(config, payload, history, policy=None, *, trim_events=None,
-                                   investigation_builder=None, source_fallback_builder=None):
+                                   investigation_builder=None, source_fallback_builder=None, check_cancel=None):
             # Exercise the flow contract after transport fitting omits every
             # already located excerpt; selector behavior is covered separately.
             self.assertEqual(payload["business_map"]["source_identity"]["status"], "resolved")
@@ -382,7 +382,7 @@ class RetrievalEvidenceRegressionTests(unittest.TestCase):
             payload["source_context"][0]["pages"] = []
             return original_fit(config, payload, history, policy, trim_events=trim_events,
                                 investigation_builder=investigation_builder,
-                                source_fallback_builder=source_fallback_builder)
+                                source_fallback_builder=source_fallback_builder, check_cancel=check_cancel)
 
         with mock.patch.object(business_chat, "_fit_request", side_effect=drop_source_before_fit):
             result = self.ask("Explain FINAL-VALUE calculation")

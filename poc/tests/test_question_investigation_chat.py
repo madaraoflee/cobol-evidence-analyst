@@ -178,12 +178,12 @@ class QuestionInvestigationChatTests(unittest.TestCase):
         import business_chat
         original_fit = business_chat._fit_request
         def omit_source(config, payload, history, policy=None, *, trim_events=None,
-                        investigation_builder=None, source_fallback_builder=None):
+                        investigation_builder=None, source_fallback_builder=None, check_cancel=None):
             self.assertTrue(payload["source_context"][0]["pages"])
             payload["source_context"][0]["pages"] = []
             return original_fit(config, payload, history, policy,
                 trim_events=trim_events, investigation_builder=investigation_builder,
-                source_fallback_builder=source_fallback_builder)
+                source_fallback_builder=source_fallback_builder, check_cancel=check_cancel)
         with mock.patch.object(business_chat, "_fit_request", side_effect=omit_source):
             result = self.ask("FINAL-AMOUNT 怎么计算？", lambda payload:
                 "已有公式候选，但本轮原文未供应，不能完整确认。")

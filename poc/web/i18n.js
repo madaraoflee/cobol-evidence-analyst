@@ -13,6 +13,21 @@ COBOL 業務分析|COBOL 业务分析|COBOL Workbench
 讀取相關段落|读取相关段落|Reading relevant source sections
 補充相關分析依據|补充相关分析依据|Supplementing source analysis
 模型正在生成回答|模型正在生成回答|The model is generating an answer
+核驗回答與源碼依據|核验回答与源码依据|Verifying the answer against source evidence
+本機仍有未結束的模型連線，本次請求未發送。|本机仍有未结束的模型连接，本次请求未发送。|Model connections are still pending locally; this request was not sent.
+等待連線結束後再手動重試。|等待连接结束后再手动重试。|Wait for the connections to finish before retrying manually.
+本次調查已達到時間預算，已停止繼續補查。|本次调查已达到时间预算，已停止继续补查。|This investigation reached its time limit; further investigation has stopped.
+查看已保存的證據和待查事項；遠端請求結果未知時，先確認請求狀態，再決定是否重試。|查看已保存的证据和待查事项；远程请求结果未知时，先确认请求状态，再决定是否重试。|Review the saved evidence and pending work. If a remote request has an unknown outcome, confirm its status before deciding whether to retry.
+已有索引與目前解析器或編譯設定不相容。|已有索引与当前解析器或编译配置不兼容。|The existing index is incompatible with the current parser or compilation settings.
+使用「更新源碼」完成索引更新後再提問。|使用“更新源码”完成索引更新后再提问。|Use Update source to update the index before asking another question.
+正在核驗已取得的回答，核驗後顯示。|正在核验已取得的回答，核验后显示。|Checking the available answer before displaying it.
+調查時限包含查找與模型等待，並非完成時間預估。到達時限後會保留已取得的結果，再核驗後顯示。|调查时限包含查找与模型等待，并非完成时间预估。到达时限后会保留已取得的结果，再核验后显示。|The investigation limit includes source lookup and model waiting; it is not an ETA. Available results are retained, checked, and then displayed.
+模型請求|模型请求|Model request
+本次已等待|本次已等待|Waiting on this request
+已讀取證據頁|已读取证据页|Evidence pages read
+調查時限剩餘|调查时限剩余|Investigation time left
+（上限 |（上限 | (limit\u0020
+；非完成時間預估）|；非完成时间预估）|; not an ETA)
 準備索引結構|准备索引结构|Preparing index structures
 最近對話|最近对话|Recent conversations
 調整左側欄寬度|调整左侧栏宽度|Resize left sidebar

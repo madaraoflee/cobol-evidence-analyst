@@ -461,3 +461,41 @@ test('the welcome puts the composer before optional prompts and keeps source onb
     assert.match(h.run('conversationComposer()'),/ disabled/);
   }
 });
+
+test('question progress counts down from each snapshot and distinguishes investigation limits from ETA',()=>{
+  const h=harness();setup(h);
+  h.run("state.busy=true;state.jobId='job';state.jobKind='question';Date.now=()=>100000;rememberProgress({phase:'waiting_for_model',model_requests:2,retrieved_pages:7,question_budget_seconds:120,question_remaining_seconds:80,phase_elapsed_seconds:10,elapsed_seconds:40});Date.now=()=>105000;");
+  assert.equal(h.run('progressViewModel().questionRemaining'),75);
+  assert.equal(h.run('progressViewModel().phaseElapsed'),15);
+  const markup=h.run('conversationProgress()');
+  assert.match(markup,/Model request 2/);assert.match(markup,/Waiting on this request 00:15/);
+  assert.match(markup,/Evidence pages read 7/);assert.match(markup,/Investigation time left 01:15.*limit 02:00.*not an ETA/);
+  h.run('updateProgressPanel()');
+  assert.match(h.get('conversation-activity').textContent,/request 2.*00:15.*read 7/);
+  assert.match(h.get('conversation-budget').textContent,/01:15/);
+  h.run("Date.now=()=>110000;rememberProgress({phase:'waiting_for_model',model_requests:2,retrieved_pages:7,question_budget_seconds:120,question_remaining_seconds:70,phase_elapsed_seconds:20,elapsed_seconds:50});Date.now=()=>112000;");
+  assert.equal(h.run('progressViewModel().questionRemaining'),68);
+  h.run("Date.now=()=>500000;");assert.equal(h.run('progressViewModel().questionRemaining'),0);
+});
+
+test('answer verification has its own phase, localized text, and no stale investigation countdown',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);setup(h);
+    h.run("state.busy=true;state.jobId='job';state.jobKind='question';rememberProgress({phase:'verifying_answer',model_requests:2,phase_elapsed_seconds:0});updateProgressPanel();");
+    const markup=h.run('conversationProgress()');
+    if(locale==='en'){
+      assert.match(markup,/Verifying the answer against source evidence/);
+      assert.match(markup,/Checking the available answer before displaying it/);
+      assert.doesNotMatch(markup,/[\u3400-\u9fff]|Investigation time left|Waiting on this request/);
+    }else assert.match(markup,locale==='zh-CN'?/核验回答与源码依据/:/核驗回答與源碼依據/);
+    assert.equal(h.run('progressViewModel().questionRemaining'),null);
+  }
+});
+
+test('question progress ignores malformed activity values and never renders their source-like contents',()=>{
+  const h=harness();setup(h);
+  h.run("rememberProgress({phase:'waiting_for_model',model_requests:'private-marker',retrieved_pages:{source:'private-marker'},question_budget_seconds:Infinity,question_remaining_seconds:NaN,phase_elapsed_seconds:0});");
+  const markup=h.run('conversationProgress()');
+  assert.doesNotMatch(markup,/private-marker|Infinity|NaN|Investigation time left|Model request|Evidence pages read/);
+  assert.equal(h.run('progressViewModel().questionRemaining'),null);
+});

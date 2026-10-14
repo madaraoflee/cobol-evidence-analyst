@@ -10,7 +10,7 @@ import secrets
 import time
 from run_store import RunStore
 
-PIPELINE_VERSION = "question-evidence-v12"
+PIPELINE_VERSION = "question-evidence-v13"
 PROMPT_VERSION = "business-chat-v17"
 
 def _digest(value):
@@ -42,6 +42,8 @@ class QualityTrace:
                          "sampling": "provider_default", "policy": policy.to_dict()},
                      "rounds": [], "final": {}}
         self._pending = None
+        self._pending_round_id = None
+        self._pending_replayed = False
         if resume_state and resume_state.get("checkpoint", {}).get("quality"):
             self.data = resume_state["checkpoint"]["quality"]
         self.run_store = RunStore(Path(database_path).resolve().parent / "investigation-runs.sqlite")
@@ -50,8 +52,17 @@ class QualityTrace:
             "pipeline_version": self.data["pipeline_version"], "prompt_version": self.data["prompt_version"],
             "analysis_identity": self.data.get("analysis_identity")})
 
-    def prepare(self, *, stage, payload, messages, trim_events=()):
+    def prepare(self, *, stage, payload, messages, trim_events=(), replay_round_id=None):
         self._pending = (stage, payload, messages, list(trim_events), time.monotonic())
+        self._pending_round_id = replay_round_id
+        self._pending_replayed = replay_round_id is not None
+        if replay_round_id is not None and self.response_round() is None:
+            raise ValueError("REPLAY_ROUND_NOT_FOUND")
+
+    def response_round(self):
+        """The observed or replayed request associated with this attempt."""
+        return next((row for row in reversed(self.data["rounds"])
+                     if row["round_id"] == self._pending_round_id), None)
 
     def observe(self, request_body):
         if self._pending is None:
@@ -86,6 +97,7 @@ class QualityTrace:
                                  "framework": [{**f, "excerpt": r.get("text", "")} for f, r in zip(record["framework"], framework)],
                                  "history": messages[1:-1]}
         self.data["rounds"].append(record)
+        self._pending_round_id = record["round_id"]
         self.run_store.start_request(self.data["run_id"], record["round_id"], record["request_body_sha256"])
         checkpoint = self.run_store.load(self.data["run_id"])["checkpoint"]
         self.run_store.checkpoint(self.data["run_id"], {**checkpoint, "quality": self.data,
@@ -100,16 +112,24 @@ class QualityTrace:
 
     def finish_round(self, *, finish_reason=None, parsed_action=None, usage=None, error=None,
                      raw_content_characters=None, parsed_answer_characters=None, choice_index=None):
-        if not self.data["rounds"] or self._pending is None:
+        if not self.data["rounds"] or self._pending is None or self._pending_round_id is None:
             return
-        row = self.data["rounds"][-1]
-        row["duration_ms"] = round((time.monotonic() - self._pending[-1]) * 1000, 2)
+        row = self.response_round()
+        if row is None:
+            return
+        elapsed = round((time.monotonic() - self._pending[-1]) * 1000, 2)
+        if self._pending_replayed:
+            # Local replay is not another measurement of remote latency.
+            row["replay_processing_ms"] = elapsed
+        else:
+            row["duration_ms"] = elapsed
         row["response"] = {"finish_reason": finish_reason, "parsed_action": parsed_action,
                            "usage": usage if isinstance(usage, dict) else None, "error": error,
                            "raw_content_characters": raw_content_characters,
                            "parsed_answer_characters": parsed_answer_characters,
                            "choice_index": choice_index}
-        if error not in {"REQUEST_TIMEOUT", "TRANSPORT_ERROR", "TRANSPORT_RESPONSE_INVALID"}:
+        if error not in {"REQUEST_TIMEOUT", "TRANSPORT_ERROR", "TRANSPORT_RESPONSE_INVALID",
+                         "QUESTION_TIME_BUDGET_EXHAUSTED"}:
             self.run_store.finish_request(self.data["run_id"], row["round_id"], row["response"])
         self._pending = None
 
@@ -135,7 +155,13 @@ class QualityTrace:
         temporary = self.path.with_suffix(".tmp")
         temporary.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), encoding="utf-8")
         temporary.replace(self.path)
-        current = self.run_store.load(self.data["run_id"])["checkpoint"]
+        saved = self.run_store.load(self.data["run_id"])
+        current = saved["checkpoint"]
+        # The process may stop before the caller writes its final result.
+        # Never temporarily hide an uncertain request in a completed run.
+        status = ("attention" if saved["uncertain_requests"] or current.get("remote_result_unknown")
+                  else "running" if final.get("stop_reason") == "QUESTION_TIME_BUDGET_EXHAUSTED"
+                  else "completed")
         self.run_store.checkpoint(self.data["run_id"], {**current, "quality": self.data,
-            "final": final}, status="completed" if not current.get("remote_result_unknown") else "attention")
+            "final": final}, status=status)
         return str(self.path)

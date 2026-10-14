@@ -165,9 +165,6 @@ class BusinessSynthesisLimitTests(unittest.TestCase):
                 def transport(request):
                     payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
                     requests.append(payload)
-                    self.assert_brief_references_are_actually_supplied(payload)
-                    self.assertTrue(payload["question_investigation"]["planned_actions"])
-                    self.assertEqual(payload["investigation_budget"]["reads_per_turn"], 0)
                     return TransportResponse(200, '{"choices":[{"message":{"content":'
                         '"已知程序处理金额，计算式仍待核对。"},"finish_reason":"stop"}]}')
 
@@ -180,10 +177,20 @@ class BusinessSynthesisLimitTests(unittest.TestCase):
                      mock.patch.object(repository_discovery, "read_repository_context", side_effect=tracked_read):
                     output = run_business_chat("请详细解释 rule.cbl 的金额计算流程。",
                         self.database, self.source, self.config, transport=transport,
-                        framework_reference_path="", policy=policy)
+                        framework_reference_path="", policy=policy,
+                        conversation_id=f"read-cap-{cap}")
                 self.assertEqual(len(requests), 1)
+                payload = requests[0]
+                # Keep assertions outside the provider callback: an assertion
+                # there would otherwise become a simulated transport failure.
+                self.assert_brief_references_are_actually_supplied(payload)
+                self.assertEqual(bool(payload["question_investigation"]["planned_actions"]), bool(cap))
+                self.assertTrue(payload["question_investigation"]["open_gaps"])
+                self.assertEqual(payload["investigation_budget"]["reads_per_turn"], 0)
                 self.assertEqual(len(reads), cap)
                 self.assertEqual(output["agent_result"]["metrics"]["tool_calls"]["read"], cap)
+                self.assertTrue(output["agent_result"]["model_answer_recorded"])
+                self.assertEqual(output["agent_result"]["diagnostics"], [])
 
 
 if __name__ == "__main__":

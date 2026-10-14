@@ -44,7 +44,7 @@ class BusinessChatHTTPRecoveryTests(unittest.TestCase):
                     if "COMPUTE RESULT-AMOUNT" in page["source_text"])
         return f"结果金额等于 10 乘以 2，得到 20。[{page['evidence_id']}]"
 
-    def ask(self, script, *, limit=5, revisions=0):
+    def ask(self, script, *, limit=5, revisions=0, conversation_id=None):
         self.requests = []
 
         def transport(request):
@@ -66,6 +66,7 @@ class BusinessChatHTTPRecoveryTests(unittest.TestCase):
 
         output = run_business_chat("ORDER-RULE 的 RESULT-AMOUNT 怎么计算？", self.database,
             self.source, self.config, transport=transport, framework_reference_path="",
+            conversation_id=conversation_id,
             policy=AgentPolicy(max_model_requests=limit, max_answer_revisions=revisions))
         self.result = output["agent_result"]
         self.trace = json.loads(Path(self.result["metrics"]["quality_trace_path"]).read_text(encoding="utf-8"))
@@ -107,7 +108,9 @@ class BusinessChatHTTPRecoveryTests(unittest.TestCase):
         for error in (APIClientError("REQUEST_TIMEOUT"), APIClientError("TRANSPORT_ERROR"),
                       APIClientError("INVALID_JSON_RESPONSE", http_status=500)):
             with self.subTest(code=error.code):
-                result = self.ask([error])
+                # These are separate fault scenarios, not resumes of the
+                # preceding request whose remote outcome can remain unknown.
+                result = self.ask([error], conversation_id=f"fault-{error.code}")
                 self.assert_request_accounting(1)
                 self.assertEqual(result["diagnostics"][-1]["code"], error.code)
 

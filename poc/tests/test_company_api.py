@@ -248,6 +248,7 @@ class ChatClientTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, "NETWORK_DISABLED")
 
     def test_urllib_response_read_uses_one_total_deadline(self) -> None:
+        clock = [0.0]
         class FakeSocket:
             def __init__(self) -> None:
                 self.timeouts: list[float] = []
@@ -273,12 +274,16 @@ class ChatClientTests(unittest.TestCase):
 
             @staticmethod
             def read1(_: int) -> bytes:
+                clock[0] = 1.1
                 return b""
 
         transport = UrllibTransport()
         transport._opener = mock.Mock()  # type: ignore[attr-defined]
         drip_response = DripResponse()
-        transport._opener.open.return_value = drip_response  # type: ignore[attr-defined]
+        def after_headers(*args, **kwargs):
+            clock[0] = 0.5
+            return drip_response
+        transport._opener.open.side_effect = after_headers  # type: ignore[attr-defined]
         request = TransportRequest(
             method="GET",
             url="https://example.test/v1/models",
@@ -289,7 +294,7 @@ class ChatClientTests(unittest.TestCase):
 
         with mock.patch(
             "company_api.time.monotonic",
-            side_effect=[0.0, 0.5, 1.1],
+            side_effect=lambda: clock[0],
         ):
             with self.assertRaises(APIClientError) as raised:
                 transport(request)

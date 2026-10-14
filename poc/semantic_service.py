@@ -20,11 +20,11 @@ from statement_parser import parse_statements
 from statement_facts import data_references, CompilationGuardState, program_identifier, program_identifiers
 from numeric_semantics import receiving_contract, store_decimal
 from parser_adapter import BuiltinParserAdapter
-from semantic_ir import bind_reference, compilation_ir_from_dict
+from semantic_ir import bind_reference, compilation_ir_from_dict, unbounded_region_ids
 from structural_index import read_source_document, DIVISION_RE, SECTION_RE, PARAGRAPH_RE, PARAGRAPH_EXCLUSIONS
 
 
-SERVICE_VERSION = "bounded-semantic-service/v6"
+SERVICE_VERSION = "bounded-semantic-service/v8"
 
 
 def _key(*parts):
@@ -33,7 +33,8 @@ def _key(*parts):
 
 class FactStore:
     """Read one program and its bindings on demand; never load the whole index."""
-    def __init__(self, database_path, source_root, *, source_map=None, source_format="auto", source_manifest=None):
+    def __init__(self, database_path, source_root, *, source_map=None, source_format="auto", source_manifest=None, check_cancel=None):
+        self.check_cancel = check_cancel
         self.database_path, self.source_root = Path(database_path), Path(source_root)
         self.source_map, self.source_format = source_map or {}, source_format
         self.source_manifest = (source_manifest if isinstance(source_manifest, dict) else
@@ -59,6 +60,8 @@ class FactStore:
         return rows[0]["relative_path"] if len(rows) == 1 else None
 
     def program(self, path):
+        if self.check_cancel:
+            self.check_cancel()
         if path in self._programs:
             return self._programs[path]
         options = self.source_options.get("source_options_by_path", {}).get(path, {}) | self.source_manifest.get(path, {})
@@ -82,7 +85,9 @@ class FactStore:
             blocks[current].extend(lines)
             lines = []
         sections, section = {}, None
-        for line in source.lines:
+        for index, line in enumerate(source.lines):
+            if self.check_cancel and index % 128 == 0:
+                self.check_cancel()
             upper = line.text.upper().strip()
             if compilation.feed(line.text, line.start_line):
                 continue
@@ -139,6 +144,8 @@ class FactStore:
             first, last = normalized[0].start_line, normalized[-1].end_line
             physical = []
             for number in range(first, last + 1):
+                if self.check_cancel and (number - first) % 128 == 0:
+                    self.check_cancel()
                 original_line = source.raw_lines[number - 1]
                 status = physical_status.get(number, False)
                 if status is True:
@@ -154,7 +161,7 @@ class FactStore:
             parse_format = ("fixed" if source.format_hint == "fixed" or source_format == "fixed" else "free")
             cache_key = (source.source_sha256, block, text)
             if cache_key not in self._parses:
-                self._parses[cache_key] = parse_statements(text, start_line=first, source_format=parse_format)
+                self._parses[cache_key] = parse_statements(text, start_line=first, source_format=parse_format, check_cancel=self.check_cancel)
             parsed[block] = self._parses[cache_key]
         fields = self.rows("SELECT s.symbol_id,s.name,s.qualified_name,u.normalized_text,p.name AS storage_section FROM symbols s "
                            "JOIN code_units u ON u.unit_id=s.definition_unit_id "
@@ -163,7 +170,7 @@ class FactStore:
         ir_rows = self.rows("SELECT ir_json FROM semantic_ir_documents WHERE relative_path=?", (path,)) if self._has_ir else []
         ir = compilation_ir_from_dict(json.loads(ir_rows[0]["ir_json"])) if ir_rows else BuiltinParserAdapter().parse(
             "\n".join(source.raw_lines), relative_path=path, context=self.compilation_context,
-            source_map=self.source_map.get(path), source_sha256=source.source_sha256)
+            source_map=self.source_map.get(path), source_sha256=source.source_sha256, check_cancel=self.check_cancel)
         counts = defaultdict(int)
         for item in ir.data_items:
             counts[item.name] += 1
@@ -175,6 +182,24 @@ class FactStore:
                   "signature": signature, "blocks": parsed, "order": order, "sections": sections,
                   "fields": fields, "diagnostics": diagnostics, "ir": ir, "canonical_items": canonical,
                   "initial_definitions": initial}
+        items_by_name, children, roots, fields_by_name, fields_by_qualified = (defaultdict(list) for _ in range(5))
+        for item in ir.data_items:
+            items_by_name[item.name].append(item)
+            children[item.parent_id].append(item.item_id)
+        for region in ir.storage_regions:
+            roots[region.root_id].append(region.item_id)
+        for row in fields:
+            fields_by_name[row["name"]].append(row)
+            fields_by_qualified[row["qualified_name"].split("::")[-1]].append(row)
+        unbounded = unbounded_region_ids(ir.storage_regions, check_cancel=self.check_cancel)
+        result.update(items_by_name=items_by_name, children=children, roots=roots,
+                      items={item.item_id: item for item in ir.data_items},
+                      item_order={item.item_id: index for index, item in enumerate(ir.data_items)},
+                      regions={region.item_id: region for region in ir.storage_regions},
+                      alias_roots={region.root_id for region in ir.storage_regions
+                                   if region.overlaps or region.overlap_scope == "all_visible_storage"},
+                      unbounded_items={region.item_id for region in ir.storage_regions if region.region_id in unbounded},
+                      fields_by_name=fields_by_name, fields_by_qualified=fields_by_qualified)
         self._programs[path] = result
         return result
 
@@ -190,9 +215,8 @@ class FactStore:
         if reference is None:
             return {"canonical": name, "binding_status": "unresolved", "exact": False,
                     "affected_storage": list(program["canonical_items"].values()), "diagnostics": ["data_reference_not_supported"]}
-        bound = bind_reference(name, program["ir"].data_items)
-        items = {item.item_id: item for item in program["ir"].data_items}
-        regions = {region.item_id: region for region in program["ir"].storage_regions}
+        bound = bind_reference(name, program["items_by_name"].get(reference.name, ()))
+        items, regions = program["items"], program["regions"]
         if len(bound.candidates) != 1 or bound.binding_status != "bound":
             affected = [program["canonical_items"][key] for key in bound.candidates] or list(program["canonical_items"].values())
             return {"canonical": reference.identity, "binding_status": bound.binding_status, "exact": False,
@@ -201,26 +225,35 @@ class FactStore:
         item, region = items[key], regions[key]
         # A group covers its descendants. Sibling elementary items remain
         # separate unless an explicit alias or unresolved layout overlaps them.
-        def descendant(other):
-            parent, seen = other.parent_id, set()
-            while parent and parent not in seen:
-                if parent == key:
-                    return True
-                seen.add(parent)
-                parent = items[parent].parent_id if parent in items else None
-            return False
-        descendants = [other.item_id for other in items.values() if descendant(other) and other.level != 88]
-        alias_root = [other for other in items.values() if regions[other.item_id].root_id == region.root_id and other.redefines]
-        uncertain = bool(reference.subscripts or reference.reference_modification or region.array or alias_root or region.layout_status == "unresolved"
+        descendants, pending = [], list(program["children"].get(key, ()))
+        while pending:
+            other = pending.pop()
+            if self.check_cancel and len(descendants) % 128 == 0:
+                self.check_cancel()
+            if items[other].level != 88:
+                descendants.append(other)
+            pending.extend(program["children"].get(other, ()))
+        alias_root = region.root_id in program["alias_roots"]
+        local_uncertain = bool(reference.subscripts or reference.reference_modification or region.array or alias_root or region.layout_status == "unresolved"
                          or item.level in {66, 88})
         affected = {key, *descendants}
-        if uncertain:
-            affected.update(other.item_id for other in items.values() if regions[other.item_id].root_id == region.root_id)
-            if region.layout_status == "unresolved":
-                affected.update(items)
+        unbounded = program["unbounded_items"]
+        uncertain = local_uncertain or bool(unbounded)
+        if local_uncertain:
+            affected.update(program["roots"].get(region.root_id, ()))
+        unknown_layout = not affected.isdisjoint(unbounded)
+        if unknown_layout:
+            affected.update(items)
+        else:
+            affected.update(unbounded)
+        diagnostics = list(region.diagnostics) if uncertain else []
+        if unknown_layout:
+            diagnostics.append("unresolved_layout_broad_overlap")
+        elif unbounded:
+            diagnostics.append("may_overlap_unresolved_storage")
         return {"canonical": program["canonical_items"][key], "binding_status": "bound", "exact": not uncertain,
-                "region_id": region.region_id, "affected_storage": [program["canonical_items"][other] for other in items if other in affected],
-                "group": bool(descendants), "diagnostics": list(region.diagnostics) if uncertain else []}
+                "region_id": region.region_id, "affected_storage": [program["canonical_items"][other] for other in sorted(affected, key=program["item_order"].__getitem__)],
+                "group": bool(descendants), "diagnostics": diagnostics}
 
     def source_ref(self, path, span):
         program = self.program(path)
@@ -369,11 +402,11 @@ class SemanticService:
             self.frontier.append({"reason": "storage_overlap_requires_index_or_layout", "occurrence_id": identifier,
                                   "affected_storage": list(node.unknown_storage), "source_refs": node.source_refs})
         if expressions:
-            declared = self.facts.program(path)["fields"]
+            declared = self.facts.program(path)
             for target in (statement.writes if writes is None else writes):
-                choices = [item for item in declared if item["qualified_name"].split("::")[-1] == target]
+                choices = declared["fields_by_qualified"].get(target, ())
                 if not choices and " OF " not in target:
-                    choices = [item for item in declared if item["name"] == target]
+                    choices = declared["fields_by_name"].get(target, ())
                 if len(choices) == 1:
                     self.nodes[identifier].numeric_semantics[bind(target)] = receiving_contract(
                         choices[0]["normalized_text"], rounded=statement.rounded,

@@ -21,14 +21,17 @@ class AnswerDiagnosticsTests(unittest.TestCase):
     def test_shareable_latency_distinguishes_local_preparation_from_provider_wait(self):
         result = {"metrics": {"timing_seconds": {"first_model_request_seconds": 1.125,
             "local_processing_seconds": 2.5, "provider_wait_seconds": 17.75, "total_seconds": 20.25,
+            "answer_verification_seconds": 0.125,
             "private_path": "private-timing-canary"}},
             "boundaries": [{"reason": "local_analysis_budget_reached"}]}
         quality = {"configuration": {"policy": {
-            "max_initial_context_seconds": 3, "max_local_analysis_seconds": 15}}}
+            "max_initial_context_seconds": 3, "max_local_analysis_seconds": 15, "max_question_seconds": 120}}}
         summary = build_answer_diagnostics(config=self.config(), quality=quality, result=result)
         self.assertEqual(summary["timing_seconds"], {"first_model_request_seconds": 1.125,
-            "local_processing_seconds": 2.5, "provider_wait_seconds": 17.75, "total_seconds": 20.25})
+            "local_processing_seconds": 2.5, "provider_wait_seconds": 17.75, "total_seconds": 20.25,
+            "answer_verification_seconds": 0.125})
         self.assertEqual(summary["configured"]["max_initial_context_seconds"], 3)
+        self.assertEqual(summary["configured"]["max_question_seconds"], 120)
         self.assertIn("local_analysis_budget_reached", summary["source_coverage"]["limitation_codes"])
         self.assertNotIn("private-timing-canary", json.dumps(summary))
         result["metrics"]["timing_seconds"] = {"first_model_request_seconds": float("nan"),

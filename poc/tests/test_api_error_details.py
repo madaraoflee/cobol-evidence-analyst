@@ -203,14 +203,19 @@ class APIErrorDetailsTests(unittest.TestCase):
             self.assertNotIn(SOURCE, json.dumps(raised.exception.to_safe_dict()))
 
     def test_urllib_error_body_read_obeys_remaining_deadline(self):
-        stream = io.BytesIO(body("insufficient_quota").encode())
+        clock = [0.0]
+        class DelayedErrorBody(io.BytesIO):
+            def read1(self, size):
+                clock[0] = 0.5
+                return super().read1(size)
+        stream = DelayedErrorBody(body("insufficient_quota").encode())
         error = urllib.error.HTTPError(URL, 429, KEY, {}, stream)
         transport = UrllibTransport()
         transport._opener = mock.Mock()
         transport._opener.open.side_effect = error
-        with mock.patch("company_api.time.monotonic", side_effect=[0.0, 0.01, 0.5]):
-            response = transport(TransportRequest("POST", URL, {}, b"{}", 0.1, "chat/completions"))
-        self.assertEqual(response.body, b"")
+        with mock.patch("company_api.time.monotonic", side_effect=lambda: clock[0]):
+            with self.assertRaisesRegex(APIClientError, "REQUEST_TIMEOUT"):
+                transport(TransportRequest("POST", URL, {}, b"{}", 0.1, "chat/completions"))
         self.assertTrue(stream.closed)
 
     def test_suppression_after_capture_limit_preserves_earlier_success(self):

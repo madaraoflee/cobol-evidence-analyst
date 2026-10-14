@@ -70,6 +70,31 @@ class RequestFitLatencyTests(unittest.TestCase):
         self.assertEqual(actual["source_context"][0]["pages"], [page])
         self.assertTrue(actual["question_investigation"]["can_answer"])
 
+    def test_large_navigation_keeps_maximal_prefix_with_logarithmic_encodings(self):
+        page = self.page("ev:formula", "rule.cbl", "COMPUTE RESULT-AMOUNT = INPUT-AMOUNT * 2.")
+        payload = self.payload([page])
+        links = [{"relation_id": str(i), "caller_path": "rule.cbl",
+                  "target_path": f"dep-{i}.cbl", "caller_line": 100} for i in range(5000)]
+        payload["source_context"][0]["call_chain"]["links"] = list(links)
+        builder = mock.Mock(side_effect=lambda pages: self.investigation(True, ["ev:formula"]))
+        with mock.patch.object(business_chat, "_prompt_payload", wraps=business_chat._prompt_payload) as project:
+            actual, trims = self.fit(payload, builder)
+        retained = payload["source_context"][0]["call_chain"]["links"]
+        self.assertLessEqual(project.call_count, 20)
+        self.assertEqual(builder.call_count, 1)
+        self.assertEqual(actual["source_context"][0]["pages"], [page])
+        self.assertEqual(retained, links[:len(retained)])
+        self.assertEqual(sum(item["reason"] == "request_bytes" for item in trims), len(links) - len(retained))
+        retained.append(links[len(retained)])
+        payload["source_context"][0]["call_chain"]["omitted_links"] -= 1
+        messages = [{"role": "system", "content": business_chat._SYSTEM},
+                    {"role": "user", "content": json.dumps(business_chat._prompt_payload(payload),
+                        ensure_ascii=False, separators=(",", ":"))}]
+        size = len(json.dumps({"model": self.config.chat_model, "messages": messages,
+            "max_tokens": self.config.max_output_tokens}, ensure_ascii=False,
+            separators=(",", ":")).encode())
+        self.assertGreater(size, self.policy.max_request_bytes)
+
     def test_removed_source_rechecks_formula_and_physical_completeness(self):
         formula = self.page("ev:formula", "rule.cbl", "COMPUTE RESULT-AMOUNT = INPUT-AMOUNT * 2.\n"
             + "*> neutral source filler\n" * 2500)

@@ -7,6 +7,7 @@ cross into business analysis. Native candidate availability is not validation.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import asdict, dataclass, replace
 import hashlib
 import json
@@ -26,7 +27,7 @@ from statement_parser import parse_statements, PARSER_VERSION
 
 class ParserAdapter(Protocol):
     def parse(self, source: str, *, relative_path: str, context=None,
-              source_map=None, source_sha256=None) -> CompilationIR: ...
+              source_map=None, source_sha256=None, check_cancel=None) -> CompilationIR: ...
 
 
 def expression_tree(text):
@@ -76,10 +77,12 @@ def expression_tree(text):
         return Expression("opaque", text, support_status="unsupported")
 
 
-def _normalized_source(source, context):
+def _normalized_source(source, context, check_cancel=None):
     result, active, statuses, guards, directives = [], context.source_format, {}, {}, set()
     compilation = CompilationGuardState(context)
     for number, raw in enumerate(source.splitlines(keepends=True), 1):
+        if check_cancel and number % 128 == 1:
+            check_cancel()
         line = raw.rstrip("\r\n")
         ending = raw[len(line):]
         code, active, _ = clean_cobol_line(line, active)
@@ -133,11 +136,13 @@ def _picture_info(picture):
     return digits, scale, expanded.startswith("S") if numeric else None, length
 
 
-def _data_items(normalized, relative_path, source_hash, source_map, compilation_statuses=None):
+def _data_items(normalized, relative_path, source_hash, source_map, compilation_statuses=None, check_cancel=None):
     data_end = re.search(r"\bPROCEDURE\s+DIVISION\b", cobol_code_only(normalized), re.I)
     lines = normalized[:data_end.start() if data_end else len(normalized)].splitlines()
     declarations = []
     for number, line in enumerate(lines, 1):
+        if check_cancel and number % 128 == 1:
+            check_cancel()
         match = re.match(r"\s*(0[1-9]|[1-4][0-9]|66|77|78|88)\s+([A-Z_$#@][A-Z0-9_$#@-]*)\b", line, re.I)
         if match:
             declarations.append([number, number, int(match[1]), match[2].upper(), line.strip()])
@@ -145,7 +150,9 @@ def _data_items(normalized, relative_path, source_hash, source_map, compilation_
             declarations[-1][1] = number
             declarations[-1][4] += " " + line.strip()
     result, stack = [], []
-    for first, last, level, name, declaration in declarations:
+    for index, (first, last, level, name, declaration) in enumerate(declarations):
+        if check_cancel and index % 128 == 0:
+            check_cancel()
         if level in {1, 77, 78}:
             stack = []
         elif level != 88:
@@ -178,14 +185,22 @@ def _data_items(normalized, relative_path, source_hash, source_map, compilation_
     return tuple(result)
 
 
-def _regions(items):
-    regions, unknown_overlap = {}, set()
+def _regions(items, check_cancel=None):
+    regions, unknown_overlap, alias_edges = {}, set(), defaultdict(set)
+    by_name = defaultdict(list)
     for item in items:
+        by_name[(item.parent_id, item.name)].append(item)
+    for index, item in enumerate(items):
+        if check_cancel and index % 128 == 0:
+            check_cancel()
         parent = regions.get(item.parent_id)
         root = parent.root_id if parent else item.item_id
-        aliases = [other for other in items if other.name == item.redefines and other.parent_id == item.parent_id]
+        aliases = by_name.get((item.parent_id, item.redefines), ()) if item.redefines else ()
         if len(aliases) == 1 and aliases[0].item_id in regions:
-            root = regions[aliases[0].item_id].root_id
+            target = aliases[0].item_id
+            root = regions[target].root_id
+            alias_edges[item.item_id].add(target)
+            alias_edges[target].add(item.item_id)
         elif item.redefines or item.level == 66 or item.compilation_status == "candidate":
             unknown_overlap.add(item.item_id)
         if item.compilation_status == "candidate":
@@ -207,21 +222,23 @@ def _regions(items):
                         ("redefines_target_unresolved_broad_overlap",) if item.item_id in unknown_overlap else
                         ("array_element_requires_index",) if item.occurs or parent and parent.array else
                         ("redefines_overlap_conservative",) if item.redefines else
-                        ("usage_layout_requires_dialect",) if length is None and item.picture else ())
-    return tuple(replace(region, overlaps=tuple(other.region_id for other in regions.values()
-        if other.region_id != region.region_id and (other.root_id == region.root_id or
-            other.item_id in unknown_overlap or region.item_id in unknown_overlap))) for region in regions.values())
+                        ("usage_layout_requires_dialect",) if length is None and item.picture else (),
+            overlap_scope="all_visible_storage" if item.item_id in unknown_overlap else "explicit_and_containment")
+    return tuple(replace(region, overlaps=tuple("region_" + target for target in sorted(alias_edges[key])))
+                 for key, region in regions.items())
 
 
 class BuiltinParserAdapter:
     name = "builtin"
-    version = "builtin-ir-adapter-v2"
+    version = "builtin-ir-adapter-v3"
 
-    def parse(self, source, *, relative_path, context=None, source_map=None, source_sha256=None):
+    def parse(self, source, *, relative_path, context=None, source_map=None, source_sha256=None, check_cancel=None):
+        if check_cancel:
+            check_cancel()
         context = resolve_compilation_context(context)
         source_hash = source_sha256 or hashlib.sha256(source.encode(context.encoding if context.encoding != "auto" else "utf-8")).hexdigest()
-        normalized, compilation_statuses, compilation_guards, directives, compilation_diagnostics = _normalized_source(source, context)
-        items = _data_items(normalized, relative_path, source_hash, source_map, compilation_statuses)
+        normalized, compilation_statuses, compilation_guards, directives, compilation_diagnostics = _normalized_source(source, context, check_cancel)
+        items = _data_items(normalized, relative_path, source_hash, source_map, compilation_statuses, check_cancel)
         identities = [{"name": name, "compilation_status": "active" if compilation_statuses.get(
             normalized.count("\n", 0, start)+1) is True else "candidate"}
             for name, start, _ in program_identifiers(normalized)]
@@ -246,18 +263,30 @@ class BuiltinParserAdapter:
                 block_ends.append(match.start())
         body = "".join(chars)
         parsed_results, offset = [], 0
+        line_number = 1
         for end in (*block_ends, len(body)):
+            if check_cancel:
+                check_cancel()
             if end <= offset:
                 continue
             parsed_results.append(parse_statements(body[offset:end],
-                start_line=body.count("\n", 0, offset) + 1, source_format="fixed" if fixed else "free"))
+                start_line=line_number, source_format="fixed" if fixed else "free", check_cancel=check_cancel))
+            line_number += body.count("\n", offset, end)
             offset = end
         statements = []
+        items_by_name = defaultdict(list)
+        for item in items:
+            items_by_name[item.name].append(item)
+        def bind(name, refs):
+            lexical = lex_cobol(name)
+            return bind_reference(name, items_by_name.get(lexical[0].value, ()) if lexical else (), refs)
         for index, statement in enumerate(statement for parsed in parsed_results for statement in parsed.statements):
+            if check_cancel and index % 64 == 0:
+                check_cancel()
             refs = _source_refs(relative_path, source_hash, statement.span.start_line, statement.span.end_line,
                 statement.span.start_column, statement.span.end_column, source_map)
-            reads = tuple(bind_reference(name, items, refs) for name in statement.reads)
-            writes = tuple(bind_reference(name, items, refs) for name in statement.writes)
+            reads = tuple(bind(name, refs) for name in statement.reads)
+            writes = tuple(bind(name, refs) for name in statement.writes)
             assignment = assignment_facts(statement.text)
             expressions = tuple((target, expression_tree(expression)) for target, expression in
                 (assignment.expressions if assignment else getattr(statement, "expressions", ()) or
@@ -288,7 +317,7 @@ class BuiltinParserAdapter:
                          source_map=source_map)]} for parsed in parsed_results for boundary in parsed.boundaries) + compilation_diagnostics
         return CompilationIR(context.to_dict(), {"name": self.name, "version": self.version,
                              "statement_parser_version": PARSER_VERSION, "program_identifiers": identities}, items,
-                             _regions(items), tuple(statements), diagnostics, all(parsed.complete for parsed in parsed_results)
+                             _regions(items, check_cancel), tuple(statements), diagnostics, all(parsed.complete for parsed in parsed_results)
                              and not any(diagnostic["reason"] != "compile_condition_unknown" for diagnostic in compilation_diagnostics))
 
 
@@ -316,7 +345,9 @@ class IsolatedParserAdapter:
         self.artifact_hashes = {str(Path(path).resolve()): value for path, value in (artifact_hashes or {}).items()}
         self.timeout_seconds, self.max_result_bytes = timeout_seconds, max_result_bytes
 
-    def parse(self, source, *, relative_path, context=None, source_map=None, source_sha256=None):
+    def parse(self, source, *, relative_path, context=None, source_map=None, source_sha256=None, check_cancel=None):
+        if check_cancel:
+            check_cancel()
         context = resolve_compilation_context(context)
         metadata = asdict(self.spec)
         if not self.command:

@@ -24,6 +24,7 @@ from evidence_context import EvidenceContext, page_priority
 from framework_knowledge import MAX_SECTION_CHARS, build_framework_context, framework_status, search_framework_context
 from framework_semantics import build_framework_facts, visible_framework_facts
 from quality_trace import QualityTrace, PIPELINE_VERSION, PROMPT_VERSION
+from question_budget import QuestionBudget, QuestionDeadlineExceeded
 from repository_identity import identity_blocks_analysis
 
 
@@ -545,7 +546,7 @@ def _prompt_payload(payload):
 
 
 def _fit_request(config, payload, history, policy=None, *, trim_events=None, investigation_builder=None,
-                 source_fallback_builder=None):
+                 source_fallback_builder=None, check_cancel=None):
     """Bound the actual encoded request, trimming secondary context first."""
     history = list(history)
     policy = resolve_agent_policy(policy)
@@ -553,7 +554,60 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
     business_map = payload.get("business_map", {})
     source_fallback_attempted = False
     last_material = None
+
+    def encode_request():
+        if check_cancel:
+            check_cancel()
+        messages = [{"role": "system", "content": _SYSTEM}, *history,
+                    {"role": "user", "content": json.dumps(_prompt_payload(payload), ensure_ascii=False,
+                        separators=(",", ":"))}]
+        size = len(json.dumps({"model": config.chat_model, "messages": messages,
+                              "max_tokens": config.max_output_tokens}, ensure_ascii=False,
+                             separators=(",", ":")).encode("utf-8"))
+        return messages, size
+
+    def trim_navigation(owner, key, omitted_key, reason=None, identifier=None):
+        # These lists are navigation, not evidence. Find the same retained
+        # prefix as single-item trimming with logarithmic request encodings.
+        # Source/fact removal still runs through ordinary reconciliation.
+        values = owner[key]
+        original = list(values)
+        previous = owner.get(omitted_key, 0)
+
+        def retain(count):
+            values[:] = original[:count]
+            owner[omitted_key] = previous + len(original) - count
+
+        retain(0)
+        if encode_request()[1] <= policy.max_request_bytes:
+            # Table encoding begins at four records. Crossing that boundary
+            # can *shrink* a request, so search the compact interval separately.
+            low = 0
+            if len(original) > 4:
+                retain(4)
+                if encode_request()[1] <= policy.max_request_bytes:
+                    low, high = 4, len(original) - 1
+                    while low < high:
+                        middle = (low + high + 1) // 2
+                        retain(middle)
+                        if encode_request()[1] <= policy.max_request_bytes:
+                            low = middle
+                        else:
+                            high = middle - 1
+            if low == 0:
+                for count in range(min(3, len(original) - 1), 0, -1):
+                    retain(count)
+                    if encode_request()[1] <= policy.max_request_bytes:
+                        low = count
+                        break
+            retain(low)
+        for item in reversed(original[len(values):]):
+            if reason:
+                record(item.get(identifier) if identifier else None, reason)
+
     while True:
+        if check_cancel:
+            check_cancel()
         EvidenceContext.reconcile_payload(payload)
         if "framework_facts" in payload:
             payload["framework_facts"] = visible_framework_facts(payload["framework_facts"],
@@ -579,12 +633,7 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
                 answer_detail=payload.get("answer_detail", "detailed"), business_map=business_map,
                 framework_facts=payload.get("framework_facts", []))
         last_material = material
-        messages = [{"role": "system", "content": _SYSTEM}, *history,
-                    {"role": "user", "content": json.dumps(_prompt_payload(payload), ensure_ascii=False,
-                        separators=(",", ":"))}]
-        size = len(json.dumps({"model": config.chat_model, "messages": messages,
-                              "max_tokens": config.max_output_tokens}, ensure_ascii=False,
-                             separators=(",", ":")).encode("utf-8"))
+        messages, size = encode_request()
         if size <= policy.max_request_bytes:
             return messages, size
         payload["context_reduced"] = True
@@ -619,18 +668,13 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
             group["semantic_analysis_omitted"] = True
             record(group.get("group_id"), "semantic_analysis_request_bytes", len(json.dumps(removed, ensure_ascii=False)))
         elif bundle.get("source_selection_trim_events"):
-            bundle["source_selection_trim_events"].pop()
-            bundle["source_selection_trim_events_omitted"] = bundle.get("source_selection_trim_events_omitted", 0) + 1
-            record(None, "source_selection_metadata")
+            trim_navigation(bundle, "source_selection_trim_events", "source_selection_trim_events_omitted",
+                            "source_selection_metadata")
         elif bundle.get("open_frontier"):
-            bundle["open_frontier"].pop()
-            bundle["open_frontier_omitted"] = bundle.get("open_frontier_omitted", 0) + 1
-            record(None, "source_selection_metadata")
+            trim_navigation(bundle, "open_frontier", "open_frontier_omitted", "source_selection_metadata")
         elif business_map.get("rule_lead_coverage", {}).get("query_frontier"):
-            business_map["rule_lead_coverage"]["query_frontier"].pop()
-            coverage = business_map["rule_lead_coverage"]
-            coverage["omitted_query_frontier"] = coverage.get("omitted_query_frontier", 0) + 1
-            record(None, "rule_coverage_metadata")
+            trim_navigation(business_map["rule_lead_coverage"], "query_frontier", "omitted_query_frontier",
+                            "rule_coverage_metadata")
         elif business_map.get("rule_lead_coverage"):
             business_map.pop("rule_lead_coverage")
             business_map["rule_lead_coverage_omitted"] = True
@@ -638,26 +682,20 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         elif any(row.get("relative_paths") for row in business_map.get("source_identity", {}).get("candidates", [])):
             identity = business_map["source_identity"]
             candidate = next(row for row in reversed(identity["candidates"]) if row.get("relative_paths"))
-            candidate["relative_paths"].pop()
-            candidate["omitted_paths"] = candidate.get("omitted_paths", 0) + 1
-            record(None, "source_identity_metadata")
+            trim_navigation(candidate, "relative_paths", "omitted_paths", "source_identity_metadata")
         elif bundle["call_chain"]["links"]:
-            removed = bundle["call_chain"]["links"].pop()
-            record(removed.get("relation_id"), "request_bytes")
-            bundle["call_chain"]["omitted_links"] += 1
+            trim_navigation(bundle["call_chain"], "links", "omitted_links", "request_bytes", "relation_id")
         elif bundle["outline"]:
-            removed = bundle["outline"].pop()
-            record(removed.get("relative_path"), "request_bytes_outline")
+            trim_navigation(bundle, "outline", "omitted_outline", "request_bytes_outline", "relative_path")
         elif business_map.get("relations"):
-            business_map["relations"].pop()
-            business_map["omitted_relations"] += 1
+            trim_navigation(business_map, "relations", "omitted_relations")
         elif business_map.get("rule_leads"):
-            business_map["rule_leads"].pop()
-            business_map["omitted_rules"] += 1
+            trim_navigation(business_map, "rule_leads", "omitted_rules")
         elif business_map.get("programs"):
-            business_map["programs"].pop()
-            business_map["omitted_programs"] += 1
+            trim_navigation(business_map, "programs", "omitted_programs")
         elif business_map.get("direct_paths"):
+            # direct_paths also changes the call-analysis contract, so keep
+            # its original sequential treatment rather than assuming monotonicity.
             business_map["direct_paths"].pop()
             business_map["omitted_direct_paths"] += 1
         elif history:
@@ -809,7 +847,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                       entry_program=None, framework_reference_path=None, transport=None,
                       allow_network=False, capture_api_responses=False, progress=None,
                       check_cancel=None, policy=None, capture_context=False,
-                      source_session=None, answer_detail="detailed", resume_state=None, analysis_identity=None, **unused):
+                      source_session=None, answer_detail="detailed", resume_state=None, analysis_identity=None,
+                      question_budget=None, **unused):
     from business_analysis import _extract_text, _TextResponseError, _framework_for_prompt
     from repository_discovery import (repository_search_overview, retrieve_repository_context,
                                       read_repository_context)
@@ -880,6 +919,18 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     quality = QualityTrace(database_path, question=question, config=config, policy=policy,
                            capture_context=capture_context, resume_state=resume_state,
                            analysis_identity=analysis_identity)
+    def save_budget_stop():
+        checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
+        checkpoint.update(quality=quality.data, source_pages=list(evidence.pages.values()),
+            completed_actions=completed_actions, exactly_once=False,
+            compilation_context=source_session.options.get("compilation_context") if source_session else None,
+            budget_stop={"phase": question_budget.phase, "limit_seconds": question_budget.limit})
+        quality.run_store.checkpoint(quality.data["run_id"], checkpoint)
+        if semantic_scope is not None:
+            semantic_scope.close()
+        return quality.data["run_id"], checkpoint
+    if question_budget is not None:
+        question_budget.recovery = save_budget_stop
     resume_checkpoint = (resume_state or {}).get("checkpoint", {})
     resume_response = None
     if resume_state:
@@ -930,10 +981,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         if safe_diagnostic is not None:
             item["diagnostic"] = safe_diagnostic
         errors.append(item)
-        if quality.data["rounds"] and stage != "context_assembly":
-            row = quality.data["rounds"][-1]
+        row = quality.response_round()
+        if row is not None and stage != "context_assembly":
             response = row.setdefault("response", None)
-            if response is not None:
+            if response is not None and (code != "QUESTION_TIME_BUDGET_EXHAUSTED"
+                                         or response.get("error") == code):
                 response["error"], response["error_stage"] = code, stage
                 if http_status:
                     response["http_status"] = http_status
@@ -943,11 +995,16 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     response["transport_reason"] = transport_reason
 
     def emit(phase, **details):
+        if question_budget is not None:
+            question_budget.phase = phase
         if check_cancel:
             check_cancel()
         if progress:
             progress({"phase": phase, "completed": turns, "total": None, "unit": "requests",
-                      "model_requests": turns, "retrieved_pages": len(pages), **details})
+                      "model_requests": turns, "retrieved_pages": len(pages),
+                      **({"question_budget_seconds": question_budget.limit,
+                          "question_remaining_seconds": round(question_budget.remaining(), 1)}
+                         if question_budget else {}), **details})
 
     def check_local_analysis_budget():
         if check_cancel:
@@ -1544,11 +1601,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     def complete(messages, *, payload, request_size, stage, trim_events=()):
         """Send once; provider failures stop this question for explicit retry."""
         nonlocal turns, first_model_request_seconds, resume_response
+        quality.prepare(stage=stage, payload=payload, messages=messages, trim_events=trim_events,
+                        replay_round_id=f"round-{turns}" if resume_response is not None else None)
         if check_cancel:
             check_cancel()
         if resume_response is not None:
             raw, resume_response = resume_response, None
-            quality.prepare(stage=stage, payload=payload, messages=messages, trim_events=trim_events)
             return raw
         if turns >= policy.max_model_requests:
             raise APIClientError("MODEL_REQUEST_BUDGET_EXHAUSTED")
@@ -1556,14 +1614,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         if first_model_request_seconds is None:
             first_model_request_seconds = time.monotonic() - started
         request_sizes.append(request_size)
-        quality.prepare(stage=stage, payload=payload,
-                        messages=messages, trim_events=trim_events)
         quality.data.setdefault("question_investigation_rounds", []).append({
             "round_id": f"round-{turns}", **payload.get("question_investigation", {})})
         began = time.monotonic()
         emit("waiting_for_model")
         try:
-            raw = client.complete(messages=messages)
+            raw = client.complete(messages=messages,
+                timeout_seconds=question_budget.request_timeout(config.timeout_seconds) if question_budget else None,
+                check_cancel=check_cancel)
             try:
                 parsed_response = _extract_text(raw)
                 replay = {"choices": [{"message": {"role": "assistant", "content": redactor._sanitize(parsed_response.text)},
@@ -1573,7 +1631,20 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 quality.record_remote_response({"response_received": True, "business_text_unavailable": True})
             return raw
         finally:
-            timing["provider_wait_seconds"] += time.monotonic() - began
+            duration = time.monotonic() - began
+            timing["provider_wait_seconds"] += duration
+            if question_budget:
+                question_budget.observe_request(duration)
+
+    def check_after_response():
+        # The complete response is already journaled. Cancellation still wins,
+        # but expiry must not discard a response we can verify without another
+        # request. New investigation actions remain subject to the deadline.
+        if question_budget:
+            if question_budget.cancel:
+                question_budget.cancel()
+        elif check_cancel:
+            check_cancel()
     seen_actions = set()
     automatic_turn_usage = {"read": 0, "inspect_business_context": 0}
 
@@ -1837,7 +1908,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             source_required = any(item.get("kind") == "formula" for item in
                                   current_investigation.get("required_items", []))
             discovery_pending = can_discover(current_investigation) and (not framework_only or source_required)
-            force_answer = protocol_answer_pending or turn == policy.max_model_requests - 1
+            force_answer = (protocol_answer_pending or turn == policy.max_model_requests - 1
+                            or bool(question_budget and question_budget.should_answer(config.timeout_seconds)))
             graph_prompt = {"intent": business_map["intent"],
                             "direct_path_count": len(business_map["direct_paths"]),
                             "direct_paths": business_map["direct_paths"][:500],
@@ -1905,7 +1977,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             "current_question_match_observed": question_match_observed,
                             "history_candidates_available": bool(restored or prior_paths),
                             "source_absence_proven": False},
-                       "investigation_budget": {"remaining_model_requests": policy.max_model_requests - turn,
+                       "investigation_budget": {"remaining_model_requests": 1 if force_answer else policy.max_model_requests - turn,
                             "searches_per_turn": 0 if force_answer else policy.max_searches_per_turn,
                             "reads_per_turn": 0 if force_answer else max(0, policy.max_reads_per_turn - automatic_turn_usage["read"]),
                             "business_context_actions_per_turn": 0 if force_answer else max(0,
@@ -1952,7 +2024,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             trim_events = selection_events()
             messages, request_size = _fit_request(config, payload, history_context, policy,
                 trim_events=trim_events, investigation_builder=question_investigation,
-                source_fallback_builder=source_fallback)
+                source_fallback_builder=source_fallback, check_cancel=check_cancel)
             if resume_response is not None and resume_checkpoint.get("request_payload"):
                 payload = resume_checkpoint["request_payload"]
                 messages = [{"role": "system", "content": _SYSTEM}, *history_context,
@@ -1990,8 +2062,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 trim_events=trim_events)
             response_raw = raw
             provider_usage.append(raw.get("usage"))
-            if check_cancel:
-                check_cancel()
+            check_after_response()
             failure_stage, response_shape = "response_parse", _response_shape(raw)
             try:
                 reply = _extract_text(raw)
@@ -2041,8 +2112,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                stage="empty_length_recovery")
                 response_raw = raw
                 provider_usage.append(raw.get("usage"))
-                if check_cancel:
-                    check_cancel()
+                check_after_response()
                 failure_stage, response_shape = "response_parse", _response_shape(raw)
                 # A second empty response escapes to the ordinary failure path.
                 reply = _extract_text(raw)
@@ -2064,6 +2134,17 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                  parsed_action=[key for key, value in action.items() if value] if action else None,
                                  error="INVALID_INVESTIGATION_ACTION" if invalid_action else None,
                                  usage=raw.get("usage"), **response_character_counts(raw, reply))
+            if action and not invalid_action:
+                checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
+                quality.run_store.checkpoint(quality.data["run_id"], {**checkpoint,
+                    "frontier": [{"tool": tool, "arguments": arguments}
+                        for tool, values in action.items() if values
+                        for arguments in (values if tool in {"read", "inspect_business_context", *_SEMANTIC_TOOLS}
+                                          else [values])]})
+            if question_budget and question_budget.remaining() <= 0:
+                if action:
+                    raise QuestionDeadlineExceeded()
+                force_answer = True
             if invalid_action:
                 if not force_answer and not investigation_reprompted:
                     investigation_reprompted = True
@@ -2265,7 +2346,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             try:
                 continuation_messages, continuation_size = _fit_request(config, continuation_payload,
                     history_context, policy, trim_events=continuation_trims,
-                    investigation_builder=question_investigation, source_fallback_builder=source_fallback)
+                    investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel)
             except ValueError:
                 raise APIClientError("BUSINESS_CONTEXT_TOO_LARGE") from None
             continuation_visible = _request_manifest(continuation_payload)
@@ -2275,8 +2356,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 request_size=continuation_size, stage="continue", trim_events=continuation_trims)
             response_raw = continued_raw
             provider_usage.append(continued_raw.get("usage"))
-            if check_cancel:
-                check_cancel()
+            check_after_response()
             failure_stage, response_shape = "response_parse", _response_shape(continued_raw)
             continued_reply = _extract_text(continued_raw)
             response_shape = _response_shape(continued_raw, continued_reply.choice_index)
@@ -2307,7 +2387,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 sent_pages.update({page["evidence_id"]: page for page in continuation_payload["source_context"][0]["pages"]})
                 boundaries.append({"reason": "model_output_continued", "requests": 1})
         if (answer and not truncated and not continuation_attempted and not empty_length_recovery_attempted
-                and policy.max_answer_revisions and turns < policy.max_model_requests):
+                and policy.max_answer_revisions and turns < policy.max_model_requests
+                and not (question_budget and question_budget.should_answer(config.timeout_seconds))):
             before = len(evidence.pages)
             for task in list(evidence.tasks.values()):
                 if task.state != "open" or task.next_start_line is None:
@@ -2368,7 +2449,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 try:
                     revision_messages, revision_size = _fit_request(config, revised_payload,
                         history_context, policy, trim_events=trims,
-                        investigation_builder=question_investigation, source_fallback_builder=source_fallback)
+                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel)
                 except ValueError:
                     raise APIClientError("BUSINESS_CONTEXT_TOO_LARGE") from None
                 revised_material = _supplied_answer_material(revised_payload)
@@ -2468,6 +2549,13 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     if failure and answer and not any(item.get("reason") == "usable_draft_retained" for item in boundaries):
         boundaries.append({"reason": "usable_draft_retained", "followup_error": failure})
 
+    # Stop spending investigation time, but always validate a retained answer
+    # against its captured version before showing it. This phase performs no
+    # provider requests and must not re-enter discovery.
+    verification_started = time.monotonic()
+    if progress:
+        progress({"phase": "verifying_answer", "model_requests": turns, "unit": "steps"})
+
     # A retained answer is bound to its request's captured excerpts. A later
     # live-file edit cannot revoke text the provider actually saw.
     final_source_ids = set((answer_manifest or {}).get("source_ids", []))
@@ -2526,6 +2614,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             answer = "模型接口鉴权失败（HTTP 401）。请检查本机 .env 中的接口密钥与地址，更新后重启服务。对话和源码索引已保留。"
         elif http_status == 403:
             answer = "模型接口拒绝了本次访问（HTTP 403）。请核对该接口或模型的使用权限。对话和源码索引已保留。"
+        elif failure == "QUESTION_TIME_BUDGET_EXHAUSTED":
+            answer = "本次调查已达到时间预算。已完成的步骤、源码证据和待查位置已保存；尚未取得可展示的业务答案。在工作台点击原问题的“重试这个问题”，或重新提交原问题，即可继续调查，无需重新导入源码。"
         elif failure == "REQUEST_TIMEOUT":
             answer = "模型接口本次响应超时。对话和源码索引已保留，可以重试，不需要重新接入源码。"
         else:
@@ -2634,6 +2724,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         "analysis_revision": overview["snapshot_id"],
         "completed_actions": completed_actions[-16:],
         "question_investigation": final_investigation}
+    timing["answer_verification_seconds"] = time.monotonic() - verification_started
     metrics = {"model_requests": turns, "elapsed_seconds": round(time.monotonic() - started, 3),
                "retrieved_pages": len(pages), "repository_rebuilt": False,
                "history_messages": len(history or []), "source_characters": sum(len(sent_pages[i].get("source_text", "")) for i in final_source_ids),
@@ -2701,7 +2792,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         "completed_actions": completed_actions, "source_pages": list(evidence.pages.values()),
         "compilation_context": source_session.options.get("compilation_context") if source_session else None,
         "snapshot_id": overview["snapshot_id"], "exactly_once": False},
-        status="attention" if uncertain else "completed")
+        status="attention" if uncertain else "running" if failure == "QUESTION_TIME_BUDGET_EXHAUSTED" and not usable else "completed")
     return output
 
 
@@ -2711,6 +2802,10 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
     from run_store import RunStore, fingerprint
     from pathlib import Path
     import hashlib
+    budget = QuestionBudget(resolve_agent_policy(kwargs.get("policy")).max_question_seconds,
+                            clock=lambda: time.monotonic(), check_cancel=kwargs.get("check_cancel"))
+    kwargs["check_cancel"] = budget.check
+    kwargs["question_budget"] = budget
     store = RunStore(Path(database_path).resolve().parent / "investigation-runs.sqlite")
     analysis_identity = fingerprint({
         "database_path": str(Path(database_path).resolve()),
@@ -2733,10 +2828,23 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
         "api_style": config.api_style}, sort_keys=True).encode()).hexdigest()
     if resume:
         metadata = resume["metadata"]
-        compatible = (metadata.get("question_id") == "sha256:" + hashlib.sha256(question.encode()).hexdigest()
+        same_question = (metadata.get("question_id") == "sha256:" + hashlib.sha256(question.encode()).hexdigest()
             and metadata.get("analysis_identity") == analysis_identity
-            and metadata.get("configuration", {}).get("configuration_fingerprint") == expected_configuration
-            and metadata.get("configuration", {}).get("policy") == resolve_agent_policy(kwargs.get("policy")).to_dict())
+            and metadata.get("configuration", {}).get("model_fingerprint") == hashlib.sha256(config.chat_model.encode()).hexdigest())
+        # Changing a timeout or output allowance does not establish that the
+        # previous charged request failed. Resolve uncertainty before deciding
+        # whether any saved answer/configuration can be replayed.
+        def unknown_remote_result():
+            return {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
+                "runner_status": "NOT_READY", "reason_code": "REMOTE_REQUEST_OUTCOME_UNKNOWN",
+                "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"], "answer":
+                    "这次调查已保存，但上一次远程模型请求的结果未知。已完成的源码读取和待查位置仍可恢复；需要先确认该请求状态，再决定是否重试。",
+                    "resume_state": {"completed_steps": len(resume["completed_steps"]),
+                        "frontier": resume["checkpoint"].get("frontier", []),
+                        "uncertain_requests": resume["uncertain_requests"], "exactly_once": False}}}
+        compatible = same_question and (bool(resume.get("uncertain_requests")) or (
+            metadata.get("configuration", {}).get("configuration_fingerprint") == expected_configuration
+            and metadata.get("configuration", {}).get("policy") == resolve_agent_policy(kwargs.get("policy")).to_dict()))
         if not compatible:
             if resume_id:
                 return {"runner_status": "NOT_READY", "reason_code": "RESUME_IDENTITY_MISMATCH",
@@ -2751,29 +2859,47 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
             "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
                 "answer": "调查使用的分析或提示版本已经变化。原步骤、证据和请求状态已保留，需要先核对原请求结果，再按当前版本开始调查。"}}
     with QuestionSourceSession(database_path, source_root, check_cancel=kwargs.get("check_cancel")) as session:
-        if resume:
-            from run_store import fingerprint
-            prior_context = resume["checkpoint"].get("compilation_context")
-            current_context = session.options.get("compilation_context")
-            if fingerprint(prior_context) != fingerprint(current_context):
-                return {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
-                    "runner_status": "NOT_READY", "reason_code": "RESUME_COMPILATION_CONTEXT_CHANGED",
-                    "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
-                        "answer": "调查使用的编译配置已经变化。原调查和证据已保留，需要按当前方言、COPY、编译条件及框架版本开始新的调查。",
-                        "resume_state": {"compilation_context_fingerprint": fingerprint(prior_context),
-                            "current_compilation_context_fingerprint": fingerprint(current_context),
-                            "exactly_once": False}}}
-            if resume.get("uncertain_requests"):
-                return {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
-                    "runner_status": "NOT_READY", "reason_code": "REMOTE_REQUEST_OUTCOME_UNKNOWN",
-                    "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"], "answer":
-                        "这次调查已保存，但上一次远程模型请求的结果未知。已完成的源码读取和待查位置仍可恢复；需要先确认该请求状态，再决定是否重试。",
-                        "resume_state": {"completed_steps": len(resume["completed_steps"]), "frontier": resume["checkpoint"].get("frontier", []),
-                                         "uncertain_requests": resume["uncertain_requests"], "exactly_once": False}}}
-            for page in resume["checkpoint"].get("source_pages", []):
-                if session.capture(page["relative_path"]).sha256 != page["source_sha256"]:
-                    return {"runner_status": "NOT_READY", "reason_code": "RESUME_SOURCE_VERSION_CHANGED",
+        try:
+            if resume:
+                from run_store import fingerprint
+                prior_context = resume["checkpoint"].get("compilation_context")
+                current_context = session.options.get("compilation_context")
+                if fingerprint(prior_context) != fingerprint(current_context):
+                    return {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
+                        "runner_status": "NOT_READY", "reason_code": "RESUME_COMPILATION_CONTEXT_CHANGED",
                         "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
-                            "answer": "调查读取的源码版本已经变化。原调查和证据已保留，需要基于新版本开始调查。"}}
-        return _run_business_chat(question, database_path, source_root, config,
-                                  source_session=session, resume_state=resume, **kwargs)
+                            "answer": "调查使用的编译配置已经变化。原调查和证据已保留，需要按当前方言、COPY、编译条件及框架版本开始新的调查。",
+                            "resume_state": {"compilation_context_fingerprint": fingerprint(prior_context),
+                                "current_compilation_context_fingerprint": fingerprint(current_context),
+                                "exactly_once": False}}}
+                if resume.get("uncertain_requests"):
+                    return unknown_remote_result()
+                budget.phase = "validating_saved_sources"
+                for page in resume["checkpoint"].get("source_pages", []):
+                    if session.capture(page["relative_path"]).sha256 != page["source_sha256"]:
+                        return {"runner_status": "NOT_READY", "reason_code": "RESUME_SOURCE_VERSION_CHANGED",
+                            "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
+                                "answer": "调查读取的源码版本已经变化。原调查和证据已保留，需要基于新版本开始调查。"}}
+            return _run_business_chat(question, database_path, source_root, config,
+                                      source_session=session, resume_state=resume, **kwargs)
+        except QuestionDeadlineExceeded:
+            if budget.recovery:
+                run_id, checkpoint = budget.recovery()
+            elif resume:
+                # Source validation can exhaust the budget before the workflow
+                # registers its recovery callback. Preserve the original run.
+                run_id, checkpoint = resume["run_id"], resume["checkpoint"]
+                checkpoint = {**checkpoint, "budget_stop": {
+                    "phase": budget.phase, "limit_seconds": budget.limit}}
+                store.checkpoint(run_id, checkpoint, status=resume["state"])
+            else:
+                run_id, checkpoint = None, {}
+            return {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
+                "runner_status": "NOT_READY", "reason_code": "QUESTION_TIME_BUDGET_EXHAUSTED",
+                "agent_result": {"status": "PARTIAL", "run_id": run_id,
+                    "stop_reason": "QUESTION_TIME_BUDGET_EXHAUSTED",
+                    "answer": "本次调查已达到时间预算。已完成的源码读取和待查位置已保存，尚未完成业务判断。在工作台点击原问题的“重试这个问题”，或重新提交原问题，即可继续调查，无需重新导入源码。",
+                    "resume_state": {"frontier": checkpoint.get("frontier", []), "exactly_once": False},
+                    "metrics": {"policy": resolve_agent_policy(kwargs.get("policy")).to_dict(),
+                        "timing_seconds": {"total_seconds": round(time.monotonic() - budget.started, 4)},
+                        "budget_stop_phase": budget.phase}}}

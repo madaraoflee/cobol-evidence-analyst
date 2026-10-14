@@ -15,6 +15,7 @@ from pathlib import Path
 import statistics
 import sqlite3
 import time
+import uuid
 
 from business_chat import run_business_chat
 from company_api import CompanyAPIConfig
@@ -57,6 +58,10 @@ def measure_first_request(database_path, source_root, question, *, framework_ref
         run_business_chat(question, Path(database_path), Path(source_root),
             CompanyAPIConfig("https://offline.example.invalid/v1", "offline-evaluation", api_key="offline-placeholder"),
             allow_network=False, transport=transport, progress=progress,
+            # The probe stops at an observed request; its journal intentionally
+            # cannot know a provider result. Repeats need independent run
+            # identities while reusing the same parse and semantic caches.
+            conversation_id="offline-latency-" + uuid.uuid4().hex,
             framework_reference_path=framework_reference_path)
     except _FirstRequestCaptured:
         result["first_request_reached"] = True

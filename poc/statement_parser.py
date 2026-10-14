@@ -136,9 +136,9 @@ class _Source:
         return Boundary(reason, self.span(start, end), self.text[start:end])
 
 
-def _lex(source: _Source, source_format: str, max_tokens: int) -> tuple[_Token, ...]:
+def _lex(source: _Source, source_format: str, max_tokens: int, check_cancel=None) -> tuple[_Token, ...]:
     try:
-        return lex_cobol(source.text, source_format=source_format, max_tokens=max_tokens)
+        return lex_cobol(source.text, source_format=source_format, max_tokens=max_tokens, check_cancel=check_cancel)
     except CobolLexError as error:
         raise _BoundaryError(error.reason, error.offset) from error
 
@@ -263,7 +263,8 @@ def _valid_expression(tokens: tuple[_Token, ...], *, condition: bool = False) ->
 
 
 class _Parser:
-    def __init__(self, source: _Source, tokens: tuple[_Token, ...], max_depth: int):
+    def __init__(self, source: _Source, tokens: tuple[_Token, ...], max_depth: int, check_cancel=None):
+        self.check_cancel = check_cancel
         self.source, self.tokens, self.max_depth = source, tokens, max_depth
         self.position = 0
 
@@ -300,6 +301,8 @@ class _Parser:
         return tuple(result)
 
     def statement(self, guards: tuple[Guard, ...], depth: int) -> Statement:
+        if self.check_cancel:
+            self.check_cancel()
         if depth >= self.max_depth:
             self.fail("syntax_depth_budget_exhausted")
         first, kind = self.position, self.value()
@@ -572,7 +575,7 @@ class _Parser:
 
 
 def parse_statements(source: str, *, start_line: int = 1, source_format: str = "free",
-                     complete: bool = True, max_tokens: int = 50000, max_depth: int = 64) -> ParseResult:
+                     complete: bool = True, max_tokens: int = 50000, max_depth: int = 64, check_cancel=None) -> ParseResult:
     """Parse a complete body; incomplete input yields no promoted statements.
 
     ``statements`` are leaf AST nodes in textual order. ``writes`` includes
@@ -585,14 +588,16 @@ def parse_statements(source: str, *, start_line: int = 1, source_format: str = "
         raise ValueError("source must be text and start_line must be positive")
     if source_format not in {"free", "fixed"} or not 1 <= max_depth <= 64 or max_tokens < 1:
         raise ValueError("invalid source format or parser budget")
+    if check_cancel:
+        check_cancel()
     original = _Source(source, start_line)
     if not complete:
         return ParseResult((), (), (), (original.boundary("input_fragment_incomplete", 0),), False, source)
     try:
-        tokens = _lex(original, source_format, max_tokens)
+        tokens = _lex(original, source_format, max_tokens, check_cancel)
     except _BoundaryError as error:
         return ParseResult((), (), (), (original.boundary(error.reason, 0),), False, source)
-    parser = _Parser(original, tokens, max_depth)
+    parser = _Parser(original, tokens, max_depth, check_cancel)
     nodes, boundaries = [], []
     while parser.position < len(tokens):
         if parser.take("."):

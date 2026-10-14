@@ -199,7 +199,12 @@ class TransportFailureDiagnosticsTests(unittest.TestCase):
                 self.assert_failure(error, reason, reading=True)
 
     def test_total_read_deadline_records_timeout_reason(self) -> None:
-        with mock.patch("company_api.time.monotonic", side_effect=[0, 0, 8, 8]):
+        clock = [0.0]
+        def after_headers(response):
+            clock[0] = 8.0
+            return response
+        with mock.patch("company_api.time.monotonic", side_effect=lambda: clock[0]), \
+             mock.patch.object(FailingResponse, "__enter__", after_headers):
             self.assert_failure(ValueError(DETAIL), "timeout", reading=True)
 
     def test_injected_transport_uses_only_known_types_and_preserves_safe_errors(self) -> None:

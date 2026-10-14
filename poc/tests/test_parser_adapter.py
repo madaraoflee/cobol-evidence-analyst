@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from compilation_context import CompilationContext, resolve_compilation_context
 from parser_adapter import BuiltinParserAdapter, IsolatedParserAdapter, PROLEAP, CHE4Z, compare_normalized_ir, expression_tree
-from semantic_ir import bind_reference, compilation_ir_from_dict
+from semantic_ir import bind_reference, compilation_ir_from_dict, overlapping_region_ids
 
 
 def source(body):
@@ -100,7 +100,7 @@ class ParserAdapterTests(unittest.TestCase):
         alias = next(item for item in ir.data_items if item.name == "ALIAS-REC")
         alias_region = next(region for region in ir.storage_regions if region.item_id == alias.item_id)
         self.assertEqual(alias_region.root_id, region.root_id)
-        self.assertIn(alias_region.region_id, region.overlaps)
+        self.assertIn(alias_region.region_id, overlapping_region_ids(ir.storage_regions, region.region_id))
         self.assertIn("array_or_reference_modification_region_not_resolved", ir.statements[0].diagnostics)
 
     def test_copy_instances_replacement_trace_and_raw_hash_are_retained(self):

@@ -93,7 +93,7 @@ class RunStore:
 
     def unfinished(self, question_id, model_fingerprint, analysis_identity=None):
         with self.connect() as db:
-            rows = db.execute("SELECT run_id,metadata_json FROM investigation_runs WHERE state='running' "
+            rows = db.execute("SELECT run_id,metadata_json FROM investigation_runs WHERE state IN ('running','attention') "
                               "ORDER BY updated_at DESC")
             for row in rows:
                 metadata = json.loads(row["metadata_json"])

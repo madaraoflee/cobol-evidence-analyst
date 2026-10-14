@@ -13,6 +13,7 @@ import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import logging
+import math
 import os
 from pathlib import Path
 import re
@@ -429,7 +430,7 @@ class WorkbenchState:
         self.project = _project()
         self.job: dict | None = None
         self.cancel_event = threading.Event()
-        self.started_at = self.updated_at = self.phase_started_at = 0.0
+        self.started_at = self.updated_at = self.phase_started_at = self.progress_updated_at = 0.0
         self.phase_start_completed = 0.0
         self.demo_output_root = demo_output_root if demo_output_root is not None else FRAMEWORK_DEMO_OUTPUT
         self.state_path = state_path
@@ -959,7 +960,7 @@ class WorkbenchState:
             if not source_update:
                 self._save_workspace(options)
             self.cancel_event = threading.Event()
-            self.started_at = self.updated_at = self.phase_started_at = time.monotonic()
+            self.started_at = self.updated_at = self.phase_started_at = self.progress_updated_at = time.monotonic()
             self.phase_start_completed = 0.0
             self.job = {"job_id": job_id, "kind": "question" if options["question"] else "index",
                         "source": str(options["source"]), "output": str(options["output"]),
@@ -976,6 +977,11 @@ class WorkbenchState:
         progress = result["progress"]
         progress["elapsed_seconds"] = round((now if result["status"] == "RUNNING" else self.updated_at) - self.started_at, 2)
         progress["last_update_seconds"] = round(max(0.0, now - self.updated_at), 2)
+        measured_at = now if result["status"] == "RUNNING" else self.updated_at
+        progress["phase_elapsed_seconds"] = round(max(0.0, measured_at - self.phase_started_at), 2)
+        if "question_remaining_seconds" in progress:
+            progress["question_remaining_seconds"] = round(max(0.0,
+                progress["question_remaining_seconds"] - max(0.0, measured_at - self.progress_updated_at)), 2)
         phase_elapsed = max(0.0, self.updated_at - self.phase_started_at)
         completed, total = progress.get("completed", 0), progress.get("total")
         delta = completed - self.phase_start_completed
@@ -998,7 +1004,9 @@ class WorkbenchState:
             if not self.job or self.job["job_id"] != job_id:
                 raise AnalysisCancelled("The current job was replaced.")
             previous = self.job["progress"]
-            if event.get("phase") != previous.get("phase") or event.get("total") != previous.get("total"):
+            if (event.get("phase") != previous.get("phase") or event.get("total") != previous.get("total")
+                    or (event.get("phase") == "waiting_for_model"
+                        and event.get("model_requests") != previous.get("model_requests"))):
                 self.phase_started_at = time.monotonic()
                 self.phase_start_completed = event.get("completed", 0)
             # Stage-specific counters are replaced, never inherited from a prior
@@ -1007,7 +1015,21 @@ class WorkbenchState:
                 "total": event.get("total"), "unit": event.get("unit", "files"), "current_file": event.get("current_file"),
                 "bytes_completed": event.get("bytes_completed", 0), "bytes_total": event.get("bytes_total"),
                 **{key: value for key, value in event.items() if key in {"file_completed", "file_total", "file_unit"}}}
-            self.updated_at = time.monotonic()
+            # Only numeric, bounded activity metadata reaches the workbench.
+            # Source bodies, model parameters and arbitrary event details do not.
+            for key in ("question_budget_seconds", "question_remaining_seconds"):
+                value = event.get(key)
+                if type(value) in (int, float) and math.isfinite(value) and 0 <= value <= 1800:
+                    self.job["progress"][key] = value
+            for key in ("model_requests", "retrieved_pages"):
+                value = event.get(key)
+                if type(value) is int and 0 <= value <= 1_000_000:
+                    self.job["progress"][key] = value
+            current = self.job["progress"]
+            if "question_budget_seconds" in current and "question_remaining_seconds" in current:
+                current["question_remaining_seconds"] = min(current["question_remaining_seconds"],
+                    current["question_budget_seconds"])
+            self.updated_at = self.progress_updated_at = time.monotonic()
 
     def cancel(self, job_id: str) -> dict:
         with self.lock:
@@ -1040,7 +1062,7 @@ class WorkbenchState:
                         stream.flush()
                         os.fsync(stream.fileno())
             arguments = {key: value for key, value in options.items()
-                         if key not in {"source", "output", "conversation_id", "retry_message_id", "retry_assistant_id", "_source_update"}}
+                         if key not in {"source", "output", "retry_message_id", "retry_assistant_id", "_source_update"}}
             if arguments.get("framework_reference_path") is None:
                 arguments.pop("framework_reference_path", None)
             if options["allow_network"] and options["question"]:

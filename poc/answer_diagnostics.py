@@ -18,6 +18,7 @@ STOP_REASONS = frozenset({
     "evidence_read_incomplete", "working_set_transmission_incomplete", "tool_unavailable",
     "RETRIEVAL_UNRESOLVED", "REQUEST_TIMEOUT", "MODEL_CLIENT_ERROR", "MODEL_RESPONSE_INVALID",
     "MODEL_REFUSED", "MODEL_CONTENT_FILTERED", "MODEL_REQUEST_BUDGET_EXHAUSTED",
+    "QUESTION_TIME_BUDGET_EXHAUSTED",
     "completed", "model_abstained", "unknown", "other",
 })
 WORKING_SET_REASONS = frozenset({
@@ -186,6 +187,7 @@ def build_answer_diagnostics(*, config, quality, result):
             "output_limit_source": _enum(getattr(config, "output_limit_source", None), {"profile", "environment", "dotenv", "explicit"})},
         "configured": {"max_output_tokens": _number(config.max_output_tokens),
             "max_model_requests": _number(policy.get("max_model_requests")),
+            "max_question_seconds": _number(policy.get("max_question_seconds")),
             "max_source_characters": _number(policy.get("max_source_characters")),
             "max_complete_source_characters": _number(policy.get("max_complete_source_characters")),
             "max_request_bytes": _number(policy.get("max_request_bytes")),
@@ -193,7 +195,8 @@ def build_answer_diagnostics(*, config, quality, result):
             "max_local_analysis_seconds": _number(policy.get("max_local_analysis_seconds")),
             "requested_detail": _enum(result.get("answer_detail"), {"brief", "detailed"})},
         "timing_seconds": {key: _seconds(result.get("metrics", {}).get("timing_seconds", {}).get(key))
-            for key in ("first_model_request_seconds", "local_processing_seconds", "provider_wait_seconds", "total_seconds")},
+            for key in ("first_model_request_seconds", "local_processing_seconds", "provider_wait_seconds",
+                        "answer_verification_seconds", "total_seconds")},
         "requests": rounds,
         "source_coverage": {"indexed_files": indexed,
             "selected_files": max(_number(investigation.get("selected_file_count")) or 0,

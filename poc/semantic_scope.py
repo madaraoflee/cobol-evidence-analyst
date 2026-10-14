@@ -20,7 +20,7 @@ from structural_index import PARSER_VERSION, build_structural_index
 from procedure_expansion import expand_program
 from compilation_context import resolve_compilation_context
 from parser_adapter import BuiltinParserAdapter
-from semantic_ir import IR_VERSION
+from semantic_ir import IR_VERSION, digest as ir_digest
 
 
 SEMANTIC_VERSION = "selected-structural-v2"
@@ -269,10 +269,12 @@ def _prepare_semantic_scope(repository_database, source_session, *, anchors,
                     text = (root / relative).read_text(encoding=item["encoding"])
                     parser_context = replace(compilation, source_format=item["source_format"], encoding=item["encoding"])
                     ir = adapter.parse(text, relative_path=relative, context=parser_context,
-                        source_map=source_map.get(relative), source_sha256=item["sha256"])
+                        source_map=source_map.get(relative), source_sha256=item["sha256"], check_cancel=check_cancel)
+                    if check_cancel:
+                        check_cancel()
                     document = ir.to_dict()
                     db.execute("INSERT INTO semantic_ir_documents VALUES (?,?,?,?)", (relative,
-                        compilation.fingerprint, ir.fingerprint, json.dumps(document, ensure_ascii=False)))
+                        compilation.fingerprint, ir_digest(document), json.dumps(document, ensure_ascii=False)))
                     db.executemany("INSERT INTO semantic_ir_statements VALUES (?,?,?,?,?,?)", [(
                         row["occurrence_id"], row["rule_shape_id"], relative,
                         row["source_refs"][0]["start_line"] if row["source_refs"] else 1,
@@ -531,7 +533,7 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
         unit_path = next(iter(selected.values()))["relative_path"]
         if unit_path not in scope._semantic_services:
             facts = FactStore(scope.database_path, scope.mirror_root, source_map=scope.source_map,
-                              source_manifest=scope.derived_manifest)
+                              source_manifest=scope.derived_manifest, check_cancel=check_cancel)
             graph_key = fingerprint({"scope": scope.scope_key, "path": unit_path, "version": SERVICE_VERSION,
                                      "cache_schema": "ordered-flow-nodes-v2"})
             cached = journal.cached("flow", graph_key)
