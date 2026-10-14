@@ -419,8 +419,288 @@ def _dependency_selection(connection, seeds, all_paths, check_cancel):
     return sorted(selected), [{"relative_path": relative, "reasons": sorted(reasons[relative])} for relative in sorted(reasons)], deferred, unresolved
 
 
+def _verified_navigation_scopes(connection, identity, scopes):
+    """Accept only current, locally defined complete procedure/occurrence limits."""
+    roots = set(identity.get("direct_paths", ()))
+    if identity.get("status") != "resolved" or not roots or not scopes:
+        return []
+    symbol_index = " INDEXED BY idx_symbols_path" if connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_symbols_path'").fetchone() else ""
+    verified = []
+    for scope in scopes:
+        if scope.get("exclusive", True) is not True or scope.get("relative_path") not in roots:
+            return []
+        path = scope["relative_path"]
+        version = connection.execute("SELECT sha256 FROM source_files WHERE relative_path=?", (path,)).fetchone()
+        if not version or version[0] != scope.get("source_sha256"):
+            return []
+        units = connection.execute("SELECT u.* FROM symbols s" + symbol_index + " JOIN code_units u ON s.definition_unit_id=u.unit_id "
+            "WHERE s.relative_path=? AND s.name=? AND s.symbol_type IN ('Paragraph','Section') "
+            "AND u.unit_type IN ('Paragraph','Section')", (path, scope.get("procedure_name"))).fetchall()
+        first, last = scope.get("start_line"), scope.get("end_line")
+        if type(first) is not int or type(last) is not int or last < first:
+            return []
+        matches = [unit for unit in units if unit["start_line"] <= first <= last <= unit["end_line"]]
+        if len(matches) != 1:
+            return []
+        unit = matches[0]
+        if scope.get("range_basis") == "indexed_procedure":
+            if (first, last) != (unit["start_line"], unit["end_line"]):
+                return []
+        elif scope.get("range_basis") == "first_if_occurrences":
+            count = scope.get("occurrence_count")
+            if count != 2:
+                return []
+            rows = connection.execute("SELECT o.start_line FROM business_rule_occurrences o "
+                "JOIN business_rules b USING(rule_id) WHERE o.relative_path=? AND b.rule_kind='IF' "
+                "AND o.start_line>=? AND o.end_line<=? ORDER BY o.start_line,o.start_column LIMIT ?",
+                (path, unit["start_line"], unit["end_line"], count + 1)).fetchall()
+            if len(rows) < count or first != rows[0][0] or last != (rows[count][0] - 1 if len(rows) > count else unit["end_line"]):
+                return []
+        else:
+            return []
+        # Use the same physical frontend as evidence validation. Nested IF
+        # windows, truncated indexed pages and unsupported source scopes do
+        # not authorize early navigation pruning.
+        if last - first >= 8192:
+            return []
+        pages = connection.execute("SELECT e.start_line,e.end_line,e.text FROM repo_pages p "
+            "JOIN evidence_spans e USING(evidence_id) WHERE p.relative_path=? AND p.source_sha256=? "
+            "AND e.source_sha256=p.source_sha256 AND p.end_line>=? AND p.start_line<=? "
+            "AND p.span_truncated=0 ORDER BY p.start_line LIMIT 65", (path, version[0], first, last)).fetchall()
+        if len(pages) > 64:
+            return []
+        lines = {}
+        for page in pages:
+            for number, text in enumerate(page["text"].splitlines(), page["start_line"]):
+                if first <= number <= last:
+                    if number in lines and lines[number] != text:
+                        return []
+                    lines[number] = text
+        if len(lines) != last - first + 1:
+            return []
+        text = "\n".join(lines[number] for number in range(first, last + 1))
+        if len(text) > 192000:
+            return []
+        from question_investigation import _parse_physical_body
+        body_first = first + 1 if scope.get("range_basis") == "indexed_procedure" else first
+        body = "\n".join(lines[number] for number in range(body_first, last + 1))
+        if not _parse_physical_body(body, body_first, scope.get("source_format", "auto")).complete:
+            return []
+        verified.append(dict(scope))
+    return verified if {scope["relative_path"] for scope in verified} == roots else []
+
+
+def _navigation_position(connection, row, cache):
+    """Prove a relation's version, physical position and actual source tokens."""
+    from statement_facts import CobolLexError, dependency_facts, lex_cobol
+    from structural_index import normalize_cobol_lines
+    path, first, last = row["relative_path"], row["caller_line"], row["caller_end_line"]
+    version = row.get("evidence_source_sha256")
+    if (not version or version != row.get("indexed_source_sha256") or row.get("evidence_path") != path
+            or row.get("unit_path") != path or row.get("unit_evidence_id") != row["evidence_id"]
+            or (first, last) != (row.get("unit_start_line"), row.get("unit_end_line"))
+            or type(first) is not int or type(last) is not int or last < first or last - first >= 4096):
+        return False
+    lines = cache.setdefault((path, version), {})
+    if any(number not in lines for number in range(first, last + 1)):
+        pages = connection.execute("SELECT e.start_line,e.text FROM repo_pages p JOIN evidence_spans e USING(evidence_id) "
+            "WHERE p.relative_path=? AND p.source_sha256=? AND e.source_sha256=p.source_sha256 "
+            "AND p.span_truncated=0 AND p.end_line>=? AND p.start_line<=? ORDER BY p.start_line LIMIT 65",
+            (path, version, first, last)).fetchall()
+        if len(pages) > 64:
+            return False
+        for page in pages:
+            for number, text in enumerate(page["text"].splitlines(), page["start_line"]):
+                if number in lines and lines[number] != text:
+                    return False
+                lines[number] = text
+    if any(number not in lines for number in range(first, last + 1)):
+        return False
+    raw = "\n".join(lines[number] for number in range(first, last + 1))
+    if len(raw) > 192000:
+        return False
+    normalized, _ = normalize_cobol_lines(raw, row.get("source_format", "auto"))
+    physical = " ".join(line.text for line in normalized).upper()
+    statement = str(row.get("unit_text", ""))
+    try:
+        tokenized = lambda text: tuple((token.kind, token.value) for token in lex_cobol(text.upper()))
+        expected, actual = tokenized(statement), tokenized(physical)
+        if not expected or expected != tokenized(str(row.get("evidence_text", ""))):
+            return False
+        if not any(actual[index:index + len(expected)] == expected for index in range(len(actual) - len(expected) + 1)):
+            return False
+    except (ValueError, CobolLexError):
+        return False
+    endpoint = json.loads(row.get("metadata_json") or "{}").get("range_end")
+    return (row["relation_type"], row["target_name"], endpoint) in dependency_facts(statement)
+
+
+def _rooted_navigation(connection, scopes, all_paths, check_cancel):
+    """Read bounded outgoing source facts by path; never infer caller influence.
+
+    COPY definitions remain relevant outside procedure lines. A local PERFORM
+    extends the nominated source ranges; unknown targets and expansion limits
+    retain evidence-backed frontiers instead of establishing effect closure.
+    """
+    roots = sorted({scope["relative_path"] for scope in scopes})
+    ranges = defaultdict(list)
+    for scope in scopes:
+        ranges[scope["relative_path"]].append((scope["start_line"], scope["end_line"]))
+    aliases = defaultdict(set)
+    for path in all_paths:
+        for alias in (path, Path(path).name, Path(path).stem):
+            aliases[alias.casefold()].add(path)
+    reasons = {path: {"source_identity"} for path in roots}
+    distance, pending = {path: 0 for path in roots}, deque(roots)
+    edges, unresolved, frontier, relation_rows_read, positions = [], [], [], 0, {}
+    while pending:
+        _cancel(check_cancel)
+        path = pending.popleft()
+        rows = [dict(row) for row in connection.execute(
+            "SELECT r.*,r.rowid AS relation_order,s.relative_path AS target_path,s.definition_unit_id AS target_unit_id,"
+            "e.start_line AS caller_line,e.end_line AS caller_end_line,e.relative_path AS evidence_path,"
+            "e.source_sha256 AS evidence_source_sha256,e.text AS evidence_text,"
+            "u.program_name AS caller_program,u.relative_path AS unit_path,u.evidence_id AS unit_evidence_id,"
+            "u.start_line AS unit_start_line,u.end_line AS unit_end_line,u.normalized_text AS unit_text,"
+            "f.sha256 AS indexed_source_sha256,f.format_hint AS source_format "
+            "FROM relations r INDEXED BY repo_relations_path "
+            "LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
+            "LEFT JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
+            "LEFT JOIN code_units u ON u.unit_id=r.from_entity_id JOIN source_files f ON f.relative_path=r.relative_path "
+            "WHERE r.relative_path=? AND r.relation_type IN "
+            "('CALLS','CALL_TARGET_FROM','INCLUDES_COPY','PERFORMS','PERFORMS_THRU') ORDER BY r.rowid", (path,))]
+        relation_rows_read += len(rows)
+        for row in rows:
+            _cancel(check_cancel)
+            row["source_sha256"] = row["evidence_source_sha256"]
+            matched = _navigation_position(connection, row, positions)
+            row["position_status"] = "source_excerpt_match" if matched else "unverified"
+            if not matched:
+                row["caller_line"] = None
+                unresolved.append({**row, "reason": "navigation_source_position_unverified"})
+                if path in roots:
+                    # A stale/mislocated relation could be a scoped unknown
+                    # effect. Use the original broad path rather than exclude it.
+                    return None
+                row["status"] = "unconfirmed"
+        initial_ranges = list(ranges[path]) if path in roots else None
+        active = list(initial_ranges) if initial_ranges is not None else None
+        included = set()
+        # Same-file procedure calls can reach CALLs outside the lexical body.
+        # Preserve those reachable candidates without expanding other callers.
+        for _ in range(128):
+            changed = False
+            for row in rows:
+                _cancel(check_cancel)
+                line = row["caller_line"] if row["evidence_path"] == path else None
+                row["caller_line"] = line
+                if row["relation_id"] in included or (row["relation_type"] != "INCLUDES_COPY" and active is not None
+                        and line is not None and not any(first <= line <= last for first, last in active)):
+                    continue
+                included.add(row["relation_id"])
+                if initial_ranges is not None and line is not None and not any(
+                        first <= line <= last for first, last in initial_ranges):
+                    row["requested_procedure_dependency"] = True
+                if row["relation_type"] not in {"PERFORMS", "PERFORMS_THRU"}:
+                    continue
+                unit = (connection.execute("SELECT * FROM code_units WHERE unit_id=?", (row["target_unit_id"],)).fetchone()
+                        if row["status"] == "confirmed" and row["target_unit_id"] else None)
+                if unit is None or unit["relative_path"] != path or unit["unit_type"] not in {"Paragraph", "Section"}:
+                    unresolved.append({**row, "reason": "procedure_target_unresolved"})
+                    continue
+                end = unit["end_line"]
+                if row["relation_type"] == "PERFORMS_THRU":
+                    end_name = json.loads(row["metadata_json"]).get("range_end")
+                    symbol_index = " INDEXED BY idx_symbols_path" if connection.execute(
+                        "SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_symbols_path'").fetchone() else ""
+                    ends = connection.execute("SELECT u.* FROM symbols s" + symbol_index + " JOIN code_units u ON u.unit_id=s.definition_unit_id "
+                        "WHERE s.relative_path=? AND s.program_name IS ? AND s.name=? "
+                        "AND s.symbol_type IN ('Paragraph','Section')", (path, unit["program_name"], end_name)).fetchall()
+                    if len(ends) != 1 or ends[0]["start_line"] < unit["start_line"]:
+                        unresolved.append({**row, "reason": "procedure_range_end_unresolved"})
+                        continue
+                    end = ends[0]["end_line"]
+                span = (unit["start_line"], end)
+                if active is not None and span not in active:
+                    active.append(span)
+                    changed = True
+            if not changed:
+                break
+        else:
+            frontier.append({"relative_path": path, "reason": "procedure_navigation_budget", "effects_verified": False})
+        for row in rows:
+            if row["relation_id"] not in included or row["relation_type"] in {"PERFORMS", "PERFORMS_THRU"}:
+                continue
+            target = row["target_path"] if row["status"] == "confirmed" and row["relation_type"] != "CALL_TARGET_FROM" else None
+            if not target and row["relation_type"] == "INCLUDES_COPY":
+                candidates = aliases.get((row["target_name"] or "").casefold(), set())
+                if len(candidates) == 1:
+                    target = next(iter(candidates))
+                    row["resolution"] = "unbound_copy_candidate"
+            row["target_path"] = target
+            edges.append(row)
+            if row["status"] != "confirmed" or target not in all_paths:
+                unresolved.append({**row, "reason": "dependency_target_unresolved"})
+            if target not in all_paths:
+                continue
+            if target in distance:
+                if target in roots and row["relation_type"] != "INCLUDES_COPY":
+                    frontier.append({**row, "reason": "root_reentry_requires_call_context", "effects_verified": False})
+                continue
+            reason = ("outgoing_dependency_depth_budget" if distance[path] >= 4 else
+                      "outgoing_dependency_path_budget" if len(distance) >= 32 else None)
+            if reason:
+                frontier.append({**row, "reason": reason, "effects_verified": False})
+                continue
+            distance[target] = distance[path] + 1
+            reasons[target] = {"dependency_of:" + path}
+            pending.append(target)
+    return {"root_paths": roots, "source_scopes": scopes, "status": "version_matched_occurrence_roots",
+        "selected_paths": sorted(distance), "distance": distance, "rows": edges,
+        "selection_reasons": [{"relative_path": path, "reasons": sorted(reasons[path])} for path in sorted(reasons)],
+        "unresolved": unresolved, "frontier": frontier, "relation_rows_read": relation_rows_read,
+        "dependency_expansion_complete": not unresolved and not frontier, "effects_verified": False}
+
+
+def _position_boundaries(connection, boundaries, roots):
+    """Attach indexed callsite/version provenance before partitioning a scope."""
+    output, cache, positions = [], {}, {}
+    for boundary in boundaries:
+        item = dict(boundary)
+        evidence = item.get("evidence_id")
+        path = item.get("relative_path", item.get("caller_path"))
+        if evidence and (path in roots or path is None):
+            if evidence not in cache:
+                location = connection.execute("SELECT relative_path FROM evidence_spans WHERE evidence_id=?", (evidence,)).fetchone()
+                candidates = (connection.execute(
+                    "SELECT r.*,e.relative_path AS evidence_path,e.source_sha256 AS evidence_source_sha256,"
+                    "e.start_line AS caller_line,e.end_line AS caller_end_line,e.text AS evidence_text,"
+                    "u.relative_path AS unit_path,u.evidence_id AS unit_evidence_id,u.start_line AS unit_start_line,"
+                    "u.end_line AS unit_end_line,u.normalized_text AS unit_text,"
+                    "f.sha256 AS indexed_source_sha256,f.format_hint AS source_format "
+                    "FROM relations r INDEXED BY repo_relations_path JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
+                    "JOIN code_units u ON u.unit_id=r.from_entity_id JOIN source_files f ON f.relative_path=r.relative_path "
+                    "WHERE r.relative_path=? AND r.relation_type IN ('CALLS','CALL_TARGET_FROM','PERFORMS','PERFORMS_THRU','INCLUDES_COPY') "
+                    "AND r.evidence_id=? LIMIT 2", (location[0], evidence)).fetchall() if location else [])
+                cache[evidence] = dict(candidates[0]) if len(candidates) == 1 else None
+            row = cache[evidence]
+            if row and (path is None or path == row["relative_path"]):
+                item.update(relative_path=row["relative_path"], source_sha256=row["evidence_source_sha256"],
+                    position_status="source_excerpt_match" if _navigation_position(connection, row, positions) else "unverified")
+                if item["position_status"] == "source_excerpt_match":
+                    item.update(start_line=row["caller_line"], caller_line=row["caller_line"])
+                else:
+                    item.pop("start_line", None)
+                    item.pop("caller_line", None)
+            else:
+                item["position_status"] = "unverified"
+        output.append(item)
+    return output
+
+
 def discover_repository(database_path, question, *, search_terms=None, focus_paths=None, check_cancel=None,
-                        fallback_to_repository=True, entry_program=None, history=()):
+                        fallback_to_repository=True, entry_program=None, history=(), rooted_navigation_resolver=None):
     """Retrieve all matching files, then expand supported static dependencies.
 
     The evidence preview is bounded, but matching paths are not top-k clipped.
@@ -445,7 +725,14 @@ def discover_repository(database_path, question, *, search_terms=None, focus_pat
         identity = resolve_source_identity(connection, question, search_terms, focus_paths=focus_paths,
                                            entry_program=entry_program, history=history)
         blocked = identity_blocks_analysis(identity)
+        scopes = (_verified_navigation_scopes(connection, identity, rooted_navigation_resolver(identity))
+                  if rooted_navigation_resolver and not blocked and connection.execute(
+                      "SELECT 1 FROM sqlite_master WHERE type='index' AND name='repo_relations_path'").fetchone() else [])
         scope_sql, scope_values = identity_sql_scope(identity, supplemental=bool(search_terms))
+        if scopes:
+            roots = sorted({scope["relative_path"] for scope in scopes})
+            scope_sql += " AND p.relative_path IN (" + ",".join("?" for _ in roots) + ")"
+            scope_values = [*scope_values, *roots]
         all_paths = {row[0] for row in connection.execute("SELECT relative_path FROM source_files")}
         query = " OR ".join('"' + term.replace('"', '""') + '"' for term in terms)
         matches, seeds, matched_count = [], set(identity["direct_paths"]), 0
@@ -490,8 +777,13 @@ def discover_repository(database_path, question, *, search_terms=None, focus_pat
                     matches.append({key: row[key] for key in ("evidence_id", "relative_path", "start_line", "end_line", "source_sha256", "span_truncated")} |
                                    {"score": 0, "snippet": snippet, "snippet_char_offset": offset})
         fallback = not seeds and not blocked and fallback_to_repository
-        paths, reasons, deferred, unresolved = _dependency_selection(connection, all_paths if fallback else seeds, all_paths, check_cancel)
-        if identity.get("exclusive_source_scope") and identity["direct_paths"]:
+        rooted = _rooted_navigation(connection, scopes, all_paths, check_cancel) if scopes else None
+        if rooted:
+            paths, reasons = rooted["selected_paths"], rooted["selection_reasons"]
+            deferred, unresolved = rooted["frontier"], rooted["unresolved"]
+        else:
+            paths, reasons, deferred, unresolved = _dependency_selection(connection, all_paths if fallback else seeds, all_paths, check_cancel)
+        if not rooted and identity.get("exclusive_source_scope") and identity["direct_paths"]:
             paths = sorted(identity["direct_paths"])
             reasons = [{"relative_path": path, "reasons": ["source_identity"]} for path in paths]
             deferred, unresolved = [], []
@@ -503,7 +795,9 @@ def discover_repository(database_path, question, *, search_terms=None, focus_pat
                 if item["relative_path"] in identity["direct_paths"]:
                     item["reasons"] = ["source_identity" if identity["status"] == "resolved" else "source_candidate"]
         boundaries = list(overview.get("boundaries", [])) + unresolved + identity_boundaries(identity)
-        if deferred:
+        if rooted:
+            boundaries = _position_boundaries(connection, [*boundaries, *rooted["frontier"]], set(rooted["root_paths"]))
+        if deferred and not rooted:
             boundaries.append({"reason": "shared_dependency_reverse_expansion_deferred", "candidate_count": len(deferred),
                                "message": "Shared dependencies have additional callers. They are listed as candidates; relevance requires further investigation."})
         if omitted_terms:
@@ -515,6 +809,7 @@ def discover_repository(database_path, question, *, search_terms=None, focus_pat
                 "repository_file_count": len(all_paths), "selection_reasons": reasons,
                 "search_terms": terms, "fallback_all": fallback, "deferred_candidates": deferred,
                 "source_identity": identity,
+                **({"rooted_navigation": rooted} if rooted else {}),
                 "boundaries": boundaries, "selection_is_relevance_proof": False,
                 "all_matching_files_selected": True, "dependency_expansion_complete": not deferred and not unresolved}
     finally:

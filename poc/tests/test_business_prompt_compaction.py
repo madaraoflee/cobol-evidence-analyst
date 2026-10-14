@@ -132,6 +132,28 @@ class BusinessPromptCompactionTests(unittest.TestCase):
         payload["session_subject"]["focus_entities"][:] = ["PAGE-SUM"]
         self.assertEqual(manifest["session_subject"], original)
 
+    def test_budget_projection_preserves_full_local_origin_proof_and_wire_evidence(self):
+        payload = self.payload()
+        payload["budget_wire_compact"] = True
+        payload["question_investigation"]["required_items"] = [{
+            "kind": "inputs", "status": "SATISFIED", "evidence_ids": ["ev:source-0"],
+            "source_flow_origins": [{"relative_path": "rule.cbl", "field": "INPUT-AMOUNT",
+                "status": "closed", "basis": "supplied_source_flow", "unknown_reasons": [],
+                "execution_verified": False, "reader_occurrences": [{"occurrence_id": "read-1",
+                    "source_refs": [{"source_sha256": "a" * 64, "start_line": 4,
+                                     "end_line": 4}], "definitions": ["write-1"]}]}]}]
+        original = deepcopy(payload)
+        wire = business_chat._prompt_payload(payload)
+        item = wire["question_investigation"]["required_items"][0]
+        self.assertEqual(item["evidence_ids"], ["ev:source-0"])
+        self.assertEqual(item["source_flow_origin_occurrences_omitted"], 1)
+        self.assertNotIn("reader_occurrences", item["source_flow_origins"][0])
+        self.assertIs(item["source_flow_origins"][0]["execution_verified"], False)
+        self.assertEqual(wire["source_context"][0]["pages"], original["source_context"][0]["pages"])
+        self.assertEqual(payload, original)
+        self.assertEqual(payload["question_investigation"]["required_items"][0]
+                         ["source_flow_origins"][0]["reader_occurrences"][0]["definitions"], ["write-1"])
+
     def test_fit_rebuilds_tables_and_brief_after_source_removal(self):
         payload = self.payload()
         config = CompanyAPIConfig("https://neutral.example.invalid/v1", "offline-model", api_key="offline-only")

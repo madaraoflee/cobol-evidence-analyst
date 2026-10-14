@@ -16,7 +16,7 @@ import re
 import sqlite3
 
 from call_bindings import parse_call, parse_signature
-from statement_parser import parse_statements
+from statement_parser import parse_statements, SourceSpan
 from statement_facts import data_references, CompilationGuardState, program_identifier, program_identifiers
 from numeric_semantics import receiving_contract, store_decimal
 from parser_adapter import BuiltinParserAdapter
@@ -24,7 +24,7 @@ from semantic_ir import bind_reference, compilation_ir_from_dict, unbounded_regi
 from structural_index import read_source_document, DIVISION_RE, SECTION_RE, PARAGRAPH_RE, PARAGRAPH_EXCLUSIONS
 
 
-SERVICE_VERSION = "bounded-semantic-service/v8"
+SERVICE_VERSION = "bounded-semantic-service/v9"
 
 
 def _key(*parts):
@@ -131,8 +131,9 @@ class FactStore:
                 if physical_status.get(number) is True:
                     physical_status[number] = None
         diagnostics.extend(row["reason"] for row in compilation.diagnostics)
-        identity_source = "\n".join(line.text for line in source.lines if all(
-            physical_status.get(number) is True for number in range(line.start_line, line.end_line+1)))
+        identity_lines = [line for line in source.lines if all(
+            physical_status.get(number) is True for number in range(line.start_line, line.end_line+1))]
+        identity_source = "\n".join(line.text for line in identity_lines)
         name = program_identifier(identity_source)
         if len(program_identifiers(identity_source)) > 1:
             diagnostics.append("multiple_programs_not_supported")
@@ -201,6 +202,18 @@ class FactStore:
                       unbounded_items={region.item_id for region in ir.storage_regions if region.region_id in unbounded},
                       fields_by_name=fields_by_name, fields_by_qualified=fields_by_qualified)
         self._programs[path] = result
+        result["identity_source_refs"] = []
+        identities = program_identifiers(identity_source)
+        if len(identities) == 1:
+            _, start, end = identities[0]
+            offset, covered = 0, []
+            for line in identity_lines:
+                if offset < end and offset + len(line.text) > start:
+                    covered.append(line)
+                offset += len(line.text) + 1
+            if covered:
+                result["identity_source_refs"] = self.source_ref(path, SourceSpan(
+                    covered[0].start_line, covered[-1].end_line, 1, 1, 0, 0))
         return result
 
     def storage_reference(self, path, name):
@@ -305,6 +318,8 @@ class FlowNode:
     control_semantics: dict = field(default_factory=dict)
     storage_effects: dict = field(default_factory=dict)
     definite_writes: tuple[str, ...] = ()
+    read_bindings: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    call_contract: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -378,9 +393,11 @@ class SemanticService:
             reference = resolved[name]
             node.storage_effects["read:" + name] = reference
             if reference["binding_status"] != "bound" or reference.get("group"):
-                expanded_reads.extend(aliases.get(value, value) for value in reference["affected_storage"])
+                bound_reads = tuple(aliases.get(value, value) for value in reference["affected_storage"])
             else:
-                expanded_reads.append(bind(name))
+                bound_reads = (bind(name),)
+            expanded_reads.extend(bound_reads)
+            node.read_bindings[name] = bound_reads
             if reference["binding_status"] != "bound":
                 self.frontier.append({"reason": "read_storage_binding_" + reference["binding_status"],
                     "occurrence_id": identifier, "reference": name,
@@ -503,12 +520,17 @@ class SemanticService:
             if len(call.parameters) != len(callee["signature"]):
                 return self._unknown(header, "parameter_arity_mismatch")
             # Use the existing layout/binding proof; names alone do not establish ABI compatibility.
-            bindings = self.facts.rows("SELECT b.*,cs.qualified_name AS caller_qualified,ds.qualified_name AS callee_qualified "
+            bindings = self.facts.rows("SELECT b.*,cs.qualified_name AS caller_qualified,ds.qualified_name AS callee_qualified, "
+                "(SELECT json_group_array(json_object('evidence_id',e.evidence_id,'relative_path',e.relative_path,'start_line',e.start_line,'end_line',e.end_line)) "
+                "FROM evidence_spans e JOIN json_each(b.supporting_evidence_ids_json) i ON i.value=e.evidence_id) AS binding_refs_json "
                 "FROM call_bindings b JOIN code_units u ON u.unit_id=b.callsite_id "
                 "LEFT JOIN symbols cs ON cs.symbol_id=b.caller_symbol_id LEFT JOIN symbols ds ON ds.symbol_id=b.callee_symbol_id "
                 "WHERE u.relative_path=? AND u.start_line=? AND b.callee_program=?", (path, statement.span.start_line, call.target))
             if call.parameters and (not bindings or any(item["status"] != "confirmed" for item in bindings)):
                 return self._unknown(header, "parameter_binding_not_confirmed")
+            if any(set(json.loads(binding["supporting_evidence_ids_json"])) != {
+                    ref["evidence_id"] for ref in json.loads(binding["binding_refs_json"] or "[]")} for binding in bindings):
+                return self._unknown(header, "parameter_binding_evidence_incomplete")
             mapped = {name: "@local:" + header + ":" + name for name in callee["canonical_items"].values()}
             for actual, formal in zip(call.parameters, callee["signature"]):
                 actual_name = self.facts.storage_reference(path, actual.name)["canonical"]
@@ -523,6 +545,18 @@ class SemanticService:
             entry, exits = self._blocks(target_path, callee["order"], context + ("call:" + header,), mapped,
                                        stack + ((target_path, "@PROGRAM"),))
             exits.update(self._return_nodes["call:" + header])
+            support = [*self.nodes[header].source_refs, *self.facts.program(path)["identity_source_refs"],
+                       *callee["identity_source_refs"]]
+            for binding in bindings:
+                for ref in json.loads(binding["binding_refs_json"] or "[]"):
+                    support.extend(self.facts.source_ref(ref["relative_path"], SourceSpan(
+                        ref["start_line"], ref["end_line"], 1, 1, 0, 0)))
+            self.nodes[header].call_contract = {"status": "confirmed_source_binding", "target_path": target_path,
+                "target_program": call.target, "source_refs": list({json.dumps(ref, sort_keys=True): ref for ref in support}.values()),
+                "parameters": [{key: binding[key] for key in ("binding_id", "parameter_position", "passing_mode",
+                    "caller_qualified", "callee_qualified", "status", "reason")} for binding in bindings],
+                "normal_return_occurrences": sorted(self._return_nodes["call:" + header]),
+                "execution_verified": False}
             if entry:
                 self.edges.add((header, entry, "call_entry"))
                 return header, exits
@@ -767,10 +801,116 @@ class SemanticService:
                 reachable.add(following)
                 queue.append(following)
         return {"statement": asdict(node), "reaching_definitions": {name: sorted(self.reaching_in[occurrence_id].get(name, ())) for name in node.reads},
+                "read_origins": self.read_origins(occurrence_id),
                 "later_writes": [key for key in reachable if key != occurrence_id and
                                  set(node.definite_writes or node.writes).intersection(
                                      (*self.nodes[key].definite_writes, *self.nodes[key].writes, *(self.nodes[key].unknown_storage or ())))],
                 "flow_status": "possible_source_flow" if self._flow_complete else "incomplete_source_flow", "frontier": self.frontier}
+
+    def read_origins(self, occurrence_id):
+        """Bound each actual read to reaching writes and confirmed normal returns.
+
+        This is a source origin witness, not a runtime-value or path-feasibility
+        proof. The question service must separately require every raw reference
+        in the witness to be supplied before it closes a material obligation.
+        """
+        reader = self.nodes[occurrence_id]
+        successors = defaultdict(set)
+        for source, target, _ in self.edges:
+            successors[source].add(target)
+        reach_cache = {}
+        def reaches(start, target):
+            if start not in reach_cache:
+                seen, pending = set(), deque([start])
+                while pending:
+                    self._check_work()
+                    node_id = pending.popleft()
+                    if node_id in seen:
+                        continue
+                    seen.add(node_id)
+                    pending.extend(successors[node_id] - seen)
+                reach_cache[start] = seen
+            return target in reach_cache[start]
+        results = []
+        for original, bound in reader.read_bindings.items():
+            reference = reader.storage_effects.get("read:" + original, {})
+            refs, writes, calls, reasons = list(reader.source_refs), set(), set(), set()
+            memo, active = {}, set()
+            def visit(read_id, field):
+                self._check_work()
+                pair = (read_id, field)
+                if pair in memo:
+                    return memo[pair]
+                if pair in active:
+                    reasons.add("loop_carried_origin_not_closed")
+                    return False
+                if len(active) >= 128 or len(memo) + len(active) >= min(self.max_nodes, 512):
+                    reasons.add("input_origin_proof_budget")
+                    return False
+                active.add(pair)
+                definitions = self.reaching_in.get(read_id, {}).get(field, set())
+                resolved = bool(definitions)
+                if not definitions:
+                    reasons.add("reaching_origin_not_available")
+                for definition in sorted(definitions):
+                    self._check_work()
+                    writer = self.nodes.get(definition)
+                    if writer is None:
+                        reasons.add("entry_state_or_external_input_not_defined")
+                        resolved = False
+                        continue
+                    if writer.unknown_effect or field not in writer.definite_writes:
+                        refs.extend(writer.source_refs)
+                        reasons.add("reaching_write_effect_not_bounded")
+                        resolved = False
+                        continue
+                    writes.add(definition)
+                    refs.extend(writer.source_refs)
+                    for marker in dict.fromkeys((*writer.context, *self.nodes[read_id].context)):
+                        if not marker.startswith("call:"):
+                            continue
+                        call_id = marker.split(":", 1)[1]
+                        header = self.nodes.get(call_id)
+                        contract = header.call_contract if header else {}
+                        returns = contract.get("normal_return_occurrences", [])
+                        crosses_return = marker in writer.context and marker not in self.nodes[read_id].context
+                        crosses_entry = marker not in writer.context and marker in self.nodes[read_id].context
+                        if (contract.get("status") != "confirmed_source_binding"
+                                or not all(parameter.get("status") == "confirmed" for parameter in contract.get("parameters", []))
+                                or crosses_return and (not returns or not any(
+                                    reaches(definition, returned) and reaches(returned, read_id) for returned in returns))
+                                or crosses_entry and not (reaches(definition, call_id) and reaches(call_id, read_id))):
+                            reasons.add("call_binding_or_normal_return_not_demonstrated")
+                            resolved = False
+                            continue
+                        calls.add(call_id)
+                        refs.extend(contract.get("source_refs", []))
+                        if crosses_return:
+                            for returned in returns:
+                                refs.extend(self.nodes[returned].source_refs)
+                    for dependency in writer.reads:
+                        if not visit(definition, dependency):
+                            resolved = False
+                active.remove(pair)
+                memo[pair] = resolved
+                return resolved
+            if not self._flow_complete:
+                reasons.add("source_flow_incomplete")
+            exact = (reference.get("binding_status") == "bound" and reference.get("exact") is True
+                     and not reference.get("group") and len(bound) == 1)
+            resolved = self._flow_complete and exact and visit(occurrence_id, bound[0])
+            if not exact:
+                reasons.add("read_storage_not_exact")
+            results.append({"reader_occurrence_id": occurrence_id, "reader_field": original,
+                "reader_statement": reader.statement,
+                "reader_source_refs": reader.source_refs,
+                "status": "resolved_source_origin" if resolved else "unresolved_source_origin",
+                "basis": "reaching_definitions_and_confirmed_call_returns",
+                "write_occurrences": sorted(writes), "call_occurrences": sorted(calls),
+                "source_refs": list({json.dumps(ref, sort_keys=True): ref for ref in refs}.values()),
+                "unknown_reasons": sorted(reasons), "source_supply_status": "not_assessed",
+                "scope": "possible_source_origin_not_runtime_value", "execution_verified": False})
+        return results
 
     def convert_receiver(self, occurrence_id, target, value, *, profile=None):
         """Convert explicit scenario data; never infer a live business value."""

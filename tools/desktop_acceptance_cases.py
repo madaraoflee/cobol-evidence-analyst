@@ -379,7 +379,16 @@ def _required_ranges(case, source):
              "end_line": len((Path(source) / name).read_text(encoding="utf-8").splitlines())} for name in case["files"]]
 
 
-def _quality_checks(case, agent, output, pages):
+def _investigation(trace):
+    return (trace.get("final") or {}).get("question_investigation") or {}
+
+
+def _obligation(trace, kind):
+    return next((item for item in _investigation(trace).get("required_items", [])
+                 if item.get("kind") == kind), {})
+
+
+def _quality_checks(case, agent, output, pages, trace=None):
     ledger, answer = agent.get("claim_ledger", {}), agent.get("answer", "")
     result = {}
     if case["id"] == "frontend_semantics":
@@ -395,6 +404,15 @@ def _quality_checks(case, agent, output, pages):
         result.update(flow_checks(output, case["id"]))
         result["quality_leaf_formula_supported"] = _supported(ledger, "OUT-AMOUNT", ["IN-AMOUNT", "*", "2"])
         result["completeness_three_program_path"] = all(name in answer for name in ("ENTRYPOINT", "MIDDLE", "LEAF"))
+        inputs = _obligation(trace or {}, "inputs")
+        witnesses = inputs.get("source_flow_origins") or []
+        supplied_ids = {page["evidence_id"] for page in pages}
+        result["completeness_static_origin_closed"] = (inputs.get("status") == "SATISFIED"
+            and inputs.get("reason") == "source_flow_origins_supplied" and bool(witnesses)
+            and all(witness.get("status") == "source_origin_supplied"
+                and witness.get("execution_verified") is False and witness.get("evidence_ids")
+                and set(witness["evidence_ids"]) <= supplied_ids for witness in witnesses)
+            and not _investigation(trace or {}).get("open_gaps"))
     elif case["id"] == "large_repository":
         result["quality_formula_and_condition_supported"] = (_supported(ledger, "BILL-AMOUNT")
             and any(entry.get("claim_type") == "condition_statement" and entry.get("support_status") == "supported" for entry in ledger.get("entries", [])))
@@ -420,7 +438,159 @@ def _quality_checks(case, agent, output, pages):
             result["quality_critical_answer_preserved"] = all(text in answer for text in case["required_answer_text"])
         if case.get("unverified_prose"):
             result["quality_prose_not_falsely_verified"] = ledger.get("prose_semantics_verified") is False and agent.get("claims_semantically_verified") is False
+        if case["public_case_id"] == "unimplemented-procedure":
+            investigation = _investigation(trace or {})
+            body = _obligation(trace or {}, "procedure_body")
+            body_ids = set(body.get("evidence_ids") or [])
+            body_scope_supplied = any(scope.get("procedure_name") == "1400-COMPUTE-FEES"
+                and any(page["evidence_id"] in body_ids and page["relative_path"] == scope.get("relative_path")
+                    and page["source_sha256"] == scope.get("source_sha256") and not page.get("span_truncated")
+                    and page["start_line"] <= scope.get("start_line", 0) <= scope.get("end_line", 0) <= page["end_line"]
+                    for page in pages) for scope in (investigation.get("source_scope") or {}).get("ranges", []))
+            result["quality_noop_scope_not_monthly_interest"] = (body.get("status") == "SATISFIED"
+                and body.get("candidate_count") == 1 and body_scope_supplied
+                and _obligation(trace or {}, "formula").get("candidate_count") == 0
+                and _obligation(trace or {}, "conditions").get("candidate_count") == 0
+                and _obligation(trace or {}, "dependencies").get("status") in {"SATISFIED", "NOT_APPLICABLE"}
+                and not _obligation(trace or {}, "dependencies").get("targets")
+                and not investigation.get("open_gaps"))
     return result
+
+
+def _probe_answer(probe, source, payload):
+    pages = supplied_pages(payload)
+    verify_pages(source, pages)
+    if probe["id"] == "bare_group_field":
+        page = page_for(pages, "record.cbl", "COMPUTE VALUE-00000 = VALUE-00001 * 2")
+        return f"VALUE-00000 = VALUE-00001 * 2。[{page['evidence_id']}] 两个字段都属于 SOURCE-RECORD。输入声明是 PIC 9(9)，源码没有说明本次运行的输入值。"
+    if probe["id"] in {"qualified_output_scope", "ambiguous_group_field"}:
+        page = page_for(pages, "frontend.cbl", "COMPUTE AMOUNT OF OUTPUT-REC")
+        answer = f"AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2。[{page['evidence_id']}] 两个字段分别属于 OUTPUT-REC 与 INPUT-REC，输入运行值尚未给出。"
+        return "AMOUNT 的限定记录存在歧义，需保留两个候选。" + answer if probe["id"] == "ambiguous_group_field" else answer
+    if probe["id"] == "large_two_if_pic":
+        first = page_for(pages, "member-11999.cbl", "IF INPUT-000 > 0")
+        second = page_for(pages, "member-11999.cbl", "IF INPUT-001 > 1")
+        return (f"INPUT-000 > 0 时，BILL-AMOUNT = INPUT-000 * 1。[{first['evidence_id']}] "
+            f"随后 INPUT-001 > 1 时，BILL-AMOUNT = INPUT-001 * 2，会覆盖先前值。[{second['evidence_id']}] "
+            "两个输入和输出均声明为 PIC 9(9)。第二个条件未成立时不执行第二次赋值。"
+            "这只解释提问范围中的前两条 IF；真实输入值和后续代码的最终影响尚未确认。")
+    raise ValueError("Unknown frozen scope probe: " + probe["id"])
+
+
+def _bare_group_binding(output, pages):
+    """Read the executable's bound IR; never infer binding from display text."""
+    if output is None:
+        return False
+    versions = {page["source_sha256"] for page in pages if page["relative_path"] == "record.cbl"}
+    for database in (Path(output) / "semantic-scopes").glob("*.sqlite"):
+        for row in read_database(database, "SELECT ir_json FROM semantic_ir_documents WHERE relative_path='record.cbl'"):
+            document = json.loads(row["ir_json"])
+            items = {item["item_id"]: item for item in document.get("data_items", [])}
+            for statement in document.get("statements", []):
+                if statement.get("statement_type") != "COMPUTE" or statement.get("binding_status") != "bound":
+                    continue
+                if not statement.get("source_refs") or not all(
+                        ref.get("source_sha256") in versions for ref in statement["source_refs"]):
+                    continue
+                matches = True
+                for role, name in (("reads", "VALUE-00001"), ("writes", "VALUE-00000")):
+                    references = statement.get(role) or []
+                    matches &= len(references) == 1 and references[0].get("binding_status") == "bound"
+                    candidates = references[0].get("candidates", []) if len(references) == 1 else []
+                    item = items.get(candidates[0], {}) if len(candidates) == 1 else {}
+                    matches &= item.get("name") == name and item.get("ancestors") == ["SOURCE-RECORD"]
+                if matches:
+                    return True
+    return False
+
+
+def _scope_probe_checks(probe, trace, agent, pages, output=None):
+    """Inspect executable obligations and transmitted evidence, not runner parsing."""
+    investigation = _investigation(trace)
+    formula = _obligation(trace, probe.get("expected_primary_kind", "formula"))
+    supplied = {page["evidence_id"] for page in pages}
+    basic = (bool(investigation.get("required_items")) and formula.get("status") == "SATISFIED"
+        and formula.get("candidate_count") == probe["expected_candidate_count"]
+        and bool(formula.get("evidence_ids")) and set(formula["evidence_ids"]) <= supplied)
+    ledger = agent.get("claim_ledger") or {}
+    if probe["id"] == "bare_group_field":
+        require_ledger = _supported(ledger, "VALUE-00000", ["VALUE-00001", "*", "2"])
+        full_source = any(page["relative_path"] == "record.cbl" and page["start_line"] == 1
+            and page["end_line"] >= 11 and not page.get("span_truncated") for page in pages)
+        return {"quality_bare_group_field_formula_supplied": basic and require_ledger and full_source
+            and _bare_group_binding(output, pages)}
+    if probe["id"] == "qualified_output_scope":
+        steps = _obligation(trace, "business_steps")
+        return {"quality_qualified_output_scope": basic and steps.get("candidate_count") == 1
+            and _supported(ledger, "AMOUNT OF OUTPUT-REC", ["AMOUNT", "OF", "INPUT-REC", "*", "2"])}
+    if probe["id"] == "ambiguous_group_field":
+        ambiguity = [gap for gap in investigation.get("open_gaps", [])
+                     if gap.get("reason") == "field_reference_ambiguous"]
+        return {"quality_ambiguous_group_field_candidates": basic and any(
+            set(gap.get("candidates", [])) == {"AMOUNT OF INPUT-REC", "AMOUNT OF OUTPUT-REC"}
+            for gap in ambiguity) and agent.get("status") == "PARTIAL"}
+    if probe["id"] == "large_two_if_pic":
+        conditions, declarations, inputs = [_obligation(trace, kind) for kind in ("conditions", "declarations", "inputs")]
+        expected = {9: "01 INPUT-000 PIC 9(9).", 10: "01 INPUT-001 PIC 9(9).", 33: "01 BILL-AMOUNT PIC 9(9)."}
+        declared = all(any(page["relative_path"] == "member-11999.cbl"
+            and page["start_line"] <= line <= page["end_line"]
+            and statement in page["source_text"] and not page.get("span_truncated") for page in pages)
+            for line, statement in expected.items())
+        return {"completeness_large_two_if_pic_supplied": basic and declared
+            and conditions.get("status") == "SATISFIED" and conditions.get("candidate_count") == 2
+            and declarations.get("status") == "SATISFIED" and declarations.get("candidate_count") == 3
+            and _supported(ledger, "BILL-AMOUNT", ["INPUT-000", "*", "1"])
+            and _supported(ledger, "BILL-AMOUNT", ["INPUT-001", "*", "2"]),
+            "quality_large_unknown_runtime_input_preserved": inputs.get("status") in {"PARTIAL", "UNRESOLVED"}
+                and set(inputs.get("fields", [])) == {"INPUT-000", "INPUT-001"}
+                and inputs.get("reason") == "input_source_not_located"
+                and not any("budget" in gap.get("reason", "") for gap in investigation.get("open_gaps", []))}
+    raise ValueError("Unknown frozen scope probe: " + probe["id"])
+
+
+def _run_scope_probe(workbench, provider, probe, source, output, case):
+    start = len(provider.requests)
+    started = time.monotonic()
+    response = workbench.analyze(source, output, probe["question"], source_format=case.get("source_format", "free"),
+        answer_detail="detailed", timeout=probe["limits"]["question_seconds"] + 10)
+    require(response["job"]["status"] == "COMPLETED", "Default scope probe did not complete")
+    require(not provider.errors, "Synthetic scope provider errors: " + str(provider.errors))
+    body = response["result"]
+    agent = body.get("agent_result", body)
+    trace_path = agent.get("metrics", {}).get("quality_trace_path")
+    require(trace_path and Path(trace_path).is_file(), "Scope probe trace missing")
+    trace = json.loads(Path(trace_path).read_text(encoding="utf-8"))
+    requests = provider.requests[start:]
+    require(requests, "Scope probe did not transmit source to provider")
+    for request in requests:
+        verify_pages(source, request["source_pages"])
+    final_ids = set(trace.get("final", {}).get("final_answer_round_ids", []))
+    final_ids.add(trace.get("final", {}).get("final_answer_round_id"))
+    final_hashes = {entry["request_body_sha256"] for entry in trace["rounds"] if entry["round_id"] in final_ids}
+    final_requests = [entry for entry in requests if entry["request_sha256"] in final_hashes]
+    pages = [page for entry in final_requests for page in entry["source_pages"]]
+    evidence = verify_pages(source, pages)
+    checks = _scope_probe_checks(probe, trace, agent, pages, output)
+    checks["evidence_scope_probe_versions_match"] = ledger_versions_match(agent.get("claim_ledger", {}), pages)
+    visible = (response["state"].get("conversation") or {}).get("messages", [])
+    answer = agent.get("answer", "")
+    checks["evidence_scope_probe_answers_bound"] = (bool(answer) and bool(visible)
+        and visible[-1].get("content") == answer
+        and hashlib.sha256(answer.encode()).hexdigest() == (agent.get("claim_ledger") or {}).get("answer_sha256")
+        and trace.get("run_id") and agent.get("model_answer_recorded") is True
+        and agent.get("stop_reason") not in {"QUESTION_TIME_BUDGET_EXHAUSTED", "cancelled"}
+        and agent.get("reason_code") not in {"QUESTION_TIME_BUDGET_EXHAUSTED", "REMOTE_REQUEST_OUTCOME_UNKNOWN"})
+    checks["lifecycle_scope_probe_index_reused"] = json.loads((output / "diagnosis.json").read_text()).get("index_reused") is True
+    timings = {"first_provider_seconds": requests[0]["received_at"] - started,
+               "question_seconds": response["elapsed_seconds"]}
+    checks["performance_scope_probe_bounded"] = (len(requests) <= probe["limits"]["max_model_requests"]
+        and all(timings[name] <= probe["limits"][name] for name in timings))
+    from tools.acceptance_diagnostics import capture_diagnostics
+    return {"id": probe["id"], "question": probe["question"], "checks": checks, "timings": timings,
+        "run_id": trace["run_id"], "answer": agent.get("answer"), "agent_status": agent.get("status"),
+        "model_requests": len(requests), "request_sha256": [entry["request_sha256"] for entry in requests],
+        "evidence": evidence, "limits": probe["limits"], "transport": "loopback_https_fake",
+        "acceptance_diagnostics": capture_diagnostics(trace, agent, trace_sha256=digest(trace_path))}
 
 
 def _run_cases(command, root, manifest, public_source, *, case_ids=None):
@@ -438,6 +608,10 @@ def _run_cases(command, root, manifest, public_source, *, case_ids=None):
         corpus = prepare_source(case, manifest, source, public_source)
         request_start = [0]
         def respond(envelope, payload, index):
+            probe = next((probe for probe in case.get("scope_probes", [])
+                          if payload.get("question") == probe["question"]), None)
+            if probe is not None:
+                return _probe_answer(probe, source, payload)
             require(payload.get("question") == case["question"], "Unexpected case question on wire")
             return _provider_answer(case, source, payload, index == request_start[0])
         with LoopbackProvider(directory / "provider", respond) as provider:
@@ -476,7 +650,7 @@ def _run_cases(command, root, manifest, public_source, *, case_ids=None):
                     ledger = agent.get("claim_ledger", {})
                     diagnosis = json.loads((output / "diagnosis.json").read_text(encoding="utf-8"))
                     visible = (response["state"].get("conversation") or {}).get("messages", [])
-                    checks = _quality_checks(case, agent, output, pages)
+                    checks = _quality_checks(case, agent, output, pages, trace)
                     if case["id"] == "forward_impact":
                         groups = [group for request in requests for group in request["payload"].get("evidence_groups", [])]
                         tool_results = [item for group in groups for item in group.get("semantic_analysis", {}).get("tool_results", [])
@@ -494,15 +668,34 @@ def _run_cases(command, root, manifest, public_source, *, case_ids=None):
                             and agent.get("reason_code") not in {"QUESTION_TIME_BUDGET_EXHAUSTED", "REMOTE_REQUEST_OUTCOME_UNKNOWN"},
                         lifecycle_index_reused=diagnosis.get("index_reused") is True)
                     if case["corpus"] != "large":
-                        checks["completeness_reviewed_ranges_supplied"] = ranges_supplied(pages, _required_ranges(case, source))
+                        checks["completeness_reviewed_ranges_supplied"] = ranges_supplied(pages, _required_ranges(
+                            {**case, "files": case.get("reviewed_files", case.get("files", []))}, source))
+                    probes = [_run_scope_probe(workbench, provider, probe, source, output, case)
+                              for probe in case.get("scope_probes", [])]
+                    for probe in probes:
+                        checks.update({label: value for label, value in probe["checks"].items()
+                                       if label in case["assertions"]})
+                    if probes:
+                        checks["evidence_scope_probe_versions_match"] = all(
+                            probe["checks"]["evidence_scope_probe_versions_match"] for probe in probes)
+                        checks["evidence_scope_probe_answers_bound"] = all(
+                            probe["checks"]["evidence_scope_probe_answers_bound"] for probe in probes)
+                        checks["lifecycle_scope_probe_index_reused"] = all(
+                            probe["checks"]["lifecycle_scope_probe_index_reused"] for probe in probes)
+                        checks["performance_scope_probe_bounded"] = all(
+                            probe["checks"]["performance_scope_probe_bounded"] for probe in probes)
+                    measured_question_seconds = response["elapsed_seconds"] + sum(
+                        probe["timings"]["question_seconds"] for probe in probes)
                     from tools.acceptance_diagnostics import capture_diagnostics
                     row = {"id": case["id"], "turn_id": "1", "sample_index": number,
                         "run_id": trace["run_id"], "answer_sha256": hashlib.sha256(answer.encode()).hexdigest(),
-                        "elapsed_seconds": response["elapsed_seconds"], "index_reused": number > 1,
+                        "elapsed_seconds": measured_question_seconds, "index_reused": number > 1,
                         "question_index_reused": diagnosis.get("index_reused") is True,
                         "timings": {"cold_index_seconds": cold_seconds if number == 1 else None,
                             "first_provider_seconds": requests[0]["received_at"] - started,
-                            "question_seconds": response["elapsed_seconds"]},
+                            "question_seconds": measured_question_seconds,
+                            "primary_question_seconds": response["elapsed_seconds"],
+                            "scope_probe_seconds": sum(probe["timings"]["question_seconds"] for probe in probes)},
                         "checks": {label: checks.get(label, False) for label in case["assertions"]},
                         "corpus": corpus, "answer": answer, "agent_status": agent.get("status"),
                         "stop_reason": agent.get("stop_reason"), "claim_ledger": ledger,
@@ -513,7 +706,9 @@ def _run_cases(command, root, manifest, public_source, *, case_ids=None):
                             "request_sha256": [entry["request_sha256"] for entry in final_requests]},
                         "evidence": evidence, "source_evidence_sha256": hashlib.sha256(json.dumps(
                             evidence, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
-                        "model_requests": len(requests), "transport": "loopback_https_fake",
+                        "model_requests": len(requests) + sum(probe["model_requests"] for probe in probes),
+                        "primary_model_requests": len(requests), "scope_probes": probes,
+                        "transport": "loopback_https_fake",
                         "phase_timings_seconds": agent.get("metrics", {}).get("timing_seconds", {}),
                         "real_model_accuracy": None, "business_answer_correctness": None,
                         "quality_scope": "frozen_critical_mechanism_assertions_not_general_business_accuracy",

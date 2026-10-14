@@ -29,6 +29,39 @@ _OUTGOING_DEPTH_LIMIT = 4
 _OUTGOING_FRONTIER_LIMIT = 32
 
 
+def question_boundaries(boundaries, selected_paths, *, source_scopes=(), source_versions=None):
+    """Keep unrelated catalog diagnostics separate from the requested source.
+
+    Only located files and version-matched physical callsites establish a
+    narrower scope. Unlocated effects, COPY/layout issues and flow diagnostics
+    stay conservative. Excluding a different procedure is not an assertion
+    about whether that procedure can execute or affect a later result.
+    """
+    selected, versions = set(selected_paths), source_versions or {}
+    relevant, repository = [], []
+    for boundary in boundaries:
+        path = boundary.get("relative_path", boundary.get("caller_path"))
+        basis = None
+        if selected and path and path not in selected:
+            basis = "outside_locally_selected_source_paths"
+        elif (path and boundary.get("relation_type") in {"CALLS", "CALL_TARGET_FROM", "PERFORMS"}
+              and not boundary.get("requested_procedure_dependency")
+              and boundary.get("source_sha256") == versions.get(path)
+              and boundary.get("position_status") == "source_excerpt_match"):
+            scopes = [scope for scope in source_scopes if scope.get("relative_path") == path
+                and scope.get("exclusive", True) is True
+                and versions.get(path) == scope.get("source_sha256")]
+            line = boundary.get("start_line", boundary.get("caller_line"))
+            if scopes and type(line) is int and not any(scope["start_line"] <= line <= scope["end_line"] for scope in scopes):
+                basis = "outside_version_matched_requested_occurrences"
+        if basis:
+            repository.append({**boundary, "scope_basis": basis,
+                               "scope": "repository_diagnostic_without_question_relevance_proof"})
+        else:
+            relevant.append(boundary)
+    return relevant, repository
+
+
 def _exact_identifier_paths(connection, question):
     """Compatibility wrapper: only definitions establish source identity."""
     return set(resolve_source_identity(connection, question)["direct_paths"])
@@ -65,16 +98,19 @@ def _paths_from_history(connection, prior_paths):
     return list(dict.fromkeys(result))
 
 
-def _call_graph(connection, check_cancel):
+def _call_graph(connection, check_cancel, *, navigation_rows=None):
     _cancel(check_cancel)
     incoming = defaultdict(list)
     edges = []
     aliases = defaultdict(set)
-    for row in connection.execute("SELECT relative_path FROM source_files"):
+    source_rows = (connection.execute("SELECT relative_path FROM source_files") if navigation_rows is None
+                   else [(row["target_path"],) for row in navigation_rows if row.get("target_path")])
+    for row in source_rows:
         relative = row[0]
         for alias in (relative, Path(relative).name, Path(relative).stem):
             aliases[alias.casefold()].add(relative)
-    rows = (row for row in _navigation_graph(connection, check_cancel, details=True)
+    rows = (row for row in (_navigation_graph(connection, check_cancel, details=True)
+                           if navigation_rows is None else navigation_rows)
             if row["caller_line"] is not None)
     for row in sorted(rows, key=lambda row: (row["relative_path"], row["caller_line"],
                                             row["relation_type"], row["relation_order"])):
@@ -82,6 +118,8 @@ def _call_graph(connection, check_cancel):
         edge = {key: row[key] for key in ("relation_id", "relation_type", "target_name", "evidence_id",
                                          "caller_line", "target_path", "caller_program")}
         edge.update(caller_path=row["relative_path"], resolution=row["status"])
+        if row.get("requested_procedure_dependency"):
+            edge["requested_procedure_dependency"] = True
         if edge["resolution"] != "confirmed" or edge["relation_type"] == "CALL_TARGET_FROM":
             edge["target_path"] = None
         if not edge["target_path"] and edge["relation_type"] == "INCLUDES_COPY":
@@ -186,7 +224,8 @@ def _explain_paths(incoming, edges, seeds, repository_size, check_cancel):
     return distance
 
 
-def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage=None, diversify=False):
+def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage=None, diversify=False,
+                source_scopes=()):
     coverage = coverage if coverage is not None else {}
     ordered_paths = sorted(paths)
     coverage.update({"scope": "navigation_candidates", "preview_budget": 32,
@@ -197,6 +236,20 @@ def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage
         "query_frontier": [], "candidate_selection_complete": False})
     if not connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='business_rules'").fetchone():
         return []
+    rules_table = "business_rules"
+    occurrences = "business_rule_occurrences"
+    if source_scopes:
+        from question_investigation import _scope_tables
+        rules_table, occurrences = _scope_tables(connection, sorted(paths), source_scopes)
+        if occurrences == "question_scope_occurrences":
+            # Rule shapes may repeat elsewhere. Navigation locations and
+            # budgets must describe only the retained physical occurrences.
+            connection.execute("CREATE TEMP VIEW navigation_scope_rules AS SELECT b.rule_id,b.relative_path,"
+                "b.program_name,b.paragraph_name,b.rule_kind,MIN(o.start_line) AS first_line,"
+                "MAX(o.end_line) AS last_line,COUNT(*) AS occurrence_count,b.normalized_text,"
+                "b.reads_json,b.writes_json,b.condition_json FROM question_scope_occurrences o "
+                "CROSS JOIN main.business_rules b ON b.rule_id=o.rule_id GROUP BY b.rule_id")
+            rules_table = "navigation_scope_rules"
     terms = [term.upper() for term in _CODE_TERM.findall(question)
              if term.casefold() not in {"business", "program", "programs", "source", "analysis", "impact", "change"}]
     unique_terms = list(dict.fromkeys(terms))
@@ -208,7 +261,7 @@ def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage
         if relative not in paths:
             continue
         rows = connection.execute(
-            "SELECT * FROM business_rules WHERE relative_path=? AND first_line<=? "
+            f"SELECT * FROM {rules_table} WHERE relative_path=? AND first_line<=? "
             "AND last_line>=? ORDER BY first_line,rule_id LIMIT 41",
             (relative, preview["end_line"] + 12, max(1, preview["start_line"] - 12)),
         ).fetchall()
@@ -222,7 +275,7 @@ def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage
             # Preserve generic business-description navigation when there is
             # no defined program identity; defined identities use result groups.
             rows = connection.execute(
-                "SELECT * FROM business_rules WHERE relative_path=? "
+                f"SELECT * FROM {rules_table} WHERE relative_path=? "
                 "AND rule_kind IN ('COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE') "
                 "ORDER BY CASE WHEN rule_kind='COMPUTE' THEN 0 ELSE 1 END,first_line,rule_id LIMIT 4",
                 (relative,),
@@ -233,7 +286,7 @@ def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage
                 by_path[relative].setdefault(row["rule_id"], (dict(row), "program_calculation"))
         for term in terms:
             rows = connection.execute(
-                "SELECT * FROM business_rules WHERE relative_path=? AND normalized_text LIKE ? "
+                f"SELECT * FROM {rules_table} WHERE relative_path=? AND normalized_text LIKE ? "
                 "ORDER BY first_line,rule_id LIMIT 61", (relative, "%" + term + "%"),
             ).fetchall()
             if len(rows) > 60:
@@ -246,7 +299,7 @@ def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage
             # existing candidate and output budgets, rather than every repeat.
             rows = connection.execute(
                 "WITH candidates AS (SELECT *,ROW_NUMBER() OVER (PARTITION BY paragraph_name,writes_json "
-                "ORDER BY first_line,rule_id) AS group_rank FROM business_rules WHERE relative_path=? "
+                f"ORDER BY first_line,rule_id) AS group_rank FROM {rules_table} WHERE relative_path=? "
                 "AND rule_kind IN ('COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE','MOVE')) "
                 "SELECT * FROM candidates WHERE group_rank=1 ORDER BY first_line,rule_id LIMIT 61", (relative,)
             ).fetchall()
@@ -264,7 +317,7 @@ def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage
             continue
         slots = ",".join("?" for _ in names)
         query = (
-            "SELECT b.* FROM business_rules b WHERE b.relative_path=? "
+            f"SELECT b.* FROM {rules_table} b WHERE b.relative_path=? "
             "AND EXISTS (SELECT 1 FROM business_rule_fields f WHERE f.rule_id=b.rule_id "
             f"AND f.field_name IN ({slots})) ORDER BY b.first_line LIMIT 100"
         )
@@ -324,7 +377,7 @@ def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage
     if selected and connection.execute("SELECT 1 FROM sqlite_master WHERE name='business_rule_occurrences'").fetchone():
         by_rule = {item["rule_id"]: item for item in selected}
         slots = ",".join("?" for _ in by_rule)
-        for row in connection.execute("SELECT rule_id,scope_json FROM business_rule_occurrences "
+        for row in connection.execute(f"SELECT rule_id,scope_json FROM {occurrences} "
                 f"WHERE rule_id IN ({slots}) AND parse_status='candidate' GROUP BY rule_id", tuple(by_rule)):
             guards = [guard for guard in json.loads(row["scope_json"]) if guard.get("kind") == "COMPILATION"]
             if guards:
@@ -382,9 +435,15 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
     It reads the saved index only. In particular, it does not rescan source files
     or ask the model to summarise individual pages.
     """
+    def navigation_scopes(identity):
+        if _IMPACT_LANGUAGE.search(question) or identity.get("status") != "resolved":
+            return []
+        from question_investigation import _question_scopes
+        return _question_scopes(database_path, identity.get("direct_paths", []), question, history)
     discovery = discover_repository(database_path, question, search_terms=search_terms, focus_paths=focus_paths,
                                     check_cancel=check_cancel, fallback_to_repository=False,
-                                    entry_program=entry_program, history=history)
+                                    entry_program=entry_program, history=history,
+                                    rooted_navigation_resolver=navigation_scopes)
     connection = _connect(database_path)
     try:
         connection.execute("BEGIN")
@@ -419,9 +478,14 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         if not direct and not blocked:
             direct.update(historical)
         intent = "impact" if _IMPACT_LANGUAGE.search(question) else "explain"
-        incoming, all_edges = _call_graph(connection, check_cancel) if direct else ({}, [])
+        rooted = discovery.get("rooted_navigation")
+        incoming, all_edges = (_call_graph(connection, check_cancel,
+            **({"navigation_rows": rooted["rows"]} if rooted else {})) if direct else ({}, []))
         outgoing, outgoing_frontier = {}, []
-        if identity.get("exclusive_source_scope") and direct:
+        if rooted:
+            distance = rooted["distance"]
+            selected = set(rooted["selected_paths"])
+        elif identity.get("exclusive_source_scope") and direct:
             distance = {path: 0 for path in direct}
             selected = set(direct)
         elif intent == "impact" and direct:
@@ -437,6 +501,7 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         else:
             selected, distance = set(), {}
         program_names = defaultdict(list)
+        source_versions = {}
         selected_paths = sorted(selected)
         # Keep definition lookup proportional to the nominated sources. The
         # path index already exists in older snapshots; no catalog rebuild or
@@ -445,10 +510,12 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
             _cancel(check_cancel)
             batch = selected_paths[start:start + 400]
             slots = ",".join("?" for _ in batch)
-            for row in connection.execute("SELECT relative_path,name FROM code_units "
-                    f"WHERE relative_path IN ({slots}) AND unit_type='Program' "
-                    "ORDER BY relative_path,start_line", batch):
+            for row in connection.execute("SELECT u.relative_path,u.name,f.sha256 FROM code_units u "
+                    "JOIN source_files f ON f.relative_path=u.relative_path "
+                    f"WHERE u.relative_path IN ({slots}) AND u.unit_type='Program' "
+                    "ORDER BY u.relative_path,u.start_line", batch):
                 program_names[row["relative_path"]].append(row["name"])
+                source_versions[row["relative_path"]] = row["sha256"]
         ordered = sorted(selected, key=lambda path: (distance.get(path, 0), path))
         programs = [{"relative_path": path, "program_names": program_names[path] or [Path(path).stem.upper()],
                      "distance": distance.get(path, 0), "direct_source_match": path in query_direct}
@@ -460,7 +527,8 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         rule_query += " " + " ".join(subject.get("focus_entities", []))
         rule_coverage = {}
         leads = _rule_leads(connection, query_direct, discovery["matched_pages"], rule_query, check_cancel,
-                            coverage=rule_coverage, diversify=identity["status"] == "resolved")
+                            coverage=rule_coverage, diversify=identity["status"] == "resolved",
+                            source_scopes=rooted["source_scopes"] if rooted else ())
         if intent == "explain":
             before_related = len(leads)
             leads = _related_program_rules(connection, selected, direct, distance, leads, check_cancel)
@@ -513,6 +581,8 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
                     break
             if len(spotlights) >= 6:
                 break
+        boundaries, repository_boundaries = question_boundaries(discovery["boundaries"], ordered,
+            source_scopes=rooted["source_scopes"] if rooted else (), source_versions=source_versions)
         return {"snapshot_id": overview["snapshot_id"], "intent": intent,
                 "direct_paths": sorted(query_direct), "selected_paths": ordered,
                 "outgoing_dependency_paths": sorted(set(outgoing) - direct,
@@ -520,7 +590,11 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
                 "outgoing_dependency_frontier": outgoing_frontier,
                 "programs": programs, "relations": relevant_edges,
                 "rule_leads": leads, "spotlights": spotlights,
-                "source_identity": identity, "boundaries": discovery["boundaries"],
+                "source_identity": identity, "boundaries": boundaries,
+                "repository_boundaries": repository_boundaries, "source_versions": source_versions,
+                **({"navigation_scope": {key: rooted[key] for key in
+                    ("status", "source_scopes", "root_paths", "dependency_expansion_complete", "relation_rows_read", "effects_verified")},
+                    "outgoing_dependency_frontier": rooted["frontier"]} if rooted else {}),
                 "session_subject": subject,
                 "rule_lead_coverage": rule_coverage, "semantic_anchors": anchors[:4],
                 "matched_files": discovery["matched_file_count"],

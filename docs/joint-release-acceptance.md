@@ -4,6 +4,10 @@
 
 公司 Windows 设备优先使用[直接运行的验收包与步骤](office-acceptance-steps.md)：独立编译的向导带 Tk/运行时，冻结原应用 EXE，默认无调用计划、本机完整 55 样本回归、29 轮真实问答、逐项人工评审及本地门禁。无需使用者安装 Python、Git 或开发工具。`windows-office-acceptance.yml` 只编译辅助工具，在 Windows 启动它并复跑原 EXE；不将 CI 机器冒充公司设备，不调用公司模型或发布。
 
+桌面主分支构建成功后，通过 `workflow_run` 自动生成与该次构建绑定的验收包。解析器只接受本仓库 main 的成功桌面 run，核对提交、attempt 与唯一候选 artifact；缺包、过期、重复或版本不符都会停止，不回退到旧 EXE。编译辅助工具前重算候选门禁，并核对同一验收合同及应用输入树。手动运行可明确指定该三项，全部留空时选择最新成功 main 构建；普通 push/PR 只检查辅助工作流，不会使用旧的默认包重编译套件。
+
+离线合同在原 17 案例、55 样本中嵌入 14 次独立默认 HTTP 问答，覆盖组字段与限定身份、歧义、明确的两条 IF 和 PIC 供证。每次有独立 run、答案及证据哈希、请求和耗时，耗时计入原样本门槛；静态调用来源与未实现段落还增加了实际诊断闭合检查。29 轮真实模型题集及 87 次自动请求上限保持单独记录。
+
 `windows-desktop.yml` 在相关主分支推送、PR 和手动构建时运行：固定版本 actionlint 校验 Actions 表达式 → 固定公开语料校验 → Python/浏览器回归 → MSVC 编译 → 启动最终 EXE 联合回归 → 候选门禁 → 上传白名单产物。失败会阻断候选上传；合成模型不能授权正式发布。候选产物含 ZIP、校验和、BUILD-INFO、逐样本原生报告、合同、候选策略与门禁结果。工作流语义检查使用 [actionlint 官方用法](https://github.com/rhysd/actionlint/blob/v1.7.7/docs/usage.md)，只在维护/CI 环境运行，不进入用户应用。
 
 真实验收只在获准设备上执行，报告保留本地。维护者先准备已经审阅的案例 JSON，使用现有 `live-business-eval/v3` 案例结构；每项关键结论须包含 `gold.required_findings[].supporting_ranges`，记录路径、行段与源码 SHA。`reviewed_context.source_ranges` 提供相同版本的冻结源码范围。正式题集至少含一个三轮 `turns` 场景、一项 `split=holdout` 留出题和一项 `split=regression` 或 `public-development` 回归题；后两轮必须实际供应前序 user/assistant 历史。不能用单个容易的单轮题代替联合质量验收。这些要求在任何模型请求之前检查。

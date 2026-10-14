@@ -5,7 +5,7 @@
   "transport": "loopback_https_fake",
   "model_accuracy_measured": false,
   "business_answer_correctness": null,
-  "timing_scope": "Cold index is a normal desktop import into an empty workspace. Question timings exclude generation/import/startup. Repeated questions use the same index and separate conversations.",
+  "timing_scope": "Cold index is a normal desktop import into an empty workspace. Question timings exclude generation/import/startup and include embedded default-HTTP scope probes. Primary and scope-probe times and request counts are separately recorded; all retain independent run and answer identities. Repeated questions use the same index and separate conversations.",
   "threshold_basis": "Conservative regression ceilings from recorded native local mechanism runs; not a live-model or enterprise-device SLA. Windows cold intake has separate headroom and no imported seed database.",
   "source_files": {
     "entry.cbl": {
@@ -27,6 +27,10 @@
     "overwrite.cbl": {
       "path": "overwrite.cbl",
       "sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605"
+    },
+    "record.cbl": {
+      "path": "record.cbl",
+      "sha256": "c6b931e2e1eadfcce3ef91dbfa59b15ea9fabfc73169a3194e918720e925c0eb"
     }
   },
   "public_corpus": {
@@ -240,7 +244,14 @@
         "quality_section_flow",
         "quality_explicit_formulas_supported",
         "completeness_reviewed_ranges_supplied",
-        "quality_semantic_ir_agrees"
+        "quality_semantic_ir_agrees",
+        "quality_bare_group_field_formula_supplied",
+        "quality_qualified_output_scope",
+        "quality_ambiguous_group_field_candidates",
+        "evidence_scope_probe_versions_match",
+        "lifecycle_scope_probe_index_reused",
+        "performance_scope_probe_bounded",
+        "evidence_scope_probe_answers_bound"
       ],
       "assertion_groups": {
         "quality": [
@@ -253,7 +264,10 @@
           "quality_section_binding",
           "quality_section_flow",
           "quality_explicit_formulas_supported",
-          "quality_semantic_ir_agrees"
+          "quality_semantic_ir_agrees",
+          "quality_bare_group_field_formula_supplied",
+          "quality_qualified_output_scope",
+          "quality_ambiguous_group_field_candidates"
         ],
         "completeness": [
           "completeness_answer_recorded",
@@ -262,10 +276,16 @@
         "evidence": [
           "evidence_supplied_hashes_match",
           "evidence_visible_answer_matches",
-          "evidence_answer_ledger_hash"
+          "evidence_answer_ledger_hash",
+          "evidence_scope_probe_versions_match",
+          "evidence_scope_probe_answers_bound"
         ],
         "lifecycle": [
-          "lifecycle_index_reused"
+          "lifecycle_index_reused",
+          "lifecycle_scope_probe_index_reused"
+        ],
+        "performance": [
+          "performance_scope_probe_bounded"
         ]
       },
       "limits": {
@@ -275,14 +295,53 @@
       },
       "corpus": "frozen",
       "files": [
-        "frontend.cbl"
+        "frontend.cbl",
+        "record.cbl"
       ],
       "question": "SEMANTIC-CASE 的 C 和 AMOUNT OF OUTPUT-REC 怎样计算？ADD GIVING 的读取写入、字符串和 CALCULATE-SECTION 的执行范围是什么？",
       "semantic_tool": {
         "tool": "backward_slice",
         "path": "frontend.cbl",
         "contains": "MOVE A TO C."
-      }
+      },
+      "reviewed_files": [
+        "frontend.cbl"
+      ],
+      "scope_probes": [
+        {
+          "id": "bare_group_field",
+          "question": "RECORD-RULE 中 VALUE-00000 是怎么计算的？",
+          "expected_candidate_count": 1,
+          "limits": {
+            "first_provider_seconds": 15,
+            "question_seconds": 30,
+            "max_model_requests": 3
+          },
+          "expected_primary_kind": "formula"
+        },
+        {
+          "id": "qualified_output_scope",
+          "question": "SEMANTIC-CASE AMOUNT OF OUTPUT-REC 从哪里来？它和 AMOUNT IN INPUT-REC 一样吗？",
+          "expected_candidate_count": 1,
+          "limits": {
+            "first_provider_seconds": 15,
+            "question_seconds": 30,
+            "max_model_requests": 3
+          },
+          "expected_primary_kind": "business_steps"
+        },
+        {
+          "id": "ambiguous_group_field",
+          "question": "SEMANTIC-CASE AMOUNT 怎样计算？",
+          "expected_candidate_count": 1,
+          "limits": {
+            "first_provider_seconds": 15,
+            "question_seconds": 30,
+            "max_model_requests": 3
+          },
+          "expected_primary_kind": "formula"
+        }
+      ]
     },
     {
       "id": "overwrite_condition",
@@ -349,7 +408,8 @@
         "quality_static_chain_return_binding",
         "quality_leaf_formula_supported",
         "completeness_three_program_path",
-        "completeness_reviewed_ranges_supplied"
+        "completeness_reviewed_ranges_supplied",
+        "completeness_static_origin_closed"
       ],
       "assertion_groups": {
         "quality": [
@@ -359,7 +419,8 @@
         "completeness": [
           "completeness_answer_recorded",
           "completeness_three_program_path",
-          "completeness_reviewed_ranges_supplied"
+          "completeness_reviewed_ranges_supplied",
+          "completeness_static_origin_closed"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",
@@ -708,12 +769,14 @@
         "lifecycle_index_reused",
         "quality_critical_answer_preserved",
         "completeness_reviewed_ranges_supplied",
-        "quality_prose_not_falsely_verified"
+        "quality_prose_not_falsely_verified",
+        "quality_noop_scope_not_monthly_interest"
       ],
       "assertion_groups": {
         "quality": [
           "quality_critical_answer_preserved",
-          "quality_prose_not_falsely_verified"
+          "quality_prose_not_falsely_verified",
+          "quality_noop_scope_not_monthly_interest"
         ],
         "completeness": [
           "completeness_answer_recorded",
@@ -758,13 +821,15 @@
         "quality_injected_error_revised",
         "quality_invalid_claim_absent",
         "quality_frozen_source_assertions",
-        "completeness_reviewed_ranges_supplied"
+        "completeness_reviewed_ranges_supplied",
+        "quality_noop_scope_not_monthly_interest"
       ],
       "assertion_groups": {
         "quality": [
           "quality_injected_error_revised",
           "quality_invalid_claim_absent",
-          "quality_frozen_source_assertions"
+          "quality_frozen_source_assertions",
+          "quality_noop_scope_not_monthly_interest"
         ],
         "completeness": [
           "completeness_answer_recorded",
@@ -809,24 +874,38 @@
         "lifecycle_index_reused",
         "quality_formula_and_condition_supported",
         "quality_unknown_not_verified",
-        "completeness_formula_control_supplied"
+        "completeness_formula_control_supplied",
+        "completeness_large_two_if_pic_supplied",
+        "quality_large_unknown_runtime_input_preserved",
+        "evidence_scope_probe_versions_match",
+        "lifecycle_scope_probe_index_reused",
+        "performance_scope_probe_bounded",
+        "evidence_scope_probe_answers_bound"
       ],
       "assertion_groups": {
         "quality": [
           "quality_formula_and_condition_supported",
-          "quality_unknown_not_verified"
+          "quality_unknown_not_verified",
+          "quality_large_unknown_runtime_input_preserved"
         ],
         "completeness": [
           "completeness_answer_recorded",
-          "completeness_formula_control_supplied"
+          "completeness_formula_control_supplied",
+          "completeness_large_two_if_pic_supplied"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",
           "evidence_visible_answer_matches",
-          "evidence_answer_ledger_hash"
+          "evidence_answer_ledger_hash",
+          "evidence_scope_probe_versions_match",
+          "evidence_scope_probe_answers_bound"
         ],
         "lifecycle": [
-          "lifecycle_index_reused"
+          "lifecycle_index_reused",
+          "lifecycle_scope_probe_index_reused"
+        ],
+        "performance": [
+          "performance_scope_probe_bounded"
         ]
       },
       "limits": {
@@ -835,7 +914,20 @@
         "question_seconds": 60
       },
       "corpus": "large",
-      "question": "BILL-AMOUNT 怎么计算？有哪些触发条件？"
+      "question": "BILL-AMOUNT 怎么计算？有哪些触发条件？",
+      "scope_probes": [
+        {
+          "id": "large_two_if_pic",
+          "question": "MEMBER-11999 的 RULE-000 第一条 IF 如何计算 BILL-AMOUNT，输入在哪里声明，紧接下一条 IF 怎样覆盖？",
+          "expected_candidate_count": 2,
+          "limits": {
+            "first_provider_seconds": 30,
+            "question_seconds": 60,
+            "max_model_requests": 3
+          },
+          "expected_primary_kind": "formula"
+        }
+      ]
     }
   ]
 }

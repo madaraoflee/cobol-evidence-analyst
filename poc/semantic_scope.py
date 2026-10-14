@@ -307,6 +307,14 @@ def prepare_semantic_scope(repository_database, source_session, *, anchors,
         raise
 
 
+def _captured_lines(scope, captured):
+    """Decode only a captured, immutable file, once for this selected scope."""
+    key = (str(captured.path), captured.sha256, captured.encoding)
+    if key not in scope._line_cache:
+        scope._line_cache[key] = captured.path.read_text(encoding=captured.encoding).splitlines()
+    return scope._line_cache[key]
+
+
 def _source_pages(scope, unit):
     relative = unit["relative_path"]
     mapped = scope.source_map.get(relative)
@@ -326,9 +334,7 @@ def _source_pages(scope, unit):
     pages = []
     for path, chain, start, end in groups:
         captured = scope.source_session.capture(path)
-        if path not in scope._line_cache:
-            scope._line_cache[path] = captured.path.read_text(encoding=captured.encoding).splitlines()
-        lines = scope._line_cache[path]
+        lines = _captured_lines(scope, captured)
         text = "\n".join(lines[start - 1:end])
         page = {"relative_path": path, "start_line": start, "end_line": end,
                 "source_sha256": captured.sha256, "source_text": text,
@@ -567,6 +573,7 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
             if purpose in {"impact", "forward_slice"}:
                 needed.update(service.forward_slice(key)["occurrences"])
             explanation = service.explain_assignment(key)
+            explanations.append(explanation)
             needed.update(explanation["later_writes"])
         flow_nodes = [node for key, node in service.nodes.items() if key in needed][:16]
         supplied_ids = {page["evidence_id"] for page in supplied}
@@ -579,7 +586,7 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
                 captured = source_session.capture(ref["relative_path"])
                 if captured.sha256 != ref["source_sha256"]:
                     raise ValueError("SEMANTIC_FLOW_SOURCE_VERSION_MISMATCH")
-                text = "\n".join(captured.path.read_text(encoding=captured.encoding).splitlines()[ref["start_line"] - 1:ref["end_line"]])
+                text = "\n".join(_captured_lines(scope, captured)[ref["start_line"] - 1:ref["end_line"]])
                 page = {**ref, "source_text": text, "selection_reasons": ["semantic_slice"],
                         "semantic_roles": ["condition" if node.kind in {"IF", "EVALUATE"} else "input"],
                         "interpretation_basis": "possible_source_flow"}
@@ -593,7 +600,16 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
         if flow_refs:
             observations.append(Observation("flow_" + scope.scope_key[:16], "flow_context", flow_refs,
                 interpretation_basis="possible_source_flow"))
-        explanations = [service.explain_assignment(key) for key in anchors[:4]]
+        for key, explanation in zip(anchors[:4], explanations):
+            explanation["statement"] = asdict(service.nodes[key])
+            for origin in explanation.get("read_origins", []):
+                for ref in origin.get("source_refs", []):
+                    captured = source_session.capture(ref["relative_path"])
+                    if captured.sha256 != ref["source_sha256"]:
+                        raise ValueError("SEMANTIC_INPUT_ORIGIN_SOURCE_VERSION_MISMATCH")
+                    lines = _captured_lines(scope, captured)
+                    text = "\n".join(lines[ref["start_line"] - 1:ref["end_line"]])
+                    ref["excerpt_sha256"] = hashlib.sha256(text.encode()).hexdigest()
         semantic_analysis = {"version": SERVICE_VERSION,
             "flow_status": "possible_source_flow" if service._flow_complete else "incomplete_source_flow", "anchors": anchors[:4],
             "assignments": explanations, "slice_statements": [asdict(node) for node in flow_nodes],

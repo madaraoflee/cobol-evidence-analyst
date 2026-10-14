@@ -12,6 +12,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from tools.desktop_acceptance_cases import (DEFAULT_MANIFEST, _large_program, _quality_checks,
+    _scope_probe_checks,
     corpus_fingerprint, ledger_versions_match, prepare_source, ranges_supplied, replacement_supported,
     run_cases, verify_pages)
 
@@ -56,7 +57,7 @@ class DesktopAcceptanceEvidenceTests(unittest.TestCase):
         case = next(row for row in manifest["cases"] if row["id"] == "frontend_semantics")
         source = self.root / "frozen"
         info = prepare_source(case, manifest, source, None)
-        self.assertEqual(info["files"], 1)
+        self.assertEqual(info["files"], 2)
         self.assertNotIn(b"\r\n", (source / "frontend.cbl").read_bytes())
         self.assertEqual(hashlib.sha256((source / "frontend.cbl").read_bytes()).hexdigest(),
             manifest["source_files"]["frontend.cbl"]["sha256"])
@@ -121,6 +122,55 @@ class DesktopAcceptanceEvidenceTests(unittest.TestCase):
         self.assertEqual(len(rows), case["repeats"])
         self.assertTrue(all(row["status"] == "failed" and not any(row["checks"].values()) for row in rows))
         self.assertTrue(all(row["business_answer_correctness"] is None for row in rows))
+
+    def test_scope_probes_remain_mandatory_without_replacing_original_samples_or_gold(self):
+        manifest = json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual(len(manifest["cases"]), 17)
+        self.assertEqual(sum(case["repeats"] for case in manifest["cases"]), 55)
+        cases = {case["id"]: case for case in manifest["cases"]}
+        frontend = cases["frontend_semantics"]
+        self.assertEqual(frontend["reviewed_files"], ["frontend.cbl"])
+        self.assertEqual({probe["id"] for probe in frontend["scope_probes"]}, {
+            "bare_group_field", "qualified_output_scope", "ambiguous_group_field"})
+        large = cases["large_repository"]
+        self.assertEqual(large["question"], "BILL-AMOUNT 怎么计算？有哪些触发条件？")
+        self.assertIn("completeness_formula_control_supplied", large["assertions"])
+        self.assertIn("completeness_large_two_if_pic_supplied", large["assertions"])
+        self.assertEqual(large["limits"]["question_seconds"], 60)
+        self.assertEqual(large["scope_probes"][0]["expected_candidate_count"], 2)
+
+    def test_noop_scope_requires_actual_complete_body_not_generic_success_status(self):
+        case = {"id": "public_unimplemented_procedure", "corpus": "public",
+                "public_case_id": "unimplemented-procedure", "required_answer_text": [], "unverified_prose": True}
+        agent = {"status": "ANALYZED", "answer": "EXIT", "claim_ledger": {}}
+        with mock.patch("tools.desktop_acceptance_cases._public_case", return_value={
+                "mechanism": {"source_assertions": []}}):
+            absent = _quality_checks(case, agent, self.root, [], {})
+            self.assertFalse(absent["quality_noop_scope_not_monthly_interest"])
+            items = [{"kind": kind, "candidate_count": count, "status": "SATISFIED"}
+                     for kind, count in (("procedure_body", 1), ("formula", 0), ("conditions", 0), ("dependencies", 0))]
+            items[0]["evidence_ids"] = [self.page["evidence_id"]]
+            scope = {"procedure_name": "1400-COMPUTE-FEES", "relative_path": "entry.cbl",
+                     "source_sha256": self.version, "start_line": 1, "end_line": 2}
+            trace = {"final": {"question_investigation": {"required_items": items, "open_gaps": [],
+                    "source_scope": {"ranges": [scope]}}}}
+            self.assertTrue(_quality_checks(case, agent, self.root, [self.page], trace)["quality_noop_scope_not_monthly_interest"])
+            items[1]["candidate_count"] = 1
+            self.assertFalse(_quality_checks(case, agent, self.root, [self.page], trace)["quality_noop_scope_not_monthly_interest"])
+
+    def test_ambiguity_requires_preserved_qualified_candidates_and_real_obligation(self):
+        probe = {"id": "ambiguous_group_field", "expected_candidate_count": 1}
+        investigation = {"required_items": [{"kind": "formula", "status": "SATISFIED",
+            "candidate_count": 1, "evidence_ids": [self.page["evidence_id"]]}], "open_gaps": [
+            {"reason": "field_reference_ambiguous", "candidates": ["AMOUNT OF INPUT-REC", "AMOUNT OF OUTPUT-REC"]}]}
+        trace = {"final": {"question_investigation": investigation}}
+        self.assertTrue(_scope_probe_checks(probe, trace, {"status": "PARTIAL"}, [self.page])[
+            "quality_ambiguous_group_field_candidates"])
+        self.assertFalse(_scope_probe_checks(probe, trace, {"status": "ANALYZED"}, [self.page])[
+            "quality_ambiguous_group_field_candidates"])
+        investigation["required_items"][0]["evidence_ids"] = ["not_supplied"]
+        self.assertFalse(_scope_probe_checks(probe, trace, {"status": "PARTIAL"}, [self.page])[
+            "quality_ambiguous_group_field_candidates"])
 
 
 if __name__ == "__main__":

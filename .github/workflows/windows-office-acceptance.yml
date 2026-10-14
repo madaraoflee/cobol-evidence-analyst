@@ -4,17 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       app_commit:
-        description: 'Accepted application commit (40 hexadecimal characters)'
+        description: 'Optional application SHA; must match the selected successful main run'
         type: string
-        default: '44fcb5f9e769ae559c9cd6b5b12d396959613998'
+        default: ''
       candidate_run_id:
-        description: 'Successful Windows candidate workflow run'
+        description: 'Successful desktop main run; blank selects the latest successful main run'
         type: string
-        default: '38593469204'
+        default: ''
       candidate_artifact_id:
-        description: 'Exact accepted candidate artifact ID'
+        description: 'Optional artifact ID; must be the exact candidate from the selected run and attempt'
         type: string
-        default: '11913165911'
+        default: ''
+  workflow_run:
+    workflows: ['Windows desktop x64']
+    types: [completed]
+    branches: [main]
   push:
     branches: [main]
     paths:
@@ -22,6 +26,8 @@ on:
       - 'tools/office_acceptance_*.py'
       - 'tools/build_office_acceptance.py'
       - 'tools/collect_office_acceptance_kit.py'
+      - 'tools/resolve_office_candidate.py'
+      - 'poc/tests/test_office_candidate_binding.py'
       - 'tools/acceptance_diagnostics.py'
       - 'docs/office-acceptance-steps.md'
   pull_request:
@@ -31,6 +37,8 @@ on:
       - 'tools/office_acceptance_*.py'
       - 'tools/build_office_acceptance.py'
       - 'tools/collect_office_acceptance_kit.py'
+      - 'tools/resolve_office_candidate.py'
+      - 'poc/tests/test_office_candidate_binding.py'
       - 'tools/acceptance_diagnostics.py'
       - 'docs/office-acceptance-steps.md'
 
@@ -57,6 +65,12 @@ jobs:
   kit:
     runs-on: windows-2022
     needs: lint
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch'))
     timeout-minutes: 75
     defaults:
       run:
@@ -64,7 +78,6 @@ jobs:
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
-      FROZEN_APP_COMMIT: ${{ inputs.app_commit || '44fcb5f9e769ae559c9cd6b5b12d396959613998' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -73,14 +86,36 @@ jobs:
         with:
           python-version: '3.13'
           architecture: x64
+      - name: Resolve one successful main run and its exact candidate artifact
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_APP_COMMIT: ${{ inputs.app_commit }}
+          REQUESTED_CANDIDATE_RUN: ${{ inputs.candidate_run_id }}
+          REQUESTED_CANDIDATE_ARTIFACT: ${{ inputs.candidate_artifact_id }}
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          subprocess.run([sys.executable, 'tools/resolve_office_candidate.py',
+              '--app-commit', os.environ['REQUESTED_APP_COMMIT'],
+              '--run-id', os.environ['REQUESTED_CANDIDATE_RUN'],
+              '--artifact-id', os.environ['REQUESTED_CANDIDATE_ARTIFACT'],
+              '--output', str(Path(os.environ['RUNNER_TEMP']) / 'OFFICE-CANDIDATE-BINDING.json'),
+              '--github-output', os.environ['GITHUB_OUTPUT']], check=True)
       - name: Obtain the unchanged accepted EXE and its original reports
         uses: actions/download-artifact@v7
         with:
-          artifact-ids: ${{ inputs.candidate_artifact_id || '11913165911' }}
-          run-id: ${{ inputs.candidate_run_id || '38593469204' }}
+          artifact-ids: ${{ steps.candidate.outputs.artifact_id }}
+          run-id: ${{ steps.candidate.outputs.run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/frozen-candidate
-      - name: Verify original archive identity and fetch frozen public sources
+      - name: Verify candidate acceptance and matching case contracts before compilation
+        env:
+          FROZEN_APP_COMMIT: ${{ steps.candidate.outputs.app_commit }}
+          FROZEN_HELPER_COMMIT: ${{ steps.candidate.outputs.helper_commit }}
         shell: python
         run: |
           import hashlib
@@ -89,13 +124,31 @@ jobs:
           from pathlib import Path
           import subprocess
           import sys
+          sys.path.insert(0, str(Path.cwd()))
           sys.path.insert(0, str(Path.cwd() / 'tools'))
+          sys.path.insert(0, str(Path.cwd() / 'poc'))
           from desktop_acceptance import inspect_package
+          from release_acceptance import evaluate_release
+          from resolve_office_candidate import APPLICATION_INPUTS, validate_helper_contracts
           candidate = Path(os.environ['RUNNER_TEMP']) / 'frozen-candidate'
           artifact = inspect_package(candidate / 'COBOLWorkbench-windows-x64.zip', os.environ['FROZEN_APP_COMMIT'])
-          if (os.environ['FROZEN_APP_COMMIT'] == '44fcb5f9e769ae559c9cd6b5b12d396959613998'
-              and artifact['archive_sha256'] != '065f1ea39e1cdd6313b9eb2d826f987af1286ef56bf8de733450df86d2f947e0'):
-              raise SystemExit('The frozen EXE archive has changed.')
+          decision = evaluate_release(package=candidate / 'COBOLWorkbench-windows-x64.zip',
+              compiled_report=candidate / 'COMPILED-ACCEPTANCE.json',
+              manifest=candidate / 'ACCEPTANCE-MANIFEST.json', policy=candidate / 'CANDIDATE-POLICY.json')
+          if decision['candidate_allowed'] is not True:
+              raise SystemExit('The selected run has no accepted candidate.')
+          helper_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          app_commit = os.environ['FROZEN_APP_COMMIT']
+          if app_commit != helper_commit:
+              subprocess.run(['git', 'fetch', '--depth', '1', 'origin', app_commit], check=True)
+          def application_inputs(commit):
+              return {path: subprocess.check_output(['git', 'rev-parse', f'{commit}:{path}'], text=True).strip()
+                      for path in APPLICATION_INPUTS}
+          validate_helper_contracts(helper_commit=os.environ['FROZEN_HELPER_COMMIT'],
+              checkout_commit=helper_commit, candidate_manifest=(candidate / 'ACCEPTANCE-MANIFEST.json').read_bytes(),
+              current_manifest=Path('docs/eval/desktop-joint-v1/manifest.json').read_bytes(),
+              candidate_application_inputs=application_inputs(app_commit),
+              helper_application_inputs=application_inputs(helper_commit))
           manifest = json.loads(Path('docs/eval/public-business-v1/manifest.json').read_text(encoding='utf-8'))
           target = Path(os.environ['RUNNER_TEMP']) / 'office-public-source'
           target.mkdir()
@@ -113,7 +166,7 @@ jobs:
         run: |
           import subprocess
           import sys
-          for pattern in ('test_office_acceptance*.py', 'test_office_kit_collection.py',
+          for pattern in ('test_office_acceptance*.py', 'test_office_kit_collection.py', 'test_office_candidate_binding.py',
                           'test_office_release_invariants.py', 'test_partial_acceptance_audit.py',
                           'test_desktop_live_acceptance.py', 'test_release_acceptance.py',
                           'test_publish_desktop_release.py'):
@@ -141,6 +194,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Assemble portable kit with the original EXE and frozen cases
+        env:
+          FROZEN_APP_COMMIT: ${{ steps.candidate.outputs.app_commit }}
+          FROZEN_HELPER_COMMIT: ${{ steps.candidate.outputs.helper_commit }}
         shell: python
         run: |
           import os
@@ -153,7 +209,7 @@ jobs:
               '--helper-archive', str(temporary / 'office-helper/OfficeAcceptance-windows-x64.zip'),
               '--public-source', str(temporary / 'office-public-source'),
               '--source-commit', os.environ['FROZEN_APP_COMMIT'],
-              '--helper-commit', os.environ['GITHUB_SHA'],
+              '--helper-commit', os.environ['FROZEN_HELPER_COMMIT'],
               '--destination', str(temporary / 'office-kit-delivery')], check=True)
 
       - name: Run the delivered helper plan and all 55 native samples without external models
@@ -196,6 +252,7 @@ jobs:
             ${{ runner.temp }}/office-kit-delivery/KIT-BUILD-RECEIPT.json
             ${{ runner.temp }}/office-native-check/COMPILED-ACCEPTANCE.json
             ${{ runner.temp }}/office-native-check/OFFICE-ENVIRONMENT.json
+            ${{ runner.temp }}/OFFICE-CANDIDATE-BINDING.json
           if-no-files-found: error
           compression-level: 0
           retention-days: 30

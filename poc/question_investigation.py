@@ -19,8 +19,8 @@ from file_impact_evidence import is_file_impact_question, nominate_file_impact_e
 from business_behavior import wants_behavior_explanation
 from question_intent import calculation_intent
 from repository_identity import identity_blocks_analysis
-from question_planner import QuestionPlanner, EvidencePlanner
-from statement_facts import COBOL_VERBS, SCOPE_TERMINATORS, CobolLexError, lex_cobol
+from question_planner import QuestionPlanner, EvidencePlanner, question_references
+from statement_facts import COBOL_VERBS, SCOPE_TERMINATORS, CobolLexError, lex_cobol, data_references
 
 
 _BUSINESS_DETAIL = re.compile(r"流程|(?:逻辑|邏輯)(?!\s*(?:标志|標誌|字段|欄位|栏位|变量|變量|类型|類型))|"
@@ -51,6 +51,7 @@ def _rule(row, kind):
             "writes": json.loads(value["writes_json"]) if "writes_json" in value else value.get("writes", []),
             "paragraph_name": value.get("paragraph_name"),
             "input_fields": value.get("input_fields", []),
+            "layout_fields": value.get("layout_fields", []),
             "input_owner_paths": value.get("input_owner_paths", []),
             "occurrence_count": value.get("occurrence_count", 1),
             "rule_kind": value.get("rule_kind"), "source_sha256": value.get("source_sha256"),
@@ -119,12 +120,217 @@ def _input_candidates(db, path, fields):
     return collected, required[:_MAX_FIELDS], frontier
 
 
+def _question_scopes(database_path, paths, question, history=()):
+    """Bind procedure and occurrence limits to current indexed source units."""
+    if not paths:
+        return []
+    encoded = quote(Path(database_path).resolve().as_posix(), safe="/:")
+    with closing(sqlite3.connect(f"file:{encoded}?mode=ro", uri=True)) as db:
+        db.row_factory = sqlite3.Row
+        identifiers = question_references(question)
+        rows = []
+        if identifiers:
+            symbol_index = " INDEXED BY idx_symbols_path" if db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_symbols_path'").fetchone() else ""
+            rows = db.execute("SELECT u.*,f.sha256 AS source_sha256,f.format_hint AS source_format FROM symbols s" + symbol_index + " "
+                "JOIN code_units u ON u.unit_id=s.definition_unit_id JOIN source_files f USING(relative_path) "
+                "WHERE s.relative_path IN (" + ",".join("?" for _ in paths[:_MAX_PATHS]) + ") "
+                "AND (s.symbol_type='Paragraph' OR s.symbol_type='Section' AND EXISTS ("
+                "SELECT 1 FROM code_units p WHERE p.relative_path=u.relative_path "
+                "AND p.unit_type='ProcedureSignature' AND p.start_line<u.start_line)) AND s.name IN (" +
+                ",".join("?" for _ in identifiers) + ") ORDER BY u.relative_path,u.start_line",
+                (*paths[:_MAX_PATHS], *identifiers)).fetchall()
+        inherited = []
+        whole_program = bool(re.search(r"整个程序|整個程序|全程序|所有段落|全部段落|\b(?:whole|entire)\s+program\b", question, re.I))
+        if not rows and not whole_program and re.search(r"刚才|剛才|前面|这里|這裡|这个|這個|同一个|同一個|仍|\b(?:previous|same|that|this)\b", question, re.I):
+            for message in reversed(list(history)):
+                state = message.get("investigation_state") or {}
+                previous = state.get("question_investigation") or {}
+                plan = state.get("analysis_plan") or previous.get("analysis_plan") or {}
+                for scope in plan.get("source_scopes", []):
+                    if scope.get("relative_path") not in paths[:_MAX_PATHS]:
+                        continue
+                    current = db.execute("SELECT sha256 FROM source_files WHERE relative_path=?",
+                                         (scope["relative_path"],)).fetchone()
+                    if current and current[0] == scope.get("source_sha256"):
+                        inherited.append(dict(scope))
+                if inherited:
+                    break
+        scopes = [{"relative_path": row["relative_path"], "source_sha256": row["source_sha256"],
+            "procedure_name": row["name"], "procedure_kind": row["unit_type"],
+            "source_format": row["source_format"],
+            "start_line": row["start_line"], "end_line": row["end_line"],
+            "range_basis": "indexed_procedure", "complete_value_flow": False} for row in rows] or inherited
+        if whole_program:
+            for scope in scopes:
+                scope["exclusive"] = False
+        count = None
+        if re.search(r"(?:前|首|最前)[两兩二2]\s*(?:条|條|个|個)?\s*IF\b|\bfirst\s+(?:two|2)\s+IF", question, re.I):
+            count = 2
+        elif (re.search(r"第一\s*(?:条|條|个|個)?\s*IF\b|\bfirst\s+IF\b", question, re.I)
+              and re.search(r"(?:下一|紧接|緊接).*?IF\b|\bnext\s+IF\b", question, re.I)):
+            count = 2
+        if count and db.execute("SELECT 1 FROM sqlite_master WHERE name='business_rule_occurrences'").fetchone():
+            for scope in scopes:
+                occurrences = db.execute("SELECT o.start_line,o.end_line FROM business_rule_occurrences o "
+                    "JOIN business_rules b USING(rule_id) WHERE o.relative_path=? AND b.rule_kind='IF' "
+                    "AND o.start_line>=? AND o.end_line<=? ORDER BY o.start_line,o.start_column LIMIT ?",
+                    (scope["relative_path"], scope["start_line"], scope["end_line"], count + 1)).fetchall()
+                if len(occurrences) >= count:
+                    scope.update(start_line=occurrences[0]["start_line"],
+                        end_line=(occurrences[count]["start_line"] - 1 if len(occurrences) > count else scope["end_line"]),
+                        range_basis="first_if_occurrences", occurrence_count=count)
+        explicit_limit = count or re.search(r"只看|只问|只問|仅看|僅看|仅限|僅限|\b(?:only|within|limited\s+to)\b", question, re.I)
+        if scopes and not explicit_limit and not whole_program:
+            # Mentioning a procedure as one part of a compound question does
+            # not discard independently requested fields elsewhere in its
+            # program. Preserve the body as evidence, without making it an
+            # exclusive filter when a locally known operand lies outside it.
+            for scope in scopes:
+                for field in identifiers:
+                    outside = db.execute("SELECT 1 FROM business_rules b JOIN business_rule_fields f USING(rule_id) "
+                        "WHERE b.relative_path=? AND f.field_name=? AND NOT(b.first_line>=? AND b.last_line<=?) LIMIT 1",
+                        (scope["relative_path"], field, scope["start_line"], scope["end_line"])).fetchone()
+                    inside = db.execute("SELECT 1 FROM business_rules b JOIN business_rule_fields f USING(rule_id) "
+                        "WHERE b.relative_path=? AND f.field_name=? AND b.first_line>=? AND b.last_line<=? LIMIT 1",
+                        (scope["relative_path"], field, scope["start_line"], scope["end_line"])).fetchone()
+                    if outside and not inside:
+                        scope["exclusive"] = False
+                        break
+        return scopes
+
+
+def _scope_tables(db, paths, scopes):
+    """Limit rule nomination before SQL budgets; preserve occurrence identity."""
+    scopes = [scope for scope in scopes if scope.get("exclusive") is not False]
+    if not scopes:
+        return "business_rules", "business_rule_occurrences"
+    constrained = {scope["relative_path"] for scope in scopes}
+    unscoped = [path for path in paths if path not in constrained]
+    clauses, arguments = [], []
+    for scope in scopes:
+        clauses.append("(relative_path=? AND start_line>=? AND end_line<=?)")
+        arguments.extend((scope["relative_path"], scope["start_line"], scope["end_line"]))
+    if unscoped:
+        clauses.append("relative_path IN (" + ",".join("?" for _ in unscoped) + ")")
+        arguments.extend(unscoped)
+    if db.execute("SELECT 1 FROM sqlite_master WHERE name='business_rule_occurrences'").fetchone():
+        db.execute("CREATE TEMP TABLE question_scope_occurrences AS SELECT * FROM business_rule_occurrences WHERE " +
+                   " OR ".join(clauses), arguments)
+        db.execute("CREATE INDEX question_scope_occurrence_rule ON question_scope_occurrences(rule_id)")
+        db.execute("CREATE TEMP VIEW question_scope_rules AS SELECT b.* FROM main.business_rules b "
+                   "WHERE EXISTS (SELECT 1 FROM question_scope_occurrences o WHERE o.rule_id=b.rule_id)")
+        return "question_scope_rules", "question_scope_occurrences"
+    # Older indexes can supply a body, but cannot prove occurrence completeness.
+    clauses = [clause.replace("start_line", "first_line").replace("end_line", "last_line") for clause in clauses]
+    db.execute("CREATE TEMP TABLE question_scope_rules AS SELECT * FROM business_rules WHERE " +
+               " OR ".join(clauses), arguments)
+    return "question_scope_rules", "business_rule_occurrences"
+
+
+def _field_declarations(db, path, fields):
+    if not fields:
+        return []
+    slots = ",".join("?" for _ in fields)
+    return db.execute("SELECT u.*,s.name AS field_name,"
+        "substr(s.qualified_name,instr(s.qualified_name,'::')+2) AS field_identity "
+        "FROM symbols s JOIN code_units u ON u.unit_id=s.definition_unit_id WHERE s.relative_path=? "
+        f"AND (s.name IN ({slots}) OR substr(s.qualified_name,instr(s.qualified_name,'::')+2) IN ({slots})) "
+        "AND s.symbol_type IN ('Field','ConditionName') ORDER BY u.start_line LIMIT ?",
+        (path, *fields, *fields, _MAX_LINKED_RULES + 1)).fetchall()
+
+
+def _parse_physical_body(text, first, source_format):
+    """Apply the source frontend's format/continuation rules, retaining lines."""
+    from statement_parser import parse_statements
+    from structural_index import normalize_cobol_lines
+
+    normalized, _ = normalize_cobol_lines(text, source_format)
+    physical = [""] * len(text.splitlines())
+    for line in normalized:
+        physical[line.start_line - 1] = line.text
+    return parse_statements("\n".join(physical), start_line=first, source_format="free")
+
+
+def _parsed_controlled_rules(db, headers, tokens, rules_table, occurrence_table):
+    """Recover guards through the shared parser when sparse occurrences omit them."""
+    result, frontier, visited = {}, [], set()
+    positioned_headers = []
+    for header in headers:
+        if header["rule_kind"] not in {"IF", "EVALUATE", "WHEN"}:
+            continue
+        occurrences = db.execute(f"SELECT start_line FROM {occurrence_table} WHERE rule_id=? "
+            "AND relative_path=? ORDER BY start_line,start_column LIMIT 65",
+            (header["rule_id"], header["relative_path"])).fetchall()
+        if len(occurrences) > 64:
+            frontier.append({"kind": "conditions", "relative_path": header["relative_path"],
+                             "reason": "control_occurrence_budget"})
+        positioned_headers.extend({**dict(header), "first_line": row["start_line"]} for row in occurrences[:64])
+    for header in positioned_headers:
+        path = header["relative_path"]
+        unit = db.execute("SELECT start_line,end_line FROM code_units WHERE relative_path=? "
+            "AND unit_type='Paragraph' AND start_line<=? AND end_line>=? ORDER BY start_line DESC LIMIT 1",
+            (path, header["first_line"], header["first_line"])).fetchone()
+        source = db.execute("SELECT sha256,format_hint,line_count FROM source_files WHERE relative_path=?", (path,)).fetchone()
+        if unit:
+            first, last = unit["start_line"] + 1, unit["end_line"]
+        else:
+            signature = db.execute("SELECT end_line FROM code_units WHERE relative_path=? "
+                "AND unit_type='ProcedureSignature' AND end_line<? ORDER BY end_line DESC LIMIT 1",
+                (path, header["first_line"])).fetchone()
+            if not signature:
+                continue
+            first, last = signature[0] + 1, source["line_count"]
+        key = (path, first, last)
+        if key in visited:
+            continue
+        if len(visited) >= _MAX_PATHS:
+            frontier.append({"kind": "conditions", "relative_path": path, "reason": "control_procedure_budget"})
+            break
+        visited.add(key)
+        if last - first >= 8192 or not db.execute("SELECT 1 FROM sqlite_master WHERE name='repo_pages'").fetchone():
+            frontier.append({"kind": "conditions", "relative_path": path, "reason": "control_scope_candidate_budget"})
+            continue
+        evidence = db.execute("SELECT e.start_line,e.end_line,e.text FROM repo_pages p "
+            "JOIN evidence_spans e USING(evidence_id) WHERE p.relative_path=? AND p.source_sha256=? "
+            "AND e.source_sha256=p.source_sha256 AND p.end_line>=? AND p.start_line<=? "
+            "AND p.span_truncated=0 ORDER BY p.start_line LIMIT 65", (path, source["sha256"], first, last)).fetchall()
+        lines = {}
+        for page in evidence[:64]:
+            lines.update({number: line for number, line in enumerate(page["text"].splitlines(), page["start_line"])
+                          if first <= number <= last})
+        text = "\n".join(lines.get(number, "") for number in range(first, last + 1))
+        if len(lines) != last - first + 1 or len(text) > 192000:
+            frontier.append({"kind": "conditions", "relative_path": path, "reason": "control_scope_source_not_indexed"})
+            continue
+        parsed = _parse_physical_body(text, first, source["format_hint"])
+        if not parsed.complete:
+            frontier.append({"kind": "conditions", "relative_path": path, "reason": "control_scope_incomplete",
+                             "diagnostics": list(dict.fromkeys(item.reason for item in parsed.boundaries))})
+        for statement in parsed.statements:
+            if not any(tokens.intersection(reference.identity for reference in data_references(guard.condition))
+                       for guard in statement.guards if guard.kind in {"IF", "EVALUATE", "WHEN"}):
+                continue
+            rows = db.execute(f"SELECT b.*,o.start_line AS occurrence_start,o.end_line AS occurrence_end,"
+                f"o.start_column AS occurrence_column,o.procedure_name AS occurrence_procedure FROM {rules_table} b "
+                f"JOIN {occurrence_table} o USING(rule_id) WHERE o.relative_path=? AND b.rule_kind=? "
+                "AND o.start_line=? AND o.source_sha256=? ORDER BY o.start_column LIMIT ?",
+                (path, statement.kind, statement.span.start_line, source["sha256"], _MAX_FORMULAS + 1)).fetchall()
+            for row in rows:
+                result[(row["rule_id"], row["occurrence_start"], row["occurrence_column"])] = {
+                    **dict(row), "first_line": row["occurrence_start"], "last_line": row["occurrence_end"],
+                    "paragraph_name": row["occurrence_procedure"]}
+                if len(result) > _MAX_FORMULAS:
+                    return list(result.values()), frontier
+    return list(result.values()), frontier
+
+
 def _indexed_candidates(database_path, paths, question, *, business_steps=False, root_paths=None,
-                        file_impact=False):
+                        file_impact=False, source_scopes=(), discovery_terms=()):
     """Select exact field obligations before applying bounded source budgets."""
     candidates, frontier, hashes = [], [], {}
     primary_kind = "business_steps" if business_steps else "formula"
-    tokens = set(re.findall(r"[A-Z][A-Z0-9_$#@-]*", question.upper()))
+    tokens = set(question_references(question))
     encoded = quote(Path(database_path).resolve().as_posix(), safe="/:")
     with closing(sqlite3.connect(f"file:{encoded}?mode=ro", uri=True)) as db:
         db.row_factory = sqlite3.Row
@@ -138,8 +344,97 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
                              "omitted_count": len(paths) - _MAX_PATHS})
         if not db.execute("SELECT 1 FROM sqlite_master WHERE name='business_rules'").fetchone():
             return [], [{"kind": primary_kind, "reason": "indexed_rules_unavailable"}], hashes
+        rules_table, occurrence_table = _scope_tables(db, scoped_paths, source_scopes)
+        requested_fields = set()
+        if tokens:
+            field_slots = ",".join("?" for _ in tokens)
+            matched_symbols = db.execute("SELECT relative_path,program_name,symbol_type,name,"
+                "substr(qualified_name,instr(qualified_name,'::')+2) AS field_identity FROM symbols "
+                f"WHERE relative_path IN ({slots}) AND (name IN ({field_slots}) OR "
+                f"substr(qualified_name,instr(qualified_name,'::')+2) IN ({field_slots}))",
+                (*scoped_paths, *sorted(tokens), *sorted(tokens))).fetchall()
+            bound = {row["name"] for row in matched_symbols} | {row["field_identity"] for row in matched_symbols}
+            # A parsed operand can support direct source syntax even when its
+            # declaration is missing/unsupported. This does not claim symbol
+            # binding or a verified numeric layout.
+            source_operands = {row[0] for row in db.execute("SELECT DISTINCT f.field_name FROM business_rules b "
+                "CROSS JOIN business_rule_fields f ON f.rule_id=b.rule_id "
+                f"WHERE b.relative_path IN ({slots}) AND f.field_name IN ({field_slots})",
+                (*scoped_paths, *sorted(tokens)))}
+            bound.update(source_operands)
+            for token in list(tokens):
+                identities = {row["field_identity"] for row in matched_symbols
+                    if row["symbol_type"] in {"Field", "ConditionName"}
+                    and token in {row["name"], row["field_identity"]}}
+                requested_fields.update(identities)
+                if len(identities) > 1 and " OF " not in token:
+                    frontier.append({"kind": primary_kind, "reason": "field_reference_ambiguous",
+                                     "field": token, "candidates": sorted(identities)[:8]})
+                if identities:
+                    # The declaration supplies canonical identity, while a
+                    # statement may legally use its unique bare spelling.
+                    # Preserve actual parsed operand syntax as a lookup key;
+                    # do not replace it with a name absent from the rule index.
+                    if token not in source_operands:
+                        tokens.discard(token)
+                    tokens.update(identities)
+                    if " OF " in token and token not in source_operands:
+                        for symbol in matched_symbols:
+                            if symbol["field_identity"] != token or symbol["symbol_type"] not in {"Field", "ConditionName"}:
+                                continue
+                            count = db.execute("SELECT COUNT(DISTINCT qualified_name) FROM symbols "
+                                "WHERE relative_path=? AND program_name IS ? AND name=? "
+                                "AND symbol_type IN ('Field','ConditionName')",
+                                (symbol["relative_path"], symbol["program_name"], symbol["name"])).fetchone()[0]
+                            if count == 1:
+                                # A unique declaration binds this spelling.
+                                # An overloaded bare name remains a candidate,
+                                # never an assumed alias for one record.
+                                tokens.add(symbol["name"])
+            unbound = sorted(token for token in tokens if token not in bound
+                             and (" OF " in token or any(character in token for character in "-_$#@")))
+            if unbound:
+                frontier.append({"kind": primary_kind, "reason": "requested_field_not_bound", "fields": unbound[:8]})
+                # A manual's business label can lead to a different, locally
+                # found source label. It nominates this program's rules; it
+                # never binds the original label as a COBOL field. Preserve
+                # the unresolved identity and require physical formula source.
+                discovered = False
+                for term in discovery_terms:
+                    references = question_references(term)
+                    if not references or set(references).issubset(tokens):
+                        continue
+                    text_rows = db.execute("SELECT normalized_text FROM code_units "
+                        f"WHERE relative_path IN ({slots}) AND instr(upper(normalized_text),?)>0 LIMIT 9",
+                        (*scoped_paths, str(term).upper())).fetchall()
+                    if not text_rows and db.execute("SELECT 1 FROM sqlite_master WHERE name='repo_fts'").fetchone():
+                        # DISPLAY text and comments are searchable source
+                        # labels, although they are not executable rule facts.
+                        # Reuse the same frozen FTS pages, with source-version
+                        # identity, rather than scanning live source files.
+                        text_rows = db.execute("SELECT e.text FROM repo_fts "
+                            "JOIN repo_pages p ON p.page_id=repo_fts.rowid "
+                            "JOIN evidence_spans e ON e.evidence_id=p.evidence_id "
+                            f"WHERE repo_fts MATCH ? AND p.relative_path IN ({slots}) "
+                            "AND p.source_sha256=e.source_sha256 AND p.source_sha256=("
+                            "SELECT sha256 FROM source_files s WHERE s.relative_path=p.relative_path) LIMIT 9",
+                            ('"' + str(term).replace('"', '""') + '"', *scoped_paths)).fetchall()
+                    if any(re.search(r"(?<![A-Z0-9_$#@-])" + re.escape(str(term).upper()) +
+                                     r"(?![A-Z0-9_$#@-])", row[0].upper()) for row in text_rows):
+                        discovered = True
+                        break
+                if not requested_fields and not source_scopes and not discovered:
+                    return [], frontier, hashes
+        for scope in source_scopes:
+            if scope.get("range_basis") == "indexed_procedure":
+                unit = db.execute("SELECT * FROM code_units WHERE relative_path=? AND name=? "
+                    "AND unit_type IN ('Paragraph','Section') AND start_line=?",
+                    (scope["relative_path"], scope["procedure_name"], scope["start_line"])).fetchone()
+                if unit:
+                    candidates.append(_rule({**dict(unit), "paragraph_name": unit["name"],
+                                             "source_sha256": scope["source_sha256"]}, "procedure_body"))
         targeted = []
-        field_matched = False
+        field_matched = bool(requested_fields)
         kinds = "'COMPUTE','ADD','SUBTRACT','MULTIPLY','DIVIDE'"
         if business_steps:
             kinds += ",'MOVE','IF','EVALUATE','WHEN','EXEC_SQL'"
@@ -155,21 +450,40 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
             # expressions for one result remain separate obligations.
             targeted = db.execute(
                 "SELECT b.*,SUM(f.field_role='write') AS matched_writes,"
-                "SUM(f.field_role='read') AS matched_reads FROM business_rules b "
+                f"SUM(f.field_role='read') AS matched_reads FROM {rules_table} b "
                 "CROSS JOIN business_rule_fields f ON f.rule_id=b.rule_id "
                 f"WHERE f.field_name IN ({field_slots}) AND b.relative_path IN ({slots}) "
-                "AND f.field_role IN ('read','write') "
+                "AND f.field_role IN ('read','write','condition') "
                 f"AND b.rule_kind IN ({kinds}) "
                 "GROUP BY b.rule_id ORDER BY matched_writes DESC,matched_reads DESC,"
                 + path_order + ",b.first_line,b.rule_id LIMIT ?",
                 (*sorted(tokens), *scoped_paths, *scoped_paths, _MAX_FORMULAS + 1)).fetchall()
             # A known field assigned without arithmetic still defines the
             # question's target. Program names and unknown ASCII tokens do not.
-            field_matched = bool(targeted) or db.execute(
-                "SELECT 1 FROM business_rules b CROSS JOIN business_rule_fields f ON f.rule_id=b.rule_id "
+            field_matched = field_matched or bool(targeted) or db.execute(
+                f"SELECT 1 FROM {rules_table} b CROSS JOIN business_rule_fields f ON f.rule_id=b.rule_id "
                 f"WHERE b.relative_path IN ({slots}) AND f.field_name IN ({field_slots}) "
-                "AND f.field_role IN ('read','write') LIMIT 1",
+                "AND f.field_role IN ('read','write','condition') LIMIT 1",
                 (*scoped_paths, *sorted(tokens))).fetchone() is not None
+            # Conditional operands select the controlled effects as well as
+            # the header. The parser's occurrence guards supply that relation;
+            # neighboring paragraphs or similarly named fields do not.
+            if business_steps and any(row["rule_kind"] in {"IF", "EVALUATE", "WHEN"} for row in targeted):
+                def matching_guard(encoded_scopes):
+                    return any(tokens.intersection(reference.identity for reference in
+                        data_references(str(guard.get("condition", ""))))
+                        for guard in json.loads(encoded_scopes or "[]")
+                        if guard.get("kind") in {"IF", "EVALUATE", "WHEN"})
+                db.create_function("question_guard_matches", 1, matching_guard)
+                controlled = db.execute(f"SELECT b.* FROM {rules_table} b WHERE b.relative_path IN ({slots}) "
+                    f"AND b.rule_kind IN ({kinds}) AND EXISTS (SELECT 1 FROM {occurrence_table} o "
+                    "WHERE o.rule_id=b.rule_id AND question_guard_matches(o.scope_json)) "
+                    "ORDER BY b.first_line,b.rule_id LIMIT ?", (*scoped_paths, _MAX_FORMULAS + 1)).fetchall()
+                if not controlled:
+                    controlled, control_frontier = _parsed_controlled_rules(db, targeted, tokens, rules_table, occurrence_table)
+                    frontier.extend(control_frontier)
+                targeted = list({(row["rule_id"], row["first_line"], row["last_line"]): row
+                                 for row in [*targeted, *controlled]}.values())
         if targeted:
             if len(targeted) > _MAX_FORMULAS:
                 frontier.append({"kind": primary_kind, "reason": "formula_candidate_budget"})
@@ -184,7 +498,7 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
             grouping = "paragraph_name,writes_json,rule_kind" if business_steps else "paragraph_name,writes_json"
             rows = db.execute(
                 f"WITH grouped AS (SELECT *,ROW_NUMBER() OVER (PARTITION BY {grouping} "
-                "ORDER BY first_line,rule_id) AS group_rank FROM business_rules WHERE relative_path=? "
+                f"ORDER BY first_line,rule_id) AS group_rank FROM {rules_table} WHERE relative_path=? "
                 f"AND rule_kind IN ({kinds})) "
                 "SELECT * FROM grouped WHERE group_rank=1 ORDER BY first_line,rule_id LIMIT ?",
                 (path, _MAX_FORMULAS + 1)).fetchall()
@@ -201,6 +515,10 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
             frontier.append({"kind": primary_kind, "reason": "formula_candidate_budget"})
             candidates = candidates[:_MAX_FORMULAS]
         formulas = list(candidates)
+        if requested_fields and not any(row["kind"] in {"formula", "business_steps"} for row in candidates):
+            for path in scoped_paths:
+                for declaration in _field_declarations(db, path, sorted(requested_fields)):
+                    candidates.append(_rule({**dict(declaration), "layout_fields": [declaration["field_identity"]]}, "declarations"))
         # Field equality is scoped to the source path, not a cross-program binding.
         for path in dict.fromkeys(row["relative_path"] for row in formulas):
             local = [row for row in formulas if row["relative_path"] == path]
@@ -211,12 +529,30 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
                     frontier.append({"kind": kind, "relative_path": path, "reason": "field_name_budget",
                                      "omitted_count": len(fields) - _MAX_FIELDS})
             outputs, inputs = outputs[:_MAX_FIELDS], inputs[:_MAX_FIELDS]
+            layout_fields = list(dict.fromkeys([*inputs, *outputs]))
+            # Show physical hierarchy with the PIC/USAGE declaration. Qualifier
+            # nodes are evidence about identity, never extra operand reads.
+            for field in list(layout_fields):
+                for ref in data_references(field):
+                    layout_fields.append(ref.name + "".join(" OF " + name for name in ref.qualifiers))
+                    layout_fields.extend(ref.qualifiers[index] + "".join(" OF " + name for name in ref.qualifiers[index + 1:])
+                                         for index in range(len(ref.qualifiers)))
+            for declaration in _field_declarations(db, path, list(dict.fromkeys(layout_fields))[:_MAX_FIELDS]):
+                candidates.append(_rule({**dict(declaration), "layout_fields": [declaration["field_identity"]]}, "declarations"))
+            for copy in db.execute("SELECT s.relative_path FROM relations r JOIN symbols s "
+                    "ON s.symbol_id=r.target_entity_id WHERE r.relative_path=? "
+                    "AND r.relation_type='INCLUDES_COPY' AND r.status='confirmed'", (path,)):
+                copy_path = copy["relative_path"]
+                if copy_path in scoped_paths:
+                    for declaration in _field_declarations(db, copy_path, list(dict.fromkeys(layout_fields))[:_MAX_FIELDS]):
+                        candidates.append(_rule({**dict(declaration), "layout_fields": [declaration["field_identity"]],
+                                                 "input_owner_paths": [path]}, "declarations"))
             for fields, kind in ((outputs, "result_adjustments"),):
                 if not fields:
                     continue
                 slots = ",".join("?" for _ in fields)
                 rows = db.execute(
-                    "SELECT b.* FROM business_rules b WHERE b.relative_path=? AND EXISTS "
+                    f"SELECT b.* FROM {rules_table} b WHERE b.relative_path=? AND EXISTS "
                     "(SELECT 1 FROM business_rule_fields f WHERE f.rule_id=b.rule_id "
                     f"AND f.field_role='write' AND f.field_name IN ({slots})) "
                     "ORDER BY b.first_line,b.rule_id LIMIT ?", (path, *fields, _MAX_LINKED_RULES + 1)).fetchall()
@@ -228,14 +564,12 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
             frontier.extend(input_frontier)
             if inputs:
                 slots = ",".join("?" for _ in inputs)
-                declarations = db.execute("SELECT u.*,s.name AS field_name FROM symbols s "
-                    "JOIN code_units u ON u.unit_id=s.definition_unit_id WHERE s.relative_path=? "
-                    f"AND s.name IN ({slots}) AND u.normalized_text LIKE '% VALUE %' "
-                    "ORDER BY u.start_line LIMIT ?", (path, *inputs, _MAX_LINKED_RULES + 1)).fetchall()
+                declarations = [row for row in _field_declarations(db, path, inputs)
+                                if " VALUE " in row["normalized_text"].upper()]
                 if len(declarations) > _MAX_LINKED_RULES:
                     frontier.append({"kind": "inputs", "relative_path": path, "reason": "input_origin_budget"})
                 for declaration in declarations[:_MAX_LINKED_RULES]:
-                    candidates.append(_rule({**dict(declaration), "input_fields": [declaration["field_name"]]}, "inputs"))
+                    candidates.append(_rule({**dict(declaration), "input_fields": [declaration["field_identity"]]}, "inputs"))
                 # A confirmed COPY edge nominates physical declaration source;
                 # the host path remains explicit instead of merging field names
                 # from unrelated programs or asserting executed value flow.
@@ -245,18 +579,17 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
                     copy_path = copy["relative_path"]
                     if copy_path not in scoped_paths:
                         continue
-                    for declaration in db.execute("SELECT u.*,s.name AS field_name FROM symbols s "
-                            "JOIN code_units u ON u.unit_id=s.definition_unit_id WHERE s.relative_path=? "
-                            f"AND s.name IN ({slots}) AND u.normalized_text LIKE '% VALUE %' "
-                            "ORDER BY u.start_line LIMIT ?", (copy_path, *inputs, _MAX_LINKED_RULES)):
+                    for declaration in _field_declarations(db, copy_path, inputs):
+                        if " VALUE " not in declaration["normalized_text"].upper():
+                            continue
                         candidates.append(_rule({**dict(declaration),
-                            "input_fields": [declaration["field_name"]], "input_owner_paths": [path]}, "inputs"))
+                            "input_fields": [declaration["field_identity"]], "input_owner_paths": [path]}, "inputs"))
                 for signature in db.execute("SELECT * FROM code_units WHERE relative_path=? "
                         "AND unit_type='ProcedureSignature' ORDER BY start_line LIMIT 8", (path,)):
                     text = signature["normalized_text"].upper()
                     if "USING" in text:
-                        tokens = set(re.findall(r"[A-Z][A-Z0-9_$#@-]*", text.split("USING", 1)[1]))
-                        supplied_inputs = [field for field in inputs if field in tokens]
+                        parameters = set(question_references(text.split("USING", 1)[1]))
+                        supplied_inputs = [field for field in inputs if field in parameters]
                         if supplied_inputs:
                             candidates.append(_rule({**dict(signature), "input_fields": supplied_inputs}, "inputs"))
             paragraphs = list(dict.fromkeys(row["paragraph_name"] for row in local if row["paragraph_name"]))
@@ -270,7 +603,7 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
                     parts.append("EXISTS (SELECT 1 FROM business_rule_fields f WHERE f.rule_id=b.rule_id "
                                  "AND f.field_name IN (" + ",".join("?" for _ in fields) + "))")
                     args.extend(fields)
-                rows = db.execute("SELECT b.* FROM business_rules b WHERE b.relative_path=? "
+                rows = db.execute(f"SELECT b.* FROM {rules_table} b WHERE b.relative_path=? "
                     "AND b.rule_kind IN ('IF','WHEN','EVALUATE') AND (" + " OR ".join(parts) + ") "
                     "ORDER BY b.first_line,b.rule_id LIMIT ?", (*args, _MAX_LINKED_RULES + 1)).fetchall()
                 if len(rows) > _MAX_LINKED_RULES:
@@ -287,11 +620,18 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
                 # every repeated rule in a large program.
                 slots = ",".join("?" for _ in identifiers)
                 for occurrence in db.execute("SELECT * FROM (SELECT *,ROW_NUMBER() OVER (PARTITION BY rule_id "
-                        "ORDER BY start_line,start_column) AS occurrence_rank FROM business_rule_occurrences "
+                        f"ORDER BY start_line,start_column) AS occurrence_rank FROM {occurrence_table} "
                         f"WHERE rule_id IN ({slots})) WHERE occurrence_rank<=64", identifiers):
                     occurrences.setdefault(occurrence["rule_id"], []).append(dict(occurrence))
             for row in candidates:
                 row["occurrences"] = occurrences.get(row.get("rule_id"), [])
+                if source_scopes and row["occurrences"]:
+                    row.update(start_line=min(item["start_line"] for item in row["occurrences"]),
+                        end_line=max(item["end_line"] for item in row["occurrences"]),
+                        occurrence_count=len(row["occurrences"]), require_all_occurrences=True)
+                    names = {item.get("procedure_name") for item in row["occurrences"]}
+                    if len(names) == 1:
+                        row["paragraph_name"] = names.pop()
                 conditional = [item for item in row["occurrences"] if item["parse_status"] == "candidate"]
                 if conditional and len(conditional) == len(row["occurrences"]):
                     row.update(compilation_status="candidate", support_basis="source_syntax_only",
@@ -327,6 +667,32 @@ def _visible_pages(source_pages, paths, hashes):
     return [page for identifier, page in pages.items() if identifier not in conflicts]
 
 
+def _check_occurrence_scopes(scopes, pages):
+    """A positional limit cannot assert a closed IF after cutting its body."""
+    checked, gaps = [], []
+    for original in scopes:
+        scope = dict(original)
+        if scope.get("range_basis") == "first_if_occurrences":
+            lines = {}
+            for page in pages:
+                if page["relative_path"] != scope["relative_path"] or page.get("source_sha256") != scope["source_sha256"]:
+                    continue
+                lines.update({number: text for number, text in enumerate(page["source_text"].splitlines(), page["start_line"])
+                              if scope["start_line"] <= number <= scope["end_line"]})
+            if len(lines) == scope["end_line"] - scope["start_line"] + 1:
+                source = "\n".join(lines[number] for number in range(scope["start_line"], scope["end_line"] + 1))
+                parsed = _parse_physical_body(source, scope["start_line"], scope.get("source_format", "auto"))
+                scope["control_scope_status"] = "source_scope_closed" if parsed.complete else "incomplete_or_unsupported"
+                if not parsed.complete:
+                    gaps.append({"kind": "conditions", "reason": "statement_scope_incomplete",
+                        "relative_path": scope["relative_path"], "start_line": scope["start_line"],
+                        "end_line": scope["end_line"], "diagnostics": [item.reason for item in parsed.boundaries]})
+            else:
+                scope["control_scope_status"] = "source_not_fully_supplied"
+        checked.append(scope)
+    return checked, gaps
+
+
 def _visible_input_declarations(pages, candidates):
     """Sparse indexing omits working-storage; read supplied declarations only."""
     from business_index import _clean
@@ -348,6 +714,109 @@ def _visible_input_declarations(pages, candidates):
     return origins
 
 
+def _flow_input_origins(candidates, pages, evidence_groups):
+    """Close only actual reads with complete, versioned source-flow witnesses."""
+    import hashlib
+    from statement_facts import data_references
+
+    def tokens(text):
+        try:
+            values = [(token.kind, token.value) for token in lex_cobol(str(text))]
+        except CobolLexError:
+            return ()
+        while values and values[-1][1] == ".":
+            values.pop()
+        return tuple(values)
+
+    def field_identity(text):
+        references = data_references(str(text))
+        return references[0].identity if len(references) == 1 else text
+
+    ref_cache = {}
+    def supplied(ref):
+        key = json.dumps(ref, sort_keys=True)
+        if key in ref_cache:
+            return ref_cache[key]
+        first, last = ref.get("start_line"), ref.get("end_line")
+        if (type(first) is not int or type(last) is not int or not 0 < first <= last
+                or last - first >= 4096 or not ref.get("source_sha256") or not ref.get("excerpt_sha256")):
+            return ()
+        lines, identifiers = {}, []
+        for page in pages:
+            if (page.get("relative_path") != ref.get("relative_path")
+                    or page.get("source_sha256") != ref["source_sha256"]
+                    or tuple(page.get("include_chain") or ()) != tuple(ref.get("include_chain") or ())
+                    or tuple(page.get("replacement_trace") or ()) != tuple(ref.get("replacement_trace") or ())
+                    or page.get("span_truncated")):
+                continue
+            used = False
+            for number, text in enumerate(str(page.get("source_text", "")).splitlines(), page["start_line"]):
+                if first <= number <= last:
+                    if number in lines and lines[number] != text:
+                        ref_cache[key] = ()
+                        return ()
+                    lines[number], used = text, True
+            if used:
+                identifiers.append(page["evidence_id"])
+        complete = all(number in lines for number in range(first, last + 1))
+        actual = hashlib.sha256("\n".join(lines[number] for number in range(first, last + 1)).encode()).hexdigest() if complete else None
+        ref_cache[key] = tuple(dict.fromkeys(identifiers)) if actual == ref["excerpt_sha256"] else ()
+        return ref_cache[key]
+
+    proofs = []
+    for group in evidence_groups:
+        analysis = _get(group, "semantic_analysis", {}) or {}
+        for assignment in analysis.get("assignments", []):
+            proofs.extend(assignment.get("read_origins", []))
+    reads = {}
+    for candidate in candidates:
+        if candidate["kind"] not in {"formula", "business_steps", "inputs"}:
+            continue
+        occurrences = candidate.get("occurrences") or ([candidate] if candidate.get("occurrence_count", 1) == 1 else [])
+        for field in candidate["reads"]:
+            pair = candidate["relative_path"], field
+            reads.setdefault(pair, []).append((candidate, occurrences))
+    resolved, invalidated, witnesses = set(), set(), []
+    unsafe_reasons = {"reaching_write_effect_not_bounded", "call_binding_or_normal_return_not_demonstrated",
+                      "read_storage_not_exact", "source_flow_incomplete"}
+    for pair, candidates_and_occurrences in reads.items():
+        matched, complete, identifiers = [], True, []
+        for candidate, occurrences in candidates_and_occurrences:
+            if not occurrences:
+                complete = False
+            for occurrence in occurrences:
+                matches = [proof for proof in proofs if field_identity(proof.get("reader_field")) == field_identity(pair[1])
+                    and tokens(proof.get("reader_statement")) == tokens(candidate["statement"])
+                    and any(ref.get("relative_path") == pair[0] and ref.get("source_sha256") == candidate.get("source_sha256")
+                        and ref.get("start_line") == occurrence["start_line"] and ref.get("end_line") == occurrence["end_line"]
+                        and (not occurrence.get("start_column") or ref.get("start_column") == occurrence["start_column"])
+                        for ref in proof.get("reader_source_refs", []))]
+                if not matches:
+                    complete = False
+                for proof in matches:
+                    reference_ids = [supplied(ref) for ref in proof.get("source_refs", [])]
+                    if not reference_ids or not all(reference_ids):
+                        complete = False
+                        continue
+                    identifiers.extend(identifier for values in reference_ids for identifier in values)
+                    matched.append(proof)
+                    if proof.get("status") != "resolved_source_origin":
+                        complete = False
+                        if unsafe_reasons.intersection(proof.get("unknown_reasons", [])):
+                            invalidated.add(pair)
+        if matched:
+            witnesses.append({"relative_path": pair[0], "field": pair[1],
+                "status": "source_origin_supplied" if complete else "source_origin_unresolved",
+                "basis": "reaching_definitions_and_confirmed_call_returns",
+                "evidence_ids": list(dict.fromkeys(identifiers)),
+                "reader_occurrences": list(dict.fromkeys(proof["reader_occurrence_id"] for proof in matched)),
+                "unknown_reasons": sorted({reason for proof in matched for reason in proof.get("unknown_reasons", [])}),
+                "execution_verified": False})
+        if complete and matched:
+            resolved.add(pair)
+    return resolved, invalidated, witnesses
+
+
 def _visible_ids(candidate, pages, *, page_cache=None):
     from business_index import _clean
     if candidate.get("occurrences"):
@@ -358,7 +827,10 @@ def _visible_ids(candidate, pages, *, page_cache=None):
             local = {**candidate, "occurrences": [], "occurrence_count": 1,
                      "start_line": occurrence["start_line"], "end_line": occurrence["end_line"],
                      "start_column": occurrence["start_column"], "end_column": occurrence["end_column"]}
-            supplied.extend(_visible_ids(local, pages, page_cache=page_cache))
+            identifiers = _visible_ids(local, pages, page_cache=page_cache)
+            if candidate.get("require_all_occurrences") and not identifiers:
+                return []
+            supplied.extend(identifiers)
         return list(dict.fromkeys(supplied))
     first, last = candidate["start_line"], candidate["end_line"]
     # Repeated identical sparse rules have a first/last occurrence envelope,
@@ -457,7 +929,7 @@ def _condition_spans(candidates, evidence_groups):
     return result
 
 
-def _dependencies(database_path, paths, candidates, hashes, *, business_steps=False):
+def _dependencies(database_path, paths, candidates, hashes, *, business_steps=False, source_scopes=()):
     formulas = [row for row in candidates if row["kind"] == "formula"]
     fields_by_path = {path: {field for row in candidates if row["relative_path"] == path
                             for field in [*row["reads"], *row["writes"]]} for path in paths}
@@ -479,6 +951,15 @@ def _dependencies(database_path, paths, candidates, hashes, *, business_steps=Fa
                 frontier.append({"kind": "dependencies", "relative_path": path,
                                  "reason": "dependency_candidate_budget", "minimum_omitted_count": 1})
             for edge in rows[:64]:
+                limits = [scope for scope in source_scopes if scope["relative_path"] == path and scope.get("exclusive") is not False]
+                if limits and not any(scope["start_line"] <= edge["start_line"] <= edge["end_line"] <= scope["end_line"]
+                                      for scope in limits):
+                    # An incoming PERFORM is relevant to this procedure, but
+                    # unrelated calls elsewhere in its program are not gaps.
+                    if not (edge["relation_type"].startswith("PERFORM") and
+                            edge["target_name"] in {scope["procedure_name"] for scope in limits
+                                                    if scope.get("range_basis") == "indexed_procedure"}):
+                        continue
                 tokens = set(re.findall(r"[A-Z][A-Z0-9_$#@-]*", edge["text"].upper()))
                 is_perform = edge["relation_type"].startswith("PERFORM")
                 related = (business_steps or (edge["target_path"] in dependency_paths and not is_perform) or
@@ -541,7 +1022,7 @@ def _calculation_roots(business_map, source_pages):
     return [path for path in roots if path in selected]
 
 
-def _calculation_paths(business_map, source_pages):
+def _calculation_paths(business_map, source_pages, *, source_scopes=()):
     """Root obligations in matches; incoming callers remain navigation context."""
     selected = set(business_map.get("selected_paths", []))
     paths = _calculation_roots(business_map, source_pages)
@@ -552,6 +1033,11 @@ def _calculation_paths(business_map, source_pages):
     outgoing = {}
     for edge in business_map.get("relations", []):
         target = edge.get("target_path")
+        limits = [scope for scope in source_scopes if scope["relative_path"] == edge.get("caller_path") and scope.get("exclusive") is not False]
+        if limits and edge.get("relation_type") == "CALLS":
+            line = edge.get("caller_line")
+            if type(line) is not int or not any(scope["start_line"] <= line <= scope["end_line"] for scope in limits):
+                continue
         if (target in selected and edge.get("relation_type") in {"CALLS", "INCLUDES_COPY"}
                 and edge.get("resolution") == "confirmed"):
             outgoing.setdefault(edge.get("caller_path"), []).append(target)
@@ -587,26 +1073,40 @@ def build_question_investigation(question, business_map, *, database_path=None,
             encoded = quote(Path(database_path).resolve().as_posix(), safe="/:")
             with closing(sqlite3.connect(f"file:{encoded}?mode=ro", uri=True)) as db:
                 slots = ",".join("?" for _ in paths[:_MAX_PATHS])
-                planner_entities[cache_key] = db.execute("SELECT 1 FROM symbols WHERE relative_path IN (" + slots +
+                path_index = (" INDEXED BY idx_symbols_path" if db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_symbols_path'").fetchone() else "")
+                planner_entities[cache_key] = db.execute("SELECT 1 FROM symbols" + path_index + " WHERE relative_path IN (" + slots +
                     ") AND symbol_type IN ('Field','ConditionName') AND "
                     "(name=? OR substr(qualified_name,instr(qualified_name,'::')+2)=?) LIMIT 1",
                     (*paths[:_MAX_PATHS], entity, entity)).fetchone() is not None
         return planner_entities[cache_key]
+    scope_key = (str(database_path), business_map.get("snapshot_id"), tuple(paths[:_MAX_PATHS]), str(question))
+    if isinstance(candidate_cache, dict) and candidate_cache.get("question_scope_key") == scope_key:
+        source_scopes = candidate_cache.get("question_scopes", [])
+    else:
+        source_scopes = _question_scopes(database_path, _calculation_roots(business_map, source_pages),
+                                        str(question), history) if database_path else []
     plan = QuestionPlanner().plan(question, business_map, source_pages=source_pages, history=history,
-                                  entity_validator=validate_entity if database_path else None)
+                                  entity_validator=validate_entity if database_path else None,
+                                  source_scopes=source_scopes)
     candidate_question = str(question) + (" " + " ".join(plan.entities) if plan.entities else "")
     base = {"scope": "source_candidates", "semantic_execution_verified": False,
             "analysis_plan": plan.to_dict(),
+            "source_scope": {"ranges": source_scopes, "interpretation": "source_occurrences_not_runtime_execution"},
             "required_items": [], "planned_actions": [], "open_gaps": [],
             "state": "located" if located else "unresolved", "can_answer": located}
     if identity_blocks_analysis(identity):
         return {**base, "state": "unresolved", "can_answer": False}
-    calculation_kind = calculation_intent(question)
+    intent_question = str(question)
+    for scope in source_scopes:
+        intent_question = re.sub(r"(?<![A-Za-z0-9_$#@-])" + re.escape(scope["procedure_name"]) +
+                                 r"(?![A-Za-z0-9_$#@-])", " ", intent_question, flags=re.I)
+    calculation_kind = calculation_intent(intent_question)
     calculation = calculation_kind == "rules"
     file_impact = is_file_impact_question(question)
     business_steps = not calculation and (calculation_kind == "execution" or bool(_BUSINESS_DETAIL.search(question))
         or wants_behavior_explanation(question) or file_impact or
-        bool(set(plan.intents) & {"origin", "overwrite", "impact", "condition", "exception"}))
+        bool(set(plan.intents) & {"origin", "overwrite", "impact", "condition", "exception"}) or bool(source_scopes))
     if not calculation and not business_steps:
         supplied = [page.get("evidence_id") for page in source_pages if page.get("evidence_id")
                     and page.get("relative_path") in paths and page.get("source_text")]
@@ -633,9 +1133,10 @@ def build_question_investigation(question, business_map, *, database_path=None,
     if scope_hit:
         paths, root_paths = candidate_cache["scope_paths"], candidate_cache["scope_roots"]
     else:
-        paths = _calculation_paths(business_map, source_pages)
+        paths = _calculation_paths(business_map, source_pages, source_scopes=source_scopes)
         root_paths = _calculation_roots(business_map, source_pages)
     scope_cache = {"scope_map": business_map, "scope_history_roots": history_roots,
+                   "question_scope_key": scope_key, "question_scopes": source_scopes,
                    "planner_entities": planner_entities,
                    "scope_snapshot": business_map.get("snapshot_id"),
                    "scope_paths": paths, "scope_roots": root_paths,
@@ -647,20 +1148,22 @@ def build_question_investigation(question, business_map, *, database_path=None,
     cache_hit = False
     if database_path is not None:
         key = (str(Path(database_path).resolve()), business_map.get("snapshot_id"), tuple(paths),
-               tuple(root_paths), candidate_question)
+               tuple(root_paths), candidate_question, tuple(business_map.get("search_terms", ())))
         cache_hit = isinstance(candidate_cache, dict) and candidate_cache.get("key") == key
         if cache_hit:
             candidates, frontier, hashes = candidate_cache["value"]
             business_steps = candidate_cache.get("business_steps", business_steps)
         else:
             candidates, frontier, hashes = _indexed_candidates(database_path, paths, candidate_question,
-                business_steps=business_steps, root_paths=root_paths, file_impact=file_impact)
+                business_steps=business_steps, root_paths=root_paths, file_impact=file_impact, source_scopes=source_scopes,
+                discovery_terms=business_map.get("search_terms", ()))
             if calculation and not any(row["kind"] == "formula" for row in candidates):
                 # Some calculations select or transfer values through branches.
                 # Reuse the existing bounded step selection without asserting a
                 # formula, complete value flow, or any actual runtime result.
                 steps, step_frontier, step_hashes = _indexed_candidates(database_path, paths, candidate_question,
-                    business_steps=True, root_paths=root_paths, file_impact=file_impact)
+                    business_steps=True, root_paths=root_paths, file_impact=file_impact, source_scopes=source_scopes,
+                    discovery_terms=business_map.get("search_terms", ()))
                 if any(row["kind"] == "business_steps" for row in steps):
                     business_steps = True
                     candidates, frontier, hashes = steps, step_frontier, step_hashes
@@ -670,7 +1173,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
                 frontier.extend(file_frontier)
                 hashes.update(file_hashes)
             dependencies, dependency_frontier = _dependencies(database_path, list(hashes), candidates, hashes,
-                                                              business_steps=business_steps)
+                                                              business_steps=business_steps, source_scopes=source_scopes)
             candidates.extend(dependencies)
             frontier.extend(dependency_frontier)
             if isinstance(candidate_cache, dict):
@@ -693,6 +1196,10 @@ def build_question_investigation(question, business_map, *, database_path=None,
                 frontier.append({"kind": "business_steps", "reason": "formula_candidate_budget"})
             candidates = [_rule(row, "business_steps") for row in steps[:_MAX_FORMULAS]]
     pages = _visible_pages(source_pages, paths, hashes)
+    checked_scopes, scope_gaps = _check_occurrence_scopes(source_scopes, pages)
+    base["source_scope"]["ranges"] = checked_scopes
+    base["analysis_plan"]["source_scopes"] = tuple(checked_scopes)
+    frontier = [*frontier, *scope_gaps]
     candidates = [*candidates, *_visible_input_declarations(pages, candidates)]
     candidates = _condition_spans(candidates, evidence_groups)
     unique = {}
@@ -704,7 +1211,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
     candidates = _framework_dependencies(candidates, pages, framework_facts)
     missing = []
     items = []
-    kinds = ["formula", "inputs", "conditions", "result_adjustments", "dependencies"]
+    kinds = ["procedure_body", "formula", "declarations", "inputs", "conditions", "result_adjustments", "dependencies"]
     if business_steps:
         kinds.insert(0, "business_steps")
     if file_impact:
@@ -721,7 +1228,10 @@ def build_question_investigation(question, business_map, *, database_path=None,
             if row.get("unresolved"):
                 unresolved.append(row)
         missing.extend(absent)
-        required = kind == ("business_steps" if business_steps else "formula")
+        primary = ("procedure_body" if any(row["kind"] == "procedure_body" for row in candidates)
+                   and not any(row["kind"] in {"business_steps", "formula"} for row in candidates)
+                   else "business_steps" if business_steps else "formula")
+        required = kind == primary
         status = ("UNRESOLVED" if unresolved and not absent else "PARTIAL" if absent and supplied
                   else "OPEN" if absent or required and not related else
                   "SATISFIED" if related else "NOT_APPLICABLE")
@@ -746,6 +1256,17 @@ def build_question_investigation(question, business_map, *, database_path=None,
                      for path in [row["relative_path"], *row.get("input_owner_paths", [])]
                      for field in [*(field for field in row["writes"] if field not in row["reads"]),
                                    *row.get("input_fields", [])]}
+    flow_origins, invalidated_origins, origin_witnesses = _flow_input_origins(candidates, pages, evidence_groups)
+    input_origins = (input_origins - invalidated_origins) | flow_origins
+    if origin_witnesses:
+        item = next(item for item in items if item["kind"] == "inputs")
+        item["source_flow_origins"] = origin_witnesses
+        if flow_origins:
+            item["evidence_ids"] = list(dict.fromkeys([*item["evidence_ids"], *(identifier
+                for witness in origin_witnesses if witness["status"] == "source_origin_supplied"
+                for identifier in witness["evidence_ids"])]))
+            if item["status"] == "NOT_APPLICABLE":
+                item.update(status="SATISFIED", reason="source_flow_origins_supplied")
     unknown_inputs = sorted(input_fields - input_origins)
     if unknown_inputs:
         item = next(item for item in items if item["kind"] == "inputs")
@@ -767,8 +1288,32 @@ def build_question_investigation(question, business_map, *, database_path=None,
     # SELECT/FD entirely. Keep these reads ahead of supplementary input origins.
     if file_impact:
         missing.sort(key=lambda row: row["kind"] not in {"file_io", "file_definitions", "dds_definitions"})
+    else:
+        # Obtain the actual business effect before supplementary origins and
+        # declarations consume a small per-turn allowance. PIC remains a
+        # required item and is read next, once the statement is supplied.
+        missing = EvidencePlanner().organize(plan, missing)
+    grouped_missing = []
     for row in missing:
+        if (row["kind"] == "declarations" and grouped_missing and grouped_missing[-1]["kind"] == "declarations"
+                and row["relative_path"] == grouped_missing[-1]["relative_path"]
+                and row["start_line"] <= grouped_missing[-1]["end_line"] + 1):
+            grouped_missing[-1] = {**grouped_missing[-1], "end_line": max(row["end_line"], grouped_missing[-1]["end_line"])}
+        else:
+            grouped_missing.append(row)
+    for row in grouped_missing:
         key = (row["relative_path"], row["start_line"])
+        scope_read = next((scope for scope in source_scopes
+            if scope.get("exclusive") is not False and scope.get("range_basis") == "first_if_occurrences"
+            and scope["relative_path"] == row["relative_path"] and row["kind"] in
+                {"formula", "business_steps", "conditions", "result_adjustments"}
+            and scope["start_line"] <= row["start_line"] <= row["end_line"] <= scope["end_line"]
+            and scope["end_line"] - scope["start_line"] <= 96), None)
+        if scope_read:
+            # The exact occurrence window supplies neighboring formulas and
+            # their guards together. Separate semantic inspections of each
+            # line can spend all reads on the same window and starve PIC.
+            key = (row["relative_path"], scope_read["start_line"])
         if key in planned:
             continue
         planned.add(key)
@@ -777,10 +1322,12 @@ def build_question_investigation(question, business_map, *, database_path=None,
         last = row["end_line"] if row.get("occurrence_count", 1) == 1 else key[1] + 8
         read = {"relative_path": key[0], "start_line": max(1, key[1] - 4),
                 "end_line": min(max(key[1] + 8, last), key[1] + 96)}
-        file_source = row["kind"] in {"file_io", "file_definitions", "dds_definitions"}
+        file_source = row["kind"] in {"procedure_body", "declarations", "file_io", "file_definitions", "dds_definitions"}
         if file_source:
             read = {"relative_path": key[0], "start_line": key[1], "end_line": last}
-        tool = "read" if file_source or ("inspect_business_context", *key) in seen else "inspect_business_context"
+        if scope_read:
+            read = {"relative_path": key[0], "start_line": scope_read["start_line"], "end_line": scope_read["end_line"]}
+        tool = "read" if scope_read or file_source or ("inspect_business_context", *key) in seen else "inspect_business_context"
         arguments = read if tool == "read" else inspect
         if (tool, key[0], arguments.get("line", arguments.get("start_line"))) in seen:
             continue
@@ -793,6 +1340,9 @@ def build_question_investigation(question, business_map, *, database_path=None,
         from business_index import _clean
         from structural_index import DATA_ITEM_RE
         declared = set()
+        for declaration in candidates:
+            if declaration["kind"] == "declarations" and _visible_ids(declaration, pages):
+                declared.update((declaration["relative_path"], field) for field in declaration.get("layout_fields", []))
         for page in pages:
             for raw in str(page.get("source_text", "")).splitlines():
                 match = DATA_ITEM_RE.match(_clean(raw, "auto")[0])
@@ -854,7 +1404,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
             break
     # A bounded partial answer may describe supplied rules with their gaps. It
     # must not claim complete lineage or a unique final runtime definition.
-    formula_supplied = any(item["kind"] in {"formula", "business_steps"} and item["evidence_ids"] for item in items)
+    formula_supplied = any(item["kind"] in {"formula", "business_steps", "procedure_body"} and item["evidence_ids"] for item in items)
     boundary_supplied = bool(external and external["evidence_ids"])
     state = "needs_evidence" if plans else "bounded_partial" if gaps else "located"
     file_observations = {}

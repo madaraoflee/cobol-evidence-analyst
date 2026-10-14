@@ -451,6 +451,8 @@ def _prompt_payload(payload):
                 manifest = working_set.pop("source_manifest", None)
                 if manifest is not None:
                     working_set["omitted_source_manifest_count"] = len(manifest)
+                for key in ("root_source_characters", "non_root_source_characters", "depth_limit"):
+                    working_set.pop(key, None)
                 bundle["working_set"] = working_set
             contexts.append(bundle)
         projected["source_context"] = contexts
@@ -467,6 +469,30 @@ def _prompt_payload(payload):
             investigation.pop("candidate_cache", None)
             if investigation.pop("analysis_plan", None) is not None:
                 investigation["analysis_plan_omitted"] = True
+            items = []
+            for original in investigation.get("required_items", []):
+                item = dict(original)
+                if (item.get("status") == "NOT_APPLICABLE" and item.get("candidate_count") == 0
+                        and item.get("missing_count") == 0 and not item.get("evidence_ids")):
+                    # Zero-candidate navigation is not semantic support. Keep
+                    # its explicit status and reason without repeating zeros.
+                    for key in ("id", "candidate_count", "missing_count"):
+                        item.pop(key, None)
+                origins = original.get("source_flow_origins")
+                if isinstance(origins, list):
+                    # The containing obligation already carries the supplied
+                    # evidence IDs. Keep outcome and unknown reasons on wire;
+                    # retain full occurrence witnesses in the local ledger.
+                    item["source_flow_origins"] = [{key: origin[key] for key in
+                        ("relative_path", "field", "status", "basis", "unknown_reasons", "execution_verified")
+                        if key in origin} for origin in origins]
+                    item["source_flow_origin_occurrences_omitted"] = sum(
+                        len(origin.get("reader_occurrences", [])) for origin in origins)
+                items.append(item)
+            investigation["required_items"] = items
+            investigation["planned_actions"] = [{key: value for key, value in action.items()
+                if key != "read_fallback"}
+                for action in investigation.get("planned_actions", [])]
             projected["question_investigation"] = investigation
     # Keep the current request adjacent to generation, after long evidence and
     # navigation. Otherwise a small question can be buried before tens of
@@ -2644,6 +2670,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 for ref in observation.source_refs}
     missing_core = core_ids - final_source_ids if answer_manifest else set()
     final_investigation = answer_investigation or last_investigation or question_investigation([])
+    from business_map import question_boundaries
+    boundaries, scoped_out_boundaries = question_boundaries(boundaries, business_map.get("selected_paths", []),
+        source_scopes=(final_investigation.get("source_scope") or {}).get("ranges", []),
+        source_versions=business_map.get("source_versions", {}))
+    repository_boundaries = [*business_map.get("repository_boundaries", []), *scoped_out_boundaries]
+    quality.data["repository_boundaries"] = repository_boundaries
     open_question_gaps = final_investigation.get("open_gaps", [])
     incomplete_reads = any(task.material_to_question and task.state != "complete"
                            for task in evidence.tasks.values())
@@ -2771,7 +2803,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
               "investigation": investigation, "reading_coverage": {"reading_strategy": "retrieval", "sent_pages": len(final_source_ids),
               "sent_files": len({sent_pages[i].get("relative_path") for i in final_source_ids}), "complete": False},
               "model_turns": turns, "model_answer_recorded": usable, "stop_reason": stop_reason,
-              "boundaries": boundaries, "diagnostics": errors, "tool_trace": trace, "metrics": metrics}
+              "boundaries": boundaries, "repository_boundaries": repository_boundaries,
+              "diagnostics": errors, "tool_trace": trace, "metrics": metrics}
     latest_diagnostic = next((item["diagnostic"] for item in reversed(errors) if item.get("diagnostic")), None)
     if latest_diagnostic is not None:
         result["diagnostic"] = latest_diagnostic

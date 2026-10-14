@@ -1,9 +1,11 @@
 from pathlib import Path
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from question_planner import QuestionPlanner
+import question_planner
 
 
 class QuestionPlannerTests(unittest.TestCase):
@@ -64,3 +66,14 @@ class QuestionPlannerTests(unittest.TestCase):
         plan = QuestionPlanner().plan("other.cbl 的这个字段呢？", mapped,
             history=[{"investigation_state": {"analysis_plan": {"entities": ["OUT-AMOUNT"]}}}])
         self.assertEqual(plan.entities, ())
+
+    def test_named_procedure_plan_does_not_compile_regex_for_every_catalog_program(self):
+        mapped = {**self.map, "programs": [{"program_names": [f"MEMBER-{index:05d}"]}
+                                          for index in range(12000)]}
+        scope = {"procedure_name": "1400-COMPUTE-FEES", "relative_path": "entry.cbl"}
+        original = question_planner.re.sub
+        with mock.patch.object(question_planner.re, "sub", wraps=original) as substitute:
+            plan = QuestionPlanner().plan("MEMBER-11999 的1400-COMPUTE-FEES实现了哪些规则？", mapped,
+                                          source_scopes=[scope])
+        self.assertEqual(plan.intents, ("explanation",))
+        self.assertLessEqual(substitute.call_count, 4)

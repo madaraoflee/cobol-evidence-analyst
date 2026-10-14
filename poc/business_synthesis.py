@@ -323,10 +323,25 @@ def _supplied_calculation_hints(question, investigation, source_pages):
                 if item.get("kind") in {"formula", "business_steps", "conditions", "result_adjustments"}
                 and item.get("status") == "SATISFIED"
                 for identifier in item.get("evidence_ids", [])}
-    question_fields = set(re.findall(r"[A-Z][A-Z0-9_$#@-]*", str(question).upper()))
+    from question_planner import question_references
+    question_fields = set(question_references(question))
     conditions, adjustments, hints = False, False, []
     seen, scopes = set(), []
-    for span in _supplied_source_spans(source_pages, supplied):
+    scoped_pages = []
+    scope_ranges = (investigation.get("source_scope") or {}).get("ranges", [])
+    for page in source_pages:
+        limits = [scope for scope in scope_ranges if scope["relative_path"] == page.get("relative_path") and scope.get("exclusive") is not False
+                  and scope.get("source_sha256") == page.get("source_sha256")]
+        if not limits:
+            scoped_pages.append(page)
+            continue
+        raw = str(page.get("source_text", "")).splitlines()
+        for scope in limits:
+            first, last = max(scope["start_line"], page["start_line"]), min(scope["end_line"], page["end_line"])
+            if first <= last:
+                scoped_pages.append({**page, "start_line": first, "end_line": last,
+                    "source_text": "\n".join(raw[first - page["start_line"]:last - page["start_line"] + 1])})
+    for span in _supplied_source_spans(scoped_pages, supplied):
         lines, _ = normalize_cobol_lines(span["source_text"])
         source = "\n".join(line.text for line in lines)
         # Preserve offsets while keeping quoted DISPLAY text out of syntax.
@@ -424,7 +439,13 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
     short answer can cover them; there is deliberately no minimum word count.
     """
     question = str(question)
-    calculation = calculation_intent(question) == "rules"
+    scoped_question = question
+    for scope in (investigation.get("source_scope") or {}).get("ranges", []):
+        name = scope.get("procedure_name")
+        if name:
+            scoped_question = re.sub(r"(?<![A-Za-z0-9_$#@-])" + re.escape(name) +
+                                     r"(?![A-Za-z0-9_$#@-])", " ", scoped_question, flags=re.I)
+    calculation = calculation_intent(scoped_question) == "rules"
     detail_requested = wants_business_detail(question, answer_detail=answer_detail)
     # Default depth governs the synthesis prompt. Coverage checks remain tied
     # to the question so a concrete short answer is not rejected for omitting
