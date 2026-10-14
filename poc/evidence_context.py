@@ -40,6 +40,7 @@ class EvidenceGroup:
     required_locations: list[dict] = field(default_factory=list)
     supplied_locations: list[dict] = field(default_factory=list)
     open_frontier: list[dict] = field(default_factory=list)
+    semantic_analysis: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -119,16 +120,19 @@ class EvidenceContext:
         self.working_set = None
 
     def covering_id(self, identifier, selected):
-        """Rebind a physical excerpt only to identical text in a complete file."""
+        """Rebind only to exact physical coverage in the same source instance."""
         original = self.pages.get(identifier)
         if original is None or any(page.get("evidence_id") == identifier for page in selected):
             return identifier
+        digest = original.get("source_sha256")
+        if not isinstance(digest, str) or not digest.strip():
+            return identifier
         for page in selected:
-            if ("complete_working_set" not in page.get("selection_reasons", ())
-                    or page.get("span_truncated")
+            if (page.get("span_truncated") or original.get("span_truncated")
                     or any(page.get(key) != original.get(key) for key in
                            ("relative_path", "source_sha256"))
-                    or tuple(page.get("include_chain", ())) != tuple(original.get("include_chain", ()))
+                    or tuple(page.get("include_chain") or ()) != tuple(original.get("include_chain") or ())
+                    or tuple(page.get("replacement_trace") or ()) != tuple(original.get("replacement_trace") or ())
                     or page["start_line"] > original["start_line"]
                     or page["end_line"] < original["end_line"]):
                 continue
@@ -201,11 +205,21 @@ class EvidenceContext:
                     "read_" + hashlib.sha256(key.encode()).hexdigest()[:16],
                     requested["relative_path"], requested,
                     next_start_line=requested["start_line"]))
-            task.advance(context)
+            versions = {page.get("source_sha256") for page in context.get("pages", [])
+                        if page.get("relative_path") == requested["relative_path"]}
+            prior_supplied = [page for identifier, page in self.pages.items()
+                if identifier in self.sent_any_round_ids
+                and page.get("relative_path") == requested["relative_path"]
+                and page.get("source_sha256") in versions
+                and not page.get("include_chain") and not page.get("replacement_trace")]
+            # The cursor represents unread physical source. Reuse exact pages
+            # already supplied in this run instead of rereading their lines.
+            task.advance({**context, "pages": [*prior_supplied, *context.get("pages", [])]})
         return fresh
 
     def selected_pages(self, maximum, *, evidence_groups=(), priority_targets=(),
-                       max_complete_source_characters=None, include_complete=True):
+                       max_complete_source_characters=None, include_complete=True,
+                       preserve_complete_ids=()):
         """Keep recent anchors and their core evidence together within whole-page budgets."""
         self.selection_trim_events, self.selection_frontier = [], []
         core_roles = {"anchor", "result", "condition", "input", "parameter"}
@@ -233,8 +247,10 @@ class EvidenceContext:
         if sum(len(page.get("source_text", "")) for page in complete) > maximum:
             complete = []
         replacements = {identifier: self.covering_id(identifier, complete) for identifier in self.pages}
+        preserved = set(preserve_complete_ids)
         candidates = {identifier: page for identifier, page in self.pages.items()
                       if replacements[identifier] == identifier and (include_complete or
+                          identifier in preserved or
                           "complete_working_set" not in page.get("selection_reasons", ()))}
         core_by_group = {group: {replacements[identifier] for identifier in identifiers}
                          for group, identifiers in core_by_group.items()}
@@ -275,13 +291,35 @@ class EvidenceContext:
         units.sort(key=lambda unit: min(rank(page) for page in unit))
         if complete:
             units.insert(0, complete)
-        selected, used = [], 0
+        def minimal_pages(values):
+            # A read can cover declarations already supplied as tiny semantic
+            # pages, and a condition span can contain the result statement.
+            # Charge exact nested coverage once while keeping every atomic
+            # group's required text. Versions and expansion instances remain
+            # distinct even when their line ranges or printed text coincide.
+            retained, by_instance = [], {}
+            for page in sorted(values, key=lambda value: (-len(value.get("source_text", "")), rank(value))):
+                instance = (page.get("relative_path"), page.get("source_sha256"),
+                    json.dumps(page.get("include_chain") or [], sort_keys=True),
+                    json.dumps(page.get("replacement_trace") or [], sort_keys=True))
+                covering = by_instance.setdefault(instance, [])
+                if self.covering_id(page["evidence_id"], covering) != page["evidence_id"]:
+                    continue
+                if any(item["evidence_id"] == page["evidence_id"] for item in covering):
+                    continue
+                retained.append(page)
+                covering.append(page)
+            return retained
+
+        selected = []
         for unit in units:
-            if sum(len(page.get("source_text", "")) for page in unit) <= maximum - used:
-                selected.extend(unit)
-                used += sum(len(page.get("source_text", "")) for page in unit)
+            combined = minimal_pages([*selected, *unit])
+            if sum(len(page.get("source_text", "")) for page in combined) <= maximum:
+                selected = combined
             else:
                 for page in unit:
+                    if self.covering_id(page["evidence_id"], selected) != page["evidence_id"]:
+                        continue
                     item = {"evidence_id": page["evidence_id"], "relative_path": page.get("relative_path"),
                             "start_line": page.get("start_line"), "end_line": page.get("end_line"),
                             "reason": "source_characters", "dropped_characters": len(page.get("source_text", "")),
@@ -290,24 +328,71 @@ class EvidenceContext:
                     self.selection_trim_events.append(item)
                     self.selection_frontier.append({**item, "reason": "source_budget_evidence_omitted"})
         identifiers = {page["evidence_id"] for page in selected}
-        return [page for identifier, page in self.pages.items() if identifier in identifiers]
+        # A later union span can replace overlapping selected excerpts and
+        # recover an earlier rejected unit. Report only material still absent
+        # from the final exact coverage, not intermediate packing decisions.
+        def remains_omitted(item):
+            identifier = item.get("evidence_id")
+            return identifier not in identifiers and self.covering_id(identifier, selected) == identifier
+        self.selection_trim_events = [item for item in self.selection_trim_events if remains_omitted(item)]
+        self.selection_frontier = [item for item in self.selection_frontier if remains_omitted(item)]
+        supplied = []
+        for identifier, page in self.pages.items():
+            if identifier not in identifiers:
+                continue
+            # Retain the navigation roles of exact covered fragments on the
+            # wire page. Do not attach them to the canonical pool: a covering
+            # read must not become a larger atomic obligation on a later turn.
+            annotated = dict(page)
+            roles = list(page.get("semantic_roles", []))
+            groups = list(page.get("group_ids", []))
+            for original in self.pages.values():
+                if original["evidence_id"] == identifier or self.covering_id(
+                        original["evidence_id"], [page]) != identifier:
+                    continue
+                roles.extend(original.get("semantic_roles", []))
+                groups.extend(original.get("group_ids", []))
+                if original.get("group_id"):
+                    groups.append(original["group_id"])
+            if roles:
+                annotated["semantic_roles"] = list(dict.fromkeys(roles))
+            if groups:
+                annotated["group_ids"] = list(dict.fromkeys(groups))
+            supplied.append(annotated)
+        return supplied
 
     def fallback_pages(self, maximum, *, evidence_groups=(), priority_targets=()):
-        """Restore retained physical excerpts when a whole file cannot be sent."""
-        selected = self.selected_pages(maximum, evidence_groups=evidence_groups,
-            priority_targets=priority_targets, include_complete=False)
-        if selected:
-            return selected
-        # A small file can share its ID with the original retrieval page. If
-        # that whole page is too large for the encoded request, keep a bounded
-        # physical range instead of losing every source line with the full file.
-        for page in list(self.pages.values()):
-            if "complete_working_set" not in page.get("selection_reasons", ()):
+        """Downgrade oversized roots without discarding usable whole dependencies."""
+        roots = set((self.working_set or {}).get("root_paths", []))
+        complete = [page for page in self.pages.values()
+                    if "complete_working_set" in page.get("selection_reasons", ())]
+        # A short dependency can share its evidence ID with a retrieval/read
+        # page. Merged completeness labels must not exclude that source from
+        # fallback: retain it as an ordinary candidate, without reserving the
+        # whole working set as one indivisible budget unit.
+        preserved = {page["evidence_id"] for page in complete
+            if page.get("relative_path") not in roots
+            or len(page.get("source_text", "").encode("utf-8")) <= min(maximum, 4096)}
+
+        def select():
+            return self.selected_pages(maximum, evidence_groups=evidence_groups,
+                priority_targets=priority_targets, include_complete=False,
+                preserve_complete_ids=preserved)
+
+        selected = select()
+        supplied_paths = {page.get("relative_path") for page in selected}
+        for page in complete:
+            path = page.get("relative_path")
+            if path in supplied_paths or (selected and path not in roots):
                 continue
+            # An all-complete pool still needs an exact root excerpt alongside
+            # retained dependencies. The requested anchor determines its span;
+            # accepting it keeps the original version and evidence accounting.
             excerpt = self.narrow_page(page, min(maximum, 4096), priority_targets=priority_targets)
             if excerpt is not None:
-                return [excerpt]
-        return []
+                selected = select()
+                supplied_paths = {item.get("relative_path") for item in selected}
+        return selected
 
     def narrow_page(self, page, maximum_bytes, *, priority_targets=()):
         """Keep a smaller exact physical span, preferring a requested anchor."""
@@ -316,7 +401,11 @@ class EvidenceContext:
         anchor = next((target.get("line", target.get("start_line", 1)) for target in priority_targets
             if isinstance(target, dict) and target.get("relative_path") == page.get("relative_path")
             and page["start_line"] <= target.get("line", target.get("start_line", 1)) <= page["end_line"]), page["start_line"])
-        for offset in dict.fromkeys((anchor - page["start_line"], 0)):
+        anchor_offset = anchor - page["start_line"]
+        # Keep nearby initialization and guard statements with the anchor.
+        # If that context consumes the budget before reaching the requested
+        # line, retry from the anchor rather than supplying only its prelude.
+        for offset in dict.fromkeys((max(0, anchor_offset - 16), anchor_offset, 0)):
             rows, size = [], 0
             for line in lines[offset:]:
                 added = len(line.encode("utf-8")) + bool(rows)
@@ -324,9 +413,11 @@ class EvidenceContext:
                     break
                 rows.append(line)
                 size += added
-            if not rows or len(rows) == len(lines):
+            if (not rows or len(rows) == len(lines)
+                    or offset < anchor_offset and offset + len(rows) <= anchor_offset):
                 continue
-            excerpt = {key: page[key] for key in ("relative_path", "source_sha256", "include_chain") if key in page}
+            excerpt = {key: page[key] for key in
+                ("relative_path", "source_sha256", "include_chain", "replacement_trace") if key in page}
             first = page["start_line"] + offset
             excerpt.update(start_line=first, end_line=first + len(rows) - 1,
                 source_text="\n".join(rows), span_truncated=False,
@@ -456,6 +547,50 @@ class EvidenceContext:
             group["missing_evidence_count"] = len(missing)
             group["omitted_visibility_frontier_count"] = max(0, len(derived) - 24)
             group["complete_text_supplied"] = bool(required) and required <= visible and not group.get("open_frontier")
+            analysis = group.get("semantic_analysis")
+            if analysis:
+                def supplied_node(node):
+                    refs = node.get("source_refs", [])
+                    return bool(refs) and all(isinstance(ref.get("source_sha256"), str)
+                        and bool(ref["source_sha256"].strip())
+                        and type(ref.get("start_line")) is int and type(ref.get("end_line")) is int
+                        and 0 < ref["start_line"] <= ref["end_line"]
+                        and any(not page.get("span_truncated") and bool(page.get("source_text"))
+                        and page.get("relative_path") == ref.get("relative_path")
+                        and page.get("source_sha256") == ref.get("source_sha256")
+                        and tuple(page.get("include_chain") or ()) == tuple(ref.get("include_chain") or ())
+                        and tuple(page.get("replacement_trace") or ()) == tuple(ref.get("replacement_trace") or ())
+                        and page.get("start_line", 0) <= ref.get("start_line", 1)
+                        and page.get("end_line", 0) >= ref.get("end_line", 1)
+                        for page in payload["source_context"][0]["pages"]) for ref in refs)
+                # Request compaction can remove raw source. Derived flow facts
+                # lose visibility with it; they cannot act as substitute evidence.
+                nodes = [node for node in analysis.get("slice_statements", []) if supplied_node(node)]
+                node_ids = {node["occurrence_id"] for node in nodes}
+                assignments = [item for item in analysis.get("assignments", [])
+                    if item.get("statement", {}).get("occurrence_id") in node_ids]
+                tool_results = []
+                for original_result in analysis.get("tool_results", []):
+                    if original_result.get("occurrence_id") not in node_ids:
+                        continue
+                    tool_result = dict(original_result)
+                    if isinstance(tool_result.get("statements"), list):
+                        tool_result["statements"] = [node for node in tool_result["statements"] if supplied_node(node)]
+                    for key in ("occurrences", "later_writes"):
+                        if key in tool_result:
+                            tool_result[key] = [identifier for identifier in tool_result[key] if identifier in node_ids]
+                    if "reaching_definitions" in tool_result:
+                        tool_result["reaching_definitions"] = {name: [identifier for identifier in identifiers
+                            if identifier in node_ids or identifier.startswith("@entry:")]
+                            for name, identifiers in tool_result["reaching_definitions"].items()}
+                    tool_results.append(tool_result)
+                group["semantic_analysis"] = {**analysis, "slice_statements": nodes, "assignments": assignments,
+                    "tool_results": tool_results,
+                    # One fitting pass only shrinks supplied material while
+                    # this analysis remains present. Retain previous omissions;
+                    # the next main request rebuilds from its EvidenceGroup.
+                    "withheld_statement_count": analysis.get("withheld_statement_count", 0) +
+                        len(analysis.get("slice_statements", [])) - len(nodes)}
 
     @staticmethod
     def manifest(payload):

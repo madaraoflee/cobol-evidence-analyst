@@ -262,6 +262,11 @@ def refresh_selected_sources(database_path, captures, *, expected_snapshot_id):
             else:
                 snapshot = expected_snapshot_id
             db.commit()
+            if changed:
+                from run_store import RunStore
+                journal = RunStore(Path(database_path).resolve().parent / "investigation-runs.sqlite")
+                for relative_path in changed:
+                    journal.invalidate("source:" + relative_path)
             return {"updated": changed, "snapshot_id": snapshot}
         except BaseException:
             db.rollback()

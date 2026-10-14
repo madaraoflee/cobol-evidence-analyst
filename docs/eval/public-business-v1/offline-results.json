@@ -1,0 +1,1886 @@
+{
+  "schema_version": "public-business-acceptance/v1",
+  "source_commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+  "source_files": [
+    {
+      "path": "app/cbl/CBTRN02C.cbl",
+      "sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f"
+    },
+    {
+      "path": "app/cbl/CBACT04C.cbl",
+      "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4"
+    },
+    {
+      "path": "app/cpy/CVTRA01Y.cpy",
+      "sha256": "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba"
+    },
+    {
+      "path": "app/cpy/CVACT03Y.cpy",
+      "sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+    },
+    {
+      "path": "app/cpy/CVTRA02Y.cpy",
+      "sha256": "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c"
+    },
+    {
+      "path": "app/cpy/CVACT01Y.cpy",
+      "sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728"
+    },
+    {
+      "path": "app/cpy/CVTRA05Y.cpy",
+      "sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec"
+    },
+    {
+      "path": "app/cpy/CVTRA06Y.cpy",
+      "sha256": "c5c69f1b86c5a10156d3c5881d7cf387e6b925aae32825360f85bf4056a554a1"
+    }
+  ],
+  "transport": "in_process_fake",
+  "model_accuracy_measured": false,
+  "manifest_sha256": "e1ae2ff544272b524e7863dce0b9c972e29d1c35f2d93765fce2dc058012d81b",
+  "cases_sha256": "320343db243281ebdc43784c3a9df4cd8a05893ce558c4d0edc96f920033963f",
+  "external_download_archive_sha256": "a22c114ba79df73f86578495fbceb4062ae53e0cb335f5d2950598caf011684f",
+  "compilation_context": {
+    "dialect": "unknown",
+    "encoding": "utf-8",
+    "source_format": "fixed",
+    "copy_libraries": [
+      "app/cpy"
+    ],
+    "copy_library_order_known": true,
+    "compile_conditions": [],
+    "conditions_complete": false,
+    "preprocessing_version": "bounded-copy-v2",
+    "frontend_version": "cobol-facts-v5",
+    "framework_version": null,
+    "target_profile": "generic-cobol",
+    "resource_kinds": [
+      "cobol-file",
+      "sql"
+    ],
+    "debug_lines": null,
+    "nested_copy_replacing": null
+  },
+  "compilation_context_sha256": "c69a78a82232d2f8c712ba95031043e21dd6d8a05fca768c20f466f8cb7098ca",
+  "compiled_execution_validated": false,
+  "enterprise_target_dialect_validated": false,
+  "cases": [
+    {
+      "case_id": "limit-rejection",
+      "branch": "correct",
+      "question": "CBTRN02C 的 1500-B-LOOKUP-ACCT 如何判断超限，为什么拒绝码后来可能改变？",
+      "pipeline_version": "question-evidence-v11",
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "7d1aed657705266e2a9cf295",
+        "case_id": "limit-rejection",
+        "turn_id": "1",
+        "branch": "correct",
+        "question_sha256": "363a99a7a6b01daf3a3b6e9a09a23f9d70b61c383f5ba32e6c6307ee78333ccd",
+        "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "answer_sha256": "03ad560fa7db4b094496ac76305a179b6522059c4e5886ecca8400b73dc2cda3",
+        "model": "offline-test-model",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "e73ff1178c6b199f6cb9a1b63a38d14e2bf2a23cf71ca1bf4a0f54d48b52b4fb"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "a5ca7f4fb2b4da40125ead290e74dbbb47be25eb1515dc1a5253271ab1392341",
+        "source_snapshot_id": "sha256:f13568bd30bb78ff1687f8ed7be0636bb1fe42e47e33c18c1caffbdaa746b608",
+        "source_versions": [
+          "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "c5c69f1b86c5a10156d3c5881d7cf387e6b925aae32825360f85bf4056a554a1",
+          "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "7df090daef1c56ed0603d4cf6e298f523d8cad87e28c661a1c0172406d397fa9",
+        "identity_sha256": "6b3c9469fce3d14fe5225c7656c124f09f14f4027a026b882c540389800c930a"
+      },
+      "static_rule_checks": [
+        {
+          "assertion": {
+            "predicate": "assignment_statement",
+            "target": "WS-TEMP-BAL",
+            "expression": [
+              "ACCT-CURR-CYC-CREDIT",
+              "-",
+              "ACCT-CURR-CYC-DEBIT",
+              "+",
+              "DALYTRAN-AMT"
+            ],
+            "rounded": false
+          },
+          "supported": true
+        },
+        {
+          "assertion": {
+            "predicate": "assignment_statement",
+            "target": "WS-VALIDATION-FAIL-REASON",
+            "expression": [
+              "102"
+            ],
+            "rounded": false
+          },
+          "supported": true
+        },
+        {
+          "assertion": {
+            "predicate": "assignment_statement",
+            "target": "WS-VALIDATION-FAIL-REASON",
+            "expression": [
+              "103"
+            ],
+            "rounded": false
+          },
+          "supported": true
+        }
+      ],
+      "static_rules_supported": true,
+      "default_answer": "WS-TEMP-BAL = ACCT-CURR-CYC-CREDIT - ACCT-CURR-CYC-DEBIT + DALYTRAN-AMT。[ev_page_596b869ab04906c42498ed66] 若 ACCT-CREDIT-LIMIT >= WS-TEMP-BAL 则继续，否则 MOVE 102 TO WS-VALIDATION-FAIL-REASON。[ev_page_596b869ab04906c42498ed66] 后面的到期日检查失败会 MOVE 103 TO WS-VALIDATION-FAIL-REASON，因此 102 可能被后续覆盖。[ev_page_596b869ab04906c42498ed66]",
+      "ledger": {
+        "ledger_version": "answer-claim-ledger-v3",
+        "scope": "bounded_source_statement_syntax",
+        "coverage": "extracted_structures_only",
+        "prose_semantics_verified": false,
+        "entries": [
+          {
+            "claim_id": "claim-1",
+            "claim_type": "assignment_statement",
+            "text": "WS-TEMP-BAL = ACCT-CURR-CYC-CREDIT - ACCT-CURR-CYC-DEBIT + DALYTRAN-AMT。",
+            "target_entity": "WS-TEMP-BAL",
+            "expression": [
+              "ACCT-CURR-CYC-CREDIT",
+              "-",
+              "ACCT-CURR-CYC-DEBIT",
+              "+",
+              "DALYTRAN-AMT"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_596b869ab04906c42498ed66"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBTRN02C.cbl",
+                "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+                "start_line": 1,
+                "end_line": 731
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_2b8f24e6898acc473c847b29"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          },
+          {
+            "claim_id": "claim-2",
+            "claim_type": "assignment_statement",
+            "text": "若 ACCT-CREDIT-LIMIT >= WS-TEMP-BAL 则继续，否则 MOVE 102 TO WS-VALIDATION-FAIL-REASON。",
+            "target_entity": "WS-VALIDATION-FAIL-REASON",
+            "expression": [
+              "102"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_596b869ab04906c42498ed66"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBTRN02C.cbl",
+                "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+                "start_line": 1,
+                "end_line": 731
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_563bfa73594b0bb5c8385a36"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          },
+          {
+            "claim_id": "claim-3",
+            "claim_type": "condition_statement",
+            "text": "若 ACCT-CREDIT-LIMIT >= WS-TEMP-BAL 则继续，否则 MOVE 102 TO WS-VALIDATION-FAIL-REASON。",
+            "target_entity": null,
+            "expression": null,
+            "condition": [
+              "ACCT-CREDIT-LIMIT",
+              ">=",
+              "WS-TEMP-BAL"
+            ],
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_596b869ab04906c42498ed66"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBTRN02C.cbl",
+                "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+                "start_line": 1,
+                "end_line": 731
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_6ad3ca6ceba5821da0e08945"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          },
+          {
+            "claim_id": "claim-4",
+            "claim_type": "assignment_statement",
+            "text": "后面的到期日检查失败会 MOVE 103 TO WS-VALIDATION-FAIL-REASON，因此 102 可能被后续覆盖。",
+            "target_entity": "WS-VALIDATION-FAIL-REASON",
+            "expression": [
+              "103"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_596b869ab04906c42498ed66"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBTRN02C.cbl",
+                "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+                "start_line": 1,
+                "end_line": 731
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_66250738d6e81efb1393da1b"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          }
+        ],
+        "counts": {
+          "supported": 4,
+          "contradicted": 0,
+          "unsupported": 0
+        },
+        "source_fact_count": 201,
+        "compilation_context_fingerprint": "c69a78a82232d2f8c712ba95031043e21dd6d8a05fca768c20f466f8cb7098ca",
+        "revised_claim_count": 0,
+        "answer_sha256": "03ad560fa7db4b094496ac76305a179b6522059c4e5886ecca8400b73dc2cda3",
+        "original_answer_sha256": "03ad560fa7db4b094496ac76305a179b6522059c4e5886ecca8400b73dc2cda3",
+        "all_claims_supported": true
+      },
+      "supplied_evidence": [
+        {
+          "evidence_id": "ev_page_54162d04cbf6fda00fe7de41",
+          "relative_path": "app/cpy/CVACT01Y.cpy",
+          "source_sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "start_line": 1,
+          "end_line": 20
+        },
+        {
+          "evidence_id": "ev_page_88fade1944c83fc9b59850b7",
+          "relative_path": "app/cbl/CBACT04C.cbl",
+          "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "start_line": 299,
+          "end_line": 347
+        },
+        {
+          "evidence_id": "ev_page_f8695cd12f373c77bb82a614",
+          "relative_path": "app/cpy/CVACT03Y.cpy",
+          "source_sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370",
+          "start_line": 1,
+          "end_line": 11
+        },
+        {
+          "evidence_id": "ev_page_f8f86744e8271e090e923892",
+          "relative_path": "app/cbl/CBACT04C.cbl",
+          "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "start_line": 73,
+          "end_line": 121
+        },
+        {
+          "evidence_id": "ev_page_5b65ad16284e4e84241f8246",
+          "relative_path": "app/cpy/CVTRA01Y.cpy",
+          "source_sha256": "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_596b869ab04906c42498ed66",
+          "relative_path": "app/cbl/CBTRN02C.cbl",
+          "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "start_line": 1,
+          "end_line": 731
+        },
+        {
+          "evidence_id": "ev_page_0ad8fcf930de925c6c41c0e9",
+          "relative_path": "app/cpy/CVTRA05Y.cpy",
+          "source_sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "start_line": 1,
+          "end_line": 21
+        },
+        {
+          "evidence_id": "ev_page_961eccc6da2eb67c14dc8481",
+          "relative_path": "app/cpy/CVTRA06Y.cpy",
+          "source_sha256": "c5c69f1b86c5a10156d3c5881d7cf387e6b925aae32825360f85bf4056a554a1",
+          "start_line": 1,
+          "end_line": 21
+        }
+      ],
+      "source_evidence_fingerprint": "9a08eb72ca204c392856b9599f1c38ae9744f8022b9601bcda6f32636389b62a",
+      "model_requests": 1,
+      "elapsed_seconds": 0.3684,
+      "stop_reason": "request_budget",
+      "status": "PARTIAL",
+      "correct_claims_preserved": true,
+      "mechanism_passed": true
+    },
+    {
+      "case_id": "account-update",
+      "branch": "correct",
+      "question": "CBACT04C 的 1050-UPDATE-ACCOUNT 如何更新账户，写入失败怎样处理？",
+      "pipeline_version": "question-evidence-v11",
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "cda3f7e4c2966c72af95c25b",
+        "case_id": "account-update",
+        "turn_id": "1",
+        "branch": "correct",
+        "question_sha256": "9a28962d4ec0be787f973903a93092ccc5e70cfb9585488f464f93027c61ff89",
+        "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+        "model": "offline-test-model",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "aec3bd0b2e0dc50384810127047ef35d6abf98c912277eb7cc92b7ad974aa80b"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "231adbe818c930ce6ed38dfc0d738ba521f9287719c19559bab66dbfd7134a67",
+        "source_snapshot_id": "sha256:f13568bd30bb78ff1687f8ed7be0636bb1fe42e47e33c18c1caffbdaa746b608",
+        "source_versions": [
+          "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c",
+          "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "5c0626e57582fbcdc725af920c7cca8184036427f1ecbd898c20b440789f5559",
+        "identity_sha256": "aed3dee98117a308cab6e01c3b181c277d0817ce3fba94ff5445d4bda11a85c4"
+      },
+      "static_rule_checks": [
+        {
+          "assertion": {
+            "predicate": "assignment_statement",
+            "target": "ACCT-CURR-BAL",
+            "expression": [
+              "WS-TOTAL-INT",
+              "+",
+              "ACCT-CURR-BAL"
+            ],
+            "rounded": false
+          },
+          "supported": true
+        },
+        {
+          "assertion": {
+            "predicate": "assignment_statement",
+            "target": "ACCT-CURR-CYC-CREDIT",
+            "expression": [
+              "0"
+            ],
+            "rounded": false
+          },
+          "supported": true
+        },
+        {
+          "assertion": {
+            "predicate": "write_statement",
+            "target": "FD-ACCTFILE-REC",
+            "effect": "REWRITE"
+          },
+          "supported": true
+        }
+      ],
+      "static_rules_supported": true,
+      "default_answer": "ACCT-CURR-BAL = WS-TOTAL-INT + ACCT-CURR-BAL。[ev_page_4852f54a7cbf93111c3ffcc1] MOVE 0 TO ACCT-CURR-CYC-CREDIT，并 MOVE 0 TO ACCT-CURR-CYC-DEBIT。[ev_page_4852f54a7cbf93111c3ffcc1] REWRITE FD-ACCTFILE-REC FROM ACCOUNT-RECORD 发出改写请求；状态00时 APPL-RESULT = 0，其他状态 APPL-RESULT = 12 并进入错误显示和终止处理。[ev_page_4852f54a7cbf93111c3ffcc1]",
+      "ledger": {
+        "ledger_version": "answer-claim-ledger-v3",
+        "scope": "bounded_source_statement_syntax",
+        "coverage": "extracted_structures_only",
+        "prose_semantics_verified": false,
+        "entries": [
+          {
+            "claim_id": "claim-1",
+            "claim_type": "assignment_statement",
+            "text": "ACCT-CURR-BAL = WS-TOTAL-INT + ACCT-CURR-BAL。",
+            "target_entity": "ACCT-CURR-BAL",
+            "expression": [
+              "WS-TOTAL-INT",
+              "+",
+              "ACCT-CURR-BAL"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_957e52d20034293261d51ea0"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          },
+          {
+            "claim_id": "claim-2",
+            "claim_type": "assignment_statement",
+            "text": "MOVE 0 TO ACCT-CURR-CYC-CREDIT，并 MOVE 0 TO ACCT-CURR-CYC-DEBIT。",
+            "target_entity": "ACCT-CURR-CYC-CREDIT",
+            "expression": [
+              "0"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_ca463ceba20ae29c5a09bf8f"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          },
+          {
+            "claim_id": "claim-3",
+            "claim_type": "assignment_statement",
+            "text": "MOVE 0 TO ACCT-CURR-CYC-CREDIT，并 MOVE 0 TO ACCT-CURR-CYC-DEBIT。",
+            "target_entity": "ACCT-CURR-CYC-DEBIT",
+            "expression": [
+              "0"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_74a8f6b6f33cf7c7ab6e1f15"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          },
+          {
+            "claim_id": "claim-4",
+            "claim_type": "assignment_statement",
+            "text": "REWRITE FD-ACCTFILE-REC FROM ACCOUNT-RECORD 发出改写请求；状态00时 APPL-RESULT = 0，其他状态 APPL-RESULT = 12 并进入错误显示和终止处理。",
+            "target_entity": "APPL-RESULT",
+            "expression": [
+              "0"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_fde5457fe5851c8ed2ed604b",
+              "unit_ba2d4a9ed441f84c575c993b",
+              "unit_25428ec08a8835c4ea8f16bd",
+              "unit_01914d805087f78abb4fa74a",
+              "unit_9bbab439c96b960f709b58e3",
+              "unit_440ae7973e7403f22987cac2",
+              "unit_9cb57a187bdb6b7747e729e0",
+              "unit_6aee3fce5168251fa61a8d74",
+              "unit_5ed47937a50a400d6a6f623b",
+              "unit_9c33c93669de273d544e65ef",
+              "unit_9d3253b5795d555bee9c21e1",
+              "unit_9960c9dfc528d9a7639b9b7b",
+              "unit_6a88da29574f0432564c9c82",
+              "unit_ee6b6a6c14f3c4253bab0eb8",
+              "unit_db93ab042bd18d0dd3b14258",
+              "unit_106ffe2a026817a839a32302",
+              "unit_556b19fb7901a101350a6a78"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          },
+          {
+            "claim_id": "claim-5",
+            "claim_type": "assignment_statement",
+            "text": "REWRITE FD-ACCTFILE-REC FROM ACCOUNT-RECORD 发出改写请求；状态00时 APPL-RESULT = 0，其他状态 APPL-RESULT = 12 并进入错误显示和终止处理。",
+            "target_entity": "APPL-RESULT",
+            "expression": [
+              "12"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_e1366b1d16b31b667234a247",
+              "unit_346c57a36ee72a9ce7e33d6e",
+              "unit_9d1e65d02b8d951282be4f38",
+              "unit_3ee7cc3072595d4595ee44e5",
+              "unit_b55d2c5ab97393638df97ad7",
+              "unit_c7466e1599971703278d8542",
+              "unit_059e08d3491f941918e09b91",
+              "unit_2ac4676cb6baf30d1a161d96",
+              "unit_c8ae70970d69c41b58f7aefb",
+              "unit_5c94eec8137ecca443f5a0fb",
+              "unit_1d2fdab8c0cc3f8a52b7ffbb",
+              "unit_73001730edf5afcbf41efca8",
+              "unit_283137d23e20bfb61ad4cbe3",
+              "unit_81421ce753c0f9ece1eaec8f",
+              "unit_65503264e6009d35ee530988",
+              "unit_53a8c9eab7306cf2671c566e",
+              "unit_48341fe05ad5ba0b6c525a03"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          },
+          {
+            "claim_id": "claim-6",
+            "claim_type": "write_statement",
+            "text": "REWRITE FD-ACCTFILE-REC FROM ACCOUNT-RECORD 发出改写请求；状态00时 APPL-RESULT = 0，其他状态 APPL-RESULT = 12 并进入错误显示和终止处理。",
+            "target_entity": "FD-ACCTFILE-REC",
+            "expression": null,
+            "condition": null,
+            "effect": "REWRITE",
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_b870033f74e1a1bb56d1be4a"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          }
+        ],
+        "counts": {
+          "supported": 6,
+          "contradicted": 0,
+          "unsupported": 0
+        },
+        "source_fact_count": 173,
+        "compilation_context_fingerprint": "c69a78a82232d2f8c712ba95031043e21dd6d8a05fca768c20f466f8cb7098ca",
+        "revised_claim_count": 0,
+        "answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+        "original_answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+        "all_claims_supported": true
+      },
+      "supplied_evidence": [
+        {
+          "evidence_id": "ev_page_d3c9ad0f87f143e47bd5f7f4",
+          "relative_path": "app/cbl/CBTRN02C.cbl",
+          "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "start_line": 521,
+          "end_line": 569
+        },
+        {
+          "evidence_id": "ev_page_54162d04cbf6fda00fe7de41",
+          "relative_path": "app/cpy/CVACT01Y.cpy",
+          "source_sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "start_line": 1,
+          "end_line": 20
+        },
+        {
+          "evidence_id": "ev_page_5b65ad16284e4e84241f8246",
+          "relative_path": "app/cpy/CVTRA01Y.cpy",
+          "source_sha256": "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_4852f54a7cbf93111c3ffcc1",
+          "relative_path": "app/cbl/CBACT04C.cbl",
+          "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "start_line": 1,
+          "end_line": 652
+        },
+        {
+          "evidence_id": "ev_page_f8695cd12f373c77bb82a614",
+          "relative_path": "app/cpy/CVACT03Y.cpy",
+          "source_sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370",
+          "start_line": 1,
+          "end_line": 11
+        },
+        {
+          "evidence_id": "ev_page_a1479fc2a3c67182110e3f6f",
+          "relative_path": "app/cpy/CVTRA02Y.cpy",
+          "source_sha256": "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_0ad8fcf930de925c6c41c0e9",
+          "relative_path": "app/cpy/CVTRA05Y.cpy",
+          "source_sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "start_line": 1,
+          "end_line": 21
+        }
+      ],
+      "source_evidence_fingerprint": "6c84a7d988ebe1026aaab0ec34a7db901c7cbb34f61e82af0cf51323ba71a66d",
+      "model_requests": 1,
+      "elapsed_seconds": 0.2866,
+      "stop_reason": "request_budget",
+      "status": "PARTIAL",
+      "correct_claims_preserved": true,
+      "mechanism_passed": true
+    },
+    {
+      "case_id": "monthly-interest",
+      "branch": "correct",
+      "question": "CBACT04C 的 1300-COMPUTE-INTEREST 中月息如何计算并累加？",
+      "pipeline_version": "question-evidence-v11",
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "b7d06e3c69a8d4c9fd72381a",
+        "case_id": "monthly-interest",
+        "turn_id": "1",
+        "branch": "correct",
+        "question_sha256": "5f00b4228df08733898eef0115502270d25f92cfe3a62a86d6505b29c90b1c65",
+        "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "answer_sha256": "586dc623056c6888b344eade8fe7a21d197763372d8a2975ee694e4b8717db2b",
+        "model": "offline-test-model",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "3a383ca96e39e6ac3354c8b0940ae9112808116dc225e3cd9afd3dabdc545ad8"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "fbb9da1218c7521e30463b640d57e5a5632ca92fd5c5fbe7f8b0920642a97b6a",
+        "source_snapshot_id": "sha256:f13568bd30bb78ff1687f8ed7be0636bb1fe42e47e33c18c1caffbdaa746b608",
+        "source_versions": [
+          "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c",
+          "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "50822a4b49bdc03ee088f6ad094b290aa3b69eec663a7dda99c25d9cb76d4db9",
+        "identity_sha256": "4b117bae6c4fbb4ec0a6e741ecfc9bc15de4fc48642907cefb6a2abbbdcf12f2"
+      },
+      "static_rule_checks": [
+        {
+          "assertion": {
+            "predicate": "assignment_statement",
+            "target": "WS-MONTHLY-INT",
+            "expression": [
+              "(",
+              "TRAN-CAT-BAL",
+              "*",
+              "DIS-INT-RATE",
+              ")",
+              "/",
+              "1200"
+            ],
+            "rounded": false
+          },
+          "supported": true
+        },
+        {
+          "assertion": {
+            "predicate": "assignment_statement",
+            "target": "WS-TOTAL-INT",
+            "expression": [
+              "WS-MONTHLY-INT",
+              "+",
+              "WS-TOTAL-INT"
+            ],
+            "rounded": false
+          },
+          "supported": true
+        }
+      ],
+      "static_rules_supported": true,
+      "default_answer": "WS-MONTHLY-INT = ( TRAN-CAT-BAL * DIS-INT-RATE ) / 1200。[ev_page_4852f54a7cbf93111c3ffcc1] WS-TOTAL-INT = WS-MONTHLY-INT + WS-TOTAL-INT，然后调用1300-B-WRITE-TX。[ev_page_4852f54a7cbf93111c3ffcc1]",
+      "ledger": {
+        "ledger_version": "answer-claim-ledger-v3",
+        "scope": "bounded_source_statement_syntax",
+        "coverage": "extracted_structures_only",
+        "prose_semantics_verified": false,
+        "entries": [
+          {
+            "claim_id": "claim-1",
+            "claim_type": "assignment_statement",
+            "text": "WS-MONTHLY-INT = ( TRAN-CAT-BAL * DIS-INT-RATE ) / 1200。",
+            "target_entity": "WS-MONTHLY-INT",
+            "expression": [
+              "(",
+              "TRAN-CAT-BAL",
+              "*",
+              "DIS-INT-RATE",
+              ")",
+              "/",
+              "1200"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_8403fafc79d96da3b9d1826d"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          },
+          {
+            "claim_id": "claim-2",
+            "claim_type": "assignment_statement",
+            "text": "WS-TOTAL-INT = WS-MONTHLY-INT + WS-TOTAL-INT，然后调用1300-B-WRITE-TX。",
+            "target_entity": "WS-TOTAL-INT",
+            "expression": [
+              "WS-MONTHLY-INT",
+              "+",
+              "WS-TOTAL-INT"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_75d8e7eff22c2bd0cf82d194"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          }
+        ],
+        "counts": {
+          "supported": 2,
+          "contradicted": 0,
+          "unsupported": 0
+        },
+        "source_fact_count": 165,
+        "compilation_context_fingerprint": "c69a78a82232d2f8c712ba95031043e21dd6d8a05fca768c20f466f8cb7098ca",
+        "revised_claim_count": 0,
+        "answer_sha256": "586dc623056c6888b344eade8fe7a21d197763372d8a2975ee694e4b8717db2b",
+        "original_answer_sha256": "586dc623056c6888b344eade8fe7a21d197763372d8a2975ee694e4b8717db2b",
+        "all_claims_supported": true
+      },
+      "supplied_evidence": [
+        {
+          "evidence_id": "ev_page_5a647fbd050ed12fb34c1d8e",
+          "relative_path": "app/cbl/CBTRN02C.cbl",
+          "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "start_line": 379,
+          "end_line": 427
+        },
+        {
+          "evidence_id": "ev_page_5b65ad16284e4e84241f8246",
+          "relative_path": "app/cpy/CVTRA01Y.cpy",
+          "source_sha256": "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_4852f54a7cbf93111c3ffcc1",
+          "relative_path": "app/cbl/CBACT04C.cbl",
+          "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "start_line": 1,
+          "end_line": 652
+        },
+        {
+          "evidence_id": "ev_page_54162d04cbf6fda00fe7de41",
+          "relative_path": "app/cpy/CVACT01Y.cpy",
+          "source_sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "start_line": 1,
+          "end_line": 20
+        },
+        {
+          "evidence_id": "ev_page_f8695cd12f373c77bb82a614",
+          "relative_path": "app/cpy/CVACT03Y.cpy",
+          "source_sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370",
+          "start_line": 1,
+          "end_line": 11
+        },
+        {
+          "evidence_id": "ev_page_a1479fc2a3c67182110e3f6f",
+          "relative_path": "app/cpy/CVTRA02Y.cpy",
+          "source_sha256": "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_0ad8fcf930de925c6c41c0e9",
+          "relative_path": "app/cpy/CVTRA05Y.cpy",
+          "source_sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "start_line": 1,
+          "end_line": 21
+        }
+      ],
+      "source_evidence_fingerprint": "0acd47e79f792461e096ead3b87b9ba6c2f2bf7aab98dd30f8f374d2ccc03d18",
+      "model_requests": 1,
+      "elapsed_seconds": 0.2658,
+      "stop_reason": "answer_incomplete",
+      "status": "PARTIAL",
+      "correct_claims_preserved": true,
+      "mechanism_passed": true
+    },
+    {
+      "case_id": "monthly-interest",
+      "branch": "incorrect",
+      "question": "CBACT04C 的 1300-COMPUTE-INTEREST 中月息如何计算并累加？",
+      "pipeline_version": "question-evidence-v11",
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "23566d4cb71d76e52c36f573",
+        "case_id": "monthly-interest",
+        "turn_id": "1",
+        "branch": "incorrect",
+        "question_sha256": "5f00b4228df08733898eef0115502270d25f92cfe3a62a86d6505b29c90b1c65",
+        "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "answer_sha256": "b1a4cb2852c2d8f2962259ff4caba50d26042e2855334ebbcaaa3713bc29eace",
+        "model": "offline-test-model",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "3a383ca96e39e6ac3354c8b0940ae9112808116dc225e3cd9afd3dabdc545ad8"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "fbb9da1218c7521e30463b640d57e5a5632ca92fd5c5fbe7f8b0920642a97b6a",
+        "source_snapshot_id": "sha256:f13568bd30bb78ff1687f8ed7be0636bb1fe42e47e33c18c1caffbdaa746b608",
+        "source_versions": [
+          "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c",
+          "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "50822a4b49bdc03ee088f6ad094b290aa3b69eec663a7dda99c25d9cb76d4db9",
+        "identity_sha256": "19a7eb1b36e965a74b7a2cecc18f168890249afafd4418f462ab2ececb10f5e9"
+      },
+      "static_rule_checks": [
+        {
+          "assertion": {
+            "predicate": "assignment_statement",
+            "target": "WS-MONTHLY-INT",
+            "expression": [
+              "(",
+              "TRAN-CAT-BAL",
+              "*",
+              "DIS-INT-RATE",
+              ")",
+              "/",
+              "1200"
+            ],
+            "rounded": false
+          },
+          "supported": true
+        },
+        {
+          "assertion": {
+            "predicate": "assignment_statement",
+            "target": "WS-TOTAL-INT",
+            "expression": [
+              "WS-MONTHLY-INT",
+              "+",
+              "WS-TOTAL-INT"
+            ],
+            "rounded": false
+          },
+          "supported": true
+        }
+      ],
+      "static_rules_supported": true,
+      "default_answer": "已供应源码可直接确认：`WS-MONTHLY-INT = ( TRAN-CAT-BAL * DIS-INT-RATE ) / 1200`（app/cbl/CBACT04C.cbl:464）[ev_page_4852f54a7cbf93111c3ffcc1]。 累计值还需要按后续写入状态核对。",
+      "ledger": {
+        "ledger_version": "answer-claim-ledger-v3",
+        "scope": "bounded_source_statement_syntax",
+        "coverage": "extracted_structures_only",
+        "prose_semantics_verified": false,
+        "entries": [
+          {
+            "claim_id": "claim-1",
+            "claim_type": "assignment_statement",
+            "text": "WS-MONTHLY-INT = ( TRAN-CAT-BAL * DIS-INT-RATE ) / 999。",
+            "target_entity": "WS-MONTHLY-INT",
+            "expression": [
+              "(",
+              "TRAN-CAT-BAL",
+              "*",
+              "DIS-INT-RATE",
+              ")",
+              "/",
+              "999"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 464,
+                "end_line": 465
+              }
+            ],
+            "support_status": "contradicted",
+            "reason_code": "SOURCE_STATEMENT_MISMATCH",
+            "checker_version": "source-statement-support-v2",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_8403fafc79d96da3b9d1826d"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": "rendered_from_supplied_source_statements",
+            "revised_claims": [
+              {
+                "assertion": {
+                  "predicate": "assignment_statement",
+                  "target": "WS-MONTHLY-INT",
+                  "expression": [
+                    "(",
+                    "TRAN-CAT-BAL",
+                    "*",
+                    "DIS-INT-RATE",
+                    ")",
+                    "/",
+                    "1200"
+                  ],
+                  "rounded": false
+                },
+                "source_guards": [],
+                "compilation_status": "effective_source",
+                "compilation_guards": [],
+                "evidence_id": "ev_page_4852f54a7cbf93111c3ffcc1",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "occurrence_id": "unit_8403fafc79d96da3b9d1826d",
+                "support_status": "supported",
+                "reason_code": "SOURCE_STATEMENT_MATCH",
+                "checker_version": "source-statement-support-v2",
+                "support_scope": "source_statement_syntax"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim-2",
+            "claim_type": "business_explanation",
+            "text": "累计值还需要按后续写入状态核对。",
+            "target_entity": null,
+            "expression": null,
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "unsupported",
+            "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+            "checker_version": null,
+            "support_scope": null,
+            "occurrence_ids": [],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          }
+        ],
+        "counts": {
+          "supported": 0,
+          "contradicted": 1,
+          "unsupported": 1
+        },
+        "source_fact_count": 165,
+        "compilation_context_fingerprint": "c69a78a82232d2f8c712ba95031043e21dd6d8a05fca768c20f466f8cb7098ca",
+        "revised_claim_count": 1,
+        "answer_sha256": "b1a4cb2852c2d8f2962259ff4caba50d26042e2855334ebbcaaa3713bc29eace",
+        "original_answer_sha256": "51f66ea9516f1ebcfbadf3145efc3dcc908a4488dc3f1ab541b6d93ebd5a9b4e",
+        "all_claims_supported": false
+      },
+      "supplied_evidence": [
+        {
+          "evidence_id": "ev_page_5a647fbd050ed12fb34c1d8e",
+          "relative_path": "app/cbl/CBTRN02C.cbl",
+          "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "start_line": 379,
+          "end_line": 427
+        },
+        {
+          "evidence_id": "ev_page_5b65ad16284e4e84241f8246",
+          "relative_path": "app/cpy/CVTRA01Y.cpy",
+          "source_sha256": "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_4852f54a7cbf93111c3ffcc1",
+          "relative_path": "app/cbl/CBACT04C.cbl",
+          "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "start_line": 1,
+          "end_line": 652
+        },
+        {
+          "evidence_id": "ev_page_54162d04cbf6fda00fe7de41",
+          "relative_path": "app/cpy/CVACT01Y.cpy",
+          "source_sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "start_line": 1,
+          "end_line": 20
+        },
+        {
+          "evidence_id": "ev_page_f8695cd12f373c77bb82a614",
+          "relative_path": "app/cpy/CVACT03Y.cpy",
+          "source_sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370",
+          "start_line": 1,
+          "end_line": 11
+        },
+        {
+          "evidence_id": "ev_page_a1479fc2a3c67182110e3f6f",
+          "relative_path": "app/cpy/CVTRA02Y.cpy",
+          "source_sha256": "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_0ad8fcf930de925c6c41c0e9",
+          "relative_path": "app/cpy/CVTRA05Y.cpy",
+          "source_sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "start_line": 1,
+          "end_line": 21
+        }
+      ],
+      "source_evidence_fingerprint": "0acd47e79f792461e096ead3b87b9ba6c2f2bf7aab98dd30f8f374d2ccc03d18",
+      "model_requests": 1,
+      "elapsed_seconds": 0.2773,
+      "stop_reason": "answer_incomplete",
+      "status": "PARTIAL",
+      "incorrect_claim_revised": true,
+      "mechanism_passed": true
+    },
+    {
+      "case_id": "file-record-mapping",
+      "branch": "correct",
+      "question": "CBACT04C 中 ACCOUNT-FILE、ACCTFILE、FD-ACCTFILE-REC 和 ACCOUNT-RECORD 如何对应？",
+      "pipeline_version": "question-evidence-v11",
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "10601baa9afa774e8c8d74c8",
+        "case_id": "file-record-mapping",
+        "turn_id": "1",
+        "branch": "correct",
+        "question_sha256": "da58aea1af1c1d0aaeb37f3c1a37504e2662b61c4f6530f3a1d503afd2cdd1be",
+        "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "answer_sha256": "94aa6190e7af1f4f62ab42633e4e5dd2a9f9f29034b9293efc70107029de9269",
+        "model": "offline-test-model",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "87d4abebc6073e3f4557b8e2a3a3db206582bea04c99f9dad8619d530bdc13e0"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "a35547e79dfc5e51a8bc8b7e49c1fe6d8aa6dd2928ed1e1de456271b6b1e42b8",
+        "source_snapshot_id": "sha256:f13568bd30bb78ff1687f8ed7be0636bb1fe42e47e33c18c1caffbdaa746b608",
+        "source_versions": [
+          "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c",
+          "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "6e3d35434b1e43e196ad93e053c4505dd82901708351e6eab124bda7101d30ad",
+        "identity_sha256": "4b3e5d6aa82fe310486b67f6df657eb5d76ca09c8ead3ef108205c9361521bf5"
+      },
+      "static_rule_checks": [],
+      "static_rules_supported": true,
+      "default_answer": "ACCOUNT-FILE 在 SELECT 中 ASSIGN TO ACCTFILE，记录键为FD-ACCT-ID，状态字段为ACCTFILE-STATUS。[ev_page_4852f54a7cbf93111c3ffcc1] FD声明的物理记录是FD-ACCTFILE-REC；工作记录ACCOUNT-RECORD由COPY定义，经READ INTO和REWRITE FROM传递。静态映射不能证明实际运行数据集路径。[ev_page_4852f54a7cbf93111c3ffcc1]",
+      "ledger": {
+        "ledger_version": "answer-claim-ledger-v3",
+        "scope": "bounded_source_statement_syntax",
+        "coverage": "extracted_structures_only",
+        "prose_semantics_verified": false,
+        "entries": [
+          {
+            "claim_id": "claim-1",
+            "claim_type": "business_explanation",
+            "text": "ACCOUNT-FILE 在 SELECT 中 ASSIGN TO ACCTFILE，记录键为FD-ACCT-ID，状态字段为ACCTFILE-STATUS。",
+            "target_entity": null,
+            "expression": null,
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "unsupported",
+            "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+            "checker_version": null,
+            "support_scope": null,
+            "occurrence_ids": [],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          },
+          {
+            "claim_id": "claim-2",
+            "claim_type": "business_explanation",
+            "text": "FD声明的物理记录是FD-ACCTFILE-REC；工作记录ACCOUNT-RECORD由COPY定义，经READ INTO和REWRITE FROM传递。",
+            "target_entity": null,
+            "expression": null,
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "unsupported",
+            "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+            "checker_version": null,
+            "support_scope": null,
+            "occurrence_ids": [],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          },
+          {
+            "claim_id": "claim-3",
+            "claim_type": "business_explanation",
+            "text": "静态映射不能证明实际运行数据集路径。",
+            "target_entity": null,
+            "expression": null,
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "unsupported",
+            "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+            "checker_version": null,
+            "support_scope": null,
+            "occurrence_ids": [],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          }
+        ],
+        "counts": {
+          "supported": 0,
+          "contradicted": 0,
+          "unsupported": 3
+        },
+        "source_fact_count": 172,
+        "compilation_context_fingerprint": "c69a78a82232d2f8c712ba95031043e21dd6d8a05fca768c20f466f8cb7098ca",
+        "revised_claim_count": 0,
+        "answer_sha256": "94aa6190e7af1f4f62ab42633e4e5dd2a9f9f29034b9293efc70107029de9269",
+        "original_answer_sha256": "94aa6190e7af1f4f62ab42633e4e5dd2a9f9f29034b9293efc70107029de9269",
+        "all_claims_supported": false
+      },
+      "supplied_evidence": [
+        {
+          "evidence_id": "ev_page_e2a649e4934235b5a31d6000",
+          "relative_path": "app/cbl/CBTRN02C.cbl",
+          "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "start_line": 530,
+          "end_line": 578
+        },
+        {
+          "evidence_id": "ev_page_54162d04cbf6fda00fe7de41",
+          "relative_path": "app/cpy/CVACT01Y.cpy",
+          "source_sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "start_line": 1,
+          "end_line": 20
+        },
+        {
+          "evidence_id": "ev_page_f8695cd12f373c77bb82a614",
+          "relative_path": "app/cpy/CVACT03Y.cpy",
+          "source_sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370",
+          "start_line": 1,
+          "end_line": 11
+        },
+        {
+          "evidence_id": "ev_page_5b65ad16284e4e84241f8246",
+          "relative_path": "app/cpy/CVTRA01Y.cpy",
+          "source_sha256": "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_4852f54a7cbf93111c3ffcc1",
+          "relative_path": "app/cbl/CBACT04C.cbl",
+          "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "start_line": 1,
+          "end_line": 652
+        },
+        {
+          "evidence_id": "ev_page_a1479fc2a3c67182110e3f6f",
+          "relative_path": "app/cpy/CVTRA02Y.cpy",
+          "source_sha256": "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_0ad8fcf930de925c6c41c0e9",
+          "relative_path": "app/cpy/CVTRA05Y.cpy",
+          "source_sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "start_line": 1,
+          "end_line": 21
+        }
+      ],
+      "source_evidence_fingerprint": "19f55ee79039615257597d626448f6995ce7d25a351820fe637259cbe311cec5",
+      "model_requests": 1,
+      "elapsed_seconds": 0.2775,
+      "stop_reason": "request_budget",
+      "status": "PARTIAL",
+      "correct_claims_preserved": true,
+      "mechanism_passed": true
+    },
+    {
+      "case_id": "unimplemented-procedure",
+      "branch": "correct",
+      "question": "CBACT04C 的 1400-COMPUTE-FEES 实现了哪些手续费规则？",
+      "pipeline_version": "question-evidence-v11",
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "975163d81775b85279325723",
+        "case_id": "unimplemented-procedure",
+        "turn_id": "1",
+        "branch": "correct",
+        "question_sha256": "045b54166328c96db6e7f4f4c08e671f233e869a3bf1fad338c740a264980d12",
+        "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "answer_sha256": "ab9aaa5e528221755ec15b73e053a848af0e196bee88cb31b175a1f3ca5b1bd1",
+        "model": "offline-test-model",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "db31aa33608108f616343d04cb1c2e6409790ead3e0711c31a2d7846a988bcdc"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "328fee5ad77f60235b46a768e72f43182b93f9022453b6f7df46ce599418d717",
+        "source_snapshot_id": "sha256:f13568bd30bb78ff1687f8ed7be0636bb1fe42e47e33c18c1caffbdaa746b608",
+        "source_versions": [
+          "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c",
+          "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "50822a4b49bdc03ee088f6ad094b290aa3b69eec663a7dda99c25d9cb76d4db9",
+        "identity_sha256": "8be691c1d2514689ff082fca6a6e9948b2bbb49e5463498f453e71bc3167e1d7"
+      },
+      "static_rule_checks": [],
+      "static_rules_supported": true,
+      "default_answer": "1400-COMPUTE-FEES 的完整段落只有待实现注释和 EXIT，没有手续费计算或写入语句。[ev_page_4852f54a7cbf93111c3ffcc1] 段落名称本身不能证明存在手续费算法。",
+      "ledger": {
+        "ledger_version": "answer-claim-ledger-v3",
+        "scope": "bounded_source_statement_syntax",
+        "coverage": "extracted_structures_only",
+        "prose_semantics_verified": false,
+        "entries": [
+          {
+            "claim_id": "claim-1",
+            "claim_type": "business_explanation",
+            "text": "1400-COMPUTE-FEES 的完整段落只有待实现注释和 EXIT，没有手续费计算或写入语句。",
+            "target_entity": null,
+            "expression": null,
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "unsupported",
+            "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+            "checker_version": null,
+            "support_scope": null,
+            "occurrence_ids": [],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          },
+          {
+            "claim_id": "claim-2",
+            "claim_type": "business_explanation",
+            "text": "段落名称本身不能证明存在手续费算法。",
+            "target_entity": null,
+            "expression": null,
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "unsupported",
+            "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+            "checker_version": null,
+            "support_scope": null,
+            "occurrence_ids": [],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          }
+        ],
+        "counts": {
+          "supported": 0,
+          "contradicted": 0,
+          "unsupported": 2
+        },
+        "source_fact_count": 165,
+        "compilation_context_fingerprint": "c69a78a82232d2f8c712ba95031043e21dd6d8a05fca768c20f466f8cb7098ca",
+        "revised_claim_count": 0,
+        "answer_sha256": "ab9aaa5e528221755ec15b73e053a848af0e196bee88cb31b175a1f3ca5b1bd1",
+        "original_answer_sha256": "ab9aaa5e528221755ec15b73e053a848af0e196bee88cb31b175a1f3ca5b1bd1",
+        "all_claims_supported": false
+      },
+      "supplied_evidence": [
+        {
+          "evidence_id": "ev_page_5a647fbd050ed12fb34c1d8e",
+          "relative_path": "app/cbl/CBTRN02C.cbl",
+          "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "start_line": 379,
+          "end_line": 427
+        },
+        {
+          "evidence_id": "ev_page_5b65ad16284e4e84241f8246",
+          "relative_path": "app/cpy/CVTRA01Y.cpy",
+          "source_sha256": "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_4852f54a7cbf93111c3ffcc1",
+          "relative_path": "app/cbl/CBACT04C.cbl",
+          "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "start_line": 1,
+          "end_line": 652
+        },
+        {
+          "evidence_id": "ev_page_54162d04cbf6fda00fe7de41",
+          "relative_path": "app/cpy/CVACT01Y.cpy",
+          "source_sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "start_line": 1,
+          "end_line": 20
+        },
+        {
+          "evidence_id": "ev_page_f8695cd12f373c77bb82a614",
+          "relative_path": "app/cpy/CVACT03Y.cpy",
+          "source_sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370",
+          "start_line": 1,
+          "end_line": 11
+        },
+        {
+          "evidence_id": "ev_page_a1479fc2a3c67182110e3f6f",
+          "relative_path": "app/cpy/CVTRA02Y.cpy",
+          "source_sha256": "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_0ad8fcf930de925c6c41c0e9",
+          "relative_path": "app/cpy/CVTRA05Y.cpy",
+          "source_sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "start_line": 1,
+          "end_line": 21
+        }
+      ],
+      "source_evidence_fingerprint": "0acd47e79f792461e096ead3b87b9ba6c2f2bf7aab98dd30f8f374d2ccc03d18",
+      "model_requests": 1,
+      "elapsed_seconds": 0.2729,
+      "stop_reason": "answer_incomplete",
+      "status": "PARTIAL",
+      "correct_claims_preserved": true,
+      "mechanism_passed": true
+    },
+    {
+      "case_id": "unimplemented-procedure",
+      "branch": "incorrect",
+      "question": "CBACT04C 的 1400-COMPUTE-FEES 实现了哪些手续费规则？",
+      "pipeline_version": "question-evidence-v11",
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "d6351dc09529ac2a421998e4",
+        "case_id": "unimplemented-procedure",
+        "turn_id": "1",
+        "branch": "incorrect",
+        "question_sha256": "045b54166328c96db6e7f4f4c08e671f233e869a3bf1fad338c740a264980d12",
+        "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "answer_sha256": "13f12f1cf9d00b4413da574c34d448d1d9220b4230b98edccf65c8c645050045",
+        "model": "offline-test-model",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "db31aa33608108f616343d04cb1c2e6409790ead3e0711c31a2d7846a988bcdc"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "328fee5ad77f60235b46a768e72f43182b93f9022453b6f7df46ce599418d717",
+        "source_snapshot_id": "sha256:f13568bd30bb78ff1687f8ed7be0636bb1fe42e47e33c18c1caffbdaa746b608",
+        "source_versions": [
+          "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c",
+          "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "50822a4b49bdc03ee088f6ad094b290aa3b69eec663a7dda99c25d9cb76d4db9",
+        "identity_sha256": "6f8f75e1f2abfa0d838071a29bcedc23aea2e5e57842be9da558153e4b833137"
+      },
+      "static_rule_checks": [],
+      "static_rules_supported": true,
+      "default_answer": "所引源码可直接确认：`1400-COMPUTE-FEES` 段落只有 EXIT，未实现本段计算或写入逻辑（app/cbl/CBACT04C.cbl:518）[ev_page_4852f54a7cbf93111c3ffcc1]。 该段落由主流程调用。",
+      "ledger": {
+        "ledger_version": "answer-claim-ledger-v3",
+        "scope": "bounded_source_statement_syntax",
+        "coverage": "extracted_structures_only",
+        "prose_semantics_verified": false,
+        "entries": [
+          {
+            "claim_id": "claim-1",
+            "claim_type": "procedure_behavior",
+            "text": "1400-COMPUTE-FEES 按余额的1%计算手续费。",
+            "target_entity": "1400-COMPUTE-FEES",
+            "expression": null,
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 518,
+                "end_line": 521
+              }
+            ],
+            "support_status": "contradicted",
+            "reason_code": "COMPLETE_PROCEDURE_HAS_ONLY_NOOP_STATEMENTS",
+            "checker_version": "answer-claim-ledger-v3",
+            "support_scope": "complete_local_procedure_body_no_data_or_io_statements",
+            "occurrence_ids": [
+              "unit_f2884d5bc94dc6154886dd66"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": "rendered_complete_noop_procedure",
+            "revised_claims": [
+              {
+                "assertion": {
+                  "predicate": "noop_procedure",
+                  "target": "1400-COMPUTE-FEES"
+                },
+                "support_status": "supported",
+                "support_scope": "complete_local_procedure_body_no_data_or_io_statements",
+                "evidence_id": "ev_page_4852f54a7cbf93111c3ffcc1",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim-2",
+            "claim_type": "business_explanation",
+            "text": "该段落由主流程调用。",
+            "target_entity": null,
+            "expression": null,
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "app/cbl/CBACT04C.cbl",
+                "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+                "start_line": 1,
+                "end_line": 652
+              }
+            ],
+            "support_status": "unsupported",
+            "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+            "checker_version": null,
+            "support_scope": null,
+            "occurrence_ids": [],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": []
+          }
+        ],
+        "counts": {
+          "supported": 0,
+          "contradicted": 1,
+          "unsupported": 1
+        },
+        "source_fact_count": 165,
+        "compilation_context_fingerprint": "c69a78a82232d2f8c712ba95031043e21dd6d8a05fca768c20f466f8cb7098ca",
+        "revised_claim_count": 1,
+        "answer_sha256": "13f12f1cf9d00b4413da574c34d448d1d9220b4230b98edccf65c8c645050045",
+        "original_answer_sha256": "7f5aa4c70ba65e6c107d7a17fd375a2ab7003a98c977d719d5c1dab9cfac5aee",
+        "all_claims_supported": false
+      },
+      "supplied_evidence": [
+        {
+          "evidence_id": "ev_page_5a647fbd050ed12fb34c1d8e",
+          "relative_path": "app/cbl/CBTRN02C.cbl",
+          "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "start_line": 379,
+          "end_line": 427
+        },
+        {
+          "evidence_id": "ev_page_5b65ad16284e4e84241f8246",
+          "relative_path": "app/cpy/CVTRA01Y.cpy",
+          "source_sha256": "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_4852f54a7cbf93111c3ffcc1",
+          "relative_path": "app/cbl/CBACT04C.cbl",
+          "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "start_line": 1,
+          "end_line": 652
+        },
+        {
+          "evidence_id": "ev_page_54162d04cbf6fda00fe7de41",
+          "relative_path": "app/cpy/CVACT01Y.cpy",
+          "source_sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "start_line": 1,
+          "end_line": 20
+        },
+        {
+          "evidence_id": "ev_page_f8695cd12f373c77bb82a614",
+          "relative_path": "app/cpy/CVACT03Y.cpy",
+          "source_sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370",
+          "start_line": 1,
+          "end_line": 11
+        },
+        {
+          "evidence_id": "ev_page_a1479fc2a3c67182110e3f6f",
+          "relative_path": "app/cpy/CVTRA02Y.cpy",
+          "source_sha256": "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "evidence_id": "ev_page_0ad8fcf930de925c6c41c0e9",
+          "relative_path": "app/cpy/CVTRA05Y.cpy",
+          "source_sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "start_line": 1,
+          "end_line": 21
+        }
+      ],
+      "source_evidence_fingerprint": "0acd47e79f792461e096ead3b87b9ba6c2f2bf7aab98dd30f8f374d2ccc03d18",
+      "model_requests": 1,
+      "elapsed_seconds": 0.2689,
+      "stop_reason": "answer_incomplete",
+      "status": "PARTIAL",
+      "incorrect_claim_revised": true,
+      "mechanism_passed": true
+    }
+  ],
+  "parser_trials": {
+    "proleap": {
+      "version": "2.4.0",
+      "availability": "not_configured_for_workbench",
+      "diagnostics": [
+        {
+          "reason": "parser_unavailable"
+        }
+      ],
+      "native_parser_executed": false
+    },
+    "che4z": {
+      "version": "2.5.1",
+      "availability": "not_configured_for_workbench",
+      "diagnostics": [
+        {
+          "reason": "parser_unavailable"
+        }
+      ],
+      "native_parser_executed": false
+    }
+  },
+  "index": {
+    "snapshot_id": "sha256:f13568bd30bb78ff1687f8ed7be0636bb1fe42e47e33c18c1caffbdaa746b608",
+    "parser_version": "business-sparse-v1.7",
+    "source_options": {
+      "encoding": "utf-8",
+      "source_format": "fixed",
+      "extensions": [
+        ".cbl",
+        ".cblle",
+        ".cl",
+        ".clle",
+        ".cob",
+        ".cobol",
+        ".copy",
+        ".cpb",
+        ".cpy",
+        ".ddl",
+        ".dds",
+        ".inc",
+        ".jcl",
+        ".job",
+        ".lf",
+        ".pco",
+        ".pf",
+        ".sqb",
+        ".sql",
+        ".sqlcblle",
+        ".src",
+        ".txt"
+      ],
+      "include_extensionless": false,
+      "compilation_context": {
+        "dialect": "unknown",
+        "encoding": "utf-8",
+        "source_format": "fixed",
+        "copy_libraries": [
+          "app/cpy"
+        ],
+        "copy_library_order_known": true,
+        "compile_conditions": [],
+        "conditions_complete": false,
+        "preprocessing_version": "bounded-copy-v2",
+        "frontend_version": "cobol-facts-v5",
+        "framework_version": null,
+        "target_profile": "generic-cobol",
+        "resource_kinds": [
+          "cobol-file",
+          "sql"
+        ],
+        "debug_lines": null,
+        "nested_copy_replacing": null
+      }
+    }
+  },
+  "mechanisms_passed": true
+}

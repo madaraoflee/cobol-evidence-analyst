@@ -287,6 +287,7 @@ def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage
                 "paragraph_name": row["paragraph_name"], "rule_kind": row["rule_kind"],
                 "start_line": row["first_line"], "end_line": row["last_line"],
                 "occurrence_count": row["occurrence_count"],
+                "rule_id": row["rule_id"],
                 "statement": code[:1800], "reads": json.loads(row["reads_json"]),
                 "writes": json.loads(row["writes_json"]),
                 "conditions": json.loads(row["condition_json"]),
@@ -319,6 +320,15 @@ def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage
             coverage["omitted_rules_per_path"][relative] = len(candidates) - len(chosen)
     eligible.sort(key=lambda item: (-item[0], item[2]["relative_path"], item[1]))
     selected = [item[2] for item in eligible[:48]]
+    if selected and connection.execute("SELECT 1 FROM sqlite_master WHERE name='business_rule_occurrences'").fetchone():
+        by_rule = {item["rule_id"]: item for item in selected}
+        slots = ",".join("?" for _ in by_rule)
+        for row in connection.execute("SELECT rule_id,scope_json FROM business_rule_occurrences "
+                f"WHERE rule_id IN ({slots}) AND parse_status='candidate' GROUP BY rule_id", tuple(by_rule)):
+            guards = [guard for guard in json.loads(row["scope_json"]) if guard.get("kind") == "COMPILATION"]
+            if guards:
+                by_rule[row["rule_id"]].update(compilation_status="candidate", compilation_guards=guards,
+                                              support_basis="source_syntax_only")
     coverage["selected_rules"] = len(selected)
     coverage["omitted_rules_global"] = max(0, len(eligible) - 48)
     coverage["candidate_selection_complete"] = not (coverage["omitted_previews"] or coverage["omitted_paths"] or
@@ -365,14 +375,15 @@ def _related_program_rules(connection, selected, direct, distance, existing, che
 
 
 def build_business_map(database_path, source_root, question, *, search_terms=None, focus_paths=None, prior_paths=None,
-                       check_cancel=None):
+                       check_cancel=None, entry_program=None):
     """Map direct matches, transitive static callers and nearby rule operations.
 
     It reads the saved index only. In particular, it does not rescan source files
     or ask the model to summarise individual pages.
     """
     discovery = discover_repository(database_path, question, search_terms=search_terms, focus_paths=focus_paths,
-                                    check_cancel=check_cancel, fallback_to_repository=False)
+                                    check_cancel=check_cancel, fallback_to_repository=False,
+                                    entry_program=entry_program)
     connection = _connect(database_path)
     try:
         connection.execute("BEGIN")
@@ -396,7 +407,10 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         intent = "impact" if _IMPACT_LANGUAGE.search(question) else "explain"
         incoming, all_edges = _call_graph(connection, check_cancel) if direct else ({}, [])
         outgoing, outgoing_frontier = {}, []
-        if intent == "impact" and direct:
+        if identity.get("exclusive_source_scope") and direct:
+            distance = {path: 0 for path in direct}
+            selected = set(direct)
+        elif intent == "impact" and direct:
             distance = _impact_paths(incoming, direct, check_cancel)
             if is_file_impact_question(question):
                 outgoing, outgoing_frontier = _outgoing_paths(all_edges, direct, check_cancel)

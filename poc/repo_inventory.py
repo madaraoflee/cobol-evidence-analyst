@@ -21,6 +21,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from statement_facts import program_identifiers
+
 
 SCHEMA_VERSION = "1.0"
 
@@ -331,9 +333,7 @@ def observe_file(
         return None
 
     normalized_text, format_hint = normalize_cobol_text(decoded.text, source_format)
-    program_ids = tuple(
-        match.upper() for match in PROGRAM_ID_RE.findall(normalized_text)
-    )
+    program_ids = tuple(name for name, _, _ in program_identifiers(normalized_text))
     copy_targets = tuple(
         match.rstrip(".").upper() for match in COPY_RE.findall(normalized_text)
     )

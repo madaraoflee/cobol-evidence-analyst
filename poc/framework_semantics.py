@@ -15,7 +15,7 @@ import sqlite3
 import time
 
 
-SEMANTICS_VERSION = "framework-semantics/v1.3"
+SEMANTICS_VERSION = "framework-semantics/v1.4"
 MAX_FILE_FACTS = 2048
 MAX_REQUEST_FACTS = 32
 
@@ -37,6 +37,19 @@ def _schema(db):
                "bindings_json TEXT NOT NULL DEFAULT '[]')")
     if "bindings_json" not in {row[1] for row in db.execute("PRAGMA table_info(framework_file_semantics)")}:
         db.execute("ALTER TABLE framework_file_semantics ADD COLUMN bindings_json TEXT NOT NULL DEFAULT '[]'")
+
+
+def _selected_compilation_context(db, supplied=None):
+    if supplied is not None:
+        return supplied
+    try:
+        row = db.execute("SELECT value FROM metadata WHERE key='compilation_context'").fetchone()
+        if row:
+            return json.loads(row[0])
+        options = db.execute("SELECT value FROM metadata WHERE key='source_options'").fetchone()
+        return json.loads(options[0]).get("compilation_context") if options else None
+    except (sqlite3.Error, ValueError, TypeError):
+        return None
 
 
 def _template_regex(template):
@@ -164,6 +177,9 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
             summary["fact_count"] += len(facts)
             summary["matched_files"] += bool(facts)
             interpreted = validate_framework_layouts(db, _source_precedence(db, facts))
+            from effect_contract import attach_effect_contracts
+            interpreted = attach_effect_contracts(interpreted, knowledge,
+                compilation_context=_selected_compilation_context(db))
             summary["covered_external_calls"] += sum(row.get("dependency_covered") is True for row in interpreted)
             db.execute("INSERT OR REPLACE INTO framework_file_semantics "
                 "(relative_path,source_sha256,knowledge_digest,version,facts_json,bindings_json) VALUES (?,?,?,?,?,?)",
@@ -208,7 +224,7 @@ def _page_runs(pages):
 
 
 def build_framework_facts(database_path, source_pages, *, reference_path=None, check_cancel=None,
-                          source_session=None):
+                          source_session=None, compilation_context=None):
     """Use offline facts, rebinding changed manuals or older indexes locally."""
     from framework_binding import bind_framework_source
     from source_reading import _verified_lines
@@ -301,6 +317,9 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
         candidates = visible_framework_facts(list(facts.values()), source_pages, knowledge.get("references", []))
         checked = _source_precedence(db, candidates)
         checked = validate_framework_layouts(db, checked)
+        from effect_contract import attach_effect_contracts
+        checked = attach_effect_contracts(checked, knowledge,
+            compilation_context=_selected_compilation_context(db, compilation_context))
         # A selected call can be far from its parameter declarations. Expose
         # bounded missing spans so the caller may read them within its existing
         # budget; the fact still cannot survive until that source is supplied.
@@ -320,7 +339,12 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
         result["omitted_fact_count"] = max(0, len(visible) - MAX_REQUEST_FACTS)
         result["facts"] = visible[:MAX_REQUEST_FACTS]
     ids = {key for fact in result["facts"] for key in fact.get("reference_ids", [])}
+    for fact in result["facts"]:
+        effect = fact.get("effect_contract", {})
+        for candidate in effect.get("status_codes", []) + effect.get("explicit_configuration_candidates", []):
+            ids.update(candidate.get("reference_ids", []))
     result["references"] = [ref for ref in knowledge.get("references", []) if ref["reference_id"] in ids]
+    result["effect_contract_conflicts"] = [conflict for fact in result["facts"] for conflict in fact.get("effect_contract_conflicts", [])]
     return result
 
 
@@ -355,5 +379,8 @@ def visible_framework_facts(facts, pages, references):
             row = deepcopy(original)
             row["source_evidence_ids"] = list(dict.fromkeys(evidence))
             row["runtime_verified"] = False
+            if row.get("effect_contract"):
+                from effect_contract import visible_effect_contract
+                row["effect_contract"] = visible_effect_contract(row["effect_contract"], usable)
             result.append(row)
     return result

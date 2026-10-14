@@ -42,6 +42,14 @@ COPYBOOK = """       01 PREMIUM-AREA.
 
 
 class InventoryTests(unittest.TestCase):
+    def test_program_header_literal_text_does_not_create_an_inventory_definition(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "main.cbl").write_text("IDENTIFICATION DIVISION.\nPROGRAM-ID. MAIN-ENTRY.\nPROCEDURE DIVISION.\nDISPLAY 'PROGRAM-ID. PHANTOM'.\nGOBACK.\n")
+            report = build_inventory(root, include_identifiers=True, quiet=True)
+            self.assertEqual(report["identifiers"]["program_ids"], ["MAIN-ENTRY"])
+            self.assertEqual(report["totals"]["program_definition_count"], 1)
+
     def _make_repo(self, root: Path) -> None:
         (root / "programs").mkdir()
         (root / "copybooks").mkdir()

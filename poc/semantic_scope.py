@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from contextlib import closing, contextmanager
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 import hashlib
 import json
 from pathlib import Path
@@ -18,9 +18,12 @@ from source_reading import _identify_page
 from source_session import archive_evidence
 from structural_index import PARSER_VERSION, build_structural_index
 from procedure_expansion import expand_program
+from compilation_context import resolve_compilation_context
+from parser_adapter import BuiltinParserAdapter
+from semantic_ir import IR_VERSION
 
 
-SEMANTIC_VERSION = "selected-structural-v1"
+SEMANTIC_VERSION = "selected-structural-v2"
 _ACTIVE = set()
 
 
@@ -78,6 +81,9 @@ class SemanticScope:
     _temporary: object = field(repr=False)
     _line_cache: dict = field(default_factory=dict, repr=False)
     _origin_locations: dict | None = field(default=None, repr=False)
+    _semantic_services: dict = field(default_factory=dict, repr=False)
+    compilation_context: dict = field(default_factory=dict)
+    _ir_cache: dict = field(default_factory=dict, repr=False)
     cache_limit: int = 536870912
 
     def close(self):
@@ -90,6 +96,14 @@ class SemanticScope:
 
     def __exit__(self, *_):
         self.close()
+
+    def read_ir(self, relative_path):
+        if relative_path not in self._ir_cache:
+            with _semantic_connection(self.database_path) as db:
+                row = db.execute("SELECT ir_json FROM semantic_ir_documents WHERE relative_path=?",
+                                 (relative_path,)).fetchone()
+            self._ir_cache[relative_path] = json.loads(row[0]) if row else None
+        return self._ir_cache[relative_path]
 
 
 def _select_paths(repository_database, anchors, requested_calls, policy, check_cancel=None):
@@ -139,7 +153,9 @@ def _select_paths(repository_database, anchors, requested_calls, policy, check_c
 
 
 def _prepare_semantic_scope(repository_database, source_session, *, anchors,
-                            requested_calls=(), policy, check_cancel=None, temporary):
+                            requested_calls=(), policy, check_cancel=None, temporary, compilation_context=None):
+    compilation = resolve_compilation_context(compilation_context or source_session.options.get("compilation_context"),
+                                              source_options=source_session.options)
     paths, frontier = _select_paths(repository_database, anchors, requested_calls, policy, check_cancel)
     if not paths:
         raise ValueError("SEMANTIC_SCOPE_EMPTY")
@@ -183,7 +199,8 @@ def _prepare_semantic_scope(repository_database, source_session, *, anchors,
         expansion = expand_program(source_session.mirror_root, programs[relative],
             source_provider=source_session, source_catalog=catalog,
             entry_relative_path=relative, max_depth=policy.max_semantic_expansions,
-            max_lines=max(20000, policy.max_semantic_source_bytes // 32), check_cancel=check_cancel)
+            max_lines=max(20000, policy.max_semantic_source_bytes // 32), check_cancel=check_cancel,
+            compilation_context=compilation)
         frontier.extend(expansion["boundaries"])
         if not expansion["source_expansion_complete"] or not expansion["includes"]:
             continue
@@ -210,7 +227,8 @@ def _prepare_semantic_scope(repository_database, source_session, *, anchors,
         # per derived line. The derived hash is never reported as a host hash.
         content = "\n".join(line["code"] for line in expansion["lines"]) + "\n"
         (root / relative).write_text(content, encoding="utf-8")
-        source_map[relative] = [{"origin": item["origin"], "include_chain": item["include_chain"]}
+        source_map[relative] = [{"origin": item["origin"], "include_chain": item["include_chain"],
+                                "replacement_trace": item.get("replacement_trace", [])}
                                 for item in expansion["lines"]]
         derived_manifest = [item for item in derived_manifest if item["relative_path"] != relative]
         derived_manifest.append({"relative_path": relative,
@@ -222,7 +240,9 @@ def _prepare_semantic_scope(repository_database, source_session, *, anchors,
     digest = hashlib.sha256(json.dumps({"root": str(source_session.source_root),
         "input": sorted(input_manifest, key=lambda x: x["relative_path"]),
         "derived": sorted(derived_manifest, key=lambda x: x["relative_path"]),
-        "map": source_map, "parser": PARSER_VERSION, "semantic": SEMANTIC_VERSION},
+        "map": source_map, "parser": PARSER_VERSION, "semantic": SEMANTIC_VERSION,
+        "compilation_context": compilation.to_dict(), "ir": IR_VERSION,
+        "ir_adapter": BuiltinParserAdapter.version},
         sort_keys=True).encode()).hexdigest()
     cache = Path(repository_database).resolve().parent / "semantic-scopes"
     cache.mkdir(parents=True, exist_ok=True)
@@ -237,6 +257,26 @@ def _prepare_semantic_scope(repository_database, source_session, *, anchors,
                     "encoding": item["encoding"], "source_format": item["source_format"]}
                     for item in derived_manifest},
                 verify_content=True, check_cancel=check_cancel)
+            adapter = BuiltinParserAdapter()
+            with _semantic_connection(temporary_database, check_cancel) as db, db:
+                db.execute("CREATE TABLE semantic_ir_documents (relative_path TEXT PRIMARY KEY, compilation_fingerprint TEXT NOT NULL, ir_fingerprint TEXT NOT NULL, ir_json TEXT NOT NULL)")
+                db.execute("CREATE TABLE semantic_ir_statements (occurrence_id TEXT PRIMARY KEY, rule_shape_id TEXT NOT NULL, relative_path TEXT NOT NULL, start_line INTEGER NOT NULL, statement_type TEXT NOT NULL, facts_json TEXT NOT NULL)")
+                db.execute("CREATE INDEX semantic_ir_statement_path ON semantic_ir_statements(relative_path,start_line)")
+                for item in derived_manifest:
+                    if check_cancel:
+                        check_cancel()
+                    relative = item["relative_path"]
+                    text = (root / relative).read_text(encoding=item["encoding"])
+                    parser_context = replace(compilation, source_format=item["source_format"], encoding=item["encoding"])
+                    ir = adapter.parse(text, relative_path=relative, context=parser_context,
+                        source_map=source_map.get(relative), source_sha256=item["sha256"])
+                    document = ir.to_dict()
+                    db.execute("INSERT INTO semantic_ir_documents VALUES (?,?,?,?)", (relative,
+                        compilation.fingerprint, ir.fingerprint, json.dumps(document, ensure_ascii=False)))
+                    db.executemany("INSERT INTO semantic_ir_statements VALUES (?,?,?,?,?,?)", [(
+                        row["occurrence_id"], row["rule_shape_id"], relative,
+                        row["source_refs"][0]["start_line"] if row["source_refs"] else 1,
+                        row["statement_type"], json.dumps(row, ensure_ascii=False)) for row in document["statements"]])
             temporary_database.replace(database)
             (cache / f"{digest}.map.json").write_text(json.dumps(source_map), encoding="utf-8")
         finally:
@@ -250,16 +290,16 @@ def _prepare_semantic_scope(repository_database, source_session, *, anchors,
     _prune_cache(cache, policy.semantic_cache_bytes)
     return SemanticScope(database, digest, input_manifest, derived_manifest,
                          source_map, frontier, root, warm, source_session, temporary,
-                         cache_limit=policy.semantic_cache_bytes)
+                         cache_limit=policy.semantic_cache_bytes, compilation_context=compilation.to_dict())
 
 
 def prepare_semantic_scope(repository_database, source_session, *, anchors,
-                           requested_calls=(), policy, check_cancel=None):
+                           requested_calls=(), policy, check_cancel=None, compilation_context=None):
     temporary = tempfile.TemporaryDirectory(prefix="semantic-scope-")
     try:
         return _prepare_semantic_scope(repository_database, source_session,
             anchors=anchors, requested_calls=requested_calls, policy=policy,
-            check_cancel=check_cancel, temporary=temporary)
+            check_cancel=check_cancel, temporary=temporary, compilation_context=compilation_context)
     except BaseException:
         temporary.cleanup()
         raise
@@ -277,10 +317,10 @@ def _source_pages(scope, unit):
     for item in origins or ():
         origin = item["origin"]
         chain = item["include_chain"]
-        if groups and groups[-1][0] == origin["relative_path"] and groups[-1][1] == chain and groups[-1][3] + 1 == origin["line"]:
-            groups[-1][3] = origin["line"]
+        if groups and groups[-1][0] == origin["relative_path"] and groups[-1][1] == chain and groups[-1][3] + 1 >= origin["line"]:
+            groups[-1][3] = max(groups[-1][3], origin.get("end_line", origin["line"]))
         else:
-            groups.append([origin["relative_path"], chain, origin["line"], origin["line"]])
+            groups.append([origin["relative_path"], chain, origin["line"], origin.get("end_line", origin["line"])])
     pages = []
     for path, chain, start, end in groups:
         captured = scope.source_session.capture(path)
@@ -329,12 +369,15 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
         for unit_path, anchor_line in locations:
             if check_cancel:
                 check_cancel()
-            row = db.execute("SELECT * FROM code_units WHERE relative_path=? AND unit_type='Statement' "
+            row = db.execute("SELECT * FROM code_units WHERE relative_path=? AND unit_type IN ('Statement','DataItem','ProcedureSignature') "
                 "AND start_line<=? AND end_line>=? ORDER BY end_line-start_line LIMIT 1",
                 (unit_path, anchor_line, anchor_line)).fetchone()
             if row:
                 selected[row["unit_id"]] = row
-                roles[row["unit_id"]] = "result" if row["name"] in {"COMPUTE", "MOVE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"} else "callsite" if row["name"] == "CALL" else "anchor"
+                roles[row["unit_id"]] = ("declaration" if row["unit_type"] == "DataItem" else
+                    "signature" if row["unit_type"] == "ProcedureSignature" else
+                    "result" if row["name"] in {"COMPUTE", "MOVE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"} else
+                    "callsite" if row["name"] == "CALL" else "anchor")
         if not selected:
             return EvidenceGroup("group_" + scope.scope_key[:12], anchor, purpose,
                                  open_frontier=[{"reason": "anchor_not_structurally_parsed", **anchor}])
@@ -478,6 +521,85 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
             observations.append(Observation(unit["unit_id"], roles.get(unit["unit_id"], "related_statement"), refs,
                 interpretation_basis="source_observation" if unit["unit_id"] in anchor_units
                                      else bases.get(unit["unit_id"], "conservative_relation_candidate")))
+    semantic_analysis = {}
+    try:
+        from semantic_service import FactStore, SemanticService, FlowNode, SERVICE_VERSION
+        from run_store import RunStore, fingerprint
+        journal = RunStore(Path(source_session.database_path).resolve().parent / "investigation-runs.sqlite")
+        # Parse each program once in this scope; bind repeated invocation
+        # contexts in the graph rather than repeatedly reading all fact tables.
+        unit_path = next(iter(selected.values()))["relative_path"]
+        if unit_path not in scope._semantic_services:
+            facts = FactStore(scope.database_path, scope.mirror_root, source_map=scope.source_map,
+                              source_manifest=scope.derived_manifest)
+            graph_key = fingerprint({"scope": scope.scope_key, "path": unit_path, "version": SERVICE_VERSION,
+                                     "cache_schema": "ordered-flow-nodes-v2"})
+            cached = journal.cached("flow", graph_key)
+            service = SemanticService(facts, max_nodes=2000, max_depth=8, check_cancel=check_cancel)
+            if cached:
+                service.nodes = {key: FlowNode(**cached["nodes"][key]) for key in cached["node_order"]}
+                service.edges = {tuple(edge) for edge in cached["edges"]}
+                service.frontier, service.dependencies = cached["frontier"], set(cached["dependencies"])
+                service.entry, service.exits = cached["entry"], set(cached["exits"])
+                service._flow_complete = cached.get("flow_complete", False)
+                service.reaching_in = {key: {name: set(items) for name, items in value.items()} for key, value in cached["reaching_in"].items()}
+                service.reaching_out = {key: {name: set(items) for name, items in value.items()} for key, value in cached["reaching_out"].items()}
+            else:
+                service.build(unit_path)
+                journal.cache("flow", graph_key, {"nodes": {key: asdict(node) for key, node in service.nodes.items()},
+                    "node_order": list(service.nodes),
+                    "edges": sorted(service.edges), "frontier": service.frontier, "dependencies": sorted(service.dependencies),
+                    "entry": service.entry, "exits": sorted(service.exits),
+                    "flow_complete": service._flow_complete,
+                    "reaching_in": {key: {name: sorted(items) for name, items in value.items()} for key, value in service.reaching_in.items()},
+                    "reaching_out": {key: {name: sorted(items) for name, items in value.items()} for key, value in service.reaching_out.items()}},
+                    dependencies=["source:" + item["relative_path"] for item in scope.input_manifest])
+                journal.cache("summary", graph_key, service.summary(unit_path), dependencies=["flow:" + graph_key])
+            scope._semantic_services[unit_path] = service
+        service = scope._semantic_services[unit_path]
+        anchors = [key for key, node in service.nodes.items() if node.kind not in {"IF", "EVALUATE", "WHEN"}
+            and any(ref["relative_path"] == path and ref["start_line"] <= line <= ref["end_line"] for ref in node.source_refs)]
+        needed, explanations = set(), []
+        for key in anchors[:4]:
+            needed.update(service.backward_slice(key)["occurrences"])
+            if purpose in {"impact", "forward_slice"}:
+                needed.update(service.forward_slice(key)["occurrences"])
+            explanation = service.explain_assignment(key)
+            needed.update(explanation["later_writes"])
+        flow_nodes = [node for key, node in service.nodes.items() if key in needed][:16]
+        supplied_ids = {page["evidence_id"] for page in supplied}
+        flow_refs = []
+        for node in flow_nodes:
+            for ref in node.source_refs:
+                if ref["end_line"] - ref["start_line"] >= 96:
+                    frontier.append({"reason": "flow_source_span_budget", **ref})
+                    continue
+                captured = source_session.capture(ref["relative_path"])
+                if captured.sha256 != ref["source_sha256"]:
+                    raise ValueError("SEMANTIC_FLOW_SOURCE_VERSION_MISMATCH")
+                text = "\n".join(captured.path.read_text(encoding=captured.encoding).splitlines()[ref["start_line"] - 1:ref["end_line"]])
+                page = {**ref, "source_text": text, "selection_reasons": ["semantic_slice"],
+                        "semantic_roles": ["condition" if node.kind in {"IF", "EVALUATE"} else "input"],
+                        "interpretation_basis": "possible_source_flow"}
+                page["evidence_id"] = _identify_page(page)
+                if page["evidence_id"] not in supplied_ids:
+                    supplied.append(page)
+                    supplied_ids.add(page["evidence_id"])
+                flow_refs.append(SourceRef("source", page["relative_path"], page["source_sha256"],
+                    page["start_line"], page["end_line"], hashlib.sha256(text.encode()).hexdigest(), page["evidence_id"]))
+                ref["evidence_id"] = page["evidence_id"]
+        if flow_refs:
+            observations.append(Observation("flow_" + scope.scope_key[:16], "flow_context", flow_refs,
+                interpretation_basis="possible_source_flow"))
+        explanations = [service.explain_assignment(key) for key in anchors[:4]]
+        semantic_analysis = {"version": SERVICE_VERSION,
+            "flow_status": "possible_source_flow" if service._flow_complete else "incomplete_source_flow", "anchors": anchors[:4],
+            "assignments": explanations, "slice_statements": [asdict(node) for node in flow_nodes],
+            "dependencies": sorted(service.dependencies), "unknown_effects": service.frontier[:16]}
+        frontier.extend(service.frontier[:8])
+    except (ValueError, OSError, sqlite3.Error) as exc:
+        frontier.append({"reason": "semantic_flow_unavailable", "detail": str(exc), **anchor})
     archive_evidence(source_session.database_path, supplied)
     return EvidenceGroup("group_" + hashlib.sha256((scope.scope_key + str(anchor)).encode()).hexdigest()[:16],
-        anchor, purpose, observations, supplied_locations=supplied, open_frontier=frontier)
+        anchor, purpose, observations, supplied_locations=supplied, open_frontier=frontier,
+        semantic_analysis=semantic_analysis)

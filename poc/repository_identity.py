@@ -8,11 +8,11 @@ import re
 from repo_inventory import DEFAULT_EXTENSIONS
 
 
-_PATH = re.compile(r"[^\s`\"<>,，;；?？:：]+(?:[/\\][^\s`\"<>,，;；?？:：]+)+")
-_FILENAME = re.compile(r"[^\s`\"<>,，;；?？:：/\\]+")
+_PATH = re.compile(r"[^\s`\"<>,，;；?？:：。！!“”‘’]+(?:[/\\][^\s`\"<>,，;；?？:：。！!“”‘’]+)+")
+_FILENAME = re.compile(r"[^\s`\"<>,，;；?？:：。！!“”‘’/\\]+")
 _ASCII_PATH = re.compile(r"[A-Za-z0-9_$#@.%+'-]+(?:[/\\][A-Za-z0-9_$#@.%+'-]+)+")
 _PATH_REQUEST = re.compile(r"(?:请|請)?(?:说明|說明|解释|解釋|分析|查看|检查|檢查|阅读|閱讀|读|讀|显示|顯示)")
-_QUOTED = re.compile(r"[`\"']([^`\"']+)[`\"']")
+_QUOTED = re.compile(r"[`\"'“”‘’]([^`\"'“”‘’]+)[`\"'“”‘’]")
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_$#@-]*(?:\.[A-Za-z0-9]+)?")
 _PROGRAM = re.compile(r"(?:\bprogram(?:-id)?\b|程序)\s*[:：]?\s*[`\"']?([A-Za-z0-9][A-Za-z0-9_$#@-]*)", re.I)
 _FIELD = re.compile(r"(?:\bfield\b|字段|欄位|变量|變量)\s*[:：]?\s*[`\"']?([A-Za-z0-9][A-Za-z0-9_$#@-]*)", re.I)
@@ -30,6 +30,46 @@ _SUBJECT_COORDINATION = re.compile(r"和|与|與|及|或者|\b(?:and|or)\b", re.
 _LATER_ANALYSIS_REQUEST = re.compile(
     r"(?:请|請)?(?:分析|解释|解釋|说明|說明|查看|检查|檢查)|"
     r"\b(?:analy[sz]e|explain|describe|inspect)\b", re.I)
+_EXCLUSIVE_SOURCE_REQUEST = re.compile(
+    r"(?:只|仅|僅)(?:分析|查看|阅读|閱讀|检查|檢查|解释|解釋|说明|說明|看|读|讀)|"
+    r"(?:限于|限於|仅限|僅限)\s*(?:此|本|这个|這個|该|該)?\s*(?:文件|程序|程式|源码|原文)|"
+    r"\bonly\s+(?:(?:this|that|the|selected)\s+)?(?:file|source|program)\b|"
+    r"\b(?:analy[sz]e|read|inspect|explain)\s+only\b|"
+    r"\bonly\s+(?:analy[sz]e|read|inspect|explain)\b|"
+    r"\b(?:do\s+not|don't)\s+(?:read|search|inspect)\s+(?:any\s+)?other\s+(?:files|sources|programs)\b",
+    re.I)
+_WRAPPERS = {"(": ")", "（": "）", "[": "]", "【": "】", "{": "}"}
+_EXCLUSIVE_ACTION = re.compile(
+    r"(?:只|仅|僅)(?:分析|查看|阅读|閱讀|检查|檢查|解释|解釋|说明|說明|看|读|讀)|"
+    r"(?:analy[sz]e|read|inspect|explain)\s+only|only\s+(?:analy[sz]e|read|inspect|explain)", re.I)
+
+
+def _unquoted_identifier(value):
+    """Remove sentence wrappers without discarding punctuation inside a path."""
+    value = value.rstrip(".")
+    request = _PATH_REQUEST.match(value)
+    if request and value[request.end():request.end() + 1] in _WRAPPERS:
+        value = value[request.end():]
+    while value and value[0] in _WRAPPERS and value.endswith(_WRAPPERS[value[0]]):
+        value = value[1:-1].rstrip(".")
+    return value
+
+
+def _exclusive_source_scope(question, identity):
+    names = list(dict.fromkeys([*identity.get("requested", []), *identity.get("direct_paths", []),
+                               *(PurePosixPath(path).name for path in identity.get("direct_paths", []))]))
+    for match in _EXCLUSIVE_SOURCE_REQUEST.finditer(question):
+        if not _EXCLUSIVE_ACTION.fullmatch(match[0]):
+            return True
+        following = question[match.end():].lstrip()
+        if re.match(r"(?:(?:this|that|the|selected)\s+(?:file|source|program)\b|"
+                    r"(?:此|本|这个|這個|该|該)(?:文件|程序|程式|源码|原文))", following, re.I):
+            return True
+        for name in names:
+            if name and re.match(r"[`\"'“‘（(\[【]?" + re.escape(name) + r"(?![A-Za-z0-9_$#@.-])",
+                                 following, re.I):
+                return True
+    return False
 
 
 def _result(candidates):
@@ -162,7 +202,7 @@ def _resolve_identifiers(connection, text):
     if not quoted_paths:
         path_tokens = [(match[0], False) for match in _PATH.finditer(text)]
     for value, quoted in path_tokens:
-        identifier = value.rstrip(".")
+        identifier = value.rstrip(".") if quoted else _unquoted_identifier(value)
         normalized = identifier.replace("\\", "/")
         canonical = normalized.removeprefix("./")
         kind = "relative_path" if "/" in normalized else "basename"
@@ -194,8 +234,8 @@ def _resolve_identifiers(connection, text):
 
     # Keep the whole filename token. Splitting punctuation could reinterpret
     # an unknown requested file as the suffix of another indexed basename.
-    filenames = list(dict.fromkeys(match[0].rstrip(".") for match in _FILENAME.finditer(text)
-                     if PurePosixPath(match[0].rstrip(".")).suffix.casefold() in DEFAULT_EXTENSIONS))
+    filenames = list(dict.fromkeys(value for match in _FILENAME.finditer(text)
+                     if PurePosixPath(value := _unquoted_identifier(match[0])).suffix.casefold() in DEFAULT_EXTENSIONS))
     if filenames:
         candidates = []
         for name in filenames:
@@ -266,7 +306,43 @@ def _resolve_identifiers(connection, text):
     return _result(candidates)
 
 
-def resolve_source_identity(connection, question, search_terms=None, *, focus_paths=None):
+def resolve_entry_identity(connection, entry_program):
+    """Validate a selected entry against indexed definitions, including entry keys."""
+    value = entry_program.strip().replace("\\", "/").removeprefix("./") \
+        if isinstance(entry_program, str) else ""
+    paths, kind, ambiguous = [], "program", False
+    if "::" in value:
+        kind = "relative_path"
+        parts = value.split("::")
+        if len(parts) == 3 and parts[0] and parts[1] and parts[2].isdigit() and int(parts[2]) > 0:
+            paths = [row[0] for row in connection.execute(
+                "SELECT relative_path FROM code_units WHERE unit_type='Program' "
+                "AND relative_path=? COLLATE NOCASE AND name=? AND start_line=?",
+                (parts[0], parts[1].upper(), int(parts[2])))]
+    else:
+        definitions = [row[0] for row in connection.execute(
+            "SELECT relative_path FROM code_units WHERE unit_type='Program' AND name=?",
+            (value.upper(),))]
+        if definitions:
+            paths, ambiguous = sorted(set(definitions)), len(definitions) > 1
+        else:
+            kind = "relative_path" if "/" in value else "basename"
+            scope = "relative_path=? COLLATE NOCASE" if "/" in value else \
+                "(relative_path=? COLLATE NOCASE OR relative_path LIKE ? ESCAPE '\\')"
+            arguments = (value,) if "/" in value else (value, "%/" + _like_literal(value))
+            definitions = [row[0] for row in connection.execute(
+                "SELECT relative_path FROM code_units WHERE unit_type='Program' AND " + scope +
+                " ORDER BY relative_path", arguments)] if value else []
+            paths, ambiguous = sorted(set(definitions)), len(definitions) > 1
+    candidate = {"identifier": value, "kind": kind, "relative_paths": sorted(set(paths)),
+                 "role": "analysis_subject"}
+    if ambiguous:
+        candidate["ambiguous"] = True
+    return _with_constraint(_result([candidate]), hard=True, source="entry_program")
+
+
+def resolve_source_identity(connection, question, search_terms=None, *, focus_paths=None,
+                            entry_program=None):
     """Separate user file constraints from revisable source-navigation hints.
 
     Search terms may improve a soft candidate set. An established caller hint
@@ -274,8 +350,11 @@ def resolve_source_identity(connection, question, search_terms=None, *, focus_pa
     it after every requested path has been checked against indexed files.
     """
     result = _resolve_input(connection, question)
+    if result["status"] == "none" and entry_program is not None:
+        result = resolve_entry_identity(connection, entry_program)
+    result["exclusive_source_scope"] = _exclusive_source_scope(question, result)
     if focus_paths is not None:
-        if result["hard_constraint"]:
+        if result["hard_constraint"] or result["exclusive_source_scope"]:
             return {**result, "focus_rejected": "explicit_source_constraint"}
         valid = (isinstance(focus_paths, (list, tuple)) and 0 < len(focus_paths) <= 8
                  and all(isinstance(path, str) and path for path in focus_paths))
@@ -292,18 +371,20 @@ def resolve_source_identity(connection, question, search_terms=None, *, focus_pa
         if not valid:
             return {**result, "focus_rejected": "indexed_source_paths_required"}
         return {**_with_constraint(_result(candidates), hard=False, source="focus"),
-                "selection_basis": "model_selected_source_paths"}
+                "selection_basis": "model_selected_source_paths", "exclusive_source_scope": False}
     if result["hard_constraint"]:
         return result
-    if (result["status"] == "resolved" and
-            any(item.get("role") == "analysis_subject" for item in result["candidates"])):
+    if result["status"] == "resolved" and len(result["direct_paths"]) == 1:
+        # Searching for supporting evidence must not replace the analysis root.
+        # A validated focus action is the explicit operation for changing it.
         return result
     # Supplementary business words without definitions cannot create a new
     # hard missing-file constraint or discard the existing candidate set.
     for value in search_terms or ():
         candidate = _resolve_input(connection, value)
         if candidate["status"] != "none" and any(item["relative_paths"] for item in candidate["candidates"]):
-            return _with_constraint(candidate, hard=False, source="search_terms")
+            return {**_with_constraint(candidate, hard=False, source="search_terms"),
+                    "exclusive_source_scope": result["exclusive_source_scope"]}
     return result
 
 
@@ -322,9 +403,14 @@ def identity_boundaries(identity):
                         else "The explicitly requested source is not indexed."}]
 
 
-def identity_sql_scope(identity, alias="p"):
-    """Constrain explicit user file identities; soft hints stay searchable."""
-    if identity["status"] == "none" or not identity.get("hard_constraint", True):
+def identity_sql_scope(identity, alias="p", *, supplemental=False):
+    """Keep root selection separate from supplementary evidence discovery."""
+    if identity_blocks_analysis(identity):
+        return " AND 0", ()
+    if supplemental and not identity.get("exclusive_source_scope"):
+        return "", ()
+    if identity["status"] == "none" or (not identity.get("hard_constraint", True)
+                                        and not identity.get("exclusive_source_scope")):
         return "", ()
     paths = identity["direct_paths"]
     if not paths:

@@ -52,6 +52,12 @@ def _call_tokens(body, first_line, source_format):
             tokens = _lex(_Source(lexical_text, first_line), source_format, 16000)
             tokens = tuple(_Token(body[token.start:token.end].upper(), "word", token.start, token.end)
                            if token.start in numeric_names else token for token in tokens)
+            if any(token.value == "EXEC" and index + 1 < len(tokens) and tokens[index + 1].value == "SQL"
+                   for index, token in enumerate(tokens)):
+                # Embedded syntax uses its own masking and statement envelope.
+                # A successful generic token scan is not a proof that a later
+                # collected CALL header is a complete parameter list.
+                break
             yield location, tokens, None, True
             return
         except _BoundaryError as exc:
@@ -89,6 +95,8 @@ def _actual_parameters(tokens, lexical_complete):
     try:
         if not lexical_complete:
             raise ValueError("call_header_lexically_incomplete")
+        if any(token.value == "," for token in tokens):
+            raise ValueError("call_parameter_separator_not_supported")
         form = parse_call(" ".join(token.value for token in tokens))
     except ValueError as exc:
         return {"parameter_parse_status": "unknown", "parameter_parse_reason": str(exc),

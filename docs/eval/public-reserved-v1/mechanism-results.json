@@ -1,0 +1,3992 @@
+{
+  "schema_version": "public-reserved-mechanism/v1",
+  "code_freeze_declared": true,
+  "code_freeze_id": "final-v5-frontend-v11-pipeline-v6-service-v3-ledger",
+  "implementation_sha256": "5bf67681311c1f9c6cdac25c786248c48be6a89aa93e73616faf1ac593598fbc",
+  "implementation_unchanged_during_run": true,
+  "code_changed_after_reserve_results": false,
+  "freeze": {
+    "schema_version": "public-reserved-freeze/v1",
+    "frozen_at_utc": "2026-10-13T16:38:50.728454+00:00",
+    "case_count": 4,
+    "turn_count": 6,
+    "source_program_count": 4,
+    "source_file_count": 14,
+    "source_commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+    "cases_sha256": "b517262a24edeab0c227809df12f2c523914e60325f4bb10d4ec6c597416b907",
+    "manifest_sha256": "679c7e82e148e0f02f126849d7ac2a3a996daa258db8109ef6eb2c186375d893",
+    "gold_used_for_code_tuning": false,
+    "code_freeze_declared": false,
+    "mechanisms_run": false,
+    "real_model_run": false
+  },
+  "mechanism_runner_sha256": "09a3a95c95814907dfaa309cf06dd2d8b32a9a7bad636a48521f03f83c549abe",
+  "index": {
+    "parser_version": "business-sparse-v1.7",
+    "snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+    "source_options": {
+      "compilation_context": {
+        "compile_conditions": [],
+        "conditions_complete": false,
+        "copy_libraries": [],
+        "copy_library_order_known": false,
+        "debug_lines": null,
+        "dialect": "unknown",
+        "encoding": "utf-8",
+        "framework_version": null,
+        "frontend_version": "cobol-facts-v5",
+        "nested_copy_replacing": null,
+        "preprocessing_version": "bounded-copy-v2",
+        "resource_kinds": [
+          "cobol-file",
+          "sql"
+        ],
+        "source_format": "fixed",
+        "target_profile": "generic-cobol"
+      },
+      "encoding": "utf-8",
+      "extensions": [
+        ".cbl",
+        ".cblle",
+        ".cl",
+        ".clle",
+        ".cob",
+        ".cobol",
+        ".copy",
+        ".cpb",
+        ".cpy",
+        ".ddl",
+        ".dds",
+        ".inc",
+        ".jcl",
+        ".job",
+        ".lf",
+        ".pco",
+        ".pf",
+        ".sqb",
+        ".sql",
+        ".sqlcblle",
+        ".src",
+        ".txt"
+      ],
+      "include_extensionless": true,
+      "source_format": "fixed"
+    }
+  },
+  "compilation_context_sha256": "651c4886da047b0ad4beabd6ef8adc68c9c0bf4b00ed803821718493a94be5f8",
+  "transport": "in_process_fake_without_gold",
+  "network_requests": 0,
+  "paid_model_requests": 0,
+  "real_model_accuracy": null,
+  "business_answer_correctness": null,
+  "source_commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+  "source_files": [
+    {
+      "path": "app/cbl/CBACT01C.cbl",
+      "sha256": "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551"
+    },
+    {
+      "path": "app/cbl/CBTRN01C.cbl",
+      "sha256": "55c2aebd59528aa42b28878ba5ca4d17a00b3548fc25e4ce1529710d366fd576"
+    },
+    {
+      "path": "app/cbl/CSUTLDTC.cbl",
+      "sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6"
+    },
+    {
+      "path": "app/cbl/CBTRN03C.cbl",
+      "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef"
+    },
+    {
+      "path": "app/cpy/CVACT01Y.cpy",
+      "sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728"
+    },
+    {
+      "path": "app/cpy/CODATECN.cpy",
+      "sha256": "8efc6b6d79bd46d65fcdc4e6a8e3778511fca76054f3fbae8e3075b0a2aa8fb1"
+    },
+    {
+      "path": "app/cpy/CVTRA06Y.cpy",
+      "sha256": "c5c69f1b86c5a10156d3c5881d7cf387e6b925aae32825360f85bf4056a554a1"
+    },
+    {
+      "path": "app/cpy/CVCUS01Y.cpy",
+      "sha256": "944fd9a8eb10a683d0db97b9a87f2151982f649970287eb74358826056af25f8"
+    },
+    {
+      "path": "app/cpy/CVACT03Y.cpy",
+      "sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+    },
+    {
+      "path": "app/cpy/CVACT02Y.cpy",
+      "sha256": "9f1c62ef31b9d541712f1ed28f79e011ea7338611f5e0f30f2e1cbf624181223"
+    },
+    {
+      "path": "app/cpy/CVTRA05Y.cpy",
+      "sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec"
+    },
+    {
+      "path": "app/cpy/CVTRA03Y.cpy",
+      "sha256": "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667"
+    },
+    {
+      "path": "app/cpy/CVTRA04Y.cpy",
+      "sha256": "89803bc13a06347e1f3d8a599a5383b87235b203dce9f18a486bc233186479f8"
+    },
+    {
+      "path": "app/cpy/CVTRA07Y.cpy",
+      "sha256": "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa"
+    }
+  ],
+  "annotation_erratum": {
+    "schema_version": "public-reserved-annotation-erratum/v1",
+    "original_cases_sha256": "b517262a24edeab0c227809df12f2c523914e60325f4bb10d4ec6c597416b907",
+    "original_frozen_cases_modified": false,
+    "business_findings_or_questions_changed": false,
+    "case_id": "reserved-date-feedback",
+    "path": "app/cbl/CSUTLDTC.cbl",
+    "source_sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+    "original_range": {
+      "start_line": 81,
+      "end_line": 159
+    },
+    "actual_file_line_count": 157,
+    "valid_range_if_corrected": {
+      "start_line": 81,
+      "end_line": 157
+    },
+    "reason": "The reserved gold author selected an end line beyond the original file EOF by two lines. The default pipeline supplied the entire real file. Preserve frozen identity and report this annotation defect independently from product evidence gaps.",
+    "scoring_policy": "Keep original raw-range results; mark the impossible range invalid. Do not infer business-answer correctness or silently count this as a product failure."
+  },
+  "dry_run": {
+    "schema_version": "live-business-eval/v3",
+    "evaluation_run_id": "f4fc05e35955e9555fb55006",
+    "created_at_utc": "2026-10-13T16:52:36.801786+00:00",
+    "configuration": {
+      "api_style": "openai_compatible",
+      "base_url_configured": true,
+      "chat_model_configured": true,
+      "embedding_model_configured": false,
+      "api_key_source": "EXPLICIT",
+      "timeout_seconds": 20.0,
+      "max_output_tokens": 1024,
+      "profile_name": "custom",
+      "output_limit_source": "unknown",
+      "allow_insecure_localhost": false
+    },
+    "case_count": 4,
+    "plan": {
+      "case_count": 4,
+      "user_turn_count": 6,
+      "mode": "automatic",
+      "profile": "adapter",
+      "preflight_model_requests": 0,
+      "max_model_requests_per_case": 1,
+      "max_model_requests": 6,
+      "requests_per_turn": 1,
+      "missing_frozen_captures": [],
+      "max_output_tokens_per_request": 1024,
+      "timeout_seconds_per_request": 20.0,
+      "preflight_max_output_tokens": 32,
+      "max_request_bytes": 230000,
+      "preflight_request_bytes": 109,
+      "policy": {
+        "max_model_requests": 1,
+        "max_source_characters": 36000,
+        "max_complete_source_characters": 128000,
+        "max_history_characters": 18000,
+        "max_request_bytes": 230000,
+        "max_searches_per_turn": 3,
+        "max_reads_per_turn": 3,
+        "max_framework_searches_per_turn": 3,
+        "initial_pages": 6,
+        "initial_source_characters": 24000,
+        "search_pages": 8,
+        "search_source_characters": 32000,
+        "read_source_characters": 12000,
+        "max_framework_references": 10,
+        "max_framework_characters": 8000,
+        "max_business_context_actions_per_turn": 2,
+        "max_semantic_files": 32,
+        "max_semantic_source_bytes": 33554432,
+        "max_semantic_expansions": 4,
+        "max_evidence_groups": 12,
+        "max_initial_context_seconds": 3,
+        "max_local_analysis_seconds": 15,
+        "max_answer_revisions": 0,
+        "semantic_cache_bytes": 536870912
+      },
+      "configuration_scope": "evaluation_runner",
+      "workbench_defaults": {
+        "timeout_seconds": 60.0,
+        "max_output_tokens": 8192
+      },
+      "matches_workbench_defaults": false,
+      "comparison_note": "Evaluation uses its recorded configuration; results do not represent the web workbench when timeout or output settings differ.",
+      "spend_authorization": "not_granted_by_request_budget",
+      "currency_estimate": null,
+      "retry_policy": "no_automatic_retries",
+      "sampling": "provider_default",
+      "price_information_required": true,
+      "model_fingerprint": "f6a47bfa2d621c9d16947583465f7cf5108b39c2b6f8de02d0046adff5e3c054"
+    },
+    "model_preflight": {
+      "status": "planned"
+    },
+    "index_seconds": null,
+    "search_index_seconds": null,
+    "cases": [],
+    "latency_seconds": {
+      "p50": null,
+      "p95": null
+    },
+    "quality_status": "not_reviewed",
+    "review_counts": {
+      "not_reviewed": 0,
+      "partial": 0,
+      "complete": 0
+    }
+  },
+  "mechanism_results": [
+    {
+      "case_id": "reserved-array-population",
+      "turn_id": "reserved-array-population",
+      "expected_paths_navigated": [
+        "app/cbl/CBACT01C.cbl"
+      ],
+      "expected_paths_retrieved": [
+        "app/cbl/CBACT01C.cbl"
+      ],
+      "expected_paths_supplied": [
+        "app/cbl/CBACT01C.cbl"
+      ],
+      "reviewed_ranges": [
+        {
+          "path": "app/cbl/CBACT01C.cbl",
+          "sha256": "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551",
+          "start_line": 70,
+          "end_line": 78,
+          "supplied": true,
+          "range_after_documented_annotation_correction": {
+            "start_line": 70,
+            "end_line": 78
+          },
+          "supplied_after_documented_annotation_correction": true,
+          "source_line_count": 430,
+          "annotation_valid": true,
+          "expected_raw_lines": 9,
+          "supplied_raw_lines": 9,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CBACT01C.cbl",
+          "sha256": "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551",
+          "start_line": 165,
+          "end_line": 180,
+          "supplied": true,
+          "range_after_documented_annotation_correction": {
+            "start_line": 165,
+            "end_line": 180
+          },
+          "supplied_after_documented_annotation_correction": true,
+          "source_line_count": 430,
+          "annotation_valid": true,
+          "expected_raw_lines": 16,
+          "supplied_raw_lines": 16,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CBACT01C.cbl",
+          "sha256": "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551",
+          "start_line": 253,
+          "end_line": 276,
+          "supplied": true,
+          "range_after_documented_annotation_correction": {
+            "start_line": 253,
+            "end_line": 276
+          },
+          "supplied_after_documented_annotation_correction": true,
+          "source_line_count": 430,
+          "annotation_valid": true,
+          "expected_raw_lines": 24,
+          "supplied_raw_lines": 24,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        }
+      ],
+      "all_reviewed_ranges_supplied": true,
+      "all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+      "prior_user_turns": 0,
+      "actual_request": {
+        "question": "CBACT01C 输出数组有五项，1400-POPUL-ARRAY-RECORD 实际给哪些项赋值？这些余额和借记金额从哪里来？",
+        "history": [],
+        "pages": [
+          {
+            "evidence_id": "ev_page_5eb6c739e02b7b62a4f01168",
+            "relative_path": "app/cbl/COCRDLIC.cbl",
+            "source_sha256": "d6a9210ad3062bd657881fc3f0d2a7368db3ff4869594e0d6a878d8f410d87b6",
+            "start_line": 603,
+            "end_line": 651
+          },
+          {
+            "evidence_id": "ev_page_454142753762ce3dcc96976b",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 476,
+            "end_line": 524
+          },
+          {
+            "evidence_id": "ev_page_6d082c24f5d834a23514edac",
+            "relative_path": "app/app-transaction-type-db2/cbl/COTRTLIC.cbl",
+            "source_sha256": "916a5fe2279ad626147990d8f86fac1e4b296f827889485b020cc310b5323601",
+            "start_line": 772,
+            "end_line": 857
+          },
+          {
+            "evidence_id": "ev_page_54162d04cbf6fda00fe7de41",
+            "relative_path": "app/cpy/CVACT01Y.cpy",
+            "source_sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+            "start_line": 1,
+            "end_line": 20
+          },
+          {
+            "evidence_id": "ev_page_335530123087ce3d31fb8010",
+            "relative_path": "app/cpy/CODATECN.cpy",
+            "source_sha256": "8efc6b6d79bd46d65fcdc4e6a8e3778511fca76054f3fbae8e3075b0a2aa8fb1",
+            "start_line": 1,
+            "end_line": 52
+          },
+          {
+            "evidence_id": "ev_page_db0d7ee9400148fbd680af06",
+            "relative_path": "app/cbl/CBACT01C.cbl",
+            "source_sha256": "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551",
+            "start_line": 1,
+            "end_line": 430
+          }
+        ]
+      },
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "b8068d5a2f4b3fa5a23bcb0b",
+        "case_id": "reserved-array-population",
+        "turn_id": "reserved-array-population",
+        "branch": "automatic",
+        "question_sha256": "0d1b8a87760d4839b58a68f8e10c88164138b38c498e7dce6c34712a19ee424b",
+        "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "answer_sha256": "ba9b44c1e94a3d3669d34482564bcfb9d2954376febd83062f8b31c6002d89da",
+        "model": "offline-reserve-mechanism",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "e8698b48a250fbcd97984038c5fbe43db4508da71534d94aed997231bd9b5ee1"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "3b61819403afa86e74c3afda831367d2064aab517ccf55090edcda92fcfbd973",
+        "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+        "source_versions": [
+          "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "8efc6b6d79bd46d65fcdc4e6a8e3778511fca76054f3fbae8e3075b0a2aa8fb1",
+          "916a5fe2279ad626147990d8f86fac1e4b296f827889485b020cc310b5323601",
+          "d6a9210ad3062bd657881fc3f0d2a7368db3ff4869594e0d6a878d8f410d87b6",
+          "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "3d3ea3994ddb97b0e94fa1195f666a45084f99681f2852dbcc1b412430dc5b88",
+        "identity_sha256": "15f25813038c07ab3ff86b6fd9bb780b3e8e1f50adc8d1fb3d18fc03d070fcaf"
+      },
+      "pipeline_version": "question-evidence-v11"
+    },
+    {
+      "case_id": "reserved-lookup-gate",
+      "turn_id": "reserved-lookup-gate",
+      "expected_paths_navigated": [
+        "app/cbl/CBTRN01C.cbl"
+      ],
+      "expected_paths_retrieved": [
+        "app/cbl/CBTRN01C.cbl"
+      ],
+      "expected_paths_supplied": [
+        "app/cbl/CBTRN01C.cbl"
+      ],
+      "reviewed_ranges": [
+        {
+          "path": "app/cbl/CBTRN01C.cbl",
+          "sha256": "55c2aebd59528aa42b28878ba5ca4d17a00b3548fc25e4ce1529710d366fd576",
+          "start_line": 151,
+          "end_line": 194,
+          "supplied": true,
+          "range_after_documented_annotation_correction": {
+            "start_line": 151,
+            "end_line": 194
+          },
+          "supplied_after_documented_annotation_correction": true,
+          "source_line_count": 494,
+          "annotation_valid": true,
+          "expected_raw_lines": 44,
+          "supplied_raw_lines": 44,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CBTRN01C.cbl",
+          "sha256": "55c2aebd59528aa42b28878ba5ca4d17a00b3548fc25e4ce1529710d366fd576",
+          "start_line": 227,
+          "end_line": 251,
+          "supplied": true,
+          "range_after_documented_annotation_correction": {
+            "start_line": 227,
+            "end_line": 251
+          },
+          "supplied_after_documented_annotation_correction": true,
+          "source_line_count": 494,
+          "annotation_valid": true,
+          "expected_raw_lines": 25,
+          "supplied_raw_lines": 25,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        }
+      ],
+      "all_reviewed_ranges_supplied": true,
+      "all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+      "prior_user_turns": 0,
+      "actual_request": {
+        "question": "CBTRN01C 中卡号在交叉引用文件查不到时，还会读取账户吗？请解释卡号、账户号及错误状态怎样传递。",
+        "history": [],
+        "pages": [
+          {
+            "evidence_id": "ev_page_961eccc6da2eb67c14dc8481",
+            "relative_path": "app/cpy/CVTRA06Y.cpy",
+            "source_sha256": "c5c69f1b86c5a10156d3c5881d7cf387e6b925aae32825360f85bf4056a554a1",
+            "start_line": 1,
+            "end_line": 21
+          },
+          {
+            "evidence_id": "ev_page_74fc5d6b83e5fa16ddbbed41",
+            "relative_path": "app/cpy/CVCUS01Y.cpy",
+            "source_sha256": "944fd9a8eb10a683d0db97b9a87f2151982f649970287eb74358826056af25f8",
+            "start_line": 1,
+            "end_line": 26
+          },
+          {
+            "evidence_id": "ev_page_51f6913cee17be180a4aa52f",
+            "relative_path": "app/cbl/CBTRN01C.cbl",
+            "source_sha256": "55c2aebd59528aa42b28878ba5ca4d17a00b3548fc25e4ce1529710d366fd576",
+            "start_line": 1,
+            "end_line": 494
+          },
+          {
+            "evidence_id": "ev_page_54162d04cbf6fda00fe7de41",
+            "relative_path": "app/cpy/CVACT01Y.cpy",
+            "source_sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+            "start_line": 1,
+            "end_line": 20
+          },
+          {
+            "evidence_id": "ev_page_abc01a7c5dcacbd0272ae22f",
+            "relative_path": "app/cpy/CVACT02Y.cpy",
+            "source_sha256": "9f1c62ef31b9d541712f1ed28f79e011ea7338611f5e0f30f2e1cbf624181223",
+            "start_line": 1,
+            "end_line": 14
+          },
+          {
+            "evidence_id": "ev_page_f8695cd12f373c77bb82a614",
+            "relative_path": "app/cpy/CVACT03Y.cpy",
+            "source_sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370",
+            "start_line": 1,
+            "end_line": 11
+          },
+          {
+            "evidence_id": "ev_page_0ad8fcf930de925c6c41c0e9",
+            "relative_path": "app/cpy/CVTRA05Y.cpy",
+            "source_sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+            "start_line": 1,
+            "end_line": 21
+          }
+        ]
+      },
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "1386f2bf8305a561987b8e94",
+        "case_id": "reserved-lookup-gate",
+        "turn_id": "reserved-lookup-gate",
+        "branch": "automatic",
+        "question_sha256": "4ecbb0d36c265b943e958d4d28c119fbab82233eb9a1b437d5933180595fb67c",
+        "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "answer_sha256": "978fb4cd2e7a8ddc3f41281643a37632c2c2d49622764bf5d5a6a821b064885e",
+        "model": "offline-reserve-mechanism",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "7354106e9421d53647c978c41b7d256f273eacd1a32677eca5ba305c01ba4717"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "034f83e106277aa1eecc0b5b5363fe4cc3bb4d66bb2a95c2b47e6c7872afefe0",
+        "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+        "source_versions": [
+          "55c2aebd59528aa42b28878ba5ca4d17a00b3548fc25e4ce1529710d366fd576",
+          "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+          "944fd9a8eb10a683d0db97b9a87f2151982f649970287eb74358826056af25f8",
+          "9f1c62ef31b9d541712f1ed28f79e011ea7338611f5e0f30f2e1cbf624181223",
+          "c5c69f1b86c5a10156d3c5881d7cf387e6b925aae32825360f85bf4056a554a1",
+          "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "d137c0a0585f9c76b853ebf33a667c8ebeda03797dc01584b76cc2eb84267a6f",
+        "identity_sha256": "adc38176ba3d1b47b0e91d9cdad5adb34ff1e99c8bb0fb3804ff965e889fb7c2"
+      },
+      "pipeline_version": "question-evidence-v11"
+    },
+    {
+      "case_id": "reserved-date-feedback",
+      "turn_id": "reserved-date-feedback",
+      "expected_paths_navigated": [
+        "app/cbl/CSUTLDTC.cbl"
+      ],
+      "expected_paths_retrieved": [
+        "app/cbl/CSUTLDTC.cbl"
+      ],
+      "expected_paths_supplied": [
+        "app/cbl/CSUTLDTC.cbl"
+      ],
+      "reviewed_ranges": [
+        {
+          "path": "app/cbl/CSUTLDTC.cbl",
+          "sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+          "start_line": 23,
+          "end_line": 80,
+          "supplied": true,
+          "range_after_documented_annotation_correction": {
+            "start_line": 23,
+            "end_line": 80
+          },
+          "supplied_after_documented_annotation_correction": true,
+          "source_line_count": 157,
+          "annotation_valid": true,
+          "expected_raw_lines": 58,
+          "supplied_raw_lines": 58,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CSUTLDTC.cbl",
+          "sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+          "start_line": 81,
+          "end_line": 159,
+          "supplied": false,
+          "range_after_documented_annotation_correction": {
+            "start_line": 81,
+            "end_line": 157
+          },
+          "supplied_after_documented_annotation_correction": true,
+          "source_line_count": 157,
+          "annotation_valid": false,
+          "expected_raw_lines": 79,
+          "supplied_raw_lines": 77,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        }
+      ],
+      "all_reviewed_ranges_supplied": false,
+      "all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+      "prior_user_turns": 0,
+      "actual_request": {
+        "question": "CSUTLDTC 的 LS-RESULT 和 RETURN-CODE 是怎样得到的？日期转换调用未知时，可以确认哪些直接源码事实？",
+        "history": [],
+        "pages": [
+          {
+            "evidence_id": "ev_page_3d9dc4441b11ed003ef0b53f",
+            "relative_path": "app/cbl/COTRN02C.cbl",
+            "source_sha256": "dc33b4c797a98d2732070a223f43cc78992c2846681163a032e376630742b1ed",
+            "start_line": 341,
+            "end_line": 440
+          },
+          {
+            "evidence_id": "ev_page_1a4eaa090520e7a9befef009",
+            "relative_path": "app/cbl/CORPT00C.cbl",
+            "source_sha256": "0b06bd5d4f38f17871de8985c439dfce7ed30d28e02b6ffeb8459e0cd8db4fc2",
+            "start_line": 80,
+            "end_line": 184
+          },
+          {
+            "evidence_id": "ev_page_87efb297e9a50cde3a0d2821",
+            "relative_path": "app/cbl/CBTRN02C.cbl",
+            "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+            "start_line": 206,
+            "end_line": 254
+          },
+          {
+            "evidence_id": "ev_page_8fa35874b2fa2d681891644d",
+            "relative_path": "app/cpy/COCOM01Y.cpy",
+            "source_sha256": "77097557ee4c365f62138328d3e280ce7aba5f81d418c6f16434f0fbb2aafa6c",
+            "start_line": 1,
+            "end_line": 47
+          },
+          {
+            "evidence_id": "ev_page_ea4b29f665fd466a825973a1",
+            "relative_path": "app/cpy-bms/CORPT00.CPY",
+            "source_sha256": "7da2980799bcc3df642d02d09fd00fafb890cdb487e034f2f9b5b0e0767ce03b",
+            "start_line": 1,
+            "end_line": 88
+          },
+          {
+            "evidence_id": "ev_page_1681f64f007f9f79fae7736e",
+            "relative_path": "app/cbl/COACTUPC.cbl",
+            "source_sha256": "b5bb7d6ccad022e0fc91b4dd1e971f49d184adf89b56abdce14eccff35b39396",
+            "start_line": 4224,
+            "end_line": 4236
+          },
+          {
+            "evidence_id": "ev_page_7496bdc83723414d90bcafe1",
+            "relative_path": "app/cpy/CSSETATY.cpy",
+            "source_sha256": "45000f93a9be6e8132262e53faa1db03ab1f20fbee4063272b890837216d1fcb",
+            "start_line": 12,
+            "end_line": 28
+          },
+          {
+            "evidence_id": "ev_page_0eddfa3b70ee9594867bcad1",
+            "relative_path": "app/cpy/CSSTRPFY.cpy",
+            "source_sha256": "751bc1a625114a8660ee2172b70cdea135c259652d2305a2bfda25ff4cf34853",
+            "start_line": 15,
+            "end_line": 29
+          },
+          {
+            "evidence_id": "ev_page_d0bca35566f3e9a4ea85277c",
+            "relative_path": "app/cbl/CORPT00C.cbl",
+            "source_sha256": "0b06bd5d4f38f17871de8985c439dfce7ed30d28e02b6ffeb8459e0cd8db4fc2",
+            "start_line": 218,
+            "end_line": 232
+          },
+          {
+            "evidence_id": "ev_page_7b22daef581246348588b392",
+            "relative_path": "app/cbl/CSUTLDTC.cbl",
+            "source_sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+            "start_line": 1,
+            "end_line": 157
+          }
+        ]
+      },
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "96dc134dfbc920daf17d6e48",
+        "case_id": "reserved-date-feedback",
+        "turn_id": "reserved-date-feedback",
+        "branch": "automatic",
+        "question_sha256": "f421d2b0601cbe74d6c24dc1331c8f73a232fef8b89555e5550de621c9554ee5",
+        "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "answer_sha256": "3505b55599c0238a8633ed0f6e8497abe2e06db81e3da01c4e916a9688e9a482",
+        "model": "offline-reserve-mechanism",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "4fac6c2e20b6db93aa3fbd7ea862792d78c203380106ed4c08d932216f222e45"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "52a4b748b8569b74f3aa98ced9bcc345bcb11001522e407df28f71bc79a10928",
+        "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+        "source_versions": [
+          "0b06bd5d4f38f17871de8985c439dfce7ed30d28e02b6ffeb8459e0cd8db4fc2",
+          "45000f93a9be6e8132262e53faa1db03ab1f20fbee4063272b890837216d1fcb",
+          "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+          "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "751bc1a625114a8660ee2172b70cdea135c259652d2305a2bfda25ff4cf34853",
+          "77097557ee4c365f62138328d3e280ce7aba5f81d418c6f16434f0fbb2aafa6c",
+          "7da2980799bcc3df642d02d09fd00fafb890cdb487e034f2f9b5b0e0767ce03b",
+          "b5bb7d6ccad022e0fc91b4dd1e971f49d184adf89b56abdce14eccff35b39396",
+          "dc33b4c797a98d2732070a223f43cc78992c2846681163a032e376630742b1ed"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "c3ca63e1b90b46213957bea3947c1b0fa1711f4bde204fe2128c4448e7f5b347",
+        "identity_sha256": "c9931c753461cd309965740986671ffaec754ca8b0e7be659e98213784f67355"
+      },
+      "pipeline_version": "question-evidence-v11"
+    },
+    {
+      "case_id": "reserved-report-conversation",
+      "turn_id": "1",
+      "expected_paths_navigated": [
+        "app/cbl/CBTRN03C.cbl"
+      ],
+      "expected_paths_retrieved": [
+        "app/cbl/CBTRN03C.cbl"
+      ],
+      "expected_paths_supplied": [
+        "app/cbl/CBTRN03C.cbl"
+      ],
+      "reviewed_ranges": [
+        {
+          "path": "app/cbl/CBTRN03C.cbl",
+          "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "start_line": 126,
+          "end_line": 137,
+          "supplied": true,
+          "range_after_documented_annotation_correction": {
+            "start_line": 126,
+            "end_line": 137
+          },
+          "supplied_after_documented_annotation_correction": true,
+          "source_line_count": 649,
+          "annotation_valid": true,
+          "expected_raw_lines": 12,
+          "supplied_raw_lines": 12,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CBTRN03C.cbl",
+          "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "start_line": 171,
+          "end_line": 206,
+          "supplied": true,
+          "range_after_documented_annotation_correction": {
+            "start_line": 171,
+            "end_line": 206
+          },
+          "supplied_after_documented_annotation_correction": true,
+          "source_line_count": 649,
+          "annotation_valid": true,
+          "expected_raw_lines": 36,
+          "supplied_raw_lines": 36,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CBTRN03C.cbl",
+          "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "start_line": 274,
+          "end_line": 323,
+          "supplied": true,
+          "range_after_documented_annotation_correction": {
+            "start_line": 274,
+            "end_line": 323
+          },
+          "supplied_after_documented_annotation_correction": true,
+          "source_line_count": 649,
+          "annotation_valid": true,
+          "expected_raw_lines": 50,
+          "supplied_raw_lines": 50,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CBTRN03C.cbl",
+          "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "start_line": 343,
+          "end_line": 375,
+          "supplied": true,
+          "range_after_documented_annotation_correction": {
+            "start_line": 343,
+            "end_line": 375
+          },
+          "supplied_after_documented_annotation_correction": true,
+          "source_line_count": 649,
+          "annotation_valid": true,
+          "expected_raw_lines": 33,
+          "supplied_raw_lines": 33,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        }
+      ],
+      "all_reviewed_ranges_supplied": true,
+      "all_reviewed_ranges_supplied_after_documented_annotation_correction": true,
+      "prior_user_turns": 0,
+      "actual_request": {
+        "question": "CBTRN03C 里第一种页汇总 WS-PAGE-TOTAL 和第二种账户汇总 WS-ACCOUNT-TOTAL，各自从哪里累加，什么时候清零？",
+        "history": [],
+        "pages": [
+          {
+            "evidence_id": "ev_page_362af886b6dbbf0521671eb5",
+            "relative_path": "app/catlg/LISTCAT.txt",
+            "source_sha256": "d207911955e1198e27b1c8e2f16c8fdc42b78029f7e152f86c4c10764ab1986c",
+            "start_line": 3465,
+            "end_line": 3551
+          },
+          {
+            "evidence_id": "ev_page_88fade1944c83fc9b59850b7",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 299,
+            "end_line": 347
+          },
+          {
+            "evidence_id": "ev_page_0ad8fcf930de925c6c41c0e9",
+            "relative_path": "app/cpy/CVTRA05Y.cpy",
+            "source_sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+            "start_line": 1,
+            "end_line": 21
+          },
+          {
+            "evidence_id": "ev_page_652708cffcd9234803c3d825",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 1,
+            "end_line": 649
+          },
+          {
+            "evidence_id": "ev_page_873136c7b5f944b0bc7fa36c",
+            "relative_path": "app/cpy/CVTRA07Y.cpy",
+            "source_sha256": "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa",
+            "start_line": 1,
+            "end_line": 73
+          },
+          {
+            "evidence_id": "ev_page_f8695cd12f373c77bb82a614",
+            "relative_path": "app/cpy/CVACT03Y.cpy",
+            "source_sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370",
+            "start_line": 1,
+            "end_line": 11
+          },
+          {
+            "evidence_id": "ev_page_0cc7bab442eb9fff008cd139",
+            "relative_path": "app/cpy/CVTRA03Y.cpy",
+            "source_sha256": "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667",
+            "start_line": 1,
+            "end_line": 10
+          },
+          {
+            "evidence_id": "ev_page_6c3dc9c44bcececfbe93bf37",
+            "relative_path": "app/cpy/CVTRA04Y.cpy",
+            "source_sha256": "89803bc13a06347e1f3d8a599a5383b87235b203dce9f18a486bc233186479f8",
+            "start_line": 1,
+            "end_line": 12
+          }
+        ]
+      },
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "611b4b2e84cc6f2d36737d53",
+        "case_id": "reserved-report-conversation",
+        "turn_id": "1",
+        "branch": "automatic",
+        "question_sha256": "2b15e25ae8da1aed31a6b8174e927be4cb87e96d1caa8a40c3db5d2efd9cd246",
+        "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "answer_sha256": "b0e9b5c1859fe619f02bbeb5fbfaf31bc533bdef49d2c7628cf3ac8af7ea0b3b",
+        "model": "offline-reserve-mechanism",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "6a5b11346b9e82b6129f406218d4da08d0e4de2a4e45ec3f5f111860148dec29"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "2eecab930d1ad7ef084323b743ece68affdb2e6e907b6efb3fdf905f28123422",
+        "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+        "source_versions": [
+          "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa",
+          "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "89803bc13a06347e1f3d8a599a5383b87235b203dce9f18a486bc233186479f8",
+          "d207911955e1198e27b1c8e2f16c8fdc42b78029f7e152f86c4c10764ab1986c",
+          "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667",
+          "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "bf3b1ab894e81661676b9acfd3f418387062f85f4bf6274d5c9dbeadcc3dd9a6",
+        "identity_sha256": "51182d3d87ce3d0bdd11ce98eabb1ac4db767b40b92dd4334b2760079801b4c9"
+      },
+      "pipeline_version": "question-evidence-v11"
+    },
+    {
+      "case_id": "reserved-report-conversation",
+      "turn_id": "2",
+      "expected_paths_navigated": [
+        "app/cbl/CBTRN03C.cbl"
+      ],
+      "expected_paths_retrieved": [
+        "app/cbl/CBTRN03C.cbl"
+      ],
+      "expected_paths_supplied": [
+        "app/cbl/CBTRN03C.cbl"
+      ],
+      "reviewed_ranges": [
+        {
+          "path": "app/cbl/CBTRN03C.cbl",
+          "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "start_line": 126,
+          "end_line": 137,
+          "supplied": false,
+          "range_after_documented_annotation_correction": {
+            "start_line": 126,
+            "end_line": 137
+          },
+          "supplied_after_documented_annotation_correction": false,
+          "source_line_count": 649,
+          "annotation_valid": true,
+          "expected_raw_lines": 12,
+          "supplied_raw_lines": 2,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CBTRN03C.cbl",
+          "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "start_line": 171,
+          "end_line": 206,
+          "supplied": false,
+          "range_after_documented_annotation_correction": {
+            "start_line": 171,
+            "end_line": 206
+          },
+          "supplied_after_documented_annotation_correction": false,
+          "source_line_count": 649,
+          "annotation_valid": true,
+          "expected_raw_lines": 36,
+          "supplied_raw_lines": 25,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CBTRN03C.cbl",
+          "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "start_line": 274,
+          "end_line": 323,
+          "supplied": false,
+          "range_after_documented_annotation_correction": {
+            "start_line": 274,
+            "end_line": 323
+          },
+          "supplied_after_documented_annotation_correction": false,
+          "source_line_count": 649,
+          "annotation_valid": true,
+          "expected_raw_lines": 50,
+          "supplied_raw_lines": 23,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CBTRN03C.cbl",
+          "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "start_line": 343,
+          "end_line": 375,
+          "supplied": false,
+          "range_after_documented_annotation_correction": {
+            "start_line": 343,
+            "end_line": 375
+          },
+          "supplied_after_documented_annotation_correction": false,
+          "source_line_count": 649,
+          "annotation_valid": true,
+          "expected_raw_lines": 33,
+          "supplied_raw_lines": 1,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        }
+      ],
+      "all_reviewed_ranges_supplied": false,
+      "all_reviewed_ranges_supplied_after_documented_annotation_correction": false,
+      "prior_user_turns": 1,
+      "actual_request": {
+        "question": "刚才第二种情况呢？换页也会让它归零吗？",
+        "history": [
+          {
+            "role": "user",
+            "content": "CBTRN03C 里第一种页汇总 WS-PAGE-TOTAL 和第二种账户汇总 WS-ACCOUNT-TOTAL，各自从哪里累加，什么时候清零？"
+          },
+          {
+            "role": "assistant",
+            "content": "已定位并供应 app/catlg/LISTCAT.txt 的原文；这份材料可用于继续解释本轮问题。[ev_page_362af886b6dbbf0521671eb5] 本轮是供证机制试验，尚未进行真实模型业务答案评审。"
+          }
+        ],
+        "pages": [
+          {
+            "evidence_id": "ev_page_362af886b6dbbf0521671eb5",
+            "relative_path": "app/catlg/LISTCAT.txt",
+            "source_sha256": "d207911955e1198e27b1c8e2f16c8fdc42b78029f7e152f86c4c10764ab1986c",
+            "start_line": 3465,
+            "end_line": 3551
+          },
+          {
+            "evidence_id": "ev_page_0ad8fcf930de925c6c41c0e9",
+            "relative_path": "app/cpy/CVTRA05Y.cpy",
+            "source_sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+            "start_line": 1,
+            "end_line": 21
+          },
+          {
+            "evidence_id": "ev_page_0cc7bab442eb9fff008cd139",
+            "relative_path": "app/cpy/CVTRA03Y.cpy",
+            "source_sha256": "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667",
+            "start_line": 1,
+            "end_line": 10
+          },
+          {
+            "evidence_id": "ev_page_3b97f9369d933f3ed48350c3",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 1,
+            "end_line": 51
+          },
+          {
+            "evidence_id": "ev_page_f8695cd12f373c77bb82a614",
+            "relative_path": "app/cpy/CVACT03Y.cpy",
+            "source_sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370",
+            "start_line": 1,
+            "end_line": 11
+          },
+          {
+            "evidence_id": "ev_page_d935984b4d30c2158d50c9f5",
+            "relative_path": "app/cpy/CVTRA07Y.cpy",
+            "source_sha256": "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa",
+            "start_line": 1,
+            "end_line": 49
+          },
+          {
+            "evidence_id": "ev_page_1681f64f007f9f79fae7736e",
+            "relative_path": "app/cbl/COACTUPC.cbl",
+            "source_sha256": "b5bb7d6ccad022e0fc91b4dd1e971f49d184adf89b56abdce14eccff35b39396",
+            "start_line": 4224,
+            "end_line": 4236
+          },
+          {
+            "evidence_id": "ev_page_d11f6e905a242a0ee20697d5",
+            "relative_path": "app/cbl/COACTVWC.cbl",
+            "source_sha256": "4f1e55176f69edfb55b7af7a161aceb8c3bc3bd1b2924a704a76256e0e751b54",
+            "start_line": 905,
+            "end_line": 925
+          },
+          {
+            "evidence_id": "ev_page_0b6821b9d644cd371bb10e98",
+            "relative_path": "app/cbl/CBSTM03B.CBL",
+            "source_sha256": "ac004f7f40dcb3f2a14dfb83a743f83fed9383675bc93452f3424c40cb6475a7",
+            "start_line": 112,
+            "end_line": 126
+          },
+          {
+            "evidence_id": "ev_page_8f21a8f991c6590323c9aab3",
+            "relative_path": "app/cbl/CSUTLDTC.cbl",
+            "source_sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+            "start_line": 122,
+            "end_line": 136
+          },
+          {
+            "evidence_id": "ev_page_7496bdc83723414d90bcafe1",
+            "relative_path": "app/cpy/CSSETATY.cpy",
+            "source_sha256": "45000f93a9be6e8132262e53faa1db03ab1f20fbee4063272b890837216d1fcb",
+            "start_line": 12,
+            "end_line": 28
+          },
+          {
+            "evidence_id": "ev_page_0eddfa3b70ee9594867bcad1",
+            "relative_path": "app/cpy/CSSTRPFY.cpy",
+            "source_sha256": "751bc1a625114a8660ee2172b70cdea135c259652d2305a2bfda25ff4cf34853",
+            "start_line": 15,
+            "end_line": 29
+          },
+          {
+            "evidence_id": "ev_page_58a51a01a14ad987917177df",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 200,
+            "end_line": 201
+          },
+          {
+            "evidence_id": "ev_page_7647077e33f384dd82fd6959",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 197,
+            "end_line": 197
+          },
+          {
+            "evidence_id": "ev_page_79736bfc21cd87c9a3a7c9d9",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 182,
+            "end_line": 182
+          },
+          {
+            "evidence_id": "ev_page_2c78cb613de7ab30026461e0",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 181,
+            "end_line": 181
+          },
+          {
+            "evidence_id": "ev_page_ce55141914bfc4d0928ab328",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 179,
+            "end_line": 179
+          },
+          {
+            "evidence_id": "ev_page_b16a179ffdea30bf9930a755",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 222,
+            "end_line": 222
+          },
+          {
+            "evidence_id": "ev_page_660f5412066f24c7484cbaa3",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 176,
+            "end_line": 176
+          },
+          {
+            "evidence_id": "ev_page_f0a5183e5439ee24dbf786a8",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 173,
+            "end_line": 174
+          },
+          {
+            "evidence_id": "ev_page_1ce2611b8a226f0542599648",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 171,
+            "end_line": 171
+          },
+          {
+            "evidence_id": "ev_page_6369d014c15a169101372e8e",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 275,
+            "end_line": 275
+          },
+          {
+            "evidence_id": "ev_page_46d73939d49f17b1ff141435",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 282,
+            "end_line": 282
+          },
+          {
+            "evidence_id": "ev_page_701fe342791b416165b76bb1",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 298,
+            "end_line": 298
+          },
+          {
+            "evidence_id": "ev_page_3f85c12e75e6da7e8e4e9840",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 310,
+            "end_line": 310
+          },
+          {
+            "evidence_id": "ev_page_bbf0e07f267c357bf0711e63",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 202,
+            "end_line": 202
+          },
+          {
+            "evidence_id": "ev_page_4333871774e8a137e2aa883c",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 203,
+            "end_line": 203
+          },
+          {
+            "evidence_id": "ev_page_ee52f0ab1c0596e9aad866ba",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 196,
+            "end_line": 196
+          },
+          {
+            "evidence_id": "ev_page_9422fa92fb37483a7109fa41",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 195,
+            "end_line": 195
+          },
+          {
+            "evidence_id": "ev_page_92b53020f002041a1f5b0206",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 193,
+            "end_line": 194
+          },
+          {
+            "evidence_id": "ev_page_1eeec1c724d73179e747fb7a",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 208,
+            "end_line": 208
+          },
+          {
+            "evidence_id": "ev_page_2e91ec60ebf3f359ff43055e",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 191,
+            "end_line": 192
+          },
+          {
+            "evidence_id": "ev_page_4dfa6f474b451eac90dda638",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 209,
+            "end_line": 209
+          },
+          {
+            "evidence_id": "ev_page_7ffcbab68d1cab610391f0cf",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 190,
+            "end_line": 190
+          },
+          {
+            "evidence_id": "ev_page_56aca8c54942ed099df89744",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 210,
+            "end_line": 210
+          },
+          {
+            "evidence_id": "ev_page_01a6ae83327983073f4e2eac",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 211,
+            "end_line": 211
+          },
+          {
+            "evidence_id": "ev_page_11609c77b394b0990639371d",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 189,
+            "end_line": 189
+          },
+          {
+            "evidence_id": "ev_page_c7352a590b0a7a2753eae315",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 212,
+            "end_line": 212
+          },
+          {
+            "evidence_id": "ev_page_bcbe08ffb4db71fa26526485",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 187,
+            "end_line": 187
+          },
+          {
+            "evidence_id": "ev_page_23a655f929638c0d77adf606",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 213,
+            "end_line": 213
+          },
+          {
+            "evidence_id": "ev_page_5bc96eb37b32b15ab6d33482",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 186,
+            "end_line": 186
+          },
+          {
+            "evidence_id": "ev_page_43263be888b8f87db97c5f5b",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 185,
+            "end_line": 185
+          },
+          {
+            "evidence_id": "ev_page_ef61e5189e900a602e731465",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 183,
+            "end_line": 183
+          },
+          {
+            "evidence_id": "ev_page_b79e51bc9db9d1101b2aebf9",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 172,
+            "end_line": 172
+          },
+          {
+            "evidence_id": "ev_page_f0beb1e3387e3620756218da",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 135,
+            "end_line": 135
+          },
+          {
+            "evidence_id": "ev_page_b51471007bfea320af1f2bb1",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 134,
+            "end_line": 134
+          },
+          {
+            "evidence_id": "ev_page_58a38958921a0e0968c82d01",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 276,
+            "end_line": 276
+          },
+          {
+            "evidence_id": "ev_page_084cbf66fad53f8661b55f45",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 277,
+            "end_line": 277
+          },
+          {
+            "evidence_id": "ev_page_fe774fff363a22cd9a1451c8",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 278,
+            "end_line": 278
+          },
+          {
+            "evidence_id": "ev_page_99da4cc986a280566b19fbd6",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 279,
+            "end_line": 279
+          },
+          {
+            "evidence_id": "ev_page_3146e5541e7b6c6c7ce47454",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 283,
+            "end_line": 283
+          },
+          {
+            "evidence_id": "ev_page_8fe62e832c14295d5114900a",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 284,
+            "end_line": 284
+          },
+          {
+            "evidence_id": "ev_page_a26f10a3099034ea8e84eee7",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 287,
+            "end_line": 288
+          },
+          {
+            "evidence_id": "ev_page_ecd50b4b09e4d82c410793a5",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 289,
+            "end_line": 290
+          },
+          {
+            "evidence_id": "ev_page_4a865ac3ffedcc10b0023637",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 294,
+            "end_line": 294
+          },
+          {
+            "evidence_id": "ev_page_a4133195a7a8b04f6c2bcc0b",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 295,
+            "end_line": 295
+          },
+          {
+            "evidence_id": "ev_page_eed539bb3cd1bf7b33f71c94",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 296,
+            "end_line": 296
+          },
+          {
+            "evidence_id": "ev_page_5e83ee9529daf2e8e107e50e",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 297,
+            "end_line": 297
+          },
+          {
+            "evidence_id": "ev_page_d57f860d4b5d5ed5a77cf354",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 300,
+            "end_line": 300
+          },
+          {
+            "evidence_id": "ev_page_3d3a61835fa5011111725f80",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 301,
+            "end_line": 301
+          },
+          {
+            "evidence_id": "ev_page_f6d08f16b502ed7daa7df43f",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 307,
+            "end_line": 307
+          },
+          {
+            "evidence_id": "ev_page_875e3b07995d05a7553bcd72",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 308,
+            "end_line": 308
+          },
+          {
+            "evidence_id": "ev_page_b2a986e17dccfb43f0a6aef6",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 309,
+            "end_line": 309
+          },
+          {
+            "evidence_id": "ev_page_7a35fa536913511def855741",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 370,
+            "end_line": 370
+          },
+          {
+            "evidence_id": "ev_page_31387627e90bd16eb026a9a9",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 632,
+            "end_line": 632
+          },
+          {
+            "evidence_id": "ev_page_ad9043ef3cdedc49e4fb2a5f",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 254,
+            "end_line": 254
+          },
+          {
+            "evidence_id": "ev_page_da06ee2632f3b83d1778ce19",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 272,
+            "end_line": 272
+          },
+          {
+            "evidence_id": "ev_page_3e83a1d78ea7645a531dbd8e",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 291,
+            "end_line": 291
+          },
+          {
+            "evidence_id": "ev_page_8c907f638975f5534697eb55",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 309,
+            "end_line": 309
+          },
+          {
+            "evidence_id": "ev_page_d72f5188c31500dbe8bb1ddb",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 188,
+            "end_line": 222
+          },
+          {
+            "evidence_id": "ev_page_c94f630aa0282b3940b8975c",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 172,
+            "end_line": 172
+          },
+          {
+            "evidence_id": "ev_page_6ade904686250c704dfff546",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 326,
+            "end_line": 326
+          },
+          {
+            "evidence_id": "ev_page_16b4a880b6ad6d4ae2b5f4ad",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 336,
+            "end_line": 347
+          },
+          {
+            "evidence_id": "ev_page_1ee85c6f29570cdf4525f6e4",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 231,
+            "end_line": 243
+          }
+        ]
+      },
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "815afce6c9315d934974ddc7",
+        "case_id": "reserved-report-conversation",
+        "turn_id": "2",
+        "branch": "automatic",
+        "question_sha256": "dd754faaaf96c806b366fd42ec3074b6373f1961e6017a021d9eb00e94bb4bc8",
+        "history_sha256": "c31c45f2874aad3092e0d5d9189bb2671f36352a1e49cdeb959101caa73e7c77",
+        "answer_sha256": "b0e9b5c1859fe619f02bbeb5fbfaf31bc533bdef49d2c7628cf3ac8af7ea0b3b",
+        "model": "offline-reserve-mechanism",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "c9863c30548808fd5a508411f84aa2f6b32f97ce88370e735d39d8910663a0e1"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "87ce9abbe98a1ee760ce9809ac3ef21b46e7ea4e052f6a41b7ef653af859921e",
+        "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+        "source_versions": [
+          "45000f93a9be6e8132262e53faa1db03ab1f20fbee4063272b890837216d1fcb",
+          "4f1e55176f69edfb55b7af7a161aceb8c3bc3bd1b2924a704a76256e0e751b54",
+          "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+          "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa",
+          "751bc1a625114a8660ee2172b70cdea135c259652d2305a2bfda25ff4cf34853",
+          "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "ac004f7f40dcb3f2a14dfb83a743f83fed9383675bc93452f3424c40cb6475a7",
+          "b5bb7d6ccad022e0fc91b4dd1e971f49d184adf89b56abdce14eccff35b39396",
+          "d207911955e1198e27b1c8e2f16c8fdc42b78029f7e152f86c4c10764ab1986c",
+          "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667",
+          "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "f2544ba9864c5086fc6d636f0caf556df0fb4861c155c9b98a1aef2ad0383a83",
+        "identity_sha256": "b6f6f37a6ae368fd5aba72c6e1fed0ab0f9ab97d6efe388406014f2c0ca4d29a"
+      },
+      "pipeline_version": "question-evidence-v11"
+    },
+    {
+      "case_id": "reserved-report-conversation",
+      "turn_id": "3",
+      "expected_paths_navigated": [
+        "app/cbl/CBTRN03C.cbl"
+      ],
+      "expected_paths_retrieved": [
+        "app/cbl/CBTRN03C.cbl"
+      ],
+      "expected_paths_supplied": [
+        "app/cbl/CBTRN03C.cbl"
+      ],
+      "reviewed_ranges": [
+        {
+          "path": "app/cbl/CBTRN03C.cbl",
+          "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "start_line": 126,
+          "end_line": 137,
+          "supplied": false,
+          "range_after_documented_annotation_correction": {
+            "start_line": 126,
+            "end_line": 137
+          },
+          "supplied_after_documented_annotation_correction": false,
+          "source_line_count": 649,
+          "annotation_valid": true,
+          "expected_raw_lines": 12,
+          "supplied_raw_lines": 3,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CBTRN03C.cbl",
+          "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "start_line": 171,
+          "end_line": 206,
+          "supplied": false,
+          "range_after_documented_annotation_correction": {
+            "start_line": 171,
+            "end_line": 206
+          },
+          "supplied_after_documented_annotation_correction": false,
+          "source_line_count": 649,
+          "annotation_valid": true,
+          "expected_raw_lines": 36,
+          "supplied_raw_lines": 30,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CBTRN03C.cbl",
+          "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "start_line": 274,
+          "end_line": 323,
+          "supplied": false,
+          "range_after_documented_annotation_correction": {
+            "start_line": 274,
+            "end_line": 323
+          },
+          "supplied_after_documented_annotation_correction": false,
+          "source_line_count": 649,
+          "annotation_valid": true,
+          "expected_raw_lines": 50,
+          "supplied_raw_lines": 48,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        },
+        {
+          "path": "app/cbl/CBTRN03C.cbl",
+          "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "start_line": 343,
+          "end_line": 375,
+          "supplied": false,
+          "range_after_documented_annotation_correction": {
+            "start_line": 343,
+            "end_line": 375
+          },
+          "supplied_after_documented_annotation_correction": false,
+          "source_line_count": 649,
+          "annotation_valid": true,
+          "expected_raw_lines": 33,
+          "supplied_raw_lines": 6,
+          "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+        }
+      ],
+      "all_reviewed_ranges_supplied": false,
+      "all_reviewed_ranges_supplied_after_documented_annotation_correction": false,
+      "prior_user_turns": 2,
+      "actual_request": {
+        "question": "换句话说：前面交易金额明明累加过，为什么后来 WS-ACCOUNT-TOTAL 会变成零？这会把 WS-GRAND-TOTAL 一起抹掉吗？",
+        "history": [
+          {
+            "role": "user",
+            "content": "CBTRN03C 里第一种页汇总 WS-PAGE-TOTAL 和第二种账户汇总 WS-ACCOUNT-TOTAL，各自从哪里累加，什么时候清零？"
+          },
+          {
+            "role": "assistant",
+            "content": "已定位并供应 app/catlg/LISTCAT.txt 的原文；这份材料可用于继续解释本轮问题。[ev_page_362af886b6dbbf0521671eb5] 本轮是供证机制试验，尚未进行真实模型业务答案评审。"
+          },
+          {
+            "role": "user",
+            "content": "刚才第二种情况呢？换页也会让它归零吗？"
+          },
+          {
+            "role": "assistant",
+            "content": "已定位并供应 app/catlg/LISTCAT.txt 的原文；这份材料可用于继续解释本轮问题。[ev_page_362af886b6dbbf0521671eb5] 本轮是供证机制试验，尚未进行真实模型业务答案评审。"
+          }
+        ],
+        "pages": [
+          {
+            "evidence_id": "ev_page_362af886b6dbbf0521671eb5",
+            "relative_path": "app/catlg/LISTCAT.txt",
+            "source_sha256": "d207911955e1198e27b1c8e2f16c8fdc42b78029f7e152f86c4c10764ab1986c",
+            "start_line": 3465,
+            "end_line": 3551
+          },
+          {
+            "evidence_id": "ev_page_0cc7bab442eb9fff008cd139",
+            "relative_path": "app/cpy/CVTRA03Y.cpy",
+            "source_sha256": "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667",
+            "start_line": 1,
+            "end_line": 10
+          },
+          {
+            "evidence_id": "ev_page_0ad8fcf930de925c6c41c0e9",
+            "relative_path": "app/cpy/CVTRA05Y.cpy",
+            "source_sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+            "start_line": 1,
+            "end_line": 21
+          },
+          {
+            "evidence_id": "ev_page_c9567b8e5aab7b906c6ba6fb",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 299,
+            "end_line": 347
+          },
+          {
+            "evidence_id": "ev_page_5489311cf17b54f96a426c19",
+            "relative_path": "app/cpy/CVTRA07Y.cpy",
+            "source_sha256": "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa",
+            "start_line": 23,
+            "end_line": 73
+          },
+          {
+            "evidence_id": "ev_page_24a1cea3cfc3de766f66871a",
+            "relative_path": "app/cbl/CBACT04C.cbl",
+            "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 93,
+            "end_line": 141
+          },
+          {
+            "evidence_id": "ev_page_8c63251ce161fa7b288098e1",
+            "relative_path": "app/cbl/CBEXPORT.cbl",
+            "source_sha256": "598e3c9055b96b79266910e080bc24048eb308ee61afc828c06dbade9f501d38",
+            "start_line": 34,
+            "end_line": 134
+          },
+          {
+            "evidence_id": "ev_page_6bc44aaa2ee314540cb3bf99",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 194,
+            "end_line": 209
+          },
+          {
+            "evidence_id": "ev_page_effb13bc3b3315c3ccb6efa5",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 281,
+            "end_line": 296
+          },
+          {
+            "evidence_id": "ev_page_9126e0814bb79c57abe7d12d",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 291,
+            "end_line": 298
+          },
+          {
+            "evidence_id": "ev_page_79736bfc21cd87c9a3a7c9d9",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 182,
+            "end_line": 182
+          },
+          {
+            "evidence_id": "ev_page_2c78cb613de7ab30026461e0",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 181,
+            "end_line": 181
+          },
+          {
+            "evidence_id": "ev_page_ce55141914bfc4d0928ab328",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 179,
+            "end_line": 179
+          },
+          {
+            "evidence_id": "ev_page_b16a179ffdea30bf9930a755",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 222,
+            "end_line": 222
+          },
+          {
+            "evidence_id": "ev_page_660f5412066f24c7484cbaa3",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 176,
+            "end_line": 176
+          },
+          {
+            "evidence_id": "ev_page_f0a5183e5439ee24dbf786a8",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 173,
+            "end_line": 174
+          },
+          {
+            "evidence_id": "ev_page_1ce2611b8a226f0542599648",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 171,
+            "end_line": 171
+          },
+          {
+            "evidence_id": "ev_page_6369d014c15a169101372e8e",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 275,
+            "end_line": 275
+          },
+          {
+            "evidence_id": "ev_page_92b53020f002041a1f5b0206",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 193,
+            "end_line": 194
+          },
+          {
+            "evidence_id": "ev_page_2e91ec60ebf3f359ff43055e",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 191,
+            "end_line": 192
+          },
+          {
+            "evidence_id": "ev_page_7ffcbab68d1cab610391f0cf",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 190,
+            "end_line": 190
+          },
+          {
+            "evidence_id": "ev_page_56aca8c54942ed099df89744",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 210,
+            "end_line": 210
+          },
+          {
+            "evidence_id": "ev_page_01a6ae83327983073f4e2eac",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 211,
+            "end_line": 211
+          },
+          {
+            "evidence_id": "ev_page_11609c77b394b0990639371d",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 189,
+            "end_line": 189
+          },
+          {
+            "evidence_id": "ev_page_c7352a590b0a7a2753eae315",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 212,
+            "end_line": 212
+          },
+          {
+            "evidence_id": "ev_page_bcbe08ffb4db71fa26526485",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 187,
+            "end_line": 187
+          },
+          {
+            "evidence_id": "ev_page_23a655f929638c0d77adf606",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 213,
+            "end_line": 213
+          },
+          {
+            "evidence_id": "ev_page_5bc96eb37b32b15ab6d33482",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 186,
+            "end_line": 186
+          },
+          {
+            "evidence_id": "ev_page_43263be888b8f87db97c5f5b",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 185,
+            "end_line": 185
+          },
+          {
+            "evidence_id": "ev_page_ef61e5189e900a602e731465",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 183,
+            "end_line": 183
+          },
+          {
+            "evidence_id": "ev_page_b79e51bc9db9d1101b2aebf9",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 172,
+            "end_line": 172
+          },
+          {
+            "evidence_id": "ev_page_f0beb1e3387e3620756218da",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 135,
+            "end_line": 135
+          },
+          {
+            "evidence_id": "ev_page_b51471007bfea320af1f2bb1",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 134,
+            "end_line": 134
+          },
+          {
+            "evidence_id": "ev_page_58a38958921a0e0968c82d01",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 276,
+            "end_line": 276
+          },
+          {
+            "evidence_id": "ev_page_084cbf66fad53f8661b55f45",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 277,
+            "end_line": 277
+          },
+          {
+            "evidence_id": "ev_page_fe774fff363a22cd9a1451c8",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 278,
+            "end_line": 278
+          },
+          {
+            "evidence_id": "ev_page_99da4cc986a280566b19fbd6",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 279,
+            "end_line": 279
+          },
+          {
+            "evidence_id": "ev_page_7a35fa536913511def855741",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 370,
+            "end_line": 370
+          },
+          {
+            "evidence_id": "ev_page_e5a0dbd4f3883e1076c68c89",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 224,
+            "end_line": 224
+          },
+          {
+            "evidence_id": "ev_page_56adce661440423eaa1d2c2a",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 136,
+            "end_line": 136
+          },
+          {
+            "evidence_id": "ev_page_8e205998e4360859a4762068",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 93,
+            "end_line": 93
+          },
+          {
+            "evidence_id": "ev_page_d08fbe371984955bee562c3e",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 98,
+            "end_line": 98
+          },
+          {
+            "evidence_id": "ev_page_264e997b5c412570b815fb00",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 99,
+            "end_line": 111
+          },
+          {
+            "evidence_id": "ev_page_5a3d5031b395079eddb0c7c2",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 104,
+            "end_line": 116
+          },
+          {
+            "evidence_id": "ev_page_4d71a98f52baf858e8e2a80b",
+            "relative_path": "app/cbl/CBTRN03C.cbl",
+            "source_sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "start_line": 157,
+            "end_line": 169
+          }
+        ]
+      },
+      "review_identity": {
+        "schema_version": "business-review-identity/v2",
+        "run_id": "2a1c6cf300ea3dc1c755ce3f",
+        "case_id": "reserved-report-conversation",
+        "turn_id": "3",
+        "branch": "automatic",
+        "question_sha256": "306352b1d57d61d02269a3066e2f010359ffadeaef97e7cb4dc8de9439bb6367",
+        "history_sha256": "ad26254b2c0f0ee618c110eeb415acd7b78ee9907b8b6ab3cd11a7d3e34d75a6",
+        "answer_sha256": "b0e9b5c1859fe619f02bbeb5fbfaf31bc533bdef49d2c7628cf3ac8af7ea0b3b",
+        "model": "offline-reserve-mechanism",
+        "prompt": {
+          "version": "business-chat-v16",
+          "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+          "request_sha256": [
+            "30f0ed99b89d5a79cb028bd06a0cd942ba0194f4b4d7a984a6cfa34d3a3ccb30"
+          ]
+        },
+        "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+        "gold_sha256": "96b3ea38fd51c220cc97d5b7f24f57003af55b75078d06662da2c7c298608724",
+        "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+        "source_versions": [
+          "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "598e3c9055b96b79266910e080bc24048eb308ee61afc828c06dbade9f501d38",
+          "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa",
+          "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+          "d207911955e1198e27b1c8e2f16c8fdc42b78029f7e152f86c4c10764ab1986c",
+          "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+          "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667"
+        ],
+        "framework_revision": null,
+        "framework_versions": [],
+        "evidence_fingerprint_status": "supplied",
+        "evidence_sha256": "1cf401d970a8df526d9e63e28a0d0f98fa30cf068527875d32ab95bcbd5cb7ff",
+        "identity_sha256": "cb8530275a64587329e83911d20f959fbfe676e7fe55b72b87b5d0697fe224a9"
+      },
+      "pipeline_version": "question-evidence-v11"
+    }
+  ],
+  "automatic_eval_report": {
+    "schema_version": "live-business-eval/v3",
+    "evaluation_run_id": "6ffa74a07118f0d997f6b730",
+    "created_at_utc": "2026-10-13T16:52:36.802166+00:00",
+    "configuration": {
+      "api_style": "openai_compatible",
+      "base_url_configured": true,
+      "chat_model_configured": true,
+      "embedding_model_configured": false,
+      "api_key_source": "EXPLICIT",
+      "timeout_seconds": 20.0,
+      "max_output_tokens": 1024,
+      "profile_name": "custom",
+      "output_limit_source": "unknown",
+      "allow_insecure_localhost": false
+    },
+    "case_count": 4,
+    "plan": {
+      "case_count": 4,
+      "user_turn_count": 6,
+      "mode": "automatic",
+      "profile": "adapter",
+      "preflight_model_requests": 0,
+      "max_model_requests_per_case": 1,
+      "max_model_requests": 6,
+      "requests_per_turn": 1,
+      "missing_frozen_captures": [],
+      "max_output_tokens_per_request": 1024,
+      "timeout_seconds_per_request": 20.0,
+      "preflight_max_output_tokens": 32,
+      "max_request_bytes": 230000,
+      "preflight_request_bytes": 109,
+      "policy": {
+        "max_model_requests": 1,
+        "max_source_characters": 36000,
+        "max_complete_source_characters": 128000,
+        "max_history_characters": 18000,
+        "max_request_bytes": 230000,
+        "max_searches_per_turn": 3,
+        "max_reads_per_turn": 3,
+        "max_framework_searches_per_turn": 3,
+        "initial_pages": 6,
+        "initial_source_characters": 24000,
+        "search_pages": 8,
+        "search_source_characters": 32000,
+        "read_source_characters": 12000,
+        "max_framework_references": 10,
+        "max_framework_characters": 8000,
+        "max_business_context_actions_per_turn": 2,
+        "max_semantic_files": 32,
+        "max_semantic_source_bytes": 33554432,
+        "max_semantic_expansions": 4,
+        "max_evidence_groups": 12,
+        "max_initial_context_seconds": 3,
+        "max_local_analysis_seconds": 15,
+        "max_answer_revisions": 0,
+        "semantic_cache_bytes": 536870912
+      },
+      "configuration_scope": "evaluation_runner",
+      "workbench_defaults": {
+        "timeout_seconds": 60.0,
+        "max_output_tokens": 8192
+      },
+      "matches_workbench_defaults": false,
+      "comparison_note": "Evaluation uses its recorded configuration; results do not represent the web workbench when timeout or output settings differ.",
+      "spend_authorization": "not_granted_by_request_budget",
+      "currency_estimate": null,
+      "retry_policy": "no_automatic_retries",
+      "sampling": "provider_default",
+      "price_information_required": true,
+      "model_fingerprint": "f6a47bfa2d621c9d16947583465f7cf5108b39c2b6f8de02d0046adff5e3c054"
+    },
+    "model_preflight": {
+      "status": "skipped",
+      "model_requests": 0
+    },
+    "index_seconds": 1.4,
+    "search_index_seconds": 0.252,
+    "cases": [
+      {
+        "id": "reserved-array-population",
+        "question": "CBACT01C 输出数组有五项，1400-POPUL-ARRAY-RECORD 实际给哪些项赋值？这些余额和借记金额从哪里来？",
+        "conversation": "reserved-array-population",
+        "turn_id": "reserved-array-population",
+        "quality_status": "not_reviewed",
+        "elapsed_seconds": 0.279,
+        "model_requests": 1,
+        "metrics": {
+          "model_requests": 1,
+          "elapsed_seconds": 0.249,
+          "retrieved_pages": 7,
+          "repository_rebuilt": false,
+          "history_messages": 0,
+          "source_characters": 33178,
+          "request_bytes": [
+            106808
+          ],
+          "policy": {
+            "max_model_requests": 1,
+            "max_source_characters": 36000,
+            "max_complete_source_characters": 128000,
+            "max_history_characters": 18000,
+            "max_request_bytes": 230000,
+            "max_searches_per_turn": 3,
+            "max_reads_per_turn": 3,
+            "max_framework_searches_per_turn": 3,
+            "initial_pages": 6,
+            "initial_source_characters": 24000,
+            "search_pages": 8,
+            "search_source_characters": 32000,
+            "read_source_characters": 12000,
+            "max_framework_references": 10,
+            "max_framework_characters": 8000,
+            "max_business_context_actions_per_turn": 2,
+            "max_semantic_files": 32,
+            "max_semantic_source_bytes": 33554432,
+            "max_semantic_expansions": 4,
+            "max_evidence_groups": 12,
+            "max_initial_context_seconds": 3,
+            "max_local_analysis_seconds": 15,
+            "max_answer_revisions": 0,
+            "semantic_cache_bytes": 536870912
+          },
+          "tool_calls": {
+            "search": 0,
+            "read": 0,
+            "framework_search": 0,
+            "inspect_business_context": 0,
+            "backward_slice": 0,
+            "forward_slice": 0,
+            "explain_assignment": 0,
+            "trace_parameter": 0,
+            "explain_external_effect": 0
+          },
+          "provider_retries": [],
+          "empty_length_recovery_attempted": false,
+          "usage": {
+            "available": false,
+            "status": "unavailable",
+            "reported_requests": 0,
+            "model_requests": 1,
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "field_reported_requests": {
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "total_tokens": 0
+            }
+          },
+          "question_investigation": {
+            "calls": 3,
+            "candidate_queries": 1,
+            "automatic_actions": 0
+          },
+          "retrieved_ids": 7,
+          "sent_any_round_ids": 6,
+          "final_visible_ids": 6,
+          "quality_stop_reason": "request_budget",
+          "timing_seconds": {
+            "selected_source_hash_seconds": 0.0057,
+            "business_map_seconds": 0.0182,
+            "retrieval_seconds": 0.0194,
+            "read_seconds": 0.0,
+            "initial_context_seconds": 0.0269,
+            "semantic_evidence_seconds": 0.0,
+            "semantic_scope_seconds": 0.0,
+            "context_assembly_seconds": 0.1372,
+            "provider_wait_seconds": 0.005,
+            "question_investigation_seconds": 0.0347,
+            "complete_working_set_seconds": 0.003,
+            "first_model_request_seconds": 0.1841,
+            "local_processing_seconds": 0.2439,
+            "total_seconds": 0.2489
+          },
+          "timing_components_are_inclusive": true,
+          "selected_source_bytes_hashed": 923567,
+          "semantic_cache_hits": 0
+        },
+        "policy": {
+          "max_model_requests": 1,
+          "max_source_characters": 36000,
+          "max_complete_source_characters": 128000,
+          "max_history_characters": 18000,
+          "max_request_bytes": 230000,
+          "max_searches_per_turn": 3,
+          "max_reads_per_turn": 3,
+          "max_framework_searches_per_turn": 3,
+          "initial_pages": 6,
+          "initial_source_characters": 24000,
+          "search_pages": 8,
+          "search_source_characters": 32000,
+          "read_source_characters": 12000,
+          "max_framework_references": 10,
+          "max_framework_characters": 8000,
+          "max_business_context_actions_per_turn": 2,
+          "max_semantic_files": 32,
+          "max_semantic_source_bytes": 33554432,
+          "max_semantic_expansions": 4,
+          "max_evidence_groups": 12,
+          "max_initial_context_seconds": 3,
+          "max_local_analysis_seconds": 15,
+          "max_answer_revisions": 0,
+          "semantic_cache_bytes": 536870912
+        },
+        "usage": {
+          "available": false,
+          "status": "unavailable",
+          "reported_requests": 0,
+          "model_requests": 1,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "field_reported_requests": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          }
+        },
+        "tool_calls": {
+          "search": 0,
+          "read": 0,
+          "framework_search": 0,
+          "inspect_business_context": 0,
+          "backward_slice": 0,
+          "forward_slice": 0,
+          "explain_assignment": 0,
+          "trace_parameter": 0,
+          "explain_external_effect": 0
+        },
+        "request_bytes": [
+          106808
+        ],
+        "runner_status": "COMPLETED",
+        "answer": "已定位并供应 app/cbl/COCRDLIC.cbl 的原文；这份材料可用于继续解释本轮问题。[ev_page_5eb6c739e02b7b62a4f01168] 本轮是供证机制试验，尚未进行真实模型业务答案评审。",
+        "run_id": "b8068d5a2f4b3fa5a23bcb0b",
+        "cited_source_paths": [
+          "app/cbl/COCRDLIC.cbl"
+        ],
+        "retrieved_source_paths": [
+          "app/app-transaction-type-db2/cbl/COTRTLIC.cbl",
+          "app/cbl/CBACT01C.cbl",
+          "app/cbl/CBACT04C.cbl",
+          "app/cbl/COCRDLIC.cbl",
+          "app/cpy/CODATECN.cpy",
+          "app/cpy/CVACT01Y.cpy"
+        ],
+        "navigation_source_paths": [
+          "app/cbl/CBACT01C.cbl",
+          "app/cpy/CODATECN.cpy",
+          "app/cpy/CVACT01Y.cpy"
+        ],
+        "expected_source_paths": [
+          "app/cbl/CBACT01C.cbl"
+        ],
+        "expected_paths_navigated": [
+          "app/cbl/CBACT01C.cbl"
+        ],
+        "expected_paths_retrieved": [
+          "app/cbl/CBACT01C.cbl"
+        ],
+        "expected_paths_cited": [],
+        "review_checks": [],
+        "review_identity": {
+          "schema_version": "business-review-identity/v2",
+          "run_id": "b8068d5a2f4b3fa5a23bcb0b",
+          "case_id": "reserved-array-population",
+          "turn_id": "reserved-array-population",
+          "branch": "automatic",
+          "question_sha256": "0d1b8a87760d4839b58a68f8e10c88164138b38c498e7dce6c34712a19ee424b",
+          "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "answer_sha256": "ba9b44c1e94a3d3669d34482564bcfb9d2954376febd83062f8b31c6002d89da",
+          "model": "offline-reserve-mechanism",
+          "prompt": {
+            "version": "business-chat-v16",
+            "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+            "request_sha256": [
+              "e8698b48a250fbcd97984038c5fbe43db4508da71534d94aed997231bd9b5ee1"
+            ]
+          },
+          "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+          "gold_sha256": "3b61819403afa86e74c3afda831367d2064aab517ccf55090edcda92fcfbd973",
+          "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+          "source_versions": [
+            "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+            "8efc6b6d79bd46d65fcdc4e6a8e3778511fca76054f3fbae8e3075b0a2aa8fb1",
+            "916a5fe2279ad626147990d8f86fac1e4b296f827889485b020cc310b5323601",
+            "d6a9210ad3062bd657881fc3f0d2a7368db3ff4869594e0d6a878d8f410d87b6",
+            "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551"
+          ],
+          "framework_revision": null,
+          "framework_versions": [],
+          "evidence_fingerprint_status": "supplied",
+          "evidence_sha256": "3d3ea3994ddb97b0e94fa1195f666a45084f99681f2852dbcc1b412430dc5b88",
+          "identity_sha256": "15f25813038c07ab3ff86b6fd9bb780b3e8e1f50adc8d1fb3d18fc03d070fcaf"
+        },
+        "supplied_source_paths": [
+          "app/app-transaction-type-db2/cbl/COTRTLIC.cbl",
+          "app/cbl/CBACT01C.cbl",
+          "app/cbl/CBACT04C.cbl",
+          "app/cbl/COCRDLIC.cbl",
+          "app/cpy/CODATECN.cpy",
+          "app/cpy/CVACT01Y.cpy"
+        ],
+        "expected_paths_supplied": [
+          "app/cbl/CBACT01C.cbl"
+        ],
+        "human_review": null,
+        "review_binding_status": "not_reviewed",
+        "rejected_reviews": [],
+        "review_completion": "not_reviewed",
+        "correctness_status": "not_reviewed",
+        "pipeline_version": "question-evidence-v11",
+        "source_options": {
+          "compilation_context": {
+            "compile_conditions": [],
+            "conditions_complete": false,
+            "copy_libraries": [],
+            "copy_library_order_known": false,
+            "debug_lines": null,
+            "dialect": "unknown",
+            "encoding": "utf-8",
+            "framework_version": null,
+            "frontend_version": "cobol-facts-v5",
+            "nested_copy_replacing": null,
+            "preprocessing_version": "bounded-copy-v2",
+            "resource_kinds": [
+              "cobol-file",
+              "sql"
+            ],
+            "source_format": "fixed",
+            "target_profile": "generic-cobol"
+          },
+          "encoding": "utf-8",
+          "extensions": [
+            ".cbl",
+            ".cblle",
+            ".cl",
+            ".clle",
+            ".cob",
+            ".cobol",
+            ".copy",
+            ".cpb",
+            ".cpy",
+            ".ddl",
+            ".dds",
+            ".inc",
+            ".jcl",
+            ".job",
+            ".lf",
+            ".pco",
+            ".pf",
+            ".sqb",
+            ".sql",
+            ".sqlcblle",
+            ".src",
+            ".txt"
+          ],
+          "include_extensionless": true,
+          "source_format": "fixed"
+        }
+      },
+      {
+        "id": "reserved-lookup-gate",
+        "question": "CBTRN01C 中卡号在交叉引用文件查不到时，还会读取账户吗？请解释卡号、账户号及错误状态怎样传递。",
+        "conversation": "reserved-lookup-gate",
+        "turn_id": "reserved-lookup-gate",
+        "quality_status": "not_reviewed",
+        "elapsed_seconds": 0.202,
+        "model_requests": 1,
+        "metrics": {
+          "model_requests": 1,
+          "elapsed_seconds": 0.186,
+          "retrieved_pages": 10,
+          "repository_rebuilt": false,
+          "history_messages": 0,
+          "source_characters": 25223,
+          "request_bytes": [
+            91488
+          ],
+          "policy": {
+            "max_model_requests": 1,
+            "max_source_characters": 36000,
+            "max_complete_source_characters": 128000,
+            "max_history_characters": 18000,
+            "max_request_bytes": 230000,
+            "max_searches_per_turn": 3,
+            "max_reads_per_turn": 3,
+            "max_framework_searches_per_turn": 3,
+            "initial_pages": 6,
+            "initial_source_characters": 24000,
+            "search_pages": 8,
+            "search_source_characters": 32000,
+            "read_source_characters": 12000,
+            "max_framework_references": 10,
+            "max_framework_characters": 8000,
+            "max_business_context_actions_per_turn": 2,
+            "max_semantic_files": 32,
+            "max_semantic_source_bytes": 33554432,
+            "max_semantic_expansions": 4,
+            "max_evidence_groups": 12,
+            "max_initial_context_seconds": 3,
+            "max_local_analysis_seconds": 15,
+            "max_answer_revisions": 0,
+            "semantic_cache_bytes": 536870912
+          },
+          "tool_calls": {
+            "search": 0,
+            "read": 0,
+            "framework_search": 0,
+            "inspect_business_context": 0,
+            "backward_slice": 0,
+            "forward_slice": 0,
+            "explain_assignment": 0,
+            "trace_parameter": 0,
+            "explain_external_effect": 0
+          },
+          "provider_retries": [],
+          "empty_length_recovery_attempted": false,
+          "usage": {
+            "available": false,
+            "status": "unavailable",
+            "reported_requests": 0,
+            "model_requests": 1,
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "field_reported_requests": {
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "total_tokens": 0
+            }
+          },
+          "question_investigation": {
+            "calls": 3,
+            "candidate_queries": 1,
+            "automatic_actions": 0
+          },
+          "retrieved_ids": 10,
+          "sent_any_round_ids": 7,
+          "final_visible_ids": 7,
+          "quality_stop_reason": "request_budget",
+          "timing_seconds": {
+            "selected_source_hash_seconds": 0.0053,
+            "business_map_seconds": 0.0087,
+            "retrieval_seconds": 0.0146,
+            "read_seconds": 0.0017,
+            "initial_context_seconds": 0.0264,
+            "semantic_evidence_seconds": 0.0,
+            "semantic_scope_seconds": 0.0,
+            "context_assembly_seconds": 0.0984,
+            "provider_wait_seconds": 0.0042,
+            "question_investigation_seconds": 0.0373,
+            "complete_working_set_seconds": 0.0054,
+            "first_model_request_seconds": 0.135,
+            "local_processing_seconds": 0.1821,
+            "total_seconds": 0.1863
+          },
+          "timing_components_are_inclusive": true,
+          "selected_source_bytes_hashed": 715446,
+          "semantic_cache_hits": 0
+        },
+        "policy": {
+          "max_model_requests": 1,
+          "max_source_characters": 36000,
+          "max_complete_source_characters": 128000,
+          "max_history_characters": 18000,
+          "max_request_bytes": 230000,
+          "max_searches_per_turn": 3,
+          "max_reads_per_turn": 3,
+          "max_framework_searches_per_turn": 3,
+          "initial_pages": 6,
+          "initial_source_characters": 24000,
+          "search_pages": 8,
+          "search_source_characters": 32000,
+          "read_source_characters": 12000,
+          "max_framework_references": 10,
+          "max_framework_characters": 8000,
+          "max_business_context_actions_per_turn": 2,
+          "max_semantic_files": 32,
+          "max_semantic_source_bytes": 33554432,
+          "max_semantic_expansions": 4,
+          "max_evidence_groups": 12,
+          "max_initial_context_seconds": 3,
+          "max_local_analysis_seconds": 15,
+          "max_answer_revisions": 0,
+          "semantic_cache_bytes": 536870912
+        },
+        "usage": {
+          "available": false,
+          "status": "unavailable",
+          "reported_requests": 0,
+          "model_requests": 1,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "field_reported_requests": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          }
+        },
+        "tool_calls": {
+          "search": 0,
+          "read": 0,
+          "framework_search": 0,
+          "inspect_business_context": 0,
+          "backward_slice": 0,
+          "forward_slice": 0,
+          "explain_assignment": 0,
+          "trace_parameter": 0,
+          "explain_external_effect": 0
+        },
+        "request_bytes": [
+          91488
+        ],
+        "runner_status": "COMPLETED",
+        "answer": "已定位并供应 app/cpy/CVTRA06Y.cpy 的原文；这份材料可用于继续解释本轮问题。[ev_page_961eccc6da2eb67c14dc8481] 本轮是供证机制试验，尚未进行真实模型业务答案评审。",
+        "run_id": "1386f2bf8305a561987b8e94",
+        "cited_source_paths": [
+          "app/cpy/CVTRA06Y.cpy"
+        ],
+        "retrieved_source_paths": [
+          "app/cbl/CBTRN01C.cbl",
+          "app/cpy/CVACT01Y.cpy",
+          "app/cpy/CVACT02Y.cpy",
+          "app/cpy/CVACT03Y.cpy",
+          "app/cpy/CVCUS01Y.cpy",
+          "app/cpy/CVTRA05Y.cpy",
+          "app/cpy/CVTRA06Y.cpy"
+        ],
+        "navigation_source_paths": [
+          "app/cbl/CBTRN01C.cbl",
+          "app/cpy/CVACT01Y.cpy",
+          "app/cpy/CVACT02Y.cpy",
+          "app/cpy/CVACT03Y.cpy",
+          "app/cpy/CVCUS01Y.cpy",
+          "app/cpy/CVTRA05Y.cpy",
+          "app/cpy/CVTRA06Y.cpy"
+        ],
+        "expected_source_paths": [
+          "app/cbl/CBTRN01C.cbl"
+        ],
+        "expected_paths_navigated": [
+          "app/cbl/CBTRN01C.cbl"
+        ],
+        "expected_paths_retrieved": [
+          "app/cbl/CBTRN01C.cbl"
+        ],
+        "expected_paths_cited": [],
+        "review_checks": [],
+        "review_identity": {
+          "schema_version": "business-review-identity/v2",
+          "run_id": "1386f2bf8305a561987b8e94",
+          "case_id": "reserved-lookup-gate",
+          "turn_id": "reserved-lookup-gate",
+          "branch": "automatic",
+          "question_sha256": "4ecbb0d36c265b943e958d4d28c119fbab82233eb9a1b437d5933180595fb67c",
+          "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "answer_sha256": "978fb4cd2e7a8ddc3f41281643a37632c2c2d49622764bf5d5a6a821b064885e",
+          "model": "offline-reserve-mechanism",
+          "prompt": {
+            "version": "business-chat-v16",
+            "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+            "request_sha256": [
+              "7354106e9421d53647c978c41b7d256f273eacd1a32677eca5ba305c01ba4717"
+            ]
+          },
+          "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+          "gold_sha256": "034f83e106277aa1eecc0b5b5363fe4cc3bb4d66bb2a95c2b47e6c7872afefe0",
+          "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+          "source_versions": [
+            "55c2aebd59528aa42b28878ba5ca4d17a00b3548fc25e4ce1529710d366fd576",
+            "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728",
+            "944fd9a8eb10a683d0db97b9a87f2151982f649970287eb74358826056af25f8",
+            "9f1c62ef31b9d541712f1ed28f79e011ea7338611f5e0f30f2e1cbf624181223",
+            "c5c69f1b86c5a10156d3c5881d7cf387e6b925aae32825360f85bf4056a554a1",
+            "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+            "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+          ],
+          "framework_revision": null,
+          "framework_versions": [],
+          "evidence_fingerprint_status": "supplied",
+          "evidence_sha256": "d137c0a0585f9c76b853ebf33a667c8ebeda03797dc01584b76cc2eb84267a6f",
+          "identity_sha256": "adc38176ba3d1b47b0e91d9cdad5adb34ff1e99c8bb0fb3804ff965e889fb7c2"
+        },
+        "supplied_source_paths": [
+          "app/cbl/CBTRN01C.cbl",
+          "app/cpy/CVACT01Y.cpy",
+          "app/cpy/CVACT02Y.cpy",
+          "app/cpy/CVACT03Y.cpy",
+          "app/cpy/CVCUS01Y.cpy",
+          "app/cpy/CVTRA05Y.cpy",
+          "app/cpy/CVTRA06Y.cpy"
+        ],
+        "expected_paths_supplied": [
+          "app/cbl/CBTRN01C.cbl"
+        ],
+        "human_review": null,
+        "review_binding_status": "not_reviewed",
+        "rejected_reviews": [],
+        "review_completion": "not_reviewed",
+        "correctness_status": "not_reviewed",
+        "pipeline_version": "question-evidence-v11",
+        "source_options": {
+          "compilation_context": {
+            "compile_conditions": [],
+            "conditions_complete": false,
+            "copy_libraries": [],
+            "copy_library_order_known": false,
+            "debug_lines": null,
+            "dialect": "unknown",
+            "encoding": "utf-8",
+            "framework_version": null,
+            "frontend_version": "cobol-facts-v5",
+            "nested_copy_replacing": null,
+            "preprocessing_version": "bounded-copy-v2",
+            "resource_kinds": [
+              "cobol-file",
+              "sql"
+            ],
+            "source_format": "fixed",
+            "target_profile": "generic-cobol"
+          },
+          "encoding": "utf-8",
+          "extensions": [
+            ".cbl",
+            ".cblle",
+            ".cl",
+            ".clle",
+            ".cob",
+            ".cobol",
+            ".copy",
+            ".cpb",
+            ".cpy",
+            ".ddl",
+            ".dds",
+            ".inc",
+            ".jcl",
+            ".job",
+            ".lf",
+            ".pco",
+            ".pf",
+            ".sqb",
+            ".sql",
+            ".sqlcblle",
+            ".src",
+            ".txt"
+          ],
+          "include_extensionless": true,
+          "source_format": "fixed"
+        }
+      },
+      {
+        "id": "reserved-date-feedback",
+        "question": "CSUTLDTC 的 LS-RESULT 和 RETURN-CODE 是怎样得到的？日期转换调用未知时，可以确认哪些直接源码事实？",
+        "conversation": "reserved-date-feedback",
+        "turn_id": "reserved-date-feedback",
+        "quality_status": "not_reviewed",
+        "elapsed_seconds": 0.263,
+        "model_requests": 1,
+        "metrics": {
+          "model_requests": 1,
+          "elapsed_seconds": 0.242,
+          "retrieved_pages": 22,
+          "repository_rebuilt": false,
+          "history_messages": 0,
+          "source_characters": 33571,
+          "request_bytes": [
+            140154
+          ],
+          "policy": {
+            "max_model_requests": 1,
+            "max_source_characters": 36000,
+            "max_complete_source_characters": 128000,
+            "max_history_characters": 18000,
+            "max_request_bytes": 230000,
+            "max_searches_per_turn": 3,
+            "max_reads_per_turn": 3,
+            "max_framework_searches_per_turn": 3,
+            "initial_pages": 6,
+            "initial_source_characters": 24000,
+            "search_pages": 8,
+            "search_source_characters": 32000,
+            "read_source_characters": 12000,
+            "max_framework_references": 10,
+            "max_framework_characters": 8000,
+            "max_business_context_actions_per_turn": 2,
+            "max_semantic_files": 32,
+            "max_semantic_source_bytes": 33554432,
+            "max_semantic_expansions": 4,
+            "max_evidence_groups": 12,
+            "max_initial_context_seconds": 3,
+            "max_local_analysis_seconds": 15,
+            "max_answer_revisions": 0,
+            "semantic_cache_bytes": 536870912
+          },
+          "tool_calls": {
+            "search": 0,
+            "read": 1,
+            "framework_search": 0,
+            "inspect_business_context": 1,
+            "backward_slice": 0,
+            "forward_slice": 0,
+            "explain_assignment": 0,
+            "trace_parameter": 0,
+            "explain_external_effect": 0
+          },
+          "provider_retries": [],
+          "empty_length_recovery_attempted": false,
+          "usage": {
+            "available": false,
+            "status": "unavailable",
+            "reported_requests": 0,
+            "model_requests": 1,
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "field_reported_requests": {
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "total_tokens": 0
+            }
+          },
+          "question_investigation": {
+            "calls": 7,
+            "candidate_queries": 1,
+            "automatic_actions": 2
+          },
+          "retrieved_ids": 22,
+          "sent_any_round_ids": 10,
+          "final_visible_ids": 10,
+          "quality_stop_reason": "request_budget",
+          "timing_seconds": {
+            "selected_source_hash_seconds": 0.0096,
+            "business_map_seconds": 0.0153,
+            "retrieval_seconds": 0.0369,
+            "read_seconds": 0.0134,
+            "initial_context_seconds": 0.0501,
+            "semantic_evidence_seconds": 0.0139,
+            "semantic_scope_seconds": 0.0308,
+            "context_assembly_seconds": 0.1333,
+            "provider_wait_seconds": 0.0055,
+            "question_investigation_seconds": 0.0281,
+            "complete_working_set_seconds": 0.0017,
+            "first_model_request_seconds": 0.2004,
+            "local_processing_seconds": 0.2362,
+            "total_seconds": 0.2416
+          },
+          "timing_components_are_inclusive": true,
+          "selected_source_bytes_hashed": 1214976,
+          "semantic_cache_hits": 0
+        },
+        "policy": {
+          "max_model_requests": 1,
+          "max_source_characters": 36000,
+          "max_complete_source_characters": 128000,
+          "max_history_characters": 18000,
+          "max_request_bytes": 230000,
+          "max_searches_per_turn": 3,
+          "max_reads_per_turn": 3,
+          "max_framework_searches_per_turn": 3,
+          "initial_pages": 6,
+          "initial_source_characters": 24000,
+          "search_pages": 8,
+          "search_source_characters": 32000,
+          "read_source_characters": 12000,
+          "max_framework_references": 10,
+          "max_framework_characters": 8000,
+          "max_business_context_actions_per_turn": 2,
+          "max_semantic_files": 32,
+          "max_semantic_source_bytes": 33554432,
+          "max_semantic_expansions": 4,
+          "max_evidence_groups": 12,
+          "max_initial_context_seconds": 3,
+          "max_local_analysis_seconds": 15,
+          "max_answer_revisions": 0,
+          "semantic_cache_bytes": 536870912
+        },
+        "usage": {
+          "available": false,
+          "status": "unavailable",
+          "reported_requests": 0,
+          "model_requests": 1,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "field_reported_requests": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          }
+        },
+        "tool_calls": {
+          "search": 0,
+          "read": 1,
+          "framework_search": 0,
+          "inspect_business_context": 1,
+          "backward_slice": 0,
+          "forward_slice": 0,
+          "explain_assignment": 0,
+          "trace_parameter": 0,
+          "explain_external_effect": 0
+        },
+        "request_bytes": [
+          140154
+        ],
+        "runner_status": "COMPLETED",
+        "answer": "已定位并供应 app/cbl/COTRN02C.cbl 的原文；这份材料可用于继续解释本轮问题。[ev_page_3d9dc4441b11ed003ef0b53f] 本轮是供证机制试验，尚未进行真实模型业务答案评审。",
+        "run_id": "96dc134dfbc920daf17d6e48",
+        "cited_source_paths": [
+          "app/cbl/COTRN02C.cbl"
+        ],
+        "retrieved_source_paths": [
+          "app/cbl/CBTRN02C.cbl",
+          "app/cbl/COACTUPC.cbl",
+          "app/cbl/CORPT00C.cbl",
+          "app/cbl/COTRN02C.cbl",
+          "app/cbl/CSUTLDTC.cbl",
+          "app/cpy-bms/CORPT00.CPY",
+          "app/cpy/COCOM01Y.cpy",
+          "app/cpy/CSSETATY.cpy",
+          "app/cpy/CSSTRPFY.cpy"
+        ],
+        "navigation_source_paths": [
+          "app/cbl/COACTUPC.cbl",
+          "app/cbl/CORPT00C.cbl",
+          "app/cbl/COTRN02C.cbl",
+          "app/cbl/CSUTLDTC.cbl",
+          "app/cpy-bms/COACTUP.CPY",
+          "app/cpy-bms/CORPT00.CPY",
+          "app/cpy-bms/COTRN02.CPY",
+          "app/cpy/COCOM01Y.cpy",
+          "app/cpy/COTTL01Y.cpy",
+          "app/cpy/CSDAT01Y.cpy",
+          "app/cpy/CSLKPCDY.cpy",
+          "app/cpy/CSMSG01Y.cpy",
+          "app/cpy/CSMSG02Y.cpy",
+          "app/cpy/CSSETATY.cpy",
+          "app/cpy/CSSTRPFY.cpy",
+          "app/cpy/CSUSR01Y.cpy",
+          "app/cpy/CSUTLDPY.cpy",
+          "app/cpy/CSUTLDWY.cpy",
+          "app/cpy/CVACT01Y.cpy",
+          "app/cpy/CVACT03Y.cpy",
+          "app/cpy/CVCRD01Y.cpy",
+          "app/cpy/CVCUS01Y.cpy",
+          "app/cpy/CVTRA05Y.cpy"
+        ],
+        "expected_source_paths": [
+          "app/cbl/CSUTLDTC.cbl"
+        ],
+        "expected_paths_navigated": [
+          "app/cbl/CSUTLDTC.cbl"
+        ],
+        "expected_paths_retrieved": [
+          "app/cbl/CSUTLDTC.cbl"
+        ],
+        "expected_paths_cited": [],
+        "review_checks": [],
+        "review_identity": {
+          "schema_version": "business-review-identity/v2",
+          "run_id": "96dc134dfbc920daf17d6e48",
+          "case_id": "reserved-date-feedback",
+          "turn_id": "reserved-date-feedback",
+          "branch": "automatic",
+          "question_sha256": "f421d2b0601cbe74d6c24dc1331c8f73a232fef8b89555e5550de621c9554ee5",
+          "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "answer_sha256": "3505b55599c0238a8633ed0f6e8497abe2e06db81e3da01c4e916a9688e9a482",
+          "model": "offline-reserve-mechanism",
+          "prompt": {
+            "version": "business-chat-v16",
+            "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+            "request_sha256": [
+              "4fac6c2e20b6db93aa3fbd7ea862792d78c203380106ed4c08d932216f222e45"
+            ]
+          },
+          "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+          "gold_sha256": "52a4b748b8569b74f3aa98ced9bcc345bcb11001522e407df28f71bc79a10928",
+          "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+          "source_versions": [
+            "0b06bd5d4f38f17871de8985c439dfce7ed30d28e02b6ffeb8459e0cd8db4fc2",
+            "45000f93a9be6e8132262e53faa1db03ab1f20fbee4063272b890837216d1fcb",
+            "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+            "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+            "751bc1a625114a8660ee2172b70cdea135c259652d2305a2bfda25ff4cf34853",
+            "77097557ee4c365f62138328d3e280ce7aba5f81d418c6f16434f0fbb2aafa6c",
+            "7da2980799bcc3df642d02d09fd00fafb890cdb487e034f2f9b5b0e0767ce03b",
+            "b5bb7d6ccad022e0fc91b4dd1e971f49d184adf89b56abdce14eccff35b39396",
+            "dc33b4c797a98d2732070a223f43cc78992c2846681163a032e376630742b1ed"
+          ],
+          "framework_revision": null,
+          "framework_versions": [],
+          "evidence_fingerprint_status": "supplied",
+          "evidence_sha256": "c3ca63e1b90b46213957bea3947c1b0fa1711f4bde204fe2128c4448e7f5b347",
+          "identity_sha256": "c9931c753461cd309965740986671ffaec754ca8b0e7be659e98213784f67355"
+        },
+        "supplied_source_paths": [
+          "app/cbl/CBTRN02C.cbl",
+          "app/cbl/COACTUPC.cbl",
+          "app/cbl/CORPT00C.cbl",
+          "app/cbl/COTRN02C.cbl",
+          "app/cbl/CSUTLDTC.cbl",
+          "app/cpy-bms/CORPT00.CPY",
+          "app/cpy/COCOM01Y.cpy",
+          "app/cpy/CSSETATY.cpy",
+          "app/cpy/CSSTRPFY.cpy"
+        ],
+        "expected_paths_supplied": [
+          "app/cbl/CSUTLDTC.cbl"
+        ],
+        "human_review": null,
+        "review_binding_status": "not_reviewed",
+        "rejected_reviews": [],
+        "review_completion": "not_reviewed",
+        "correctness_status": "not_reviewed",
+        "pipeline_version": "question-evidence-v11",
+        "source_options": {
+          "compilation_context": {
+            "compile_conditions": [],
+            "conditions_complete": false,
+            "copy_libraries": [],
+            "copy_library_order_known": false,
+            "debug_lines": null,
+            "dialect": "unknown",
+            "encoding": "utf-8",
+            "framework_version": null,
+            "frontend_version": "cobol-facts-v5",
+            "nested_copy_replacing": null,
+            "preprocessing_version": "bounded-copy-v2",
+            "resource_kinds": [
+              "cobol-file",
+              "sql"
+            ],
+            "source_format": "fixed",
+            "target_profile": "generic-cobol"
+          },
+          "encoding": "utf-8",
+          "extensions": [
+            ".cbl",
+            ".cblle",
+            ".cl",
+            ".clle",
+            ".cob",
+            ".cobol",
+            ".copy",
+            ".cpb",
+            ".cpy",
+            ".ddl",
+            ".dds",
+            ".inc",
+            ".jcl",
+            ".job",
+            ".lf",
+            ".pco",
+            ".pf",
+            ".sqb",
+            ".sql",
+            ".sqlcblle",
+            ".src",
+            ".txt"
+          ],
+          "include_extensionless": true,
+          "source_format": "fixed"
+        }
+      },
+      {
+        "id": "reserved-report-conversation",
+        "question": "CBTRN03C 里第一种页汇总 WS-PAGE-TOTAL 和第二种账户汇总 WS-ACCOUNT-TOTAL，各自从哪里累加，什么时候清零？",
+        "conversation": "reserved-report-conversation",
+        "turn_id": "1",
+        "quality_status": "not_reviewed",
+        "elapsed_seconds": 0.337,
+        "model_requests": 1,
+        "metrics": {
+          "model_requests": 1,
+          "elapsed_seconds": 0.32,
+          "retrieved_pages": 13,
+          "repository_rebuilt": false,
+          "history_messages": 0,
+          "source_characters": 69680,
+          "request_bytes": [
+            158784
+          ],
+          "policy": {
+            "max_model_requests": 1,
+            "max_source_characters": 36000,
+            "max_complete_source_characters": 128000,
+            "max_history_characters": 18000,
+            "max_request_bytes": 230000,
+            "max_searches_per_turn": 3,
+            "max_reads_per_turn": 3,
+            "max_framework_searches_per_turn": 3,
+            "initial_pages": 6,
+            "initial_source_characters": 24000,
+            "search_pages": 8,
+            "search_source_characters": 32000,
+            "read_source_characters": 12000,
+            "max_framework_references": 10,
+            "max_framework_characters": 8000,
+            "max_business_context_actions_per_turn": 2,
+            "max_semantic_files": 32,
+            "max_semantic_source_bytes": 33554432,
+            "max_semantic_expansions": 4,
+            "max_evidence_groups": 12,
+            "max_initial_context_seconds": 3,
+            "max_local_analysis_seconds": 15,
+            "max_answer_revisions": 0,
+            "semantic_cache_bytes": 536870912
+          },
+          "tool_calls": {
+            "search": 0,
+            "read": 0,
+            "framework_search": 0,
+            "inspect_business_context": 0,
+            "backward_slice": 0,
+            "forward_slice": 0,
+            "explain_assignment": 0,
+            "trace_parameter": 0,
+            "explain_external_effect": 0
+          },
+          "provider_retries": [],
+          "empty_length_recovery_attempted": false,
+          "usage": {
+            "available": false,
+            "status": "unavailable",
+            "reported_requests": 0,
+            "model_requests": 1,
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "field_reported_requests": {
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "total_tokens": 0
+            }
+          },
+          "question_investigation": {
+            "calls": 3,
+            "candidate_queries": 1,
+            "automatic_actions": 0
+          },
+          "retrieved_ids": 13,
+          "sent_any_round_ids": 8,
+          "final_visible_ids": 8,
+          "quality_stop_reason": "answer_incomplete",
+          "timing_seconds": {
+            "selected_source_hash_seconds": 0.006,
+            "business_map_seconds": 0.0205,
+            "retrieval_seconds": 0.0237,
+            "read_seconds": 0.0052,
+            "initial_context_seconds": 0.0377,
+            "semantic_evidence_seconds": 0.0,
+            "semantic_scope_seconds": 0.0,
+            "context_assembly_seconds": 0.1734,
+            "provider_wait_seconds": 0.0058,
+            "question_investigation_seconds": 0.0457,
+            "complete_working_set_seconds": 0.0049,
+            "first_model_request_seconds": 0.2332,
+            "local_processing_seconds": 0.3137,
+            "total_seconds": 0.3195
+          },
+          "timing_components_are_inclusive": true,
+          "selected_source_bytes_hashed": 560051,
+          "semantic_cache_hits": 0
+        },
+        "policy": {
+          "max_model_requests": 1,
+          "max_source_characters": 36000,
+          "max_complete_source_characters": 128000,
+          "max_history_characters": 18000,
+          "max_request_bytes": 230000,
+          "max_searches_per_turn": 3,
+          "max_reads_per_turn": 3,
+          "max_framework_searches_per_turn": 3,
+          "initial_pages": 6,
+          "initial_source_characters": 24000,
+          "search_pages": 8,
+          "search_source_characters": 32000,
+          "read_source_characters": 12000,
+          "max_framework_references": 10,
+          "max_framework_characters": 8000,
+          "max_business_context_actions_per_turn": 2,
+          "max_semantic_files": 32,
+          "max_semantic_source_bytes": 33554432,
+          "max_semantic_expansions": 4,
+          "max_evidence_groups": 12,
+          "max_initial_context_seconds": 3,
+          "max_local_analysis_seconds": 15,
+          "max_answer_revisions": 0,
+          "semantic_cache_bytes": 536870912
+        },
+        "usage": {
+          "available": false,
+          "status": "unavailable",
+          "reported_requests": 0,
+          "model_requests": 1,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "field_reported_requests": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          }
+        },
+        "tool_calls": {
+          "search": 0,
+          "read": 0,
+          "framework_search": 0,
+          "inspect_business_context": 0,
+          "backward_slice": 0,
+          "forward_slice": 0,
+          "explain_assignment": 0,
+          "trace_parameter": 0,
+          "explain_external_effect": 0
+        },
+        "request_bytes": [
+          158784
+        ],
+        "runner_status": "COMPLETED",
+        "answer": "已定位并供应 app/catlg/LISTCAT.txt 的原文；这份材料可用于继续解释本轮问题。[ev_page_362af886b6dbbf0521671eb5] 本轮是供证机制试验，尚未进行真实模型业务答案评审。",
+        "run_id": "611b4b2e84cc6f2d36737d53",
+        "cited_source_paths": [
+          "app/catlg/LISTCAT.txt"
+        ],
+        "retrieved_source_paths": [
+          "app/catlg/LISTCAT.txt",
+          "app/cbl/CBACT04C.cbl",
+          "app/cbl/CBTRN03C.cbl",
+          "app/cpy/CVACT03Y.cpy",
+          "app/cpy/CVTRA03Y.cpy",
+          "app/cpy/CVTRA04Y.cpy",
+          "app/cpy/CVTRA05Y.cpy",
+          "app/cpy/CVTRA07Y.cpy"
+        ],
+        "navigation_source_paths": [
+          "app/cbl/CBTRN03C.cbl",
+          "app/cpy/CVACT03Y.cpy",
+          "app/cpy/CVTRA03Y.cpy",
+          "app/cpy/CVTRA04Y.cpy",
+          "app/cpy/CVTRA05Y.cpy",
+          "app/cpy/CVTRA07Y.cpy"
+        ],
+        "expected_source_paths": [
+          "app/cbl/CBTRN03C.cbl"
+        ],
+        "expected_paths_navigated": [
+          "app/cbl/CBTRN03C.cbl"
+        ],
+        "expected_paths_retrieved": [
+          "app/cbl/CBTRN03C.cbl"
+        ],
+        "expected_paths_cited": [],
+        "review_checks": [],
+        "review_identity": {
+          "schema_version": "business-review-identity/v2",
+          "run_id": "611b4b2e84cc6f2d36737d53",
+          "case_id": "reserved-report-conversation",
+          "turn_id": "1",
+          "branch": "automatic",
+          "question_sha256": "2b15e25ae8da1aed31a6b8174e927be4cb87e96d1caa8a40c3db5d2efd9cd246",
+          "history_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "answer_sha256": "b0e9b5c1859fe619f02bbeb5fbfaf31bc533bdef49d2c7628cf3ac8af7ea0b3b",
+          "model": "offline-reserve-mechanism",
+          "prompt": {
+            "version": "business-chat-v16",
+            "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+            "request_sha256": [
+              "6a5b11346b9e82b6129f406218d4da08d0e4de2a4e45ec3f5f111860148dec29"
+            ]
+          },
+          "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+          "gold_sha256": "2eecab930d1ad7ef084323b743ece68affdb2e6e907b6efb3fdf905f28123422",
+          "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+          "source_versions": [
+            "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa",
+            "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "89803bc13a06347e1f3d8a599a5383b87235b203dce9f18a486bc233186479f8",
+            "d207911955e1198e27b1c8e2f16c8fdc42b78029f7e152f86c4c10764ab1986c",
+            "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+            "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667",
+            "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+          ],
+          "framework_revision": null,
+          "framework_versions": [],
+          "evidence_fingerprint_status": "supplied",
+          "evidence_sha256": "bf3b1ab894e81661676b9acfd3f418387062f85f4bf6274d5c9dbeadcc3dd9a6",
+          "identity_sha256": "51182d3d87ce3d0bdd11ce98eabb1ac4db767b40b92dd4334b2760079801b4c9"
+        },
+        "supplied_source_paths": [
+          "app/catlg/LISTCAT.txt",
+          "app/cbl/CBACT04C.cbl",
+          "app/cbl/CBTRN03C.cbl",
+          "app/cpy/CVACT03Y.cpy",
+          "app/cpy/CVTRA03Y.cpy",
+          "app/cpy/CVTRA04Y.cpy",
+          "app/cpy/CVTRA05Y.cpy",
+          "app/cpy/CVTRA07Y.cpy"
+        ],
+        "expected_paths_supplied": [
+          "app/cbl/CBTRN03C.cbl"
+        ],
+        "human_review": null,
+        "review_binding_status": "not_reviewed",
+        "rejected_reviews": [],
+        "review_completion": "not_reviewed",
+        "correctness_status": "not_reviewed",
+        "pipeline_version": "question-evidence-v11",
+        "source_options": {
+          "compilation_context": {
+            "compile_conditions": [],
+            "conditions_complete": false,
+            "copy_libraries": [],
+            "copy_library_order_known": false,
+            "debug_lines": null,
+            "dialect": "unknown",
+            "encoding": "utf-8",
+            "framework_version": null,
+            "frontend_version": "cobol-facts-v5",
+            "nested_copy_replacing": null,
+            "preprocessing_version": "bounded-copy-v2",
+            "resource_kinds": [
+              "cobol-file",
+              "sql"
+            ],
+            "source_format": "fixed",
+            "target_profile": "generic-cobol"
+          },
+          "encoding": "utf-8",
+          "extensions": [
+            ".cbl",
+            ".cblle",
+            ".cl",
+            ".clle",
+            ".cob",
+            ".cobol",
+            ".copy",
+            ".cpb",
+            ".cpy",
+            ".ddl",
+            ".dds",
+            ".inc",
+            ".jcl",
+            ".job",
+            ".lf",
+            ".pco",
+            ".pf",
+            ".sqb",
+            ".sql",
+            ".sqlcblle",
+            ".src",
+            ".txt"
+          ],
+          "include_extensionless": true,
+          "source_format": "fixed"
+        }
+      },
+      {
+        "id": "reserved-report-conversation",
+        "question": "刚才第二种情况呢？换页也会让它归零吗？",
+        "conversation": "reserved-report-conversation",
+        "turn_id": "2",
+        "quality_status": "not_reviewed",
+        "elapsed_seconds": 0.912,
+        "model_requests": 1,
+        "metrics": {
+          "model_requests": 1,
+          "elapsed_seconds": 0.885,
+          "retrieved_pages": 92,
+          "repository_rebuilt": false,
+          "history_messages": 2,
+          "source_characters": 30441,
+          "request_bytes": [
+            208902
+          ],
+          "policy": {
+            "max_model_requests": 1,
+            "max_source_characters": 36000,
+            "max_complete_source_characters": 128000,
+            "max_history_characters": 18000,
+            "max_request_bytes": 230000,
+            "max_searches_per_turn": 3,
+            "max_reads_per_turn": 3,
+            "max_framework_searches_per_turn": 3,
+            "initial_pages": 6,
+            "initial_source_characters": 24000,
+            "search_pages": 8,
+            "search_source_characters": 32000,
+            "read_source_characters": 12000,
+            "max_framework_references": 10,
+            "max_framework_characters": 8000,
+            "max_business_context_actions_per_turn": 2,
+            "max_semantic_files": 32,
+            "max_semantic_source_bytes": 33554432,
+            "max_semantic_expansions": 4,
+            "max_evidence_groups": 12,
+            "max_initial_context_seconds": 3,
+            "max_local_analysis_seconds": 15,
+            "max_answer_revisions": 0,
+            "semantic_cache_bytes": 536870912
+          },
+          "tool_calls": {
+            "search": 0,
+            "read": 3,
+            "framework_search": 0,
+            "inspect_business_context": 2,
+            "backward_slice": 0,
+            "forward_slice": 0,
+            "explain_assignment": 0,
+            "trace_parameter": 0,
+            "explain_external_effect": 0
+          },
+          "provider_retries": [],
+          "empty_length_recovery_attempted": false,
+          "usage": {
+            "available": false,
+            "status": "unavailable",
+            "reported_requests": 0,
+            "model_requests": 1,
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "field_reported_requests": {
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "total_tokens": 0
+            }
+          },
+          "question_investigation": {
+            "calls": 8,
+            "candidate_queries": 1,
+            "automatic_actions": 5
+          },
+          "retrieved_ids": 92,
+          "sent_any_round_ids": 74,
+          "final_visible_ids": 74,
+          "quality_stop_reason": "request_budget",
+          "timing_seconds": {
+            "selected_source_hash_seconds": 0.0126,
+            "business_map_seconds": 0.0053,
+            "retrieval_seconds": 0.0449,
+            "read_seconds": 0.0321,
+            "initial_context_seconds": 0.3117,
+            "semantic_evidence_seconds": 0.2136,
+            "semantic_scope_seconds": 0.326,
+            "context_assembly_seconds": 0.5278,
+            "provider_wait_seconds": 0.0076,
+            "question_investigation_seconds": 0.0426,
+            "complete_working_set_seconds": 0.0,
+            "first_model_request_seconds": 0.8464,
+            "local_processing_seconds": 0.8771,
+            "total_seconds": 0.8847
+          },
+          "timing_components_are_inclusive": true,
+          "selected_source_bytes_hashed": 1573530,
+          "semantic_cache_hits": 0
+        },
+        "policy": {
+          "max_model_requests": 1,
+          "max_source_characters": 36000,
+          "max_complete_source_characters": 128000,
+          "max_history_characters": 18000,
+          "max_request_bytes": 230000,
+          "max_searches_per_turn": 3,
+          "max_reads_per_turn": 3,
+          "max_framework_searches_per_turn": 3,
+          "initial_pages": 6,
+          "initial_source_characters": 24000,
+          "search_pages": 8,
+          "search_source_characters": 32000,
+          "read_source_characters": 12000,
+          "max_framework_references": 10,
+          "max_framework_characters": 8000,
+          "max_business_context_actions_per_turn": 2,
+          "max_semantic_files": 32,
+          "max_semantic_source_bytes": 33554432,
+          "max_semantic_expansions": 4,
+          "max_evidence_groups": 12,
+          "max_initial_context_seconds": 3,
+          "max_local_analysis_seconds": 15,
+          "max_answer_revisions": 0,
+          "semantic_cache_bytes": 536870912
+        },
+        "usage": {
+          "available": false,
+          "status": "unavailable",
+          "reported_requests": 0,
+          "model_requests": 1,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "field_reported_requests": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          }
+        },
+        "tool_calls": {
+          "search": 0,
+          "read": 3,
+          "framework_search": 0,
+          "inspect_business_context": 2,
+          "backward_slice": 0,
+          "forward_slice": 0,
+          "explain_assignment": 0,
+          "trace_parameter": 0,
+          "explain_external_effect": 0
+        },
+        "request_bytes": [
+          208902
+        ],
+        "runner_status": "COMPLETED",
+        "answer": "已定位并供应 app/catlg/LISTCAT.txt 的原文；这份材料可用于继续解释本轮问题。[ev_page_362af886b6dbbf0521671eb5] 本轮是供证机制试验，尚未进行真实模型业务答案评审。",
+        "run_id": "815afce6c9315d934974ddc7",
+        "cited_source_paths": [
+          "app/catlg/LISTCAT.txt"
+        ],
+        "retrieved_source_paths": [
+          "app/catlg/LISTCAT.txt",
+          "app/cbl/CBACT04C.cbl",
+          "app/cbl/CBSTM03B.CBL",
+          "app/cbl/CBTRN03C.cbl",
+          "app/cbl/COACTUPC.cbl",
+          "app/cbl/COACTVWC.cbl",
+          "app/cbl/CSUTLDTC.cbl",
+          "app/cpy/CSSETATY.cpy",
+          "app/cpy/CSSTRPFY.cpy",
+          "app/cpy/CVACT03Y.cpy",
+          "app/cpy/CVTRA03Y.cpy",
+          "app/cpy/CVTRA05Y.cpy",
+          "app/cpy/CVTRA07Y.cpy"
+        ],
+        "navigation_source_paths": [
+          "app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl",
+          "app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl",
+          "app/app-authorization-ims-db2-mq/cpy-bms/COPAU00.cpy",
+          "app/app-authorization-ims-db2-mq/cpy/CCPAUERY.cpy",
+          "app/app-authorization-ims-db2-mq/cpy/CCPAURLY.cpy",
+          "app/app-authorization-ims-db2-mq/cpy/CCPAURQY.cpy",
+          "app/app-authorization-ims-db2-mq/cpy/CIPAUDTY.cpy",
+          "app/app-authorization-ims-db2-mq/cpy/CIPAUSMY.cpy",
+          "app/catlg/LISTCAT.txt",
+          "app/cbl/CBACT03C.cbl",
+          "app/cbl/CBACT04C.cbl",
+          "app/cbl/CBEXPORT.cbl",
+          "app/cbl/CBIMPORT.cbl",
+          "app/cbl/CBSTM03A.CBL",
+          "app/cbl/CBSTM03B.CBL",
+          "app/cbl/CBTRN01C.cbl",
+          "app/cbl/CBTRN02C.cbl",
+          "app/cbl/CBTRN03C.cbl",
+          "app/cbl/COACTUPC.cbl",
+          "app/cbl/COACTVWC.cbl",
+          "app/cbl/COBIL00C.cbl",
+          "app/cbl/CORPT00C.cbl",
+          "app/cbl/COTRN00C.cbl",
+          "app/cbl/COTRN01C.cbl",
+          "app/cbl/COTRN02C.cbl",
+          "app/cbl/CSUTLDTC.cbl",
+          "app/cpy-bms/COACTUP.CPY",
+          "app/cpy-bms/COACTVW.CPY",
+          "app/cpy-bms/COBIL00.CPY",
+          "app/cpy-bms/CORPT00.CPY",
+          "app/cpy-bms/COTRN00.CPY",
+          "app/cpy-bms/COTRN01.CPY",
+          "app/cpy-bms/COTRN02.CPY",
+          "app/cpy/COCOM01Y.cpy",
+          "app/cpy/COSTM01.CPY",
+          "app/cpy/COTTL01Y.cpy",
+          "app/cpy/CSDAT01Y.cpy",
+          "app/cpy/CSLKPCDY.cpy",
+          "app/cpy/CSMSG01Y.cpy",
+          "app/cpy/CSMSG02Y.cpy",
+          "app/cpy/CSSETATY.cpy",
+          "app/cpy/CSSTRPFY.cpy",
+          "app/cpy/CSUSR01Y.cpy",
+          "app/cpy/CSUTLDPY.cpy",
+          "app/cpy/CSUTLDWY.cpy",
+          "app/cpy/CUSTREC.cpy",
+          "app/cpy/CVACT01Y.cpy",
+          "app/cpy/CVACT02Y.cpy",
+          "app/cpy/CVACT03Y.cpy",
+          "app/cpy/CVCRD01Y.cpy",
+          "app/cpy/CVCUS01Y.cpy",
+          "app/cpy/CVEXPORT.cpy",
+          "app/cpy/CVTRA01Y.cpy",
+          "app/cpy/CVTRA02Y.cpy",
+          "app/cpy/CVTRA03Y.cpy",
+          "app/cpy/CVTRA04Y.cpy",
+          "app/cpy/CVTRA05Y.cpy",
+          "app/cpy/CVTRA06Y.cpy",
+          "app/cpy/CVTRA07Y.cpy"
+        ],
+        "expected_source_paths": [
+          "app/cbl/CBTRN03C.cbl"
+        ],
+        "expected_paths_navigated": [
+          "app/cbl/CBTRN03C.cbl"
+        ],
+        "expected_paths_retrieved": [
+          "app/cbl/CBTRN03C.cbl"
+        ],
+        "expected_paths_cited": [],
+        "review_checks": [],
+        "review_identity": {
+          "schema_version": "business-review-identity/v2",
+          "run_id": "815afce6c9315d934974ddc7",
+          "case_id": "reserved-report-conversation",
+          "turn_id": "2",
+          "branch": "automatic",
+          "question_sha256": "dd754faaaf96c806b366fd42ec3074b6373f1961e6017a021d9eb00e94bb4bc8",
+          "history_sha256": "c31c45f2874aad3092e0d5d9189bb2671f36352a1e49cdeb959101caa73e7c77",
+          "answer_sha256": "b0e9b5c1859fe619f02bbeb5fbfaf31bc533bdef49d2c7628cf3ac8af7ea0b3b",
+          "model": "offline-reserve-mechanism",
+          "prompt": {
+            "version": "business-chat-v16",
+            "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+            "request_sha256": [
+              "c9863c30548808fd5a508411f84aa2f6b32f97ce88370e735d39d8910663a0e1"
+            ]
+          },
+          "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+          "gold_sha256": "87ce9abbe98a1ee760ce9809ac3ef21b46e7ea4e052f6a41b7ef653af859921e",
+          "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+          "source_versions": [
+            "45000f93a9be6e8132262e53faa1db03ab1f20fbee4063272b890837216d1fcb",
+            "4f1e55176f69edfb55b7af7a161aceb8c3bc3bd1b2924a704a76256e0e751b54",
+            "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+            "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa",
+            "751bc1a625114a8660ee2172b70cdea135c259652d2305a2bfda25ff4cf34853",
+            "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "ac004f7f40dcb3f2a14dfb83a743f83fed9383675bc93452f3424c40cb6475a7",
+            "b5bb7d6ccad022e0fc91b4dd1e971f49d184adf89b56abdce14eccff35b39396",
+            "d207911955e1198e27b1c8e2f16c8fdc42b78029f7e152f86c4c10764ab1986c",
+            "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+            "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667",
+            "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+          ],
+          "framework_revision": null,
+          "framework_versions": [],
+          "evidence_fingerprint_status": "supplied",
+          "evidence_sha256": "f2544ba9864c5086fc6d636f0caf556df0fb4861c155c9b98a1aef2ad0383a83",
+          "identity_sha256": "b6f6f37a6ae368fd5aba72c6e1fed0ab0f9ab97d6efe388406014f2c0ca4d29a"
+        },
+        "supplied_source_paths": [
+          "app/catlg/LISTCAT.txt",
+          "app/cbl/CBACT04C.cbl",
+          "app/cbl/CBSTM03B.CBL",
+          "app/cbl/CBTRN03C.cbl",
+          "app/cbl/COACTUPC.cbl",
+          "app/cbl/COACTVWC.cbl",
+          "app/cbl/CSUTLDTC.cbl",
+          "app/cpy/CSSETATY.cpy",
+          "app/cpy/CSSTRPFY.cpy",
+          "app/cpy/CVACT03Y.cpy",
+          "app/cpy/CVTRA03Y.cpy",
+          "app/cpy/CVTRA05Y.cpy",
+          "app/cpy/CVTRA07Y.cpy"
+        ],
+        "expected_paths_supplied": [
+          "app/cbl/CBTRN03C.cbl"
+        ],
+        "human_review": null,
+        "review_binding_status": "not_reviewed",
+        "rejected_reviews": [],
+        "review_completion": "not_reviewed",
+        "correctness_status": "not_reviewed",
+        "pipeline_version": "question-evidence-v11",
+        "source_options": {
+          "compilation_context": {
+            "compile_conditions": [],
+            "conditions_complete": false,
+            "copy_libraries": [],
+            "copy_library_order_known": false,
+            "debug_lines": null,
+            "dialect": "unknown",
+            "encoding": "utf-8",
+            "framework_version": null,
+            "frontend_version": "cobol-facts-v5",
+            "nested_copy_replacing": null,
+            "preprocessing_version": "bounded-copy-v2",
+            "resource_kinds": [
+              "cobol-file",
+              "sql"
+            ],
+            "source_format": "fixed",
+            "target_profile": "generic-cobol"
+          },
+          "encoding": "utf-8",
+          "extensions": [
+            ".cbl",
+            ".cblle",
+            ".cl",
+            ".clle",
+            ".cob",
+            ".cobol",
+            ".copy",
+            ".cpb",
+            ".cpy",
+            ".ddl",
+            ".dds",
+            ".inc",
+            ".jcl",
+            ".job",
+            ".lf",
+            ".pco",
+            ".pf",
+            ".sqb",
+            ".sql",
+            ".sqlcblle",
+            ".src",
+            ".txt"
+          ],
+          "include_extensionless": true,
+          "source_format": "fixed"
+        }
+      },
+      {
+        "id": "reserved-report-conversation",
+        "question": "换句话说：前面交易金额明明累加过，为什么后来 WS-ACCOUNT-TOTAL 会变成零？这会把 WS-GRAND-TOTAL 一起抹掉吗？",
+        "conversation": "reserved-report-conversation",
+        "turn_id": "3",
+        "quality_status": "not_reviewed",
+        "elapsed_seconds": 0.37,
+        "model_requests": 1,
+        "metrics": {
+          "model_requests": 1,
+          "elapsed_seconds": 0.345,
+          "retrieved_pages": 75,
+          "repository_rebuilt": false,
+          "history_messages": 4,
+          "source_characters": 31260,
+          "request_bytes": [
+            229774
+          ],
+          "policy": {
+            "max_model_requests": 1,
+            "max_source_characters": 36000,
+            "max_complete_source_characters": 128000,
+            "max_history_characters": 18000,
+            "max_request_bytes": 230000,
+            "max_searches_per_turn": 3,
+            "max_reads_per_turn": 3,
+            "max_framework_searches_per_turn": 3,
+            "initial_pages": 6,
+            "initial_source_characters": 24000,
+            "search_pages": 8,
+            "search_source_characters": 32000,
+            "read_source_characters": 12000,
+            "max_framework_references": 10,
+            "max_framework_characters": 8000,
+            "max_business_context_actions_per_turn": 2,
+            "max_semantic_files": 32,
+            "max_semantic_source_bytes": 33554432,
+            "max_semantic_expansions": 4,
+            "max_evidence_groups": 12,
+            "max_initial_context_seconds": 3,
+            "max_local_analysis_seconds": 15,
+            "max_answer_revisions": 0,
+            "semantic_cache_bytes": 536870912
+          },
+          "tool_calls": {
+            "search": 0,
+            "read": 3,
+            "framework_search": 0,
+            "inspect_business_context": 2,
+            "backward_slice": 0,
+            "forward_slice": 0,
+            "explain_assignment": 0,
+            "trace_parameter": 0,
+            "explain_external_effect": 0
+          },
+          "provider_retries": [],
+          "empty_length_recovery_attempted": false,
+          "usage": {
+            "available": false,
+            "status": "unavailable",
+            "reported_requests": 0,
+            "model_requests": 1,
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "field_reported_requests": {
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "total_tokens": 0
+            }
+          },
+          "question_investigation": {
+            "calls": 8,
+            "candidate_queries": 1,
+            "automatic_actions": 5
+          },
+          "retrieved_ids": 75,
+          "sent_any_round_ids": 45,
+          "final_visible_ids": 45,
+          "quality_stop_reason": "request_budget",
+          "timing_seconds": {
+            "selected_source_hash_seconds": 0.0055,
+            "business_map_seconds": 0.0172,
+            "retrieval_seconds": 0.039,
+            "read_seconds": 0.0175,
+            "initial_context_seconds": 0.1334,
+            "semantic_evidence_seconds": 0.0552,
+            "semantic_scope_seconds": 0.0218,
+            "context_assembly_seconds": 0.1575,
+            "provider_wait_seconds": 0.0065,
+            "question_investigation_seconds": 0.027,
+            "complete_working_set_seconds": 0.0,
+            "first_model_request_seconds": 0.3099,
+            "local_processing_seconds": 0.3386,
+            "total_seconds": 0.3451
+          },
+          "timing_components_are_inclusive": true,
+          "selected_source_bytes_hashed": 560051,
+          "semantic_cache_hits": 1
+        },
+        "policy": {
+          "max_model_requests": 1,
+          "max_source_characters": 36000,
+          "max_complete_source_characters": 128000,
+          "max_history_characters": 18000,
+          "max_request_bytes": 230000,
+          "max_searches_per_turn": 3,
+          "max_reads_per_turn": 3,
+          "max_framework_searches_per_turn": 3,
+          "initial_pages": 6,
+          "initial_source_characters": 24000,
+          "search_pages": 8,
+          "search_source_characters": 32000,
+          "read_source_characters": 12000,
+          "max_framework_references": 10,
+          "max_framework_characters": 8000,
+          "max_business_context_actions_per_turn": 2,
+          "max_semantic_files": 32,
+          "max_semantic_source_bytes": 33554432,
+          "max_semantic_expansions": 4,
+          "max_evidence_groups": 12,
+          "max_initial_context_seconds": 3,
+          "max_local_analysis_seconds": 15,
+          "max_answer_revisions": 0,
+          "semantic_cache_bytes": 536870912
+        },
+        "usage": {
+          "available": false,
+          "status": "unavailable",
+          "reported_requests": 0,
+          "model_requests": 1,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "field_reported_requests": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          }
+        },
+        "tool_calls": {
+          "search": 0,
+          "read": 3,
+          "framework_search": 0,
+          "inspect_business_context": 2,
+          "backward_slice": 0,
+          "forward_slice": 0,
+          "explain_assignment": 0,
+          "trace_parameter": 0,
+          "explain_external_effect": 0
+        },
+        "request_bytes": [
+          229774
+        ],
+        "runner_status": "COMPLETED",
+        "answer": "已定位并供应 app/catlg/LISTCAT.txt 的原文；这份材料可用于继续解释本轮问题。[ev_page_362af886b6dbbf0521671eb5] 本轮是供证机制试验，尚未进行真实模型业务答案评审。",
+        "run_id": "2a1c6cf300ea3dc1c755ce3f",
+        "cited_source_paths": [
+          "app/catlg/LISTCAT.txt"
+        ],
+        "retrieved_source_paths": [
+          "app/catlg/LISTCAT.txt",
+          "app/cbl/CBACT04C.cbl",
+          "app/cbl/CBEXPORT.cbl",
+          "app/cbl/CBTRN03C.cbl",
+          "app/cpy/CVTRA03Y.cpy",
+          "app/cpy/CVTRA05Y.cpy",
+          "app/cpy/CVTRA07Y.cpy"
+        ],
+        "navigation_source_paths": [
+          "app/cbl/CBTRN03C.cbl",
+          "app/cpy/CVACT03Y.cpy",
+          "app/cpy/CVTRA03Y.cpy",
+          "app/cpy/CVTRA04Y.cpy",
+          "app/cpy/CVTRA05Y.cpy",
+          "app/cpy/CVTRA07Y.cpy"
+        ],
+        "expected_source_paths": [
+          "app/cbl/CBTRN03C.cbl"
+        ],
+        "expected_paths_navigated": [
+          "app/cbl/CBTRN03C.cbl"
+        ],
+        "expected_paths_retrieved": [
+          "app/cbl/CBTRN03C.cbl"
+        ],
+        "expected_paths_cited": [],
+        "review_checks": [],
+        "review_identity": {
+          "schema_version": "business-review-identity/v2",
+          "run_id": "2a1c6cf300ea3dc1c755ce3f",
+          "case_id": "reserved-report-conversation",
+          "turn_id": "3",
+          "branch": "automatic",
+          "question_sha256": "306352b1d57d61d02269a3066e2f010359ffadeaef97e7cb4dc8de9439bb6367",
+          "history_sha256": "ad26254b2c0f0ee618c110eeb415acd7b78ee9907b8b6ab3cd11a7d3e34d75a6",
+          "answer_sha256": "b0e9b5c1859fe619f02bbeb5fbfaf31bc533bdef49d2c7628cf3ac8af7ea0b3b",
+          "model": "offline-reserve-mechanism",
+          "prompt": {
+            "version": "business-chat-v16",
+            "system_sha256": "1f1f5e6b742a38cd373aeb8dfbcf5ec20317bb7153e238e9448542cee8b23766",
+            "request_sha256": [
+              "30f0ed99b89d5a79cb028bd06a0cd942ba0194f4b4d7a984a6cfa34d3a3ccb30"
+            ]
+          },
+          "policy_sha256": "4cf083da0558c4c724565ff29735e6374924a74251bc61b04951d670417ab79d",
+          "gold_sha256": "96b3ea38fd51c220cc97d5b7f24f57003af55b75078d06662da2c7c298608724",
+          "source_snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+          "source_versions": [
+            "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "598e3c9055b96b79266910e080bc24048eb308ee61afc828c06dbade9f501d38",
+            "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa",
+            "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+            "d207911955e1198e27b1c8e2f16c8fdc42b78029f7e152f86c4c10764ab1986c",
+            "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec",
+            "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667"
+          ],
+          "framework_revision": null,
+          "framework_versions": [],
+          "evidence_fingerprint_status": "supplied",
+          "evidence_sha256": "1cf401d970a8df526d9e63e28a0d0f98fa30cf068527875d32ab95bcbd5cb7ff",
+          "identity_sha256": "cb8530275a64587329e83911d20f959fbfe676e7fe55b72b87b5d0697fe224a9"
+        },
+        "supplied_source_paths": [
+          "app/catlg/LISTCAT.txt",
+          "app/cbl/CBACT04C.cbl",
+          "app/cbl/CBEXPORT.cbl",
+          "app/cbl/CBTRN03C.cbl",
+          "app/cpy/CVTRA03Y.cpy",
+          "app/cpy/CVTRA05Y.cpy",
+          "app/cpy/CVTRA07Y.cpy"
+        ],
+        "expected_paths_supplied": [
+          "app/cbl/CBTRN03C.cbl"
+        ],
+        "human_review": null,
+        "review_binding_status": "not_reviewed",
+        "rejected_reviews": [],
+        "review_completion": "not_reviewed",
+        "correctness_status": "not_reviewed",
+        "pipeline_version": "question-evidence-v11",
+        "source_options": {
+          "compilation_context": {
+            "compile_conditions": [],
+            "conditions_complete": false,
+            "copy_libraries": [],
+            "copy_library_order_known": false,
+            "debug_lines": null,
+            "dialect": "unknown",
+            "encoding": "utf-8",
+            "framework_version": null,
+            "frontend_version": "cobol-facts-v5",
+            "nested_copy_replacing": null,
+            "preprocessing_version": "bounded-copy-v2",
+            "resource_kinds": [
+              "cobol-file",
+              "sql"
+            ],
+            "source_format": "fixed",
+            "target_profile": "generic-cobol"
+          },
+          "encoding": "utf-8",
+          "extensions": [
+            ".cbl",
+            ".cblle",
+            ".cl",
+            ".clle",
+            ".cob",
+            ".cobol",
+            ".copy",
+            ".cpb",
+            ".cpy",
+            ".ddl",
+            ".dds",
+            ".inc",
+            ".jcl",
+            ".job",
+            ".lf",
+            ".pco",
+            ".pf",
+            ".sqb",
+            ".sql",
+            ".sqlcblle",
+            ".src",
+            ".txt"
+          ],
+          "include_extensionless": true,
+          "source_format": "fixed"
+        }
+      }
+    ],
+    "latency_seconds": {
+      "p50": 0.308,
+      "p95": 0.912
+    },
+    "quality_status": "not_reviewed",
+    "review_counts": {
+      "not_reviewed": 6,
+      "partial": 0,
+      "complete": 0
+    },
+    "snapshot_id": "sha256:15b690e8613d0d3ccc43b7e108c88a32043668fd203a77e3748fe40ef9e4c60f",
+    "indexed_files": 228,
+    "review_completion": "not_reviewed",
+    "correctness_counts": {
+      "not_reviewed": 6,
+      "pending": 0,
+      "correct": 0,
+      "incomplete": 0,
+      "incorrect": 0
+    },
+    "reviewed_findings": {
+      "met": 0,
+      "omitted": 0,
+      "incorrect": 0
+    },
+    "unsupported_claims_present": 0,
+    "stale_review_count": 0
+  },
+  "counts": {
+    "turns": 6,
+    "expected_paths_supplied": 6,
+    "all_reviewed_ranges_supplied": 3,
+    "reviewed_ranges": 19,
+    "reviewed_ranges_supplied": 10,
+    "invalid_frozen_ranges": 1,
+    "all_reviewed_ranges_supplied_after_documented_annotation_correction": 4
+  },
+  "gold_annotation_diagnostics": [
+    {
+      "case_id": "reserved-date-feedback",
+      "turn_id": "reserved-date-feedback",
+      "range": {
+        "path": "app/cbl/CSUTLDTC.cbl",
+        "sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+        "start_line": 81,
+        "end_line": 159,
+        "supplied": false,
+        "range_after_documented_annotation_correction": {
+          "start_line": 81,
+          "end_line": 157
+        },
+        "supplied_after_documented_annotation_correction": true,
+        "source_line_count": 157,
+        "annotation_valid": false,
+        "expected_raw_lines": 79,
+        "supplied_raw_lines": 77,
+        "coverage_metric": "union_of_actual_supplied_raw_physical_lines_not_semantic_correctness"
+      },
+      "reason": "frozen_reviewed_range_exceeds_original_file_eof"
+    }
+  ]
+}

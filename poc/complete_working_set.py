@@ -36,7 +36,7 @@ def build_complete_working_set(database_path, source_session, business_map, poli
         "complete_root_budget_applied": False, "root_source_characters": 0,
         "non_root_source_characters": 0,
         "depth_limit": _DEPTH_LIMIT, "reason": "source_identity_not_eligible"}
-    result = {"pages": [], "metadata": metadata}
+    result = {"pages": [], "metadata": metadata, "needs_refresh": False, "boundaries": []}
     if (source_session is None
             or identity.get("status") != "resolved" or identity.get("kind") not in _ROOT_KINDS
             or len(roots) != 1):
@@ -52,6 +52,10 @@ def build_complete_working_set(database_path, source_session, business_map, poli
         item = {"reason": reason, **details}
         if relative_path:
             item["relative_path"] = relative_path
+        if details.get("needs_refresh"):
+            # Use the same recovery contract as indexed search and range reads.
+            result["needs_refresh"] = True
+            result["boundaries"].append(dict(item))
         if len(metadata["frontier"]) < _FRONTIER_LIMIT:
             metadata["frontier"].append(item)
         else:
@@ -103,6 +107,8 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                     continue
                 records.append(dict(row))
                 metadata["candidate_paths"].append(relative)
+                if identity.get("exclusive_source_scope"):
+                    continue
                 targets = db.execute("SELECT DISTINCT s.relative_path FROM relations r "
                     "JOIN symbols s ON s.symbol_id=r.target_entity_id WHERE r.relative_path=? "
                     "AND r.relation_type IN ('CALLS','INCLUDES_COPY') AND r.status='confirmed' "

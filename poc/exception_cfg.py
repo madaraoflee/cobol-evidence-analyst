@@ -16,6 +16,7 @@ from urllib.parse import quote
 
 from call_bindings import parse_call
 from call_contexts import _Facts, _id
+from statement_facts import CobolLexError, lex_cobol
 
 
 CFG_VERSION = "bounded-exception-cfg-v0.1"
@@ -34,7 +35,7 @@ _VERBS = frozenset({"MOVE", "IF", "ELSE", "END-IF", "CALL", "END-CALL", "COMPUTE
     "WHEN", "EXEC", "END-EXEC", "GO", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE", "INITIALIZE", "SET",
     "ACCEPT", "DISPLAY", "OPEN", "CLOSE", "READ", "WRITE", "REWRITE", "DELETE", "START", "STRING",
     "UNSTRING", "INSPECT", "SEARCH", "NEXT", "ALTER", "CANCEL", "ENTRY", "RETURN", "RELEASE",
-    "SORT", "MERGE", "COPY", "REPLACE", "ON", "NOT", "END", "END-PROGRAM"})
+    "SORT", "MERGE", "COPY", "REPLACE", "ON", "NOT", "END", "END-PROGRAM", "@COMPILE-CANDIDATE"})
 
 
 @dataclass(frozen=True)
@@ -52,23 +53,25 @@ class _SyntaxBoundary(ValueError):
 
 def _tokenize(units: list[dict], *, framework_mode: bool = False) -> list[_Token]:
     tokens: list[_Token] = []
-    lexer = _FRAMEWORK_LEXER if framework_mode else _LEXER
     for unit in units:
+        if unit["parse_status"] == "candidate":
+            tokens.append(_Token("@COMPILE-CANDIDATE", unit, 0))
+            continue
         source = unit["normalized_text"]
-        offset = 0
-        while offset < len(source):
-            match = lexer.match(source, offset)
-            if match is None:
-                tokens.append(_Token("@UNSUPPORTED", unit, offset))
-                # Preserve the first unknown position and stop interpreting the
-                # remainder of this statement as valid COBOL syntax.
-                break
-            if not match.group().isspace():
-                value = match.group()
-                tokens.append(_Token(value if value[:1] in {"'", '"'} else value.upper(), unit, offset))
-                if len(tokens) > MAX_TOKENS:
-                    raise ValueError("Procedure exceeds the bounded CFG token budget.")
-            offset = match.end()
+        unknown = None
+        try:
+            parsed = lex_cobol(source, max_tokens=MAX_TOKENS)
+        except CobolLexError as exc:
+            unknown = exc.offset
+            try:
+                parsed = lex_cobol(source[:unknown], max_tokens=MAX_TOKENS)
+            except CobolLexError:
+                parsed = ()
+        tokens.extend(_Token(token.value, unit, token.start) for token in parsed)
+        if unknown is not None:
+            tokens.append(_Token("@UNSUPPORTED", unit, unknown))
+        if len(tokens) > MAX_TOKENS:
+            raise ValueError("Procedure exceeds the bounded CFG token budget.")
     return tokens
 
 
@@ -158,6 +161,8 @@ class _Parser:
         self.position += 1
         kind = token.text
         node = {"kind": kind, "token": token}
+        if kind == "@COMPILE-CANDIDATE":
+            self.error("compile_condition_unknown", token)
         if kind == "MOVE":
             source = self.scalar()
             if not self.take("TO"):
@@ -194,7 +199,7 @@ class _Parser:
                     self.error("perform_explicit_terminator_missing", token)
                 return node | condition | {"kind": "LOOP_TEST", "test_position": "before", "body": body}
             target = self.tokens[self.position].text
-            name_pattern = _PROCEDURE_NAME if self.framework_mode else _NAME
+            name_pattern = _PROCEDURE_NAME
             if len(target) > 64 or not name_pattern.fullmatch(target) or target in _VERBS:
                 self.error("perform_form_not_supported", token)
             self.position += 1
@@ -350,7 +355,7 @@ class _Builder:
                 self.paragraphs.setdefault(block["name"], []).append(index)
 
     def procedure_end(self, index: int) -> int:
-        if not self.framework_mode or self.blocks[index].get("kind") != "Section":
+        if self.blocks[index].get("kind") != "Section":
             return index
         for following in range(index + 1, len(self.blocks)):
             if self.blocks[following].get("kind") == "Section":
@@ -491,6 +496,11 @@ def build_exception_cfg(database_path: Path, program_name: str, *, max_nodes: in
         if program_name not in facts.programs:
             raise ValueError("Program is not present in the stored source snapshot.")
         scope_reason = facts.scope_reason(program_name)
+        if not scope_reason:
+            definition = facts.units[facts.programs[program_name][0]["definition_unit_id"]]
+            if definition["parse_status"] == "candidate" or any(
+                    signature["parse_status"] == "candidate" for signature in facts.signatures[program_name]):
+                scope_reason = "compile_condition_unknown"
         blocks: list[dict] = [{"name": None, "statements": []}]
         if scope_reason:
             builder = _Builder(facts, program_name, [], max_nodes=max_nodes, max_edges=max_edges,
@@ -512,18 +522,16 @@ def build_exception_cfg(database_path: Path, program_name: str, *, max_nodes: in
             if len(units) > MAX_STATEMENTS:
                 raise ValueError("Procedure exceeds the bounded CFG statement budget.")
             field_counts = Counter(symbol["name"] for symbol in facts.symbols.values()
-                                   if symbol["program_name"] == program_name and symbol["symbol_type"] == "Field")
+                                   if symbol["program_name"] == program_name and symbol["symbol_type"] == "Field"
+                                   and facts.units.get(symbol["definition_unit_id"], {}).get("parse_status") != "candidate")
             fields = {name for name, count in field_counts.items() if count == 1}
             raw_blocks: list[dict] = [{"name": None, "kind": "Entry", "units": []}]
             for unit in units:
                 facts.verify_unit(unit)
                 if unit["unit_type"] == "Paragraph":
-                    raw_blocks.append({"name": unit["name"], "kind": "Paragraph", "units": []})
+                    raw_blocks.append({"name": unit["name"], "kind": "Paragraph", "units": [unit] if unit["parse_status"] == "candidate" else []})
                 elif unit["unit_type"] == "Section":
-                    if framework_mode:
-                        raw_blocks.append({"name": unit["name"], "kind": "Section", "units": []})
-                    else:
-                        raw_blocks[-1]["units"].append(unit | {"normalized_text": "@UNSUPPORTED"})
+                    raw_blocks.append({"name": unit["name"], "kind": "Section", "units": [unit] if unit["parse_status"] == "candidate" else []})
                 else:
                     raw_blocks[-1]["units"].append(unit)
             total_tokens = 0

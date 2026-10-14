@@ -14,21 +14,23 @@ from bisect import bisect_right
 from dataclasses import dataclass
 import re
 
+from statement_facts import (
+    COBOL_RESERVED, COBOL_VERBS, SCOPE_TERMINATORS, CobolLexError, CobolToken,
+    assignment_facts, lex_cobol, parse_data_ref, references_from_tokens,
+)
 
-PARSER_VERSION = "bounded-statement-ast-v1"
+
+PARSER_VERSION = "bounded-statement-ast-v3"
 _WORD = re.compile(r"[A-Z_$#@][A-Z0-9_$#@-]*", re.I)
 _NUMBER = re.compile(r"\d+(?:\.\d+)?(?:[Ee][+-]?\d+)?")
-_NAME = re.compile(r"[A-Z_$#@][A-Z0-9_$#@-]*\Z", re.I)
+_NAME = re.compile(r"(?=[A-Z0-9_$#@-]*[A-Z_$#@])[A-Z0-9_$#@][A-Z0-9_$#@-]*\Z", re.I)
 _FIGURATIVE = frozenset({"ZERO", "ZEROS", "ZEROES", "SPACE", "SPACES", "HIGH-VALUES",
                         "LOW-VALUES", "QUOTE", "QUOTES", "NULL", "NULLS"})
-_VERBS = frozenset("ACCEPT ADD ALTER CALL CANCEL CLOSE COMPUTE CONTINUE DELETE DISPLAY DIVIDE "
-    "ENTRY EVALUATE EXEC EXIT GO GOBACK IF INITIALIZE INSPECT MERGE MOVE MULTIPLY OPEN PERFORM "
-    "READ RELEASE RETURN REWRITE SEARCH SET SORT START STOP STRING SUBTRACT UNSTRING WRITE "
-    "NEXT COPY REPLACE".split())
+_VERBS = COBOL_VERBS
 _TERMINATORS = frozenset({"ELSE", "WHEN", "END-IF", "END-EVALUATE", "END-COMPUTE", "."})
 _CLAUSES = frozenset({"ON", "NOT", "END-CALL", "END-PERFORM", "END-READ", "END-WRITE",
                       "END-ADD", "END-SUBTRACT", "END-MULTIPLY", "END-DIVIDE"})
-_RESERVED = _VERBS | _TERMINATORS | _CLAUSES | _FIGURATIVE | frozenset(
+_RESERVED = COBOL_RESERVED | _VERBS | _TERMINATORS | _CLAUSES | _FIGURATIVE | frozenset(
     "THEN TO FROM BY INTO GIVING ROUNDED ALSO OTHER ANY THRU THROUGH IS AND OR OF IN "
     "EQUAL GREATER LESS THAN TRUE FALSE NUMERIC ALPHABETIC POSITIVE NEGATIVE "
     "CORRESPONDING CORR SIZE ERROR EXCEPTION RUN PROGRAM PARAGRAPH SECTION".split())
@@ -73,6 +75,12 @@ class Statement:
     children: tuple[Statement, ...] = ()
     else_children: tuple[Statement, ...] = ()
     effects_unknown: bool = False
+    expressions: tuple[tuple[str, str], ...] = ()
+    loop: dict | None = None
+    exception_children: tuple[Statement, ...] = ()
+    normal_children: tuple[Statement, ...] = ()
+    exit_kind: str = ""
+    size_error_handler_present: bool = False
 
 
 @dataclass(frozen=True)
@@ -104,13 +112,7 @@ class ParseResult:
     parser_version: str = PARSER_VERSION
 
 
-@dataclass(frozen=True)
-class _Token:
-    value: str
-    kind: str
-    start: int
-    end: int
-
+_Token = CobolToken
 
 class _BoundaryError(ValueError):
     def __init__(self, reason: str, offset: int):
@@ -134,79 +136,11 @@ class _Source:
         return Boundary(reason, self.span(start, end), self.text[start:end])
 
 
-def _fixed_mask(text: str, source_format: str) -> str:
-    if source_format == "free":
-        return text
-    masked, offset = [], 0
-    for physical in text.splitlines(keepends=True):
-        line = physical.rstrip("\r\n")
-        ending = physical[len(line):]
-        if line.strip() and len(line) < 7:
-            raise _BoundaryError("fixed_line_missing_indicator", offset)
-        indicator = line[6:7]
-        if indicator in {"-", "D", "d"}:
-            raise _BoundaryError("fixed_continuation_or_debug_line_not_supported", offset + 6)
-        if indicator not in {"", " ", "*", "/"}:
-            raise _BoundaryError("fixed_indicator_not_supported", offset + 6)
-        if indicator in {"*", "/"}:
-            masked.append(" " * len(line) + ending)
-        else:
-            masked.append(" " * min(7, len(line)) + line[7:72] + " " * max(0, len(line) - 72) + ending)
-        offset += len(physical)
-    return "".join(masked)
-
-
 def _lex(source: _Source, source_format: str, max_tokens: int) -> tuple[_Token, ...]:
-    text = _fixed_mask(source.text, source_format)
-    result, position = [], 0
-    while position < len(text):
-        char = text[position]
-        if char.isspace():
-            position += 1
-            continue
-        if text.startswith("*>", position):
-            while position < len(text) and text[position] not in "\r\n":
-                position += 1
-            continue
-        start = position
-        if char in {"'", '"'}:
-            quote = char
-            position += 1
-            while position < len(text):
-                if text[position] in "\r\n":
-                    raise _BoundaryError("continued_literal_not_supported", start)
-                if text[position] == quote:
-                    position += 1
-                    if position < len(text) and text[position] == quote:
-                        position += 1
-                        continue
-                    break
-                position += 1
-            else:
-                raise _BoundaryError("unterminated_literal", start)
-            result.append(_Token(source.text[start:position], "literal", start, position))
-        elif char.isdigit() and (number := _NUMBER.match(text, position)):
-            position = number.end()
-            if position < len(text) and (text[position].isalnum() or text[position] in "_$#@-"):
-                raise _BoundaryError("numeric_or_identifier_form_not_supported", start)
-            result.append(_Token(number[0], "number", start, position))
-        elif word := _WORD.match(text, position):
-            position = word.end()
-            value = word[0].upper()
-            if not _NAME.fullmatch(value) and value != "-":
-                raise _BoundaryError("identifier_form_not_supported", start)
-            result.append(_Token(value, "symbol" if value == "-" else "word", start, position))
-        elif text[position:position + 2] in {"**", "<=", ">=", "<>"}:
-            position += 2
-            result.append(_Token(text[start:position], "symbol", start, position))
-        elif char in ".=<>+-*/()":
-            position += 1
-            result.append(_Token(char, "symbol", start, position))
-        else:
-            raise _BoundaryError("unrecognized_source_character", start)
-        if len(result) > max_tokens:
-            raise _BoundaryError("token_budget_exhausted", start)
-    return tuple(result)
+    try:
+        return lex_cobol(source.text, source_format=source_format, max_tokens=max_tokens)
+    except CobolLexError as error:
+        raise _BoundaryError(error.reason, error.offset) from error
 
 
 def _identifier(token: _Token) -> bool:
@@ -258,7 +192,11 @@ class _Expression:
             if self.position >= len(self.tokens):
                 return False
             token = self.tokens[self.position]
-            if (_identifier(token) or token.kind == "number" or token.value in {"ZERO", "ZEROS", "ZEROES"}
+            reference, following = parse_data_ref(self.tokens, self.position)
+            if reference:
+                self.position = following
+                return True
+            if (token.kind == "number" or token.value in {"ZERO", "ZEROS", "ZEROES"}
                     or text_operand and (token.kind == "literal" or token.value in _FIGURATIVE)):
                 self.position += 1
                 return True
@@ -387,28 +325,39 @@ class _Parser:
             return self.node(kind, first, guards, children=body, else_children=other)
         if kind == "EVALUATE":
             return self.evaluate(first, guards, depth)
-        if kind in {"MOVE", "COMPUTE"}:
-            return self.assignment(kind, first, guards)
+        if kind in {"MOVE", "COMPUTE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"}:
+            return self.assignment(kind, first, guards, depth)
+        if kind == "DISPLAY":
+            operands = self.collect(_VERBS | _TERMINATORS | SCOPE_TERMINATORS)
+            if not operands:
+                self.fail("display_operands_missing")
+            end = next((index for index, token in enumerate(operands) if token.value in {"UPON", "WITH"}), len(operands))
+            return self.node(kind, first, guards,
+                reads=tuple(ref.identity for ref in references_from_tokens(operands[:end])))
         if kind in {"CALL", "PERFORM", "READ", "WRITE", "REWRITE", "DELETE", "START", "OPEN", "CLOSE"}:
-            return self.opaque(kind, first, guards)
+            return self.opaque(kind, first, guards, depth)
         if kind in {"CONTINUE", "GOBACK"}:
             return self.node(kind, first, guards)
         if kind == "STOP" and self.take("RUN"):
             return self.node("STOP_RUN", first, guards)
         if kind == "EXIT":
-            if self.value() in {"PROGRAM", "PARAGRAPH", "SECTION"}:
+            exit_kind = "NOOP"
+            if self.value() in {"PROGRAM", "PARAGRAPH", "SECTION", "PERFORM"}:
+                exit_kind = self.value()
                 self.position += 1
-            return self.node("EXIT", first, guards)
+                if exit_kind == "PERFORM" and self.take("CYCLE"):
+                    exit_kind = "PERFORM_CYCLE"
+            return self.node("EXIT", first, guards, exit_kind=exit_kind)
         self.fail("statement_not_supported:" + kind)
 
-    def opaque(self, kind: str, first: int, guards: tuple[Guard, ...]) -> Statement:
+    def opaque(self, kind: str, first: int, guards: tuple[Guard, ...], depth=0) -> Statement:
         """Retain known call/I/O syntax without inventing storage effects.
 
         Explicit inline loops and I/O handlers remain single opaque nodes.
         Their nested writes are intentionally not added to ordered writes.
         """
         end_word = "END-" + kind
-        header = self.collect(_VERBS | _TERMINATORS | _CLAUSES | {end_word, "AT", "INVALID"})
+        header = self.collect(_VERBS | _TERMINATORS | (frozenset() if kind == "PERFORM" else _CLAUSES) | {end_word, "AT", "INVALID"})
         if not header:
             self.fail("opaque_statement_header_missing")
         if kind == "CALL":
@@ -419,7 +368,7 @@ class _Parser:
         elif kind == "PERFORM":
             inline = header[0].value in {"UNTIL", "WITH", "TEST", "VARYING"} or any(token.value == "TIMES" for token in header)
             if inline:
-                return self.opaque_scope(kind, first, guards, end_word)
+                return self.perform_loop(first, guards, header, depth)
             if not _identifier(header[0]):
                 self.fail("perform_target_not_supported")
             if len(header) not in {1, 3} or len(header) == 3 and (
@@ -432,11 +381,54 @@ class _Parser:
         self.take(end_word)
         return self.node(kind, first, guards, effects_unknown=True)
 
+    def perform_loop(self, first, guards, header, depth):
+        values = [token.value for token in header]
+        test_before = True
+        position = 0
+        if values[:1] == ["WITH"]:
+            position += 1
+        if values[position:position + 1] == ["TEST"]:
+            position += 1
+            if values[position:position + 1] not in (["BEFORE"], ["AFTER"]):
+                self.fail("perform_test_position_not_supported")
+            test_before = values[position] == "BEFORE"
+            position += 1
+        loop = {"test_before": test_before}
+        if values[-1:] == ["TIMES"] and position == 0 and _valid_expression(header[:-1]):
+            loop.update({"kind": "times", "count": self.raw(header[:-1])})
+        elif values[position:position + 1] == ["UNTIL"] and _valid_expression(header[position + 1:], condition=True):
+            loop.update({"kind": "until", "condition": self.raw(header[position + 1:])})
+        elif values[position:position + 1] == ["VARYING"]:
+            remaining = header[position + 1:]
+            variable, after_variable = parse_data_ref(remaining)
+            marks = {word: [index for index, token in enumerate(remaining) if token.value == word]
+                     for word in ("FROM", "BY", "UNTIL", "AFTER")}
+            if (not variable or any(len(marks[word]) != 1 for word in ("FROM", "BY", "UNTIL"))
+                    or marks["AFTER"] or marks["FROM"][0] != after_variable
+                    or not marks["FROM"][0] < marks["BY"][0] < marks["UNTIL"][0]):
+                self.fail("perform_varying_header_not_supported")
+            origin = remaining[marks["FROM"][0] + 1:marks["BY"][0]]
+            step = remaining[marks["BY"][0] + 1:marks["UNTIL"][0]]
+            condition = remaining[marks["UNTIL"][0] + 1:]
+            if not _valid_expression(origin) or not _valid_expression(step) or not _valid_expression(condition, condition=True):
+                self.fail("perform_varying_expression_not_supported")
+            loop.update({"kind": "varying", "variable": variable.identity, "from": self.raw(origin),
+                         "by": self.raw(step), "condition": self.raw(condition)})
+        else:
+            self.fail("perform_loop_header_not_supported")
+        body = self.sequence(guards, depth + 1, frozenset({"END-PERFORM", "."}))
+        if not body or not self.take("END-PERFORM"):
+            self.fail("opaque_scope_incomplete")
+        # General AST write consumers still abstain from treating loop bodies as
+        # unconditional. Flow services consume the explicit loop structure.
+        return self.node("PERFORM", first, guards, children=body, loop=loop, effects_unknown=True)
+
     def opaque_scope(self, kind: str, first: int, guards: tuple[Guard, ...], terminal: str) -> Statement:
         stack = [terminal]
         closers = {"END-IF", "END-EVALUATE", "END-PERFORM", "END-CALL", "END-COMPUTE",
-                   "END-READ", "END-WRITE", "END-REWRITE", "END-DELETE", "END-START"}
-        allowed = {"MOVE", "COMPUTE", "CALL", "PERFORM", "READ", "WRITE", "REWRITE", "DELETE",
+                   "END-READ", "END-WRITE", "END-REWRITE", "END-DELETE", "END-START",
+                   "END-ADD", "END-SUBTRACT", "END-MULTIPLY", "END-DIVIDE"}
+        allowed = {"MOVE", "COMPUTE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE", "DISPLAY", "CALL", "PERFORM", "READ", "WRITE", "REWRITE", "DELETE",
                    "START", "OPEN", "CLOSE", "CONTINUE", "GOBACK", "STOP", "EXIT", "IF", "EVALUATE"}
         while self.position < len(self.tokens):
             value = self.value()
@@ -446,7 +438,7 @@ class _Parser:
                 self.fail("opaque_nested_statement_not_supported:" + value)
             if value in {"IF", "EVALUATE"}:
                 stack.append("END-" + value)
-            elif value in {"COMPUTE", "CALL", "READ", "WRITE", "REWRITE", "DELETE", "START", "PERFORM"}:
+            elif value in {"COMPUTE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE", "CALL", "READ", "WRITE", "REWRITE", "DELETE", "START", "PERFORM"}:
                 # A nested call/assignment need not have an explicit terminator.
                 # Claim one only if it occurs before the next statement/scope
                 # boundary, or its header introduces an explicit handler/loop.
@@ -480,35 +472,51 @@ class _Parser:
                 return self.node(kind, first, guards, effects_unknown=True)
         self.fail("opaque_scope_incomplete")
 
-    def assignment(self, kind: str, first: int, guards: tuple[Guard, ...]) -> Statement:
-        if kind == "MOVE":
-            sender = self.collect(_VERBS | _TERMINATORS | {"TO"})
-            valid_sender = (len(sender) == 1 and (_identifier(sender[0]) or sender[0].kind in {"number", "literal"}
-                            or sender[0].value in _FIGURATIVE))
-            valid_sender |= len(sender) == 2 and sender[0].value in {"+", "-"} and sender[1].kind == "number"
-            if not valid_sender or not self.take("TO"):
-                self.fail("move_sender_not_supported")
-            targets = self.collect(_VERBS | _TERMINATORS | _CLAUSES)
-            if not targets or any(not _identifier(token) for token in targets):
-                self.fail("move_receiver_not_supported")
-            return self.node(kind, first, guards,
-                reads=tuple(token.value for token in sender if _identifier(token)),
-                writes=tuple(token.value for token in targets), expression=self.raw(sender))
-        if self.position >= len(self.tokens) or not _identifier(self.tokens[self.position]):
-            self.fail("compute_receiver_not_supported")
-        target = self.value()
-        self.position += 1
-        rounded = self.take("ROUNDED")
-        if not self.take("="):
-            self.fail("compute_single_receiver_required")
-        expression = self.collect(_VERBS | _TERMINATORS | _CLAUSES)
-        if not _valid_expression(expression):
-            self.fail("compute_expression_not_supported")
-        if self.value() in _CLAUSES:
-            return self.opaque_scope(kind, first, guards, "END-COMPUTE")
-        self.take("END-COMPUTE")
-        return self.node(kind, first, guards, writes=(target,), expression=self.raw(expression), rounded=rounded,
-            reads=tuple(dict.fromkeys(token.value for token in expression if _identifier(token))))
+    def assignment(self, kind: str, first: int, guards: tuple[Guard, ...], depth=0) -> Statement:
+        header = self.collect(_VERBS | SCOPE_TERMINATORS | _TERMINATORS | _CLAUSES)
+        body_tokens = self.tokens[first:self.position]
+        facts = assignment_facts(self.raw(body_tokens))
+        if facts is None:
+            # A fixed-format token can cross sequence columns or a continued
+            # literal. Its token value is the preprocessed value; its span
+            # still identifies the original physical source.
+            facts = assignment_facts(" ".join(token.value for token in body_tokens))
+        if facts is None:
+            self.fail(kind.lower() + "_operands_not_supported")
+        if kind == "COMPUTE":
+            equal = next((index for index, token in enumerate(header) if token.value == "="), -1)
+            if equal < 0 or not _valid_expression(header[equal + 1:]):
+                self.fail("compute_expression_not_supported")
+        if kind != "MOVE" and self.value() in {"ON", "NOT", "AT", "INVALID"}:
+            return self.arithmetic_scope(kind, first, guards, facts, depth)
+        self.take("END-" + kind)
+        expressions = tuple(expression for _, expression in facts.expressions)
+        return self.node(kind, first, guards, reads=facts.reads, writes=facts.writes,
+            expression=expressions[0] if len(set(expressions)) == 1 else None,
+            rounded=facts.rounded, expressions=facts.expressions)
+
+    def arithmetic_scope(self, kind, first, guards, facts, depth):
+        """Retain exact error/normal branches without unconditional write promotion."""
+        terminal = "END-" + kind
+        error_body, normal_body = (), ()
+        if self.take("ON"):
+            if not self.take("SIZE") or not self.take("ERROR"):
+                self.fail("arithmetic_exception_clause_not_supported")
+            error_body = self.sequence(guards, depth + 1, frozenset({"NOT", terminal, "."}))
+            if not error_body:
+                self.fail("empty_size_error_branch")
+        if self.take("NOT"):
+            if not self.take("ON") or not self.take("SIZE") or not self.take("ERROR"):
+                self.fail("arithmetic_normal_clause_not_supported")
+            normal_body = self.sequence(guards, depth + 1, frozenset({terminal, "."}))
+            if not normal_body:
+                self.fail("empty_normal_arithmetic_branch")
+        if not error_body and not normal_body or not self.take(terminal):
+            self.fail("opaque_scope_incomplete")
+        return self.node(kind, first, guards, reads=facts.reads, expressions=facts.expressions,
+            rounded=facts.rounded, effects_unknown=True,
+            exception_children=error_body, normal_children=normal_body,
+            size_error_handler_present=bool(error_body))
 
     def evaluate(self, first: int, guards: tuple[Guard, ...], depth: int) -> Statement:
         selector = self.collect(_VERBS | _TERMINATORS)
@@ -609,6 +617,7 @@ def parse_statements(source: str, *, start_line: int = 1, source_format: str = "
     writes = []
     for statement in leaves:
         for target in statement.writes:
-            writes.append(WriteOccurrence(len(writes), statement.kind, target, statement.expression or "",
+            writes.append(WriteOccurrence(len(writes), statement.kind, target,
+                dict(statement.expressions).get(target, statement.expression or ""),
                 statement.rounded, statement.guards, statement.span))
     return ParseResult(tuple(nodes), tuple(leaves), tuple(writes), tuple(boundaries), not boundaries, source)

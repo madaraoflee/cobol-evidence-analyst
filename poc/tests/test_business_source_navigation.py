@@ -326,7 +326,7 @@ class BusinessSourceNavigationTests(unittest.TestCase):
         ):
             with self.subTest(chosen=chosen):
                 path = f"variants/{chosen}/ITEMWRITE.CBL"
-                mapping, context = self.contexts(f"请说明 {path} 的拒绝条件。",
+                mapping, context = self.contexts(f"只说明 {path} 的拒绝条件。",
                     search_terms=[f"variants/{other}/ITEMWRITE.CBL"])
                 self.assertTrue(mapping["source_identity"]["hard_constraint"])
                 self.assertEqual(mapping["source_identity"]["direct_paths"], [path])

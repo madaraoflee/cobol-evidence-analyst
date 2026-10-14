@@ -19,6 +19,8 @@ from file_impact_evidence import is_file_impact_question, nominate_file_impact_e
 from business_behavior import wants_behavior_explanation
 from question_intent import calculation_intent
 from repository_identity import identity_blocks_analysis
+from question_planner import QuestionPlanner, EvidencePlanner
+from statement_facts import COBOL_VERBS, SCOPE_TERMINATORS, CobolLexError, lex_cobol
 
 
 _BUSINESS_DETAIL = re.compile(r"流程|(?:逻辑|邏輯)(?!\s*(?:标志|標誌|字段|欄位|栏位|变量|變量|类型|類型))|"
@@ -51,15 +53,8 @@ def _rule(row, kind):
             "input_fields": value.get("input_fields", []),
             "input_owner_paths": value.get("input_owner_paths", []),
             "occurrence_count": value.get("occurrence_count", 1),
-            "rule_kind": value.get("rule_kind"), "source_sha256": value.get("source_sha256")}
-    if result["rule_kind"] in _ARITHMETIC and " GIVING " in result["statement"].upper():
-        from structural_index import _unique_identifiers
-        giving = result["statement"].upper().split(" GIVING ", 1)[1]
-        giving = re.split(r"\b(?:ON|NOT|END-ADD|END-SUBTRACT|END-MULTIPLY|END-DIVIDE)\b", giving)[0]
-        # Sparse arithmetic access can list an explicit GIVING receiver as a
-        # read. It is an output, not a recursive input origin or a cycle.
-        receivers = set(_unique_identifiers(giving)).intersection(result["writes"])
-        result["reads"] = [field for field in result["reads"] if field not in receivers]
+            "rule_kind": value.get("rule_kind"), "source_sha256": value.get("source_sha256"),
+            "rule_id": value.get("rule_id")}
     return result
 
 
@@ -283,6 +278,27 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
                 candidates.extend(_rule(row, "conditions") for row in rows[:_MAX_LINKED_RULES])
         for row in candidates:
             row["source_sha256"] = hashes.get(row["relative_path"])
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name='business_rule_occurrences'").fetchone():
+            identifiers = list(dict.fromkeys(row["rule_id"] for row in candidates if row.get("rule_id")))
+            occurrences = {}
+            if identifiers:
+                # Occurrences are bounded independently from retrieval shapes.
+                # They retain source columns and branch scopes without loading
+                # every repeated rule in a large program.
+                slots = ",".join("?" for _ in identifiers)
+                for occurrence in db.execute("SELECT * FROM (SELECT *,ROW_NUMBER() OVER (PARTITION BY rule_id "
+                        "ORDER BY start_line,start_column) AS occurrence_rank FROM business_rule_occurrences "
+                        f"WHERE rule_id IN ({slots})) WHERE occurrence_rank<=64", identifiers):
+                    occurrences.setdefault(occurrence["rule_id"], []).append(dict(occurrence))
+            for row in candidates:
+                row["occurrences"] = occurrences.get(row.get("rule_id"), [])
+                conditional = [item for item in row["occurrences"] if item["parse_status"] == "candidate"]
+                if conditional and len(conditional) == len(row["occurrences"]):
+                    row.update(compilation_status="candidate", support_basis="source_syntax_only",
+                               unresolved=True, unresolved_reason="compile_condition_unknown",
+                               target_name=(row["writes"] or row["reads"] or ["conditional_source"])[0],
+                               compilation_guards=[guard for item in conditional for guard in json.loads(item["scope_json"])
+                                                   if guard.get("kind") == "COMPILATION"])
     return candidates, frontier, hashes
 
 
@@ -334,6 +350,16 @@ def _visible_input_declarations(pages, candidates):
 
 def _visible_ids(candidate, pages, *, page_cache=None):
     from business_index import _clean
+    if candidate.get("occurrences"):
+        supplied = []
+        for occurrence in candidate["occurrences"]:
+            if occurrence["source_sha256"] != candidate.get("source_sha256"):
+                continue
+            local = {**candidate, "occurrences": [], "occurrence_count": 1,
+                     "start_line": occurrence["start_line"], "end_line": occurrence["end_line"],
+                     "start_column": occurrence["start_column"], "end_column": occurrence["end_column"]}
+            supplied.extend(_visible_ids(local, pages, page_cache=page_cache))
+        return list(dict.fromkeys(supplied))
     first, last = candidate["start_line"], candidate["end_line"]
     # Repeated identical sparse rules have a first/last occurrence envelope,
     # rather than one continuous statement. Require the first actual statement.
@@ -379,8 +405,32 @@ def _visible_ids(candidate, pages, *, page_cache=None):
 
     text = comparable(" ".join(lines[index] for index in sorted(lines)))
     statement = comparable(candidate.get("statement", "")).rstrip(".")
-    exact_statement = bool(statement and re.search(r"(?<![A-Z0-9_$#@-])" + re.escape(statement) +
-                                                  r"(?=\s*(?:\.|$))", text))
+    # Textual evidence verification also covers declarations and target
+    # resources whose syntax is outside the statement parser (PIC, DDS, CL).
+    # Whole-span equality proves only that the supplied text matches; it does
+    # not promote unsupported semantics into a parsed fact.
+    if statement and text.rstrip(".") == statement:
+        return list(dict.fromkeys(identifiers)) if cursor > last else []
+    try:
+        actual, expected = lex_cobol(text), lex_cobol(statement)
+    except CobolLexError:
+        return []
+    expected_values = [(token.kind, token.value) for token in expected]
+    exact_statement = False
+    for index in range(len(actual) - len(expected) + 1):
+        if not expected or [(token.kind, token.value) for token in actual[index:index + len(expected)]] != expected_values:
+            continue
+        following = actual[index + len(expected):index + len(expected) + 1]
+        # The next executable verb closes an occurrence on the same physical
+        # line. A following receiver/operator does not close the candidate.
+        # Declarations and control headers may end before their clause/body.
+        next_boundary = (not following or following[0].value in COBOL_VERBS | SCOPE_TERMINATORS
+                         | {".", "ELSE", "WHEN", "ON", "NOT", "AT", "INVALID"})
+        declaration = bool(expected and expected[0].kind == "number")
+        control_header = bool(expected and expected[0].value in {"IF", "WHEN", "EVALUATE"})
+        if next_boundary or declaration or control_header:
+            exact_statement = True
+            break
     return list(dict.fromkeys(identifiers)) if cursor > last and exact_statement else []
 
 
@@ -399,7 +449,10 @@ def _condition_spans(candidates, evidence_groups):
     for candidate in candidates:
         end = ends.get((candidate["relative_path"], candidate.get("source_sha256"), candidate["start_line"]))
         if candidate["kind"] == "conditions" and end and end < candidate["end_line"]:
-            candidate = {**candidate, "end_line": end}
+            candidate = {**candidate, "end_line": end,
+                         "occurrences": [{**item, "end_line": min(item["end_line"], end)}
+                                         for item in candidate.get("occurrences", [])
+                                         if item["start_line"] <= end]}
         result.append(candidate)
     return result
 
@@ -516,7 +569,7 @@ def _calculation_paths(business_map, source_pages):
 
 def build_question_investigation(question, business_map, *, database_path=None,
                                 source_pages=(), evidence_groups=(), completed_actions=(), max_actions=4,
-                                candidate_cache=None, framework_facts=()):
+                                candidate_cache=None, framework_facts=(), history=()):
     """Return material obligations and bounded actions for a located calculation."""
     identity = business_map.get("source_identity", {})
     paths = list(dict.fromkeys(business_map.get("selected_paths", [])))
@@ -525,7 +578,25 @@ def build_question_investigation(question, business_map, *, database_path=None,
         history_paths = {page.get("relative_path") for page in source_pages
                          if "conversation_context" in page.get("selection_reasons", [])}
         located = bool(history_paths.intersection(paths))
+    planner_entities = candidate_cache.setdefault("planner_entities", {}) if isinstance(candidate_cache, dict) else {}
+    def validate_entity(entity):
+        if database_path is None or not paths:
+            return False
+        cache_key = (business_map.get("snapshot_id"), tuple(paths[:_MAX_PATHS]), entity)
+        if cache_key not in planner_entities:
+            encoded = quote(Path(database_path).resolve().as_posix(), safe="/:")
+            with closing(sqlite3.connect(f"file:{encoded}?mode=ro", uri=True)) as db:
+                slots = ",".join("?" for _ in paths[:_MAX_PATHS])
+                planner_entities[cache_key] = db.execute("SELECT 1 FROM symbols WHERE relative_path IN (" + slots +
+                    ") AND symbol_type IN ('Field','ConditionName') AND "
+                    "(name=? OR substr(qualified_name,instr(qualified_name,'::')+2)=?) LIMIT 1",
+                    (*paths[:_MAX_PATHS], entity, entity)).fetchone() is not None
+        return planner_entities[cache_key]
+    plan = QuestionPlanner().plan(question, business_map, source_pages=source_pages, history=history,
+                                  entity_validator=validate_entity if database_path else None)
+    candidate_question = str(question) + (" " + " ".join(plan.entities) if plan.entities else "")
     base = {"scope": "source_candidates", "semantic_execution_verified": False,
+            "analysis_plan": plan.to_dict(),
             "required_items": [], "planned_actions": [], "open_gaps": [],
             "state": "located" if located else "unresolved", "can_answer": located}
     if identity_blocks_analysis(identity):
@@ -534,9 +605,15 @@ def build_question_investigation(question, business_map, *, database_path=None,
     calculation = calculation_kind == "rules"
     file_impact = is_file_impact_question(question)
     business_steps = not calculation and (calculation_kind == "execution" or bool(_BUSINESS_DETAIL.search(question))
-                                         or wants_behavior_explanation(question) or file_impact)
+        or wants_behavior_explanation(question) or file_impact or
+        bool(set(plan.intents) & {"origin", "overwrite", "impact", "condition", "exception"}))
     if not calculation and not business_steps:
-        return base
+        supplied = [page.get("evidence_id") for page in source_pages if page.get("evidence_id")
+                    and page.get("relative_path") in paths and page.get("source_text")]
+        return {**base, "required_items": [{"id": "question_supplied_source", "kind": "source",
+            "status": "SATISFIED" if supplied else "OPEN", "evidence_ids": supplied,
+            "reason": "source_supplied" if supplied else "source_not_supplied"}],
+            "can_answer": located and bool(supplied)}
     if not located:
         kind = "business_steps" if business_steps else "formula"
         item = {"id": "calculation_" + kind, "kind": kind, "status": "OPEN",
@@ -559,6 +636,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
         paths = _calculation_paths(business_map, source_pages)
         root_paths = _calculation_roots(business_map, source_pages)
     scope_cache = {"scope_map": business_map, "scope_history_roots": history_roots,
+                   "planner_entities": planner_entities,
                    "scope_snapshot": business_map.get("snapshot_id"),
                    "scope_paths": paths, "scope_roots": root_paths,
                    "visible_pages": candidate_cache.get("visible_pages", {})
@@ -569,19 +647,19 @@ def build_question_investigation(question, business_map, *, database_path=None,
     cache_hit = False
     if database_path is not None:
         key = (str(Path(database_path).resolve()), business_map.get("snapshot_id"), tuple(paths),
-               tuple(root_paths), question)
+               tuple(root_paths), candidate_question)
         cache_hit = isinstance(candidate_cache, dict) and candidate_cache.get("key") == key
         if cache_hit:
             candidates, frontier, hashes = candidate_cache["value"]
             business_steps = candidate_cache.get("business_steps", business_steps)
         else:
-            candidates, frontier, hashes = _indexed_candidates(database_path, paths, question,
+            candidates, frontier, hashes = _indexed_candidates(database_path, paths, candidate_question,
                 business_steps=business_steps, root_paths=root_paths, file_impact=file_impact)
             if calculation and not any(row["kind"] == "formula" for row in candidates):
                 # Some calculations select or transfer values through branches.
                 # Reuse the existing bounded step selection without asserting a
                 # formula, complete value flow, or any actual runtime result.
-                steps, step_frontier, step_hashes = _indexed_candidates(database_path, paths, question,
+                steps, step_frontier, step_hashes = _indexed_candidates(database_path, paths, candidate_question,
                     business_steps=True, root_paths=root_paths, file_impact=file_impact)
                 if any(row["kind"] == "business_steps" for row in steps):
                     business_steps = True
@@ -622,6 +700,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
         if row.get("start_line"):
             unique[(row["kind"], row["relative_path"], row["start_line"], row["statement"])] = row
     candidates = list(unique.values())
+    candidates = EvidencePlanner().organize(plan, candidates)
     candidates = _framework_dependencies(candidates, pages, framework_facts)
     missing = []
     items = []
@@ -651,6 +730,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
             "evidence_ids": list(dict.fromkeys(supplied)), "candidate_count": len(related),
             "missing_count": len(absent), "reason": ("runtime_target_unresolved" if
                 any(row.get("unresolved_reason") == "runtime_target_unresolved" for row in unresolved)
+                else "compile_condition_unknown" if any(row.get("unresolved_reason") == "compile_condition_unknown" for row in unresolved)
                 else "external_implementation_unavailable") if unresolved
                 else "source_not_supplied" if absent else kind + "_not_located" if required and not related
                 else "documented_framework_rule" if covered else "source_candidates_supplied" if related else "no_indexed_candidate",

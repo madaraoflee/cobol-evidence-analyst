@@ -14,4 +14,12 @@ python3 poc/live_business_eval.py --source /path/to/approved/source-snapshot --c
 
 实际评测须先确定：获准使用的模型与单价、输入及输出计价单位、预检是否执行、题数及用户轮数、单轮与总费用上限、失败请求的计费处理、框架资料与源码快照版本、公司数据的允许使用范围，以及负责评分的 BA。获得明确批准后才可另行使用 `--allow-network` 运行。automatic 先以 `--capture-context` 保存最后作答轮真实原文；paired-synthesis 必须读取这个冻结 artifact。缺少 artifact、路径/hash/行范围变化或人工材料超出请求预算时，不生成“公平配对成功”结论。两支最终合成只改变证据集合，共享问题、背景、模型、提示和输出参数，不把 gold 或自动初稿送给任何一支。
 
-人工评分 JSON 由 `--review-template` 导出，再填写 `reviewer`、`reviewed_at`、每项 required finding 的 `met|omitted|incorrect`、每项 forbidden claim 的 `present`、`usefulness`、`followup_continuity` 和备注。用 `--reviews /path/to/filled-reviews.json` 导入。未评分、部分评分和完整评分分开统计；即使完整评分有遗漏，也只说明评审项填全，不表示质量通过。业务正确性、关键条件、最终结果、框架解释、BA 可用性和追问承接由人工判定；离线覆盖、引用和性能指标不能代替这些判断。
+人工评分 JSON 由 `--review-template` 导出，再填写 `reviewer`、`reviewed_at`、每项 required finding 的 `met|omitted|incorrect`、每项 forbidden claim 的 `present`、`usefulness`、`followup_continuity` 和备注。v2 表单逐个答案、逐个 paired 分支保存不可替换的 `identity`：run、case、turn、branch、问题/历史/答案 hash、model、prompt/request、policy、gold、源码/框架版本和最后作答轮实际供证指纹。保留这些字段原值；旧 v1 表单或任何不匹配的评分记为 `stale`，不附到新答案。
+
+评分完成后，将其附到原归档报告；这一步完全离线，不重问模型，也不读取 live 源码：
+
+```bash
+python3 poc/live_business_eval.py --source /path/to/source-snapshot --cases /path/to/cases.json --evaluation-dir /path/to/reviewed-report --review-report /path/to/original/live-business-eval.json --reviews /path/to/filled-reviews.json
+```
+
+`review_completion` 统计表单是否填全，`correctness_counts` 独立统计 correct、incomplete、incorrect、pending 与未评分。完整表单中的遗漏仍是 incomplete，错误新增结论仍是 incorrect。`expected_paths_supplied` 依据最后作答轮真实供证记录计算，导航命中和检索候选不算实际供应。已归档答案继续绑定原版本证据；新一轮生成新 run，不能自动继承旧评分。业务正确性、关键条件、最终结果、框架解释、BA 可用性和追问承接仍需独立人工判定；离线机制与性能指标不能代替真实模型验收。固定公开源码的无网络验收入口见 [public-business-v1](public-business-v1/README.md)。

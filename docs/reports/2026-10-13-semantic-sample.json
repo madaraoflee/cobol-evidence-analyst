@@ -1,0 +1,3106 @@
+{
+  "schema_version": "synthetic-semantic-sample/v1",
+  "source_kind": "original_neutral_synthetic",
+  "service_version": "bounded-semantic-service/v6",
+  "sources": {
+    "entry.cbl": "IDENTIFICATION DIVISION.\nPROGRAM-ID. ENTRYPOINT.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 IN-AMOUNT PIC 9(5) VALUE 4.\n01 OUT-AMOUNT PIC 9(5).\n01 FINAL-AMOUNT PIC 9(5).\n01 FLAG PIC X VALUE 'N'.\nPROCEDURE DIVISION.\nMAIN.\nCALL 'MIDDLE' USING IN-AMOUNT OUT-AMOUNT\nIF FLAG = 'Y' MOVE ZERO TO OUT-AMOUNT END-IF\nMOVE OUT-AMOUNT TO FINAL-AMOUNT\nDISPLAY FINAL-AMOUNT\nGOBACK.\n",
+    "middle.cbl": "IDENTIFICATION DIVISION.\nPROGRAM-ID. MIDDLE.\nDATA DIVISION.\nLINKAGE SECTION.\n01 IN-AMOUNT PIC 9(5).\n01 OUT-AMOUNT PIC 9(5).\nPROCEDURE DIVISION USING IN-AMOUNT OUT-AMOUNT.\nMAIN.\nCALL 'LEAF' USING IN-AMOUNT OUT-AMOUNT\nGOBACK.\n",
+    "leaf.cbl": "IDENTIFICATION DIVISION.\nPROGRAM-ID. LEAF.\nDATA DIVISION.\nLINKAGE SECTION.\n01 IN-AMOUNT PIC 9(5).\n01 OUT-AMOUNT PIC 9(5).\nPROCEDURE DIVISION USING IN-AMOUNT OUT-AMOUNT.\nMAIN.\nIF IN-AMOUNT > ZERO\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 2\nELSE MOVE ZERO TO OUT-AMOUNT END-IF\nGOBACK.\n"
+  },
+  "source_manifest": [
+    {
+      "relative_path": "entry.cbl",
+      "sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f"
+    },
+    {
+      "relative_path": "middle.cbl",
+      "sha256": "f8da79bf6faa11ef5b7eb659d2b28ccd98fe6a191183b07fee343d2e0c52b979"
+    },
+    {
+      "relative_path": "leaf.cbl",
+      "sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d"
+    }
+  ],
+  "ir": {
+    "entry.cbl": {
+      "context": {
+        "dialect": "unknown",
+        "encoding": "auto",
+        "source_format": "free",
+        "copy_libraries": [],
+        "copy_library_order_known": false,
+        "compile_conditions": [],
+        "conditions_complete": false,
+        "preprocessing_version": "bounded-copy-v2",
+        "frontend_version": "cobol-facts-v5",
+        "framework_version": null,
+        "target_profile": "generic-cobol",
+        "resource_kinds": [
+          "cobol-file",
+          "sql"
+        ],
+        "debug_lines": null,
+        "nested_copy_replacing": null
+      },
+      "adapter": {
+        "name": "builtin",
+        "version": "builtin-ir-adapter-v2",
+        "statement_parser_version": "bounded-statement-ast-v3",
+        "program_identifiers": [
+          {
+            "name": "ENTRYPOINT",
+            "compilation_status": "active"
+          }
+        ]
+      },
+      "data_items": [
+        {
+          "item_id": "item_b4b4b7c68026371c3cf61cd5",
+          "name": "IN-AMOUNT",
+          "level": 1,
+          "ancestors": [],
+          "parent_id": null,
+          "declaration": "01 IN-AMOUNT PIC 9(5) VALUE 4.",
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+              "start_line": 5,
+              "end_line": 5,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "picture": "9(5)",
+          "usage": "DISPLAY",
+          "scale": 0,
+          "digits": 5,
+          "signed": false,
+          "occurs": null,
+          "depending_on": null,
+          "redefines": null,
+          "value": "4",
+          "declaration_status": "parsed",
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "item_id": "item_5236d19eeddce9e97361e84d",
+          "name": "OUT-AMOUNT",
+          "level": 1,
+          "ancestors": [],
+          "parent_id": null,
+          "declaration": "01 OUT-AMOUNT PIC 9(5).",
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+              "start_line": 6,
+              "end_line": 6,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "picture": "9(5)",
+          "usage": "DISPLAY",
+          "scale": 0,
+          "digits": 5,
+          "signed": false,
+          "occurs": null,
+          "depending_on": null,
+          "redefines": null,
+          "value": null,
+          "declaration_status": "parsed",
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "item_id": "item_0dc106f35259808d2f12763c",
+          "name": "FINAL-AMOUNT",
+          "level": 1,
+          "ancestors": [],
+          "parent_id": null,
+          "declaration": "01 FINAL-AMOUNT PIC 9(5).",
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+              "start_line": 7,
+              "end_line": 7,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "picture": "9(5)",
+          "usage": "DISPLAY",
+          "scale": 0,
+          "digits": 5,
+          "signed": false,
+          "occurs": null,
+          "depending_on": null,
+          "redefines": null,
+          "value": null,
+          "declaration_status": "parsed",
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "item_id": "item_5b3a7b1d6b8d9d6427727363",
+          "name": "FLAG",
+          "level": 1,
+          "ancestors": [],
+          "parent_id": null,
+          "declaration": "01 FLAG PIC X VALUE 'N'.",
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+              "start_line": 8,
+              "end_line": 8,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "picture": "X",
+          "usage": "DISPLAY",
+          "scale": null,
+          "digits": null,
+          "signed": null,
+          "occurs": null,
+          "depending_on": null,
+          "redefines": null,
+          "value": "'N'",
+          "declaration_status": "parsed",
+          "compilation_status": "active",
+          "diagnostics": []
+        }
+      ],
+      "storage_regions": [
+        {
+          "region_id": "region_item_b4b4b7c68026371c3cf61cd5",
+          "item_id": "item_b4b4b7c68026371c3cf61cd5",
+          "root_id": "item_b4b4b7c68026371c3cf61cd5",
+          "parent_region_id": null,
+          "overlaps": [],
+          "array": false,
+          "offset_bytes": null,
+          "length_bytes": null,
+          "layout_status": "conservative",
+          "diagnostics": [
+            "usage_layout_requires_dialect"
+          ]
+        },
+        {
+          "region_id": "region_item_5236d19eeddce9e97361e84d",
+          "item_id": "item_5236d19eeddce9e97361e84d",
+          "root_id": "item_5236d19eeddce9e97361e84d",
+          "parent_region_id": null,
+          "overlaps": [],
+          "array": false,
+          "offset_bytes": null,
+          "length_bytes": null,
+          "layout_status": "conservative",
+          "diagnostics": [
+            "usage_layout_requires_dialect"
+          ]
+        },
+        {
+          "region_id": "region_item_0dc106f35259808d2f12763c",
+          "item_id": "item_0dc106f35259808d2f12763c",
+          "root_id": "item_0dc106f35259808d2f12763c",
+          "parent_region_id": null,
+          "overlaps": [],
+          "array": false,
+          "offset_bytes": null,
+          "length_bytes": null,
+          "layout_status": "conservative",
+          "diagnostics": [
+            "usage_layout_requires_dialect"
+          ]
+        },
+        {
+          "region_id": "region_item_5b3a7b1d6b8d9d6427727363",
+          "item_id": "item_5b3a7b1d6b8d9d6427727363",
+          "root_id": "item_5b3a7b1d6b8d9d6427727363",
+          "parent_region_id": null,
+          "overlaps": [],
+          "array": false,
+          "offset_bytes": null,
+          "length_bytes": null,
+          "layout_status": "conservative",
+          "diagnostics": [
+            "usage_layout_requires_dialect"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "occurrence_id": "stmt_f2c53fc808ec150a66c1728b",
+          "rule_shape_id": "shape_cfa7189f29696d3ffecb80b8",
+          "statement_type": "CALL",
+          "text": "CALL 'MIDDLE' USING IN-AMOUNT OUT-AMOUNT",
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+              "start_line": 11,
+              "end_line": 11,
+              "start_column": 1,
+              "end_column": 41,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [],
+          "writes": [],
+          "expressions": [],
+          "scope": [],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": true,
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "occurrence_id": "stmt_909ebc20b44d7ac3fe978642",
+          "rule_shape_id": "shape_62ce6498d9a0409500514d36",
+          "statement_type": "MOVE",
+          "text": "MOVE ZERO TO OUT-AMOUNT",
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+              "start_line": 12,
+              "end_line": 12,
+              "start_column": 15,
+              "end_column": 38,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [],
+          "writes": [
+            {
+              "name": "OUT-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_5236d19eeddce9e97361e84d"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "entry.cbl",
+                  "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+                  "start_line": 12,
+                  "end_line": 12,
+                  "start_column": 15,
+                  "end_column": 38,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "expressions": [
+            [
+              "OUT-AMOUNT",
+              {
+                "kind": "decimal",
+                "value": "0",
+                "operands": [],
+                "support_status": "parsed"
+              }
+            ]
+          ],
+          "scope": [
+            {
+              "kind": "IF",
+              "condition": "FLAG = 'Y'",
+              "outcome": true,
+              "span": {
+                "start_line": 12,
+                "end_line": 12,
+                "start_column": 1,
+                "end_column": 14,
+                "start_offset": 47,
+                "end_offset": 60
+              },
+              "selector": null,
+              "alternatives": [],
+              "prior_alternatives": [],
+              "branch_index": null,
+              "is_other": false,
+              "selector_span": null
+            }
+          ],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": false,
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "occurrence_id": "stmt_9b1b42572829f25bc360e163",
+          "rule_shape_id": "shape_e8c2e44c2a0b521023d7a044",
+          "statement_type": "MOVE",
+          "text": "MOVE OUT-AMOUNT TO FINAL-AMOUNT",
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+              "start_line": 13,
+              "end_line": 13,
+              "start_column": 1,
+              "end_column": 32,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [
+            {
+              "name": "OUT-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_5236d19eeddce9e97361e84d"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "entry.cbl",
+                  "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+                  "start_line": 13,
+                  "end_line": 13,
+                  "start_column": 1,
+                  "end_column": 32,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "writes": [
+            {
+              "name": "FINAL-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_0dc106f35259808d2f12763c"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "entry.cbl",
+                  "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+                  "start_line": 13,
+                  "end_line": 13,
+                  "start_column": 1,
+                  "end_column": 32,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "expressions": [
+            [
+              "FINAL-AMOUNT",
+              {
+                "kind": "data_ref",
+                "value": "OUT-AMOUNT",
+                "operands": [],
+                "support_status": "parsed"
+              }
+            ]
+          ],
+          "scope": [],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": false,
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "occurrence_id": "stmt_47785f03c99ee255f2b2cb08",
+          "rule_shape_id": "shape_c73e656b046c45312ca98be2",
+          "statement_type": "DISPLAY",
+          "text": "DISPLAY FINAL-AMOUNT",
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+              "start_line": 14,
+              "end_line": 14,
+              "start_column": 1,
+              "end_column": 21,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [
+            {
+              "name": "FINAL-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_0dc106f35259808d2f12763c"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "entry.cbl",
+                  "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+                  "start_line": 14,
+                  "end_line": 14,
+                  "start_column": 1,
+                  "end_column": 21,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "writes": [],
+          "expressions": [],
+          "scope": [],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": false,
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "occurrence_id": "stmt_b9355dde44dee277b373c647",
+          "rule_shape_id": "shape_cc9643f999303f3135a721b1",
+          "statement_type": "GOBACK",
+          "text": "GOBACK",
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+              "start_line": 15,
+              "end_line": 15,
+              "start_column": 1,
+              "end_column": 7,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [],
+          "writes": [],
+          "expressions": [],
+          "scope": [],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": false,
+          "compilation_status": "active",
+          "diagnostics": []
+        }
+      ],
+      "diagnostics": [],
+      "parse_complete": true,
+      "schema_version": "semantic-ir-v1"
+    },
+    "middle.cbl": {
+      "context": {
+        "dialect": "unknown",
+        "encoding": "auto",
+        "source_format": "free",
+        "copy_libraries": [],
+        "copy_library_order_known": false,
+        "compile_conditions": [],
+        "conditions_complete": false,
+        "preprocessing_version": "bounded-copy-v2",
+        "frontend_version": "cobol-facts-v5",
+        "framework_version": null,
+        "target_profile": "generic-cobol",
+        "resource_kinds": [
+          "cobol-file",
+          "sql"
+        ],
+        "debug_lines": null,
+        "nested_copy_replacing": null
+      },
+      "adapter": {
+        "name": "builtin",
+        "version": "builtin-ir-adapter-v2",
+        "statement_parser_version": "bounded-statement-ast-v3",
+        "program_identifiers": [
+          {
+            "name": "MIDDLE",
+            "compilation_status": "active"
+          }
+        ]
+      },
+      "data_items": [
+        {
+          "item_id": "item_d2e18c1e5e6097ee3f348eb0",
+          "name": "IN-AMOUNT",
+          "level": 1,
+          "ancestors": [],
+          "parent_id": null,
+          "declaration": "01 IN-AMOUNT PIC 9(5).",
+          "source_refs": [
+            {
+              "relative_path": "middle.cbl",
+              "source_sha256": "f8da79bf6faa11ef5b7eb659d2b28ccd98fe6a191183b07fee343d2e0c52b979",
+              "start_line": 5,
+              "end_line": 5,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "picture": "9(5)",
+          "usage": "DISPLAY",
+          "scale": 0,
+          "digits": 5,
+          "signed": false,
+          "occurs": null,
+          "depending_on": null,
+          "redefines": null,
+          "value": null,
+          "declaration_status": "parsed",
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "item_id": "item_8a659138b6008ab04f04bf37",
+          "name": "OUT-AMOUNT",
+          "level": 1,
+          "ancestors": [],
+          "parent_id": null,
+          "declaration": "01 OUT-AMOUNT PIC 9(5).",
+          "source_refs": [
+            {
+              "relative_path": "middle.cbl",
+              "source_sha256": "f8da79bf6faa11ef5b7eb659d2b28ccd98fe6a191183b07fee343d2e0c52b979",
+              "start_line": 6,
+              "end_line": 6,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "picture": "9(5)",
+          "usage": "DISPLAY",
+          "scale": 0,
+          "digits": 5,
+          "signed": false,
+          "occurs": null,
+          "depending_on": null,
+          "redefines": null,
+          "value": null,
+          "declaration_status": "parsed",
+          "compilation_status": "active",
+          "diagnostics": []
+        }
+      ],
+      "storage_regions": [
+        {
+          "region_id": "region_item_d2e18c1e5e6097ee3f348eb0",
+          "item_id": "item_d2e18c1e5e6097ee3f348eb0",
+          "root_id": "item_d2e18c1e5e6097ee3f348eb0",
+          "parent_region_id": null,
+          "overlaps": [],
+          "array": false,
+          "offset_bytes": null,
+          "length_bytes": null,
+          "layout_status": "conservative",
+          "diagnostics": [
+            "usage_layout_requires_dialect"
+          ]
+        },
+        {
+          "region_id": "region_item_8a659138b6008ab04f04bf37",
+          "item_id": "item_8a659138b6008ab04f04bf37",
+          "root_id": "item_8a659138b6008ab04f04bf37",
+          "parent_region_id": null,
+          "overlaps": [],
+          "array": false,
+          "offset_bytes": null,
+          "length_bytes": null,
+          "layout_status": "conservative",
+          "diagnostics": [
+            "usage_layout_requires_dialect"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "occurrence_id": "stmt_7d5b2abc18e4e1eeb28e268f",
+          "rule_shape_id": "shape_cfa7189f29696d3ffecb80b8",
+          "statement_type": "CALL",
+          "text": "CALL 'LEAF' USING IN-AMOUNT OUT-AMOUNT",
+          "source_refs": [
+            {
+              "relative_path": "middle.cbl",
+              "source_sha256": "f8da79bf6faa11ef5b7eb659d2b28ccd98fe6a191183b07fee343d2e0c52b979",
+              "start_line": 9,
+              "end_line": 9,
+              "start_column": 1,
+              "end_column": 39,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [],
+          "writes": [],
+          "expressions": [],
+          "scope": [],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": true,
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "occurrence_id": "stmt_258c498f4007e5eeb5c7a4aa",
+          "rule_shape_id": "shape_cc9643f999303f3135a721b1",
+          "statement_type": "GOBACK",
+          "text": "GOBACK",
+          "source_refs": [
+            {
+              "relative_path": "middle.cbl",
+              "source_sha256": "f8da79bf6faa11ef5b7eb659d2b28ccd98fe6a191183b07fee343d2e0c52b979",
+              "start_line": 10,
+              "end_line": 10,
+              "start_column": 1,
+              "end_column": 7,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [],
+          "writes": [],
+          "expressions": [],
+          "scope": [],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": false,
+          "compilation_status": "active",
+          "diagnostics": []
+        }
+      ],
+      "diagnostics": [],
+      "parse_complete": true,
+      "schema_version": "semantic-ir-v1"
+    },
+    "leaf.cbl": {
+      "context": {
+        "dialect": "unknown",
+        "encoding": "auto",
+        "source_format": "free",
+        "copy_libraries": [],
+        "copy_library_order_known": false,
+        "compile_conditions": [],
+        "conditions_complete": false,
+        "preprocessing_version": "bounded-copy-v2",
+        "frontend_version": "cobol-facts-v5",
+        "framework_version": null,
+        "target_profile": "generic-cobol",
+        "resource_kinds": [
+          "cobol-file",
+          "sql"
+        ],
+        "debug_lines": null,
+        "nested_copy_replacing": null
+      },
+      "adapter": {
+        "name": "builtin",
+        "version": "builtin-ir-adapter-v2",
+        "statement_parser_version": "bounded-statement-ast-v3",
+        "program_identifiers": [
+          {
+            "name": "LEAF",
+            "compilation_status": "active"
+          }
+        ]
+      },
+      "data_items": [
+        {
+          "item_id": "item_51ea977e7dc28ea6ed1cf6e0",
+          "name": "IN-AMOUNT",
+          "level": 1,
+          "ancestors": [],
+          "parent_id": null,
+          "declaration": "01 IN-AMOUNT PIC 9(5).",
+          "source_refs": [
+            {
+              "relative_path": "leaf.cbl",
+              "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+              "start_line": 5,
+              "end_line": 5,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "picture": "9(5)",
+          "usage": "DISPLAY",
+          "scale": 0,
+          "digits": 5,
+          "signed": false,
+          "occurs": null,
+          "depending_on": null,
+          "redefines": null,
+          "value": null,
+          "declaration_status": "parsed",
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "item_id": "item_e7165d9e6a0ca1079f2d84b7",
+          "name": "OUT-AMOUNT",
+          "level": 1,
+          "ancestors": [],
+          "parent_id": null,
+          "declaration": "01 OUT-AMOUNT PIC 9(5).",
+          "source_refs": [
+            {
+              "relative_path": "leaf.cbl",
+              "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+              "start_line": 6,
+              "end_line": 6,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "picture": "9(5)",
+          "usage": "DISPLAY",
+          "scale": 0,
+          "digits": 5,
+          "signed": false,
+          "occurs": null,
+          "depending_on": null,
+          "redefines": null,
+          "value": null,
+          "declaration_status": "parsed",
+          "compilation_status": "active",
+          "diagnostics": []
+        }
+      ],
+      "storage_regions": [
+        {
+          "region_id": "region_item_51ea977e7dc28ea6ed1cf6e0",
+          "item_id": "item_51ea977e7dc28ea6ed1cf6e0",
+          "root_id": "item_51ea977e7dc28ea6ed1cf6e0",
+          "parent_region_id": null,
+          "overlaps": [],
+          "array": false,
+          "offset_bytes": null,
+          "length_bytes": null,
+          "layout_status": "conservative",
+          "diagnostics": [
+            "usage_layout_requires_dialect"
+          ]
+        },
+        {
+          "region_id": "region_item_e7165d9e6a0ca1079f2d84b7",
+          "item_id": "item_e7165d9e6a0ca1079f2d84b7",
+          "root_id": "item_e7165d9e6a0ca1079f2d84b7",
+          "parent_region_id": null,
+          "overlaps": [],
+          "array": false,
+          "offset_bytes": null,
+          "length_bytes": null,
+          "layout_status": "conservative",
+          "diagnostics": [
+            "usage_layout_requires_dialect"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "occurrence_id": "stmt_445258745778cbc33461b45e",
+          "rule_shape_id": "shape_8e429303a443bf5ad9fb2b71",
+          "statement_type": "COMPUTE",
+          "text": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2",
+          "source_refs": [
+            {
+              "relative_path": "leaf.cbl",
+              "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+              "start_line": 10,
+              "end_line": 10,
+              "start_column": 1,
+              "end_column": 35,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [
+            {
+              "name": "IN-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_51ea977e7dc28ea6ed1cf6e0"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "leaf.cbl",
+                  "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+                  "start_line": 10,
+                  "end_line": 10,
+                  "start_column": 1,
+                  "end_column": 35,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "writes": [
+            {
+              "name": "OUT-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_e7165d9e6a0ca1079f2d84b7"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "leaf.cbl",
+                  "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+                  "start_line": 10,
+                  "end_line": 10,
+                  "start_column": 1,
+                  "end_column": 35,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "expressions": [
+            [
+              "OUT-AMOUNT",
+              {
+                "kind": "binary",
+                "value": "*",
+                "operands": [
+                  {
+                    "kind": "data_ref",
+                    "value": "IN-AMOUNT",
+                    "operands": [],
+                    "support_status": "parsed"
+                  },
+                  {
+                    "kind": "decimal",
+                    "value": "2",
+                    "operands": [],
+                    "support_status": "parsed"
+                  }
+                ],
+                "support_status": "parsed"
+              }
+            ]
+          ],
+          "scope": [
+            {
+              "kind": "IF",
+              "condition": "IN-AMOUNT > ZERO",
+              "outcome": true,
+              "span": {
+                "start_line": 9,
+                "end_line": 9,
+                "start_column": 1,
+                "end_column": 20,
+                "start_offset": 6,
+                "end_offset": 25
+              },
+              "selector": null,
+              "alternatives": [],
+              "prior_alternatives": [],
+              "branch_index": null,
+              "is_other": false,
+              "selector_span": null
+            }
+          ],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": false,
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "occurrence_id": "stmt_7797c0a5b044c23c9c8e4d12",
+          "rule_shape_id": "shape_62ce6498d9a0409500514d36",
+          "statement_type": "MOVE",
+          "text": "MOVE ZERO TO OUT-AMOUNT",
+          "source_refs": [
+            {
+              "relative_path": "leaf.cbl",
+              "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+              "start_line": 11,
+              "end_line": 11,
+              "start_column": 6,
+              "end_column": 29,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [],
+          "writes": [
+            {
+              "name": "OUT-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_e7165d9e6a0ca1079f2d84b7"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "leaf.cbl",
+                  "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+                  "start_line": 11,
+                  "end_line": 11,
+                  "start_column": 6,
+                  "end_column": 29,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "expressions": [
+            [
+              "OUT-AMOUNT",
+              {
+                "kind": "decimal",
+                "value": "0",
+                "operands": [],
+                "support_status": "parsed"
+              }
+            ]
+          ],
+          "scope": [
+            {
+              "kind": "IF",
+              "condition": "IN-AMOUNT > ZERO",
+              "outcome": false,
+              "span": {
+                "start_line": 9,
+                "end_line": 9,
+                "start_column": 1,
+                "end_column": 20,
+                "start_offset": 6,
+                "end_offset": 25
+              },
+              "selector": null,
+              "alternatives": [],
+              "prior_alternatives": [],
+              "branch_index": null,
+              "is_other": false,
+              "selector_span": null
+            }
+          ],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": false,
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "occurrence_id": "stmt_bc42454346144c2b201d6bae",
+          "rule_shape_id": "shape_cc9643f999303f3135a721b1",
+          "statement_type": "GOBACK",
+          "text": "GOBACK",
+          "source_refs": [
+            {
+              "relative_path": "leaf.cbl",
+              "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+              "start_line": 12,
+              "end_line": 12,
+              "start_column": 1,
+              "end_column": 7,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [],
+          "writes": [],
+          "expressions": [],
+          "scope": [],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": false,
+          "compilation_status": "active",
+          "diagnostics": []
+        }
+      ],
+      "diagnostics": [],
+      "parse_complete": true,
+      "schema_version": "semantic-ir-v1"
+    }
+  },
+  "summary": {
+    "name": "ENTRYPOINT",
+    "inputs": [],
+    "conditional_outputs": [
+      {
+        "target": "OUT-AMOUNT",
+        "expression": "IN-AMOUNT * 2",
+        "conditions": [
+          {
+            "kind": "IF",
+            "condition": "IN-AMOUNT > ZERO",
+            "outcome": true,
+            "selector": null,
+            "alternatives": [],
+            "prior_alternatives": [],
+            "is_other": false
+          }
+        ],
+        "occurrence_id": "f0cf8c0d458efc2bc4ceff65",
+        "source_refs": [
+          {
+            "relative_path": "leaf.cbl",
+            "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+            "start_line": 10,
+            "end_line": 10,
+            "start_column": 1,
+            "end_column": 35,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "numeric_semantics": {
+          "layout": {
+            "picture": "9(5)",
+            "usage": "DISPLAY",
+            "signed": false,
+            "integer_digits": 5,
+            "scale": 0,
+            "supported": true,
+            "diagnostics": []
+          },
+          "operation": "COMPUTE",
+          "rounded": false,
+          "receiving_scale": 0,
+          "fractional_conversion": "toward_zero",
+          "size_error_check": "after_decimal_alignment",
+          "on_size_error_receiver": "truncation_profile_required",
+          "profile": "decimal-receiver-v1",
+          "profile_confirmed": false,
+          "status": "receiver_layout_supported",
+          "runtime_inputs_known": false,
+          "intermediate_precision_verified": false
+        }
+      },
+      {
+        "target": "OUT-AMOUNT",
+        "expression": "ZERO",
+        "conditions": [
+          {
+            "kind": "IF",
+            "condition": "IN-AMOUNT > ZERO",
+            "outcome": false,
+            "selector": null,
+            "alternatives": [],
+            "prior_alternatives": [],
+            "is_other": false
+          }
+        ],
+        "occurrence_id": "611e9950b537553cc5143c52",
+        "source_refs": [
+          {
+            "relative_path": "leaf.cbl",
+            "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+            "start_line": 11,
+            "end_line": 11,
+            "start_column": 6,
+            "end_column": 29,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "numeric_semantics": {
+          "layout": {
+            "picture": "9(5)",
+            "usage": "DISPLAY",
+            "signed": false,
+            "integer_digits": 5,
+            "scale": 0,
+            "supported": true,
+            "diagnostics": []
+          },
+          "operation": "MOVE",
+          "rounded": false,
+          "receiving_scale": 0,
+          "fractional_conversion": "toward_zero",
+          "size_error_check": "after_decimal_alignment",
+          "on_size_error_receiver": "truncation_profile_required",
+          "profile": "decimal-receiver-v1",
+          "profile_confirmed": false,
+          "status": "receiver_layout_supported",
+          "runtime_inputs_known": false,
+          "intermediate_precision_verified": false
+        }
+      },
+      {
+        "target": "OUT-AMOUNT",
+        "expression": "ZERO",
+        "conditions": [
+          {
+            "kind": "IF",
+            "condition": "FLAG = 'Y'",
+            "outcome": true,
+            "selector": null,
+            "alternatives": [],
+            "prior_alternatives": [],
+            "is_other": false
+          }
+        ],
+        "occurrence_id": "eb31c6f82065edaf7596fea0",
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 12,
+            "end_line": 12,
+            "start_column": 15,
+            "end_column": 38,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "numeric_semantics": {
+          "layout": {
+            "picture": "9(5)",
+            "usage": "DISPLAY",
+            "signed": false,
+            "integer_digits": 5,
+            "scale": 0,
+            "supported": true,
+            "diagnostics": []
+          },
+          "operation": "MOVE",
+          "rounded": false,
+          "receiving_scale": 0,
+          "fractional_conversion": "toward_zero",
+          "size_error_check": "after_decimal_alignment",
+          "on_size_error_receiver": "truncation_profile_required",
+          "profile": "decimal-receiver-v1",
+          "profile_confirmed": false,
+          "status": "receiver_layout_supported",
+          "runtime_inputs_known": false,
+          "intermediate_precision_verified": false
+        }
+      },
+      {
+        "target": "FINAL-AMOUNT",
+        "expression": "OUT-AMOUNT",
+        "conditions": [],
+        "occurrence_id": "e06505a0175901c02420577c",
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 13,
+            "end_line": 13,
+            "start_column": 1,
+            "end_column": 32,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "numeric_semantics": {
+          "layout": {
+            "picture": "9(5)",
+            "usage": "DISPLAY",
+            "signed": false,
+            "integer_digits": 5,
+            "scale": 0,
+            "supported": true,
+            "diagnostics": []
+          },
+          "operation": "MOVE",
+          "rounded": false,
+          "receiving_scale": 0,
+          "fractional_conversion": "toward_zero",
+          "size_error_check": "after_decimal_alignment",
+          "on_size_error_receiver": "truncation_profile_required",
+          "profile": "decimal-receiver-v1",
+          "profile_confirmed": false,
+          "status": "receiver_layout_supported",
+          "runtime_inputs_known": false,
+          "intermediate_precision_verified": false
+        }
+      }
+    ],
+    "state_changes": [
+      "FINAL-AMOUNT",
+      "OUT-AMOUNT"
+    ],
+    "external_effects": [
+      {
+        "kind": "CALL",
+        "statement": "CALL 'MIDDLE' USING IN-AMOUNT OUT-AMOUNT",
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 11,
+            "end_line": 11,
+            "start_column": 1,
+            "end_column": 41,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "known_syntax": true,
+        "effects_verified": false,
+        "unknown_effect": false,
+        "frontier": []
+      },
+      {
+        "kind": "CALL",
+        "statement": "CALL 'LEAF' USING IN-AMOUNT OUT-AMOUNT",
+        "source_refs": [
+          {
+            "relative_path": "middle.cbl",
+            "source_sha256": "f8da79bf6faa11ef5b7eb659d2b28ccd98fe6a191183b07fee343d2e0c52b979",
+            "start_line": 9,
+            "end_line": 9,
+            "start_column": 1,
+            "end_column": 39,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "known_syntax": true,
+        "effects_verified": false,
+        "unknown_effect": false,
+        "frontier": []
+      }
+    ],
+    "dependencies": [
+      "LEAF",
+      "MIDDLE"
+    ],
+    "unknown_effects": [],
+    "source_evidence": [
+      {
+        "relative_path": "entry.cbl",
+        "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+        "start_line": 11,
+        "end_line": 11,
+        "start_column": 1,
+        "end_column": 41,
+        "include_chain": [],
+        "replacement_trace": []
+      },
+      {
+        "relative_path": "middle.cbl",
+        "source_sha256": "f8da79bf6faa11ef5b7eb659d2b28ccd98fe6a191183b07fee343d2e0c52b979",
+        "start_line": 9,
+        "end_line": 9,
+        "start_column": 1,
+        "end_column": 39,
+        "include_chain": [],
+        "replacement_trace": []
+      },
+      {
+        "relative_path": "leaf.cbl",
+        "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+        "start_line": 9,
+        "end_line": 11,
+        "start_column": 1,
+        "end_column": 36,
+        "include_chain": [],
+        "replacement_trace": []
+      },
+      {
+        "relative_path": "leaf.cbl",
+        "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+        "start_line": 10,
+        "end_line": 10,
+        "start_column": 1,
+        "end_column": 35,
+        "include_chain": [],
+        "replacement_trace": []
+      },
+      {
+        "relative_path": "leaf.cbl",
+        "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+        "start_line": 11,
+        "end_line": 11,
+        "start_column": 6,
+        "end_column": 29,
+        "include_chain": [],
+        "replacement_trace": []
+      },
+      {
+        "relative_path": "leaf.cbl",
+        "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+        "start_line": 12,
+        "end_line": 12,
+        "start_column": 1,
+        "end_column": 7,
+        "include_chain": [],
+        "replacement_trace": []
+      },
+      {
+        "relative_path": "middle.cbl",
+        "source_sha256": "f8da79bf6faa11ef5b7eb659d2b28ccd98fe6a191183b07fee343d2e0c52b979",
+        "start_line": 10,
+        "end_line": 10,
+        "start_column": 1,
+        "end_column": 7,
+        "include_chain": [],
+        "replacement_trace": []
+      },
+      {
+        "relative_path": "entry.cbl",
+        "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+        "start_line": 12,
+        "end_line": 12,
+        "start_column": 1,
+        "end_column": 45,
+        "include_chain": [],
+        "replacement_trace": []
+      },
+      {
+        "relative_path": "entry.cbl",
+        "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+        "start_line": 12,
+        "end_line": 12,
+        "start_column": 15,
+        "end_column": 38,
+        "include_chain": [],
+        "replacement_trace": []
+      },
+      {
+        "relative_path": "entry.cbl",
+        "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+        "start_line": 13,
+        "end_line": 13,
+        "start_column": 1,
+        "end_column": 32,
+        "include_chain": [],
+        "replacement_trace": []
+      },
+      {
+        "relative_path": "entry.cbl",
+        "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+        "start_line": 14,
+        "end_line": 14,
+        "start_column": 1,
+        "end_column": 21,
+        "include_chain": [],
+        "replacement_trace": []
+      },
+      {
+        "relative_path": "entry.cbl",
+        "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+        "start_line": 15,
+        "end_line": 15,
+        "start_column": 1,
+        "end_column": 7,
+        "include_chain": [],
+        "replacement_trace": []
+      }
+    ],
+    "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+    "version": "bounded-semantic-service/v6",
+    "initial_definitions": {
+      "IN-AMOUNT": {
+        "value": "4",
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 5,
+            "end_line": 5,
+            "start_column": 1,
+            "end_column": null,
+            "copy_instance": null,
+            "include_chain": [],
+            "replacement_trace": [],
+            "coordinate_status": "physical"
+          }
+        ],
+        "status": "initial_value_not_runtime_proof",
+        "activation_semantics": "first_activation_or_initial_program_context_required"
+      },
+      "FLAG": {
+        "value": "'N'",
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 8,
+            "end_line": 8,
+            "start_column": 1,
+            "end_column": null,
+            "copy_instance": null,
+            "include_chain": [],
+            "replacement_trace": [],
+            "coordinate_status": "physical"
+          }
+        ],
+        "status": "initial_value_not_runtime_proof",
+        "activation_semantics": "first_activation_or_initial_program_context_required"
+      }
+    },
+    "entry_state_inputs": [],
+    "input_origin_status": "declaration_and_possible_entry_state",
+    "flow_complete": true
+  },
+  "assignment": {
+    "statement": {
+      "occurrence_id": "e06505a0175901c02420577c",
+      "kind": "MOVE",
+      "statement": "MOVE OUT-AMOUNT TO FINAL-AMOUNT",
+      "reads": [
+        "OUT-AMOUNT"
+      ],
+      "writes": [
+        "FINAL-AMOUNT"
+      ],
+      "expressions": {
+        "FINAL-AMOUNT": "OUT-AMOUNT"
+      },
+      "source_refs": [
+        {
+          "relative_path": "entry.cbl",
+          "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+          "start_line": 13,
+          "end_line": 13,
+          "start_column": 1,
+          "end_column": 32,
+          "include_chain": [],
+          "replacement_trace": []
+        }
+      ],
+      "context": [
+        "ENTRYPOINT",
+        "MAIN"
+      ],
+      "guards": [],
+      "unknown_effect": false,
+      "control_occurrences": [],
+      "numeric_semantics": {
+        "FINAL-AMOUNT": {
+          "layout": {
+            "picture": "9(5)",
+            "usage": "DISPLAY",
+            "signed": false,
+            "integer_digits": 5,
+            "scale": 0,
+            "supported": true,
+            "diagnostics": []
+          },
+          "operation": "MOVE",
+          "rounded": false,
+          "receiving_scale": 0,
+          "fractional_conversion": "toward_zero",
+          "size_error_check": "after_decimal_alignment",
+          "on_size_error_receiver": "truncation_profile_required",
+          "profile": "decimal-receiver-v1",
+          "profile_confirmed": false,
+          "status": "receiver_layout_supported",
+          "runtime_inputs_known": false,
+          "intermediate_precision_verified": false
+        }
+      },
+      "unknown_storage": null,
+      "control_semantics": {},
+      "storage_effects": {
+        "read:OUT-AMOUNT": {
+          "canonical": "OUT-AMOUNT",
+          "binding_status": "bound",
+          "exact": true,
+          "region_id": "region_item_5236d19eeddce9e97361e84d",
+          "affected_storage": [
+            "OUT-AMOUNT"
+          ],
+          "group": false,
+          "diagnostics": []
+        },
+        "FINAL-AMOUNT": {
+          "canonical": "FINAL-AMOUNT",
+          "binding_status": "bound",
+          "exact": true,
+          "region_id": "region_item_0dc106f35259808d2f12763c",
+          "affected_storage": [
+            "FINAL-AMOUNT"
+          ],
+          "group": false,
+          "diagnostics": []
+        }
+      },
+      "definite_writes": [
+        "FINAL-AMOUNT"
+      ]
+    },
+    "reaching_definitions": {
+      "OUT-AMOUNT": [
+        "611e9950b537553cc5143c52",
+        "eb31c6f82065edaf7596fea0",
+        "f0cf8c0d458efc2bc4ceff65"
+      ]
+    },
+    "later_writes": [],
+    "flow_status": "possible_source_flow",
+    "frontier": []
+  },
+  "backward_slice": {
+    "occurrences": [
+      "5a838e977ef349af4177f020",
+      "f0cf8c0d458efc2bc4ceff65",
+      "611e9950b537553cc5143c52",
+      "df4c420fb0ab4774a26dc1ec",
+      "eb31c6f82065edaf7596fea0",
+      "e06505a0175901c02420577c"
+    ],
+    "statements": [
+      {
+        "occurrence_id": "5a838e977ef349af4177f020",
+        "kind": "IF",
+        "statement": "IF IN-AMOUNT > ZERO\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 2\nELSE MOVE ZERO TO OUT-AMOUNT END-IF",
+        "reads": [
+          "IN-AMOUNT"
+        ],
+        "writes": [],
+        "expressions": {},
+        "source_refs": [
+          {
+            "relative_path": "leaf.cbl",
+            "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+            "start_line": 9,
+            "end_line": 11,
+            "start_column": 1,
+            "end_column": 36,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN",
+          "call:8b38bbf5363821fea8018981",
+          "MAIN",
+          "call:57e6bac10825394fd50c8fc6",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {},
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "read:IN-AMOUNT": {
+            "canonical": "IN-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_51ea977e7dc28ea6ed1cf6e0",
+            "affected_storage": [
+              "IN-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": []
+      },
+      {
+        "occurrence_id": "f0cf8c0d458efc2bc4ceff65",
+        "kind": "COMPUTE",
+        "statement": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2",
+        "reads": [
+          "IN-AMOUNT"
+        ],
+        "writes": [
+          "OUT-AMOUNT"
+        ],
+        "expressions": {
+          "OUT-AMOUNT": "IN-AMOUNT * 2"
+        },
+        "source_refs": [
+          {
+            "relative_path": "leaf.cbl",
+            "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+            "start_line": 10,
+            "end_line": 10,
+            "start_column": 1,
+            "end_column": 35,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN",
+          "call:8b38bbf5363821fea8018981",
+          "MAIN",
+          "call:57e6bac10825394fd50c8fc6",
+          "MAIN"
+        ],
+        "guards": [
+          {
+            "kind": "IF",
+            "condition": "IN-AMOUNT > ZERO",
+            "outcome": true,
+            "selector": null,
+            "alternatives": [],
+            "prior_alternatives": [],
+            "is_other": false
+          }
+        ],
+        "unknown_effect": false,
+        "control_occurrences": [
+          "5a838e977ef349af4177f020"
+        ],
+        "numeric_semantics": {
+          "OUT-AMOUNT": {
+            "layout": {
+              "picture": "9(5)",
+              "usage": "DISPLAY",
+              "signed": false,
+              "integer_digits": 5,
+              "scale": 0,
+              "supported": true,
+              "diagnostics": []
+            },
+            "operation": "COMPUTE",
+            "rounded": false,
+            "receiving_scale": 0,
+            "fractional_conversion": "toward_zero",
+            "size_error_check": "after_decimal_alignment",
+            "on_size_error_receiver": "truncation_profile_required",
+            "profile": "decimal-receiver-v1",
+            "profile_confirmed": false,
+            "status": "receiver_layout_supported",
+            "runtime_inputs_known": false,
+            "intermediate_precision_verified": false
+          }
+        },
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "read:IN-AMOUNT": {
+            "canonical": "IN-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_51ea977e7dc28ea6ed1cf6e0",
+            "affected_storage": [
+              "IN-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          },
+          "OUT-AMOUNT": {
+            "canonical": "OUT-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_e7165d9e6a0ca1079f2d84b7",
+            "affected_storage": [
+              "OUT-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": [
+          "OUT-AMOUNT"
+        ]
+      },
+      {
+        "occurrence_id": "611e9950b537553cc5143c52",
+        "kind": "MOVE",
+        "statement": "MOVE ZERO TO OUT-AMOUNT",
+        "reads": [],
+        "writes": [
+          "OUT-AMOUNT"
+        ],
+        "expressions": {
+          "OUT-AMOUNT": "ZERO"
+        },
+        "source_refs": [
+          {
+            "relative_path": "leaf.cbl",
+            "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+            "start_line": 11,
+            "end_line": 11,
+            "start_column": 6,
+            "end_column": 29,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN",
+          "call:8b38bbf5363821fea8018981",
+          "MAIN",
+          "call:57e6bac10825394fd50c8fc6",
+          "MAIN"
+        ],
+        "guards": [
+          {
+            "kind": "IF",
+            "condition": "IN-AMOUNT > ZERO",
+            "outcome": false,
+            "selector": null,
+            "alternatives": [],
+            "prior_alternatives": [],
+            "is_other": false
+          }
+        ],
+        "unknown_effect": false,
+        "control_occurrences": [
+          "5a838e977ef349af4177f020"
+        ],
+        "numeric_semantics": {
+          "OUT-AMOUNT": {
+            "layout": {
+              "picture": "9(5)",
+              "usage": "DISPLAY",
+              "signed": false,
+              "integer_digits": 5,
+              "scale": 0,
+              "supported": true,
+              "diagnostics": []
+            },
+            "operation": "MOVE",
+            "rounded": false,
+            "receiving_scale": 0,
+            "fractional_conversion": "toward_zero",
+            "size_error_check": "after_decimal_alignment",
+            "on_size_error_receiver": "truncation_profile_required",
+            "profile": "decimal-receiver-v1",
+            "profile_confirmed": false,
+            "status": "receiver_layout_supported",
+            "runtime_inputs_known": false,
+            "intermediate_precision_verified": false
+          }
+        },
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "OUT-AMOUNT": {
+            "canonical": "OUT-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_e7165d9e6a0ca1079f2d84b7",
+            "affected_storage": [
+              "OUT-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": [
+          "OUT-AMOUNT"
+        ]
+      },
+      {
+        "occurrence_id": "df4c420fb0ab4774a26dc1ec",
+        "kind": "IF",
+        "statement": "IF FLAG = 'Y' MOVE ZERO TO OUT-AMOUNT END-IF",
+        "reads": [
+          "FLAG"
+        ],
+        "writes": [],
+        "expressions": {},
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 12,
+            "end_line": 12,
+            "start_column": 1,
+            "end_column": 45,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {},
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "read:FLAG": {
+            "canonical": "FLAG",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_5b3a7b1d6b8d9d6427727363",
+            "affected_storage": [
+              "FLAG"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": []
+      },
+      {
+        "occurrence_id": "eb31c6f82065edaf7596fea0",
+        "kind": "MOVE",
+        "statement": "MOVE ZERO TO OUT-AMOUNT",
+        "reads": [],
+        "writes": [
+          "OUT-AMOUNT"
+        ],
+        "expressions": {
+          "OUT-AMOUNT": "ZERO"
+        },
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 12,
+            "end_line": 12,
+            "start_column": 15,
+            "end_column": 38,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN"
+        ],
+        "guards": [
+          {
+            "kind": "IF",
+            "condition": "FLAG = 'Y'",
+            "outcome": true,
+            "selector": null,
+            "alternatives": [],
+            "prior_alternatives": [],
+            "is_other": false
+          }
+        ],
+        "unknown_effect": false,
+        "control_occurrences": [
+          "df4c420fb0ab4774a26dc1ec"
+        ],
+        "numeric_semantics": {
+          "OUT-AMOUNT": {
+            "layout": {
+              "picture": "9(5)",
+              "usage": "DISPLAY",
+              "signed": false,
+              "integer_digits": 5,
+              "scale": 0,
+              "supported": true,
+              "diagnostics": []
+            },
+            "operation": "MOVE",
+            "rounded": false,
+            "receiving_scale": 0,
+            "fractional_conversion": "toward_zero",
+            "size_error_check": "after_decimal_alignment",
+            "on_size_error_receiver": "truncation_profile_required",
+            "profile": "decimal-receiver-v1",
+            "profile_confirmed": false,
+            "status": "receiver_layout_supported",
+            "runtime_inputs_known": false,
+            "intermediate_precision_verified": false
+          }
+        },
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "OUT-AMOUNT": {
+            "canonical": "OUT-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_5236d19eeddce9e97361e84d",
+            "affected_storage": [
+              "OUT-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": [
+          "OUT-AMOUNT"
+        ]
+      },
+      {
+        "occurrence_id": "e06505a0175901c02420577c",
+        "kind": "MOVE",
+        "statement": "MOVE OUT-AMOUNT TO FINAL-AMOUNT",
+        "reads": [
+          "OUT-AMOUNT"
+        ],
+        "writes": [
+          "FINAL-AMOUNT"
+        ],
+        "expressions": {
+          "FINAL-AMOUNT": "OUT-AMOUNT"
+        },
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 13,
+            "end_line": 13,
+            "start_column": 1,
+            "end_column": 32,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {
+          "FINAL-AMOUNT": {
+            "layout": {
+              "picture": "9(5)",
+              "usage": "DISPLAY",
+              "signed": false,
+              "integer_digits": 5,
+              "scale": 0,
+              "supported": true,
+              "diagnostics": []
+            },
+            "operation": "MOVE",
+            "rounded": false,
+            "receiving_scale": 0,
+            "fractional_conversion": "toward_zero",
+            "size_error_check": "after_decimal_alignment",
+            "on_size_error_receiver": "truncation_profile_required",
+            "profile": "decimal-receiver-v1",
+            "profile_confirmed": false,
+            "status": "receiver_layout_supported",
+            "runtime_inputs_known": false,
+            "intermediate_precision_verified": false
+          }
+        },
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "read:OUT-AMOUNT": {
+            "canonical": "OUT-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_5236d19eeddce9e97361e84d",
+            "affected_storage": [
+              "OUT-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          },
+          "FINAL-AMOUNT": {
+            "canonical": "FINAL-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_0dc106f35259808d2f12763c",
+            "affected_storage": [
+              "FINAL-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": [
+          "FINAL-AMOUNT"
+        ]
+      }
+    ],
+    "frontier": [],
+    "flow_status": "possible_source_flow"
+  },
+  "forward_slice": {
+    "occurrences": [
+      "f0cf8c0d458efc2bc4ceff65",
+      "e06505a0175901c02420577c",
+      "ace78713efcc07b31fc64ec2"
+    ],
+    "statements": [
+      {
+        "occurrence_id": "f0cf8c0d458efc2bc4ceff65",
+        "kind": "COMPUTE",
+        "statement": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2",
+        "reads": [
+          "IN-AMOUNT"
+        ],
+        "writes": [
+          "OUT-AMOUNT"
+        ],
+        "expressions": {
+          "OUT-AMOUNT": "IN-AMOUNT * 2"
+        },
+        "source_refs": [
+          {
+            "relative_path": "leaf.cbl",
+            "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+            "start_line": 10,
+            "end_line": 10,
+            "start_column": 1,
+            "end_column": 35,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN",
+          "call:8b38bbf5363821fea8018981",
+          "MAIN",
+          "call:57e6bac10825394fd50c8fc6",
+          "MAIN"
+        ],
+        "guards": [
+          {
+            "kind": "IF",
+            "condition": "IN-AMOUNT > ZERO",
+            "outcome": true,
+            "selector": null,
+            "alternatives": [],
+            "prior_alternatives": [],
+            "is_other": false
+          }
+        ],
+        "unknown_effect": false,
+        "control_occurrences": [
+          "5a838e977ef349af4177f020"
+        ],
+        "numeric_semantics": {
+          "OUT-AMOUNT": {
+            "layout": {
+              "picture": "9(5)",
+              "usage": "DISPLAY",
+              "signed": false,
+              "integer_digits": 5,
+              "scale": 0,
+              "supported": true,
+              "diagnostics": []
+            },
+            "operation": "COMPUTE",
+            "rounded": false,
+            "receiving_scale": 0,
+            "fractional_conversion": "toward_zero",
+            "size_error_check": "after_decimal_alignment",
+            "on_size_error_receiver": "truncation_profile_required",
+            "profile": "decimal-receiver-v1",
+            "profile_confirmed": false,
+            "status": "receiver_layout_supported",
+            "runtime_inputs_known": false,
+            "intermediate_precision_verified": false
+          }
+        },
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "read:IN-AMOUNT": {
+            "canonical": "IN-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_51ea977e7dc28ea6ed1cf6e0",
+            "affected_storage": [
+              "IN-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          },
+          "OUT-AMOUNT": {
+            "canonical": "OUT-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_e7165d9e6a0ca1079f2d84b7",
+            "affected_storage": [
+              "OUT-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": [
+          "OUT-AMOUNT"
+        ]
+      },
+      {
+        "occurrence_id": "e06505a0175901c02420577c",
+        "kind": "MOVE",
+        "statement": "MOVE OUT-AMOUNT TO FINAL-AMOUNT",
+        "reads": [
+          "OUT-AMOUNT"
+        ],
+        "writes": [
+          "FINAL-AMOUNT"
+        ],
+        "expressions": {
+          "FINAL-AMOUNT": "OUT-AMOUNT"
+        },
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 13,
+            "end_line": 13,
+            "start_column": 1,
+            "end_column": 32,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {
+          "FINAL-AMOUNT": {
+            "layout": {
+              "picture": "9(5)",
+              "usage": "DISPLAY",
+              "signed": false,
+              "integer_digits": 5,
+              "scale": 0,
+              "supported": true,
+              "diagnostics": []
+            },
+            "operation": "MOVE",
+            "rounded": false,
+            "receiving_scale": 0,
+            "fractional_conversion": "toward_zero",
+            "size_error_check": "after_decimal_alignment",
+            "on_size_error_receiver": "truncation_profile_required",
+            "profile": "decimal-receiver-v1",
+            "profile_confirmed": false,
+            "status": "receiver_layout_supported",
+            "runtime_inputs_known": false,
+            "intermediate_precision_verified": false
+          }
+        },
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "read:OUT-AMOUNT": {
+            "canonical": "OUT-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_5236d19eeddce9e97361e84d",
+            "affected_storage": [
+              "OUT-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          },
+          "FINAL-AMOUNT": {
+            "canonical": "FINAL-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_0dc106f35259808d2f12763c",
+            "affected_storage": [
+              "FINAL-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": [
+          "FINAL-AMOUNT"
+        ]
+      },
+      {
+        "occurrence_id": "ace78713efcc07b31fc64ec2",
+        "kind": "DISPLAY",
+        "statement": "DISPLAY FINAL-AMOUNT",
+        "reads": [
+          "FINAL-AMOUNT"
+        ],
+        "writes": [],
+        "expressions": {},
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 14,
+            "end_line": 14,
+            "start_column": 1,
+            "end_column": 21,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {},
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "read:FINAL-AMOUNT": {
+            "canonical": "FINAL-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_0dc106f35259808d2f12763c",
+            "affected_storage": [
+              "FINAL-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": []
+      }
+    ],
+    "frontier": [],
+    "flow_status": "possible_source_flow"
+  },
+  "cfg": {
+    "entry": "8b38bbf5363821fea8018981",
+    "exits": [],
+    "nodes": [
+      {
+        "occurrence_id": "8b38bbf5363821fea8018981",
+        "kind": "CALL",
+        "statement": "CALL 'MIDDLE' USING IN-AMOUNT OUT-AMOUNT",
+        "reads": [],
+        "writes": [],
+        "expressions": {},
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 11,
+            "end_line": 11,
+            "start_column": 1,
+            "end_column": 41,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {},
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {},
+        "definite_writes": []
+      },
+      {
+        "occurrence_id": "57e6bac10825394fd50c8fc6",
+        "kind": "CALL",
+        "statement": "CALL 'LEAF' USING IN-AMOUNT OUT-AMOUNT",
+        "reads": [],
+        "writes": [],
+        "expressions": {},
+        "source_refs": [
+          {
+            "relative_path": "middle.cbl",
+            "source_sha256": "f8da79bf6faa11ef5b7eb659d2b28ccd98fe6a191183b07fee343d2e0c52b979",
+            "start_line": 9,
+            "end_line": 9,
+            "start_column": 1,
+            "end_column": 39,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN",
+          "call:8b38bbf5363821fea8018981",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {},
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {},
+        "definite_writes": []
+      },
+      {
+        "occurrence_id": "5a838e977ef349af4177f020",
+        "kind": "IF",
+        "statement": "IF IN-AMOUNT > ZERO\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 2\nELSE MOVE ZERO TO OUT-AMOUNT END-IF",
+        "reads": [
+          "IN-AMOUNT"
+        ],
+        "writes": [],
+        "expressions": {},
+        "source_refs": [
+          {
+            "relative_path": "leaf.cbl",
+            "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+            "start_line": 9,
+            "end_line": 11,
+            "start_column": 1,
+            "end_column": 36,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN",
+          "call:8b38bbf5363821fea8018981",
+          "MAIN",
+          "call:57e6bac10825394fd50c8fc6",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {},
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "read:IN-AMOUNT": {
+            "canonical": "IN-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_51ea977e7dc28ea6ed1cf6e0",
+            "affected_storage": [
+              "IN-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": []
+      },
+      {
+        "occurrence_id": "f0cf8c0d458efc2bc4ceff65",
+        "kind": "COMPUTE",
+        "statement": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2",
+        "reads": [
+          "IN-AMOUNT"
+        ],
+        "writes": [
+          "OUT-AMOUNT"
+        ],
+        "expressions": {
+          "OUT-AMOUNT": "IN-AMOUNT * 2"
+        },
+        "source_refs": [
+          {
+            "relative_path": "leaf.cbl",
+            "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+            "start_line": 10,
+            "end_line": 10,
+            "start_column": 1,
+            "end_column": 35,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN",
+          "call:8b38bbf5363821fea8018981",
+          "MAIN",
+          "call:57e6bac10825394fd50c8fc6",
+          "MAIN"
+        ],
+        "guards": [
+          {
+            "kind": "IF",
+            "condition": "IN-AMOUNT > ZERO",
+            "outcome": true,
+            "selector": null,
+            "alternatives": [],
+            "prior_alternatives": [],
+            "is_other": false
+          }
+        ],
+        "unknown_effect": false,
+        "control_occurrences": [
+          "5a838e977ef349af4177f020"
+        ],
+        "numeric_semantics": {
+          "OUT-AMOUNT": {
+            "layout": {
+              "picture": "9(5)",
+              "usage": "DISPLAY",
+              "signed": false,
+              "integer_digits": 5,
+              "scale": 0,
+              "supported": true,
+              "diagnostics": []
+            },
+            "operation": "COMPUTE",
+            "rounded": false,
+            "receiving_scale": 0,
+            "fractional_conversion": "toward_zero",
+            "size_error_check": "after_decimal_alignment",
+            "on_size_error_receiver": "truncation_profile_required",
+            "profile": "decimal-receiver-v1",
+            "profile_confirmed": false,
+            "status": "receiver_layout_supported",
+            "runtime_inputs_known": false,
+            "intermediate_precision_verified": false
+          }
+        },
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "read:IN-AMOUNT": {
+            "canonical": "IN-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_51ea977e7dc28ea6ed1cf6e0",
+            "affected_storage": [
+              "IN-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          },
+          "OUT-AMOUNT": {
+            "canonical": "OUT-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_e7165d9e6a0ca1079f2d84b7",
+            "affected_storage": [
+              "OUT-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": [
+          "OUT-AMOUNT"
+        ]
+      },
+      {
+        "occurrence_id": "611e9950b537553cc5143c52",
+        "kind": "MOVE",
+        "statement": "MOVE ZERO TO OUT-AMOUNT",
+        "reads": [],
+        "writes": [
+          "OUT-AMOUNT"
+        ],
+        "expressions": {
+          "OUT-AMOUNT": "ZERO"
+        },
+        "source_refs": [
+          {
+            "relative_path": "leaf.cbl",
+            "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+            "start_line": 11,
+            "end_line": 11,
+            "start_column": 6,
+            "end_column": 29,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN",
+          "call:8b38bbf5363821fea8018981",
+          "MAIN",
+          "call:57e6bac10825394fd50c8fc6",
+          "MAIN"
+        ],
+        "guards": [
+          {
+            "kind": "IF",
+            "condition": "IN-AMOUNT > ZERO",
+            "outcome": false,
+            "selector": null,
+            "alternatives": [],
+            "prior_alternatives": [],
+            "is_other": false
+          }
+        ],
+        "unknown_effect": false,
+        "control_occurrences": [
+          "5a838e977ef349af4177f020"
+        ],
+        "numeric_semantics": {
+          "OUT-AMOUNT": {
+            "layout": {
+              "picture": "9(5)",
+              "usage": "DISPLAY",
+              "signed": false,
+              "integer_digits": 5,
+              "scale": 0,
+              "supported": true,
+              "diagnostics": []
+            },
+            "operation": "MOVE",
+            "rounded": false,
+            "receiving_scale": 0,
+            "fractional_conversion": "toward_zero",
+            "size_error_check": "after_decimal_alignment",
+            "on_size_error_receiver": "truncation_profile_required",
+            "profile": "decimal-receiver-v1",
+            "profile_confirmed": false,
+            "status": "receiver_layout_supported",
+            "runtime_inputs_known": false,
+            "intermediate_precision_verified": false
+          }
+        },
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "OUT-AMOUNT": {
+            "canonical": "OUT-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_e7165d9e6a0ca1079f2d84b7",
+            "affected_storage": [
+              "OUT-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": [
+          "OUT-AMOUNT"
+        ]
+      },
+      {
+        "occurrence_id": "518c5d409210d876259aee78",
+        "kind": "GOBACK",
+        "statement": "GOBACK",
+        "reads": [],
+        "writes": [],
+        "expressions": {},
+        "source_refs": [
+          {
+            "relative_path": "leaf.cbl",
+            "source_sha256": "b592216bfb67c8be4d5bcd64e36b606144a4ea0a2a103da2baf09beb4794309d",
+            "start_line": 12,
+            "end_line": 12,
+            "start_column": 1,
+            "end_column": 7,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN",
+          "call:8b38bbf5363821fea8018981",
+          "MAIN",
+          "call:57e6bac10825394fd50c8fc6",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {},
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {},
+        "definite_writes": []
+      },
+      {
+        "occurrence_id": "eae10c1d3e51a55760a7cb84",
+        "kind": "GOBACK",
+        "statement": "GOBACK",
+        "reads": [],
+        "writes": [],
+        "expressions": {},
+        "source_refs": [
+          {
+            "relative_path": "middle.cbl",
+            "source_sha256": "f8da79bf6faa11ef5b7eb659d2b28ccd98fe6a191183b07fee343d2e0c52b979",
+            "start_line": 10,
+            "end_line": 10,
+            "start_column": 1,
+            "end_column": 7,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN",
+          "call:8b38bbf5363821fea8018981",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {},
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {},
+        "definite_writes": []
+      },
+      {
+        "occurrence_id": "df4c420fb0ab4774a26dc1ec",
+        "kind": "IF",
+        "statement": "IF FLAG = 'Y' MOVE ZERO TO OUT-AMOUNT END-IF",
+        "reads": [
+          "FLAG"
+        ],
+        "writes": [],
+        "expressions": {},
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 12,
+            "end_line": 12,
+            "start_column": 1,
+            "end_column": 45,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {},
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "read:FLAG": {
+            "canonical": "FLAG",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_5b3a7b1d6b8d9d6427727363",
+            "affected_storage": [
+              "FLAG"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": []
+      },
+      {
+        "occurrence_id": "eb31c6f82065edaf7596fea0",
+        "kind": "MOVE",
+        "statement": "MOVE ZERO TO OUT-AMOUNT",
+        "reads": [],
+        "writes": [
+          "OUT-AMOUNT"
+        ],
+        "expressions": {
+          "OUT-AMOUNT": "ZERO"
+        },
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 12,
+            "end_line": 12,
+            "start_column": 15,
+            "end_column": 38,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN"
+        ],
+        "guards": [
+          {
+            "kind": "IF",
+            "condition": "FLAG = 'Y'",
+            "outcome": true,
+            "selector": null,
+            "alternatives": [],
+            "prior_alternatives": [],
+            "is_other": false
+          }
+        ],
+        "unknown_effect": false,
+        "control_occurrences": [
+          "df4c420fb0ab4774a26dc1ec"
+        ],
+        "numeric_semantics": {
+          "OUT-AMOUNT": {
+            "layout": {
+              "picture": "9(5)",
+              "usage": "DISPLAY",
+              "signed": false,
+              "integer_digits": 5,
+              "scale": 0,
+              "supported": true,
+              "diagnostics": []
+            },
+            "operation": "MOVE",
+            "rounded": false,
+            "receiving_scale": 0,
+            "fractional_conversion": "toward_zero",
+            "size_error_check": "after_decimal_alignment",
+            "on_size_error_receiver": "truncation_profile_required",
+            "profile": "decimal-receiver-v1",
+            "profile_confirmed": false,
+            "status": "receiver_layout_supported",
+            "runtime_inputs_known": false,
+            "intermediate_precision_verified": false
+          }
+        },
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "OUT-AMOUNT": {
+            "canonical": "OUT-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_5236d19eeddce9e97361e84d",
+            "affected_storage": [
+              "OUT-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": [
+          "OUT-AMOUNT"
+        ]
+      },
+      {
+        "occurrence_id": "e06505a0175901c02420577c",
+        "kind": "MOVE",
+        "statement": "MOVE OUT-AMOUNT TO FINAL-AMOUNT",
+        "reads": [
+          "OUT-AMOUNT"
+        ],
+        "writes": [
+          "FINAL-AMOUNT"
+        ],
+        "expressions": {
+          "FINAL-AMOUNT": "OUT-AMOUNT"
+        },
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 13,
+            "end_line": 13,
+            "start_column": 1,
+            "end_column": 32,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {
+          "FINAL-AMOUNT": {
+            "layout": {
+              "picture": "9(5)",
+              "usage": "DISPLAY",
+              "signed": false,
+              "integer_digits": 5,
+              "scale": 0,
+              "supported": true,
+              "diagnostics": []
+            },
+            "operation": "MOVE",
+            "rounded": false,
+            "receiving_scale": 0,
+            "fractional_conversion": "toward_zero",
+            "size_error_check": "after_decimal_alignment",
+            "on_size_error_receiver": "truncation_profile_required",
+            "profile": "decimal-receiver-v1",
+            "profile_confirmed": false,
+            "status": "receiver_layout_supported",
+            "runtime_inputs_known": false,
+            "intermediate_precision_verified": false
+          }
+        },
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "read:OUT-AMOUNT": {
+            "canonical": "OUT-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_5236d19eeddce9e97361e84d",
+            "affected_storage": [
+              "OUT-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          },
+          "FINAL-AMOUNT": {
+            "canonical": "FINAL-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_0dc106f35259808d2f12763c",
+            "affected_storage": [
+              "FINAL-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": [
+          "FINAL-AMOUNT"
+        ]
+      },
+      {
+        "occurrence_id": "ace78713efcc07b31fc64ec2",
+        "kind": "DISPLAY",
+        "statement": "DISPLAY FINAL-AMOUNT",
+        "reads": [
+          "FINAL-AMOUNT"
+        ],
+        "writes": [],
+        "expressions": {},
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 14,
+            "end_line": 14,
+            "start_column": 1,
+            "end_column": 21,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {},
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {
+          "read:FINAL-AMOUNT": {
+            "canonical": "FINAL-AMOUNT",
+            "binding_status": "bound",
+            "exact": true,
+            "region_id": "region_item_0dc106f35259808d2f12763c",
+            "affected_storage": [
+              "FINAL-AMOUNT"
+            ],
+            "group": false,
+            "diagnostics": []
+          }
+        },
+        "definite_writes": []
+      },
+      {
+        "occurrence_id": "f3a5d68643ee17066974cc04",
+        "kind": "GOBACK",
+        "statement": "GOBACK",
+        "reads": [],
+        "writes": [],
+        "expressions": {},
+        "source_refs": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c28f1469791353ff186cb2612b56a20331a4992aa81b3cab2fa5b8b8d5c4f42f",
+            "start_line": 15,
+            "end_line": 15,
+            "start_column": 1,
+            "end_column": 7,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "context": [
+          "ENTRYPOINT",
+          "MAIN"
+        ],
+        "guards": [],
+        "unknown_effect": false,
+        "control_occurrences": [],
+        "numeric_semantics": {},
+        "unknown_storage": null,
+        "control_semantics": {},
+        "storage_effects": {},
+        "definite_writes": []
+      }
+    ],
+    "edges": [
+      [
+        "518c5d409210d876259aee78",
+        "eae10c1d3e51a55760a7cb84",
+        "sequence"
+      ],
+      [
+        "57e6bac10825394fd50c8fc6",
+        "5a838e977ef349af4177f020",
+        "call_entry"
+      ],
+      [
+        "5a838e977ef349af4177f020",
+        "611e9950b537553cc5143c52",
+        "branch:1"
+      ],
+      [
+        "5a838e977ef349af4177f020",
+        "f0cf8c0d458efc2bc4ceff65",
+        "branch:0"
+      ],
+      [
+        "611e9950b537553cc5143c52",
+        "518c5d409210d876259aee78",
+        "sequence"
+      ],
+      [
+        "8b38bbf5363821fea8018981",
+        "57e6bac10825394fd50c8fc6",
+        "call_entry"
+      ],
+      [
+        "ace78713efcc07b31fc64ec2",
+        "f3a5d68643ee17066974cc04",
+        "sequence"
+      ],
+      [
+        "df4c420fb0ab4774a26dc1ec",
+        "e06505a0175901c02420577c",
+        "sequence"
+      ],
+      [
+        "df4c420fb0ab4774a26dc1ec",
+        "eb31c6f82065edaf7596fea0",
+        "branch:0"
+      ],
+      [
+        "e06505a0175901c02420577c",
+        "ace78713efcc07b31fc64ec2",
+        "sequence"
+      ],
+      [
+        "eae10c1d3e51a55760a7cb84",
+        "df4c420fb0ab4774a26dc1ec",
+        "sequence"
+      ],
+      [
+        "eb31c6f82065edaf7596fea0",
+        "e06505a0175901c02420577c",
+        "sequence"
+      ],
+      [
+        "f0cf8c0d458efc2bc4ceff65",
+        "518c5d409210d876259aee78",
+        "sequence"
+      ]
+    ]
+  },
+  "runtime_execution_verified": false
+}

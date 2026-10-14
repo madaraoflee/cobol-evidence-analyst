@@ -304,7 +304,7 @@ class SourceIdentityTests(unittest.TestCase):
 
     def test_followup_terms_do_not_replace_the_explicit_question_path(self):
         self.collision_fixture()
-        question = "请说明 aa/target.cbl 的计算公式。"
+        question = "只说明 aa/target.cbl 的计算公式。"
         search_terms = ["bb/target.cbl", "OUTPUT-123"]
         self.assert_identity_result(self.identity(question, search_terms), "resolved", ["aa/target.cbl"])
         _, context = self.assert_map_and_retrieval_identity(

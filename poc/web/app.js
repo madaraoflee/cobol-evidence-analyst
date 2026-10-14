@@ -46,7 +46,7 @@ function rememberSourcePreferences(value){
   const previous=state.sourcePreferences?.source===value.source?state.sourcePreferences:{};
   state.sourcePreferences={source:value.source,output:typeof value.output==='string'?value.output:previous.output || '',
     encoding:value.encoding || previous.encoding || 'auto',source_format:value.source_format || previous.source_format || 'auto',
-    extensions:value.extensions ?? previous.extensions ?? null,framework_reference_path:value.framework_reference_path ?? previous.framework_reference_path ?? ''};
+    compilation_context_path:value.compilation_context_path ?? previous.compilation_context_path ?? '',extensions:value.extensions ?? previous.extensions ?? null,framework_reference_path:value.framework_reference_path ?? previous.framework_reference_path ?? ''};
 }
 function demoKind(id){return ({online:t('傳統聯機'),traditional_online:t('傳統聯機'),client_server:t('控制器分段聯機'),screen_controlled_online:t('控制器分段聯機'),batch:t('批處理')})[id] || id || '';}
 function conversationTitle(value){const title=String(value || '').trim();return !title || ['新对话','新的对话','新的對話','New conversation'].includes(title)?t('新的對話'):title;}
@@ -962,7 +962,7 @@ function openSource(intent='update'){
   $('index-submit').textContent=t(state.sourceIntent==='update'?'更新索引與版本':'建立源碼索引');
   if($('source-picker-feedback')){$('source-picker-feedback').hidden=true;$('source-picker-feedback').textContent='';}
   if($('source-framework-path'))$('source-framework-path').value=opts.framework_reference_path || frameworkConfiguredPath();
-  $('source-path').value=opts.source || '';$('output-path').value=opts.output || '';$('source-encoding').value=opts.encoding || 'auto';$('source-format').value=opts.source_format || 'auto';$('source-extensions').value=Array.isArray(opts.extensions)?opts.extensions.join(','):opts.extensions || '';
+  $('source-path').value=opts.source || '';$('output-path').value=opts.output || '';$('source-encoding').value=opts.encoding || 'auto';$('source-format').value=opts.source_format || 'auto';$('source-compilation-context').value=opts.compilation_context_path || '';$('source-extensions').value=Array.isArray(opts.extensions)?opts.extensions.join(','):opts.extensions || '';
   $('index-submit').disabled=!state.connected || state.busy;
   if(!state.connected){$('source-error').textContent=t('請先以 python poc/web_app.py 啟動本機服務，再透過服務地址開啟此頁。');$('source-error').hidden=false;}
   $('source-dialog').showModal();
@@ -1039,7 +1039,7 @@ function sameSourceWorkspace(left,right){
 }
 function analysisOptions(question,extra={}){
   const p=state.project;const opts=p.diagnosis.source_options || {};
-  return {source:p.source,output:p.output,encoding:opts.encoding || 'auto',source_format:opts.source_format || 'auto',extensions:opts.extensions?.join(',') || null,entry:state.entry || null,question,max_source_pages:state.maxSourcePages,reading_strategy:conversationMode()?'retrieval':state.readingStrategy,answer_detail:state.answerDetail,allow_network:true,index_mode:opts.index_mode || 'catalog',...(conversationMode()?{conversation_id:state.conversation?.id || null}:{}),...extra};
+  return {source:p.source,output:p.output,encoding:opts.encoding || 'auto',source_format:opts.source_format || 'auto',...(opts.compilation_context_path?{compilation_context_path:opts.compilation_context_path}:{}),extensions:opts.extensions?.join(',') || null,entry:state.entry || null,question,max_source_pages:state.maxSourcePages,reading_strategy:conversationMode()?'retrieval':state.readingStrategy,answer_detail:state.answerDetail,allow_network:true,index_mode:opts.index_mode || 'catalog',...(conversationMode()?{conversation_id:state.conversation?.id || null}:{}),...extra};
 }
 async function pollJob(jobId){
   try{const job=await api(`/api/jobs/${encodeURIComponent(jobId)}`);if(state.jobId!==jobId)return;
@@ -1265,7 +1265,7 @@ document.addEventListener('submit',async event=>{
   }
 });
 function pastedPath(value){const text=value.trim();return text.startsWith('"')&&text.endsWith('"')?text.slice(1,-1):text;}
-$('source-form').addEventListener('submit',async event=>{event.preventDefault();if(!state.connected || state.busy)return;const options={source:pastedPath($('source-path').value),output:pastedPath($('output-path').value),encoding:$('source-encoding').value,source_format:$('source-format').value,extensions:$('source-extensions').value.trim() || null,index_mode:'catalog',verify_content:$('verify-content').checked,reading_strategy:state.readingStrategy,answer_detail:state.answerDetail,max_source_pages:state.maxSourcePages,allow_network:false};if(state.conversationSupported && $('source-framework-path')?.value.trim())options.framework_reference_path=pastedPath($('source-framework-path').value);$('source-dialog').close();await startJob(options);});
+$('source-form').addEventListener('submit',async event=>{event.preventDefault();if(!state.connected || state.busy)return;const options={source:pastedPath($('source-path').value),output:pastedPath($('output-path').value),encoding:$('source-encoding').value,source_format:$('source-format').value,extensions:$('source-extensions').value.trim() || null,index_mode:'catalog',verify_content:$('verify-content').checked,reading_strategy:state.readingStrategy,answer_detail:state.answerDetail,max_source_pages:state.maxSourcePages,allow_network:false};if($('source-compilation-context')?.value.trim())options.compilation_context_path=pastedPath($('source-compilation-context').value);if(state.conversationSupported && $('source-framework-path')?.value.trim())options.framework_reference_path=pastedPath($('source-framework-path').value);$('source-dialog').close();await startJob(options);});
 $('connect-button').addEventListener('click',openSource);
 $('demo-mode').addEventListener('click',()=>setMode('demo'));
 $('real-mode').addEventListener('click',()=>setMode('real'));

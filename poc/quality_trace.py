@@ -8,7 +8,10 @@ import json
 from pathlib import Path
 import secrets
 import time
+from run_store import RunStore
 
+PIPELINE_VERSION = "question-evidence-v11"
+PROMPT_VERSION = "business-chat-v16"
 
 def _digest(value):
     return hashlib.sha256(value).hexdigest()
@@ -18,14 +21,16 @@ class QualityTrace:
     schema_version = "business-quality-trace/v1"
 
     def __init__(self, database_path, *, question, config, policy, capture_context=False,
-                 question_id=None, conversation_id=None):
-        self.path = Path(database_path).resolve().parent / "quality-traces" / (secrets.token_hex(12) + ".json")
+                 question_id=None, conversation_id=None, resume_state=None, analysis_identity=None):
+        run_id = resume_state["run_id"] if resume_state else secrets.token_hex(12)
+        self.path = Path(database_path).resolve().parent / "quality-traces" / (run_id + ".json")
         self.capture_context = bool(capture_context)
         self.data = {"schema_version": self.schema_version, "run_id": self.path.stem,
                      "question_id": question_id or "sha256:" + _digest(question.encode()),
                      "conversation_id": conversation_id,
                      "created_at_utc": datetime.now(timezone.utc).isoformat(),
-                     "pipeline_version": "question-evidence-v8", "prompt_version": "business-chat-v14",
+                     "pipeline_version": PIPELINE_VERSION, "prompt_version": PROMPT_VERSION,
+                     "analysis_identity": analysis_identity,
                      "configuration": {"model_fingerprint": _digest(config.chat_model.encode()),
                          "configuration_fingerprint": _digest(json.dumps({
                              "base_url": config.base_url, "model": config.chat_model,
@@ -37,6 +42,13 @@ class QualityTrace:
                          "sampling": "provider_default", "policy": policy.to_dict()},
                      "rounds": [], "final": {}}
         self._pending = None
+        if resume_state and resume_state.get("checkpoint", {}).get("quality"):
+            self.data = resume_state["checkpoint"]["quality"]
+        self.run_store = RunStore(Path(database_path).resolve().parent / "investigation-runs.sqlite")
+        self.run_store.create(self.data["run_id"], {
+            "question_id": self.data["question_id"], "configuration": self.data["configuration"],
+            "pipeline_version": self.data["pipeline_version"], "prompt_version": self.data["prompt_version"],
+            "analysis_identity": self.data.get("analysis_identity")})
 
     def prepare(self, *, stage, payload, messages, trim_events=()):
         self._pending = (stage, payload, messages, list(trim_events), time.monotonic())
@@ -74,6 +86,16 @@ class QualityTrace:
                                  "framework": [{**f, "excerpt": r.get("text", "")} for f, r in zip(record["framework"], framework)],
                                  "history": messages[1:-1]}
         self.data["rounds"].append(record)
+        self.run_store.start_request(self.data["run_id"], record["round_id"], record["request_body_sha256"])
+        checkpoint = self.run_store.load(self.data["run_id"])["checkpoint"]
+        self.run_store.checkpoint(self.data["run_id"], {**checkpoint, "quality": self.data,
+            "request_payload": payload,
+            "analysis_plan": payload.get("question_investigation", {}).get("analysis_plan", {}),
+            "obligations": payload.get("question_investigation", {}).get("required_items", []),
+            "frontier": payload.get("question_investigation", {}).get("planned_actions", []),
+            "budget": payload.get("investigation_budget", {}),
+            "source_pages": source, "framework_references": framework,
+            "completed_actions": payload.get("completed_actions", [])})
         self._pending = (stage, payload, messages, trims, started)
 
     def finish_round(self, *, finish_reason=None, parsed_action=None, usage=None, error=None,
@@ -87,10 +109,21 @@ class QualityTrace:
                            "raw_content_characters": raw_content_characters,
                            "parsed_answer_characters": parsed_answer_characters,
                            "choice_index": choice_index}
+        if error not in {"REQUEST_TIMEOUT", "TRANSPORT_ERROR", "TRANSPORT_RESPONSE_INVALID"}:
+            self.run_store.finish_request(self.data["run_id"], row["round_id"], row["response"])
         self._pending = None
+
+    def record_remote_response(self, response):
+        if self.data["rounds"]:
+            self.run_store.finish_request(self.data["run_id"], self.data["rounds"][-1]["round_id"], {"remote_response": response})
 
     def add_tool_result(self, *, action, actual_result_ids=(), open_read_cursor=None,
                         status="completed"):
+        tool = next(iter(action), "unknown") if isinstance(action, dict) else str(action)
+        arguments = action.get(tool, {}) if isinstance(action, dict) else {}
+        step = self.run_store.start_step(self.data["run_id"], tool, arguments)
+        self.run_store.finish_step(self.data["run_id"], step, {"actual_result_ids": list(actual_result_ids),
+            "open_read_cursor": open_read_cursor, "status": status})
         if self.data["rounds"]:
             self.data["rounds"][-1]["tool_results"].append({"action": action,
                 "actual_result_ids": list(actual_result_ids),
@@ -102,4 +135,7 @@ class QualityTrace:
         temporary = self.path.with_suffix(".tmp")
         temporary.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), encoding="utf-8")
         temporary.replace(self.path)
+        current = self.run_store.load(self.data["run_id"])["checkpoint"]
+        self.run_store.checkpoint(self.data["run_id"], {**current, "quality": self.data,
+            "final": final}, status="completed" if not current.get("remote_result_unknown") else "attention")
         return str(self.path)

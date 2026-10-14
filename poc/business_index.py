@@ -18,7 +18,10 @@ from datetime import datetime, timezone
 
 from repo_inventory import DEFAULT_EXTENSIONS, SOURCE_FORMAT_RE, iter_source_files, validate_source_options, _looks_binary
 from source_catalog import _dependency_targets, _entry_matches
-from statement_facts import sentence_terminated, sql_host_access
+from statement_facts import (clean_cobol_line, dependency_facts, join_continuation,
+                             lex_cobol, CobolLexError, CompilationGuardState, program_identifier,
+                             sentence_terminated, sql_host_access)
+from statement_parser import parse_statements
 from structural_index import (
     SCHEMA_VERSION, PROGRAM_ID_RE, SECTION_RE, PARAGRAPH_RE, PARAGRAPH_EXCLUSIONS,
     DATA_ITEM_RE, PERFORM_TARGET_RE, PERFORM_NON_TARGETS, _statement_kind,
@@ -27,7 +30,7 @@ from structural_index import (
     _resolve_relations, _database_counts,
 )
 
-PARSER_VERSION = "business-sparse-v1.3"
+PARSER_VERSION = "business-sparse-v1.7"
 CHUNK_BYTES = 1024 * 1024
 MAX_PHYSICAL_LINE_CHARS = 65536
 MAX_FACT_CHARS = 131072
@@ -85,10 +88,30 @@ def _ensure_business_rules(connection):
         );
         CREATE INDEX IF NOT EXISTS idx_business_rule_fields_name
             ON business_rule_fields(field_name,field_role);
+        CREATE TABLE IF NOT EXISTS business_rule_occurrences (
+            occurrence_id TEXT PRIMARY KEY,
+            rule_id TEXT NOT NULL,
+            relative_path TEXT NOT NULL,
+            program_name TEXT,
+            procedure_name TEXT,
+            start_line INTEGER NOT NULL,
+            end_line INTEGER NOT NULL,
+            start_column INTEGER NOT NULL,
+            end_column INTEGER NOT NULL,
+            statement_order INTEGER NOT NULL,
+            scope_json TEXT NOT NULL,
+            source_sha256 TEXT NOT NULL,
+            parse_status TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_business_occurrences_path
+            ON business_rule_occurrences(relative_path,program_name,start_line,start_column);
+        CREATE INDEX IF NOT EXISTS idx_business_occurrences_rule
+            ON business_rule_occurrences(rule_id,start_line,start_column);
     """)
 
 
 def _delete_business_rules(connection, relative):
+    connection.execute("DELETE FROM business_rule_occurrences WHERE relative_path=?", (relative,))
     connection.execute("DELETE FROM business_rule_fields WHERE rule_id IN "
                        "(SELECT rule_id FROM business_rules WHERE relative_path=?)", (relative,))
     connection.execute("DELETE FROM business_rules WHERE relative_path=?", (relative,))
@@ -243,42 +266,11 @@ def _physical_lines(path, encoding, expected_stat=None):
 
 
 def _clean(raw, active_format):
-    expanded = raw.expandtabs(8)
-    directive = SOURCE_FORMAT_RE.search(expanded)
-    if directive:
-        return "", directive.group(1).lower(), False
-    fixed = active_format == "fixed" or (active_format == "auto" and len(expanded) >= 7 and (
-        expanded[:6].isdigit() or (not expanded[:6].strip() and expanded[6] in " */-Dd")))
-    if fixed:
-        if len(expanded) >= 7 and expanded[6] in "*/":
-            return "", active_format, False
-        continuation = len(expanded) >= 7 and expanded[6] == "-"
-        code = expanded[7:72]
-    else:
-        continuation, code = False, expanded
-        if code.lstrip().startswith("*"):
-            return "", active_format, continuation
-    if "*>" in code:
-        quote, index = None, 0
-        while index < len(code):
-            char = code[index]
-            if quote:
-                if char == quote:
-                    if index + 1 < len(code) and code[index + 1] == quote:
-                        index += 2
-                        continue
-                    quote = None
-            elif char in "'\"":
-                quote = char
-            elif code[index:index + 2] == "*>":
-                code = code[:index]
-                break
-            index += 1
-    return code.strip(), active_format, continuation
+    return clean_cobol_line(raw, active_format)
 
 
 class _Facts:
-    def __init__(self, connection, relative, metadata, source_format, emit, copybook_hint=False):
+    def __init__(self, connection, relative, metadata, source_format, emit, copybook_hint=False, compilation_context=None):
         self.connection, self.relative, self.metadata = connection, relative, metadata
         self.source_format, self.emit = source_format, emit
         self.program, self.program_id, self.section_id, self.paragraph_id = None, None, None, None
@@ -287,6 +279,8 @@ class _Facts:
         self.pending = None
         self.rule_batch = {}
         self.rule_field_batch = {}
+        self.occurrence_batch = []
+        self.data_stack = []
         self.rule_partition = _content_hash(relative)[:12]
         self.evidence_batch = {}
         self.unit_batch = {}
@@ -299,6 +293,7 @@ class _Facts:
         self.boundaries = Counter()
         self.copybook = copybook_hint or Path(relative).suffix.casefold() in COPY_EXTENSIONS
         self.sql = False
+        self.compilation = CompilationGuardState(compilation_context)
 
     def _close(self, kind, end):
         key = {"Program": "program_id", "Section": "section_id", "Paragraph": "paragraph_id"}[kind]
@@ -313,10 +308,10 @@ class _Facts:
             if kind == "Paragraph":
                 self.paragraph_name = None
 
-    def _business_rule(self, kind, code, start, end):
+    def _business_rule(self, kind, code, start, end, *, occurrence=None):
         rule_kind = "EXEC_SQL" if kind == "SqlRule" else _statement_kind(code)
         key = _stable_id("rule", self.relative, self.program, self.paragraph_name or self.section_name,
-                         rule_kind, code)
+                         rule_kind, code, *(self.compilation.guards if self.compilation.status is None else ()))
         # Keep one file's primary-key writes together. Fully random rule IDs
         # scatter every insertion across a growing repository index and cause
         # heavy page-cache churn for millions of rules. The original digest
@@ -340,7 +335,19 @@ class _Facts:
             self.rule_field_batch[key] = [
                 (key, name, role) for role, names in
                 (("read", reads), ("write", writes), ("condition", conditions)) for name in names]
-        if len(self.rule_batch) >= 2048:
+        occurrence = occurrence or {"start_column": 1, "end_column": len(code) + 1,
+                                     "order": 0, "guards": [], "parse_status": "complete"}
+        if self.compilation.status is None:
+            occurrence = {**occurrence, "parse_status": "candidate", "guards": [*occurrence["guards"],
+                {"kind": "COMPILATION", "status": "candidate", "guards": self.compilation.guards,
+                 "diagnostics": ["compile_condition_unknown"], "support_basis": "source_syntax_only"}]}
+        occurrence_id = _stable_id("occ", self.relative, self.metadata["sha256"], key,
+                                  start, end, occurrence["start_column"], occurrence["end_column"], occurrence["order"])
+        self.occurrence_batch.append((occurrence_id, key, self.relative, self.program,
+            self.paragraph_name or self.section_name, start, end, occurrence["start_column"],
+            occurrence["end_column"], occurrence["order"], json.dumps(occurrence["guards"]),
+            self.metadata["sha256"], occurrence["parse_status"]))
+        if len(self.rule_batch) >= 2048 or len(self.occurrence_batch) >= 2048:
             self._flush_rules()
 
     def _flush_rules(self):
@@ -356,6 +363,9 @@ class _Facts:
         """, rows)
         self.connection.executemany("INSERT OR IGNORE INTO business_rule_fields VALUES (?,?,?)",
                                     (field for fields in self.rule_field_batch.values() for field in fields))
+        self.connection.executemany("INSERT OR IGNORE INTO business_rule_occurrences VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                                    self.occurrence_batch)
+        self.occurrence_batch.clear()
         self.rule_batch.clear()
         self.rule_field_batch.clear()
 
@@ -386,7 +396,9 @@ class _Facts:
             self.unit_end_batch.clear()
         self.fact_batch_bytes = 0
 
-    def _unit(self, kind, name, start, end, text, raw, parse_status="complete", symbol=None):
+    def _unit(self, kind, name, start, end, text, raw, parse_status="complete", symbol=None, qualified=None):
+        if self.compilation.status is None and kind not in {"PreprocessorDirective", "InactiveSource"}:
+            parse_status = "candidate"
         evidence = _stable_id("ev", self.relative, self.metadata["sha256"], start, end)
         self.evidence_batch.setdefault(evidence, (evidence, self.relative, start, end, self.metadata["sha256"], raw))
         identity = _stable_id("unit", self.relative, kind, name, start)
@@ -397,7 +409,7 @@ class _Facts:
         self.fact_batch_bytes += 4 * (len(raw) + len(text))
         if symbol:
             self.symbol_batch.append((_stable_id("sym", self.relative, symbol, self.program, name, start), self.relative,
-                                      symbol, name, self.program, f"{self.program or ''}::{name}", identity, evidence))
+                                      symbol, name, self.program, qualified or f"{self.program or ''}::{name}", identity, evidence))
         if len(self.search_batch) >= FACT_BATCH_ROWS or self.fact_batch_bytes >= FACT_BATCH_BYTES:
             self._flush_facts()
         return identity, evidence
@@ -407,14 +419,15 @@ class _Facts:
         code, raw = " ".join(code_lines), "\n".join(raw_lines)
         upper = code.upper()
         if kind == "Program":
-            match = PROGRAM_ID_RE.match(code)
-            if not match:
+            declared_program = program_identifier(code)
+            if not declared_program:
                 self.boundaries["program_header_unrecognized"] += 1
                 return
             self._close("Paragraph", start - 1)
             self._close("Section", start - 1)
             self._close("Program", start - 1)
-            self.program = match.group(1).upper()
+            self.program = declared_program
+            self.data_stack.clear()
             self.copybook = False
             self.program_id, _ = self._unit("Program", self.program, start, end, code, raw, symbol="Program")
         elif kind == "ProcedureSignature":
@@ -425,20 +438,27 @@ class _Facts:
         elif kind == "DataItem":
             match = DATA_ITEM_RE.match(code)
             if match:
-                self._unit(kind, match.group(2).upper(), start, end, code, raw,
-                           "complete" if complete else "partial", "ConditionName" if match.group(1) == "88" else "Field")
+                level, name = int(match.group(1)), match.group(2).upper()
+                while self.data_stack and self.data_stack[-1][0] >= level:
+                    self.data_stack.pop()
+                ancestors = tuple(item[1] for item in reversed(self.data_stack))
+                qualified = f"{self.program or ''}::{name}" + "".join(" OF " + item for item in ancestors)
+                self._unit(kind, name, start, end, code, raw,
+                           "complete" if complete else "partial", "ConditionName" if level == 88 else "Field", qualified)
+                if level not in {66, 77, 88}:
+                    self.data_stack.append((level, name))
         elif kind == "Dependency":
             unit, evidence = self._unit("Statement", "DEPENDENCY", start, end, code, raw,
                                         "complete" if complete else "partial")
-            targets, dynamic = _dependency_targets(code)
-            dependencies = targets + [("CALL_TARGET_FROM", name) for name in dynamic]
-            # Literal text cannot create a PERFORM relation.
+            dependencies = dependency_facts(code)
             unquoted = _LITERAL_RE.sub(" ", upper)
-            for match in PERFORM_TARGET_RE.finditer(unquoted):
-                if match.group(1) not in PERFORM_NON_TARGETS:
-                    dependencies.append(("PERFORMS_THRU" if match.group(2) else "PERFORMS", match.group(1)))
-            for relation, target in dict.fromkeys(dependencies):
+            for relation, target, range_end in dependencies:
                 metadata = {"source_index_kind": "business_sparse", "semantic_binding_performed": False}
+                if self.compilation.status is None:
+                    metadata.update(compilation_status="candidate", compilation_guards=self.compilation.guards,
+                                    diagnostics=["compile_condition_unknown"], support_basis="source_syntax_only")
+                if range_end:
+                    metadata["range_end"] = range_end
                 if relation == "INCLUDES_COPY" and _COPY_FORM_RE.search(unquoted):
                     metadata["boundary"] = "copy_replacing_or_library_not_expanded"
                     self.boundaries[metadata["boundary"]] += 1
@@ -453,10 +473,61 @@ class _Facts:
                      None, "unresolved", evidence, json.dumps(metadata)))
             if len(self.relation_batch) >= FACT_BATCH_ROWS:
                 self._flush_facts()
-        elif kind in {"BusinessRule", "SqlRule"}:
+            if self.division == "PROCEDURE":
+                self._statement_rules(code, raw, start, end, complete)
+        elif kind == "BusinessRule":
+            self._statement_rules(code, raw, start, end, complete)
+        elif kind == "SqlRule":
             self._business_rule(kind, upper, start, end)
         if not complete:
             self.boundaries["bounded_fact_fragment"] += 1
+
+    def _statement_rules(self, code, raw, start, end, complete):
+        # Shape deduplication is useful for retrieval. Occurrence positions and
+        # guards remain separate even when two branches contain identical text.
+        try:
+            tokens = lex_cobol(code)
+        except CobolLexError:
+            tokens = ()
+        verbs = sum(token.kind == "word" and _statement_kind(token.value) != "OTHER" for token in tokens)
+        if complete and verbs > 1:
+            first = raw.splitlines()[0] if raw else ""
+            source_format = "fixed" if (self.active_format == "fixed" or len(first) >= 7 and first[:6].isdigit()) else "free"
+            parsed = parse_statements(raw, start_line=start, source_format=source_format)
+            if parsed.complete:
+                def fragment_code(text):
+                    logical = ""
+                    for index, physical in enumerate(text.splitlines()):
+                        # A node's first line starts at its original statement
+                        # column; subsequent physical lines keep fixed prefixes.
+                        cleaned, _, continuation = clean_cobol_line(physical, "free" if index == 0 else source_format)
+                        logical = join_continuation(logical, cleaned) if continuation else logical + (" " if logical else "") + cleaned
+                    return logical
+                seen_guards = set()
+                for order, node in enumerate(parsed.statements):
+                    for guard in node.guards:
+                        key = (guard.kind, guard.span.start_offset, guard.span.end_offset)
+                        if key in seen_guards:
+                            continue
+                        seen_guards.add(key)
+                        header = guard.span
+                        text = fragment_code(raw[header.start_offset:header.end_offset])
+                        self._business_rule("BusinessRule", text, header.start_line, header.end_line,
+                            occurrence={"start_column": header.start_column, "end_column": header.end_column,
+                                        "order": order, "guards": [], "parse_status": "complete"})
+                    if node.kind not in _BUSINESS_RULE_KINDS:
+                        continue
+                    node_code = fragment_code(node.text)
+                    guards = [{"kind": guard.kind, "condition": guard.condition, "outcome": guard.outcome,
+                               "selector": guard.selector, "branch_index": guard.branch_index,
+                               "is_other": guard.is_other} for guard in node.guards]
+                    self._business_rule("BusinessRule", node_code, node.span.start_line, node.span.end_line,
+                        occurrence={"start_column": node.span.start_column, "end_column": node.span.end_column,
+                                    "order": order, "guards": guards, "parse_status": "complete"})
+                return
+        self._business_rule("BusinessRule", code, start, end,
+            occurrence={"start_column": 1, "end_column": len(code) + 1, "order": 0,
+                        "guards": [], "parse_status": "complete" if complete else "partial"})
 
     def _flush(self, complete=False):
         if self.pending:
@@ -475,6 +546,14 @@ class _Facts:
         code, next_format, continuation = _clean(raw, self.active_format)
         if self.source_format == "auto":
             self.active_format = next_format
+        if re.match(r"^>>\s*(?:IF|ELSE|END-IF)\b", code, re.I):
+            self._flush()
+            self.compilation.feed(code, line_number)
+            self._unit("PreprocessorDirective", "CONDITIONAL_SOURCE", line_number, line_number, code, raw, "directive")
+            return
+        if self.compilation.status is False:
+            self._unit("InactiveSource", "CONDITIONAL_SOURCE", line_number, line_number, code, raw, "inactive")
+            return
         if self.pending and self.pending[0] == "SqlRule":
             if code:
                 self.pending[1].append(code)
@@ -514,7 +593,10 @@ class _Facts:
             if starts_new or len(self.pending[2]) >= MAX_FACT_LINES or sum(map(len, self.pending[2])) + len(raw) > MAX_FACT_CHARS:
                 self._flush(complete=starts_new)
             else:
-                self.pending[1].append(code)
+                if continuation and self.pending[1]:
+                    self.pending[1][-1] = join_continuation(self.pending[1][-1], code)
+                else:
+                    self.pending[1].append(code)
                 self.pending[2].append(raw)
                 self.pending[4] = line_number
                 if code and sentence_terminated(code):
@@ -591,6 +673,27 @@ class _Facts:
         self._close("Section", self.line_count)
         self._close("Program", self.line_count)
         self._flush_facts()
+        unclosed = self.compilation.finish()
+        if unclosed:
+            start = min(guard["source_line"] for guard in unclosed)
+            self.boundaries["compile_condition_scope_unclosed"] += len(unclosed)
+            self.connection.execute("""UPDATE code_units SET parse_status='candidate'
+                WHERE relative_path=? AND start_line>=? AND unit_type NOT IN ('PreprocessorDirective','InactiveSource')""",
+                (self.relative, start))
+            for row in self.connection.execute("""SELECT occurrence_id,scope_json FROM business_rule_occurrences
+                    WHERE relative_path=? AND start_line>=?""", (self.relative, start)).fetchall():
+                scopes = json.loads(row["scope_json"])
+                scopes.append({"kind": "COMPILATION", "status": "candidate", "guards": unclosed,
+                    "diagnostics": ["compile_condition_scope_unclosed"], "support_basis": "source_syntax_only"})
+                self.connection.execute("UPDATE business_rule_occurrences SET parse_status='candidate',scope_json=? WHERE occurrence_id=?",
+                    (json.dumps(scopes), row["occurrence_id"]))
+            for row in self.connection.execute("""SELECT r.relation_id,r.metadata_json FROM relations r
+                    JOIN code_units u ON u.unit_id=r.from_entity_id WHERE r.relative_path=? AND u.start_line>=?""",
+                    (self.relative, start)).fetchall():
+                metadata = {**json.loads(row["metadata_json"]), "compilation_status": "candidate", "compilation_guards": unclosed,
+                    "diagnostics": ["compile_condition_scope_unclosed"], "support_basis": "source_syntax_only"}
+                self.connection.execute("UPDATE relations SET status='candidate',target_entity_id=NULL,metadata_json=? WHERE relation_id=?",
+                    (json.dumps(metadata), row["relation_id"]))
 
 
 def _resolve_copies(connection, *, affected_paths=None, affected_target_names=None):
@@ -615,6 +718,9 @@ def _resolve_copies(connection, *, affected_paths=None, affected_target_names=No
             "WHERE relation_type='INCLUDES_COPY'" + where, arguments).fetchall():
         choices = aliases.get(row["target_name"], set())
         metadata = json.loads(row["metadata_json"])
+        if metadata.get("compilation_status") == "candidate":
+            connection.execute("UPDATE relations SET target_entity_id=NULL,status='candidate' WHERE relation_id=?", (row["relation_id"],))
+            continue
         # A library-qualified COPY is not resolved by an unqualified filename.
         if metadata.get("boundary") == "copy_replacing_or_library_not_expanded":
             connection.execute("UPDATE relations SET status='candidate',target_entity_id=NULL WHERE relation_id=?", (row["relation_id"],))
@@ -627,7 +733,8 @@ def _resolve_copies(connection, *, affected_paths=None, affected_target_names=No
 def build_business_index(source_root: Path, database_path: Path, *, extensions=DEFAULT_EXTENSIONS,
                          include_extensionless=False, encoding="auto", source_format="auto", quiet=False,
                          include_paths=None, progress=None, check_cancel=None, verify_content=False,
-                         catalog=None, entry_program=None, framework_reference_path=None, **_unused):
+                         catalog=None, entry_program=None, framework_reference_path=None,
+                         compilation_context=None, **_unused):
     """Index sparse facts, optionally following all unique static dependencies.
 
     File count, source bytes, and call depth do not impose a hidden scope cutoff.
@@ -718,6 +825,9 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
         previous = {row["relative_path"]: dict(row) for row in connection.execute("SELECT * FROM source_files")}
         options = {"encoding": encoding, "source_format": source_format, "extensions": sorted(extensions),
                    "include_extensionless": include_extensionless}
+        from compilation_context import resolve_compilation_context
+        compilation = resolve_compilation_context(compilation_context, source_options=options)
+        options["compilation_context"] = compilation.to_dict()
         options_json = json.dumps(options, sort_keys=True)
         rebuild = (prior.get("parser_version") != PARSER_VERSION or prior.get("source_options") != options_json
                    or prior.get("source_root_hash") != _content_hash(str(root)))
@@ -800,7 +910,7 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                     facts = _Facts(connection, relative, metadata, source_format, lambda done: emit(
                         "parsing", completed=len(selected) + len(input_skips), total=len(queued),
                         current_file=relative, file_completed=done, file_unit="lines"),
-                        copybook_hint=relative in copy_hints)
+                        copybook_hint=relative in copy_hints, compilation_context=compilation)
                     failed_input = None
                     lines = _physical_lines(path, metadata["encoding"], info)
                     try:

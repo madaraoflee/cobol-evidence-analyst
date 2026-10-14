@@ -176,8 +176,16 @@ class BusinessPromptCompactionTests(unittest.TestCase):
                 return TransportResponse(200, json.dumps({"choices": [{"message": {
                     "role": "assistant", "content": answer}, "finish_reason": "stop"}]}))
 
+            original_project = business_chat._compact_prompt_payload
             for compact in (False, True):
-                project = business_chat._compact_prompt_payload if compact else lambda value: value
+                def project(value, compact=compact):
+                    canonical = deepcopy(value)
+                    projected = original_project(value) if compact else value
+                    # Compare the same input, including its live SQL counters.
+                    # Encoding must preserve every value and leave authority intact.
+                    self.assertEqual(encoded(decoded_navigation(projected)), encoded(canonical))
+                    self.assertEqual(encoded(value), encoded(canonical))
+                    return projected
                 with mock.patch.object(business_chat, "_compact_prompt_payload", side_effect=project):
                     output = business_chat.run_business_chat(question, database, source, config,
                         framework_reference_path="", transport=transport, capture_context=True,
@@ -188,7 +196,17 @@ class BusinessPromptCompactionTests(unittest.TestCase):
             before_bytes, before = requests[0]
             after_bytes, after = requests[1]
             self.assertGreater(before_bytes - after_bytes, before_bytes * 0.10)
-            self.assertEqual(encoded(decoded_navigation(after)), encoded(before))
+            stable_before, stable_after = deepcopy(before), decoded_navigation(after)
+            for payload in (stable_before, stable_after):
+                for group in payload.get("evidence_groups", []):
+                    analysis = group.get("semantic_analysis", {})
+                    if "query_count" in analysis:
+                        # A warm flow cache performs fewer SQL queries. This
+                        # run diagnostic is not a source or semantic fact.
+                        count = analysis.pop("query_count")
+                        self.assertIs(type(count), int)
+                        self.assertGreaterEqual(count, 0)
+            self.assertEqual(encoded(stable_after), encoded(stable_before))
             self.assertEqual(traces[0]["sources"], traces[1]["sources"])
             self.assertEqual(traces[0]["context"]["sources"], traces[1]["context"]["sources"])
             self.assertEqual(after_bytes, traces[1]["request_bytes"])

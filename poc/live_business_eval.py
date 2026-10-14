@@ -18,6 +18,7 @@ import statistics
 import sys
 import time
 import hashlib
+import secrets
 
 from business_analysis import _TextResponseError, _extract_text
 from agent_policy import resolve_agent_policy
@@ -81,6 +82,136 @@ def _safe_write(path: Path, report: dict) -> None:
 
 
 SYNTHESIS_PROMPT_VERSION = "business-final-synthesis-v1"
+REVIEW_IDENTITY_VERSION = "business-review-identity/v2"
+
+
+def _fingerprint(value):
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
+                                    separators=(",", ":")).encode()).hexdigest()
+
+
+def _evidence_metadata(context):
+    """Keep actual supplied evidence identity without copying source into the form."""
+    sources = []
+    for row in context.get("sources", []):
+        sources.append({"evidence_id": row.get("evidence_id"),
+            "path": row.get("path", row.get("relative_path")),
+            "source_sha256": row.get("source_sha256"),
+            "start_line": row.get("start_line"), "end_line": row.get("end_line"),
+            "excerpt_sha256": row.get("excerpt_sha256") or (
+                hashlib.sha256(row["excerpt"].encode()).hexdigest() if "excerpt" in row else None),
+            "include_chain": row.get("include_chain", [])})
+    framework = []
+    for row in context.get("framework", []):
+        framework.append({"reference_id": row.get("reference_id"),
+            "document": row.get("document_name", row.get("document")),
+            "document_sha256": row.get("document_sha256"),
+            "range": row.get("range") or {"start_line": row.get("start_line"),
+                                           "end_line": row.get("end_line")},
+            "excerpt_sha256": row.get("excerpt_sha256") or (
+                hashlib.sha256(row["excerpt"].encode()).hexdigest() if "excerpt" in row else None)})
+    return {"sources": sorted(sources, key=_fingerprint),
+            "framework": sorted(framework, key=_fingerprint)}
+
+
+def _review_identity(*, run_id, case_id, turn_id, branch, answer, model, prompt,
+                     policy, gold, context, source_snapshot_id=None,
+                     framework_revision=None, evidence_status="supplied", question="", history=()):
+    evidence = _evidence_metadata(context)
+    identity = {"schema_version": REVIEW_IDENTITY_VERSION, "run_id": run_id,
+        "case_id": case_id, "turn_id": turn_id, "branch": branch,
+        "question_sha256": hashlib.sha256(question.encode()).hexdigest(),
+        "history_sha256": _fingerprint(history),
+        "answer_sha256": hashlib.sha256(answer.encode()).hexdigest(), "model": model,
+        "prompt": prompt, "policy_sha256": _fingerprint(policy),
+        "gold_sha256": _fingerprint(gold), "source_snapshot_id": source_snapshot_id,
+        "source_versions": sorted({row["source_sha256"] for row in evidence["sources"]
+                                   if row.get("source_sha256")}),
+        "framework_revision": framework_revision,
+        "framework_versions": sorted({row["document_sha256"] for row in evidence["framework"]
+                                      if row.get("document_sha256")}),
+        "evidence_fingerprint_status": evidence_status,
+        "evidence_sha256": _fingerprint(evidence)}
+    identity["identity_sha256"] = _fingerprint(identity)
+    return identity
+
+
+def _review_correctness(turn, review):
+    if not review:
+        return "not_reviewed"
+    gold = turn.get("gold") or {}
+    if not gold.get("required_findings") and not gold.get("forbidden_claims"):
+        return "pending"
+    if any(row.get("result") == "incorrect" for row in review.get("required_findings", [])) or any(
+            row.get("present") is True for row in review.get("forbidden_claims", [])):
+        return "incorrect"
+    if any(row.get("result") == "omitted" for row in review.get("required_findings", [])):
+        return "incomplete"
+    return "correct" if _review_status(turn, review) == "complete" else "pending"
+
+
+def _bind_review(row, turn, reviews):
+    """A complete form is useful only for the exact archived answer it reviewed."""
+    identity = row.get("review_identity")
+    candidates = [review for review in reviews if review.get("case_id") == identity["case_id"]
+                  and review.get("turn_id") == identity["turn_id"]
+                  and review.get("branch", "automatic") == identity["branch"]]
+    matched = next((review for review in candidates
+        if review.get("identity") == identity and review.get("run_id") == identity["run_id"]), None)
+    row["human_review"] = matched
+    row["review_binding_status"] = "matched" if matched else "stale" if candidates else "not_reviewed"
+    row["rejected_reviews"] = [{"run_id": review.get("run_id"),
+        "reason": "missing_identity" if not review.get("identity") else "identity_mismatch"}
+        for review in candidates if review is not matched]
+    row["quality_status"] = _review_status(turn, matched)
+    row["review_completion"] = row["quality_status"]
+    row["correctness_status"] = _review_correctness(turn, matched)
+
+
+def apply_reviews(report, items, reviews):
+    """Attach reviews to saved answers offline; rerunning a model creates new identities."""
+    turns = {(item["id"], turn["id"]): {**item, **turn}
+             for item in items for turn in _turns(item)}
+    for case in report.get("cases", []):
+        turn = turns.get((case["id"], case["turn_id"]))
+        if turn is None:
+            continue
+        rows = case.get("branches") or [case]
+        for row in rows:
+            identity = row.get("review_identity")
+            valid_identity = (isinstance(identity, dict)
+                and identity.get("schema_version") == REVIEW_IDENTITY_VERSION
+                and identity.get("identity_sha256") == _fingerprint({
+                    key: value for key, value in identity.items() if key != "identity_sha256"})
+                and identity.get("answer_sha256") == hashlib.sha256(row.get("answer", "").encode()).hexdigest()
+                and identity.get("case_id") == case["id"]
+                and identity.get("turn_id") == case["turn_id"]
+                and identity.get("branch") == row.get("name", "automatic")
+                and identity.get("question_sha256") == hashlib.sha256(case.get("question", "").encode()).hexdigest()
+                and case.get("question", "") == turn.get("question", "")
+                and identity.get("gold_sha256") == _fingerprint(turn.get("gold") or {}))
+            if not valid_identity:
+                row.update(human_review=None, review_binding_status="stale",
+                           quality_status="not_reviewed", review_completion="not_reviewed",
+                           correctness_status="not_reviewed")
+                continue
+            _bind_review(row, turn, reviews)
+        if case.get("branches"):
+            case["quality_status"], _ = _review_summary(rows)
+            case["review_completion"] = case["quality_status"]
+    report["quality_status"], report["review_counts"] = _review_summary(report.get("cases", []))
+    report["review_completion"] = report["quality_status"]
+    rows = [row for case in report.get("cases", []) for row in (case.get("branches") or [case])]
+    report["correctness_counts"] = {status: sum(row.get("correctness_status") == status for row in rows)
+        for status in ("not_reviewed", "pending", "correct", "incomplete", "incorrect")}
+    accepted = [row["human_review"] for row in rows if row.get("human_review")]
+    report["reviewed_findings"] = {result: sum(finding.get("result") == result
+        for review in accepted for finding in review.get("required_findings", []))
+        for result in ("met", "omitted", "incorrect")}
+    report["unsupported_claims_present"] = sum(claim.get("present") is True
+        for review in accepted for claim in review.get("forbidden_claims", []))
+    report["stale_review_count"] = sum(row.get("review_binding_status") == "stale" for row in rows)
+    return report
 
 
 def _turns(item):
@@ -200,25 +331,29 @@ def _review_status(turn, review):
 def _review_summary(cases):
     counts = {"not_reviewed": 0, "partial": 0, "complete": 0}
     for case in cases:
-        counts[case["quality_status"]] += 1
-    status = "complete" if counts["complete"] == len(cases) and cases else (
+        for row in (case.get("branches") or [case]):
+            counts[row["quality_status"]] += 1
+    status = "complete" if counts["complete"] == sum(counts.values()) and cases else (
         "partial" if counts["partial"] or counts["complete"] else "not_reviewed")
     return status, counts
 
 
 def review_template(items, report):
     """Export an unscored human review form; empty fields never imply a pass."""
-    runs = {(row["id"], row["turn_id"]): row.get("run_id") for row in report.get("cases", [])}
-    return {"schema_version": "business-human-review/v1", "reviews": [{
-        "case_id": item["id"], "turn_id": turn["id"],
-        "run_id": runs.get((item["id"], turn["id"])), "reviewer": "", "reviewed_at": None,
+    answers = {(row["id"], row["turn_id"]): row for row in report.get("cases", [])}
+    return {"schema_version": "business-human-review/v2", "reviews": [{
+        "case_id": item["id"], "turn_id": turn["id"], "branch": row.get("name", "automatic"),
+        "run_id": row.get("run_id"), "identity": row.get("review_identity"),
+        "reviewer": "", "reviewed_at": None,
         "required_findings": [{"id": finding["id"], "result": None, "note": ""}
             for finding in (turn.get("gold", item.get("gold", {})) or {}).get("required_findings", [])],
         "forbidden_claims": [{"id": claim.get("id", str(index)) if isinstance(claim, dict) else str(index),
                               "present": None, "note": ""}
             for index, claim in enumerate((turn.get("gold", item.get("gold", {})) or {}).get("forbidden_claims", []), 1)],
         "usefulness": None, "followup_continuity": None, "comments": ""
-    } for item in items for turn in _turns(item)]}
+    } for item in items for turn in _turns(item)
+      for row in (answers.get((item["id"], turn["id"]), {}).get("branches") or
+                  [answers.get((item["id"], turn["id"]), {})])]}
 
 
 def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_network: bool = False,
@@ -244,13 +379,16 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
     turns = sum(len(_turns(item)) for item in items)
     per_turn = policy.max_model_requests if mode == "automatic" else 2 if mode == "paired-synthesis" else 1
     preflight_count = int(bool(preflight))
-    reviews = {}
+    reviews = []
     if reviews_file is not None and Path(reviews_file).is_file():
         review_data = json.loads(Path(reviews_file).read_text(encoding="utf-8"))
-        reviews = {(row.get("case_id"), row.get("turn_id")): row for row in review_data.get("reviews", [])}
+        reviews = review_data.get("reviews", [])
+        if not isinstance(reviews, list) or any(not isinstance(row, dict) for row in reviews):
+            raise ValueError("EVALUATION_REVIEWS_INVALID")
     missing_captures = [f"{item['id']}/{turn['id']}" for item in items for turn in _turns(item)
         if mode == "paired-synthesis" and not (evaluation_dir / "captures" / f"{item['id']}-{turn['id']}.json").is_file()]
-    report = {"schema_version": "live-business-eval/v2", "created_at_utc": datetime.now(timezone.utc).isoformat(),
+    report = {"schema_version": "live-business-eval/v3", "evaluation_run_id": secrets.token_hex(12),
+              "created_at_utc": datetime.now(timezone.utc).isoformat(),
               "configuration": config.safe_summary(), "case_count": len(items),
               "plan": {"case_count": len(items), "user_turn_count": turns, "mode": mode,
                        "profile": profile, "preflight_model_requests": preflight_count,
@@ -306,8 +444,7 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
             for turn in _turns(item):
                 started = time.monotonic()
                 case_result = {"id": item["id"], "turn_id": turn["id"], "question": turn["question"],
-                    "mode": mode, "quality_status": _review_status(turn, reviews.get((item["id"], turn["id"]))),
-                    "human_review": reviews.get((item["id"], turn["id"])), "branches": []}
+                    "mode": mode, "quality_status": "not_reviewed", "branches": []}
                 try:
                     reviewed = _reviewed_context(source, turn, _framework_path(framework))
                     branches = [("reviewed", reviewed)]
@@ -331,9 +468,21 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                             raise ValueError("SYNTHESIS_CONTEXT_TOO_LARGE")
                         response = client.complete(messages=messages)
                         answer = _extract_text(response)
-                        case_result["branches"].append({"name": branch_name, "answer": answer.text,
+                        branch_result = {"name": branch_name, "answer": answer.text,
+                            "run_id": report["evaluation_run_id"] + ":" + branch_name,
+                            "quality_status": "not_reviewed",
                             "request_bytes": len(request), "request_sha256": hashlib.sha256(request).hexdigest(),
-                            "usage": response.get("usage"), "truncated": answer.truncated})
+                            "usage": response.get("usage"), "truncated": answer.truncated}
+                        branch_result["review_identity"] = _review_identity(
+                            run_id=branch_result["run_id"], case_id=item["id"], turn_id=turn["id"],
+                            branch=branch_name, answer=answer.text, model=config.chat_model,
+                            prompt={"version": SYNTHESIS_PROMPT_VERSION,
+                                    "system_sha256": hashlib.sha256(messages[0]["content"].encode()).hexdigest(),
+                                    "request_sha256": hashlib.sha256(request).hexdigest()},
+                            policy=policy.to_dict(), gold=turn.get("gold", item.get("gold", {})) or {},
+                            context=context, source_snapshot_id=item.get("source_snapshot_id"),
+                            framework_revision=item.get("framework_revision"), question=turn["question"], history=history)
+                        case_result["branches"].append(branch_result)
                 except (ValueError, OSError, APIClientError, _TextResponseError) as exc:
                     case_result["error"] = getattr(exc, "code", str(exc))
                 case_result["elapsed_seconds"] = round(time.monotonic() - started, 3)
@@ -341,8 +490,7 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                 report["cases"].append(case_result)
         report["latency_seconds"] = {"p50": round(statistics.median(durations), 3) if durations else None,
                                      "p95": _percentile(durations, .95)}
-        report["quality_status"], report["review_counts"] = _review_summary(report["cases"])
-        return report
+        return apply_reviews(report, items, reviews)
 
     evaluation_dir.mkdir(parents=True, exist_ok=True)
     database = evaluation_dir / "structural-index.sqlite"
@@ -380,7 +528,7 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
         metrics = agent.get("metrics", {})
         expected = list(dict.fromkeys(item.get("expected_source_paths", [])))
         result = {"id": item["id"], "question": item["question"], "conversation": conversation,
-                  "turn_id": item["turn_id"], "quality_status": _review_status(item, reviews.get((item["id"], item["turn_id"]))),
+                  "turn_id": item["turn_id"], "quality_status": "not_reviewed",
                   "elapsed_seconds": elapsed, "model_requests": metrics.get("model_requests"),
                   "metrics": metrics, "policy": metrics.get("policy", policy.to_dict()),
                   "usage": metrics.get("usage"), "tool_calls": metrics.get("tool_calls", {}),
@@ -393,12 +541,34 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                   "expected_paths_navigated": sorted(set(expected) & set(navigation_paths)),
                   "expected_paths_retrieved": sorted(set(expected) & set(retrieved_paths)),
                   "expected_paths_cited": sorted(set(expected) & set(cited_paths)),
-                  "review_checks": item.get("review_checks", []),
-                  "human_review": reviews.get((item["id"], item["turn_id"]))}
+                  "review_checks": item.get("review_checks", [])}
         report["cases"].append(result)
-        if capture_context and metrics.get("quality_trace_path"):
+        trace = {}
+        if metrics.get("quality_trace_path"):
             trace = json.loads(Path(metrics["quality_trace_path"]).read_text(encoding="utf-8"))
             result["run_id"] = trace.get("run_id")
+        result["run_id"] = result["run_id"] or report["evaluation_run_id"] + ":" + item["id"] + ":" + item["turn_id"]
+        final = trace.get("final", {})
+        final_rounds = set(final.get("final_answer_round_ids", []))
+        if final.get("final_answer_round_id"):
+            final_rounds.add(final["final_answer_round_id"])
+        actual_rounds = [row for row in trace.get("rounds", []) if row.get("round_id") in final_rounds]
+        actual_context = {kind: [entry for row in actual_rounds for entry in row.get(kind, [])]
+                          for kind in ("sources", "framework")}
+        result["review_identity"] = _review_identity(
+            run_id=result["run_id"], case_id=item["id"], turn_id=item["turn_id"], branch="automatic",
+            answer=result["answer"], model=config.chat_model,
+            prompt={"version": trace.get("prompt_version", "unknown"),
+                    "system_sha256": hashlib.sha256(_SYSTEM.encode()).hexdigest(),
+                    "request_sha256": [row.get("request_body_sha256") for row in actual_rounds]},
+            policy=result["policy"], gold=item.get("gold") or {}, context=actual_context,
+            source_snapshot_id=trace.get("analysis_revision", agent.get("snapshot_id", overview["snapshot_id"])),
+            framework_revision=item.get("framework_revision"),
+            evidence_status="supplied" if actual_rounds else "unavailable", question=item["question"], history=frozen_history)
+        result["supplied_source_paths"] = sorted({row.get("path", row.get("relative_path"))
+            for row in actual_context["sources"] if row.get("path", row.get("relative_path"))})
+        result["expected_paths_supplied"] = sorted(set(expected) & set(result["supplied_source_paths"]))
+        if capture_context and trace:
             round_id = trace.get("final", {}).get("final_answer_round_id")
             answer_round = next((row for row in trace.get("rounds", []) if row["round_id"] == round_id), None)
             if answer_round and answer_round.get("context"):
@@ -427,8 +597,7 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                          "investigation_state": agent.get("investigation_state")}))
     report["latency_seconds"] = {"p50": round(statistics.median(durations), 3),
                                  "p95": _percentile(durations, .95)}
-    report["quality_status"], report["review_counts"] = _review_summary(report["cases"])
-    return report
+    return apply_reviews(report, items, reviews)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -446,6 +615,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-output-tokens", type=int)
     parser.add_argument("--capture-context", action="store_true")
     parser.add_argument("--reviews", type=Path)
+    parser.add_argument("--review-report", type=Path,
+                        help="Apply reviews to an archived report locally without generating new answers.")
     parser.add_argument("--review-template", type=Path,
                         help="Write an unscored JSON form for independent human review.")
     parser.add_argument("--no-preflight", action="store_true")
@@ -457,7 +628,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     report_path = args.evaluation_dir.expanduser().resolve() / "live-business-eval.json"
     try:
-        report = evaluate(args.source, args.evaluation_dir, args.cases,
+        if args.review_report:
+            if not args.reviews:
+                raise ValueError("EVALUATION_REVIEWS_REQUIRED")
+            report = json.loads(args.review_report.expanduser().resolve(strict=True).read_text(encoding="utf-8"))
+            review_data = json.loads(args.reviews.expanduser().resolve(strict=True).read_text(encoding="utf-8"))
+            review_items = _cases(args.cases.expanduser().resolve(strict=True))
+            report = apply_reviews(report, review_items, review_data.get("reviews", []))
+        else:
+            report = evaluate(args.source, args.evaluation_dir, args.cases,
                           allow_network=args.allow_network, source_format=args.source_format,
                           encoding=args.encoding, framework=args.framework, plan=args.plan,
                           policy=load_agent_policy(args.agent_settings), case_id=args.case_id,

@@ -121,12 +121,18 @@ class CompleteSourceBudgetTests(unittest.TestCase):
         self.assertEqual(self.pages(payload)[0]["source_text"], text.rstrip("\n"))
         self.assertTrue(payload["source_context"][0]["working_set"]["complete_root_budget_applied"])
 
-    def test_unresolved_question_and_selected_entry_keep_the_excerpt_budget(self):
-        self.build({"root.cbl": program("ROOT-RULE", 51000)})
+    def test_unique_selected_entry_receives_the_complete_root_budget(self):
+        text = program("ROOT-RULE", 51000)
+        self.build({"root.cbl": text})
         payload, _ = self.ask(question="billing 的处理逻辑是什么？", entry="root.cbl")
-        self.assertEqual(payload["business_map"]["source_identity"]["status"], "none")
-        self.assertNotIn("working_set", payload["source_context"][0])
-        self.assertLessEqual(sum(len(page["source_text"]) for page in self.pages(payload)), 36000)
+        self.assertEqual(payload["business_map"]["source_identity"]["status"], "resolved")
+        self.assertEqual(payload["business_map"]["direct_paths"], ["root.cbl"])
+        self.assertEqual(len(self.pages(payload)), 1)
+        self.assertEqual(self.pages(payload)[0]["source_text"], text.rstrip("\n"))
+        working_set = payload["source_context"][0]["working_set"]
+        self.assertTrue(working_set["physical_complete"])
+        self.assertTrue(working_set["complete_root_budget_applied"])
+        self.assertEqual(working_set["root_paths"], ["root.cbl"])
 
     def test_dependencies_do_not_receive_the_roots_larger_allowance(self):
         self.build({"root.cbl": program("ROOT-RULE", 51000,

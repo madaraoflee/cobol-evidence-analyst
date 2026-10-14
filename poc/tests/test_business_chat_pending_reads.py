@@ -79,6 +79,17 @@ class PendingSourceReadTests(unittest.TestCase):
         self.assertTrue(result["narrative"]["citations"])
         self.assertLessEqual({row["evidence_id"] for row in result["narrative"]["citations"]}, first_ids)
 
+    def assert_reads_are_budgeted_and_unique(self, result, policy):
+        self.assertLessEqual(result["metrics"]["tool_calls"]["read"], len(self.requests) * policy.max_reads_per_turn)
+        actual = [action["read"] for action in result["investigation_state"]["completed_actions"] if "read" in action]
+        locations = [(read.get("relative_path"), read.get("start_line"), read.get("end_line"), read.get("evidence_id")) for read in actual]
+        self.assertEqual(len(locations), len(set(locations)))
+        previous_reads = 0
+        for payload in self.requests:
+            reads = sum("read" in action for action in payload["completed_actions"])
+            self.assertLessEqual(reads - previous_reads, policy.max_reads_per_turn)
+            previous_reads = reads
+
     def test_calculation_reads_pending_source_on_next_budgeted_turn(self):
         self.build()
         result = self.ask()
@@ -89,13 +100,10 @@ class PendingSourceReadTests(unittest.TestCase):
         final_text = "\n".join(page["source_text"] for page in self.pages(self.requests[-1]))
         self.assertNotIn("COMPUTE AMOUNT-7", first_text)
         self.assertIn("COMPUTE AMOUNT-7", final_text)
+        for index in range(8):
+            self.assertIn(f"COMPUTE AMOUNT-{index}", final_text)
         self.assertEqual(result["stop_reason"], "sufficient_material")
-        self.assertEqual(result["metrics"]["tool_calls"]["read"], 4)
-        previous_reads = 0
-        for payload in self.requests:
-            reads = sum("read" in action for action in payload["completed_actions"])
-            self.assertLessEqual(reads - previous_reads, self.policy.max_reads_per_turn)
-            previous_reads = reads
+        self.assert_reads_are_budgeted_and_unique(result, self.policy)
 
     def test_final_request_budget_does_not_allow_an_extra_turn(self):
         self.build()
@@ -141,12 +149,17 @@ class PendingSourceReadTests(unittest.TestCase):
 
     def test_transmission_omissions_do_not_spend_all_remaining_requests(self):
         self.build()
-        result = self.ask(policy=replace(self.policy, max_source_characters=4096))
+        policy = replace(self.policy, max_source_characters=4096)
+        result = self.ask(policy=policy)
         self.assertEqual(len(self.requests), 2)
         self.assertTrue(self.requests[-1]["question_investigation"]["planned_actions"])
         self.assertIn("retrieved_source_not_visible", {
             row.get("reason") for row in result["investigation_state"]["completed_actions"]})
-        self.assertEqual(result["metrics"]["tool_calls"]["read"], 4)
+        self.assert_reads_are_budgeted_and_unique(result, policy)
+        final_pages = self.pages(self.requests[-1])
+        self.assertTrue(any("COMPUTE AMOUNT-7" in page["source_text"] for page in final_pages))
+        self.assertLessEqual({ref["evidence_id"] for ref in result["narrative"]["citations"]},
+                             {page["evidence_id"] for page in final_pages})
         self.assertEqual(result["stop_reason"], "question_evidence_incomplete")
 
 

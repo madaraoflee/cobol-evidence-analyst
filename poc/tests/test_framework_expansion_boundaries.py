@@ -48,13 +48,17 @@ class FrameworkExpansionBoundaryTests(unittest.TestCase):
                                         "4000-HANDLE SECTION.\nREAD SOURCE-FILE.\nGOBACK."))
         self.assert_suppressed(audit_framework(self.root, "ENTRYPG"), "replace_statement_not_supported")
 
-    def test_copy_replacement_pseudotext_cannot_create_a_call_observation(self) -> None:
+    def test_legal_copy_replacement_emits_real_call_with_replacement_provenance(self) -> None:
         self.write("entry.cbl", program("COPY CONTROL REPLACING ==TOKEN== BY ==CALL 'PHANTOM'==.\nGOBACK."))
         self.write("control.cpy", "TOKEN.\n")
         result = audit_framework(self.root, "ENTRYPG")
-        self.assert_suppressed(result, "copy_form_not_supported")
+        self.assertTrue(result["scope"]["source_expansion_complete"])
+        calls = result["observations"]["calls"]
+        self.assertEqual([row["target"] for row in calls], ["PHANTOM"])
+        self.assertEqual(calls[0]["references"][0]["origin"]["relative_path"], "control.cpy")
+        self.assertEqual(calls[0]["references"][0]["replacement_trace"][0]["to"], "CALL 'PHANTOM'")
         self.assertTrue(result["observations"]["includes"])
-        self.assertEqual(result["observations"]["includes"][0]["status"], "bounded")
+        self.assertEqual(result["observations"]["includes"][0]["status"], "expanded")
 
     def test_inline_copy_does_not_leave_following_tokens_as_analyzed_procedure(self) -> None:
         self.write("entry.cbl", program("CONTINUE. COPY CONTROL. CALL 'WORKER'.\nGOBACK."))
@@ -71,7 +75,7 @@ class FrameworkExpansionBoundaryTests(unittest.TestCase):
     def test_conditional_source_directive_cannot_promote_disabled_call(self) -> None:
         self.write("entry.cbl", program(
             ">>IF FEATURE\nCALL 'CONDITIONALWORKER'.\n>>END-IF\nGOBACK."))
-        self.assert_suppressed(audit_framework(self.root, "ENTRYPG"), "source_directive_not_supported")
+        self.assert_suppressed(audit_framework(self.root, "ENTRYPG"), "compile_condition_unknown")
 
     def test_nested_boundary_suppresses_host_and_included_procedure_observations(self) -> None:
         self.write("entry.cbl", program("COPY CONTROL.\nHOST-PATH.\nCALL 'HOSTWORKER'.\nGOBACK."))

@@ -1,0 +1,59 @@
+{
+  "schema_version": "business-upgrade-offline-verification/v1",
+  "baseline": {
+    "commit": "d8eda68",
+    "python_tests_passed": 2140
+  },
+  "actual_head": "d8eda6837e3306c762126fdc83679003bb060153",
+  "actual_branch": "main",
+  "python_runtime": "3.14.4",
+  "code_snapshot_scope": "poc Python, web, configuration and source fixtures; excludes bytecode and generated reports",
+  "code_file_count": 427,
+  "code_sha256_before": "b1ec01f41e870d709bd91099d9b18033c6665892456bab82408259aa15c44c64",
+  "code_sha256_after": "b1ec01f41e870d709bd91099d9b18033c6665892456bab82408259aa15c44c64",
+  "code_unchanged_during_checks": true,
+  "changed_code_files": [],
+  "public_corpus_commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+  "checks": [
+    {
+      "name": "python_unittest",
+      "exit_code": 0,
+      "test_count": 2336,
+      "elapsed_seconds": 117.033,
+      "status": "passed"
+    },
+    {
+      "name": "web_node_tests",
+      "exit_code": 0,
+      "test_count": 162,
+      "elapsed_seconds": 5.12,
+      "status": "passed"
+    },
+    {
+      "name": "python_3_10_syntax",
+      "file_count": 294,
+      "status": "passed"
+    },
+    {
+      "name": "node_syntax",
+      "path": "poc/web/app.js",
+      "exit_code": 0,
+      "status": "passed"
+    },
+    {
+      "name": "node_syntax",
+      "path": "poc/web/i18n.js",
+      "exit_code": 0,
+      "status": "passed"
+    },
+    {
+      "name": "git_diff_check",
+      "exit_code": 0,
+      "status": "passed"
+    }
+  ],
+  "company_model_validation": "not_run",
+  "enterprise_dialect_validation": "not_run",
+  "new_paid_requests": 0,
+  "push_or_publish": "not_authorized_not_performed"
+}

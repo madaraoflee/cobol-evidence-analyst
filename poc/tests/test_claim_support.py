@@ -263,10 +263,22 @@ GOLDEN_CASES = [
         UNSUPPORTED_SOURCE,
     ),
     (
-        "exponentiation_outside_grammar",
+        "exponentiation_missing_from_assertion",
         "COMPUTE OUT-AMOUNT = IN-AMOUNT ** 2.",
         assertion(),
-        UNSUPPORTED_SOURCE,
+        MISMATCH,
+    ),
+    (
+        "exponentiation_exact_tokens",
+        "COMPUTE OUT-AMOUNT = IN-AMOUNT ** 2.",
+        assertion(["IN-AMOUNT", "**", "2"]),
+        MATCH,
+    ),
+    (
+        "exponentiation_is_not_multiplication",
+        "COMPUTE OUT-AMOUNT = IN-AMOUNT ** 2.",
+        assertion(["IN-AMOUNT", "*", "2"]),
+        MISMATCH,
     ),
     (
         "unbalanced_parentheses",

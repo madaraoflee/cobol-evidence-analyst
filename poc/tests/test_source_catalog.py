@@ -47,6 +47,11 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertEqual(after['snapshot_id'], before['snapshot_id'])
         self.assertFalse(after['source_manifest_verified'])
 
+    def test_program_header_literal_text_does_not_create_a_catalog_entry(self):
+        self.write('main.cbl', program('MAIN-ENTRY', "DISPLAY 'PROGRAM-ID. PHANTOM'.\nGOBACK.\n"))
+        result = self.refresh()
+        self.assertEqual([item['program_name'] for item in result['programs']], ['MAIN-ENTRY'])
+
     def test_single_change_new_file_and_deletion_invalidate_only_affected(self):
         removed = self.write('removed.cbl', program('OLD-WORK'))
         changed = self.write('changed.cbl', program('FIRST-WORK'))

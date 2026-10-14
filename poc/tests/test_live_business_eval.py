@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import copy
 from pathlib import Path
 import sys
 import tempfile
@@ -12,11 +13,162 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from company_api import APIClientError, CompanyAPIConfig
 from agent_policy import AgentPolicy
-from live_business_eval import evaluate, main, review_template, _review_status, _review_summary, SYNTHESIS_PROMPT_VERSION
+from live_business_eval import (evaluate, main, review_template, _review_status, _review_summary,
+                                SYNTHESIS_PROMPT_VERSION, _review_identity, apply_reviews)
 from company_api import TransportResponse
 
 
 class LiveBusinessEvalTests(unittest.TestCase):
+    def _archived_answer(self, *, run_id="run-a", branch="automatic", answer="The result doubles."):
+        item = {"id": "flow", "question": "How is the result computed?", "gold": {
+            "required_findings": [{"id": "formula"}], "forbidden_claims": [{"id": "extra"}]}}
+        identity = _review_identity(run_id=run_id, case_id="flow", turn_id="flow", branch=branch,
+            answer=answer, model="test-model", prompt={"version": "prompt-a", "system_sha256": "prompt-hash"},
+            policy={"max_model_requests": 2}, gold=item["gold"], source_snapshot_id="snapshot-a",
+            question=item["question"],
+            framework_revision="manual-a", context={"sources": [{"evidence_id": "ev-a",
+                "path": "entry.cbl", "source_sha256": "source-a", "start_line": 4, "end_line": 4,
+                "excerpt": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2."}],
+                "framework": [{"reference_id": "ref-a", "document_sha256": "manual-sha",
+                    "document_name": "manual.md", "start_line": 1, "end_line": 2, "excerpt": "Manual."}]})
+        row = {"id": "flow", "turn_id": "flow", "run_id": run_id,
+               "answer": answer, "question": item["question"], "quality_status": "not_reviewed", "review_identity": identity}
+        if branch != "automatic":
+            row["name"] = branch
+        report = {"cases": [row]}
+        review = review_template([item], report)["reviews"][0]
+        review.update(required_findings=[{"id": "formula", "result": "met"}],
+                      forbidden_claims=[{"id": "extra", "present": False}],
+                      usefulness="usable", followup_continuity="not_applicable")
+        return item, report, review
+
+    def test_identity_binds_all_versions_and_never_reuses_old_case_scores(self):
+        item, report, review = self._archived_answer()
+        accepted = apply_reviews(copy.deepcopy(report), [item], [review])
+        self.assertEqual(accepted["correctness_counts"]["correct"], 1)
+        self.assertEqual(accepted["review_completion"], "complete")
+        for field in ("run_id", "case_id", "turn_id", "branch", "answer_sha256", "model", "prompt",
+                      "policy_sha256", "gold_sha256", "source_snapshot_id", "source_versions",
+                      "framework_revision", "framework_versions", "evidence_sha256", "question_sha256", "history_sha256"):
+            with self.subTest(field=field):
+                changed = copy.deepcopy(review)
+                changed["identity"][field] = "changed"
+                stale = apply_reviews(copy.deepcopy(report), [item], [changed])["cases"][0]
+                self.assertIsNone(stale["human_review"])
+                self.assertEqual(stale["review_binding_status"], "stale")
+                self.assertEqual(stale["correctness_status"], "not_reviewed")
+        legacy = {key: value for key, value in review.items() if key != "identity"}
+        rejected = apply_reviews(copy.deepcopy(report), [item], [legacy])["cases"][0]
+        self.assertEqual(rejected["rejected_reviews"][0]["reason"], "missing_identity")
+
+    def test_changed_answer_or_gold_invalidates_review_but_live_source_is_irrelevant(self):
+        item, report, review = self._archived_answer()
+        changed_answer = copy.deepcopy(report)
+        changed_answer["cases"][0]["answer"] = "The result is zero."
+        self.assertEqual(apply_reviews(changed_answer, [item], [review])["correctness_counts"]["correct"], 0)
+        changed_gold = {**item, "gold": {"required_findings": [{"id": "new-condition"}]}}
+        self.assertIsNone(apply_reviews(copy.deepcopy(report), [changed_gold], [review])["cases"][0]["human_review"])
+        # Saved evidence identities are checked locally; current filesystem state does not replace them.
+        with mock.patch("live_business_eval._safe_file", side_effect=AssertionError("live source must not be read")):
+            self.assertEqual(apply_reviews(report, [item], [review])["correctness_counts"]["correct"], 1)
+
+    def test_complete_review_form_and_correct_answer_are_separate_metrics(self):
+        item, report, review = self._archived_answer()
+        review["required_findings"][0]["result"] = "omitted"
+        reviewed = apply_reviews(report, [item], [review])
+        self.assertEqual(reviewed["review_completion"], "complete")
+        self.assertEqual(reviewed["correctness_counts"]["incomplete"], 1)
+        self.assertEqual(reviewed["reviewed_findings"]["omitted"], 1)
+        review["forbidden_claims"][0]["present"] = True
+        reviewed = apply_reviews(report, [item], [review])
+        self.assertEqual(reviewed["correctness_counts"]["incorrect"], 1)
+        self.assertEqual(reviewed["unsupported_claims_present"], 1)
+
+    def test_empty_gold_does_not_turn_complete_form_into_correctness_pass(self):
+        item, report, review = self._archived_answer()
+        item["gold"] = {}
+        row = report["cases"][0]
+        row["review_identity"] = _review_identity(run_id=row["run_id"], case_id="flow", turn_id="flow",
+            branch="automatic", answer=row["answer"], model="test-model", prompt={}, policy={}, gold={},
+            context={}, question=item["question"])
+        review["identity"] = row["review_identity"]
+        review["required_findings"], review["forbidden_claims"] = [], []
+        result = apply_reviews(report, [item], [review])
+        self.assertEqual(result["review_completion"], "complete")
+        self.assertEqual(result["correctness_counts"]["correct"], 0)
+        self.assertEqual(result["correctness_counts"]["pending"], 1)
+
+    def test_paired_branch_reviews_do_not_cross_attach(self):
+        item, first, review = self._archived_answer(branch="reviewed")
+        _, second, _ = self._archived_answer(branch="automatic_context")
+        report = {"cases": [{"id": "flow", "turn_id": "flow", "question": item["question"], "quality_status": "not_reviewed",
+            "branches": [first["cases"][0], second["cases"][0]]}]}
+        forms = review_template([item], report)["reviews"]
+        self.assertEqual([row["branch"] for row in forms], ["reviewed", "automatic_context"])
+        reviewed = apply_reviews(report, [item], [review])
+        self.assertEqual(reviewed["review_counts"], {"not_reviewed": 1, "partial": 0, "complete": 1})
+        self.assertEqual(reviewed["correctness_counts"]["correct"], 1)
+        self.assertIsNone(reviewed["cases"][0]["branches"][1]["human_review"])
+
+    def test_automatic_identity_uses_final_supplied_trace_without_capture_option(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "source"
+            source.mkdir()
+            cases = root / "cases.json"
+            item = {"id": "flow", "question": "How is the result computed?", "expected_source_paths": ["final.cbl"],
+                    "gold": {"required_findings": [{"id": "formula"}]}}
+            cases.write_text(json.dumps({"cases": [item]}), encoding="utf-8")
+            trace = root / "trace.json"
+            trace.write_text(json.dumps({"run_id": "trace-run", "prompt_version": "prompt-b",
+                "analysis_revision": "actually-read-snapshot", "final": {"final_answer_round_id": "round-2"},
+                "rounds": [{"round_id": "round-1", "sources": [{"path": "earlier.cbl", "source_sha256": "old"}]},
+                    {"round_id": "round-2", "sources": [{"evidence_id": "ev-final", "path": "final.cbl",
+                        "source_sha256": "final-hash", "start_line": 3, "end_line": 3,
+                        "excerpt_sha256": "excerpt-hash"}], "framework": []}]}), encoding="utf-8")
+            old_review = root / "old-review.json"
+            old_review.write_text(json.dumps({"reviews": [{"case_id": "flow", "turn_id": "flow", "run_id": "old",
+                "required_findings": [{"id": "formula", "result": "met"}], "forbidden_claims": [],
+                "usefulness": "usable", "followup_continuity": "not_applicable"}]}), encoding="utf-8")
+            output = {"runner_status": "COMPLETED", "agent_result": {"answer": "The result doubles.",
+                "metrics": {"quality_trace_path": str(trace)}, "evidence_refs": [], "investigation": {}}}
+            config = CompanyAPIConfig("https://gateway.example.invalid/v1", "test-model", api_key="test-key")
+            with mock.patch("live_business_eval.build_business_index"), \
+                    mock.patch("live_business_eval.ensure_repository_search", return_value={"snapshot_id": "indexed", "indexed_files": 2}), \
+                    mock.patch("live_business_eval.run_business_chat", return_value=output):
+                report = evaluate(source, root / "evaluation", cases, allow_network=True, preflight=False,
+                                  config=config, framework="", reviews_file=old_review)
+            row = report["cases"][0]
+            self.assertEqual(row["run_id"], "trace-run")
+            self.assertEqual(row["review_identity"]["source_versions"], ["final-hash"])
+            self.assertEqual(row["review_identity"]["source_snapshot_id"], "actually-read-snapshot")
+            self.assertEqual(row["review_identity"]["prompt"]["version"], "prompt-b")
+            self.assertEqual(row["expected_paths_supplied"], ["final.cbl"])
+            self.assertEqual(row["supplied_source_paths"], ["final.cbl"])
+            self.assertIsNone(row["human_review"])
+            self.assertEqual(row["review_binding_status"], "stale")
+            self.assertEqual(report["stale_review_count"], 1)
+
+    def test_archived_review_cli_never_constructs_model_client(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            item, report, review = self._archived_answer()
+            report.update(model_preflight={"status": "responded"}, index_seconds=0, latency_seconds={},
+                          case_count=1, plan={})
+            saved = root / "saved.json"
+            saved.write_text(json.dumps(report), encoding="utf-8")
+            cases = root / "cases.json"
+            cases.write_text(json.dumps({"cases": [item]}), encoding="utf-8")
+            reviews = root / "reviews.json"
+            reviews.write_text(json.dumps({"reviews": [review]}), encoding="utf-8")
+            with mock.patch("live_business_eval.OpenAICompatibleChatClient", side_effect=AssertionError("model")), \
+                    mock.patch("builtins.print"):
+                code = main(["--source", str(root / "absent-live-source"), "--evaluation-dir", str(root / "evaluation"),
+                             "--cases", str(cases), "--review-report", str(saved), "--reviews", str(reviews)])
+            self.assertEqual(code, 0)
+            reviewed = json.loads((root / "evaluation" / "live-business-eval.json").read_text(encoding="utf-8"))
+            self.assertEqual(reviewed["correctness_counts"]["correct"], 1)
+
     def test_human_review_requires_each_finding_and_exports_unscored_form(self):
         turn = {"id": "next", "question": "Why?", "gold": {
             "required_findings": [{"id": "input"}, {"id": "result"}],

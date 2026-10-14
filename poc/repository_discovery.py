@@ -420,7 +420,7 @@ def _dependency_selection(connection, seeds, all_paths, check_cancel):
 
 
 def discover_repository(database_path, question, *, search_terms=None, focus_paths=None, check_cancel=None,
-                        fallback_to_repository=True):
+                        fallback_to_repository=True, entry_program=None):
     """Retrieve all matching files, then expand supported static dependencies.
 
     The evidence preview is bounded, but matching paths are not top-k clipped.
@@ -442,9 +442,10 @@ def discover_repository(database_path, question, *, search_terms=None, focus_pat
         if stale or missing:
             raise ValueError("REPOSITORY_SEARCH_STALE")
         overview = json.loads(search_metadata["overview"])
-        identity = resolve_source_identity(connection, question, search_terms, focus_paths=focus_paths)
+        identity = resolve_source_identity(connection, question, search_terms, focus_paths=focus_paths,
+                                           entry_program=entry_program)
         blocked = identity_blocks_analysis(identity)
-        scope_sql, scope_values = identity_sql_scope(identity)
+        scope_sql, scope_values = identity_sql_scope(identity, supplemental=bool(search_terms))
         all_paths = {row[0] for row in connection.execute("SELECT relative_path FROM source_files")}
         query = " OR ".join('"' + term.replace('"', '""') + '"' for term in terms)
         matches, seeds, matched_count = [], set(identity["direct_paths"]), 0
@@ -490,6 +491,10 @@ def discover_repository(database_path, question, *, search_terms=None, focus_pat
                                    {"score": 0, "snippet": snippet, "snippet_char_offset": offset})
         fallback = not seeds and not blocked and fallback_to_repository
         paths, reasons, deferred, unresolved = _dependency_selection(connection, all_paths if fallback else seeds, all_paths, check_cancel)
+        if identity.get("exclusive_source_scope") and identity["direct_paths"]:
+            paths = sorted(identity["direct_paths"])
+            reasons = [{"relative_path": path, "reasons": ["source_identity"]} for path in paths]
+            deferred, unresolved = [], []
         if fallback:
             paths = sorted(all_paths)
             reasons = [{"relative_path": relative, "reasons": ["no_text_match_repository_fallback"]} for relative in paths]
@@ -870,7 +875,7 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
 
 def retrieve_repository_context(database_path, source_root, question, *, search_terms=None, focus_paths=None,
                                 prior_paths=None, max_pages=8, max_chars=32000, check_cancel=None,
-                                source_session=None):
+                                source_session=None, entry_program=None):
     """Retrieve a small evidence bundle and neighbouring structure from SQLite.
 
     No-match questions get representative indexed pages, never a full-repository
@@ -884,9 +889,10 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
         connection.execute("BEGIN")
         root, overview = _fast_snapshot(connection, source_root)
         relation_cache = _session_relation_cache(connection, source_session)
-        identity = resolve_source_identity(connection, question, search_terms, focus_paths=focus_paths)
+        identity = resolve_source_identity(connection, question, search_terms, focus_paths=focus_paths,
+                                           entry_program=entry_program)
         blocked = identity_blocks_analysis(identity)
-        scope_sql, scope_values = identity_sql_scope(identity)
+        scope_sql, scope_values = identity_sql_scope(identity, supplemental=bool(search_terms))
         query = " OR ".join('"' + term.replace('"', '""') + '"' for term in terms)
         ranked, matched_count, matched_files = [], 0, 0
         if query and not blocked:
@@ -975,7 +981,7 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
         seeds = list(dict.fromkeys(row["relative_path"] for row in rows[:max(1, max_pages // 2)]))
         links, _ = _cached_context_relations(connection, seeds, relation_cache=relation_cache)
         neighbours, neighbour_ids = [], set()
-        for link in links:
+        for link in ([] if identity.get("exclusive_source_scope") else links):
             for relative, line in ((link["caller_path"], link["caller_start_line"]), (link["target_path"], link["target_start_line"])):
                 if not relative or line is None:
                     continue

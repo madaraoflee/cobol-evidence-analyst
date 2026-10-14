@@ -1,0 +1,14 @@
+{
+  "schema_version": "public-reserved-annotation-erratum/v1",
+  "original_cases_sha256": "b517262a24edeab0c227809df12f2c523914e60325f4bb10d4ec6c597416b907",
+  "original_frozen_cases_modified": false,
+  "business_findings_or_questions_changed": false,
+  "case_id": "reserved-date-feedback",
+  "path": "app/cbl/CSUTLDTC.cbl",
+  "source_sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+  "original_range": {"start_line": 81, "end_line": 159},
+  "actual_file_line_count": 157,
+  "valid_range_if_corrected": {"start_line": 81, "end_line": 157},
+  "reason": "The reserved gold author selected an end line beyond the original file EOF by two lines. The default pipeline supplied the entire real file. Preserve frozen identity and report this annotation defect independently from product evidence gaps.",
+  "scoring_policy": "Keep original raw-range results; mark the impossible range invalid. Do not infer business-answer correctness or silently count this as a product failure."
+}

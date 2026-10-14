@@ -276,7 +276,6 @@ class InlineAstStructuralTests(unittest.TestCase):
     def test_unknown_partial_and_opaque_lines_are_not_promoted(self):
         samples = [
             "IF FLAG = 'Y' MOVE 1 TO RESULT-VALUE",
-            "IF FLAG = 'Y' DISPLAY 'note' MOVE 1 TO RESULT-VALUE END-IF.",
             "IF FLAG = 'Y' CALL 'RULE' MOVE 1 TO RESULT-VALUE END-IF.",
             "IF FLAG = 'Y' COMPUTE RESULT-VALUE = 1 ON SIZE ERROR MOVE 2 TO RESULT-VALUE END-COMPUTE END-IF.",
         ]
@@ -285,6 +284,14 @@ class InlineAstStructuralTests(unittest.TestCase):
                 parsed = parse_body(body)
                 self.assertFalse(any("adapter_version" in edge.metadata for edge in parsed.relations))
                 self.assertFalse(any(edge.relation_type == "WRITES" for edge in parsed.relations))
+
+    def test_supported_display_keeps_independent_following_assignment(self):
+        parsed = parse_body("IF FLAG = 'Y' DISPLAY 'CALL GHOST *> PERFORM LOST' INPUT-VALUE "
+                            "MOVE 1 TO RESULT-VALUE END-IF.")
+        display, = statements(parsed, "DISPLAY")
+        self.assertEqual([edge.target_name for edge in edges(parsed, display, "READS")], ["INPUT-VALUE"])
+        self.assertEqual(len(statements(parsed, "MOVE")), 1)
+        self.assertFalse(any(edge.relation_type in {"CALLS", "PERFORMS"} for edge in parsed.relations))
 
     def test_multiple_roots_with_unknown_outer_sentence_scope_stay_legacy(self):
         parsed = parse_body("IF FLAG = 'Y'\nMOVE 1 TO RESULT-VALUE. MOVE 2 TO RESULT-VALUE.")

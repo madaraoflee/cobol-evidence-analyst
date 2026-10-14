@@ -1,0 +1,1689 @@
+{
+  "after": {
+    "add_giving": {
+      "business_sparse": {
+        "code_relations": [],
+        "occurrences": [
+          {
+            "end_column": 28,
+            "end_line": 14,
+            "occurrence_id": "occ_c74806c1f977e2f9307c1798",
+            "parse_status": "complete",
+            "procedure_name": "MAIN",
+            "program_name": "SEMANTIC-CASE",
+            "relative_path": "semantic.cbl",
+            "rule_id": "rule_e471fac37033_1062de9117b3a2fd11c1e495",
+            "scope_json": "[]",
+            "source_sha256": "d78213296d1bf9260d32f1aede0cea2a71f4cd9e73ab6c00c3480c6e87558720",
+            "start_column": 1,
+            "start_line": 14,
+            "statement_order": 0
+          }
+        ],
+        "rules": [
+          {
+            "count": 1,
+            "kind": "ADD",
+            "reads": [
+              "A",
+              "B"
+            ],
+            "rule_id": "rule_e471fac37033_1062de9117b3a2fd11c1e495",
+            "text": "ADD A TO B GIVING C END-ADD",
+            "writes": [
+              "C"
+            ]
+          }
+        ],
+        "statements": []
+      },
+      "fixture_sha256": "d78213296d1bf9260d32f1aede0cea2a71f4cd9e73ab6c00c3480c6e87558720",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nADD A TO B GIVING C END-ADD.\n",
+      "structural": {
+        "code_relations": [],
+        "statements": [
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "A + B",
+                  "operation": "ADD"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "A"
+              },
+              {
+                "metadata": {
+                  "expression": "A + B",
+                  "operation": "ADD"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "B"
+              },
+              {
+                "metadata": {
+                  "expression": "A + B",
+                  "operation": "ADD"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "C"
+              }
+            ],
+            "end_line": 14,
+            "name": "ADD",
+            "occurrence_id": "unit_f40f90d629a31f5992d53877",
+            "reads": [
+              "A",
+              "B"
+            ],
+            "start_line": 14,
+            "text": "ADD A TO B GIVING C END-ADD.",
+            "writes": [
+              "C"
+            ]
+          }
+        ]
+      }
+    },
+    "literal_dependencies": {
+      "business_sparse": {
+        "code_relations": [],
+        "occurrences": [],
+        "rules": [],
+        "statements": []
+      },
+      "fixture_sha256": "3edfe37db4f438ff9ff731b7009961a300b5d87727328bc04446978698005482",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nDISPLAY \"CALL 'GHOST' PERFORM LOST\".\n",
+      "structural": {
+        "code_relations": [],
+        "statements": [
+          {
+            "access_facts": [],
+            "end_line": 14,
+            "name": "DISPLAY",
+            "occurrence_id": "unit_7626cb1b1e3455fe42ae715e",
+            "reads": [],
+            "start_line": 14,
+            "text": "DISPLAY \"CALL 'GHOST' PERFORM LOST\".",
+            "writes": []
+          }
+        ]
+      }
+    },
+    "qualified_fields": {
+      "business_sparse": {
+        "code_relations": [],
+        "occurrences": [
+          {
+            "end_column": 67,
+            "end_line": 14,
+            "occurrence_id": "occ_46a8dba3ccd730d33ce44db3",
+            "parse_status": "complete",
+            "procedure_name": "MAIN",
+            "program_name": "SEMANTIC-CASE",
+            "relative_path": "semantic.cbl",
+            "rule_id": "rule_e471fac37033_207bc72bd6846966d554cb30",
+            "scope_json": "[]",
+            "source_sha256": "bf13cfa361baa6aa7deebddbf66304bb187268c2e36b5000a960632d928f69d2",
+            "start_column": 1,
+            "start_line": 14,
+            "statement_order": 0
+          }
+        ],
+        "rules": [
+          {
+            "count": 1,
+            "kind": "COMPUTE",
+            "reads": [
+              "AMOUNT OF INPUT-REC"
+            ],
+            "rule_id": "rule_e471fac37033_207bc72bd6846966d554cb30",
+            "text": "COMPUTE AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2 END-COMPUTE",
+            "writes": [
+              "AMOUNT OF OUTPUT-REC"
+            ]
+          }
+        ],
+        "statements": []
+      },
+      "fixture_sha256": "bf13cfa361baa6aa7deebddbf66304bb187268c2e36b5000a960632d928f69d2",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nCOMPUTE AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2 END-COMPUTE.\n",
+      "structural": {
+        "code_relations": [],
+        "statements": [
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "AMOUNT OF INPUT-REC * 2",
+                  "rounded": false
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "AMOUNT OF INPUT-REC"
+              },
+              {
+                "metadata": {
+                  "expression": "AMOUNT OF INPUT-REC * 2",
+                  "rounded": false
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "AMOUNT OF OUTPUT-REC"
+              }
+            ],
+            "end_line": 14,
+            "name": "COMPUTE",
+            "occurrence_id": "unit_97c4172df5639c5e052ef59c",
+            "reads": [
+              "AMOUNT OF INPUT-REC"
+            ],
+            "start_line": 14,
+            "text": "COMPUTE AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2 END-COMPUTE.",
+            "writes": [
+              "AMOUNT OF OUTPUT-REC"
+            ]
+          }
+        ]
+      }
+    },
+    "quoted_comment": {
+      "business_sparse": {
+        "code_relations": [],
+        "occurrences": [
+          {
+            "end_column": 29,
+            "end_line": 14,
+            "occurrence_id": "occ_1a8c7b5c3144f0022f6956fe",
+            "parse_status": "complete",
+            "procedure_name": "MAIN",
+            "program_name": "SEMANTIC-CASE",
+            "relative_path": "semantic.cbl",
+            "rule_id": "rule_e471fac37033_317e64701bcbdaa0ae705246",
+            "scope_json": "[]",
+            "source_sha256": "6907eccb4730a3e6f5f6d46da938e9bab871a22249dd5c48e60e32623dcf8740",
+            "start_column": 1,
+            "start_line": 14,
+            "statement_order": 0
+          }
+        ],
+        "rules": [
+          {
+            "count": 1,
+            "kind": "MOVE",
+            "reads": [],
+            "rule_id": "rule_e471fac37033_317e64701bcbdaa0ae705246",
+            "text": "MOVE 'CALL *> PERFORM' TO A.",
+            "writes": [
+              "A"
+            ]
+          }
+        ],
+        "statements": []
+      },
+      "fixture_sha256": "6907eccb4730a3e6f5f6d46da938e9bab871a22249dd5c48e60e32623dcf8740",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nMOVE 'CALL *> PERFORM' TO A. *> CALL 'GHOST'\n",
+      "structural": {
+        "code_relations": [],
+        "statements": [
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "'CALL *> PERFORM'",
+                  "operation": "MOVE"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "A"
+              }
+            ],
+            "end_line": 14,
+            "name": "MOVE",
+            "occurrence_id": "unit_a78e912cee3ba6de39ec4329",
+            "reads": [],
+            "start_line": 14,
+            "text": "MOVE 'CALL *> PERFORM' TO A.",
+            "writes": [
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "same_line_occurrences": {
+      "business_sparse": {
+        "code_relations": [],
+        "occurrences": [
+          {
+            "end_column": 28,
+            "end_line": 14,
+            "occurrence_id": "occ_4c816e52e6502317f4a4178c",
+            "parse_status": "complete",
+            "procedure_name": "MAIN",
+            "program_name": "SEMANTIC-CASE",
+            "relative_path": "semantic.cbl",
+            "rule_id": "rule_e471fac37033_1062de9117b3a2fd11c1e495",
+            "scope_json": "[]",
+            "source_sha256": "cd6dbf479b422c68a1c92c713f81a0e05b90dabd392b08709abc260b7530b134",
+            "start_column": 1,
+            "start_line": 14,
+            "statement_order": 0
+          },
+          {
+            "end_column": 40,
+            "end_line": 14,
+            "occurrence_id": "occ_642b4f4bc858a2f61d2dd44f",
+            "parse_status": "complete",
+            "procedure_name": "MAIN",
+            "program_name": "SEMANTIC-CASE",
+            "relative_path": "semantic.cbl",
+            "rule_id": "rule_e471fac37033_ab169877cf2104332a8d3a00",
+            "scope_json": "[]",
+            "source_sha256": "cd6dbf479b422c68a1c92c713f81a0e05b90dabd392b08709abc260b7530b134",
+            "start_column": 29,
+            "start_line": 14,
+            "statement_order": 1
+          }
+        ],
+        "rules": [
+          {
+            "count": 1,
+            "kind": "ADD",
+            "reads": [
+              "A",
+              "B"
+            ],
+            "rule_id": "rule_e471fac37033_1062de9117b3a2fd11c1e495",
+            "text": "ADD A TO B GIVING C END-ADD",
+            "writes": [
+              "C"
+            ]
+          },
+          {
+            "count": 1,
+            "kind": "MOVE",
+            "reads": [
+              "C"
+            ],
+            "rule_id": "rule_e471fac37033_ab169877cf2104332a8d3a00",
+            "text": "MOVE C TO A",
+            "writes": [
+              "A"
+            ]
+          }
+        ],
+        "statements": []
+      },
+      "fixture_sha256": "cd6dbf479b422c68a1c92c713f81a0e05b90dabd392b08709abc260b7530b134",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nADD A TO B GIVING C END-ADD MOVE C TO A.\n",
+      "structural": {
+        "code_relations": [],
+        "statements": [
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "adapter_version": "inline-statement-ast-v2",
+                  "expression": "A + B",
+                  "operation": "ADD",
+                  "rounded": false,
+                  "source_end_column": 28,
+                  "source_start_column": 1,
+                  "statement_order": 0,
+                  "statement_parser_version": "bounded-statement-ast-v3"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "A"
+              },
+              {
+                "metadata": {
+                  "adapter_version": "inline-statement-ast-v2",
+                  "expression": "A + B",
+                  "operation": "ADD",
+                  "rounded": false,
+                  "source_end_column": 28,
+                  "source_start_column": 1,
+                  "statement_order": 0,
+                  "statement_parser_version": "bounded-statement-ast-v3"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "B"
+              },
+              {
+                "metadata": {
+                  "adapter_version": "inline-statement-ast-v2",
+                  "expression": "A + B",
+                  "operation": "ADD",
+                  "rounded": false,
+                  "source_end_column": 28,
+                  "source_start_column": 1,
+                  "statement_order": 0,
+                  "statement_parser_version": "bounded-statement-ast-v3"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "C"
+              }
+            ],
+            "end_line": 14,
+            "name": "ADD",
+            "occurrence_id": "unit_ast_00001_f6b97df827a95cb605587f67",
+            "reads": [
+              "A",
+              "B"
+            ],
+            "start_line": 14,
+            "text": "ADD A TO B GIVING C END-ADD",
+            "writes": [
+              "C"
+            ]
+          },
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "adapter_version": "inline-statement-ast-v2",
+                  "expression": "C",
+                  "operation": "MOVE",
+                  "rounded": false,
+                  "source_end_column": 41,
+                  "source_start_column": 29,
+                  "statement_order": 1,
+                  "statement_parser_version": "bounded-statement-ast-v3"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "C"
+              },
+              {
+                "metadata": {
+                  "adapter_version": "inline-statement-ast-v2",
+                  "expression": "C",
+                  "operation": "MOVE",
+                  "rounded": false,
+                  "source_end_column": 41,
+                  "source_start_column": 29,
+                  "statement_order": 1,
+                  "statement_parser_version": "bounded-statement-ast-v3"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "A"
+              }
+            ],
+            "end_line": 14,
+            "name": "MOVE",
+            "occurrence_id": "unit_ast_00029_ad704fbf88f152cb7e9874bb",
+            "reads": [
+              "C"
+            ],
+            "start_line": 14,
+            "text": "MOVE C TO A.",
+            "writes": [
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "scope_terminators": {
+      "business_sparse": {
+        "code_relations": [],
+        "occurrences": [
+          {
+            "end_column": 30,
+            "end_line": 14,
+            "occurrence_id": "occ_b5d39767c0215a18a04b92fe",
+            "parse_status": "complete",
+            "procedure_name": "MAIN",
+            "program_name": "SEMANTIC-CASE",
+            "relative_path": "semantic.cbl",
+            "rule_id": "rule_e471fac37033_de42ce628eec22c8962b64d9",
+            "scope_json": "[]",
+            "source_sha256": "33ca7ad1e4a02ec02dee51a192477d9a7941679aa988d31930d4a2f628bea722",
+            "start_column": 1,
+            "start_line": 14,
+            "statement_order": 0
+          },
+          {
+            "end_column": 19,
+            "end_line": 15,
+            "occurrence_id": "occ_48292cbfd4459a9744be17cc",
+            "parse_status": "complete",
+            "procedure_name": "MAIN",
+            "program_name": "SEMANTIC-CASE",
+            "relative_path": "semantic.cbl",
+            "rule_id": "rule_e471fac37033_e5cd0ca65c45a031f2d83dca",
+            "scope_json": "[]",
+            "source_sha256": "33ca7ad1e4a02ec02dee51a192477d9a7941679aa988d31930d4a2f628bea722",
+            "start_column": 1,
+            "start_line": 15,
+            "statement_order": 0
+          }
+        ],
+        "rules": [
+          {
+            "count": 1,
+            "kind": "COMPUTE",
+            "reads": [
+              "A"
+            ],
+            "rule_id": "rule_e471fac37033_de42ce628eec22c8962b64d9",
+            "text": "COMPUTE C = A * 2 END-COMPUTE",
+            "writes": [
+              "C"
+            ]
+          },
+          {
+            "count": 1,
+            "kind": "ADD",
+            "reads": [
+              "A",
+              "B"
+            ],
+            "rule_id": "rule_e471fac37033_e5cd0ca65c45a031f2d83dca",
+            "text": "ADD A TO B END-ADD",
+            "writes": [
+              "B"
+            ]
+          }
+        ],
+        "statements": []
+      },
+      "fixture_sha256": "33ca7ad1e4a02ec02dee51a192477d9a7941679aa988d31930d4a2f628bea722",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nCOMPUTE C = A * 2 END-COMPUTE.\nADD A TO B END-ADD.\n",
+      "structural": {
+        "code_relations": [],
+        "statements": [
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "A * 2",
+                  "rounded": false
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "A"
+              },
+              {
+                "metadata": {
+                  "expression": "A * 2",
+                  "rounded": false
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "C"
+              }
+            ],
+            "end_line": 14,
+            "name": "COMPUTE",
+            "occurrence_id": "unit_6a40b1cd351a739fd3d45ef9",
+            "reads": [
+              "A"
+            ],
+            "start_line": 14,
+            "text": "COMPUTE C = A * 2 END-COMPUTE.",
+            "writes": [
+              "C"
+            ]
+          },
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "A + B",
+                  "operation": "ADD"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "A"
+              },
+              {
+                "metadata": {
+                  "expression": "A + B",
+                  "operation": "ADD"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "B"
+              },
+              {
+                "metadata": {
+                  "expression": "A + B",
+                  "operation": "ADD"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "B"
+              }
+            ],
+            "end_line": 15,
+            "name": "ADD",
+            "occurrence_id": "unit_65fe92fdbb4c45547c901fd4",
+            "reads": [
+              "A",
+              "B"
+            ],
+            "start_line": 15,
+            "text": "ADD A TO B END-ADD.",
+            "writes": [
+              "B"
+            ]
+          }
+        ]
+      }
+    },
+    "section_perform": {
+      "business_sparse": {
+        "code_relations": [
+          {
+            "qualified_name": "SEMANTIC-CASE::CALCULATE-SECTION",
+            "relation_type": "PERFORMS",
+            "status": "confirmed",
+            "symbol_type": "Section",
+            "target_name": "CALCULATE-SECTION"
+          }
+        ],
+        "occurrences": [
+          {
+            "end_column": 27,
+            "end_line": 14,
+            "occurrence_id": "occ_31e3cfaa61cef87271d61db7",
+            "parse_status": "complete",
+            "procedure_name": "MAIN",
+            "program_name": "SEMANTIC-CASE",
+            "relative_path": "semantic.cbl",
+            "rule_id": "rule_e471fac37033_130b99a642c305a279963c5e",
+            "scope_json": "[]",
+            "source_sha256": "8ad7e8ad347ca165387f9650da8955115b14a01a699745b3c51742e5686559f4",
+            "start_column": 1,
+            "start_line": 14,
+            "statement_order": 0
+          },
+          {
+            "end_column": 13,
+            "end_line": 18,
+            "occurrence_id": "occ_74e0903e73b4d6403bc63a41",
+            "parse_status": "complete",
+            "procedure_name": "FIRST-PARA",
+            "program_name": "SEMANTIC-CASE",
+            "relative_path": "semantic.cbl",
+            "rule_id": "rule_e471fac37033_e1797d5baa5bd0f5ace14b3d",
+            "scope_json": "[]",
+            "source_sha256": "8ad7e8ad347ca165387f9650da8955115b14a01a699745b3c51742e5686559f4",
+            "start_column": 1,
+            "start_line": 18,
+            "statement_order": 0
+          },
+          {
+            "end_column": 13,
+            "end_line": 20,
+            "occurrence_id": "occ_1b32582a65db8d319b287550",
+            "parse_status": "complete",
+            "procedure_name": "SECOND-PARA",
+            "program_name": "SEMANTIC-CASE",
+            "relative_path": "semantic.cbl",
+            "rule_id": "rule_e471fac37033_f46f9ccab03d05a19d0ba48b",
+            "scope_json": "[]",
+            "source_sha256": "8ad7e8ad347ca165387f9650da8955115b14a01a699745b3c51742e5686559f4",
+            "start_column": 1,
+            "start_line": 20,
+            "statement_order": 0
+          },
+          {
+            "end_column": 13,
+            "end_line": 22,
+            "occurrence_id": "occ_827727cb91fbcdc0e543b2ce",
+            "parse_status": "complete",
+            "procedure_name": "NEXT-SECTION",
+            "program_name": "SEMANTIC-CASE",
+            "relative_path": "semantic.cbl",
+            "rule_id": "rule_e471fac37033_59459f3898248e2494ae1289",
+            "scope_json": "[]",
+            "source_sha256": "8ad7e8ad347ca165387f9650da8955115b14a01a699745b3c51742e5686559f4",
+            "start_column": 1,
+            "start_line": 22,
+            "statement_order": 0
+          }
+        ],
+        "rules": [
+          {
+            "count": 1,
+            "kind": "PERFORM",
+            "reads": [],
+            "rule_id": "rule_e471fac37033_130b99a642c305a279963c5e",
+            "text": "PERFORM CALCULATE-SECTION.",
+            "writes": []
+          },
+          {
+            "count": 1,
+            "kind": "MOVE",
+            "reads": [],
+            "rule_id": "rule_e471fac37033_e1797d5baa5bd0f5ace14b3d",
+            "text": "MOVE 1 TO A.",
+            "writes": [
+              "A"
+            ]
+          },
+          {
+            "count": 1,
+            "kind": "MOVE",
+            "reads": [
+              "A"
+            ],
+            "rule_id": "rule_e471fac37033_f46f9ccab03d05a19d0ba48b",
+            "text": "MOVE A TO C.",
+            "writes": [
+              "C"
+            ]
+          },
+          {
+            "count": 1,
+            "kind": "MOVE",
+            "reads": [],
+            "rule_id": "rule_e471fac37033_59459f3898248e2494ae1289",
+            "text": "MOVE 9 TO C.",
+            "writes": [
+              "C"
+            ]
+          }
+        ],
+        "statements": [
+          {
+            "access_facts": [],
+            "end_line": 14,
+            "name": "DEPENDENCY",
+            "occurrence_id": "unit_85fe26c694ad5ecea21a6704",
+            "reads": [],
+            "start_line": 14,
+            "text": "PERFORM CALCULATE-SECTION.",
+            "writes": []
+          }
+        ]
+      },
+      "fixture_sha256": "8ad7e8ad347ca165387f9650da8955115b14a01a699745b3c51742e5686559f4",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nPERFORM CALCULATE-SECTION.\nGOBACK.\nCALCULATE-SECTION SECTION.\nFIRST-PARA.\nMOVE 1 TO A.\nSECOND-PARA.\nMOVE A TO C.\nNEXT-SECTION SECTION.\nMOVE 9 TO C.\n",
+      "structural": {
+        "cfg": {
+          "boundaries": [],
+          "closed": true,
+          "moves": [
+            {
+              "source": "1",
+              "targets": [
+                "A"
+              ]
+            },
+            {
+              "source": "A",
+              "targets": [
+                "C"
+              ]
+            }
+          ]
+        },
+        "code_relations": [
+          {
+            "qualified_name": "SEMANTIC-CASE::CALCULATE-SECTION",
+            "relation_type": "PERFORMS",
+            "status": "confirmed",
+            "symbol_type": "Section",
+            "target_name": "CALCULATE-SECTION"
+          }
+        ],
+        "statements": [
+          {
+            "access_facts": [],
+            "end_line": 14,
+            "name": "PERFORM",
+            "occurrence_id": "unit_3dbb452535442c967a999ac4",
+            "reads": [],
+            "start_line": 14,
+            "text": "PERFORM CALCULATE-SECTION.",
+            "writes": []
+          },
+          {
+            "access_facts": [],
+            "end_line": 15,
+            "name": "GOBACK",
+            "occurrence_id": "unit_13a0406ea0d0f9e93499931d",
+            "reads": [],
+            "start_line": 15,
+            "text": "GOBACK.",
+            "writes": []
+          },
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "1",
+                  "operation": "MOVE"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "A"
+              }
+            ],
+            "end_line": 18,
+            "name": "MOVE",
+            "occurrence_id": "unit_62108eb581cbfbb7b35d64d8",
+            "reads": [],
+            "start_line": 18,
+            "text": "MOVE 1 TO A.",
+            "writes": [
+              "A"
+            ]
+          },
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "MOVE"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "A"
+              },
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "MOVE"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "C"
+              }
+            ],
+            "end_line": 20,
+            "name": "MOVE",
+            "occurrence_id": "unit_9ce673e8a6c3359938e1f5aa",
+            "reads": [
+              "A"
+            ],
+            "start_line": 20,
+            "text": "MOVE A TO C.",
+            "writes": [
+              "C"
+            ]
+          },
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "9",
+                  "operation": "MOVE"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "C"
+              }
+            ],
+            "end_line": 22,
+            "name": "MOVE",
+            "occurrence_id": "unit_db9fab9843d7e32bc61d10f6",
+            "reads": [],
+            "start_line": 22,
+            "text": "MOVE 9 TO C.",
+            "writes": [
+              "C"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "after_parser_versions": {
+    "business_sparse": "business-sparse-v1.7",
+    "frontend": "cobol-facts-v5",
+    "semantic_service": "bounded-semantic-service/v6",
+    "structural": "source-facts-v0.9"
+  },
+  "all_after_checks_pass": true,
+  "baseline_commit": "d8eda6837e3306c762126fdc83679003bb060153",
+  "before": {
+    "add_giving": {
+      "business_sparse": {
+        "code_relations": [],
+        "occurrences": [],
+        "rules": [
+          {
+            "count": 1,
+            "kind": "ADD",
+            "reads": [
+              "A",
+              "B",
+              "C",
+              "END-ADD"
+            ],
+            "rule_id": "rule_e471fac37033_6c9c59d78d5cd115817a8413",
+            "text": "ADD A TO B GIVING C END-ADD.",
+            "writes": [
+              "B",
+              "C",
+              "END-ADD"
+            ]
+          }
+        ],
+        "statements": []
+      },
+      "fixture_sha256": "d78213296d1bf9260d32f1aede0cea2a71f4cd9e73ab6c00c3480c6e87558720",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nADD A TO B GIVING C END-ADD.\n",
+      "structural": {
+        "code_relations": [],
+        "statements": [
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "ADD"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "A"
+              },
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "ADD"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "B"
+              },
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "ADD"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "C"
+              },
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "ADD",
+                  "resolution_reason": "target_not_found"
+                },
+                "relation": "READS",
+                "status": "unresolved",
+                "target": "END-ADD"
+              },
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "ADD"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "B"
+              },
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "ADD"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "C"
+              },
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "ADD",
+                  "resolution_reason": "target_not_found"
+                },
+                "relation": "WRITES",
+                "status": "unresolved",
+                "target": "END-ADD"
+              }
+            ],
+            "end_line": 14,
+            "name": "ADD",
+            "occurrence_id": "unit_f40f90d629a31f5992d53877",
+            "reads": [
+              "A",
+              "B",
+              "C",
+              "END-ADD"
+            ],
+            "start_line": 14,
+            "text": "ADD A TO B GIVING C END-ADD.",
+            "writes": [
+              "B",
+              "C",
+              "END-ADD"
+            ]
+          }
+        ]
+      }
+    },
+    "literal_dependencies": {
+      "business_sparse": {
+        "code_relations": [],
+        "occurrences": [],
+        "rules": [],
+        "statements": []
+      },
+      "fixture_sha256": "3edfe37db4f438ff9ff731b7009961a300b5d87727328bc04446978698005482",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nDISPLAY \"CALL 'GHOST' PERFORM LOST\".\n",
+      "structural": {
+        "code_relations": [
+          {
+            "qualified_name": null,
+            "relation_type": "CALLS",
+            "status": "unresolved",
+            "symbol_type": null,
+            "target_name": "GHOST"
+          },
+          {
+            "qualified_name": null,
+            "relation_type": "PERFORMS",
+            "status": "unresolved",
+            "symbol_type": null,
+            "target_name": "LOST"
+          }
+        ],
+        "statements": [
+          {
+            "access_facts": [],
+            "end_line": 14,
+            "name": "DISPLAY",
+            "occurrence_id": "unit_7626cb1b1e3455fe42ae715e",
+            "reads": [],
+            "start_line": 14,
+            "text": "DISPLAY \"CALL 'GHOST' PERFORM LOST\".",
+            "writes": []
+          }
+        ]
+      }
+    },
+    "qualified_fields": {
+      "business_sparse": {
+        "code_relations": [],
+        "occurrences": [],
+        "rules": [
+          {
+            "count": 1,
+            "kind": "COMPUTE",
+            "reads": [],
+            "rule_id": "rule_e471fac37033_84155a5eef27ce4ad9735c11",
+            "text": "COMPUTE AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2 END-COMPUTE.",
+            "writes": []
+          }
+        ],
+        "statements": []
+      },
+      "fixture_sha256": "bf13cfa361baa6aa7deebddbf66304bb187268c2e36b5000a960632d928f69d2",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nCOMPUTE AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2 END-COMPUTE.\n",
+      "structural": {
+        "code_relations": [],
+        "statements": [
+          {
+            "access_facts": [],
+            "end_line": 14,
+            "name": "COMPUTE",
+            "occurrence_id": "unit_97c4172df5639c5e052ef59c",
+            "reads": [],
+            "start_line": 14,
+            "text": "COMPUTE AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2 END-COMPUTE.",
+            "writes": []
+          }
+        ]
+      }
+    },
+    "quoted_comment": {
+      "business_sparse": {
+        "code_relations": [],
+        "occurrences": [],
+        "rules": [
+          {
+            "count": 1,
+            "kind": "MOVE",
+            "reads": [],
+            "rule_id": "rule_e471fac37033_317e64701bcbdaa0ae705246",
+            "text": "MOVE 'CALL *> PERFORM' TO A.",
+            "writes": [
+              "A"
+            ]
+          }
+        ],
+        "statements": []
+      },
+      "fixture_sha256": "6907eccb4730a3e6f5f6d46da938e9bab871a22249dd5c48e60e32623dcf8740",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nMOVE 'CALL *> PERFORM' TO A. *> CALL 'GHOST'\n",
+      "structural": {
+        "code_relations": [],
+        "statements": [
+          {
+            "access_facts": [],
+            "end_line": 14,
+            "name": "MOVE",
+            "occurrence_id": "unit_c0b3718452eeb3400dba29aa",
+            "reads": [],
+            "start_line": 14,
+            "text": "MOVE 'CALL",
+            "writes": []
+          }
+        ]
+      }
+    },
+    "same_line_occurrences": {
+      "business_sparse": {
+        "code_relations": [],
+        "occurrences": [],
+        "rules": [
+          {
+            "count": 1,
+            "kind": "ADD",
+            "reads": [
+              "C"
+            ],
+            "rule_id": "rule_e471fac37033_e178c29af04eee1bccdb84c6",
+            "text": "ADD A TO B GIVING C END-ADD MOVE C TO A.",
+            "writes": [
+              "A"
+            ]
+          }
+        ],
+        "statements": []
+      },
+      "fixture_sha256": "cd6dbf479b422c68a1c92c713f81a0e05b90dabd392b08709abc260b7530b134",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nADD A TO B GIVING C END-ADD MOVE C TO A.\n",
+      "structural": {
+        "code_relations": [],
+        "statements": [
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "C",
+                  "operation": "MOVE"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "C"
+              },
+              {
+                "metadata": {
+                  "expression": "C",
+                  "operation": "MOVE"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "A"
+              }
+            ],
+            "end_line": 14,
+            "name": "ADD",
+            "occurrence_id": "unit_e9a3db24bf1c174c4f5f4175",
+            "reads": [
+              "C"
+            ],
+            "start_line": 14,
+            "text": "ADD A TO B GIVING C END-ADD MOVE C TO A.",
+            "writes": [
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "scope_terminators": {
+      "business_sparse": {
+        "code_relations": [],
+        "occurrences": [],
+        "rules": [
+          {
+            "count": 1,
+            "kind": "COMPUTE",
+            "reads": [
+              "A",
+              "END-COMPUTE"
+            ],
+            "rule_id": "rule_e471fac37033_20d5a00cecdc1376a5f473a6",
+            "text": "COMPUTE C = A * 2 END-COMPUTE.",
+            "writes": [
+              "C"
+            ]
+          },
+          {
+            "count": 1,
+            "kind": "ADD",
+            "reads": [
+              "A",
+              "B",
+              "END-ADD"
+            ],
+            "rule_id": "rule_e471fac37033_6938a6f81e7bd0efb830a5c5",
+            "text": "ADD A TO B END-ADD.",
+            "writes": [
+              "B",
+              "END-ADD"
+            ]
+          }
+        ],
+        "statements": []
+      },
+      "fixture_sha256": "33ca7ad1e4a02ec02dee51a192477d9a7941679aa988d31930d4a2f628bea722",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nCOMPUTE C = A * 2 END-COMPUTE.\nADD A TO B END-ADD.\n",
+      "structural": {
+        "code_relations": [],
+        "statements": [
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "A * 2 END-COMPUTE",
+                  "rounded": false
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "A"
+              },
+              {
+                "metadata": {
+                  "expression": "A * 2 END-COMPUTE",
+                  "resolution_reason": "target_not_found",
+                  "rounded": false
+                },
+                "relation": "READS",
+                "status": "unresolved",
+                "target": "END-COMPUTE"
+              },
+              {
+                "metadata": {
+                  "expression": "A * 2 END-COMPUTE",
+                  "rounded": false
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "C"
+              }
+            ],
+            "end_line": 14,
+            "name": "COMPUTE",
+            "occurrence_id": "unit_6a40b1cd351a739fd3d45ef9",
+            "reads": [
+              "A",
+              "END-COMPUTE"
+            ],
+            "start_line": 14,
+            "text": "COMPUTE C = A * 2 END-COMPUTE.",
+            "writes": [
+              "C"
+            ]
+          },
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "ADD"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "A"
+              },
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "ADD"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "B"
+              },
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "ADD",
+                  "resolution_reason": "target_not_found"
+                },
+                "relation": "READS",
+                "status": "unresolved",
+                "target": "END-ADD"
+              },
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "ADD"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "B"
+              },
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "ADD",
+                  "resolution_reason": "target_not_found"
+                },
+                "relation": "WRITES",
+                "status": "unresolved",
+                "target": "END-ADD"
+              }
+            ],
+            "end_line": 15,
+            "name": "ADD",
+            "occurrence_id": "unit_65fe92fdbb4c45547c901fd4",
+            "reads": [
+              "A",
+              "B",
+              "END-ADD"
+            ],
+            "start_line": 15,
+            "text": "ADD A TO B END-ADD.",
+            "writes": [
+              "B",
+              "END-ADD"
+            ]
+          }
+        ]
+      }
+    },
+    "section_perform": {
+      "business_sparse": {
+        "code_relations": [
+          {
+            "qualified_name": null,
+            "relation_type": "PERFORMS",
+            "status": "unresolved",
+            "symbol_type": null,
+            "target_name": "CALCULATE-SECTION"
+          }
+        ],
+        "occurrences": [],
+        "rules": [
+          {
+            "count": 1,
+            "kind": "MOVE",
+            "reads": [],
+            "rule_id": "rule_e471fac37033_e1797d5baa5bd0f5ace14b3d",
+            "text": "MOVE 1 TO A.",
+            "writes": [
+              "A"
+            ]
+          },
+          {
+            "count": 1,
+            "kind": "MOVE",
+            "reads": [
+              "A"
+            ],
+            "rule_id": "rule_e471fac37033_f46f9ccab03d05a19d0ba48b",
+            "text": "MOVE A TO C.",
+            "writes": [
+              "C"
+            ]
+          },
+          {
+            "count": 1,
+            "kind": "MOVE",
+            "reads": [],
+            "rule_id": "rule_e471fac37033_59459f3898248e2494ae1289",
+            "text": "MOVE 9 TO C.",
+            "writes": [
+              "C"
+            ]
+          }
+        ],
+        "statements": [
+          {
+            "access_facts": [],
+            "end_line": 14,
+            "name": "DEPENDENCY",
+            "occurrence_id": "unit_85fe26c694ad5ecea21a6704",
+            "reads": [],
+            "start_line": 14,
+            "text": "PERFORM CALCULATE-SECTION.",
+            "writes": []
+          }
+        ]
+      },
+      "fixture_sha256": "8ad7e8ad347ca165387f9650da8955115b14a01a699745b3c51742e5686559f4",
+      "fixture_source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SEMANTIC-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9(6)V99.\n01 B PIC 9(6)V99.\n01 C PIC 9(6)V99.\n01 INPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\n01 OUTPUT-REC.\n 05 AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nPERFORM CALCULATE-SECTION.\nGOBACK.\nCALCULATE-SECTION SECTION.\nFIRST-PARA.\nMOVE 1 TO A.\nSECOND-PARA.\nMOVE A TO C.\nNEXT-SECTION SECTION.\nMOVE 9 TO C.\n",
+      "structural": {
+        "cfg": {
+          "boundaries": [
+            {
+              "evidence_refs": [
+                {
+                  "end_line": 14,
+                  "evidence_id": "ev_bce0138616c808f41254e319",
+                  "relative_path": "semantic.cbl",
+                  "source_sha256": "8ad7e8ad347ca165387f9650da8955115b14a01a699745b3c51742e5686559f4",
+                  "span_sha256": "a300b6c89446d7b0a47f07feba655bfc883b47e4a6c537c6f32b288fba34669e",
+                  "start_line": 14
+                }
+              ],
+              "node_id": "cfg_cfe5ce9098953b670e8e498a",
+              "reason": "perform_range_not_uniquely_resolved"
+            }
+          ],
+          "closed": false,
+          "moves": []
+        },
+        "code_relations": [
+          {
+            "qualified_name": null,
+            "relation_type": "PERFORMS",
+            "status": "unresolved",
+            "symbol_type": null,
+            "target_name": "CALCULATE-SECTION"
+          }
+        ],
+        "statements": [
+          {
+            "access_facts": [],
+            "end_line": 14,
+            "name": "PERFORM",
+            "occurrence_id": "unit_3dbb452535442c967a999ac4",
+            "reads": [],
+            "start_line": 14,
+            "text": "PERFORM CALCULATE-SECTION.",
+            "writes": []
+          },
+          {
+            "access_facts": [],
+            "end_line": 15,
+            "name": "GOBACK",
+            "occurrence_id": "unit_13a0406ea0d0f9e93499931d",
+            "reads": [],
+            "start_line": 15,
+            "text": "GOBACK.",
+            "writes": []
+          },
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "1",
+                  "operation": "MOVE"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "A"
+              }
+            ],
+            "end_line": 18,
+            "name": "MOVE",
+            "occurrence_id": "unit_62108eb581cbfbb7b35d64d8",
+            "reads": [],
+            "start_line": 18,
+            "text": "MOVE 1 TO A.",
+            "writes": [
+              "A"
+            ]
+          },
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "MOVE"
+                },
+                "relation": "READS",
+                "status": "confirmed",
+                "target": "A"
+              },
+              {
+                "metadata": {
+                  "expression": "A",
+                  "operation": "MOVE"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "C"
+              }
+            ],
+            "end_line": 20,
+            "name": "MOVE",
+            "occurrence_id": "unit_9ce673e8a6c3359938e1f5aa",
+            "reads": [
+              "A"
+            ],
+            "start_line": 20,
+            "text": "MOVE A TO C.",
+            "writes": [
+              "C"
+            ]
+          },
+          {
+            "access_facts": [
+              {
+                "metadata": {
+                  "expression": "9",
+                  "operation": "MOVE"
+                },
+                "relation": "WRITES",
+                "status": "confirmed",
+                "target": "C"
+              }
+            ],
+            "end_line": 22,
+            "name": "MOVE",
+            "occurrence_id": "unit_db9fab9843d7e32bc61d10f6",
+            "reads": [],
+            "start_line": 22,
+            "text": "MOVE 9 TO C.",
+            "writes": [
+              "C"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "before_parser_versions": {
+    "business_sparse": "business-sparse-v1.3",
+    "structural": "source-facts-v0.5"
+  },
+  "checks": {
+    "add_giving": {
+      "business_sparse": {
+        "after_correct": true,
+        "before_correct": false,
+        "reused_correct_behavior": false
+      },
+      "structural": {
+        "after_correct": true,
+        "before_correct": false,
+        "reused_correct_behavior": false
+      }
+    },
+    "literal_dependencies": {
+      "business_sparse": {
+        "after_correct": true,
+        "before_correct": true,
+        "reused_correct_behavior": true
+      },
+      "structural": {
+        "after_correct": true,
+        "before_correct": false,
+        "reused_correct_behavior": false
+      }
+    },
+    "qualified_fields": {
+      "business_sparse": {
+        "after_correct": true,
+        "before_correct": false,
+        "reused_correct_behavior": false
+      },
+      "structural": {
+        "after_correct": true,
+        "before_correct": false,
+        "reused_correct_behavior": false
+      }
+    },
+    "quoted_comment": {
+      "business_sparse": {
+        "after_correct": true,
+        "before_correct": true,
+        "reused_correct_behavior": true,
+        "source_literal_preserved_after": true
+      },
+      "structural": {
+        "after_correct": true,
+        "before_correct": false,
+        "reused_correct_behavior": false,
+        "source_literal_preserved_after": true
+      }
+    },
+    "same_line_occurrences": {
+      "business_sparse": {
+        "after_correct": true,
+        "before_correct": false,
+        "reused_correct_behavior": false
+      },
+      "structural": {
+        "after_correct": true,
+        "before_correct": false,
+        "reused_correct_behavior": false
+      }
+    },
+    "scope_terminators": {
+      "business_sparse": {
+        "after_correct": true,
+        "before_correct": false,
+        "reused_correct_behavior": false
+      },
+      "structural": {
+        "after_correct": true,
+        "before_correct": false,
+        "reused_correct_behavior": false
+      }
+    },
+    "section_perform": {
+      "business_sparse": {
+        "after_correct": true,
+        "before_correct": false,
+        "reused_correct_behavior": false
+      },
+      "structural": {
+        "after_correct": true,
+        "before_correct": false,
+        "reused_correct_behavior": false
+      }
+    }
+  },
+  "compilation_context": {
+    "compile_conditions": [],
+    "conditions_complete": false,
+    "copy_libraries": [],
+    "copy_library_order_known": false,
+    "debug_lines": null,
+    "dialect": "unknown",
+    "encoding": "auto",
+    "framework_version": null,
+    "frontend_version": "cobol-facts-v5",
+    "nested_copy_replacing": null,
+    "preprocessing_version": "bounded-copy-v2",
+    "resource_kinds": [
+      "cobol-file",
+      "sql"
+    ],
+    "source_format": "free",
+    "target_profile": "generic-cobol"
+  },
+  "current_branch": "main",
+  "current_working_changes": true,
+  "date": "2026-10-13",
+  "method": "The baseline was exported with git archive into an independent temporary directory. Separate Python processes imported all source/index dependencies from each repository root and ran identical neutral fixtures through both actual builders. The working branch was never reset.",
+  "model_calls": 0,
+  "network_calls_for_evaluation": 0,
+  "refreshed_at_utc": "2026-10-13T16:52:29.252752+00:00",
+  "review_reference_commit": "7dd3e570eb3a80f8739d2065a11212d1db18e7b7",
+  "schema_version": "semantic-counterexamples/v1",
+  "targeted_scale": {
+    "after": {
+      "compilation_context": {
+        "compile_conditions": [],
+        "conditions_complete": false,
+        "copy_libraries": [],
+        "copy_library_order_known": false,
+        "debug_lines": null,
+        "dialect": "unknown",
+        "encoding": "auto",
+        "framework_version": null,
+        "frontend_version": "cobol-facts-v5",
+        "nested_copy_replacing": null,
+        "preprocessing_version": "bounded-copy-v2",
+        "resource_kinds": [
+          "cobol-file",
+          "sql"
+        ],
+        "source_format": "free",
+        "target_profile": "generic-cobol"
+      },
+      "context_reuse": {
+        "compute_occurrences": 100,
+        "distinct_contexts": 100,
+        "parsed_bodies": 2,
+        "performs": 100,
+        "queries": 2,
+        "seconds": 0.010947124999802327
+      },
+      "fact_store": {
+        "capture_and_parse_object_reused": true,
+        "first_read_queries": 2,
+        "first_seconds": 0.002719624999372172,
+        "loaded_programs": 1,
+        "query_count_scope": "Program/source/field fact lookups; constructor metadata and schema reads are excluded.",
+        "repeat_additional_queries": 0,
+        "repeat_count": 100,
+        "repeat_seconds": 2.2125001123640686e-05,
+        "repository_programs": 80
+      },
+      "frontend_version": "cobol-facts-v5",
+      "repeated_shape": {
+        "aggregate_count": 5000,
+        "cold_seconds": 0.16831583300154307,
+        "database_bytes": 1966080,
+        "independent_occurrence_rows": 5000,
+        "physical_statements": 5000,
+        "shape_rows": 1,
+        "warm_seconds": 0.005018208999899798,
+        "warm_skipped_unchanged_files": 1
+      },
+      "semantic_service_version": "bounded-semantic-service/v6"
+    },
+    "before": {
+      "repeated_shape": {
+        "aggregate_count": 5000,
+        "cold_seconds": 0.06338829200103646,
+        "database_bytes": 188416,
+        "independent_occurrence_rows": 0,
+        "physical_statements": 5000,
+        "shape_rows": 1,
+        "warm_seconds": 0.001928166000652709,
+        "warm_skipped_unchanged_files": 1
+      }
+    },
+    "measurement_scope": "One local run per builder, with no model request. Timings report mechanism cost and are not a general throughput or model accuracy improvement claim."
+  },
+  "working_tree_source_fingerprints": {
+    "poc/business_index.py": "6b3e767626694066650bf1a2463d340157561c648bbfc283edfcee5181606c1f",
+    "poc/compilation_context.py": "aae237da6f4e9dd2ba6fce243ef88103d5420a5ae65b992a839744646f7e1387",
+    "poc/exception_cfg.py": "177e3667e14867d9de222c625d843e3f02dc294e7fde6b19350d0165c6034c01",
+    "poc/numeric_semantics.py": "7375dfc386976a04c484bd96bf0881780a3bd7623f736d8bacdb13e914db203e",
+    "poc/parser_adapter.py": "4d5a433cfcca59c9dd9885848866453e0063f4ee575f5576f5c7026549c73701",
+    "poc/procedure_expansion.py": "3bc972bb71499e595201777f5dd1e15dba3da982566f03f2f0680e4cdbf605f0",
+    "poc/repo_inventory.py": "81abbb5f6d63d511006b8653c99e0b13d13f0390da09a0e314f7c87c99378781",
+    "poc/semantic_ir.py": "edfe04068caadc34cede711a06a02cdbd9b1d30b8db9b3973ce2d0c55f1e38f5",
+    "poc/semantic_service.py": "9b6bc526aa55ba2da435f7191d1e728522b2a51ed2d5590fea5fb7959d7b8f90",
+    "poc/source_catalog.py": "192bcf7c0489ff93632bde862b83ef9210db0772e9ce5a0aa4bf46fb76be70e3",
+    "poc/statement_facts.py": "30b48d318860bb44e45df8e1c73cf6b29c9880e873bd88dd73a0fb25cbde232f",
+    "poc/statement_parser.py": "b16c3731a07e32c83da99b8a4d7f170ec7a2d253c75b4ffc175eeee9ed7a2f7c",
+    "poc/structural_index.py": "dcd1ce86dcb50561259137697d3a1cd93c0e1eaca20d53bf069c11cf462e757f"
+  }
+}

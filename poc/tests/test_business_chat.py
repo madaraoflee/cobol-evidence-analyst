@@ -464,6 +464,7 @@ class BusinessChatTests(unittest.TestCase):
     def test_partial_read_cursor_causes_one_grounded_draft_revision(self):
         self.write("long.cbl", "LONG", "\n".join(f"DISPLAY 'RECORD-{index:03d}'." for index in range(300)))
         self.build()
+        cursors = []
         def respond(payload, _envelope):
             if len(self.requests) == 1:
                 return reply('{"read":[{"relative_path":"long.cbl","start_line":1,"end_line":300}]}')
@@ -473,10 +474,24 @@ class BusinessChatTests(unittest.TestCase):
                 self.assertGreater(read["next_start_line"], 1)
                 self.assertTrue(any(item["next_start_line"] == read["next_start_line"]
                     for item in payload["source_context"][0]["open_reads"]))
+                cursors.append(read["next_start_line"])
                 return reply("初稿：已读取前段记录。")
             self.assertIn("初稿：已读取前段记录", payload["draft_answer"])
-            self.assertTrue(any(page["start_line"] > 1 and "RECORD" in page["source_text"]
-                for page in source_pages(payload)))
+            task = next(item for item in payload["source_context"][0]["open_reads"]
+                        if item["relative_path"] == "long.cbl" and item["requested_range"]["start_line"] == 1)
+            self.assertGreater(task["next_start_line"], cursors[0])
+            self.assertEqual(payload["completed_actions"][-1]["next_start_line"], task["next_start_line"])
+            first, last = cursors[0], task["next_start_line"] - 1
+            text = (self.source / "long.cbl").read_text(encoding="utf-8")
+            expected = "\n".join(text.splitlines()[first - 1:last])
+            version = hashlib.sha256((self.source / "long.cbl").read_bytes()).hexdigest()
+            # A larger, exact page may already cover the continuation. Verify
+            # its version and physical text rather than requiring split pages.
+            self.assertTrue(any(page["relative_path"] == "long.cbl"
+                and page["source_sha256"] == version and not page.get("span_truncated")
+                and page["start_line"] <= first <= last <= page["end_line"]
+                and "\n".join(page["source_text"].splitlines()[first - page["start_line"]:
+                    last - page["start_line"] + 1]) == expected for page in source_pages(payload)))
             return reply("修订：已补读后续记录。")
         result = self.ask("LONG 程序都展示哪些记录？", respond,
             policy=AgentPolicy(max_source_characters=4096, max_complete_source_characters=4096, read_source_characters=512,
@@ -500,14 +515,21 @@ class BusinessChatTests(unittest.TestCase):
                 saved = []
                 def respond(payload, _envelope):
                     if len(self.requests) == 1:
+                        supplied = sum(len(page["source_text"]) for page in source_pages(payload)
+                                       if page["relative_path"] == "long.cbl")
+                        self.assertLess(supplied, len((self.source / "long.cbl").read_text(encoding="utf-8").rstrip("\n")))
                         return reply('{"read":[{"relative_path":"long.cbl","start_line":1,"end_line":300}]}')
                     if len(self.requests) == 2:
+                        self.assertTrue(any(task["relative_path"] == "long.cbl" and task["state"] == "open"
+                            and 1 < task["next_start_line"] <= task["requested_range"]["end_line"]
+                            for task in payload["source_context"][0]["open_reads"]))
                         evidence_id = source_pages(payload)[0]["evidence_id"]
                         saved.append(evidence_id)
                         return reply(f"可用初稿。[{evidence_id}]")
                     return failure
                 result = self.ask("LONG 展示记录的规则？", respond,
-                    policy=AgentPolicy(read_source_characters=512, max_model_requests=3))["agent_result"]
+                    policy=AgentPolicy(max_source_characters=4096, max_complete_source_characters=4096,
+                                       read_source_characters=512, max_model_requests=3))["agent_result"]
                 self.assertIn("可用初稿", result["answer"])
                 self.assertEqual([ref["evidence_id"] for ref in result["narrative"]["citations"]], saved)
                 self.assertEqual(result["metrics"]["model_requests"], 3)

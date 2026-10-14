@@ -58,7 +58,7 @@ class _Facts:
             self.relations[relation["from_entity_id"]].append(relation)
             column = relation["metadata"].get("source_start_column")
             if (relation["relation_type"] == "CONTAINS"
-                    and relation["metadata"].get("adapter_version") == "inline-statement-ast-v1"
+                    and str(relation["metadata"].get("adapter_version", "")).startswith("inline-statement-ast-v")
                     and type(column) is int and column > 0):
                 source_columns[relation["target_entity_id"]] = column
         self.evidence = {row["evidence_id"]: dict(row) for row in connection.execute("SELECT * FROM evidence_spans")}

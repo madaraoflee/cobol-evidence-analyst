@@ -88,7 +88,8 @@ class BusinessLogicIntentTests(unittest.TestCase):
                          "What is the data type of BILL-LOGIC?"):
             with self.subTest(question=question):
                 result = self.investigate(question)
-                self.assertEqual(result["required_items"], [])
+                self.assertEqual([item["kind"] for item in result["required_items"]], ["source"])
+                self.assertEqual(result["analysis_plan"]["intents"], ("declaration",))
                 self.assertEqual(result["planned_actions"], [])
 
     def test_actual_request_contains_step_obligations_for_the_natural_question(self):

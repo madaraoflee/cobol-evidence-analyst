@@ -32,7 +32,7 @@ DEFAULT_SCOPE_SOURCE_BYTES = 16 * 1024 * 1024
 ARTIFACT_NAMES = (
     "structural-index.sqlite", "diagnosis.json", "diagnosis.md",
     "programs.json", "agent-result.json", "agent-result.md", "source-catalog.sqlite",
-    "framework-context.json",
+    "framework-context.json", "investigation-runs.sqlite",
     "agent-result-view.json", "programs-view.json", "diagnosis-view.json",
 )
 
@@ -229,8 +229,17 @@ def analyze_source(
     answer_detail: str = "detailed",
     conversation_history: list[dict] | None = None,
     agent_policy=None,
+    compilation_context_path=None,
 ) -> dict:
     source, output = _paths(source_root, output_root)
+    compilation_context = None
+    if compilation_context_path:
+        from compilation_context import resolve_compilation_context
+        context_path = Path(compilation_context_path).expanduser()
+        if not context_path.is_file() or context_path.stat().st_size > 128000:
+            raise ValueError("COMPILATION_CONTEXT_FILE_INVALID")
+        compilation_context = resolve_compilation_context(json.loads(context_path.read_text(encoding="utf-8")),
+            source_options={"encoding": encoding, "source_format": source_format}).to_dict()
     external_progress = progress
     def forward_progress(event: dict) -> None:
         if check_cancel:
@@ -259,7 +268,7 @@ def analyze_source(
             source_format=source_format, config=config, api_options=api_options, transport=transport,
             framework_reference_path=framework_reference_path, capture_api_responses=capture_api_responses,
             history=conversation_history, progress=progress, check_cancel=check_cancel,
-            policy=agent_policy, answer_detail=answer_detail)
+            policy=agent_policy, answer_detail=answer_detail, compilation_context=compilation_context)
         if cached is not None:
             return cached
     repository_mode = analysis_mode == "business" and entry is None
@@ -281,6 +290,9 @@ def analyze_source(
         "catalog_ready": False, "source_manifest_verified": False,
         "framework_context": build_framework_context(reference_path=framework_reference_path),
     }
+    if compilation_context_path:
+        report["source_options"]["compilation_context_path"] = str(compilation_context_path)
+        report["source_options"]["compilation_context"] = compilation_context
     programs: list[dict] = []
     agent: dict = {"runner_status": "NOT_REQUESTED", "agent_result": None}
 
@@ -344,7 +356,7 @@ def analyze_source(
                             encoding=encoding, source_format=source_format, quiet=quiet,
                             catalog=catalog, entry_program=chosen_entry, progress=progress,
                             check_cancel=check_cancel, verify_content=verify_content,
-                            framework_reference_path=framework_reference_path)
+                            framework_reference_path=framework_reference_path, compilation_context=compilation_context)
                         scope = business_build
                     else:
                         scope = select_related_sources(source, catalog, chosen_entry, encoding=encoding,
@@ -370,7 +382,8 @@ def analyze_source(
                 quiet=quiet, include_paths=scope["relative_paths"] if scope else None,
                 progress=progress, check_cancel=check_cancel, verify_content=verify_content,
                 max_source_bytes=DEFAULT_SCOPE_SOURCE_BYTES if scope else None,
-                **({"framework_reference_path": framework_reference_path} if analysis_mode == "business" else {}))
+                **({"framework_reference_path": framework_reference_path,
+                    "compilation_context": compilation_context} if analysis_mode == "business" else {}))
             report["build_report"] = build
             if analysis_mode == "business":
                 report["framework_semantics"] = build.get("framework_semantics", {})
@@ -575,6 +588,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.set_defaults(include_extensionless=True)
     parser.add_argument("--encoding", default="auto")
     parser.add_argument("--source-format", choices=("auto", "fixed", "free"), default="auto")
+    parser.add_argument("--compilation-context", type=Path, help="Optional local JSON with dialect, COPY order and compile conditions.")
     parser.add_argument("--allow-network", action="store_true")
     parser.add_argument("--base-url")
     parser.add_argument("--chat-model")
@@ -594,6 +608,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         report = analyze_source(args.source, args.output, entry=args.entry, question=args.question,
                                 extensions=parse_extensions(args.extensions), include_extensionless=args.include_extensionless,
                                 encoding=args.encoding, source_format=args.source_format, allow_network=args.allow_network,
+                                compilation_context_path=args.compilation_context,
                                 index_mode=args.index_mode, verify_content=args.verify_content,
                                 framework_reference_path=args.framework_reference,
                                 analysis_mode=args.analysis_mode, max_source_pages=args.max_source_pages,

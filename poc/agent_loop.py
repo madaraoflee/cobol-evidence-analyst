@@ -87,7 +87,7 @@ _TOOL_CALL_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,255}")
 _MODEL_ACTION_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,127}")
 _STRUCTURAL_NAME_RE = re.compile(r"[A-Za-z0-9_$#@.-]{1,128}")
 _QUALIFIED_NAME_RE = re.compile(
-    r"(?:[A-Za-z0-9_$#@.-]+|<NONE>)(?:::[A-Za-z0-9_$#@.-]+)?"
+    r"(?:[A-Za-z0-9_$#@.-]+|<NONE>)(?:::[A-Za-z0-9_$#@.-]+(?: OF [A-Za-z0-9_$#@.-]+)*)?"
 )
 _DIAGNOSTIC_CODE_RE = re.compile(r"[A-Z][A-Z0-9_]{0,63}")
 

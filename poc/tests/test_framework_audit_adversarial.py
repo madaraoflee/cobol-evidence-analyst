@@ -80,7 +80,7 @@ class FrameworkAuditAdversarialTests(unittest.TestCase):
         qualified = self.source("EXEC SQL\nSELECT REQUESTS.\nREQUEST_ID FROM REQUESTS\nEND-EXEC.\nGOBACK.")
         self.assertNotIn("REQUESTS", [d["name"] for d in qualified["observations"]["procedure_definitions"]])
 
-    def test_unsupported_literal_continuation_does_not_invent_a_call(self):
+    def test_legal_literal_continuation_does_not_invent_a_call(self):
         (self.root / "entry.cbl").write_text(
             "000100 IDENTIFICATION DIVISION.\n"
             "000200 PROGRAM-ID. ENTRYPG.\n"
@@ -90,8 +90,8 @@ class FrameworkAuditAdversarialTests(unittest.TestCase):
             "000600     GOBACK.\n"
         )
         result = audit_framework(self.root, "ENTRYPG")
-        self.assertFalse(result["scope"]["source_expansion_complete"])
-        self.assertIn("source_continuation_not_supported", [b["reason"] for b in result["boundaries"]])
+        self.assertTrue(result["scope"]["source_expansion_complete"])
+        self.assertNotIn("source_continuation_not_supported", [b["reason"] for b in result["boundaries"]])
         self.assertEqual(result["observations"]["calls"], [])
 
     def test_malformed_enum_types_raise_validation_error(self):

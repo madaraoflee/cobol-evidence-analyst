@@ -1,20 +1,22 @@
 """Read-only, bounded COPY inclusion with physical-source provenance.
 
-The result is an inspection artifact, not compiler output. Only standalone,
-unmodified COPY statements are expanded. Library search order, replacement,
-conditional compilation and continuation semantics require a separate contract.
-An unresolved inclusion stays visible and makes the result incomplete.
+The result is an inspection artifact, not compiler output. Controlled COPY
+replacement and compile conditions require explicit compilation inputs. Unknown
+library precedence or conditions remain candidates and make the result bounded.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 import re
 from typing import Iterable
 
 from repo_inventory import DEFAULT_EXTENSIONS, decode_source, iter_source_files, sha256_bytes
+from compilation_context import resolve_compilation_context
+from statement_facts import (CobolLexError, clean_cobol_line, cobol_code_only,
+                             join_continuation, lex_cobol, compile_condition_value, program_identifiers)
 
 
 _WORD = r"[A-Z0-9_$#@-]+"
@@ -35,13 +37,15 @@ class _Source:
     masked: tuple[str, ...]
     problems: tuple[tuple[int, str], ...]
     programs: tuple[str, ...]
+    line_ends: tuple[int, ...]
 
 
-def _lex_line(raw: str) -> tuple[str, str, str | None]:
+def _lex_line(raw: str, context=None) -> tuple[str, str, str | None]:
     """Recognize comments without interpreting comment markers in literals."""
+    context = resolve_compilation_context(context)
     line = raw.expandtabs(8)
     problem = None
-    fixed = len(line) >= 7 and (
+    fixed = context.source_format == "fixed" or context.source_format == "auto" and len(line) >= 7 and (
         line[:6].isdigit()
         or (not line[:6].strip() and line[6] in " */-Dd")
     )
@@ -51,47 +55,77 @@ def _lex_line(raw: str) -> tuple[str, str, str | None]:
             return "", "", None
         if indicator in "-Dd":
             problem = "source_continuation_not_supported" if indicator == "-" else "debug_source_not_supported"
+            if indicator in "Dd" and context.debug_lines is False:
+                return "", "", None
+            if indicator in "Dd" and context.debug_lines is True:
+                problem = None
         elif indicator != " ":
             problem = "fixed_indicator_not_supported"
-        line = line[7:72]
-    elif line.lstrip().startswith(("*>", "*")):
-        return "", "", None
-
-    code: list[str] = []
-    masked: list[str] = []
-    quote: str | None = None
-    index = 0
-    while index < len(line):
-        char = line[index]
-        if quote:
-            code.append(char)
-            masked.append(" ")
-            if char == quote:
-                if index + 1 < len(line) and line[index + 1] == quote:
-                    code.append(line[index + 1])
-                    masked.append(" ")
-                    index += 1
-                else:
-                    quote = None
-        elif line[index:index + 2] == "*>":
-            break
-        elif char in "'\"":
-            quote = char
-            code.append(char)
-            masked.append(" ")
-        else:
-            code.append(char)
-            masked.append(char)
-        index += 1
-    if quote:
-        problem = problem or "source_continuation_not_supported"
-    normalized = "".join(code).rstrip()
-    hidden = "".join(masked).rstrip()
-    if re.match(r"\s*(?:>>|\$|CBL\b|PROCESS\b)", hidden, re.I):
+    normalized, _, _ = clean_cobol_line(raw, context.source_format)
+    hidden = cobol_code_only(normalized).rstrip()
+    if normalized:
+        try:
+            lex_cobol(normalized)
+        except CobolLexError as error:
+            if error.reason in {"unterminated_literal", "continued_literal_not_supported"}:
+                problem = problem or "source_continuation_not_supported"
+    if re.match(r"\s*(?:>>|\$|CBL\b|PROCESS\b)", hidden, re.I) and not re.match(
+            r"\s*>>\s*(?:IF\b|ELSE\s*$|END-IF\s*$)", hidden, re.I):
         problem = problem or "source_directive_not_supported"
     if _REPLACE_WORD.search(hidden):
         problem = problem or "replace_statement_not_supported"
     return normalized, hidden, problem
+
+
+def _parse_copy(text):
+    match = re.fullmatch(rf"\s*COPY\s+(?:({_MEMBER})|'({_MEMBER})'|\"({_MEMBER})\")"
+        rf"(?:\s+(?:IN|OF)\s+({_MEMBER}))?(?:\s+REPLACING\s+(.+?))?\s*\.\s*", text, re.I)
+    if not match:
+        return None
+    name = next(value for value in match.groups()[:3] if value).upper().rstrip(".")
+    pairs, remaining = [], match[5] or ""
+    atom = r"(?:==.*?==|'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|[A-Z0-9_$#@-]+)"
+    while remaining.strip():
+        pair = re.match(rf"\s*({atom})\s+BY\s+({atom})\s*", remaining, re.I)
+        if not pair:
+            return None
+        before, after = (value[2:-2] if value.startswith("==") else value for value in pair.groups())
+        if not before.strip() or "\n" in after:
+            return None
+        pairs.append((before, after))
+        remaining = remaining[pair.end():]
+    return name, match[4].upper() if match[4] else None, tuple(pairs)
+
+
+def _replace_tokens(text, pairs, site):
+    traces, matches = [], []
+    try:
+        tokens = lex_cobol(text)
+        patterns = [(before, after, lex_cobol(before)) for before, after in pairs]
+    except CobolLexError:
+        return text, traces, "copy_replacement_lexical_unsupported"
+    index = 0
+    while index < len(tokens):
+        for before, after, pattern in patterns:
+            if not pattern:
+                return text, traces, "copy_replacement_empty_pattern"
+            candidate = tokens[index:index + len(pattern)]
+            if len(candidate) == len(pattern) and all((left.kind, left.value) == (right.kind, right.value)
+                    for left, right in zip(candidate, pattern)):
+                matches.append((candidate[0].start, candidate[-1].end, before, after))
+                index += len(pattern)
+                break
+        else:
+            index += 1
+    for start, end, before, after in reversed(matches):
+        text = text[:start] + after + text[end:]
+        traces.append({"from": before, "to": after, "start_column": start + 1,
+                       "end_column": end + 1, "copy_site": site})
+    return text, traces, None
+
+
+def _condition_value(expression, context):
+    return compile_condition_value(expression, context)
 
 
 def _extensions(values: Iterable[str] | str | None) -> frozenset[str]:
@@ -127,6 +161,7 @@ def expand_program(
     source_catalog=None,
     entry_relative_path: str | None = None,
     check_cancel=None,
+    compilation_context=None,
 ) -> dict[str, object]:
     """Expand one uniquely identified host file, without writing any source.
 
@@ -149,6 +184,7 @@ def expand_program(
     if type(max_lines) is not int or max_lines < 1:
         raise ValueError("max_lines must be a positive integer.")
     suffixes = _extensions(extensions)
+    context = resolve_compilation_context(compilation_context)
     entry = entry_program.upper()
     sources: dict[str, _Source] = {}
     members: dict[str, list[str]] = defaultdict(list)
@@ -170,7 +206,7 @@ def expand_program(
                 decoded = decode_source(raw, captured.encoding)
             else:
                 raw = (root / relative).read_bytes()
-                decoded = decode_source(raw)
+                decoded = decode_source(raw, context.encoding)
         except OSError:
             boundaries.append({"reason": "source_read_error", "relative_path": relative, "include_chain": []})
             return
@@ -180,19 +216,40 @@ def expand_program(
                                "source_hash": digest, "include_chain": []})
             return
         lines = tuple(decoded.text.splitlines())
-        lexical = []
+        lexical, lexical_context = [], context
         for index, line in enumerate(lines):
             if check_cancel and index % 256 == 0:
                 check_cancel()
-            lexical.append(_lex_line(line))
+            lexical.append(_lex_line(line, lexical_context))
+            _, active_format, _ = clean_cobol_line(line, lexical_context.source_format)
+            lexical_context = replace(lexical_context, source_format=active_format)
+        line_ends = list(range(1, len(lines) + 1))
+        logical_head = None
+        for index, raw_line in enumerate(lines):
+            fixed_continuation = len(raw_line) >= 7 and raw_line[6] == "-" and (
+                context.source_format == "fixed" or raw_line[:6].isdigit() or not raw_line[:6].strip())
+            if fixed_continuation and logical_head is not None and lexical[logical_head][0] and not lexical[logical_head][0].rstrip().endswith("."):
+                joined = join_continuation(lexical[logical_head][0], lexical[index][0])
+                issue = None
+                try:
+                    lex_cobol(joined)
+                except CobolLexError as error:
+                    if error.reason != "unterminated_literal":
+                        continue
+                    issue = "source_continuation_not_supported"
+                lexical[logical_head] = (joined, cobol_code_only(joined), issue)
+                lexical[index] = ("", "", None)
+                line_ends[logical_head] = index + 1
+            elif not fixed_continuation and lexical[index][0]:
+                logical_head = index
         lexical = tuple(lexical)
         code = tuple(item[0] for item in lexical)
         masked = tuple(item[1] for item in lexical)
         problems = tuple((index, item[2]) for index, item in enumerate(lexical, 1) if item[2])
         if decoded.used_fallback:
             problems += ((1, "source_encoding_uncertain"),)
-        programs = tuple(name.upper() for name in _PROGRAM.findall("\n".join(masked)))
-        source = _Source(relative, digest, lines, code, masked, problems, programs)
+        programs = tuple(name for name, _, _ in program_identifiers("\n".join(code)))
+        source = _Source(relative, digest, lines, code, masked, problems, programs, tuple(line_ends))
         sources[relative] = source
         entries.extend(relative for name in programs if name == entry)
 
@@ -217,13 +274,16 @@ def expand_program(
         load(entry_relative_path)
 
     def origin(source: _Source, line: int) -> dict[str, object]:
-        return {"relative_path": source.relative_path, "line": line, "source_hash": source.source_hash}
+        result = {"relative_path": source.relative_path, "line": line, "source_hash": source.source_hash}
+        if source.line_ends[line - 1] != line:
+            result["end_line"] = source.line_ends[line - 1]
+        return result
 
     def boundary(reason: str, source: _Source, line: int, chain: list[dict[str, object]], **extra: object) -> None:
         boundaries.append({"reason": reason, "origin": origin(source, line),
                            "include_chain": list(chain), **extra})
 
-    def emit(source: _Source, index: int, chain: list[dict[str, object]]) -> bool:
+    def emit(source: _Source, index: int, chain: list[dict[str, object]], *, code=None, replacement_trace=(), condition_candidate=False) -> bool:
         nonlocal exhausted
         if check_cancel and len(emitted) % 256 == 0:
             check_cancel()
@@ -232,8 +292,9 @@ def expand_program(
                 boundary("copy_line_limit", source, index + 1, chain, max_lines=max_lines)
             exhausted = True
             return False
-        emitted.append({"text": source.lines[index], "code": source.code[index],
-                        "origin": origin(source, index + 1), "include_chain": list(chain)})
+        emitted.append({"text": source.lines[index], "code": source.code[index] if code is None else code,
+                        "origin": origin(source, index + 1), "include_chain": list(chain),
+                        "replacement_trace": list(replacement_trace), "condition_candidate": condition_candidate})
         return True
 
     def declaration(source: _Source, index: int, chain: list[dict[str, object]]) -> dict[str, object] | None:
@@ -255,7 +316,7 @@ def expand_program(
         includes.append(item)
         return item
 
-    def walk(source: _Source, chain: list[dict[str, object]], ancestors: tuple[str, ...]) -> None:
+    def walk(source: _Source, chain: list[dict[str, object]], ancestors: tuple[str, ...], replacements=()) -> None:
         if source.problems:
             for line, reason in source.problems:
                 boundary(reason, source, line, chain)
@@ -268,26 +329,88 @@ def expand_program(
                 if not emit(source, index, chain):
                     return
             return
+        conditions = []
         for index, hidden in enumerate(source.masked):
             if exhausted:
                 return
+            directive = re.match(r"\s*>>\s*(IF\b(.*)|ELSE\s*$|END-IF\s*$)", hidden, re.I)
+            if directive:
+                kind = directive[1].strip().upper()
+                if kind.startswith("IF"):
+                    setting = _condition_value(directive[2], context)
+                    conditions.append(setting)
+                    if setting is None:
+                        boundary("compile_condition_unknown", source, index + 1, chain, expression=directive[2].strip())
+                elif not conditions:
+                    boundary("compile_condition_scope_invalid", source, index + 1, chain)
+                elif kind == "ELSE":
+                    conditions[-1] = not conditions[-1] if conditions[-1] is not None else None
+                else:
+                    conditions.pop()
+                if not emit(source, index, chain, code=""):
+                    return
+                continue
+            if False in conditions:
+                if not emit(source, index, chain, code=""):
+                    return
+                continue
+            code, traces = source.code[index], []
+            for pairs, replacement_site in replacements:
+                code, changes, issue = _replace_tokens(code, pairs, replacement_site)
+                traces.extend(changes)
+                if issue:
+                    boundary(issue, source, index + 1, chain)
+            hidden = cobol_code_only(code)
             if not _COPY_WORD.search(hidden):
-                if not emit(source, index, chain):
+                if not emit(source, index, chain, code=code, replacement_trace=traces, condition_candidate=None in conditions):
                     return
                 continue
             include = declaration(source, index, chain)
             if exhausted:
                 return
-            match = _COPY.fullmatch(source.code[index])
+            if None in conditions:
+                if include is not None:
+                    include["status"] = "condition_candidate"
+                    include["candidates"] = list(members.get(include["copy_name"], []))
+                if not emit(source, index, chain, code=code, replacement_trace=traces, condition_candidate=True):
+                    return
+                continue
+            match = _parse_copy(code)
             if match is None:
                 boundary("copy_form_not_supported", source, index + 1, chain)
                 if not emit(source, index, chain):
                     return
                 continue
-            name = next(group for group in match.groups() if group is not None).upper()
+            name, library, replacing = match
+            try:
+                multiword = any(len(lex_cobol(before)) != 1 for before, _ in replacing)
+            except CobolLexError:
+                multiword = True
+            if multiword or replacing and replacements or replacements and context.nested_copy_replacing is not True:
+                reason = ("copy_multiword_replacement_requires_full_preprocessor" if multiword else
+                          "nested_copy_replacement_conflict" if replacing and replacements else
+                          "nested_copy_replacing_configuration_unknown" if context.nested_copy_replacing is None else
+                          "nested_copy_replacing_not_supported_by_profile")
+                boundary(reason, source, index + 1, chain, copy_name=name)
+                if not emit(source, index, chain, code=code, replacement_trace=traces):
+                    return
+                continue
             site = {**origin(source, index + 1), "copy_name": name}
             nested = [*chain, site]
-            candidates = members.get(name, [])
+            candidates = list(members.get(name, []))
+            all_candidates = list(candidates)
+            if context.copy_library_order_known:
+                libraries = [path for path in context.copy_libraries
+                             if not library or Path(path).name.upper() == library or path.upper() == library]
+                ranked = [[path for path in candidates if Path(path).parent.as_posix() == directory.rstrip("/")]
+                          for directory in libraries]
+                candidates = next((paths for paths in ranked if paths), [])
+            elif library:
+                boundary("copy_library_configuration_unknown", source, index + 1, chain,
+                         copy_name=name, library=library, candidates=all_candidates)
+                if not emit(source, index, chain, code=code, replacement_trace=traces):
+                    return
+                continue
             reason = None
             if not candidates:
                 reason = "copy_target_not_found"
@@ -310,14 +433,20 @@ def expand_program(
                 continue
             target = sources[candidates[0]]
             if include is not None:
+                include["copy_name"] = name
                 include["resolved_path"] = target.relative_path
+                include["candidates"] = all_candidates
+                include["replacement_pairs"] = [list(pair) for pair in replacing]
             if len(emitted) >= max_lines and target.lines:
                 emit(source, index, chain)
                 return
             before_boundaries = len(boundaries)
-            walk(target, nested, (*ancestors, target.relative_path))
+            walk(target, nested, (*ancestors, target.relative_path),
+                 (*replacements, (replacing, site)) if replacing else replacements)
             if include is not None and len(boundaries) == before_boundaries:
                 include["status"] = "expanded"
+        if conditions:
+            boundary("compile_condition_scope_incomplete", source, len(source.lines), chain)
 
     program_source = None
     if len(entries) != 1:
@@ -343,4 +472,5 @@ def expand_program(
             "source_files": [{"relative_path": path, "source_hash": source.source_hash}
                              for path, source in sorted(sources.items())],
             "lines": emitted, "includes": includes, "boundaries": boundaries,
-            "source_expansion_complete": complete, "compiler_equivalent": False}
+            "source_expansion_complete": complete, "compiler_equivalent": False,
+            "compilation_context": context.to_dict(), "compilation_context_fingerprint": context.fingerprint}

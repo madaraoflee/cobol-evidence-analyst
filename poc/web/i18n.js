@@ -3,6 +3,8 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+編譯與 COPY 設定文件（選填）|编译与 COPY 设置文件（选填）|Compilation and COPY settings file (optional)
+已知方言、COPY 搜尋順序及編譯條件可在本機設定文件中提供；未提供時保留不確定範圍。|已知方言、COPY 搜索顺序及编译条件可在本机设置文件中提供；未提供时保留不确定范围。|Provide known dialect, COPY search order and compile conditions in a local settings file. Unknown settings remain explicit.
 本次請求未完成|本次请求未完成|This request did not complete
 馨弦|馨弦|Xin Xian
 馨弦首頁|馨弦首页|Xin Xian home

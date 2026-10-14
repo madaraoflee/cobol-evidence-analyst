@@ -113,7 +113,9 @@ def _source_preferences(value):
     reference = value.get("framework_reference_path")
     return {"source": source, "output": output, "encoding": encoding, "source_format": source_format,
             "extensions": sorted(extensions) if extensions is not None else None,
-            "framework_reference_path": reference if isinstance(reference, str) and len(reference) <= 4096 else None}
+            "framework_reference_path": reference if isinstance(reference, str) and len(reference) <= 4096 else None,
+            **({"compilation_context_path": value["compilation_context_path"]}
+               if isinstance(value.get("compilation_context_path"), str) and len(value["compilation_context_path"]) <= 4096 else {})}
 
 
 def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 1024) -> str | None:
@@ -126,7 +128,7 @@ def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 102
 
 
 def _validate_options(payload: object) -> dict:
-    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "answer_detail", "conversation_id", "retry_message_id", "framework_reference_path", "capture_api_responses"}
+    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "answer_detail", "conversation_id", "retry_message_id", "framework_reference_path", "capture_api_responses", "compilation_context_path"}
     if not isinstance(payload, dict) or set(payload) - fields:
         raise RequestError("INVALID_OPTIONS", "请求包含未知设置。")
     source_text, output_text = _text(payload, "source", required=True), _text(payload, "output", required=True)
@@ -187,6 +189,11 @@ def _validate_options(payload: object) -> dict:
     retry_message_id = _text(payload, "retry_message_id", maximum=64)
     if retry_message_id and re.fullmatch(r"[a-f0-9]{32}", retry_message_id) is None:
         raise RequestError("INVALID_OPTIONS", "重试消息标识无效。")
+    compilation_context_path = _text(payload, "compilation_context_path", maximum=4096)
+    if compilation_context_path:
+        context_file = Path(compilation_context_path).expanduser()
+        if not context_file.is_absolute() or not context_file.is_file() or context_file.stat().st_size > 128000:
+            raise RequestError("INVALID_COMPILATION_CONTEXT", "编译设置须为存在的本机 JSON 文件。")
     return {
         "source": source, "output": output, "encoding": encoding, "source_format": source_format,
         "entry": _text(payload, "entry"), "question": _text(payload, "question", maximum=8000),
@@ -197,6 +204,7 @@ def _validate_options(payload: object) -> dict:
         "conversation_id": _text(payload, "conversation_id", maximum=64),
         "retry_message_id": retry_message_id,
         "framework_reference_path": _text(payload, "framework_reference_path", maximum=4096),
+        **({"compilation_context_path": compilation_context_path} if compilation_context_path else {}),
     }
 
 

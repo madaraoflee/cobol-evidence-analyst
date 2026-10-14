@@ -1,0 +1,44 @@
+{
+  "schema_version": "public-business-corpus/v1",
+  "repository": "https://github.com/aws-samples/aws-mainframe-modernization-carddemo",
+  "commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+  "license": "Apache-2.0",
+  "source_location": "External checkout only; source files are not copied into this repository.",
+  "files": [
+    {
+      "path": "app/cbl/CBTRN02C.cbl",
+      "sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f"
+    },
+    {
+      "path": "app/cbl/CBACT04C.cbl",
+      "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4"
+    },
+    {
+      "path": "app/cpy/CVTRA01Y.cpy",
+      "sha256": "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba"
+    },
+    {
+      "path": "app/cpy/CVACT03Y.cpy",
+      "sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+    },
+    {
+      "path": "app/cpy/CVTRA02Y.cpy",
+      "sha256": "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c"
+    },
+    {
+      "path": "app/cpy/CVACT01Y.cpy",
+      "sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728"
+    },
+    {
+      "path": "app/cpy/CVTRA05Y.cpy",
+      "sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec"
+    },
+    {
+      "path": "app/cpy/CVTRA06Y.cpy",
+      "sha256": "c5c69f1b86c5a10156d3c5881d7cf387e6b925aae32825360f85bf4056a554a1"
+    }
+  ],
+  "cases_file": "cases.json",
+  "download_archive_sha256": "a22c114ba79df73f86578495fbceb4062ae53e0cb335f5d2950598caf011684f",
+  "license_sha256": "09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b"
+}

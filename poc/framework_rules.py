@@ -14,7 +14,7 @@ from framework_knowledge import MAX_SECTION_CHARS, _ReferenceError, _load_docume
 
 
 SCHEMA_VERSION = "framework-rules/v1"
-COMPILER_VERSION = "documented-conventions-v1.1"
+COMPILER_VERSION = "documented-conventions-v1.2"
 _IDENTIFIER = r"[A-Z0-9_$#@-]+"
 _CALL = re.compile(rf"\bCALL\s+(?:[\"']({_IDENTIFIER})[\"']|({_IDENTIFIER}))\s+USING\s+({_IDENTIFIER})([^\n]*)", re.I)
 _FUNCTION = re.compile(r"\b[A-Z0-9_$#@-]*X{2,8}[A-Z0-9_$#@-]*-FUNCTION\b")
@@ -241,5 +241,11 @@ def compile_framework_rules(reference_path=None) -> dict:
         # treating an external call as covered by an interface declaration.
         result["interfaces"] = []
     result["references"] = list(references.values())
+    from effect_contract import load_runtime_contract
+    from framework_knowledge import _resolve_reference
+    runtime = load_runtime_contract(_resolve_reference(reference_path))
+    result["runtime_effect_contracts"] = runtime["contracts"]
+    result["references"].extend(runtime["references"])
+    result["boundaries"].extend(runtime["boundaries"])
     result["status"] = "COMPILED" if result["rules"] else "NO_RULES"
     return result

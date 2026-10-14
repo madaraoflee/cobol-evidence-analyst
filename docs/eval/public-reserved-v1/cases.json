@@ -1,0 +1,406 @@
+{
+  "schema_version": "public-business-gold/v1",
+  "source_commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+  "case_origin": "Reserved public source paths and business paths, independently read after implementation. Not an enterprise corpus or a real-model accuracy result. Do not run until parent declares code freeze.",
+  "cases": [
+    {
+      "id": "reserved-array-population",
+      "split": "public-reserved",
+      "question": "CBACT01C 输出数组有五项，1400-POPUL-ARRAY-RECORD 实际给哪些项赋值？这些余额和借记金额从哪里来？",
+      "source_snapshot_id": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "expected_source_paths": [
+        "app/cbl/CBACT01C.cbl"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "app/cbl/CBACT01C.cbl",
+            "sha256": "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551",
+            "start_line": 70,
+            "end_line": 78,
+            "role": "declaration"
+          },
+          {
+            "path": "app/cbl/CBACT01C.cbl",
+            "sha256": "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551",
+            "start_line": 165,
+            "end_line": 180,
+            "role": "control"
+          },
+          {
+            "path": "app/cbl/CBACT01C.cbl",
+            "sha256": "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551",
+            "start_line": 253,
+            "end_line": 276,
+            "role": "result"
+          }
+        ]
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "reserved-array-population-required-1",
+            "description": "ARR-ACCT-BAL 声明 OCCURS 5 TIMES，每项含余额和周期借记字段。"
+          },
+          {
+            "id": "reserved-array-population-required-2",
+            "description": "读取账户成功00后，调用前显式 INITIALIZE ARR-ARRAY-REC；当前段仅显式写数组下标1、2、3，没有循环给全部五项赋值。"
+          },
+          {
+            "id": "reserved-array-population-required-3",
+            "description": "第1、2项余额读取ACCT-CURR-BAL，第3项余额为-1025.00；周期借记对应1005.00、1525.00、-2500.00；账户标识读取ACCT-ID。"
+          },
+          {
+            "id": "reserved-array-population-required-4",
+            "description": "1450-WRITE-ARRY-RECORD 请求WRITE ARR-ARRAY-REC，状态非00且非10才进入错误状态显示及异常调用；生产余额和实际写入成功不能从源码推断。"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "reserved-array-population-forbidden-1",
+            "description": "把五项都描述为来自账户余额、或把第3项的负数丢掉。"
+          },
+          {
+            "id": "reserved-array-population-forbidden-2",
+            "description": "将这段显式数组赋值称为利息或生产真实交易。"
+          },
+          {
+            "id": "reserved-array-population-forbidden-3",
+            "description": "跳过未知外部调用边界、宣称所有未显式赋值项在实际执行中必然保持初始值。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reserved-lookup-gate",
+      "split": "public-reserved",
+      "question": "CBTRN01C 中卡号在交叉引用文件查不到时，还会读取账户吗？请解释卡号、账户号及错误状态怎样传递。",
+      "source_snapshot_id": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "expected_source_paths": [
+        "app/cbl/CBTRN01C.cbl"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "app/cbl/CBTRN01C.cbl",
+            "sha256": "55c2aebd59528aa42b28878ba5ca4d17a00b3548fc25e4ce1529710d366fd576",
+            "start_line": 151,
+            "end_line": 194,
+            "role": "control"
+          },
+          {
+            "path": "app/cbl/CBTRN01C.cbl",
+            "sha256": "55c2aebd59528aa42b28878ba5ca4d17a00b3548fc25e4ce1529710d366fd576",
+            "start_line": 227,
+            "end_line": 251,
+            "role": "result"
+          }
+        ]
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "reserved-lookup-gate-required-1",
+            "description": "循环先把WS-XREF-READ-STATUS置0，DALYTRAN-CARD-NUM赋给XREF-CARD-NUM；2000-LOOKUP-XREF再赋FD-XREF-CARD-NUM作为READ键。"
+          },
+          {
+            "id": "reserved-lookup-gate-required-2",
+            "description": "交叉引用READ INVALID KEY显式MOVE4到WS-XREF-READ-STATUS；主流程只有该状态=0才进入账户读取，因此该次失败路径不继续读取账户。"
+          },
+          {
+            "id": "reserved-lookup-gate-required-3",
+            "description": "成功路径先清WS-ACCT-READ-STATUS，XREF-ACCT-ID赋给ACCT-ID，3000-READ-ACCOUNT再赋FD-ACCT-ID作为账户READ键；账户INVALID KEY也显式写4。"
+          },
+          {
+            "id": "reserved-lookup-gate-required-4",
+            "description": "失败显示与读取请求有源码依据，文件实际记录和返回结果未知，不能把显示文本当实际验证成功。"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "reserved-lookup-gate-forbidden-1",
+            "description": "交叉引用失败仍无条件执行账户读取。"
+          },
+          {
+            "id": "reserved-lookup-gate-forbidden-2",
+            "description": "卡号直接当成账户文件键而绕过XREF-ACCT-ID。"
+          },
+          {
+            "id": "reserved-lookup-gate-forbidden-3",
+            "description": "按程序名字或注释编造余额更新、交易WRITE。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reserved-date-feedback",
+      "split": "public-reserved",
+      "question": "CSUTLDTC 的 LS-RESULT 和 RETURN-CODE 是怎样得到的？日期转换调用未知时，可以确认哪些直接源码事实？",
+      "source_snapshot_id": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "expected_source_paths": [
+        "app/cbl/CSUTLDTC.cbl"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "app/cbl/CSUTLDTC.cbl",
+            "sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+            "start_line": 23,
+            "end_line": 80,
+            "role": "declaration"
+          },
+          {
+            "path": "app/cbl/CSUTLDTC.cbl",
+            "sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6",
+            "start_line": 81,
+            "end_line": 159,
+            "role": "result"
+          }
+        ]
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "reserved-date-feedback-required-1",
+            "description": "PROCEDURE DIVISION USING依次绑定LS-DATE、LS-DATE-FORMAT、LS-RESULT；输入日期和格式分别形成可变字符串长度与文本。"
+          },
+          {
+            "id": "reserved-date-feedback-required-2",
+            "description": "调用前OUTPUT-LILLIAN置0，外部CEEDAYS实参依次为WS-DATE-TO-TEST、WS-DATE-FORMAT、OUTPUT-LILLIAN、FEEDBACK-CODE；未供应外部实现/版本文档，不能核验完整日期算法或真实反馈。"
+          },
+          {
+            "id": "reserved-date-feedback-required-3",
+            "description": "返回后SEVERITY OF FEEDBACK-CODE赋WS-SEVERITY-N，MSG-NO赋WS-MSG-NO-N；按反馈条件EVALUATE选择WS-RESULT描述。"
+          },
+          {
+            "id": "reserved-date-feedback-required-4",
+            "description": "主流程最终将WS-MESSAGE组赋LS-RESULT，并将WS-SEVERITY-N赋RETURN-CODE；返回码不是输出日期值或消息编号。"
+          },
+          {
+            "id": "reserved-date-feedback-required-5",
+            "description": "按此源码，名为FC-INVALID-DATE的条件实际零反馈值选择Date is valid文案；解释必须按声明与分支，不按条件名字猜含义。"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "reserved-date-feedback-forbidden-1",
+            "description": "将RETURN-CODE说成日期转换后的Lillian值或MSG-NO。"
+          },
+          {
+            "id": "reserved-date-feedback-forbidden-2",
+            "description": "保证任意输入日期必然正确或臆造外部例程内部算法。"
+          },
+          {
+            "id": "reserved-date-feedback-forbidden-3",
+            "description": "因为FC-INVALID-DATE名称就断言它选择日期无效文案。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reserved-report-conversation",
+      "split": "public-reserved",
+      "conversation": "reserved-report-conversation",
+      "source_snapshot_id": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "expected_source_paths": [
+        "app/cbl/CBTRN03C.cbl"
+      ],
+      "turns": [
+        {
+          "id": "1",
+          "question": "CBTRN03C 里第一种页汇总 WS-PAGE-TOTAL 和第二种账户汇总 WS-ACCOUNT-TOTAL，各自从哪里累加，什么时候清零？",
+          "reviewed_context": {
+            "source_ranges": [
+              {
+                "path": "app/cbl/CBTRN03C.cbl",
+                "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+                "start_line": 126,
+                "end_line": 137,
+                "role": "declaration"
+              },
+              {
+                "path": "app/cbl/CBTRN03C.cbl",
+                "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+                "start_line": 171,
+                "end_line": 206,
+                "role": "control"
+              },
+              {
+                "path": "app/cbl/CBTRN03C.cbl",
+                "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+                "start_line": 274,
+                "end_line": 323,
+                "role": "result"
+              },
+              {
+                "path": "app/cbl/CBTRN03C.cbl",
+                "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+                "start_line": 343,
+                "end_line": 375,
+                "role": "effect"
+              }
+            ]
+          },
+          "gold": {
+            "required_findings": [
+              {
+                "id": "reserved-report-conversation-1-required-1",
+                "description": "1100-WRITE-TRANSACTION-REPORT显式ADD TRAN-AMT同时累加页合计与账户合计。"
+              },
+              {
+                "id": "reserved-report-conversation-1-required-2",
+                "description": "页合计在1110-WRITE-PAGE-TOTALS先拷给输出字段并写报告请求，再ADD到WS-GRAND-TOTAL，然后MOVE0清WS-PAGE-TOTAL；页边界条件为MOD(WS-LINE-COUNTER,WS-PAGE-SIZE)=0，WS-PAGE-SIZE初值20。"
+              },
+              {
+                "id": "reserved-report-conversation-1-required-3",
+                "description": "账户合计在1120-WRITE-ACCOUNT-TOTALS先拷给输出字段并写报告请求，然后MOVE0清WS-ACCOUNT-TOTAL；主流程卡号改变且非首次时调用该段。"
+              },
+              {
+                "id": "reserved-report-conversation-1-required-4",
+                "description": "源码的分组判断使用WS-CURR-CARD-NUM与TRAN-CARD-NUM，不能自动等同任意多个卡号归并同一账户。"
+              }
+            ],
+            "forbidden_claims": [
+              {
+                "id": "reserved-report-conversation-1-forbidden-1",
+                "description": "宣称页清零同步清除账户合计。"
+              },
+              {
+                "id": "reserved-report-conversation-1-forbidden-2",
+                "description": "将按卡号变化分组说成已经验证按所有账户卡号归并。"
+              }
+            ]
+          }
+        },
+        {
+          "id": "2",
+          "question": "刚才第二种情况呢？换页也会让它归零吗？",
+          "reviewed_context": {
+            "source_ranges": [
+              {
+                "path": "app/cbl/CBTRN03C.cbl",
+                "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+                "start_line": 126,
+                "end_line": 137,
+                "role": "declaration"
+              },
+              {
+                "path": "app/cbl/CBTRN03C.cbl",
+                "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+                "start_line": 171,
+                "end_line": 206,
+                "role": "control"
+              },
+              {
+                "path": "app/cbl/CBTRN03C.cbl",
+                "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+                "start_line": 274,
+                "end_line": 323,
+                "role": "result"
+              },
+              {
+                "path": "app/cbl/CBTRN03C.cbl",
+                "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+                "start_line": 343,
+                "end_line": 375,
+                "role": "effect"
+              }
+            ]
+          },
+          "gold": {
+            "required_findings": [
+              {
+                "id": "reserved-report-conversation-2-required-1",
+                "description": "会话第二种指代WS-ACCOUNT-TOTAL；页边界调用页合计段及表头段，没有该段直接清零账户合计。"
+              },
+              {
+                "id": "reserved-report-conversation-2-required-2",
+                "description": "账户合计的直接归零发生在1120-WRITE-ACCOUNT-TOTALS的MOVE0，调用条件在主流程卡号改变且WS-FIRST-TIME=N；保留每条路径的条件。"
+              },
+              {
+                "id": "reserved-report-conversation-2-required-3",
+                "description": "不能用页长20或名称推断账户汇总规则；保持前轮主体及源码版本引用。"
+              }
+            ],
+            "forbidden_claims": [
+              {
+                "id": "reserved-report-conversation-2-forbidden-1",
+                "description": "将第二种误解析成WS-PAGE-TOTAL。"
+              },
+              {
+                "id": "reserved-report-conversation-2-forbidden-2",
+                "description": "因分页就断言WS-ACCOUNT-TOTAL必为0。"
+              }
+            ]
+          }
+        },
+        {
+          "id": "3",
+          "question": "换句话说：前面交易金额明明累加过，为什么后来 WS-ACCOUNT-TOTAL 会变成零？这会把 WS-GRAND-TOTAL 一起抹掉吗？",
+          "reviewed_context": {
+            "source_ranges": [
+              {
+                "path": "app/cbl/CBTRN03C.cbl",
+                "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+                "start_line": 126,
+                "end_line": 137,
+                "role": "declaration"
+              },
+              {
+                "path": "app/cbl/CBTRN03C.cbl",
+                "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+                "start_line": 171,
+                "end_line": 206,
+                "role": "control"
+              },
+              {
+                "path": "app/cbl/CBTRN03C.cbl",
+                "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+                "start_line": 274,
+                "end_line": 323,
+                "role": "result"
+              },
+              {
+                "path": "app/cbl/CBTRN03C.cbl",
+                "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef",
+                "start_line": 343,
+                "end_line": 375,
+                "role": "effect"
+              }
+            ]
+          },
+          "gold": {
+            "required_findings": [
+              {
+                "id": "reserved-report-conversation-3-required-1",
+                "description": "这是对前轮账户合计追问；ADD TRAN-AMT之后若执行账户汇总段，先把已积累计值拷到REPT-ACCOUNT-TOTAL并请求写报告，然后显式MOVE0覆盖工作字段，解释前面的计算并非未执行。"
+              },
+              {
+                "id": "reserved-report-conversation-3-required-2",
+                "description": "该直接MOVE0目标只有WS-ACCOUNT-TOTAL，不能因此说它清WS-GRAND-TOTAL；总合计在页汇总段ADD WS-PAGE-TOTAL形成，在总合计输出段拷到REPT-GRAND-TOTAL。"
+              },
+              {
+                "id": "reserved-report-conversation-3-required-3",
+                "description": "实际文件WRITE结果及外部异常调用是否返回不由源码保证，分别保留已确认的赋值顺序与边界；没有真实交易数据，不给出金额数值。"
+              }
+            ],
+            "forbidden_claims": [
+              {
+                "id": "reserved-report-conversation-3-forbidden-1",
+                "description": "说先前ADD没有生效或被编译器忽略。"
+              },
+              {
+                "id": "reserved-report-conversation-3-forbidden-2",
+                "description": "把账户合计清零扩大为总合计同步清零。"
+              },
+              {
+                "id": "reserved-report-conversation-3-forbidden-3",
+                "description": "给出无真实交易数据支撑的最终合计数值。"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

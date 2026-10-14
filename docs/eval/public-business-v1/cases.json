@@ -1,0 +1,365 @@
+{
+  "schema_version": "public-business-gold/v1",
+  "source_commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+  "case_origin": "Reviewed public source, used during implementation; not an independent holdout and not model accuracy measurement.",
+  "cases": [
+    {
+      "id": "limit-rejection",
+      "split": "public-development",
+      "question": "CBTRN02C 的 1500-B-LOOKUP-ACCT 如何判断超限，为什么拒绝码后来可能改变？",
+      "source_snapshot_id": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "expected_source_paths": [
+        "app/cbl/CBTRN02C.cbl"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "app/cbl/CBTRN02C.cbl",
+            "sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+            "start_line": 397,
+            "end_line": 423,
+            "role": "result"
+          }
+        ]
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "limit-rejection-1",
+            "description": "临时余额为周期credit减debit加交易金额。"
+          },
+          {
+            "id": "limit-rejection-2",
+            "description": "额度大于等于临时余额继续，超限写102。"
+          },
+          {
+            "id": "limit-rejection-3",
+            "description": "到期日检查随后执行，失败可覆盖为103。"
+          },
+          {
+            "id": "limit-rejection-4",
+            "description": "账户读取INVALID KEY写101，实际账户余额仍是外部文件数据。"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "limit-rejection-forbidden-1",
+            "description": "超限必然最终返回102。"
+          },
+          {
+            "id": "limit-rejection-forbidden-2",
+            "description": "把比较方向写反或臆测生产余额。"
+          }
+        ]
+      },
+      "mechanism": {
+        "evidence_range": {
+          "path": "app/cbl/CBTRN02C.cbl",
+          "start_line": 397,
+          "end_line": 423
+        },
+        "fake_correct_answer": "WS-TEMP-BAL = ACCT-CURR-CYC-CREDIT - ACCT-CURR-CYC-DEBIT + DALYTRAN-AMT。[EVIDENCE] 若 ACCT-CREDIT-LIMIT >= WS-TEMP-BAL 则继续，否则 MOVE 102 TO WS-VALIDATION-FAIL-REASON。[EVIDENCE] 后面的到期日检查失败会 MOVE 103 TO WS-VALIDATION-FAIL-REASON，因此 102 可能被后续覆盖。[EVIDENCE]",
+        "fake_incorrect_answer": null,
+        "source_assertions": [
+          {
+            "predicate": "assignment_statement",
+            "target": "WS-TEMP-BAL",
+            "expression": [
+              "ACCT-CURR-CYC-CREDIT",
+              "-",
+              "ACCT-CURR-CYC-DEBIT",
+              "+",
+              "DALYTRAN-AMT"
+            ],
+            "rounded": false
+          },
+          {
+            "predicate": "assignment_statement",
+            "target": "WS-VALIDATION-FAIL-REASON",
+            "expression": [
+              "102"
+            ],
+            "rounded": false
+          },
+          {
+            "predicate": "assignment_statement",
+            "target": "WS-VALIDATION-FAIL-REASON",
+            "expression": [
+              "103"
+            ],
+            "rounded": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "account-update",
+      "split": "public-development",
+      "question": "CBACT04C 的 1050-UPDATE-ACCOUNT 如何更新账户，写入失败怎样处理？",
+      "source_snapshot_id": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "expected_source_paths": [
+        "app/cbl/CBACT04C.cbl"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 350,
+            "end_line": 373,
+            "role": "result"
+          }
+        ]
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "account-update-1",
+            "description": "累计利息加入当前余额。"
+          },
+          {
+            "id": "account-update-2",
+            "description": "周期credit和debit归零。"
+          },
+          {
+            "id": "account-update-3",
+            "description": "以ACCOUNT-RECORD改写FD-ACCTFILE-REC。"
+          },
+          {
+            "id": "account-update-4",
+            "description": "状态00成功分支，其他状态置12并显示/abend；静态写入请求不能证明运行成功。"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "account-update-forbidden-1",
+            "description": "说账户写入无条件成功。"
+          },
+          {
+            "id": "account-update-forbidden-2",
+            "description": "推测真实数据库锁或事务提交。"
+          }
+        ]
+      },
+      "mechanism": {
+        "evidence_range": {
+          "path": "app/cbl/CBACT04C.cbl",
+          "start_line": 350,
+          "end_line": 373
+        },
+        "fake_correct_answer": "ACCT-CURR-BAL = WS-TOTAL-INT + ACCT-CURR-BAL。[EVIDENCE] MOVE 0 TO ACCT-CURR-CYC-CREDIT，并 MOVE 0 TO ACCT-CURR-CYC-DEBIT。[EVIDENCE] REWRITE FD-ACCTFILE-REC FROM ACCOUNT-RECORD 发出改写请求；状态00时 APPL-RESULT = 0，其他状态 APPL-RESULT = 12 并进入错误显示和终止处理。[EVIDENCE]",
+        "fake_incorrect_answer": null,
+        "source_assertions": [
+          {
+            "predicate": "assignment_statement",
+            "target": "ACCT-CURR-BAL",
+            "expression": [
+              "WS-TOTAL-INT",
+              "+",
+              "ACCT-CURR-BAL"
+            ],
+            "rounded": false
+          },
+          {
+            "predicate": "assignment_statement",
+            "target": "ACCT-CURR-CYC-CREDIT",
+            "expression": [
+              "0"
+            ],
+            "rounded": false
+          },
+          {
+            "predicate": "write_statement",
+            "target": "FD-ACCTFILE-REC",
+            "effect": "REWRITE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "monthly-interest",
+      "split": "public-development",
+      "question": "CBACT04C 的 1300-COMPUTE-INTEREST 中月息如何计算并累加？",
+      "source_snapshot_id": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "expected_source_paths": [
+        "app/cbl/CBACT04C.cbl"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 462,
+            "end_line": 471,
+            "role": "result"
+          }
+        ]
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "monthly-interest-1",
+            "description": "月息为分类余额乘利率再除1200。"
+          },
+          {
+            "id": "monthly-interest-2",
+            "description": "累加月息后写利息交易。"
+          },
+          {
+            "id": "monthly-interest-3",
+            "description": "调用处要求DIS-INT-RATE非零；金额PIC尺度为两位小数，无ROUNDED，不能将Decimal等同于完整COBOL执行。"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "monthly-interest-forbidden-1",
+            "description": "除12、100或999。"
+          },
+          {
+            "id": "monthly-interest-forbidden-2",
+            "description": "声称实际生产利率或金额。"
+          }
+        ]
+      },
+      "mechanism": {
+        "evidence_range": {
+          "path": "app/cbl/CBACT04C.cbl",
+          "start_line": 462,
+          "end_line": 471
+        },
+        "fake_correct_answer": "WS-MONTHLY-INT = ( TRAN-CAT-BAL * DIS-INT-RATE ) / 1200。[EVIDENCE] WS-TOTAL-INT = WS-MONTHLY-INT + WS-TOTAL-INT，然后调用1300-B-WRITE-TX。[EVIDENCE]",
+        "fake_incorrect_answer": "WS-MONTHLY-INT = ( TRAN-CAT-BAL * DIS-INT-RATE ) / 999。[EVIDENCE] 累计值还需要按后续写入状态核对。",
+        "source_assertions": [
+          {
+            "predicate": "assignment_statement",
+            "target": "WS-MONTHLY-INT",
+            "expression": [
+              "(",
+              "TRAN-CAT-BAL",
+              "*",
+              "DIS-INT-RATE",
+              ")",
+              "/",
+              "1200"
+            ],
+            "rounded": false
+          },
+          {
+            "predicate": "assignment_statement",
+            "target": "WS-TOTAL-INT",
+            "expression": [
+              "WS-MONTHLY-INT",
+              "+",
+              "WS-TOTAL-INT"
+            ],
+            "rounded": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-record-mapping",
+      "split": "public-development",
+      "question": "CBACT04C 中 ACCOUNT-FILE、ACCTFILE、FD-ACCTFILE-REC 和 ACCOUNT-RECORD 如何对应？",
+      "source_snapshot_id": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "expected_source_paths": [
+        "app/cbl/CBACT04C.cbl"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 41,
+            "end_line": 44,
+            "role": "result"
+          }
+        ]
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "file-record-mapping-1",
+            "description": "SELECT逻辑文件ACCOUNT-FILE映射外部名ACCTFILE。"
+          },
+          {
+            "id": "file-record-mapping-2",
+            "description": "FD-ACCTFILE-REC物理记录与COPY工作记录通过READ/REWRITE传递。"
+          },
+          {
+            "id": "file-record-mapping-3",
+            "description": "记录键FD-ACCT-ID，状态ACCTFILE-STATUS；运行数据集需要JCL配置。"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "file-record-mapping-forbidden-1",
+            "description": "猜实际文件路径或表中数据。"
+          }
+        ]
+      },
+      "mechanism": {
+        "evidence_range": {
+          "path": "app/cbl/CBACT04C.cbl",
+          "start_line": 41,
+          "end_line": 44
+        },
+        "fake_correct_answer": "ACCOUNT-FILE 在 SELECT 中 ASSIGN TO ACCTFILE，记录键为FD-ACCT-ID，状态字段为ACCTFILE-STATUS。[EVIDENCE] FD声明的物理记录是FD-ACCTFILE-REC；工作记录ACCOUNT-RECORD由COPY定义，经READ INTO和REWRITE FROM传递。静态映射不能证明实际运行数据集路径。[EVIDENCE]",
+        "fake_incorrect_answer": null,
+        "source_assertions": []
+      }
+    },
+    {
+      "id": "unimplemented-procedure",
+      "split": "public-development",
+      "question": "CBACT04C 的 1400-COMPUTE-FEES 实现了哪些手续费规则？",
+      "source_snapshot_id": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "expected_source_paths": [
+        "app/cbl/CBACT04C.cbl"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 518,
+            "end_line": 521,
+            "role": "result"
+          }
+        ]
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "unimplemented-procedure-1",
+            "description": "完整段落只有EXIT，待实现注释不构成算法。"
+          },
+          {
+            "id": "unimplemented-procedure-2",
+            "description": "不能按名字补出费率、计算或副作用。"
+          },
+          {
+            "id": "unimplemented-procedure-3",
+            "description": "调用点存在PERFORM并不能证明被调段有业务计算。"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "unimplemented-procedure-forbidden-1",
+            "description": "虚构按余额百分比收手续费。"
+          }
+        ]
+      },
+      "mechanism": {
+        "evidence_range": {
+          "path": "app/cbl/CBACT04C.cbl",
+          "start_line": 518,
+          "end_line": 521
+        },
+        "fake_correct_answer": "1400-COMPUTE-FEES 的完整段落只有待实现注释和 EXIT，没有手续费计算或写入语句。[EVIDENCE] 段落名称本身不能证明存在手续费算法。",
+        "fake_incorrect_answer": "1400-COMPUTE-FEES 按余额的1%计算手续费。[EVIDENCE] 该段落由主流程调用。",
+        "source_assertions": []
+      }
+    }
+  ]
+}

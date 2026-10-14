@@ -1,0 +1,77 @@
+{
+  "schema_version": "public-business-corpus/v1",
+  "repository": "https://github.com/aws-samples/aws-mainframe-modernization-carddemo",
+  "commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+  "license": "Apache-2.0",
+  "download_archive_sha256": "a22c114ba79df73f86578495fbceb4062ae53e0cb335f5d2950598caf011684f",
+  "license_sha256": "09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b",
+  "source_location": "External fixed checkout only; no source files copied into this repository.",
+  "split": "public-reserved",
+  "files": [
+    {
+      "path": "app/cbl/CBACT01C.cbl",
+      "sha256": "f8eb6e3a561ff96a1889a8f777a8998850a11dddae221da2c5018067d7b95551"
+    },
+    {
+      "path": "app/cbl/CBTRN01C.cbl",
+      "sha256": "55c2aebd59528aa42b28878ba5ca4d17a00b3548fc25e4ce1529710d366fd576"
+    },
+    {
+      "path": "app/cbl/CSUTLDTC.cbl",
+      "sha256": "58c165dcfc3927232c02c152c673e3dee551587b85e7fe56ca67325c980eebb6"
+    },
+    {
+      "path": "app/cbl/CBTRN03C.cbl",
+      "sha256": "8691e625502b7efcfd7ba4ae61797132e7b68f3fd5fedcdcc7dd6488f6871eef"
+    },
+    {
+      "path": "app/cpy/CVACT01Y.cpy",
+      "sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728"
+    },
+    {
+      "path": "app/cpy/CODATECN.cpy",
+      "sha256": "8efc6b6d79bd46d65fcdc4e6a8e3778511fca76054f3fbae8e3075b0a2aa8fb1"
+    },
+    {
+      "path": "app/cpy/CVTRA06Y.cpy",
+      "sha256": "c5c69f1b86c5a10156d3c5881d7cf387e6b925aae32825360f85bf4056a554a1"
+    },
+    {
+      "path": "app/cpy/CVCUS01Y.cpy",
+      "sha256": "944fd9a8eb10a683d0db97b9a87f2151982f649970287eb74358826056af25f8"
+    },
+    {
+      "path": "app/cpy/CVACT03Y.cpy",
+      "sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+    },
+    {
+      "path": "app/cpy/CVACT02Y.cpy",
+      "sha256": "9f1c62ef31b9d541712f1ed28f79e011ea7338611f5e0f30f2e1cbf624181223"
+    },
+    {
+      "path": "app/cpy/CVTRA05Y.cpy",
+      "sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec"
+    },
+    {
+      "path": "app/cpy/CVTRA03Y.cpy",
+      "sha256": "fb15dbc4a6924cbddce0704932f9e61c067ac10004cd00839dff0ed7c7bb0667"
+    },
+    {
+      "path": "app/cpy/CVTRA04Y.cpy",
+      "sha256": "89803bc13a06347e1f3d8a599a5383b87235b203dce9f18a486bc233186479f8"
+    },
+    {
+      "path": "app/cpy/CVTRA07Y.cpy",
+      "sha256": "72ba597b1a40e1e6cf908e15da9e6a818a0ab899ef1d27d15edeb074963102fa"
+    }
+  ],
+  "cases_file": "cases.json",
+  "compilation_context": {
+    "encoding": "utf-8",
+    "source_format": "fixed",
+    "copy_libraries": [
+      "app/cpy"
+    ],
+    "copy_library_order_known": true
+  }
+}

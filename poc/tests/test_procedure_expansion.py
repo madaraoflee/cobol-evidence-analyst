@@ -10,6 +10,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from procedure_expansion import expand_program
+from compilation_context import CompilationContext
 
 
 def program(body: str, working: str = "") -> str:
@@ -41,7 +42,7 @@ class ProcedureExpansionTests(unittest.TestCase):
         self.write("area.cpy", "01 ACCESS-STATUS PIC XX.\n")
         self.write("batchctl.cpy", "PERFORM 2000-HANDLE.\nCOPY ENDCTL.\n")
         self.write("endctl.cpy", "GOBACK.\n")
-        result = self.expand()
+        result = self.expand(compilation_context=CompilationContext(nested_copy_replacing=True))
         self.assertTrue(result["source_expansion_complete"])
         self.assertEqual(result["status"], "expanded")
         self.assertFalse(result["compiler_equivalent"])
@@ -106,9 +107,9 @@ class ProcedureExpansionTests(unittest.TestCase):
         self.assertEqual(issue["origin"]["relative_path"], "secondctl.cpy")
         self.assertEqual([site["copy_name"] for site in issue["include_chain"]], ["FIRSTCTL", "SECONDCTL"])
 
-    def test_replacing_and_inline_and_split_copy_are_unsupported(self) -> None:
-        for body in ["COPY STEPCTL REPLACING ==A== BY ==B==.",
-                     "CONTINUE. COPY STEPCTL.", "COPY\nSTEPCTL.", "COPY STEPCTL IN LIBRARY."]:
+    def test_inline_and_split_copy_and_partial_replacement_are_unsupported(self) -> None:
+        for body in ["COPY STEPCTL REPLACING LEADING ==A== BY ==B==.",
+                     "CONTINUE. COPY STEPCTL.", "COPY\nSTEPCTL."]:
             with self.subTest(body=body):
                 self.write("entry.cbl", program(body))
                 self.write("stepctl.cpy", "GOBACK.")
@@ -118,7 +119,7 @@ class ProcedureExpansionTests(unittest.TestCase):
 
     def test_replace_state_and_directives_disable_file_expansion(self) -> None:
         for modifier, reason in [("REPLACE ==A== BY ==B==.", "replace_statement_not_supported"),
-                                 (">>IF FEATURE", "source_directive_not_supported"),
+                                 (">>IF FEATURE", "compile_condition_unknown"),
                                  ("$SET SOURCEFORMAT FREE", "source_directive_not_supported")]:
             with self.subTest(modifier=modifier):
                 self.write("entry.cbl", program(modifier + "\nCOPY STEPCTL."))
@@ -126,6 +127,78 @@ class ProcedureExpansionTests(unittest.TestCase):
                 result = self.expand()
                 self.assertIn(reason, self.reasons(result))
                 self.assertIn("COPY STEPCTL.", [line["text"] for line in result["lines"]])
+
+    def test_replacing_uses_token_boundaries_and_keeps_original_provenance(self):
+        self.write("entry.cbl", program("COPY STEPCTL REPLACING ==AMOUNT== BY ==TOTAL==."))
+        self.write("stepctl.cpy", "MOVE AMOUNT TO AMOUNT-OTHER.\nDISPLAY 'AMOUNT *> literal'.\nCOPY LEAFCTL.")
+        self.write("leafctl.cpy", "ADD AMOUNT TO RESULT.")
+        result = self.expand(compilation_context=CompilationContext(nested_copy_replacing=True))
+        self.assertTrue(result["source_expansion_complete"])
+        mapped = [row for row in result["lines"] if row["include_chain"]]
+        self.assertEqual(mapped[0]["code"], "MOVE TOTAL TO AMOUNT-OTHER.")
+        self.assertIn("'AMOUNT *> literal'", mapped[1]["code"])
+        self.assertEqual(mapped[2]["code"], "ADD TOTAL TO RESULT.")
+        self.assertEqual(mapped[0]["text"], "MOVE AMOUNT TO AMOUNT-OTHER.")
+        self.assertEqual(mapped[0]["replacement_trace"][0]["copy_site"]["relative_path"], "entry.cbl")
+        self.assertEqual(len(mapped[2]["include_chain"]), 2)
+
+    def test_replacing_is_once_per_original_word_and_nested_profile_is_required(self):
+        self.write("entry.cbl", program("COPY STEPCTL REPLACING ==A== BY ==B== ==B== BY ==C==."))
+        self.write("stepctl.cpy", "MOVE A TO B.\nCOPY LEAFCTL.")
+        self.write("leafctl.cpy", "MOVE A TO RESULT.")
+        unknown = self.expand()
+        self.assertIn("nested_copy_replacing_configuration_unknown", self.reasons(unknown))
+        result = self.expand(compilation_context=CompilationContext(nested_copy_replacing=True))
+        self.assertTrue(result["source_expansion_complete"])
+        self.assertEqual(next(row["code"] for row in result["lines"] if row["include_chain"]), "MOVE B TO C.")
+        self.write("leafctl.cpy", "COPY LASTCTL REPLACING ==A== BY ==D==.")
+        self.assertIn("nested_copy_replacement_conflict", self.reasons(self.expand(
+            compilation_context=CompilationContext(nested_copy_replacing=True))))
+
+    def test_explicit_library_order_selects_first_member_and_unknown_order_keeps_candidates(self):
+        self.write("entry.cbl", program("COPY STEPCTL."))
+        self.write("a/stepctl.cpy", "CONTINUE.")
+        self.write("b/stepctl.cpy", "GOBACK.")
+        context = CompilationContext(copy_libraries=("b", "a"), copy_library_order_known=True)
+        result = self.expand(compilation_context=context)
+        self.assertTrue(result["source_expansion_complete"])
+        self.assertEqual(result["includes"][0]["resolved_path"], "b/stepctl.cpy")
+        self.assertEqual(result["includes"][0]["candidates"], ["a/stepctl.cpy", "b/stepctl.cpy"])
+        self.assertIn("copy_target_ambiguous", self.reasons(self.expand()))
+        self.write("entry.cbl", program("COPY STEPCTL IN LIBRARY."))
+        self.assertIn("copy_library_configuration_unknown", self.reasons(self.expand()))
+
+    def test_compile_conditions_expand_only_known_active_branch(self):
+        self.write("entry.cbl", program(">>IF FEATURE\nCOPY FIRSTCTL.\n>>ELSE\nCOPY SECONDCTL.\n>>END-IF"))
+        self.write("firstctl.cpy", "MOVE 1 TO RESULT.")
+        self.write("secondctl.cpy", "MOVE 2 TO RESULT.")
+        enabled = self.expand(compilation_context=CompilationContext(compile_conditions=(("FEATURE", True),)))
+        self.assertTrue(enabled["source_expansion_complete"])
+        self.assertEqual([row["code"] for row in enabled["lines"] if row["include_chain"]], ["MOVE 1 TO RESULT."])
+        disabled = self.expand(compilation_context=CompilationContext(compile_conditions=(("FEATURE", False),)))
+        self.assertEqual([row["code"] for row in disabled["lines"] if row["include_chain"]], ["MOVE 2 TO RESULT."])
+        unknown = self.expand()
+        self.assertFalse(unknown["source_expansion_complete"])
+        self.assertEqual([row["status"] for row in unknown["includes"]], ["condition_candidate", "condition_candidate"])
+        self.assertEqual(len([row for row in unknown["lines"] if row["condition_candidate"]]), 2)
+
+    def test_legal_fixed_copy_continuation_keeps_range(self):
+        self.write("entry.cbl", "000100 IDENTIFICATION DIVISION.\n000200 PROGRAM-ID. ENTRYPG.\n"
+                   "000300 PROCEDURE DIVISION.\n000400 COPY STEPCTL REPLACING\n000500- ==AMOUNT== BY ==TOTAL==.\n")
+        self.write("stepctl.cpy", "MOVE AMOUNT TO RESULT.")
+        result = self.expand()
+        self.assertTrue(result["source_expansion_complete"])
+        self.assertEqual(result["includes"][0]["origin"]["end_line"], 5)
+        self.assertEqual(next(row["code"] for row in result["lines"] if row["include_chain"]), "MOVE TOTAL TO RESULT.")
+
+    def test_multiple_legal_fixed_literal_continuations_keep_full_physical_range(self):
+        self.write("entry.cbl", "000100 IDENTIFICATION DIVISION.\n000200 PROGRAM-ID. ENTRYPG.\n"
+                   "000300 PROCEDURE DIVISION.\n000400 DISPLAY 'ab\n000500- 'cd\n000600- 'ef'.\n")
+        result = self.expand()
+        self.assertTrue(result["source_expansion_complete"])
+        literal = next(row for row in result["lines"] if row["code"].startswith("DISPLAY"))
+        self.assertEqual(literal["code"], "DISPLAY 'abcdef'.")
+        self.assertEqual((literal["origin"]["line"], literal["origin"]["end_line"]), (4, 6))
 
     def test_quoted_words_and_comments_do_not_create_copy_or_program_ids(self) -> None:
         self.write("entry.cbl", program(

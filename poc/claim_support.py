@@ -8,11 +8,12 @@ claim.  It does not evaluate arithmetic, infer execution paths, or assess prose.
 from __future__ import annotations
 
 import re
+from bisect import bisect_left, bisect_right
 from collections.abc import Mapping
 from typing import Any
 
 
-CHECKER_VERSION = "compute-statement-v0.1"
+CHECKER_VERSION = "compute-statement-v0.2"
 MAX_SOURCE_CHARS = 16_000
 MAX_EXPRESSION_TOKENS = 40
 MAX_EXPRESSION_CHARS = 240
@@ -21,7 +22,7 @@ MAX_CLAIM_CHARS = 320
 _IDENTIFIER = re.compile(r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*", re.ASCII)
 _NUMBER = re.compile(r"[0-9]+(?:\.[0-9]+)?", re.ASCII)
 _TOKEN = re.compile(
-    r"[0-9]+\.[0-9]+|[A-Z0-9][A-Z0-9-]*|[+*/()=-]",
+    r"[0-9]+\.[0-9]+|[A-Z0-9][A-Z0-9-]*|\*\*|[+*/()=-]",
     re.ASCII,
 )
 _RESERVED = frozenset(
@@ -81,7 +82,7 @@ def _valid_expression(tokens: list[str]) -> bool:
         nonlocal position
         if not primary():
             return False
-        while position < len(tokens) and tokens[position] in {"*", "/"}:
+        while position < len(tokens) and tokens[position] in {"*", "/", "**"}:
             position += 1
             if not primary():
                 return False
@@ -277,4 +278,172 @@ def check_claim_support(
         reason_code="COMPUTE_STATEMENT_MATCH",
         claim_text=_render_claim(normalized),
     )
+    return result
+
+
+STATEMENT_CHECKER_VERSION = "source-statement-support-v2"
+
+
+def statement_tokens(text: str) -> tuple[str, ...] | None:
+    """Normalize tokens with the statement front end, never evaluate them."""
+    from statement_parser import _BoundaryError, _Source, _lex
+
+    try:
+        return tuple(token.value for token in _lex(_Source(text, 1), "free", 512))
+    except (_BoundaryError, ValueError):
+        return None
+
+
+def supplied_statement_facts(page: Mapping[str, Any], *, source_format: str = "auto",
+                             compilation_context=None) -> list[dict[str, Any]]:
+    """Project supported statement occurrences from an already captured excerpt.
+
+    This uses the same structural/statement front ends as indexing. Evidence
+    remains bound to the supplied excerpt; this function never reads live files.
+    A supported occurrence is a syntax fact, not an execution or final-value
+    proof. Unsupported units are deliberately absent from the fact list.
+    """
+    from structural_index import SourceDocument, normalize_cobol_lines, parse_document
+    from statement_parser import parse_statements
+    from statement_facts import assignment_facts, condition_syntax_supported
+
+    source = page.get("source_text")
+    first, last = page.get("start_line"), page.get("end_line")
+    if (not isinstance(source, str) or not source or page.get("span_truncated")
+            or type(first) is not int or type(last) is not int or first <= 0 or last < first
+            or len(source.splitlines()) != last - first + 1
+            or re.fullmatch(r"[a-fA-F0-9]{64}", str(page.get("source_sha256", ""))) is None):
+        return []
+    lines, hint = normalize_cobol_lines(source, source_format)
+    document = SourceDocument(str(page.get("relative_path", "supplied.cbl")),
+        str(page["source_sha256"]), "utf-8", False, hint, "COBOL", tuple(source.splitlines()), lines)
+    parsed = parse_document(document, compilation_context=compilation_context)
+    by_id = {unit.unit_id: unit for unit in parsed.code_units}
+    controls, compilation = {}, {}
+    for relation in parsed.relations:
+        if relation.metadata.get("compilation_status") == "candidate":
+            compilation[relation.from_entity_id] = {
+                "compilation_status": "candidate",
+                "compilation_guards": relation.metadata.get("compilation_guards", []),
+                "compilation_diagnostics": relation.metadata.get("diagnostics", [])}
+        if relation.relation_type != "CONTROL_DEPENDS_ON" or relation.status != "confirmed":
+            continue
+        condition_unit = by_id.get(relation.target_entity_id)
+        if condition_unit is None:
+            continue
+        controls.setdefault(relation.from_entity_id, []).append({
+            "kind": condition_unit.name, "condition": condition_unit.normalized_text,
+            "outcome": relation.metadata.get("outcome"),
+            "start_line": first + condition_unit.start_line - 1,
+            "end_line": first + condition_unit.end_line - 1})
+    facts = []
+    for unit in parsed.code_units:
+        if unit.unit_type != "Statement" or unit.parse_status not in {"complete", "candidate"}:
+            continue
+        body = unit.normalized_text
+        location = {"start_line": first + unit.start_line - 1,
+                    "end_line": first + unit.end_line - 1,
+                    "program_name": unit.program_name,
+                    "occurrence_id": unit.unit_id,
+                    "statement_kind": unit.name,
+                    "guards": controls.get(unit.unit_id, []),
+                    "source_text": "\n".join(source.splitlines()[unit.start_line - 1:unit.end_line]),
+                    **compilation.get(unit.unit_id, {})}
+        if unit.name in {"COMPUTE", "MOVE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"}:
+            assignment = assignment_facts(body)
+            exceptional_header = (assignment is not None and assignment.effects_unknown
+                                  and "exception_scope_requires_control_flow" in assignment.diagnostics)
+            statement = parse_statements(body, start_line=location["start_line"], source_format="free")
+            if not exceptional_header and (not statement.complete or len(statement.statements) != 1):
+                continue
+            node = statement.statements[0] if statement.statements else None
+            if node is not None and node.effects_unknown and not exceptional_header:
+                continue
+            # Arithmetic verbs may have receiver-specific expressions.
+            expressions = assignment.expressions if assignment else ()
+            for target, expression in expressions:
+                if assignment.kind != "MOVE":
+                    from statement_parser import _BoundaryError, _Source, _lex, _valid_expression
+                    try:
+                        if not _valid_expression(_lex(_Source(expression, 1), "free", 512)):
+                            continue
+                    except _BoundaryError:
+                        continue
+                tokens = statement_tokens(expression)
+                if tokens:
+                    facts.append({**location, "predicate": "assignment_statement", "target": target,
+                        "expression": list(tokens), "rounded": assignment.rounded,
+                        "normal_result_condition": "no_size_error" if exceptional_header else None,
+                        "exception_effects_unverified": exceptional_header})
+        elif unit.name == "IF":
+            condition = re.sub(r"^IF\s+", "", body, flags=re.I).removesuffix(" THEN").rstrip(".")
+            from statement_parser import _VERBS
+            if condition_syntax_supported(condition, set(_VERBS)):
+                tokens = statement_tokens(condition)
+                if tokens:
+                    facts.append({**location, "predicate": "condition_statement", "target": None,
+                                  "condition": list(tokens), "outcome": True})
+        elif unit.name in {"WRITE", "REWRITE", "DELETE"}:
+            statement = parse_statements(body, start_line=location["start_line"], source_format="free")
+            tokens = statement_tokens(body)
+            if statement.complete and tokens and len(tokens) >= 2 and _is_identifier(tokens[1]):
+                facts.append({**location, "predicate": "write_statement", "target": tokens[1],
+                              "effect": unit.name})
+    boundaries = sorted((unit for unit in parsed.code_units if unit.unit_type in
+                  {"Paragraph", "Section", "Program", "ProcedureSignature"}), key=lambda unit: unit.start_line)
+    boundary_starts = [unit.start_line for unit in boundaries]
+    line_starts = [line.start_line for line in document.lines]
+    for unit in boundaries:
+        if unit.unit_type != "Paragraph" or unit.parse_status != "complete":
+            continue
+        next_index = bisect_right(boundary_starts, unit.end_line)
+        following = boundaries[next_index] if next_index < len(boundaries) else None
+        if following is None:
+            continue  # An excerpt ending at EXIT cannot prove the paragraph ends there.
+        body = "\n".join(line.text for line in document.lines[
+            bisect_right(line_starts, unit.end_line):bisect_left(line_starts, following.start_line)])
+        statements = parse_statements(body)
+        if statements.complete and statements.nodes and all(
+                statement.kind in {"EXIT", "CONTINUE"} for statement in statements.nodes):
+            facts.append({"predicate": "noop_procedure", "target": unit.name,
+                "statement_kind": "PARAGRAPH", "occurrence_id": unit.unit_id,
+                "start_line": first + unit.start_line - 1,
+                "end_line": first + following.start_line - 2,
+                "source_text": "\n".join(source.splitlines()[unit.start_line - 1:following.start_line - 1]),
+                "body_kinds": [statement.kind for statement in statements.statements],
+                "support_scope": "complete_local_procedure_body_no_data_or_io_statements"})
+    return facts
+
+
+def check_statement_support(assertion: Mapping[str, Any], fact: Mapping[str, Any],
+                            page: Mapping[str, Any]) -> dict[str, Any]:
+    """Check one explicit source assertion against one occurrence.
+
+    The narrow COMPUTE checker is retained for the syntax it supports. The
+    shared front-end projection extends the same exact-token comparison to
+    MOVE, arithmetic, IF headers and explicit write requests. No result here
+    proves that the statement executes, a write succeeds, or a value is final.
+    """
+    predicate = assertion.get("predicate")
+    fields = {"assignment_statement": ("target", "expression", "rounded"),
+              "condition_statement": ("condition", "outcome"),
+              "write_statement": ("target", "effect")}.get(predicate)
+    result = {"support_status": "unsupported", "reason_code": "SEMANTICS_NOT_SUPPORTED",
+              "checker_version": STATEMENT_CHECKER_VERSION,
+              "support_scope": "source_statement_syntax"}
+    if fields is None or predicate != fact.get("predicate"):
+        return result
+    if predicate == "assignment_statement" and fact.get("statement_kind") == "COMPUTE":
+        narrow = {"predicate": "compute_statement", "target": assertion.get("target"),
+                  "expression": assertion.get("expression"), "rounded": assertion.get("rounded")}
+        identifier = str(page.get("evidence_id", ""))
+        span = {**page, "source_text": fact.get("source_text"),
+                "start_line": fact["start_line"], "end_line": fact["end_line"],
+                "integrity": "VALID", "span_truncated": False, "content_type": "UNTRUSTED_SOURCE_TEXT"}
+        checked = check_claim_support(narrow, [identifier], {identifier: span})
+        if checked["reason_code"] not in {"SOURCE_FORM_NOT_SUPPORTED", "INVALID_ASSERTION"}:
+            return {**checked, "support_scope": "source_statement_syntax"}
+    matched = all(assertion.get(field) == fact.get(field) for field in fields)
+    result.update(support_status="supported" if matched else "contradicted",
+                  reason_code="SOURCE_STATEMENT_MATCH" if matched else "SOURCE_STATEMENT_MISMATCH")
     return result

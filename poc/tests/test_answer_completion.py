@@ -211,7 +211,10 @@ class AnswerCompletionTests(unittest.TestCase):
         self.build_source()
         answer = "该程序根据基础值和系数生成最终金额，非正数基础值的结果为零。"
         output = self.ask([BLANKET_LIMITATION, answer], question="rule.cbl 是做什么的？")
-        self.assertEqual(self.requests[0]["question_investigation"]["required_items"], [])
+        source_obligation = next(item for item in self.requests[0]["question_investigation"]["required_items"] if item["kind"] == "source")
+        self.assertEqual(source_obligation["status"], "SATISFIED")
+        self.assertTrue(source_obligation["evidence_ids"])
+        self.assertFalse(any(item["kind"] == "formula" for item in self.requests[0]["question_investigation"]["required_items"]))
         self.assertTrue(self.requests[0]["source_context"][0]["working_set"]["physical_complete"])
         self.assertEqual(output["agent_result"]["answer"], answer)
         self.assertEqual(len(self.requests), 2)

@@ -73,8 +73,9 @@ class PartialSourceTransport(AgentReadyTransport):
                 action = "read_evidence"
                 arguments = {"evidence_ids": refs}
             elif stage == 4:
-                formula = next(edge["evidence_ref"]["evidence_id"] for edge in relations
-                               if edge["relation_type"] == "WRITES" and edge["target"]["name"] == "RESULT-AMOUNT")
+                formula = next(span["evidence_id"] for span in results[3]["spans"]
+                               if "COMPUTE RESULT-AMOUNT = INPUT-AMOUNT * FACTOR" in span["source_text"]
+                               and not span.get("span_truncated"))
                 condition = next(edge["evidence_ref"]["evidence_id"] for edge in relations
                                  if edge["relation_type"] == "READS" and edge["target"]["name"] == "OPTION-FLAG")
                 call = next(edge["evidence_ref"]["evidence_id"] for edge in relations

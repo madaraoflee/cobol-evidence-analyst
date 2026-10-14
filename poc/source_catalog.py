@@ -19,9 +19,10 @@ import time
 from typing import Callable
 
 from repo_inventory import (
-    DEFAULT_EXTENSIONS, PROGRAM_ID_RE, SOURCE_FORMAT_RE,
+    DEFAULT_EXTENSIONS, SOURCE_FORMAT_RE,
     classify_artifact, decode_source, iter_source_files, validate_source_options,
 )
+from statement_facts import FRONTEND_VERSION, program_identifiers
 
 HEADER_BYTES = 256 * 1024
 COPY_EXTENSIONS = frozenset({'.cpy', '.copy', '.cpb', '.inc'})
@@ -180,7 +181,7 @@ def _inspect_header(path: Path, relative_path: str, size: int, *, encoding: str,
     normalized = '\n'.join(line for _, line in lines)
     # Most exported members declare PROGRAM-ID in the first few lines. Stop
     # early once found; unusually long prologues may use the configured bound.
-    if first_limit < header_bytes and truncated and not PROGRAM_ID_RE.search(normalized) and path.suffix.lower() not in COPY_EXTENSIONS:
+    if first_limit < header_bytes and truncated and not program_identifiers(normalized) and path.suffix.lower() not in COPY_EXTENSIONS:
         data, extra_read, full_hash = _read_prefix(path, header_bytes)
         bytes_read += extra_read
         truncated = len(data) < size
@@ -189,9 +190,9 @@ def _inspect_header(path: Path, relative_path: str, size: int, *, encoding: str,
         normalized = '\n'.join(line for _, line in lines)
     definitions = []
     # Match across physical lines, including split PROGRAM-ID clauses.
-    for match in PROGRAM_ID_RE.finditer(normalized):
-        index = normalized.count('\n', 0, match.start())
-        definitions.append({'program_name': match.group(1).upper(),
+    for name, start, _ in program_identifiers(normalized):
+        index = normalized.count('\n', 0, start)
+        definitions.append({'program_name': name,
                             'relative_path': relative_path, 'start_line': lines[index][0],
                             'name_origin': 'program_id'})
         if len(definitions) >= 256:
@@ -241,7 +242,7 @@ def refresh_source_catalog(
         raise ValueError('header_bytes must be between 1024 and 16777216.')
     if source == database_path.resolve() or source in database_path.resolve().parents:
         raise ValueError('Catalog database must be outside the source directory.')
-    option_key = json.dumps([str(source), encoding, source_format, header_bytes], ensure_ascii=False)
+    option_key = json.dumps([str(source), encoding, source_format, header_bytes, FRONTEND_VERSION], ensure_ascii=False)
     started = time.monotonic()
     stats = {'candidate': 0, 'decoded': 0, 'indexed_or_updated': 0, 'cached': 0,
              'removed': 0, 'failed': 0, 'bytes_total': 0, 'bytes_read': 0}

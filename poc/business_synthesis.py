@@ -8,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 from business_behavior import build_behavior_guide
 from file_impact_evidence import is_file_impact_question
 from question_intent import calculation_intent
+from source_availability import source_availability_contradictions
 
 
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
@@ -469,7 +470,7 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
     return requirements
 
 
-def assess_business_answer(question, answer, investigation, source_pages, *, answer_detail="detailed"):
+def assess_business_answer(question, answer, investigation, source_pages, *, answer_detail="detailed", working_set=None):
     """Detect obvious omissions without treating source supply as answer quality."""
     completion = assess_answer_completion(answer)
     # Only the excerpts actually sent to this answer can contradict a global
@@ -480,9 +481,11 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
         and "repository_orientation" not in page.get("selection_reasons", [])
         for page in source_pages))
     selection_contradiction = source_supplied and completion["source_selection_limitation_detected"]
-    if selection_contradiction:
+    availability_contradictions = source_availability_contradictions(answer, source_pages, working_set)
+    if selection_contradiction or availability_contradictions:
         completion.update(status="incomplete", reason="source_availability_contradiction")
-    completion["source_availability_contradiction"] = bool(selection_contradiction)
+    completion["source_availability_contradiction"] = bool(selection_contradiction or availability_contradictions)
+    completion["source_availability_contradictions"] = availability_contradictions
     requirements = answer_requirements(question, investigation, source_pages, answer_detail=answer_detail)
     text = _REFERENCE.sub("", str(answer))
     text = re.sub(r"\[([^\]\n]+)\]\([^\)\n]+\)", r"\1", text)
@@ -522,13 +525,14 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
 
 
 def needs_synthesis_review(question, answer, investigation, *, source_available=False, source_pages=(),
-                           answer_detail="detailed", assessment=None):
+                           answer_detail="detailed", assessment=None, working_set=None):
     """Review a detected omission or unfinished answer against supplied material."""
     items = investigation.get("required_items", [])
     supplied = source_available or any(item.get("evidence_ids") for item in items)
     if not supplied:
         return False
-    completion = (assess_business_answer(question, answer, investigation, source_pages, answer_detail=answer_detail)
+    completion = (assess_business_answer(question, answer, investigation, source_pages, answer_detail=answer_detail,
+                                      working_set=working_set)
                   if assessment is None else assessment)
     # A local qualification is normal in a detailed explanation. Its wording
     # alone is not an omitted business point and cannot justify regenerating

@@ -1,0 +1,15 @@
+{
+  "schema_version": "public-reserved-freeze/v1",
+  "frozen_at_utc": "2026-10-13T16:38:50.728454+00:00",
+  "case_count": 4,
+  "turn_count": 6,
+  "source_program_count": 4,
+  "source_file_count": 14,
+  "source_commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+  "cases_sha256": "b517262a24edeab0c227809df12f2c523914e60325f4bb10d4ec6c597416b907",
+  "manifest_sha256": "679c7e82e148e0f02f126849d7ac2a3a996daa258db8109ef6eb2c186375d893",
+  "gold_used_for_code_tuning": false,
+  "code_freeze_declared": false,
+  "mechanisms_run": false,
+  "real_model_run": false
+}

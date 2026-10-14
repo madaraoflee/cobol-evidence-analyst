@@ -17,11 +17,12 @@ from report_view import write_report_view
 def try_indexed_question(source, output, *, question, entry, extensions, include_extensionless,
                          encoding, source_format, config, api_options, transport,
                          framework_reference_path, capture_api_responses, history,
-                         progress, check_cancel, policy=None, answer_detail="detailed"):
+                         progress, check_cancel, policy=None, answer_detail="detailed", compilation_context=None):
     from repository_discovery import _connect, repository_search_overview
     from business_chat import run_business_chat
     from business_index import PARSER_VERSION
     from analyze_source import _write
+    from repository_identity import resolve_entry_identity
     try:
         path = output / "diagnosis.json"
         if path.is_symlink():
@@ -35,6 +36,22 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
         with closing(_connect(output / "structural-index.sqlite")) as connection:
             metadata = dict(connection.execute("SELECT key,value FROM metadata WHERE key IN "
                 "('parser_version','source_options','source_root_hash','index_kind')"))
+            if entry:
+                selected_identity = resolve_entry_identity(connection, entry)
+                if selected_identity["status"] != "resolved":
+                    # An earlier selected-entry index may cover a different
+                    # member while the catalog lists the requested member.
+                    # Return to normal intake instead of answering from it.
+                    return None
+                if (previous.get("scope") or {}).get("mode") not in {"repository_index", "repository_question"}:
+                    from source_catalog import _entry_matches
+                    programs_path = output / "programs.json"
+                    if programs_path.is_symlink():
+                        return None
+                    catalog_programs = json.loads(programs_path.read_text(encoding="utf-8")).get("programs", [])
+                    matches = _entry_matches(catalog_programs, entry)
+                    if len(matches) != 1 or matches[0]["relative_path"] not in selected_identity["direct_paths"]:
+                        return None
         if (metadata.get("parser_version") != PARSER_VERSION
                 or metadata.get("index_kind") != "business_sparse"
                 or metadata.get("source_root_hash") != hashlib.sha256(str(source).encode()).hexdigest()):
@@ -43,6 +60,8 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
         requested_options = {"extensions": sorted(extensions),
             "include_extensionless": include_extensionless,
             "encoding": encoding, "source_format": source_format}
+        if compilation_context is not None:
+            requested_options["compilation_context"] = json.loads(json.dumps(compilation_context))
         if any(database_options.get(key) != value for key, value in requested_options.items()):
             return None
         previous["source_root"] = str(source)

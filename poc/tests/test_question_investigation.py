@@ -24,6 +24,22 @@ from agent_policy import AgentPolicy
 
 
 class QuestionInvestigationTests(unittest.TestCase):
+    def test_history_field_outside_navigation_preview_drives_local_candidates(self):
+        data = "01 IN-AMOUNT PIC 9(5) VALUE 1.\n" + "\n".join(
+            f"01 OUT-{index} PIC 9(5)." for index in range(1, 41))
+        self.write("entry.cbl", "VALUEPLAN", "\n".join(
+            f"COMPUTE OUT-{index} = IN-AMOUNT * {index}." for index in range(1, 41)), data=data)
+        self.build()
+        mapping = build_business_map(self.database, self.source, "VALUEPLAN")
+        cache = {}
+        for target in ("OUT-40", "OUT-39"):
+            history = [{"investigation_state": {"analysis_plan": {"entities": [target]}}}]
+            result = build_question_investigation("刚才第二种情况呢？", mapping, database_path=self.database,
+                source_pages=[self.page("entry.cbl")], history=history, candidate_cache=cache)
+            self.assertEqual(result["analysis_plan"]["entities"], (target,))
+            self.assertEqual(self.item(result, "business_steps")["candidate_count"], 1)
+            self.assertFalse(result["candidate_cache"]["hit"])
+
     def test_large_dependency_closure_visits_the_relation_catalog_once(self):
         class SinglePassRelations(list):
             passes = 0
@@ -462,7 +478,10 @@ class QuestionInvestigationTests(unittest.TestCase):
         self.assertFalse(result["can_answer"])
         self.assertEqual(self.item(result, "formula")["status"], "OPEN")
         for question in ("COMPUTER source", "FORMULATED notes", "手册操作含义"):
-            self.assertEqual(build_question_investigation(question, mapping)["required_items"], [])
+            investigation = build_question_investigation(question, mapping)
+            self.assertEqual(investigation["required_items"][0]["kind"], "source")
+            self.assertNotIn("calculation", investigation["analysis_plan"]["intents"])
+            self.assertFalse(investigation["can_answer"])
 
     def test_eof_finishes_out_of_range_request_but_budget_truncation_stays_open(self):
         task = ReadTask("read", "entry.cbl", {"start_line": 100, "end_line": 120}, next_start_line=100)

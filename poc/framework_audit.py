@@ -128,7 +128,8 @@ def validate_profile(profile: dict | None) -> dict | None:
 
 
 def _reference(line: dict) -> dict:
-    return {"origin": deepcopy(line["origin"]), "include_chain": deepcopy(line.get("include_chain", []))}
+    return {"origin": deepcopy(line["origin"]), "include_chain": deepcopy(line.get("include_chain", [])),
+            "replacement_trace": deepcopy(line.get("replacement_trace", []))}
 
 
 def _refs(lines: list[dict]) -> list[dict]:
@@ -233,10 +234,12 @@ def _observations(expansion: dict) -> tuple[dict, list[dict]]:
     return observations, boundaries
 
 
-def audit_framework(source_root: Path, entry_program: str, profile: dict | None = None, *, extensions=None) -> dict:
+def audit_framework(source_root: Path, entry_program: str, profile: dict | None = None, *, extensions=None,
+                    compilation_context=None) -> dict:
     """Inspect one entry and its included source without running code or models."""
     p = validate_profile(profile)
-    expansion = expand_program(Path(source_root), entry_program, extensions=extensions)
+    expansion = expand_program(Path(source_root), entry_program, extensions=extensions,
+                               compilation_context=compilation_context)
     observations, boundaries = _observations(expansion)
     boundaries = deepcopy(expansion["boundaries"]) + boundaries
     declared = {"entry": None, "io_contracts": [], "record_decisions": [], "artifact_requirements": []}
