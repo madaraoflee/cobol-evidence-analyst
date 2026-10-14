@@ -155,6 +155,7 @@ def evaluate_native(*, archive, source_commit, source, cases, output, profile_co
                  "retry_policy": "no_automatic_retries", "policy": policy.to_dict(),
                  "office_required_checks": office_checks},
         "index_seconds": None, "latency_seconds": {"p50": None, "p95": None},
+        "observed_model_requests": 0, "remote_result_unknown": False,
         "quality_status": "not_reviewed", "status": "planned"}
     from office_acceptance_checks import office_environment
     report["office_environment"] = office_environment()
@@ -222,11 +223,18 @@ def evaluate_native(*, archive, source_commit, source, cases, output, profile_co
                         timeout=policy.max_question_seconds + 45, **source_options,
                         answer_detail="detailed", framework_reference_path=framework)
                     row = live_row(observation, merged, runtime, report["cases_sha256"], model)
-                    conversation_ids[merged["conversation"]] = observation["state"]["conversation"]["id"]
                     require(type(row["model_requests"]) is int and row["model_requests"] <= policy.max_model_requests,
                             "LIVE_REQUEST_COUNT_INVALID")
                     request_count += row["model_requests"]
                     report["cases"].append(row)
+                    report.update(observed_model_requests=request_count,
+                                  remote_result_unknown=row["remote_result_unknown"])
+                    _safe_write(report_path, report)
+                    # A retained answer can coexist with an unfinished revision
+                    # request. Archive it, then stop the whole paid suite before
+                    # using its conversation for any subsequent question.
+                    require(row["remote_result_unknown"] is False, "LIVE_REMOTE_REQUEST_OUTCOME_UNKNOWN")
+                    conversation_ids[merged["conversation"]] = observation["state"]["conversation"]["id"]
                 except Exception as error:
                     report["errors"].append({"case_id": merged["id"], "turn_id": merged["turn_id"],
                                              "error_type": type(error).__name__})
@@ -235,7 +243,6 @@ def evaluate_native(*, archive, source_commit, source, cases, output, profile_co
                     # An uncertain request may have incurred a charge. Do not
                     # automatically rerun it or continue with contaminated history.
                     raise
-                _safe_write(report_path, report)
     durations = [row["elapsed_seconds"] for row in report["cases"]]
     require(inspect_package(archive, source_commit) == artifact, "LIVE_PACKAGE_CHANGED_DURING_EVALUATION")
     report.update(status="completed_not_reviewed", observed_model_requests=request_count,

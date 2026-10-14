@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from contextlib import contextmanager, ExitStack
 import hashlib
 import json
 from pathlib import Path
@@ -151,6 +152,108 @@ class NativeLiveAcceptanceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "JOURNAL_MISMATCH"):
             native.live_row(observation, {**self.item, "turn_id": "1", "conversation": "flow"},
                             self.runtime, native.digest(self.cases), "evaluation-model")
+
+    @contextmanager
+    def automatic_execution(self, *, unknown_revision=False):
+        """Exercise the paid-suite orchestration with local trace/journal records."""
+        profile = self.root / "model.env"
+        profile.write_bytes(b"COMPANY_API_BASE_URL=https://model.example.test/v1\n"
+                            b"COMPANY_API_KEY=offline-test-credential\nCOMPANY_CHAT_MODEL=evaluation-model\n")
+        binary = self.root / "offline-executable"
+        binary.write_bytes(b"offline-executable-placeholder")
+        runtime = {**self.runtime, "binary_sha256": native.digest(binary)}
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(native.sys, "platform", "win32"))
+            stack.enter_context(patch.object(native, "inspect_package", return_value=runtime))
+            stack.enter_context(patch.object(native, "extract_package", return_value=binary))
+            workbench_class = stack.enter_context(patch.object(native, "NativeWorkbench"))
+            workbench = workbench_class.return_value.__enter__.return_value
+            question_count = 0
+
+            def analyze(source, workspace, question=None, **options):
+                nonlocal question_count
+                if question is None:
+                    workspace.mkdir()
+                    (workspace / "diagnosis.json").write_text(json.dumps({
+                        "scope": {"file_count": 1, "total_scope_bytes": 29}, "program_count": 1,
+                        "repository_search": {"indexed_files": 1, "content_hash_verified": True},
+                        "build_report": {"snapshot_id": "frozen-index"}}), encoding="utf-8")
+                    return {"job": {"status": "COMPLETED"}}
+                question_count += 1
+                observation, trace, _ = self.observation()
+                run_id = "native-run-" + str(question_count)
+                trace["run_id"] = run_id
+                trace["analysis_revision"] = "frozen-index"
+                trace["configuration"]["policy"] = {"max_model_requests": 3, "max_question_seconds": 120}
+                supplied = {**trace["rounds"][0]["sources"][0],
+                            "excerpt": "COMPUTE RESULT = INPUT * 2."}
+                supplied["excerpt_sha256"] = hashlib.sha256(supplied["excerpt"].encode()).hexdigest()
+                trace["rounds"][0]["sources"] = [supplied]
+                trace["rounds"][0]["context"]["sources"] = [supplied]
+                trace["question_investigation_rounds"] = [{"round_id": "round-1", "status": "source_supported"}]
+                agent = observation["result"]["agent_result"]
+                agent["claim_ledger"] = {"supported_claim_count": 1, "unsupported_claim_count": 0}
+                observation["state"]["conversation"]["id"] = options.get("conversation_id") or "conversation-" + str(question_count)
+                requests = [{"run_id": run_id, "state": "completed", "request_hash": "f" * 64}]
+                if unknown_revision:
+                    agent["metrics"]["model_requests"] = 2
+                    agent["stop_reason"] = "REQUEST_TIMEOUT"
+                    agent["boundaries"] = [{"reason": "usable_draft_retained", "followup_error": "REQUEST_TIMEOUT"}]
+                    observation["result"]["reason_code"] = "REQUEST_TIMEOUT"
+                    requests.append({"run_id": run_id, "state": "started", "request_hash": "a" * 64})
+                    trace["rounds"].append({"round_id": "round-2", "request_body_sha256": "a" * 64})
+                    trace["question_investigation_rounds"].append({"round_id": "round-2", "status": "revision_pending"})
+                self.journal.return_value = {"requests": requests}
+                agent["metrics"]["quality_trace_path"] = str(self.root / f"trace-{question_count}.json")
+                Path(agent["metrics"]["quality_trace_path"]).write_text(json.dumps(trace), encoding="utf-8")
+                return observation
+
+            workbench.analyze.side_effect = analyze
+            yield workbench, {"archive": self.root / "package.zip", "source_commit": "a" * 40,
+                "source": self.source, "cases": self.cases, "output": self.root / "evaluation",
+                "profile_config": profile, "allow_network": True, "request_budget": 12,
+                "max_model_requests": 3, "max_question_seconds": 120}
+
+    def test_unknown_revision_retains_answer_and_stops_all_later_paid_turns(self):
+        with self.automatic_execution(unknown_revision=True) as (workbench, options):
+            with self.assertRaisesRegex(ValueError, "LIVE_REMOTE_REQUEST_OUTCOME_UNKNOWN"):
+                native.evaluate_native(**options)
+            self.assertEqual(workbench.analyze.call_count, 2, "Only local indexing and the first question may run")
+            self.assertEqual(workbench.analyze.call_args_list[1].args[2], self.items[0]["turns"][0]["question"])
+        report = json.loads((options["output"] / "LIVE-ACCEPTANCE.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["status"], "interrupted_attention_required")
+        self.assertEqual(report["observed_model_requests"], 2)
+        self.assertTrue(report["remote_result_unknown"])
+        self.assertEqual(len(report["cases"]), 1)
+        row = report["cases"][0]
+        self.assertEqual(row["answer"], "RESULT = INPUT * 2.[ev1]")
+        self.assertTrue(row["remote_result_unknown"])
+        self.assertEqual(row["reason_code"], "REQUEST_TIMEOUT", "The journal, not an error-name guess, stops execution")
+        identity, diagnostics = row["review_identity"], row["acceptance_diagnostics"]
+        self.assertEqual(identity["answer_sha256"], hashlib.sha256(row["answer"].encode()).hexdigest())
+        self.assertEqual(identity["source_versions"], [self.source_hash])
+        self.assertEqual(identity["acceptance_diagnostics_sha256"], _fingerprint(diagnostics))
+        self.assertEqual(diagnostics["question_investigation_rounds"][-1]["status"], "revision_pending")
+        self.assertEqual(diagnostics["claim_ledger"]["supported_claim_count"], 1)
+        self.assertEqual(row["actual_evidence_context"]["sources"][0]["excerpt"], "COMPUTE RESULT = INPUT * 2.")
+        self.assertFalse((options["output"] / "HUMAN-REVIEW-TEMPLATE.json").exists())
+
+    def test_completed_requests_continue_once_per_turn_and_keep_conversation(self):
+        with self.automatic_execution() as (workbench, options):
+            report = native.evaluate_native(**options)
+            self.assertEqual(workbench.analyze.call_count, 5, "One local index plus each of the four turns once")
+            paid = workbench.analyze.call_args_list[1:]
+            self.assertEqual([call.args[2] for call in paid],
+                             [turn["question"] for item in self.items for turn in native._turns(item)])
+            self.assertEqual([call.kwargs["conversation_id"] for call in paid],
+                             [None, "conversation-1", "conversation-1", None])
+        self.assertEqual(report["status"], "completed_not_reviewed")
+        self.assertEqual(report["observed_model_requests"], 4)
+        self.assertFalse(report["remote_result_unknown"])
+        self.assertEqual(len(report["cases"]), 4)
+        template = json.loads((options["output"] / "HUMAN-REVIEW-TEMPLATE.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(template["reviews"]), 4)
+        self.assertTrue(all(finding["result"] is None for row in template["reviews"] for finding in row["required_findings"]))
 
 
 if __name__ == "__main__":
