@@ -1,5 +1,6 @@
 """Exercise question-local refreshes with real indexes and no network."""
 
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -112,7 +113,7 @@ class SourceRefreshRecoveryTests(unittest.TestCase):
         self.assertGreaterEqual(refresh.call_count, 2)
         self.assertTrue(requests)
         self.assertNotEqual(result["status"], "ABSTAINED")
-        with sqlite3.connect(self.database) as database:
+        with closing(sqlite3.connect(self.database)) as database:
             indexed = dict(database.execute("SELECT relative_path,sha256 FROM source_files"))
         self.assertEqual(indexed, digests)
 
@@ -168,7 +169,7 @@ class SourceRefreshRecoveryTests(unittest.TestCase):
 
     def test_exclusive_scope_rejects_outside_citation_before_capture_or_refresh(self):
         self.build({"entry.cbl": program("ENTRY", 1), "detail.cbl": program("DETAIL", 2)})
-        with sqlite3.connect(self.database) as database:
+        with closing(sqlite3.connect(self.database)) as database:
             identifier = database.execute("SELECT evidence_id FROM evidence_spans WHERE relative_path=? "
                 "AND evidence_id LIKE 'ev_page_%' LIMIT 1", ("detail.cbl",)).fetchone()[0]
             original_digest = database.execute("SELECT sha256 FROM source_files WHERE relative_path=?",
@@ -196,13 +197,13 @@ class SourceRefreshRecoveryTests(unittest.TestCase):
         self.assertEqual(refresh.call_count, 0)
         self.assertTrue(any(action.get("outcome") == "unavailable" for action in
                             result["investigation_state"]["completed_actions"]))
-        with sqlite3.connect(self.database) as database:
+        with closing(sqlite3.connect(self.database)) as database:
             self.assertEqual(database.execute("SELECT sha256 FROM source_files WHERE relative_path=?",
                                              ("detail.cbl",)).fetchone()[0], original_digest)
 
     def test_exclusive_scope_uses_citation_target_and_unknown_id_fails_normally(self):
         self.build({"entry.cbl": program("ENTRY", 1), "detail.cbl": program("DETAIL", 2)})
-        with sqlite3.connect(self.database) as database:
+        with closing(sqlite3.connect(self.database)) as database:
             root_id = database.execute("SELECT evidence_id FROM evidence_spans WHERE relative_path=? "
                 "AND evidence_id LIKE 'ev_page_%' LIMIT 1", ("entry.cbl",)).fetchone()[0]
         for identifier, unavailable in ((root_id, False), ("ev_page_unknown", True)):
@@ -220,7 +221,7 @@ class SourceRefreshRecoveryTests(unittest.TestCase):
 
     def test_cancellation_before_refresh_propagates_without_index_mutation(self):
         self.build({"entry.cbl": program("ENTRY", 1)})
-        with sqlite3.connect(self.database) as database:
+        with closing(sqlite3.connect(self.database)) as database:
             original_digest = database.execute("SELECT sha256 FROM source_files WHERE relative_path=?",
                                                 ("entry.cbl",)).fetchone()[0]
         self.change_value("entry.cbl", 1, 7)
@@ -243,7 +244,7 @@ class SourceRefreshRecoveryTests(unittest.TestCase):
                 self.ask(lambda payload, turn: self.fail("Model must not be called after cancellation"),
                          check_cancel=check_cancel)
         self.assertEqual(refresh.call_count, 0)
-        with sqlite3.connect(self.database) as database:
+        with closing(sqlite3.connect(self.database)) as database:
             self.assertEqual(database.execute("SELECT sha256 FROM source_files WHERE relative_path=?",
                                              ("entry.cbl",)).fetchone()[0], original_digest)
 

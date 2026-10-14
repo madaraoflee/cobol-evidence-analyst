@@ -140,14 +140,16 @@ class CompleteSourceFallbackDependencyTests(unittest.TestCase):
         self.assertNotIn("budget_wire_compact", projected)
 
     def test_whole_root_transmission_fallback_supplies_the_readable_dependency(self):
-        for comments, limit in ((4300, 230000), (1000, 32768)):
-            with self.subTest(comments=comments, max_request_bytes=limit), tempfile.TemporaryDirectory() as directory:
+        for comments, limit, newline in ((4300, 230000, "\n"), (1000, 32768, "\r\n")):
+            with self.subTest(comments=comments, max_request_bytes=limit, newline=repr(newline)), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 source = root / "source"
                 source.mkdir()
                 original = {"root.cbl": HEADER + COMMENT * comments, "detail.cbl": DETAIL}
                 for path, text in original.items():
-                    (source / path).write_text(text, encoding="utf-8")
+                    (source / path).write_bytes(text.replace("\n", newline).encode("utf-8"))
+                source_hashes = {path: hashlib.sha256((source / path).read_bytes()).hexdigest()
+                                 for path in original}
                 database = root / "index.sqlite"
                 build_business_index(source, database, source_format="free", framework_reference_path="", quiet=True)
                 ensure_repository_search(database, source)
@@ -189,8 +191,7 @@ class CompleteSourceFallbackDependencyTests(unittest.TestCase):
                     for page in pages:
                         lines = original[page["relative_path"]].splitlines()
                         self.assertEqual(page["source_text"], "\n".join(lines[page["start_line"] - 1:page["end_line"]]))
-                        self.assertEqual(page["source_sha256"], hashlib.sha256(
-                            original[page["relative_path"]].encode("utf-8")).hexdigest())
+                        self.assertEqual(page["source_sha256"], source_hashes[page["relative_path"]])
                         self.assertEqual(page["evidence_id"], _identify_page(page))
                 self.assertNotIn("retrieved_source_not_visible", {gap.get("reason") for gap in
                     result["investigation_state"]["question_investigation"]["open_gaps"]})

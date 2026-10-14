@@ -1,5 +1,6 @@
 """A COMPUTE citation retains its own explicit closer without hiding its node."""
 
+from contextlib import closing
 from dataclasses import asdict
 import hashlib
 from pathlib import Path
@@ -71,12 +72,12 @@ class ComputeEvidenceClosureTests(unittest.TestCase):
                 source("COMPUTE RESULT-AMOUNT = BASIS * FACTOR\nEND-COMPUTE"), encoding="utf-8")
             database = Path(temporary) / "index.sqlite"
             build_structural_index(root, database, source_format="free", quiet=True)
-            with sqlite3.connect(database) as connection:
+            with closing(sqlite3.connect(database)) as connection, connection:
                 connection.execute("UPDATE metadata SET value='source-facts-v0.7' WHERE key='parser_version'")
             result = build_structural_index(root, database, source_format="free", quiet=True)
             self.assertTrue(result["parser_rebuild_required"])
             self.assertEqual(result["files"]["indexed_or_updated"], 1)
-            with sqlite3.connect(database) as connection:
+            with closing(sqlite3.connect(database)) as connection:
                 self.assertEqual(connection.execute("SELECT value FROM metadata WHERE key='parser_version'").fetchone()[0],
                                  PARSER_VERSION)
                 text = connection.execute("SELECT e.text FROM code_units u JOIN evidence_spans e USING(evidence_id) "

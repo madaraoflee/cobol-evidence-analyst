@@ -1,3 +1,4 @@
+from contextlib import closing
 from pathlib import Path
 import json
 import sqlite3
@@ -25,7 +26,7 @@ class CompilationWorkbenchTests(unittest.TestCase):
                 "copy_library_order_known": True, "compile_conditions": {"FEATURE": True}, "framework_version": "1"}))
             analyze_source(source, output, index_mode="catalog", analysis_mode="business",
                            compilation_context_path=context, source_format="free")
-            with sqlite3.connect(output / "structural-index.sqlite") as db:
+            with closing(sqlite3.connect(output / "structural-index.sqlite")) as db:
                 options = json.loads(db.execute("SELECT value FROM metadata WHERE key='source_options'").fetchone()[0])
             self.assertEqual(options["compilation_context"]["copy_libraries"], ["copybooks", "shared"])
             calls = []
