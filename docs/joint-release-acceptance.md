@@ -4,9 +4,9 @@
 
 `windows-desktop.yml` 在相关主分支推送、PR 和手动构建时运行：固定版本 actionlint 校验 Actions 表达式 → 固定公开语料校验 → Python/浏览器回归 → MSVC 编译 → 启动最终 EXE 联合回归 → 候选门禁 → 上传白名单产物。失败会阻断候选上传；合成模型不能授权正式发布。候选产物含 ZIP、校验和、BUILD-INFO、逐样本原生报告、合同、候选策略与门禁结果。工作流语义检查使用 [actionlint 官方用法](https://github.com/rhysd/actionlint/blob/v1.7.7/docs/usage.md)，只在维护/CI 环境运行，不进入用户应用。
 
-真实验收只在获准设备上执行，报告保留本地。维护者先准备已经审阅的案例 JSON，使用现有 `live-business-eval/v3` 案例结构；每项关键结论须包含 `gold.required_findings[].supporting_ranges`，记录路径、行段与源码 SHA。`reviewed_context.source_ranges` 提供相同版本的冻结源码范围。多轮问题用 `turns`，不要手写一份虚假的初始历史。公共开发题和独立留出题应分别标明。
+真实验收只在获准设备上执行，报告保留本地。维护者先准备已经审阅的案例 JSON，使用现有 `live-business-eval/v3` 案例结构；每项关键结论须包含 `gold.required_findings[].supporting_ranges`，记录路径、行段与源码 SHA。`reviewed_context.source_ranges` 提供相同版本的冻结源码范围。正式题集至少含一个三轮 `turns` 场景、一项 `split=holdout` 留出题和一项 `split=regression` 或 `public-development` 回归题；后两轮必须实际供应前序 user/assistant 历史。不能用单个容易的单轮题代替联合质量验收。这些要求在任何模型请求之前检查。
 
-先冻结正式策略，不能在看到结果后修改速度目标。策略继承候选的 `source_commit` 与 `manifest_sha256`，并增加 `live_cases_sha256`、`live_limits`（`question_seconds`、`p95_question_seconds`、`min_evidence_recall`）和非空 `office_required_checks`。办公设备检查至少覆盖启动、源码导入、连续问答、取消恢复、原版本证据及公司 CA/接口配置。阈值应基于实际模型基线确定；未测基线时不能宣称精度提升。
+先冻结正式策略，不能在看到结果后修改速度目标。策略继承候选的 `source_commit` 与 `manifest_sha256`，并增加 `live_cases_sha256`、`live_limits`（`question_seconds`、`p95_question_seconds`、`min_evidence_recall`）和 `office_required_checks`。办公设备六项最低检查固定为 `desktop_start`、`source_import`、`conversation_recovery`、`cancellation_recovery`、`historical_evidence`、`company_api_ca`，策略只能增加，不能删减；模板自动带入全部六项且初始均未评分。阈值应基于实际模型基线确定；未测基线时不能宣称精度提升。真实大库规模与企业目标方言还须在实际验收记录中明确，单凭题集标签不能证明其成立。
 
 以下命令默认只计划，不启动模型请求：
 
@@ -25,7 +25,7 @@ python tools/desktop_live_acceptance.py --archive <最终WindowsZIP> --source-co
   --office-check desktop_start --office-check source_import --office-check conversation_recovery
 ```
 
-总请求上限至少覆盖计划的轮数乘单轮预算。没有额外 ping，不自动重试失败或不确定的远程请求。使用公司 CA 时显式加 `--ca-file <证书文件>`。运行隔离配置，不继承开发者环境。用户应用本身仍无需 Python、Git 或编译器；这些命令供维护者验收使用。
+总请求上限至少覆盖计划的轮数乘单轮预算。没有额外 ping，不自动重试失败或不确定的远程请求。使用公司 CA 时显式加 `--ca-file <证书文件>`，目标方言/COPY 编译配置使用现有 `--compilation-context <JSON>`；配置哈希绑定到评审，逐轮检查未改变。运行隔离配置，不继承开发者环境。报告记录 EXE 实际生成的索引文件数、字节数、快照及源码选项，明确这是索引快照而非全库实时状态。用户应用本身仍无需 Python、Git 或编译器；这些命令供维护者验收使用。
 
 工具产生 `LIVE-ACCEPTANCE.json` 和未评分的 `HUMAN-REVIEW-TEMPLATE.json`。人工检查实际回答与证据后另存评分文件：每条 required finding 记录 met/partial/missed，每条 forbidden claim 记录是否出现；填写可用性、追问连续性、评审人和时间。办公验收记录绑定 ZIP/EXE/commit、evaluation_run_id 和最终报告 SHA。改答案、模型、prompt、policy、gold、供证范围、用时或包文件都会使旧评审失效。报告中的实际历史与 prompt 哈希来自 EXE 发出的请求，不能用维护脚本当前代码代替。
 

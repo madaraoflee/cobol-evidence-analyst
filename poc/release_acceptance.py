@@ -31,6 +31,8 @@ MANIFEST_SCHEMA = "desktop-joint-acceptance/v1"
 BINARY_MEMBER = "COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe"
 INCOMPLETE_ANSWER_CODES = {"QUESTION_TIME_BUDGET_EXHAUSTED", "REMOTE_REQUEST_OUTCOME_UNKNOWN",
                            "MODEL_OUTPUT_TRUNCATED"}
+OFFICE_BASELINE_CHECKS = ("desktop_start", "source_import", "conversation_recovery",
+                          "cancellation_recovery", "historical_evidence", "company_api_ca")
 
 
 def file_sha256(path):
@@ -254,7 +256,25 @@ def _range_covered(required, supplied):
     return False
 
 
+def _live_case_scope(items, errors):
+    """Check the minimum frozen suite before native evaluation incurs any cost."""
+    before = len(errors)
+    valid = isinstance(items, list) and all(isinstance(item, dict) for item in items)
+    def three_turns(item):
+        turns = item.get("turns")
+        return (isinstance(turns, list) and len(turns) >= 3
+                and all(isinstance(turn, dict) and _text(turn.get("id")) and _text(turn.get("question"))
+                        for turn in turns)
+                and len({turn["id"] for turn in turns}) == len(turns))
+    _check(errors, valid and any(three_turns(item) for item in items), "LIVE_THREE_TURN_CASE_REQUIRED")
+    _check(errors, valid and any(item.get("split") == "holdout" for item in items), "LIVE_HOLDOUT_CASE_REQUIRED")
+    _check(errors, valid and any(item.get("split") in ("regression", "public-development") for item in items),
+           "LIVE_REGRESSION_CASE_REQUIRED")
+    return len(errors) == before
+
+
 def _live_acceptance(report, items, reviews, cases_sha256, policy, artifact, errors):
+    _live_case_scope(items, errors)
     _check(errors, report.get("schema_version") == "live-business-eval/v3", "LIVE_SCHEMA_INVALID")
     _check(errors, _text(report.get("evaluation_run_id")), "LIVE_RUN_ID_MISSING")
     _check(errors, report.get("errors") == [] and report.get("status") == "completed_not_reviewed",
@@ -271,6 +291,8 @@ def _live_acceptance(report, items, reviews, cases_sha256, policy, artifact, err
     _check(errors, (report.get("plan") or {}).get("mode") == "automatic", "LIVE_DEFAULT_PATH_REQUIRED")
     expected = {(item["id"], turn["id"]): {**item, **turn}
                 for item in items for turn in _turns(item)}
+    followup_turns = {(item["id"], turn["id"])
+                     for item in items for turn in _turns(item)[1:]}
     _check(errors, len(expected) == sum(len(_turns(item)) for item in items), "LIVE_GOLD_CASE_IDS_INVALID")
     rows = report.get("cases")
     if not _check(errors, isinstance(rows, list) and all(isinstance(row, dict) for row in rows), "LIVE_CASES_INVALID"):
@@ -310,6 +332,12 @@ def _live_acceptance(report, items, reviews, cases_sha256, policy, artifact, err
             continue
         policy_value = row.get("policy")
         history = row.get("history")
+        if key in followup_turns:
+            valid_history = (isinstance(history, list) and bool(history)
+                and all(isinstance(entry, dict) and entry.get("role") in ("user", "assistant")
+                        and _text(entry.get("content")) for entry in history)
+                and {entry["role"] for entry in history} == {"user", "assistant"})
+            _check(errors, valid_history, "LIVE_FOLLOWUP_HISTORY_MISSING", context)
         prompt = identity.get("prompt") or {}
         valid_prompt = (isinstance(prompt, dict) and _text(prompt.get("version"))
                         and prompt.get("version") != "unknown" and _sha(prompt.get("system_sha256")))
@@ -418,7 +446,8 @@ def evaluate_release(*, package, compiled_report, manifest, policy, live_report=
         office = review_document.get("office_acceptance") or {}
         required = config.get("office_required_checks")
         _check(publish_errors, isinstance(required, list) and bool(required) and all(_text(item) for item in required)
-               and len(required) == len(set(required)), "OFFICE_POLICY_MISSING")
+               and len(required) == len(set(required)) and set(OFFICE_BASELINE_CHECKS) <= set(required),
+               "OFFICE_POLICY_MISSING")
         office_checks = office.get("checks") or {}
         _check(publish_errors, all(office.get(key) == artifact.get(key) for key in ("source_commit", "archive_sha256", "binary_sha256"))
                and office.get("evaluation_run_id") == live.get("evaluation_run_id")

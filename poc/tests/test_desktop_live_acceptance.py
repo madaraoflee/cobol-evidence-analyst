@@ -29,7 +29,11 @@ class NativeLiveAcceptanceTests(unittest.TestCase):
             "forbidden_claims": [{"id": "invented"}]}, "reviewed_context": {"source_ranges": [
                 {"path": "entry.cbl", "sha256": self.source_hash, "start_line": 1, "end_line": 1}]}}
         self.cases = self.root / "cases.json"
-        self.cases.write_text(json.dumps({"cases": [self.item]}), encoding="utf-8")
+        regression = {key: value for key, value in self.item.items() if key != "question"}
+        regression.update(split="regression", turns=[{"id": str(index), "question": question} for index, question in enumerate(
+            ("How is RESULT computed?", "Why does it become zero?", "What about the second condition?"), 1)])
+        self.items = [regression, {**copy.deepcopy(self.item), "id": "reserved", "split": "holdout"}]
+        self.cases.write_text(json.dumps({"cases": self.items}), encoding="utf-8")
         self.runtime = {"source_commit": "a" * 40, "source_dirty": False,
                         "archive_sha256": "b" * 64, "binary_sha256": "c" * 64,
                         "execution_surface": "native_windows_http", "runtime_platform": "Windows"}
@@ -51,22 +55,30 @@ class NativeLiveAcceptanceTests(unittest.TestCase):
         self.assertEqual(report["status"], "planned")
         self.assertEqual(report["cases"], [])
         self.assertEqual(report["plan"]["preflight_model_requests"], 0)
+        self.assertEqual(report["plan"]["user_turn_count"], 4)
+        self.assertEqual(set(report["plan"]["office_required_checks"]), set(native.OFFICE_BASELINE_CHECKS))
         self.assertFalse((self.root / "evaluation/private-profile").exists())
 
     def test_unfrozen_or_changed_gold_fails_before_any_model(self):
         for invalid in ("missing_ranges", "changed_source", "unfrozen_range"):
             with self.subTest(invalid=invalid), patch.object(native, "NativeWorkbench") as workbench:
-                item = copy.deepcopy(self.item)
+                items = copy.deepcopy(self.items)
+                item = items[0]
                 if invalid == "missing_ranges":
                     item["gold"]["required_findings"][0].pop("supporting_ranges")
                 elif invalid == "changed_source":
                     item["reviewed_context"]["source_ranges"][0]["sha256"] = "f" * 64
                 else:
                     item["gold"]["required_findings"][0]["supporting_ranges"][0].update(start_line=999, end_line=1000)
-                self.cases.write_text(json.dumps({"cases": [item]}), encoding="utf-8")
+                self.cases.write_text(json.dumps({"cases": items}), encoding="utf-8")
                 with self.assertRaises((AssertionError, ValueError)):
                     self.evaluate(allow_network=True, request_budget=5)
                 workbench.assert_not_called()
+
+    def test_single_easy_question_cannot_start_formal_model_acceptance(self):
+        self.cases.write_text(json.dumps({"cases": [self.item]}), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "CASE_SCOPE_INCOMPLETE"):
+            self.evaluate(allow_network=True, request_budget=5)
 
     def test_remote_execution_requires_windows_and_explicit_budget(self):
         with patch.object(native.sys, "platform", "win32"), self.assertRaisesRegex(ValueError, "BUDGET"):

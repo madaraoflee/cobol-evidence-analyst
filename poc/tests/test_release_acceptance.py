@@ -14,8 +14,9 @@ import zipfile
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from live_business_eval import (_evidence_metadata, _measurement, _review_identity,
-                                review_template, _fingerprint)
-from release_acceptance import evaluate_release, file_sha256, main
+                                review_template, _fingerprint, _turns)
+from release_acceptance import (evaluate_release, file_sha256, main,
+                                OFFICE_BASELINE_CHECKS, _live_case_scope)
 
 
 class ReleaseAcceptanceTests(unittest.TestCase):
@@ -64,48 +65,68 @@ class ReleaseAcceptanceTests(unittest.TestCase):
                 for sample in (1, 2)]}
         self.write("compiled_report", compiled)
         source_hash = "d" * 64
-        item = {"id": "flow", "question": "How is the result computed?", "gold": {
+        gold = {
             "required_findings": [{"id": "formula", "supporting_ranges": [
                 {"path": "entry.cbl", "start_line": 3, "end_line": 5, "source_sha256": source_hash}]}],
-            "forbidden_claims": [{"id": "unsupported"}]}}
-        self.write("live_cases", {"cases": [item]})
+            "forbidden_claims": [{"id": "unsupported"}]}
+        items = [{"id": "flow", "split": "regression", "gold": gold, "turns": [
+            {"id": "flow", "question": "How is the result computed?"},
+            {"id": "condition", "question": "When is that calculation applied?"},
+            {"id": "overwrite", "question": "Can that result be overwritten later?"}]},
+            {"id": "reserved", "split": "holdout", "gold": copy.deepcopy(gold),
+             "question": "How does the input determine the final amount?"}]
+        self.write("live_cases", {"cases": items})
         runtime = {key: compiled[key] for key in ("source_commit", "source_dirty", "runtime_platform",
             "execution_surface", "archive_sha256", "binary_path", "binary_sha256", "application_sha256")}
         runtime["transport_kind"] = "remote_http"
-        row = {"id": "flow", "turn_id": "flow", "run_id": "live-run:flow", "question": item["question"],
-               "answer": "The result is twice the input under the stated condition.", "elapsed_seconds": 2,
-               "model_requests": 1,
-               "remote_result_unknown": False, "reason_code": None, "stop_reason": None,
-               "history": [], "policy": {"max_model_requests": 2}, "quality_status": "not_reviewed"}
-        evidence = {"sources": [{"evidence_id": "ev-1", "path": "entry.cbl", "source_sha256": source_hash,
-                                "start_line": 3, "end_line": 5, "excerpt_sha256": "e" * 64}], "framework": []}
-        row["supplied_evidence"] = _evidence_metadata(evidence)
-        row["measurement"] = _measurement(row, runtime, file_sha256(self.paths["live_cases"]))
-        row["review_identity"] = _review_identity(run_id=row["run_id"], case_id="flow", turn_id="flow",
-            branch="automatic", answer=row["answer"], model="test-model",
-            prompt={"version": "business-v1", "system_sha256": "f" * 64, "request_sha256": ["1" * 64]},
-            policy=row["policy"], gold=item["gold"], context=evidence, source_snapshot_id="snapshot-1",
-            question=item["question"], history=[], runtime_provenance=runtime, measurement=row["measurement"])
+        rows = []
+        for item in items:
+            history = []
+            for turn in _turns(item):
+                row = self.make_live_row(item, turn, runtime, history)
+                rows.append(row)
+                history.extend([{"role": "user", "content": row["question"]},
+                                {"role": "assistant", "content": row["answer"]}])
         live = {"schema_version": "live-business-eval/v3", "evaluation_run_id": "evaluation-1",
                 "errors": [], "status": "completed_not_reviewed",
                 "runtime_provenance": runtime, "cases_sha256": file_sha256(self.paths["live_cases"]),
-                "plan": {"mode": "automatic"}, "cases": [row]}
+                "plan": {"mode": "automatic"}, "cases": rows}
         self.write("live_report", live)
-        review = review_template([item], live)["reviews"][0]
-        review.update(reviewer="local-reviewer", reviewed_at="2026-10-14T10:00:00Z",
-                      required_findings=[{"id": "formula", "result": "met"}],
-                      forbidden_claims=[{"id": "unsupported", "present": False}],
-                      usefulness="usable", followup_continuity="not_applicable")
+        reviews = review_template(items, live)["reviews"]
+        for row, review in zip(rows, reviews):
+            review.update(reviewer="local-reviewer", reviewed_at="2026-10-14T10:00:00Z",
+                          required_findings=[{"id": "formula", "result": "met"}],
+                          forbidden_claims=[{"id": "unsupported", "present": False}],
+                          usefulness="usable", followup_continuity="preserved" if row["history"] else "not_applicable")
         office = {key: compiled[key] for key in ("source_commit", "archive_sha256", "binary_sha256")}
         office.update(evaluation_run_id="evaluation-1", live_report_sha256=file_sha256(self.paths["live_report"]),
-                      reviewer="local-reviewer", reviewed_at="2026-10-14T11:00:00Z", checks={"desktop_start": True})
-        self.write("reviews", {"reviews": [review], "office_acceptance": office})
+                      reviewer="local-reviewer", reviewed_at="2026-10-14T11:00:00Z",
+                      checks={name: True for name in OFFICE_BASELINE_CHECKS})
+        self.write("reviews", {"reviews": reviews, "office_acceptance": office})
         self.write("policy", {"schema_version": "release-acceptance-policy/v1", "source_commit": self.commit,
                               "manifest_sha256": file_sha256(self.paths["manifest"]),
                               "live_cases_sha256": file_sha256(self.paths["live_cases"]),
                               "live_limits": {"question_seconds": 10, "p95_question_seconds": 10,
                                               "min_evidence_recall": 1},
-                              "office_required_checks": ["desktop_start"]})
+                              "office_required_checks": list(OFFICE_BASELINE_CHECKS)})
+
+    def make_live_row(self, item, turn, runtime, history):
+        merged = {**item, **turn}
+        row = {"id": item["id"], "turn_id": turn["id"], "run_id": f"live-run:{item['id']}:{turn['id']}",
+               "question": turn["question"], "conversation": item["id"],
+               "answer": "The result is twice the input under the stated condition.", "elapsed_seconds": 2,
+               "model_requests": 1, "remote_result_unknown": False, "reason_code": None, "stop_reason": None,
+               "history": copy.deepcopy(history), "policy": {"max_model_requests": 2}, "quality_status": "not_reviewed"}
+        evidence = {"sources": [{"evidence_id": "ev-1", "path": "entry.cbl", "source_sha256": "d" * 64,
+                                "start_line": 3, "end_line": 5, "excerpt_sha256": "e" * 64}], "framework": []}
+        row["supplied_evidence"] = _evidence_metadata(evidence)
+        row["measurement"] = _measurement(row, runtime, file_sha256(self.paths["live_cases"]))
+        row["review_identity"] = _review_identity(run_id=row["run_id"], case_id=item["id"], turn_id=turn["id"],
+            branch="automatic", answer=row["answer"], model="test-model",
+            prompt={"version": "business-v1", "system_sha256": "f" * 64, "request_sha256": ["1" * 64]},
+            policy=row["policy"], gold=merged["gold"], context=evidence, source_snapshot_id="snapshot-1",
+            question=turn["question"], history=row["history"], runtime_provenance=runtime, measurement=row["measurement"])
+        return row
 
     def read(self, key):
         return json.loads(self.paths[key].read_text(encoding="utf-8"))
@@ -117,21 +138,49 @@ class ReleaseAcceptanceTests(unittest.TestCase):
         return evaluate_release(**{key: value for key, value in self.paths.items()
             if live or key not in {"live_report", "live_cases", "reviews"}})
 
-    def refresh_live_review(self, live):
+    def refresh_live_review(self, live, row_index=0):
         """A new human attestation must still fail independent machine checks."""
-        row = live["cases"][0]
+        row = live["cases"][row_index]
         identity = row["review_identity"]
         row["measurement"] = _measurement(row, live["runtime_provenance"], live["cases_sha256"])
         identity["measurement_sha256"] = _fingerprint(row["measurement"])
         identity["runtime_sha256"] = _fingerprint(live["runtime_provenance"])
         identity["evidence_sha256"] = _fingerprint(_evidence_metadata(row["supplied_evidence"]))
+        identity["history_sha256"] = _fingerprint(row["history"])
         identity["identity_sha256"] = _fingerprint({key: value for key, value in identity.items()
                                                     if key != "identity_sha256"})
         self.write("live_report", live)
         reviews = self.read("reviews")
-        reviews["reviews"][0]["identity"] = copy.deepcopy(identity)
+        reviews["reviews"][row_index]["identity"] = copy.deepcopy(identity)
         reviews["office_acceptance"]["live_report_sha256"] = file_sha256(self.paths["live_report"])
         self.write("reviews", reviews)
+
+    def replace_live_suite(self, items):
+        """Create internally valid reviews for a deliberately undersized suite."""
+        self.write("live_cases", {"cases": items})
+        live = self.read("live_report")
+        live["cases_sha256"] = file_sha256(self.paths["live_cases"])
+        live["cases"] = []
+        for item in items:
+            history = []
+            for turn in _turns(item):
+                row = self.make_live_row(item, turn, live["runtime_provenance"], history)
+                live["cases"].append(row)
+                history.extend([{"role": "user", "content": row["question"]},
+                                {"role": "assistant", "content": row["answer"]}])
+        self.write("live_report", live)
+        document = self.read("reviews")
+        document["reviews"] = review_template(items, live)["reviews"]
+        for row, review in zip(live["cases"], document["reviews"]):
+            review.update(reviewer="local-reviewer", reviewed_at="2026-10-14T10:00:00Z",
+                          required_findings=[{"id": "formula", "result": "met"}],
+                          forbidden_claims=[{"id": "unsupported", "present": False}],
+                          usefulness="usable", followup_continuity="preserved" if row["history"] else "not_applicable")
+        document["office_acceptance"]["live_report_sha256"] = file_sha256(self.paths["live_report"])
+        self.write("reviews", document)
+        policy = self.read("policy")
+        policy["live_cases_sha256"] = live["cases_sha256"]
+        self.write("policy", policy)
 
     def test_joint_contract_accepts_exact_native_artifact_and_reviews(self):
         result = self.run_gate()
@@ -141,6 +190,76 @@ class ReleaseAcceptanceTests(unittest.TestCase):
         serialized = json.dumps(result)
         self.assertNotIn("The result is twice", serialized)
         self.assertNotIn("local-reviewer", serialized)
+
+    def test_office_baseline_cannot_be_reduced_by_policy_or_completed_form(self):
+        original_policy, original_reviews = self.read("policy"), self.read("reviews")
+        for missing in OFFICE_BASELINE_CHECKS:
+            for location in ("policy", "review"):
+                with self.subTest(missing=missing, location=location):
+                    policy, reviews = copy.deepcopy(original_policy), copy.deepcopy(original_reviews)
+                    if location == "policy":
+                        policy["office_required_checks"].remove(missing)
+                    else:
+                        reviews["office_acceptance"]["checks"].pop(missing)
+                    self.write("policy", policy)
+                    self.write("reviews", reviews)
+                    result = self.run_gate()
+                    self.assertTrue(result["candidate_allowed"])
+                    self.assertFalse(result["publish_allowed"])
+                    self.assertIn("OFFICE_POLICY_MISSING" if location == "policy" else "OFFICE_ACCEPTANCE_MISSING_OR_STALE",
+                                  {entry["code"] for entry in result["publish_errors"]})
+        original_policy["office_required_checks"].append("target_environment")
+        original_reviews["office_acceptance"]["checks"]["target_environment"] = True
+        self.write("policy", original_policy)
+        self.write("reviews", original_reviews)
+        self.assertTrue(self.run_gate()["publish_allowed"])
+
+    def test_scope_preflight_and_gate_reject_smaller_suites_with_fresh_valid_reviews(self):
+        original = self.read("live_cases")["cases"]
+        mutations = [
+            (lambda items: items[0].update(turns=items[0]["turns"][:2]), "LIVE_THREE_TURN_CASE_REQUIRED"),
+            (lambda items: items[1].update(split="development"), "LIVE_HOLDOUT_CASE_REQUIRED"),
+            (lambda items: items[0].update(split="development"), "LIVE_REGRESSION_CASE_REQUIRED"),
+            (lambda items: items.pop(0), "LIVE_THREE_TURN_CASE_REQUIRED")]
+        for mutate, expected in mutations:
+            with self.subTest(expected=expected):
+                items = copy.deepcopy(original)
+                mutate(items)
+                errors = []
+                self.assertFalse(_live_case_scope(items, errors))
+                self.assertIn(expected, {entry["code"] for entry in errors})
+                self.replace_live_suite(items)
+                result = self.run_gate()
+                self.assertTrue(result["candidate_allowed"])
+                self.assertFalse(result["publish_allowed"])
+                self.assertIn(expected, {entry["code"] for entry in result["publish_errors"]})
+                self.assertNotIn("LIVE_IDENTITY_INVALID", {entry["code"] for entry in result["publish_errors"]})
+        original[0]["split"] = "public-development"
+        self.replace_live_suite(original)
+        self.assertTrue(self.run_gate()["publish_allowed"])
+
+    def test_followup_rows_require_real_history_even_with_rebound_reviews(self):
+        original = self.read("live_report")
+        for row_index in (1, 2):
+            for history in ([], [{"role": "user", "content": "Only a question"}]):
+                with self.subTest(row=row_index, history=history):
+                    live = copy.deepcopy(original)
+                    live["cases"][row_index]["history"] = history
+                    self.refresh_live_review(live, row_index)
+                    reviews = self.read("reviews")
+                    reviews["reviews"][row_index]["followup_continuity"] = "preserved" if history else "not_applicable"
+                    self.write("reviews", reviews)
+                    result = self.run_gate()
+                    self.assertFalse(result["publish_allowed"])
+                    self.assertIn("LIVE_FOLLOWUP_HISTORY_MISSING", {entry["code"] for entry in result["publish_errors"]})
+
+    def test_scope_preflight_does_not_count_invalid_three_turn_structures(self):
+        for invalid in ([{}, {}, {}], [{"id": "same", "question": "Why?"}] * 3):
+            items = self.read("live_cases")["cases"]
+            items[0]["turns"] = invalid
+            errors = []
+            self.assertFalse(_live_case_scope(items, errors))
+            self.assertIn("LIVE_THREE_TURN_CASE_REQUIRED", {entry["code"] for entry in errors})
 
     def test_offline_success_only_allows_candidate_even_with_forged_green_summary(self):
         compiled = self.read("compiled_report")
@@ -302,7 +421,8 @@ class ReleaseAcceptanceTests(unittest.TestCase):
         from desktop_live_acceptance import live_row
         live = self.read("live_report")
         old = live["cases"][0]
-        item = self.read("live_cases")["cases"][0]
+        case = self.read("live_cases")["cases"][0]
+        item = {**case, **case["turns"][0]}
         trace = {"run_id": old["run_id"], "analysis_revision": "snapshot-1", "prompt_version": "business-v1",
                  "configuration": {"policy": old["policy"],
                                    "model_fingerprint": hashlib.sha256(b"test-model").hexdigest()},
@@ -317,8 +437,8 @@ class ReleaseAcceptanceTests(unittest.TestCase):
                 "model_answer_recorded": True, "metrics": {"quality_trace_path": str(trace_path), "model_requests": 1}}}}
         journal = {"requests": [{"run_id": old["run_id"], "state": "completed", "request_hash": "1" * 64}]}
         with mock.patch("desktop_live_acceptance.read_journal", return_value=journal) as read_journal:
-            live["cases"] = [live_row(observation, {**item, "turn_id": "flow", "conversation": "flow"},
-                                       live["runtime_provenance"], live["cases_sha256"], "test-model")]
+            live["cases"][0] = live_row(observation, {**item, "turn_id": "flow", "conversation": "flow"},
+                                       live["runtime_provenance"], live["cases_sha256"], "test-model")
         read_journal.assert_called_once_with(trace_path.parent.parent)
         self.refresh_live_review(live)
         result = self.run_gate()

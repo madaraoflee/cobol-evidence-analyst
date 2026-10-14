@@ -24,7 +24,7 @@ from agent_policy import AgentPolicy
 from company_api import _read_local_env
 from live_business_eval import (_cases, _turns, _reviewed_context, _safe_write, _evidence_metadata,
     _measurement, _review_identity, _percentile, review_template)
-from release_acceptance import _required_ranges, _range_covered
+from release_acceptance import _required_ranges, _range_covered, _live_case_scope, OFFICE_BASELINE_CHECKS
 from desktop_acceptance import inspect_package, extract_package, digest, require
 from desktop_acceptance_runtime import NativeWorkbench, isolated_environment, read_journal
 
@@ -115,16 +115,25 @@ def live_row(observation, item, runtime, cases_sha256, model):
 def evaluate_native(*, archive, source_commit, source, cases, output, profile_config=None,
                     allow_network=False, request_budget=None, max_model_requests=5,
                     max_question_seconds=120, source_format="auto", encoding="auto",
-                    framework="", ca_file=None, office_checks=(), plan=False):
+                    framework="", ca_file=None, compilation_context=None, office_checks=(), plan=False):
     source, cases = Path(source).resolve(strict=True), Path(cases).resolve(strict=True)
     output = Path(output).resolve()
     require(source.is_dir() and not source.is_relative_to(output) and not output.is_relative_to(source),
             "LIVE_OUTPUT_SOURCE_OVERLAP")
     items = _cases(cases)
+    scope_errors = []
+    require(_live_case_scope(items, scope_errors), "LIVE_CASE_SCOPE_INCOMPLETE")
+    office_checks = list(dict.fromkeys([*OFFICE_BASELINE_CHECKS, *office_checks]))
     framework = str(Path(framework).resolve(strict=True)) if framework else ""
     validate_gold(source, items, framework)
     artifact = inspect_package(archive, source_commit)
     runtime = {**artifact, "transport_kind": "remote_http"}
+    context_path = Path(compilation_context).resolve(strict=True) if compilation_context else None
+    if context_path:
+        runtime["compilation_context_sha256"] = digest(context_path)
+    source_options = {"source_format": source_format, "encoding": encoding}
+    if context_path:
+        source_options["compilation_context_path"] = str(context_path)
     policy = AgentPolicy(max_model_requests=max_model_requests, max_question_seconds=max_question_seconds)
     turns = sum(len(_turns(item)) for item in items)
     maximum = turns * policy.max_model_requests
@@ -133,7 +142,8 @@ def evaluate_native(*, archive, source_commit, source, cases, output, profile_co
         "cases_sha256": digest(cases), "case_count": len(items), "cases": [], "errors": [],
         "plan": {"mode": "automatic", "user_turn_count": turns, "max_model_requests": maximum,
                  "requests_per_turn": policy.max_model_requests, "preflight_model_requests": 0,
-                 "retry_policy": "no_automatic_retries", "policy": policy.to_dict()},
+                 "retry_policy": "no_automatic_retries", "policy": policy.to_dict(),
+                 "office_required_checks": office_checks},
         "index_seconds": None, "latency_seconds": {"p50": None, "p95": None},
         "quality_status": "not_reviewed", "status": "planned"}
     output.mkdir(parents=True, exist_ok=False)
@@ -168,9 +178,22 @@ def evaluate_native(*, archive, source_commit, source, cases, output, profile_co
     with NativeWorkbench([binary], profile, environment, output / "runtime", capture_context=True) as workbench:
         started = time.monotonic()
         index = workbench.analyze(source, output / "workspace", timeout=3600,
-                                  source_format=source_format, encoding=encoding, allow_network=False)
+                                  **source_options, allow_network=False)
         require(index["job"]["status"] == "COMPLETED", "LIVE_INDEX_FAILED")
         report["index_seconds"] = time.monotonic() - started
+        diagnosis = json.loads((output / "workspace/diagnosis.json").read_text(encoding="utf-8"))
+        scope, search = diagnosis.get("scope", {}), diagnosis.get("repository_search", {})
+        report["source_inventory"] = {"file_count": scope.get("file_count"),
+            "source_bytes": scope.get("total_scope_bytes"), "program_count": diagnosis.get("program_count"),
+            "index_snapshot_id": diagnosis.get("build_report", {}).get("snapshot_id"),
+            "indexed_files": search.get("indexed_files"),
+            "content_hash_verified": search.get("content_hash_verified"),
+            "scope": "index_snapshot_not_live_repository", "source_options": diagnosis.get("source_options")}
+        inventory = report["source_inventory"]
+        require(all(type(inventory.get(key)) is int and inventory[key] > 0
+                    for key in ("file_count", "source_bytes", "indexed_files"))
+                and bool(inventory.get("index_snapshot_id")), "LIVE_INDEX_INVENTORY_UNAVAILABLE")
+        _safe_write(report_path, report)
         for item in items:
             for turn in _turns(item):
                 merged = {**item, **turn, "id": item["id"], "turn_id": turn["id"],
@@ -178,10 +201,13 @@ def evaluate_native(*, archive, source_commit, source, cases, output, profile_co
                 try:
                     require(request_count + policy.max_model_requests <= request_budget, "LIVE_REQUEST_BUDGET_EXHAUSTED")
                     require(digest(cases) == report["cases_sha256"], "LIVE_CASES_CHANGED_DURING_EVALUATION")
+                    if context_path:
+                        require(digest(context_path) == runtime["compilation_context_sha256"],
+                                "LIVE_COMPILATION_CONTEXT_CHANGED")
                     validate_gold(source, [{key: value for key, value in merged.items() if key != "turns"}], framework)
                     observation = workbench.analyze(source, output / "workspace", merged["question"],
                         conversation_id=conversation_ids.get(merged["conversation"]),
-                        timeout=policy.max_question_seconds + 45, source_format=source_format, encoding=encoding,
+                        timeout=policy.max_question_seconds + 45, **source_options,
                         answer_detail="detailed", framework_reference_path=framework)
                     row = live_row(observation, merged, runtime, report["cases_sha256"], model)
                     conversation_ids[merged["conversation"]] = observation["state"]["conversation"]["id"]
@@ -227,6 +253,7 @@ def main(argv=None):
     parser.add_argument("--encoding", default="auto")
     parser.add_argument("--framework", default="")
     parser.add_argument("--ca-file", type=Path)
+    parser.add_argument("--compilation-context", type=Path)
     parser.add_argument("--office-check", action="append", dest="office_checks", default=[])
     args = parser.parse_args(argv)
     report = evaluate_native(**vars(args))
