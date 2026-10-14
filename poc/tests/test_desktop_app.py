@@ -117,6 +117,17 @@ class DesktopRuntimeTests(unittest.TestCase):
         self.assertEqual(result["model_calls"], 0)
         self.assertTrue(result["server_stopped"])
         self.assertEqual(result["static_files"], 9)
+        self.assertTrue(result["json_accelerated"])
+
+    def test_self_test_rejects_json_fallback_before_starting_server(self):
+        for module, name in ((desktop_app.json.encoder, "c_make_encoder"),
+                             (desktop_app.json.scanner, "c_make_scanner"),
+                             (desktop_app.json.scanner, "make_scanner")):
+            with self.subTest(name=name), mock.patch.object(module, name, None), \
+                 mock.patch("desktop_app.DesktopServer") as server:
+                with self.assertRaisesRegex(RuntimeError, "DESKTOP_JSON_ACCELERATION_MISSING"):
+                    desktop_app.self_test()
+                server.assert_not_called()
 
     def test_gui_failure_closes_started_server(self):
         service = mock.Mock()

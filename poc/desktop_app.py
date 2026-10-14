@@ -266,6 +266,13 @@ def self_test() -> dict:
     """Verify the packaged resources and HTTP server without a GUI or model call."""
     from web_app import STATIC_FILES, WorkbenchState
 
+    # Semantic IR and request assembly are JSON-heavy. Packaging must preserve
+    # the interpreter's accelerator instead of silently using Python fallbacks.
+    accelerated = (json.encoder.c_make_encoder is not None
+                   and json.scanner.c_make_scanner is not None
+                   and json.scanner.make_scanner is json.scanner.c_make_scanner)
+    if not accelerated:
+        raise RuntimeError("DESKTOP_JSON_ACCELERATION_MISSING")
     for name in set(STATIC_FILES.values()):
         path = RESOURCE_ROOT / "web" / name
         if path.is_symlink() or not path.is_file() or not path.stat().st_size:
@@ -295,7 +302,8 @@ def self_test() -> dict:
     if service.thread.is_alive():
         raise RuntimeError("DESKTOP_SERVER_SHUTDOWN_FAILED")
     return {"ok": True, "static_files": len(set(STATIC_FILES.values())),
-            "loopback_server": True, "server_stopped": True, "model_calls": 0}
+            "loopback_server": True, "server_stopped": True, "model_calls": 0,
+            "json_accelerated": accelerated}
 
 
 def run_desktop(root: Path) -> int:

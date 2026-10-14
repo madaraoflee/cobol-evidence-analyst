@@ -188,6 +188,7 @@ class DesktopBuildTests(unittest.TestCase):
             with self.subTest(system=system):
                 command = builder.compiler_command(source, output, system=system, jobs=2)
                 self.assertIn("--mode=app-dist", command)
+                self.assertIn("--include-module=_json", command)
                 self.assertIn(f"--output-dir={output}", command)
                 self.assertIn(f"--include-data-dir={source / 'web'}=web", command)
                 self.assertIn(f"--include-data-dir={source / 'fixtures'}=fixtures", command)

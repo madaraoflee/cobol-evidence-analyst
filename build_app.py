@@ -104,6 +104,7 @@ def compiler_command(source, output, *, system=None, jobs=4):
     command = [sys.executable, "-m", "nuitka", "--mode=app-dist",
                f"--output-dir={output}", f"--output-filename={APP_NAME}",
                f"--jobs={jobs}", "--assume-yes-for-downloads", "--update-check=never", "--python-flag=isolated",
+               "--include-module=_json",
                "--include-package-data=certifi",
                "--nofollow-import-to=tkinter,pytest,unittest",
                f"--include-data-dir={source / 'web'}=web",
