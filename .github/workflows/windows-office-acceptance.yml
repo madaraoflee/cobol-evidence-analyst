@@ -126,6 +126,8 @@ jobs:
           from argparse import Namespace
           import os
           from pathlib import Path
+          import sys
+          sys.path.insert(0, str(Path.cwd()))
           from build_app import prepare_environment
           interpreter = prepare_environment(Namespace(skip_install=False))
           with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as handle:
