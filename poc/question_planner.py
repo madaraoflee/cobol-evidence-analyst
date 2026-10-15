@@ -7,7 +7,29 @@ import re
 from statement_facts import data_references
 
 
-PLAN_VERSION = "business-analysis-plan/v6"
+PLAN_VERSION = "business-analysis-plan/v7"
+_ACCUMULATION = re.compile(
+    r"累加|累[计計积積]|加总|加總|"
+    r"(?<![A-Za-z0-9_$#@-])(?:accumulat(?:e[ds]?|ing|ion)|running\s+totals?)(?![A-Za-z0-9_$#@-])|"
+    r"(?<![A-Za-z0-9_$#@-])add(?:ed|ing)?\s+[^?!。；;\n]{1,80}\s+(?:to|into)\b", re.I)
+
+
+def accumulation_requested(question):
+    """Nominate an explicit operation, never infer it from an identifier."""
+    text = str(question)
+    explicit_method = re.search(r"(?:如何|怎么|怎麼|怎样|怎樣).{0,30}(?:累加|累[计計积積]|更新|计算|計算)|"
+                                r"\bhow\b.{0,60}\b(?:accumulat\w*|add|update[ds]?)\b", text, re.I)
+    if (re.search(r"为什么|為什麼|\bwhy\b", text, re.I) and not explicit_method
+            and re.search(r"(?:没有|沒有|没|沒|未|不).{0,12}(?:累加|累[计計积積])|"
+                          r"\b(?:not|never|doesn't|didn't|isn't)\b.{0,40}\baccumulat\w*", text, re.I)):
+        return False
+    if (re.search(r"(?<![A-Za-z0-9_$#@-])(?:PIC|PICTURE)(?![A-Za-z0-9_$#@-])|"
+                  r"类型|類型|长度|長度|\b(?:data\s+type|length|initial\s+value)\b", text, re.I)
+            and not explicit_method):
+        return False
+    return bool(_ACCUMULATION.search(text))
+
+
 _IDENTIFIER = re.compile(r"(?<![A-Za-z0-9_$#@-])[A-Z0-9_$#@-]+(?:\s+(?:OF|IN)\s+[A-Z0-9_$#@-]+)*(?:\([^()\r\n]*\)(?:\s+(?:OF|IN)\s+[A-Z0-9_$#@-]+)*)?", re.I)
 _HINTS = {
     "origin": r"从哪里|從哪裡|来源|來源|哪里来的|哪裡來的|\b(?:origin|source\s+of|where.+from)\b",
@@ -34,6 +56,83 @@ def question_references(question):
     """
     return tuple(dict.fromkeys(reference.identity for text in _IDENTIFIER.findall(str(question))
                                for reference in data_references(text)))
+
+
+def additive_terms(tokens):
+    """Return simple positive sum terms; do not evaluate COBOL arithmetic."""
+    tokens = tuple(tokens)
+    while tokens[:1] == ("(",) and tokens[-1:] == (")",):
+        depth, closes = 0, []
+        for index, token in enumerate(tokens):
+            depth += (token == "(") - (token == ")")
+            if depth == 0:
+                closes.append(index)
+        if closes != [len(tokens) - 1]:
+            break
+        tokens = tokens[1:-1]
+    depth, start, terms = 0, 0, []
+    for index, token in enumerate(tokens):
+        depth += (token == "(") - (token == ")")
+        if not depth and token == "+":
+            terms.append(tokens[start:index])
+            start = index + 1
+        elif not depth and token == "-":
+            return None
+    terms.append(tokens[start:])
+    return tuple(terms) if len(terms) > 1 and all(terms) else None
+
+
+def select_accumulations(question, facts, *, entities=()):
+    """Select additive self-updates within the caller's already bounded facts.
+
+    A GIVING target which is not read is not an accumulator. Field references
+    only nominate candidates; bare qualified-name ambiguity remains explicit.
+    """
+    from claim_support import statement_tokens
+    candidates = []
+    for fact in facts:
+        if fact.get("statement_kind") not in {"ADD", "COMPUTE"} or not fact.get("target"):
+            continue
+        terms = additive_terms(fact.get("expression", ()))
+        target = statement_tokens(fact["target"])
+        if not terms or target not in terms:
+            continue
+        increments = list(terms)
+        increments.remove(target)
+        candidates.append({**fact, "target_field": fact["target"],
+                           "increment_terms": [list(term) for term in increments]})
+    if not candidates:
+        return []
+    references = [reference for text in [*question_references(question), *entities]
+                  for reference in data_references(text)]
+    all_fields = [reference for fact in facts for text in
+                  [fact.get("target", ""), " ".join(fact.get("expression", ()))]
+                  for reference in data_references(text)]
+
+    def matches(requested, actual):
+        return (requested.name == actual.name
+                and (not requested.qualifiers or requested.qualifiers == actual.qualifiers)
+                and (not requested.subscripts or requested.subscripts == actual.subscripts)
+                and (requested.reference_modification is None
+                     or requested.reference_modification == actual.reference_modification))
+
+    located = [reference for reference in references if any(matches(reference, field) for field in all_fields)]
+    if located:
+        targets = [fact for fact in candidates if any(matches(requested, actual)
+            for requested in located for actual in data_references(fact["target"]))]
+        if targets:
+            return targets
+        return [fact for fact in candidates if any(matches(requested, actual)
+            for requested in located for text in [fact["target"], " ".join(fact["expression"])]
+            for actual in data_references(text))]
+    # A procedure can contain incidental counters. Prefer an accumulator fed
+    # by its visible computed result; otherwise only a unique candidate binds.
+    computed = {fact["target"] for fact in facts if fact.get("statement_kind") == "COMPUTE"
+                and fact.get("target") and not any(row.get("occurrence_id") == fact.get("occurrence_id")
+                    and row["target"] == fact["target"] for row in candidates)}
+    linked = [fact for fact in candidates if any(reference.identity in computed
+        for term in fact["increment_terms"] for reference in data_references(" ".join(term)))]
+    return linked or (candidates if len(candidates) == 1 else [])
 _TOOLS = {
     "origin": ("backward_slice", "explain_assignment", "trace_parameter"),
     "overwrite": ("explain_assignment", "backward_slice", "forward_slice"),
@@ -41,6 +140,7 @@ _TOOLS = {
     "condition": ("backward_slice", "explain_assignment"),
     "exception": ("explain_external_effect", "trace_parameter"),
     "calculation": ("explain_assignment", "backward_slice"),
+    "accumulation": ("explain_assignment", "backward_slice"),
     "flow": ("backward_slice", "trace_parameter", "explain_external_effect"),
     "explanation": ("explain_assignment",),
     "declaration": ("inspect_business_context",),
@@ -112,6 +212,8 @@ class QuestionPlanner:
                 intent_question = re.sub(r"(?<![A-Za-z0-9_$#@-])" + re.escape(name) +
                                          r"(?![A-Za-z0-9_$#@-])", " ", intent_question, flags=re.I)
         intents = [name for name, pattern in _HINTS.items() if re.search(pattern, intent_question, re.I)]
+        if accumulation_requested(intent_question):
+            intents.append("accumulation")
         # A rule's trigger condition belongs to its local IF/control analysis.
         # Upstream launch or batch wording asks the separate caller/scheduler
         # question; calculation and activation obligations can then coexist.
@@ -121,7 +223,7 @@ class QuestionPlanner:
                 intents.append("condition")
         declaration = bool(re.search(r"类型|類型|长度|長度|初值|初始值|\b(?:data\s+type|type\s+of|length|initial\s+value|default\s+value)\b",
                                      str(question), re.I))
-        if declaration and not set(intents) & {"origin", "overwrite", "impact", "condition", "exception", "calculation"}:
+        if declaration and not set(intents) & {"origin", "overwrite", "impact", "condition", "exception", "calculation", "accumulation"}:
             intents = ["declaration"]
         # An identified field with real assignments warrants lineage inspection
         # even if the question is only "this field?" in ordinary chat.
@@ -133,7 +235,7 @@ class QuestionPlanner:
             intents.append("impact")
         if file_entities:
             records = {name for entity in file_entities for name in entity.get("record_names", ())}
-            if not set(intents) & {"calculation", "flow", "impact", "overwrite", "condition", "exception"} and set(entities) <= records:
+            if not set(intents) & {"calculation", "accumulation", "flow", "impact", "overwrite", "condition", "exception"} and set(entities) <= records:
                 intents = ["file_mapping"]
             else:
                 intents.append("file_mapping")
@@ -157,6 +259,7 @@ class QuestionPlanner:
                 "impact": ("def_use", "external_effects"),
                 "condition": ("control_conditions",), "exception": ("error_return",),
                 "calculation": ("assignment_expression", "input_definitions", "numeric_layout"),
+                "accumulation": ("accumulation_step", "input_definitions"),
                 "flow": ("control_conditions", "calls", "external_effects"),
                 "activation": ("entry_point", "caller_invocation", "activation_conditions", "scheduler_binding"),
                 "declaration": ("declaration_layout",)}.get(intent, ()))
@@ -168,7 +271,7 @@ class QuestionPlanner:
 
 class EvidencePlanner:
     def organize(self, plan, candidates):
-        order = {kind: index for index, kind in enumerate(("file_definitions", "file_layout", "copy_layout", "file_io", "procedure_body", "formula", "business_steps", "result_adjustments",
+        order = {kind: index for index, kind in enumerate(("file_definitions", "file_layout", "copy_layout", "file_io", "procedure_body", "formula", "accumulation_step", "business_steps", "result_adjustments",
                     "conditions", "declarations", "inputs", "dependencies", "dds_definitions"))}
         return sorted(candidates, key=lambda item: (order.get(item.get("kind"), len(order)),
                       item.get("relative_path", ""), item.get("start_line", 0), item.get("statement", "")))

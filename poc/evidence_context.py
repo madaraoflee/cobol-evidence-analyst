@@ -176,7 +176,14 @@ class EvidenceContext:
                 else:
                     saved = self.pages[identifier]
                     for key in ("relative_path", "start_line", "end_line", "source_sha256", "source_text", "include_chain"):
-                        if key in saved and key in page and saved[key] != page[key]:
+                        if key not in saved or key not in page:
+                            continue
+                        prior, incoming = saved[key], page[key]
+                        # Dataclass provenance uses tuples; JSON restores lists.
+                        # Compare their contents without weakening source identity.
+                        if key == "include_chain" and isinstance(prior, (list, tuple)) and isinstance(incoming, (list, tuple)):
+                            prior, incoming = tuple(prior), tuple(incoming)
+                        if prior != incoming:
                             raise ValueError("EVIDENCE_ID_CONTENT_MISMATCH")
                     for key in ("semantic_roles", "selection_reasons", "group_ids"):
                         saved[key] = list(dict.fromkeys([*saved.get(key, []), *page.get(key, [])]))

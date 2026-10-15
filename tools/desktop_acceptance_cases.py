@@ -436,6 +436,25 @@ def _quality_checks(case, agent, output, pages, trace=None):
                 and replacement_supported(ledger, expected))
         else:
             result["quality_critical_answer_preserved"] = all(text in answer for text in case["required_answer_text"])
+        if case["public_case_id"] == "monthly-interest":
+            completion = ((trace or {}).get("final") or {}).get("answer_completion") or {}
+            required = completion.get("required_aspects")
+            missing = completion.get("missing_aspects")
+            accumulation_required = isinstance(required, list) and "accumulation" in required
+            if case.get("inject_error"):
+                result["completeness_accumulation_omission_reported"] = (
+                    accumulation_required and isinstance(missing, list) and "accumulation" in missing
+                    and completion.get("status") == "incomplete"
+                    and completion.get("semantic_verification") == "unverified"
+                    and agent.get("status") == "PARTIAL"
+                    and result["quality_frozen_source_assertions"]
+                    and result["quality_injected_error_revised"]
+                    and result["quality_invalid_claim_absent"])
+            else:
+                result["completeness_accumulation_covered"] = (
+                    accumulation_required and isinstance(missing, list) and "accumulation" not in missing
+                    and "WS-TOTAL-INT" in answer and _supported(ledger, "WS-TOTAL-INT",
+                        ["WS-MONTHLY-INT", "+", "WS-TOTAL-INT"], predicate="assignment_statement"))
         if case.get("unverified_prose"):
             result["quality_prose_not_falsely_verified"] = ledger.get("prose_semantics_verified") is False and agent.get("claims_semantically_verified") is False
         if case["public_case_id"] == "unimplemented-procedure":

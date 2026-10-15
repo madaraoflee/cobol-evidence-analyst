@@ -11,7 +11,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from tools.desktop_acceptance_cases import (DEFAULT_MANIFEST, _large_program, _quality_checks,
+from tools.desktop_acceptance_cases import (DEFAULT_MANIFEST, _large_program, _public_case, _quality_checks,
     _scope_probe_checks,
     corpus_fingerprint, ledger_versions_match, prepare_source, ranges_supplied, replacement_supported,
     run_cases, verify_pages)
@@ -127,6 +127,8 @@ class DesktopAcceptanceEvidenceTests(unittest.TestCase):
         manifest = json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8"))
         self.assertEqual(len(manifest["cases"]), 19)
         self.assertEqual(sum(case["repeats"] for case in manifest["cases"]), 61)
+        self.assertEqual(sum(case["repeats"] * len(case.get("scope_probes", []))
+                             for case in manifest["cases"]), 14)
         self.assertEqual(sum(case["repeats"] for case in manifest["cases"]
                              if case["id"] not in {"soft_target_answer", "activation_trigger"}), 55)
         cases = {case["id"]: case for case in manifest["cases"]}
@@ -140,6 +142,90 @@ class DesktopAcceptanceEvidenceTests(unittest.TestCase):
         self.assertIn("completeness_large_two_if_pic_supplied", large["assertions"])
         self.assertEqual(large["limits"]["question_seconds"], 60)
         self.assertEqual(large["scope_probes"][0]["expected_candidate_count"], 2)
+        for identity, assertion in (("public_monthly_interest", "completeness_accumulation_covered"),
+                ("public_monthly_interest_repair", "completeness_accumulation_omission_reported")):
+            self.assertIn(assertion, cases[identity]["assertions"])
+            self.assertIn(assertion, cases[identity]["assertion_groups"]["completeness"])
+
+    def monthly_fixture(self, *, repair=False):
+        manifest = json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+        identity = "public_monthly_interest_repair" if repair else "public_monthly_interest"
+        case = next(row for row in manifest["cases"] if row["id"] == identity)
+        mechanism = _public_case(case)["mechanism"]
+        assertions = mechanism["source_assertions"]
+        entries = [{"support_status": "supported", "claim_type": item["predicate"],
+                    "target_entity": item["target"], "expression": item["expression"]} for item in assertions]
+        answer = mechanism["fake_correct_answer"]
+        if repair:
+            answer = mechanism["fake_incorrect_answer"].replace("/ 999", "/ 1200")
+            entries = [{"support_status": "contradicted", "revised_claims": [
+                {"support_status": "supported", "assertion": assertions[0]}]}]
+        agent = {"status": "PARTIAL" if repair else "ANALYZED", "answer": answer,
+            "claim_ledger": {"entries": entries, "revised_claim_count": 1 if repair else 0}}
+        trace = {"final": {"answer_completion": {"required_aspects": ["formula", "accumulation"],
+            "missing_aspects": ["accumulation"] if repair else [],
+            "status": "incomplete" if repair else "complete", "semantic_verification": "unverified"}}}
+        return case, agent, trace
+
+    def test_monthly_interest_needs_the_real_accumulator_and_completion_coverage(self):
+        import copy
+        case, agent, trace = self.monthly_fixture()
+        label = "completeness_accumulation_covered"
+        self.assertTrue(_quality_checks(case, agent, self.root, [], trace)[label])
+        for mutation in ("no_completion", "no_required_aspect", "no_missing_list", "missing_accumulation",
+                         "missing_accumulator_text", "missing_accumulator_support", "wrong_accumulator_expression"):
+            with self.subTest(mutation=mutation):
+                changed_agent, changed_trace = copy.deepcopy((agent, trace))
+                completion = changed_trace["final"]["answer_completion"]
+                if mutation == "no_completion":
+                    changed_trace["final"].pop("answer_completion")
+                elif mutation == "no_required_aspect":
+                    completion["required_aspects"] = ["formula"]
+                elif mutation == "no_missing_list":
+                    completion.pop("missing_aspects")
+                elif mutation == "missing_accumulation":
+                    completion["missing_aspects"] = ["accumulation"]
+                elif mutation == "missing_accumulator_text":
+                    changed_agent["answer"] = "月息公式除以1200，然后调用1300-B-WRITE-TX。"
+                elif mutation == "missing_accumulator_support":
+                    changed_agent["claim_ledger"]["entries"].pop()
+                else:
+                    changed_agent["claim_ledger"]["entries"][-1]["expression"] = ["WS-MONTHLY-INT", "+", "999"]
+                self.assertFalse(_quality_checks(case, changed_agent, self.root, [], changed_trace)[label])
+
+    def test_monthly_repair_requires_the_exact_omission_and_preserves_the_supported_1200_formula(self):
+        import copy
+        case, agent, trace = self.monthly_fixture(repair=True)
+        label = "completeness_accumulation_omission_reported"
+        checks = _quality_checks(case, agent, self.root, [], trace)
+        self.assertTrue(checks[label])
+        self.assertTrue(checks["quality_frozen_source_assertions"])
+        self.assertNotIn("WS-TOTAL-INT", agent["answer"])
+        self.assertIn("/ 999", _public_case(case)["mechanism"]["fake_incorrect_answer"])
+        for mutation in ("partial_only", "analyzed", "no_required_aspect", "wrong_missing_aspect",
+                         "complete", "verified", "formula_removed", "wrong_formula", "unsupported_replacement"):
+            with self.subTest(mutation=mutation):
+                changed_agent, changed_trace = copy.deepcopy((agent, trace))
+                completion = changed_trace["final"]["answer_completion"]
+                if mutation == "partial_only":
+                    changed_trace["final"].pop("answer_completion")
+                elif mutation == "analyzed":
+                    changed_agent["status"] = "ANALYZED"
+                elif mutation == "no_required_aspect":
+                    completion["required_aspects"] = ["formula"]
+                elif mutation == "wrong_missing_aspect":
+                    completion["missing_aspects"] = ["inputs"]
+                elif mutation == "complete":
+                    completion["status"] = "complete"
+                elif mutation == "verified":
+                    completion["semantic_verification"] = "verified"
+                elif mutation == "formula_removed":
+                    changed_agent["answer"] = "累加解释尚缺。"
+                elif mutation == "wrong_formula":
+                    changed_agent["answer"] = changed_agent["answer"].replace("/ 1200", "/ 999")
+                else:
+                    changed_agent["claim_ledger"]["entries"][0]["revised_claims"][0]["support_status"] = "unsupported"
+                self.assertFalse(_quality_checks(case, changed_agent, self.root, [], changed_trace)[label])
 
     def test_noop_scope_requires_actual_complete_body_not_generic_success_status(self):
         case = {"id": "public_unimplemented_procedure", "corpus": "public",

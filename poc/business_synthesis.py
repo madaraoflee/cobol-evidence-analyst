@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from decimal import Decimal, InvalidOperation
 
@@ -193,6 +194,7 @@ _ANSWER_SIGNALS = {
 }
 _ASPECT_LABELS = {"formula": "具体算式或运算关系", "inputs": "输入的初值、读取或传入来源",
                   "conditions": "当前处理适用的条件", "result_adjustments": "其他分支或结果调整",
+                  "accumulation": "说明实际累加接收字段如何保留原值并加入本次增量",
                   "file_io": "原文已知的文件/record写入、只读依赖、准确字段名及定位"}
 
 # An unfamiliar business paraphrase is not evidence of an omission. Only
@@ -497,11 +499,167 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
                                      else row.get("fields", []) if row.get("kind") == "io_operation" else [])))[:32]
                 requirement["identifier_groups"] = {key: names for key, names in groups.items() if names}
             requirements.append(requirement)
+    accumulation = _supplied_accumulations(scoped_question, investigation, source_pages)
+    if accumulation:
+        requirements.append({"kind": "accumulation", "description": _ASPECT_LABELS["accumulation"],
+            "supplied_reference_ids": list(dict.fromkeys(identifier for fact in accumulation
+                for identifier in fact["supplied_reference_ids"])), "coverage_hints": accumulation})
     if not calculation and not is_file_impact_question(question):
         guide = (build_behavior_guide(question, investigation, source_pages)
                  if behavior_guide is None else behavior_guide)
         requirements.extend(_behavior_requirements(guide))
     return requirements
+
+
+def _supplied_accumulations(question, investigation, source_pages):
+    """Bind the explicit operation to actual supplied, versioned statements."""
+    from question_planner import accumulation_requested, select_accumulations
+    if not accumulation_requested(question):
+        return []
+    from claim_support import supplied_statement_facts
+    items = investigation.get("required_items", [])
+    operation = next((item for item in items if item.get("kind") == "accumulation_step"), None)
+    relevant = [operation] if operation is not None else [item for item in items if item.get("kind") in
+        {"formula", "business_steps", "result_adjustments"}]
+    supplied = {identifier for item in relevant if item.get("status") == "SATISFIED"
+                for identifier in item.get("evidence_ids", [])}
+    plan = investigation.get("analysis_plan") or {}
+    paths = set(plan.get("paths", []))
+    ranges = (investigation.get("source_scope") or {}).get("ranges", [])
+    facts, seen = [], set()
+    for original in source_pages:
+        if original.get("evidence_id") not in supplied or paths and original.get("relative_path") not in paths:
+            continue
+        scoped = [scope for scope in ranges if scope.get("relative_path") == original.get("relative_path")
+                  and scope.get("exclusive") is not False]
+        slices = scoped or [None]
+        for scope in slices:
+            page = original
+            if scope is not None:
+                if scope.get("source_sha256") != page.get("source_sha256"):
+                    continue
+                first = max(scope["start_line"], page["start_line"])
+                last = min(scope["end_line"], page["end_line"])
+                if first > last:
+                    continue
+                lines = page["source_text"].splitlines()
+                page = {**page, "start_line": first, "end_line": last,
+                        "source_text": "\n".join(lines[first-original["start_line"]:last-original["start_line"]+1])}
+            for fact in supplied_statement_facts(page):
+                if fact.get("predicate") != "assignment_statement":
+                    continue
+                key = (page.get("relative_path"), page.get("source_sha256"), fact["occurrence_id"],
+                       fact["start_line"], fact["target"],
+                       json.dumps(page.get("include_chain"), sort_keys=True),
+                       json.dumps(page.get("replacement_trace"), sort_keys=True), page.get("copy_instance"))
+                if key in seen:
+                    continue
+                seen.add(key)
+                facts.append({**fact, "relative_path": page["relative_path"],
+                    "source_sha256": page["source_sha256"], "include_chain": page.get("include_chain"),
+                    "replacement_trace": page.get("replacement_trace"), "copy_instance": page.get("copy_instance"),
+                    "supplied_reference_ids": [page["evidence_id"]]})
+    return [{**fact, "kind": "accumulation"} for fact in
+            select_accumulations(question, facts, entities=plan.get("entities", []))]
+
+
+_ACCUMULATION_ACTION = re.compile(
+    r"累加|加[入进進到上]|计入|計入|"
+    r"\b(?:accumulat(?:e[ds]?|ing)|add(?:ed|ing)?\b.{0,100}\b(?:to|into)|"
+    r"increas(?:e[ds]?|ing)\b.{0,60}\bby)\b", re.I)
+_ACCUMULATION_DENIAL = re.compile(
+    r"不会|不會|不再|不(?:累加|计入|計入|加入)|未(?:曾|执行|執行|累加)|"
+    r"\b(?:not|never|cannot|can't|doesn't|don't|isn't|aren't)\b", re.I)
+_ACCUMULATION_SCALE = re.compile(
+    r"一半|半数|半數|[两兩二三四五六七八九十]倍|乘以|除以|"
+    r"\b(?:half|double|twice|multiply|multiplied|divide|divided)\b|[*/]", re.I)
+
+
+def _accumulation_covered(answer, hint, *, unique_candidate):
+    """A conservative coverage hint, not proof of the prose's semantics."""
+    from claim_ledger import _assertions, _segments
+    from claim_support import statement_tokens
+    from question_planner import additive_terms
+    from statement_facts import assignment_facts, data_references
+
+    def same_sum(expression):
+        expected, actual = additive_terms(hint["expression"]), additive_terms(expression)
+        return expected is not None and actual is not None and sorted(expected) == sorted(actual)
+
+    def names_present(text):
+        names = [hint["target_field"], *(reference.identity for term in hint["increment_terms"]
+                   for reference in data_references(" ".join(term)))]
+        return all(re.search(r"(?<![A-Za-z0-9_$#@-])" + re.escape(name) +
+                             r"(?![A-Za-z0-9_$#@-])", text, re.I) for name in names)
+
+    def numeric_increment_covered(text):
+        numeric = re.compile(r"[+-]?\d+(?:\.\d+)?\Z")
+        expected = {Decimal(token) for term in hint["increment_terms"] for token in term if numeric.fullmatch(token)}
+        observed = {Decimal(token) for token in re.findall(
+            r"(?<![A-Za-z0-9_.-])[+-]?\d+(?:\.\d+)?(?![A-Za-z0-9_-]|\.\d)", text)}
+        # Seeing the expected 1 does not excuse a conflicting extra 999.
+        if not observed.issubset(expected):
+            return False
+        digits = "零一二三四五六七八九"
+        number_chars = "零〇一二三四五六七八九十百千万萬亿億点點"
+        english = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
+        number_words = ("zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|"
+                        "fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|"
+                        "sixty|seventy|eighty|ninety|hundred|thousand|million|billion")
+        for number in expected - observed:
+            if not (number == int(number) and 0 <= number < 10):
+                return False
+            word = english[int(number)]
+            compound = re.search(r"\b(?:" + number_words + r")(?:[ -]+and)?[ -]+" + word + r"\b|\b" +
+                word + r"[ -]+(?:and[ -]+)?(?:" + number_words + r")\b", text, re.I)
+            if not (re.search("(?<![" + number_chars + "])" + digits[int(number)] +
+                              "(?![" + number_chars + "])", text)
+                    or not compound and re.search(r"(?<![A-Za-z-])" + word + r"(?![A-Za-z-])", text, re.I)):
+                return False
+        return True
+
+    for segment, inherited in _segments(str(answer)):
+        ids = set(_REFERENCE.findall(segment) or inherited)
+        text = _REFERENCE.sub("", segment).replace("`", "")
+        clauses = re.split(r"[；;，,]|\bbut\b", text, flags=re.I)
+        def denial_text(clause):
+            return re.sub(r"\bnot\s+(?:only|just|merely)\b", " ", clause, flags=re.I)
+        if any(_ACCUMULATION_DENIAL.search(denial_text(clause)) and _ACCUMULATION_ACTION.search(clause)
+               and re.search(r"(?<![A-Za-z0-9_$#@-])" + re.escape(hint["target_field"]) +
+                             r"(?![A-Za-z0-9_$#@-])", clause, re.I) for clause in clauses):
+            continue
+        # Unrelated persistence uncertainty must not erase an earlier ADD.
+        for clause in clauses:
+            if (_LIMITATION.search(clause) or _INVESTIGATION_STATEMENT.search(clause)
+                    or _ACCUMULATION_DENIAL.search(denial_text(clause)) or "?" in clause or "？" in clause):
+                continue
+            all_assertions = [row for row in _assertions(clause) if row.get("predicate") == "assignment_statement"]
+            assertions = [row for row in all_assertions if row.get("target") == hint["target_field"]]
+            if any(same_sum(row.get("expression", ())) for row in assertions):
+                return True
+            add = re.search(r"\bADD\b[^。；;\n]*", clause, re.I)
+            if add:
+                assignment = assignment_facts(add[0].strip().rstrip("。.! "))
+                if assignment is not None and any(target == hint["target_field"] and same_sum(
+                        statement_tokens(expression) or ())
+                        for target, expression in assignment.expressions):
+                    return True
+                if assignment is not None:
+                    continue  # An explicit different ADD is not an unnamed alias.
+            if all_assertions or not _ACCUMULATION_ACTION.search(clause):
+                continue
+            if _ACCUMULATION_SCALE.search(clause) or not numeric_increment_covered(clause):
+                continue
+            # A cited unique source operation can be described in business
+            # language without repeating English field names. Multiple targets
+            # require explicit identity; a generic total/constant is not enough.
+            if names_present(clause):
+                return True
+            explicit_names = re.findall(r"(?<![A-Za-z0-9_$#@-])[A-Z][A-Z0-9_$#@-]{1,}(?![A-Za-z0-9_$#@-])", clause)
+            if (unique_candidate and not explicit_names and ids.intersection(hint["supplied_reference_ids"])
+                    and not re.search(r"(?<![\w-])\d+(?:\.\d+)?", clause)):
+                return True
+    return False
 
 
 def assess_business_answer(question, answer, investigation, source_pages, *, answer_detail="detailed", working_set=None):
@@ -533,13 +691,15 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
             or not (_LIMITATION.search(clause) or _INVESTIGATION_STATEMENT.search(clause)))
         and not re.search(r"[?？]", clause))
     generic_behavior = _generic_behavior_summary(explanation)
-    missing = [item["kind"] for item in requirements
+    missing = [item["kind"] for item in requirements if item["kind"] != "accumulation"
                if (generic_behavior if item["kind"].startswith("behavior_")
                    else not _ANSWER_SIGNALS[item["kind"]].search(explanation))]
     for item in requirements:
         for hint in item.get("coverage_hints", []):
             kind = hint["kind"]
-            if kind == "rounding":
+            if kind == "accumulation":
+                covered = _accumulation_covered(answer, hint, unique_candidate=len(item["coverage_hints"]) == 1)
+            elif kind == "rounding":
                 covered = bool(_ROUNDING_ANSWER.search(explanation))
             else:
                 markers = hint.get("value_markers", [])

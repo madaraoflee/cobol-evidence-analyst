@@ -19,7 +19,7 @@ from file_impact_evidence import is_file_impact_question, nominate_file_impact_e
 from business_behavior import wants_behavior_explanation
 from question_intent import calculation_intent
 from repository_identity import identity_blocks_analysis
-from question_planner import QuestionPlanner, EvidencePlanner, question_references
+from question_planner import QuestionPlanner, EvidencePlanner, question_references, select_accumulations
 from statement_facts import COBOL_VERBS, SCOPE_TERMINATORS, CobolLexError, lex_cobol, data_references
 
 
@@ -1292,7 +1292,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
         from activation_evidence import investigate_activation
         activation = investigate_activation(business_map, source_pages, database_path=database_path,
             max_actions=max_actions, candidate_cache=candidate_cache)
-        if not set(plan.intents) & {"calculation", "origin", "overwrite", "impact", "exception"}:
+        if not set(plan.intents) & {"calculation", "accumulation", "origin", "overwrite", "impact", "exception"}:
             return {**base, **activation}
 
     def include_activation(result):
@@ -1322,7 +1322,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
     file_only = bool(file_entities) and not file_impact and set(plan.intents) == {"file_mapping"}
     business_steps = not calculation and (calculation_kind == "execution" or bool(_BUSINESS_DETAIL.search(question))
         or wants_behavior_explanation(question) or file_impact or file_mapping or
-        bool(set(plan.intents) & {"origin", "overwrite", "impact", "condition", "exception"}) or bool(source_scopes))
+        bool(set(plan.intents) & {"origin", "overwrite", "impact", "condition", "exception", "accumulation"}) or bool(source_scopes))
     if not calculation and not business_steps:
         supplied = [page.get("evidence_id") for page in source_pages if page.get("evidence_id")
                     and page.get("relative_path") in paths and page.get("source_text")]
@@ -1433,9 +1433,28 @@ def build_question_investigation(question, business_map, *, database_path=None,
     candidates = list(unique.values())
     candidates = EvidencePlanner().organize(plan, candidates)
     candidates = _framework_dependencies(candidates, pages, framework_facts)
+    if "accumulation" in plan.intents:
+        from claim_support import statement_tokens
+        from statement_facts import assignment_facts
+        facts = []
+        for row in candidates:
+            if row["kind"] not in {"formula", "business_steps", "result_adjustments"}:
+                continue
+            assignment = assignment_facts(row["statement"])
+            if assignment is None or assignment.effects_unknown:
+                continue
+            for target, expression in assignment.expressions:
+                facts.append({**row, "statement_kind": assignment.kind, "target": target,
+                              "expression": list(statement_tokens(expression) or ())})
+        selected = select_accumulations(question, facts, entities=plan.entities)
+        unique_accumulations = {(row["relative_path"], row["start_line"], row["target"],
+                                 row["statement"]): row for row in selected}
+        candidates.extend({**row, "kind": "accumulation_step"} for row in unique_accumulations.values())
     missing = []
     items = []
     kinds = ["procedure_body", "formula", "declarations", "inputs", "conditions", "result_adjustments", "dependencies"]
+    if "accumulation" in plan.intents:
+        kinds.append("accumulation_step")
     if business_steps:
         kinds.insert(0, "business_steps")
     if file_impact:
@@ -1457,7 +1476,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
         primary = ("file_definitions" if file_only else "procedure_body" if any(row["kind"] == "procedure_body" for row in candidates)
                    and not any(row["kind"] in {"business_steps", "formula"} for row in candidates)
                    else "business_steps" if business_steps else "formula")
-        required = kind == primary
+        required = kind == primary or kind == "accumulation_step"
         status = ("UNRESOLVED" if unresolved and not absent else "PARTIAL" if absent and supplied
                   else "OPEN" if absent or required and not related else
                   "SATISFIED" if related else "NOT_APPLICABLE")

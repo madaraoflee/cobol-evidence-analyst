@@ -703,7 +703,8 @@
         "lifecycle_index_reused",
         "quality_critical_answer_preserved",
         "completeness_reviewed_ranges_supplied",
-        "quality_frozen_source_assertions"
+        "quality_frozen_source_assertions",
+        "completeness_accumulation_covered"
       ],
       "assertion_groups": {
         "quality": [
@@ -712,7 +713,8 @@
         ],
         "completeness": [
           "completeness_answer_recorded",
-          "completeness_reviewed_ranges_supplied"
+          "completeness_reviewed_ranges_supplied",
+          "completeness_accumulation_covered"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",
@@ -753,7 +755,8 @@
         "quality_injected_error_revised",
         "quality_invalid_claim_absent",
         "quality_frozen_source_assertions",
-        "completeness_reviewed_ranges_supplied"
+        "completeness_reviewed_ranges_supplied",
+        "completeness_accumulation_omission_reported"
       ],
       "assertion_groups": {
         "quality": [
@@ -763,7 +766,8 @@
         ],
         "completeness": [
           "completeness_answer_recorded",
-          "completeness_reviewed_ranges_supplied"
+          "completeness_reviewed_ranges_supplied",
+          "completeness_accumulation_omission_reported"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",
