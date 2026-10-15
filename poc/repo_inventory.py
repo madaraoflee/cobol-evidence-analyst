@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Sequence
 
-from statement_facts import program_identifiers
+from statement_facts import program_identifiers, strip_inline_comment
 
 
 SCHEMA_VERSION = "1.0"
@@ -283,11 +283,10 @@ def normalize_cobol_text(
         else:
             free_votes += 1
             stripped = line.lstrip()
-            if stripped.startswith("*>") or stripped.startswith("*"):
+            if stripped.startswith("*>"):
                 continue
 
-        if "*>" in candidate:
-            candidate = candidate.split("*>", 1)[0]
+        candidate = strip_inline_comment(candidate)
         cleaned.append(candidate.rstrip())
 
     if source_format != "auto":

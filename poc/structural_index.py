@@ -27,6 +27,7 @@ from statement_facts import (
     CompilationGuardState,
     SCOPE_TERMINATORS,
     clean_cobol_line,
+    io_clause_prefix,
     cobol_code_only,
     condition_syntax_supported,
     data_references,
@@ -57,7 +58,7 @@ from repo_inventory import (
 
 
 SCHEMA_VERSION = "0.4"
-PARSER_VERSION = "source-facts-v0.10"
+PARSER_VERSION = "source-facts-v0.11"
 INLINE_AST_ADAPTER_VERSION = "inline-statement-ast-v2"
 
 PROGRAM_ID_RE = re.compile(
@@ -396,7 +397,7 @@ def normalize_cobol_lines(
         else:
             free_votes += 1
             stripped = expanded.lstrip()
-            if stripped.startswith("*>") or stripped.startswith("*"):
+            if stripped.startswith("*>"):
                 continue
 
         code = strip_inline_comment(code)
@@ -1576,6 +1577,7 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
                         ("ELSE", "END-IF", "WHEN", "END-EVALUATE")
                     )
                     or candidate_kind != "OTHER"
+                    or io_clause_prefix(candidate.text)
                 )
                 if starts_new_structure:
                     break

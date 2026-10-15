@@ -14,7 +14,7 @@ from claim_ledger import _assertions
 from claim_support import supplied_statement_facts
 from statement_facts import CobolLexError, data_references, io_clause_guards, lex_cobol
 
-VERSION = "source-fact-completion/v1"
+VERSION = "source-fact-completion/v2"
 _MAX_ADDITIONS = 8
 _MAX_SCAN = 160000
 

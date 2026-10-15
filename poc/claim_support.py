@@ -281,7 +281,7 @@ def check_claim_support(
     return result
 
 
-STATEMENT_CHECKER_VERSION = "source-statement-support-v2"
+STATEMENT_CHECKER_VERSION = "source-statement-support-v3"
 
 
 def statement_tokens(text: str) -> tuple[str, ...] | None:
@@ -362,7 +362,7 @@ def supplied_statement_facts(page: Mapping[str, Any], *, source_format: str = "a
         if unit.name in {"COMPUTE", "MOVE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"}:
             assignment = assignment_facts(body)
             exceptional_header = (assignment is not None and assignment.effects_unknown
-                                  and "exception_scope_requires_control_flow" in assignment.diagnostics)
+                                  and "arithmetic_size_error_clause" in assignment.diagnostics)
             statement = parse_statements(body, start_line=location["start_line"], source_format="free")
             if not exceptional_header and (not statement.complete or len(statement.statements) != 1):
                 continue

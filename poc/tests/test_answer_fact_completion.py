@@ -124,7 +124,8 @@ class SourceFactCompletionTests(unittest.TestCase):
                 self.assertTrue(answer.startswith(original))
                 self.assertNotIn("OUT-AMOUNT = RAW-AMOUNT * 2", answer)
                 self.assertNotIn("OUT-AMOUNT = RAW-AMOUNT * 3", answer)
-                self.assertGreater(report["omitted_candidate_count"], 0)
+                self.assertFalse(any(fact["kind"] == "assignment" and fact["statement"].startswith("OUT-AMOUNT")
+                                     for fact in report["added_facts"]))
 
     def test_size_error_formula_addition_states_its_normal_result_condition(self):
         source = self.replace_body("COMPUTE OUT-AMOUNT = RAW-AMOUNT * 2\nON SIZE ERROR\n"
@@ -134,15 +135,15 @@ class SourceFactCompletionTests(unittest.TestCase):
         self.assertIn("无 SIZE ERROR 时的算式为 `OUT-AMOUNT = RAW-AMOUNT * 2`", answer)
         self.assertNotIn("Decimal", answer)
 
-    def test_assignment_span_crossing_an_io_clause_boundary_is_not_one_guarded_fact(self):
+    def test_normal_multiline_io_assignments_have_separate_supported_branch_spans(self):
         source = self.replace_body("READ INPUT-FILE\nINVALID KEY\nCOMPUTE OUT-AMOUNT = RAW-AMOUNT * 2\n"
             "NOT INVALID KEY\nCOMPUTE OUT-AMOUNT = RAW-AMOUNT * 3\nEND-READ.")
         original = "原有业务解释保留。"
         answer, report = complete_supplied_answer("计算规则", original, investigation(source),
             [page(source)], source_format="free")
         self.assertTrue(answer.startswith(original))
-        self.assertNotIn("OUT-AMOUNT = RAW-AMOUNT * 2", answer)
-        self.assertGreater(report["omitted_candidate_count"], 0)
+        self.assertIn("`READ INPUT-FILE` 的 INVALID KEY 分支时，`OUT-AMOUNT = RAW-AMOUNT * 2`", answer)
+        self.assertIn("`READ INPUT-FILE` 的 NOT INVALID KEY 分支时，`OUT-AMOUNT = RAW-AMOUNT * 3`", answer)
 
     def test_default_chain_keeps_body_and_does_not_add_mixed_line_io_assignment(self):
         source = self.replace_body("COMPUTE TOTAL-AMOUNT = RAW-AMOUNT * 4\nREAD INPUT-FILE INVALID KEY\n"

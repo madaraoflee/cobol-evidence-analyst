@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import re
 
 
-FRONTEND_VERSION = "cobol-facts-v5"
+FRONTEND_VERSION = "cobol-facts-v6"
 
 
 def compile_condition_value(expression, context):
@@ -181,8 +181,6 @@ def clean_cobol_line(raw: str, active_format: str = "auto") -> tuple[str, str, b
         continuation, code = expanded[6:7] == "-", expanded[7:72]
     else:
         continuation, code = False, expanded
-        if code.lstrip().startswith("*"):
-            return "", active_format, False
     return rstrip_cobol_code(strip_inline_comment(code)).lstrip(), active_format, continuation
 
 
@@ -512,6 +510,9 @@ def assignment_facts(text: str) -> AssignmentFacts | None:
         or token.value == "."), len(body))
     tail, body = body[boundary:], body[:boundary]
     exceptional = bool(tail and tail[0].value in {"ON", "NOT", "AT", "INVALID"})
+    tail_values = tuple(token.value for token in tail[:4])
+    size_error = kind != "MOVE" and (tail_values[:3] == ("ON", "SIZE", "ERROR")
+                                     or tail_values[:4] == ("NOT", "ON", "SIZE", "ERROR"))
 
     def operands(values, *, receivers=False):
         values, result, index, rounded = tuple(values), [], 0, False
@@ -613,7 +614,8 @@ def assignment_facts(text: str) -> AssignmentFacts | None:
     reads = tuple(dict.fromkeys((*reads, *index_reads)))
     if exceptional:
         return AssignmentFacts(kind, reads, (), tuple(expressions), rounded,
-                               ("exception_scope_requires_control_flow",), True)
+                               ("exception_scope_requires_control_flow",
+                                "arithmetic_size_error_clause" if size_error else "assignment_tail_not_supported"), True)
     return AssignmentFacts(kind, reads, writes, tuple(expressions), rounded)
 
 
@@ -941,6 +943,24 @@ def sql_host_access(code: str) -> tuple[list[str], list[str], bool]:
         if name not in destination:
             destination.append(name)
     return reads, writes, True
+
+
+def io_clause_prefix(text):
+    """Return a complete I/O clause introducer from lexical tokens only.
+
+    NOT ON SIZE ERROR belongs to its arithmetic operation. An incomplete or
+    unknown prefix is deliberately not classified as a complete I/O clause.
+    """
+    try:
+        tokens = lex_cobol(text)
+    except CobolLexError:
+        return None
+    values = tuple(token.value if token.kind == "word" else None for token in tokens[:3])
+    for prefix in (("NOT", "INVALID", "KEY"), ("NOT", "AT", "END"),
+                   ("INVALID", "KEY"), ("AT", "END")):
+        if values[:len(prefix)] == prefix:
+            return " ".join(prefix)
+    return None
 
 
 def io_clause_guards(lines, *, include_operation_scopes=False):

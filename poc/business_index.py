@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 
 from repo_inventory import DEFAULT_EXTENSIONS, SOURCE_FORMAT_RE, iter_source_files, validate_source_options, _looks_binary
 from source_catalog import _dependency_targets, _entry_matches
-from statement_facts import (clean_cobol_line, dependency_facts, join_continuation,
+from statement_facts import (clean_cobol_line, dependency_facts, io_clause_prefix, join_continuation,
                              lex_cobol, CobolLexError, CompilationGuardState, program_identifier,
                              sentence_terminated, sql_host_access)
 from statement_parser import parse_statements
@@ -30,7 +30,7 @@ from structural_index import (
     _resolve_relations, _database_counts,
 )
 
-PARSER_VERSION = "business-sparse-v1.8"
+PARSER_VERSION = "business-sparse-v1.9"
 CHUNK_BYTES = 1024 * 1024
 MAX_PHYSICAL_LINE_CHARS = 65536
 MAX_FACT_CHARS = 131072
@@ -592,6 +592,7 @@ class _Facts:
                 PROGRAM_ID_RE.match(code) or SECTION_RE.match(code) or _DIVISION_START_RE.match(code)
                 or DATA_ITEM_RE.match(code) or _statement_kind(code.upper()) != "OTHER"
                 or _CONTROL_BOUNDARY_RE.match(code)
+                or io_clause_prefix(code)
                 or (PARAGRAPH_RE.match(code) and self.division == "PROCEDURE" and not parameter_tail)))
             if kind == "Program":
                 starts_new = not bool(_PROGRAM_VALUE_RE.fullmatch(code)) if code else False
