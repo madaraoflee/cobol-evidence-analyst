@@ -230,7 +230,9 @@ jobs:
           subprocess.run([helper, '--kit', root / 'OFFICE-KIT.json', '--plan',
                           '--output', temporary / 'office-native-plan'], check=True, timeout=180)
           plan = json.loads((temporary / 'office-native-plan/LIVE-ACCEPTANCE.json').read_text(encoding='utf-8'))
-          if plan['plan']['user_turn_count'] != 36 or plan['plan']['max_model_requests'] != 108 or plan['cases']:
+          receipt = json.loads((temporary / 'office-kit-delivery/KIT-BUILD-RECEIPT.json').read_text(encoding='utf-8'))
+          if (plan['plan']['user_turn_count'] != receipt['user_turn_count'] or
+              plan['plan']['max_model_requests'] != receipt['max_model_requests'] or plan['cases']):
               raise SystemExit('Frozen no-call plan mismatch.')
           subprocess.run([helper, '--kit', root / 'OFFICE-KIT.json', '--offline',
                           '--output', temporary / 'office-native-check'], check=True, timeout=1800)
