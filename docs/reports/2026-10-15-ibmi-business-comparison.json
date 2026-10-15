@@ -1,0 +1,2574 @@
+{
+  "schema": "ibmi-business-comparison/v1",
+  "date": "2026-10-15",
+  "source_commit": "639f86825819acb463c5926551d70fda2e39b712",
+  "analysis_source_commit": "3b099c058f258824237835d7ea802a90055dee02",
+  "target": "IBM i COBOL, CL, DDS, Db2 for i, configured framework effects",
+  "decision": "Improve target runtime-context coverage and scoped answer completeness; end-to-end quality and latency not yet validated.",
+  "scope": {
+    "commercial_executions": 0,
+    "paid_model_requests": 0,
+    "enterprise_source_transfers": 0,
+    "real_model_answer_quality": null,
+    "real_model_answer_latency": null,
+    "windows_exe_tested_this_run": false,
+    "target_platform_validated": false,
+    "product_code_changed": false,
+    "release_changed": false,
+    "ranking_produced": false
+  },
+  "environment": {
+    "python": "3.14.4 (main, Apr  7 2026, 13:13:20) [Clang 21.0.0 (clang-2100.0.123.102)]",
+    "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+    "processor": "arm",
+    "cpu_count": 8,
+    "machine": "arm64",
+    "hardware": {
+      "chip_type": "Apple M2",
+      "machine_model": "Mac14,3",
+      "machine_name": "Mac mini",
+      "number_processors": "proc 8:0:4:4",
+      "physical_memory": "8 GB"
+    }
+  },
+  "local_static_quality": {
+    "shared_fixture_count": 11,
+    "assertions": {
+      "correct": 58,
+      "wrong": 0,
+      "unsupported": 0,
+      "public_mechanism_passed": true,
+      "public_cases": 7
+    },
+    "additional_assertions": {
+      "correct": 7,
+      "wrong": 0
+    },
+    "scope_notes": [
+      "Known semantic regressions, not independent holdout.",
+      "Read/write/qualified binding/occurrence/scope/source identity checked; no actual numeric execution.",
+      "Continued fixed-format literal short-line padding value observed but deliberately not scored.",
+      "Sparse business index was directly passed to legacy exception CFG in initial exploratory run; its unsupported diagnostic is preserved; supported structural CFG and shared SemanticService are reported separately."
+    ]
+  },
+  "local_public_ir_coverage": [
+    {
+      "path": "app/cbl/CBTRN02C.cbl",
+      "lines": 731,
+      "parse_complete": false,
+      "diagnostics": [
+        {
+          "reason": "if_condition_not_supported",
+          "source_refs": [
+            {
+              "relative_path": "app/cbl/CBTRN02C.cbl",
+              "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+              "start_line": 481,
+              "end_line": 502,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ]
+        },
+        {
+          "reason": "statement_not_supported:INITIALIZE",
+          "source_refs": [
+            {
+              "relative_path": "app/cbl/CBTRN02C.cbl",
+              "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+              "start_line": 504,
+              "end_line": 525,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ]
+        },
+        {
+          "reason": "move_operands_not_supported",
+          "source_refs": [
+            {
+              "relative_path": "app/cbl/CBTRN02C.cbl",
+              "source_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+              "start_line": 693,
+              "end_line": 706,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "app/cbl/CBACT04C.cbl",
+      "lines": 652,
+      "parse_complete": false,
+      "diagnostics": [
+        {
+          "reason": "if_condition_not_supported",
+          "source_refs": [
+            {
+              "relative_path": "app/cbl/CBACT04C.cbl",
+              "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+              "start_line": 422,
+              "end_line": 442,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ]
+        },
+        {
+          "reason": "statement_not_supported:STRING",
+          "source_refs": [
+            {
+              "relative_path": "app/cbl/CBACT04C.cbl",
+              "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+              "start_line": 476,
+              "end_line": 517,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ]
+        },
+        {
+          "reason": "move_operands_not_supported",
+          "source_refs": [
+            {
+              "relative_path": "app/cbl/CBACT04C.cbl",
+              "source_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+              "start_line": 614,
+              "end_line": 627,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "default_fake_mechanisms": [
+    {
+      "id": "limit-rejection",
+      "branch": "correct",
+      "status": "PARTIAL",
+      "stop_reason": "request_budget",
+      "static_assertions": 3,
+      "ledger_counts": {
+        "supported": 4,
+        "contradicted": 0,
+        "unsupported": 0
+      },
+      "mechanism_passed": true,
+      "real_model_accuracy": null
+    },
+    {
+      "id": "account-update",
+      "branch": "correct",
+      "status": "PARTIAL",
+      "stop_reason": "request_budget",
+      "static_assertions": 3,
+      "ledger_counts": {
+        "supported": 6,
+        "contradicted": 0,
+        "unsupported": 0
+      },
+      "mechanism_passed": true,
+      "real_model_accuracy": null
+    },
+    {
+      "id": "monthly-interest",
+      "branch": "correct",
+      "status": "PARTIAL",
+      "stop_reason": "request_budget",
+      "static_assertions": 2,
+      "ledger_counts": {
+        "supported": 2,
+        "contradicted": 0,
+        "unsupported": 0
+      },
+      "mechanism_passed": true,
+      "real_model_accuracy": null
+    },
+    {
+      "id": "monthly-interest",
+      "branch": "incorrect",
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "static_assertions": 2,
+      "ledger_counts": {
+        "supported": 0,
+        "contradicted": 1,
+        "unsupported": 1
+      },
+      "mechanism_passed": true,
+      "real_model_accuracy": null
+    },
+    {
+      "id": "file-record-mapping",
+      "branch": "correct",
+      "status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "static_assertions": 0,
+      "ledger_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "unsupported": 3
+      },
+      "mechanism_passed": true,
+      "real_model_accuracy": null
+    },
+    {
+      "id": "unimplemented-procedure",
+      "branch": "correct",
+      "status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "static_assertions": 0,
+      "ledger_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "unsupported": 2
+      },
+      "mechanism_passed": true,
+      "real_model_accuracy": null
+    },
+    {
+      "id": "unimplemented-procedure",
+      "branch": "incorrect",
+      "status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "static_assertions": 0,
+      "ledger_counts": {
+        "supported": 0,
+        "contradicted": 1,
+        "unsupported": 1
+      },
+      "mechanism_passed": true,
+      "real_model_accuracy": null
+    }
+  ],
+  "actual_fake_answer_review": {
+    "kind": "independent_agent_source_review_of_saved_fake_answers",
+    "not_human_rating": true,
+    "not_model_accuracy": true,
+    "gold_supplied_to_remote_model": false,
+    "external_model_calls": 0,
+    "source_report_sha256": "2371f0301f0e480bccdfe6fd5f07f43112063072ecb16c2b01b1afb69abd086f",
+    "gold_sha256": "320343db243281ebdc43784c3a9df4cd8a05893ce558c4d0edc96f920033963f",
+    "scope": "5 public-development questions, 7 actual final fake-transport branches; no aggregate accuracy percentage; not IBM i enterprise acceptance",
+    "rows": [
+      {
+        "case_id": "limit-rejection",
+        "branch": "correct",
+        "answer_sha256": "03ad560fa7db4b094496ac76305a179b6522059c4e5886ecca8400b73dc2cda3",
+        "run_id": "a9b73cd39add3ec02bfde81d",
+        "actual_answer": "WS-TEMP-BAL = ACCT-CURR-CYC-CREDIT - ACCT-CURR-CYC-DEBIT + DALYTRAN-AMT。[ev_page_596b869ab04906c42498ed66] 若 ACCT-CREDIT-LIMIT >= WS-TEMP-BAL 则继续，否则 MOVE 102 TO WS-VALIDATION-FAIL-REASON。[ev_page_596b869ab04906c42498ed66] 后面的到期日检查失败会 MOVE 103 TO WS-VALIDATION-FAIL-REASON，因此 102 可能被后续覆盖。[ev_page_596b869ab04906c42498ed66]",
+        "pipeline_status": "PARTIAL",
+        "pipeline_stop_reason": "request_budget",
+        "review_status": "partial",
+        "required_findings": [
+          {
+            "id": "limit-rejection-1",
+            "description": "临时余额为周期credit减debit加交易金额。",
+            "review": "covered"
+          },
+          {
+            "id": "limit-rejection-2",
+            "description": "额度大于等于临时余额继续，超限写102。",
+            "review": "covered"
+          },
+          {
+            "id": "limit-rejection-3",
+            "description": "到期日检查随后执行，失败可覆盖为103。",
+            "review": "covered"
+          },
+          {
+            "id": "limit-rejection-4",
+            "description": "账户读取INVALID KEY写101，实际账户余额仍是外部文件数据。",
+            "review": "omitted"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "limit-rejection-forbidden-1",
+            "review": "not_present_in_actual_final_answer"
+          },
+          {
+            "id": "limit-rejection-forbidden-2",
+            "review": "not_present_in_actual_final_answer"
+          }
+        ],
+        "notes": "公式、比较方向和102被103覆盖均正确。未说明INVALID KEY写101，也未说明真实余额由外部文件提供；两者不是材料未供应，整段源程序已供。",
+        "source_refs": [
+          {
+            "path": "app/cbl/CBTRN02C.cbl",
+            "sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+            "start_line": 394,
+            "end_line": 423,
+            "actually_supplied_evidence_ids": [
+              "ev_page_596b869ab04906c42498ed66"
+            ]
+          }
+        ]
+      },
+      {
+        "case_id": "account-update",
+        "branch": "correct",
+        "answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+        "run_id": "be79c0cc2e51b215865b4453",
+        "actual_answer": "ACCT-CURR-BAL = WS-TOTAL-INT + ACCT-CURR-BAL。[ev_page_4852f54a7cbf93111c3ffcc1] MOVE 0 TO ACCT-CURR-CYC-CREDIT，并 MOVE 0 TO ACCT-CURR-CYC-DEBIT。[ev_page_4852f54a7cbf93111c3ffcc1] REWRITE FD-ACCTFILE-REC FROM ACCOUNT-RECORD 发出改写请求；状态00时 APPL-RESULT = 0，其他状态 APPL-RESULT = 12 并进入错误显示和终止处理。[ev_page_4852f54a7cbf93111c3ffcc1]",
+        "pipeline_status": "PARTIAL",
+        "pipeline_stop_reason": "request_budget",
+        "review_status": "covered_in_scoped_gold",
+        "required_findings": [
+          {
+            "id": "account-update-1",
+            "description": "累计利息加入当前余额。",
+            "review": "covered"
+          },
+          {
+            "id": "account-update-2",
+            "description": "周期credit和debit归零。",
+            "review": "covered"
+          },
+          {
+            "id": "account-update-3",
+            "description": "以ACCOUNT-RECORD改写FD-ACCTFILE-REC。",
+            "review": "covered"
+          },
+          {
+            "id": "account-update-4",
+            "description": "状态00成功分支，其他状态置12并显示/abend；静态写入请求不能证明运行成功。",
+            "review": "covered"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "account-update-forbidden-1",
+            "review": "not_present_in_actual_final_answer"
+          },
+          {
+            "id": "account-update-forbidden-2",
+            "review": "not_present_in_actual_final_answer"
+          }
+        ],
+        "notes": "已说明余额累加、周期值归零、REWRITE FROM、00/12及错误显示与终止处理。文字限定为改写请求并给条件，未把静态请求当运行成功。APPL-AOK=0及被调段调用CEE3ABD可在已供全文核对；未实跑该外部调用。",
+        "source_refs": [
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 132,
+            "end_line": 134,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 350,
+            "end_line": 370,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 628,
+            "end_line": 633,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          }
+        ]
+      },
+      {
+        "case_id": "monthly-interest",
+        "branch": "correct",
+        "answer_sha256": "586dc623056c6888b344eade8fe7a21d197763372d8a2975ee694e4b8717db2b",
+        "run_id": "e0ffc485ee4bac6b12606958",
+        "actual_answer": "WS-MONTHLY-INT = ( TRAN-CAT-BAL * DIS-INT-RATE ) / 1200。[ev_page_4852f54a7cbf93111c3ffcc1] WS-TOTAL-INT = WS-MONTHLY-INT + WS-TOTAL-INT，然后调用1300-B-WRITE-TX。[ev_page_4852f54a7cbf93111c3ffcc1]",
+        "pipeline_status": "PARTIAL",
+        "pipeline_stop_reason": "request_budget",
+        "review_status": "partial",
+        "required_findings": [
+          {
+            "id": "monthly-interest-1",
+            "description": "月息为分类余额乘利率再除1200。",
+            "review": "covered"
+          },
+          {
+            "id": "monthly-interest-2",
+            "description": "累加月息后写利息交易。",
+            "review": "covered"
+          },
+          {
+            "id": "monthly-interest-3",
+            "description": "调用处要求DIS-INT-RATE非零；金额PIC尺度为两位小数，无ROUNDED，不能将Decimal等同于完整COBOL执行。",
+            "review": "omitted"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "monthly-interest-forbidden-1",
+            "review": "not_present_in_actual_final_answer"
+          },
+          {
+            "id": "monthly-interest-forbidden-2",
+            "review": "not_present_in_actual_final_answer"
+          }
+        ],
+        "notes": "公式及月息累加顺序正确，并指出随后调用写交易段；未讲调用处利率非零条件、金额两位小数及无ROUNDED。Decimal执行边界也未说明。写交易的状态处理未被本题gold列为必需，不能擅自增加扣分项。",
+        "source_refs": [
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 168,
+            "end_line": 169,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 214,
+            "end_line": 218,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 462,
+            "end_line": 471,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 490,
+            "end_line": 516,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          }
+        ]
+      },
+      {
+        "case_id": "monthly-interest",
+        "branch": "incorrect",
+        "answer_sha256": "b1a4cb2852c2d8f2962259ff4caba50d26042e2855334ebbcaaa3713bc29eace",
+        "run_id": "1bb0f26afdf4b769404bc8a2",
+        "actual_answer": "已供应源码可直接确认：`WS-MONTHLY-INT = ( TRAN-CAT-BAL * DIS-INT-RATE ) / 1200`（app/cbl/CBACT04C.cbl:464）[ev_page_4852f54a7cbf93111c3ffcc1]。 累计值还需要按后续写入状态核对。",
+        "pipeline_status": "PARTIAL",
+        "pipeline_stop_reason": "answer_incomplete",
+        "review_status": "partial",
+        "required_findings": [
+          {
+            "id": "monthly-interest-1",
+            "description": "月息为分类余额乘利率再除1200。",
+            "review": "covered"
+          },
+          {
+            "id": "monthly-interest-2",
+            "description": "累加月息后写利息交易。",
+            "review": "omitted"
+          },
+          {
+            "id": "monthly-interest-3",
+            "description": "调用处要求DIS-INT-RATE非零；金额PIC尺度为两位小数，无ROUNDED，不能将Decimal等同于完整COBOL执行。",
+            "review": "omitted"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "monthly-interest-forbidden-1",
+            "review": "not_present_in_actual_final_answer"
+          },
+          {
+            "id": "monthly-interest-forbidden-2",
+            "review": "not_present_in_actual_final_answer"
+          }
+        ],
+        "notes": "999已修为1200，正确公式保留。但未恢复源码明确的ADD月息到累计利息及后续写交易调用，反而只留下累计值待核对；属于应答遗漏，不是源码未知。调用条件和尺度同样遗漏。",
+        "source_refs": [
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 168,
+            "end_line": 169,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 214,
+            "end_line": 218,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 462,
+            "end_line": 471,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          }
+        ]
+      },
+      {
+        "case_id": "file-record-mapping",
+        "branch": "correct",
+        "answer_sha256": "94aa6190e7af1f4f62ab42633e4e5dd2a9f9f29034b9293efc70107029de9269",
+        "run_id": "27aba4f1c308fe7fad99bd8c",
+        "actual_answer": "ACCOUNT-FILE 在 SELECT 中 ASSIGN TO ACCTFILE，记录键为FD-ACCT-ID，状态字段为ACCTFILE-STATUS。[ev_page_4852f54a7cbf93111c3ffcc1] FD声明的物理记录是FD-ACCTFILE-REC；工作记录ACCOUNT-RECORD由COPY定义，经READ INTO和REWRITE FROM传递。静态映射不能证明实际运行数据集路径。[ev_page_4852f54a7cbf93111c3ffcc1]",
+        "pipeline_status": "ANALYZED",
+        "pipeline_stop_reason": "sufficient_material",
+        "review_status": "core_correct_context_partial",
+        "required_findings": [
+          {
+            "id": "file-record-mapping-1",
+            "description": "SELECT逻辑文件ACCOUNT-FILE映射外部名ACCTFILE。",
+            "review": "covered"
+          },
+          {
+            "id": "file-record-mapping-2",
+            "description": "FD-ACCTFILE-REC物理记录与COPY工作记录通过READ/REWRITE传递。",
+            "review": "covered"
+          },
+          {
+            "id": "file-record-mapping-3",
+            "description": "记录键FD-ACCT-ID，状态ACCTFILE-STATUS；运行数据集需要JCL配置。",
+            "review": "partial"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "file-record-mapping-forbidden-1",
+            "review": "not_present_in_actual_final_answer"
+          }
+        ],
+        "notes": "逻辑名、外部名、FD、COPY工作记录、READ/REWRITE、键和状态正确，未臆测运行路径。严格按现有gold，未指明下一步需查JCL配置；核心映射已回答，不应因这项上下文缺口拒绝整个短答。当前ledger三项unsupported只代表核验能力范围，不代表上述源码事实错误。",
+        "source_refs": [
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 41,
+            "end_line": 45,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 84,
+            "end_line": 88,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 111,
+            "end_line": 113,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 356,
+            "end_line": 356,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 373,
+            "end_line": 373,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          }
+        ]
+      },
+      {
+        "case_id": "unimplemented-procedure",
+        "branch": "correct",
+        "answer_sha256": "ab9aaa5e528221755ec15b73e053a848af0e196bee88cb31b175a1f3ca5b1bd1",
+        "run_id": "5ef3a9960e328683d2931007",
+        "actual_answer": "1400-COMPUTE-FEES 的完整段落只有待实现注释和 EXIT，没有手续费计算或写入语句。[ev_page_4852f54a7cbf93111c3ffcc1] 段落名称本身不能证明存在手续费算法。",
+        "pipeline_status": "ANALYZED",
+        "pipeline_stop_reason": "sufficient_material",
+        "review_status": "core_correct_context_partial",
+        "required_findings": [
+          {
+            "id": "unimplemented-procedure-1",
+            "description": "完整段落只有EXIT，待实现注释不构成算法。",
+            "review": "covered"
+          },
+          {
+            "id": "unimplemented-procedure-2",
+            "description": "不能按名字补出费率、计算或副作用。",
+            "review": "covered"
+          },
+          {
+            "id": "unimplemented-procedure-3",
+            "description": "调用点存在PERFORM并不能证明被调段有业务计算。",
+            "review": "omitted"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "unimplemented-procedure-forbidden-1",
+            "review": "not_present_in_actual_final_answer"
+          }
+        ],
+        "notes": "完整占位段仅注释与EXIT，回答没有虚构手续费。未提调用点PERFORM存在这一gold上下文项；核心问题已正确短答，不应为了固定结构阻断。ledger两项unsupported不是答错证明。",
+        "source_refs": [
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 214,
+            "end_line": 218,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 518,
+            "end_line": 521,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          }
+        ]
+      },
+      {
+        "case_id": "unimplemented-procedure",
+        "branch": "incorrect",
+        "answer_sha256": "13f12f1cf9d00b4413da574c34d448d1d9220b4230b98edccf65c8c645050045",
+        "run_id": "2fd15a0a50bc40d34791f4b7",
+        "actual_answer": "所引源码可直接确认：`1400-COMPUTE-FEES` 段落只有 EXIT，未实现本段计算或写入逻辑（app/cbl/CBACT04C.cbl:518）[ev_page_4852f54a7cbf93111c3ffcc1]。 该段落由主流程调用。",
+        "pipeline_status": "ANALYZED",
+        "pipeline_stop_reason": "sufficient_material",
+        "review_status": "covered_in_scoped_gold",
+        "required_findings": [
+          {
+            "id": "unimplemented-procedure-1",
+            "description": "完整段落只有EXIT，待实现注释不构成算法。",
+            "review": "covered"
+          },
+          {
+            "id": "unimplemented-procedure-2",
+            "description": "不能按名字补出费率、计算或副作用。",
+            "review": "covered"
+          },
+          {
+            "id": "unimplemented-procedure-3",
+            "description": "调用点存在PERFORM并不能证明被调段有业务计算。",
+            "review": "covered"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "unimplemented-procedure-forbidden-1",
+            "review": "not_present_in_actual_final_answer"
+          }
+        ],
+        "notes": "1%手续费已删除并改成段落未实现计算/写入；保留主流程调用事实，两者共同说明调用不等于存在手续费算法。未把段名补成业务逻辑。",
+        "source_refs": [
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 214,
+            "end_line": 218,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          },
+          {
+            "path": "app/cbl/CBACT04C.cbl",
+            "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+            "start_line": 518,
+            "end_line": 521,
+            "actually_supplied_evidence_ids": [
+              "ev_page_4852f54a7cbf93111c3ffcc1"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "mechanism_audit_findings": [
+    {
+      "id": "A1",
+      "severity": "report_blocking_if_overclaimed",
+      "topic": "denominator",
+      "finding": "58 correct checks are heterogeneous assertions over 11 synthetic fixtures, not 58 business questions or 58 independently proved formulas.",
+      "evidence": [
+        "baseline/run_quality.py: assignment_roles + parse_complete + source_hash_and_range + unique_occurrences",
+        "quality-v2.json: 11 cases, 58 checks"
+      ],
+      "action": "Label 11 fixtures / 58 scoped assertions; report exploratory 7 assertions separately; no percentage ranking against product QA."
+    },
+    {
+      "id": "A2",
+      "severity": "report_blocking_if_overclaimed",
+      "topic": "public_gate_scope",
+      "finding": "7 fake branches cover 5 distinct questions. Correct-branch mechanism predicate does not inspect final body completeness; two positive cases have zero source_assertions. Incorrect predicate only requires revised_claim_count > 0.",
+      "evidence": [
+        "poc/public_business_acceptance.py correct_claims_preserved/mechanism_passed predicates",
+        "public-mechanism-v2.json file-record-mapping and unimplemented-procedure static_rule_checks=[]"
+      ],
+      "action": "Call these mechanisms, not real-model accuracy or complete business pass. Add separate answer-level review for published completeness conclusions."
+    },
+    {
+      "id": "A3",
+      "severity": "known_incomplete_business_answer",
+      "topic": "actual_remaining_omissions",
+      "finding": "limit-rejection fake correct answer omits gold required invalid-key code101; monthly-interest repaired answer omits the actual accumulation and is marked answer_incomplete. These are retained useful PARTIAL answers, not complete correct answers.",
+      "evidence": [
+        "docs/eval/public-business-v1/cases.json limit-rejection-4",
+        "public-mechanism-v2.json monthly-interest incorrect PARTIAL answer_incomplete"
+      ],
+      "action": "Do not claim all public answers complete. Keep explicit known omissions separate from external-input uncertainty."
+    },
+    {
+      "id": "A4",
+      "severity": "report_blocking_if_overclaimed",
+      "topic": "public_parse_coverage",
+      "finding": "Both raw public programs have parse_complete=false; COPY is unexpanded. Diagnostics include unsupported IF/INITIALIZE/STRING/MOVE operands.",
+      "evidence": [
+        "baseline/timing.json public_programs"
+      ],
+      "action": "State partial frontend output with diagnostics, not full public-program parse success. Do not use lower runtime for a full-coverage speed winner."
+    },
+    {
+      "id": "A5",
+      "severity": "harness_contract_change",
+      "topic": "cfg_route",
+      "finding": "v1 56/58 -> v2 58/58 follows changing CFG input from sparse business index to structural index, not modifying product code. Sparse direct CFG remains PARTIAL with perform_form_not_supported.",
+      "evidence": [
+        "baseline/quality.json two section failures",
+        "baseline/quality-v2.json business_sparse_direct_cfg",
+        "poc/semantic_scope.py:254 structural sidecar builder",
+        "poc/business_chat.py:1345 prepare_semantic_scope"
+      ],
+      "action": "Retain old failures and explain unsupported direct API input. Default business chain uses structural sidecar, but this fixture has not independently proved complete default-path section answer behavior."
+    },
+    {
+      "id": "A6",
+      "severity": "report_scope_limit",
+      "topic": "continuation",
+      "finding": "Continuation fixture uses short fixed-format physical lines. Literal FIRSTSECOND is explicitly unscored because dialect padding semantics are unresolved; unsupported=0 covers scored checks only.",
+      "evidence": [
+        "baseline/quality-v2.json continuation_literal_observation",
+        "baseline/prepare.py continuation fixture"
+      ],
+      "action": "Keep literal as unresolved; cannot claim full legal continuation conformance."
+    },
+    {
+      "id": "A7",
+      "severity": "report_blocking_if_overclaimed",
+      "topic": "time_scope",
+      "finding": "Warm parse excludes source reads and startup; new-process measurement includes startup/import/read over all 11. OS cache is uncontrolled. FactStore cached access is an object dictionary hit, not question processing.",
+      "evidence": [
+        "baseline/timing.py measure calls and cold entrypoint",
+        "poc/semantic_service.py:103 early cache return"
+      ],
+      "action": "Separate warm reparse, new-process parse, index creation, cached retrieval and end-to-end answer timing; no cross-category speed ratios."
+    },
+    {
+      "id": "A8",
+      "severity": "metric_label_correction",
+      "topic": "query_count",
+      "finding": "fresh_factstore_query_count=2 counts rows() calls; constructor executes two additional SELECTs not included. It is not a total SQL statement count.",
+      "evidence": [
+        "poc/semantic_service.py:86-96",
+        "baseline/timing.py query_fresh"
+      ],
+      "action": "Call this instrumented program data queries, or report total SQL only after independent tracing."
+    },
+    {
+      "id": "A9",
+      "severity": "report_scope_limit",
+      "topic": "scale_and_statistics",
+      "finding": "1000 programs / 139000 lines contain no cross-file CALL/COPY. Initial index has one run. Sum of per-file medians is not median batch duration; 3/7 repetitions do not support a production p95 claim. RSS is whole Python process cumulative peak, excluding child process peaks.",
+      "evidence": [
+        "baseline/scale-manifest.json description",
+        "baseline/timing.py initial_index_runs/resource.getrusage",
+        "baseline/timing.json"
+      ],
+      "action": "Treat as controlled breadth/index probe; no enterprise complexity or p95 claim. Do not imply cold disk or full answer timing."
+    },
+    {
+      "id": "A10",
+      "severity": "report_scope_limit",
+      "topic": "gold_and_blindness",
+      "finding": "Fixtures and public-development gold were used during implementation, not independent holdout. Shared role assertions compare exact identifiers correctly but mostly do not independently assert operators/constants/control predicates. Additional probes assert node kinds/edge labels, not arithmetic runtime values.",
+      "evidence": [
+        "docs/eval/public-business-v1/cases.json case_origin",
+        "baseline/run_quality.py",
+        "baseline/additional.py"
+      ],
+      "action": "Report narrow regression evidence; do not generalize to all COBOL business semantics or runtime arithmetic."
+    }
+  ],
+  "target_profile": {
+    "configured": {
+      "target_profile": "target-framework-batch",
+      "dialect": "target-cobol",
+      "target_validated": false,
+      "resources": [
+        {
+          "kind": "cobol-file",
+          "support_status": "bounded",
+          "scope": "FD/SELECT/ASSIGN and explicit file requests; runtime contents unknown"
+        },
+        {
+          "kind": "dds",
+          "support_status": "candidate",
+          "scope": "DDS artifacts are indexed; access-path, join and lock semantics require target validation"
+        },
+        {
+          "kind": "cl",
+          "support_status": "candidate",
+          "scope": "CL artifacts are indexed; command execution and environment effects are unresolved"
+        },
+        {
+          "kind": "sql",
+          "support_status": "bounded",
+          "scope": "SQL operation and host variables; database contents and execution result unknown"
+        }
+      ],
+      "acceptance_basis": "configured_target_and_adapter_capability_not_public_sample_success"
+    },
+    "coverage": [
+      {
+        "capability": "COBOL framework call operation, argument layout and manual evidence binding",
+        "status": "bounded_mechanism_passed",
+        "basis": "Selected framework_semantics/effect_contract/default business_chat tests",
+        "limits": "Call request meaning, not executed storage result; documented operation evidence must actually be supplied."
+      },
+      {
+        "capability": "Framework version conflicts and source implementation priority",
+        "status": "mechanism_passed",
+        "basis": "effect_contract tests",
+        "limits": "Conflicts withdraw dependency coverage; no actual deployed framework version supplied."
+      },
+      {
+        "capability": "COPY-origin evidence and source changes",
+        "status": "mechanism_passed",
+        "basis": "framework_semantics and bundled workbench source audit",
+        "limits": "No enterprise compilation context confirmation."
+      },
+      {
+        "capability": "DDS record PFILE evidence and COBOL file/record/field impact",
+        "status": "bounded_mechanism_passed",
+        "basis": "file-impact-v1 + file_impact/file_impact_evidence + default business_file_impact_answers",
+        "limits": "DDS physical object candidates, not runtime library-list resolution, key/access-path/joins/locks/commit guarantee."
+      },
+      {
+        "capability": "CL entry launch, library list, overrides and job parameters",
+        "status": "measurement_gap_and_no_effect_adapter",
+        "basis": "cl resource profile is candidate; repository inventory classifies .cl/.clle as job_or_command; no CL command parser/tests found",
+        "limits": "No proof of SBMJOB/CALL PGM chain, ADDLIBLE/CHGLIBL, OVRDBF, MONMSG or actual job scheduling."
+      },
+      {
+        "capability": "Target database SQL lineage and transaction effects",
+        "status": "bounded_generic_sql_only_target_unvalidated",
+        "basis": "effect_contract resource sql=bounded; structural SQL host access/table syntax exists",
+        "limits": "No target-specific runtime SQL catalog, commitment control, actual contents or native target execution measured."
+      },
+      {
+        "capability": "Complete framework-workbench business process execution",
+        "status": "not_tested_and_not_claimed",
+        "basis": "4 programs and 7 COPY files; external request/checkpoint/store/screen implementations absent",
+        "limits": "LOCK/COMMIT/ROLLBACK names and returned status conditions do not prove actual DB locks or atomic commit."
+      }
+    ],
+    "selected_regressions": {
+      "selected": [
+        "test_framework_demo.BundledFrameworkDemoTests",
+        "test_effect_contract",
+        "test_framework_semantics",
+        "test_framework_chat_semantics.FrameworkChatSemanticsTests.test_documented_operation_resolves_only_matching_external_dependency",
+        "test_framework_chat_semantics.FrameworkChatSemanticsTests.test_another_call_to_same_target_retains_its_missing_implementation",
+        "test_framework_chat_semantics.FrameworkChatSemanticsTests.test_dynamic_target_cannot_be_resolved_by_operation_fact",
+        "test_framework_chat_semantics.FrameworkChatSemanticsTests.test_available_implementation_remains_the_source_of_behavior",
+        "test_framework_chat_semantics.FrameworkChatSemanticsTests.test_final_request_rechecks_fact_source_and_reference_visibility",
+        "test_framework_chat_semantics.FrameworkChatSemanticsTests.test_real_offline_index_and_compiler_feed_documented_operation_to_chat",
+        "test_framework_chat_semantics.FrameworkChatSemanticsTests.test_real_unknown_operation_keeps_external_dependency_gap",
+        "test_framework_chat_semantics.FrameworkChatSemanticsTests.test_natural_term_question_reads_missing_layout_within_existing_budget",
+        "test_framework_chat_semantics.FrameworkChatSemanticsTests.test_preparing_key_after_function_still_supplies_documented_io_to_actual_request",
+        "test_business_file_impact_retrieval",
+        "test_file_impact",
+        "test_file_impact_evidence",
+        "test_business_file_impact_answers"
+      ],
+      "tests_run": 81,
+      "passed": 81,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "elapsed_seconds": 3.9245337080210447,
+      "performance_claim": "Test execution elapsed only, no comparative latency or production performance claim.",
+      "log_sha256": "558be93342927b323c14861696d418f17340c6628355693150f393de72d71b7b",
+      "test_files": [
+        {
+          "path": "poc/tests/test_business_file_impact_answers.py",
+          "sha256": "9f6b2ffccfc947da56ee8db7da8184c74cfaa99aa7af21e3a5eab2f24b75b414"
+        },
+        {
+          "path": "poc/tests/test_business_file_impact_retrieval.py",
+          "sha256": "477d8b20a97d7f2fac7c9b6591fe53420f670f405a2a4f75bfa9c15edabd6dd9"
+        },
+        {
+          "path": "poc/tests/test_effect_contract.py",
+          "sha256": "498337834862948202160d2bdb222744c8658b232ba328e20f0b77ab09d79773"
+        },
+        {
+          "path": "poc/tests/test_file_impact.py",
+          "sha256": "05025fbb3251b38b05021cb62121683052dc234afca263cc0bf69f32a65fd25b"
+        },
+        {
+          "path": "poc/tests/test_file_impact_evidence.py",
+          "sha256": "8d25723ac0aa4d6c00f544fbb3195c1761cb38bc32a74af6f56967d44abb3f0f"
+        },
+        {
+          "path": "poc/tests/test_framework_chat_semantics.py",
+          "sha256": "a614ca60a25e64a3ab090fe03ba9b6f5810a1a47c140c7b72633351d3c9d2936"
+        },
+        {
+          "path": "poc/tests/test_framework_demo.py",
+          "sha256": "72de60e0f3efce925fe2fabb01648e45b2a252e557d5347e3f45c6328dbb5bfb"
+        },
+        {
+          "path": "poc/tests/test_framework_semantics.py",
+          "sha256": "8aee460f720474de9ff3eb7af40674e5f30d0e32b88ccc0df3b33aa0c93afc2b"
+        }
+      ]
+    },
+    "fixture_scope": "4 COBOL programs and 7 COPY; no actual CL/DDS/SQL or external storage implementation"
+  },
+  "performance": {
+    "local": {
+      "warm_11_ir_median_sum_ms": 9.354960027849302,
+      "warm_11_relations_median_sum_ms": 5.804334068670869,
+      "fresh_process_11_median_ms": 73.79904098343104,
+      "fresh_process_raw": [
+        {
+          "process_wall_seconds": 0.07379904098343104,
+          "internal_seconds": 0.03064625000115484,
+          "statements": 34
+        },
+        {
+          "process_wall_seconds": 0.07345249998616055,
+          "internal_seconds": 0.031662499997764826,
+          "statements": 34
+        },
+        {
+          "process_wall_seconds": 0.08109845800208859,
+          "internal_seconds": 0.037692208017688245,
+          "statements": 34
+        }
+      ],
+      "public_programs": [
+        {
+          "path": "app/cbl/CBTRN02C.cbl",
+          "ir_warm_median_ms": 42.030250013340265,
+          "relations_warm_median_ms": 32.87537500727922
+        },
+        {
+          "path": "app/cbl/CBACT04C.cbl",
+          "ir_warm_median_ms": 35.771041992120445,
+          "relations_warm_median_ms": 28.910875000292435
+        }
+      ],
+      "scale": {
+        "files": 1000,
+        "lines": 139000,
+        "bytes": 7311000,
+        "initial_index_seconds": 18.77818799999659,
+        "initial_index_runs": 1,
+        "database_bytes": 140881920,
+        "fresh_factstore_program": {
+          "seconds": [
+            0.029202042001998052,
+            0.028745666990289465,
+            0.02884549999726005,
+            0.029051833000266925,
+            0.029602750000776723,
+            0.03171549999387935,
+            0.029484791011782363
+          ],
+          "median_seconds": 0.029202042001998052,
+          "min_seconds": 0.028745666990289465,
+          "max_seconds": 0.03171549999387935
+        },
+        "cached_factstore_program": {
+          "seconds": [
+            1.0409858077764511e-06,
+            6.250047590583563e-07,
+            3.7500285543501377e-07,
+            2.9199873097240925e-07,
+            2.9199873097240925e-07,
+            2.500019036233425e-07,
+            2.500019036233425e-07
+          ],
+          "median_seconds": 2.9199873097240925e-07,
+          "min_seconds": 2.500019036233425e-07,
+          "max_seconds": 1.0409858077764511e-06
+        },
+        "fresh_factstore_query_count": 2,
+        "unchanged_index": {
+          "seconds": [
+            0.30906591698294505,
+            0.23155254102312028,
+            0.23124908297904767
+          ],
+          "median_seconds": 0.23155254102312028,
+          "min_seconds": 0.23124908297904767,
+          "max_seconds": 0.30906591698294505
+        }
+      },
+      "peak_rss_bytes": 144211968,
+      "cautions": [
+        "No p95 inferred from 3/7 repeats.",
+        "Fresh process does not clear OS disk cache.",
+        "Single initial index sample; cannot infer stable tail performance.",
+        "1000 synthetic independent programs with 128 unique expressions each; no CALL/COPY links and no enterprise complexity claim.",
+        "FactStore cached path skips repeat loading inside an instance; not full question latency.",
+        "Cold/warm component cost does not include HTTP/model latency or company Windows environment.",
+        "CPU performance window coordinated sequentially with external parser agent."
+      ]
+    },
+    "local_first_transport": {
+      "schema": "target-first-request-latency/v1",
+      "source_commit": "639f86825819acb463c5926551d70fda2e39b712",
+      "analysis_commit": "3b099c058f258824237835d7ea802a90055dee02",
+      "compilation_context": {
+        "dialect": "target-cobol",
+        "encoding": "utf-8",
+        "source_format": "fixed",
+        "copy_libraries": [
+          "copybooks"
+        ],
+        "copy_library_order_known": true,
+        "compile_conditions": [],
+        "conditions_complete": false,
+        "preprocessing_version": "bounded-copy-v2",
+        "frontend_version": "cobol-facts-v5",
+        "framework_version": null,
+        "target_profile": "target-framework-batch",
+        "resource_kinds": [
+          "cobol-file",
+          "dds",
+          "cl",
+          "sql"
+        ],
+        "debug_lines": null,
+        "nested_copy_replacing": null
+      },
+      "index_build_seconds": 0.04008912498829886,
+      "index_snapshot_id": "sha256:5ca79cfe5cd1f7aef777e50b7b28c7f58fcc5a4fbedaa79ae6c107208bc244ab",
+      "llm_called": false,
+      "answer_quality_measured": false,
+      "target_validated": false,
+      "external_network_calls": 0,
+      "measurement_scope": "Local preparation up to the first provider transport invocation; no answer generated, no model/server/network latency.",
+      "cache_policy": "One new disposable business index shared by all six requests. First overall request has no persisted semantic sidecar; later runs reuse indexed/semantic caches. Each run uses a distinct conversation_id generated by benchmark_chat_latency. New natural question first repeat already has caches warmed by explicit question. OS file cache uncontrolled.",
+      "limits": [
+        "Only 4 programs / 7 COPY files; not a large enterprise corpus.",
+        "No CL/DDS source or actual framework storage implementation; framework_reference_path is empty.",
+        "Unknown framework/scheduler effects are not filled from names.",
+        "Three samples per question: raw times and median/min/max only; no p95.",
+        "Probe raises the benchmark BaseException at transport; its local journal does not record a provider answer and is disposable."
+      ],
+      "environment": {
+        "python": "3.14.4 (main, Apr  7 2026, 13:13:20) [Clang 21.0.0 (clang-2100.0.123.102)]",
+        "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+        "processor": "arm",
+        "cpu_count": 8,
+        "machine": "arm64",
+        "hardware": {
+          "chip_type": "Apple M2",
+          "machine_model": "Mac14,3",
+          "machine_name": "Mac mini",
+          "number_processors": "proc 8:0:4:4",
+          "physical_memory": "8 GB"
+        }
+      },
+      "repository_search_prepare_seconds": 0.008032499987166375,
+      "prior_setup_failure": {
+        "artifact": "target-first-request-setup-failure.json",
+        "reason": "Harness omitted ensure_repository_search before first attempt; six requests correctly rejected REPOSITORY_SEARCH_NOT_READY before transport. Original failed results retained; not a product latency failure."
+      },
+      "source_hashes_unchanged": true
+    },
+    "local_first_transport_cases": [
+      {
+        "id": "explicit-batch",
+        "question": "NIGHTBATCH 的批次流程如何执行，哪些记录会跳过，什么时候增加成功数量和提交进度？",
+        "statistics": {
+          "count": 3,
+          "median_seconds": 0.1258,
+          "min_seconds": 0.1244,
+          "max_seconds": 0.1414
+        },
+        "runs": [
+          {
+            "repeat": 1,
+            "first_request_seconds": 0.1414,
+            "request_bytes": 99112,
+            "source_page_count": 6,
+            "source_file_count": 6,
+            "source_characters": 8282,
+            "cache_state": "initial_semantic",
+            "raw_artifact": {
+              "path": "target-first-request-raw/explicit-batch-1.json",
+              "sha256": "1921f47b56e60085d6031386cf916546779f5e90758d24d43ba3549a027e77f9"
+            }
+          },
+          {
+            "repeat": 2,
+            "first_request_seconds": 0.1258,
+            "request_bytes": 99112,
+            "source_page_count": 6,
+            "source_file_count": 6,
+            "source_characters": 8282,
+            "cache_state": "repeat_question_shared_cache",
+            "raw_artifact": {
+              "path": "target-first-request-raw/explicit-batch-2.json",
+              "sha256": "84877bfb6c92f23dcaf5fa1e3d97534970913867c3d0541138484cb46a685004"
+            }
+          },
+          {
+            "repeat": 3,
+            "first_request_seconds": 0.1244,
+            "request_bytes": 99112,
+            "source_page_count": 6,
+            "source_file_count": 6,
+            "source_characters": 8282,
+            "cache_state": "repeat_question_shared_cache",
+            "raw_artifact": {
+              "path": "target-first-request-raw/explicit-batch-3.json",
+              "sha256": "f18d4b8beeaa2133b017fafd3bc0f8dc3c8073d8b7320982d0d15862cde2a406"
+            }
+          }
+        ]
+      },
+      {
+        "id": "natural-trigger",
+        "question": "这个批次怎么触发、哪些记录会跳过？",
+        "statistics": {
+          "count": 3,
+          "median_seconds": 0.0192,
+          "min_seconds": 0.019,
+          "max_seconds": 0.0208
+        },
+        "runs": [
+          {
+            "repeat": 1,
+            "first_request_seconds": 0.0192,
+            "request_bytes": 18097,
+            "source_page_count": 0,
+            "source_file_count": 0,
+            "source_characters": 0,
+            "cache_state": "shared_cache_new_question",
+            "raw_artifact": {
+              "path": "target-first-request-raw/natural-trigger-1.json",
+              "sha256": "ce430594df66c65efa07e2f76d7285ac8b1c1e5d545e82a964529a0b1a93fe13"
+            }
+          },
+          {
+            "repeat": 2,
+            "first_request_seconds": 0.019,
+            "request_bytes": 18097,
+            "source_page_count": 0,
+            "source_file_count": 0,
+            "source_characters": 0,
+            "cache_state": "repeat_question_shared_cache",
+            "raw_artifact": {
+              "path": "target-first-request-raw/natural-trigger-2.json",
+              "sha256": "22c0d7031c1ac07f3072a42f6d595c019c3696df35240a4bd8c4cc38f0dbeb94"
+            }
+          },
+          {
+            "repeat": 3,
+            "first_request_seconds": 0.0208,
+            "request_bytes": 18097,
+            "source_page_count": 0,
+            "source_file_count": 0,
+            "source_characters": 0,
+            "cache_state": "repeat_question_shared_cache",
+            "raw_artifact": {
+              "path": "target-first-request-raw/natural-trigger-3.json",
+              "sha256": "d0212f56206d5e40619bc8f9387e238a9afda0080e0ef10c0f6a63210cb9b289"
+            }
+          }
+        ]
+      }
+    ],
+    "payload_audit": {
+      "schema": "payload-byte-audit/v1",
+      "input": "target-first-request-raw/explicit-batch-1.json",
+      "input_sha256": "1921f47b56e60085d6031386cf916546779f5e90758d24d43ba3549a027e77f9",
+      "request_sha256": "49321c3e7db663f5c07eb4b9bbf368125821a8d006a5fe910ef9fa59a5208d86",
+      "request_bytes": 99112,
+      "reconstructed_wire_matches_sha256": true,
+      "limits": [
+        "UTF-8 serialized bytes, not model tokens.",
+        "No remote/model execution, time-to-answer or causal remote latency claim.",
+        "Projection experiments only; product code and actual saved provider request unchanged."
+      ],
+      "wire_parts": {
+        "system_content_raw_utf8_bytes": 8219,
+        "user_content_raw_utf8_bytes": 83047,
+        "system_content_wire_json_bytes": 8319,
+        "user_content_wire_json_bytes": 90676,
+        "outer_envelope_other_bytes": 117,
+        "json_escaping_and_string_quotes_bytes": 7729
+      },
+      "user_payload": {
+        "total_json_bytes": 83047,
+        "fields": [
+          {
+            "field": "answer_detail",
+            "value_json_bytes": 10,
+            "key_colon_value_bytes": 26
+          },
+          {
+            "field": "session_subject",
+            "value_json_bytes": 180,
+            "key_colon_value_bytes": 198
+          },
+          {
+            "field": "repository",
+            "value_json_bytes": 459,
+            "key_colon_value_bytes": 472
+          },
+          {
+            "field": "source_context",
+            "value_json_bytes": 29866,
+            "key_colon_value_bytes": 29883
+          },
+          {
+            "field": "business_map",
+            "value_json_bytes": 5684,
+            "key_colon_value_bytes": 5699
+          },
+          {
+            "field": "framework_references",
+            "value_json_bytes": 2,
+            "key_colon_value_bytes": 25
+          },
+          {
+            "field": "framework_facts",
+            "value_json_bytes": 2,
+            "key_colon_value_bytes": 20
+          },
+          {
+            "field": "completed_actions",
+            "value_json_bytes": 2,
+            "key_colon_value_bytes": 22
+          },
+          {
+            "field": "completed_searches",
+            "value_json_bytes": 163,
+            "key_colon_value_bytes": 184
+          },
+          {
+            "field": "evidence_groups",
+            "value_json_bytes": 2,
+            "key_colon_value_bytes": 20
+          },
+          {
+            "field": "impact_result",
+            "value_json_bytes": 4,
+            "key_colon_value_bytes": 20
+          },
+          {
+            "field": "concept_candidates",
+            "value_json_bytes": 2,
+            "key_colon_value_bytes": 23
+          },
+          {
+            "field": "question_investigation",
+            "value_json_bytes": 25611,
+            "key_colon_value_bytes": 25636
+          },
+          {
+            "field": "retrieval_status",
+            "value_json_bytes": 169,
+            "key_colon_value_bytes": 188
+          },
+          {
+            "field": "investigation_budget",
+            "value_json_bytes": 141,
+            "key_colon_value_bytes": 164
+          },
+          {
+            "field": "shared_navigation_facts",
+            "value_json_bytes": 2995,
+            "key_colon_value_bytes": 3021
+          },
+          {
+            "field": "prompt_projection",
+            "value_json_bytes": 610,
+            "key_colon_value_bytes": 630
+          },
+          {
+            "field": "navigation_encoding",
+            "value_json_bytes": 281,
+            "key_colon_value_bytes": 303
+          },
+          {
+            "field": "business_analysis_brief",
+            "value_json_bytes": 12671,
+            "key_colon_value_bytes": 12697
+          },
+          {
+            "field": "task",
+            "value_json_bytes": 243,
+            "key_colon_value_bytes": 250
+          },
+          {
+            "field": "source_selection",
+            "value_json_bytes": 332,
+            "key_colon_value_bytes": 351
+          },
+          {
+            "field": "response_mode",
+            "value_json_bytes": 19,
+            "key_colon_value_bytes": 35
+          },
+          {
+            "field": "response_contract",
+            "value_json_bytes": 3009,
+            "key_colon_value_bytes": 3029
+          },
+          {
+            "field": "question",
+            "value_json_bytes": 115,
+            "key_colon_value_bytes": 126
+          }
+        ],
+        "object_braces_and_commas_bytes": 25
+      },
+      "source_context": {
+        "value_json_bytes": 29866,
+        "fields": [
+          {
+            "field": "pages",
+            "value_json_bytes": 11131,
+            "key_colon_value_bytes": 11139
+          },
+          {
+            "field": "call_chain",
+            "value_json_bytes": 12877,
+            "key_colon_value_bytes": 12890
+          },
+          {
+            "field": "outline",
+            "value_json_bytes": 2328,
+            "key_colon_value_bytes": 2338
+          },
+          {
+            "field": "notices",
+            "value_json_bytes": 2,
+            "key_colon_value_bytes": 12
+          },
+          {
+            "field": "open_reads",
+            "value_json_bytes": 473,
+            "key_colon_value_bytes": 486
+          },
+          {
+            "field": "source_selection_trim_events",
+            "value_json_bytes": 2,
+            "key_colon_value_bytes": 33
+          },
+          {
+            "field": "source_selection_trim_event_count",
+            "value_json_bytes": 1,
+            "key_colon_value_bytes": 37
+          },
+          {
+            "field": "source_selection_trim_events_omitted",
+            "value_json_bytes": 1,
+            "key_colon_value_bytes": 40
+          },
+          {
+            "field": "open_frontier",
+            "value_json_bytes": 2,
+            "key_colon_value_bytes": 18
+          },
+          {
+            "field": "open_frontier_count",
+            "value_json_bytes": 1,
+            "key_colon_value_bytes": 23
+          },
+          {
+            "field": "open_frontier_omitted",
+            "value_json_bytes": 1,
+            "key_colon_value_bytes": 25
+          },
+          {
+            "field": "working_set",
+            "value_json_bytes": 2796,
+            "key_colon_value_bytes": 2810
+          }
+        ],
+        "source_raw_utf8_bytes": 8282,
+        "source_text_values_json_bytes": 8633,
+        "pages_json_bytes": 11131,
+        "page_metadata_and_structure_json_bytes": 2498
+      },
+      "investigation_fields": [
+        {
+          "field": "scope",
+          "value_json_bytes": 19,
+          "key_colon_value_bytes": 27
+        },
+        {
+          "field": "semantic_execution_verified",
+          "value_json_bytes": 5,
+          "key_colon_value_bytes": 35
+        },
+        {
+          "field": "analysis_plan",
+          "value_json_bytes": 414,
+          "key_colon_value_bytes": 430
+        },
+        {
+          "field": "source_scope",
+          "value_json_bytes": 73,
+          "key_colon_value_bytes": 88
+        },
+        {
+          "field": "required_items",
+          "value_json_bytes": 2391,
+          "key_colon_value_bytes": 2408
+        },
+        {
+          "field": "planned_actions",
+          "value_json_bytes": 2,
+          "key_colon_value_bytes": 20
+        },
+        {
+          "field": "open_gaps",
+          "value_json_bytes": 776,
+          "key_colon_value_bytes": 788
+        },
+        {
+          "field": "state",
+          "value_json_bytes": 17,
+          "key_colon_value_bytes": 25
+        },
+        {
+          "field": "can_answer",
+          "value_json_bytes": 4,
+          "key_colon_value_bytes": 17
+        },
+        {
+          "field": "file_impact",
+          "value_json_bytes": 21450,
+          "key_colon_value_bytes": 21464
+        },
+        {
+          "field": "candidate_paths",
+          "value_json_bytes": 175,
+          "key_colon_value_bytes": 193
+        },
+        {
+          "field": "candidate_cache",
+          "value_json_bytes": 34,
+          "key_colon_value_bytes": 52
+        },
+        {
+          "field": "required_items_shared_fields",
+          "value_json_bytes": 19,
+          "key_colon_value_bytes": 50
+        }
+      ],
+      "brief_fields": [
+        {
+          "field": "detail_requested",
+          "value_json_bytes": 4,
+          "key_colon_value_bytes": 23
+        },
+        {
+          "field": "output_budget_tokens",
+          "value_json_bytes": 4,
+          "key_colon_value_bytes": 27
+        },
+        {
+          "field": "required_answer_aspects",
+          "value_json_bytes": 129,
+          "key_colon_value_bytes": 155
+        },
+        {
+          "field": "behavior_guide",
+          "value_json_bytes": 2050,
+          "key_colon_value_bytes": 2067
+        },
+        {
+          "field": "call_effect_boundaries",
+          "value_json_bytes": 7350,
+          "key_colon_value_bytes": 7375
+        },
+        {
+          "field": "available_source_paths",
+          "value_json_bytes": 175,
+          "key_colon_value_bytes": 200
+        },
+        {
+          "field": "supplied_material",
+          "value_json_bytes": 1234,
+          "key_colon_value_bytes": 1254
+        },
+        {
+          "field": "unavailable_or_runtime_targets",
+          "value_json_bytes": 123,
+          "key_colon_value_bytes": 156
+        },
+        {
+          "field": "remaining_gaps",
+          "value_json_bytes": 498,
+          "key_colon_value_bytes": 515
+        },
+        {
+          "field": "semantic_execution_verified",
+          "value_json_bytes": 5,
+          "key_colon_value_bytes": 35
+        },
+        {
+          "field": "task",
+          "value_json_bytes": 774,
+          "key_colon_value_bytes": 781
+        },
+        {
+          "field": "supplied_material_shared_fields",
+          "value_json_bytes": 36,
+          "key_colon_value_bytes": 70
+        }
+      ],
+      "exact_duplicate_subtrees": [
+        {
+          "json_bytes": 393,
+          "occurrences": 7,
+          "raw_repeated_bytes_excluding_first": 2358,
+          "paths": [
+            "/business_analysis_brief/call_effect_boundaries/reasons/1/mutable_output_groups",
+            "/business_analysis_brief/call_effect_boundaries/reasons/2/mutable_output_groups",
+            "/business_analysis_brief/call_effect_boundaries/reasons/3/mutable_output_groups",
+            "/business_analysis_brief/call_effect_boundaries/reasons/4/mutable_output_groups",
+            "/business_analysis_brief/call_effect_boundaries/reasons/6/mutable_output_groups",
+            "/business_analysis_brief/call_effect_boundaries/reasons/7/mutable_output_groups",
+            "/business_analysis_brief/call_effect_boundaries/reasons/8/mutable_output_groups"
+          ],
+          "value": [
+            {
+              "navigation_fact_ref": "nav-1",
+              "argument": "IO-PARAMETERS",
+              "relative_path": "copybooks/io-parameters.cpy",
+              "start_line": 1,
+              "end_line": 6,
+              "supplied_reference_ids": [
+                "ev_page_eee50f2e3fed9305936344fa"
+              ]
+            },
+            {
+              "navigation_fact_ref": "nav-3",
+              "argument": "REQUEST-RECORD",
+              "relative_path": "copybooks/request-record.cpy",
+              "start_line": 1,
+              "end_line": 6,
+              "supplied_reference_ids": [
+                "ev_page_13773b5837a6de5195b8256a"
+              ]
+            }
+          ]
+        },
+        {
+          "json_bytes": 194,
+          "occurrences": 9,
+          "raw_repeated_bytes_excluding_first": 1552,
+          "paths": [
+            "/business_analysis_brief/call_effect_boundaries/reasons/0/mutable_output_groups/0",
+            "/business_analysis_brief/call_effect_boundaries/reasons/1/mutable_output_groups/0",
+            "/business_analysis_brief/call_effect_boundaries/reasons/2/mutable_output_groups/0",
+            "/business_analysis_brief/call_effect_boundaries/reasons/3/mutable_output_groups/0",
+            "/business_analysis_brief/call_effect_boundaries/reasons/4/mutable_output_groups/0",
+            "/business_analysis_brief/call_effect_boundaries/reasons/5/mutable_output_groups/0",
+            "/business_analysis_brief/call_effect_boundaries/reasons/6/mutable_output_groups/0",
+            "/business_analysis_brief/call_effect_boundaries/reasons/7/mutable_output_groups/0",
+            "/business_analysis_brief/call_effect_boundaries/reasons/8/mutable_output_groups/0"
+          ],
+          "value": {
+            "navigation_fact_ref": "nav-1",
+            "argument": "IO-PARAMETERS",
+            "relative_path": "copybooks/io-parameters.cpy",
+            "start_line": 1,
+            "end_line": 6,
+            "supplied_reference_ids": [
+              "ev_page_eee50f2e3fed9305936344fa"
+            ]
+          }
+        },
+        {
+          "json_bytes": 196,
+          "occurrences": 7,
+          "raw_repeated_bytes_excluding_first": 1176,
+          "paths": [
+            "/business_analysis_brief/call_effect_boundaries/reasons/1/mutable_output_groups/1",
+            "/business_analysis_brief/call_effect_boundaries/reasons/2/mutable_output_groups/1",
+            "/business_analysis_brief/call_effect_boundaries/reasons/3/mutable_output_groups/1",
+            "/business_analysis_brief/call_effect_boundaries/reasons/4/mutable_output_groups/1",
+            "/business_analysis_brief/call_effect_boundaries/reasons/6/mutable_output_groups/1",
+            "/business_analysis_brief/call_effect_boundaries/reasons/7/mutable_output_groups/1",
+            "/business_analysis_brief/call_effect_boundaries/reasons/8/mutable_output_groups/1"
+          ],
+          "value": {
+            "navigation_fact_ref": "nav-3",
+            "argument": "REQUEST-RECORD",
+            "relative_path": "copybooks/request-record.cpy",
+            "start_line": 1,
+            "end_line": 6,
+            "supplied_reference_ids": [
+              "ev_page_13773b5837a6de5195b8256a"
+            ]
+          }
+        },
+        {
+          "json_bytes": 116,
+          "occurrences": 7,
+          "raw_repeated_bytes_excluding_first": 696,
+          "paths": [
+            "/business_analysis_brief/call_effect_boundaries/reasons/1/actual_parameters",
+            "/business_analysis_brief/call_effect_boundaries/reasons/2/actual_parameters",
+            "/business_analysis_brief/call_effect_boundaries/reasons/3/actual_parameters",
+            "/business_analysis_brief/call_effect_boundaries/reasons/4/actual_parameters",
+            "/business_analysis_brief/call_effect_boundaries/reasons/6/actual_parameters",
+            "/business_analysis_brief/call_effect_boundaries/reasons/7/actual_parameters",
+            "/business_analysis_brief/call_effect_boundaries/reasons/8/actual_parameters"
+          ],
+          "value": [
+            {
+              "position": 1,
+              "name": "IO-PARAMETERS",
+              "mode": "REFERENCE"
+            },
+            {
+              "position": 2,
+              "name": "REQUEST-RECORD",
+              "mode": "REFERENCE"
+            }
+          ]
+        },
+        {
+          "json_bytes": 391,
+          "occurrences": 2,
+          "raw_repeated_bytes_excluding_first": 391,
+          "paths": [
+            "/business_analysis_brief/call_effect_boundaries/reasons/0/mutable_output_groups",
+            "/business_analysis_brief/call_effect_boundaries/reasons/5/mutable_output_groups"
+          ],
+          "value": [
+            {
+              "navigation_fact_ref": "nav-1",
+              "argument": "IO-PARAMETERS",
+              "relative_path": "copybooks/io-parameters.cpy",
+              "start_line": 1,
+              "end_line": 6,
+              "supplied_reference_ids": [
+                "ev_page_eee50f2e3fed9305936344fa"
+              ]
+            },
+            {
+              "navigation_fact_ref": "nav-2",
+              "argument": "RESTART-STATE",
+              "relative_path": "copybooks/batch-state.cpy",
+              "start_line": 11,
+              "end_line": 15,
+              "supplied_reference_ids": [
+                "ev_page_a7514908e27eb7f565b5cc3f"
+              ]
+            }
+          ]
+        },
+        {
+          "json_bytes": 141,
+          "occurrences": 3,
+          "raw_repeated_bytes_excluding_first": 282,
+          "paths": [
+            "/question_investigation/required_items/3/evidence_ids",
+            "/question_investigation/required_items/9/evidence_ids",
+            "/business_analysis_brief/supplied_material/3/supplied_reference_ids"
+          ],
+          "value": [
+            "ev_page_a7514908e27eb7f565b5cc3f",
+            "ev_page_eee50f2e3fed9305936344fa",
+            "ev_page_13773b5837a6de5195b8256a",
+            "ev_page_f64c3d741305c7cdf285bbaa"
+          ]
+        },
+        {
+          "json_bytes": 194,
+          "occurrences": 2,
+          "raw_repeated_bytes_excluding_first": 194,
+          "paths": [
+            "/business_analysis_brief/call_effect_boundaries/reasons/0/mutable_output_groups/1",
+            "/business_analysis_brief/call_effect_boundaries/reasons/5/mutable_output_groups/1"
+          ],
+          "value": {
+            "navigation_fact_ref": "nav-2",
+            "argument": "RESTART-STATE",
+            "relative_path": "copybooks/batch-state.cpy",
+            "start_line": 11,
+            "end_line": 15,
+            "supplied_reference_ids": [
+              "ev_page_a7514908e27eb7f565b5cc3f"
+            ]
+          }
+        },
+        {
+          "json_bytes": 175,
+          "occurrences": 2,
+          "raw_repeated_bytes_excluding_first": 175,
+          "paths": [
+            "/business_analysis_brief/available_source_paths",
+            "/source_selection/relative_paths"
+          ],
+          "value": [
+            "programs/night-batch.cbl",
+            "copybooks/shared-context.cpy",
+            "copybooks/request-record.cpy",
+            "copybooks/batch-flow.cpy",
+            "copybooks/batch-state.cpy",
+            "copybooks/io-parameters.cpy"
+          ]
+        },
+        {
+          "json_bytes": 123,
+          "occurrences": 2,
+          "raw_repeated_bytes_excluding_first": 123,
+          "paths": [
+            "/question_investigation/required_items/7/targets",
+            "/business_analysis_brief/unavailable_or_runtime_targets"
+          ],
+          "value": [
+            "0900-RESTART",
+            "1000-INITIALISE",
+            "2000-PRIMARY-READ",
+            "2500-EDIT",
+            "3000-UPDATE",
+            "3500-COMMIT",
+            "3600-ROLLBACK",
+            "4000-CLOSE"
+          ]
+        },
+        {
+          "json_bytes": 115,
+          "occurrences": 2,
+          "raw_repeated_bytes_excluding_first": 115,
+          "paths": [
+            "/business_analysis_brief/call_effect_boundaries/reasons/0/actual_parameters",
+            "/business_analysis_brief/call_effect_boundaries/reasons/5/actual_parameters"
+          ],
+          "value": [
+            {
+              "position": 1,
+              "name": "IO-PARAMETERS",
+              "mode": "REFERENCE"
+            },
+            {
+              "position": 2,
+              "name": "RESTART-STATE",
+              "mode": "REFERENCE"
+            }
+          ]
+        }
+      ],
+      "duplicates_caution": "Nested duplicate subtree estimates overlap and must not be added; actual candidate serialized savings below include reference tables and schema instruction overhead.",
+      "lossless_projection_experiments": [
+        {
+          "call_parameter_group_interning": true,
+          "observation_scope_interning": false,
+          "user_json_bytes": 79980,
+          "user_json_bytes_saved": 3067,
+          "wire_bytes": 95667,
+          "wire_bytes_saved": 3445,
+          "exact_decoded_object_equal": true,
+          "source_pages_identical": true,
+          "observations_preserved": 49,
+          "call_occurrences_preserved": 9,
+          "scope_note": "Research projection only; default prompt/model compatibility and quality not tested."
+        },
+        {
+          "call_parameter_group_interning": false,
+          "observation_scope_interning": true,
+          "user_json_bytes": 78482,
+          "user_json_bytes_saved": 4565,
+          "wire_bytes": 94089,
+          "wire_bytes_saved": 5023,
+          "exact_decoded_object_equal": true,
+          "source_pages_identical": true,
+          "observations_preserved": 49,
+          "call_occurrences_preserved": 9,
+          "scope_note": "Research projection only; default prompt/model compatibility and quality not tested."
+        },
+        {
+          "call_parameter_group_interning": true,
+          "observation_scope_interning": true,
+          "user_json_bytes": 75220,
+          "user_json_bytes_saved": 7827,
+          "wire_bytes": 90445,
+          "wire_bytes_saved": 8667,
+          "exact_decoded_object_equal": true,
+          "source_pages_identical": true,
+          "observations_preserved": 49,
+          "call_occurrences_preserved": 9,
+          "scope_note": "Research projection only; default prompt/model compatibility and quality not tested."
+        }
+      ],
+      "call_chain_scope": {
+        "links": 38,
+        "by_relation": {
+          "INCLUDES_COPY": 11,
+          "CALLS": 9,
+          "PERFORMS": 18
+        },
+        "unread_caller_links": 6,
+        "unread_caller_links_json_bytes": 2019,
+        "unread_caller_paths": [
+          "programs/screen-control.cbl",
+          "programs/service-entry.cbl",
+          "programs/service-mainline.cbl"
+        ],
+        "description": "Six incoming COPY references from three other programs sharing layouts; potential navigation pruning candidate, not duplicate source facts. Do not drop globally without question-scope/impact checks."
+      },
+      "target_call_count_audit": {
+        "all_call_relation_rows": 22,
+        "confirmed_call_rows": 1,
+        "unresolved_call_rows": 21,
+        "unique_unresolved_callsite_units": 21,
+        "multiple_rows_per_callsite": {},
+        "unique_unresolved_targets": 4,
+        "unresolved_by_target": {
+          "CHECKPOINTSTORE": 2,
+          "REQUESTSTORE": 16,
+          "SCREENCHANNEL": 2,
+          "SCREENCHECK": 1
+        },
+        "unresolved_by_source": {
+          "programs/night-batch.cbl": 9,
+          "programs/screen-control.cbl": 4,
+          "programs/service-entry.cbl": 5,
+          "programs/service-mainline.cbl": 3
+        },
+        "rows": [
+          {
+            "relation_id": "rel_1f61c1d97f56eb66939450c0",
+            "relative_path": "programs/night-batch.cbl",
+            "from_entity_id": "unit_bff5534d88c753fbb8a0a81e",
+            "target_name": "CHECKPOINTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 18,
+            "end_line": 18,
+            "normalized_text": "CALL \"CHECKPOINTSTORE\" USING IO-PARAMETERS RESTART-STATE"
+          },
+          {
+            "relation_id": "rel_ba83c4039e04caeee082f2b1",
+            "relative_path": "programs/night-batch.cbl",
+            "from_entity_id": "unit_ede0c24cd7e8e29d56e73a8b",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 45,
+            "end_line": 45,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_ed036daaf2eeca318d5ad80b",
+            "relative_path": "programs/night-batch.cbl",
+            "from_entity_id": "unit_290f89350c6774aa342df921",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 72,
+            "end_line": 72,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_c2f02c803ec3980bf5bd1aa3",
+            "relative_path": "programs/night-batch.cbl",
+            "from_entity_id": "unit_8290caef7b2d37a815090059",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 79,
+            "end_line": 80,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_5f8bb6614ceb698992cd20a5",
+            "relative_path": "programs/night-batch.cbl",
+            "from_entity_id": "unit_196a43ce494b1d0c49070746",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 88,
+            "end_line": 89,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_f8505cda6c04cba697a3631d",
+            "relative_path": "programs/night-batch.cbl",
+            "from_entity_id": "unit_6607319b506f6387f707afe7",
+            "target_name": "CHECKPOINTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 103,
+            "end_line": 103,
+            "normalized_text": "CALL \"CHECKPOINTSTORE\" USING IO-PARAMETERS RESTART-STATE"
+          },
+          {
+            "relation_id": "rel_984c7b683b38c03578650188",
+            "relative_path": "programs/night-batch.cbl",
+            "from_entity_id": "unit_3436e5d24bf02a7f6d2984ab",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 108,
+            "end_line": 109,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_5eacbc51fa90a5ebe4bec5a8",
+            "relative_path": "programs/night-batch.cbl",
+            "from_entity_id": "unit_fed37b9425457126f337f863",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 125,
+            "end_line": 125,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_93d60c6f7c344aff2e8f018f",
+            "relative_path": "programs/night-batch.cbl",
+            "from_entity_id": "unit_459f238a3a0722a337745884",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 136,
+            "end_line": 136,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_ba1fdfcfe962917357216c1a",
+            "relative_path": "programs/screen-control.cbl",
+            "from_entity_id": "unit_aa732c41c88bb0bc5c09c047",
+            "target_name": "SCREENCHANNEL",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 25,
+            "end_line": 26,
+            "normalized_text": "CALL \"SCREENCHANNEL\" USING SCREEN-PARAMETERS SCREEN-FIELDS SHARED-CONTEXT"
+          },
+          {
+            "relation_id": "rel_83894d1f9f2269d997707105",
+            "relative_path": "programs/screen-control.cbl",
+            "from_entity_id": "unit_dc89d32e472bca570663bab3",
+            "target_name": "SCREENCHECK",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 31,
+            "end_line": 32,
+            "normalized_text": "CALL \"SCREENCHECK\" USING SCREEN-PARAMETERS SCREEN-FIELDS"
+          },
+          {
+            "relation_id": "rel_4ba75f37615a7b26bc0ccd9a",
+            "relative_path": "programs/screen-control.cbl",
+            "from_entity_id": "unit_82886c6279d9d7473ba6097f",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 57,
+            "end_line": 57,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_839e6a64baaaefe89048e8f6",
+            "relative_path": "programs/screen-control.cbl",
+            "from_entity_id": "unit_441bad5dac3915f03710fdb6",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 60,
+            "end_line": 61,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_7ffd2734306c42b920b98a60",
+            "relative_path": "programs/screen-control.cbl",
+            "from_entity_id": "unit_b0fbce92adee13134765f82d",
+            "target_name": "SERVICEMAINLINE",
+            "status": "confirmed",
+            "target_entity_id": "sym_bda01fda1604c33a99a560a9",
+            "metadata_json": "{\"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 75,
+            "end_line": 77,
+            "normalized_text": "CALL \"SERVICEMAINLINE\" USING SECTION-NUMBER SHARED-CONTEXT SCREEN-PARAMETERS SCREEN-FIELDS"
+          },
+          {
+            "relation_id": "rel_768b4c848822c2189496e534",
+            "relative_path": "programs/service-entry.cbl",
+            "from_entity_id": "unit_33ffb4c1fdb94b7cbbc8a676",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 19,
+            "end_line": 19,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_2d419c1f7ceaa3dee2fcd111",
+            "relative_path": "programs/service-entry.cbl",
+            "from_entity_id": "unit_0debbc369bb4ba220e03669a",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 25,
+            "end_line": 26,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_d5026cd66fc228a128881d2e",
+            "relative_path": "programs/service-entry.cbl",
+            "from_entity_id": "unit_220f78b5ac51ad0473efa37e",
+            "target_name": "SCREENCHANNEL",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 35,
+            "end_line": 36,
+            "normalized_text": "CALL \"SCREENCHANNEL\" USING SCREEN-PARAMETERS SCREEN-FIELDS SHARED-CONTEXT"
+          },
+          {
+            "relation_id": "rel_1d1287b7861de5f150a33313",
+            "relative_path": "programs/service-entry.cbl",
+            "from_entity_id": "unit_8747f4a0f259f5593fc5c2c5",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 57,
+            "end_line": 57,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_dc2501c6f1bcd7132e744c33",
+            "relative_path": "programs/service-entry.cbl",
+            "from_entity_id": "unit_1d10c8934d1c1a7220aa04d5",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 67,
+            "end_line": 68,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_3e32fd30d30f15759f953761",
+            "relative_path": "programs/service-mainline.cbl",
+            "from_entity_id": "unit_a686e7b5727862c90726e1d6",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 32,
+            "end_line": 32,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_8a9211438d8422dd3c641b4f",
+            "relative_path": "programs/service-mainline.cbl",
+            "from_entity_id": "unit_a95c8f5944968fea3c7a386d",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 70,
+            "end_line": 70,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          },
+          {
+            "relation_id": "rel_d0af254ea68417389e50528d",
+            "relative_path": "programs/service-mainline.cbl",
+            "from_entity_id": "unit_90a8b52ae4ac130d1766d649",
+            "target_name": "REQUESTSTORE",
+            "status": "unresolved",
+            "target_entity_id": null,
+            "metadata_json": "{\"resolution_reason\": \"target_not_found\", \"semantic_binding_performed\": false, \"source_index_kind\": \"business_sparse\"}",
+            "start_line": 80,
+            "end_line": 81,
+            "normalized_text": "CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD"
+          }
+        ],
+        "interpretation": "21 unresolved CALL statement occurrences to four distinct missing static targets, not 21 missing programs or multiple target candidates for one CALL. Each row has a distinct from_entity_id and physical range. COPY/PERFORM rows excluded."
+      }
+    }
+  },
+  "external": {
+    "proleap": {
+      "version": "2.4.0",
+      "ordered_assignments": 20,
+      "synthetic_status_counts": {
+        "correct": 18,
+        "wrong": 0,
+        "measurement_gap": 3
+      },
+      "public_contract_status_counts": {
+        "correct": 7,
+        "measurement_gap": 1
+      },
+      "public_timing": [
+        {
+          "path": "app/cbl/CBTRN02C.cbl",
+          "phase": "read+COPY preprocess+parse+ASG+fact extraction; JVM startup excluded",
+          "first_ms": 1101.964917,
+          "hot_samples_ms": [
+            283.412625,
+            199.380375,
+            196.838709,
+            182.643292,
+            177.596708,
+            167.972917,
+            169.833709
+          ],
+          "hot_median_ms": 182.643292,
+          "hot_min_ms": 167.972917,
+          "hot_max_ms": 283.412625
+        },
+        {
+          "path": "app/cbl/CBACT04C.cbl",
+          "phase": "read+COPY preprocess+parse+ASG+fact extraction; JVM startup excluded",
+          "first_ms": 1216.08125,
+          "hot_samples_ms": [
+            314.202375,
+            246.330375,
+            241.892333,
+            222.16175,
+            226.206625,
+            223.74875,
+            217.534334
+          ],
+          "hot_median_ms": 226.206625,
+          "hot_min_ms": 217.534334,
+          "hot_max_ms": 314.202375
+        }
+      ],
+      "boundary": "Native grammar and ASG custom projection; not complete def-use or original COPY source-coordinate evidence."
+    },
+    "cobol_rekt": {
+      "version": "v0.1.1-RC03",
+      "commit": "beae6b716ba97793cfd9004802747918af7caea3",
+      "binary_sha256": "0144464c0129e79e7815428fb66e8e0d9bd1f5992ebf75cc39fc0edb516cdf5d",
+      "defect_scope": "Observed release binary graph exporter; not a claim about the interpreter or untested latest source.",
+      "fixed_source_url": "https://github.com/avishek-sen-gupta/cobol-rekt/blob/beae6b716ba97793cfd9004802747918af7caea3/smojol-toolkit/src/main/java/org/smojol/toolkit/analysis/graph/DataDependencyPairComputer.java",
+      "boundary": "Selected graph-export contracts, not full product or interpreter accuracy."
+    },
+    "language_service": {
+      "schema": "language-service-outcome-review/v1",
+      "version": "2.5.1",
+      "source_results_sha256": "f06fc2e89ca83c7c6b4f3ff4bc99236a1ff4c6e789aa2768319ebedb050ea301",
+      "cases": [
+        {
+          "id": "continuation",
+          "input_sha256": "6006ddb5ded75395f6889c91eb84e44fc9fc8d07fbbeeb292c3c87dda06f6bd3",
+          "status": "ast_and_diagnostics_observed",
+          "exit_codes": [
+            0,
+            0,
+            0
+          ],
+          "has_ast": [
+            true,
+            true,
+            true
+          ],
+          "diagnostics_present": [
+            true,
+            true,
+            true
+          ],
+          "successful_analysis_latency_seconds": 1.019973291986389,
+          "failed_attempt_process_seconds": null,
+          "scope": "No business answer or numeric runtime semantics checked."
+        },
+        {
+          "id": "CBTRN02C",
+          "input_sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f",
+          "status": "measurement_unavailable",
+          "exit_codes": [
+            1,
+            1,
+            1
+          ],
+          "has_ast": [
+            false,
+            false,
+            false
+          ],
+          "diagnostics_present": [
+            false,
+            false,
+            false
+          ],
+          "successful_analysis_latency_seconds": null,
+          "failed_attempt_process_seconds": [
+            2.0334589590202086,
+            1.9106147499987856,
+            2.180355624994263
+          ],
+          "scope": "No business answer or numeric runtime semantics checked."
+        },
+        {
+          "id": "CBACT04C",
+          "input_sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4",
+          "status": "measurement_unavailable",
+          "exit_codes": [
+            1,
+            1,
+            1
+          ],
+          "has_ast": [
+            false,
+            false,
+            false
+          ],
+          "diagnostics_present": [
+            false,
+            false,
+            false
+          ],
+          "successful_analysis_latency_seconds": null,
+          "failed_attempt_process_seconds": [
+            1.9264142500178423,
+            1.8870535839814693,
+            1.7552969999960624
+          ],
+          "scope": "No business answer or numeric runtime semantics checked."
+        }
+      ],
+      "quality_or_qa_latency_ranked": false,
+      "root_cause_identified": false,
+      "target_platform_validated": false
+    }
+  },
+  "official_market_reference": {
+    "schema": "official-market-comparison-ibmi/v1",
+    "date": "2026-10-15",
+    "primary_target": "IBM i / AS400 COBOL + CL + DDS + Db2 for i + framework effects",
+    "secondary_reference": "z/OS and CardDemo are language/mechanism references only",
+    "commercial_executions": 0,
+    "model_calls": 0,
+    "enterprise_source_transfers": 0,
+    "products": [
+      {
+        "name": "Fresche X-Analysis / Advisor",
+        "cobol_explicit": true,
+        "official_capabilities": [
+          "business rules",
+          "field/program/file impact",
+          "DDS/DB data model",
+          "multilevel variable tracking"
+        ],
+        "historical_manual_11_1": [
+          "ordered source and object library list; reinitialize after change",
+          "configured variable program targets from files and generic programs"
+        ],
+        "capability_sources": [
+          "https://freschesolutions.com/products/x-analysis/",
+          "https://freschesolutions.com/products/x-analysis-advisor-2/",
+          "https://fr.freschesolutions.com/wp-content/uploads/archive/tutorials/X-Analysis_User_Manual_11.1.pdf"
+        ],
+        "evidence_note": "Product pages current; 2015 manual sections available through official search index, full PDF exceeds web fetch size; no third-party mirror used.",
+        "qa_latency": null,
+        "qa_accuracy": null,
+        "execution_status": "not_run"
+      },
+      {
+        "name": "ARCAD Observer",
+        "cobol_explicit": true,
+        "official_capabilities": [
+          "V12 TR1 lists COBOL, CL/CLLE, PF and LFDDS",
+          "upstream/downstream call chains",
+          "field/file source navigation",
+          "versioned metadata cross references"
+        ],
+        "capability_sources": [
+          "https://www.arcadsoftware.com/arcad/news-events/arcad-press-articles/arcad-observer-lpex-integration-brings-new-levels-of-development-speed-accuracy-to-ibm-i/",
+          "https://www.arcadsoftware.com/arcad/vs-code-on-ibm-i-aka-as400-with-arcad-for-devops/"
+        ],
+        "version_note": "2020 V12 TR1 explicit language list is historical documentation, not current product execution.",
+        "library_list_resolution_verified": false,
+        "qa_latency": null,
+        "qa_accuracy": null,
+        "execution_status": "not_run"
+      },
+      {
+        "name": "ARCAD DISCOVER",
+        "cobol_explicit_support_matrix": false,
+        "cobol_context_official": true,
+        "official_capabilities": [
+          "natural language query over preanalyzed metadata",
+          "functional tree",
+          "data lineage",
+          "component/field/line navigation",
+          "on-premise open-source LLM option"
+        ],
+        "capability_sources": [
+          "https://www.arcadsoftware.com/discover/features/",
+          "https://www.arcadsoftware.com/discover/resources/blog/map-your-ibm-i-application-with-ai/"
+        ],
+        "limit": "Official article mentions COBOL context; exact per-language semantic coverage is not established by the feature page or inherited Observer support.",
+        "qa_latency": null,
+        "qa_accuracy": null,
+        "vendor_seconds_claim_not_measurement": true,
+        "execution_status": "not_run"
+      },
+      {
+        "name": "IBM Rational Developer for i",
+        "cobol_explicit": true,
+        "official_capabilities": [
+          "RPG/COBOL development",
+          "CL DDS SQL tools",
+          "editing compiling debugging context"
+        ],
+        "capability_sources": [
+          "https://www.ibm.com/support/pages/node/247343",
+          "https://www.ibm.com/support/pages/why-rdi"
+        ],
+        "limit": "IDE, not evaluated as full natural-language business QA.",
+        "qa_latency": null,
+        "qa_accuracy": null,
+        "execution_status": "not_run"
+      }
+    ],
+    "target_acceptance_design": [
+      {
+        "topic": "batch trigger, job description and library order",
+        "source": "https://www.ibm.com/docs/en/i/7.6.0?topic=ssw_ibm_i_76%2Fcl%2Fsbmjob.html",
+        "must_test": [
+          "CL CALL parameters",
+          "SBMJOB command and JOBD",
+          "INLLIBL *CURRENT/*JOBD/*SYSVAL/explicit",
+          "unknown configuration preserves candidate targets"
+        ]
+      },
+      {
+        "topic": "actual file/member and override scope",
+        "sources": [
+          "https://www.ibm.com/docs/en/i/7.6.0?topic=ssw_ibm_i_76%2Fcl%2Fovrdbf.html",
+          "https://www.ibm.com/docs/en/i/7.6.0?topic=overrides-summary-override-commands"
+        ],
+        "must_test": [
+          "FILE TOFILE MBR",
+          "OVRSCOPE",
+          "DLTOVR",
+          "DDS record layout"
+        ]
+      },
+      {
+        "topic": "external record definition versus ordinary COPY",
+        "source": "https://www.ibm.com/docs/sl/i/7.4.0?topic=cssica-using-external-file-descriptions-in-cobol-applications-that-use-sql",
+        "must_test": [
+          "COPY DDS family",
+          "external file host variables",
+          "compile context and library candidates"
+        ]
+      },
+      {
+        "topic": "framework effects",
+        "public_target_framework_validation_found": false,
+        "must_test": [
+          "versioned effect contracts from authorized docs/source",
+          "parameter record layout",
+          "dynamic table-driven calls",
+          "known and unknown side effects"
+        ]
+      }
+    ],
+    "reproducible_same_task_public_benchmark_found_in_reviewed_sources": false,
+    "commercial_run_blockers": [
+      "No licensed installation or runnable service access was available",
+      "No authorized target IBM i environment or full runtime/compile metadata supplied",
+      "No complete public fixed-source question/gold/raw-answer/timing replay bundle in reviewed sources"
+    ],
+    "comparison_rule": "Do not compare parser milliseconds with QA seconds; separate import, refresh, first question, followup and useful-complete answer latency while reporting coverage."
+  },
+  "evidence": {
+    "bundle": {
+      "path": ".build/comparison-2026-10-15/evidence.zip",
+      "sha256": "74e20285d76cbca34c9ead13c1d7ddf2fdc4e5106621fda87816abfe397d9bb2",
+      "bytes": 2084427,
+      "files_verified": 234,
+      "zip_crc_verified": true,
+      "member_sha256_verified": true,
+      "replay_scope": "Audit archive with historical scripts; not a turnkey office acceptance package."
+    },
+    "artifacts": [
+      {
+        "path": ".build/comparison-2026-10-15/baseline/shared-manifest.json",
+        "sha256": "6ef82d78907836975cd759c0f20f242af97185d9942fa68a2ed32a556cf47cf9",
+        "bytes": 9813
+      },
+      {
+        "path": ".build/comparison-2026-10-15/baseline/quality.json",
+        "sha256": "12000d7571c122954924c66004c1ef140068d14aa8c1d08e269941c307ee94dc",
+        "bytes": 638475
+      },
+      {
+        "path": ".build/comparison-2026-10-15/baseline/quality-v2.json",
+        "sha256": "17eb0999e19c6bdf5155f04c03c0a704823f779149886d47533a0024a851d693",
+        "bytes": 645010
+      },
+      {
+        "path": ".build/comparison-2026-10-15/baseline/additional-quality.json",
+        "sha256": "52931f3e667ccb7bd2b9fb82eacebdbe2e6ee6438d9327026b83af5be77e4a1e",
+        "bytes": 101654
+      },
+      {
+        "path": ".build/comparison-2026-10-15/baseline/public-mechanism-v2.json",
+        "sha256": "2371f0301f0e480bccdfe6fd5f07f43112063072ecb16c2b01b1afb69abd086f",
+        "bytes": 76386
+      },
+      {
+        "path": ".build/comparison-2026-10-15/baseline/timing.json",
+        "sha256": "5f379602e40c23abbdcd2b31dd3202d7a383674ac0d2451aaffbe4c55b3a086f",
+        "bytes": 371784
+      },
+      {
+        "path": ".build/comparison-2026-10-15/baseline/target-profile-audit.json",
+        "sha256": "2f13db4485cc868abca1782d17880a6bc3c3fef9819a76d25511f0692ebfad06",
+        "bytes": 41888
+      },
+      {
+        "path": ".build/comparison-2026-10-15/baseline/target-first-request-latency.json",
+        "sha256": "e748c3f8480ae9d78c8a85df8f81ec638d16f4418dd2e6fb4ad0cd26832f684f",
+        "bytes": 251314
+      },
+      {
+        "path": ".build/comparison-2026-10-15/baseline/payload-audit.json",
+        "sha256": "c18e56e084a582206fb0e0f36a8dc701e225d382061c720cf2ba4f504f4758e6",
+        "bytes": 33129
+      },
+      {
+        "path": ".build/comparison-2026-10-15/opensource/proleap-results.json",
+        "sha256": "2ba14f84e21515d69341df9ae85a59aa94c74af06443e27ec926b3fe1e35a6e9",
+        "bytes": 503200
+      },
+      {
+        "path": ".build/comparison-2026-10-15/opensource/cobol-rekt-results.json",
+        "sha256": "04b915ee1a1c4e5bb6f0bfd587e81d6aaa0ae7512d4221b2fbcd0f01a53ce04c",
+        "bytes": 25533
+      },
+      {
+        "path": ".build/comparison-2026-10-15/opensource/comparison-review.json",
+        "sha256": "a4a9d157b17b4c0c909b86ea42fe0f36b871e0fee9927dcbea8d0ab065d83ef3",
+        "bytes": 969710
+      },
+      {
+        "path": ".build/comparison-2026-10-15/language-service/results.json",
+        "sha256": "f06fc2e89ca83c7c6b4f3ff4bc99236a1ff4c6e789aa2768319ebedb050ea301",
+        "bytes": 9874
+      },
+      {
+        "path": ".build/comparison-2026-10-15/language-service/summary.json",
+        "sha256": "37eb887d36870cedba7c071f67e4c16431638b7d38446508c8a7a4c66a9d1fb9",
+        "bytes": 2171
+      },
+      {
+        "path": ".build/comparison-2026-10-15/market-ibmi.json",
+        "sha256": "761200d88eda22c62a62565562453c0570ba8e3cc34c723e9902a49c7ebc2d1d",
+        "bytes": 5694
+      },
+      {
+        "path": ".build/comparison-2026-10-15/audit-market.json",
+        "sha256": "e257a62000b14666d45658185aac9157ab2edf96f38fa0f7ae3af8c28342a8a8",
+        "bytes": 36451
+      },
+      {
+        "path": ".build/comparison-2026-10-15/audit-opensource.json",
+        "sha256": "0c5f1fd6e0cb8cc8a710d6b26b30b51cba6982e2efc21939b8eb197364e178b1",
+        "bytes": 5594
+      }
+    ]
+  },
+  "followup_order": [
+    "CL entry and environment effects connected to DDS/COBOL resources",
+    "Scoped completeness checks over supplied facts and supported IR expansion",
+    "Persistent dependency/summary reuse and measured evidence projection",
+    "Same-package real model and office Windows acceptance before formal release"
+  ]
+}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -1939,8 +1940,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             selected_pages = evidence.selected_pages(policy.max_source_characters,
                 evidence_groups=evidence_groups, priority_targets=priority_targets,
                 max_complete_source_characters=policy.max_complete_source_characters)
+            prepared_investigation = question_investigation(selected_pages)
             if (detail_requested or is_file_impact_question(question) or automatic_followup_material is not None
-                    or "activation" in (question_investigation(selected_pages).get("analysis_plan") or {}).get("intents", [])):
+                    or "activation" in (prepared_investigation.get("analysis_plan") or {}).get("intents", [])
+                    or prepared_investigation.get("cl_context", {}).get("candidate_count")):
                 # One local read can reveal another deterministic dependency.
                 # Drain those plans within the same tool allowance before
                 # asking the provider to write a potentially disposable answer.
@@ -2668,10 +2671,20 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         return match[0]
 
     unsupported = sorted(set(_REFERENCE.findall(answer)) - set(allowed))
+    from answer_fact_completion import complete_supplied_answer
+    answer_source_fact_cache = {}
+    source_completion_started = time.monotonic()
+    answer, source_fact_completion = complete_supplied_answer(question, redactor._sanitize(answer),
+        answer_investigation or {}, [sent_pages[identifier] for identifier in final_source_ids],
+        source_format=source_session.options.get("source_format", "auto") if source_session else "auto",
+        compilation_context=source_session.options.get("compilation_context") if source_session else None,
+        answer_detail=answer_detail, source_fact_cache=answer_source_fact_cache)
+    timing["answer_fact_completion_seconds"] = time.monotonic() - source_completion_started
     answer, claim_ledger = review_answer_claims(redactor._sanitize(answer),
         [sent_pages[identifier] for identifier in final_source_ids], allowed,
         source_format=source_session.options.get("source_format", "auto") if source_session else "auto",
-        compilation_context=source_session.options.get("compilation_context") if source_session else None)
+        compilation_context=source_session.options.get("compilation_context") if source_session else None,
+        source_fact_cache=answer_source_fact_cache)
     ledger_record = claim_ledger.to_dict()
     if ledger_record["revised_claim_count"]:
         boundaries.append({"reason": "claim_support_local_revision",
@@ -2718,6 +2731,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     quality.data["analysis_revision"] = overview["snapshot_id"]
     quality.data["question_source_manifest"] = source_session.source_manifest() if source_session else []
     quality.data["claim_ledger"] = ledger_record
+    source_fact_completion["final_answer_sha256"] = hashlib.sha256(answer.encode()).hexdigest()
+    quality.data["source_fact_completion"] = source_fact_completion
     identity_status = business_map.get("source_identity", {}).get("status")
     final_pages = [sent_pages[identifier] for identifier in final_source_ids]
     core_ids = {evidence.covering_id(ref.evidence_id, final_pages) for group in evidence_groups for observation in group.observations

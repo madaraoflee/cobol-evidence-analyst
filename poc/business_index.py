@@ -30,7 +30,7 @@ from structural_index import (
     _resolve_relations, _database_counts,
 )
 
-PARSER_VERSION = "business-sparse-v1.7"
+PARSER_VERSION = "business-sparse-v1.8"
 CHUNK_BYTES = 1024 * 1024
 MAX_PHYSICAL_LINE_CHARS = 65536
 MAX_FACT_CHARS = 131072
@@ -294,6 +294,8 @@ class _Facts:
         self.copybook = copybook_hint or Path(relative).suffix.casefold() in COPY_EXTENSIONS
         self.sql = False
         self.compilation = CompilationGuardState(compilation_context)
+        from cl_context import CLSourceCollector, is_cl_path
+        self.cl_collector = CLSourceCollector(relative, metadata["sha256"]) if is_cl_path(relative) else None
 
     def _close(self, kind, end):
         key = {"Program": "program_id", "Section": "section_id", "Paragraph": "paragraph_id"}[kind]
@@ -537,6 +539,9 @@ class _Facts:
 
     def consume(self, line_number, raw):
         self.line_count = line_number
+        if self.cl_collector is not None:
+            self.cl_collector.consume(line_number, raw)
+            return
         if line_number % 4096 == 0:
             self.emit(line_number)
         if raw is None:
@@ -667,6 +672,11 @@ class _Facts:
                 self._flush(complete=True)
 
     def finish(self):
+        if self.cl_collector is not None:
+            from cl_context import persist_cl_facts
+            persist_cl_facts(self.connection, self.cl_collector)
+            self.boundaries.update(item["reason"] for item in self.cl_collector.boundaries)
+            return
         self._flush()
         self._flush_rules()
         self._close("Paragraph", self.line_count)
@@ -936,7 +946,8 @@ def build_business_index(source_root: Path, database_path: Path, *, extensions=D
                     facts.finish()
                     _changed_definitions(connection, relative, changed_targets, changed_programs)
                     line_count = facts.line_count
-                    artifact = "copybook" if facts.copybook else "program" if facts.program else "unknown"
+                    artifact = ("job_or_command" if facts.cl_collector is not None else
+                                "copybook" if facts.copybook else "program" if facts.program else "unknown")
                     file_boundaries[relative] = dict(facts.boundaries)
                     connection.execute("INSERT INTO source_files VALUES (?,?,?,?,?,?,?,?)", (
                         relative, metadata["sha256"], metadata["encoding"], int(metadata["used_fallback_encoding"]),

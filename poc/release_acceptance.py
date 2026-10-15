@@ -37,6 +37,7 @@ OFFICE_REGRESSION_BASELINE = ("add_giving", "end_words", "same_line_occurrences"
     "display_literal_relations", "literal_comment_marker", "qualified_identity", "perform_section",
     "bare_group_field", "qualified_in_alias", "ambiguous_group_field",
     "activation_trigger", "caller_condition", "external_scheduler_unknown",
+    "ibmi_cl_batch", "cl_library_list", "cl_file_override", "cl_late_target",
     "wrong_formula_999", "input_origin", "value_initialization_source", "page_account_multiturn",
     "later_overwrite", "three_turn_focus", "forward_slice",
     "static_a_b_c", "parameter_binding", "size_error", "decimal_scale", "unknown_effect",

@@ -205,6 +205,82 @@ class PromptProjectionTests(unittest.TestCase):
             self.assertEqual(diagnostic["pages"], [page])
         self.assertEqual(expand_projection(projected), payload)
 
+    def test_repeated_parameter_sets_keep_each_call_and_its_local_conditions(self):
+        payload = self.payload()
+        parameters = [{"position": 1, "name": "IO-PARAMETERS", "mode": "REFERENCE"},
+                      {"position": 2, "name": "REQUEST-RECORD", "mode": "REFERENCE"}]
+        layout = [{"argument": "REQUEST-RECORD", "relative_path": "request.cpy",
+                   "source_sha256": "d" * 64, "start_line": 1, "end_line": 18,
+                   "members": ["REQUEST-ID", "REQUEST-AMOUNT", "REQUEST-STATUS"],
+                   "evidence_ids": ["ev:layout"], "execution_verified": False}]
+        reasons = []
+        for index in range(9):
+            reasons.append({"occurrence_id": "call:" + str(index), "target": "RECORDSTORE",
+                "start_line": 20 + index, "end_line": 20 + index,
+                "actual_parameters": deepcopy(parameters), "mutable_output_groups": deepcopy(layout),
+                "guards": [{"condition": "READY-FLAG = " + str(index % 2), "outcome": True}],
+                "supplied_reference_ids": ["ev:call:" + str(index)],
+                "source_sha256": ("a" if index < 7 else "b") * 64,
+                "unknown_effects": ["target_source_not_supplied"], "execution_verified": False})
+        for reason in reasons[-2:]:
+            reason["target"] = "CHECKPOINTSTORE"
+            reason["actual_parameters"][1]["name"] = "RESTART-STATE"
+            reason["mutable_output_groups"][0]["argument"] = "RESTART-STATE"
+        # The same field spelling in a different COPY instance remains distinct.
+        reasons[-1]["mutable_output_groups"][0]["include_chain"] = [{"path": "other.cbl", "line": 5}]
+        payload["business_analysis_brief"]["call_effect_boundaries"]["reasons"] = reasons
+        projected = project_prompt_payload(payload)
+        rows = projected["business_analysis_brief"]["call_effect_boundaries"]["reasons"]
+        self.assertTrue(any("navigation_fact_ref" in row for row in rows))
+        self.assertTrue(any("actual_parameters" in fact for fact in projected["shared_navigation_facts"].values()))
+        self.assertEqual([row["occurrence_id"] for row in rows], [row["occurrence_id"] for row in reasons])
+        self.assertEqual([row["supplied_reference_ids"] for row in rows],
+                         [row["supplied_reference_ids"] for row in reasons])
+        self.assertEqual(expand_projection(projected), payload)
+        self.assertEqual(payload["business_analysis_brief"]["call_effect_boundaries"]["reasons"], reasons)
+
+    def test_observation_subsets_keep_exact_scope_versions_and_unknowns(self):
+        payload = self.payload()
+        observations = []
+        for program, digest, first in (("BATCH-A", "a" * 64, 20), ("BATCH-B", "b" * 64, 80)):
+            for index in range(12):
+                observations.append({"occurrence_id": f"{program}:{index}", "kind": "field_assignment",
+                    "program_name": program, "relative_path": "programs/" + program + ".cbl",
+                    "source_sha256": digest, "evidence_ids": ["ev:" + program],
+                    "source_locations": [{"start_line": first + index, "end_line": first + index}],
+                    "expression": "IN-AMOUNT * 2" if index % 2 else "0",
+                    "condition": "IN-AMOUNT > 7" if index % 2 else "FLAG = 1",
+                    "execution_verified": False, "effect_status": "candidate_not_execution_proof",
+                    "unknown_effects": ["runtime_input_unknown"]})
+        observations[0]["optional"] = None
+        observations[1]["optional"] = False
+        observations[2]["optional"] = 0
+        payload["question_investigation"]["file_impact"] = {"observations": observations, "truncated": False}
+        projected = project_prompt_payload(payload)
+        rows = projected["question_investigation"]["file_impact"]["observations"]
+        self.assertTrue(all("navigation_fact_ref" in row for row in rows))
+        self.assertEqual([row["evidence_ids"] for row in rows], [row["evidence_ids"] for row in observations])
+        self.assertEqual(expand_projection(projected), payload)
+        # Consumer support is shared with the packaged Windows acceptance tool.
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+        from tools.desktop_acceptance_runtime import decoded_navigation
+        self.assertEqual(decoded_navigation(business_chat._compact_prompt_payload(projected)), payload)
+
+    def test_subsets_do_not_treat_arrays_as_execution_or_drop_authority(self):
+        payload = self.payload()
+        page = payload["source_context"][0]["pages"][0]
+        rows = [{"occurrence_id": str(index), "source_text": page["source_text"],
+                 "source_sha256": page["source_sha256"], "pages": [deepcopy(page)],
+                 "parameters": [{"name": "IN-AMOUNT", "mode": "REFERENCE"}],
+                 "unknown": "target_source_not_supplied", "execution_verified": False}
+                for index in range(8)]
+        payload["question_investigation"]["diagnostics"] = rows
+        projected = project_prompt_payload(payload)
+        for row in projected["question_investigation"]["diagnostics"]:
+            self.assertEqual(row["source_text"], page["source_text"])
+            self.assertEqual(row["pages"], [page])
+        self.assertEqual(expand_projection(projected), payload)
+
     def test_only_known_generic_brief_guidance_changes(self):
         brief = self.payload()["business_analysis_brief"]
         for detail in (False, True):
@@ -236,7 +312,8 @@ class PromptProjectionTests(unittest.TestCase):
         source = Path(__file__).resolve().parents[1] / "fixtures/framework-workbench/source"
         config = CompanyAPIConfig("https://neutral.example.invalid/v1", "offline-model", api_key="offline-only")
         questions = ("When does the service request move to review, and what happens before saving it?",
-                     "说说服务请求的batch操作，是怎么trigger的，好像是batch trigger的。")
+                     "说说服务请求的batch操作，是怎么trigger的，好像是batch trigger的。",
+                     "NIGHTBATCH 的批次流程如何执行，哪些记录会跳过，什么时候增加成功数量和提交进度？")
         original_prompt = business_chat._prompt_payload
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "index.sqlite"
@@ -266,6 +343,9 @@ class PromptProjectionTests(unittest.TestCase):
                 self.assertEqual(len(sent), 1)
                 canonical = captured[-1]
                 projected = project_prompt_payload(canonical)
+                wire = json.loads(sent[0]["messages"][-1]["content"])
+                self.assertEqual(encoded(wire), encoded(original_prompt(canonical)))
+                self.assertIn("prompt_projection", wire)
                 restored = expand_projection(projected)
                 expected = deepcopy(canonical)
                 expected["business_analysis_brief"] = project_analysis_brief(canonical["business_analysis_brief"])

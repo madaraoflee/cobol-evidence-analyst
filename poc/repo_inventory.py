@@ -48,6 +48,7 @@ DEFAULT_EXTENSIONS = frozenset(
         ".lf",
         ".cl",
         ".clle",
+        ".clp",
         ".jcl",
         ".job",
     }
@@ -311,7 +312,7 @@ def classify_artifact(
         return "copybook"
     if suffix in {".ddl", ".dds", ".pf", ".lf"}:
         return "ddl_or_db_file_definition"
-    if suffix in {".cl", ".clle", ".jcl", ".job"}:
+    if suffix in {".cl", ".clle", ".clp", ".jcl", ".job"}:
         return "job_or_command"
     if program_ids or PROCEDURE_DIVISION_RE.search(normalized_text):
         return "cobol_program"

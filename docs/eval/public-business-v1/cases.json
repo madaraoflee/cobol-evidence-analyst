@@ -89,6 +89,42 @@
             ],
             "rounded": false
           }
+        ],
+        "answer_checks": [
+          {
+            "id": "limit-formula",
+            "all_of": [
+              "WS-TEMP-BAL\\s*=\\s*ACCT-CURR-CYC-CREDIT\\s*-\\s*ACCT-CURR-CYC-DEBIT\\s*\\+\\s*DALYTRAN-AMT"
+            ]
+          },
+          {
+            "id": "limit-and-later-rejection",
+            "all_of": [
+              "102",
+              "103",
+              "覆盖|覆蓋"
+            ]
+          },
+          {
+            "id": "missing-account-error",
+            "all_of": [
+              "INVALID\\s+KEY",
+              "WS-VALIDATION-FAIL-REASON\\s*=\\s*101|MOVE\\s+101\\s+TO\\s+WS-VALIDATION-FAIL-REASON"
+            ]
+          }
+        ],
+        "source_checks": [
+          {
+            "id": "missing-account-101",
+            "kind": "source_fact",
+            "fact": {
+              "predicate": "assignment_statement",
+              "target": "WS-VALIDATION-FAIL-REASON",
+              "expression": [
+                "101"
+              ]
+            }
+          }
         ]
       }
     },
@@ -173,6 +209,25 @@
             "target": "FD-ACCTFILE-REC",
             "effect": "REWRITE"
           }
+        ],
+        "answer_checks": [
+          {
+            "id": "balance-and-cycle-reset",
+            "all_of": [
+              "ACCT-CURR-BAL\\s*=\\s*WS-TOTAL-INT\\s*\\+\\s*ACCT-CURR-BAL",
+              "MOVE\\s+0\\s+TO\\s+ACCT-CURR-CYC-CREDIT",
+              "MOVE\\s+0\\s+TO\\s+ACCT-CURR-CYC-DEBIT"
+            ]
+          },
+          {
+            "id": "rewrite-and-failure",
+            "all_of": [
+              "REWRITE\\s+FD-ACCTFILE-REC\\s+FROM\\s+ACCOUNT-RECORD",
+              "00",
+              "12",
+              "错误|錯誤|终止|終止"
+            ]
+          }
         ]
       }
     },
@@ -254,6 +309,52 @@
             ],
             "rounded": false
           }
+        ],
+        "answer_checks": [
+          {
+            "id": "formula-divisor",
+            "all_of": [
+              "WS-MONTHLY-INT\\s*=\\s*\\(\\s*TRAN-CAT-BAL\\s*\\*\\s*DIS-INT-RATE\\s*\\)\\s*/\\s*1200"
+            ],
+            "none_of": [
+              "/\\s*999"
+            ]
+          },
+          {
+            "id": "sum-and-following-call",
+            "all_of": [
+              "WS-TOTAL-INT\\s*=\\s*WS-MONTHLY-INT\\s*\\+\\s*WS-TOTAL-INT",
+              "1300-B-WRITE-TX"
+            ]
+          },
+          {
+            "id": "nonzero-invocation",
+            "all_of": [
+              "DIS-INT-RATE\\s+NOT\\s*=\\s*0"
+            ]
+          },
+          {
+            "id": "numeric-layout",
+            "all_of": [
+              "PIC\\s+S9\\(09\\)V99",
+              "没有\\s+ROUNDED|无\\s*ROUNDED"
+            ]
+          }
+        ],
+        "source_checks": [
+          {
+            "id": "nonzero-rate-call",
+            "kind": "source_tokens",
+            "tokens": [
+              "IF",
+              "DIS-INT-RATE",
+              "NOT",
+              "=",
+              "0",
+              "PERFORM",
+              "1300-COMPUTE-INTEREST"
+            ]
+          }
         ]
       }
     },
@@ -306,7 +407,67 @@
         },
         "fake_correct_answer": "ACCOUNT-FILE 在 SELECT 中 ASSIGN TO ACCTFILE，记录键为FD-ACCT-ID，状态字段为ACCTFILE-STATUS。[EVIDENCE] FD声明的物理记录是FD-ACCTFILE-REC；工作记录ACCOUNT-RECORD由COPY定义，经READ INTO和REWRITE FROM传递。静态映射不能证明实际运行数据集路径。[EVIDENCE]",
         "fake_incorrect_answer": null,
-        "source_assertions": []
+        "source_assertions": [],
+        "answer_checks": [
+          {
+            "id": "logical-external-key-status",
+            "all_of": [
+              "ACCOUNT-FILE",
+              "ASSIGN\\s+TO\\s+ACCTFILE",
+              "FD-ACCT-ID",
+              "ACCTFILE-STATUS"
+            ]
+          },
+          {
+            "id": "physical-working-record-transfer",
+            "all_of": [
+              "FD-ACCTFILE-REC",
+              "ACCOUNT-RECORD",
+              "COPY",
+              "READ\\s+INTO",
+              "REWRITE\\s+FROM"
+            ]
+          },
+          {
+            "id": "runtime-mapping-boundary",
+            "all_of": [
+              "不能证明|不能確認|不能确认|需要.{0,20}(?:配置|JCL)"
+            ]
+          }
+        ],
+        "source_checks": [
+          {
+            "id": "logical-file-assign",
+            "kind": "source_tokens",
+            "tokens": [
+              "SELECT",
+              "ACCOUNT-FILE",
+              "ASSIGN",
+              "TO",
+              "ACCTFILE"
+            ]
+          },
+          {
+            "id": "read-into",
+            "kind": "source_tokens",
+            "tokens": [
+              "READ",
+              "ACCOUNT-FILE",
+              "INTO",
+              "ACCOUNT-RECORD"
+            ]
+          },
+          {
+            "id": "rewrite-from",
+            "kind": "source_tokens",
+            "tokens": [
+              "REWRITE",
+              "FD-ACCTFILE-REC",
+              "FROM",
+              "ACCOUNT-RECORD"
+            ]
+          }
+        ]
       }
     },
     {
@@ -358,7 +519,39 @@
         },
         "fake_correct_answer": "1400-COMPUTE-FEES 的完整段落只有待实现注释和 EXIT，没有手续费计算或写入语句。[EVIDENCE] 段落名称本身不能证明存在手续费算法。",
         "fake_incorrect_answer": "1400-COMPUTE-FEES 按余额的1%计算手续费。[EVIDENCE] 该段落由主流程调用。",
-        "source_assertions": []
+        "source_assertions": [],
+        "answer_checks": [
+          {
+            "id": "noop-body",
+            "all_of": [
+              "1400-COMPUTE-FEES",
+              "EXIT",
+              "没有|未实现|未實現"
+            ]
+          },
+          {
+            "id": "no-invented-fee",
+            "all_of": [
+              "没有.{0,25}(?:计算|寫入|写入)|未实现.{0,25}(?:计算|寫入|写入)"
+            ],
+            "none_of": [
+              "按余额的1%|余额\\s*\\*\\s*0\\.01"
+            ]
+          }
+        ],
+        "source_checks": [
+          {
+            "id": "complete-noop-procedure",
+            "kind": "source_fact",
+            "fact": {
+              "predicate": "noop_procedure",
+              "target": "1400-COMPUTE-FEES",
+              "body_kinds": [
+                "EXIT"
+              ]
+            }
+          }
+        ]
       }
     }
   ]

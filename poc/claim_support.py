@@ -295,7 +295,7 @@ def statement_tokens(text: str) -> tuple[str, ...] | None:
 
 
 def supplied_statement_facts(page: Mapping[str, Any], *, source_format: str = "auto",
-                             compilation_context=None) -> list[dict[str, Any]]:
+                             compilation_context=None, parsed_document=None) -> list[dict[str, Any]]:
     """Project supported statement occurrences from an already captured excerpt.
 
     This uses the same structural/statement front ends as indexing. Evidence
@@ -314,10 +314,18 @@ def supplied_statement_facts(page: Mapping[str, Any], *, source_format: str = "a
             or len(source.splitlines()) != last - first + 1
             or re.fullmatch(r"[a-fA-F0-9]{64}", str(page.get("source_sha256", ""))) is None):
         return []
-    lines, hint = normalize_cobol_lines(source, source_format)
-    document = SourceDocument(str(page.get("relative_path", "supplied.cbl")),
-        str(page["source_sha256"]), "utf-8", False, hint, "COBOL", tuple(source.splitlines()), lines)
-    parsed = parse_document(document, compilation_context=compilation_context)
+    if parsed_document is not None:
+        document = parsed_document.document
+        if (document.relative_path != str(page.get("relative_path", "supplied.cbl"))
+                or document.source_sha256 != str(page["source_sha256"])
+                or document.raw_lines != tuple(source.splitlines())):
+            return []
+        parsed = parsed_document
+    else:
+        lines, hint = normalize_cobol_lines(source, source_format)
+        document = SourceDocument(str(page.get("relative_path", "supplied.cbl")),
+            str(page["source_sha256"]), "utf-8", False, hint, "COBOL", tuple(source.splitlines()), lines)
+        parsed = parse_document(document, compilation_context=compilation_context)
     by_id = {unit.unit_id: unit for unit in parsed.code_units}
     controls, compilation = {}, {}
     for relation in parsed.relations:
@@ -334,6 +342,8 @@ def supplied_statement_facts(page: Mapping[str, Any], *, source_format: str = "a
         controls.setdefault(relation.from_entity_id, []).append({
             "kind": condition_unit.name, "condition": condition_unit.normalized_text,
             "outcome": relation.metadata.get("outcome"),
+            **{key: relation.metadata[key] for key in ("selector", "alternatives", "prior_alternatives",
+                "branch_index", "is_other", "evaluate_source", "prior_when_sources") if key in relation.metadata},
             "start_line": first + condition_unit.start_line - 1,
             "end_line": first + condition_unit.end_line - 1})
     facts = []

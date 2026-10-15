@@ -329,6 +329,24 @@ def _provider_answer(case, source, payload, first_request):
         page_for(pages, anchor["path"], anchor["contains"])
         return json.dumps({anchor["tool"]: {"relative_path": anchor["path"],
             "line": line_number(source, anchor["path"], anchor["contains"])}})
+    if case["id"] in {"cl_batch_context", "cl_late_context"}:
+        context = decoded_navigation(payload)["question_investigation"].get("cl_context", {})
+        observations = context.get("observations", [])
+        calls = [row for row in observations if row.get("command") == "CALL" and row.get("target_name") == "BATCHPAY"]
+        require(calls, "Indexed CL call was not bound to actual supplied source")
+        require(context.get("unread_candidate_count") == 0, "CL candidates remain unread before first response")
+        if case["id"] == "cl_late_context":
+            call = calls[0]
+            return (f"源码在晚出现的调用点声明 CALL BATCHPAY，实参为 &READY。[{call['evidence_ids'][0]}] "
+                "前序控制范围未完整供应，是否走到该调用及实际作业执行保持未知。")
+        submit = next(row for row in observations if row.get("command") == "SBMJOB")
+        override = next(row for row in observations if row.get("command") == "OVRDBF")
+        deleted = next(row for row in observations if row.get("command") == "DLTOVR")
+        return (f"源码先提交 NIGHTJOB，再由 CL 调用 BATCHPAY，INLLIBL 声明 RUNLIB DATALIB。"
+            f"[{submit['evidence_ids'][0]}] OVRDBF 声明 ACCOUNTLF 指向 DATALIB/ACCOUNTPF，"
+            f"成员为 &DAY，作用域 *CALLLVL。[{override['evidence_ids'][0]}] "
+            f"DLTOVR 之后还有另一次 BATCHPAY 调用，两次调用位置分别保留。[{deleted['evidence_ids'][0]}] "
+            "实际调度、运行库列表、成员值和覆盖是否生效仍未知。")
     if case["corpus"] == "public":
         item = _public_case(case)
         location = item["mechanism"]["evidence_range"]
@@ -388,10 +406,55 @@ def _obligation(trace, kind):
                  if item.get("kind") == kind), {})
 
 
+def _cl_context_checks(case, agent, pages, trace):
+    context = _investigation(trace or {}).get("cl_context", {})
+    observations = context.get("observations", [])
+    identifiers = {page["evidence_id"] for page in pages}
+    bound = bool(observations) and all(row.get("evidence_ids")
+        and set(row["evidence_ids"]) <= identifiers and ranges_supplied(pages, [{
+            "path": row["relative_path"], "sha256": row["source_sha256"],
+            "start_line": row["start_line"], "end_line": row["end_line"]}]) for row in observations)
+    calls = [row for row in observations if row.get("command") == "CALL"]
+    targets = {row.get("target_name") for row in calls}
+    actual = [row for row in calls if row.get("target_name") == "BATCHPAY"]
+    checks = {"completeness_cl_single_request": agent.get("metrics", {}).get("model_requests") == 1}
+    if case["id"] == "cl_late_context":
+        late = [row for row in actual if row.get("relative_path") == "late.clle" and row.get("start_line", 0) > 300]
+        checks["quality_cl_late_indexed_fact_bound"] = bool(bound and late and all(
+            row.get("binding_basis") == "indexed_complete_source_parse_and_supplied_span" for row in late))
+        checks["quality_cl_late_scope_unknown"] = bool(late and all(row.get("control_scope_supplied") is False
+            and row.get("runtime_execution_verified") is False for row in late)
+            and "未知" in agent.get("answer", ""))
+        checks["completeness_cl_no_repeated_read"] = (context.get("unread_candidate_count") == 0
+            and not any(action.get("reason") == "indexed_batch_context_not_supplied"
+                for action in _investigation(trace or {}).get("planned_actions", []))
+            and agent.get("metrics", {}).get("tool_calls", {}).get("read", 999) <= 3)
+        return checks
+    submits = [row for row in observations if row.get("command") == "SBMJOB"]
+    overrides = [row for row in observations if row.get("command") == "OVRDBF"]
+    deletions = [row for row in observations if row.get("command") == "DLTOVR"]
+    checks["quality_cl_submission_and_calls_supplied"] = bool(bound and submits and "NIGHTJOB" in targets
+        and len(actual) == 2 and len({row["occurrence_id"] for row in actual}) == 2
+        and submits[0].get("initial_library_list") == ["RUNLIB", "DATALIB"])
+    checks["quality_cl_override_and_delete_distinct"] = bool(overrides and deletions and len(actual) == 2
+        and overrides[0].get("tofile", {}).get("name") == "ACCOUNTPF"
+        and overrides[0].get("declared_override_scope") == "*CALLLVL"
+        and actual[0]["start_line"] < deletions[0]["start_line"] < actual[1]["start_line"])
+    checks["quality_cl_literals_not_calls"] = not ({"FAKEJOB", "STRINGJOB", "COMMENTJOB"} & targets)
+    checks["quality_cl_runtime_unknown_preserved"] = bool(observations and all(
+        row.get("runtime_execution_verified") is False and row.get("runtime_object_verified") is False
+        for row in observations) and context.get("scope", {}).get("scheduler_verified") is False
+        and context.get("scope", {}).get("effective_overrides_verified") is False
+        and "未知" in agent.get("answer", ""))
+    return checks
+
+
 def _quality_checks(case, agent, output, pages, trace=None):
     ledger, answer = agent.get("claim_ledger", {}), agent.get("answer", "")
     result = {}
-    if case["id"] == "frontend_semantics":
+    if case["id"] in {"cl_batch_context", "cl_late_context"}:
+        result.update(_cl_context_checks(case, agent, pages, trace))
+    elif case["id"] == "frontend_semantics":
         result.update(frontend_checks(output), **flow_checks(output, case["id"]))
         result["quality_explicit_formulas_supported"] = _supported(ledger, "C", ["A", "+", "B"]) and _supported(
             ledger, "AMOUNT OF OUTPUT-REC", ["AMOUNT", "OF", "INPUT-REC", "*", "2"])
@@ -422,10 +485,25 @@ def _quality_checks(case, agent, output, pages, trace=None):
             r"IF INPUT-\d+ > \d+\s+COMPUTE BILL-AMOUNT = INPUT-\d+ \* \d+", page["source_text"]) for page in pages)
     elif case["corpus"] == "public":
         item = _public_case(case)
-        result["quality_frozen_source_assertions"] = all(_supported(ledger,
+        source_assertions = item["mechanism"]["source_assertions"]
+        result["quality_frozen_source_assertions"] = bool(source_assertions) and all(_supported(ledger,
             assertion.get("target"), assertion.get("expression"), assertion.get("condition"),
             assertion.get("predicate"), assertion.get("effect"))
             for assertion in item["mechanism"]["source_assertions"])
+        answer_checks = item["mechanism"].get("answer_checks", [])
+        result["completeness_reviewed_answer_facts"] = bool(answer_checks) and all(
+            check.get("all_of") and all(re.search(pattern, answer, re.I | re.S) for pattern in check["all_of"])
+            and not any(re.search(pattern, answer, re.I | re.S) for pattern in check.get("none_of", []))
+            for check in answer_checks)
+        local = (trace or {}).get("source_fact_completion", {})
+        result["completeness_local_facts_source_bound"] = bool(
+            local.get("mode") == "non_blocking_local_source_rendering"
+            and local.get("model_requests") == 0 and local.get("answer_preserved") is True
+            and local.get("final_answer_sha256") == hashlib.sha256(answer.encode()).hexdigest()
+            and all(row.get("evidence_id") in {page["evidence_id"] for page in pages}
+                and ranges_supplied(pages, [{"path": row["relative_path"], "sha256": row["source_sha256"],
+                    "start_line": row["start_line"], "end_line": row["end_line"]}])
+                for row in local.get("added_facts", [])))
         if case.get("inject_error"):
             result["quality_injected_error_revised"] = ledger.get("revised_claim_count", 0) > 0
             result["quality_invalid_claim_absent"] = all(text not in answer for text in case["forbidden_answer_text"])
@@ -450,6 +528,13 @@ def _quality_checks(case, agent, output, pages, trace=None):
                     and result["quality_frozen_source_assertions"]
                     and result["quality_injected_error_revised"]
                     and result["quality_invalid_claim_absent"])
+                result["completeness_accumulation_omission_repaired"] = (
+                    accumulation_required and isinstance(missing, list) and "accumulation" not in missing
+                    and "WS-TOTAL-INT" in answer and _supported(ledger, "WS-TOTAL-INT",
+                        ["WS-MONTHLY-INT", "+", "WS-TOTAL-INT"], predicate="assignment_statement")
+                    and result["quality_injected_error_revised"] and result["quality_invalid_claim_absent"]
+                    and result["completeness_reviewed_answer_facts"]
+                    and result["completeness_local_facts_source_bound"])
             else:
                 result["completeness_accumulation_covered"] = (
                     accumulation_required and isinstance(missing, list) and "accumulation" not in missing
@@ -490,6 +575,10 @@ def _quality_checks(case, agent, output, pages, trace=None):
                 and item.get("evidence_ids") and set(item["evidence_ids"]) <= supplied_ids for item in obligations)
                 and not any(gap.get("reason") in {"requested_field_not_bound", "business_steps_not_located"}
                             for gap in investigation.get("open_gaps", [])))
+        if not source_assertions and not case.get("inject_error"):
+            result["quality_frozen_source_assertions"] = bool(
+                result.get("quality_noop_scope_not_monthly_interest")
+                or result.get("completeness_file_entity_bound"))
     return result
 
 

@@ -144,6 +144,8 @@ jobs:
           import sys
 
           for pattern in ('test_activation_evidence.py', 'test_question_budget_delivery.py',
+                          'test_cl_context.py', 'test_batch_context_evidence.py',
+                          'test_answer_fact_completion.py', 'test_statement_io_clauses.py',
                           'test_evidence_answer.py', 'test_evidence_context.py',
                           'test_business_accumulation.py',
                           'test_desktop_acceptance_runtime.py', 'test_desktop_build_contract.py',

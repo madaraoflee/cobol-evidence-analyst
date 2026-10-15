@@ -297,7 +297,8 @@ def _revised_claims(facts, pages):
         **check_statement_support(fact, fact, pages[fact["evidence_id"]])} for fact in facts]
 
 
-def review_answer_claims(answer: str, source_pages, allowed, *, source_format="auto", compilation_context=None):
+def review_answer_claims(answer: str, source_pages, allowed, *, source_format="auto", compilation_context=None,
+                         source_fact_cache=None):
     """Review and repair only affected segments, using actually supplied pages.
 
     Returned ledger preserves rejected claims and exact version evidence for
@@ -311,7 +312,12 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
     pages = {page["evidence_id"]: page for page in source_pages if page.get("evidence_id") in allowed}
     facts = []
     for identifier, page in pages.items():
-        for fact in supplied_statement_facts(page, source_format=source_format, compilation_context=context):
+        key = (page.get("relative_path"), page.get("source_sha256"), page.get("start_line"),
+               page.get("end_line"), page.get("source_text"), context.fingerprint)
+        cached = source_fact_cache.get(key) if isinstance(source_fact_cache, dict) else None
+        projected = cached if cached is not None else supplied_statement_facts(
+            page, source_format=source_format, compilation_context=context)
+        for fact in projected:
             facts.append({**fact, "evidence_id": identifier,
                           "relative_path": page.get("relative_path"), "source_sha256": page["source_sha256"]})
     ledger = ClaimLedger(original_answer_sha256=hashlib.sha256(answer.encode()).hexdigest(),

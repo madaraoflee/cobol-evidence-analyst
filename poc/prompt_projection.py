@@ -28,13 +28,13 @@ _IDENTIFIERS = {
 }
 _INSTRUCTION = (
     "For navigation list X, merge sibling X_shared_fields into EACH row of X; "
-    "row fields take precedence. Shared fields have exactly the same value in "
-    "every occurrence, including unknowns and guards. Rows remain distinct. "
-    "This only shares navigation facts; source pages, whole-program metadata, "
+    "explicit row fields take precedence. Shared values are exactly equal, "
+    "including unknowns and guards. Rows remain distinct. "
+    "Only navigation facts are shared; source pages, whole-program metadata, "
     "framework text, evidence IDs and the question are unchanged. "
-    "A navigation_fact_ref names one exact record in shared_navigation_facts; "
-    "merge that record into the referencing row before reading it. "
-    "Neither inheritance nor a reference establishes execution or new bindings."
+    "A navigation_fact_ref names fields in shared_navigation_facts; "
+    "merge them into that row before reading it. "
+    "Neither inheritance nor references establish execution or new bindings."
 )
 
 
@@ -108,9 +108,67 @@ def _has_reserved_fields(value):
                for key, item in value.items())
 
 
-def _share_exact_records(payload):
-    """Share only identical complete navigation records, including provenance."""
+def _share_navigation_records(payload):
+    """Share exact records and equal row field sets, including provenance."""
     counts = Counter()
+    facts, references = {}, {}
+
+    def reference_for(value):
+        encoded = _encoded(value)
+        reference = references.get(encoded)
+        if reference is None:
+            reference = "nav-" + str(len(facts) + 1)
+            references[encoded] = reference
+            facts[reference] = value
+        return reference
+
+    def share_fields(value):
+        """Share equal field sets within a list without grouping its rows.
+
+        Calls to the same target often repeat parameter layouts while retaining
+        distinct positions and guards. File observations likewise repeat a
+        program scope among otherwise different statements. A subset is shared
+        only where each field is present and byte-for-byte equal; no default,
+        target-name inference or scope widening is involved.
+        """
+        if isinstance(value, dict):
+            return {key: item if key in _AUTHORITY_FIELDS else share_fields(item)
+                    for key, item in value.items()}
+        if not isinstance(value, list):
+            return value
+        rows = [share_fields(item) for item in value]
+        if len(rows) < 2 or any(not isinstance(row, dict) or "_values" in row for row in rows):
+            return rows
+        equal_fields = {}
+        for index, row in enumerate(rows):
+            for field, item in row.items():
+                if (field in _IDENTIFIERS or field in _AUTHORITY_FIELDS or field == _REFERENCE
+                        or field.endswith(_SUFFIX) or _contains_authority(item)):
+                    continue
+                equal_fields.setdefault((field, _encoded(item)), []).append(index)
+        groups = {}
+        for (field, _), indices in equal_fields.items():
+            if len(indices) > 1:
+                groups.setdefault(tuple(indices), {})[field] = rows[indices[0]][field]
+        # One existing reference per row is sufficient. Prefer the largest
+        # saving, then recompute it against rows not used by another subset.
+        candidates = sorted(groups.items(), key=lambda item: (
+            -(len(item[0]) - 1) * _size(item[1]), item[0], _encoded(item[1])))
+        for indices, fields in candidates:
+            eligible = [index for index in indices if _REFERENCE not in rows[index]]
+            if len(eligible) < 2:
+                continue
+            reference = references.get(_encoded(fields), "nav-" + str(len(facts) + 1))
+            replacements = [{_REFERENCE: reference, **{key: item for key, item in rows[index].items()
+                             if key not in fields}} for index in eligible]
+            overhead = 0 if _encoded(fields) in references else _size({reference: fields})
+            saving = sum(_size(rows[index]) for index in eligible) - sum(map(_size, replacements)) - overhead
+            if saving < 96:
+                continue
+            reference_for(fields)
+            for index, replacement in zip(eligible, replacements):
+                rows[index] = replacement
+        return rows
 
     def collect(value):
         if isinstance(value, list):
@@ -126,8 +184,9 @@ def _share_exact_records(payload):
 
     sections = list(_navigation_sections(payload))
     for owner, key in sections:
+        owner[key] = share_fields(owner[key])
+    for owner, key in sections:
         collect(owner[key])
-    facts, references = {}, {}
 
     def replace(value):
         if isinstance(value, list):
@@ -136,11 +195,7 @@ def _share_exact_records(payload):
             return value
         encoded = _encoded(value)
         if counts[encoded] > 1 and len(encoded) >= 256:
-            reference = references.get(encoded)
-            if reference is None:
-                reference = "nav-" + str(len(facts) + 1)
-                references[encoded] = reference
-                facts[reference] = value
+            reference = reference_for(value)
             return {_REFERENCE: reference, **{key: item for key, item in value.items()
                     if key in _IDENTIFIERS or key in {"argument", "kind", "relative_path", "start_line", "end_line"}}}
         return {key: item if key in _AUTHORITY_FIELDS else replace(item) for key, item in value.items()}
@@ -176,7 +231,7 @@ def project_prompt_payload(payload):
         for key in list(context):
             if key not in _CONTEXT_AUTHORITY:
                 context[key] = _project_navigation(context[key])
-    _share_exact_records(projected)
+    _share_navigation_records(projected)
     marker = {"format": _VERSION, "instruction": _INSTRUCTION}
     if _size(payload) - _size(projected) <= _size({_MARKER: marker}) + 96:
         return payload

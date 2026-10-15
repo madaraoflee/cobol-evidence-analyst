@@ -941,3 +941,70 @@ def sql_host_access(code: str) -> tuple[list[str], list[str], bool]:
         if name not in destination:
             destination.append(name)
     return reads, writes, True
+
+
+def io_clause_guards(lines, *, include_operation_scopes=False):
+    """Retain explicit I/O clause scopes using the shared lexical tokens.
+
+    Only an explicitly closed READ/WRITE/REWRITE/DELETE/START is used. Literal
+    keywords, comments, an excerpt's open tail and nested operations cannot
+    create an unqualified error branch.
+    """
+    lines = tuple(lines)
+    if any(line.text.lstrip().startswith(">>") for line in lines):
+        return [{"kind": "io_scope_unknown", "start_line": min(line.start_line for line in lines),
+                 "end_line": max(line.end_line for line in lines)}] if include_operation_scopes else []
+    text = "\n".join(line.text for line in lines)
+    offsets, offset = [], 0
+    for line in lines:
+        offsets.append((offset, line.start_line))
+        offset += len(line.text) + 1
+    from bisect import bisect_right
+    starts = [start for start, _ in offsets]
+    def line_at(position):
+        return offsets[max(0, bisect_right(starts, position) - 1)][1]
+    try:
+        tokens = lex_cobol(text)
+    except CobolLexError:
+        return []
+    stack, result = [], []
+    verbs = {"READ", "WRITE", "REWRITE", "DELETE", "START"}
+    for index, token in enumerate(tokens):
+        word = token.value if token.kind != "literal" else ""
+        if word in verbs:
+            stack.append({"verb": word, "start": line_at(token.start), "token_index": index,
+                          "header": None, "clause": None, "segments": []})
+        elif stack and (word == "END-" + stack[-1]["verb"] or word == "."):
+            current = stack.pop()
+            if current["clause"]:
+                current["segments"].append((current["clause"], line_at(token.start) - 1))
+            for (clause, first), last in current["segments"]:
+                if first <= last:
+                    result.append({"kind": "io_clause", "condition": clause, "start_line": first,
+                                   "end_line": last, "operation": current["verb"],
+                                   "operation_text": current["header"], "operation_line": current["start"]})
+            if include_operation_scopes:
+                result.append({"kind": "io_operation_scope", "operation_line": current["start"],
+                               "start_line": current["start"], "end_line": line_at(token.start), "closed": True})
+            if word == ".":
+                stack.clear()
+        elif stack:
+            values = [item.value if item.kind != "literal" else "" for item in tokens[index:index + 4]]
+            clause = None
+            if values[:3] in (["NOT", "INVALID", "KEY"], ["NOT", "AT", "END"]):
+                clause = " ".join(values[:3])
+            elif values[:2] in (["INVALID", "KEY"], ["AT", "END"]) and not (
+                    index and tokens[index - 1].value == "NOT"):
+                clause = " ".join(values[:2])
+            if clause:
+                current = stack[-1]
+                if current["header"] is None:
+                    current["header"] = " ".join(item.value for item in tokens[current["token_index"]:index])
+                if current["clause"]:
+                    current["segments"].append((current["clause"], line_at(token.start) - 1))
+                current["clause"] = (clause, line_at(token.start))
+    if include_operation_scopes:
+        result.extend({"kind": "io_operation_scope", "operation_line": current["start"],
+                       "start_line": current["start"], "end_line": max(line.end_line for line in lines),
+                       "closed": False} for current in stack)
+    return result

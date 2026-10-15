@@ -31,13 +31,33 @@
     "record.cbl": {
       "path": "record.cbl",
       "sha256": "c6b931e2e1eadfcce3ef91dbfa59b15ea9fabfc73169a3194e918720e925c0eb"
+    },
+    "launcher.clle": {
+      "path": "launcher.clle",
+      "sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b"
+    },
+    "nightjob.clle": {
+      "path": "nightjob.clle",
+      "sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f"
+    },
+    "batchpay.cbl": {
+      "path": "batchpay.cbl",
+      "sha256": "0e5fda95ed6b330dc0fc5b3445879ff11acee60f14698386b843b6093bf4e410"
+    },
+    "ACCOUNTLF.dds": {
+      "path": "ACCOUNTLF.dds",
+      "sha256": "d8a34a64d1641ad247788fa2fc8dd80c17ccc1310e0767e935c6599724cb3bcc"
+    },
+    "late.clle": {
+      "path": "late.clle",
+      "sha256": "52e9c85212c0eddc1678f166cfaacb9de5a74168faf7b40b659ecea97e8009b2"
     }
   },
   "public_corpus": {
     "manifest_path": "docs/eval/public-business-v1/manifest.json",
     "manifest_sha256": "e1ae2ff544272b524e7863dce0b9c972e29d1c35f2d93765fce2dc058012d81b",
     "cases_path": "docs/eval/public-business-v1/cases.json",
-    "cases_sha256": "320343db243281ebdc43784c3a9df4cd8a05893ce558c4d0edc96f920033963f",
+    "cases_sha256": "cb4b5dbdae99cec96307d787a361507f1cb1e64645291e2b64b38142536b1cc5",
     "required": true,
     "source_commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e"
   },
@@ -602,7 +622,9 @@
         "lifecycle_index_reused",
         "quality_critical_answer_preserved",
         "completeness_reviewed_ranges_supplied",
-        "quality_frozen_source_assertions"
+        "quality_frozen_source_assertions",
+        "completeness_reviewed_answer_facts",
+        "completeness_local_facts_source_bound"
       ],
       "assertion_groups": {
         "quality": [
@@ -611,7 +633,9 @@
         ],
         "completeness": [
           "completeness_answer_recorded",
-          "completeness_reviewed_ranges_supplied"
+          "completeness_reviewed_ranges_supplied",
+          "completeness_reviewed_answer_facts",
+          "completeness_local_facts_source_bound"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",
@@ -652,7 +676,9 @@
         "lifecycle_index_reused",
         "quality_critical_answer_preserved",
         "completeness_reviewed_ranges_supplied",
-        "quality_frozen_source_assertions"
+        "quality_frozen_source_assertions",
+        "completeness_reviewed_answer_facts",
+        "completeness_local_facts_source_bound"
       ],
       "assertion_groups": {
         "quality": [
@@ -661,7 +687,9 @@
         ],
         "completeness": [
           "completeness_answer_recorded",
-          "completeness_reviewed_ranges_supplied"
+          "completeness_reviewed_ranges_supplied",
+          "completeness_reviewed_answer_facts",
+          "completeness_local_facts_source_bound"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",
@@ -704,7 +732,9 @@
         "quality_critical_answer_preserved",
         "completeness_reviewed_ranges_supplied",
         "quality_frozen_source_assertions",
-        "completeness_accumulation_covered"
+        "completeness_accumulation_covered",
+        "completeness_reviewed_answer_facts",
+        "completeness_local_facts_source_bound"
       ],
       "assertion_groups": {
         "quality": [
@@ -714,7 +744,9 @@
         "completeness": [
           "completeness_answer_recorded",
           "completeness_reviewed_ranges_supplied",
-          "completeness_accumulation_covered"
+          "completeness_accumulation_covered",
+          "completeness_reviewed_answer_facts",
+          "completeness_local_facts_source_bound"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",
@@ -756,7 +788,9 @@
         "quality_invalid_claim_absent",
         "quality_frozen_source_assertions",
         "completeness_reviewed_ranges_supplied",
-        "completeness_accumulation_omission_reported"
+        "completeness_accumulation_omission_repaired",
+        "completeness_reviewed_answer_facts",
+        "completeness_local_facts_source_bound"
       ],
       "assertion_groups": {
         "quality": [
@@ -767,7 +801,9 @@
         "completeness": [
           "completeness_answer_recorded",
           "completeness_reviewed_ranges_supplied",
-          "completeness_accumulation_omission_reported"
+          "completeness_accumulation_omission_repaired",
+          "completeness_reviewed_answer_facts",
+          "completeness_local_facts_source_bound"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",
@@ -809,7 +845,9 @@
         "quality_critical_answer_preserved",
         "completeness_reviewed_ranges_supplied",
         "quality_prose_not_falsely_verified",
-        "completeness_file_entity_bound"
+        "completeness_file_entity_bound",
+        "completeness_reviewed_answer_facts",
+        "completeness_local_facts_source_bound"
       ],
       "assertion_groups": {
         "quality": [
@@ -819,7 +857,9 @@
         "completeness": [
           "completeness_answer_recorded",
           "completeness_reviewed_ranges_supplied",
-          "completeness_file_entity_bound"
+          "completeness_file_entity_bound",
+          "completeness_reviewed_answer_facts",
+          "completeness_local_facts_source_bound"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",
@@ -863,7 +903,9 @@
         "quality_critical_answer_preserved",
         "completeness_reviewed_ranges_supplied",
         "quality_prose_not_falsely_verified",
-        "quality_noop_scope_not_monthly_interest"
+        "quality_noop_scope_not_monthly_interest",
+        "completeness_reviewed_answer_facts",
+        "completeness_local_facts_source_bound"
       ],
       "assertion_groups": {
         "quality": [
@@ -873,7 +915,9 @@
         ],
         "completeness": [
           "completeness_answer_recorded",
-          "completeness_reviewed_ranges_supplied"
+          "completeness_reviewed_ranges_supplied",
+          "completeness_reviewed_answer_facts",
+          "completeness_local_facts_source_bound"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",
@@ -915,7 +959,9 @@
         "quality_invalid_claim_absent",
         "quality_frozen_source_assertions",
         "completeness_reviewed_ranges_supplied",
-        "quality_noop_scope_not_monthly_interest"
+        "quality_noop_scope_not_monthly_interest",
+        "completeness_reviewed_answer_facts",
+        "completeness_local_facts_source_bound"
       ],
       "assertion_groups": {
         "quality": [
@@ -926,7 +972,9 @@
         ],
         "completeness": [
           "completeness_answer_recorded",
-          "completeness_reviewed_ranges_supplied"
+          "completeness_reviewed_ranges_supplied",
+          "completeness_reviewed_answer_facts",
+          "completeness_local_facts_source_bound"
         ],
         "evidence": [
           "evidence_supplied_hashes_match",
@@ -1020,6 +1068,134 @@
           },
           "expected_primary_kind": "formula"
         }
+      ]
+    },
+    {
+      "id": "cl_batch_context",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "completeness_reviewed_ranges_supplied",
+        "quality_cl_submission_and_calls_supplied",
+        "quality_cl_override_and_delete_distinct",
+        "quality_cl_literals_not_calls",
+        "quality_cl_runtime_unknown_preserved",
+        "completeness_cl_single_request"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_cl_submission_and_calls_supplied",
+          "quality_cl_override_and_delete_distinct",
+          "quality_cl_literals_not_calls",
+          "quality_cl_runtime_unknown_preserved"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_reviewed_ranges_supplied",
+          "completeness_cl_single_request"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "frozen",
+      "files": [
+        "batchpay.cbl",
+        "launcher.clle",
+        "nightjob.clle",
+        "ACCOUNTLF.dds"
+      ],
+      "reviewed_files": [
+        "batchpay.cbl",
+        "launcher.clle",
+        "nightjob.clle"
+      ],
+      "question": "BATCHPAY 批处理怎么触发？CL 中 ACCOUNTLF 的 OVRDBF 和 DLTOVR 分别声明什么？",
+      "policy": {
+        "max_model_requests": 1,
+        "max_answer_revisions": 0
+      },
+      "required_answer_text": [
+        "BATCHPAY",
+        "源码",
+        "未知"
+      ]
+    },
+    {
+      "id": "cl_late_context",
+      "owner": "cases",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "completeness_answer_recorded",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "lifecycle_index_reused",
+        "completeness_reviewed_ranges_supplied",
+        "quality_cl_late_indexed_fact_bound",
+        "quality_cl_late_scope_unknown",
+        "completeness_cl_no_repeated_read",
+        "completeness_cl_single_request"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_cl_late_indexed_fact_bound",
+          "quality_cl_late_scope_unknown"
+        ],
+        "completeness": [
+          "completeness_answer_recorded",
+          "completeness_reviewed_ranges_supplied",
+          "completeness_cl_no_repeated_read",
+          "completeness_cl_single_request"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash"
+        ],
+        "lifecycle": [
+          "lifecycle_index_reused"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "frozen",
+      "files": [
+        "batchpay.cbl",
+        "late.clle"
+      ],
+      "reviewed_files": [
+        "batchpay.cbl"
+      ],
+      "question": "BATCHPAY 批处理怎么触发？请按实际供应的 CL 调用点说明，未供应的控制范围保持未知。",
+      "policy": {
+        "max_model_requests": 1,
+        "max_answer_revisions": 0
+      },
+      "required_answer_text": [
+        "BATCHPAY",
+        "源码",
+        "未知"
       ]
     }
   ]

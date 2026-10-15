@@ -62,8 +62,9 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         errors = []
         self.assertTrue(_live_case_scope(items, errors))
         self.assertEqual(errors, [])
-        self.assertEqual(sum(len(_turns(item)) for item in items), 24)
+        self.assertEqual(sum(len(_turns(item)) for item in items), 26)
         self.assertTrue({"activation_trigger", "caller_condition", "external_scheduler_unknown"} <= coverage)
+        self.assertTrue({"ibmi_cl_batch", "cl_library_list", "cl_file_override", "cl_late_target"} <= coverage)
         for item in items:
             for turn in _turns(item):
                 merged = {**item, **turn}
@@ -268,18 +269,18 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         suite.write_json(manifest, original)
         return public, manifest
 
-    def test_generated_delivery_is_deterministic_and_has_31_frozen_turns(self):
+    def test_generated_delivery_is_deterministic_and_has_33_frozen_turns(self):
         public, manifest = self.fake_public_root()
         with patch.object(suite, "PUBLIC_MANIFEST", manifest):
             first = suite.generate_suite(self.root / "suite-a", public)
             second = suite.generate_suite(self.root / "suite-b", public)
-        self.assertEqual(first["user_turn_count"], 31)
-        self.assertEqual(first["maximum_model_requests"], 93)
-        self.assertEqual(first["source_files"], 21)
+        self.assertEqual(first["user_turn_count"], 33)
+        self.assertEqual(first["maximum_model_requests"], 99)
+        self.assertEqual(first["source_files"], 26)
         self.assertEqual(suite.digest(first["cases"]), suite.digest(second["cases"]))
         self.assertEqual(suite.digest(first["lock"]), suite.digest(second["lock"]))
         document = json.loads(first["cases"].read_text(encoding="utf-8"))
-        self.assertEqual(len(document["cases"]), 27)
+        self.assertEqual(len(document["cases"]), 29)
         self.assertEqual(document["budget"]["real_model_calls_performed"], 0)
         public_cases = [item for item in document["cases"] if item["id"].startswith("public-")]
         self.assertEqual(len(public_cases), 7)
@@ -310,9 +311,9 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         public, manifest = self.fake_public_root()
         with patch.object(suite, "PUBLIC_MANIFEST", manifest):
             result = suite.generate_suite(self.root / "large-suite", public, include_scale=True)
-        self.assertEqual(result["user_turn_count"], 36)
-        self.assertEqual(result["maximum_model_requests"], 108)
-        self.assertEqual(result["source_files"], 12045)
+        self.assertEqual(result["user_turn_count"], 38)
+        self.assertEqual(result["maximum_model_requests"], 114)
+        self.assertEqual(result["source_files"], 12050)
         self.assertTrue((result["source"] / "scale/member-11999.cbl").is_file())
         self.assertFalse((result["source"].parent / "scale-source").exists())
         lock = json.loads(result["lock"].read_text(encoding="utf-8"))

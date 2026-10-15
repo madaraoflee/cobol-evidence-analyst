@@ -1287,17 +1287,34 @@ def build_question_investigation(question, business_map, *, database_path=None,
             "state": "located" if located else "unresolved", "can_answer": located}
     if identity_blocks_analysis(identity):
         return {**base, "state": "unresolved", "can_answer": False}
+    batch = None
+    if database_path and (set(plan.intents) & {"activation", "file_mapping", "impact"}
+            or any(Path(path).suffix.lower() in {".cl", ".clle", ".clp"} for path in paths)):
+        from batch_context_evidence import investigate_batch_context
+        batch = investigate_batch_context(business_map, source_pages, database_path=database_path,
+            max_actions=max_actions, candidate_cache=candidate_cache)
+
+    def include_batch(result):
+        context = batch.get("cl_context", {}) if batch else {}
+        if not context.get("candidate_count") and not context.get("frontier"):
+            return result
+        combined = {json.dumps({"tool": action["tool"], "arguments": action["arguments"]}, sort_keys=True): action
+            for action in [*result.get("planned_actions", ()), *batch["planned_actions"]]}
+        actions = list(combined.values())[:max(0, max_actions)]
+        return {**result, "cl_context": context, "planned_actions": actions,
+            "state": "needs_evidence" if actions else result.get("state", "located")}
+
     activation = None
     if "activation" in plan.intents:
         from activation_evidence import investigate_activation
         activation = investigate_activation(business_map, source_pages, database_path=database_path,
             max_actions=max_actions, candidate_cache=candidate_cache)
-        if not set(plan.intents) & {"calculation", "accumulation", "origin", "overwrite", "impact", "exception"}:
-            return {**base, **activation}
+        if not set(plan.intents) & {"calculation", "accumulation", "origin", "overwrite", "impact", "exception", "file_mapping"}:
+            return include_batch({**base, **activation})
 
     def include_activation(result):
         if activation is None:
-            return result
+            return include_batch(result)
         actions = {json.dumps({"tool": action["tool"], "arguments": action["arguments"]}, sort_keys=True): action
                    for action in [*result.get("planned_actions", ()), *activation["planned_actions"]]}
         all_actions = list(actions.values())
@@ -1306,11 +1323,11 @@ def build_question_investigation(question, business_map, *, database_path=None,
         if len(all_actions) > len(actions):
             gaps.append({"kind": "caller_invocation", "reason": "combined_action_frontier",
                 "remaining": len(all_actions)-len(actions)})
-        return {**result, "required_items": [*result.get("required_items", ()), *activation["required_items"]],
+        return include_batch({**result, "required_items": [*result.get("required_items", ()), *activation["required_items"]],
             "planned_actions": actions, "open_gaps": gaps,
             "activation_evidence": activation["activation_evidence"],
             "state": "needs_evidence" if actions else "bounded_partial" if gaps else "located",
-            "can_answer": bool(result.get("can_answer") or activation["can_answer"]) and not actions}
+            "can_answer": bool(result.get("can_answer") or activation["can_answer"]) and not actions})
     intent_question = str(question)
     for scope in source_scopes:
         intent_question = re.sub(r"(?<![A-Za-z0-9_$#@-])" + re.escape(scope["procedure_name"]) +

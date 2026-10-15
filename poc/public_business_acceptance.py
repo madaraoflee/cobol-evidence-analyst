@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 import tempfile
 import time
@@ -26,6 +27,39 @@ from source_reading import _identify_page, _safe_file
 
 
 DEFAULT_MANIFEST = Path(__file__).resolve().parents[1] / "docs/eval/public-business-v1/manifest.json"
+
+
+def _answer_coverage(answer, checks):
+    """Reviewed lexical expectations are completeness signals, not model scores."""
+    rows = [{"id": check["id"], "covered": bool(check.get("all_of"))
+             and all(re.search(pattern, answer, re.I | re.S) is not None for pattern in check["all_of"])
+             and all(re.search(pattern, answer, re.I | re.S) is None for pattern in check.get("none_of", ()))}
+            for check in checks]
+    return {"method": "source_reviewed_answer_patterns", "evaluated": bool(rows), "checks": rows,
+            "passed": bool(rows) and all(row["covered"] for row in rows)}
+
+
+def _source_expectations(page, facts, checks):
+    """Require positive source witnesses even for non-arithmetic questions."""
+    from structural_index import normalize_cobol_lines
+    from statement_facts import CobolLexError, lex_cobol
+    lines, _ = normalize_cobol_lines(page["source_text"], "fixed")
+    try:
+        values = tuple(token.value for token in lex_cobol("\n".join(line.text for line in lines)))
+    except CobolLexError:
+        values = ()
+    rows = []
+    for check in checks:
+        if check.get("kind") == "source_tokens":
+            wanted = tuple(check.get("tokens", ()))
+            supported = bool(wanted) and any(values[index:index + len(wanted)] == wanted for index in range(len(values)))
+        elif check.get("kind") == "source_fact":
+            wanted = check.get("fact") or {}
+            supported = bool(wanted) and any(all(fact.get(key) == value for key, value in wanted.items()) for fact in facts)
+        else:
+            supported = False
+        rows.append({"id": check["id"], "kind": check.get("kind"), "supported": supported})
+    return rows
 
 
 def run_acceptance(source_root, manifest_path=DEFAULT_MANIFEST, *, output_path=None):
@@ -67,13 +101,17 @@ def run_acceptance(source_root, manifest_path=DEFAULT_MANIFEST, *, output_path=N
             # occurrences inside the independently reviewed range are scored.
             full_page = {**page, "start_line": 1, "end_line": len(lines), "source_text": "\n".join(lines)}
             full_page["evidence_id"] = _identify_page(full_page)
-            facts = [fact for fact in supplied_statement_facts(full_page, source_format="fixed")
+            all_facts = supplied_statement_facts(full_page, source_format="fixed")
+            facts = [fact for fact in all_facts
                      if location["start_line"] <= fact["start_line"] <= fact["end_line"] <= location["end_line"]]
             static_checks = []
             for assertion in mechanism["source_assertions"]:
                 verdicts = [check_statement_support(assertion, fact, full_page) for fact in facts]
                 static_checks.append({"assertion": assertion,
                     "supported": any(verdict["support_status"] == "supported" for verdict in verdicts)})
+            source_checks = _source_expectations(full_page, all_facts, mechanism.get("source_checks", ()))
+            positive_source = bool(static_checks or source_checks) and all(
+                check["supported"] for check in [*static_checks, *source_checks])
             for branch, answer in (("correct", mechanism["fake_correct_answer"]),
                                    ("incorrect", mechanism.get("fake_incorrect_answer"))):
                 if answer is None:
@@ -113,7 +151,12 @@ def run_acceptance(source_root, manifest_path=DEFAULT_MANIFEST, *, output_path=N
                         policy=policy.to_dict(), gold=case.get("gold") or {}, context=actual_context,
                         source_snapshot_id=trace.get("analysis_revision", index["snapshot_id"]),
                         evidence_status="supplied" if final_rounds else "unavailable", question=case["question"]),
-                    "static_rule_checks": static_checks, "static_rules_supported": all(check["supported"] for check in static_checks),
+                    "static_rule_checks": static_checks,
+                    "static_rules_evaluated": bool(static_checks),
+                    "static_rules_supported": bool(static_checks) and all(check["supported"] for check in static_checks),
+                    "positive_source_checks": source_checks, "positive_source_supported": positive_source,
+                    "answer_coverage": _answer_coverage(result["answer"], mechanism.get("answer_checks", ())),
+                    "source_fact_completion": trace.get("source_fact_completion", {}),
                     "default_answer": result["answer"], "ledger": ledger,
                     "supplied_evidence": supplied_ranges, "source_evidence_fingerprint": hashlib.sha256(
                         json.dumps(supplied_ranges, sort_keys=True).encode()).hexdigest(),
@@ -121,10 +164,12 @@ def run_acceptance(source_root, manifest_path=DEFAULT_MANIFEST, *, output_path=N
                     "stop_reason": result.get("stop_reason"), "status": result.get("status")}
                 if branch == "incorrect":
                     row["incorrect_claim_revised"] = ledger.get("revised_claim_count", 0) > 0
-                    row["mechanism_passed"] = row["incorrect_claim_revised"] and row["static_rules_supported"]
+                    row["mechanism_passed"] = (row["incorrect_claim_revised"] and positive_source
+                                               and row["answer_coverage"]["passed"])
                 else:
                     row["correct_claims_preserved"] = ledger.get("counts", {}).get("contradicted", 0) == 0
-                    row["mechanism_passed"] = row["static_rules_supported"] and bool(supplied_ranges) and row["correct_claims_preserved"]
+                    row["mechanism_passed"] = (positive_source and bool(supplied_ranges)
+                        and row["correct_claims_preserved"] and row["answer_coverage"]["passed"])
                 report["cases"].append(row)
         from parser_adapter import IsolatedParserAdapter, PROLEAP, CHE4Z
         for candidate in (PROLEAP, CHE4Z):

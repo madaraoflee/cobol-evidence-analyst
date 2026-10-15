@@ -307,6 +307,7 @@ def synthetic_cases(source):
         ["仅按段落/变量名字推断。", "遗漏WHEN2或OTHER分支。"], split="holdout", coverage=["evaluate_merge", "reserved_question"]))
     result.extend(record_binding_cases(source))
     result.extend(report_conversation_cases(source))
+    result.extend(batch_context_cases(source))
     result.append(question("batch-activation-trigger", ACTIVATION_QUESTION,
         [finding("activation-caller-condition", "JOB-STEP的真实调用方LAUNCHER在READY-FLAG=1的IF下请求CALL；条件不是对READY-FLAG赋值。",
                  source_range(source, "synthetic/launcher.cbl", 5, 10)),
@@ -355,6 +356,29 @@ def public_cases(source):
         item.update(id=identifier, question=prompt, coverage=[coverage])
         result.append(item)
     return result
+
+
+def batch_context_cases(source):
+    launcher, job, record = "synthetic/launcher.clle", "synthetic/nightjob.clle", "synthetic/ACCOUNTLF.dds"
+    late = "synthetic/late.clle"
+    return [question("cl-batch-runtime-context",
+        "BATCHPAY 批次如何由 CL 启动？请说明 JOBD、库列表、ACCOUNTLF 文件覆盖、成员和 DLTOVR 后的再次调用，哪些只由源码声明、哪些需要运行配置？",
+        [finding("cl-source-submission", "launcher通过SBMJOB的CMD请求调用RUNLIB/NIGHTJOB，JOBD为CFGLIB/BATCHDESC，INLLIBL声明RUNLIB DATALIB；不能把提交语句当成实际定时调度或提交成功。",
+                 anchor(source, launcher, "SBMJOB CMD(", count=2)),
+         finding("cl-file-environment", "nightjob声明库列表并将STAGELIB放到首位；OVRDBF将ACCOUNTLF指向DATALIB/ACCOUNTPF，MBR使用&DAY，OVRSCOPE为*CALLLVL。DDS的PFILE关系单独有原文，但不能确认实际运行对象或成员值。",
+                 source_range(source, job, 3, 7), source_range(source, record, 1, 2)),
+         finding("cl-occurrence-and-unknown", "两次BATCHPAY调用是独立位置，中间有MONMSG和DLTOVR声明；不能据此断言覆盖已成功生效/撤销，或把提交方覆盖传给子作业。字符串里的FAKEJOB/STRINGJOB和注释COMMENTJOB不是调用。",
+                 source_range(source, job, 5, 13))],
+        ["从名字猜生产调度时间或称SBMJOB已真实运行成功。", "合并两次BATCHPAY调用而丢掉DLTOVR前后位置。", "把字符串/注释当CALL。", "无运行配置断言有效库列表、真实成员值或覆盖生效。"],
+        coverage=["ibmi_cl_batch", "cl_library_list", "cl_file_override"]),
+        question("cl-late-command-context",
+        "只看 synthetic/late.clle：靠后位置的 BATCHPAY 调用是什么，前面的 IF 怎样限制它？请区分实际供应的控制证据和真实执行。",
+        [finding("cl-late-call", "靠后位置声明CALL BATCHPAY，PARM为&READY；要保留该物理发生位置，不因前面大量其他命令而漏掉调用。",
+                 anchor(source, late, "CALL BATCHPAY")),
+         finding("cl-late-guard", "前置IF条件为&READY *EQ 'Y'，THEN(DO)控制该调用；完整解释须有条件原文，片段未供应时只能说明控制未知，不能说无条件调用或已实际执行。",
+                 anchor(source, late, "IF COND("), anchor(source, late, "CALL BATCHPAY"))],
+        ["因调用位置靠后就说不存在调用。", "把词法前缀未供应当成已证实无条件调用。", "把源码调用声明当作真实执行。"],
+        coverage=["cl_late_target", "ibmi_cl_batch"])]
 
 
 def large_cases(source, specification):

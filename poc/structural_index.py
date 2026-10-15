@@ -56,8 +56,8 @@ from repo_inventory import (
 )
 
 
-SCHEMA_VERSION = "0.3"
-PARSER_VERSION = "source-facts-v0.9"
+SCHEMA_VERSION = "0.4"
+PARSER_VERSION = "source-facts-v0.10"
 INLINE_AST_ADAPTER_VERSION = "inline-statement-ast-v2"
 
 PROGRAM_ID_RE = re.compile(
@@ -597,6 +597,10 @@ class _SQLCodeScanner:
 
 def parse_document(document: SourceDocument, *, progress: Callable[[int, int], None] | None = None,
                    compilation_context=None) -> ParsedFile:
+    from cl_context import is_cl_path
+    if is_cl_path(document.relative_path):
+        # CL has its own lexical rules; a COBOL CALL regex is not a CL fact.
+        return ParsedFile(document, (), (), (), ())
     compilation = CompilationGuardState(compilation_context)
     active_lines, compilation_lines, directives, inactive = [], {}, [], []
     for item in document.lines:
@@ -847,6 +851,8 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
             metadata=metadata,
         )
         for frame in control_stack:
+            if frame.kind == "EVALUATE_WHEN":
+                frame.metadata["when_body_started"] = True
             control_metadata: dict[str, object] = {
                 "outcome": frame.outcome, "control_kind": frame.kind,
                 **frame.metadata,
@@ -1392,10 +1398,19 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
             )
             for reverse_index in range(len(control_stack) - 1, -1, -1):
                 if control_stack[reverse_index].kind.startswith("EVALUATE"):
+                    previous = control_stack[reverse_index]
+                    when_sources = list(previous.metadata.get("prior_when_sources", ()))
+                    grouped_when = previous.kind == "EVALUATE_WHEN" and not previous.metadata.get("when_body_started")
+                    if previous.kind == "EVALUATE_WHEN":
+                        when_sources.append(previous.outcome)
                     control_stack[reverse_index] = ControlFrame(
                         kind="EVALUATE_WHEN",
                         condition_id=when_unit.unit_id,
                         outcome=upper.rstrip("."),
+                        parse_status="partial" if grouped_when else "complete",
+                        metadata={**previous.metadata, "prior_when_sources": when_sources,
+                                  "when_body_started": False, "grouped_when_unresolved": grouped_when,
+                                  "is_other": upper.rstrip(".").strip() == "WHEN OTHER"},
                     )
                     break
             for field_name in _unique_identifiers(
@@ -1502,7 +1517,8 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
                     metadata={"condition": expression},
                 )
             control_stack.append(
-                ControlFrame("EVALUATE", condition_unit.unit_id, "selector")
+                ControlFrame("EVALUATE", condition_unit.unit_id, "selector",
+                             metadata={"selector": expression, "evaluate_source": line.text.strip()})
             )
             if sentence_terminated(line.text):
                 control_stack.clear()
@@ -1815,6 +1831,8 @@ def _ensure_schema(connection: sqlite3.Connection) -> None:
         """
     )
     ensure_call_binding_schema(connection)
+    from cl_context import ensure_cl_schema
+    ensure_cl_schema(connection)
     try:
         connection.execute(
             """
@@ -1834,6 +1852,8 @@ def _ensure_schema(connection: sqlite3.Connection) -> None:
 
 def _delete_file_facts(connection: sqlite3.Connection, relative_path: str, *,
                        delete_search: bool = True) -> None:
+    from cl_context import delete_cl_facts
+    delete_cl_facts(connection, relative_path)
     # Scan the FTS table once. Deleting once per statement made refresh time
     # quadratic because unit_id is an UNINDEXED FTS column.
     if delete_search:
@@ -1863,6 +1883,12 @@ def _insert_parsed_file(
     connection: sqlite3.Connection, parsed: ParsedFile
 ) -> None:
     document = parsed.document
+    from cl_context import CLSourceCollector, is_cl_path, persist_cl_facts
+    if is_cl_path(document.relative_path):
+        collector = CLSourceCollector(document.relative_path, document.source_sha256)
+        for number, line in enumerate(document.raw_lines, 1):
+            collector.consume(number, line)
+        persist_cl_facts(connection, collector)
     indexed_at = datetime.now(timezone.utc).isoformat()
     connection.execute(
         """

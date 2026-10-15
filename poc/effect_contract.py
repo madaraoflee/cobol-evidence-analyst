@@ -20,7 +20,7 @@ _RESOURCE_SUPPORT = {
     "cobol-file": ("bounded", "FD/SELECT/ASSIGN and explicit file requests; runtime contents unknown"),
     "sql": ("bounded", "SQL operation and host variables; database contents and execution result unknown"),
     "dds": ("candidate", "DDS artifacts are indexed; access-path, join and lock semantics require target validation"),
-    "cl": ("candidate", "CL artifacts are indexed; command execution and environment effects are unresolved"),
+    "cl": ("candidate", "Indexed CALL/SBMJOB, library-list and file-override source commands; effective job environment and execution are unverified"),
     "jcl": ("candidate", "JCL artifacts are indexed; job allocation and runtime procedures are unresolved"),
     "cics": ("unsupported", "No target-validated CICS effect adapter is configured"),
 }
