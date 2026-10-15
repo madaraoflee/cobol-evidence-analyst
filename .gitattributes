@@ -3,6 +3,10 @@
 *.json text eol=lf
 *.cbl text eol=lf
 *.cpy text eol=lf
+*.cl text eol=lf
+*.clle text eol=lf
+*.clp text eol=lf
+*.dds text eol=lf
 *.crt text eol=lf
 *.key text eol=lf
 *.yml text eol=lf

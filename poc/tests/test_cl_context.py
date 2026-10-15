@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextlib import closing
 from pathlib import Path
 import shutil
 import sqlite3
@@ -181,7 +182,7 @@ class CLIndexTests(unittest.TestCase):
             text = (self.source / row["relative_path"]).read_text()
             self.assertEqual(row["statement"], "\n".join(text.splitlines()[row["start_line"]-1:row["end_line"]]))
             self.assertEqual(row["source_sha256"], hashlib.sha256((self.source / row["relative_path"]).read_bytes()).hexdigest())
-        with sqlite3.connect(self.database) as db:
+        with closing(sqlite3.connect(self.database)) as db, db:
             targets = {row[0] for row in db.execute("SELECT target_name FROM cl_command_facts WHERE command='CALL'")}
             self.assertNotIn("FAKEJOB", targets)
             self.assertNotIn("COMMENTJOB", targets)
@@ -268,7 +269,7 @@ class CLIndexTests(unittest.TestCase):
             [forged])["observations"], [])
 
     def test_old_indexes_request_upgrade_and_budget_is_explicit(self):
-        with sqlite3.connect(self.database) as db:
+        with closing(sqlite3.connect(self.database)) as db, db:
             db.execute("CREATE TABLE source_files(relative_path TEXT)")
         candidates, frontier, _ = nominate_cl_evidence(self.database, [], ["BATCHPAY"])
         self.assertEqual(candidates, [])
