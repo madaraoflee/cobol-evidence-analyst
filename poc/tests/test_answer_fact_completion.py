@@ -106,6 +106,73 @@ class SourceFactCompletionTests(unittest.TestCase):
         self.assertNotIn("本次计算没有 ROUNDED", answer)
         self.assertNotIn("本次计算使用 ROUNDED", answer)
 
+    def test_unmapped_io_assignment_guards_preserve_independent_answer_facts(self):
+        bodies = [
+            "READ INPUT-FILE INVALID KEY\nCOMPUTE OUT-AMOUNT = RAW-AMOUNT * 2 NOT INVALID KEY\n"
+            "COMPUTE OUT-AMOUNT = RAW-AMOUNT * 3 END-READ.",
+            "READ INPUT-FILE\nINVALID KEY\nREAD SECOND-FILE\nNOT INVALID KEY\n"
+            "COMPUTE OUT-AMOUNT = RAW-AMOUNT * 2.",
+            "EXEC SQL SET :RESULT-CODE = LENGTH('A' || 'B') END-EXEC\nREAD INPUT-FILE\n"
+            "INVALID KEY\nCOMPUTE OUT-AMOUNT = RAW-AMOUNT * 2\nNOT INVALID KEY\nCONTINUE\nEND-READ.",
+        ]
+        original = "TOTAL-AMOUNT = RAW-AMOUNT * 4。原有业务解释保留。"
+        for body in bodies:
+            with self.subTest(body=body):
+                source = self.replace_body("COMPUTE TOTAL-AMOUNT = RAW-AMOUNT * 4\n" + body)
+                answer, report = complete_supplied_answer("计算规则", original, investigation(source),
+                    [page(source)], source_format="free")
+                self.assertTrue(answer.startswith(original))
+                self.assertNotIn("OUT-AMOUNT = RAW-AMOUNT * 2", answer)
+                self.assertNotIn("OUT-AMOUNT = RAW-AMOUNT * 3", answer)
+                self.assertGreater(report["omitted_candidate_count"], 0)
+
+    def test_size_error_formula_addition_states_its_normal_result_condition(self):
+        source = self.replace_body("COMPUTE OUT-AMOUNT = RAW-AMOUNT * 2\nON SIZE ERROR\n"
+                                   "MOVE 12 TO RESULT-CODE\nEND-COMPUTE.")
+        answer, _ = complete_supplied_answer("计算规则", "原业务说明。", investigation(source),
+            [page(source)], source_format="free")
+        self.assertIn("无 SIZE ERROR 时的算式为 `OUT-AMOUNT = RAW-AMOUNT * 2`", answer)
+        self.assertNotIn("Decimal", answer)
+
+    def test_assignment_span_crossing_an_io_clause_boundary_is_not_one_guarded_fact(self):
+        source = self.replace_body("READ INPUT-FILE\nINVALID KEY\nCOMPUTE OUT-AMOUNT = RAW-AMOUNT * 2\n"
+            "NOT INVALID KEY\nCOMPUTE OUT-AMOUNT = RAW-AMOUNT * 3\nEND-READ.")
+        original = "原有业务解释保留。"
+        answer, report = complete_supplied_answer("计算规则", original, investigation(source),
+            [page(source)], source_format="free")
+        self.assertTrue(answer.startswith(original))
+        self.assertNotIn("OUT-AMOUNT = RAW-AMOUNT * 2", answer)
+        self.assertGreater(report["omitted_candidate_count"], 0)
+
+    def test_default_chain_keeps_body_and_does_not_add_mixed_line_io_assignment(self):
+        source = self.replace_body("COMPUTE TOTAL-AMOUNT = RAW-AMOUNT * 4\nREAD INPUT-FILE INVALID KEY\n"
+            "COMPUTE OUT-AMOUNT = RAW-AMOUNT * 2 NOT INVALID KEY\n"
+            "COMPUTE OUT-AMOUNT = RAW-AMOUNT * 3 END-READ.")
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "flow.cbl").write_text(source)
+            database = root / "index.sqlite"
+            build_business_index(root, database, source_format="free")
+            ensure_repository_search(database, root)
+            calls = []
+            def transport(request):
+                payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+                calls.append(payload)
+                supplied = [entry for bundle in payload["source_context"] for entry in bundle.get("pages", ())
+                            if entry.get("relative_path") == "flow.cbl"]
+                evidence = max(supplied, key=lambda entry: entry["end_line"] - entry["start_line"])
+                text = "TOTAL-AMOUNT = RAW-AMOUNT * 4。[" + evidence["evidence_id"] + "] 原有业务解释保留。"
+                return TransportResponse(200, json.dumps({"choices": [{"message": {"content": text}, "finish_reason": "stop"}]}))
+            result = run_business_chat("CALCFLOW 的 CALCULATE-AMOUNT 计算规则", database, root,
+                CompanyAPIConfig("https://gateway.example.invalid/v1", "offline-test-model", api_key="local-test-only"),
+                framework_reference_path="", transport=transport,
+                policy=AgentPolicy(max_model_requests=1, max_answer_revisions=0))["agent_result"]
+            self.assertEqual(len(calls), 1)
+            self.assertIn("TOTAL-AMOUNT = RAW-AMOUNT * 4", result["answer"])
+            self.assertIn("原有业务解释保留", result["answer"])
+            self.assertNotIn("OUT-AMOUNT = RAW-AMOUNT * 2", result["answer"])
+            self.assertNotIn("OUT-AMOUNT = RAW-AMOUNT * 3", result["answer"])
+
     def test_following_invocation_keeps_its_if_condition(self):
         source = SOURCE.replace("PERFORM WRITE-RESULT.", "IF RATE = 1\nPERFORM WRITE-RESULT\nEND-IF.")
         answer, _ = complete_supplied_answer("计算并累加", "OUT-AMOUNT = RAW-AMOUNT * RATE / 1200。",

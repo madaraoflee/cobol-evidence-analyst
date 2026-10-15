@@ -36,6 +36,28 @@ class IOClauseFactsTests(unittest.TestCase):
         self.assertEqual({(row["operation_text"], row["condition"]) for row in covering},
                          {("READ FIRST-FILE", "INVALID KEY"), ("READ SECOND-FILE", "NOT INVALID KEY")})
 
+    def test_mixed_line_branch_marker_is_not_line_level_proof(self):
+        lines = normalize_cobol_lines("READ INPUT-FILE INVALID KEY\n"
+            "COMPUTE OUT-AMOUNT = RAW-AMOUNT * 2 NOT INVALID KEY\n"
+            "COMPUTE OUT-AMOUNT = RAW-AMOUNT * 3 END-READ.", "free")[0]
+        facts = io_clause_guards(lines, include_operation_scopes=True)
+        scope = next(row for row in facts if row["kind"] == "io_operation_scope")
+        self.assertIn(2, scope["ambiguous_lines"])
+
+    def test_implicit_nested_period_retains_unknown_outer_scope(self):
+        lines = normalize_cobol_lines("READ FIRST-FILE\nINVALID KEY\nREAD SECOND-FILE\n"
+            "NOT INVALID KEY\nCOMPUTE OUT-AMOUNT = RAW-AMOUNT * 2.", "free")[0]
+        facts = io_clause_guards(lines, include_operation_scopes=True)
+        self.assertTrue(any(row["kind"] == "io_scope_unknown" and row["start_line"] <= 5 <= row["end_line"]
+                            for row in facts))
+
+    def test_embedded_sql_lexical_boundary_is_unknown_instead_of_no_guards(self):
+        lines = normalize_cobol_lines("EXEC SQL SET :RESULT-CODE = LENGTH('A' || 'B') END-EXEC\n"
+            "READ INPUT-FILE\nINVALID KEY\nMOVE 101 TO RESULT-CODE\nEND-READ.", "free")[0]
+        facts = io_clause_guards(lines, include_operation_scopes=True)
+        self.assertTrue(any(row["kind"] == "io_scope_unknown" and row.get("reason") == "source_lexical_boundary"
+                            for row in facts))
+
 
 if __name__ == "__main__":
     unittest.main()

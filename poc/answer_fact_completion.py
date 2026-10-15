@@ -81,15 +81,19 @@ def _condition_descriptions(guards, io_guards, line):
     return descriptions
 
 
-def _io_conditions_complete(io_facts, line):
+def _io_conditions_complete(io_facts, line, end_line=None):
+    end_line = line if end_line is None else end_line
     for scope in io_facts:
-        if scope["kind"] not in {"io_operation_scope", "io_scope_unknown"} or not scope["start_line"] <= line <= scope["end_line"]:
+        if (scope["kind"] not in {"io_operation_scope", "io_scope_unknown"}
+                or scope["end_line"] < line or scope["start_line"] > end_line):
             continue
         if scope["kind"] == "io_scope_unknown" or not scope.get("closed"):
             return False
+        if any(line <= boundary <= end_line for boundary in scope.get("ambiguous_lines", ())):
+            return False
         matching = [guard for guard in io_facts if guard["kind"] == "io_clause"
                     and guard["operation_line"] == scope["operation_line"]
-                    and guard["start_line"] <= line <= guard["end_line"]]
+                    and guard["start_line"] <= line <= end_line <= guard["end_line"]]
         if len(matching) != 1:
             return False
     return True
@@ -170,7 +174,8 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
         targets = {fact["target"] for fact in arithmetic if fact["statement_kind"] == "COMPUTE"}
         for fact in selected:
             guards = _unit_guards(parsed, by_id, fact["occurrence_id"])
-            if guards is None:
+            if guards is None or not _io_conditions_complete(io_facts, fact["start_line"] - base, fact["end_line"] - base):
+                targets.discard(fact["target"])
                 report["omitted_candidate_count"] += 1
                 continue
             assertion = {key: fact[key] for key in ("predicate", "target", "expression", "rounded")}
@@ -188,6 +193,8 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
             conditions = _condition_descriptions(guards, io_guards, fact["start_line"] - base)
             if conditions:
                 prefix = "在 " + " 且 ".join(conditions) + "时，"
+            if fact.get("normal_result_condition") == "no_size_error":
+                prefix += "无 SIZE ERROR 时的算式为 "
             candidates.append((page, fact["start_line"], fact["end_line"], "assignment", formula,
                                prefix + "`" + formula + "`"))
         # A calculation's directly following local invocation is a visible
@@ -206,7 +213,7 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
                         target = tokens[1].value.strip("'\"")
                         if target.upper() not in answer.upper():
                             guards = _unit_guards(parsed, by_id, unit.unit_id)
-                            if guards is None or not _io_conditions_complete(io_facts, unit.start_line):
+                            if guards is None or not _io_conditions_complete(io_facts, unit.start_line, unit.end_line):
                                 report["omitted_candidate_count"] += 1
                                 continue
                             conditions = _condition_descriptions(guards, io_guards, unit.start_line)

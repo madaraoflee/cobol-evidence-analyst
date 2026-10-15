@@ -966,14 +966,16 @@ def io_clause_guards(lines, *, include_operation_scopes=False):
     try:
         tokens = lex_cobol(text)
     except CobolLexError:
-        return []
+        return ([{"kind": "io_scope_unknown", "start_line": min(line.start_line for line in lines),
+                  "end_line": max(line.end_line for line in lines), "reason": "source_lexical_boundary"}]
+                if include_operation_scopes else [])
     stack, result = [], []
     verbs = {"READ", "WRITE", "REWRITE", "DELETE", "START"}
     for index, token in enumerate(tokens):
         word = token.value if token.kind != "literal" else ""
         if word in verbs:
             stack.append({"verb": word, "start": line_at(token.start), "token_index": index,
-                          "header": None, "clause": None, "segments": []})
+                          "header": None, "clause": None, "segments": [], "ambiguous_lines": set()})
         elif stack and (word == "END-" + stack[-1]["verb"] or word == "."):
             current = stack.pop()
             if current["clause"]:
@@ -985,8 +987,13 @@ def io_clause_guards(lines, *, include_operation_scopes=False):
                                    "operation_text": current["header"], "operation_line": current["start"]})
             if include_operation_scopes:
                 result.append({"kind": "io_operation_scope", "operation_line": current["start"],
-                               "start_line": current["start"], "end_line": line_at(token.start), "closed": True})
+                               "start_line": current["start"], "end_line": line_at(token.start), "closed": True,
+                               "ambiguous_lines": sorted(current["ambiguous_lines"])})
             if word == ".":
+                if include_operation_scopes:
+                    result.extend({"kind": "io_scope_unknown", "start_line": outer["start"],
+                                   "end_line": line_at(token.start), "reason": "implicit_nested_scope_not_mapped"}
+                                  for outer in stack)
                 stack.clear()
         elif stack:
             values = [item.value if item.kind != "literal" else "" for item in tokens[index:index + 4]]
@@ -1001,6 +1008,8 @@ def io_clause_guards(lines, *, include_operation_scopes=False):
                 if current["header"] is None:
                     current["header"] = " ".join(item.value for item in tokens[current["token_index"]:index])
                 if current["clause"]:
+                    if index and line_at(tokens[index - 1].end - 1) == line_at(token.start):
+                        current["ambiguous_lines"].add(line_at(token.start))
                     current["segments"].append((current["clause"], line_at(token.start) - 1))
                 current["clause"] = (clause, line_at(token.start))
     if include_operation_scopes:
