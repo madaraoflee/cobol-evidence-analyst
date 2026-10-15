@@ -56,8 +56,9 @@ class RequestFitLatencyTests(unittest.TestCase):
         page = self.page("ev:formula", "rule.cbl", "COMPUTE RESULT-AMOUNT = INPUT-AMOUNT * 2.")
         payload = self.payload([page])
         payload["source_context"][0]["open_frontier"] = [
-            {"reason": "neutral_navigation", "detail": "unselected catalog entry " * 180}
-            for _ in range(20)]
+            {"reason": "neutral_navigation", "detail": " | ".join(
+                f"unselected catalog entry {entry:02} candidate {candidate:03}" for candidate in range(180))}
+            for entry in range(20)]
         calls = []
 
         def builder(pages):

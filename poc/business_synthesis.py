@@ -576,6 +576,59 @@ def needs_synthesis_review(question, answer, investigation, *, source_available=
     return completion["status"] == "incomplete"
 
 
+def _analysis_brief_task(detail_requested, syntax_present):
+    """Keep the canonical guidance stable while allowing a wire-only summary."""
+    return (("简要给出结论、决定性条件和来源。" if not detail_requested else "给出结论及足以推导该结论的业务解释。")
+                + "以用户所问的对象、场景和假设为范围，沿相关条件、赋值、调用及返回处理说明结果。"
+                "required_answer_aspects 是从词面和可见源码提取的候选要点，按问题选择；"
+                "未执行的路径说明为何跳过及其结果，只有用户问其算法时才展开计算。"
+                "没有直接 COMPUTE 时仍可根据赋值、分支与调用解释已知规则。"
+                "计算发生时核对输入、顺序、舍入和后续覆盖；跨程序参数沿每一层传递与入口声明追踪。"
+                "异常或状态码逐项绑定产生它的调用点、条件和后续动作，再作范围一致的归纳。"
+                "framework_facts 中适用的约定可解释当前调用；缺少实现与约定时，"
+                "解释可见的操作请求、传入值、状态检查与后续分支。"
+                "call_effect_boundaries 逐调用标明需要核对的效果：call_implementation_not_supplied 的调用"
+                "按‘发起某操作请求并检查返回状态’描述；即使操作码名为保存、恢复或锁定，"
+                "正文、表格和总结均只陈述调用方可见动作，外部效果由实际实现或适用约定支持。"
+                "按问题所问时点区分调用前传入值与调用后返回值：actual_parameters 给出实参与传递方式，"
+                "mutable_outputs 中的参数及下级字段可能被外部调用改写；返回后的值须沿返回约定或后续本地赋值追踪。"
+                "mutable_output_groups.observed_fields 列出从当前调用方或明确 COPY 引入的具体下级字段，"
+                "这些字段同样遵守调用后的取值规则；按当前问题选取相关字段解释。"
+                "SQL 的 host_outputs 是 INTO 输出，须结合执行语义与后续赋值判断；处理分支中未出现 MOVE，"
+                "本身不构成这些输出仍保留调用前值的依据。问题仅问某次调用的输入时，解释到该输入形成即结束。"
+                + ("syntax_guide 的 IF outcome=false 表示条件不成立；"
+                   "EVALUATE prior_branches_must_not_match 表示此前分支均不命中。"
+                   "syntax_order_in_unit 是源码顺序，effects_unknown 表示该语句效果尚未解析。"
+                   if syntax_present else "")
+                + "behavior_guide 是语法位置导航；结合相关原文推导。内部可读缺口用工具补查，"
+                "真实缺失只限定受影响的结论。正文围绕业务结果推进，关键判断附实际来源引用。")
+
+
+def project_analysis_brief(brief):
+    """Replace only our known generic guidance; retain every source-bound fact.
+
+    Unknown/custom guidance is preserved. This projection does not change the
+    canonical report, source coverage, obligations, syntax or call-effect facts.
+    """
+    if not isinstance(brief, dict):
+        return brief
+    syntax = brief.get("syntax_guide")
+    expected = _analysis_brief_task(bool(brief.get("detail_requested")),
+                                    isinstance(syntax, dict) and bool(syntax.get("facts")))
+    if brief.get("task") != expected:
+        return brief
+    return {**brief, "task": (
+        "按当前问题、场景、假设和时点解释结论，引用已供应原文。"
+        "required_answer_aspects/behavior_guide 是候选导航，不证明执行。"
+        "保留控制条件、输入、顺序、舍入、后续覆盖及各层实参传递。"
+        "逐调用解释异常/状态、输入与返回值：未知外部效果、mutable_outputs及其下级字段、"
+        "SQL INTO输出不得假定保持调用前值，须有返回约定或后续赋值。"
+        "应用适用framework_facts；缺少实现时仅说明操作请求及状态检查。"
+        "syntax_guide 的false为条件不成立，prior_branches_must_not_match为之前分支均未命中。"
+        "源码顺序不等于执行路径，effects_unknown仍未知。"
+        "补查可读缺口，未知只限定受影响结论，按系统和response_contract交付。") }
+
+
 def build_analysis_brief(question, investigation, source_pages, framework_references, max_output_tokens,
                          *, answer_detail="detailed", business_map=None, framework_facts=()):
     """Bind the synthesis brief to excerpts surviving actual request trimming."""
@@ -615,31 +668,8 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
             "unavailable_or_runtime_targets": external[:8],
             "remaining_gaps": [{key: gap[key] for key in ("kind", "reason") if key in gap} for gap in gaps[:8]],
             "semantic_execution_verified": False,
-            "task": ("简要给出结论、决定性条件和来源。" if not wants_business_detail(
-                question, answer_detail=answer_detail) else "给出结论及足以推导该结论的业务解释。")
-                + "以用户所问的对象、场景和假设为范围，沿相关条件、赋值、调用及返回处理说明结果。"
-                "required_answer_aspects 是从词面和可见源码提取的候选要点，按问题选择；"
-                "未执行的路径说明为何跳过及其结果，只有用户问其算法时才展开计算。"
-                "没有直接 COMPUTE 时仍可根据赋值、分支与调用解释已知规则。"
-                "计算发生时核对输入、顺序、舍入和后续覆盖；跨程序参数沿每一层传递与入口声明追踪。"
-                "异常或状态码逐项绑定产生它的调用点、条件和后续动作，再作范围一致的归纳。"
-                "framework_facts 中适用的约定可解释当前调用；缺少实现与约定时，"
-                "解释可见的操作请求、传入值、状态检查与后续分支。"
-                "call_effect_boundaries 逐调用标明需要核对的效果：call_implementation_not_supplied 的调用"
-                "按‘发起某操作请求并检查返回状态’描述；即使操作码名为保存、恢复或锁定，"
-                "正文、表格和总结均只陈述调用方可见动作，外部效果由实际实现或适用约定支持。"
-                "按问题所问时点区分调用前传入值与调用后返回值：actual_parameters 给出实参与传递方式，"
-                "mutable_outputs 中的参数及下级字段可能被外部调用改写；返回后的值须沿返回约定或后续本地赋值追踪。"
-                "mutable_output_groups.observed_fields 列出从当前调用方或明确 COPY 引入的具体下级字段，"
-                "这些字段同样遵守调用后的取值规则；按当前问题选取相关字段解释。"
-                "SQL 的 host_outputs 是 INTO 输出，须结合执行语义与后续赋值判断；处理分支中未出现 MOVE，"
-                "本身不构成这些输出仍保留调用前值的依据。问题仅问某次调用的输入时，解释到该输入形成即结束。"
-                + ("syntax_guide 的 IF outcome=false 表示条件不成立；"
-                   "EVALUATE prior_branches_must_not_match 表示此前分支均不命中。"
-                   "syntax_order_in_unit 是源码顺序，effects_unknown 表示该语句效果尚未解析。"
-                   if syntax_guide.get("facts") else "")
-                + "behavior_guide 是语法位置导航；结合相关原文推导。内部可读缺口用工具补查，"
-                "真实缺失只限定受影响的结论。正文围绕业务结果推进，关键判断附实际来源引用。"}
+            "task": _analysis_brief_task(wants_business_detail(question, answer_detail=answer_detail),
+                                          bool(syntax_guide.get("facts")))}
 
 
 def link_answer_claims(answer, allowed):

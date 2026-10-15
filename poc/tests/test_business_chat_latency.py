@@ -19,6 +19,7 @@ from analyze_source import AnalysisCancelled
 import business_chat
 from business_index import build_business_index
 from company_api import CompanyAPIConfig, TransportResponse
+from company_api import APIClientError
 from repository_discovery import ensure_repository_search
 import semantic_scope
 
@@ -181,10 +182,60 @@ class BusinessChatLatencyTests(unittest.TestCase):
         self.assertEqual(timings["local_processing_seconds"], 4.0)
         self.assertEqual(timings["total_seconds"], 244.0)
 
-    def test_request_timeout_uses_remaining_question_budget(self):
+    def test_delivery_target_does_not_shorten_provider_request(self):
         result = self.ask(policy=AgentPolicy(max_question_seconds=7, max_model_requests=1))
+        self.assertEqual(self.request_timeouts, [20.0])
+        self.assertTrue(result["model_answer_recorded"])
+
+    def test_explicit_hard_limit_still_bounds_provider_request(self):
+        result = self.ask(policy=AgentPolicy(max_question_seconds=7, hard_question_seconds=7, max_model_requests=1))
         self.assertEqual(self.request_timeouts, [7.0])
         self.assertTrue(result["model_answer_recorded"])
+
+    def test_slow_completed_first_answer_crosses_target_without_being_discarded(self):
+        def respond(payload):
+            self.clock_value = 121.0
+            page = next(p for p in self.pages(payload) if "COMPUTE BILL-AMOUNT" in p["source_text"])
+            return f"BILL-AMOUNT = PRINCIPAL + FEE；账单日期已到且本金为正时输出。[{page['evidence_id']}]"
+        result = self.ask(respond=respond, policy=AgentPolicy(max_model_requests=1))
+        self.assertEqual(len(self.requests), 1)
+        self.assertTrue(result["model_answer_recorded"])
+        self.assertEqual(result["answer_origin"], "model")
+        self.assertIn("PRINCIPAL + FEE", result["answer"])
+        self.assertTrue(result["metrics"]["delivery_target"]["reached"])
+        self.assertFalse(result["metrics"]["delivery_target"]["inflight_request_cancelled_by_target"])
+        self.assertNotEqual(result["stop_reason"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+
+    def test_provider_failure_preserves_source_answer_without_claiming_model_success(self):
+        def fail(payload):
+            self.clock_value = 121.0
+            raise APIClientError("REQUEST_TIMEOUT")
+        result = self.ask(question="BILL-RULE 的 BILL-AMOUNT 怎样计算？", respond=fail,
+                          policy=AgentPolicy(max_model_requests=1))
+        self.assertEqual(len(self.requests), 1)
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertFalse(result["model_answer_recorded"])
+        self.assertTrue(result["answer_available"])
+        self.assertEqual(result["answer_origin"], "local_source_facts")
+        self.assertIn("PRINCIPAL + FEE", result["answer"])
+        self.assertGreater(len(result["evidence_refs"]), 0)
+        self.assertEqual(result["stop_reason"], "REQUEST_TIMEOUT")
+        from run_store import RunStore
+        saved = RunStore(self.root / "investigation-runs.sqlite").load(result["run_id"])
+        self.assertEqual(saved["state"], "attention")
+        self.assertEqual(len(saved["uncertain_requests"]), 1)
+        repeated = business_chat.run_business_chat(
+            "BILL-RULE 的 BILL-AMOUNT 怎样计算？", self.database, self.source, self.config,
+            transport=lambda request: self.fail("An uncertain request was sent again"),
+            allow_network=False, framework_reference_path="",
+            resume_run_id=result["run_id"], policy=AgentPolicy(max_model_requests=1))
+        self.assertEqual(repeated["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
+        retained = repeated["agent_result"]
+        self.assertEqual(retained["answer"], result["answer"])
+        self.assertEqual(retained["claim_ledger"], result["claim_ledger"])
+        self.assertEqual(retained["evidence_refs"], result["evidence_refs"])
+        self.assertEqual(retained["answer_origin"], "local_source_facts")
+        self.assertFalse(retained["model_answer_recorded"])
 
     def test_slow_first_request_reserves_last_interval_for_answer(self):
         self.config = replace(self.config, timeout_seconds=60)
@@ -197,7 +248,7 @@ class BusinessChatLatencyTests(unittest.TestCase):
             return self.answer(payload)
 
         result = self.ask(respond=respond)
-        self.assertEqual(self.request_timeouts, [60.0, 45.0])
+        self.assertEqual(self.request_timeouts, [60.0, 60.0])
         self.assertEqual(self.requests[-1]["investigation_budget"]["remaining_model_requests"], 1)
         self.assertEqual(self.requests[-1]["investigation_budget"]["reads_per_turn"], 0)
         self.assertTrue(result["model_answer_recorded"])
@@ -211,7 +262,7 @@ class BusinessChatLatencyTests(unittest.TestCase):
             return original(*args, check_cancel=check_cancel, **kwargs)
 
         with mock.patch.object(business_chat, "build_business_map", side_effect=slow_map):
-            result = self.ask()
+            result = self.ask(policy=AgentPolicy(hard_question_seconds=120))
         self.assertEqual(self.requests, [])
         self.assertEqual(result["stop_reason"], "QUESTION_TIME_BUDGET_EXHAUSTED")
         from run_store import RunStore

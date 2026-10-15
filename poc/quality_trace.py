@@ -10,8 +10,8 @@ import secrets
 import time
 from run_store import RunStore
 
-PIPELINE_VERSION = "question-evidence-v16"
-PROMPT_VERSION = "business-chat-v20"
+PIPELINE_VERSION = "question-evidence-v17"
+PROMPT_VERSION = "business-chat-v21"
 
 def _digest(value):
     return hashlib.sha256(value).hexdigest()

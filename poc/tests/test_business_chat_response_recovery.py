@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -50,7 +52,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
         self.requests = []
         self.provider_echo = "PRIVATE_REMOTE_FAILURE_MARKER"
 
-    def ask(self, respond, *, conversation_id=None):
+    def ask(self, respond, *, conversation_id=None, question="FINAL-AMOUNT 怎么计算？"):
         self.requests.clear()
 
         def transport(request):
@@ -64,7 +66,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
                                 for page in pages))
             return respond(payload)
 
-        return run_business_chat("FINAL-AMOUNT 怎么计算？", self.database, self.source,
+        return run_business_chat(question, self.database, self.source,
             self.config, transport=transport, framework_reference_path="",
             conversation_id=conversation_id,
             policy=AgentPolicy(max_model_requests=1, max_answer_revisions=0))
@@ -73,6 +75,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
         result = output["agent_result"]
         self.assertEqual(result["answer"], expected)
         self.assertTrue(result["model_answer_recorded"])
+        self.assertEqual(result["answer_origin"], "model")
         self.assertIn(result["status"], {"ANALYZED", "PARTIAL"})
         self.assertEqual(output["runner_status"], "COMPLETED")
         self.assertEqual(len(self.requests), 1)
@@ -88,8 +91,61 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
         self.assertNotEqual(result["stop_reason"], "sufficient_material")
         return result
 
+    def assert_local_source_answer(self, output):
+        """Only this fixture's version-bound facts may replace missing prose."""
+        result = output["agent_result"]
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["answer_origin"], "local_source_facts")
+        self.assertIs(result["answer_available"], True)
+        self.assertIs(result["model_answer_recorded"], False)
+        self.assertIs(result["claims_semantically_verified"], False)
+        self.assertEqual(output["runner_status"], "COMPLETED")
+        self.assertEqual(len(self.requests), 1)
+        self.assertEqual(result["metrics"]["model_requests"], 1)
+        self.assertNotEqual(result["stop_reason"], "sufficient_material")
+        self.assertIn("FINAL-AMOUNT = BASIS * FACTOR", result["answer"])
+        self.assertIn("IF BASIS > ZERO", result["answer"])
+        self.assertIn("条件不成立", result["answer"])
+        self.assertIn("FINAL-AMOUNT = ZERO", result["answer"])
+        for forbidden in (self.provider_echo, '"search":', '"read":', '"tool_calls":',
+                          "scan_repository", "search_code", "reasoning_content"):
+            self.assertNotIn(forbidden, result["answer"])
+        supplied = {page["evidence_id"]: page for request in self.requests
+                    for bundle in request["source_context"] for page in bundle["pages"]}
+        self.assertTrue(result["evidence_refs"])
+        for ref in result["evidence_refs"]:
+            self.assertIn(ref["evidence_id"], supplied)
+            page = supplied[ref["evidence_id"]]
+            for key in ("relative_path", "start_line", "end_line", "source_sha256"):
+                self.assertEqual(ref[key], page[key])
+            self.assertEqual(ref["source_sha256"], hashlib.sha256(
+                (self.source / ref["relative_path"]).read_bytes()).hexdigest())
+        cited = set(re.findall(r"\[(ev[_:-][^\]\r\n]+)\]", result["answer"]))
+        self.assertTrue(cited)
+        self.assertEqual(cited, {ref["evidence_id"] for ref in result["narrative"]["citations"]})
+        self.assertTrue(cited <= set(supplied))
+        ledger = result["claim_ledger"]
+        self.assertEqual(ledger["answer_sha256"], hashlib.sha256(result["answer"].encode()).hexdigest())
+        self.assertEqual(ledger["scope"], "bounded_source_statement_syntax")
+        self.assertIs(ledger["prose_semantics_verified"], False)
+        self.assertEqual(ledger["counts"]["contradicted"], 0)
+        supported = [entry for entry in ledger["entries"] if entry["support_status"] == "supported"]
+        self.assertTrue(any(entry["target_entity"] == "FINAL-AMOUNT"
+            and entry["expression"] == ["BASIS", "*", "FACTOR"] for entry in supported))
+        self.assertTrue(any(entry["target_entity"] == "FINAL-AMOUNT"
+            and entry["expression"] == ["ZERO"] for entry in supported))
+        self.assertTrue(all(entry["occurrence_ids"] and entry["source_versions"] for entry in supported))
+        self.assertTrue(all(version["source_sha256"] == hashlib.sha256(
+            (self.source / version["relative_path"]).read_bytes()).hexdigest()
+            for entry in supported for version in entry["source_versions"]))
+        trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(trace["final"]["answer_origin"], "local_source_facts")
+        self.assertIsNone(trace["final"]["final_answer_round_id"])
+        self.assertEqual(trace["final"]["final_answer_round_ids"], [])
+        return result
+
     def assert_safe_failure(self, output, code, stage, *, http_status=None):
-        result = self.assert_abstained(output)
+        result = self.assert_local_source_answer(output)
         self.assertEqual(output["reason_code"], code)
         error = next(item for item in result["diagnostics"] if item["code"] == code)
         self.assertEqual(error["stage"], stage)
@@ -171,6 +227,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
         self.assertEqual(result["narrative"]["text"], draft)
         self.assertEqual(result["status"], "PARTIAL")
         self.assertTrue(result["model_answer_recorded"])
+        self.assertEqual(result["answer_origin"], "model")
         self.assertEqual(output["runner_status"], "COMPLETED")
         self.assertEqual(output["reason_code"], code)
         self.assertEqual(len(self.requests), 2)
@@ -246,8 +303,21 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
                      "我需要先读取源码确认条件。",
                      "I need to read the source and locate the formula before I can answer."):
             with self.subTest(text=text):
-                result = self.assert_abstained(self.ask(lambda payload: completion(text)))
+                result = self.assert_local_source_answer(self.ask(lambda payload: completion(text)))
                 self.assertNotEqual(result["answer"], text)
+
+    def test_unmatched_field_still_abstains_instead_of_using_nearby_formula(self):
+        output = self.ask(lambda payload: completion(None),
+            question="rule.cbl 的 UNKNOWN-FIELD 从哪里来的？")
+        result = self.assert_abstained(output)
+        self.assertNotEqual(result.get("answer_origin"), "local_source_facts")
+        self.assertNotIn("FINAL-AMOUNT = BASIS * FACTOR", result["answer"])
+
+    def test_unmatched_field_planning_sentence_is_not_a_model_answer(self):
+        output = self.ask(lambda payload: completion("需要先找字段来源才能解释。"),
+            question="rule.cbl 的 UNKNOWN-FIELD 从哪里来的？")
+        result = self.assert_abstained(output)
+        self.assertNotIn("需要先找字段来源才能解释。", result["answer"])
 
     def test_malformed_and_empty_investigation_requests_do_not_become_answers(self):
         for text in ('{"search": [', '{"search":[]}', '{"read":[]}',
@@ -487,7 +557,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
                 error = self.assert_safe_failure(output, "TRANSPORT_ERROR", "provider_request")
                 self.assertEqual(error["transport_reason"], reason)
                 result = output["agent_result"]
-                self.assertIn(text, result["answer"])
+                self.assertIn(text, result["diagnostic"]["reason"])
                 trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
                 self.assertEqual(trace["rounds"][0]["response"]["transport_reason"], reason)
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -59,11 +60,37 @@ class BusinessChatAPIErrorsTests(unittest.TestCase):
                 capture_api_responses=True,
                 policy=AgentPolicy(max_model_requests=4, max_answer_revisions=0))
 
+    def assert_local_source_delivery(self, result):
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["answer_origin"], "local_source_facts")
+        self.assertTrue(result["answer_available"])
+        self.assertFalse(result["model_answer_recorded"])
+        self.assertFalse(result["claims_semantically_verified"])
+        self.assertIn("NET-AMOUNT = BASE-AMOUNT - FEE", result["answer"])
+        self.assertIn("最终结果尚未确认", result["answer"])
+        self.assertEqual(result["narrative"]["text"], result["answer"])
+        pages = {page["evidence_id"]: page
+            for bundle in json.loads(json.loads(self.calls[-1].body)["messages"][-1]["content"])["source_context"]
+            for page in bundle["pages"]}
+        citations = result["narrative"]["citations"]
+        self.assertTrue(citations)
+        for citation in citations:
+            self.assertIn(citation["evidence_id"], pages)
+            supplied = pages[citation["evidence_id"]]
+            self.assertEqual(citation["source_sha256"], supplied["source_sha256"])
+            self.assertEqual(citation["source_sha256"], hashlib.sha256(
+                (self.source / citation["relative_path"]).read_bytes()).hexdigest())
+            self.assertIn("COMPUTE NET-AMOUNT = BASE-AMOUNT - FEE", supplied["source_text"])
+        supported = [entry for entry in result["claim_ledger"]["entries"] if entry["support_status"] == "supported"]
+        self.assertTrue(any(entry["target_entity"] == "NET-AMOUNT" and
+                            entry["expression"] == ["BASE-AMOUNT", "-", "FEE"] for entry in supported))
+        self.assertEqual(result["metrics"]["provider_retries"], [])
+
     def test_typed_transport_failure_stops_and_preserves_safe_diagnostic(self):
         output = self.run_chat([APIClientError("TRANSPORT_ERROR", transport_reason="connection_reset")])
         self.assertEqual(len(self.calls), 1)
         result = output["agent_result"]
-        self.assertFalse(result["model_answer_recorded"])
+        self.assert_local_source_delivery(result)
         self.assertEqual(result["diagnostics"][-1]["diagnostic"]["transport_reason"], "connection_reset")
         self.assertEqual(result["diagnostic_summary"]["api_failures"][-1]["transport_reason"], "connection_reset")
         self.assertEqual(output["api_diagnostics"]["exchanges"][-1]["body_text"], "")
@@ -80,15 +107,15 @@ class BusinessChatAPIErrorsTests(unittest.TestCase):
                     "code": code, "message": reflected + self.config.api_key}}))])
                 result = output["agent_result"]
                 self.assertEqual(len(self.calls), 1)
-                self.assertFalse(result["model_answer_recorded"])
+                self.assert_local_source_delivery(result)
                 diagnostic = result["diagnostics"][-1]["diagnostic"]
                 self.assertEqual(diagnostic["category"], category)
                 self.assertEqual(diagnostic["evidence_source"], "provider_code")
                 self.assertEqual(diagnostic["http_status"], status)
-                self.assertIn(diagnostic["reason"], result["answer"])
-                self.assertIn(diagnostic["next_step"], result["answer"])
-                self.assertIn(diagnostic["request_id"], result["answer"])
                 failure = result["diagnostic_summary"]["api_failures"][-1]
+                for key in ("reason", "next_step", "request_id"):
+                    self.assertEqual(result["diagnostic"][key], diagnostic[key])
+                    self.assertEqual(failure[key], diagnostic[key])
                 self.assertEqual(failure["category"], category)
                 self.assertEqual(failure["request_id"], diagnostic["request_id"])
                 self.assertEqual(failure["stage"], "provider_request")

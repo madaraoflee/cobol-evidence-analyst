@@ -38,6 +38,8 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
                            ("continuation.cbl", suite.CONTINUATION_SOURCE), ("reserved.cbl", suite.RESERVED_SOURCE),
                            ("report.cbl", _conversation_source())):
             (synthetic / name).write_bytes(text.encode("utf-8"))
+        for name, text in suite.activation_sources().items():
+            (synthetic / name).write_bytes(text.encode("utf-8"))
 
     def test_suite_can_be_invoked_as_script_outside_repository(self):
         result = subprocess.run([sys.executable, str(ROOT / "tools/office_acceptance_cases.py"), "--help"],
@@ -60,7 +62,8 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         errors = []
         self.assertTrue(_live_case_scope(items, errors))
         self.assertEqual(errors, [])
-        self.assertEqual(sum(len(_turns(item)) for item in items), 23)
+        self.assertEqual(sum(len(_turns(item)) for item in items), 24)
+        self.assertTrue({"activation_trigger", "caller_condition", "external_scheduler_unknown"} <= coverage)
         for item in items:
             for turn in _turns(item):
                 merged = {**item, **turn}
@@ -265,18 +268,18 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         suite.write_json(manifest, original)
         return public, manifest
 
-    def test_generated_delivery_is_deterministic_and_has_30_frozen_turns(self):
+    def test_generated_delivery_is_deterministic_and_has_31_frozen_turns(self):
         public, manifest = self.fake_public_root()
         with patch.object(suite, "PUBLIC_MANIFEST", manifest):
             first = suite.generate_suite(self.root / "suite-a", public)
             second = suite.generate_suite(self.root / "suite-b", public)
-        self.assertEqual(first["user_turn_count"], 30)
-        self.assertEqual(first["maximum_model_requests"], 90)
-        self.assertEqual(first["source_files"], 19)
+        self.assertEqual(first["user_turn_count"], 31)
+        self.assertEqual(first["maximum_model_requests"], 93)
+        self.assertEqual(first["source_files"], 21)
         self.assertEqual(suite.digest(first["cases"]), suite.digest(second["cases"]))
         self.assertEqual(suite.digest(first["lock"]), suite.digest(second["lock"]))
         document = json.loads(first["cases"].read_text(encoding="utf-8"))
-        self.assertEqual(len(document["cases"]), 26)
+        self.assertEqual(len(document["cases"]), 27)
         self.assertEqual(document["budget"]["real_model_calls_performed"], 0)
         public_cases = [item for item in document["cases"] if item["id"].startswith("public-")]
         self.assertEqual(len(public_cases), 7)
@@ -307,9 +310,9 @@ class OfficeAcceptanceGoldTests(unittest.TestCase):
         public, manifest = self.fake_public_root()
         with patch.object(suite, "PUBLIC_MANIFEST", manifest):
             result = suite.generate_suite(self.root / "large-suite", public, include_scale=True)
-        self.assertEqual(result["user_turn_count"], 35)
-        self.assertEqual(result["maximum_model_requests"], 105)
-        self.assertEqual(result["source_files"], 12043)
+        self.assertEqual(result["user_turn_count"], 36)
+        self.assertEqual(result["maximum_model_requests"], 108)
+        self.assertEqual(result["source_files"], 12045)
         self.assertTrue((result["source"] / "scale/member-11999.cbl").is_file())
         self.assertFalse((result["source"].parent / "scale-source").exists())
         lock = json.loads(result["lock"].read_text(encoding="utf-8"))

@@ -6,6 +6,7 @@ stay on the target computer; this command does not publish or upload anything.
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 from datetime import datetime, timezone
 import hashlib
 import ipaddress
@@ -14,6 +15,7 @@ from pathlib import Path
 import secrets
 import shutil
 import statistics
+import sqlite3
 import sys
 import time
 from urllib.parse import urlsplit
@@ -29,6 +31,68 @@ from desktop_acceptance import inspect_package, extract_package, digest, require
 from desktop_acceptance_runtime import NativeWorkbench, isolated_environment, read_journal
 from acceptance_diagnostics import capture_diagnostics
 from live_business_eval import _fingerprint
+from model_profiles import WORKBENCH_TIMEOUT_SECONDS
+
+
+def execution_wait_policy(policy):
+    """Keep measured delivery goals separate from the harness safety watchdog.
+
+    The frozen desktop uses model_config('workbench'), whose timeout is a
+    shared constant, not a dotenv setting. Reserve every allowed exchange plus
+    optional local analysis, two minutes for source/context preparation and
+    45 seconds for verification/checkpointing. This is a conservative watchdog,
+    not an assertion that all local operations have a mathematical time bound.
+    """
+    transport = float(WORKBENCH_TIMEOUT_SECONDS)
+    local_reserve = 120 + policy.max_local_analysis_seconds
+    cleanup = 45
+    wait = policy.max_model_requests * transport + local_reserve + cleanup
+    if policy.hard_question_seconds is not None:
+        wait = min(wait, policy.hard_question_seconds + cleanup)
+    return {"basis": "workbench_transport_and_local_cleanup",
+        "transport_timeout_seconds": transport,
+        "maximum_model_requests": policy.max_model_requests,
+        "local_processing_reserve_seconds": local_reserve,
+        "verification_cleanup_reserve_seconds": cleanup,
+        "hard_question_seconds": policy.hard_question_seconds,
+        "watchdog_seconds": wait,
+        "performance_target_seconds": policy.max_question_seconds,
+        "performance_target_interrupts_answer": False}
+
+
+def _capture_interrupted_requests(report, workspace):
+    """Archive actual uncertainty before shutting down the application process."""
+    try:
+        requests = read_journal(workspace)["requests"]
+    except (OSError, ValueError, sqlite3.Error, AssertionError, KeyError):
+        report["request_journal_status"] = "unavailable_attention_required"
+        report["remote_result_unknown"] = True
+        return
+    report["request_journal_status"] = "captured_before_shutdown"
+    report["interrupted_requests"] = [{key: row[key] for key in
+        ("run_id", "request_id", "state", "request_hash") if key in row} for row in requests]
+    report["observed_model_requests"] = max(report["observed_model_requests"], len(requests))
+    report["remote_result_unknown"] = any(row.get("state") != "completed" for row in requests)
+    journal = Path(workspace) / "investigation-runs.sqlite"
+    if not journal.is_file():
+        return
+    drafts = []
+    try:
+        with closing(sqlite3.connect(journal.resolve().as_uri() + "?mode=ro", uri=True)) as database:
+            for run_id in dict.fromkeys(row["run_id"] for row in requests if row.get("state") != "completed"):
+                row = database.execute("SELECT checkpoint_json FROM investigation_runs WHERE run_id=?", (run_id,)).fetchone()
+                if row is None:
+                    continue
+                checkpoint = json.loads(row[0])
+                draft = (checkpoint.get("request_payload") or {}).get("draft_answer")
+                if isinstance(draft, str) and draft.strip():
+                    drafts.append({"run_id": run_id, "text": draft, "answer_sha256": hashlib.sha256(draft.encode()).hexdigest(),
+                        "origin": "interrupted_request_draft", "verification": "unverified",
+                        "citation_authority": "not_granted", "model_answer_recorded": False})
+    except (OSError, ValueError, sqlite3.Error, KeyError):
+        report["draft_recovery_status"] = "unavailable_attention_required"
+    if drafts:
+        report["interrupted_unverified_drafts"] = drafts
 
 
 def require_remote_profile(settings):
@@ -124,7 +188,7 @@ def live_row(observation, item, runtime, cases_sha256, model):
 
 def evaluate_native(*, archive, source_commit, source, cases, output, profile_config=None,
                     allow_network=False, request_budget=None, max_model_requests=5,
-                    max_question_seconds=120, source_format="auto", encoding="auto",
+                    max_question_seconds=120, hard_question_seconds=None, source_format="auto", encoding="auto",
                     framework="", ca_file=None, compilation_context=None, office_checks=(), plan=False):
     source, cases = Path(source).resolve(strict=True), Path(cases).resolve(strict=True)
     output = Path(output).resolve()
@@ -144,7 +208,9 @@ def evaluate_native(*, archive, source_commit, source, cases, output, profile_co
     source_options = {"source_format": source_format, "encoding": encoding}
     if context_path:
         source_options["compilation_context_path"] = str(context_path)
-    policy = AgentPolicy(max_model_requests=max_model_requests, max_question_seconds=max_question_seconds)
+    policy = AgentPolicy(max_model_requests=max_model_requests, max_question_seconds=max_question_seconds,
+                         hard_question_seconds=hard_question_seconds)
+    wait_policy = execution_wait_policy(policy)
     turns = sum(len(_turns(item)) for item in items)
     maximum = turns * policy.max_model_requests
     report = {"schema_version": "live-business-eval/v3", "evaluation_run_id": secrets.token_hex(12),
@@ -152,6 +218,7 @@ def evaluate_native(*, archive, source_commit, source, cases, output, profile_co
         "cases_sha256": digest(cases), "case_count": len(items), "cases": [], "errors": [],
         "plan": {"mode": "automatic", "user_turn_count": turns, "max_model_requests": maximum,
                  "requests_per_turn": policy.max_model_requests, "preflight_model_requests": 0,
+                 "execution_wait": wait_policy,
                  "retry_policy": "no_automatic_retries", "policy": policy.to_dict(),
                  "office_required_checks": office_checks},
         "index_seconds": None, "latency_seconds": {"p50": None, "p95": None},
@@ -220,7 +287,7 @@ def evaluate_native(*, archive, source_commit, source, cases, output, profile_co
                     validate_gold(source, [{key: value for key, value in merged.items() if key != "turns"}], framework)
                     observation = workbench.analyze(source, output / "workspace", merged["question"],
                         conversation_id=conversation_ids.get(merged["conversation"]),
-                        timeout=policy.max_question_seconds + 45, **source_options,
+                        timeout=wait_policy["watchdog_seconds"], **source_options,
                         answer_detail="detailed", framework_reference_path=framework)
                     row = live_row(observation, merged, runtime, report["cases_sha256"], model)
                     require(type(row["model_requests"]) is int and row["model_requests"] <= policy.max_model_requests,
@@ -236,6 +303,7 @@ def evaluate_native(*, archive, source_commit, source, cases, output, profile_co
                     require(row["remote_result_unknown"] is False, "LIVE_REMOTE_REQUEST_OUTCOME_UNKNOWN")
                     conversation_ids[merged["conversation"]] = observation["state"]["conversation"]["id"]
                 except Exception as error:
+                    _capture_interrupted_requests(report, output / "workspace")
                     report["errors"].append({"case_id": merged["id"], "turn_id": merged["turn_id"],
                                              "error_type": type(error).__name__})
                     report["status"] = "interrupted_attention_required"
@@ -272,6 +340,7 @@ def main(argv=None):
     parser.add_argument("--request-budget", type=int)
     parser.add_argument("--max-model-requests", type=int, default=5)
     parser.add_argument("--max-question-seconds", type=int, default=120)
+    parser.add_argument("--hard-question-seconds", type=int)
     parser.add_argument("--source-format", choices=("auto", "fixed", "free"), default="auto")
     parser.add_argument("--encoding", default="auto")
     parser.add_argument("--framework", default="")

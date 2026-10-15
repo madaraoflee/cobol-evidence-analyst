@@ -512,7 +512,10 @@ class AcceptanceWindow:
         self.busy = True
         for widget in self.widgets:
             widget.configure(state="disabled")
-        self.status.set("本机离线回归运行中：受测 EXE 的完整 17 案例/55 样本，零远程模型调用。大库冷导入可能约十分钟。")
+        manifest = read_object(kit["inputs"]["manifest"])
+        cases = manifest["cases"]
+        count = sum(item["repeats"] for item in cases)
+        self.status.set(f"本机离线回归运行中：受测 EXE 的完整 {len(cases)} 案例/{count} 样本，零远程模型调用。大库冷导入可能约十分钟。")
         def work():
             try:
                 responses.put((run_office_native(kit["root"], output), None))

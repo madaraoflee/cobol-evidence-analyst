@@ -17,6 +17,10 @@ COBOL 業務分析|COBOL 业务分析|COBOL Workbench
 本機仍有未結束的模型連線，本次請求未發送。|本机仍有未结束的模型连接，本次请求未发送。|Model connections are still pending locally; this request was not sent.
 等待連線結束後再手動重試。|等待连接结束后再手动重试。|Wait for the connections to finish before retrying manually.
 本次調查已達到時間預算，已停止繼續補查。|本次调查已达到时间预算，已停止继续补查。|This investigation reached its time limit; further investigation has stopped.
+按問題收集證據並核驗回答；已有獨立結論會保留，無法確認的部分單獨說明。|按问题收集证据并核验回答；已有独立结论会保留，无法确认的部分单独说明。|Evidence is gathered for the question and the answer is checked; independent conclusions are retained and specific unknowns are explained.
+正在根據已讀取源碼生成回答。|正在根据已读取源码生成回答。|Generating an answer from the supplied source.
+正在整理與本題相關的證據。|正在整理与本题相关的证据。|Organizing evidence relevant to this question.
+原遠程請求的結果尚未確認，已保留原有解讀和證據，不會自動重複請求。|原远程请求的结果尚未确认，已保留原有解读和证据，不会自动重复请求。|The original remote request is still unconfirmed. The existing explanation and evidence are retained; the request will not be sent again automatically.
 查看已保存的證據和待查事項；遠端請求結果未知時，先確認請求狀態，再決定是否重試。|查看已保存的证据和待查事项；远程请求结果未知时，先确认请求状态，再决定是否重试。|Review the saved evidence and pending work. If a remote request has an unknown outcome, confirm its status before deciding whether to retry.
 已有索引與目前解析器或編譯設定不相容。|已有索引与当前解析器或编译配置不兼容。|The existing index is incompatible with the current parser or compilation settings.
 使用「更新源碼」完成索引更新後再提問。|使用“更新源码”完成索引更新后再提问。|Use Update source to update the index before asking another question.

@@ -1,0 +1,326 @@
+"""Useful, bounded answers from captured source when model prose is unavailable.
+
+This module reads no files, performs no search and sends no model request. Its
+output describes source syntax, never a completed investigation or execution.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import re
+
+from claim_ledger import _render_fact
+from claim_support import supplied_statement_facts
+from question_planner import question_references
+from statement_facts import data_references
+
+
+_EVIDENCE_ID = re.compile(r"ev[_:-][^\]\r\n]{1,157}\Z")
+_HASH = re.compile(r"[a-fA-F0-9]{64}\Z")
+_MAX_PAGES = 24
+_MAX_CHARACTERS = 64000
+_MAX_FACTS = 8
+
+
+def _valid_page(page):
+    if not isinstance(page, dict):
+        return False
+    text, first, last = page.get("source_text"), page.get("start_line"), page.get("end_line")
+    return (isinstance(text, str) and bool(text.strip()) and not page.get("span_truncated")
+        and isinstance(page.get("relative_path"), str) and bool(page["relative_path"])
+        and _EVIDENCE_ID.fullmatch(str(page.get("evidence_id", ""))) is not None
+        and _HASH.fullmatch(str(page.get("source_sha256", ""))) is not None
+        and type(first) is int and type(last) is int and 0 < first <= last
+        and len(text.splitlines()) == last - first + 1)
+
+
+def _matches(reference, name):
+    """Bare fields nominate candidates; qualified and indexed fields stay exact."""
+    requested, supplied = data_references(reference), data_references(name)
+    return any(left.name == right.name
+        and (not left.qualifiers or left.qualifiers == right.qualifiers)
+        and (not left.subscripts or left.subscripts == right.subscripts)
+        and (left.reference_modification is None or left.reference_modification == right.reference_modification)
+        for left in requested for right in supplied)
+
+
+def _call_facts(page, source_format, compilation_context):
+    """Use the structural front end for actual CALL/PERFORM occurrences.
+
+    A literal call is still only a request. Neither resolution nor scheduler
+    execution follows from finding its syntax in the captured caller.
+    """
+    from structural_index import SourceDocument, normalize_cobol_lines, parse_document
+
+    text, first = page["source_text"], page["start_line"]
+    lines, hint = normalize_cobol_lines(text, source_format)
+    parsed = parse_document(SourceDocument(page["relative_path"], page["source_sha256"],
+        "utf-8", False, hint, "COBOL", tuple(text.splitlines()), lines),
+        compilation_context=compilation_context)
+    units = {unit.unit_id: unit for unit in parsed.code_units}
+    guards, conditional = {}, {}
+    for relation in parsed.relations:
+        if relation.relation_type == "CONTROL_DEPENDS_ON" and relation.status == "confirmed":
+            condition = units.get(relation.target_entity_id)
+            if condition is not None:
+                guards.setdefault(relation.from_entity_id, []).append({
+                    "condition": condition.normalized_text, "outcome": relation.metadata.get("outcome")})
+        if relation.metadata.get("compilation_status") == "candidate":
+            conditional[relation.from_entity_id] = relation.metadata.get("compilation_guards", [])
+    facts = []
+    for relation in parsed.relations:
+        unit = units.get(relation.from_entity_id)
+        if (relation.relation_type not in {"CALLS", "PERFORMS"} or unit is None
+                or unit.unit_type != "Statement" or unit.parse_status not in {"complete", "candidate"}
+                or not relation.target_name):
+            continue
+        facts.append({"predicate": "call_statement", "target": relation.target_name,
+            "statement_kind": unit.name, "statement": unit.normalized_text,
+            "program_name": unit.program_name, "occurrence_id": unit.unit_id,
+            "start_line": first + unit.start_line - 1, "end_line": first + unit.end_line - 1,
+            "guards": guards.get(unit.unit_id, []),
+            "compilation_status": "candidate" if unit.unit_id in conditional else "effective_source",
+            "compilation_guards": conditional.get(unit.unit_id, []),
+            "call_form": relation.metadata.get("call_form"),
+            "support_scope": "source_call_statement_syntax", "execution_verified": False})
+    return facts
+
+
+def _render_call(fact):
+    guards = [(("条件不成立：" if guard.get("outcome") in {False, "false"} else "")
+        + guard["condition"]) for guard in fact.get("guards", [])]
+    prefix = "在片段中可见的控制条件 `" + "；".join(guards) + "` 下，" if guards else ""
+    if fact.get("conditions_status") == "not_fully_verified":
+        prefix = "该调用的控制条件尚未完整核对；" + prefix
+    if fact.get("compilation_status") == "candidate":
+        prefix = "编译条件尚未确认，以下仅为候选源码语句：" + prefix
+    return (prefix + "调用点写有 `" + fact["statement"] + "`；这是程序内的调用请求，"
+        "实际调用是否发生及返回效果仍需执行路径和被调用实现支持"
+        f"（{fact['relative_path']}:{fact['start_line']}）" + "".join(
+            "[" + identifier + "]" for identifier in dict.fromkeys(
+                [fact["evidence_id"], *fact.get("guard_evidence_ids", [])])))
+
+
+def _same_instance(left, right):
+    return (all(left.get(key, []) == right.get(key, []) for key in ("include_chain", "replacement_trace"))
+            and left.get("copy_instance") == right.get("copy_instance"))
+
+
+def _bound_caller_matches(caller, fact, page):
+    return (caller.get("relative_path") == page["relative_path"]
+        and caller.get("source_sha256") == page["source_sha256"]
+        and type(caller.get("line")) is int and caller["line"] == fact["start_line"]
+        and caller.get("occurrence_id") and caller.get("target_name") == fact.get("target")
+        and caller.get("binding_confirmed") is True
+        and page["evidence_id"] in caller.get("evidence_ids", []))
+
+
+def _bound_call_conditions(fact, caller, page, pages, source_format, compilation_context):
+    """Reparse the supplied physical guard-to-call span, never trust flags alone.
+
+    A fragmented CALL has no independent empty-scope guarantee. Every claimed
+    guard needs real, same-instance evidence and contiguous source through this
+    call; missing gaps or conflicting guard metadata remain explicit unknowns.
+    """
+    if caller.get("compilation_status") != "active":
+        fact = {**fact, "compilation_status": "candidate"}
+    expected = caller.get("conditions", [])
+    if not expected:
+        return {**fact, "bound_occurrence_id": caller["occurrence_id"],
+                "conditions_status": "not_fully_verified" if caller.get("condition_candidate_count", 0)
+                    or caller.get("scope_known") is not True else "source_statement_only"}
+    if not caller.get("conditions_supplied") or caller.get("scope_known") is not True:
+        return {**fact, "conditions_status": "not_fully_verified"}
+    starts, guard_ids = [], []
+    for guard in expected:
+        if not isinstance(guard, dict):
+            return {**fact, "conditions_status": "not_fully_verified"}
+        span = guard.get("span") or {"start_line": guard.get("source_line"), "end_line": guard.get("source_line")}
+        first, last = span.get("start_line"), span.get("end_line")
+        if type(first) is not int or type(last) is not int or not 0 < first <= last <= fact["end_line"]:
+            return {**fact, "conditions_status": "not_fully_verified"}
+        selector = guard.get("selector_span") or {}
+        first = min(first, selector.get("start_line", first))
+        starts.append(first)
+        identifiers = guard.get("evidence_ids", [])
+        needed = set(range(first, last + 1))
+        for identifier in identifiers:
+            supplied = pages.get(identifier)
+            if (supplied is None or supplied["relative_path"] != page["relative_path"]
+                    or supplied["source_sha256"] != page["source_sha256"] or not _same_instance(supplied, page)):
+                return {**fact, "conditions_status": "not_fully_verified"}
+            needed -= set(range(supplied["start_line"], supplied["end_line"] + 1))
+            guard_ids.append(identifier)
+        if needed:
+            return {**fact, "conditions_status": "not_fully_verified"}
+    first, last = min(starts), fact["end_line"]
+    physical, witnesses = {}, []
+    for identifier, supplied in pages.items():
+        if (supplied["relative_path"] != page["relative_path"] or supplied["source_sha256"] != page["source_sha256"]
+                or not _same_instance(supplied, page)):
+            continue
+        contributed = False
+        for line, text in enumerate(supplied["source_text"].splitlines(), supplied["start_line"]):
+            if first <= line <= last:
+                if line in physical and physical[line] != text:
+                    return {**fact, "conditions_status": "not_fully_verified"}
+                physical[line], contributed = text, True
+        if contributed:
+            witnesses.append(identifier)
+    if len(physical) != last - first + 1:
+        return {**fact, "conditions_status": "not_fully_verified"}
+    span_page = {**page, "start_line": first, "end_line": last,
+                 "source_text": "\n".join(physical[line] for line in range(first, last + 1))}
+    parsed = [candidate for candidate in _call_facts(span_page, source_format, compilation_context)
+              if candidate["start_line"] == fact["start_line"] and candidate["target"] == fact["target"]]
+    if len(parsed) != 1:
+        return {**fact, "conditions_status": "not_fully_verified"}
+    from statement_facts import lex_cobol
+    def condition(text):
+        values = tuple(token.value for token in lex_cobol(str(text)))
+        return values[1:] if values[:1] == ("IF",) else values
+    def outcome(value):
+        return True if value is True or value == "true" else False if value is False or value == "false" else None
+    actual_guards = parsed[0].get("guards", [])
+    if not all(any(condition(guard.get("condition")) == condition(actual.get("condition"))
+                   and outcome(guard.get("outcome")) is not None
+                   and outcome(guard.get("outcome")) is outcome(actual.get("outcome"))
+                   for actual in actual_guards) for guard in expected):
+        return {**fact, "conditions_status": "not_fully_verified"}
+    return {**fact, "guards": actual_guards, "guard_evidence_ids": list(dict.fromkeys([*guard_ids, *witnesses])),
+            "bound_occurrence_id": caller["occurrence_id"], "conditions_status": "supplied_source_scope"}
+
+
+def build_evidence_answer(question, source_pages, investigation, *, source_format="auto", compilation_context=None):
+    """Return a PARTIAL source answer, or None when no relevant fact is bound.
+
+    The caller must pass captured pages, retain their versions and run its usual
+    claim ledger. A source hash identifies the original file, not the UTF-8
+    re-encoding of an excerpt. Duplicate evidence IDs with conflicting content
+    are rejected rather than selecting one version.
+    """
+    investigation = investigation if isinstance(investigation, dict) else {}
+    plan = investigation.get("analysis_plan") or {}
+    ranges = (investigation.get("source_scope") or {}).get("ranges") or plan.get("source_scopes") or []
+    references = list(dict.fromkeys([*question_references(question), *plan.get("entities", [])]))
+    root_paths = set(plan.get("paths") or [])
+    paths = set(root_paths)
+    intents = set(plan.get("intents") or [])
+    activation_only = "activation" in intents and not intents & {"calculation", "origin", "overwrite", "impact", "exception"}
+    bound_callers = (investigation.get("activation_evidence") or {}).get("callers", [])
+    # These callers were bound by the local investigation, rather than merely
+    # retrieved near the root. A supplied ID and version must still match.
+    valid, conflicts = {}, set()
+    for page in source_pages:
+        if not _valid_page(page):
+            continue
+        identifier = page["evidence_id"]
+        if identifier in valid and any(valid[identifier].get(key) != page.get(key) for key in
+                ("relative_path", "source_sha256", "start_line", "end_line", "source_text", "include_chain",
+                 "replacement_trace", "copy_instance")):
+            conflicts.add(identifier)
+        else:
+            valid[identifier] = page
+    valid = {identifier: page for identifier, page in valid.items() if identifier not in conflicts}
+    for caller in bound_callers:
+        if (caller.get("binding_confirmed") is True and caller.get("occurrence_id")
+                and type(caller.get("line")) is int and any(page["relative_path"] == caller.get("relative_path")
+                    and page["source_sha256"] == caller.get("source_sha256")
+                    and page["evidence_id"] in caller.get("evidence_ids", [])
+                    and page["start_line"] <= caller["line"] <= page["end_line"] for page in valid.values())):
+            paths.add(caller["relative_path"])
+    pages = [page for identifier, page in valid.items() if identifier not in conflicts
+             and (not paths or page["relative_path"] in paths)]
+    candidates, characters, examined = [], 0, 0
+    for page in pages:
+        if examined >= _MAX_PAGES or characters + len(page["source_text"]) > _MAX_CHARACTERS:
+            continue
+        characters += len(page["source_text"])
+        examined += 1
+        try:
+            facts = supplied_statement_facts(page, source_format=source_format, compilation_context=compilation_context)
+            facts.extend(_call_facts(page, source_format, compilation_context))
+        except (ValueError, TypeError, KeyError):
+            # Unsupported or malformed source cannot become a guessed answer.
+            continue
+        for fact in facts:
+            if activation_only and fact.get("predicate") != "call_statement":
+                continue
+            if root_paths and page["relative_path"] not in root_paths and fact.get("predicate") != "call_statement":
+                continue
+            fact = {**fact, "evidence_id": page["evidence_id"], "relative_path": page["relative_path"],
+                    "source_sha256": page["source_sha256"], "execution_verified": False}
+            path_ranges = [scope for scope in ranges if scope.get("relative_path") == page["relative_path"]
+                           and scope.get("source_sha256", page["source_sha256"]) == page["source_sha256"]
+                           and scope.get("exclusive") is not False]
+            if path_ranges and not any(type(scope.get("start_line")) is int and type(scope.get("end_line")) is int
+                    and scope["start_line"] <= fact["start_line"] <= scope["end_line"] for scope in path_ranges):
+                continue
+            if fact.get("predicate") == "call_statement":
+                matched = [caller for caller in bound_callers if _bound_caller_matches(caller, fact, page)]
+                if root_paths and page["relative_path"] not in root_paths and not matched:
+                    continue
+                if len(matched) == 1:
+                    fact["_bound_caller"] = matched[0]
+            target = fact.get("target") or ""
+            inputs = " ".join(fact.get("expression") or fact.get("condition") or [])
+            target_match = any(_matches(reference, target) for reference in references)
+            input_match = any(_matches(reference, inputs) for reference in references)
+            program_match = fact.get("program_name") and fact["program_name"] in references
+            scoped = bool(path_ranges)
+            if activation_only and not target_match:
+                continue
+            if not (target_match or input_match or program_match or scoped):
+                continue
+            score = 3 if target_match else 2 if input_match else 1
+            candidates.append((score, fact))
+    if not candidates:
+        return None
+    # Retain physical occurrences and both sides of a qualified-name ambiguity.
+    # Do not collapse equal formulas in different branches or COPY instances.
+    selected, seen = [], set()
+    for _, fact in sorted(candidates, key=lambda row: (-row[0], row[1]["relative_path"], row[1]["start_line"], row[1]["occurrence_id"])):
+        page = valid[fact["evidence_id"]]
+        key = (fact["relative_path"], fact["source_sha256"], fact["occurrence_id"], fact["start_line"],
+               fact.get("target"), repr(page.get("include_chain")), repr(page.get("copy_instance")))
+        if key not in seen:
+            selected.append(fact)
+            seen.add(key)
+        if len(selected) == _MAX_FACTS:
+            break
+    selected.sort(key=lambda fact: (fact["relative_path"], fact["start_line"], fact["occurrence_id"]))
+    # Reparse only the bounded selected occurrences, rather than reparsing a
+    # growing guard-to-call prefix for every retrieved call in a large source.
+    for index, fact in enumerate(selected):
+        caller = fact.pop("_bound_caller", None)
+        if caller is not None:
+            try:
+                selected[index] = _bound_call_conditions(fact, caller, valid[fact["evidence_id"]],
+                                                         valid, source_format, compilation_context)
+            except (ValueError, TypeError, KeyError):
+                selected[index] = {**fact, "conditions_status": "not_fully_verified",
+                    "compilation_status": "candidate" if caller.get("compilation_status") != "active"
+                        else fact.get("compilation_status")}
+    identifiers = list(dict.fromkeys(identifier for fact in selected
+                                    for identifier in [fact["evidence_id"], *fact.get("guard_evidence_ids", [])]))
+    citations = [{"kind": "source_page", **{key: valid[identifier][key] for key in
+        ("evidence_id", "relative_path", "start_line", "end_line", "source_sha256", "include_chain", "copy_instance")
+        if key in valid[identifier]}} for identifier in identifiers]
+    unknowns = ["以上说明仅覆盖已读取版本中的直接语句；实际执行路径、未供证的后续覆盖和最终结果尚未确认。"]
+    if any(fact["predicate"] == "call_statement" for fact in selected):
+        unknowns.append("这些调用点不能证明外部调度配置、实际运行时间或真实调用效果，仍需对应调度入口和实现证据。")
+    if len(candidates) > len(selected):
+        unknowns.append("当前仅展示与问题最相关的部分语句，完整来源和影响链仍待继续核对。")
+    lines = [_render_call(fact) if fact["predicate"] == "call_statement" else _render_fact(fact) for fact in selected]
+    answer = ("模型说明尚未完成，已读取的源码仍可直接确认以下内容：\n\n"
+        + "\n\n".join("- " + line + "。" for line in lines) + "\n\n" + " ".join(unknowns))
+    return {"answer": answer, "answer_origin": "local_source_facts", "answer_available": True,
+        "model_answer_recorded": False, "status": "PARTIAL", "semantic_scope": "supplied_source_statement_syntax",
+        "claims_semantically_verified": False, "execution_verified": False, "facts": selected, "unknowns": unknowns,
+        "source_ids": identifiers, "evidence_ids": identifiers, "citations": citations, "evidence_refs": citations,
+        "manifest": {"source_ids": identifiers, "framework_ids": [], "framework_facts": []},
+        "source_versions": [{"relative_path": page["relative_path"], "source_sha256": page["source_sha256"],
+            "evidence_id": identifier, "excerpt_sha256": hashlib.sha256(page["source_text"].encode()).hexdigest()}
+            for identifier in identifiers for page in [valid[identifier]]],
+        "selection": {"examined_pages": examined, "examined_characters": characters,
+                      "selected_facts": len(selected), "maximum_facts": _MAX_FACTS}}

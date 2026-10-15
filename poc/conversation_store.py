@@ -58,6 +58,7 @@ class ConversationStore:
                   conversation_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL,
                   status TEXT NOT NULL, created_at TEXT NOT NULL, run_id TEXT, details TEXT NOT NULL);
                 CREATE INDEX IF NOT EXISTS conversation_messages ON messages(conversation_id,position);
+                CREATE INDEX IF NOT EXISTS conversation_run_status ON messages(conversation_id,run_id,role,status);
             """)
 
     def create(self, snapshot_id=None):
@@ -120,9 +121,17 @@ class ConversationStore:
             parameters = ((identifier, before_position, max_messages) if before_position is not None
                           else (identifier, max_messages))
             rows = list(db.execute(
-                "SELECT position,role,length(content) AS content_length,"
+                "SELECT position,role,status,length(content) AS content_length,"
                 "length(CAST(details AS BLOB)) AS details_bytes FROM messages "
-                "WHERE conversation_id=? AND role IN ('user','assistant') AND status='completed' "
+                "WHERE conversation_id=? AND role IN ('user','assistant') AND (status='completed' OR "
+                "(status IN ('partial','failed','cancelled','interrupted') AND EXISTS (SELECT 1 FROM messages a "
+                "WHERE a.conversation_id=messages.conversation_id AND a.run_id=messages.run_id "
+                "AND a.role='assistant' AND a.status='partial' AND CASE WHEN json_valid(a.details) THEN "
+                "json_extract(a.details,'$.answer_available')=1 AND "
+                "(json_extract(a.details,'$.answer_origin') IN ('model','local_source_facts') OR "
+                "json_extract(a.details,'$.model_answer_recorded')=1 OR "
+                "(json_extract(a.details,'$.answer_origin') IS NULL AND "
+                "json_extract(a.details,'$.model_answer_recorded') IS NULL)) ELSE 0 END))) "
                 + position_filter + "ORDER BY position DESC LIMIT ?", parameters))
             latest_user = next((row for row in rows if row["role"] == "user"), None)
             reserved_user = min(latest_user["content_length"], max(1, max_characters // 4)) if latest_user else 0
@@ -137,6 +146,8 @@ class ConversationStore:
                 content = db.execute("SELECT substr(content,1,?) FROM messages WHERE position=?",
                                      (available, row["position"])).fetchone()[0]
                 message = {"role": row["role"], "content": content}
+                if row["status"] == "partial":
+                    message["analysis_status"] = "PARTIAL"
                 remaining -= len(content)
                 if row["content_length"] > len(content):
                     message["context_truncated"] = True
@@ -149,6 +160,10 @@ class ConversationStore:
                     for key in ("evidence_refs", "cited_evidence_ids", "investigation_state"):
                         if isinstance(details.get(key), (list, dict)):
                             message[key] = details[key]
+                    if row["status"] == "partial":
+                        for key in ("answer_origin", "model_answer_recorded", "answer_available"):
+                            if isinstance(details.get(key), (str, bool)):
+                                message[key] = details[key]
                     if isinstance(message.get("investigation_state"), dict):
                         # The subject has its own byte limit even when the
                         # complete details document fits the reference budget.
@@ -188,16 +203,29 @@ class ConversationStore:
                 raise ValueError("CONVERSATION_NOT_FOUND")
             user = db.execute(
                 "SELECT position,content,run_id FROM messages WHERE id=? AND conversation_id=? "
-                "AND role='user' AND status IN ('failed','cancelled','interrupted')",
+                "AND role='user' AND status IN ('partial','failed','cancelled','interrupted')",
                 (user_message_id, conversation_id)).fetchone()
             if user is None:
                 raise ValueError("RETRY_NOT_AVAILABLE")
             assistant = db.execute(
                 "SELECT id FROM messages WHERE conversation_id=? AND role='assistant' "
-                "AND run_id=? AND status='failed' ORDER BY position LIMIT 1",
+                "AND run_id=? AND status IN ('partial','failed') ORDER BY position LIMIT 1",
                 (conversation_id, user["run_id"])).fetchone()
             return {"question": user["content"], "position": user["position"],
                     "assistant_message_id": assistant["id"] if assistant else None}
+
+    def retry_for_question(self, conversation_id, question):
+        """Resume only an exact repeat of the latest unfinished user turn.
+
+        Earlier turns require their explicit retry ID, so reused wording cannot
+        restore a stale conversation focus after the user has changed topics.
+        """
+        self.get_metadata(conversation_id)
+        with closing(sqlite3.connect(self.path)) as db:
+            row = db.execute("SELECT id,status,content FROM messages WHERE conversation_id=? AND role='user' "
+                "ORDER BY position DESC LIMIT 1", (conversation_id,)).fetchone()
+        return row[0] if row and row[2] == question and row[1] in {
+            "partial", "failed", "cancelled", "interrupted"} else None
 
     def claim_retry(self, conversation_id, user_message_id, new_run_id):
         with closing(sqlite3.connect(self.path)) as db, db:
@@ -206,23 +234,23 @@ class ConversationStore:
                 raise ValueError("CONVERSATION_NOT_FOUND")
             user = db.execute(
                 "SELECT run_id FROM messages WHERE id=? AND conversation_id=? AND role='user' "
-                "AND status IN ('failed','cancelled','interrupted')",
+                "AND status IN ('partial','failed','cancelled','interrupted')",
                 (user_message_id, conversation_id)).fetchone()
             if user is None:
                 raise ValueError("RETRY_NOT_AVAILABLE")
             assistant = db.execute(
                 "SELECT id FROM messages WHERE conversation_id=? AND role='assistant' "
-                "AND run_id=? AND status='failed' ORDER BY position LIMIT 1",
+                "AND run_id=? AND status IN ('partial','failed') ORDER BY position LIMIT 1",
                 (conversation_id, user[0])).fetchone()
             changed = db.execute(
                 "UPDATE messages SET status='pending',run_id=? WHERE id=? AND conversation_id=? "
-                "AND role='user' AND status IN ('failed','cancelled','interrupted')",
+                "AND role='user' AND status IN ('partial','failed','cancelled','interrupted')",
                 (new_run_id, user_message_id, conversation_id)).rowcount
             if changed != 1:
                 raise ValueError("RETRY_NOT_AVAILABLE")
             if assistant is not None:
                 db.execute("UPDATE messages SET run_id=? WHERE id=? AND conversation_id=? "
-                           "AND role='assistant' AND status='failed'",
+                           "AND role='assistant' AND status IN ('partial','failed')",
                            (new_run_id, assistant[0], conversation_id))
             db.execute("UPDATE conversations SET updated_at=? WHERE id=? AND source_key=?",
                        (_now(), conversation_id, self.source_key))
@@ -239,7 +267,7 @@ class ConversationStore:
                 raise ValueError("CONVERSATION_NOT_FOUND")
             changed = db.execute(
                 "UPDATE messages SET content=?,status=?,run_id=?,details=? WHERE id=? "
-                "AND conversation_id=? AND role='assistant' AND status='failed'",
+                "AND conversation_id=? AND role='assistant' AND status IN ('partial','failed')",
                 (content, status, run_id, json.dumps(details or {}, ensure_ascii=False),
                  assistant_message_id, conversation_id)).rowcount
             if changed != 1:

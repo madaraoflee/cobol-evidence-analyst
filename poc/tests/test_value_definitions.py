@@ -12,6 +12,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from structural_index import build_structural_index
 from semantic_service import FactStore, SemanticService
@@ -23,6 +24,7 @@ from question_investigation import _flow_input_origins
 from repository_discovery import ensure_repository_search
 from semantic_scope import prepare_semantic_scope, build_business_evidence
 from source_session import QuestionSourceSession
+from test_business_prompt_compaction import decoded_navigation
 
 
 class ValueDefinitionTests(unittest.TestCase):
@@ -349,7 +351,9 @@ class ValueDefinitionTests(unittest.TestCase):
         config = CompanyAPIConfig("https://gateway.example.invalid/v1", "offline-value-model", api_key="offline-only")
         requests = []
         def transport(request):
-            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            # Decode the documented wire projection before inspecting semantic
+            # proofs. Shared fields are inherited facts, never omitted VALUEs.
+            payload = decoded_navigation(json.loads(json.loads(request.body)["messages"][-1]["content"]))
             requests.append(payload)
             pages = [page for bundle in payload["source_context"] for page in bundle.get("pages", [])]
             supplied = next(page for page in pages if page["relative_path"] == "main.cbl" and "VALUE 25" in page["source_text"])
@@ -384,7 +388,27 @@ class ValueDefinitionTests(unittest.TestCase):
         self.assertEqual(initial["value"], "25")
         self.assertIn("first_activation", initial["activation_semantics"])
         self.assertFalse(initial["runtime_value_known"])
+        self.assert_initial_source_supplied(initial, request)
         self.assertFalse(result["claims_semantically_verified"])
+
+    def assert_initial_source_supplied(self, initial, request):
+        self.assertEqual(initial["status"], "conditional_initialization_source")
+        self.assertIn("subsequent_activations_may_retain_prior_state", initial["activation_semantics"])
+        self.assertTrue(initial["source_refs"])
+        pages = [page for bundle in request["source_context"] for page in bundle["pages"]]
+        self.assertTrue(any(initial["declaration"] in page["source_text"] for page in pages))
+        for reference in initial["source_refs"]:
+            source = self.root / reference["relative_path"]
+            self.assertEqual(reference["source_sha256"], hashlib.sha256(source.read_bytes()).hexdigest())
+            text = "\n".join(source.read_text(encoding="utf-8").splitlines()[
+                reference["start_line"] - 1:reference["end_line"]])
+            self.assertEqual(reference["excerpt_sha256"], hashlib.sha256(text.encode()).hexdigest())
+            self.assertTrue(any(page["relative_path"] == reference["relative_path"]
+                and page["source_sha256"] == reference["source_sha256"]
+                and page["start_line"] <= reference["start_line"] <= reference["end_line"] <= page["end_line"]
+                and page.get("include_chain", []) == reference.get("include_chain", [])
+                and page.get("replacement_trace", []) == reference.get("replacement_trace", [])
+                and not page.get("span_truncated") for page in pages))
 
     def test_default_indexed_chat_unknown_call_preserves_declared_fact_without_closing_current_input(self):
         self.write("01 INPUT-AMOUNT PIC 9(5) VALUE 25.\n01 OUT-AMOUNT PIC 9(5).",
@@ -443,6 +467,7 @@ class ValueDefinitionTests(unittest.TestCase):
         self.assertEqual(initial["value"], "25.00")
         self.assertIn("first_activation", initial["activation_semantics"])
         self.assertFalse(initial["runtime_value_known"])
+        self.assert_initial_source_supplied(initial, request)
         self.assertFalse(result["claims_semantically_verified"])
 
     def test_actual_desktop_three_turn_inputs_close_from_occurrences_and_value_source_evidence(self):

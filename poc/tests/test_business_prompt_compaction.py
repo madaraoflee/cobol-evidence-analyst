@@ -16,9 +16,12 @@ import business_chat
 from business_index import build_business_index
 from company_api import CompanyAPIConfig, TransportResponse
 from repository_discovery import ensure_repository_search
+from test_prompt_projection import expand_projection
+from business_synthesis import project_analysis_brief
+from prompt_projection import project_prompt_payload
 
 
-def decoded_navigation(payload):
+def decoded_navigation(payload, *, expand_shared=True):
     """Independent consumer of the documented positional encoding."""
     result = deepcopy(payload)
     result.pop("navigation_encoding", None)
@@ -43,7 +46,7 @@ def decoded_navigation(payload):
         expand(analysis, "slice_statements")
         for tool_result in analysis.get("tool_results", []):
             expand(tool_result, "statements")
-    return result
+    return expand_projection(result) if expand_shared else result
 
 
 def encoded(value):
@@ -210,7 +213,10 @@ class BusinessPromptCompactionTests(unittest.TestCase):
         restored.pop("source_selection")
         self.assertTrue(wire["source_selection"]["source_supplied"])
         self.assertEqual(wire["source_selection"]["page_count"], len(payload["source_context"][0]["pages"]))
-        self.assertEqual(encoded(restored), encoded(payload))
+        expected = deepcopy(payload)
+        if "business_analysis_brief" in expected:
+            expected["business_analysis_brief"] = project_analysis_brief(expected["business_analysis_brief"])
+        self.assertEqual(encoded(restored), encoded(expected))
         self.assertEqual(first_size, len(json.dumps({"model": config.chat_model, "messages": first,
             "max_tokens": config.max_output_tokens}, ensure_ascii=False, separators=(",", ":")).encode()))
         del payload["source_context"][0]["pages"][:]
@@ -223,7 +229,10 @@ class BusinessPromptCompactionTests(unittest.TestCase):
         restored.pop("source_selection")
         self.assertFalse(actual["source_selection"]["source_supplied"])
         self.assertEqual(actual["source_selection"]["page_count"], 0)
-        self.assertEqual(encoded(restored), encoded(payload))
+        expected = deepcopy(payload)
+        if "business_analysis_brief" in expected:
+            expected["business_analysis_brief"] = project_analysis_brief(expected["business_analysis_brief"])
+        self.assertEqual(encoded(restored), encoded(expected))
         self.assertEqual(restored["question_investigation"]["required_items"][0]["status"], "OPEN")
         self.assertTrue(all(link["requires_source_read"] for link in restored["source_context"][0]["call_chain"]["links"]))
         self.assertTrue(all(not unit["complete_text_supplied"] for unit in restored["source_context"][0]["outline"][0]["units"]))
@@ -260,7 +269,7 @@ class BusinessPromptCompactionTests(unittest.TestCase):
                     projected = original_project(value) if compact else value
                     # Compare the same input, including its live SQL counters.
                     # Encoding must preserve every value and leave authority intact.
-                    self.assertEqual(encoded(decoded_navigation(projected)), encoded(canonical))
+                    self.assertEqual(encoded(decoded_navigation(projected, expand_shared=False)), encoded(canonical))
                     self.assertEqual(encoded(value), encoded(canonical))
                     return projected
                 with mock.patch.object(business_chat, "_compact_prompt_payload", side_effect=project):
@@ -277,7 +286,7 @@ class BusinessPromptCompactionTests(unittest.TestCase):
                 # and warm investigations. Compare both encodings of THIS
                 # actual request, including its counters and unknowns.
                 canonical = decoded_navigation(wire)
-                compacted = original_project(canonical)
+                compacted = original_project(project_prompt_payload(canonical))
                 self.assertEqual(encoded(decoded_navigation(compacted)), encoded(canonical))
                 if "navigation_encoding" in wire:
                     self.assertEqual(compacted, wire)

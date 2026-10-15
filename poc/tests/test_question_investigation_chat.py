@@ -106,7 +106,12 @@ class QuestionInvestigationChatTests(unittest.TestCase):
         self.requests.clear()
         result = self.ask("FINAL-AMOUNT 怎么计算？", lambda payload: '{"search": [',
             policy=AgentPolicy(max_model_requests=1))
-        self.assertEqual(result["status"], "ABSTAINED")
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertFalse(result["model_answer_recorded"])
+        self.assertEqual(result["answer_origin"], "local_source_facts")
+        self.assertIn("FINAL-AMOUNT = BASIS * FACTOR", result["answer"])
+        self.assertNotIn('{"search":', result["answer"])
+        self.assertTrue(result["evidence_refs"])
         self.assertNotEqual(result["stop_reason"], "sufficient_material")
 
     def test_budget_cannot_promote_deferral_to_sufficient_material(self):
@@ -114,7 +119,12 @@ class QuestionInvestigationChatTests(unittest.TestCase):
         result = self.ask("FINAL-AMOUNT 怎么计算？", lambda payload: "需要先找公式和条件。",
             policy=AgentPolicy(max_model_requests=1))
         self.assertEqual(len(self.requests), 1)
-        self.assertEqual(result["status"], "ABSTAINED")
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertFalse(result["model_answer_recorded"])
+        self.assertEqual(result["answer_origin"], "local_source_facts")
+        self.assertIn("FINAL-AMOUNT = BASIS * FACTOR", result["answer"])
+        self.assertNotIn("需要先找公式和条件。", result["answer"])
+        self.assertTrue(result["evidence_refs"])
         self.assertNotEqual(result["stop_reason"], "sufficient_material")
 
     def test_unknown_citation_remains_partial_after_citation_is_removed(self):

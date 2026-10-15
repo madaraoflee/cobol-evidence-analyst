@@ -91,12 +91,20 @@ def build_answer_diagnostics(*, config, quality, result):
     omitted_complete_count = max(len(omitted_candidates),
         _number(working.get("omitted_candidate_path_count")) or 0) + len(omitted_complete - omitted_candidates)
     rounds = []
+    request_timings = {item.get("round_id"): item for item in quality.get("provider_request_timings", [])
+                       if isinstance(item, dict)}
     for offset, row in enumerate(quality.get("rounds", [])[:64], 1):
         response = row.get("response") or {}
         sources = row.get("sources", [])
         history = row.get("history_summary", {})
         stage = {"continue": "continuation", "revise": "synthesis_review"}.get(row.get("stage"), row.get("stage"))
+        observed = request_timings.get(f"round-{offset}", {})
         rounds.append({"round_id": f"round-{offset}",
+            "response_timing_seconds": {key: _seconds(value)
+                for key, value in (observed.get("timing_seconds") or {}).items()
+                if key in {"headers_received", "first_response_byte", "response_complete", "request_elapsed"}
+                and _seconds(value) is not None},
+            "response_bytes": _number(observed.get("response_bytes")),
             "stage": _enum(stage, {"answer", "discover", "investigate", "synthesis_review", "continuation"}),
             "request_bytes": _number(row.get("request_bytes")),
             "source_file_count": len({p.get("path") for p in sources if isinstance(p.get("path"), str)}),

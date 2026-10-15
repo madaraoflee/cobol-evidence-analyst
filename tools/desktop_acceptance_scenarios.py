@@ -14,12 +14,88 @@ import traceback
 from urllib.parse import urlencode
 
 from tools.desktop_acceptance_runtime import (LoopbackProvider, NativeWorkbench, SlowHeaders,
-    read_journal, require, sha256, supplied_pages, write_profile)
+    decoded_navigation, read_journal, require, sha256, supplied_pages, write_profile)
 from tools.acceptance_diagnostics import capture_diagnostics
 
 
-RUNTIME_CASES = {"claim_repair", "cancel_unknown", "deadline_unknown", "conversation", "dense_record"}
+RUNTIME_CASES = {"claim_repair", "soft_target_answer", "activation_trigger", "cancel_unknown", "deadline_unknown", "conversation", "dense_record"}
 QUESTION = "FLOW-CLAIM OUT-AMOUNT 怎样计算？"
+ACTIVATION_QUESTION = "JOB-STEP 的 batch 操作是怎么 trigger的？源码能确认外部调度吗？"
+
+
+def activation_sources():
+    return {"job-step.cbl": "IDENTIFICATION DIVISION.\nPROGRAM-ID. JOB-STEP.\n"
+        "PROCEDURE DIVISION.\nMAIN.\nDISPLAY 'RUNNING'.\nGOBACK.\n",
+        "launcher.cbl": "IDENTIFICATION DIVISION.\nPROGRAM-ID. LAUNCHER.\nDATA DIVISION.\n"
+        "WORKING-STORAGE SECTION.\n01 READY-FLAG PIC 9.\nPROCEDURE DIVISION.\nMAIN.\n"
+        "IF READY-FLAG = 1\nCALL 'JOB-STEP'\nEND-IF.\nGOBACK.\n"}
+
+
+def _activation_supply_checks(payload):
+    investigation = decoded_navigation(payload)["question_investigation"]
+    obligations = {item["kind"]: item for item in investigation["required_items"]}
+    pages = {page["evidence_id"]: page for page in supplied_pages(payload)}
+    expected_sha = hashlib.sha256(activation_sources()["launcher.cbl"].encode()).hexdigest()
+    def covers(identifier, line, text):
+        page = pages.get(identifier, {})
+        first = page.get("start_line", 0)
+        lines = page.get("source_text", "").splitlines()
+        return (page.get("relative_path") == "launcher.cbl" and page.get("source_sha256") == expected_sha
+            and first <= line <= page.get("end_line", 0) and 0 <= line - first < len(lines)
+            and lines[line - first] == text and not page.get("span_truncated"))
+    callers = (investigation.get("activation_evidence") or {}).get("callers", [])
+    matched = [row for row in callers if row.get("target_name") == "JOB-STEP"
+        and row.get("relative_path") == "launcher.cbl" and row.get("source_sha256") == expected_sha
+        and row.get("line") == 9 and row.get("occurrence_id") and row.get("scope_known") is True
+        and row.get("binding_confirmed") is True and row.get("compilation_status") == "active"
+        and row.get("conditions_supplied") is True and row.get("execution_verified") is False
+        and any(covers(identifier, 9, "CALL 'JOB-STEP'") for identifier in row.get("evidence_ids", []))]
+    guarded = any(any(str(guard.get("condition", "")).removeprefix("IF ").strip() == "READY-FLAG = 1"
+        and guard.get("outcome") is True
+        and any(covers(identifier, 8, "IF READY-FLAG = 1") for identifier in guard.get("evidence_ids", []))
+        for guard in row.get("conditions", [])) for row in matched)
+    return {"completeness_activation_obligations_supplied": all(obligations.get(kind, {}).get("status") == "SATISFIED"
+                for kind in ("entry_point", "caller_invocation", "activation_conditions")),
+        "evidence_activation_caller_and_guard": bool(matched) and guarded,
+        "quality_scheduler_not_inferred": obligations.get("scheduler_binding", {}).get("status") == "OPEN"
+            and obligations.get("scheduler_binding", {}).get("reason") == "external_schedule_binding_not_verified"
+            and (investigation.get("activation_evidence") or {}).get("scheduler_binding_verified") is False
+            and (investigation.get("activation_evidence") or {}).get("execution_verified") is False}
+
+
+def _activation(command, root, case, sample_index):
+    source = root / "source"
+    source.mkdir()
+    for name, text in activation_sources().items():
+        (source / name).write_bytes(text.encode())
+    output = root / "workspace"
+    def respond(envelope, payload, index):
+        require(index == 0, "Activation should not require another model planning request")
+        require(payload["question"] == ACTIVATION_QUESTION, "Wrong activation question")
+        require(all(_activation_supply_checks(payload).values()), "Activation source/guard/version not supplied")
+        caller = next(page for page in supplied_pages(payload) if page["relative_path"] == "launcher.cbl"
+                      and "IF READY-FLAG = 1" in page["source_text"] and "CALL 'JOB-STEP'" in page["source_text"])
+        return ("JOB-STEP由LAUNCHER在READY-FLAG = 1的源码条件下通过CALL调用。"
+                "源码未证明外部调度绑定，也未证明实际执行。[" + caller["evidence_id"] + "]")
+    with LoopbackProvider(root / "provider", respond) as provider:
+        environment = write_profile(root / "profile", provider)
+        with NativeWorkbench(command, root / "profile", environment, root) as workbench:
+            cold = _index(workbench, source, output, provider)
+            observation = workbench.analyze(source, output, ACTIVATION_QUESTION, answer_detail="brief")
+            agent = _checked_answer(observation, provider)
+            answer = agent["answer"]
+            visible = observation["state"]["conversation"]["messages"][-1]["content"]
+            pages = provider.requests[0]["source_pages"]
+            return [_row(case, sample_index, observation, provider, cold=cold, checks={
+                **_activation_supply_checks(provider.requests[0]["payload"]),
+                "quality_activation_condition_preserved": "READY-FLAG = 1的源码条件下通过CALL调用" in answer,
+                "quality_external_scheduler_unknown": "未证明外部调度绑定" in answer and "未证明实际执行" in answer
+                    and agent["claims_semantically_verified"] is False,
+                "completeness_activation_in_first_request": len(provider.requests) == 1,
+                "evidence_supplied_hashes_match": all(page["source_sha256"] == sha256(source / page["relative_path"])
+                                                      for page in pages),
+                "evidence_visible_answer_matches": visible == answer,
+                "evidence_answer_ledger_hash": agent["claim_ledger"]["answer_sha256"] == hashlib.sha256(answer.encode()).hexdigest()})]
 
 
 def _formula_source(dense=False):
@@ -137,13 +213,35 @@ def _claim(command, root, case, sample_index):
     source = _source(root, _formula_source())
     output = root / "workspace"
     source_hash = sha256(source / "calculate.cbl")
-    with LoopbackProvider(root / "provider", _formula_response(source_hash)) as provider:
-        environment = write_profile(root / "profile", provider)
+    ordinary = _formula_response(source_hash)
+    soft_target = case["id"] == "soft_target_answer"
+    def respond(envelope, payload, index):
+        if soft_target:
+            time.sleep(1.25)
+        return ordinary(envelope, payload, index)
+    with LoopbackProvider(root / "provider", respond) as provider:
+        environment = write_profile(root / "profile", provider,
+            {"max_question_seconds": 1} if soft_target else None)
         with NativeWorkbench(command, root / "profile", environment, root) as workbench:
             cold = _index(workbench, source, output, provider)
             observation = workbench.analyze(source, output, QUESTION)
             checks = _formula_checks(observation, provider, source_hash)
+            if soft_target:
+                agent = observation["result"]["agent_result"]
+                target = agent["metrics"].get("delivery_target", {})
+                requests = read_journal(output)["requests"]
+                checks["quality_target_does_not_discard_first_answer"] = (
+                    target.get("reached") is True and target.get("hard_limit_seconds") is None
+                    and target.get("inflight_request_cancelled_by_target") is False
+                    and agent.get("answer_origin") == "model" and agent.get("answer_available") is True
+                    and agent.get("stop_reason") != "QUESTION_TIME_BUDGET_EXHAUSTED")
+                checks["lifecycle_slow_response_journal_completed_once"] = (
+                    len(requests) == 1 and requests[0]["state"] == "completed"
+                    and len(provider.requests) == 1)
             row = _row(case, sample_index, observation, provider, cold=cold, checks=checks)
+            if soft_target:
+                row["timings"]["synthetic_provider_delay_seconds"] = 1.25
+                row["timing_interpretation"] = "injected_wait_tests_delivery_not_real_model_performance"
             checks["lifecycle_old_index_requires_explicit_update"] = _old_index_guard(workbench, source, output, provider)
             return [row]
 
@@ -159,7 +257,9 @@ def _unknown(command, root, case, sample_index):
         return slow if index == 0 else correct(envelope, payload, index)
     budget = 3 if case["id"] == "deadline_unknown" else 30
     with LoopbackProvider(root / "provider", respond) as provider:
-        environment = write_profile(root / "profile", provider, {"max_question_seconds": budget})
+        environment = write_profile(root / "profile", provider, {
+            "max_question_seconds": budget,
+            **({"hard_question_seconds": budget} if case["id"] == "deadline_unknown" else {})})
         with NativeWorkbench(command, root / "profile", environment, root) as workbench:
             cold = _index(workbench, source, output, provider)
             index_before = _index_stamp(output)
@@ -416,7 +516,7 @@ def run_scenarios(command, root, manifest, case_ids=None):
                 if case["id"] == "dense_record":
                     measured = _dense(command, path, case)
                 else:
-                    function = _conversation if case["id"] == "conversation" else (
+                    function = _activation if case["id"] == "activation_trigger" else _conversation if case["id"] == "conversation" else (
                         _unknown if case["id"] in {"cancel_unknown", "deadline_unknown"} else _claim)
                     measured = function(command, path, case, sample_index)
                 for row in measured:

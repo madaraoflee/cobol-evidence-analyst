@@ -297,7 +297,17 @@ class BusinessDetailRegressions(unittest.TestCase):
         first = self.requests[0]
         self.assertTrue(first["question_investigation"]["can_answer"])
         self.assertNotIn("formula_not_located", json.dumps(first["question_investigation"]))
-        self.assertIn("没有直接 COMPUTE", first["business_analysis_brief"]["task"])
+        guide = first["business_analysis_brief"]["task"]
+        self.assertIn("保留控制条件、输入、顺序", guide)
+        self.assertIn("候选导航，不证明执行", guide)
+        supplied = [page for bundle in first["source_context"] for page in bundle["pages"]]
+        for statement in ("IF BASE-VALUE > ZERO", "MOVE BASE-VALUE TO NET-VALUE", "MOVE ZERO TO NET-VALUE"):
+            self.assertTrue(any(statement in page["source_text"] for page in supplied))
+        steps = next(item for item in first["question_investigation"]["required_items"] if item["kind"] == "business_steps")
+        self.assertEqual(steps["status"], "SATISFIED")
+        self.assertTrue(steps["evidence_ids"])
+        self.assertLessEqual(set(steps["evidence_ids"]), {page["evidence_id"] for page in supplied})
+        self.assertFalse(result["claims_semantically_verified"])
         self.assertIn("结果归零", result["answer"])
         self.assertTrue(result["narrative"]["citations"])
 

@@ -154,7 +154,7 @@ class NativeLiveAcceptanceTests(unittest.TestCase):
                             self.runtime, native.digest(self.cases), "evaluation-model")
 
     @contextmanager
-    def automatic_execution(self, *, unknown_revision=False):
+    def automatic_execution(self, *, unknown_revision=False, elapsed_seconds=1.25):
         """Exercise the paid-suite orchestration with local trace/journal records."""
         profile = self.root / "model.env"
         profile.write_bytes(b"COMPANY_API_BASE_URL=https://model.example.test/v1\n"
@@ -180,7 +180,10 @@ class NativeLiveAcceptanceTests(unittest.TestCase):
                         "build_report": {"snapshot_id": "frozen-index"}}), encoding="utf-8")
                     return {"job": {"status": "COMPLETED"}}
                 question_count += 1
+                if options.get("timeout", 0) < elapsed_seconds:
+                    raise TimeoutError("Acceptance watchdog interrupted a model response")
                 observation, trace, _ = self.observation()
+                observation["elapsed_seconds"] = elapsed_seconds
                 run_id = "native-run-" + str(question_count)
                 trace["run_id"] = run_id
                 trace["analysis_revision"] = "frozen-index"
@@ -254,6 +257,81 @@ class NativeLiveAcceptanceTests(unittest.TestCase):
         template = json.loads((options["output"] / "HUMAN-REVIEW-TEMPLATE.json").read_text(encoding="utf-8"))
         self.assertEqual(len(template["reviews"]), 4)
         self.assertTrue(all(finding["result"] is None for row in template["reviews"] for finding in row["required_findings"]))
+
+    def test_wait_budget_uses_actual_workbench_transport_profile_not_dotenv_guesses(self):
+        from agent_policy import AgentPolicy
+        from model_profiles import CompanyAPIConfig, model_config
+        with patch.object(CompanyAPIConfig, "from_env") as configuration:
+            model_config("workbench")
+        actual = configuration.call_args.kwargs["timeout_seconds"]
+        wait = native.execution_wait_policy(AgentPolicy(max_model_requests=3))
+        self.assertEqual(wait["transport_timeout_seconds"], actual)
+        self.assertEqual(actual, native.WORKBENCH_TIMEOUT_SECONDS)
+        self.assertEqual(wait["watchdog_seconds"], 3 * actual + 120 + 15 + 45)
+        self.assertIs(wait["performance_target_interrupts_answer"], False)
+
+    def test_sla_target_does_not_shorten_wait_but_explicit_hard_limit_does(self):
+        from agent_policy import AgentPolicy
+        fast = native.execution_wait_policy(AgentPolicy(max_question_seconds=1, max_model_requests=3))
+        slow = native.execution_wait_policy(AgentPolicy(max_question_seconds=600, max_model_requests=3))
+        self.assertEqual(fast["watchdog_seconds"], slow["watchdog_seconds"])
+        limited = native.execution_wait_policy(AgentPolicy(max_question_seconds=120,
+            max_model_requests=3, hard_question_seconds=10))
+        self.assertEqual(limited["watchdog_seconds"], 10 + limited["verification_cleanup_reserve_seconds"])
+
+    def test_slow_answer_is_archived_with_measured_sla_miss_instead_of_killed_at_target(self):
+        with self.automatic_execution(elapsed_seconds=180) as (workbench, options):
+            report = native.evaluate_native(**options)
+            self.assertEqual(workbench.analyze.call_count, 5)
+            paid = workbench.analyze.call_args_list[1:]
+            self.assertTrue(all(call.kwargs["timeout"] == 360 for call in paid))
+        self.assertEqual(report["status"], "completed_not_reviewed")
+        self.assertEqual(len(report["cases"]), 4)
+        self.assertEqual(report["latency_seconds"]["p95"], 180)
+        self.assertEqual(report["plan"]["policy"]["max_question_seconds"], 120)
+        self.assertIs(report["plan"]["execution_wait"]["performance_target_interrupts_answer"], False)
+        self.assertEqual(report["quality_status"], "not_reviewed")
+
+    def test_watchdog_captures_uncertain_request_and_unverified_draft_then_stops_suite(self):
+        from run_store import RunStore
+        with self.automatic_execution() as (workbench, options):
+            original = workbench.analyze.side_effect
+
+            def stalled(source, workspace, question=None, **kwargs):
+                if question is None:
+                    return original(source, workspace, question, **kwargs)
+                store = RunStore(workspace / "investigation-runs.sqlite")
+                store.create("stalled-run", {})
+                store.start_request("stalled-run", "round-2", "f" * 64)
+                store.checkpoint("stalled-run", {"request_payload": {"draft_answer": "Previously received draft."}})
+                self.journal.return_value = {"requests": [{"run_id": "stalled-run", "request_id": "round-2",
+                    "request_hash": "f" * 64, "state": "started"}]}
+                raise TimeoutError("Acceptance safety watchdog")
+
+            workbench.analyze.side_effect = stalled
+            with self.assertRaisesRegex(TimeoutError, "safety watchdog"):
+                native.evaluate_native(**options)
+            self.assertEqual(workbench.analyze.call_count, 2)
+        report = json.loads((options["output"] / "LIVE-ACCEPTANCE.json").read_text())
+        self.assertEqual(report["status"], "interrupted_attention_required")
+        self.assertEqual(report["request_journal_status"], "captured_before_shutdown")
+        self.assertTrue(report["remote_result_unknown"])
+        self.assertEqual(report["observed_model_requests"], 1)
+        self.assertEqual(report["cases"], [])
+        self.assertEqual(report["errors"][0]["error_type"], "TimeoutError")
+        draft = report["interrupted_unverified_drafts"][0]
+        self.assertEqual(draft["text"], "Previously received draft.")
+        self.assertEqual(draft["verification"], "unverified")
+        self.assertEqual(draft["citation_authority"], "not_granted")
+        self.assertFalse(draft["model_answer_recorded"])
+        self.assertFalse((options["output"] / "HUMAN-REVIEW-TEMPLATE.json").exists())
+
+    def test_missing_interruption_journal_is_unknown_and_cannot_mask_original_failure(self):
+        report = {"observed_model_requests": 0, "remote_result_unknown": False}
+        with patch.object(native, "read_journal", side_effect=AssertionError("Journal unavailable")):
+            native._capture_interrupted_requests(report, self.root / "missing-workspace")
+        self.assertEqual(report["request_journal_status"], "unavailable_attention_required")
+        self.assertTrue(report["remote_result_unknown"])
 
 
 if __name__ == "__main__":

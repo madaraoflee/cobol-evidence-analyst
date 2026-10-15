@@ -7,13 +7,14 @@ from dataclasses import replace
 from company_api import CompanyAPIConfig, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_TIMEOUT_SECONDS
 
 WORKBENCH_MAX_OUTPUT_TOKENS = 8192
+WORKBENCH_TIMEOUT_SECONDS = 60.0
 
 
 def model_config(profile="adapter", *, timeout_seconds=None, max_output_tokens=None):
     if profile not in {"adapter", "workbench"}:
         raise ValueError("MODEL_PROFILE_INVALID")
     config = CompanyAPIConfig.from_env(
-        timeout_seconds=60.0 if profile == "workbench" else DEFAULT_TIMEOUT_SECONDS,
+        timeout_seconds=WORKBENCH_TIMEOUT_SECONDS if profile == "workbench" else DEFAULT_TIMEOUT_SECONDS,
         max_output_tokens=max_output_tokens,
         default_max_output_tokens=WORKBENCH_MAX_OUTPUT_TOKENS if profile == "workbench" else DEFAULT_MAX_OUTPUT_TOKENS,
         profile_name=profile,

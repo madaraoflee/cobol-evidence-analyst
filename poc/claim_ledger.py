@@ -16,13 +16,14 @@ from typing import Any
 from claim_support import check_statement_support, statement_tokens, supplied_statement_facts
 
 
-LEDGER_VERSION = "answer-claim-ledger-v3"
+LEDGER_VERSION = "answer-claim-ledger-v4"
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _NAME = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?:\s+(?:OF|IN)\s+[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)*"
 _ATOM = rf"(?:{_NAME}|[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|[()])"
 _EXPRESSION = rf"{_ATOM}(?:\s*(?:\*\*|[+*/×÷-]|\b(?:multiplied\s+by|times|divided\s+by)\b|乘以|乘|除以|加上|减去)\s*{_ATOM})*"
 _FORMULA = re.compile(rf"(?P<target>{_NAME})\s*(?:(?:最终|最終|最后|最後|总是|總是|一定|always|finally)\s*)?(?:ROUNDED\s*)?(?:=(?!=)|等于|等於|(?:为|為|是)\s*|\bis\s+)\s*", re.I)
 _ANSWER_TOKEN = re.compile(rf"\s*(?:'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|\d+(?:\.\d+)?|(?:multiplied\s+by|divided\s+by|times)\b|乘以|乘|除以|加上|减去|{_NAME}|\*\*|[()+*/×÷-])", re.I)
+_CONDITION_TOKEN = re.compile(rf"\s*(?:'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|\d+(?:\.\d+)?|{_NAME}|>=|<=|<>|\*\*|[()=<>+*/-])", re.I)
 _MULTIPLE = re.compile(rf"(?P<target>{_NAME})\s*(?:为|為|是|按|等于|等於)\s*(?P<input>{_NAME})\s*的?\s*(?P<number>\d+(?:\.\d+)?|两|兩|二|三|四|五|六|七|八|九|十)\s*倍", re.I)
 _MOVE = re.compile(rf"\bMOVE\s+(?P<expression>{_ATOM})\s+TO\s+(?P<target>{_NAME})", re.I)
 _CONDITION = re.compile(rf"(?P<left>{_NAME})\s*(?P<operator>>=|<=|<>|>|<|(?:NOT\s+)?=)\s*(?P<right>{_ATOM})", re.I)
@@ -105,9 +106,28 @@ def _read_expression(text, start):
     try:
         lexical = _lex(_Source(" ".join(tokens), 1), "free", 512)
         parser = _Expression(lexical)
-        if not parser.arithmetic() or parser.position == 0:
+        if not parser.arithmetic(text_operand=True) or parser.position == 0:
             return None, end
         return tuple(token.value for token in lexical[:parser.position]), end
+    except (_BoundaryError, ValueError):
+        return None, end
+
+
+def _read_condition(text, start):
+    """Consume a complete boolean prefix using the shared condition grammar."""
+    from statement_parser import _BoundaryError, _Expression, _Source, _lex
+    end = start
+    for _ in range(160):
+        token = _CONDITION_TOKEN.match(text, end)
+        if token is None or token.end() == end:
+            break
+        end = token.end()
+    try:
+        lexical = _lex(_Source(text[start:end], 1), "free", 512)
+        parser = _Expression(lexical)
+        if not lexical or not parser.boolean() or parser.position == 0:
+            return None, end
+        return tuple(token.value for token in lexical[:parser.position]), start + lexical[parser.position - 1].end
     except (_BoundaryError, ValueError):
         return None, end
 
@@ -122,6 +142,28 @@ def _assertions(text):
         parts[index] = re.sub(r"(?<!\w)\*\*(?=\S)(.+?)(?<=\S)\*\*(?!\w)", r"\1", parts[index])
     text = "".join(parts)
     assertions, occupied = [], []
+    conditions, explicit_conditions = [], []
+    # A compound IF is one assertion. Splitting it into its two comparisons
+    # would falsely contradict the complete source condition and can replace a
+    # correct formula sharing the same sentence with an unrelated repair.
+    for marker in re.finditer(r"\bIF(?=\s|\()\s*", text, re.I):
+        tokens, end = _read_condition(text, marker.end())
+        if tokens and any(token in {"=", "<>", "<", ">", "<=", ">="} for token in tokens):
+            conditions.append((marker.start(), end, tokens))
+            explicit_conditions.append((marker.start(), end))
+    for match in _CONDITION.finditer(text):
+        if any(first <= match.start() < last for first, last in explicit_conditions):
+            continue
+        tokens, end = _read_condition(text, match.start())
+        prefix, suffix = text[max(0, match.start() - 32):match.start()], text[end:end + 48]
+        conditional_context = (re.search(r"(?:若|如果|当|當)\s*$|\b(?:if|when|unless)\s*$", prefix, re.I)
+            or re.match(r"\s*的?\s*(?:(?:源码|源碼|控制)\s*)?(?:条件|條件)(?:下|成立|不成立)?", suffix)
+            or re.match(r"\s*(?:source\s+)?condition\b", suffix, re.I))
+        if tokens and conditional_context:
+            # Explicit natural-language condition context chooses the role;
+            # the full expression still has to match a real supplied IF fact.
+            conditions.append((match.start(), end, tokens))
+            explicit_conditions.append((match.start(), end))
     for match in _MULTIPLE.finditer(text):
         assertions.append({"predicate": "assignment_statement", "target": match["target"].upper(),
                            "expression": [match["input"].upper(), "*", _NUMBERS.get(match["number"], match["number"])],
@@ -130,6 +172,8 @@ def _assertions(text):
     for pattern in (_MOVE, _FORMULA):
         for match in pattern.finditer(text):
             if any(first <= match.start() < last for first, last in occupied):
+                continue
+            if any(first <= match.start() < last for first, last in explicit_conditions):
                 continue
             # IF equality is a condition, not an assignment.
             prefix = text[max(0, match.start() - 12):match.start()]
@@ -143,10 +187,13 @@ def _assertions(text):
                                    "expression": list(tokens), "rounded": "ROUNDED" in match[0].upper()})
                 occupied.append((match.start(), expression_end))
     for match in _CONDITION.finditer(text):
-        if any(first <= match.start() < last for first, last in occupied):
+        if any(first <= match.start() < last for first, last in explicit_conditions):
             continue
-        tokens = _tokens(match[0])
-        if tokens:
+        tokens, end = _read_condition(text, match.start())
+        if tokens and not any(first <= match.start() < last for first, last, _ in conditions):
+            conditions.append((match.start(), end, tokens))
+    for start, _, tokens in conditions:
+        if not any(first <= start < last for first, last in occupied):
             assertions.append({"predicate": "condition_statement", "condition": list(tokens), "outcome": True})
     for match in _WRITE.finditer(text):
         assertions.append({"predicate": "write_statement", "target": match["target"].upper(), "effect": match["effect"].upper()})
@@ -179,8 +226,18 @@ def _segments(answer):
                 if line.lstrip().startswith("|"):
                     yield line, inherited
                     continue
+                protected = [match.span() for match in re.finditer(
+                    r"(`+)[^`\r\n]*?\1|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|"
+                    r"[（(][^()（）\r\n]{1,512}:\d+(?:[–-]\d+)?[）)]", line)]
+                protected.extend(match.span() for match in _REFERENCE.finditer(line))
                 start = 0
                 for match in re.finditer(r"[。！？](?:[ \t]*\[(?:ev[_:-]|fw:)[^\]\r\n]+\])*|(?:[!?]|\.(?!\d)|(?<!\d)\.)(?:[ \t]*\[(?:ev[_:-]|fw:)[^\]\r\n]+\])*", line):
+                    if any(first <= match.start() < last for first, last in protected):
+                        continue
+                    if (line[match.start()] == "." and 0 < match.start() < len(line) - 1
+                            and re.match(r"[A-Za-z0-9_-]", line[match.start() - 1])
+                            and re.match(r"[A-Za-z0-9_-]", line[match.start() + 1])):
+                        continue  # A path/member/version separator is not sentence punctuation.
                     yield line[start:match.end()], inherited
                     start = match.end()
                 if start < len(line):
@@ -269,7 +326,7 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
         invalid = [identifier for identifier in ids if identifier not in allowed]
         valid = [identifier for identifier in ids if identifier in allowed]
         assertions = _assertions(segment)
-        replacements, unresolved, final_value_unverified = [], False, False
+        replacements, retained_supported, unresolved, final_value_unverified = [], [], False, False
         for fact in facts:
             if fact["predicate"] != "noop_procedure" or not re.search(r"(?<![\w-])" + re.escape(fact["target"]) + r"(?![\w-])", text, re.I):
                 continue
@@ -404,6 +461,7 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                 entry.checker_version = supported[0][1]["checker_version"]
                 entry.support_scope = supported[0][1]["support_scope"]
                 entry.occurrence_ids = list(dict.fromkeys(fact["occurrence_id"] for fact, _ in supported))
+                retained_supported.extend(fact for fact, _ in supported)
                 if not ids:
                     entry.evidence_ids = list(dict.fromkeys(fact["evidence_id"] for fact, _ in supported))
                     entry.source_versions = [{key: fact[key] for key in
@@ -434,6 +492,9 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                 unresolved = True
                 entry.revision = "scoped_uncertainty"
         if replacements:
+            # A repaired guard or formula must not erase other independently
+            # supported structures in that same sentence.
+            replacements.extend(retained_supported)
             seen, distinct = set(), []
             for fact in replacements:
                 key = (fact["evidence_id"], fact["occurrence_id"], fact.get("target"))

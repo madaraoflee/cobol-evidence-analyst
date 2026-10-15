@@ -274,6 +274,16 @@ def _unaccepted_agent(agent: dict, reason_code: str) -> dict:
     return rejected
 
 
+def _has_business_answer(value, *, runner_completed=False):
+    text = value.get("answer") or value.get("content")
+    if (not isinstance(text, str) or not text.strip() or value.get("answer_available") is False
+            or value.get("answer_origin") == "diagnostic"):
+        return False
+    return (value.get("answer_available") is True or value.get("model_answer_recorded") is True
+        or value.get("answer_origin") in {"model", "local_source_facts"}
+        or runner_completed and value.get("model_answer_recorded") is not False)
+
+
 def _relationships(database: Path, snapshot_id: str) -> dict:
     with closing(sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True)) as connection:
         connection.row_factory = sqlite3.Row
@@ -755,8 +765,10 @@ class WorkbenchState:
             return
         agent = (project.get("agent") or {}).get("agent_result") or {}
         project_agent = project.get("agent") or {}
-        status = "completed" if (project.get("agent") or {}).get("runner_status") == "COMPLETED" else "failed"
-        self.conversation_store.complete_user(job_id, status)
+        available = _has_business_answer(agent, runner_completed=project_agent.get("runner_status") == "COMPLETED")
+        status = ("partial" if available and (agent.get("status") == "PARTIAL"
+            or agent.get("answer_origin") == "local_source_facts" or project_agent.get("runner_status") != "COMPLETED")
+            else "completed" if available else "failed")
         content = agent.get("answer") or "本次没有取得模型回答。对话已保留，可以重试。"
         projection = (project.get("agent") or {}).get("display_projection") or {}
         answer_omissions = [item for item in projection.get("omitted", [])
@@ -775,12 +787,34 @@ class WorkbenchState:
                      "diagnostics": agent.get("diagnostics", []),
                      "diagnostic": sanitize_diagnostic(agent.get("diagnostic")) or sanitize_diagnostic(project_agent.get("diagnostic")),
                      "analysis_status": agent.get("status"), "stop_reason": agent.get("stop_reason"),
+                     "answer_origin": agent.get("answer_origin"),
+                     "answer_available": available,
+                     "model_answer_recorded": agent.get("model_answer_recorded"),
                      "finish_reason": agent.get("finish_reason"),
                      "answer_truncated": agent.get("answer_truncated", False),
                      "diagnostic_summary": agent.get("diagnostic_summary") or project_agent.get("diagnostic_summary"),
                      "answer_display_truncated": complete_characters > len(content),
                      "answer_complete_characters": complete_characters,
                      "answer_detail": options.get("answer_detail", "detailed")}
+        previous = next((message for message in (self.conversation or {}).get("messages", ())
+            if message.get("id") == options.get("retry_assistant_id") and message.get("role") == "assistant"), None)
+        if not available and previous is not None and _has_business_answer(previous):
+            # An unsuccessful continuation cannot revoke the previous answer's
+            # captured source version. Keep it visible while the request remains
+            # unresolved, without calling that new remote attempt successful.
+            content, status = previous["content"], "partial"
+            for key in ("evidence_refs", "source_version", "investigation_state", "cited_evidence_ids",
+                        "framework_references", "related_sources", "impact_result", "snapshot_id", "metrics",
+                        "answer_origin", "model_answer_recorded", "finish_reason", "answer_truncated",
+                        "answer_display_truncated", "answer_complete_characters", "answer_detail"):
+                if key in previous:
+                    details[key] = copy.deepcopy(previous[key])
+            details.update(analysis_status="PARTIAL", answer_available=True)
+            if not details.get("diagnostic"):
+                details["diagnostic"] = previous.get("diagnostic")
+        if project_agent.get("reason_code") == "REMOTE_REQUEST_OUTCOME_UNKNOWN":
+            details["retry_blocked_reason"] = "REMOTE_REQUEST_OUTCOME_UNKNOWN"
+        self.conversation_store.complete_user(job_id, status)
         if options.get("retry_message_id"):
             self.conversation_store.replace_assistant(
                 identifier, options.get("retry_assistant_id"), content,
@@ -932,6 +966,10 @@ class WorkbenchState:
                 except ValueError:
                     raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话，请新建对话后重试。", 404) from None
                 options["conversation_id"] = conversation["id"]
+                if not retry_message_id and same_project and options["question"]:
+                    retry_message_id = self.conversation_store.retry_for_question(conversation["id"], options["question"])
+                    if retry_message_id:
+                        options["retry_message_id"] = retry_message_id
                 if retry_message_id:
                     try:
                         target = self.conversation_store.retry_target(conversation["id"], retry_message_id)

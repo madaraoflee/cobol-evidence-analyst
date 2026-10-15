@@ -125,8 +125,10 @@ class DesktopAcceptanceEvidenceTests(unittest.TestCase):
 
     def test_scope_probes_remain_mandatory_without_replacing_original_samples_or_gold(self):
         manifest = json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8"))
-        self.assertEqual(len(manifest["cases"]), 17)
-        self.assertEqual(sum(case["repeats"] for case in manifest["cases"]), 55)
+        self.assertEqual(len(manifest["cases"]), 19)
+        self.assertEqual(sum(case["repeats"] for case in manifest["cases"]), 61)
+        self.assertEqual(sum(case["repeats"] for case in manifest["cases"]
+                             if case["id"] not in {"soft_target_answer", "activation_trigger"}), 55)
         cases = {case["id"]: case for case in manifest["cases"]}
         frontend = cases["frontend_semantics"]
         self.assertEqual(frontend["reviewed_files"], ["frontend.cbl"])

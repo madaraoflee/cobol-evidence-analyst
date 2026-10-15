@@ -7,7 +7,7 @@ import re
 from statement_facts import data_references
 
 
-PLAN_VERSION = "business-analysis-plan/v5"
+PLAN_VERSION = "business-analysis-plan/v6"
 _IDENTIFIER = re.compile(r"(?<![A-Za-z0-9_$#@-])[A-Z0-9_$#@-]+(?:\s+(?:OF|IN)\s+[A-Z0-9_$#@-]+)*(?:\([^()\r\n]*\)(?:\s+(?:OF|IN)\s+[A-Z0-9_$#@-]+)*)?", re.I)
 _HINTS = {
     "origin": r"从哪里|從哪裡|来源|來源|哪里来的|哪裡來的|\b(?:origin|source\s+of|where.+from)\b",
@@ -17,7 +17,12 @@ _HINTS = {
     "exception": r"异常|異常|错误|錯誤|失败|失敗|\b(?:exception|error|fail)\b",
     "calculation": r"计算|計算|公式|算式|怎么算|怎麼算|\b(?:calculate|calculates|calculated|calculating|calculation|calculations|compute|computes|computed|computing|formula|formulas)\b",
     "flow": r"流程|逻辑|邏輯|处理|處理|\b(?:flow|logic|process)\b",
+    "activation": r"触发|觸發|启动|啟動|调度|調度|批处理|批處理|(?<![A-Za-z0-9_-])(?:trigger(?:ed|ing)?|batch|schedul(?:e|ed|ing))(?![A-Za-z0-9_-])",
 }
+_UPSTREAM_ACTIVATION = re.compile(
+    r"批处理|批處理|调度|調度|启动|啟動|入口|由谁|由誰|谁调用|誰調用|"
+    r"(?:怎么|怎麼|如何|怎样|怎樣|由谁|由誰|谁|誰|how).{0,16}(?:触发|觸發|trigger)|"
+    r"(?<![A-Za-z0-9_-])(?:batch|schedul(?:e|ed|ing)|launch(?:ed|ing)?|entry[ -]?point)(?![A-Za-z0-9_-])", re.I)
 
 
 def question_references(question):
@@ -39,6 +44,7 @@ _TOOLS = {
     "flow": ("backward_slice", "trace_parameter", "explain_external_effect"),
     "explanation": ("explain_assignment",),
     "declaration": ("inspect_business_context",),
+    "activation": ("inspect_business_context", "trace_parameter", "explain_external_effect"),
 }
 
 
@@ -106,6 +112,13 @@ class QuestionPlanner:
                 intent_question = re.sub(r"(?<![A-Za-z0-9_$#@-])" + re.escape(name) +
                                          r"(?![A-Za-z0-9_$#@-])", " ", intent_question, flags=re.I)
         intents = [name for name, pattern in _HINTS.items() if re.search(pattern, intent_question, re.I)]
+        # A rule's trigger condition belongs to its local IF/control analysis.
+        # Upstream launch or batch wording asks the separate caller/scheduler
+        # question; calculation and activation obligations can then coexist.
+        if "activation" in intents and not _UPSTREAM_ACTIVATION.search(intent_question):
+            intents.remove("activation")
+            if "condition" not in intents:
+                intents.append("condition")
         declaration = bool(re.search(r"类型|類型|长度|長度|初值|初始值|\b(?:data\s+type|type\s+of|length|initial\s+value|default\s+value)\b",
                                      str(question), re.I))
         if declaration and not set(intents) & {"origin", "overwrite", "impact", "condition", "exception", "calculation"}:
@@ -145,6 +158,7 @@ class QuestionPlanner:
                 "condition": ("control_conditions",), "exception": ("error_return",),
                 "calculation": ("assignment_expression", "input_definitions", "numeric_layout"),
                 "flow": ("control_conditions", "calls", "external_effects"),
+                "activation": ("entry_point", "caller_invocation", "activation_conditions", "scheduler_binding"),
                 "declaration": ("declaration_layout",)}.get(intent, ()))
         if file_entities:
             obligations.extend(("file_assignment", "file_record_layout", "copy_layout", "file_io_mapping"))

@@ -1,0 +1,121 @@
+"""Completion targets must preserve answer delivery and explicit cancellation."""
+
+from pathlib import Path
+import sys
+import unittest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from agent_policy import AgentPolicy, resolve_agent_policy
+from question_budget import QuestionBudget, QuestionDeadlineExceeded
+
+
+class QuestionBudgetDeliveryTests(unittest.TestCase):
+    def setUp(self):
+        self.now = 10.0
+
+    def budget(self, seconds=120, **options):
+        return QuestionBudget(seconds, clock=lambda: self.now, **options)
+
+    def test_first_answer_can_arrive_after_completion_target(self):
+        budget = self.budget()
+        self.now += 121
+        budget.check()
+        self.assertEqual(budget.remaining(), 0)
+        self.assertTrue(budget.target_reached())
+        self.assertIsNone(budget.hard_remaining())
+        self.assertTrue(budget.should_answer(60))
+        self.assertEqual(budget.request_timeout(60), 60)
+
+    def test_target_remaining_does_not_shorten_provider_allowance(self):
+        budget = self.budget()
+        self.now += 115
+        self.assertEqual(budget.remaining(), 5)
+        self.assertEqual(budget.request_timeout(60), 60)
+
+    def test_provider_allowance_is_not_increased(self):
+        budget = self.budget()
+        self.assertEqual(budget.request_timeout(7), 7)
+        self.now += 121
+        self.assertEqual(budget.request_timeout(7), 7)
+
+    def test_first_discovery_is_allowed_before_target(self):
+        budget = self.budget()
+        self.assertFalse(budget.should_answer(300))
+        self.now += 119
+        self.assertFalse(budget.should_answer(300))
+        self.now += 1
+        self.assertTrue(budget.should_answer(300))
+
+    def test_observed_request_wait_reserves_answer_before_target(self):
+        budget = self.budget()
+        budget.observe_request(55)
+        self.now += 70
+        self.assertFalse(budget.target_reached())
+        self.assertTrue(budget.should_answer(60))
+        budget.check()
+        self.assertEqual(budget.request_timeout(60), 60)
+
+    def test_explicit_hard_limit_bounds_request_and_active_wait(self):
+        budget = self.budget(hard_seconds=30)
+        self.now += 23
+        self.assertEqual(budget.hard_remaining(), 7)
+        self.assertEqual(budget.request_timeout(60), 7)
+        self.now += 7
+        self.assertFalse(budget.target_reached())
+        with self.assertRaises(QuestionDeadlineExceeded):
+            budget.check()
+        with self.assertRaises(QuestionDeadlineExceeded):
+            budget.request_timeout(60)
+
+    def test_longer_hard_limit_does_not_turn_target_into_cancellation(self):
+        budget = self.budget(hard_seconds=180)
+        self.now += 121
+        budget.check()
+        self.assertTrue(budget.should_answer(60))
+        self.assertEqual(budget.request_timeout(60), 59)
+
+    def test_explicit_hard_limit_does_not_expand_transport_timeout(self):
+        budget = self.budget(hard_seconds=180)
+        self.assertEqual(budget.request_timeout(20), 20)
+
+    def test_cancel_only_callback_does_not_consume_hard_limit(self):
+        calls = []
+        budget = self.budget(hard_seconds=1, check_cancel=lambda: calls.append(True))
+        self.now += 2
+        budget.check_cancel()
+        self.assertEqual(calls, [True])
+        with self.assertRaises(QuestionDeadlineExceeded):
+            budget.check()
+
+    def test_user_cancellation_wins_over_both_time_limits(self):
+        cancelled = RuntimeError("User cancelled the investigation")
+
+        def cancel():
+            raise cancelled
+
+        budget = self.budget(hard_seconds=1, check_cancel=cancel)
+        self.now += 121
+        for check in (budget.check_cancel, budget.check, lambda: budget.request_timeout(60)):
+            with self.assertRaises(RuntimeError) as caught:
+                check()
+            self.assertIs(caught.exception, cancelled)
+
+    def test_legacy_policy_has_no_implicit_hard_limit(self):
+        policy = resolve_agent_policy({"max_question_seconds": 7})
+        self.assertEqual(policy.max_question_seconds, 7)
+        self.assertIsNone(policy.hard_question_seconds)
+        self.assertIsNone(policy.to_dict()["hard_question_seconds"])
+
+    def test_explicit_hard_policy_round_trips_independently_of_target(self):
+        policy = AgentPolicy(max_question_seconds=120, hard_question_seconds=7)
+        self.assertEqual(resolve_agent_policy(policy.to_dict()), policy)
+
+    def test_hard_policy_rejects_invalid_runtime_limits(self):
+        for value in (0, -1, 1801, True, 1.5, "120"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                AgentPolicy(hard_question_seconds=value)
+
+
+if __name__ == "__main__":
+    unittest.main()

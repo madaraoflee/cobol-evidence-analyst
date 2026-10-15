@@ -256,7 +256,7 @@ def _investigation_deferral(text):
     if len(value) > 600:
         return False
     noun = (r"(?:对应的|相关的?|实际的?|具体的?|完整的?|适用的?|输入的?|计算的?|该)?"
-            r"(?:公式|计算规则|计算逻辑|条件|赋值|原文|来源|源码|参数|手册|实现)")
+            r"(?:公式|计算规则|计算逻辑|条件|赋值|原文|字段来源|来源|源码|参数|手册|实现|调用方|入口|调度配置)")
     chinese_action = r"(?:查找|找到|找|定位|补读|补查|读取|核对|确认)"
     chinese_objects = noun + r"(?:(?:和|及|与|、|以及)" + noun + r"){0,4}"
     chinese = (r"(?:(?:我|我们)[，,]?|(?:為了回答|为了回答|为了解释|为了说明|要回答这个问题)[，,]?)?"
@@ -264,7 +264,7 @@ def _investigation_deferral(text):
                + r"(?:[，,]?(?:再|并|然后)?" + chinese_action + chinese_objects + r"){0,3}"
                r"(?:后?(?:才能|再)(?:解释|回答|说明))?[。.!?！？]*")
     english_noun = (r"(?:the\s+|relevant\s+|actual\s+|input\s+)?"
-                    r"(?:formulas?|calculations?|conditions?|assignments?|sources?|parameters?|manuals?|implementation)")
+                    r"(?:formulas?|calculations?|conditions?|assignments?|field\s+sources?|sources?|callers?|entry\s+points?|parameters?|manuals?|implementation)")
     english_action = r"(?:find|search(?: for)?|read|locate|inspect|check)\s+"
     english_objects = english_noun + r"(?:\s+and\s+" + english_noun + r"){0,4}"
     english = (r"(?:(?:I|we)\s+|(?:to answer|to explain)(?:\s+this question)?[, ]+)?"
@@ -430,7 +430,8 @@ def _compact_prompt_payload(payload):
 def _prompt_payload(payload):
     # Keep the requested explanation depth and evidence coverage aligned;
     # navigation compression only changes the wire representation.
-    projected = _compact_prompt_payload(payload)
+    from prompt_projection import project_prompt_payload
+    projected = _compact_prompt_payload(project_prompt_payload(payload))
     if isinstance(payload.get("session_subject"), dict):
         projected = dict(projected)
         # Identity is navigation, never semantic support. Keep the small local
@@ -925,6 +926,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     impact_result = None
     concept_candidates = []
     provider_usage = []
+    provider_request_timings = []
     answer, failure, truncated = "", None, False
     answer_finish_reason = None
     continuation_attempted = False
@@ -933,6 +935,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     answer_round = None
     answer_manifest = None
     answer_investigation = None
+    answer_origin = "none"
+    last_request_manifest = None
     automatic_followup_material = None
     synthesis_review_attempted = False
     last_investigation = None
@@ -1630,9 +1634,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                        request_observer=quality.observe)
     def complete(messages, *, payload, request_size, stage, trim_events=()):
         """Send once; provider failures stop this question for explicit retry."""
-        nonlocal turns, first_model_request_seconds, resume_response
+        nonlocal turns, first_model_request_seconds, resume_response, last_request_manifest
         quality.prepare(stage=stage, payload=payload, messages=messages, trim_events=trim_events,
                         replay_round_id=f"round-{turns}" if resume_response is not None else None)
+        last_request_manifest = _request_manifest(payload)
         if check_cancel:
             check_cancel()
         if resume_response is not None:
@@ -1663,6 +1668,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         finally:
             duration = time.monotonic() - began
             timing["provider_wait_seconds"] += duration
+            observed_timing = getattr(client, "last_request_timing", {})
+            phases = {"round_id": f"round-{turns}", "stage": stage,
+                      **(observed_timing if isinstance(observed_timing, Mapping) else {})}
+            provider_request_timings.append(phases)
+            quality.data.setdefault("provider_request_timings", []).append(phases)
             if question_budget:
                 question_budget.observe_request(duration)
 
@@ -1804,6 +1814,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         """Spend only the existing per-turn tool allowance on concrete gaps."""
         nonlocal tool_problem, priority_targets
         progressed = deferred_for_budget = False
+        if question_budget and question_budget.target_reached():
+            # The target schedules delivery. It cannot cancel an already sent
+            # request or turn a saved source-backed answer into an error page.
+            return False, True
         # A transmission limit cannot be repaired by acquiring the same source
         # again. Keep its visible-material gap and reserve tools for source that
         # the question-local pool still lacks.
@@ -1925,7 +1939,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             selected_pages = evidence.selected_pages(policy.max_source_characters,
                 evidence_groups=evidence_groups, priority_targets=priority_targets,
                 max_complete_source_characters=policy.max_complete_source_characters)
-            if detail_requested or is_file_impact_question(question) or automatic_followup_material is not None:
+            if (detail_requested or is_file_impact_question(question) or automatic_followup_material is not None
+                    or "activation" in (question_investigation(selected_pages).get("analysis_plan") or {}).get("intents", [])):
                 # One local read can reveal another deterministic dependency.
                 # Drain those plans within the same tool allowance before
                 # asking the provider to write a potentially disposable answer.
@@ -2183,10 +2198,15 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         for tool, values in action.items() if values
                         for arguments in (values if tool in {"read", "inspect_business_context", *_SEMANTIC_TOOLS}
                                           else [values])]})
-            if question_budget and question_budget.remaining() <= 0:
-                if action:
-                    raise QuestionDeadlineExceeded()
+            if question_budget and question_budget.target_reached():
                 force_answer = True
+                if action:
+                    boundaries.append({"reason": "delivery_target_reached",
+                        "next_step": "answer_from_supplied_evidence", "pending_actions_preserved": True})
+                    protocol_answer_pending = True
+                    if turns < policy.max_model_requests:
+                        continue
+                    break
             if invalid_action:
                 if not force_answer and not investigation_reprompted:
                     investigation_reprompted = True
@@ -2591,6 +2611,26 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     if failure and answer and not any(item.get("reason") == "usable_draft_retained" for item in boundaries):
         boundaries.append({"reason": "usable_draft_retained", "followup_error": failure})
 
+    if answer.strip():
+        answer_origin = "model"
+    elif not identity_blocks_analysis(business_map.get("source_identity", {})):
+        from evidence_answer import build_evidence_answer
+        supplied = (last_request_manifest or {}).get("source_ids", [])
+        local_answer = build_evidence_answer(question,
+            [sent_pages[identifier] for identifier in supplied if identifier in sent_pages],
+            last_investigation or {},
+            source_format=source_session.options.get("source_format", "auto") if source_session else "auto",
+            compilation_context=source_session.options.get("compilation_context") if source_session else None)
+        if local_answer:
+            answer = local_answer["answer"]
+            answer_manifest = {**(last_request_manifest or {}), **local_answer["manifest"]}
+            answer_investigation = last_investigation
+            answer_origin = "local_source_facts"
+            failure = failure or "ANSWER_NOT_PRODUCED"
+            boundaries.append({"reason": "local_source_facts_retained",
+                "scope": local_answer["semantic_scope"], "model_narrative_completed": False,
+                "unknowns": local_answer.get("unknowns", [])})
+
     # Stop spending investigation time, but always validate a retained answer
     # against its captured version before showing it. This phase performs no
     # provider requests and must not re-enter discovery.
@@ -2646,6 +2686,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         [sent_pages[identifier] for identifier in final_source_ids], answer_detail=answer_detail,
         working_set=(answer_manifest or {}).get("working_set"))
     if not answer:
+        answer_origin = "diagnostic"
         http_status = next((item.get("http_status") for item in errors if item.get("http_status")), None)
         api_failure = next((item["diagnostic"] for item in reversed(errors) if item.get("diagnostic")), None)
         if failure == "RETRIEVAL_UNRESOLVED":
@@ -2732,6 +2773,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         stop_reason = "sufficient_material"
     quality.data["provider_retries"] = provider_retries
     quality_path = quality.save(final={"final_answer_round_id": answer_round,
+        "answer_origin": answer_origin, "answer_available": usable,
         "final_answer_round_ids": answer_rounds, "answer_truncated": truncated,
         "continuation_attempted": continuation_attempted,
         "empty_length_recovery_attempted": empty_length_recovery_attempted,
@@ -2774,10 +2816,15 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         "question_investigation": final_investigation}
     timing["answer_verification_seconds"] = time.monotonic() - verification_started
     metrics = {"model_requests": turns, "elapsed_seconds": round(time.monotonic() - started, 3),
+               "delivery_target": {"seconds": policy.max_question_seconds,
+                   "reached": question_budget.target_reached() if question_budget else False,
+                   "inflight_request_cancelled_by_target": False,
+                   "hard_limit_seconds": policy.hard_question_seconds},
                "retrieved_pages": len(pages), "repository_rebuilt": False,
                "history_messages": len(history or []), "source_characters": sum(len(sent_pages[i].get("source_text", "")) for i in final_source_ids),
                "request_bytes": request_sizes, "policy": policy.to_dict(), "tool_calls": tool_calls,
                "provider_retries": provider_retries,
+               "provider_request_timings": provider_request_timings,
                "empty_length_recovery_attempted": empty_length_recovery_attempted,
                "usage": _usage_report(provider_usage, turns), "quality_trace_path": quality_path,
                "question_investigation": {"calls": investigation_calls,
@@ -2816,7 +2863,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
               "evidence_ids": [ref["evidence_id"] for ref in refs], "framework_context": framework,
               "investigation": investigation, "reading_coverage": {"reading_strategy": "retrieval", "sent_pages": len(final_source_ids),
               "sent_files": len({sent_pages[i].get("relative_path") for i in final_source_ids}), "complete": False},
-              "model_turns": turns, "model_answer_recorded": usable, "stop_reason": stop_reason,
+              "model_turns": turns, "model_answer_recorded": usable and answer_origin == "model",
+              "answer_available": usable, "answer_origin": answer_origin, "stop_reason": stop_reason,
               "boundaries": boundaries, "repository_boundaries": repository_boundaries,
               "diagnostics": errors, "tool_trace": trace, "metrics": metrics}
     latest_diagnostic = next((item["diagnostic"] for item in reversed(errors) if item.get("diagnostic")), None)
@@ -2841,7 +2889,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         "completed_actions": completed_actions, "source_pages": list(evidence.pages.values()),
         "compilation_context": source_session.options.get("compilation_context") if source_session else None,
         "snapshot_id": overview["snapshot_id"], "exactly_once": False},
-        status="attention" if uncertain else "running" if failure == "QUESTION_TIME_BUDGET_EXHAUSTED" and not usable else "completed")
+        status="attention" if uncertain else "running" if failure == "QUESTION_TIME_BUDGET_EXHAUSTED"
+            and answer_origin != "model" else "completed")
     return output
 
 
@@ -2851,7 +2900,9 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
     from run_store import RunStore, fingerprint
     from pathlib import Path
     import hashlib
-    budget = QuestionBudget(resolve_agent_policy(kwargs.get("policy")).max_question_seconds,
+    selected_policy = resolve_agent_policy(kwargs.get("policy"))
+    budget = QuestionBudget(selected_policy.max_question_seconds,
+                            hard_seconds=selected_policy.hard_question_seconds,
                             clock=lambda: time.monotonic(), check_cancel=kwargs.get("check_cancel"))
     kwargs["check_cancel"] = budget.check
     kwargs["question_budget"] = budget
@@ -2884,10 +2935,22 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
         # previous charged request failed. Resolve uncertainty before deciding
         # whether any saved answer/configuration can be replayed.
         def unknown_remote_result():
+            retained = resume["checkpoint"].get("result")
+            if isinstance(retained, dict) and (retained.get("agent_result") or {}).get("answer_available"):
+                from copy import deepcopy
+                result = deepcopy(retained)
+                result["reason_code"] = "REMOTE_REQUEST_OUTCOME_UNKNOWN"
+                result["agent_result"]["resume_state"] = {
+                    "completed_steps": len(resume["completed_steps"]),
+                    "frontier": resume["checkpoint"].get("frontier", []),
+                    "uncertain_requests": resume["uncertain_requests"],
+                    "retained_answer_from_saved_run": True, "automatic_resend": False, "exactly_once": False}
+                return result
             return {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
                 "runner_status": "NOT_READY", "reason_code": "REMOTE_REQUEST_OUTCOME_UNKNOWN",
                 "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"], "answer":
                     "这次调查已保存，但上一次远程模型请求的结果未知。已完成的源码读取和待查位置仍可恢复；需要先确认该请求状态，再决定是否重试。",
+                    "answer_origin": "diagnostic", "answer_available": False, "model_answer_recorded": False,
                     "resume_state": {"completed_steps": len(resume["completed_steps"]),
                         "frontier": resume["checkpoint"].get("frontier", []),
                         "uncertain_requests": resume["uncertain_requests"], "exactly_once": False}}}
@@ -2946,6 +3009,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
             return {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
                 "runner_status": "NOT_READY", "reason_code": "QUESTION_TIME_BUDGET_EXHAUSTED",
                 "agent_result": {"status": "PARTIAL", "run_id": run_id,
+                    "answer_origin": "diagnostic", "answer_available": False, "model_answer_recorded": False,
                     "stop_reason": "QUESTION_TIME_BUDGET_EXHAUSTED",
                     "answer": "本次调查已达到时间预算。已完成的源码读取和待查位置已保存，尚未完成业务判断。在工作台点击原问题的“重试这个问题”，或重新提交原问题，即可继续调查，无需重新导入源码。",
                     "resume_state": {"frontier": checkpoint.get("frontier", []), "exactly_once": False},

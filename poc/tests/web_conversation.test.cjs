@@ -316,6 +316,44 @@ test('retry completes a failed turn in its original conversation without adding 
   assert.doesNotMatch(h.run('renderWorkbench()'),/Retry this question/);
 });
 
+test('a partial source answer stays visible and can explicitly retry its original question',async()=>{
+  const h=harness('zh-CN');
+  const partial=[{id:'partial-user',role:'user',content:'Which condition permits the call?',status:'partial'},
+    {id:'partial-answer',role:'assistant',content:'READY-FLAG must equal 1. [ev-1]',status:'partial',
+      analysis_status:'PARTIAL',answer_origin:'local_source_facts',answer_available:true,model_answer_recorded:false,
+      evidence_refs:[{evidence_id:'ev-1',relative_path:'request.cbl',start_line:3,end_line:8}]}];
+  setup(h,partial);
+  let html=h.run('conversationWorkbench()');
+  assert.match(html,/READY-FLAG must equal 1/);
+  assert.match(html,/answer-incomplete/);
+  assert.match(html,/data-retry-message="partial-user"/);
+  assert.doesNotMatch(html,/本次未取得回答/);
+  h.respond(url=>url==='/api/analyze'?{job_id:'partial-retry-job'}:{status:'COMPLETED',result:{...project(),
+    conversation:conversation([{...partial[0],status:'completed'},{...partial[1],status:'completed',
+      analysis_status:'ANALYZED',answer_origin:'model',model_answer_recorded:true}])}});
+  await h.run("retryConversationMessage('partial-user')");
+  const submission=JSON.parse(h.requests.find(item=>item.url==='/api/analyze').options.body);
+  assert.equal(submission.retry_message_id,'partial-user');
+  assert.equal(submission.conversation_id,'conversation-1');
+  assert.equal(submission.question,partial[0].content);
+  assert.equal(h.run('state.conversation.messages.length'),2);
+});
+
+test('an unknown remote retry preserves the prior source answer and explains no automatic resend',()=>{
+  const h=harness('zh-CN');
+  setup(h,[{id:'partial-user',role:'user',content:'Which condition permits the call?',status:'partial'},
+    {id:'partial-answer',role:'assistant',content:'READY-FLAG must equal 1. [ev-1]',status:'partial',
+      analysis_status:'PARTIAL',answer_origin:'local_source_facts',answer_available:true,model_answer_recorded:false,
+      retry_blocked_reason:'REMOTE_REQUEST_OUTCOME_UNKNOWN',
+      evidence_refs:[{evidence_id:'ev-1',relative_path:'request.cbl',start_line:3,end_line:8}]}]);
+  const html=h.run('conversationWorkbench()');
+  assert.match(html,/READY-FLAG must equal 1/);
+  assert.match(html,/原远程请求的结果尚未确认/);
+  assert.match(html,/不会自动重复请求/);
+  assert.match(html,/data-turn-evidence="ev-1"/);
+  assert.equal(h.requests.length,0);
+});
+
 test('delete confirmation removes only the chosen conversation and keeps the source index',async()=>{
   const h=harness();setup(h,firstMessages);
   h.run("state.conversations=[{id:'conversation-2',title:'Other question',message_count:2},...state.conversations]");
@@ -462,17 +500,18 @@ test('the welcome puts the composer before optional prompts and keeps source onb
   }
 });
 
-test('question progress counts down from each snapshot and distinguishes investigation limits from ETA',()=>{
+test('question progress keeps elapsed observations without presenting a hard completion countdown',()=>{
   const h=harness();setup(h);
   h.run("state.busy=true;state.jobId='job';state.jobKind='question';Date.now=()=>100000;rememberProgress({phase:'waiting_for_model',model_requests:2,retrieved_pages:7,question_budget_seconds:120,question_remaining_seconds:80,phase_elapsed_seconds:10,elapsed_seconds:40});Date.now=()=>105000;");
   assert.equal(h.run('progressViewModel().questionRemaining'),75);
   assert.equal(h.run('progressViewModel().phaseElapsed'),15);
   const markup=h.run('conversationProgress()');
   assert.match(markup,/Model request 2/);assert.match(markup,/Waiting on this request 00:15/);
-  assert.match(markup,/Evidence pages read 7/);assert.match(markup,/Investigation time left 01:15.*limit 02:00.*not an ETA/);
+  assert.match(markup,/Evidence pages read 7/);assert.match(markup,/Generating an answer from the supplied source/);
+  assert.doesNotMatch(markup,/Investigation time left|not an ETA/);
   h.run('updateProgressPanel()');
   assert.match(h.get('conversation-activity').textContent,/request 2.*00:15.*read 7/);
-  assert.match(h.get('conversation-budget').textContent,/01:15/);
+  assert.match(h.get('conversation-budget').textContent,/Generating an answer from the supplied source/);
   h.run("Date.now=()=>110000;rememberProgress({phase:'waiting_for_model',model_requests:2,retrieved_pages:7,question_budget_seconds:120,question_remaining_seconds:70,phase_elapsed_seconds:20,elapsed_seconds:50});Date.now=()=>112000;");
   assert.equal(h.run('progressViewModel().questionRemaining'),68);
   h.run("Date.now=()=>500000;");assert.equal(h.run('progressViewModel().questionRemaining'),0);

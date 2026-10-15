@@ -212,7 +212,7 @@ jobs:
               '--helper-commit', os.environ['FROZEN_HELPER_COMMIT'],
               '--destination', str(temporary / 'office-kit-delivery')], check=True)
 
-      - name: Run the delivered helper plan and all 55 native samples without external models
+      - name: Run the delivered helper plan and every native sample without external models
         timeout-minutes: 35
         shell: python
         run: |
@@ -230,17 +230,18 @@ jobs:
           subprocess.run([helper, '--kit', root / 'OFFICE-KIT.json', '--plan',
                           '--output', temporary / 'office-native-plan'], check=True, timeout=180)
           plan = json.loads((temporary / 'office-native-plan/LIVE-ACCEPTANCE.json').read_text(encoding='utf-8'))
-          if plan['plan']['user_turn_count'] != 35 or plan['plan']['max_model_requests'] != 105 or plan['cases']:
+          if plan['plan']['user_turn_count'] != 36 or plan['plan']['max_model_requests'] != 108 or plan['cases']:
               raise SystemExit('Frozen no-call plan mismatch.')
           subprocess.run([helper, '--kit', root / 'OFFICE-KIT.json', '--offline',
                           '--output', temporary / 'office-native-check'], check=True, timeout=1800)
           report = json.loads((temporary / 'office-native-check/COMPILED-ACCEPTANCE.json').read_text(encoding='utf-8'))
-          if report['status'] != 'passed' or len(report['cases']) != 55:
+          expected_samples = sum(case['repeats'] for case in json.loads((root / 'candidate/ACCEPTANCE-MANIFEST.json').read_text(encoding='utf-8'))['cases'])
+          if report['status'] != 'passed' or len(report['cases']) != expected_samples:
               raise SystemExit('Actual helper did not complete all native regressions.')
           if any(not row.get('acceptance_diagnostics') for row in report['cases'] if row['kind'] == 'answer'):
               raise SystemExit('Executable answer diagnostics were not retained.')
           with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as handle:
-              handle.write('Portable helper started on Windows; original EXE reran 55 offline samples. '
+              handle.write('Portable helper started on Windows; original EXE reran every frozen offline sample. '
                            'No real-model or company-device acceptance is claimed; formal publication remains blocked.\n')
 
       - uses: actions/upload-artifact@v7

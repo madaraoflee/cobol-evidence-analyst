@@ -36,6 +36,82 @@ def supplied_pages(payload):
     return [page for bundle in payload.get("source_context", []) for page in bundle.get("pages", [])]
 
 
+def decoded_navigation(payload):
+    """Independently decode the wire contract before checking supplied facts.
+
+    Keep the original request bytes and payload in provider records. This
+    consumer deliberately does not import the application's projection code.
+    """
+    from copy import deepcopy
+    marker = payload.get("prompt_projection")
+    columns_marker = payload.get("navigation_encoding")
+    if marker is not None:
+        require(isinstance(marker, dict) and marker.get("format") == "shared-navigation/v1", "Unknown navigation contract")
+    if columns_marker is not None:
+        require(isinstance(columns_marker, dict) and columns_marker.get("format") == "column-values/v1",
+                "Unknown navigation column contract")
+    records = payload.get("shared_navigation_facts", {})
+    require(marker is None or isinstance(records, dict), "Invalid navigation records")
+    protected = {"pages", "working_set", "source_text", "framework_references", "framework_facts", "history"}
+    column_lists = {"links", "units", "relations", "slice_statements", "statements"}
+
+    def expand(value, references=()):
+        if isinstance(value, list):
+            return [expand(row, references) for row in value]
+        if not isinstance(value, dict):
+            return value
+        if marker is not None and "navigation_fact_ref" in value:
+            reference = value["navigation_fact_ref"]
+            require(reference in records, "Missing navigation record")
+            require(reference not in references, "Cyclic navigation record")
+            require(isinstance(records[reference], dict), "Invalid navigation record")
+            references = (*references, reference)
+            value = {**deepcopy(records[reference]), **{key: item for key, item in value.items()
+                                                     if key != "navigation_fact_ref"}}
+        result = {key: item for key, item in value.items()
+                  if marker is None or not key.endswith("_shared_fields")}
+        if columns_marker is not None:
+            for key in column_lists:
+                columns = result.pop(key + "_columns", None)
+                if columns is None:
+                    continue
+                require(isinstance(columns, list) and all(isinstance(field, str) for field in columns)
+                    and len(columns) == len(set(columns)) and isinstance(result.get(key), list),
+                    "Invalid navigation columns")
+                rows = []
+                for row in result[key]:
+                    require(isinstance(row, dict) and isinstance(row.get("_values"), list)
+                        and len(row["_values"]) == len(columns)
+                        and not (set(columns) & (set(row) - {"_values"})), "Invalid navigation column row")
+                    rows.append({**{field: item for field, item in row.items() if field != "_values"},
+                                 **dict(zip(columns, row["_values"]))})
+                result[key] = rows
+        for key in list(result):
+            if key in protected:
+                continue
+            shared = value.get(key + "_shared_fields") if marker is not None else None
+            if shared is not None:
+                require(isinstance(shared, dict) and isinstance(result[key], list)
+                    and all(isinstance(row, dict) for row in result[key]), "Shared navigation fields need rows")
+                result[key] = [{**deepcopy(shared), **row} for row in result[key]]
+            result[key] = expand(result[key], references)
+        return result
+
+    output = deepcopy(payload)
+    for key in ("business_map", "evidence_groups", "business_analysis_brief", "question_investigation"):
+        if key in output:
+            wrapper = {key: output[key]}
+            shared_key = key + "_shared_fields"
+            if shared_key in output:
+                wrapper[shared_key] = output.pop(shared_key)
+            output[key] = expand(wrapper)[key]
+    if "source_context" in output:
+        output["source_context"] = [expand(context) for context in output["source_context"]]
+    for key in ("prompt_projection", "navigation_encoding", "shared_navigation_facts"):
+        output.pop(key, None)
+    return output
+
+
 @dataclass
 class SlowHeaders:
     """Keep the real HTTP header parser waiting while sending small headers."""

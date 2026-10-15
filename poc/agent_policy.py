@@ -3,6 +3,11 @@
 Ordinary excerpts and a uniquely resolved whole root have separate allowances.
 Changing these values is a deployment choice, never an automatic response to a
 difficult question.
+
+``max_question_seconds`` is a compatibility name for the completion target:
+after it, prefer answering over optional investigation without cancelling a
+provider response. ``hard_question_seconds`` is an optional, explicit runtime
+limit; the default has no such limit. Transport timeouts remain independent.
 """
 
 from collections.abc import Mapping
@@ -36,8 +41,13 @@ class AgentPolicy:
     max_local_analysis_seconds: int = 15
     max_answer_revisions: int = 1
     semantic_cache_bytes: int = 536870912
+    hard_question_seconds: int | None = None
 
     def __post_init__(self):
+        if self.hard_question_seconds is not None and (
+                type(self.hard_question_seconds) is not int
+                or not 1 <= self.hard_question_seconds <= 1800):
+            raise ValueError("Agent policy hard_question_seconds must be None or an integer from 1 to 1800.")
         limits = {
             "max_model_requests": (1, 32),
             "max_question_seconds": (1, 1800),

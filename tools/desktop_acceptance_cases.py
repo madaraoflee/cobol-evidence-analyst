@@ -15,7 +15,7 @@ import shutil
 import sqlite3
 import time
 
-from tools.desktop_acceptance_runtime import LoopbackProvider, NativeWorkbench, supplied_pages, write_profile
+from tools.desktop_acceptance_runtime import LoopbackProvider, NativeWorkbench, decoded_navigation, supplied_pages, write_profile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -674,7 +674,8 @@ def _run_cases(command, root, manifest, public_source, *, case_ids=None):
                     visible = (response["state"].get("conversation") or {}).get("messages", [])
                     checks = _quality_checks(case, agent, output, pages, trace)
                     if case["id"] == "forward_impact":
-                        groups = [group for request in requests for group in request["payload"].get("evidence_groups", [])]
+                        groups = [group for request in requests for group in
+                                  decoded_navigation(request["payload"]).get("evidence_groups", [])]
                         tool_results = [item for group in groups for item in group.get("semantic_analysis", {}).get("tool_results", [])
                             if item.get("tool") == "forward_slice"]
                         checks["quality_forward_slice_reaches_output"] = any(

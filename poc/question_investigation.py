@@ -1287,6 +1287,30 @@ def build_question_investigation(question, business_map, *, database_path=None,
             "state": "located" if located else "unresolved", "can_answer": located}
     if identity_blocks_analysis(identity):
         return {**base, "state": "unresolved", "can_answer": False}
+    activation = None
+    if "activation" in plan.intents:
+        from activation_evidence import investigate_activation
+        activation = investigate_activation(business_map, source_pages, database_path=database_path,
+            max_actions=max_actions, candidate_cache=candidate_cache)
+        if not set(plan.intents) & {"calculation", "origin", "overwrite", "impact", "exception"}:
+            return {**base, **activation}
+
+    def include_activation(result):
+        if activation is None:
+            return result
+        actions = {json.dumps({"tool": action["tool"], "arguments": action["arguments"]}, sort_keys=True): action
+                   for action in [*result.get("planned_actions", ()), *activation["planned_actions"]]}
+        all_actions = list(actions.values())
+        actions = all_actions[:max(0, max_actions)]
+        gaps = [*activation["open_gaps"], *result.get("open_gaps", ())]
+        if len(all_actions) > len(actions):
+            gaps.append({"kind": "caller_invocation", "reason": "combined_action_frontier",
+                "remaining": len(all_actions)-len(actions)})
+        return {**result, "required_items": [*result.get("required_items", ()), *activation["required_items"]],
+            "planned_actions": actions, "open_gaps": gaps,
+            "activation_evidence": activation["activation_evidence"],
+            "state": "needs_evidence" if actions else "bounded_partial" if gaps else "located",
+            "can_answer": bool(result.get("can_answer") or activation["can_answer"]) and not actions}
     intent_question = str(question)
     for scope in source_scopes:
         intent_question = re.sub(r"(?<![A-Za-z0-9_$#@-])" + re.escape(scope["procedure_name"]) +
@@ -1302,17 +1326,17 @@ def build_question_investigation(question, business_map, *, database_path=None,
     if not calculation and not business_steps:
         supplied = [page.get("evidence_id") for page in source_pages if page.get("evidence_id")
                     and page.get("relative_path") in paths and page.get("source_text")]
-        return {**base, "required_items": [{"id": "question_supplied_source", "kind": "source",
+        return include_activation({**base, "required_items": [{"id": "question_supplied_source", "kind": "source",
             "status": "SATISFIED" if supplied else "OPEN", "evidence_ids": supplied,
             "reason": "source_supplied" if supplied else "source_not_supplied"}],
-            "can_answer": located and bool(supplied)}
+            "can_answer": located and bool(supplied)})
     if not located:
         kind = "business_steps" if business_steps else "formula"
         item = {"id": "calculation_" + kind, "kind": kind, "status": "OPEN",
                 "evidence_ids": [], "candidate_count": 0, "missing_count": 0,
                 "reason": kind + "_not_located"}
-        return {**base, "required_items": [item], "open_gaps": [
-            {"kind": kind, "status": "OPEN", "reason": kind + "_not_located"}]}
+        return include_activation({**base, "required_items": [item], "open_gaps": [
+            {"kind": kind, "status": "OPEN", "reason": kind + "_not_located"}]})
     # Request fitting repeatedly changes the visible pages, while the map and
     # its dependency closure remain fixed. Reuse only navigation here; evidence
     # visibility is still checked against the actual pages on every call.
@@ -1630,7 +1654,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
         and item["evidence_ids"] for item in items) if file_only else any(row["kind"] in
         {"io_operation", "field_assignment", "file_declaration", "record_binding"}
         for row in file_observations.get("file_impact", {}).get("observations", [])))
-    return {**base, **file_observations, "required_items": items, "planned_actions": plans, "open_gaps": gaps[:16],
+    return include_activation({**base, **file_observations, "required_items": items, "planned_actions": plans, "open_gaps": gaps[:16],
             "state": state, "can_answer": (formula_supplied or boundary_supplied or known_file_supplied) and not plans,
             "candidate_paths": paths[:_MAX_PATHS],
-            "candidate_cache": {"hit": cache_hit, "candidate_count": len(candidates)}}
+            "candidate_cache": {"hit": cache_hit, "candidate_count": len(candidates)}})

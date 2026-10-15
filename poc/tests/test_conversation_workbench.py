@@ -15,7 +15,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from analyze_source import analyze_source
+from analyze_source import AnalysisCancelled, analyze_source
 from agent_policy import AgentPolicy
 import business_chat
 from company_api import APIClientError, CompanyAPIConfig, TransportResponse
@@ -537,8 +537,15 @@ class ConversationWorkbenchTests(unittest.TestCase):
         self.transport = lambda request: TransportResponse(401, "{}")
         failed = self.run_job(question="Explain CAPACITY", allow_network=True)
         conversation = failed["conversation"]
-        self.assertEqual(conversation["messages"][-1]["status"], "failed")
-        self.assertIn("401", conversation["messages"][-1]["content"])
+        message = conversation["messages"][-1]
+        self.assertEqual(message["status"], "partial")
+        self.assertIn("CAPACITY", message["content"])
+        self.assertEqual(message["diagnostic"]["http_status"], 401)
+        self.assertEqual(message["analysis_status"], "PARTIAL")
+        self.assertEqual(message["answer_origin"], "local_source_facts")
+        self.assertTrue(message["answer_available"])
+        self.assertFalse(message["model_answer_recorded"])
+        self.assertTrue(message["evidence_refs"])
         self.assertEqual(failed["snapshot_id"], indexed["snapshot_id"])
         self.assertFalse(failed["agent"]["agent_result"]["model_answer_recorded"])
         self.assertEqual(len(conversation["messages"]), 2)
@@ -585,9 +592,11 @@ class ConversationWorkbenchTests(unittest.TestCase):
         self.transport = lambda request: TransportResponse(401, "{}")
         failed = self.run_job(question=question, allow_network=True)
         original = failed["conversation"]
-        self.assertEqual([message["status"] for message in original["messages"]], ["failed", "failed"])
+        self.assertEqual([message["status"] for message in original["messages"]], ["partial", "partial"])
         original_user, original_answer = original["messages"]
-        self.assertIn("401", original_answer["content"])
+        self.assertEqual(original_answer["diagnostic"]["http_status"], 401)
+        self.assertTrue(original_answer["answer_available"])
+        self.assertFalse(original_answer["model_answer_recorded"])
 
         self.transport = working_transport
         completed = self.run_job(question=question, allow_network=True,
@@ -618,11 +627,29 @@ class ConversationWorkbenchTests(unittest.TestCase):
         first = self.run_job(question=question, allow_network=True)
         conversation = first["conversation"]
         original_run = first["agent"]["agent_result"]["run_id"]
+        original = conversation["messages"][-1]
+        self.assertEqual(original["status"], "partial")
+        self.assertEqual(original["answer_origin"], "local_source_facts")
+        self.app = WorkbenchState(analyzer=self.analyzer, config_provider=lambda: self.config, state_path=self.state_path)
+        repeated = self.run_job(question=question, allow_network=True, conversation_id=conversation["id"])
+        self.assertEqual(repeated["agent"]["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
+        self.assertEqual(repeated["agent"]["agent_result"]["run_id"], original_run)
+        self.assertEqual([message["id"] for message in repeated["conversation"]["messages"]],
+                         [message["id"] for message in conversation["messages"]])
+        self.assertEqual(len(attempts), 1)
         retry = self.run_job(question=question, allow_network=True,
             conversation_id=conversation["id"], retry_message_id=conversation["messages"][0]["id"])
         self.assertEqual(retry["agent"]["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
         self.assertEqual(retry["agent"]["agent_result"]["run_id"], original_run)
         self.assertEqual(len(attempts), 1)
+        retained = retry["conversation"]["messages"][-1]
+        self.assertEqual(retained["id"], original["id"])
+        self.assertEqual(retained["content"], original["content"])
+        self.assertEqual(retained["evidence_refs"], original["evidence_refs"])
+        self.assertEqual(retained["analysis_status"], "PARTIAL")
+        self.assertEqual(retained["retry_blocked_reason"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
+        self.assertTrue(retained["answer_available"])
+        self.assertFalse(retained["model_answer_recorded"])
 
         fresh = self.app.new_conversation({})["conversation"]
         self.transport = working_transport
@@ -637,6 +664,7 @@ class ConversationWorkbenchTests(unittest.TestCase):
     def _assert_budget_retry_reuses_frontier(self, *, import_first):
         if import_first:
             self.run_job()
+        self.app.policy_provider = lambda: AgentPolicy(hard_question_seconds=120)
         clock = {"value": 0.0}
         state = {"received": False, "stop": True}
         working_transport = self.transport
@@ -672,7 +700,12 @@ class ConversationWorkbenchTests(unittest.TestCase):
             self.assertEqual(saved["checkpoint"]["frontier"], [{"tool": "read", "arguments": {
                 "relative_path": "quota.cbl", "start_line": 1, "end_line": 9}}])
             self.assertFalse(saved["uncertain_requests"])
-            self.assertEqual(self.app.conversation_store.model_history(conversation["id"]), [])
+            retained_history = self.app.conversation_store.model_history(conversation["id"])
+            self.assertEqual([message["role"] for message in retained_history], ["user", "assistant"])
+            self.assertEqual(retained_history[-1]["answer_origin"], "local_source_facts")
+            self.assertTrue(retained_history[-1]["answer_available"])
+            self.assertFalse(retained_history[-1]["model_answer_recorded"])
+            self.assertTrue(retained_history[-1]["evidence_refs"])
             state["stop"] = False
             clock["value"] = 130.0
             self.transport = working_transport
@@ -695,6 +728,110 @@ class ConversationWorkbenchTests(unittest.TestCase):
 
     def test_budget_retry_reuses_frontier_after_first_import_question(self):
         self._assert_budget_retry_reuses_frontier(import_first=False)
+
+    def test_repeated_pronoun_after_a_new_topic_does_not_retry_an_older_partial_turn(self):
+        (self.source / "quota.cbl").write_bytes(
+            b"IDENTIFICATION DIVISION.\nPROGRAM-ID. QUOTA.\nDATA DIVISION.\n"
+            b"WORKING-STORAGE SECTION.\n01 FIELD-X PIC 9 VALUE 0.\n"
+            b"01 FIELD-A PIC 9 VALUE 0.\n01 FIELD-B PIC 9 VALUE 0.\n"
+            b"PROCEDURE DIVISION.\nMAIN.\nMOVE 0 TO FIELD-X FIELD-A FIELD-B.\nGOBACK.\n")
+        self.app.policy_provider = lambda: AgentPolicy(max_model_requests=1, max_answer_revisions=0)
+        fail_next = [False]
+
+        def transport(request):
+            body = json.loads(request.body)
+            self.calls.append(body)
+            if fail_next[0]:
+                fail_next[0] = False
+                return TransportResponse(401, "{}")
+            refs = re.findall(r"ev_page_[a-f0-9]+", json.dumps(body))
+            content = "FIELD-X、FIELD-A 和 FIELD-B 的声明初始值均为 0，主流程还将三个字段赋值为 0。"
+            if refs:
+                content += f"[{refs[0]}]"
+            return TransportResponse(200, json.dumps({"choices": [{"message": {
+                "role": "assistant", "content": content}, "finish_reason": "stop"}]}))
+
+        self.transport = transport
+        first = self.run_job(question="QUOTA 第一种 FIELD-X 和第二种 FIELD-A，分别说明。", allow_network=True)
+        conversation_id = first["conversation"]["id"]
+        repeated_question = "刚才第二种情况呢？"
+        fail_next[0] = True
+        partial = self.run_job(question=repeated_question, allow_network=True, conversation_id=conversation_id)
+        old_user, old_answer = partial["conversation"]["messages"][-2:]
+        self.assertEqual(old_user["status"], "partial")
+        self.assertEqual(old_answer["investigation_state"]["session_subject"]["focus_entities"], ["FIELD-A"])
+
+        new_question = "QUOTA 第一种 FIELD-X 和第二种 FIELD-B，分别说明。"
+        newer = self.run_job(question=new_question, allow_network=True, conversation_id=conversation_id)
+        self.assertEqual(newer["conversation"]["messages"][-1]["status"], "completed")
+        previous_ids = [message["id"] for message in newer["conversation"]["messages"]]
+        current = self.run_job(question=repeated_question, allow_network=True, conversation_id=conversation_id)
+        messages = current["conversation"]["messages"]
+        self.assertEqual([message["id"] for message in messages[:-2]], previous_ids)
+        self.assertNotEqual(messages[-2]["id"], old_user["id"])
+        self.assertEqual(messages[-1]["investigation_state"]["session_subject"]["focus_entities"], ["FIELD-B"])
+        self.assertTrue(any(message.get("content") == new_question
+                            for message in self.calls[-1]["messages"][1:-1]))
+        self.assertEqual(next(message for message in messages if message["id"] == old_answer["id"])["status"], "partial")
+
+        explicitly_retried = self.run_job(question=repeated_question, allow_network=True,
+            conversation_id=conversation_id, retry_message_id=old_user["id"])
+        retry_messages = explicitly_retried["conversation"]["messages"]
+        self.assertEqual([message["id"] for message in retry_messages], [message["id"] for message in messages])
+        retried_answer = next(message for message in retry_messages if message["id"] == old_answer["id"])
+        self.assertEqual(retried_answer["status"], "completed")
+        self.assertEqual(retried_answer["investigation_state"]["session_subject"]["focus_entities"], ["FIELD-A"])
+        self.assertFalse(any(message.get("content") == new_question
+                             for message in self.calls[-1]["messages"][1:-1]))
+
+    def test_source_fact_answer_survives_restart_and_remains_followup_history(self):
+        self.run_job()
+        working_transport = self.transport
+        self.transport = lambda request: TransportResponse(401, "{}")
+        first = self.run_job(question="How is CAPACITY checked?", allow_network=True)
+        original = first["conversation"]["messages"][-1]
+        self.app = WorkbenchState(analyzer=self.analyzer, config_provider=lambda: self.config, state_path=self.state_path)
+        restored = self.app.state()["conversation"]
+        self.assertEqual(restored["messages"][-1]["content"], original["content"])
+        self.assertEqual(restored["messages"][-1]["status"], "partial")
+        history = self.app.conversation_store.model_history(restored["id"])
+        self.assertEqual(history[-1]["content"], original["content"])
+        self.assertEqual(history[-1]["answer_origin"], "local_source_facts")
+        self.assertEqual(history[-1]["investigation_state"]["session_subject"],
+                         original["investigation_state"]["session_subject"])
+        self.transport = working_transport
+        self.run_job(question="刚才那个条件呢？", allow_network=True, conversation_id=restored["id"])
+        self.assertTrue(any(message["role"] == "assistant" and message["content"] == original["content"]
+                            for message in self.calls[-1]["messages"][1:-1]))
+
+    def test_cancelled_retry_keeps_the_previous_partial_answer_and_its_history(self):
+        self.run_job()
+        self.transport = lambda request: TransportResponse(401, "{}")
+        first = self.run_job(question="How is CAPACITY checked?", allow_network=True)
+        conversation = first["conversation"]
+        user, answer = conversation["messages"]
+        with patch.object(self.app, "analyzer", side_effect=AnalysisCancelled("Cancelled locally")):
+            job = self.wait_for_job(self.app.start({"source": str(self.source), "output": str(self.output),
+                "source_format": "free", "question": user["content"], "allow_network": True,
+                "conversation_id": conversation["id"], "retry_message_id": user["id"]})["job_id"])
+        self.assertEqual(job["status"], "CANCELLED")
+        messages = job["conversation"]["messages"]
+        self.assertEqual([message["status"] for message in messages], ["cancelled", "partial"])
+        self.assertEqual(messages[-1]["content"], answer["content"])
+        history = self.app.conversation_store.model_history(conversation["id"])
+        self.assertEqual([message["role"] for message in history], ["user", "assistant"])
+        self.assertEqual(history[-1]["evidence_refs"], answer["evidence_refs"])
+
+    def test_diagnostic_without_relevant_source_remains_failed_and_retryable(self):
+        self.run_job()
+        self.transport = lambda request: TransportResponse(401, "{}")
+        failed = self.run_job(question="missing-entry.cbl 这个程序的受理规则是什么？", allow_network=True)
+        messages = failed["conversation"]["messages"]
+        self.assertEqual([message["status"] for message in messages], ["failed", "failed"])
+        self.assertFalse(messages[-1]["answer_available"])
+        self.assertEqual(self.app.conversation_store.model_history(failed["conversation"]["id"]), [])
+        self.assertEqual(self.app.conversation_store.retry_target(failed["conversation"]["id"], messages[0]["id"])["question"],
+                         messages[0]["content"])
 
 
 if __name__ == "__main__":

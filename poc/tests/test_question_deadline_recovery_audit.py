@@ -43,7 +43,8 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
         self.clock_value = 0.0
         self.clock = SimpleNamespace(monotonic=lambda: self.clock_value)
         self.calls = 0
-        self.policy = AgentPolicy(max_question_seconds=120, max_model_requests=3, max_answer_revisions=0)
+        self.policy = AgentPolicy(max_question_seconds=120, hard_question_seconds=120,
+                                  max_model_requests=3, max_answer_revisions=0)
 
     def answer(self, request, *, factor=2):
         self.calls += 1

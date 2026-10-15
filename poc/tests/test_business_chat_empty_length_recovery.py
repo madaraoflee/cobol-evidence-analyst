@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -75,6 +76,33 @@ class EmptyLengthRecoveryTests(unittest.TestCase):
                         "实际金额取决于输入的 BASIS 和 FACTOR，当前源码不能证明运行时数值。"
                         f"[{reference}]", finish=finish, usage=usage)
 
+    def assert_local_source_delivery(self, output):
+        self.assertEqual(output["runner_status"], "COMPLETED")
+        self.assertEqual(self.result["status"], "PARTIAL")
+        self.assertEqual(self.result["answer_origin"], "local_source_facts")
+        self.assertTrue(self.result["answer_available"])
+        self.assertFalse(self.result["model_answer_recorded"])
+        self.assertFalse(self.result["claims_semantically_verified"])
+        for fact in ("IF BASIS > ZERO", "FINAL-AMOUNT = BASIS * FACTOR", "FINAL-AMOUNT = ZERO", "条件不成立"):
+            self.assertIn(fact, self.result["answer"])
+        self.assertIn("最终结果尚未确认", self.result["answer"])
+        self.assertEqual(self.result["narrative"]["text"], self.result["answer"])
+        pages = {page["evidence_id"]: page for bundle in self.requests[-1]["source_context"] for page in bundle["pages"]}
+        self.assertTrue(self.result["narrative"]["citations"])
+        for citation in self.result["narrative"]["citations"]:
+            self.assertIn(citation["evidence_id"], pages)
+            supplied = pages[citation["evidence_id"]]
+            self.assertEqual(citation["source_sha256"], supplied["source_sha256"])
+            self.assertEqual(citation["source_sha256"], hashlib.sha256(
+                (self.source / citation["relative_path"]).read_bytes()).hexdigest())
+            self.assertIn("COMPUTE FINAL-AMOUNT = BASIS * FACTOR", supplied["source_text"])
+        supported = [entry for entry in self.result["claim_ledger"]["entries"] if entry["support_status"] == "supported"]
+        self.assertTrue(any(entry["target_entity"] == "FINAL-AMOUNT" and
+                            entry["expression"] == ["BASIS", "*", "FACTOR"] for entry in supported))
+        self.assertLessEqual({citation["evidence_id"] for citation in self.result["narrative"]["citations"]},
+                             set(self.trace["final"]["final_visible_ids"]))
+        self.assertEqual(self.result["metrics"]["provider_retries"], [])
+
     def test_empty_length_then_answer_reuses_evidence_and_accounts_for_both_rounds(self):
         usage1 = {"prompt_tokens": 100, "completion_tokens": 8192, "total_tokens": 8292}
         usage2 = {"prompt_tokens": 110, "completion_tokens": 80, "total_tokens": 190}
@@ -115,7 +143,7 @@ class EmptyLengthRecoveryTests(unittest.TestCase):
     def test_second_empty_length_stops_without_a_loop(self):
         output = self.ask(lambda *_: response("", finish="length", reasoning_content=self.hidden), budget=8)
         self.assertEqual(len(self.requests), 2)
-        self.assertEqual(output["runner_status"], "NOT_READY")
+        self.assert_local_source_delivery(output)
         self.assertEqual(output["reason_code"], "MODEL_TEXT_EMPTY")
         self.assertEqual(len(self.trace["rounds"]), 2)
         self.assertTrue(all(row["response"]["error"] == "MODEL_TEXT_EMPTY" for row in self.trace["rounds"]))
@@ -125,7 +153,7 @@ class EmptyLengthRecoveryTests(unittest.TestCase):
     def test_one_request_budget_does_not_retry(self):
         output = self.ask(lambda *_: response(None, finish="length"), budget=1)
         self.assertEqual(len(self.requests), 1)
-        self.assertEqual(output["runner_status"], "NOT_READY")
+        self.assert_local_source_delivery(output)
         self.assertFalse(self.result["metrics"]["empty_length_recovery_attempted"])
 
     def test_empty_stop_filter_refusal_auth_and_timeout_are_not_retried(self):
@@ -139,15 +167,16 @@ class EmptyLengthRecoveryTests(unittest.TestCase):
                     if isinstance(reply, Exception):
                         raise reply
                     return reply
-                self.ask(respond)
+                output = self.ask(respond)
                 self.assertEqual(len(self.requests), 1)
+                self.assert_local_source_delivery(output)
                 self.assertFalse(self.result["metrics"]["empty_length_recovery_attempted"])
 
     def test_recovery_tool_request_is_not_executed_or_reprompted(self):
         output = self.ask(lambda turn, _: response(None, finish="length") if turn == 1
                           else response('{"search":["UNNEEDED-LOOKUP"]}'), budget=8)
         self.assertEqual(len(self.requests), 2)
-        self.assertEqual(output["runner_status"], "NOT_READY")
+        self.assert_local_source_delivery(output)
         self.assertNotIn("UNNEEDED-LOOKUP", json.dumps(self.result["tool_trace"]))
 
     def test_recovery_truncated_body_is_retained_without_third_continuation(self):
@@ -196,7 +225,7 @@ class EmptyLengthRecoveryTests(unittest.TestCase):
                 output = self.ask(lambda turn, _: self.read_action() if turn == 1
                                   else response(None, finish="length"), budget=budget)
                 self.assertEqual(len(self.requests), expected_requests)
-                self.assertEqual(output["runner_status"], "NOT_READY")
+                self.assert_local_source_delivery(output)
                 self.assertEqual(output["reason_code"], "MODEL_TEXT_EMPTY")
                 self.assertEqual(self.result["metrics"]["empty_length_recovery_attempted"], attempted)
                 self.assertTrue(all(row["response"]["error"] == "MODEL_TEXT_EMPTY"
@@ -217,7 +246,7 @@ class EmptyLengthRecoveryTests(unittest.TestCase):
                     return failed
                 output = self.ask(respond)
                 self.assertEqual(len(self.requests), 2)
-                self.assertEqual(output["runner_status"], "NOT_READY")
+                self.assert_local_source_delivery(output)
                 self.assertFalse(self.result["metrics"]["empty_length_recovery_attempted"])
 
     def test_later_recovery_transport_failure_preserves_all_round_diagnostics(self):

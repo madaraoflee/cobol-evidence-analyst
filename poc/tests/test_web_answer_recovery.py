@@ -49,7 +49,7 @@ class WebAnswerRecoveryTests(unittest.TestCase):
         self.assertEqual(message["finish_reason"], "length")
         self.assertTrue(message["answer_truncated"])
         self.assertEqual(message["answer_detail"], "brief")
-        self.assertEqual(message["status"], "completed")
+        self.assertEqual(message["status"], "partial")
 
     def test_answer_preference_uses_existing_workspace_file(self):
         path = self.root / "workspace.json"
@@ -58,6 +58,24 @@ class WebAnswerRecoveryTests(unittest.TestCase):
         app._save_workspace()
         self.assertEqual(json.loads(path.read_text())["answer_detail"], "brief")
         self.assertEqual(WorkbenchState(state_path=path).answer_detail, "brief")
+
+    def test_source_fact_answer_origin_survives_workspace_history_reload(self):
+        app = WorkbenchState(state_path=None)
+        app.conversation_store = ConversationStore(self.root / "output", self.source)
+        conversation = app.conversation_store.create()
+        result = {"answer": "已读取版本中 FINAL-AMOUNT = BASIS * FACTOR。",
+            "status": "PARTIAL", "stop_reason": "REQUEST_TIMEOUT",
+            "answer_origin": "local_source_facts", "answer_available": True,
+            "model_answer_recorded": False}
+        app._record_answer({"conversation_id": conversation["id"]}, "source-fact-run",
+                           {"agent": {"runner_status": "COMPLETED", "agent_result": result}})
+        message = ConversationStore(self.root / "output", self.source).get(conversation["id"])["messages"][0]
+        self.assertEqual(message["content"], result["answer"])
+        self.assertEqual(message["analysis_status"], "PARTIAL")
+        self.assertEqual(message["status"], "partial")
+        self.assertEqual(message["answer_origin"], "local_source_facts")
+        self.assertTrue(message["answer_available"])
+        self.assertFalse(message["model_answer_recorded"])
 
     def test_projected_answer_records_display_limit_without_claiming_provider_truncation(self):
         app = WorkbenchState(state_path=None)

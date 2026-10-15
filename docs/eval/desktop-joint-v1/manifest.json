@@ -92,6 +92,87 @@
       "corpus": "runtime_claim"
     },
     {
+      "id": "soft_target_answer",
+      "owner": "runtime",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "quality_wrong_formula_repaired",
+        "quality_independent_move_preserved",
+        "completeness_critical_claims_verified",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "lifecycle_old_index_requires_explicit_update",
+        "quality_target_does_not_discard_first_answer",
+        "lifecycle_slow_response_journal_completed_once"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_wrong_formula_repaired",
+          "quality_independent_move_preserved",
+          "quality_target_does_not_discard_first_answer"
+        ],
+        "completeness": [
+          "completeness_critical_claims_verified"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches"
+        ],
+        "lifecycle": [
+          "lifecycle_old_index_requires_explicit_update",
+          "lifecycle_slow_response_journal_completed_once"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "runtime_claim",
+      "timing_interpretation": "1.25s deliberate provider wait crosses 1s soft delivery target; validates answer delivery and claim checking, not a measured model SLA."
+    },
+    {
+      "id": "activation_trigger",
+      "owner": "runtime",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "quality_activation_condition_preserved",
+        "quality_external_scheduler_unknown",
+        "completeness_activation_in_first_request",
+        "evidence_supplied_hashes_match",
+        "evidence_visible_answer_matches",
+        "evidence_answer_ledger_hash",
+        "completeness_activation_obligations_supplied",
+        "evidence_activation_caller_and_guard",
+        "quality_scheduler_not_inferred"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_activation_condition_preserved",
+          "quality_external_scheduler_unknown",
+          "quality_scheduler_not_inferred"
+        ],
+        "completeness": [
+          "completeness_activation_in_first_request",
+          "completeness_activation_obligations_supplied"
+        ],
+        "evidence": [
+          "evidence_supplied_hashes_match",
+          "evidence_visible_answer_matches",
+          "evidence_answer_ledger_hash",
+          "evidence_activation_caller_and_guard"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "runtime_activation"
+    },
+    {
       "id": "cancel_unknown",
       "owner": "runtime",
       "kind": "lifecycle",

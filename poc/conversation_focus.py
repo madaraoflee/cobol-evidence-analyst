@@ -8,9 +8,14 @@ Saved hashes describe the old discussion; rebinding never edits that record.
 from __future__ import annotations
 
 from copy import deepcopy
+from collections import OrderedDict, defaultdict
+from functools import lru_cache
 import hashlib
 import json
+from pathlib import Path
 import re
+import sqlite3
+from threading import RLock
 
 from statement_facts import data_references
 
@@ -29,6 +34,10 @@ _RESET = re.compile(r"换个问题|换一个问题|換個問題|換一個問題|
     r"(?:全库|全庫|整个仓库|整個倉庫).{0,12}(?:有哪些|所有|全部).{0,8}(?:程序|文件)|"
     r"\b(?:change\s+(?:the\s+)?topic|new\s+topic|all\s+programs\s+in\s+(?:the\s+)?repository)\b", re.I)
 _MAX_SUBJECT_BYTES = 8192
+_LOOKUP_CACHE = OrderedDict()
+_DEFINITION_CACHE = OrderedDict()
+_LOOKUP_CACHE_LOCK = RLock()
+_MAX_LOOKUP_CACHE_ENTRIES = 128
 
 
 def _bounded_subject(subject):
@@ -76,8 +85,70 @@ def _mentions(question):
     return result
 
 
+def _lookup_generation(connection):
+    """Cache only sealed on-disk snapshots, never a writer's pending changes."""
+    if connection.total_changes:
+        return None
+    try:
+        filename = next((row[2] for row in connection.execute("PRAGMA database_list")
+                         if row[1] == "main"), None)
+        if not filename:
+            return None
+        metadata = tuple(connection.execute("SELECT key,value FROM metadata WHERE key IN "
+            "('source_root_hash','snapshot_id','source_options','parser_version','schema_version',"
+            "'index_kind','indexed_at_utc') ORDER BY key"))
+        if not any(row[0] == "snapshot_id" and row[1] for row in metadata):
+            return None
+        files = []
+        for suffix in ("", "-wal"):
+            path = Path(filename + suffix)
+            if path.exists():
+                stat = path.stat()
+                files.append((suffix, stat.st_size, stat.st_mtime_ns))
+        return (str(Path(filename).resolve()), tuple((row[0], row[1]) for row in metadata), tuple(files))
+    except (OSError, sqlite3.Error):
+        return None
+
+
+def _lookup_cached(cache, key):
+    if key is None:
+        return None
+    with _LOOKUP_CACHE_LOCK:
+        if key not in cache:
+            return None
+        cache.move_to_end(key)
+        return deepcopy(cache[key])
+
+
+def _lookup_remember(cache, key, value):
+    if key is None:
+        return
+    with _LOOKUP_CACHE_LOCK:
+        cache[key] = deepcopy(value)
+        cache.move_to_end(key)
+        while len(cache) > _MAX_LOOKUP_CACHE_ENTRIES:
+            cache.popitem(last=False)
+
+
 def _definition_paths(connection, paths):
     """Only uniquely resolved COPY definitions join a program's local symbols."""
+    owns_transaction = not connection.in_transaction
+    if owns_transaction:
+        connection.execute("BEGIN")
+    try:
+        return _resolved_definition_paths(connection, paths)
+    finally:
+        if owns_transaction:
+            connection.rollback()
+
+
+def _resolved_definition_paths(connection, paths):
+    paths = tuple(sorted(set(paths)))
+    generation = _lookup_generation(connection)
+    key = (generation, paths) if generation is not None else None
+    cached = _lookup_cached(_DEFINITION_CACHE, key)
+    if cached is not None:
+        return cached
     selected = set(paths)
     for _ in range(8):
         slots = ",".join("?" for _ in selected)
@@ -88,41 +159,111 @@ def _definition_paths(connection, paths):
         if children <= selected or len(selected | children) > 128:
             break
         selected.update(children)
+    _lookup_remember(_DEFINITION_CACHE, key, selected)
     return selected
 
 
+@lru_cache(maxsize=2048)
+def _qualified_reference(suffix):
+    # This is immutable lexical parsing, not a cached source/symbol binding.
+    choices = data_references(suffix)
+    return choices[0] if len(choices) == 1 else None
+
+
 def _matching_reference(reference, qualified):
-    choices = data_references(qualified.split("::", 1)[-1])
-    if len(choices) != 1 or choices[0].name != reference.name:
+    choice = _qualified_reference(qualified.split("::", 1)[-1])
+    if choice is None or choice.name != reference.name:
         return False
-    ancestors = iter(choices[0].qualifiers)
+    ancestors = iter(choice.qualifiers)
     return all(any(ancestor == qualifier for ancestor in ancestors)
                for qualifier in reference.qualifiers)
 
 
+def _path_symbol_index(connection):
+    return (" INDEXED BY idx_symbols_path" if connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_symbols_path'").fetchone() else "")
+
+
 def _bindings(connection, mentions, paths=None):
+    # Candidate selection and its declaration join must observe one snapshot,
+    # including callers that did not open the repository read transaction.
+    owns_transaction = not connection.in_transaction
+    if owns_transaction:
+        connection.execute("BEGIN")
+    try:
+        return _lookup_bindings(connection, mentions, paths)
+    finally:
+        if owns_transaction:
+            connection.rollback()
+
+
+def _lookup_bindings(connection, mentions, paths=None):
     names = list(dict.fromkeys(reference.name for reference, _, _ in mentions))
     if not names:
         return {}, set()
-    slots = ",".join("?" for _ in names)
+    generation = _lookup_generation(connection)
+    key = (generation, None if paths is None else tuple(sorted(set(paths))),
+           tuple(reference.identity for reference, _, _ in mentions)) if generation is not None else None
+    cached = _lookup_cached(_LOOKUP_CACHE, key)
+    if cached is not None:
+        return cached
+    ambiguous_names = set()
+    if paths is None:
+        qualified_names = {reference.name for reference, _, _ in mentions if reference.qualifiers}
+        counted_names = [name for name in names if name not in qualified_names]
+        if counted_names:
+            # A bare reference cannot distinguish any of its same-name symbols.
+            # Count every candidate using the covering name index before fetching
+            # declaration pages. Qualified references still inspect all rows.
+            counts = dict(connection.execute("SELECT s.name,COUNT(*) FROM symbols s WHERE "
+                "s.symbol_type IN ('Field','ConditionName') AND s.name IN (" +
+                ",".join("?" for _ in counted_names) + ") GROUP BY s.name", counted_names))
+            ambiguous_names = {name for name, count in counts.items() if count > 1}
+            names = [name for name in names if name not in counted_names or counts.get(name) == 1]
     parameters = list(names)
-    where = "s.name IN (" + slots + ")"
+    where = "s.name IN (" + ",".join("?" for _ in names) + ")"
     if paths is not None:
         local = _definition_paths(connection, paths)
         where += " AND s.relative_path IN (" + ",".join("?" for _ in local) + ")"
         parameters.extend(sorted(local))
-    rows = _rows(connection, "SELECT s.symbol_id,s.relative_path,s.program_name,s.qualified_name,"
-        "u.start_line AS definition_line,u.parse_status,f.sha256 AS source_sha256 "
-        "FROM symbols s JOIN code_units u ON u.unit_id=s.definition_unit_id "
-        "JOIN source_files f ON f.relative_path=s.relative_path "
-        "WHERE s.symbol_type IN ('Field','ConditionName') AND " + where + " LIMIT 257", parameters)
+    # Common field names can occur in thousands of programs. With several COPY
+    # paths SQLite can prefer the name index and fetch all those unrelated rows
+    # before testing the path. Seek the existing local path index explicitly.
+    index = _path_symbol_index(connection) if paths is not None else ""
+    rows = (_rows(connection, "SELECT s.symbol_id,s.name,s.qualified_name FROM symbols s" + index +
+        " WHERE s.symbol_type IN ('Field','ConditionName') AND " + where, parameters) if names else [])
+    by_name = defaultdict(list)
+    for row in rows:
+        by_name[row["name"]].append(row)
+    selected = {}
     bound, unresolved = {}, set()
     for reference, _, _ in mentions:
-        matches = [row for row in rows if _matching_reference(reference, row["qualified_name"])]
-        if len(matches) == 1 and matches[0]["parse_status"] != "candidate" and len(rows) <= 256:
-            bound[reference.identity] = {key: value for key, value in matches[0].items() if key != "parse_status"}
+        if reference.name in ambiguous_names:
+            unresolved.add(reference.identity)
+            continue
+        matches = [row for row in by_name[reference.name] if _matching_reference(reference, row["qualified_name"])]
+        if len(matches) == 1:
+            selected[reference.identity] = matches[0]["symbol_id"]
         elif matches:
             unresolved.add(reference.identity)
+    # Materialize declaration/version joins only after all same-name and
+    # qualified candidates have been considered. No candidate LIMIT may turn
+    # a later qualified match into absence or a common field into confirmation.
+    if selected:
+        identities = sorted(set(selected.values()))
+        records = _rows(connection, "SELECT s.symbol_id,s.relative_path,s.program_name,s.qualified_name,"
+            "u.start_line AS definition_line,u.parse_status,f.sha256 AS source_sha256 "
+            "FROM symbols s JOIN code_units u ON u.unit_id=s.definition_unit_id "
+            "JOIN source_files f ON f.relative_path=s.relative_path "
+            "WHERE s.symbol_id IN (" + ",".join("?" for _ in identities) + ")", identities)
+        records = {row["symbol_id"]: row for row in records}
+        for identity, symbol in selected.items():
+            row = records.get(symbol)
+            if row is not None and row["parse_status"] != "candidate":
+                bound[identity] = {field: value for field, value in row.items() if field != "parse_status"}
+            else:
+                unresolved.add(identity)
+    _lookup_remember(_LOOKUP_CACHE, key, (bound, unresolved))
     return bound, unresolved
 
 
@@ -137,7 +278,7 @@ def _unbound_explicit_fields(connection, mentions, bindings, paths):
         return set()
     names = list(dict.fromkeys(reference.name for reference in references))
     local = _definition_paths(connection, paths)
-    known_objects = {row[0] for row in connection.execute("SELECT name FROM symbols WHERE "
+    known_objects = {row[0] for row in connection.execute("SELECT name FROM symbols" + _path_symbol_index(connection) + " WHERE "
         "symbol_type IN ('Program','Paragraph','Section','Copybook') AND name IN (" +
         ",".join("?" for _ in names) + ") AND relative_path IN (" +
         ",".join("?" for _ in local) + ")", (*names, *sorted(local)))}

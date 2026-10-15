@@ -16,7 +16,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tools.desktop_acceptance_scenarios import CONVERSATION_QUESTIONS, _conversation_source
+from tools.desktop_acceptance_scenarios import (ACTIVATION_QUESTION, CONVERSATION_QUESTIONS,
+    _conversation_source, activation_sources)
 
 
 SYNTHETIC_MANIFEST = ROOT / "docs/eval/desktop-joint-v1/manifest.json"
@@ -306,6 +307,13 @@ def synthetic_cases(source):
         ["仅按段落/变量名字推断。", "遗漏WHEN2或OTHER分支。"], split="holdout", coverage=["evaluate_merge", "reserved_question"]))
     result.extend(record_binding_cases(source))
     result.extend(report_conversation_cases(source))
+    result.append(question("batch-activation-trigger", ACTIVATION_QUESTION,
+        [finding("activation-caller-condition", "JOB-STEP的真实调用方LAUNCHER在READY-FLAG=1的IF下请求CALL；条件不是对READY-FLAG赋值。",
+                 source_range(source, "synthetic/launcher.cbl", 5, 10)),
+         finding("scheduler-unknown", "提供的两份完整源码未包含外部调度绑定、运行时间或实际执行记录；不能断言已由某个调度任务执行。",
+                 source_range(source, "synthetic/launcher.cbl", 1, 11), source_range(source, "synthetic/job-step.cbl", 1, 6))],
+        ["按程序名字编造外部调度或真实执行。", "因调度未知而拒绝解释直接调用方和IF条件。", "把IF条件说成READY-FLAG被赋值1。"],
+        coverage=["activation_trigger", "caller_condition", "external_scheduler_unknown"]))
     return result
 
 
@@ -429,6 +437,8 @@ def generate_suite(output, public_source, *, include_scale=False):
     for name, text in (("exception.cbl", EXCEPTION_SOURCE), ("unknown.cbl", UNKNOWN_SOURCE),
                        ("continuation.cbl", CONTINUATION_SOURCE), ("reserved.cbl", RESERVED_SOURCE),
                        ("report.cbl", _conversation_source())):
+        (synthetic / name).write_bytes(text.encode("utf-8"))
+    for name, text in activation_sources().items():
         (synthetic / name).write_bytes(text.encode("utf-8"))
     shutil.copyfile(license_file, output / "PUBLIC-SOURCE-LICENSE.txt")
     cases = synthetic_cases(source) + public_cases(source)

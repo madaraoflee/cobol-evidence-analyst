@@ -1,5 +1,7 @@
 """The packaged acceptance surface stays isolated and uses the existing server."""
 import http.client
+import hashlib
+from copy import deepcopy
 import json
 import os
 from pathlib import Path
@@ -14,11 +16,119 @@ sys.path.insert(0, str(ROOT / "poc"))
 sys.path.insert(0, str(ROOT))
 import desktop_app
 from tools.desktop_acceptance_runtime import (FIXTURES, LoopbackProvider,
-    NativeWorkbench, isolated_environment, write_profile)
-from tools.desktop_acceptance_scenarios import _aggregate_conversation, _conversation_origin_checks, run_scenarios
+    NativeWorkbench, decoded_navigation, isolated_environment, write_profile)
+from tools.desktop_acceptance_scenarios import (_activation_supply_checks, activation_sources,
+    _aggregate_conversation, _conversation_origin_checks, run_scenarios)
 
 
 class DesktopAcceptanceRuntimeTests(unittest.TestCase):
+    def test_wire_navigation_consumer_retains_distinct_occurrences_and_raw_source(self):
+        page = {"source_text": "CALL 'shared_navigation_facts'.", "source_sha256": "a" * 64}
+        wire = {"prompt_projection": {"format": "shared-navigation/v1"},
+            "shared_navigation_facts": {"nav-1": {"statement": "MOVE A TO B", "execution_verified": False}},
+            "evidence_groups": [{"semantic_analysis": {"tool_results": [{"tool": "forward_slice",
+                "statements": [{"navigation_fact_ref": "nav-1", "occurrence_id": "first"},
+                               {"navigation_fact_ref": "nav-1", "occurrence_id": "second"}],
+                "statements_shared_fields": {"guards": ["IF FLAG = 1"]}}]}}],
+            "source_context": [{"pages": [page]}]}
+        decoded = decoded_navigation(wire)
+        statements = decoded["evidence_groups"][0]["semantic_analysis"]["tool_results"][0]["statements"]
+        self.assertEqual([row["occurrence_id"] for row in statements], ["first", "second"])
+        self.assertTrue(all(row["statement"] == "MOVE A TO B" and row["execution_verified"] is False
+                            and row["guards"] == ["IF FLAG = 1"] for row in statements))
+        self.assertEqual(decoded["source_context"][0]["pages"], [page])
+        self.assertIn("navigation_fact_ref", wire["evidence_groups"][0]["semantic_analysis"]["tool_results"][0]["statements"][0])
+        with self.assertRaisesRegex(AssertionError, "Unknown navigation contract"):
+            decoded_navigation({"prompt_projection": {"format": "unknown"}})
+
+    def test_wire_consumer_decodes_both_contracts_and_context_without_reading_raw_authority(self):
+        raw = {"source_text": "DISPLAY 'navigation_fact_ref _values'.", "_values": ["raw"],
+            "statements_columns": ["private"], "statements": [{"_values": ["raw"]}],
+            "navigation_fact_ref": "untrusted-raw-id", "source_sha256": "a" * 64}
+        wire = {"prompt_projection": {"format": "shared-navigation/v1"},
+            "navigation_encoding": {"format": "column-values/v1"},
+            "shared_navigation_facts": {"nav-1": {"statement": "MOVE A TO B", "execution_verified": False}},
+            "business_map": {"relations_columns": ["target_name", "resolution"],
+                "relations": [{"_values": ["WORKER", "confirmed"], "relation_id": "call-1"}]},
+            "evidence_groups": [{"semantic_analysis": {"tool_results": [{"tool": "forward_slice",
+                "statements_columns": ["navigation_fact_ref"],
+                "statements": [{"_values": ["nav-1"], "occurrence_id": "first"},
+                               {"_values": ["nav-1"], "occurrence_id": "second"}],
+                "statements_shared_fields": {"guards": ["IF FLAG = 1"]}}]}}],
+            "source_context": [{"pages": [raw], "working_set": deepcopy(raw),
+                "call_chain": {"links_columns": ["caller_path", "target_name"],
+                    "links": [{"_values": ["caller.cbl", "WORKER"], "relation_id": "call-1"}]},
+                "outline": [{"units_columns": ["name", "complete_text_supplied"],
+                    "units": [{"_values": ["MAIN", False]}]}]}],
+            "framework_references": [deepcopy(raw)], "framework_facts": [deepcopy(raw)],
+            "history": [deepcopy(raw)]}
+        original = deepcopy(wire)
+        decoded = decoded_navigation(wire)
+        self.assertEqual(wire, original)
+        self.assertEqual(decoded["business_map"]["relations"][0],
+                         {"target_name": "WORKER", "resolution": "confirmed", "relation_id": "call-1"})
+        statements = decoded["evidence_groups"][0]["semantic_analysis"]["tool_results"][0]["statements"]
+        self.assertEqual([row["occurrence_id"] for row in statements], ["first", "second"])
+        self.assertTrue(all(row["statement"] == "MOVE A TO B" and row["guards"] == ["IF FLAG = 1"] for row in statements))
+        self.assertEqual(decoded["source_context"][0]["call_chain"]["links"][0]["caller_path"], "caller.cbl")
+        self.assertFalse(decoded["source_context"][0]["outline"][0]["units"][0]["complete_text_supplied"])
+        for key in ("framework_references", "framework_facts", "history"):
+            self.assertEqual(decoded[key], original[key])
+        self.assertEqual(decoded["source_context"][0]["pages"], [raw])
+        self.assertEqual(decoded["source_context"][0]["working_set"], raw)
+
+    def test_wire_consumer_decodes_legacy_columns_without_shared_projection(self):
+        wire = {"navigation_encoding": {"format": "column-values/v1"},
+            "business_map": {"relations_columns": ["target_name"], "relations": [{"_values": ["WORKER"]}]}}
+        self.assertEqual(decoded_navigation(wire)["business_map"]["relations"], [{"target_name": "WORKER"}])
+        with self.assertRaisesRegex(AssertionError, "Unknown navigation column contract"):
+            decoded_navigation({"navigation_encoding": {"format": "future"}})
+        wire["business_map"]["relations"][0]["_values"] = []
+        with self.assertRaisesRegex(AssertionError, "Invalid navigation column row"):
+            decoded_navigation(wire)
+        with self.assertRaisesRegex(AssertionError, "Cyclic navigation record"):
+            decoded_navigation({"prompt_projection": {"format": "shared-navigation/v1"},
+                "shared_navigation_facts": {"loop": {"again": {"navigation_fact_ref": "loop"}}},
+                "business_map": {"record": {"navigation_fact_ref": "loop"}}})
+
+    def test_activation_acceptance_rejects_missing_or_forged_call_conditions(self):
+        text = activation_sources()["launcher.cbl"]
+        sha = hashlib.sha256(text.encode()).hexdigest()
+        page = {"relative_path": "launcher.cbl", "source_sha256": sha, "evidence_id": "ev_caller",
+            "start_line": 1, "end_line": len(text.splitlines()), "source_text": text, "span_truncated": False}
+        guard = {"condition": "IF READY-FLAG = 1", "outcome": True, "evidence_ids": ["ev_caller"]}
+        caller = {"target_name": "JOB-STEP", "relative_path": "launcher.cbl", "source_sha256": sha,
+            "line": 9, "occurrence_id": "call-nine", "scope_known": True, "binding_confirmed": True,
+            "compilation_status": "active", "conditions_supplied": True, "execution_verified": False,
+            "evidence_ids": ["ev_caller"], "conditions": [guard]}
+        payload = {"source_context": [{"pages": [page]}], "question_investigation": {
+            "required_items": [{"kind": kind, "status": "SATISFIED"} for kind in
+                ("entry_point", "caller_invocation", "activation_conditions")] + [{"kind": "scheduler_binding",
+                "status": "OPEN", "reason": "external_schedule_binding_not_verified"}],
+            "activation_evidence": {"callers": [caller], "scheduler_binding_verified": False, "execution_verified": False}}}
+        self.assertTrue(all(_activation_supply_checks(payload).values()))
+        for condition in ("IF READY-FLAG = 1", "READY-FLAG = 1"):
+            candidate = deepcopy(payload)
+            candidate["question_investigation"]["activation_evidence"]["callers"][0]["conditions"][0]["condition"] = condition
+            self.assertTrue(all(_activation_supply_checks(candidate).values()))
+        changes = [lambda p: p["question_investigation"]["activation_evidence"]["callers"][0].update(conditions=[]),
+            lambda p: p["question_investigation"]["activation_evidence"]["callers"][0].update(evidence_ids=["ev_fake"]),
+            lambda p: p["question_investigation"]["activation_evidence"]["callers"][0].update(source_sha256="0" * 64),
+            lambda p: p["question_investigation"]["activation_evidence"]["callers"][0].update(line=8),
+            lambda p: p["question_investigation"]["activation_evidence"]["callers"][0].update(scope_known=False),
+            lambda p: p["question_investigation"]["activation_evidence"]["callers"][0].update(binding_confirmed=False),
+            lambda p: p["question_investigation"]["activation_evidence"]["callers"][0].update(compilation_status="candidate"),
+            lambda p: p["question_investigation"]["activation_evidence"]["callers"][0]["conditions"][0].update(outcome=False),
+            lambda p: p["question_investigation"]["activation_evidence"]["callers"][0]["conditions"][0].update(evidence_ids=["ev_fake"]),
+            lambda p: p["source_context"][0]["pages"][0].update(source_text=text.replace("IF READY-FLAG = 1", "IF READY-FLAG = 7")),
+            lambda p: p["source_context"][0]["pages"][0].update(source_sha256="f" * 64),
+            lambda p: p["question_investigation"]["activation_evidence"].update(scheduler_binding_verified=True)]
+        for index, change in enumerate(changes):
+            with self.subTest(change=index):
+                changed = deepcopy(payload)
+                change(changed)
+                self.assertFalse(all(_activation_supply_checks(changed).values()))
+
     def test_value_acceptance_requires_supplied_declarations_and_activation_conditions(self):
         import copy
         page = {"relative_path": "report.cbl", "source_sha256": "a" * 64,

@@ -460,12 +460,18 @@ class TransportRequest:
 
 @dataclass(frozen=True, repr=False)
 class TransportResponse:
-    """Minimal transport response; body and headers are never shown in repr."""
+    """Transport response with optional numeric observations since HTTP start.
+
+    Body and headers are never shown in repr. A first response byte means an
+    HTTP body byte, not a generated token or a complete business answer.
+    """
 
     status_code: int
     body: bytes | str = field(default=b"", repr=False)
     headers: Mapping[str, str] = field(default_factory=dict, repr=False)
     body_omitted_reason: str | None = field(default=None, repr=False)
+    timing_seconds: Mapping[str, float] | None = field(default=None, repr=False)
+    response_bytes: int | None = field(default=None, repr=False)
 
     def __repr__(self) -> str:
         body_size = len(self.body) if isinstance(self.body, (bytes, str)) else 0
@@ -478,6 +484,24 @@ class TransportResponse:
 # A descriptive alias is convenient for simple injected fake transports.
 HTTPResponse = TransportResponse
 Transport = Callable[[TransportRequest], TransportResponse]
+
+
+def _safe_request_timing(value, *, elapsed=None):
+    """Retain numeric transport observations, never provider text or metadata."""
+    result = {"timing_seconds": {}}
+    if isinstance(value, Mapping):
+        timings = value.get("timing_seconds")
+        if isinstance(timings, Mapping):
+            for phase in ("headers_received", "first_response_byte", "response_complete"):
+                seconds = timings.get(phase)
+                if type(seconds) in (int, float) and 0 <= seconds <= 86400:
+                    result["timing_seconds"][phase] = round(float(seconds), 6)
+        count = value.get("response_bytes")
+        if type(count) is int and 0 <= count <= MAX_RESPONSE_BYTES + 1:
+            result["response_bytes"] = count
+    if type(elapsed) in (int, float) and math.isfinite(elapsed) and elapsed >= 0:
+        result["timing_seconds"]["request_elapsed"] = round(float(elapsed), 6)
+    return result
 
 
 class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -562,7 +586,7 @@ class UrllibTransport:
         if not slots.acquire(blocking=False):
             raise APIClientError("TRANSPORT_BUSY")
         done, abandoned = threading.Event(), threading.Event()
-        exchange: dict[str, object] = {}
+        exchange: dict[str, object] = {"request_timing": {"timing_seconds": {}, "response_bytes": 0}}
 
         def send():
             try:
@@ -592,12 +616,27 @@ class UrllibTransport:
             if time.monotonic() >= deadline:
                 raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
             return exchange["result"]
-        except BaseException:
+        except BaseException as error:
             abandoned.set()
             self._abort_socket(exchange.get("response"))
+            if isinstance(error, APIClientError):
+                error.request_timing = _safe_request_timing(exchange["request_timing"])
             raise
 
     def _send(self, request, deadline, abandoned, exchange):
+        started = deadline - request.timeout_seconds
+        observations = exchange["request_timing"]
+        timings = observations["timing_seconds"]
+
+        def mark(phase):
+            timings[phase] = max(0.0, time.monotonic() - started)
+
+        def observe_chunk(chunk):
+            if isinstance(chunk, bytes) and chunk:
+                if "first_response_byte" not in timings:
+                    mark("first_response_byte")
+                observations["response_bytes"] += len(chunk)
+
         raw_request = urllib.request.Request(
             request.url,
             data=request.body,
@@ -611,6 +650,7 @@ class UrllibTransport:
             ) as response:
                 opening_connection = False
                 exchange["response"] = response
+                mark("headers_received")
                 chunks: list[bytes] = []
                 body_size = 0
                 read_chunk = getattr(response, "read1", None)
@@ -624,9 +664,11 @@ class UrllibTransport:
                     chunk = read_chunk(
                         min(65_536, MAX_RESPONSE_BYTES + 1 - body_size)
                     )
+                    observe_chunk(chunk)
                     if time.monotonic() >= deadline:
                         raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
                     if not chunk:
+                        mark("response_complete")
                         break
                     chunks.append(chunk)
                     body_size += len(chunk)
@@ -635,10 +677,13 @@ class UrllibTransport:
                     status_code=int(response.status),
                     body=body,
                     headers=dict(response.headers.items()),
+                    timing_seconds=dict(timings),
+                    response_bytes=observations["response_bytes"],
                 )
         except urllib.error.HTTPError as exc:
             # Bounded private input for classification; the capture path always
             # omits error bodies and no upstream text enters a safe diagnostic.
+            mark("headers_received")
             chunks, size = [], 0
             try:
                 read_chunk = getattr(exc, "read1", None)
@@ -650,10 +695,13 @@ class UrllibTransport:
                         break
                     self._apply_remaining_socket_timeout(exc, remaining)
                     chunk = read_chunk(min(8192, MAX_ERROR_BODY_BYTES + 1 - size))
+                    observe_chunk(chunk)
                     if time.monotonic() >= deadline:
                         chunks = []
                         break
                     if not isinstance(chunk, bytes) or not chunk:
+                        if isinstance(chunk, bytes):
+                            mark("response_complete")
                         break
                     chunks.append(chunk)
                     size += len(chunk)
@@ -663,7 +711,8 @@ class UrllibTransport:
                 exc.close()
             return TransportResponse(status_code=int(exc.code), body=b"".join(chunks),
                                      headers=dict(exc.headers.items()) if exc.headers is not None else {},
-                                     body_omitted_reason="HTTP_ERROR_BODY_NOT_COLLECTED")
+                                     body_omitted_reason="HTTP_ERROR_BODY_NOT_COLLECTED",
+                                     timing_seconds=dict(timings), response_bytes=observations["response_bytes"])
         except APIClientError:
             raise
         except (OSError, urllib.error.URLError) as exc:
@@ -710,6 +759,9 @@ class OpenAICompatibleChatClient:
         self._diagnostics = diagnostics
         self._diagnostic_phase = diagnostic_phase
         self._request_observer = request_observer
+        # Numeric observations for the last attempted exchange, including
+        # failures. These are response bytes, not generated-token timings.
+        self.last_request_timing: dict[str, object] = {}
         self.transport_mode = (
             "INJECTED"
             if transport is not None
@@ -783,6 +835,7 @@ class OpenAICompatibleChatClient:
         timeout_seconds: float | None = None,
         check_cancel=None,
     ) -> tuple[dict[str, object], int]:
+        self.last_request_timing = {}
         if self._transport is None:
             raise APIClientError("NETWORK_DISABLED")
         try:
@@ -855,11 +908,19 @@ class OpenAICompatibleChatClient:
                 # before it observes cancellation. Waiting is interruptible in
                 # the native transport; post-response cancellation belongs to
                 # the business workflow after record_remote_response.
+                received_at = time.monotonic() if safe_endpoint == "chat/completions" else None
                 if (not isinstance(self._transport, _NATIVE_TRANSPORT_CLASS)
                         and safe_endpoint == "chat/completions"
-                        and time.monotonic() - started >= effective_timeout):
+                        and received_at - started >= effective_timeout):
                     raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
                 response_received = True
+                if isinstance(response, TransportResponse):
+                    count = response.response_bytes
+                    if count is None and isinstance(response.body, (bytes, str)):
+                        count = len(response.body) if isinstance(response.body, bytes) else len(response.body.encode("utf-8", errors="replace"))
+                    self.last_request_timing = _safe_request_timing({
+                        "timing_seconds": response.timing_seconds, "response_bytes": count},
+                        elapsed=received_at - started if received_at is not None else None)
             except APIClientError:
                 raise
             except Exception as exc:  # injected transports are untrusted at this boundary
@@ -875,6 +936,9 @@ class OpenAICompatibleChatClient:
             return self._validate_response(response, secret, protected_values=(secret, self.config.base_url,
                 self.config.chat_model, self.config.embedding_model), request_body=request_body)
         except APIClientError as exc:
+            if not self.last_request_timing:
+                self.last_request_timing = _safe_request_timing(getattr(exc, "request_timing", None),
+                    elapsed=time.monotonic() - started if safe_endpoint == "chat/completions" else None)
             if self._diagnostics is not None:
                 if not response_received:
                     exchange = self._capture_response(None, safe_endpoint, started, exc.code)
@@ -902,7 +966,7 @@ class OpenAICompatibleChatClient:
                 omission = "RESPONSE_BODY_INVALID"
         else:
             omission = "NO_RESPONSE" if response is None else "TRANSPORT_RESPONSE_INVALID"
-        return self._diagnostics.record(
+        record = self._diagnostics.record(
             phase=self._diagnostic_phase,
             endpoint=endpoint,
             http_status=response.status_code if valid_response else None,
@@ -911,6 +975,9 @@ class OpenAICompatibleChatClient:
             elapsed_ms=(time.monotonic() - started) * 1000,
             body_omitted_reason=omission,
         )
+        if record is not None:
+            record["request_timing"] = self.last_request_timing
+        return record
 
     @staticmethod
     def _validate_response(

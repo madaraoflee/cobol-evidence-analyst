@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -81,13 +82,37 @@ class BusinessChatHTTPRecoveryTests(unittest.TestCase):
         self.assertEqual(self.result["metrics"]["provider_retries"], [])
         self.assertTrue(all(json.loads(request.body)["max_tokens"] == 2048 for request in self.requests))
 
+    def assert_local_source_delivery(self):
+        self.assertEqual(self.result["status"], "PARTIAL")
+        self.assertEqual(self.result["answer_origin"], "local_source_facts")
+        self.assertTrue(self.result["answer_available"])
+        self.assertFalse(self.result["model_answer_recorded"])
+        self.assertFalse(self.result["claims_semantically_verified"])
+        self.assertIn("RESULT-AMOUNT = 10 * 2", self.result["answer"])
+        self.assertIn("最终结果尚未确认", self.result["answer"])
+        pages = {page["evidence_id"]: page
+            for bundle in json.loads(json.loads(self.requests[-1].body)["messages"][-1]["content"])["source_context"]
+            for page in bundle["pages"]}
+        self.assertTrue(self.result["narrative"]["citations"])
+        for citation in self.result["narrative"]["citations"]:
+            self.assertIn(citation["evidence_id"], pages)
+            supplied = pages[citation["evidence_id"]]
+            self.assertEqual(citation["source_sha256"], supplied["source_sha256"])
+            self.assertEqual(citation["source_sha256"], hashlib.sha256(
+                (self.source / citation["relative_path"]).read_bytes()).hexdigest())
+            self.assertIn("COMPUTE RESULT-AMOUNT = 10 * 2", supplied["source_text"])
+        supported = [entry for entry in self.result["claim_ledger"]["entries"] if entry["support_status"] == "supported"]
+        self.assertTrue(any(entry["target_entity"] == "RESULT-AMOUNT" and entry["expression"] == ["10", "*", "2"]
+                            for entry in supported))
+        self.assertLessEqual({citation["evidence_id"] for citation in self.result["narrative"]["citations"]},
+                             set(self.trace["final"]["final_visible_ids"]))
+
     def test_server_errors_stop_without_automatic_resend(self):
         for status in (500, 502, 503, 504):
             with self.subTest(status=status):
                 result = self.ask([status], limit=5)
                 self.assert_request_accounting(1)
-                self.assertEqual(result["status"], "ABSTAINED")
-                self.assertFalse(result["model_answer_recorded"])
+                self.assert_local_source_delivery()
                 self.assertEqual(result["diagnostics"][-1]["http_status"], status)
                 self.assertEqual(self.trace["rounds"][0]["response"]["error"], "HTTP_ERROR")
                 self.assertNotIn("synthetic gateway failure", result["answer"])
@@ -97,11 +122,13 @@ class BusinessChatHTTPRecoveryTests(unittest.TestCase):
             with self.subTest(status=status):
                 result = self.ask([status])
                 self.assert_request_accounting(1)
+                self.assert_local_source_delivery()
                 self.assertEqual(result["diagnostics"][-1]["http_status"], status)
 
     def test_single_request_budget_records_failed_request_once(self):
         result = self.ask([503], limit=1)
         self.assert_request_accounting(1)
+        self.assert_local_source_delivery()
         self.assertEqual(result["diagnostics"][-1]["http_status"], 503)
 
     def test_timeout_and_non_http_errors_do_not_retry(self):
@@ -112,6 +139,7 @@ class BusinessChatHTTPRecoveryTests(unittest.TestCase):
                 # preceding request whose remote outcome can remain unknown.
                 result = self.ask([error], conversation_id=f"fault-{error.code}")
                 self.assert_request_accounting(1)
+                self.assert_local_source_delivery()
                 self.assertEqual(result["diagnostics"][-1]["code"], error.code)
 
     def test_user_can_start_a_new_request_after_server_failure(self):
@@ -128,7 +156,7 @@ class BusinessChatHTTPRecoveryTests(unittest.TestCase):
         self.assert_request_accounting(2)
         self.assertEqual(result["metrics"]["tool_calls"]["search"], 1)
         self.assertEqual(result["diagnostics"][-1]["http_status"], 503)
-        self.assertFalse(result["model_answer_recorded"])
+        self.assert_local_source_delivery()
 
     def test_continuation_counts_each_send_once_and_preserves_its_budget(self):
         truncated = TransportResponse(200, json.dumps({"choices": [{"message": {
