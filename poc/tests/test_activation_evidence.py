@@ -1,5 +1,6 @@
 """Activation conclusions require the actual caller, guards and source version."""
 
+from contextlib import closing
 import hashlib
 import sqlite3
 from pathlib import Path
@@ -234,10 +235,11 @@ class ActivationEvidenceTests(unittest.TestCase):
         self.assertGreater(result["activation_evidence"]["candidate_call_count"], 0)
         self.assertTrue(any(action["arguments"]["relative_path"] == "caller.cbl"
                             for action in result["planned_actions"]))
-        with sqlite3.connect(self.database) as db:
-            plan = db.execute("EXPLAIN QUERY PLAN SELECT DISTINCT relative_path FROM relations "
-                "WHERE relative_path IN (?,?) AND target_name=? AND relation_type IN ('CALLS','CALL_TARGET_FROM')",
-                ("caller.cbl", "job.cbl", "JOB-STEP")).fetchall()
+        with closing(sqlite3.connect(self.database)) as db:
+            with db:
+                plan = db.execute("EXPLAIN QUERY PLAN SELECT DISTINCT relative_path FROM relations "
+                    "WHERE relative_path IN (?,?) AND target_name=? AND relation_type IN ('CALLS','CALL_TARGET_FROM')",
+                    ("caller.cbl", "job.cbl", "JOB-STEP")).fetchall()
         self.assertTrue(any("SEARCH" in row[3] and "repo_relations_path" in row[3] for row in plan))
 
     def test_fts_candidate_limits_leave_an_explicit_frontier(self):

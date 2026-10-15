@@ -143,7 +143,9 @@ jobs:
           import subprocess
           import sys
 
-          for pattern in ('test_desktop_acceptance_runtime.py', 'test_desktop_build_contract.py',
+          for pattern in ('test_activation_evidence.py', 'test_question_budget_delivery.py',
+                          'test_evidence_answer.py',
+                          'test_desktop_acceptance_runtime.py', 'test_desktop_build_contract.py',
                           'test_release_acceptance.py', 'test_publish_desktop_release.py',
                           'test_desktop_live_acceptance.py', 'test_desktop_candidate_collection.py',
                           'test_desktop_acceptance_cases.py'):
