@@ -1,0 +1,100 @@
+{
+  "schema_version": "candidate-github-delivery-check/v1",
+  "verified_at_utc": "2026-10-15T09:08:36.763594+00:00",
+  "release_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.10.15.3-rc.1",
+  "tag": "v2026.10.15.3-rc.1",
+  "tag_commit": "2ad641e412cb0dc62b33ed593bd8511becc7cd62",
+  "draft": false,
+  "prerelease": true,
+  "formal_latest_unchanged": "v2026.10.14.2",
+  "all_asset_digests_match": true,
+  "assets": [
+    {
+      "name": "ACCEPTANCE-MANIFEST.json",
+      "size": 39065,
+      "sha256": "aed4d7a51ba6f7c872b3ebc1a1d0598112fe9a7f6e9d6e3028f49218e4370014",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/ACCEPTANCE-MANIFEST.json"
+    },
+    {
+      "name": "BUILD-INFO.json",
+      "size": 1149,
+      "sha256": "075191d8bb86b186d13ab416d3700927a47b743559334448473e8a5f7e775a7a",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/BUILD-INFO.json"
+    },
+    {
+      "name": "CANDIDATE-GATE.json",
+      "size": 9185,
+      "sha256": "0bfb8ec53da69981245f0b67dfd4198073788432c8500e02bbab0359cbc08e51",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/CANDIDATE-GATE.json"
+    },
+    {
+      "name": "CANDIDATE-POLICY.json",
+      "size": 198,
+      "sha256": "6a8b7ceb536b55070f26298b303bda87e2dd4ed67abb8d2433f5e3f4ad569428",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/CANDIDATE-POLICY.json"
+    },
+    {
+      "name": "COBOLWorkbench-office-acceptance-windows-x64.zip",
+      "size": 50458618,
+      "sha256": "19e99af135894cd083bb545a7fa101e070c3ae218e8e1cd4b22558336d8f12f2",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/COBOLWorkbench-office-acceptance-windows-x64.zip"
+    },
+    {
+      "name": "COBOLWorkbench-office-acceptance-windows-x64.zip.sha256",
+      "size": 116,
+      "sha256": "961e8acd0049e33b9f07104ce0ed1fa578605d82fe09f855f796ea61e77cc940",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/COBOLWorkbench-office-acceptance-windows-x64.zip.sha256"
+    },
+    {
+      "name": "COBOLWorkbench-windows-x64.zip",
+      "size": 19036699,
+      "sha256": "59b65eedd161b10b7dead4a5dc91d146598d8ccc750c3cacb8c4e12cdb5a5b7f",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/COBOLWorkbench-windows-x64.zip"
+    },
+    {
+      "name": "COBOLWorkbench-windows-x64.zip.sha256",
+      "size": 98,
+      "sha256": "10ea8ceb0ab7b1fd8f1d034ea778cd0234e2e3e2e08c7c4983e55a3fc6d49968",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/COBOLWorkbench-windows-x64.zip.sha256"
+    },
+    {
+      "name": "COMPILED-ACCEPTANCE.json",
+      "size": 11474104,
+      "sha256": "dd58dfa6167ea6f2ed8e55386b6890ada45de84caf2ea5e5cfe0c2fc974ae882",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/COMPILED-ACCEPTANCE.json"
+    },
+    {
+      "name": "DELIVERY-SUMMARY.json",
+      "size": 9833,
+      "sha256": "34f242811c05f60abaea06dd9d2d7b80f103cce73564ae982c2541abcf0b247d",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/DELIVERY-SUMMARY.json"
+    },
+    {
+      "name": "KIT-BUILD-RECEIPT.json",
+      "size": 990,
+      "sha256": "56625fae63ef5c00d497a29818403e02fbe3c0337e6d2a856bf536438cf4ba28",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/KIT-BUILD-RECEIPT.json"
+    },
+    {
+      "name": "OFFICE-KIT-NATIVE-ACCEPTANCE.json",
+      "size": 11482732,
+      "sha256": "428760a274e834c7c891d3ce3b1a37d1c91b7824665d5b2bd1fb57a5b6fba040",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/OFFICE-KIT-NATIVE-ACCEPTANCE.json"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 1242,
+      "sha256": "379f2cdfc521e2cbb49f66fb805983c4c842f17a9e531440b0350b8775c49e1e",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/SHA256SUMS.txt"
+    },
+    {
+      "name": "VERIFIED-DELIVERY.json",
+      "size": 2441,
+      "sha256": "421bb94d3ab49c37b28bb22b9223a68b137c6932d5c9ef1b0d95272b823d6c72",
+      "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.15.3-rc.1/VERIFIED-DELIVERY.json"
+    }
+  ],
+  "real_company_model_verified": false,
+  "office_device_verified": false,
+  "formal_published": false
+}

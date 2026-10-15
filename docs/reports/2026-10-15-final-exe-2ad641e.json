@@ -1,0 +1,265 @@
+{
+  "schema_version": "final-candidate-delivery/v1",
+  "application_commit": "2ad641e412cb0dc62b33ed593bd8511becc7cd62",
+  "candidate_tag": "v2026.10.15.3-rc.1",
+  "desktop_workflow_run": 38702518190,
+  "office_kit_workflow_run": 38707249188,
+  "verification": {
+    "source_commit": "2ad641e412cb0dc62b33ed593bd8511becc7cd62",
+    "artifact": {
+      "archive_sha256": "59b65eedd161b10b7dead4a5dc91d146598d8ccc750c3cacb8c4e12cdb5a5b7f",
+      "binary_path": "COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe",
+      "binary_sha256": "fe9213128f2a4130e45c673ed10d2ac293b071240b4605adbe9c5605ea3706d3",
+      "application_sha256": "020cbb632494b67a17e824629ddcd728593ca3cd4e5deca835e0b95b9e95d12e",
+      "source_commit": "2ad641e412cb0dc62b33ed593bd8511becc7cd62",
+      "source_dirty": false,
+      "execution_surface": "native_windows_http",
+      "runtime_platform": "Windows"
+    },
+    "candidate": {
+      "report_sha256": "dd58dfa6167ea6f2ed8e55386b6890ada45de84caf2ea5e5cfe0c2fc974ae882",
+      "report_execution_id": "4e090aedec6a95f1a55c923549093147",
+      "elapsed_seconds": 612.174121,
+      "sample_count": 67,
+      "scope_probe_count": 14,
+      "states": {
+        "ANALYZED": 24,
+        "PARTIAL": 37,
+        "null": 6
+      },
+      "large_question_seconds": [
+        10.594047099999898,
+        10.14250899999979,
+        10.61423539999987,
+        10.110084800000095,
+        10.085939900000085
+      ],
+      "ambiguous_stop": [
+        "question_evidence_incomplete",
+        "question_evidence_incomplete",
+        "question_evidence_incomplete"
+      ]
+    },
+    "candidate_allowed": true,
+    "publish_allowed": false,
+    "company_acceptance_completed": false,
+    "portable_kit": {
+      "archive_sha256": "19e99af135894cd083bb545a7fa101e070c3ae218e8e1cd4b22558336d8f12f2",
+      "office_kit_sha256": "b85b3f0ec1fb4e6f1beb1f41a59e99231c6d819346893b9457fd4fcb1c17c6da",
+      "helper_binary_sha256": "3a4fe118fb2bab0c478b2b6998d42fc989461eee9a80568b288446207cc7046a",
+      "source_files": 12050,
+      "turns": 38,
+      "max_model_requests": 114,
+      "repeat_native": {
+        "report_sha256": "428760a274e834c7c891d3ce3b1a37d1c91b7824665d5b2bd1fb57a5b6fba040",
+        "report_execution_id": "c83559467f0292950bd1090ae8eba091",
+        "elapsed_seconds": 611.255075,
+        "sample_count": 67,
+        "scope_probe_count": 14,
+        "states": {
+          "ANALYZED": 24,
+          "PARTIAL": 37,
+          "null": 6
+        },
+        "large_question_seconds": [
+          10.452913799999806,
+          10.134818399999858,
+          10.185732599999938,
+          10.249016399999846,
+          10.223767100000032
+        ],
+        "ambiguous_stop": [
+          "question_evidence_incomplete",
+          "question_evidence_incomplete",
+          "question_evidence_incomplete"
+        ]
+      }
+    }
+  },
+  "source_validation": {
+    "schema_version": "frozen-source-candidate-summary/v1",
+    "generated_at_utc": "2026-10-15T08:11:40.412228+00:00",
+    "application_commit": "2ad641e412cb0dc62b33ed593bd8511becc7cd62",
+    "pipeline_version": "question-evidence-v20",
+    "prompt_version": "business-chat-v23",
+    "candidate_tag": "v2026.10.15.3-rc.1",
+    "real_company_model_verified": false,
+    "office_device_verified": false,
+    "formal_published": false,
+    "source_tests": {
+      "tests": 2936,
+      "elapsed_seconds": 154.32,
+      "passed": 2935,
+      "skipped": 1,
+      "skip_reason": "external fixed corpus is not configured",
+      "configured_skipped_test_supplement": {
+        "tests": 1,
+        "elapsed_seconds": 2.526,
+        "passed": 1,
+        "public_fixed_branches": 7,
+        "model_requests_per_branch": 1
+      },
+      "browser": {
+        "tests": 175,
+        "passed": 175,
+        "skipped": 0,
+        "elapsed_seconds": 5.064
+      }
+    },
+    "independent_default_io": {
+      "observations": 15,
+      "fake_requests": 10,
+      "passed": true
+    },
+    "shared_frontend_focused": {
+      "tests": 152,
+      "elapsed_seconds": 16.216,
+      "passed": true
+    },
+    "source_examples": {
+      "source_ref_hash_and_range_checks": 83,
+      "cl_actual_supplied_excerpt_checks": 6,
+      "windows_verified": false
+    },
+    "input_sha256": {
+      "full_python": {
+        "path": ".build/improvement-final-python-tests-3.log",
+        "sha256": "9da0aee2f81cfaabbb44fd36a7449c88deec8480dadca95097cf34ee4c9f5566"
+      },
+      "public_supplement": {
+        "path": ".build/improvement-final-public-test.log",
+        "sha256": "cb9b4628ac2c9d6f285510ad82e2e237639d76cb07979d462c1dba8cd228d3a1"
+      },
+      "browser": {
+        "path": ".build/improvement-browser-tests.log",
+        "sha256": "2a6be3671f5c41f14e84ffa815f004173615428c728849ad9d36a7472940c1f1"
+      },
+      "shared_frontend_focused": {
+        "path": ".build/shared-frontend-io-regressions.log",
+        "sha256": "8e46445faab939afc1678a0019586b5318344ccbcd5430a7fb2b727b6335e0e8"
+      },
+      "public_mechanisms": {
+        "path": ".build/ibmi-candidate-delivery/public-acceptance-2ad641e.json",
+        "sha256": "7c17d9fc26f9b8e1c3ff8ed14b3d19f9d9db1f341f0511db5bc3dc8455af40c0"
+      },
+      "independent_io_review": {
+        "path": ".build/ibmi-candidate-delivery/independent-io-default-review.json",
+        "sha256": "b08575f85d56c5eb22f9d3737d5db38261a2c943d7617dd0dd773c0f46e79847"
+      },
+      "prompt_projection": {
+        "path": ".build/improvement-prompt-measurement-2/results-final.json",
+        "sha256": "58bc29b15747f3531113dbd76be409a60704daf2f0e12c5d6591579d2466c365"
+      },
+      "source_ir_summary_slice_examples": {
+        "path": ".build/ibmi-candidate-delivery/semantic-examples-2ad641e-final.json",
+        "sha256": "0f5bca2faf2a3de055899288539734590b67a52eec1cb811d8728ab54bc3685d"
+      },
+      "workbench_identity": {
+        "path": ".build/ibmi-candidate-delivery/unchanged-workbench.json",
+        "sha256": "0eca09b1904681727dabca77bcda62369342c7f9f8375ac8352fbabe4cc2e3bb"
+      },
+      "selected_source_http": {
+        "path": ".build/improvement-frozen-semantic-http/COMPILED-ACCEPTANCE.json",
+        "sha256": "b60c0ee67a8ee831fb5358a31d3f2806ff59a0450d04846d681e08df69659f23"
+      }
+    }
+  },
+  "native_business_review": {
+    "counts": {
+      "top_level_samples": 67,
+      "top_level_statuses": {
+        "ANALYZED": 24,
+        "PARTIAL": 37,
+        "lifecycle": 6
+      },
+      "actual_main_answers": 67,
+      "actual_main_statuses": {
+        "ANALYZED": 27,
+        "PARTIAL": 40
+      },
+      "scope_probes": 14,
+      "actual_partial_observations": 54,
+      "partial_stop_reasons": {
+        "request_budget": 14,
+        "answer_incomplete": 14,
+        "question_evidence_incomplete": 26
+      },
+      "lifecycle_samples": 6,
+      "original40_pairs": 40,
+      "original40_body_changes_from_01f": 9,
+      "original40_body_changes_from_3b099c0": 9,
+      "original40_current_statuses": {
+        "PARTIAL": 28,
+        "ANALYZED": 12
+      },
+      "current_scope_exception_count": 0,
+      "empty_answers": 0,
+      "unsupported_citations": 0,
+      "missing_core_evidence_ids": 0
+    },
+    "mechanism_acceptance_passed": true,
+    "business_answer_correctness": null,
+    "real_model_accuracy": null,
+    "old_scores_applied": false,
+    "unresolved": [
+      "14 synthetic answer observations retain local omissions: frontend 3, broad large-repository question 5, conversation first/third turns 6.",
+      "CL prose combines facts from two supplied pages; nearby citation granularity is not fully semantically verified.",
+      "Target compilation/framework configuration, real model latency/quality and actual office device remain unverified."
+    ]
+  },
+  "front_end_byte_unchanged": {
+    "baseline_commit": "639f86825819acb463c5926551d70fda2e39b712",
+    "current_application_commit": "2ad641e412cb0dc62b33ed593bd8511becc7cd62",
+    "all_equal": true,
+    "files": [
+      {
+        "path": "poc/web/app.js",
+        "sha256": "45e7deb636c6de92781b4356614d1803e27e8671682771e9981691fa802f535d"
+      },
+      {
+        "path": "poc/web/appearance.css",
+        "sha256": "856026e60d38cb09f413eb50ee0928bb38ad70d4bff5f6cbb43fdd2ae12b5552"
+      },
+      {
+        "path": "poc/web/i18n.js",
+        "sha256": "126b6b4644d64a5f0712bf511a74f683e1a9957b9006ce18dac8391b4b0f65d9"
+      },
+      {
+        "path": "poc/web/index.html",
+        "sha256": "2c62e404f860ee6770995675cbb86e2878ed4c1632f394e1624caa090adbceb6"
+      },
+      {
+        "path": "poc/web/layout.js",
+        "sha256": "a249ccbbf68d7bc22fa54245893183f61d9ffede535a69c9dff1a312e772ce78"
+      },
+      {
+        "path": "poc/web/markdown.js",
+        "sha256": "8b82c2f693ced020982069c315154e6bed765007e17488920dfbb121649ba741"
+      },
+      {
+        "path": "poc/web/marked.LICENSE.md",
+        "sha256": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c"
+      },
+      {
+        "path": "poc/web/marked.umd.js",
+        "sha256": "0db7abc826b5ac76f6ed11951ae34074ba50438ce6ea8d52889203779e5cbbad"
+      },
+      {
+        "path": "poc/web/styles.css",
+        "sha256": "7eceedaba7d34eb0e7a18a66c84cd24c8a93effed75c03476564f791f5d5b6a1"
+      },
+      {
+        "path": "poc/web/theme.js",
+        "sha256": "c8fc1639aa35e48c9ddfdb3550c03b4df54e077b4564250b8e36906a4eeb0a9c"
+      }
+    ]
+  },
+  "attached_report_sha256": {
+    "2026-10-15-final-exe-2ad641e-ir-examples.json": "0f5bca2faf2a3de055899288539734590b67a52eec1cb811d8728ab54bc3685d",
+    "2026-10-15-final-exe-2ad641e-partial-review.json": "9f3b49b7893767d5862005732f36a7d0abb8f10763aae019dc2a6321b25f28a4",
+    "2026-10-15-final-exe-2ad641e-partial-review.md": "cc5bb59b02a01e0b432eb1270473b86434a656917ab71cf066a9fe826829f82e"
+  },
+  "formal_release": false,
+  "real_company_model_calls": 0,
+  "enterprise_source_transferred": false
+}

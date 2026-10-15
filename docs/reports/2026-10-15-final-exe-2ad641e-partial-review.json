@@ -1,0 +1,2347 @@
+{
+  "schema_version": "fresh-native-partial-semantic-review/v2",
+  "created_at_utc": "2026-10-15T08:54:01.341342+00:00",
+  "input_report_sha256": "dd58dfa6167ea6f2ed8e55386b6890ada45de84caf2ea5e5cfe0c2fc974ae882",
+  "input_audit_sha256": "362d11e8061b329d663514cbeb855ae885358c76edbebc63470ba0840f3b0a79",
+  "input_evidence_links_sha256": "2e43bffe1de37c622202e843750e13812195a9e97dedc67d356d837cc43e0356",
+  "report_identity": {
+    "schema_version": "compiled-workbench-acceptance/v1",
+    "report_execution_id": "4e090aedec6a95f1a55c923549093147",
+    "source_commit": "2ad641e412cb0dc62b33ed593bd8511becc7cd62",
+    "application_sha256": "020cbb632494b67a17e824629ddcd728593ca3cd4e5deca835e0b95b9e95d12e",
+    "binary_sha256": "fe9213128f2a4130e45c673ed10d2ac293b071240b4605adbe9c5605ea3706d3",
+    "archive_sha256": "59b65eedd161b10b7dead4a5dc91d146598d8ccc750c3cacb8c4e12cdb5a5b7f",
+    "manifest_sha256": "aed4d7a51ba6f7c872b3ebc1a1d0598112fe9a7f6e9d6e3028f49218e4370014",
+    "transport_kind": "synthetic",
+    "execution_surface": "native_windows_http",
+    "runtime_platform": "Windows",
+    "source_dirty": false,
+    "selection_complete": true,
+    "status": "passed",
+    "external_model_calls": 0,
+    "paid_model_calls": 0,
+    "real_model_accuracy": null,
+    "business_answer_correctness": null
+  },
+  "counts": {
+    "top_level_samples": 67,
+    "top_level_statuses": {
+      "ANALYZED": 24,
+      "PARTIAL": 37,
+      "lifecycle": 6
+    },
+    "actual_main_answers": 67,
+    "actual_main_statuses": {
+      "ANALYZED": 27,
+      "PARTIAL": 40
+    },
+    "scope_probes": 14,
+    "actual_partial_observations": 54,
+    "partial_stop_reasons": {
+      "request_budget": 14,
+      "answer_incomplete": 14,
+      "question_evidence_incomplete": 26
+    },
+    "lifecycle_samples": 6,
+    "original40_pairs": 40,
+    "original40_body_changes_from_01f": 9,
+    "original40_body_changes_from_3b099c0": 9,
+    "original40_current_statuses": {
+      "PARTIAL": 28,
+      "ANALYZED": 12
+    },
+    "current_scope_exception_count": 0,
+    "empty_answers": 0,
+    "unsupported_citations": 0,
+    "missing_core_evidence_ids": 0
+  },
+  "mechanism_acceptance_passed": true,
+  "real_model_accuracy": null,
+  "business_answer_correctness": null,
+  "target_office_acceptance": false,
+  "external_model_calls": 0,
+  "paid_model_calls": 0,
+  "historical_records_modified": false,
+  "old_scores_applied": false,
+  "review_scope": "Fresh actual native answer bodies and per-observation identity/ledger/obligations/version links. Repeated bodies and source-version lists are byte-equal within each group; every identity checked, each distinct body manually read. This is a source-grounded mechanism review, not company model/human acceptance.",
+  "original40": {
+    "unique_pairs": 40,
+    "current_statuses": {
+      "PARTIAL": 28,
+      "ANALYZED": 12
+    },
+    "body_changes_vs_01f_and_3b099c0": 9,
+    "changed_cases": [
+      "public_limit_rejection",
+      "public_monthly_interest",
+      "public_monthly_interest_repair"
+    ],
+    "pair_checks": [
+      {
+        "identity": {
+          "case_id": "conversation",
+          "turn_id": "1",
+          "sample_index": 1
+        },
+        "old_answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+        "current_answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+        "current_run_id": "949b440a67fd4d0f4737a681",
+        "body_changed": false,
+        "current_observation": "本行保留历史三轮聚合清单的turn_id=1键；其run/answer/ledger实际来自第三轮，并非首轮。第三轮实际指向ACCOUNT-SUM累加与归零，但固定合成正文仍漏ADD，missing accumulation；accumulation_step SATISFIED表示已供证，不表示正文已解释。首轮、第二轮及第三轮分别见actual_conversation_turn_checks，未借其他轮评分。",
+        "old_score_applied": false,
+        "observation_kind": "historical_three_turn_aggregate",
+        "actual_answer_turn_id": "3"
+      },
+      {
+        "identity": {
+          "case_id": "conversation",
+          "turn_id": "1",
+          "sample_index": 2
+        },
+        "old_answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+        "current_answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+        "current_run_id": "f2aff4c80f7ff55f153a3da5",
+        "body_changed": false,
+        "current_observation": "本行保留历史三轮聚合清单的turn_id=1键；其run/answer/ledger实际来自第三轮，并非首轮。第三轮实际指向ACCOUNT-SUM累加与归零，但固定合成正文仍漏ADD，missing accumulation；accumulation_step SATISFIED表示已供证，不表示正文已解释。首轮、第二轮及第三轮分别见actual_conversation_turn_checks，未借其他轮评分。",
+        "old_score_applied": false,
+        "observation_kind": "historical_three_turn_aggregate",
+        "actual_answer_turn_id": "3"
+      },
+      {
+        "identity": {
+          "case_id": "conversation",
+          "turn_id": "1",
+          "sample_index": 3
+        },
+        "old_answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+        "current_answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+        "current_run_id": "a6cca89db22432b847c8ea27",
+        "body_changed": false,
+        "current_observation": "本行保留历史三轮聚合清单的turn_id=1键；其run/answer/ledger实际来自第三轮，并非首轮。第三轮实际指向ACCOUNT-SUM累加与归零，但固定合成正文仍漏ADD，missing accumulation；accumulation_step SATISFIED表示已供证，不表示正文已解释。首轮、第二轮及第三轮分别见actual_conversation_turn_checks，未借其他轮评分。",
+        "old_score_applied": false,
+        "observation_kind": "historical_three_turn_aggregate",
+        "actual_answer_turn_id": "3"
+      },
+      {
+        "identity": {
+          "case_id": "dense_record",
+          "turn_id": "1",
+          "sample_index": 1
+        },
+        "old_answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+        "current_answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+        "current_run_id": "465e3fc784d720f9e734ebad",
+        "body_changed": false,
+        "current_observation": "乘2已替换错误999，独立 MOVE0 保留。inputs 来源搜索未闭合，不能将 input_source_not_located 直接当作运行输入不存在。request_budget 有可用正文。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "dense_record",
+          "turn_id": "1",
+          "sample_index": 2
+        },
+        "old_answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+        "current_answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+        "current_run_id": "473b09a1da1755f2c51462d8",
+        "body_changed": false,
+        "current_observation": "乘2已替换错误999，独立 MOVE0 保留。inputs 来源搜索未闭合，不能将 input_source_not_located 直接当作运行输入不存在。request_budget 有可用正文。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "dense_record",
+          "turn_id": "1",
+          "sample_index": 3
+        },
+        "old_answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+        "current_answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+        "current_run_id": "33c8257cab0cce63d1c4e5bd",
+        "body_changed": false,
+        "current_observation": "乘2已替换错误999，独立 MOVE0 保留。inputs 来源搜索未闭合，不能将 input_source_not_located 直接当作运行输入不存在。request_budget 有可用正文。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "dense_record",
+          "turn_id": "1",
+          "sample_index": 4
+        },
+        "old_answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+        "current_answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+        "current_run_id": "a4a28d9e3f02ab64499d566b",
+        "body_changed": false,
+        "current_observation": "乘2已替换错误999，独立 MOVE0 保留。inputs 来源搜索未闭合，不能将 input_source_not_located 直接当作运行输入不存在。request_budget 有可用正文。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "dense_record",
+          "turn_id": "1",
+          "sample_index": 5
+        },
+        "old_answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+        "current_answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+        "current_run_id": "56b36b86bbff2d555738025a",
+        "body_changed": false,
+        "current_observation": "乘2已替换错误999，独立 MOVE0 保留。inputs 来源搜索未闭合，不能将 input_source_not_located 直接当作运行输入不存在。request_budget 有可用正文。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "frontend_semantics",
+          "turn_id": "1",
+          "sample_index": 1
+        },
+        "old_answer_sha256": "164854e594b945860a73024d71c1aa42bea108ef60d7bf38a429be2379aa47fb",
+        "current_answer_sha256": "164854e594b945860a73024d71c1aa42bea108ef60d7bf38a429be2379aa47fb",
+        "current_run_id": "e7a9ceea256bc6377fa33410",
+        "body_changed": false,
+        "current_observation": "ADD GIVING 的 A/B 读取、C 接收与限定 AMOUNT 乘2有结构支持；固定合成正文仍漏已供应的 ROUNDED/后续写入，missing result_adjustments/rounding/result_overrides。A 的 input_dependency_cycle 是来源frontier诊断，不是已证明运行循环。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "frontend_semantics",
+          "turn_id": "1",
+          "sample_index": 2
+        },
+        "old_answer_sha256": "164854e594b945860a73024d71c1aa42bea108ef60d7bf38a429be2379aa47fb",
+        "current_answer_sha256": "164854e594b945860a73024d71c1aa42bea108ef60d7bf38a429be2379aa47fb",
+        "current_run_id": "a546094ca13b5532d19c8dc8",
+        "body_changed": false,
+        "current_observation": "ADD GIVING 的 A/B 读取、C 接收与限定 AMOUNT 乘2有结构支持；固定合成正文仍漏已供应的 ROUNDED/后续写入，missing result_adjustments/rounding/result_overrides。A 的 input_dependency_cycle 是来源frontier诊断，不是已证明运行循环。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "frontend_semantics",
+          "turn_id": "1",
+          "sample_index": 3
+        },
+        "old_answer_sha256": "164854e594b945860a73024d71c1aa42bea108ef60d7bf38a429be2379aa47fb",
+        "current_answer_sha256": "164854e594b945860a73024d71c1aa42bea108ef60d7bf38a429be2379aa47fb",
+        "current_run_id": "712a153619ab3c305eef2197",
+        "body_changed": false,
+        "current_observation": "ADD GIVING 的 A/B 读取、C 接收与限定 AMOUNT 乘2有结构支持；固定合成正文仍漏已供应的 ROUNDED/后续写入，missing result_adjustments/rounding/result_overrides。A 的 input_dependency_cycle 是来源frontier诊断，不是已证明运行循环。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "static_call_chain",
+          "turn_id": "1",
+          "sample_index": 1
+        },
+        "old_answer_sha256": "d3a31d4f99c94e2a61fa3b66d059743ddb30a887941f185fa516206dbd413b1c",
+        "current_answer_sha256": "d3a31d4f99c94e2a61fa3b66d059743ddb30a887941f185fa516206dbd413b1c",
+        "current_run_id": "2a394d4ecb7b07bd17f8ad95",
+        "body_changed": false,
+        "current_observation": "原独立事实保留；完整语义未评分。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "static_call_chain",
+          "turn_id": "1",
+          "sample_index": 2
+        },
+        "old_answer_sha256": "d3a31d4f99c94e2a61fa3b66d059743ddb30a887941f185fa516206dbd413b1c",
+        "current_answer_sha256": "d3a31d4f99c94e2a61fa3b66d059743ddb30a887941f185fa516206dbd413b1c",
+        "current_run_id": "801a28e84597aa339fdbb464",
+        "body_changed": false,
+        "current_observation": "原独立事实保留；完整语义未评分。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "static_call_chain",
+          "turn_id": "1",
+          "sample_index": 3
+        },
+        "old_answer_sha256": "d3a31d4f99c94e2a61fa3b66d059743ddb30a887941f185fa516206dbd413b1c",
+        "current_answer_sha256": "d3a31d4f99c94e2a61fa3b66d059743ddb30a887941f185fa516206dbd413b1c",
+        "current_run_id": "14760457a366acfb6aed9811",
+        "body_changed": false,
+        "current_observation": "原独立事实保留；完整语义未评分。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_limit_rejection",
+          "turn_id": "1",
+          "sample_index": 1
+        },
+        "old_answer_sha256": "03ad560fa7db4b094496ac76305a179b6522059c4e5886ecca8400b73dc2cda3",
+        "current_answer_sha256": "1ad2740fb2fdf65742904f30e4b9204d403f61308c16f6d22ebaf18988de8d55",
+        "current_run_id": "d136ff4efa1c40e29132299e",
+        "body_changed": true,
+        "current_observation": "新增 READ ACCOUNT-FILE INVALID KEY 下常量101，真实正文、支持ledger及已供源码395-397行相符；102超限与103到期日后续覆盖原解释保留。上游inputs/dependencies仍未闭合，not_assessed不等于完整业务正确。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_limit_rejection",
+          "turn_id": "1",
+          "sample_index": 2
+        },
+        "old_answer_sha256": "03ad560fa7db4b094496ac76305a179b6522059c4e5886ecca8400b73dc2cda3",
+        "current_answer_sha256": "1ad2740fb2fdf65742904f30e4b9204d403f61308c16f6d22ebaf18988de8d55",
+        "current_run_id": "900fd7b2241e8c7633da54d3",
+        "body_changed": true,
+        "current_observation": "新增 READ ACCOUNT-FILE INVALID KEY 下常量101，真实正文、支持ledger及已供源码395-397行相符；102超限与103到期日后续覆盖原解释保留。上游inputs/dependencies仍未闭合，not_assessed不等于完整业务正确。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_limit_rejection",
+          "turn_id": "1",
+          "sample_index": 3
+        },
+        "old_answer_sha256": "03ad560fa7db4b094496ac76305a179b6522059c4e5886ecca8400b73dc2cda3",
+        "current_answer_sha256": "1ad2740fb2fdf65742904f30e4b9204d403f61308c16f6d22ebaf18988de8d55",
+        "current_run_id": "c3847e671fae14d6070c3ad7",
+        "body_changed": true,
+        "current_observation": "新增 READ ACCOUNT-FILE INVALID KEY 下常量101，真实正文、支持ledger及已供源码395-397行相符；102超限与103到期日后续覆盖原解释保留。上游inputs/dependencies仍未闭合，not_assessed不等于完整业务正确。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_account_update",
+          "turn_id": "1",
+          "sample_index": 1
+        },
+        "old_answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+        "current_answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+        "current_run_id": "c19668a1e09a2d40bef0e83a",
+        "body_changed": false,
+        "current_observation": "余额加累计、两个周期字段归零和REWRITE请求、状态0/12解释保留；上游输入与外部终止实现未闭合，不能宣称实际持久化成功。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_account_update",
+          "turn_id": "1",
+          "sample_index": 2
+        },
+        "old_answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+        "current_answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+        "current_run_id": "f8b8f2dc8378cd89f8c72049",
+        "body_changed": false,
+        "current_observation": "余额加累计、两个周期字段归零和REWRITE请求、状态0/12解释保留；上游输入与外部终止实现未闭合，不能宣称实际持久化成功。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_account_update",
+          "turn_id": "1",
+          "sample_index": 3
+        },
+        "old_answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+        "current_answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+        "current_run_id": "37c88f695ab08c2a5e6024da",
+        "body_changed": false,
+        "current_observation": "余额加累计、两个周期字段归零和REWRITE请求、状态0/12解释保留；上游输入与外部终止实现未闭合，不能宣称实际持久化成功。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_monthly_interest",
+          "turn_id": "1",
+          "sample_index": 1
+        },
+        "old_answer_sha256": "586dc623056c6888b344eade8fe7a21d197763372d8a2975ee694e4b8717db2b",
+        "current_answer_sha256": "1eaff26ff64289baabce3bc87cbf6d4cdda18fde25f956e4781cfaf025560c97",
+        "current_run_id": "d125d3f824eab65d3e27eb2e",
+        "body_changed": true,
+        "current_observation": "正文保留/1200与ADD累加，新增IF DIS-INT-RATE NOT=0条件和PIC S9(09)V99/无ROUNDED边界；赋值与条件ledger supported。PIC/调用/数值行为prose仍标unsupported，不冒充完整COBOL算术或持久化证明。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_monthly_interest",
+          "turn_id": "1",
+          "sample_index": 2
+        },
+        "old_answer_sha256": "586dc623056c6888b344eade8fe7a21d197763372d8a2975ee694e4b8717db2b",
+        "current_answer_sha256": "1eaff26ff64289baabce3bc87cbf6d4cdda18fde25f956e4781cfaf025560c97",
+        "current_run_id": "c40be60ee3b2e355cde136db",
+        "body_changed": true,
+        "current_observation": "正文保留/1200与ADD累加，新增IF DIS-INT-RATE NOT=0条件和PIC S9(09)V99/无ROUNDED边界；赋值与条件ledger supported。PIC/调用/数值行为prose仍标unsupported，不冒充完整COBOL算术或持久化证明。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_monthly_interest",
+          "turn_id": "1",
+          "sample_index": 3
+        },
+        "old_answer_sha256": "586dc623056c6888b344eade8fe7a21d197763372d8a2975ee694e4b8717db2b",
+        "current_answer_sha256": "1eaff26ff64289baabce3bc87cbf6d4cdda18fde25f956e4781cfaf025560c97",
+        "current_run_id": "f1f414328284385d969af12d",
+        "body_changed": true,
+        "current_observation": "正文保留/1200与ADD累加，新增IF DIS-INT-RATE NOT=0条件和PIC S9(09)V99/无ROUNDED边界；赋值与条件ledger supported。PIC/调用/数值行为prose仍标unsupported，不冒充完整COBOL算术或持久化证明。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_monthly_interest_repair",
+          "turn_id": "1",
+          "sample_index": 1
+        },
+        "old_answer_sha256": "b1a4cb2852c2d8f2962259ff4caba50d26042e2855334ebbcaaa3713bc29eace",
+        "current_answer_sha256": "dec52f2345b951d7dee9692a4ccfa1b2c5512daecc53e8afc59c743a5dd3d5a1",
+        "current_run_id": "6c7e0d96b138d60b91af6166",
+        "body_changed": true,
+        "current_observation": "999仅保留在被拒绝审计claim中，最终/1200替代supported；新增实际ADD WS-TOTAL-INT累加、PERFORM写入调用、调用条件与PIC边界。missing accumulation已清，stop由answer_incomplete变question_evidence_incomplete；输入来源与写入实际效果仍有限。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_monthly_interest_repair",
+          "turn_id": "1",
+          "sample_index": 2
+        },
+        "old_answer_sha256": "b1a4cb2852c2d8f2962259ff4caba50d26042e2855334ebbcaaa3713bc29eace",
+        "current_answer_sha256": "dec52f2345b951d7dee9692a4ccfa1b2c5512daecc53e8afc59c743a5dd3d5a1",
+        "current_run_id": "a33ae1bd6d697e8ae77c8027",
+        "body_changed": true,
+        "current_observation": "999仅保留在被拒绝审计claim中，最终/1200替代supported；新增实际ADD WS-TOTAL-INT累加、PERFORM写入调用、调用条件与PIC边界。missing accumulation已清，stop由answer_incomplete变question_evidence_incomplete；输入来源与写入实际效果仍有限。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_monthly_interest_repair",
+          "turn_id": "1",
+          "sample_index": 3
+        },
+        "old_answer_sha256": "b1a4cb2852c2d8f2962259ff4caba50d26042e2855334ebbcaaa3713bc29eace",
+        "current_answer_sha256": "dec52f2345b951d7dee9692a4ccfa1b2c5512daecc53e8afc59c743a5dd3d5a1",
+        "current_run_id": "96a03cde558d6a0584797d6c",
+        "body_changed": true,
+        "current_observation": "999仅保留在被拒绝审计claim中，最终/1200替代supported；新增实际ADD WS-TOTAL-INT累加、PERFORM写入调用、调用条件与PIC边界。missing accumulation已清，stop由answer_incomplete变question_evidence_incomplete；输入来源与写入实际效果仍有限。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_file_record_mapping",
+          "turn_id": "1",
+          "sample_index": 1
+        },
+        "old_answer_sha256": "94aa6190e7af1f4f62ab42633e4e5dd2a9f9f29034b9293efc70107029de9269",
+        "current_answer_sha256": "94aa6190e7af1f4f62ab42633e4e5dd2a9f9f29034b9293efc70107029de9269",
+        "current_run_id": "7c1947835323ed3a303c5666",
+        "body_changed": false,
+        "current_observation": "原独立事实保留；完整语义未评分。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_file_record_mapping",
+          "turn_id": "1",
+          "sample_index": 2
+        },
+        "old_answer_sha256": "94aa6190e7af1f4f62ab42633e4e5dd2a9f9f29034b9293efc70107029de9269",
+        "current_answer_sha256": "94aa6190e7af1f4f62ab42633e4e5dd2a9f9f29034b9293efc70107029de9269",
+        "current_run_id": "316c3191532086f2a0708931",
+        "body_changed": false,
+        "current_observation": "原独立事实保留；完整语义未评分。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_file_record_mapping",
+          "turn_id": "1",
+          "sample_index": 3
+        },
+        "old_answer_sha256": "94aa6190e7af1f4f62ab42633e4e5dd2a9f9f29034b9293efc70107029de9269",
+        "current_answer_sha256": "94aa6190e7af1f4f62ab42633e4e5dd2a9f9f29034b9293efc70107029de9269",
+        "current_run_id": "bd728789c754219ef81d0f32",
+        "body_changed": false,
+        "current_observation": "原独立事实保留；完整语义未评分。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_unimplemented_procedure",
+          "turn_id": "1",
+          "sample_index": 1
+        },
+        "old_answer_sha256": "ab9aaa5e528221755ec15b73e053a848af0e196bee88cb31b175a1f3ca5b1bd1",
+        "current_answer_sha256": "ab9aaa5e528221755ec15b73e053a848af0e196bee88cb31b175a1f3ca5b1bd1",
+        "current_run_id": "0f84f40ce32bbb493e62ee53",
+        "body_changed": false,
+        "current_observation": "原独立事实保留；完整语义未评分。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_unimplemented_procedure",
+          "turn_id": "1",
+          "sample_index": 2
+        },
+        "old_answer_sha256": "ab9aaa5e528221755ec15b73e053a848af0e196bee88cb31b175a1f3ca5b1bd1",
+        "current_answer_sha256": "ab9aaa5e528221755ec15b73e053a848af0e196bee88cb31b175a1f3ca5b1bd1",
+        "current_run_id": "21f3ddf70db180a4b6d48935",
+        "body_changed": false,
+        "current_observation": "原独立事实保留；完整语义未评分。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_unimplemented_procedure",
+          "turn_id": "1",
+          "sample_index": 3
+        },
+        "old_answer_sha256": "ab9aaa5e528221755ec15b73e053a848af0e196bee88cb31b175a1f3ca5b1bd1",
+        "current_answer_sha256": "ab9aaa5e528221755ec15b73e053a848af0e196bee88cb31b175a1f3ca5b1bd1",
+        "current_run_id": "5c743d931fe6ee799b60ccdf",
+        "body_changed": false,
+        "current_observation": "原独立事实保留；完整语义未评分。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_unimplemented_procedure_repair",
+          "turn_id": "1",
+          "sample_index": 1
+        },
+        "old_answer_sha256": "13f12f1cf9d00b4413da574c34d448d1d9220b4230b98edccf65c8c645050045",
+        "current_answer_sha256": "13f12f1cf9d00b4413da574c34d448d1d9220b4230b98edccf65c8c645050045",
+        "current_run_id": "ef378c6621178d3e4c83492a",
+        "body_changed": false,
+        "current_observation": "原独立事实保留；完整语义未评分。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_unimplemented_procedure_repair",
+          "turn_id": "1",
+          "sample_index": 2
+        },
+        "old_answer_sha256": "13f12f1cf9d00b4413da574c34d448d1d9220b4230b98edccf65c8c645050045",
+        "current_answer_sha256": "13f12f1cf9d00b4413da574c34d448d1d9220b4230b98edccf65c8c645050045",
+        "current_run_id": "6279c7323b81696e1d93ccbf",
+        "body_changed": false,
+        "current_observation": "原独立事实保留；完整语义未评分。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "public_unimplemented_procedure_repair",
+          "turn_id": "1",
+          "sample_index": 3
+        },
+        "old_answer_sha256": "13f12f1cf9d00b4413da574c34d448d1d9220b4230b98edccf65c8c645050045",
+        "current_answer_sha256": "13f12f1cf9d00b4413da574c34d448d1d9220b4230b98edccf65c8c645050045",
+        "current_run_id": "e748a0e1b28c1650a8dc3882",
+        "body_changed": false,
+        "current_observation": "原独立事实保留；完整语义未评分。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "large_repository",
+          "turn_id": "1",
+          "sample_index": 1
+        },
+        "old_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "current_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "current_run_id": "9291eb409d528ed8c75251f2",
+        "body_changed": false,
+        "current_observation": "正文准确限定首条 IF 的乘1局部事实；已供后续覆盖仍未展开，missing result_adjustments/result_overrides。12k库入口/路径/候选预算及输入未闭合保持独立，不能升级为全库最终业务解释。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "large_repository",
+          "turn_id": "1",
+          "sample_index": 2
+        },
+        "old_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "current_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "current_run_id": "a3df8e8f16f270df567b0633",
+        "body_changed": false,
+        "current_observation": "正文准确限定首条 IF 的乘1局部事实；已供后续覆盖仍未展开，missing result_adjustments/result_overrides。12k库入口/路径/候选预算及输入未闭合保持独立，不能升级为全库最终业务解释。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "large_repository",
+          "turn_id": "1",
+          "sample_index": 3
+        },
+        "old_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "current_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "current_run_id": "6284504bf640cf12d56a2188",
+        "body_changed": false,
+        "current_observation": "正文准确限定首条 IF 的乘1局部事实；已供后续覆盖仍未展开，missing result_adjustments/result_overrides。12k库入口/路径/候选预算及输入未闭合保持独立，不能升级为全库最终业务解释。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "large_repository",
+          "turn_id": "1",
+          "sample_index": 4
+        },
+        "old_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "current_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "current_run_id": "ed4ecd53130eaec15901a461",
+        "body_changed": false,
+        "current_observation": "正文准确限定首条 IF 的乘1局部事实；已供后续覆盖仍未展开，missing result_adjustments/result_overrides。12k库入口/路径/候选预算及输入未闭合保持独立，不能升级为全库最终业务解释。",
+        "old_score_applied": false
+      },
+      {
+        "identity": {
+          "case_id": "large_repository",
+          "turn_id": "1",
+          "sample_index": 5
+        },
+        "old_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "current_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "current_run_id": "6a0b0c679f486d5f4d28ad5f",
+        "body_changed": false,
+        "current_observation": "正文准确限定首条 IF 的乘1局部事实；已供后续覆盖仍未展开，missing result_adjustments/result_overrides。12k库入口/路径/候选预算及输入未闭合保持独立，不能升级为全库最终业务解释。",
+        "old_score_applied": false
+      }
+    ],
+    "aggregate_conversation_identity_rule": "The historical conversation checklist uses turn_id=1 for each three-turn aggregate sample. Its recorded top-level run_id, answer and ledger are the actual third turn. All nine actual turns are reviewed separately below; the aggregate key is not relabelled."
+  },
+  "actual_conversation_turns_reviewed": 9,
+  "groups": {
+    "activation_trigger": {
+      "categories": [
+        "external_schedule_unknown",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "源码条件 READY-FLAG=1 与 LAUNCHER→JOB-STEP 调用可独立解释；entry/caller/condition 三义务均 SATISFIED。scheduler_binding 仍 OPEN，不推断生产调度或实际执行。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "JOB-STEP由LAUNCHER在READY-FLAG = 1的源码条件下通过CALL调用。源码未证明外部调度绑定，也未证明实际执行。[ev_page_98d52f403a399b917e97f477]",
+      "answer_sha256": "674a2a1aa585e8b7e3bd0d68c1690c33b24de8413f3a78ff52a3cc4743476a8f",
+      "ledger_source_versions_sha256": "48fdefecac34823b8f609618778f2427288e334df68397c3d69aba410e11a88d",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "activation_trigger",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "48f5dcfedbf8870f634a5f98",
+          "answer_sha256": "674a2a1aa585e8b7e3bd0d68c1690c33b24de8413f3a78ff52a3cc4743476a8f",
+          "trace_sha256": "9eed8033b637d1f6ac76758099f495b12694feb372f5f4444e7543f0b5bbe8e3",
+          "ledger_sha256": "498b1996b4bbcc60288c81e0757ebc971ecba01d782784b6cb8c23906be0748a",
+          "investigation_sha256": "0bcdb4871d9264a89621b2e0e94ceb4bde6cc4dd9d771591afff5e3cfd2ed398",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "activation_trigger",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "78bd106d69f4d3333dc5845b",
+          "answer_sha256": "674a2a1aa585e8b7e3bd0d68c1690c33b24de8413f3a78ff52a3cc4743476a8f",
+          "trace_sha256": "c761db08bb87074a50c2118d7c6eb9cb5c5f7f03be8369842575bd1584e81791",
+          "ledger_sha256": "498b1996b4bbcc60288c81e0757ebc971ecba01d782784b6cb8c23906be0748a",
+          "investigation_sha256": "0bcdb4871d9264a89621b2e0e94ceb4bde6cc4dd9d771591afff5e3cfd2ed398",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "activation_trigger",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "95199106decf4d363924c7f9",
+          "answer_sha256": "674a2a1aa585e8b7e3bd0d68c1690c33b24de8413f3a78ff52a3cc4743476a8f",
+          "trace_sha256": "ed9afe93adbffe401ad7e3edd8b70424529d483aa1528c6b6ac57e6dc1946244",
+          "ledger_sha256": "498b1996b4bbcc60288c81e0757ebc971ecba01d782784b6cb8c23906be0748a",
+          "investigation_sha256": "0bcdb4871d9264a89621b2e0e94ceb4bde6cc4dd9d771591afff5e3cfd2ed398",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "conversation_turn_1": {
+      "categories": [
+        "answer_omission",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "首轮原正文仍只区分ACCOUNT-TOTALS清零与PAGE-TOTALS换页，已供应的条件与累加未展开；missing conditions/accumulation。inputs SATISFIED，作用域异常0；保留真实遗漏，不借其他轮评分。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "ACCOUNT-SUM 在 ACCOUNT-TOTALS 中被清零；换页执行 PAGE-TOTALS，应结合两条路径的控制条件区分。[ev_page_a217f134d5f322d0fbfc45e6]",
+      "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+      "ledger_source_versions_sha256": "f54a9589d6508047d129183ddadacec5e9ad7d63ad0be96f58e31d3c1222c418",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "conversation",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "b0e8f758d6236af485f7e2df",
+          "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+          "trace_sha256": "0beec582df89afe6c0113c5e48e3df53063aad9fe71e761d43abf6dd033a2747",
+          "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+          "investigation_sha256": "3d1bd9caa86de9cc6aa57d6c907d34dda8ec53bd703c02746fa960aecb1749eb",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "conversation",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "37aea25347db0bdf42ed56ea",
+          "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+          "trace_sha256": "5824fed1955e916d467bb12a714cd9c1d2041262d67c149f33daaca304441373",
+          "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+          "investigation_sha256": "3d1bd9caa86de9cc6aa57d6c907d34dda8ec53bd703c02746fa960aecb1749eb",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "conversation",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "89ed70f21d9467338d4ac47d",
+          "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+          "trace_sha256": "4945fdc018b7e9432f35fae55eb8d5e0004b1757e1069172d19314c8de4cc776",
+          "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+          "investigation_sha256": "3d1bd9caa86de9cc6aa57d6c907d34dda8ec53bd703c02746fa960aecb1749eb",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "conversation_turn_2": {
+      "categories": [
+        "unsupported_prose"
+      ],
+      "current_native_observation": "第二轮维持原清零路径说明与ANALYZED/not_assessed；prose未核验，不能代替首轮或第三轮完整度。",
+      "observations": 3,
+      "partial_observations": 0,
+      "representative_answer": "ACCOUNT-SUM 在 ACCOUNT-TOTALS 中被清零；换页执行 PAGE-TOTALS，应结合两条路径的控制条件区分。[ev_page_a217f134d5f322d0fbfc45e6]",
+      "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+      "ledger_source_versions_sha256": "f54a9589d6508047d129183ddadacec5e9ad7d63ad0be96f58e31d3c1222c418",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "conversation",
+            "turn_id": "2",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "f60b540576f6f04a1ddbfb00",
+          "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+          "trace_sha256": "1811e1b44bdf70c2ef80472419bc06770b1dc4786fc59b5a06499cfb1d606bfb",
+          "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+          "investigation_sha256": "81d829f5306e96f6a172e88faa26cac373005fd33b82683823c4c2afe3786684",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "conversation",
+            "turn_id": "2",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "04aeaf11bbd9458c33956608",
+          "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+          "trace_sha256": "1027d7786a256d8a8f4fa80dfd05f4d266caddd4fc9bde9d77c3dce28c1b355b",
+          "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+          "investigation_sha256": "81d829f5306e96f6a172e88faa26cac373005fd33b82683823c4c2afe3786684",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "conversation",
+            "turn_id": "2",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "be776bba40ce19f3b14cf734",
+          "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+          "trace_sha256": "3f217353e3beb4ea12ba33ffb604b840a0540901a527966fe3effe53d93edf87",
+          "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+          "investigation_sha256": "81d829f5306e96f6a172e88faa26cac373005fd33b82683823c4c2afe3786684",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "conversation_turn_3": {
+      "categories": [
+        "answer_omission",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "第三轮实际指向ACCOUNT-SUM累加与归零，但固定合成正文仍漏ADD，missing accumulation；accumulation_step SATISFIED表示已供证，不表示正文已解释。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "ACCOUNT-SUM 在 ACCOUNT-TOTALS 中被清零；换页执行 PAGE-TOTALS，应结合两条路径的控制条件区分。[ev_page_a217f134d5f322d0fbfc45e6]",
+      "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+      "ledger_source_versions_sha256": "f54a9589d6508047d129183ddadacec5e9ad7d63ad0be96f58e31d3c1222c418",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "conversation",
+            "turn_id": "3",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "949b440a67fd4d0f4737a681",
+          "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+          "trace_sha256": "e821db107704610700e0f0d80c572ccc75e72dac5a130d7e66c9769307d03ad8",
+          "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+          "investigation_sha256": "dc337ddd236615a4d373dc7ae5a49edfc63e7ae9eeb0ff823656961e5a4e2118",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "conversation",
+            "turn_id": "3",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "f2aff4c80f7ff55f153a3da5",
+          "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+          "trace_sha256": "0b62b6b6004dc50d7112528461a14d9b4df0859fa9cb6ee83f10c0fd6c917b65",
+          "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+          "investigation_sha256": "dc337ddd236615a4d373dc7ae5a49edfc63e7ae9eeb0ff823656961e5a4e2118",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "conversation",
+            "turn_id": "3",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "a6cca89db22432b847c8ea27",
+          "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+          "trace_sha256": "5ca0aed48160af9452e45081bd020feb38e0fa6d4dc0c6d9269c33268cc4fff0",
+          "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+          "investigation_sha256": "dc337ddd236615a4d373dc7ae5a49edfc63e7ae9eeb0ff823656961e5a4e2118",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "dense_record": {
+      "categories": [
+        "input_origin_search_unclosed",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "乘2已替换错误999，独立 MOVE0 保留。inputs 来源搜索未闭合，不能将 input_source_not_located 直接当作运行输入不存在。request_budget 有可用正文。",
+      "observations": 5,
+      "partial_observations": 5,
+      "representative_answer": "已供应源码可直接确认：`OUT-AMOUNT = IN-AMOUNT * 2`（calculate.cbl:2009）[ev_page_7ce7386ddd32bf2d30b7a4cf]。 MOVE 0 TO STATUS-CODE。[ev_page_7ce7386ddd32bf2d30b7a4cf] 输入金额保留原字段名称。",
+      "answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+      "ledger_source_versions_sha256": "07d57780e70bd13f24e5b7277f48e0a1fa820910cb3672827886d1d313cff07d",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "dense_record",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "465e3fc784d720f9e734ebad",
+          "answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+          "trace_sha256": "7109344bb3254193c6ebf44cf47b630c1001ca468c6dd6b8752c9c9907cca1a3",
+          "ledger_sha256": "562e2a005abbef30e48b2aab0346294fca98e2b45a4c30beae12dac2c7b91d7b",
+          "investigation_sha256": "c1104c1619141fa56d03b58d1e5ddc89158a7592638997ea38ac80b3e8af3f7a",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "dense_record",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "473b09a1da1755f2c51462d8",
+          "answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+          "trace_sha256": "46efaa7fb6af82337dd09bed4c496d1fabda4663ff956ce08dfbf029d4a18146",
+          "ledger_sha256": "562e2a005abbef30e48b2aab0346294fca98e2b45a4c30beae12dac2c7b91d7b",
+          "investigation_sha256": "c1104c1619141fa56d03b58d1e5ddc89158a7592638997ea38ac80b3e8af3f7a",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "dense_record",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "33c8257cab0cce63d1c4e5bd",
+          "answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+          "trace_sha256": "47cc5d2bda58e615bcb7cb824ea3b91acd393eabd8309384d2871f3e305488f5",
+          "ledger_sha256": "562e2a005abbef30e48b2aab0346294fca98e2b45a4c30beae12dac2c7b91d7b",
+          "investigation_sha256": "c1104c1619141fa56d03b58d1e5ddc89158a7592638997ea38ac80b3e8af3f7a",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "dense_record",
+            "turn_id": "1",
+            "sample_index": 4,
+            "observation_kind": "answer"
+          },
+          "run_id": "a4a28d9e3f02ab64499d566b",
+          "answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+          "trace_sha256": "f1bb28a901755941c28d8252106ca6e6cf3230fbb12c987b7cdb8bec2c3ed5f5",
+          "ledger_sha256": "562e2a005abbef30e48b2aab0346294fca98e2b45a4c30beae12dac2c7b91d7b",
+          "investigation_sha256": "c1104c1619141fa56d03b58d1e5ddc89158a7592638997ea38ac80b3e8af3f7a",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "dense_record",
+            "turn_id": "1",
+            "sample_index": 5,
+            "observation_kind": "answer"
+          },
+          "run_id": "56b36b86bbff2d555738025a",
+          "answer_sha256": "592e2b000fdfa3d49f6943540995f1f2e2e5f3b795151865de73e0318643fd32",
+          "trace_sha256": "2d142f88b8918384f3564ebf46d548b16fedd2ff9fce61c5b4f2e4c29fc81c1a",
+          "ledger_sha256": "562e2a005abbef30e48b2aab0346294fca98e2b45a4c30beae12dac2c7b91d7b",
+          "investigation_sha256": "c1104c1619141fa56d03b58d1e5ddc89158a7592638997ea38ac80b3e8af3f7a",
+          "reported_evidence_sha256": null,
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "frontend_semantics": {
+      "categories": [
+        "answer_omission",
+        "input_origin_search_unclosed",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "ADD GIVING 的 A/B 读取、C 接收与限定 AMOUNT 乘2有结构支持；固定合成正文仍漏已供应的 ROUNDED/后续写入，missing result_adjustments/rounding/result_overrides。A 的 input_dependency_cycle 是来源frontier诊断，不是已证明运行循环。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "C = A + B。[ev_page_cb76860422d88ad883575373] AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2。[ev_page_cb76860422d88ad883575373] ADD 的输入为 A 和 B；GIVING C 的接收字段是 C。同一实际字段可同时承担输入和输出。字符串中的 CALL、PERFORM 和 *> 属于文字，限定字段分属两个记录。",
+      "answer_sha256": "164854e594b945860a73024d71c1aa42bea108ef60d7bf38a429be2379aa47fb",
+      "ledger_source_versions_sha256": "1e09a9bcf5750673c477940e0136efe33818d65422394beab5ae1e16b18fdb49",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "frontend_semantics",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "e7a9ceea256bc6377fa33410",
+          "answer_sha256": "164854e594b945860a73024d71c1aa42bea108ef60d7bf38a429be2379aa47fb",
+          "trace_sha256": "c5e1320c7c6c9986cf54eae6e8ae8b8864c701cb916c4043c472ee9684399f93",
+          "ledger_sha256": "b2217a72b122795e581f4224c7d877df02b608552e6cdf356149414f0abf4333",
+          "investigation_sha256": "c5cec16b817bfbb429fe0459933a89e0dbe0bbaca00e485bc7485e0507d4c181",
+          "reported_evidence_sha256": "68c15a67c9f2b93e2f7a729ea44a5ffc3f02da486edd45f810befc9b9b40d391",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "frontend_semantics",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "a546094ca13b5532d19c8dc8",
+          "answer_sha256": "164854e594b945860a73024d71c1aa42bea108ef60d7bf38a429be2379aa47fb",
+          "trace_sha256": "f14fa2b6927971fb493474bbc643250a0301b130de196c8a6f676b149d97d6a3",
+          "ledger_sha256": "b2217a72b122795e581f4224c7d877df02b608552e6cdf356149414f0abf4333",
+          "investigation_sha256": "c5cec16b817bfbb429fe0459933a89e0dbe0bbaca00e485bc7485e0507d4c181",
+          "reported_evidence_sha256": "68c15a67c9f2b93e2f7a729ea44a5ffc3f02da486edd45f810befc9b9b40d391",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "frontend_semantics",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "712a153619ab3c305eef2197",
+          "answer_sha256": "164854e594b945860a73024d71c1aa42bea108ef60d7bf38a429be2379aa47fb",
+          "trace_sha256": "b154c4e27403fdcbccd0db679e20193c410b95b1343711d9ae00a8297d17255a",
+          "ledger_sha256": "b2217a72b122795e581f4224c7d877df02b608552e6cdf356149414f0abf4333",
+          "investigation_sha256": "c5cec16b817bfbb429fe0459933a89e0dbe0bbaca00e485bc7485e0507d4c181",
+          "reported_evidence_sha256": "68c15a67c9f2b93e2f7a729ea44a5ffc3f02da486edd45f810befc9b9b40d391",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "public_limit_rejection": {
+      "categories": [
+        "input_origin_search_unclosed"
+      ],
+      "current_native_observation": "新增 READ ACCOUNT-FILE INVALID KEY 下常量101，真实正文、支持ledger及已供源码395-397行相符；102超限与103到期日后续覆盖原解释保留。上游inputs/dependencies仍未闭合，not_assessed不等于完整业务正确。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "WS-TEMP-BAL = ACCT-CURR-CYC-CREDIT - ACCT-CURR-CYC-DEBIT + DALYTRAN-AMT。[ev_page_596b869ab04906c42498ed66] 若 ACCT-CREDIT-LIMIT >= WS-TEMP-BAL 则继续，否则 MOVE 102 TO WS-VALIDATION-FAIL-REASON。[ev_page_596b869ab04906c42498ed66] 后面的到期日检查失败会 MOVE 103 TO WS-VALIDATION-FAIL-REASON，因此 102 可能被后续覆盖。[ev_page_596b869ab04906c42498ed66]\n\n在 `READ ACCOUNT-FILE INTO ACCOUNT-RECORD` 的 INVALID KEY 分支时，`WS-VALIDATION-FAIL-REASON = 101`。[ev_page_596b869ab04906c42498ed66]",
+      "answer_sha256": "1ad2740fb2fdf65742904f30e4b9204d403f61308c16f6d22ebaf18988de8d55",
+      "ledger_source_versions_sha256": "a193a4c376ba68c109d3a4f8ab4c1efc69c1d8efcb682cb2ac85d8eef7b9427f",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "public_limit_rejection",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "d136ff4efa1c40e29132299e",
+          "answer_sha256": "1ad2740fb2fdf65742904f30e4b9204d403f61308c16f6d22ebaf18988de8d55",
+          "trace_sha256": "5fad7dd033274fd25b2092cbacc916d995689ecf3b6b72f14bef3134971fcdbc",
+          "ledger_sha256": "ac78fadb3bcba8ccb766912137e80bec09ccb79cb5a9d4734721c27446016406",
+          "investigation_sha256": "31295e20c3d487f525616c60cbd4cfba67ed2b3d413373edb29b9ad5a8229202",
+          "reported_evidence_sha256": "0d4da547d0e39999fd396d0cbd64aa94e290fac06a3fc394bb7827e2e7bab028",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "public_limit_rejection",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "900fd7b2241e8c7633da54d3",
+          "answer_sha256": "1ad2740fb2fdf65742904f30e4b9204d403f61308c16f6d22ebaf18988de8d55",
+          "trace_sha256": "bb5b7b372e629d0083f74028fb3c8160c25584d59f1533cadea852ee763ba099",
+          "ledger_sha256": "ac78fadb3bcba8ccb766912137e80bec09ccb79cb5a9d4734721c27446016406",
+          "investigation_sha256": "31295e20c3d487f525616c60cbd4cfba67ed2b3d413373edb29b9ad5a8229202",
+          "reported_evidence_sha256": "0d4da547d0e39999fd396d0cbd64aa94e290fac06a3fc394bb7827e2e7bab028",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "public_limit_rejection",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "c3847e671fae14d6070c3ad7",
+          "answer_sha256": "1ad2740fb2fdf65742904f30e4b9204d403f61308c16f6d22ebaf18988de8d55",
+          "trace_sha256": "a9d99b91ea880340d0b14fb0e5aeaf00931722f2d7ae580badf45aff58767a1b",
+          "ledger_sha256": "ac78fadb3bcba8ccb766912137e80bec09ccb79cb5a9d4734721c27446016406",
+          "investigation_sha256": "31295e20c3d487f525616c60cbd4cfba67ed2b3d413373edb29b9ad5a8229202",
+          "reported_evidence_sha256": "0d4da547d0e39999fd396d0cbd64aa94e290fac06a3fc394bb7827e2e7bab028",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "public_account_update": {
+      "categories": [
+        "input_origin_search_unclosed",
+        "external_effect_unknown"
+      ],
+      "current_native_observation": "余额加累计、两个周期字段归零和REWRITE请求、状态0/12解释保留；上游输入与外部终止实现未闭合，不能宣称实际持久化成功。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "ACCT-CURR-BAL = WS-TOTAL-INT + ACCT-CURR-BAL。[ev_page_4852f54a7cbf93111c3ffcc1] MOVE 0 TO ACCT-CURR-CYC-CREDIT，并 MOVE 0 TO ACCT-CURR-CYC-DEBIT。[ev_page_4852f54a7cbf93111c3ffcc1] REWRITE FD-ACCTFILE-REC FROM ACCOUNT-RECORD 发出改写请求；状态00时 APPL-RESULT = 0，其他状态 APPL-RESULT = 12 并进入错误显示和终止处理。[ev_page_4852f54a7cbf93111c3ffcc1]",
+      "answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+      "ledger_source_versions_sha256": "466c6d3d9bc6bf21d26d8f71da837caf9b30fd4a14f748df6abb5cc30529e4c1",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "public_account_update",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "c19668a1e09a2d40bef0e83a",
+          "answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+          "trace_sha256": "323439937f552a8d149dec88f7d1ea02c822ec9485d5de967ed676557c4980b2",
+          "ledger_sha256": "81fbeba9c5a2e3f7bdf6809ca58524e041b0f8ac21947f6b43207caf5f1c66c5",
+          "investigation_sha256": "085609371f3c999e11ba8204a562182f67abe063350f9760e6a980e681476173",
+          "reported_evidence_sha256": "4c8e9fe8e4b8c1912aa92e0d33398775d31797c4bef63b3056ccd0baaf27ef6d",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "public_account_update",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "f8b8f2dc8378cd89f8c72049",
+          "answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+          "trace_sha256": "5e84adf9c4b942b841c013333d9efaa454e371b5dd6e9f218fb9bac9fd697204",
+          "ledger_sha256": "81fbeba9c5a2e3f7bdf6809ca58524e041b0f8ac21947f6b43207caf5f1c66c5",
+          "investigation_sha256": "085609371f3c999e11ba8204a562182f67abe063350f9760e6a980e681476173",
+          "reported_evidence_sha256": "4c8e9fe8e4b8c1912aa92e0d33398775d31797c4bef63b3056ccd0baaf27ef6d",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "public_account_update",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "37c88f695ab08c2a5e6024da",
+          "answer_sha256": "1c0106c9d3bc16a1339beff37691156d36b96b469c57a0aa38dcdac32c6cffe5",
+          "trace_sha256": "c398f0daefd36dbbd05be87606042ebc414b0d2afa65605ce3de7fbe6ee19802",
+          "ledger_sha256": "81fbeba9c5a2e3f7bdf6809ca58524e041b0f8ac21947f6b43207caf5f1c66c5",
+          "investigation_sha256": "085609371f3c999e11ba8204a562182f67abe063350f9760e6a980e681476173",
+          "reported_evidence_sha256": "4c8e9fe8e4b8c1912aa92e0d33398775d31797c4bef63b3056ccd0baaf27ef6d",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "public_monthly_interest": {
+      "categories": [
+        "input_origin_search_unclosed",
+        "external_effect_unknown",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "正文保留/1200与ADD累加，新增IF DIS-INT-RATE NOT=0条件和PIC S9(09)V99/无ROUNDED边界；赋值与条件ledger supported。PIC/调用/数值行为prose仍标unsupported，不冒充完整COBOL算术或持久化证明。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "WS-MONTHLY-INT = ( TRAN-CAT-BAL * DIS-INT-RATE ) / 1200。[ev_page_4852f54a7cbf93111c3ffcc1] WS-TOTAL-INT = WS-MONTHLY-INT + WS-TOTAL-INT，然后调用1300-B-WRITE-TX。[ev_page_4852f54a7cbf93111c3ffcc1]\n\n此处调用受 `IF DIS-INT-RATE NOT = 0` 成立控制。[ev_page_4852f54a7cbf93111c3ffcc1] `WS-MONTHLY-INT` 声明为 `PIC S9(09)V99`，本次计算没有 ROUNDED；存储尺度与溢出处理须按目标编译环境解释。[ev_page_4852f54a7cbf93111c3ffcc1]",
+      "answer_sha256": "1eaff26ff64289baabce3bc87cbf6d4cdda18fde25f956e4781cfaf025560c97",
+      "ledger_source_versions_sha256": "ba490376267b2bef58fb071578f41d240ee1d641c2caab885924bf46ab9e2eda",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "public_monthly_interest",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "d125d3f824eab65d3e27eb2e",
+          "answer_sha256": "1eaff26ff64289baabce3bc87cbf6d4cdda18fde25f956e4781cfaf025560c97",
+          "trace_sha256": "a1caa6351e00b2af0572497420c144bb62bbbd465fd1e31201831bd5207f5792",
+          "ledger_sha256": "de4d0c4e2cf9bb4722df15feaddf62856421674a5709ad149715ec57a5ecb389",
+          "investigation_sha256": "33d73b8c1ac5cdd518185323867bcffa405ce852788fe89347228bf77ebdd808",
+          "reported_evidence_sha256": "79501649ea5f734ea26ac084331d4225c6cd9bea0d408768fe0710a08af36498",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "public_monthly_interest",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "c40be60ee3b2e355cde136db",
+          "answer_sha256": "1eaff26ff64289baabce3bc87cbf6d4cdda18fde25f956e4781cfaf025560c97",
+          "trace_sha256": "5d8930275db17daf208ce1272c8e82286385062e4b3d0602eefbf6af8a52339a",
+          "ledger_sha256": "de4d0c4e2cf9bb4722df15feaddf62856421674a5709ad149715ec57a5ecb389",
+          "investigation_sha256": "33d73b8c1ac5cdd518185323867bcffa405ce852788fe89347228bf77ebdd808",
+          "reported_evidence_sha256": "79501649ea5f734ea26ac084331d4225c6cd9bea0d408768fe0710a08af36498",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "public_monthly_interest",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "f1f414328284385d969af12d",
+          "answer_sha256": "1eaff26ff64289baabce3bc87cbf6d4cdda18fde25f956e4781cfaf025560c97",
+          "trace_sha256": "2041d22ca822bc8a54f17e9c3b915d6231a8d8f262b338a2167f3f6fbaebfd07",
+          "ledger_sha256": "de4d0c4e2cf9bb4722df15feaddf62856421674a5709ad149715ec57a5ecb389",
+          "investigation_sha256": "33d73b8c1ac5cdd518185323867bcffa405ce852788fe89347228bf77ebdd808",
+          "reported_evidence_sha256": "79501649ea5f734ea26ac084331d4225c6cd9bea0d408768fe0710a08af36498",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "public_monthly_interest_repair": {
+      "categories": [
+        "input_origin_search_unclosed",
+        "external_effect_unknown",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "999仅保留在被拒绝审计claim中，最终/1200替代supported；新增实际ADD WS-TOTAL-INT累加、PERFORM写入调用、调用条件与PIC边界。missing accumulation已清，stop由answer_incomplete变question_evidence_incomplete；输入来源与写入实际效果仍有限。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "已供应源码可直接确认：`WS-MONTHLY-INT = ( TRAN-CAT-BAL * DIS-INT-RATE ) / 1200`（app/cbl/CBACT04C.cbl:464）[ev_page_4852f54a7cbf93111c3ffcc1]。 累计值还需要按后续写入状态核对。\n\n原文还给出 `WS-TOTAL-INT = WS-MONTHLY-INT + WS-TOTAL-INT`。[ev_page_4852f54a7cbf93111c3ffcc1] 随后发起 `PERFORM 1300-B-WRITE-TX` 调用。[ev_page_4852f54a7cbf93111c3ffcc1] 此处调用受 `IF DIS-INT-RATE NOT = 0` 成立控制。[ev_page_4852f54a7cbf93111c3ffcc1] `WS-MONTHLY-INT` 声明为 `PIC S9(09)V99`，本次计算没有 ROUNDED；存储尺度与溢出处理须按目标编译环境解释。[ev_page_4852f54a7cbf93111c3ffcc1]",
+      "answer_sha256": "dec52f2345b951d7dee9692a4ccfa1b2c5512daecc53e8afc59c743a5dd3d5a1",
+      "ledger_source_versions_sha256": "2ecd67a692fbb70d43e1f0c49562e21ff77d36c12d662ddd96687ac8d70ceebf",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "public_monthly_interest_repair",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "6c7e0d96b138d60b91af6166",
+          "answer_sha256": "dec52f2345b951d7dee9692a4ccfa1b2c5512daecc53e8afc59c743a5dd3d5a1",
+          "trace_sha256": "59215c2521b2435239bfaa6c29faec865a1e01d00eed6561004ad1b76c921379",
+          "ledger_sha256": "0a7728f96045289fde96b45685d11d7c2cca18e80c624e387294bc77ab586d12",
+          "investigation_sha256": "33d73b8c1ac5cdd518185323867bcffa405ce852788fe89347228bf77ebdd808",
+          "reported_evidence_sha256": "79501649ea5f734ea26ac084331d4225c6cd9bea0d408768fe0710a08af36498",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "public_monthly_interest_repair",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "a33ae1bd6d697e8ae77c8027",
+          "answer_sha256": "dec52f2345b951d7dee9692a4ccfa1b2c5512daecc53e8afc59c743a5dd3d5a1",
+          "trace_sha256": "b6382251ee1e7b1de3e50d126880c1c00b067fa8fb299e4bc7b1d3f7363de89a",
+          "ledger_sha256": "0a7728f96045289fde96b45685d11d7c2cca18e80c624e387294bc77ab586d12",
+          "investigation_sha256": "33d73b8c1ac5cdd518185323867bcffa405ce852788fe89347228bf77ebdd808",
+          "reported_evidence_sha256": "79501649ea5f734ea26ac084331d4225c6cd9bea0d408768fe0710a08af36498",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "public_monthly_interest_repair",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "96a03cde558d6a0584797d6c",
+          "answer_sha256": "dec52f2345b951d7dee9692a4ccfa1b2c5512daecc53e8afc59c743a5dd3d5a1",
+          "trace_sha256": "3228c5e497e61f3b7aeec8593c24d4cc323ae27784290fdaf476e6421dcdd675",
+          "ledger_sha256": "0a7728f96045289fde96b45685d11d7c2cca18e80c624e387294bc77ab586d12",
+          "investigation_sha256": "33d73b8c1ac5cdd518185323867bcffa405ce852788fe89347228bf77ebdd808",
+          "reported_evidence_sha256": "79501649ea5f734ea26ac084331d4225c6cd9bea0d408768fe0710a08af36498",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "large_repository": {
+      "categories": [
+        "answer_omission",
+        "source_scope_budget",
+        "input_origin_search_unclosed",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "正文准确限定首条 IF 的乘1局部事实；已供后续覆盖仍未展开，missing result_adjustments/result_overrides。12k库入口/路径/候选预算及输入未闭合保持独立，不能升级为全库最终业务解释。",
+      "observations": 5,
+      "partial_observations": 5,
+      "representative_answer": "在 INPUT-000 > 0 条件下，BILL-AMOUNT = INPUT-000 * 1。[ev_page_f2b313ed7cd8ed0cbbee62c0] 这是一项局部计算事实；它不足以证明所有分支的最终结果或外部调用的数据。",
+      "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+      "ledger_source_versions_sha256": "ae9e1383d78b35441989b7feb42fbbe1b2cc3a1dc8d45db684f8abb07b26be77",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "large_repository",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "9291eb409d528ed8c75251f2",
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "trace_sha256": "404b66cc461392221e130b1951032ea328ce6e698fb1ac4ffa7f65c774ebe631",
+          "ledger_sha256": "b8a6f26b9ebbad89a670e2896127a291c89548dfda23703f94b5aae208999fb4",
+          "investigation_sha256": "9b9557d9bdc70d259c6a1628d698e0f9b62dd1ba5f7f1f6869ce36a1b95b3c91",
+          "reported_evidence_sha256": "b3052ea046cd501166cc64f9280077b68748078e9d12503265f0962aaac9b17c",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "large_repository",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "a3df8e8f16f270df567b0633",
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "trace_sha256": "64882df250d2615d92d261d6acbd39ed952bbabd774fdae2417e09a972f4b807",
+          "ledger_sha256": "b8a6f26b9ebbad89a670e2896127a291c89548dfda23703f94b5aae208999fb4",
+          "investigation_sha256": "9b9557d9bdc70d259c6a1628d698e0f9b62dd1ba5f7f1f6869ce36a1b95b3c91",
+          "reported_evidence_sha256": "b3052ea046cd501166cc64f9280077b68748078e9d12503265f0962aaac9b17c",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "large_repository",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "6284504bf640cf12d56a2188",
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "trace_sha256": "ebe0c840c9eb24a6cc173bcf7d7be0592027d136dce5901049ff05648c6f7922",
+          "ledger_sha256": "b8a6f26b9ebbad89a670e2896127a291c89548dfda23703f94b5aae208999fb4",
+          "investigation_sha256": "9b9557d9bdc70d259c6a1628d698e0f9b62dd1ba5f7f1f6869ce36a1b95b3c91",
+          "reported_evidence_sha256": "b3052ea046cd501166cc64f9280077b68748078e9d12503265f0962aaac9b17c",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "large_repository",
+            "turn_id": "1",
+            "sample_index": 4,
+            "observation_kind": "answer"
+          },
+          "run_id": "ed4ecd53130eaec15901a461",
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "trace_sha256": "894b3b77e9305aa12e7c4cbaef7e7db2646c1b302695aee3d028317183e1c140",
+          "ledger_sha256": "b8a6f26b9ebbad89a670e2896127a291c89548dfda23703f94b5aae208999fb4",
+          "investigation_sha256": "9b9557d9bdc70d259c6a1628d698e0f9b62dd1ba5f7f1f6869ce36a1b95b3c91",
+          "reported_evidence_sha256": "b3052ea046cd501166cc64f9280077b68748078e9d12503265f0962aaac9b17c",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "large_repository",
+            "turn_id": "1",
+            "sample_index": 5,
+            "observation_kind": "answer"
+          },
+          "run_id": "6a0b0c679f486d5f4d28ad5f",
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "trace_sha256": "f80f9c8357b569c85548c4514b08c4863db9a3b03a6dce992300770bd98be561",
+          "ledger_sha256": "b8a6f26b9ebbad89a670e2896127a291c89548dfda23703f94b5aae208999fb4",
+          "investigation_sha256": "9b9557d9bdc70d259c6a1628d698e0f9b62dd1ba5f7f1f6869ce36a1b95b3c91",
+          "reported_evidence_sha256": "b3052ea046cd501166cc64f9280077b68748078e9d12503265f0962aaac9b17c",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "cl_batch_context": {
+      "categories": [
+        "external_schedule_unknown",
+        "runtime_environment_unknown",
+        "upstream_caller_search_unclosed",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "原生报告含SBMJOB、INLLIBL/JOBD、CHGLIBL/ADDLIBLE、OVRDBF、MONMSG、DLTOVR与两次独立BATCHPAY调用。正文保留变量成员&DAY未求值、实际调度/库列表/覆盖生效未知。CL正文ledger全为unsupported prose，不能宣称已逐结论核验；首句合并launcher与nightjob事实但句末只标launcher引用，跨页引用粒度仍待真实问答评审。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "源码先提交 NIGHTJOB，再由 CL 调用 BATCHPAY，INLLIBL 声明 RUNLIB DATALIB。[ev_page_76fe8bb32099bd0b4fb5058d] OVRDBF 声明 ACCOUNTLF 指向 DATALIB/ACCOUNTPF，成员为 &DAY，作用域 *CALLLVL。[ev_page_85a13dabf3fd11acfac5a12f] DLTOVR 之后还有另一次 BATCHPAY 调用，两次调用位置分别保留。[ev_page_85a13dabf3fd11acfac5a12f] 实际调度、运行库列表、成员值和覆盖是否生效仍未知。",
+      "answer_sha256": "698dcf1b1c8c54d09fabe17497176128e97899e7d9122c17593942082ae7382d",
+      "ledger_source_versions_sha256": "a55978372c905848b73a1d6010787b9b1ed07e42f7cfff2cf7b4d6a3793542b6",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "cl_batch_context",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "4e59dba2811376c91e43e642",
+          "answer_sha256": "698dcf1b1c8c54d09fabe17497176128e97899e7d9122c17593942082ae7382d",
+          "trace_sha256": "fdac0269bd42a79ad7bcd4160b1272880a9ee17484368fbc39e9d0470e41c64c",
+          "ledger_sha256": "b1a272758196712c2ec658d33339a730b611e8432ef48b3b36432717ed528a9a",
+          "investigation_sha256": "c51978ba036a841eb18f745f02bd2ad5c0598525567ba5464e7601b317e4dfc3",
+          "reported_evidence_sha256": "67a396ee3aa3bb74479ea5777ea6cea6f2ac5165f12b401be4ece815de7b54d7",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "cl_batch_context",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "a30f9a1872d6b46b27bbe56d",
+          "answer_sha256": "698dcf1b1c8c54d09fabe17497176128e97899e7d9122c17593942082ae7382d",
+          "trace_sha256": "e4b1d84a13b471dd9a2a8b60fd6a356b74599c685e9f43086ce2b28ab5e42db6",
+          "ledger_sha256": "b1a272758196712c2ec658d33339a730b611e8432ef48b3b36432717ed528a9a",
+          "investigation_sha256": "c51978ba036a841eb18f745f02bd2ad5c0598525567ba5464e7601b317e4dfc3",
+          "reported_evidence_sha256": "67a396ee3aa3bb74479ea5777ea6cea6f2ac5165f12b401be4ece815de7b54d7",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "cl_batch_context",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "659cb357c930f008dc1d6927",
+          "answer_sha256": "698dcf1b1c8c54d09fabe17497176128e97899e7d9122c17593942082ae7382d",
+          "trace_sha256": "e1f18ebc5cd7164147897e23ab31b11fc9ba11280db866be7c0150105abd738b",
+          "ledger_sha256": "b1a272758196712c2ec658d33339a730b611e8432ef48b3b36432717ed528a9a",
+          "investigation_sha256": "c51978ba036a841eb18f745f02bd2ad5c0598525567ba5464e7601b317e4dfc3",
+          "reported_evidence_sha256": "67a396ee3aa3bb74479ea5777ea6cea6f2ac5165f12b401be4ece815de7b54d7",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "cl_late_context": {
+      "categories": [
+        "missing_guard_supply",
+        "external_schedule_unknown",
+        "runtime_environment_unknown",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "实际第304行 CALL BATCHPAY PARM(&READY) 的精确供证为294-306行；索引保存第3行IF guard但未供应其原文，status=candidate/control_scope_supplied=false/missing_guard_source_lines=[3]，正文明确是否走到调用未知，未变成无条件执行。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "源码在晚出现的调用点声明 CALL BATCHPAY，实参为 &READY。[ev_page_88e7ac15280389467a399fc2] 前序控制范围未完整供应，是否走到该调用及实际作业执行保持未知。",
+      "answer_sha256": "2fe1bfa98eacb0e5a6f67b09521dc647623b9f6803b8c1bc1b8ebb785e2670a5",
+      "ledger_source_versions_sha256": "3f7015c6b231d5b3b8a3731cf32c27be04ff0e54051eecfd29a3eeae37b31c76",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "cl_late_context",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "answer"
+          },
+          "run_id": "d2f1dfdbddd4729863efc335",
+          "answer_sha256": "2fe1bfa98eacb0e5a6f67b09521dc647623b9f6803b8c1bc1b8ebb785e2670a5",
+          "trace_sha256": "4b01c9a1e684f6934d6ba3771e394dde5bc1d9bde226aa87665c4f2d2b32e199",
+          "ledger_sha256": "3dc1c0e4d9278c0d8f9663f7f6cbb97cb2ce27ba5c37ea22e9748b172d7113d3",
+          "investigation_sha256": "35902cf18603c63991dae58a9419d9e5b37c57d09f7154dd6a2eba5a2f78d053",
+          "reported_evidence_sha256": "23db1994e9c7fcfe11f1b6e88cfe9fd659429a28edb4de357dec478b0588f707",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "cl_late_context",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "answer"
+          },
+          "run_id": "0533c6531ea7f1847ad7c94e",
+          "answer_sha256": "2fe1bfa98eacb0e5a6f67b09521dc647623b9f6803b8c1bc1b8ebb785e2670a5",
+          "trace_sha256": "bb7067f132615bde7acbaaf33a2ed8efd34d7501cdd565c1ee0f11019c40a60e",
+          "ledger_sha256": "3dc1c0e4d9278c0d8f9663f7f6cbb97cb2ce27ba5c37ea22e9748b172d7113d3",
+          "investigation_sha256": "35902cf18603c63991dae58a9419d9e5b37c57d09f7154dd6a2eba5a2f78d053",
+          "reported_evidence_sha256": "23db1994e9c7fcfe11f1b6e88cfe9fd659429a28edb4de357dec478b0588f707",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "cl_late_context",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "answer"
+          },
+          "run_id": "0d5e652e7a7876ea736cd91d",
+          "answer_sha256": "2fe1bfa98eacb0e5a6f67b09521dc647623b9f6803b8c1bc1b8ebb785e2670a5",
+          "trace_sha256": "0ccbd6d266a7fc6f5ed2d284e99de3cb768dc30ee8ae4cfe063e9069f76125d0",
+          "ledger_sha256": "3dc1c0e4d9278c0d8f9663f7f6cbb97cb2ce27ba5c37ea22e9748b172d7113d3",
+          "investigation_sha256": "35902cf18603c63991dae58a9419d9e5b37c57d09f7154dd6a2eba5a2f78d053",
+          "reported_evidence_sha256": "23db1994e9c7fcfe11f1b6e88cfe9fd659429a28edb4de357dec478b0588f707",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "probe_bare_group_field": {
+      "categories": [
+        "input_origin_search_unclosed",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "组内VALUE-00000=VALUE-00001*2和PIC定位有独立结构支持；初始输入来源/运行值仍未闭合。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "VALUE-00000 = VALUE-00001 * 2。[ev_page_d8f9e1a406e73d852ed1524a] 两个字段都属于 SOURCE-RECORD。输入声明是 PIC 9(9)，源码没有说明本次运行的输入值。",
+      "answer_sha256": "c92f719b03e50684da37b83b80693e42492f10260844e2fec62b3ed7ad8c2fd7",
+      "ledger_source_versions_sha256": "7d982fa7ac7c676099245d7a373a3130b20897df15d951e9a41e6448a3d90af3",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "frontend_semantics",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "scope_probe",
+            "probe_id": "bare_group_field"
+          },
+          "run_id": "1b52f9ec11808677dde63769",
+          "answer_sha256": "c92f719b03e50684da37b83b80693e42492f10260844e2fec62b3ed7ad8c2fd7",
+          "trace_sha256": "c23c07e1512bc9015b101d7477c565dab63fd03195a2ac1d7ed0a5581de75342",
+          "ledger_sha256": "c9f5c760db6c61670608b7fb739f8467d90377b0f2394a593757e22f08341e79",
+          "investigation_sha256": "eb51ccd1f4f0757cac6229f306a0e67e693d250b529eb94c079696c66df5a5ca",
+          "reported_evidence_sha256": "5bc82118b3227bc0c58c7db815097dc3bd3402802292a3a5fcd9c55e3e78c098",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "frontend_semantics",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "scope_probe",
+            "probe_id": "bare_group_field"
+          },
+          "run_id": "33abebd48082ac6bd18a376e",
+          "answer_sha256": "c92f719b03e50684da37b83b80693e42492f10260844e2fec62b3ed7ad8c2fd7",
+          "trace_sha256": "2aaa62161ccd0e68fd78ff068bdd811761791bb293058a9556c657247980a435",
+          "ledger_sha256": "c9f5c760db6c61670608b7fb739f8467d90377b0f2394a593757e22f08341e79",
+          "investigation_sha256": "eb51ccd1f4f0757cac6229f306a0e67e693d250b529eb94c079696c66df5a5ca",
+          "reported_evidence_sha256": "5bc82118b3227bc0c58c7db815097dc3bd3402802292a3a5fcd9c55e3e78c098",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "frontend_semantics",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "scope_probe",
+            "probe_id": "bare_group_field"
+          },
+          "run_id": "b444956228f27fde0da68df6",
+          "answer_sha256": "c92f719b03e50684da37b83b80693e42492f10260844e2fec62b3ed7ad8c2fd7",
+          "trace_sha256": "e1d41b81d4e6c6c6801a4a4f29a53d0085588f2269902520680aebc7554bfd42",
+          "ledger_sha256": "c9f5c760db6c61670608b7fb739f8467d90377b0f2394a593757e22f08341e79",
+          "investigation_sha256": "eb51ccd1f4f0757cac6229f306a0e67e693d250b529eb94c079696c66df5a5ca",
+          "reported_evidence_sha256": "5bc82118b3227bc0c58c7db815097dc3bd3402802292a3a5fcd9c55e3e78c098",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "probe_qualified_output_scope": {
+      "categories": [
+        "input_origin_search_unclosed",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "INPUT-REC与OUTPUT-REC的AMOUNT身份精确区分，乘2支持；输入运行值尚未给出。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2。[ev_page_cb76860422d88ad883575373] 两个字段分别属于 OUTPUT-REC 与 INPUT-REC，输入运行值尚未给出。",
+      "answer_sha256": "69b878acee0bd02f7897aa322b6d6fc2ea01b115fdfca735b30644e96def2116",
+      "ledger_source_versions_sha256": "9d5d25ffa90b60da2687a9963cead1c7783c0751573038a166534cc15d667d81",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "frontend_semantics",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "scope_probe",
+            "probe_id": "qualified_output_scope"
+          },
+          "run_id": "3e6220e708e9214f062a5aea",
+          "answer_sha256": "69b878acee0bd02f7897aa322b6d6fc2ea01b115fdfca735b30644e96def2116",
+          "trace_sha256": "4623691908bd116cf24538d1e985a83caa402e115666a96f43384dcac2dcb942",
+          "ledger_sha256": "793422d80a583337a8a0acd0aeab44adbaf7b9fa72f9f6ba89ce491ef9afd373",
+          "investigation_sha256": "bcb77eb87b0a04d69347f26efebec7e57bdaffbe1450f9916f6afb10ace8cd42",
+          "reported_evidence_sha256": "081c4e210057c0522b9a2eec43ad16d2774323557491f5974df8bfc12d450255",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "frontend_semantics",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "scope_probe",
+            "probe_id": "qualified_output_scope"
+          },
+          "run_id": "75593d0bf51b8ae06beb900c",
+          "answer_sha256": "69b878acee0bd02f7897aa322b6d6fc2ea01b115fdfca735b30644e96def2116",
+          "trace_sha256": "fe6662f1e99c88859a3ac7988cff74d57477f68541c0d18e6d339afde42c409f",
+          "ledger_sha256": "793422d80a583337a8a0acd0aeab44adbaf7b9fa72f9f6ba89ce491ef9afd373",
+          "investigation_sha256": "bcb77eb87b0a04d69347f26efebec7e57bdaffbe1450f9916f6afb10ace8cd42",
+          "reported_evidence_sha256": "081c4e210057c0522b9a2eec43ad16d2774323557491f5974df8bfc12d450255",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "frontend_semantics",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "scope_probe",
+            "probe_id": "qualified_output_scope"
+          },
+          "run_id": "43cc08aa8eb672390d8d6274",
+          "answer_sha256": "69b878acee0bd02f7897aa322b6d6fc2ea01b115fdfca735b30644e96def2116",
+          "trace_sha256": "02418829a2c4da79dadf4fef8bd64bf862d624ab382576a8662a7e5d3f631775",
+          "ledger_sha256": "793422d80a583337a8a0acd0aeab44adbaf7b9fa72f9f6ba89ce491ef9afd373",
+          "investigation_sha256": "bcb77eb87b0a04d69347f26efebec7e57bdaffbe1450f9916f6afb10ace8cd42",
+          "reported_evidence_sha256": "081c4e210057c0522b9a2eec43ad16d2774323557491f5974df8bfc12d450255",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "probe_ambiguous_group_field": {
+      "categories": [
+        "identity_ambiguity",
+        "input_origin_search_unclosed",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "裸AMOUNT保留两个限定候选并给出独立乘2关系，没有任选一个或添加无关C舍入义务。",
+      "observations": 3,
+      "partial_observations": 3,
+      "representative_answer": "AMOUNT 的限定记录存在歧义，需保留两个候选。AMOUNT OF OUTPUT-REC = AMOUNT OF INPUT-REC * 2。[ev_page_cb76860422d88ad883575373] 两个字段分别属于 OUTPUT-REC 与 INPUT-REC，输入运行值尚未给出。",
+      "answer_sha256": "3b08de6e7f8dafb08676facb2cb2a32bcee827edca18c1733b25c36acdc32271",
+      "ledger_source_versions_sha256": "b602a6d4d4e6c34de5437ba128a0441b1f31abc61a4c81c5779fb5addf702f87",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "frontend_semantics",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "scope_probe",
+            "probe_id": "ambiguous_group_field"
+          },
+          "run_id": "8f04e95a7a41340ee0b81d5c",
+          "answer_sha256": "3b08de6e7f8dafb08676facb2cb2a32bcee827edca18c1733b25c36acdc32271",
+          "trace_sha256": "75081e7d712f3e85499d7855b831278c4492c78fce4e44472c4c60be0352d21b",
+          "ledger_sha256": "a55891c022fa4bc07979680cf482528ce758b631132bc8759477024c1e9c1d04",
+          "investigation_sha256": "baba6fca6c5fe92b4e87a0797059e5bf68d81356a68254f1c3cb239eb5d83149",
+          "reported_evidence_sha256": "081c4e210057c0522b9a2eec43ad16d2774323557491f5974df8bfc12d450255",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "frontend_semantics",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "scope_probe",
+            "probe_id": "ambiguous_group_field"
+          },
+          "run_id": "d7947b5a91305838bd35bebd",
+          "answer_sha256": "3b08de6e7f8dafb08676facb2cb2a32bcee827edca18c1733b25c36acdc32271",
+          "trace_sha256": "95c62e87948aaa999cf5df79a0a8b15edeb615f1f251d7f67ef648ef23be8341",
+          "ledger_sha256": "a55891c022fa4bc07979680cf482528ce758b631132bc8759477024c1e9c1d04",
+          "investigation_sha256": "baba6fca6c5fe92b4e87a0797059e5bf68d81356a68254f1c3cb239eb5d83149",
+          "reported_evidence_sha256": "081c4e210057c0522b9a2eec43ad16d2774323557491f5974df8bfc12d450255",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "frontend_semantics",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "scope_probe",
+            "probe_id": "ambiguous_group_field"
+          },
+          "run_id": "9a4ac9631133dee7fcc57d4d",
+          "answer_sha256": "3b08de6e7f8dafb08676facb2cb2a32bcee827edca18c1733b25c36acdc32271",
+          "trace_sha256": "36fc74e7939b6904222bfc66250e6f1e2aed5562b07dc8db4e1ce1332a791076",
+          "ledger_sha256": "a55891c022fa4bc07979680cf482528ce758b631132bc8759477024c1e9c1d04",
+          "investigation_sha256": "baba6fca6c5fe92b4e87a0797059e5bf68d81356a68254f1c3cb239eb5d83149",
+          "reported_evidence_sha256": "081c4e210057c0522b9a2eec43ad16d2774323557491f5974df8bfc12d450255",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    },
+    "probe_large_two_if_pic": {
+      "categories": [
+        "input_origin_search_unclosed",
+        "unsupported_prose"
+      ],
+      "current_native_observation": "两条IF各自条件、乘1/乘2后续覆盖与PIC9(9)均实际出现在正文，4条结构claim supported；输入来源未知与后续全库影响仍限定，未夸大前两条IF范围。",
+      "observations": 5,
+      "partial_observations": 5,
+      "representative_answer": "INPUT-000 > 0 时，BILL-AMOUNT = INPUT-000 * 1。[ev_page_0c751c339af2f5a50802d479] 随后 INPUT-001 > 1 时，BILL-AMOUNT = INPUT-001 * 2，会覆盖先前值。[ev_page_0c751c339af2f5a50802d479] 两个输入和输出均声明为 PIC 9(9)。第二个条件未成立时不执行第二次赋值。这只解释提问范围中的前两条 IF；真实输入值和后续代码的最终影响尚未确认。",
+      "answer_sha256": "4dc337daf76ccc7c20d79e99cc0b8628670c005ea56a26c2caa011decf789425",
+      "ledger_source_versions_sha256": "d438bf5166fd83b7cc957f588883efcc08180b249389e1ea1f2514bb56cb2d90",
+      "all_actual_identities": [
+        {
+          "identity": {
+            "case_id": "large_repository",
+            "turn_id": "1",
+            "sample_index": 1,
+            "observation_kind": "scope_probe",
+            "probe_id": "large_two_if_pic"
+          },
+          "run_id": "df962fd2355778b7a8c3453a",
+          "answer_sha256": "4dc337daf76ccc7c20d79e99cc0b8628670c005ea56a26c2caa011decf789425",
+          "trace_sha256": "a91319e8bc478a76b8343311590a98026de5c69716943a971b862e555afa071d",
+          "ledger_sha256": "0a0514481ab50f11f1d0a940c59ce4d4c75a312cb084673db0e5e15a4ce12d12",
+          "investigation_sha256": "08e5cc3955dadd9d0e735cac945f760f7db8fd6993a11549ec782796f75c2b23",
+          "reported_evidence_sha256": "2535a08353c5a56ffa30f8995827c54e550c60ec0c82bbbff73d536d6ad1b9a3",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "large_repository",
+            "turn_id": "1",
+            "sample_index": 2,
+            "observation_kind": "scope_probe",
+            "probe_id": "large_two_if_pic"
+          },
+          "run_id": "b7206d4016a3261424a6d7e7",
+          "answer_sha256": "4dc337daf76ccc7c20d79e99cc0b8628670c005ea56a26c2caa011decf789425",
+          "trace_sha256": "6e1eccf5f574b8812c6fdb0ad17c8f66354900aba869160e7d46dc06186517aa",
+          "ledger_sha256": "0a0514481ab50f11f1d0a940c59ce4d4c75a312cb084673db0e5e15a4ce12d12",
+          "investigation_sha256": "08e5cc3955dadd9d0e735cac945f760f7db8fd6993a11549ec782796f75c2b23",
+          "reported_evidence_sha256": "2535a08353c5a56ffa30f8995827c54e550c60ec0c82bbbff73d536d6ad1b9a3",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "large_repository",
+            "turn_id": "1",
+            "sample_index": 3,
+            "observation_kind": "scope_probe",
+            "probe_id": "large_two_if_pic"
+          },
+          "run_id": "2a08256bfb30d0e9452fa9d7",
+          "answer_sha256": "4dc337daf76ccc7c20d79e99cc0b8628670c005ea56a26c2caa011decf789425",
+          "trace_sha256": "df637fa8851f09805b7189c5cc03ada27871662adbd508cb46161812b1582e16",
+          "ledger_sha256": "0a0514481ab50f11f1d0a940c59ce4d4c75a312cb084673db0e5e15a4ce12d12",
+          "investigation_sha256": "08e5cc3955dadd9d0e735cac945f760f7db8fd6993a11549ec782796f75c2b23",
+          "reported_evidence_sha256": "2535a08353c5a56ffa30f8995827c54e550c60ec0c82bbbff73d536d6ad1b9a3",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "large_repository",
+            "turn_id": "1",
+            "sample_index": 4,
+            "observation_kind": "scope_probe",
+            "probe_id": "large_two_if_pic"
+          },
+          "run_id": "d76c4f527e3871766f54f849",
+          "answer_sha256": "4dc337daf76ccc7c20d79e99cc0b8628670c005ea56a26c2caa011decf789425",
+          "trace_sha256": "e0d8cdba94122e804e97d02f86b9ba70eca87f5fc62dbea82a75e1d3adedd22d",
+          "ledger_sha256": "0a0514481ab50f11f1d0a940c59ce4d4c75a312cb084673db0e5e15a4ce12d12",
+          "investigation_sha256": "08e5cc3955dadd9d0e735cac945f760f7db8fd6993a11549ec782796f75c2b23",
+          "reported_evidence_sha256": "2535a08353c5a56ffa30f8995827c54e550c60ec0c82bbbff73d536d6ad1b9a3",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        },
+        {
+          "identity": {
+            "case_id": "large_repository",
+            "turn_id": "1",
+            "sample_index": 5,
+            "observation_kind": "scope_probe",
+            "probe_id": "large_two_if_pic"
+          },
+          "run_id": "7d69ffb32089b4dfa2ecc46c",
+          "answer_sha256": "4dc337daf76ccc7c20d79e99cc0b8628670c005ea56a26c2caa011decf789425",
+          "trace_sha256": "49f4e080536cbf2a1ec631d44b212d95545e7cb4c7617799e7dea59f4aafe693",
+          "ledger_sha256": "0a0514481ab50f11f1d0a940c59ce4d4c75a312cb084673db0e5e15a4ce12d12",
+          "investigation_sha256": "08e5cc3955dadd9d0e735cac945f760f7db8fd6993a11549ec782796f75c2b23",
+          "reported_evidence_sha256": "2535a08353c5a56ffa30f8995827c54e550c60ec0c82bbbff73d536d6ad1b9a3",
+          "semantic_quality_grade_assigned": false,
+          "historical_score_applied": false
+        }
+      ]
+    }
+  },
+  "cl_observations": {
+    "cl_batch_context": {
+      "observations": 12,
+      "context_sha256": "74bf6d803c526b47564706768366873d2b0bfe0232313730c024292569f21a53",
+      "commands": [
+        {
+          "occurrence_id": "cl_3d6fda8aa3f0a2de713bd7266011e1a8",
+          "kind": "cl_sbmjob",
+          "relative_path": "launcher.clle",
+          "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+          "start_line": 3,
+          "end_line": 4,
+          "status": "confirmed_source_syntax",
+          "target_name": null,
+          "evidence_ids": [
+            "ev_page_76fe8bb32099bd0b4fb5058d"
+          ],
+          "control_scope_supplied": true,
+          "scope_unknown": false,
+          "missing_guard_source_lines": [],
+          "runtime_execution_verified": false
+        },
+        {
+          "occurrence_id": "cl_bff189364f06d6a47e85edc0dd6c070f",
+          "kind": "cl_call",
+          "relative_path": "launcher.clle",
+          "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+          "start_line": 3,
+          "end_line": 4,
+          "status": "confirmed_source_syntax",
+          "target_name": "NIGHTJOB",
+          "evidence_ids": [
+            "ev_page_76fe8bb32099bd0b4fb5058d"
+          ],
+          "control_scope_supplied": true,
+          "scope_unknown": false,
+          "missing_guard_source_lines": [],
+          "runtime_execution_verified": false
+        },
+        {
+          "occurrence_id": "cl_698503c3856d53cbd62e125c78cedb73",
+          "kind": "cl_call",
+          "relative_path": "launcher.clle",
+          "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+          "start_line": 5,
+          "end_line": 5,
+          "status": "confirmed_source_syntax",
+          "target_name": "LOGFAIL",
+          "evidence_ids": [
+            "ev_page_76fe8bb32099bd0b4fb5058d"
+          ],
+          "control_scope_supplied": true,
+          "scope_unknown": false,
+          "missing_guard_source_lines": [],
+          "runtime_execution_verified": false
+        },
+        {
+          "occurrence_id": "cl_d55eb7b4714e4c5f822695f9845d83d2",
+          "kind": "cl_monmsg",
+          "relative_path": "launcher.clle",
+          "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+          "start_line": 5,
+          "end_line": 5,
+          "status": "confirmed_source_syntax",
+          "target_name": null,
+          "evidence_ids": [
+            "ev_page_76fe8bb32099bd0b4fb5058d"
+          ],
+          "control_scope_supplied": true,
+          "scope_unknown": false,
+          "missing_guard_source_lines": [],
+          "runtime_execution_verified": false
+        },
+        {
+          "occurrence_id": "cl_890d3f806b9dcc3955162953081345d4",
+          "kind": "cl_chglibl",
+          "relative_path": "nightjob.clle",
+          "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+          "start_line": 3,
+          "end_line": 3,
+          "status": "confirmed_source_syntax",
+          "target_name": null,
+          "evidence_ids": [
+            "ev_page_85a13dabf3fd11acfac5a12f"
+          ],
+          "control_scope_supplied": true,
+          "scope_unknown": false,
+          "missing_guard_source_lines": [],
+          "runtime_execution_verified": false
+        },
+        {
+          "occurrence_id": "cl_55bc3969216973914fbb766b1bc6be02",
+          "kind": "cl_addlible",
+          "relative_path": "nightjob.clle",
+          "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+          "start_line": 4,
+          "end_line": 4,
+          "status": "confirmed_source_syntax",
+          "target_name": null,
+          "evidence_ids": [
+            "ev_page_85a13dabf3fd11acfac5a12f"
+          ],
+          "control_scope_supplied": true,
+          "scope_unknown": false,
+          "missing_guard_source_lines": [],
+          "runtime_execution_verified": false
+        },
+        {
+          "occurrence_id": "cl_d6908e8666e700342e061b1fcf423071",
+          "kind": "cl_ovrdbf",
+          "relative_path": "nightjob.clle",
+          "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+          "start_line": 5,
+          "end_line": 6,
+          "status": "confirmed_source_syntax",
+          "target_name": null,
+          "evidence_ids": [
+            "ev_page_85a13dabf3fd11acfac5a12f"
+          ],
+          "control_scope_supplied": true,
+          "scope_unknown": false,
+          "missing_guard_source_lines": [],
+          "runtime_execution_verified": false
+        },
+        {
+          "occurrence_id": "cl_8395791ec916825dbcfd510cf6fc3f56",
+          "kind": "cl_call",
+          "relative_path": "nightjob.clle",
+          "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+          "start_line": 7,
+          "end_line": 7,
+          "status": "confirmed_source_syntax",
+          "target_name": "BATCHPAY",
+          "evidence_ids": [
+            "ev_page_85a13dabf3fd11acfac5a12f"
+          ],
+          "control_scope_supplied": true,
+          "scope_unknown": false,
+          "missing_guard_source_lines": [],
+          "runtime_execution_verified": false
+        },
+        {
+          "occurrence_id": "cl_14244130d53282548d8c942edfe79423",
+          "kind": "cl_call",
+          "relative_path": "nightjob.clle",
+          "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+          "start_line": 8,
+          "end_line": 8,
+          "status": "confirmed_source_syntax",
+          "target_name": "LOGFAIL",
+          "evidence_ids": [
+            "ev_page_85a13dabf3fd11acfac5a12f"
+          ],
+          "control_scope_supplied": true,
+          "scope_unknown": false,
+          "missing_guard_source_lines": [],
+          "runtime_execution_verified": false
+        },
+        {
+          "occurrence_id": "cl_55f0fc9b8fbfdb8f30272bd4e0e818ff",
+          "kind": "cl_monmsg",
+          "relative_path": "nightjob.clle",
+          "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+          "start_line": 8,
+          "end_line": 8,
+          "status": "confirmed_source_syntax",
+          "target_name": null,
+          "evidence_ids": [
+            "ev_page_85a13dabf3fd11acfac5a12f"
+          ],
+          "control_scope_supplied": true,
+          "scope_unknown": false,
+          "missing_guard_source_lines": [],
+          "runtime_execution_verified": false
+        },
+        {
+          "occurrence_id": "cl_b7f510635004f050382b7c372700d4bb",
+          "kind": "cl_dltovr",
+          "relative_path": "nightjob.clle",
+          "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+          "start_line": 9,
+          "end_line": 9,
+          "status": "confirmed_source_syntax",
+          "target_name": null,
+          "evidence_ids": [
+            "ev_page_85a13dabf3fd11acfac5a12f"
+          ],
+          "control_scope_supplied": true,
+          "scope_unknown": false,
+          "missing_guard_source_lines": [],
+          "runtime_execution_verified": false
+        },
+        {
+          "occurrence_id": "cl_6e3284019302aa63ee68d0a300960886",
+          "kind": "cl_call",
+          "relative_path": "nightjob.clle",
+          "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+          "start_line": 10,
+          "end_line": 10,
+          "status": "confirmed_source_syntax",
+          "target_name": "BATCHPAY",
+          "evidence_ids": [
+            "ev_page_85a13dabf3fd11acfac5a12f"
+          ],
+          "control_scope_supplied": true,
+          "scope_unknown": false,
+          "missing_guard_source_lines": [],
+          "runtime_execution_verified": false
+        }
+      ]
+    },
+    "cl_late_context": {
+      "observations": 1,
+      "context_sha256": "4b6a2613e6ff6c367d1ae9fbec255f6b8297d42ce27328caf28486968eec4ede",
+      "commands": [
+        {
+          "occurrence_id": "cl_98a0880a90a941ecc6bee15b500e5e72",
+          "kind": "cl_call",
+          "relative_path": "late.clle",
+          "source_sha256": "52e9c85212c0eddc1678f166cfaacb9de5a74168faf7b40b659ecea97e8009b2",
+          "start_line": 304,
+          "end_line": 304,
+          "status": "candidate",
+          "target_name": "BATCHPAY",
+          "evidence_ids": [
+            "ev_page_88e7ac15280389467a399fc2"
+          ],
+          "control_scope_supplied": false,
+          "scope_unknown": true,
+          "missing_guard_source_lines": [
+            3
+          ],
+          "runtime_execution_verified": false
+        }
+      ]
+    }
+  },
+  "archival_limits": {
+    "actual_answer_observations": 81,
+    "source_supply_not_archived_observations": 23,
+    "ledger_visible_links_checked": 284,
+    "ledger_source_versions_checked_against_supplied_page_descriptors": 236,
+    "ledger_source_versions_not_archived": 48,
+    "satisfied_obligation_visible_links_checked": 458,
+    "satisfied_obligation_supplied_page_links_checked": 350,
+    "raw_provider_wire_bundled": false,
+    "raw_provider_wire_redecoded": false,
+    "source_fact_completion_root_trace_bundled": false,
+    "missing_fields_filled_from_source_preview": false
+  },
+  "remaining_findings": [
+    {
+      "id": "answer-coverage-remains",
+      "scope": "14 actual main answers",
+      "observation": "frontend3 + broad large repository5 + conversation first/third6 retain real answer omissions; do not label full completeness passed.",
+      "formal_acceptance_closed": false
+    },
+    {
+      "id": "cl-citation-granularity",
+      "scope": "cl_batch_context first sentence, 3 repeated observations",
+      "observation": "The first sentence combines NIGHTJOB submission from launcher and BATCHPAY invocation from nightjob, while its adjacent citation points only to launcher. Nightjob is supplied and cited in later sentences, but this cross-page claim has not been semantically verified by ClaimLedger.",
+      "formal_acceptance_closed": false
+    },
+    {
+      "id": "unknown-and-frontier-distinction",
+      "observation": "Input source not located and budget frontiers are unclosed investigations, not proof that input values or implementations do not exist. Runtime scheduler/environment effects remain separately unknown.",
+      "formal_acceptance_closed": false
+    }
+  ],
+  "conclusion": "Candidate same-EXE mechanism acceptance and independent identity checks passed. Local source completion visibly repairs the monthly ADD omission and adds specific source conditions; current omissions, unsupported prose and runtime/source-frontier boundaries remain explicit. No formal release quality or real-model speed claim.",
+  "actual_conversation_turn_checks": [
+    {
+      "identity": {
+        "case_id": "conversation",
+        "turn_id": "1",
+        "sample_index": 1,
+        "observation_kind": "answer"
+      },
+      "run_id": "b0e8f758d6236af485f7e2df",
+      "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+      "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+      "agent_status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "completion": {
+        "status": "incomplete",
+        "reason": "supplied_business_aspects_unexplained",
+        "pending_investigation": false,
+        "limitation_detected": false,
+        "source_selection_limitation_detected": false,
+        "method": "bounded_text_and_coverage_signals",
+        "semantic_verification": "unverified",
+        "source_availability_contradiction": false,
+        "source_availability_contradictions": [],
+        "required_aspects": [
+          "conditions",
+          "result_adjustments",
+          "accumulation"
+        ],
+        "missing_aspects": [
+          "conditions",
+          "accumulation"
+        ]
+      },
+      "current_observation": "首轮原正文仍只区分ACCOUNT-TOTALS清零与PAGE-TOTALS换页，已供应的条件与累加未展开；missing conditions/accumulation。inputs SATISFIED，作用域异常0；保留真实遗漏，不借其他轮评分。",
+      "old_score_applied": false
+    },
+    {
+      "identity": {
+        "case_id": "conversation",
+        "turn_id": "2",
+        "sample_index": 1,
+        "observation_kind": "answer"
+      },
+      "run_id": "f60b540576f6f04a1ddbfb00",
+      "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+      "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+      "agent_status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "completion": {
+        "status": "not_assessed",
+        "reason": null,
+        "pending_investigation": false,
+        "limitation_detected": false,
+        "source_selection_limitation_detected": false,
+        "method": "bounded_text_and_coverage_signals",
+        "semantic_verification": "unverified",
+        "source_availability_contradiction": false,
+        "source_availability_contradictions": [],
+        "required_aspects": [
+          "result_adjustments"
+        ],
+        "missing_aspects": []
+      },
+      "current_observation": "第二轮维持原清零路径说明与ANALYZED/not_assessed；prose未核验，不能代替首轮或第三轮完整度。",
+      "old_score_applied": false
+    },
+    {
+      "identity": {
+        "case_id": "conversation",
+        "turn_id": "3",
+        "sample_index": 1,
+        "observation_kind": "answer"
+      },
+      "run_id": "949b440a67fd4d0f4737a681",
+      "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+      "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+      "agent_status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "completion": {
+        "status": "incomplete",
+        "reason": "supplied_business_aspects_unexplained",
+        "pending_investigation": false,
+        "limitation_detected": false,
+        "source_selection_limitation_detected": false,
+        "method": "bounded_text_and_coverage_signals",
+        "semantic_verification": "unverified",
+        "source_availability_contradiction": false,
+        "source_availability_contradictions": [],
+        "required_aspects": [
+          "accumulation"
+        ],
+        "missing_aspects": [
+          "accumulation"
+        ]
+      },
+      "current_observation": "第三轮实际指向ACCOUNT-SUM累加与归零，但固定合成正文仍漏ADD，missing accumulation；accumulation_step SATISFIED表示已供证，不表示正文已解释。",
+      "old_score_applied": false
+    },
+    {
+      "identity": {
+        "case_id": "conversation",
+        "turn_id": "1",
+        "sample_index": 2,
+        "observation_kind": "answer"
+      },
+      "run_id": "37aea25347db0bdf42ed56ea",
+      "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+      "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+      "agent_status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "completion": {
+        "status": "incomplete",
+        "reason": "supplied_business_aspects_unexplained",
+        "pending_investigation": false,
+        "limitation_detected": false,
+        "source_selection_limitation_detected": false,
+        "method": "bounded_text_and_coverage_signals",
+        "semantic_verification": "unverified",
+        "source_availability_contradiction": false,
+        "source_availability_contradictions": [],
+        "required_aspects": [
+          "conditions",
+          "result_adjustments",
+          "accumulation"
+        ],
+        "missing_aspects": [
+          "conditions",
+          "accumulation"
+        ]
+      },
+      "current_observation": "首轮原正文仍只区分ACCOUNT-TOTALS清零与PAGE-TOTALS换页，已供应的条件与累加未展开；missing conditions/accumulation。inputs SATISFIED，作用域异常0；保留真实遗漏，不借其他轮评分。",
+      "old_score_applied": false
+    },
+    {
+      "identity": {
+        "case_id": "conversation",
+        "turn_id": "2",
+        "sample_index": 2,
+        "observation_kind": "answer"
+      },
+      "run_id": "04aeaf11bbd9458c33956608",
+      "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+      "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+      "agent_status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "completion": {
+        "status": "not_assessed",
+        "reason": null,
+        "pending_investigation": false,
+        "limitation_detected": false,
+        "source_selection_limitation_detected": false,
+        "method": "bounded_text_and_coverage_signals",
+        "semantic_verification": "unverified",
+        "source_availability_contradiction": false,
+        "source_availability_contradictions": [],
+        "required_aspects": [
+          "result_adjustments"
+        ],
+        "missing_aspects": []
+      },
+      "current_observation": "第二轮维持原清零路径说明与ANALYZED/not_assessed；prose未核验，不能代替首轮或第三轮完整度。",
+      "old_score_applied": false
+    },
+    {
+      "identity": {
+        "case_id": "conversation",
+        "turn_id": "3",
+        "sample_index": 2,
+        "observation_kind": "answer"
+      },
+      "run_id": "f2aff4c80f7ff55f153a3da5",
+      "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+      "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+      "agent_status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "completion": {
+        "status": "incomplete",
+        "reason": "supplied_business_aspects_unexplained",
+        "pending_investigation": false,
+        "limitation_detected": false,
+        "source_selection_limitation_detected": false,
+        "method": "bounded_text_and_coverage_signals",
+        "semantic_verification": "unverified",
+        "source_availability_contradiction": false,
+        "source_availability_contradictions": [],
+        "required_aspects": [
+          "accumulation"
+        ],
+        "missing_aspects": [
+          "accumulation"
+        ]
+      },
+      "current_observation": "第三轮实际指向ACCOUNT-SUM累加与归零，但固定合成正文仍漏ADD，missing accumulation；accumulation_step SATISFIED表示已供证，不表示正文已解释。",
+      "old_score_applied": false
+    },
+    {
+      "identity": {
+        "case_id": "conversation",
+        "turn_id": "1",
+        "sample_index": 3,
+        "observation_kind": "answer"
+      },
+      "run_id": "89ed70f21d9467338d4ac47d",
+      "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+      "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+      "agent_status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "completion": {
+        "status": "incomplete",
+        "reason": "supplied_business_aspects_unexplained",
+        "pending_investigation": false,
+        "limitation_detected": false,
+        "source_selection_limitation_detected": false,
+        "method": "bounded_text_and_coverage_signals",
+        "semantic_verification": "unverified",
+        "source_availability_contradiction": false,
+        "source_availability_contradictions": [],
+        "required_aspects": [
+          "conditions",
+          "result_adjustments",
+          "accumulation"
+        ],
+        "missing_aspects": [
+          "conditions",
+          "accumulation"
+        ]
+      },
+      "current_observation": "首轮原正文仍只区分ACCOUNT-TOTALS清零与PAGE-TOTALS换页，已供应的条件与累加未展开；missing conditions/accumulation。inputs SATISFIED，作用域异常0；保留真实遗漏，不借其他轮评分。",
+      "old_score_applied": false
+    },
+    {
+      "identity": {
+        "case_id": "conversation",
+        "turn_id": "2",
+        "sample_index": 3,
+        "observation_kind": "answer"
+      },
+      "run_id": "be776bba40ce19f3b14cf734",
+      "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+      "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+      "agent_status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "completion": {
+        "status": "not_assessed",
+        "reason": null,
+        "pending_investigation": false,
+        "limitation_detected": false,
+        "source_selection_limitation_detected": false,
+        "method": "bounded_text_and_coverage_signals",
+        "semantic_verification": "unverified",
+        "source_availability_contradiction": false,
+        "source_availability_contradictions": [],
+        "required_aspects": [
+          "result_adjustments"
+        ],
+        "missing_aspects": []
+      },
+      "current_observation": "第二轮维持原清零路径说明与ANALYZED/not_assessed；prose未核验，不能代替首轮或第三轮完整度。",
+      "old_score_applied": false
+    },
+    {
+      "identity": {
+        "case_id": "conversation",
+        "turn_id": "3",
+        "sample_index": 3,
+        "observation_kind": "answer"
+      },
+      "run_id": "a6cca89db22432b847c8ea27",
+      "answer_sha256": "ad70e7342801c41a14b5cea16b80a15b61bdbb9014d5d58ead3ad0a6366136a9",
+      "ledger_sha256": "d01181c0fc1af02f4cdebc094d8ca37b387fe5590766d46101a68ee192676fff",
+      "agent_status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "completion": {
+        "status": "incomplete",
+        "reason": "supplied_business_aspects_unexplained",
+        "pending_investigation": false,
+        "limitation_detected": false,
+        "source_selection_limitation_detected": false,
+        "method": "bounded_text_and_coverage_signals",
+        "semantic_verification": "unverified",
+        "source_availability_contradiction": false,
+        "source_availability_contradictions": [],
+        "required_aspects": [
+          "accumulation"
+        ],
+        "missing_aspects": [
+          "accumulation"
+        ]
+      },
+      "current_observation": "第三轮实际指向ACCOUNT-SUM累加与归零，但固定合成正文仍漏ADD，missing accumulation；accumulation_step SATISFIED表示已供证，不表示正文已解释。",
+      "old_score_applied": false
+    }
+  ]
+}

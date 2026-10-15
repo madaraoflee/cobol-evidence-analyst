@@ -1,0 +1,3626 @@
+{
+  "schema_version": "answer-delivery-semantic-examples/v2",
+  "generated_at_utc": "2026-10-15T08:05:58.829505+00:00",
+  "execution_surface": "source_python",
+  "generator_source_commit": "2ad641e412cb0dc62b33ed593bd8511becc7cd62",
+  "generator_source_dirty": false,
+  "generator_model_calls": 0,
+  "pipeline_version": "question-evidence-v20",
+  "prompt_version": "business-chat-v23",
+  "semantic_ir_version": "semantic-ir-v1",
+  "semantic_service_version": "bounded-semantic-service/v10",
+  "module_sha256": {
+    "parser_adapter.py": "b867485329ba5f91c84e051350c434c6ab49e1aa8e076865ceecca713baa0cc0",
+    "semantic_ir.py": "9c687f15823a0cba25fdad5b3f5ae2eaf65ea9327299b75c9a3efe0d8fe3f375",
+    "semantic_service.py": "9fc807d952b58044a69cec112531758f02efb282f04c9671a9d53de0741b9011",
+    "question_planner.py": "b817182bf33890722dcec2d3d8e0b1301ef08458049803ec63640a1050bd075b",
+    "question_investigation.py": "a3bcfc43aa469b21a4ec159cf129b5374235a72270c6386eba8246b8a728b43a",
+    "activation_evidence.py": "921f92e0fc4c518c7ef41648be56171364498b50ec76fd1260629bf7c6f5aa1b",
+    "evidence_context.py": "95d2454c1b70c10fac39bb846f5063de4b33341f0f5d9ba65a9ff8363b7893b8",
+    "quality_trace.py": "1a5edac182e185731566a07056df1e945ae63da023333905166e085c077ba632"
+  },
+  "source_http_report": {
+    "path": ".build/improvement-frozen-semantic-http/COMPILED-ACCEPTANCE.json",
+    "sha256": "b60c0ee67a8ee831fb5358a31d3f2806ff59a0450d04846d681e08df69659f23",
+    "status": "passed",
+    "execution_surface": "source_python_http",
+    "runtime_platform": "Darwin",
+    "transport_kind": "synthetic",
+    "external_model_calls": 0,
+    "paid_model_calls": 0,
+    "source_commit": "2ad641e412cb0dc62b33ed593bd8511becc7cd62",
+    "source_dirty": false
+  },
+  "projection_contract": {
+    "selection": "Small neutral synthetic cases; selected statements/data items and referenced flow occurrences.",
+    "summaries": "Generated ProgramSummary values; repeated identical source_evidence rows deduplicated.",
+    "procedure_summary": "Real procedure-scoped build projected to the existing ProcedureSummary base contract.",
+    "slices": "Actual occurrence IDs, frontier and flow_status; statements resolve through flow_occurrences.",
+    "identity": "ParsedStatement IDs and flow IDs belong to separate layers and are not relabelled."
+  },
+  "verification_limits": {
+    "windows_exe_verified": false,
+    "real_model_validated": false,
+    "runtime_execution_verified": false,
+    "scope": "Source semantics and synthetic source HTTP mechanisms; not Windows or real-model acceptance.",
+    "arithmetic": "PIC/receiving contracts retained; not complete COBOL arithmetic or runtime values.",
+    "unknowns": "Unknown effects/frontiers and entry-state inputs retained; scheduler remains OPEN; prose not automatically verified."
+  },
+  "examples": {
+    "conditional_overwrite": {
+      "provenance": {
+        "existing_source_http_case": {
+          "id": "overwrite_condition",
+          "sample_index": 3,
+          "run_id": "a952d4ee5079cee37df705d9",
+          "status": "passed",
+          "checks": {
+            "completeness_answer_recorded": true,
+            "evidence_supplied_hashes_match": true,
+            "evidence_visible_answer_matches": true,
+            "evidence_answer_ledger_hash": true,
+            "lifecycle_index_reused": true,
+            "quality_conditional_reaching_definitions": true,
+            "quality_formula_condition_overwrite_supported": true,
+            "completeness_both_branches_preserved": true,
+            "completeness_reviewed_ranges_supplied": true
+          }
+        },
+        "saved_agent_result": {
+          "path": ".build/improvement-frozen-semantic-http/cases/overwrite_condition/workspace/agent-result.json",
+          "sha256": "219f78afb8e9387787cf5ad83e167a315ed81d097bf7394bf5f3bf5cf051022e"
+        },
+        "semantic_database": {
+          "kind": "question_semantic_sidecar",
+          "path": ".build/improvement-frozen-semantic-http/cases/overwrite_condition/workspace/semantic-scopes/9b00d1a23e9caea72dd53b985e0070520cee044187cd734faf99d45b96cfea09.sqlite",
+          "sha256": "61e15c37694aed4b6d4e93ef722ed21ec9f6a9ab4f65b4cddf342bf64bada248",
+          "scope_key": "9b00d1a23e9caea72dd53b985e0070520cee044187cd734faf99d45b96cfea09",
+          "input_manifest": [
+            {
+              "encoding": "utf-8",
+              "relative_path": "overwrite.cbl",
+              "sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+              "source_format": "free"
+            }
+          ],
+          "frontier": []
+        }
+      },
+      "source_files": [
+        {
+          "relative_path": "overwrite.cbl",
+          "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+          "line_count": 17,
+          "source_text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. OVERWRITE-CASE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 IN-AMOUNT PIC 9(6)V99.\n01 OUT-AMOUNT PIC 9(6)V99.\n01 FINAL-AMOUNT PIC 9(6)V99.\n01 FLAG PIC 9.\nPROCEDURE DIVISION.\nMAIN.\nMOVE 4 TO IN-AMOUNT.\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 2.\nIF FLAG = 1\n MOVE 0 TO OUT-AMOUNT\nEND-IF.\nMOVE OUT-AMOUNT TO FINAL-AMOUNT.\nGOBACK.\n"
+        }
+      ],
+      "compilation_context": {
+        "dialect": "unknown",
+        "encoding": "auto",
+        "source_format": "auto",
+        "copy_libraries": [],
+        "copy_library_order_known": false,
+        "compile_conditions": [],
+        "conditions_complete": false,
+        "preprocessing_version": "bounded-copy-v2",
+        "frontend_version": "cobol-facts-v6",
+        "framework_version": null,
+        "target_profile": "generic-cobol",
+        "resource_kinds": [
+          "cobol-file",
+          "sql"
+        ],
+        "debug_lines": null,
+        "nested_copy_replacing": null
+      },
+      "parser_adapter": {
+        "name": "builtin",
+        "version": "builtin-ir-adapter-v4",
+        "statement_parser_version": "bounded-statement-ast-v3",
+        "program_identifiers": [
+          {
+            "name": "OVERWRITE-CASE",
+            "compilation_status": "active"
+          }
+        ]
+      },
+      "ir_fingerprint": "bc64b871b2df8c36c03d0f6ea9e33ccf9539c64805b9484eca83a9477ff21030",
+      "parse_complete": true,
+      "ir_diagnostics": [],
+      "parsed_statements": [
+        {
+          "occurrence_id": "stmt_cdc903ddbe836613f9f5a118",
+          "rule_shape_id": "shape_8e429303a443bf5ad9fb2b71",
+          "statement_type": "COMPUTE",
+          "text": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2",
+          "source_refs": [
+            {
+              "relative_path": "overwrite.cbl",
+              "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+              "start_line": 12,
+              "end_line": 12,
+              "start_column": 1,
+              "end_column": 35,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [
+            {
+              "name": "IN-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_b1e15f37f2e2a71425d88cd1"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "overwrite.cbl",
+                  "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+                  "start_line": 12,
+                  "end_line": 12,
+                  "start_column": 1,
+                  "end_column": 35,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "writes": [
+            {
+              "name": "OUT-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_80704be17d3bfc6f4a17a7d0"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "overwrite.cbl",
+                  "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+                  "start_line": 12,
+                  "end_line": 12,
+                  "start_column": 1,
+                  "end_column": 35,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "expressions": [
+            [
+              "OUT-AMOUNT",
+              {
+                "kind": "binary",
+                "value": "*",
+                "operands": [
+                  {
+                    "kind": "data_ref",
+                    "value": "IN-AMOUNT",
+                    "operands": [],
+                    "support_status": "parsed"
+                  },
+                  {
+                    "kind": "decimal",
+                    "value": "2",
+                    "operands": [],
+                    "support_status": "parsed"
+                  }
+                ],
+                "support_status": "parsed"
+              }
+            ]
+          ],
+          "scope": [],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": false,
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "occurrence_id": "stmt_4d068c901d80af6470166656",
+          "rule_shape_id": "shape_62ce6498d9a0409500514d36",
+          "statement_type": "MOVE",
+          "text": "MOVE 0 TO OUT-AMOUNT",
+          "source_refs": [
+            {
+              "relative_path": "overwrite.cbl",
+              "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+              "start_line": 14,
+              "end_line": 14,
+              "start_column": 2,
+              "end_column": 22,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [],
+          "writes": [
+            {
+              "name": "OUT-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_80704be17d3bfc6f4a17a7d0"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "overwrite.cbl",
+                  "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+                  "start_line": 14,
+                  "end_line": 14,
+                  "start_column": 2,
+                  "end_column": 22,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "expressions": [
+            [
+              "OUT-AMOUNT",
+              {
+                "kind": "decimal",
+                "value": "0",
+                "operands": [],
+                "support_status": "parsed"
+              }
+            ]
+          ],
+          "scope": [
+            {
+              "kind": "IF",
+              "condition": "FLAG = 1",
+              "outcome": true,
+              "span": {
+                "start_line": 13,
+                "end_line": 13,
+                "start_column": 1,
+                "end_column": 12,
+                "start_offset": 63,
+                "end_offset": 74
+              },
+              "selector": null,
+              "alternatives": [],
+              "prior_alternatives": [],
+              "branch_index": null,
+              "is_other": false,
+              "selector_span": null
+            }
+          ],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": false,
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "occurrence_id": "stmt_d85c1106942912d8400f0955",
+          "rule_shape_id": "shape_e8c2e44c2a0b521023d7a044",
+          "statement_type": "MOVE",
+          "text": "MOVE OUT-AMOUNT TO FINAL-AMOUNT",
+          "source_refs": [
+            {
+              "relative_path": "overwrite.cbl",
+              "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+              "start_line": 16,
+              "end_line": 16,
+              "start_column": 1,
+              "end_column": 32,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [
+            {
+              "name": "OUT-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_80704be17d3bfc6f4a17a7d0"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "overwrite.cbl",
+                  "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+                  "start_line": 16,
+                  "end_line": 16,
+                  "start_column": 1,
+                  "end_column": 32,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "writes": [
+            {
+              "name": "FINAL-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_fd53a0c8dd69fd6c93a95e80"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "overwrite.cbl",
+                  "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+                  "start_line": 16,
+                  "end_line": 16,
+                  "start_column": 1,
+                  "end_column": 32,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "expressions": [
+            [
+              "FINAL-AMOUNT",
+              {
+                "kind": "data_ref",
+                "value": "OUT-AMOUNT",
+                "operands": [],
+                "support_status": "parsed"
+              }
+            ]
+          ],
+          "scope": [],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": false,
+          "compilation_status": "active",
+          "diagnostics": []
+        }
+      ],
+      "selected_data_items": [
+        {
+          "item_id": "item_b1e15f37f2e2a71425d88cd1",
+          "name": "IN-AMOUNT",
+          "level": 1,
+          "ancestors": [],
+          "parent_id": null,
+          "declaration": "01 IN-AMOUNT PIC 9(6)V99.",
+          "source_refs": [
+            {
+              "relative_path": "overwrite.cbl",
+              "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+              "start_line": 5,
+              "end_line": 5,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "picture": "9(6)V99",
+          "usage": "DISPLAY",
+          "scale": 2,
+          "digits": 8,
+          "signed": false,
+          "occurs": null,
+          "depending_on": null,
+          "redefines": null,
+          "value": null,
+          "declaration_status": "parsed",
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "item_id": "item_80704be17d3bfc6f4a17a7d0",
+          "name": "OUT-AMOUNT",
+          "level": 1,
+          "ancestors": [],
+          "parent_id": null,
+          "declaration": "01 OUT-AMOUNT PIC 9(6)V99.",
+          "source_refs": [
+            {
+              "relative_path": "overwrite.cbl",
+              "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+              "start_line": 6,
+              "end_line": 6,
+              "start_column": 1,
+              "end_column": null,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "picture": "9(6)V99",
+          "usage": "DISPLAY",
+          "scale": 2,
+          "digits": 8,
+          "signed": false,
+          "occurs": null,
+          "depending_on": null,
+          "redefines": null,
+          "value": null,
+          "declaration_status": "parsed",
+          "compilation_status": "active",
+          "diagnostics": []
+        }
+      ],
+      "selected_storage_regions": [
+        {
+          "region_id": "region_item_b1e15f37f2e2a71425d88cd1",
+          "item_id": "item_b1e15f37f2e2a71425d88cd1",
+          "root_id": "item_b1e15f37f2e2a71425d88cd1",
+          "parent_region_id": null,
+          "overlaps": [],
+          "array": false,
+          "offset_bytes": null,
+          "length_bytes": null,
+          "layout_status": "conservative",
+          "diagnostics": [
+            "usage_layout_requires_dialect"
+          ],
+          "overlap_scope": "explicit_and_containment"
+        },
+        {
+          "region_id": "region_item_80704be17d3bfc6f4a17a7d0",
+          "item_id": "item_80704be17d3bfc6f4a17a7d0",
+          "root_id": "item_80704be17d3bfc6f4a17a7d0",
+          "parent_region_id": null,
+          "overlaps": [],
+          "array": false,
+          "offset_bytes": null,
+          "length_bytes": null,
+          "layout_status": "conservative",
+          "diagnostics": [
+            "usage_layout_requires_dialect"
+          ],
+          "overlap_scope": "explicit_and_containment"
+        }
+      ],
+      "flow_occurrences": [
+        {
+          "occurrence_id": "0902db4a93368443e3bb5270",
+          "kind": "MOVE",
+          "statement": "MOVE 4 TO IN-AMOUNT",
+          "reads": [],
+          "writes": [
+            "IN-AMOUNT"
+          ],
+          "expressions": {
+            "IN-AMOUNT": "4"
+          },
+          "source_refs": [
+            {
+              "relative_path": "overwrite.cbl",
+              "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+              "start_line": 11,
+              "end_line": 11,
+              "start_column": 1,
+              "end_column": 20,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ],
+          "context": [
+            "OVERWRITE-CASE",
+            "MAIN"
+          ],
+          "guards": [],
+          "unknown_effect": false,
+          "unknown_storage": null,
+          "control_occurrences": [],
+          "numeric_semantics": {
+            "IN-AMOUNT": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "MOVE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          },
+          "definite_writes": [
+            "IN-AMOUNT"
+          ],
+          "call_contract": {}
+        },
+        {
+          "occurrence_id": "34790e1552408b1d20cfd0f5",
+          "kind": "COMPUTE",
+          "statement": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2",
+          "reads": [
+            "IN-AMOUNT"
+          ],
+          "writes": [
+            "OUT-AMOUNT"
+          ],
+          "expressions": {
+            "OUT-AMOUNT": "IN-AMOUNT * 2"
+          },
+          "source_refs": [
+            {
+              "relative_path": "overwrite.cbl",
+              "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+              "start_line": 12,
+              "end_line": 12,
+              "start_column": 1,
+              "end_column": 35,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ],
+          "context": [
+            "OVERWRITE-CASE",
+            "MAIN"
+          ],
+          "guards": [],
+          "unknown_effect": false,
+          "unknown_storage": null,
+          "control_occurrences": [],
+          "numeric_semantics": {
+            "OUT-AMOUNT": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "COMPUTE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          },
+          "definite_writes": [
+            "OUT-AMOUNT"
+          ],
+          "call_contract": {}
+        },
+        {
+          "occurrence_id": "20e7b5dad702bca6b395c0b9",
+          "kind": "IF",
+          "statement": "IF FLAG = 1\n MOVE 0 TO OUT-AMOUNT\nEND-IF",
+          "reads": [
+            "FLAG"
+          ],
+          "writes": [],
+          "expressions": {},
+          "source_refs": [
+            {
+              "relative_path": "overwrite.cbl",
+              "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+              "start_line": 13,
+              "end_line": 15,
+              "start_column": 1,
+              "end_column": 7,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ],
+          "context": [
+            "OVERWRITE-CASE",
+            "MAIN"
+          ],
+          "guards": [],
+          "unknown_effect": false,
+          "unknown_storage": null,
+          "control_occurrences": [],
+          "numeric_semantics": {},
+          "definite_writes": [],
+          "call_contract": {}
+        },
+        {
+          "occurrence_id": "fad86c9389b26a890cf491e2",
+          "kind": "MOVE",
+          "statement": "MOVE 0 TO OUT-AMOUNT",
+          "reads": [],
+          "writes": [
+            "OUT-AMOUNT"
+          ],
+          "expressions": {
+            "OUT-AMOUNT": "0"
+          },
+          "source_refs": [
+            {
+              "relative_path": "overwrite.cbl",
+              "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+              "start_line": 14,
+              "end_line": 14,
+              "start_column": 2,
+              "end_column": 22,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ],
+          "context": [
+            "OVERWRITE-CASE",
+            "MAIN"
+          ],
+          "guards": [
+            {
+              "kind": "IF",
+              "condition": "FLAG = 1",
+              "outcome": true,
+              "selector": null,
+              "alternatives": [],
+              "prior_alternatives": [],
+              "is_other": false
+            }
+          ],
+          "unknown_effect": false,
+          "unknown_storage": null,
+          "control_occurrences": [
+            "20e7b5dad702bca6b395c0b9"
+          ],
+          "numeric_semantics": {
+            "OUT-AMOUNT": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "MOVE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          },
+          "definite_writes": [
+            "OUT-AMOUNT"
+          ],
+          "call_contract": {}
+        },
+        {
+          "occurrence_id": "8758befa71d6b9e9e00b8a3f",
+          "kind": "MOVE",
+          "statement": "MOVE OUT-AMOUNT TO FINAL-AMOUNT",
+          "reads": [
+            "OUT-AMOUNT"
+          ],
+          "writes": [
+            "FINAL-AMOUNT"
+          ],
+          "expressions": {
+            "FINAL-AMOUNT": "OUT-AMOUNT"
+          },
+          "source_refs": [
+            {
+              "relative_path": "overwrite.cbl",
+              "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+              "start_line": 16,
+              "end_line": 16,
+              "start_column": 1,
+              "end_column": 32,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ],
+          "context": [
+            "OVERWRITE-CASE",
+            "MAIN"
+          ],
+          "guards": [],
+          "unknown_effect": false,
+          "unknown_storage": null,
+          "control_occurrences": [],
+          "numeric_semantics": {
+            "FINAL-AMOUNT": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "MOVE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          },
+          "definite_writes": [
+            "FINAL-AMOUNT"
+          ],
+          "call_contract": {}
+        }
+      ],
+      "backward_slice": {
+        "requested_occurrence": "8758befa71d6b9e9e00b8a3f",
+        "result": {
+          "occurrences": [
+            "0902db4a93368443e3bb5270",
+            "34790e1552408b1d20cfd0f5",
+            "20e7b5dad702bca6b395c0b9",
+            "fad86c9389b26a890cf491e2",
+            "8758befa71d6b9e9e00b8a3f"
+          ],
+          "frontier": [],
+          "flow_status": "possible_source_flow",
+          "statement_projection": "Resolve each occurrence in flow_occurrences; duplicated full statements omitted."
+        }
+      },
+      "forward_slice": {
+        "requested_occurrence": "34790e1552408b1d20cfd0f5",
+        "result": {
+          "occurrences": [
+            "34790e1552408b1d20cfd0f5",
+            "8758befa71d6b9e9e00b8a3f"
+          ],
+          "frontier": [],
+          "flow_status": "possible_source_flow",
+          "statement_projection": "Resolve each occurrence in flow_occurrences; duplicated full statements omitted."
+        }
+      },
+      "explain_assignment": {
+        "reaching_definitions": {
+          "IN-AMOUNT": [
+            "0902db4a93368443e3bb5270"
+          ]
+        },
+        "read_origins": [
+          {
+            "reader_occurrence_id": "34790e1552408b1d20cfd0f5",
+            "reader_field": "IN-AMOUNT",
+            "reader_statement": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2",
+            "reader_source_refs": [
+              {
+                "relative_path": "overwrite.cbl",
+                "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+                "start_line": 12,
+                "end_line": 12,
+                "start_column": 1,
+                "end_column": 35,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "status": "resolved_source_origin",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "initial_definitions": [],
+            "write_occurrences": [
+              "0902db4a93368443e3bb5270"
+            ],
+            "call_occurrences": [],
+            "source_refs": [
+              {
+                "relative_path": "overwrite.cbl",
+                "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+                "start_line": 12,
+                "end_line": 12,
+                "start_column": 1,
+                "end_column": 35,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "overwrite.cbl",
+                "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+                "start_line": 11,
+                "end_line": 11,
+                "start_column": 1,
+                "end_column": 20,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "unknown_reasons": [],
+            "source_supply_status": "not_assessed",
+            "scope": "possible_source_origin_not_runtime_value",
+            "execution_verified": false
+          }
+        ],
+        "later_reads": [
+          "8758befa71d6b9e9e00b8a3f"
+        ],
+        "later_writes": [
+          "fad86c9389b26a890cf491e2"
+        ],
+        "flow_status": "possible_source_flow",
+        "frontier": []
+      },
+      "program_summary": {
+        "name": "OVERWRITE-CASE",
+        "inputs": [],
+        "conditional_outputs": [
+          {
+            "target": "IN-AMOUNT",
+            "expression": "4",
+            "conditions": [],
+            "occurrence_id": "0902db4a93368443e3bb5270",
+            "source_refs": [
+              {
+                "relative_path": "overwrite.cbl",
+                "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+                "start_line": 11,
+                "end_line": 11,
+                "start_column": 1,
+                "end_column": 20,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "numeric_semantics": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "MOVE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          },
+          {
+            "target": "OUT-AMOUNT",
+            "expression": "IN-AMOUNT * 2",
+            "conditions": [],
+            "occurrence_id": "34790e1552408b1d20cfd0f5",
+            "source_refs": [
+              {
+                "relative_path": "overwrite.cbl",
+                "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+                "start_line": 12,
+                "end_line": 12,
+                "start_column": 1,
+                "end_column": 35,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "numeric_semantics": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "COMPUTE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          },
+          {
+            "target": "OUT-AMOUNT",
+            "expression": "0",
+            "conditions": [
+              {
+                "kind": "IF",
+                "condition": "FLAG = 1",
+                "outcome": true,
+                "selector": null,
+                "alternatives": [],
+                "prior_alternatives": [],
+                "is_other": false
+              }
+            ],
+            "occurrence_id": "fad86c9389b26a890cf491e2",
+            "source_refs": [
+              {
+                "relative_path": "overwrite.cbl",
+                "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+                "start_line": 14,
+                "end_line": 14,
+                "start_column": 2,
+                "end_column": 22,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "numeric_semantics": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "MOVE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          },
+          {
+            "target": "FINAL-AMOUNT",
+            "expression": "OUT-AMOUNT",
+            "conditions": [],
+            "occurrence_id": "8758befa71d6b9e9e00b8a3f",
+            "source_refs": [
+              {
+                "relative_path": "overwrite.cbl",
+                "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+                "start_line": 16,
+                "end_line": 16,
+                "start_column": 1,
+                "end_column": 32,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "numeric_semantics": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "MOVE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          }
+        ],
+        "state_changes": [
+          "FINAL-AMOUNT",
+          "IN-AMOUNT",
+          "OUT-AMOUNT"
+        ],
+        "external_effects": [],
+        "dependencies": [],
+        "unknown_effects": [],
+        "source_evidence": [
+          {
+            "relative_path": "overwrite.cbl",
+            "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+            "start_line": 11,
+            "end_line": 11,
+            "start_column": 1,
+            "end_column": 20,
+            "include_chain": [],
+            "replacement_trace": []
+          },
+          {
+            "relative_path": "overwrite.cbl",
+            "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+            "start_line": 12,
+            "end_line": 12,
+            "start_column": 1,
+            "end_column": 35,
+            "include_chain": [],
+            "replacement_trace": []
+          },
+          {
+            "relative_path": "overwrite.cbl",
+            "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+            "start_line": 13,
+            "end_line": 15,
+            "start_column": 1,
+            "end_column": 7,
+            "include_chain": [],
+            "replacement_trace": []
+          },
+          {
+            "relative_path": "overwrite.cbl",
+            "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+            "start_line": 14,
+            "end_line": 14,
+            "start_column": 2,
+            "end_column": 22,
+            "include_chain": [],
+            "replacement_trace": []
+          },
+          {
+            "relative_path": "overwrite.cbl",
+            "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+            "start_line": 16,
+            "end_line": 16,
+            "start_column": 1,
+            "end_column": 32,
+            "include_chain": [],
+            "replacement_trace": []
+          },
+          {
+            "relative_path": "overwrite.cbl",
+            "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+            "start_line": 17,
+            "end_line": 17,
+            "start_column": 1,
+            "end_column": 7,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "source_sha256": "43c7613ea49d88ec1b66da644d0a2f90bcfa1954d362cf580c8c0cb23e8ee605",
+        "version": "bounded-semantic-service/v10",
+        "initial_definitions": {},
+        "entry_state_inputs": [
+          "FLAG"
+        ],
+        "input_origin_status": "declaration_and_possible_entry_state",
+        "flow_complete": true
+      },
+      "derived_checks": {
+        "both_branch_definitions_reach_final_read": true,
+        "backward_slice_keeps_formula_and_conditional_overwrite": true,
+        "forward_slice_formula_reaches_final_read": true
+      },
+      "fact_store_query_count": 3
+    },
+    "static_call_chain": {
+      "provenance": {
+        "existing_source_http_case": {
+          "id": "static_call_chain",
+          "sample_index": 3,
+          "run_id": "636db9862998802d9a1837ab",
+          "status": "passed",
+          "checks": {
+            "completeness_answer_recorded": true,
+            "evidence_supplied_hashes_match": true,
+            "evidence_visible_answer_matches": true,
+            "evidence_answer_ledger_hash": true,
+            "lifecycle_index_reused": true,
+            "quality_static_chain_return_binding": true,
+            "quality_leaf_formula_supported": true,
+            "completeness_three_program_path": true,
+            "completeness_reviewed_ranges_supplied": true,
+            "completeness_static_origin_closed": true
+          }
+        },
+        "saved_agent_result": {
+          "path": ".build/improvement-frozen-semantic-http/cases/static_call_chain/workspace/agent-result.json",
+          "sha256": "2ed29438625a169eb6fc5ebb51d7550593bfb05f5a00176bc124566f102f655a"
+        },
+        "semantic_database": {
+          "kind": "question_semantic_sidecar",
+          "path": ".build/improvement-frozen-semantic-http/cases/static_call_chain/workspace/semantic-scopes/b35ca0b97119bec4d90a4492df50028da1dfb1c1cbfd69c72a13507835894be9.sqlite",
+          "sha256": "13fbc3e178b37f1c849bcc25a1db8aa8466dbeadb60a6c04e7de5cc09944f6ed",
+          "scope_key": "b35ca0b97119bec4d90a4492df50028da1dfb1c1cbfd69c72a13507835894be9",
+          "input_manifest": [
+            {
+              "encoding": "utf-8",
+              "relative_path": "entry.cbl",
+              "sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+              "source_format": "free"
+            },
+            {
+              "encoding": "utf-8",
+              "relative_path": "leaf.cbl",
+              "sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+              "source_format": "free"
+            },
+            {
+              "encoding": "utf-8",
+              "relative_path": "middle.cbl",
+              "sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+              "source_format": "free"
+            }
+          ],
+          "frontier": []
+        }
+      },
+      "source_files": [
+        {
+          "relative_path": "entry.cbl",
+          "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+          "line_count": 13,
+          "source_text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. ENTRYPOINT.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 IN-AMOUNT PIC 9(6)V99.\n01 OUT-AMOUNT PIC 9(6)V99.\n01 FINAL-AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION.\nMAIN.\nMOVE 4 TO IN-AMOUNT.\nCALL 'MIDDLE' USING IN-AMOUNT OUT-AMOUNT.\nMOVE OUT-AMOUNT TO FINAL-AMOUNT.\nGOBACK.\n"
+        },
+        {
+          "relative_path": "middle.cbl",
+          "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+          "line_count": 10,
+          "source_text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. MIDDLE.\nDATA DIVISION.\nLINKAGE SECTION.\n01 IN-AMOUNT PIC 9(6)V99.\n01 OUT-AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION USING IN-AMOUNT OUT-AMOUNT.\nMAIN.\nCALL 'LEAF' USING IN-AMOUNT OUT-AMOUNT.\nGOBACK.\n"
+        },
+        {
+          "relative_path": "leaf.cbl",
+          "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+          "line_count": 10,
+          "source_text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. LEAF.\nDATA DIVISION.\nLINKAGE SECTION.\n01 IN-AMOUNT PIC 9(6)V99.\n01 OUT-AMOUNT PIC 9(6)V99.\nPROCEDURE DIVISION USING IN-AMOUNT OUT-AMOUNT.\nMAIN.\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 2.\nGOBACK.\n"
+        }
+      ],
+      "compilation_context": {
+        "compile_conditions": [],
+        "conditions_complete": false,
+        "copy_libraries": [],
+        "copy_library_order_known": false,
+        "debug_lines": null,
+        "dialect": "unknown",
+        "encoding": "auto",
+        "framework_version": null,
+        "frontend_version": "cobol-facts-v6",
+        "nested_copy_replacing": null,
+        "preprocessing_version": "bounded-copy-v2",
+        "resource_kinds": [
+          "cobol-file",
+          "sql"
+        ],
+        "source_format": "auto",
+        "target_profile": "generic-cobol"
+      },
+      "parsed_statements": [
+        {
+          "occurrence_id": "stmt_3d1a93262bf85ba3446e611e",
+          "rule_shape_id": "shape_cfa7189f29696d3ffecb80b8",
+          "statement_type": "CALL",
+          "text": "CALL 'MIDDLE' USING IN-AMOUNT OUT-AMOUNT",
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+              "start_line": 11,
+              "end_line": 11,
+              "start_column": 1,
+              "end_column": 41,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [],
+          "writes": [],
+          "expressions": [],
+          "scope": [],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": true,
+          "compilation_status": "active",
+          "diagnostics": []
+        },
+        {
+          "occurrence_id": "stmt_08ad4725d0a01d6f15d26c35",
+          "rule_shape_id": "shape_8e429303a443bf5ad9fb2b71",
+          "statement_type": "COMPUTE",
+          "text": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2",
+          "source_refs": [
+            {
+              "relative_path": "leaf.cbl",
+              "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+              "start_line": 9,
+              "end_line": 9,
+              "start_column": 1,
+              "end_column": 35,
+              "copy_instance": null,
+              "include_chain": [],
+              "replacement_trace": [],
+              "coordinate_status": "physical"
+            }
+          ],
+          "reads": [
+            {
+              "name": "IN-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_c5e71be49e0641a1721a35f5"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "leaf.cbl",
+                  "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+                  "start_line": 9,
+                  "end_line": 9,
+                  "start_column": 1,
+                  "end_column": 35,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "writes": [
+            {
+              "name": "OUT-AMOUNT",
+              "qualifiers": [],
+              "subscripts": [],
+              "reference_modification": null,
+              "candidates": [
+                "item_b1dd504635c8661c65816195"
+              ],
+              "binding_status": "bound",
+              "source_refs": [
+                {
+                  "relative_path": "leaf.cbl",
+                  "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+                  "start_line": 9,
+                  "end_line": 9,
+                  "start_column": 1,
+                  "end_column": 35,
+                  "copy_instance": null,
+                  "include_chain": [],
+                  "replacement_trace": [],
+                  "coordinate_status": "physical"
+                }
+              ]
+            }
+          ],
+          "expressions": [
+            [
+              "OUT-AMOUNT",
+              {
+                "kind": "binary",
+                "value": "*",
+                "operands": [
+                  {
+                    "kind": "data_ref",
+                    "value": "IN-AMOUNT",
+                    "operands": [],
+                    "support_status": "parsed"
+                  },
+                  {
+                    "kind": "decimal",
+                    "value": "2",
+                    "operands": [],
+                    "support_status": "parsed"
+                  }
+                ],
+                "support_status": "parsed"
+              }
+            ]
+          ],
+          "scope": [],
+          "parsed_status": "parsed",
+          "binding_status": "bound",
+          "flow_status": "not_established",
+          "rounded": false,
+          "effects_unknown": false,
+          "compilation_status": "active",
+          "diagnostics": []
+        }
+      ],
+      "flow_occurrences": [
+        {
+          "occurrence_id": "d0e2592f7a1d23a16c74bc4b",
+          "kind": "MOVE",
+          "statement": "MOVE 4 TO IN-AMOUNT",
+          "reads": [],
+          "writes": [
+            "IN-AMOUNT"
+          ],
+          "expressions": {
+            "IN-AMOUNT": "4"
+          },
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+              "start_line": 10,
+              "end_line": 10,
+              "start_column": 1,
+              "end_column": 20,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ],
+          "context": [
+            "ENTRYPOINT",
+            "MAIN"
+          ],
+          "guards": [],
+          "unknown_effect": false,
+          "unknown_storage": null,
+          "control_occurrences": [],
+          "numeric_semantics": {
+            "IN-AMOUNT": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "MOVE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          },
+          "definite_writes": [
+            "IN-AMOUNT"
+          ],
+          "call_contract": {}
+        },
+        {
+          "occurrence_id": "1c8186afb3f58677b33b5bc4",
+          "kind": "CALL",
+          "statement": "CALL 'MIDDLE' USING IN-AMOUNT OUT-AMOUNT",
+          "reads": [],
+          "writes": [],
+          "expressions": {},
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+              "start_line": 11,
+              "end_line": 11,
+              "start_column": 1,
+              "end_column": 41,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ],
+          "context": [
+            "ENTRYPOINT",
+            "MAIN"
+          ],
+          "guards": [],
+          "unknown_effect": false,
+          "unknown_storage": null,
+          "control_occurrences": [],
+          "numeric_semantics": {},
+          "definite_writes": [],
+          "call_contract": {
+            "status": "confirmed_source_binding",
+            "target_path": "middle.cbl",
+            "target_program": "MIDDLE",
+            "source_refs": [
+              {
+                "relative_path": "entry.cbl",
+                "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+                "start_line": 11,
+                "end_line": 11,
+                "start_column": 1,
+                "end_column": 41,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "entry.cbl",
+                "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+                "start_line": 2,
+                "end_line": 2,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "middle.cbl",
+                "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+                "start_line": 2,
+                "end_line": 2,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "entry.cbl",
+                "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+                "start_line": 11,
+                "end_line": 11,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "middle.cbl",
+                "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+                "start_line": 7,
+                "end_line": 7,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "entry.cbl",
+                "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+                "start_line": 5,
+                "end_line": 5,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "middle.cbl",
+                "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+                "start_line": 5,
+                "end_line": 5,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "entry.cbl",
+                "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+                "start_line": 6,
+                "end_line": 6,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "middle.cbl",
+                "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+                "start_line": 6,
+                "end_line": 6,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "parameters": [
+              {
+                "binding_id": "binding_a0ff1c29b4d19f2912622356",
+                "parameter_position": 1,
+                "passing_mode": "REFERENCE",
+                "caller_qualified": "ENTRYPOINT::IN-AMOUNT",
+                "callee_qualified": "MIDDLE::IN-AMOUNT",
+                "status": "confirmed",
+                "reason": "parameter_position_layout_match"
+              },
+              {
+                "binding_id": "binding_a4666bee8bd2e7a14f9b3884",
+                "parameter_position": 2,
+                "passing_mode": "REFERENCE",
+                "caller_qualified": "ENTRYPOINT::OUT-AMOUNT",
+                "callee_qualified": "MIDDLE::OUT-AMOUNT",
+                "status": "confirmed",
+                "reason": "parameter_position_layout_match"
+              }
+            ],
+            "normal_return_occurrences": [
+              "1ffa3991194a64763039fb16"
+            ],
+            "execution_verified": false
+          }
+        },
+        {
+          "occurrence_id": "8fad1c08d3957ffd99ce084b",
+          "kind": "CALL",
+          "statement": "CALL 'LEAF' USING IN-AMOUNT OUT-AMOUNT",
+          "reads": [],
+          "writes": [],
+          "expressions": {},
+          "source_refs": [
+            {
+              "relative_path": "middle.cbl",
+              "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+              "start_line": 9,
+              "end_line": 9,
+              "start_column": 1,
+              "end_column": 39,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ],
+          "context": [
+            "ENTRYPOINT",
+            "MAIN",
+            "call:1c8186afb3f58677b33b5bc4",
+            "MAIN"
+          ],
+          "guards": [],
+          "unknown_effect": false,
+          "unknown_storage": null,
+          "control_occurrences": [],
+          "numeric_semantics": {},
+          "definite_writes": [],
+          "call_contract": {
+            "status": "confirmed_source_binding",
+            "target_path": "leaf.cbl",
+            "target_program": "LEAF",
+            "source_refs": [
+              {
+                "relative_path": "middle.cbl",
+                "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+                "start_line": 9,
+                "end_line": 9,
+                "start_column": 1,
+                "end_column": 39,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "middle.cbl",
+                "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+                "start_line": 2,
+                "end_line": 2,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "leaf.cbl",
+                "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+                "start_line": 2,
+                "end_line": 2,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "middle.cbl",
+                "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+                "start_line": 9,
+                "end_line": 9,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "leaf.cbl",
+                "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+                "start_line": 7,
+                "end_line": 7,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "middle.cbl",
+                "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+                "start_line": 5,
+                "end_line": 5,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "leaf.cbl",
+                "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+                "start_line": 5,
+                "end_line": 5,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "middle.cbl",
+                "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+                "start_line": 6,
+                "end_line": 6,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              },
+              {
+                "relative_path": "leaf.cbl",
+                "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+                "start_line": 6,
+                "end_line": 6,
+                "start_column": 1,
+                "end_column": 1,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "parameters": [
+              {
+                "binding_id": "binding_a06d36d55dfa753e6a5172f2",
+                "parameter_position": 1,
+                "passing_mode": "REFERENCE",
+                "caller_qualified": "MIDDLE::IN-AMOUNT",
+                "callee_qualified": "LEAF::IN-AMOUNT",
+                "status": "confirmed",
+                "reason": "parameter_position_layout_match"
+              },
+              {
+                "binding_id": "binding_269279ba70e467831cc4cb73",
+                "parameter_position": 2,
+                "passing_mode": "REFERENCE",
+                "caller_qualified": "MIDDLE::OUT-AMOUNT",
+                "callee_qualified": "LEAF::OUT-AMOUNT",
+                "status": "confirmed",
+                "reason": "parameter_position_layout_match"
+              }
+            ],
+            "normal_return_occurrences": [
+              "fdb40baaa857f83cd76cad14"
+            ],
+            "execution_verified": false
+          }
+        },
+        {
+          "occurrence_id": "9b323ff4eea3c3411c2f4aca",
+          "kind": "COMPUTE",
+          "statement": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2",
+          "reads": [
+            "IN-AMOUNT"
+          ],
+          "writes": [
+            "OUT-AMOUNT"
+          ],
+          "expressions": {
+            "OUT-AMOUNT": "IN-AMOUNT * 2"
+          },
+          "source_refs": [
+            {
+              "relative_path": "leaf.cbl",
+              "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+              "start_line": 9,
+              "end_line": 9,
+              "start_column": 1,
+              "end_column": 35,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ],
+          "context": [
+            "ENTRYPOINT",
+            "MAIN",
+            "call:1c8186afb3f58677b33b5bc4",
+            "MAIN",
+            "call:8fad1c08d3957ffd99ce084b",
+            "MAIN"
+          ],
+          "guards": [],
+          "unknown_effect": false,
+          "unknown_storage": null,
+          "control_occurrences": [],
+          "numeric_semantics": {
+            "OUT-AMOUNT": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "COMPUTE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          },
+          "definite_writes": [
+            "OUT-AMOUNT"
+          ],
+          "call_contract": {}
+        },
+        {
+          "occurrence_id": "0a9327799aa4f6ee396fbb66",
+          "kind": "MOVE",
+          "statement": "MOVE OUT-AMOUNT TO FINAL-AMOUNT",
+          "reads": [
+            "OUT-AMOUNT"
+          ],
+          "writes": [
+            "FINAL-AMOUNT"
+          ],
+          "expressions": {
+            "FINAL-AMOUNT": "OUT-AMOUNT"
+          },
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+              "start_line": 12,
+              "end_line": 12,
+              "start_column": 1,
+              "end_column": 32,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ],
+          "context": [
+            "ENTRYPOINT",
+            "MAIN"
+          ],
+          "guards": [],
+          "unknown_effect": false,
+          "unknown_storage": null,
+          "control_occurrences": [],
+          "numeric_semantics": {
+            "FINAL-AMOUNT": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "MOVE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          },
+          "definite_writes": [
+            "FINAL-AMOUNT"
+          ],
+          "call_contract": {}
+        }
+      ],
+      "backward_slice": {
+        "requested_occurrence": "0a9327799aa4f6ee396fbb66",
+        "result": {
+          "occurrences": [
+            "d0e2592f7a1d23a16c74bc4b",
+            "9b323ff4eea3c3411c2f4aca",
+            "0a9327799aa4f6ee396fbb66"
+          ],
+          "frontier": [],
+          "flow_status": "possible_source_flow",
+          "statement_projection": "Resolve each occurrence in flow_occurrences; duplicated full statements omitted."
+        }
+      },
+      "forward_slice": {
+        "requested_occurrence": "d0e2592f7a1d23a16c74bc4b",
+        "result": {
+          "occurrences": [
+            "d0e2592f7a1d23a16c74bc4b",
+            "9b323ff4eea3c3411c2f4aca",
+            "0a9327799aa4f6ee396fbb66"
+          ],
+          "frontier": [],
+          "flow_status": "possible_source_flow",
+          "statement_projection": "Resolve each occurrence in flow_occurrences; duplicated full statements omitted."
+        }
+      },
+      "trace_parameter": [
+        {
+          "context": [
+            "ENTRYPOINT",
+            "MAIN"
+          ],
+          "statement": "CALL 'MIDDLE' USING IN-AMOUNT OUT-AMOUNT",
+          "source_refs": [
+            {
+              "relative_path": "entry.cbl",
+              "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+              "start_line": 11,
+              "end_line": 11,
+              "start_column": 1,
+              "end_column": 41,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ],
+          "bindings": [
+            {
+              "binding_id": "binding_a0ff1c29b4d19f2912622356",
+              "callsite_id": "unit_758603fb4120cb54705b2caa",
+              "caller_program": "ENTRYPOINT",
+              "callee_program": "MIDDLE",
+              "parameter_position": 1,
+              "group_member_index": 0,
+              "passing_mode": "REFERENCE",
+              "caller_symbol_id": "sym_2cd310a8ca6efaf0417c4a41",
+              "callee_symbol_id": "sym_8c940bb19a40e484dd4d90ba",
+              "status": "confirmed",
+              "reason": "parameter_position_layout_match",
+              "evidence_id": "ev_61f5ef24faf8fe7b75fc0b99",
+              "supporting_evidence_ids_json": "[\"ev_61f5ef24faf8fe7b75fc0b99\", \"ev_0a5fb8456017cc3646037363\", \"ev_189e4f770eb70321abb2a785\", \"ev_1b9dd149c68dbdc53355b8d8\"]"
+            },
+            {
+              "binding_id": "binding_a4666bee8bd2e7a14f9b3884",
+              "callsite_id": "unit_758603fb4120cb54705b2caa",
+              "caller_program": "ENTRYPOINT",
+              "callee_program": "MIDDLE",
+              "parameter_position": 2,
+              "group_member_index": 0,
+              "passing_mode": "REFERENCE",
+              "caller_symbol_id": "sym_bb1e9df6d02b693d921aadfe",
+              "callee_symbol_id": "sym_da9217892c11a1f17afea9b2",
+              "status": "confirmed",
+              "reason": "parameter_position_layout_match",
+              "evidence_id": "ev_61f5ef24faf8fe7b75fc0b99",
+              "supporting_evidence_ids_json": "[\"ev_61f5ef24faf8fe7b75fc0b99\", \"ev_0a5fb8456017cc3646037363\", \"ev_dd8347687e4c2a75a524e75d\", \"ev_3f4986f6273d474266cc98ad\"]"
+            }
+          ]
+        },
+        {
+          "context": [
+            "ENTRYPOINT",
+            "MAIN",
+            "call:1c8186afb3f58677b33b5bc4",
+            "MAIN"
+          ],
+          "statement": "CALL 'LEAF' USING IN-AMOUNT OUT-AMOUNT",
+          "source_refs": [
+            {
+              "relative_path": "middle.cbl",
+              "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+              "start_line": 9,
+              "end_line": 9,
+              "start_column": 1,
+              "end_column": 39,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ],
+          "bindings": [
+            {
+              "binding_id": "binding_a06d36d55dfa753e6a5172f2",
+              "callsite_id": "unit_c5a297a15b60054d442acc70",
+              "caller_program": "MIDDLE",
+              "callee_program": "LEAF",
+              "parameter_position": 1,
+              "group_member_index": 0,
+              "passing_mode": "REFERENCE",
+              "caller_symbol_id": "sym_8c940bb19a40e484dd4d90ba",
+              "callee_symbol_id": "sym_09b9241df2ae1559d7b79873",
+              "status": "confirmed",
+              "reason": "parameter_position_layout_match",
+              "evidence_id": "ev_a766646e72fc7437d58235a7",
+              "supporting_evidence_ids_json": "[\"ev_a766646e72fc7437d58235a7\", \"ev_89725734e798c995c6396b9d\", \"ev_1b9dd149c68dbdc53355b8d8\", \"ev_ef71b4240646e0f1d10db772\"]"
+            },
+            {
+              "binding_id": "binding_269279ba70e467831cc4cb73",
+              "callsite_id": "unit_c5a297a15b60054d442acc70",
+              "caller_program": "MIDDLE",
+              "callee_program": "LEAF",
+              "parameter_position": 2,
+              "group_member_index": 0,
+              "passing_mode": "REFERENCE",
+              "caller_symbol_id": "sym_da9217892c11a1f17afea9b2",
+              "callee_symbol_id": "sym_87e58d2ec2ac22a763405bd4",
+              "status": "confirmed",
+              "reason": "parameter_position_layout_match",
+              "evidence_id": "ev_a766646e72fc7437d58235a7",
+              "supporting_evidence_ids_json": "[\"ev_a766646e72fc7437d58235a7\", \"ev_89725734e798c995c6396b9d\", \"ev_3f4986f6273d474266cc98ad\", \"ev_8dc49c548a02af48e4286893\"]"
+            }
+          ]
+        }
+      ],
+      "program_summary": {
+        "name": "ENTRYPOINT",
+        "inputs": [],
+        "conditional_outputs": [
+          {
+            "target": "IN-AMOUNT",
+            "expression": "4",
+            "conditions": [],
+            "occurrence_id": "d0e2592f7a1d23a16c74bc4b",
+            "source_refs": [
+              {
+                "relative_path": "entry.cbl",
+                "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+                "start_line": 10,
+                "end_line": 10,
+                "start_column": 1,
+                "end_column": 20,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "numeric_semantics": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "MOVE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          },
+          {
+            "target": "OUT-AMOUNT",
+            "expression": "IN-AMOUNT * 2",
+            "conditions": [],
+            "occurrence_id": "9b323ff4eea3c3411c2f4aca",
+            "source_refs": [
+              {
+                "relative_path": "leaf.cbl",
+                "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+                "start_line": 9,
+                "end_line": 9,
+                "start_column": 1,
+                "end_column": 35,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "numeric_semantics": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "COMPUTE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          },
+          {
+            "target": "FINAL-AMOUNT",
+            "expression": "OUT-AMOUNT",
+            "conditions": [],
+            "occurrence_id": "0a9327799aa4f6ee396fbb66",
+            "source_refs": [
+              {
+                "relative_path": "entry.cbl",
+                "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+                "start_line": 12,
+                "end_line": 12,
+                "start_column": 1,
+                "end_column": 32,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "numeric_semantics": {
+              "layout": {
+                "picture": "9(6)V99",
+                "usage": "DISPLAY",
+                "signed": false,
+                "integer_digits": 6,
+                "scale": 2,
+                "supported": true,
+                "diagnostics": []
+              },
+              "operation": "MOVE",
+              "rounded": false,
+              "receiving_scale": 2,
+              "fractional_conversion": "toward_zero",
+              "size_error_check": "after_decimal_alignment",
+              "on_size_error_receiver": "truncation_profile_required",
+              "profile": "decimal-receiver-v1",
+              "profile_confirmed": false,
+              "status": "receiver_layout_supported",
+              "runtime_inputs_known": false,
+              "intermediate_precision_verified": false
+            }
+          }
+        ],
+        "state_changes": [
+          "FINAL-AMOUNT",
+          "IN-AMOUNT",
+          "OUT-AMOUNT"
+        ],
+        "external_effects": [
+          {
+            "kind": "CALL",
+            "statement": "CALL 'MIDDLE' USING IN-AMOUNT OUT-AMOUNT",
+            "source_refs": [
+              {
+                "relative_path": "entry.cbl",
+                "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+                "start_line": 11,
+                "end_line": 11,
+                "start_column": 1,
+                "end_column": 41,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "known_syntax": true,
+            "effects_verified": false,
+            "unknown_effect": false,
+            "frontier": []
+          },
+          {
+            "kind": "CALL",
+            "statement": "CALL 'LEAF' USING IN-AMOUNT OUT-AMOUNT",
+            "source_refs": [
+              {
+                "relative_path": "middle.cbl",
+                "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+                "start_line": 9,
+                "end_line": 9,
+                "start_column": 1,
+                "end_column": 39,
+                "include_chain": [],
+                "replacement_trace": []
+              }
+            ],
+            "known_syntax": true,
+            "effects_verified": false,
+            "unknown_effect": false,
+            "frontier": []
+          }
+        ],
+        "dependencies": [
+          "LEAF",
+          "MIDDLE"
+        ],
+        "unknown_effects": [],
+        "source_evidence": [
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+            "start_line": 10,
+            "end_line": 10,
+            "start_column": 1,
+            "end_column": 20,
+            "include_chain": [],
+            "replacement_trace": []
+          },
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+            "start_line": 11,
+            "end_line": 11,
+            "start_column": 1,
+            "end_column": 41,
+            "include_chain": [],
+            "replacement_trace": []
+          },
+          {
+            "relative_path": "middle.cbl",
+            "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+            "start_line": 9,
+            "end_line": 9,
+            "start_column": 1,
+            "end_column": 39,
+            "include_chain": [],
+            "replacement_trace": []
+          },
+          {
+            "relative_path": "leaf.cbl",
+            "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+            "start_line": 9,
+            "end_line": 9,
+            "start_column": 1,
+            "end_column": 35,
+            "include_chain": [],
+            "replacement_trace": []
+          },
+          {
+            "relative_path": "leaf.cbl",
+            "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+            "start_line": 10,
+            "end_line": 10,
+            "start_column": 1,
+            "end_column": 7,
+            "include_chain": [],
+            "replacement_trace": []
+          },
+          {
+            "relative_path": "middle.cbl",
+            "source_sha256": "f8a4ca1d9aa0fc46eb7b63443418e292bbbaa9067b2cf7d4a0fef5642c88b070",
+            "start_line": 10,
+            "end_line": 10,
+            "start_column": 1,
+            "end_column": 7,
+            "include_chain": [],
+            "replacement_trace": []
+          },
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+            "start_line": 12,
+            "end_line": 12,
+            "start_column": 1,
+            "end_column": 32,
+            "include_chain": [],
+            "replacement_trace": []
+          },
+          {
+            "relative_path": "entry.cbl",
+            "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+            "start_line": 13,
+            "end_line": 13,
+            "start_column": 1,
+            "end_column": 7,
+            "include_chain": [],
+            "replacement_trace": []
+          }
+        ],
+        "source_sha256": "c0b1641aba2f9c33d8f50932c63fa032f6742beb538e4dc078abf21a5b67b8bb",
+        "version": "bounded-semantic-service/v10",
+        "initial_definitions": {},
+        "entry_state_inputs": [],
+        "input_origin_status": "declaration_and_possible_entry_state",
+        "flow_complete": true
+      },
+      "procedure_summary": {
+        "generation": "Real procedure-scoped SemanticService build projected to existing ProcedureSummary fields.",
+        "scope": {
+          "relative_path": "leaf.cbl",
+          "procedure": "MAIN"
+        },
+        "name_scope": "The service summary name remains the program identifier; procedure scope is explicit above.",
+        "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+        "service_version": "bounded-semantic-service/v10",
+        "flow_complete": true,
+        "summary": {
+          "name": "LEAF",
+          "inputs": [
+            "IN-AMOUNT"
+          ],
+          "conditional_outputs": [
+            {
+              "target": "OUT-AMOUNT",
+              "expression": "IN-AMOUNT * 2",
+              "conditions": [],
+              "occurrence_id": "3d8da2e34b7ed1fb17abfa91",
+              "source_refs": [
+                {
+                  "relative_path": "leaf.cbl",
+                  "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+                  "start_line": 9,
+                  "end_line": 9,
+                  "start_column": 1,
+                  "end_column": 35,
+                  "include_chain": [],
+                  "replacement_trace": []
+                }
+              ],
+              "numeric_semantics": {
+                "layout": {
+                  "picture": "9(6)V99",
+                  "usage": "DISPLAY",
+                  "signed": false,
+                  "integer_digits": 6,
+                  "scale": 2,
+                  "supported": true,
+                  "diagnostics": []
+                },
+                "operation": "COMPUTE",
+                "rounded": false,
+                "receiving_scale": 2,
+                "fractional_conversion": "toward_zero",
+                "size_error_check": "after_decimal_alignment",
+                "on_size_error_receiver": "truncation_profile_required",
+                "profile": "decimal-receiver-v1",
+                "profile_confirmed": false,
+                "status": "receiver_layout_supported",
+                "runtime_inputs_known": false,
+                "intermediate_precision_verified": false
+              }
+            }
+          ],
+          "state_changes": [
+            "OUT-AMOUNT"
+          ],
+          "external_effects": [],
+          "dependencies": [],
+          "unknown_effects": [],
+          "source_evidence": [
+            {
+              "relative_path": "leaf.cbl",
+              "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+              "start_line": 9,
+              "end_line": 9,
+              "start_column": 1,
+              "end_column": 35,
+              "include_chain": [],
+              "replacement_trace": []
+            },
+            {
+              "relative_path": "leaf.cbl",
+              "source_sha256": "ec777361f4984a4b060868ae0da99eb7c7d00bb39b2092d9604e871daa31d4bc",
+              "start_line": 10,
+              "end_line": 10,
+              "start_column": 1,
+              "end_column": 7,
+              "include_chain": [],
+              "replacement_trace": []
+            }
+          ]
+        }
+      },
+      "derived_checks": {
+        "static_chain_expanded_to_leaf": true,
+        "leaf_formula_reaches_callers_final_read": true,
+        "dependency_programs": [
+          "LEAF",
+          "MIDDLE"
+        ]
+      },
+      "fact_store_query_count": 15
+    },
+    "activation_with_caller_guard": {
+      "provenance": {
+        "saved_agent_result": {
+          "path": ".build/improvement-frozen-semantic-http/runtime/activation_trigger/sample-01/workspace/agent-result.json",
+          "sha256": "cd614c6503fa9b3e2c7d197e4550876bbb1a640cab4eb2b23bf3ef86cc3f76f2"
+        },
+        "existing_source_http_case": {
+          "id": "activation_trigger",
+          "sample_index": 1,
+          "run_id": "495649d02b1f2fa581548869",
+          "status": "passed",
+          "checks": {
+            "quality_activation_condition_preserved": true,
+            "quality_external_scheduler_unknown": true,
+            "completeness_activation_in_first_request": true,
+            "evidence_supplied_hashes_match": true,
+            "evidence_visible_answer_matches": true,
+            "evidence_answer_ledger_hash": true,
+            "completeness_activation_obligations_supplied": true,
+            "evidence_activation_caller_and_guard": true,
+            "quality_scheduler_not_inferred": true
+          }
+        },
+        "extraction": "Exact persisted default-chain question_investigation, not a reconstructed plan."
+      },
+      "question": "JOB-STEP 的 batch 操作是怎么 trigger的？源码能确认外部调度吗？",
+      "source_files": [
+        {
+          "relative_path": "job-step.cbl",
+          "source_sha256": "d5e3644a916a4be4bfce070099ac412a757d7f3a4e52008d9b7c808cea3111eb",
+          "line_count": 6,
+          "source_text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. JOB-STEP.\nPROCEDURE DIVISION.\nMAIN.\nDISPLAY 'RUNNING'.\nGOBACK.\n"
+        },
+        {
+          "relative_path": "launcher.cbl",
+          "source_sha256": "859c68ed99350b00436ef4a878801907f7630e41fc8c98e836df9ed96b851ca9",
+          "line_count": 11,
+          "source_text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. LAUNCHER.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 READY-FLAG PIC 9.\nPROCEDURE DIVISION.\nMAIN.\nIF READY-FLAG = 1\nCALL 'JOB-STEP'\nEND-IF.\nGOBACK.\n"
+        }
+      ],
+      "snapshot_id": "sha256:e77e05a176ce613363ac45b6f9a6b300b6ff463196f518081983fc18d877e932",
+      "compilation_context_fingerprint": "e755be87b1a2385d06e83eb50e1873605d6c21af46580b0a56768a359a3c99bd",
+      "answer": "JOB-STEP由LAUNCHER在READY-FLAG = 1的源码条件下通过CALL调用。源码未证明外部调度绑定，也未证明实际执行。[ev_page_98d52f403a399b917e97f477]",
+      "answer_sha256": "674a2a1aa585e8b7e3bd0d68c1690c33b24de8413f3a78ff52a3cc4743476a8f",
+      "answer_origin": "model",
+      "analysis_status": "PARTIAL",
+      "evidence_refs": [
+        {
+          "end_line": 6,
+          "evidence_id": "ev_page_b54af781fcf10fc8394034d3",
+          "kind": "source_page",
+          "relative_path": "job-step.cbl",
+          "source_sha256": "d5e3644a916a4be4bfce070099ac412a757d7f3a4e52008d9b7c808cea3111eb",
+          "start_line": 1
+        },
+        {
+          "end_line": 11,
+          "evidence_id": "ev_page_98d52f403a399b917e97f477",
+          "kind": "source_page",
+          "relative_path": "launcher.cbl",
+          "source_sha256": "859c68ed99350b00436ef4a878801907f7630e41fc8c98e836df9ed96b851ca9",
+          "start_line": 1
+        }
+      ],
+      "question_investigation": {
+        "activation_evidence": {
+          "callers": [
+            {
+              "binding_confirmed": true,
+              "compilation_status": "active",
+              "condition_candidate_count": 1,
+              "condition_evidence_ids": [
+                "ev_page_98d52f403a399b917e97f477"
+              ],
+              "conditions": [
+                {
+                  "alternatives": [],
+                  "branch_index": null,
+                  "condition": "READY-FLAG = 1",
+                  "evidence_ids": [
+                    "ev_page_98d52f403a399b917e97f477"
+                  ],
+                  "is_other": false,
+                  "kind": "IF",
+                  "outcome": true,
+                  "prior_alternatives": [],
+                  "selector": null,
+                  "selector_span": null,
+                  "span": {
+                    "end_column": 18,
+                    "end_line": 8,
+                    "end_offset": 23,
+                    "start_column": 1,
+                    "start_line": 8,
+                    "start_offset": 6
+                  }
+                }
+              ],
+              "conditions_supplied": true,
+              "evidence_id": "ev_page_98d52f403a399b917e97f477",
+              "evidence_ids": [
+                "ev_page_98d52f403a399b917e97f477"
+              ],
+              "execution_verified": false,
+              "line": 9,
+              "occurrence_id": "stmt_6af97287e22987705befb7a4",
+              "relation_type": "CALLS",
+              "relative_path": "launcher.cbl",
+              "scope_known": true,
+              "scope_unknown_reason": null,
+              "source_sha256": "859c68ed99350b00436ef4a878801907f7630e41fc8c98e836df9ed96b851ca9",
+              "target_name": "JOB-STEP"
+            }
+          ],
+          "candidate_call_count": 1,
+          "entries": [
+            {
+              "compilation_status": "active",
+              "condition_candidate_count": 0,
+              "condition_evidence_ids": [],
+              "conditions": [],
+              "conditions_supplied": true,
+              "evidence_id": "ev_page_b54af781fcf10fc8394034d3",
+              "evidence_ids": [
+                "ev_page_b54af781fcf10fc8394034d3"
+              ],
+              "execution_verified": false,
+              "line": 3,
+              "occurrence_id": "unit_256b42b401b44fc1b03582da",
+              "relative_path": "job-step.cbl",
+              "source_sha256": "d5e3644a916a4be4bfce070099ac412a757d7f3a4e52008d9b7c808cea3111eb"
+            }
+          ],
+          "execution_verified": false,
+          "scheduler_binding_verified": false,
+          "scope": "supplied_static_source_not_runtime_trigger_verification",
+          "unread_call_count": 0
+        },
+        "analysis_plan": {
+          "entities": [],
+          "file_entities": [],
+          "focus_basis": "question_and_source",
+          "intents": [
+            "activation"
+          ],
+          "paths": [
+            "job-step.cbl"
+          ],
+          "required_obligations": [
+            "source_identity",
+            "supplied_source",
+            "entry_point",
+            "caller_invocation",
+            "activation_conditions",
+            "scheduler_binding"
+          ],
+          "source_scopes": [],
+          "tools": [
+            "inspect_business_context",
+            "trace_parameter",
+            "explain_external_effect"
+          ],
+          "unresolved": [],
+          "version": "business-analysis-plan/v7"
+        },
+        "can_answer": true,
+        "open_gaps": [
+          {
+            "kind": "scheduler_binding",
+            "reason": "external_schedule_binding_not_verified",
+            "status": "OPEN"
+          }
+        ],
+        "planned_actions": [],
+        "required_items": [
+          {
+            "candidate_count": 1,
+            "evidence_ids": [
+              "ev_page_b54af781fcf10fc8394034d3"
+            ],
+            "id": "activation_entry_point",
+            "kind": "entry_point",
+            "reason": "source_syntax_supplied",
+            "status": "SATISFIED"
+          },
+          {
+            "candidate_count": 1,
+            "evidence_ids": [
+              "ev_page_98d52f403a399b917e97f477"
+            ],
+            "id": "activation_caller_invocation",
+            "kind": "caller_invocation",
+            "reason": "source_syntax_supplied",
+            "status": "SATISFIED"
+          },
+          {
+            "candidate_count": 1,
+            "evidence_ids": [
+              "ev_page_98d52f403a399b917e97f477"
+            ],
+            "id": "activation_activation_conditions",
+            "kind": "activation_conditions",
+            "reason": "source_syntax_supplied",
+            "status": "SATISFIED"
+          },
+          {
+            "evidence_ids": [],
+            "id": "activation_scheduler_binding",
+            "kind": "scheduler_binding",
+            "reason": "external_schedule_binding_not_verified",
+            "scope": "schedule_configuration_and_runtime_launch_are_separate_from_static_CALL",
+            "status": "OPEN"
+          }
+        ],
+        "scope": "source_candidates",
+        "semantic_execution_verified": false,
+        "source_scope": {
+          "interpretation": "source_occurrences_not_runtime_execution",
+          "ranges": []
+        },
+        "state": "bounded_partial"
+      },
+      "claim_support_scope": {
+        "ledger_version": "answer-claim-ledger-v4",
+        "scope": "bounded_source_statement_syntax",
+        "coverage": "extracted_structures_only",
+        "counts": {
+          "contradicted": 0,
+          "supported": 1,
+          "unsupported": 1
+        },
+        "prose_semantics_verified": false,
+        "all_claims_supported": false
+      }
+    },
+    "cl_batch_context": {
+      "provenance": {
+        "saved_default_run": {
+          "id": "cl_batch_context",
+          "sample_index": 3,
+          "run_id": "75d1216df972337705b2f790",
+          "checks": {
+            "completeness_answer_recorded": true,
+            "evidence_supplied_hashes_match": true,
+            "evidence_visible_answer_matches": true,
+            "evidence_answer_ledger_hash": true,
+            "lifecycle_index_reused": true,
+            "completeness_reviewed_ranges_supplied": true,
+            "quality_cl_submission_and_calls_supplied": true,
+            "quality_cl_override_and_delete_distinct": true,
+            "quality_cl_literals_not_calls": true,
+            "quality_cl_runtime_unknown_preserved": true,
+            "completeness_cl_single_request": true
+          }
+        },
+        "saved_agent_result_sha256": "fe3a809ca58d442619f9fa3cd2b351cd463e027ecb7eed85cd2feec6a3642ff1",
+        "trace_sha256": "34051f4a864d6b73924cbbf716df98209b248af93982a9333f7b18731418eaec"
+      },
+      "answer": "源码先提交 NIGHTJOB，再由 CL 调用 BATCHPAY，INLLIBL 声明 RUNLIB DATALIB。[ev_page_76fe8bb32099bd0b4fb5058d] OVRDBF 声明 ACCOUNTLF 指向 DATALIB/ACCOUNTPF，成员为 &DAY，作用域 *CALLLVL。[ev_page_85a13dabf3fd11acfac5a12f] DLTOVR 之后还有另一次 BATCHPAY 调用，两次调用位置分别保留。[ev_page_85a13dabf3fd11acfac5a12f] 实际调度、运行库列表、成员值和覆盖是否生效仍未知。",
+      "answer_sha256": "698dcf1b1c8c54d09fabe17497176128e97899e7d9122c17593942082ae7382d",
+      "analysis_status": "PARTIAL",
+      "cl_context": {
+        "binding_basis": "indexed_target_and_source_member_candidates_not_live_object_resolution",
+        "boundaries": [],
+        "candidate_count": 9,
+        "frontier": [],
+        "interpretation": "根据各命令自己的 evidence_ids 解释提交、调用、库列表和文件覆盖声明；缺少条件或环境前驱证据时保留候选范围，不断言无条件执行。提交方覆盖不等于子作业继承；实际调度、目标对象、成员变量值和覆盖生效须有运行配置。未知只限定相关结论。",
+        "observations": [
+          {
+            "actual_scheduler_verified": false,
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "SBMJOB",
+            "command_context": "current_job_source",
+            "control_scope_supplied": true,
+            "diagnostics": [],
+            "end_line": 4,
+            "environment_evidence_ids": [],
+            "environment_scope_supplied": true,
+            "evidence_ids": [
+              "ev_page_76fe8bb32099bd0b4fb5058d"
+            ],
+            "guard_evidence_ids": [],
+            "guards": [],
+            "inherited_overrides_verified": false,
+            "initial_library_list": [
+              "RUNLIB",
+              "DATALIB"
+            ],
+            "initial_library_list_origin": "source_parameter",
+            "job_description": {
+              "binding_status": "explicit_source_spelling",
+              "library": "CFGLIB",
+              "name": "BATCHDESC",
+              "runtime_object_verified": false,
+              "spelling": "CFGLIB/BATCHDESC"
+            },
+            "job_name": "NIGHTPAY",
+            "kind": "cl_sbmjob",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [],
+            "normalized_statement": "SBMJOB CMD(CALL PGM(RUNLIB/NIGHTJOB) PARM('20261015')) JOB(NIGHTPAY) JOBD(CFGLIB/BATCHDESC) INLLIBL(RUNLIB DATALIB)",
+            "occurrence_id": "cl_3d6fda8aa3f0a2de713bd7266011e1a8",
+            "parameters": {
+              "CMD": "CALL PGM(RUNLIB/NIGHTJOB) PARM('20261015')",
+              "INLLIBL": "RUNLIB DATALIB",
+              "JOB": "NIGHTPAY",
+              "JOBD": "CFGLIB/BATCHDESC"
+            },
+            "parent_command": null,
+            "relative_path": "launcher.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": true,
+            "scope_unknown": false,
+            "source_context_coverage": "supplied_indexed_source_context",
+            "source_locations": [
+              {
+                "end_line": 4,
+                "relative_path": "launcher.clle",
+                "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+                "start_line": 3
+              }
+            ],
+            "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+            "start_line": 3,
+            "statement": "SBMJOB CMD(CALL PGM(RUNLIB/NIGHTJOB) PARM('20261015')) +\n       JOB(NIGHTPAY) JOBD(CFGLIB/BATCHDESC) INLLIBL(RUNLIB DATALIB)",
+            "status": "confirmed_source_syntax",
+            "submission_status": "source_submission_candidate"
+          },
+          {
+            "arguments": [
+              "'20261015'"
+            ],
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "CALL",
+            "command_context": "submitted_job_candidate",
+            "control_scope_supplied": true,
+            "diagnostics": [],
+            "end_line": 4,
+            "environment_candidates": [],
+            "environment_evidence_ids": [],
+            "environment_scope_supplied": true,
+            "environment_state_verified": false,
+            "evidence_ids": [
+              "ev_page_76fe8bb32099bd0b4fb5058d"
+            ],
+            "guard_evidence_ids": [
+              "ev_page_76fe8bb32099bd0b4fb5058d"
+            ],
+            "guards": [
+              {
+                "command": "SBMJOB",
+                "evidence_ids": [
+                  "ev_page_76fe8bb32099bd0b4fb5058d"
+                ],
+                "source_line": 3,
+                "source_ref": {
+                  "end_line": 4,
+                  "relative_path": "launcher.clle",
+                  "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+                  "start_line": 3,
+                  "statement": "SBMJOB CMD(CALL PGM(RUNLIB/NIGHTJOB) PARM('20261015')) +\n       JOB(NIGHTPAY) JOBD(CFGLIB/BATCHDESC) INLLIBL(RUNLIB DATALIB)"
+                },
+                "source_supplied": true,
+                "submission_succeeded_verified": false
+              }
+            ],
+            "initial_library_list": [
+              "RUNLIB",
+              "DATALIB"
+            ],
+            "job_description": {
+              "binding_status": "explicit_source_spelling",
+              "library": "CFGLIB",
+              "name": "BATCHDESC",
+              "runtime_object_verified": false,
+              "spelling": "CFGLIB/BATCHDESC"
+            },
+            "kind": "cl_call",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [],
+            "normalized_statement": "CALL PGM(RUNLIB/NIGHTJOB) PARM('20261015')",
+            "occurrence_id": "cl_bff189364f06d6a47e85edc0dd6c070f",
+            "parameters": {
+              "PARM": "'20261015'",
+              "PGM": "RUNLIB/NIGHTJOB"
+            },
+            "parent_command": "SBMJOB",
+            "relative_path": "launcher.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": true,
+            "scope_unknown": false,
+            "source_context_coverage": "supplied_indexed_source_context",
+            "source_locations": [
+              {
+                "end_line": 4,
+                "relative_path": "launcher.clle",
+                "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+                "start_line": 3
+              }
+            ],
+            "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+            "start_line": 3,
+            "statement": "SBMJOB CMD(CALL PGM(RUNLIB/NIGHTJOB) PARM('20261015')) +\n       JOB(NIGHTPAY) JOBD(CFGLIB/BATCHDESC) INLLIBL(RUNLIB DATALIB)",
+            "status": "confirmed_source_syntax",
+            "target": {
+              "binding_status": "explicit_source_spelling",
+              "library": "RUNLIB",
+              "name": "NIGHTJOB",
+              "runtime_object_verified": false,
+              "spelling": "RUNLIB/NIGHTJOB"
+            },
+            "target_name": "NIGHTJOB"
+          },
+          {
+            "arguments": [],
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "CALL",
+            "command_context": "current_job_source",
+            "control_scope_supplied": true,
+            "diagnostics": [],
+            "end_line": 5,
+            "environment_candidates": [],
+            "environment_evidence_ids": [],
+            "environment_scope_supplied": true,
+            "environment_state_verified": false,
+            "evidence_ids": [
+              "ev_page_76fe8bb32099bd0b4fb5058d"
+            ],
+            "guard_evidence_ids": [
+              "ev_page_76fe8bb32099bd0b4fb5058d"
+            ],
+            "guards": [
+              {
+                "command": "MONMSG",
+                "error_occurred_verified": false,
+                "evidence_ids": [
+                  "ev_page_76fe8bb32099bd0b4fb5058d"
+                ],
+                "message_ids": [
+                  "CPF0000"
+                ],
+                "source_line": 5,
+                "source_ref": {
+                  "end_line": 5,
+                  "relative_path": "launcher.clle",
+                  "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+                  "start_line": 5,
+                  "statement": "MONMSG MSGID(CPF0000) EXEC(CALL PGM(RUNLIB/LOGFAIL))"
+                },
+                "source_supplied": true
+              }
+            ],
+            "kind": "cl_call",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [],
+            "normalized_statement": "CALL PGM(RUNLIB/LOGFAIL)",
+            "occurrence_id": "cl_698503c3856d53cbd62e125c78cedb73",
+            "parameters": {
+              "PGM": "RUNLIB/LOGFAIL"
+            },
+            "parent_command": "MONMSG",
+            "relative_path": "launcher.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": true,
+            "scope_unknown": false,
+            "source_context_coverage": "supplied_indexed_source_context",
+            "source_locations": [
+              {
+                "end_line": 5,
+                "relative_path": "launcher.clle",
+                "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+                "start_line": 5
+              }
+            ],
+            "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+            "start_line": 5,
+            "statement": "MONMSG MSGID(CPF0000) EXEC(CALL PGM(RUNLIB/LOGFAIL))",
+            "status": "confirmed_source_syntax",
+            "target": {
+              "binding_status": "explicit_source_spelling",
+              "library": "RUNLIB",
+              "name": "LOGFAIL",
+              "runtime_object_verified": false,
+              "spelling": "RUNLIB/LOGFAIL"
+            },
+            "target_name": "LOGFAIL"
+          },
+          {
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "MONMSG",
+            "command_context": "current_job_source",
+            "control_scope_supplied": true,
+            "diagnostics": [],
+            "end_line": 5,
+            "environment_evidence_ids": [],
+            "environment_scope_supplied": true,
+            "error_occurred_verified": false,
+            "evidence_ids": [
+              "ev_page_76fe8bb32099bd0b4fb5058d"
+            ],
+            "execution": "CALL PGM(RUNLIB/LOGFAIL)",
+            "guard_evidence_ids": [],
+            "guards": [],
+            "kind": "cl_monmsg",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "message_ids": [
+              "CPF0000"
+            ],
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [],
+            "monitor_binding": "source_predecessor_candidate",
+            "monitored_command_occurrence_id": "cl_3d6fda8aa3f0a2de713bd7266011e1a8",
+            "normalized_statement": "MONMSG MSGID(CPF0000) EXEC(CALL PGM(RUNLIB/LOGFAIL))",
+            "occurrence_id": "cl_d55eb7b4714e4c5f822695f9845d83d2",
+            "parameters": {
+              "EXEC": "CALL PGM(RUNLIB/LOGFAIL)",
+              "MSGID": "CPF0000"
+            },
+            "parent_command": null,
+            "relative_path": "launcher.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": true,
+            "scope_unknown": false,
+            "source_context_coverage": "supplied_indexed_source_context",
+            "source_locations": [
+              {
+                "end_line": 5,
+                "relative_path": "launcher.clle",
+                "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+                "start_line": 5
+              }
+            ],
+            "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+            "start_line": 5,
+            "statement": "MONMSG MSGID(CPF0000) EXEC(CALL PGM(RUNLIB/LOGFAIL))",
+            "status": "confirmed_source_syntax"
+          },
+          {
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "CHGLIBL",
+            "command_context": "current_job_source",
+            "control_scope_supplied": true,
+            "current_library": "RUNLIB",
+            "diagnostics": [],
+            "effective_library_list_verified": false,
+            "end_line": 3,
+            "environment_evidence_ids": [],
+            "environment_scope_supplied": true,
+            "evidence_ids": [
+              "ev_page_85a13dabf3fd11acfac5a12f"
+            ],
+            "guard_evidence_ids": [],
+            "guards": [],
+            "kind": "cl_chglibl",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "libraries": [
+              "RUNLIB",
+              "DATALIB"
+            ],
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [],
+            "normalized_statement": "CHGLIBL LIBL(RUNLIB DATALIB) CURLIB(RUNLIB)",
+            "occurrence_id": "cl_890d3f806b9dcc3955162953081345d4",
+            "parameters": {
+              "CURLIB": "RUNLIB",
+              "LIBL": "RUNLIB DATALIB"
+            },
+            "parent_command": null,
+            "position": null,
+            "relative_path": "nightjob.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": true,
+            "scope_unknown": false,
+            "source_context_coverage": "supplied_indexed_source_context",
+            "source_locations": [
+              {
+                "end_line": 3,
+                "relative_path": "nightjob.clle",
+                "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+                "start_line": 3
+              }
+            ],
+            "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+            "start_line": 3,
+            "statement": "CHGLIBL LIBL(RUNLIB DATALIB) CURLIB(RUNLIB)",
+            "status": "confirmed_source_syntax"
+          },
+          {
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "ADDLIBLE",
+            "command_context": "current_job_source",
+            "control_scope_supplied": true,
+            "current_library": null,
+            "diagnostics": [],
+            "effective_library_list_verified": false,
+            "end_line": 4,
+            "environment_evidence_ids": [],
+            "environment_scope_supplied": true,
+            "evidence_ids": [
+              "ev_page_85a13dabf3fd11acfac5a12f"
+            ],
+            "guard_evidence_ids": [],
+            "guards": [],
+            "kind": "cl_addlible",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "libraries": [
+              "STAGELIB"
+            ],
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [],
+            "normalized_statement": "ADDLIBLE LIB(STAGELIB) POSITION(*FIRST)",
+            "occurrence_id": "cl_55bc3969216973914fbb766b1bc6be02",
+            "parameters": {
+              "LIB": "STAGELIB",
+              "POSITION": "*FIRST"
+            },
+            "parent_command": null,
+            "position": "*FIRST",
+            "relative_path": "nightjob.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": true,
+            "scope_unknown": false,
+            "source_context_coverage": "supplied_indexed_source_context",
+            "source_locations": [
+              {
+                "end_line": 4,
+                "relative_path": "nightjob.clle",
+                "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+                "start_line": 4
+              }
+            ],
+            "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+            "start_line": 4,
+            "statement": "ADDLIBLE LIB(STAGELIB) POSITION(*FIRST)",
+            "status": "confirmed_source_syntax"
+          },
+          {
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "OVRDBF",
+            "command_context": "current_job_source",
+            "control_scope_supplied": true,
+            "declared_override_scope": "*CALLLVL",
+            "diagnostics": [],
+            "effective_override_verified": false,
+            "end_line": 6,
+            "environment_evidence_ids": [],
+            "environment_scope_supplied": true,
+            "evidence_ids": [
+              "ev_page_85a13dabf3fd11acfac5a12f"
+            ],
+            "file": {
+              "binding_status": "library_list_candidate",
+              "library": null,
+              "name": "ACCOUNTLF",
+              "runtime_object_verified": false,
+              "spelling": "ACCOUNTLF"
+            },
+            "guard_evidence_ids": [],
+            "guards": [],
+            "kind": "cl_ovrdbf",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "member": "&DAY",
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [],
+            "normalized_statement": "OVRDBF FILE(ACCOUNTLF) TOFILE(DATALIB/ACCOUNTPF) MBR(&DAY) OVRSCOPE(*CALLLVL)",
+            "occurrence_id": "cl_d6908e8666e700342e061b1fcf423071",
+            "parameters": {
+              "FILE": "ACCOUNTLF",
+              "MBR": "&DAY",
+              "OVRSCOPE": "*CALLLVL",
+              "TOFILE": "DATALIB/ACCOUNTPF"
+            },
+            "parent_command": null,
+            "relative_path": "nightjob.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": true,
+            "scope_resolution_requires": "job_call_stack_and_activation_group",
+            "scope_unknown": false,
+            "source_context_coverage": "supplied_indexed_source_context",
+            "source_locations": [
+              {
+                "end_line": 6,
+                "relative_path": "nightjob.clle",
+                "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+                "start_line": 5
+              }
+            ],
+            "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+            "start_line": 5,
+            "statement": "OVRDBF FILE(ACCOUNTLF) TOFILE(DATALIB/ACCOUNTPF) +\n       MBR(&DAY) OVRSCOPE(*CALLLVL)",
+            "status": "confirmed_source_syntax",
+            "tofile": {
+              "binding_status": "explicit_source_spelling",
+              "library": "DATALIB",
+              "name": "ACCOUNTPF",
+              "runtime_object_verified": false,
+              "spelling": "DATALIB/ACCOUNTPF"
+            }
+          },
+          {
+            "arguments": [
+              "&DAY",
+              "'CALL PGM(FAKEJOB)'"
+            ],
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "CALL",
+            "command_context": "current_job_source",
+            "control_scope_supplied": true,
+            "diagnostics": [],
+            "end_line": 7,
+            "environment_candidates": [
+              "cl_890d3f806b9dcc3955162953081345d4",
+              "cl_55bc3969216973914fbb766b1bc6be02",
+              "cl_d6908e8666e700342e061b1fcf423071"
+            ],
+            "environment_evidence_ids": [
+              "ev_page_85a13dabf3fd11acfac5a12f"
+            ],
+            "environment_scope_supplied": true,
+            "environment_state_verified": false,
+            "evidence_ids": [
+              "ev_page_85a13dabf3fd11acfac5a12f"
+            ],
+            "guard_evidence_ids": [],
+            "guards": [],
+            "kind": "cl_call",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [],
+            "normalized_statement": "CALL PGM(BATCHPAY) PARM(&DAY 'CALL PGM(FAKEJOB)')",
+            "occurrence_id": "cl_8395791ec916825dbcfd510cf6fc3f56",
+            "parameters": {
+              "PARM": "&DAY 'CALL PGM(FAKEJOB)'",
+              "PGM": "BATCHPAY"
+            },
+            "parent_command": null,
+            "relative_path": "nightjob.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": true,
+            "scope_unknown": false,
+            "source_context_coverage": "supplied_indexed_source_context",
+            "source_locations": [
+              {
+                "end_line": 7,
+                "relative_path": "nightjob.clle",
+                "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+                "start_line": 7
+              }
+            ],
+            "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+            "start_line": 7,
+            "statement": "CALL PGM(BATCHPAY) PARM(&DAY 'CALL PGM(FAKEJOB)')",
+            "status": "confirmed_source_syntax",
+            "target": {
+              "binding_status": "library_list_candidate",
+              "library": null,
+              "name": "BATCHPAY",
+              "runtime_object_verified": false,
+              "spelling": "BATCHPAY"
+            },
+            "target_name": "BATCHPAY"
+          },
+          {
+            "arguments": [],
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "CALL",
+            "command_context": "current_job_source",
+            "control_scope_supplied": true,
+            "diagnostics": [],
+            "end_line": 8,
+            "environment_candidates": [
+              "cl_890d3f806b9dcc3955162953081345d4",
+              "cl_55bc3969216973914fbb766b1bc6be02",
+              "cl_d6908e8666e700342e061b1fcf423071"
+            ],
+            "environment_evidence_ids": [
+              "ev_page_85a13dabf3fd11acfac5a12f"
+            ],
+            "environment_scope_supplied": true,
+            "environment_state_verified": false,
+            "evidence_ids": [
+              "ev_page_85a13dabf3fd11acfac5a12f"
+            ],
+            "guard_evidence_ids": [
+              "ev_page_85a13dabf3fd11acfac5a12f"
+            ],
+            "guards": [
+              {
+                "command": "MONMSG",
+                "error_occurred_verified": false,
+                "evidence_ids": [
+                  "ev_page_85a13dabf3fd11acfac5a12f"
+                ],
+                "message_ids": [
+                  "CPF0000"
+                ],
+                "source_line": 8,
+                "source_ref": {
+                  "end_line": 8,
+                  "relative_path": "nightjob.clle",
+                  "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+                  "start_line": 8,
+                  "statement": "MONMSG MSGID(CPF0000) EXEC(CALL PGM(RUNLIB/LOGFAIL))"
+                },
+                "source_supplied": true
+              }
+            ],
+            "kind": "cl_call",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [],
+            "normalized_statement": "CALL PGM(RUNLIB/LOGFAIL)",
+            "occurrence_id": "cl_14244130d53282548d8c942edfe79423",
+            "parameters": {
+              "PGM": "RUNLIB/LOGFAIL"
+            },
+            "parent_command": "MONMSG",
+            "relative_path": "nightjob.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": true,
+            "scope_unknown": false,
+            "source_context_coverage": "supplied_indexed_source_context",
+            "source_locations": [
+              {
+                "end_line": 8,
+                "relative_path": "nightjob.clle",
+                "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+                "start_line": 8
+              }
+            ],
+            "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+            "start_line": 8,
+            "statement": "MONMSG MSGID(CPF0000) EXEC(CALL PGM(RUNLIB/LOGFAIL))",
+            "status": "confirmed_source_syntax",
+            "target": {
+              "binding_status": "explicit_source_spelling",
+              "library": "RUNLIB",
+              "name": "LOGFAIL",
+              "runtime_object_verified": false,
+              "spelling": "RUNLIB/LOGFAIL"
+            },
+            "target_name": "LOGFAIL"
+          },
+          {
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "MONMSG",
+            "command_context": "current_job_source",
+            "control_scope_supplied": true,
+            "diagnostics": [],
+            "end_line": 8,
+            "environment_evidence_ids": [],
+            "environment_scope_supplied": true,
+            "error_occurred_verified": false,
+            "evidence_ids": [
+              "ev_page_85a13dabf3fd11acfac5a12f"
+            ],
+            "execution": "CALL PGM(RUNLIB/LOGFAIL)",
+            "guard_evidence_ids": [],
+            "guards": [],
+            "kind": "cl_monmsg",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "message_ids": [
+              "CPF0000"
+            ],
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [],
+            "monitor_binding": "source_predecessor_candidate",
+            "monitored_command_occurrence_id": "cl_8395791ec916825dbcfd510cf6fc3f56",
+            "normalized_statement": "MONMSG MSGID(CPF0000) EXEC(CALL PGM(RUNLIB/LOGFAIL))",
+            "occurrence_id": "cl_55f0fc9b8fbfdb8f30272bd4e0e818ff",
+            "parameters": {
+              "EXEC": "CALL PGM(RUNLIB/LOGFAIL)",
+              "MSGID": "CPF0000"
+            },
+            "parent_command": null,
+            "relative_path": "nightjob.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": true,
+            "scope_unknown": false,
+            "source_context_coverage": "supplied_indexed_source_context",
+            "source_locations": [
+              {
+                "end_line": 8,
+                "relative_path": "nightjob.clle",
+                "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+                "start_line": 8
+              }
+            ],
+            "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+            "start_line": 8,
+            "statement": "MONMSG MSGID(CPF0000) EXEC(CALL PGM(RUNLIB/LOGFAIL))",
+            "status": "confirmed_source_syntax"
+          },
+          {
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "DLTOVR",
+            "command_context": "current_job_source",
+            "control_scope_supplied": true,
+            "declared_delete_level": "*",
+            "deleted_override_verified": false,
+            "diagnostics": [],
+            "end_line": 9,
+            "environment_evidence_ids": [],
+            "environment_scope_supplied": true,
+            "evidence_ids": [
+              "ev_page_85a13dabf3fd11acfac5a12f"
+            ],
+            "file": "ACCOUNTLF",
+            "guard_evidence_ids": [],
+            "guards": [],
+            "kind": "cl_dltovr",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [],
+            "normalized_statement": "DLTOVR FILE(ACCOUNTLF) LVL(*)",
+            "occurrence_id": "cl_b7f510635004f050382b7c372700d4bb",
+            "parameters": {
+              "FILE": "ACCOUNTLF",
+              "LVL": "*"
+            },
+            "parent_command": null,
+            "relative_path": "nightjob.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": true,
+            "scope_unknown": false,
+            "source_context_coverage": "supplied_indexed_source_context",
+            "source_locations": [
+              {
+                "end_line": 9,
+                "relative_path": "nightjob.clle",
+                "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+                "start_line": 9
+              }
+            ],
+            "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+            "start_line": 9,
+            "statement": "DLTOVR FILE(ACCOUNTLF) LVL(*)",
+            "status": "confirmed_source_syntax"
+          },
+          {
+            "arguments": [
+              "&DAY"
+            ],
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "CALL",
+            "command_context": "current_job_source",
+            "control_scope_supplied": true,
+            "diagnostics": [],
+            "end_line": 10,
+            "environment_candidates": [
+              "cl_890d3f806b9dcc3955162953081345d4",
+              "cl_55bc3969216973914fbb766b1bc6be02",
+              "cl_d6908e8666e700342e061b1fcf423071",
+              "cl_b7f510635004f050382b7c372700d4bb"
+            ],
+            "environment_evidence_ids": [
+              "ev_page_85a13dabf3fd11acfac5a12f"
+            ],
+            "environment_scope_supplied": true,
+            "environment_state_verified": false,
+            "evidence_ids": [
+              "ev_page_85a13dabf3fd11acfac5a12f"
+            ],
+            "guard_evidence_ids": [],
+            "guards": [],
+            "kind": "cl_call",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [],
+            "normalized_statement": "CALL PGM(BATCHPAY) PARM(&DAY)",
+            "occurrence_id": "cl_6e3284019302aa63ee68d0a300960886",
+            "parameters": {
+              "PARM": "&DAY",
+              "PGM": "BATCHPAY"
+            },
+            "parent_command": null,
+            "relative_path": "nightjob.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": true,
+            "scope_unknown": false,
+            "source_context_coverage": "supplied_indexed_source_context",
+            "source_locations": [
+              {
+                "end_line": 10,
+                "relative_path": "nightjob.clle",
+                "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+                "start_line": 10
+              }
+            ],
+            "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+            "start_line": 10,
+            "statement": "CALL PGM(BATCHPAY) PARM(&DAY)",
+            "status": "confirmed_source_syntax",
+            "target": {
+              "binding_status": "library_list_candidate",
+              "library": null,
+              "name": "BATCHPAY",
+              "runtime_object_verified": false,
+              "spelling": "BATCHPAY"
+            },
+            "target_name": "BATCHPAY"
+          }
+        ],
+        "scope": {
+          "effective_library_list_verified": false,
+          "effective_overrides_verified": false,
+          "runtime_jobs_verified": false,
+          "scheduler_verified": false,
+          "source_commands_only": true,
+          "unsupported_commands_may_affect_environment": true
+        },
+        "unread_candidate_count": 0,
+        "version": "cl-source-context-v1"
+      },
+      "supplied_source_excerpts": [
+        {
+          "evidence_id": "ev_page_3dff7c500e6b3eca768b61de",
+          "path": "ACCOUNTLF.dds",
+          "source_sha256": "d8a34a64d1641ad247788fa2fc8dd80c17ccc1310e0767e935c6599724cb3bcc",
+          "start_line": 1,
+          "end_line": 2,
+          "excerpt_sha256": "d6a0f0f4da06e73a836bf770e02f11a70ca552f7c6090f5ae08aca2a65ce3dd6",
+          "characters": 99,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": [],
+          "source_text": "     A          R ACCOUNTREC                 PFILE(ACCOUNTPF)\n     A            ACCOUNTAMT     9S 2"
+        },
+        {
+          "evidence_id": "ev_page_703fc95ee092cc7b6404cead",
+          "path": "batchpay.cbl",
+          "source_sha256": "0e5fda95ed6b330dc0fc5b3445879ff11acee60f14698386b843b6093bf4e410",
+          "start_line": 1,
+          "end_line": 22,
+          "excerpt_sha256": "cd5d922c3891e6462832b2542d86c2c16cd106773807c1b481e493a750bdaac3",
+          "characters": 488,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": [],
+          "source_text": "       >>SOURCE FORMAT FREE\nIDENTIFICATION DIVISION.\nPROGRAM-ID. BATCHPAY.\nENVIRONMENT DIVISION.\nINPUT-OUTPUT SECTION.\nFILE-CONTROL.\n    SELECT ACCOUNT-FILE ASSIGN TO 'ACCOUNTLF'.\nDATA DIVISION.\nFILE SECTION.\nFD ACCOUNT-FILE.\n01 ACCOUNT-RECORD.\n   05 ACCOUNT-AMOUNT PIC 9(7)V99.\nWORKING-STORAGE SECTION.\n01 FILE-STATUS PIC XX.\nPROCEDURE DIVISION.\nMAIN.\n    OPEN I-O ACCOUNT-FILE\n    READ ACCOUNT-FILE\n        AT END MOVE '10' TO FILE-STATUS\n    END-READ\n    CLOSE ACCOUNT-FILE\n    GOBACK."
+        },
+        {
+          "evidence_id": "ev_page_85a13dabf3fd11acfac5a12f",
+          "path": "nightjob.clle",
+          "source_sha256": "0b0e6fd36d4aa775143b5623bf25fc4686b8f82deb5063381499f78d40a15d7f",
+          "start_line": 1,
+          "end_line": 13,
+          "excerpt_sha256": "efe6882133c219cb4447d9cfce7d765f884c473e71ba5dfcabfbdb3a44b6e974",
+          "characters": 490,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": [],
+          "source_text": "PGM PARM(&DAY)\nDCL VAR(&DAY) TYPE(*CHAR) LEN(8)\nCHGLIBL LIBL(RUNLIB DATALIB) CURLIB(RUNLIB)\nADDLIBLE LIB(STAGELIB) POSITION(*FIRST)\nOVRDBF FILE(ACCOUNTLF) TOFILE(DATALIB/ACCOUNTPF) +\n       MBR(&DAY) OVRSCOPE(*CALLLVL)\nCALL PGM(BATCHPAY) PARM(&DAY 'CALL PGM(FAKEJOB)')\nMONMSG MSGID(CPF0000) EXEC(CALL PGM(RUNLIB/LOGFAIL))\nDLTOVR FILE(ACCOUNTLF) LVL(*)\nCALL PGM(BATCHPAY) PARM(&DAY)\n/* CALL PGM(COMMENTJOB) */\nSNDMSG MSG('SBMJOB CMD(CALL PGM(STRINGJOB)) /* literal */') TOUSR(*SYSOPR)\nENDPGM"
+        },
+        {
+          "evidence_id": "ev_page_76fe8bb32099bd0b4fb5058d",
+          "path": "launcher.clle",
+          "source_sha256": "c68531b909a84e01e78d45689e2e7c3e9d00ecfb5929a1b494fced297f93284b",
+          "start_line": 1,
+          "end_line": 6,
+          "excerpt_sha256": "d08d79f9a9a57d6068b1c7230c48e4919b1e20f1db61215991daa98e924a8167",
+          "characters": 257,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": [],
+          "source_text": "PGM\n/* Source submission is visible; the production scheduler is not. */\nSBMJOB CMD(CALL PGM(RUNLIB/NIGHTJOB) PARM('20261015')) +\n       JOB(NIGHTPAY) JOBD(CFGLIB/BATCHDESC) INLLIBL(RUNLIB DATALIB)\nMONMSG MSGID(CPF0000) EXEC(CALL PGM(RUNLIB/LOGFAIL))\nENDPGM"
+        }
+      ],
+      "excerpt_binding": "Exact trace descriptor SHA matched frozen original file/hash/range; not a raw provider-wire re-decode.",
+      "unknowns": "Source command declaration does not prove actual job/object binding or execution; missing scope remains candidate."
+    },
+    "cl_late_context": {
+      "provenance": {
+        "saved_default_run": {
+          "id": "cl_late_context",
+          "sample_index": 3,
+          "run_id": "db152d50db51d0be8467946e",
+          "checks": {
+            "completeness_answer_recorded": true,
+            "evidence_supplied_hashes_match": true,
+            "evidence_visible_answer_matches": true,
+            "evidence_answer_ledger_hash": true,
+            "lifecycle_index_reused": true,
+            "completeness_reviewed_ranges_supplied": true,
+            "quality_cl_late_indexed_fact_bound": true,
+            "quality_cl_late_scope_unknown": true,
+            "completeness_cl_no_repeated_read": true,
+            "completeness_cl_single_request": true
+          }
+        },
+        "saved_agent_result_sha256": "6a3be7cefb62df2566c4ddc14aa900ca5e206d9f3813d3ac53c7a46f1a1c2d92",
+        "trace_sha256": "b93db4379e3a4934b3c32a7f4090cb62e943ba925a919179f2fbfe5c2c186a3a"
+      },
+      "answer": "源码在晚出现的调用点声明 CALL BATCHPAY，实参为 &READY。[ev_page_88e7ac15280389467a399fc2] 前序控制范围未完整供应，是否走到该调用及实际作业执行保持未知。",
+      "answer_sha256": "2fe1bfa98eacb0e5a6f67b09521dc647623b9f6803b8c1bc1b8ebb785e2670a5",
+      "analysis_status": "PARTIAL",
+      "cl_context": {
+        "binding_basis": "indexed_target_and_source_member_candidates_not_live_object_resolution",
+        "boundaries": [],
+        "candidate_count": 1,
+        "frontier": [],
+        "interpretation": "根据各命令自己的 evidence_ids 解释提交、调用、库列表和文件覆盖声明；缺少条件或环境前驱证据时保留候选范围，不断言无条件执行。提交方覆盖不等于子作业继承；实际调度、目标对象、成员变量值和覆盖生效须有运行配置。未知只限定相关结论。",
+        "observations": [
+          {
+            "arguments": [
+              "&READY"
+            ],
+            "binding_basis": "indexed_complete_source_parse_and_supplied_span",
+            "command": "CALL",
+            "command_context": "current_job_source",
+            "control_scope_supplied": false,
+            "diagnostics": [],
+            "end_line": 304,
+            "environment_candidates": [],
+            "environment_evidence_ids": [],
+            "environment_scope_supplied": true,
+            "environment_state_verified": false,
+            "evidence_ids": [
+              "ev_page_88e7ac15280389467a399fc2"
+            ],
+            "guard_evidence_ids": [],
+            "guards": [
+              {
+                "command": "IF",
+                "condition": "&READY *EQ 'Y'",
+                "evidence_ids": [],
+                "outcome": true,
+                "outcome_evaluated": false,
+                "scope_status": "source_branch",
+                "source_line": 3,
+                "source_ref": {
+                  "end_line": 3,
+                  "relative_path": "late.clle",
+                  "source_sha256": "52e9c85212c0eddc1678f166cfaacb9de5a74168faf7b40b659ecea97e8009b2",
+                  "start_line": 3,
+                  "statement": "IF COND(&READY *EQ 'Y') THEN(DO)"
+                },
+                "source_supplied": false
+              }
+            ],
+            "kind": "cl_call",
+            "lexical_basis": "complete_indexed_source_parse_and_exact_supplied_statement",
+            "missing_environment_occurrence_ids": [],
+            "missing_guard_source_lines": [
+              3
+            ],
+            "normalized_statement": "CALL BATCHPAY PARM(&READY)",
+            "occurrence_id": "cl_98a0880a90a941ecc6bee15b500e5e72",
+            "parameters": {
+              "PARM": "&READY",
+              "PGM": "BATCHPAY"
+            },
+            "parent_command": null,
+            "relative_path": "late.clle",
+            "runtime_execution_verified": false,
+            "runtime_object_verified": false,
+            "scope_known": false,
+            "scope_unknown": true,
+            "source_context_coverage": "partial",
+            "source_locations": [
+              {
+                "end_line": 304,
+                "relative_path": "late.clle",
+                "source_sha256": "52e9c85212c0eddc1678f166cfaacb9de5a74168faf7b40b659ecea97e8009b2",
+                "start_line": 304
+              }
+            ],
+            "source_sha256": "52e9c85212c0eddc1678f166cfaacb9de5a74168faf7b40b659ecea97e8009b2",
+            "start_line": 304,
+            "statement": "CALL BATCHPAY PARM(&READY)",
+            "status": "candidate",
+            "target": {
+              "binding_status": "library_list_candidate",
+              "library": null,
+              "name": "BATCHPAY",
+              "runtime_object_verified": false,
+              "spelling": "BATCHPAY"
+            },
+            "target_name": "BATCHPAY"
+          }
+        ],
+        "scope": {
+          "effective_library_list_verified": false,
+          "effective_overrides_verified": false,
+          "runtime_jobs_verified": false,
+          "scheduler_verified": false,
+          "source_commands_only": true,
+          "unsupported_commands_may_affect_environment": true
+        },
+        "unread_candidate_count": 0,
+        "version": "cl-source-context-v1"
+      },
+      "supplied_source_excerpts": [
+        {
+          "evidence_id": "ev_page_703fc95ee092cc7b6404cead",
+          "path": "batchpay.cbl",
+          "source_sha256": "0e5fda95ed6b330dc0fc5b3445879ff11acee60f14698386b843b6093bf4e410",
+          "start_line": 1,
+          "end_line": 22,
+          "excerpt_sha256": "cd5d922c3891e6462832b2542d86c2c16cd106773807c1b481e493a750bdaac3",
+          "characters": 488,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": [],
+          "source_text": "       >>SOURCE FORMAT FREE\nIDENTIFICATION DIVISION.\nPROGRAM-ID. BATCHPAY.\nENVIRONMENT DIVISION.\nINPUT-OUTPUT SECTION.\nFILE-CONTROL.\n    SELECT ACCOUNT-FILE ASSIGN TO 'ACCOUNTLF'.\nDATA DIVISION.\nFILE SECTION.\nFD ACCOUNT-FILE.\n01 ACCOUNT-RECORD.\n   05 ACCOUNT-AMOUNT PIC 9(7)V99.\nWORKING-STORAGE SECTION.\n01 FILE-STATUS PIC XX.\nPROCEDURE DIVISION.\nMAIN.\n    OPEN I-O ACCOUNT-FILE\n    READ ACCOUNT-FILE\n        AT END MOVE '10' TO FILE-STATUS\n    END-READ\n    CLOSE ACCOUNT-FILE\n    GOBACK."
+        },
+        {
+          "evidence_id": "ev_page_88e7ac15280389467a399fc2",
+          "path": "late.clle",
+          "source_sha256": "52e9c85212c0eddc1678f166cfaacb9de5a74168faf7b40b659ecea97e8009b2",
+          "start_line": 294,
+          "end_line": 306,
+          "excerpt_sha256": "58bcb981443a8d12b3ca209c960989c7d2934515dfc3a448998cebdb5de67064",
+          "characters": 449,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": [],
+          "source_text": "SNDMSG MSG('neutral-290') TOUSR(*SYSOPR)\nSNDMSG MSG('neutral-291') TOUSR(*SYSOPR)\nSNDMSG MSG('neutral-292') TOUSR(*SYSOPR)\nSNDMSG MSG('neutral-293') TOUSR(*SYSOPR)\nSNDMSG MSG('neutral-294') TOUSR(*SYSOPR)\nSNDMSG MSG('neutral-295') TOUSR(*SYSOPR)\nSNDMSG MSG('neutral-296') TOUSR(*SYSOPR)\nSNDMSG MSG('neutral-297') TOUSR(*SYSOPR)\nSNDMSG MSG('neutral-298') TOUSR(*SYSOPR)\nSNDMSG MSG('neutral-299') TOUSR(*SYSOPR)\nCALL BATCHPAY PARM(&READY)\nENDDO\nENDPGM"
+        }
+      ],
+      "excerpt_binding": "Exact trace descriptor SHA matched frozen original file/hash/range; not a raw provider-wire re-decode.",
+      "unknowns": "Source command declaration does not prove actual job/object binding or execution; missing scope remains candidate."
+    }
+  },
+  "artifact_checks": {
+    "raw_source_hash_and_range_checks": 83,
+    "conditional_overwrite_reaching_definitions": true,
+    "static_chain_and_normal_return": true,
+    "activation_caller_guard_supplied": true,
+    "unverified_schedule_kept_open": true,
+    "cl_supplied_excerpt_hash_and_range_checks": 6,
+    "cl_actual_runtime_not_assumed": true
+  }
+}
