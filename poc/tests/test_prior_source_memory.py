@@ -1,6 +1,7 @@
 """Adversarial provenance and citation visibility checks for prior source memory."""
 
 from copy import deepcopy
+from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
@@ -204,7 +205,7 @@ class PriorSourceMemoryTests(unittest.TestCase):
         self.assertEqual(self.accept(), 1)
         saved = self.memory.checkpoint()
         archive = self.database.parent / "versioned-evidence.sqlite"
-        with sqlite3.connect(archive) as connection:
+        with closing(sqlite3.connect(archive)) as connection, connection:
             connection.execute("UPDATE excerpts SET text=? WHERE evidence_id=?",
                                ("MOVE ZERO TO RESULT-AMOUNT.", self.page["evidence_id"]))
         with self.assertRaisesRegex(ValueError, "PRIOR_SOURCE_MEMORY_INVALID"):

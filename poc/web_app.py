@@ -49,6 +49,7 @@ STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.
                 "/appearance.css": "appearance.css", "/theme.js": "theme.js", "/layout.js": "layout.js",
                 "/markdown.js": "markdown.js", "/marked.umd.js": "marked.umd.js"}
 MAX_REQUEST_BYTES = 32_768
+REJECTED_BODY_DRAIN_SECONDS = 0.25
 MAX_GRAPH_EDGES = 200
 SOURCE_UPDATE_PENDING = "source-update-pending.json"
 OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, SOURCE_UPDATE_PENDING, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm", "conversations.sqlite", "conversations.sqlite-wal", "conversations.sqlite-shm", "conversations.sqlite-journal", "quality-traces", "semantic-scopes", "impact-results", "versioned-evidence.sqlite", "versioned-evidence.sqlite-wal", "versioned-evidence.sqlite-shm", "source-versions.sqlite", "source-versions.sqlite-wal", "source-versions.sqlite-shm", "source-versions.sqlite-journal"))
@@ -1430,6 +1431,42 @@ class RequestHandler(BaseHTTPRequestHandler):
             error["diagnostic"] = exc.diagnostic
         self._json(exc.status, {"error": error})
 
+    def _discard_rejected_post_body(self) -> int:
+        """Avoid resetting a sent error when a short rejected body arrives late.
+
+        Authentication has already failed or request validation has rejected
+        this POST. Discard bytes only; never parse them or invoke application
+        work. A total short deadline also bounds clients that drip body bytes.
+        """
+        lengths = self.headers.get_all("Content-Length", [])
+        if self.headers.get("Transfer-Encoding") or len(lengths) != 1 or not lengths[0].isdigit():
+            return 0
+        try:
+            remaining = int(lengths[0])
+        except ValueError:
+            return 0
+        if not 0 < remaining <= MAX_REQUEST_BYTES:
+            return 0
+        consumed = 0
+        deadline = time.monotonic() + REJECTED_BODY_DRAIN_SECONDS
+        previous_timeout = self.connection.gettimeout()
+        try:
+            while remaining:
+                wait = deadline - time.monotonic()
+                if wait <= 0:
+                    break
+                self.connection.settimeout(wait)
+                chunk = self.rfile.read1(min(8192, remaining))
+                if not chunk:
+                    break
+                consumed += len(chunk)
+                remaining -= len(chunk)
+        except OSError:
+            pass
+        finally:
+            self.connection.settimeout(previous_timeout)
+        return consumed
+
     def do_GET(self) -> None:
         try:
             route = urlsplit(self.path)
@@ -1489,6 +1526,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 diagnostic=_failure_diagnostic(exc, "REQUEST_FAILED", http_status=500)))
 
     def do_POST(self) -> None:
+        body_consumed = False
         try:
             self._guard(token=True)
             cancel_match = re.fullmatch(r"/api/jobs/([a-f0-9]{32})/cancel", self.path)
@@ -1503,7 +1541,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not 0 < length <= MAX_REQUEST_BYTES:
                 raise RequestError("REQUEST_TOO_LARGE", "请求内容过大。", 413)
             try:
-                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                raw_payload = self.rfile.read(length)
+                body_consumed = True
+                payload = json.loads(raw_payload.decode("utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 raise RequestError("INVALID_JSON", "请求内容不是有效 JSON。") from None
             if cancel_match:
@@ -1524,9 +1564,15 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._json(202, self.server.app.start(payload))
         except RequestError as exc:
             self._error(exc)
+            if not body_consumed:
+                self.wfile.flush()
+                self._discard_rejected_post_body()
         except Exception as exc:
             self._error(RequestError("REQUEST_FAILED", "请求未完成。", 500,
                 diagnostic=_failure_diagnostic(exc, "REQUEST_FAILED", http_status=500)))
+            if not body_consumed:
+                self.wfile.flush()
+                self._discard_rejected_post_body()
 
     def do_OPTIONS(self) -> None:
         self._error(RequestError("CROSS_ORIGIN_DENIED", "不提供跨站访问。", 403))

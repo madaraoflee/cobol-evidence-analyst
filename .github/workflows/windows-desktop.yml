@@ -144,6 +144,7 @@ jobs:
           import sys
 
           for pattern in ('test_activation_evidence.py', 'test_question_budget_delivery.py',
+                          'test_prior_source_memory.py', 'test_web_app.py',
                           'test_cl_context.py', 'test_batch_context_evidence.py',
                           'test_answer_fact_completion.py', 'test_statement_io_clauses.py',
                           'test_frontend_io_boundaries.py',

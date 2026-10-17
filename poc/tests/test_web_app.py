@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from contextlib import closing
+from email.message import Message
 import http.client
 import json
 from pathlib import Path
 import sqlite3
+import socket
 import sys
 import tempfile
 import threading
@@ -18,7 +20,7 @@ sys.path.insert(0, str(POC_ROOT))
 
 from analyze_source import analyze_source
 from company_api import CompanyAPIConfig, TransportResponse
-from web_app import RequestError, WorkbenchState, _pick_local_folder, create_server
+from web_app import MAX_REQUEST_BYTES, RequestError, RequestHandler, WorkbenchState, _pick_local_folder, create_server
 
 
 TEST_KEY = "local-test-credential-do-not-serialize"
@@ -182,6 +184,92 @@ class WebAppTests(unittest.TestCase):
         result = self.request("POST", "/api/model-check", {})[1]
         self.assertEqual(result["code"], "REQUEST_TIMEOUT")
         self.assertIsNone(result["http_status"])
+
+    def test_rejected_post_delivers_403_before_discarding_a_late_body_without_model_work(self) -> None:
+        self.app.model_check_transport = mock.Mock(side_effect=AssertionError("Rejected request must not call model"))
+        original = RequestHandler._discard_rejected_post_body
+        for origin, token, code in ((self.server.origin, "", "INVALID_SESSION"),
+                                    ("https://other.example.invalid", self.token, "CROSS_ORIGIN_DENIED")):
+            with self.subTest(code=code):
+                drained, counts = threading.Event(), []
+
+                def discard(handler):
+                    counts.append(original(handler))
+                    drained.set()
+                    return counts[-1]
+
+                with mock.patch.object(RequestHandler, "_discard_rejected_post_body", discard):
+                    with closing(socket.create_connection(("127.0.0.1", self.server.server_port), timeout=3)) as connection:
+                        headers = (f"POST /api/model-check HTTP/1.1\r\nHost: {self.server.allowed_host}\r\n"
+                                   f"Origin: {origin}\r\nX-Session-Token: {token}\r\n"
+                                   "Content-Type: application/json\r\nContent-Length: 2\r\n\r\n")
+                        connection.sendall(headers.encode("ascii"))
+                        with closing(http.client.HTTPResponse(connection)) as response:
+                            response.begin()
+                            self.assertEqual(response.status, 403)
+                            # http.client normally sends headers and body in
+                            # separate writes. Delay the body until rejection
+                            # to exercise the Windows close/reset race directly.
+                            connection.sendall(b"{}")
+                            self.assertEqual(json.loads(response.read())["error"]["code"], code)
+                            self.assertTrue(drained.wait(2), "Rejected body was not discarded")
+                            self.assertEqual(counts, [2])
+        self.app.model_check_transport.assert_not_called()
+        self.assertIsNone(self.app.job)
+
+    def test_rejected_post_without_a_body_does_not_wait_for_the_client_to_close(self) -> None:
+        self.app.model_check_transport = mock.Mock(side_effect=AssertionError("Rejected request must not call model"))
+        original = RequestHandler._discard_rejected_post_body
+        drained, counts = threading.Event(), []
+
+        def discard(handler):
+            counts.append(original(handler))
+            drained.set()
+            return counts[-1]
+
+        with mock.patch.object(RequestHandler, "_discard_rejected_post_body", discard):
+            with closing(socket.create_connection(("127.0.0.1", self.server.server_port), timeout=3)) as connection:
+                connection.sendall((f"POST /api/model-check HTTP/1.1\r\nHost: {self.server.allowed_host}\r\n"
+                    f"Origin: {self.server.origin}\r\nContent-Type: application/json\r\n"
+                    "Content-Length: 2\r\n\r\n").encode("ascii"))
+                with closing(http.client.HTTPResponse(connection)) as response:
+                    response.begin()
+                    self.assertEqual(response.status, 403)
+                    self.assertEqual(json.loads(response.read())["error"]["code"], "INVALID_SESSION")
+                    self.assertTrue(drained.wait(2), "Rejected POST held the connection open without a body")
+                    self.assertEqual(counts, [0])
+        self.app.model_check_transport.assert_not_called()
+
+    def test_rejected_body_discard_has_an_absolute_deadline_and_skips_invalid_framing(self) -> None:
+        handler = RequestHandler.__new__(RequestHandler)
+        handler.connection = mock.Mock()
+        handler.connection.gettimeout.return_value = None
+        handler.rfile = mock.Mock()
+        handler.headers = Message()
+        handler.headers["Content-Length"] = "32"
+        clock = [0.0]
+
+        def drip(size):
+            self.assertGreater(size, 0)
+            clock[0] += 0.1
+            return b"x"
+
+        handler.rfile.read1.side_effect = drip
+        with mock.patch("web_app.time.monotonic", side_effect=lambda: clock[0]):
+            self.assertEqual(handler._discard_rejected_post_body(), 3)
+        self.assertEqual(handler.rfile.read1.call_count, 3)
+        self.assertEqual(handler.connection.settimeout.call_args.args, (None,))
+        for lengths, transfer in (([], None), (["invalid"], None), ([str(MAX_REQUEST_BYTES + 1)], None),
+                                  (["2", "2"], None), (["2"], "chunked")):
+            with self.subTest(lengths=lengths, transfer=transfer):
+                handler.headers = Message()
+                for length in lengths:
+                    handler.headers["Content-Length"] = length
+                if transfer:
+                    handler.headers["Transfer-Encoding"] = transfer
+                handler.rfile.reset_mock()
+                self.assertEqual(handler._discard_rejected_post_body(), 0)
+                handler.rfile.read1.assert_not_called()
 
     def test_folder_picker_returns_selected_directory_without_importing_it(self) -> None:
         folder = self.root / "selected"
