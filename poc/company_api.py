@@ -585,7 +585,8 @@ class UrllibTransport:
         A socket timeout is an inactivity timeout and does not bound repeated
         header reads. Connection setup and non-streaming responses therefore use
         one total deadline. SSE body reads use a deadline renewed only by parsed
-        answer/tool progress; comments and heartbeat bytes cannot renew it.
+        generated text/tool activity; comments and heartbeat bytes cannot renew
+        it. Hidden reasoning text may indicate activity but is never exposed.
         A timed-out exchange is never repeated and a late result is discarded;
         a provider may still complete or charge for the original request.
         """
@@ -1037,6 +1038,12 @@ class _ChatCompletionStream:
             delta = choice.get("delta", {})
             if not isinstance(delta, dict):
                 raise APIClientError("INVALID_RESPONSE_SHAPE")
+            # Some compatible models generate reasoning before their answer.
+            # Observe text activity only; never retain or publish that text as
+            # content, evidence, diagnostics or business investigation progress.
+            if any(isinstance(delta.get(name), str) and delta[name].strip()
+                   for name in ("reasoning_content", "reasoning")):
+                self.progress_count += 1
             message = state["message"]
             for name in ("content", "refusal"):
                 part = delta.get(name)

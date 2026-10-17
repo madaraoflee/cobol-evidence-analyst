@@ -107,6 +107,28 @@ class AdaptiveResumeReviewTests(unittest.TestCase):
         self.assertIn("初值为10", result["answer"])
         self.assertTrue(result["answer_available"])
 
+    def test_cancelled_final_verification_resumes_without_a_new_provider_request(self):
+        def cancel_during_verification(event):
+            if event.get("phase") == "verifying_answer":
+                raise UserCancelled("Cancelled during local final verification")
+
+        def respond(payload, number):
+            self.assertEqual(number, 1, "An already complete answer only needs local verification")
+            return self.fixture.cited_answer(payload)
+
+        with self.assertRaises(UserCancelled):
+            self.ask(respond, cancel_during_verification)
+        self.assertEqual(len(self.requests), 1)
+        saved = self.saved()
+        self.assertTrue(saved["checkpoint"].get("accepted_draft"))
+        self.assertFalse(saved["uncertain_requests"])
+        result = self.ask(respond)
+        self.assertEqual(len(self.requests), 1)
+        self.assertEqual(result["status"], "ANALYZED")
+        self.assertIn("初值为10", result["answer"])
+        self.assertIn("乘以二", result["answer"])
+        self.assertFalse(result["business_review"]["answer_completion"]["missing_aspects"])
+
     def test_unprocessed_continuation_replays_with_original_draft_and_no_extra_request(self):
         record_response = QualityTrace.record_remote_response
 

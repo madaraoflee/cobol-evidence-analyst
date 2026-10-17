@@ -451,6 +451,13 @@ def _prompt_payload(payload):
         contexts = []
         for original in projected.get("source_context", []):
             bundle = dict(original)
+            reads = original.get("open_reads", [])
+            incomplete_reads = [item for item in reads if item.get("state") != "complete"]
+            if len(incomplete_reads) != len(reads):
+                # Completed reads are local history, not proof that their
+                # source remains visible after request fitting.
+                bundle["open_reads"] = incomplete_reads
+                bundle["omitted_completed_read_count"] = len(reads) - len(incomplete_reads)
             if original.get("working_set") is not None:
                 working_set = dict(original["working_set"])
                 manifest = working_set.pop("source_manifest", None)
@@ -1987,6 +1994,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 truncated = bool(saved_draft.get("truncated"))
                 sent_pages.update({p["evidence_id"]: p for p in saved_draft.get("source_pages", [])})
                 sent_framework.update({p["reference_id"]: p for p in saved_draft.get("framework_references", [])})
+                framework_versions.update(p["document_sha256"]
+                    for p in saved_draft.get("framework_references", []) if p.get("document_sha256"))
                 accept({"pages": saved_draft.get("source_pages", [])}, "resumed_draft_evidence")
             pending_model_actions.extend(resume_checkpoint.get("frontier", []))
             for task in resume_checkpoint.get("read_tasks", []):
@@ -1998,629 +2007,670 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                    and answer_finish_reason == "length")
         if resume_continuation:
             payload = resume_checkpoint["request_payload"]
-        while (policy.can_request(turns) or resume_response is not None) and not resume_continuation:
-            turn = turns
-            remember_draft(processed=resume_response is None)
-            automatic_turn_usage = {"read": 0, "inspect_business_context": 0}
-            emit("answering")
-            assembly_started = time.monotonic()
-            if pending_model_actions:
-                advance_question({"planned_actions": pending_model_actions}, model_requested=True)
-                pending_model_actions = []
-            if policy.is_last_request(turn):
-                for task in list(evidence.tasks.values()):
-                    if task.state != "open" or task.next_start_line is None:
-                        continue
-                    if automatic_turn_usage["read"] >= policy.max_reads_per_turn:
+        verification_state = resume_checkpoint.get("ready_for_verification") or {}
+        resume_verification = bool(adaptive and answer and verification_state)
+        if resume_verification:
+            boundaries.extend(verification_state.get("boundaries", []))
+            continuation_attempted = bool(verification_state.get("continuation_attempted"))
+            synthesis_review_attempted = bool(verification_state.get("synthesis_review_attempted"))
+            tool_problem = bool(verification_state.get("tool_problem"))
+        while not resume_verification:
+            continued_this_cycle = False
+            while (policy.can_request(turns) or resume_response is not None) and not resume_continuation:
+                turn = turns
+                remember_draft(processed=resume_response is None)
+                automatic_turn_usage = {"read": 0, "inspect_business_context": 0}
+                emit("answering")
+                assembly_started = time.monotonic()
+                if pending_model_actions:
+                    advance_question({"planned_actions": pending_model_actions}, model_requested=True)
+                    pending_model_actions = []
+                if policy.is_last_request(turn):
+                    for task in list(evidence.tasks.values()):
+                        if task.state != "open" or task.next_start_line is None:
+                            continue
+                        if automatic_turn_usage["read"] >= policy.max_reads_per_turn:
+                            break
+                        automatic_turn_usage["read"] += 1
+                        tool_calls["read"] += 1
+                        try:
+                            continuation = checked_read(relative_path=task.relative_path,
+                                start_line=task.next_start_line,
+                                end_line=task.requested_range["end_line"],
+                                max_chars=min(policy.read_source_characters, policy.max_source_characters),
+                                check_cancel=check_cancel)
+                            accept(continuation, "read_continuation")
+                        except (ValueError, TypeError):
+                            task.state = "stalled"
+                update_complete_context()
+                selected_pages = evidence.selected_pages(policy.max_source_characters,
+                    evidence_groups=evidence_groups, priority_targets=priority_targets,
+                    max_complete_source_characters=policy.max_complete_source_characters)
+                prepared_investigation = question_investigation(selected_pages)
+                if (detail_requested or is_file_impact_question(question) or automatic_followup_material is not None
+                        or "activation" in (prepared_investigation.get("analysis_plan") or {}).get("intents", [])
+                        or prepared_investigation.get("cl_context", {}).get("candidate_count")):
+                    # One local read can reveal another deterministic dependency.
+                    # Drain those plans within the same tool allowance before
+                    # asking the provider to write a potentially disposable answer.
+                    for _ in range(1 + policy.max_reads_per_turn + policy.max_business_context_actions_per_turn):
+                        before_request = question_investigation(selected_pages)
+                        if not before_request.get("planned_actions"):
+                            break
+                        attempted_before = len(automatic_actions)
+                        progressed, _ = advance_question(before_request)
+                        # Completing an already-supplied range can reveal the next
+                        # dependency even when no page is added to the pool.
+                        if not progressed and len(automatic_actions) == attempted_before:
+                            break
+                        update_complete_context()
+                        selected_pages = evidence.selected_pages(policy.max_source_characters,
+                            evidence_groups=evidence_groups, priority_targets=priority_targets,
+                            max_complete_source_characters=policy.max_complete_source_characters)
+                framework, references, combined_framework, framework_facts, selected_pages = framework_material(selected_pages)
+                current_investigation = question_investigation(selected_pages, framework_facts=framework_facts)
+                if adaptive:
+                    continuation.observe(selected_pages, references, current_investigation)
+                    if continuation.stop_reason == "no_evidence_progress":
+                        protocol_answer_pending = True
+                        boundaries.append({"reason": "no_evidence_progress", "round": turns,
+                                           "pending_actions_preserved": True})
+                    emit_analysis(current_investigation,
+                        summary="补查未获得新的有效证据，正在整理已确认的结论与具体未知条件。"
+                        if protocol_answer_pending else None)
+                framework_only = not selected_pages and any(reference.get("selection_reason") in
+                    {"question_only", "framework_search", "source_marker"} for reference in references)
+                source_required = any(item.get("kind") == "formula" for item in
+                                      current_investigation.get("required_items", []))
+                discovery_pending = can_discover(current_investigation) and (not framework_only or source_required)
+                force_answer = (protocol_answer_pending or policy.is_last_request(turn)
+                                or bool(question_budget and question_budget.should_answer(config.timeout_seconds)))
+                graph_prompt = {"intent": business_map["intent"],
+                                "direct_path_count": len(business_map["direct_paths"]),
+                                "direct_paths": business_map["direct_paths"][:500],
+                                "selected_program_count": len(business_map["programs"]),
+                                "programs": business_map["programs"][:500],
+                                "relations": [{key: value for key, value in edge.items() if key not in {"evidence_id", "relation_id"}}
+                                              for edge in business_map["relations"][:240]],
+                                "rule_leads": business_map["rule_leads"][:40],
+                                "omitted_programs": max(0, len(business_map["programs"]) - 500),
+                                "omitted_direct_paths": max(0, len(business_map["direct_paths"]) - 500),
+                                "omitted_relations": max(0, len(business_map["relations"]) - 240),
+                                "omitted_rules": max(0, len(business_map["rule_leads"]) - 40)}
+                identity = business_map.get("source_identity", {})
+                candidates = identity.get("candidates", [])
+                graph_prompt["source_identity"] = {**{key: identity.get(key) for key in
+                    ("status", "kind", "hard_constraint", "selection_source", "exclusive_source_scope")},
+                    **({"selection_basis": identity["selection_basis"]} if identity.get("selection_basis") else {}),
+                    **({"focus_rejected": identity["focus_rejected"]} if identity.get("focus_rejected") else {}),
+                    "direct_paths": identity.get("direct_paths", [])[:8],
+                    "omitted_direct_paths": max(0, len(identity.get("direct_paths", [])) - 8),
+                    "requested": [str(value)[:256] for value in identity.get("requested", [])[:8]],
+                    "requested_count": len(identity.get("requested", [])), "candidate_count": len(candidates),
+                    "candidates": [{"identifier": str(row.get("identifier", ""))[:256], "kind": row.get("kind"),
+                        "relative_paths": row.get("relative_paths", [])[:4],
+                        "path_count": len(row.get("relative_paths", [])),
+                        "omitted_paths": max(0, len(row.get("relative_paths", [])) - 4),
+                        **({"role": row["role"]} if row.get("role") else {})} for row in candidates[:4]],
+                    "omitted_candidates": max(0, len(candidates) - 4)}
+                coverage = business_map.get("rule_lead_coverage", {})
+                graph_prompt["rule_lead_coverage"] = {**coverage,
+                    "query_frontier": coverage.get("query_frontier", [])[:8],
+                    "omitted_query_frontier": max(0, len(coverage.get("query_frontier", [])) - 8),
+                    "omitted_rules_per_path": dict(list(coverage.get("omitted_rules_per_path", {}).items())[:8]),
+                    "omitted_rule_path_count": max(0, len(coverage.get("omitted_rules_per_path", {})) - 8)}
+                payload = {"question": question, "answer_detail": answer_detail,
+                           "session_subject": business_map.get("session_subject", {}),
+                           "repository": {key: overview.get(key) for key in
+                           ("snapshot_id", "indexed_files", "indexed_pages", "program_samples")},
+                           "source_context": evidence.bundle(selected_pages), "business_map": graph_prompt,
+                           "framework_references": references,
+                           "framework_facts": framework_facts,
+                           "completed_actions": prompt_actions(), "completed_searches": list(searches),
+                           "evidence_groups": [{"group_id": g.group_id, "anchor": g.anchor,
+                                                "semantic_analysis": g.semantic_analysis,
+                                                "open_frontier": g.open_frontier[:8],
+                                                "observation_count": len(g.observations),
+                                                "framework_reference_ids": [r["reference_id"] for r in references
+                                                    if r.get("selection_reason") == "source_marker"
+                                                    and any(o.semantic_role == "callsite" for o in g.observations)],
+                                                "required_evidence_ids": sorted({evidence.covering_id(ref.evidence_id, selected_pages)
+                                                    for observation in g.observations for ref in observation.source_refs}),
+                                                "core_evidence_ids": sorted({evidence.covering_id(ref.evidence_id, selected_pages) for observation in g.observations
+                                                    if observation.semantic_role in {"anchor", "result", "condition", "input", "callsite", "parameter"}
+                                                    for ref in observation.source_refs})}
+                                               for g in evidence_groups],
+                           "impact_result": ({key: impact_result[key] for key in
+                                ("handle", "identifier", "total", "counts", "scope", "rows", "next_cursor")}
+                                if impact_result else None),
+                           "concept_candidates": concept_candidates,
+                           "question_investigation": current_investigation,
+                           "retrieval_status": {"state": "unresolved" if identity_blocks_analysis(identity) else
+                                "needs_discovery" if discovery_pending else
+                                "framework_candidates" if framework_only else "source_candidates",
+                                "query_expansion_attempted": discovery_attempted,
+                                "current_question_match_observed": question_match_observed,
+                                "history_candidates_available": bool(restored or prior_paths),
+                                "source_absence_proven": False},
+                           "investigation_budget": {"remaining_model_requests": 1 if force_answer else policy.remaining_model_requests(turn),
+                                "searches_per_turn": 0 if force_answer else policy.max_searches_per_turn,
+                                "reads_per_turn": 0 if force_answer else max(0, policy.max_reads_per_turn - automatic_turn_usage["read"]),
+                                "business_context_actions_per_turn": 0 if force_answer else max(0,
+                                    policy.max_business_context_actions_per_turn - automatic_turn_usage["inspect_business_context"]),
+                                "framework_searches_per_turn": 0 if force_answer else policy.max_framework_searches_per_turn},
+                           "task": "当前仅定位到与问题相关的框架手册。解释手册明确规定的行为；尚未定位到相关源码，"
+                                   "不能把手册约定写成程序已实现或执行的事实。" if framework_only else
+                                   "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。" if force_answer else
+                                   ("当前候选仅有词面匹配，尚未定位到问题所需的计算规则。" if question_match_observed else
+                                    "当前问题尚未命中源码。") + "这一轮只做检索规划，返回 JSON search 数组，"
+                                   "把用户业务描述转换为可能出现在源码中的英文术语、同义词或常见缩写；"
+                                   "保留有区分度的业务词，避免仅搜索通用计算动词。词项只是待验证候选，"
+                                   "不要猜具体程序名，不要回答业务结论或声称公司、程序、资料不存在。"
+                                   "遵守 searches_per_turn 的数量限制，已查无结果时换用其他候选。" if discovery_pending else
+                                   "当前问题尚未命中源码；若这是承接上文且已有原文足够，可以直接回答，否则请先搜索对应的源码词、缩写或字段名。" if initial.get("orientation_only") and not business_map["direct_paths"] else
+                                   "回答 question 中的业务问题，沿给定输入和假设推导现有行为。"
+                                   "必要业务点解释完整即结束；用户未请求修改时不追加改码建议或反事实场景。"
+                                   "确有具体证据缺口时先请求搜索或读取。"}
+                if adaptive and answer:
+                    payload["analysis_memory"] = continuation.prompt_memory()
+                    if answer and not truncated:
+                        payload["draft_answer"] = redactor._sanitize(answer)
+                        payload["answer_review"] = assess_business_answer(question, answer, current_investigation,
+                            selected_pages, answer_detail=answer_detail,
+                            working_set=evidence.bundle(selected_pages)[0].get("working_set"))
+                        if not force_answer and not discovery_pending:
+                            payload["task"] = ("继续完成同一个原问题。核对 draft_answer 和 answer_review，保留正确内容，"
+                                "结合本轮实际源码补充遗漏的条件、顺序和结果。需要补充资料时返回具体补查动作；"
+                                "资料足够时输出完整的修订答案，不输出审稿意见。"
+                                "已供应源码直接使用，不把未读取、调用目标未解析或运行值未知概括成源码未提供。")
+                if discovery_pending:
+                    if discovery_reprompted:
+                        payload["task"] += (" 上一轮没有执行检索，不能据此下结论。"
+                            '本轮请只返回形如 {"search":["候选源码词项"]} 的搜索动作。')
+                    payload["repository"]["program_samples"] = (overview.get("program_samples") or [])[:12]
+                    payload["source_context"] = [{**payload["source_context"][0],
+                        "pages": [], "call_chain": {"links": [], "omitted_links": 0},
+                        "outline": [], "notices": [], "open_reads": []}]
+                if recovery_reason and not discovery_pending and not force_answer:
+                    payload["task"] += (" 上一轮尚未给出可用业务答案（" + recovery_reason + "）。"
+                        "先检查 question_investigation 的必答项及本轮实际原文；"
+                        "已有公式、条件、赋值或资料时直接解释，存在具体缺口时返回有效 JSON 补查动作。"
+                        "外部实现缺失只限定依赖该实现的结论，简要回答当前材料支持的部分。")
+                if protocol_answer_pending:
+                    payload["task"] = ("补查动作未能执行。现在直接根据已供应的源码、框架资料和 impact_result "
+                        "回答原问题，使用 Markdown，保留业务细节和来源引用；不要再次输出动作 JSON 或承诺补查。"
+                        "已有完整候选清单时说明数量和分类，不把预览写成全量；未知事项只限定相关结论。")
+                if identity_blocks_analysis(identity) and identity.get("status") == "ambiguous":
+                    payload["task"] = "源码身份存在多个候选，尚未选定程序。说明需要明确的文件路径或程序名，不把候选源码当作选定来源。"
+                elif identity_blocks_analysis(identity) and identity.get("status") == "not_found":
+                    payload["task"] = "当前索引尚未定位到明确请求的源码身份。说明索引定位缺口，不能据此声称文件不存在，不用其他同名文件或目录首页代替。"
+                elif identity.get("status") in {"ambiguous", "not_found"}:
+                    payload["task"] += (" 当前身份是可修正的问句候选。根据 question 的业务意图和已供应原文确认"
+                        "调用方、被调用方与当前关注点；必要时搜索候选程序名或读取已知路径。"
+                        "分别说明有原文支持的结论，多个实现保持路径区分。")
+                trim_events = selection_events()
+                messages, request_size = _fit_request(config, payload, history_context, policy,
+                    trim_events=trim_events, investigation_builder=question_investigation,
+                    source_fallback_builder=source_fallback, check_cancel=check_cancel)
+                if resume_response is not None and resume_checkpoint.get("request_payload"):
+                    payload = resume_checkpoint["request_payload"]
+                    messages = [{"role": "system", "content": _SYSTEM}, *history_context,
+                                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
+                visible = _request_manifest(payload)
+                current_investigation = payload["question_investigation"]
+                last_investigation = current_investigation
+                if automatic_followup_material is not None:
+                    supplied_material = _supplied_answer_material(payload)
+                    if not any(supplied_material[key] - automatic_followup_material[key]
+                               for key in supplied_material):
+                        # A newly retrieved page may be redundant or not survive
+                        # selection/trimming. Retain the complete draft and its
+                        # original citation manifest instead of rewriting it with
+                        # the same (or less) evidence.
+                        boundaries.append({"reason": "automatic_followup_without_new_material",
+                                           "draft_round_id": answer_round})
                         break
-                    automatic_turn_usage["read"] += 1
-                    tool_calls["read"] += 1
-                    try:
-                        continuation = checked_read(relative_path=task.relative_path,
-                            start_line=task.next_start_line,
-                            end_line=task.requested_range["end_line"],
-                            max_chars=min(policy.read_source_characters, policy.max_source_characters),
-                            check_cancel=check_cancel)
-                        accept(continuation, "read_continuation")
-                    except (ValueError, TypeError):
-                        task.state = "stalled"
-            update_complete_context()
-            selected_pages = evidence.selected_pages(policy.max_source_characters,
-                evidence_groups=evidence_groups, priority_targets=priority_targets,
-                max_complete_source_characters=policy.max_complete_source_characters)
-            prepared_investigation = question_investigation(selected_pages)
-            if (detail_requested or is_file_impact_question(question) or automatic_followup_material is not None
-                    or "activation" in (prepared_investigation.get("analysis_plan") or {}).get("intents", [])
-                    or prepared_investigation.get("cl_context", {}).get("candidate_count")):
-                # One local read can reveal another deterministic dependency.
-                # Drain those plans within the same tool allowance before
-                # asking the provider to write a potentially disposable answer.
-                for _ in range(1 + policy.max_reads_per_turn + policy.max_business_context_actions_per_turn):
-                    before_request = question_investigation(selected_pages)
-                    if not before_request.get("planned_actions"):
-                        break
-                    attempted_before = len(automatic_actions)
-                    progressed, _ = advance_question(before_request)
-                    # Completing an already-supplied range can reveal the next
-                    # dependency even when no page is added to the pool.
-                    if not progressed and len(automatic_actions) == attempted_before:
-                        break
-                    update_complete_context()
-                    selected_pages = evidence.selected_pages(policy.max_source_characters,
-                        evidence_groups=evidence_groups, priority_targets=priority_targets,
-                        max_complete_source_characters=policy.max_complete_source_characters)
-            framework, references, combined_framework, framework_facts, selected_pages = framework_material(selected_pages)
-            current_investigation = question_investigation(selected_pages, framework_facts=framework_facts)
-            if adaptive:
-                continuation.observe(selected_pages, references, current_investigation)
-                if continuation.stop_reason == "no_evidence_progress":
-                    protocol_answer_pending = True
-                    boundaries.append({"reason": "no_evidence_progress", "round": turns,
-                                       "pending_actions_preserved": True})
-                emit_analysis(current_investigation,
-                    summary="补查未获得新的有效证据，正在整理已确认的结论与具体未知条件。"
-                    if protocol_answer_pending else None)
-            framework_only = not selected_pages and any(reference.get("selection_reason") in
-                {"question_only", "framework_search", "source_marker"} for reference in references)
-            source_required = any(item.get("kind") == "formula" for item in
-                                  current_investigation.get("required_items", []))
-            discovery_pending = can_discover(current_investigation) and (not framework_only or source_required)
-            force_answer = (protocol_answer_pending or policy.is_last_request(turn)
-                            or bool(question_budget and question_budget.should_answer(config.timeout_seconds)))
-            graph_prompt = {"intent": business_map["intent"],
-                            "direct_path_count": len(business_map["direct_paths"]),
-                            "direct_paths": business_map["direct_paths"][:500],
-                            "selected_program_count": len(business_map["programs"]),
-                            "programs": business_map["programs"][:500],
-                            "relations": [{key: value for key, value in edge.items() if key not in {"evidence_id", "relation_id"}}
-                                          for edge in business_map["relations"][:240]],
-                            "rule_leads": business_map["rule_leads"][:40],
-                            "omitted_programs": max(0, len(business_map["programs"]) - 500),
-                            "omitted_direct_paths": max(0, len(business_map["direct_paths"]) - 500),
-                            "omitted_relations": max(0, len(business_map["relations"]) - 240),
-                            "omitted_rules": max(0, len(business_map["rule_leads"]) - 40)}
-            identity = business_map.get("source_identity", {})
-            candidates = identity.get("candidates", [])
-            graph_prompt["source_identity"] = {**{key: identity.get(key) for key in
-                ("status", "kind", "hard_constraint", "selection_source", "exclusive_source_scope")},
-                **({"selection_basis": identity["selection_basis"]} if identity.get("selection_basis") else {}),
-                **({"focus_rejected": identity["focus_rejected"]} if identity.get("focus_rejected") else {}),
-                "direct_paths": identity.get("direct_paths", [])[:8],
-                "omitted_direct_paths": max(0, len(identity.get("direct_paths", [])) - 8),
-                "requested": [str(value)[:256] for value in identity.get("requested", [])[:8]],
-                "requested_count": len(identity.get("requested", [])), "candidate_count": len(candidates),
-                "candidates": [{"identifier": str(row.get("identifier", ""))[:256], "kind": row.get("kind"),
-                    "relative_paths": row.get("relative_paths", [])[:4],
-                    "path_count": len(row.get("relative_paths", [])),
-                    "omitted_paths": max(0, len(row.get("relative_paths", [])) - 4),
-                    **({"role": row["role"]} if row.get("role") else {})} for row in candidates[:4]],
-                "omitted_candidates": max(0, len(candidates) - 4)}
-            coverage = business_map.get("rule_lead_coverage", {})
-            graph_prompt["rule_lead_coverage"] = {**coverage,
-                "query_frontier": coverage.get("query_frontier", [])[:8],
-                "omitted_query_frontier": max(0, len(coverage.get("query_frontier", [])) - 8),
-                "omitted_rules_per_path": dict(list(coverage.get("omitted_rules_per_path", {}).items())[:8]),
-                "omitted_rule_path_count": max(0, len(coverage.get("omitted_rules_per_path", {})) - 8)}
-            payload = {"question": question, "answer_detail": answer_detail,
-                       "session_subject": business_map.get("session_subject", {}),
-                       "repository": {key: overview.get(key) for key in
-                       ("snapshot_id", "indexed_files", "indexed_pages", "program_samples")},
-                       "source_context": evidence.bundle(selected_pages), "business_map": graph_prompt,
-                       "framework_references": references,
-                       "framework_facts": framework_facts,
-                       "completed_actions": prompt_actions(), "completed_searches": list(searches),
-                       "evidence_groups": [{"group_id": g.group_id, "anchor": g.anchor,
-                                            "semantic_analysis": g.semantic_analysis,
-                                            "open_frontier": g.open_frontier[:8],
-                                            "observation_count": len(g.observations),
-                                            "framework_reference_ids": [r["reference_id"] for r in references
-                                                if r.get("selection_reason") == "source_marker"
-                                                and any(o.semantic_role == "callsite" for o in g.observations)],
-                                            "required_evidence_ids": sorted({evidence.covering_id(ref.evidence_id, selected_pages)
-                                                for observation in g.observations for ref in observation.source_refs}),
-                                            "core_evidence_ids": sorted({evidence.covering_id(ref.evidence_id, selected_pages) for observation in g.observations
-                                                if observation.semantic_role in {"anchor", "result", "condition", "input", "callsite", "parameter"}
-                                                for ref in observation.source_refs})}
-                                           for g in evidence_groups],
-                       "impact_result": ({key: impact_result[key] for key in
-                            ("handle", "identifier", "total", "counts", "scope", "rows", "next_cursor")}
-                            if impact_result else None),
-                       "concept_candidates": concept_candidates,
-                       "question_investigation": current_investigation,
-                       "retrieval_status": {"state": "unresolved" if identity_blocks_analysis(identity) else
-                            "needs_discovery" if discovery_pending else
-                            "framework_candidates" if framework_only else "source_candidates",
-                            "query_expansion_attempted": discovery_attempted,
-                            "current_question_match_observed": question_match_observed,
-                            "history_candidates_available": bool(restored or prior_paths),
-                            "source_absence_proven": False},
-                       "investigation_budget": {"remaining_model_requests": 1 if force_answer else policy.remaining_model_requests(turn),
-                            "searches_per_turn": 0 if force_answer else policy.max_searches_per_turn,
-                            "reads_per_turn": 0 if force_answer else max(0, policy.max_reads_per_turn - automatic_turn_usage["read"]),
-                            "business_context_actions_per_turn": 0 if force_answer else max(0,
-                                policy.max_business_context_actions_per_turn - automatic_turn_usage["inspect_business_context"]),
-                            "framework_searches_per_turn": 0 if force_answer else policy.max_framework_searches_per_turn},
-                       "task": "当前仅定位到与问题相关的框架手册。解释手册明确规定的行为；尚未定位到相关源码，"
-                               "不能把手册约定写成程序已实现或执行的事实。" if framework_only else
-                               "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。" if force_answer else
-                               ("当前候选仅有词面匹配，尚未定位到问题所需的计算规则。" if question_match_observed else
-                                "当前问题尚未命中源码。") + "这一轮只做检索规划，返回 JSON search 数组，"
-                               "把用户业务描述转换为可能出现在源码中的英文术语、同义词或常见缩写；"
-                               "保留有区分度的业务词，避免仅搜索通用计算动词。词项只是待验证候选，"
-                               "不要猜具体程序名，不要回答业务结论或声称公司、程序、资料不存在。"
-                               "遵守 searches_per_turn 的数量限制，已查无结果时换用其他候选。" if discovery_pending else
-                               "当前问题尚未命中源码；若这是承接上文且已有原文足够，可以直接回答，否则请先搜索对应的源码词、缩写或字段名。" if initial.get("orientation_only") and not business_map["direct_paths"] else
-                               "回答 question 中的业务问题，沿给定输入和假设推导现有行为。"
-                               "必要业务点解释完整即结束；用户未请求修改时不追加改码建议或反事实场景。"
-                               "确有具体证据缺口时先请求搜索或读取。"}
-            if adaptive and answer:
-                payload["analysis_memory"] = continuation.prompt_memory()
-                if answer and not truncated:
-                    payload["draft_answer"] = redactor._sanitize(answer)
-                    payload["answer_review"] = assess_business_answer(question, answer, current_investigation,
-                        selected_pages, answer_detail=answer_detail,
-                        working_set=evidence.bundle(selected_pages)[0].get("working_set"))
-                    if not force_answer and not discovery_pending:
-                        payload["task"] = ("继续完成同一个原问题。核对 draft_answer 和 answer_review，保留正确内容，"
-                            "结合本轮实际源码补充遗漏的条件、顺序和结果。需要补充资料时返回具体补查动作；"
-                            "资料足够时输出完整的修订答案，不输出审稿意见。"
-                            "已供应源码直接使用，不把未读取、调用目标未解析或运行值未知概括成源码未提供。")
-            if discovery_pending:
-                if discovery_reprompted:
-                    payload["task"] += (" 上一轮没有执行检索，不能据此下结论。"
-                        '本轮请只返回形如 {"search":["候选源码词项"]} 的搜索动作。')
-                payload["repository"]["program_samples"] = (overview.get("program_samples") or [])[:12]
-                payload["source_context"] = [{**payload["source_context"][0],
-                    "pages": [], "call_chain": {"links": [], "omitted_links": 0},
-                    "outline": [], "notices": [], "open_reads": []}]
-            if recovery_reason and not discovery_pending and not force_answer:
-                payload["task"] += (" 上一轮尚未给出可用业务答案（" + recovery_reason + "）。"
-                    "先检查 question_investigation 的必答项及本轮实际原文；"
-                    "已有公式、条件、赋值或资料时直接解释，存在具体缺口时返回有效 JSON 补查动作。"
-                    "外部实现缺失只限定依赖该实现的结论，简要回答当前材料支持的部分。")
-            if protocol_answer_pending:
-                payload["task"] = ("补查动作未能执行。现在直接根据已供应的源码、框架资料和 impact_result "
-                    "回答原问题，使用 Markdown，保留业务细节和来源引用；不要再次输出动作 JSON 或承诺补查。"
-                    "已有完整候选清单时说明数量和分类，不把预览写成全量；未知事项只限定相关结论。")
-            if identity_blocks_analysis(identity) and identity.get("status") == "ambiguous":
-                payload["task"] = "源码身份存在多个候选，尚未选定程序。说明需要明确的文件路径或程序名，不把候选源码当作选定来源。"
-            elif identity_blocks_analysis(identity) and identity.get("status") == "not_found":
-                payload["task"] = "当前索引尚未定位到明确请求的源码身份。说明索引定位缺口，不能据此声称文件不存在，不用其他同名文件或目录首页代替。"
-            elif identity.get("status") in {"ambiguous", "not_found"}:
-                payload["task"] += (" 当前身份是可修正的问句候选。根据 question 的业务意图和已供应原文确认"
-                    "调用方、被调用方与当前关注点；必要时搜索候选程序名或读取已知路径。"
-                    "分别说明有原文支持的结论，多个实现保持路径区分。")
-            trim_events = selection_events()
-            messages, request_size = _fit_request(config, payload, history_context, policy,
-                trim_events=trim_events, investigation_builder=question_investigation,
-                source_fallback_builder=source_fallback, check_cancel=check_cancel)
-            if resume_response is not None and resume_checkpoint.get("request_payload"):
-                payload = resume_checkpoint["request_payload"]
-                messages = [{"role": "system", "content": _SYSTEM}, *history_context,
-                            {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
-            visible = _request_manifest(payload)
-            current_investigation = payload["question_investigation"]
-            last_investigation = current_investigation
-            if automatic_followup_material is not None:
-                supplied_material = _supplied_answer_material(payload)
-                if not any(supplied_material[key] - automatic_followup_material[key]
-                           for key in supplied_material):
-                    # A newly retrieved page may be redundant or not survive
-                    # selection/trimming. Retain the complete draft and its
-                    # original citation manifest instead of rewriting it with
-                    # the same (or less) evidence.
-                    boundaries.append({"reason": "automatic_followup_without_new_material",
-                                       "draft_round_id": answer_round})
-                    break
-                automatic_followup_material = None
-            if (can_discover(current_investigation) and not framework_only and
-                    not visible["source_ids"] and not visible["framework_ids"]):
-                discovery_pending = True
-            sent_pages.update({page["evidence_id"]: page for page in payload["source_context"][0]["pages"]})
-            evidence.sent_any_round_ids.update(visible["source_ids"])
-            for reference in payload["framework_references"]:
-                identifier = reference["reference_id"]
-                sent_framework[identifier] = {**combined_framework[identifier],
-                    **{key: reference[key] for key in ("text", "text_truncated", "text_offset_chars") if key in reference}}
-                if reference_versions.get(identifier):
-                    framework_versions.add(reference_versions[identifier])
-            timing["context_assembly_seconds"] += time.monotonic() - assembly_started
-            failure_stage, response_shape, response_raw = "provider_request", None, None
-            raw = complete(messages, payload=payload, request_size=request_size,
-                stage="answer" if force_answer else "discover" if discovery_pending else "investigate",
-                trim_events=trim_events)
-            response_raw = raw
-            provider_usage.append(raw.get("usage"))
-            check_after_response()
-            failure_stage, response_shape = "response_parse", _response_shape(raw)
-            try:
-                reply = _extract_text(raw)
-            except _TextResponseError as exc:
-                shape = _empty_length_recovery_shape(raw, exc.choice_index)
-                recovery_evidence = (
-                    any(page.get("source_text", "").strip()
-                        for bundle in payload.get("source_context", []) for page in bundle.get("pages", []))
-                    or any(reference.get("text", "").strip()
-                           for reference in payload.get("framework_references", [])))
-                if (exc.code != "MODEL_TEXT_EMPTY" or shape is None or not recovery_evidence
-                        or discovery_pending or empty_length_recovery_attempted
-                        or not policy.can_request(turns)):
-                    raise
-                # Reuse exactly the already-sent evidence and history. This is
-                # a single answer attempt, not another investigation cycle.
-                recovery_payload = {**payload,
-                    "investigation_budget": {"remaining_model_requests": policy.remaining_model_requests(turns),
-                        "searches_per_turn": 0, "reads_per_turn": 0,
-                        "framework_searches_per_turn": 0, "business_context_actions_per_turn": 0},
-                    "task": "上一轮输出达到长度上限但没有可用正文。现在直接给出简明业务答案："
-                        "先写结论，再写决定结果的关键条件、计算或异常及必要来源引用。"
-                        "只使用本次已供应的相同证据；不要新检索、请求工具、承诺继续调查或冗长展开。"
-                        "不能确认的事项只限定相关结论。"}
-                recovery_messages = [*messages[:-1], {"role": "user", "content": json.dumps(
-                    _prompt_payload(recovery_payload), ensure_ascii=False, separators=(",", ":"))}]
-                recovery_size = len(json.dumps({"model": config.chat_model, "messages": recovery_messages,
-                    "max_tokens": config.max_output_tokens}, ensure_ascii=False,
-                    separators=(",", ":")).encode("utf-8"))
-                # Do not trim or replace evidence to make a recovery fit.
-                if recovery_size > policy.max_request_bytes:
-                    raise
-                response_shape = shape
-                if diagnostics is not None:
-                    diagnostics.suppress_latest_error(exc.code)
-                finish_failed_response(exc)
-                record_response_error(exc.code, failure_stage, shape=response_shape)
-                empty_length_recovery_attempted = True
-                boundaries.append({"reason": "model_empty_length_recovery", "from_round_id": f"round-{turns}",
-                                   "requests": 1})
-                force_answer = True
-                if not answer:
-                    answer_finish_reason, truncated = None, False
-                payload = recovery_payload
+                    automatic_followup_material = None
+                if (can_discover(current_investigation) and not framework_only and
+                        not visible["source_ids"] and not visible["framework_ids"]):
+                    discovery_pending = True
+                sent_pages.update({page["evidence_id"]: page for page in payload["source_context"][0]["pages"]})
+                evidence.sent_any_round_ids.update(visible["source_ids"])
+                for reference in payload["framework_references"]:
+                    identifier = reference["reference_id"]
+                    sent_framework[identifier] = {**combined_framework[identifier],
+                        **{key: reference[key] for key in ("text", "text_truncated", "text_offset_chars") if key in reference}}
+                    if reference_versions.get(identifier):
+                        framework_versions.add(reference_versions[identifier])
+                timing["context_assembly_seconds"] += time.monotonic() - assembly_started
                 failure_stage, response_shape, response_raw = "provider_request", None, None
-                raw = complete(recovery_messages, payload=payload, request_size=recovery_size,
-                               stage="empty_length_recovery")
+                raw = complete(messages, payload=payload, request_size=request_size,
+                    stage="answer" if force_answer else "discover" if discovery_pending else "investigate",
+                    trim_events=trim_events)
                 response_raw = raw
                 provider_usage.append(raw.get("usage"))
                 check_after_response()
                 failure_stage, response_shape = "response_parse", _response_shape(raw)
-                # A second empty response escapes to the ordinary failure path.
-                reply = _extract_text(raw)
-            response_shape = _response_shape(raw, reply.choice_index)
-            failure_stage = "response_validation"
-            finish_reason = response_shape["finish_reason"]
-            if reply.refused or reply.filtered:
+                try:
+                    reply = _extract_text(raw)
+                except _TextResponseError as exc:
+                    shape = _empty_length_recovery_shape(raw, exc.choice_index)
+                    recovery_evidence = (
+                        any(page.get("source_text", "").strip()
+                            for bundle in payload.get("source_context", []) for page in bundle.get("pages", []))
+                        or any(reference.get("text", "").strip()
+                               for reference in payload.get("framework_references", [])))
+                    if (exc.code != "MODEL_TEXT_EMPTY" or shape is None or not recovery_evidence
+                            or discovery_pending or empty_length_recovery_attempted
+                            or not policy.can_request(turns)):
+                        raise
+                    # Reuse exactly the already-sent evidence and history. This is
+                    # a single answer attempt, not another investigation cycle.
+                    recovery_payload = {**payload,
+                        "investigation_budget": {"remaining_model_requests": policy.remaining_model_requests(turns),
+                            "searches_per_turn": 0, "reads_per_turn": 0,
+                            "framework_searches_per_turn": 0, "business_context_actions_per_turn": 0},
+                        "task": "上一轮输出达到长度上限但没有可用正文。现在直接给出简明业务答案："
+                            "先写结论，再写决定结果的关键条件、计算或异常及必要来源引用。"
+                            "只使用本次已供应的相同证据；不要新检索、请求工具、承诺继续调查或冗长展开。"
+                            "不能确认的事项只限定相关结论。"}
+                    recovery_messages = [*messages[:-1], {"role": "user", "content": json.dumps(
+                        _prompt_payload(recovery_payload), ensure_ascii=False, separators=(",", ":"))}]
+                    recovery_size = len(json.dumps({"model": config.chat_model, "messages": recovery_messages,
+                        "max_tokens": config.max_output_tokens}, ensure_ascii=False,
+                        separators=(",", ":")).encode("utf-8"))
+                    # Do not trim or replace evidence to make a recovery fit.
+                    if recovery_size > policy.max_request_bytes:
+                        raise
+                    response_shape = shape
+                    if diagnostics is not None:
+                        diagnostics.suppress_latest_error(exc.code)
+                    finish_failed_response(exc)
+                    record_response_error(exc.code, failure_stage, shape=response_shape)
+                    empty_length_recovery_attempted = True
+                    boundaries.append({"reason": "model_empty_length_recovery", "from_round_id": f"round-{turns}",
+                                       "requests": 1})
+                    force_answer = True
+                    if not answer:
+                        answer_finish_reason, truncated = None, False
+                    payload = recovery_payload
+                    failure_stage, response_shape, response_raw = "provider_request", None, None
+                    raw = complete(recovery_messages, payload=payload, request_size=recovery_size,
+                                   stage="empty_length_recovery")
+                    response_raw = raw
+                    provider_usage.append(raw.get("usage"))
+                    check_after_response()
+                    failure_stage, response_shape = "response_parse", _response_shape(raw)
+                    # A second empty response escapes to the ordinary failure path.
+                    reply = _extract_text(raw)
+                response_shape = _response_shape(raw, reply.choice_index)
+                failure_stage = "response_validation"
+                finish_reason = response_shape["finish_reason"]
+                if reply.refused or reply.filtered:
+                    quality.finish_round(finish_reason=finish_reason,
+                                         parsed_action=None, usage=raw.get("usage"),
+                                         **response_character_counts(raw, reply))
+                    failure = "MODEL_REFUSED" if reply.refused else "MODEL_CONTENT_FILTERED"
+                    break
+                action_policy = replace(policy,
+                    max_reads_per_turn=max(0, policy.max_reads_per_turn - automatic_turn_usage["read"]),
+                    max_business_context_actions_per_turn=max(0, policy.max_business_context_actions_per_turn - automatic_turn_usage["inspect_business_context"]))
+                action = _actions(reply.text, action_policy)
+                invalid_action = _action_reply_invalid(reply.text, action)
                 quality.finish_round(finish_reason=finish_reason,
-                                     parsed_action=None, usage=raw.get("usage"),
-                                     **response_character_counts(raw, reply))
-                failure = "MODEL_REFUSED" if reply.refused else "MODEL_CONTENT_FILTERED"
-                break
-            action_policy = replace(policy,
-                max_reads_per_turn=max(0, policy.max_reads_per_turn - automatic_turn_usage["read"]),
-                max_business_context_actions_per_turn=max(0, policy.max_business_context_actions_per_turn - automatic_turn_usage["inspect_business_context"]))
-            action = _actions(reply.text, action_policy)
-            invalid_action = _action_reply_invalid(reply.text, action)
-            quality.finish_round(finish_reason=finish_reason,
-                                 parsed_action=[key for key, value in action.items() if value] if action else None,
-                                 error="INVALID_INVESTIGATION_ACTION" if invalid_action else None,
-                                 usage=raw.get("usage"), **response_character_counts(raw, reply))
-            if action and not invalid_action:
-                checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
-                quality.run_store.checkpoint(quality.data["run_id"], {**checkpoint,
-                    "frontier": [{"tool": tool, "arguments": arguments}
-                        for tool, values in action.items() if values
-                        for arguments in (values if tool in {"read", "inspect_business_context", *_SEMANTIC_TOOLS}
-                                          else [values])]})
-            if question_budget and question_budget.target_reached():
-                force_answer = True
-                if action:
-                    boundaries.append({"reason": "delivery_target_reached",
-                        "next_step": "answer_from_supplied_evidence", "pending_actions_preserved": True})
-                    protocol_answer_pending = True
-                    if policy.can_request(turns):
-                        continue
-                    break
-            if invalid_action:
-                if not force_answer and not investigation_reprompted:
-                    investigation_reprompted = True
-                    recovery_reason = "补查动作格式无效"
-                    protocol_answer_pending = not discovery_pending and bool(
-                        visible["source_ids"] or visible["framework_ids"])
-                    boundaries.append({"reason": "investigation_action_recovery",
-                        "from_round_id": f"round-{turns}",
-                        "next_step": "answer_from_evidence" if protocol_answer_pending else "correct_action"})
-                    continue
-                failure = "INVALID_INVESTIGATION_ACTION"
-                break
-            if not action:
-                if discovery_pending:
-                    if (not discovery_attempted and not discovery_reprompted and not force_answer
-                            and policy.max_searches_per_turn):
-                        discovery_reprompted = True
-                        continue
-                    failure = "RETRIEVAL_UNRESOLVED"
-                    break
-                deferred = _investigation_deferral(reply.text)
-                promised = assess_answer_completion(reply.text).get("pending_investigation", False)
-                if promised and answer:
-                    boundaries.append({"reason": "usable_draft_retained",
-                                       "revision_error": "ANSWER_INCOMPLETE"})
-                    break
-                if adaptive and answer and not reply.truncated:
-                    supplied = payload["source_context"][0]["pages"]
-                    candidate_review = assess_business_answer(question, reply.text,
-                        current_investigation, supplied, answer_detail=answer_detail,
-                        working_set=visible.get("working_set"))
-                    previous_review = assess_business_answer(question, answer,
-                        current_investigation, supplied, answer_detail=answer_detail,
-                        working_set=visible.get("working_set"))
-                    lost_aspects = sorted(set(candidate_review["missing_aspects"])
-                        - set(previous_review["missing_aspects"]))
-                    if lost_aspects:
-                        continuation.stop_reason = "answer_review_no_progress"
-                        boundaries.append({"reason": "usable_draft_retained",
-                            "revision_error": "ANSWER_COVERAGE_REGRESSED",
-                            "lost_aspects": lost_aspects})
-                        remember_draft()
-                        break
-                if not force_answer and (deferred or promised or not current_investigation.get("can_answer", True)):
-                    attempted_before = len(automatic_actions)
-                    progressed, deferred_for_budget = advance_question(current_investigation)
-                    if progressed or len(automatic_actions) > attempted_before or deferred_for_budget:
-                        recovery_reason = ("已按必答项补充相关证据" if progressed else
-                            "已执行必答项对应的源码补查" if len(automatic_actions) > attempted_before else
-                            "已定位的源码证据补读需下一轮读取预算")
-                        if not deferred:
-                            answer, truncated = reply.text, reply.truncated
-                            answer_round = f"round-{turns}"
-                            answer_rounds = [answer_round]
-                            answer_finish_reason = response_shape["finish_reason"]
-                            answer_manifest = visible
-                            answer_investigation = current_investigation
-                            if (not promised and not truncated and finish_reason == "stop"
-                                    and assess_answer_completion(answer)["status"] != "incomplete"):
-                                automatic_followup_material = _supplied_answer_material(payload)
-                        continue
-                    if (deferred or promised) and not investigation_reprompted:
-                        investigation_reprompted = True
-                        recovery_reason = "回复承诺继续调查，但尚未执行补查" if promised else "回复只提出调查需要"
-                        if not deferred:
-                            answer, truncated = reply.text, reply.truncated
-                            answer_round = f"round-{turns}"
-                            answer_rounds = [answer_round]
-                            answer_finish_reason = response_shape["finish_reason"]
-                            answer_manifest = visible
-                            answer_investigation = current_investigation
-                        continue
-                if deferred:
-                    failure = "ANSWER_NOT_PRODUCED"
-                    break
-                answer, truncated = reply.text, reply.truncated
-                answer_round = f"round-{turns}"
-                answer_rounds = [answer_round]
-                answer_finish_reason = response_shape["finish_reason"]
-                answer_manifest = visible
-                answer_investigation = current_investigation
-                if adaptive and not force_answer and not truncated and policy.max_answer_revisions:
-                    supplied = payload["source_context"][0]["pages"]
-                    assessment = assess_business_answer(question, answer, current_investigation, supplied,
-                        answer_detail=answer_detail, working_set=visible.get("working_set"))
-                    review_needed = needs_synthesis_review(question, answer, current_investigation,
-                        source_available=bool(visible["source_ids"]), source_pages=supplied,
-                        answer_detail=answer_detail, assessment=assessment,
-                        working_set=visible.get("working_set"))
-                    emit_analysis(current_investigation,
-                        summary="正在逐项核对原问题，检查已有证据是否都在答案中解释清楚。",
-                        assessment=assessment)
-                    if review_needed:
-                        synthesis_review_attempted = True
-                        if continuation.needs_followup(answer, assessment, supplied, references):
-                            # The next ordinary investigation turn can still
-                            # read/search. A revision is not a closed tool phase.
-                            recovery_reason = "依据原问题补全尚未解释的业务要点"
-                            for identifier in reversed(_REFERENCE.findall(answer)):
-                                if identifier in sent_pages and identifier not in priority_targets:
-                                    priority_targets.append(identifier)
-                            remember_draft()
+                                     parsed_action=[key for key, value in action.items() if value] if action else None,
+                                     error="INVALID_INVESTIGATION_ACTION" if invalid_action else None,
+                                     usage=raw.get("usage"), **response_character_counts(raw, reply))
+                if action and not invalid_action:
+                    checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
+                    quality.run_store.checkpoint(quality.data["run_id"], {**checkpoint,
+                        "frontier": [{"tool": tool, "arguments": arguments}
+                            for tool, values in action.items() if values
+                            for arguments in (values if tool in {"read", "inspect_business_context", *_SEMANTIC_TOOLS}
+                                              else [values])]})
+                if question_budget and question_budget.target_reached():
+                    force_answer = True
+                    if action:
+                        boundaries.append({"reason": "delivery_target_reached",
+                            "next_step": "answer_from_supplied_evidence", "pending_actions_preserved": True})
+                        protocol_answer_pending = True
+                        if policy.can_request(turns):
                             continue
-                        boundaries.append({"reason": continuation.stop_reason,
-                                           "missing_aspects": assessment.get("missing_aspects", [])})
-                    remember_draft()
-                break
-            key = json.dumps(action, sort_keys=True, ensure_ascii=False)
-            if force_answer:
-                failure = "RETRIEVAL_UNRESOLVED" if discovery_pending else "ANSWER_NOT_PRODUCED"
-                break
-            requested_action = _actions(reply.text, policy) or {}
-            if adaptive:
-                continuation.awaiting_tools = True
-            for tool in ("read", "inspect_business_context", *_SEMANTIC_TOOLS):
-                pending_model_actions.extend({"tool": tool, "arguments": arguments,
-                    "reason": "model_action_deferred_for_budget"}
-                    for arguments in requested_action.get(tool, [])[len(action.get(tool, [])):])
-            if pending_model_actions:
-                boundaries.append({"reason": "model_action_deferred_for_budget",
-                                   "count": len(pending_model_actions)})
-            if not any(action.values()):
-                recovery_reason = "本轮补查额度已用完"
-                protocol_answer_pending = not pending_model_actions and not discovery_pending
-                continue
-            if key in seen_actions:
-                contexts.append({"notice": "该检索已执行，无新来源。请根据当前资料直接回答。"})
-                if adaptive:
-                    protocol_answer_pending = True
-                    continuation.stop_reason = "no_evidence_progress"
-                    boundaries.append({"reason": "no_evidence_progress", "repeated_action": True})
-                continue
-            seen_actions.add(key)
-            if adaptive:
-                continuation.awaiting_tools = True
-            emit("retrieving")
-            if action["search"] or action.get("focus"):
-                discovery_attempted = True
-                tool_calls["search"] += 1
-                focus_paths = action.get("focus")
-                search_terms = action["search"] or focus_paths
-                context = checked_retrieve(search_terms, max_pages=policy.search_pages,
-                    max_chars=min(policy.search_source_characters, policy.max_source_characters),
-                    focus_paths=focus_paths)
-                added = accept(context, "search")
-                business_map = current_map(search_terms, focus_paths=focus_paths)
-                if focus_paths:
-                    completed_actions.append({"focus": focus_paths,
-                        "outcome": "rejected" if business_map.get("source_identity", {}).get("focus_rejected")
-                                   else "confirmed",
-                        "selected_paths": business_map.get("direct_paths", [])})
-                add_rule_spotlights(business_map)
-                update_complete_context()
-                expand_map_evidence(business_map)
-                annotate_indexed_source_roles(business_map)
-                source_match_observed = source_match_observed or bool(context.get("matched_file_count", 0) or
-                    business_map.get("source_identity", {}).get("status") == "resolved")
-                question_match_observed = question_match_observed or bool(context.get("matched_file_count", 0) or
-                    business_map.get("source_identity", {}).get("status") == "resolved")
-                if source_match_observed:
-                    discovery_pending = False
-                completed_actions.append({"search": search_terms, "added_pages": added})
-                searches.append({"query": " / ".join(search_terms),
-                                 "matched_files": context.get("matched_file_count", 0),
-                                 "matched_pages": context.get("matched_page_count", 0)})
-            for item in action["read"]:
-                tool_calls["read"] += 1
-                try:
-                    arguments = {key: item[key] for key in ("relative_path", "start_line", "end_line", "evidence_id") if key in item}
-                    context = checked_read(**arguments,
-                        max_chars=min(policy.read_source_characters, policy.max_source_characters), check_cancel=check_cancel)
-                    added = accept(context, "read")
-                    priority_targets = [arguments.get("evidence_id", arguments), *priority_targets][:8]
-                    if source_match_observed and context.get("pages"):
-                        discovery_pending = False
-                    completed_actions.append({"read": arguments, "added_pages": added,
-                                              "range_complete": context.get("range_complete"),
-                                              "next_start_line": context.get("next_start_line"),
-                                              "requested_range": context.get("requested_range"),
-                                              "file_total_lines": context.get("file_total_lines")})
-                except (ValueError, TypeError) as exc:
-                    tool_problem = True
-                    completed_actions.append({"read": {key: item.get(key) for key in ("relative_path", "start_line", "end_line")}, "outcome": "unavailable"})
-                    contexts.append({"read_unavailable": {"relative_path": str(item.get("relative_path", ""))[:300],
-                                                         "reason": "Requested source location is not available."}})
-            if action.get("framework_search"):
-                recent_framework_ids = []
-            for tool in ("inspect_business_context", *_SEMANTIC_TOOLS):
-                for item in action.get(tool, []):
-                    if force_answer:
                         break
-                    tool_calls[tool] += 1
-                    automatic_turn_usage["inspect_business_context"] += 1
-                    added = add_semantic_context(item, purpose=tool if tool in _SEMANTIC_TOOLS else "explain", strict_arguments=True)
-                    if added and source_match_observed:
-                        discovery_pending = False
-                    completed_actions.append({tool: {"relative_path": item.get("relative_path"),
-                        "line": item.get("line"), "fields": item.get("fields", [])}, "added_pages": added})
-            if action.get("list_impact"):
-                try:
-                    impact_result = list_impact(database_path, action["list_impact"], page_size=20)
-                    quality.add_tool_result(action="list_impact",
-                        actual_result_ids=[impact_result["handle"]])
-                    completed_actions.append({"list_impact": action["list_impact"],
-                        "handle": impact_result["handle"], "total": impact_result["total"]})
-                except (ValueError, sqlite3.Error):
-                    tool_problem = True
-                    completed_actions.append({"list_impact": action["list_impact"], "outcome": "unavailable"})
-            if action.get("search_concepts"):
-                concept_candidates = search_concepts(database_path, action["search_concepts"],
-                    framework_reference_path=framework_reference_path)
-                quality.add_tool_result(action="search_concepts",
-                    actual_result_ids=[item.get("id") for item in concept_candidates if item.get("id")])
-                completed_actions.append({"search_concepts": action["search_concepts"],
-                                          "candidates": len(concept_candidates)})
-            for query in action.get("framework_search", []):
-                tool_calls["framework_search"] += 1
-                found = search_framework_context(query, reference_path=framework_reference_path,
-                    max_references=policy.max_framework_references,
-                    max_chars=max(policy.max_framework_characters, MAX_SECTION_CHARS))
-                # The latest targeted lookup has priority; older references
-                # remain citation-eligible after they were actually supplied.
-                searched_framework = {item["reference_id"]: item for item in found["references"]} | searched_framework
-                recent_framework_ids.extend(item["reference_id"] for item in found["references"])
-                for reference in found["references"]:
-                    reference_versions[reference["reference_id"]] = (found.get("document") or {}).get("sha256")
-                quality.add_tool_result(action="framework_search",
-                    actual_result_ids=[item["reference_id"] for item in found["references"]],
-                    status=found.get("status", "completed"))
-                completed_actions.append({"framework_search": query, "references": len(found["references"]),
-                                          "status": found["status"]})
-                trace.append({"tool": "framework_search", "query": query,
-                              "references": len(found["references"]), "network_requests": 0})
-        while (answer and truncated and answer_finish_reason == "length" and not empty_length_recovery_attempted
-                and policy.can_request(turns) and (adaptive or not continuation_attempted)):
-            remember_draft(processed=resume_response is None)
-            # Explicitly bounded sessions retain their one-continuation contract.
-            # Interactive sessions continue while genuinely adding answer text.
-            continuation_payload = {**payload, "draft_answer": answer, "draft_continuation": True,
-                "investigation_budget": {"remaining_model_requests": policy.remaining_model_requests(turns),
-                    "searches_per_turn": 0, "reads_per_turn": 0, "framework_searches_per_turn": 0,
-                    "business_context_actions_per_turn": 0},
-                "task": "上一轮正文因接口长度限制中断。只续写 draft_answer 尚未完成的业务解释，"
-                    "衔接最后一句，不重写或重复已经给出的正文，不请求工具；保留必要的实际来源引用。"
-                    "若截断在词语、标识符或列表项中间，可从最后未完的句子或列表项开头原样重复后补完，"
-                    "不要改写该部分已经输出的条件或数值，也不要重新输出前面完整的段落。"
-                    "在本次输出预算内完成与问题相关的说明；不能确认的事项明确限定。"}
-            failure_stage, response_shape = "context_assembly", None
-            continuation_trims = []
-            try:
-                continuation_messages, continuation_size = _fit_request(config, continuation_payload,
-                    history_context, policy, trim_events=continuation_trims,
-                    investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel)
-            except ValueError:
-                raise APIClientError("BUSINESS_CONTEXT_TOO_LARGE") from None
-            continuation_visible = _request_manifest(continuation_payload)
-            continuation_attempted = True
-            failure_stage, response_raw = "provider_request", None
-            continued_raw = complete(continuation_messages, payload=continuation_payload,
-                request_size=continuation_size, stage="continue", trim_events=continuation_trims)
-            response_raw = continued_raw
-            provider_usage.append(continued_raw.get("usage"))
-            check_after_response()
-            failure_stage, response_shape = "response_parse", _response_shape(continued_raw)
-            continued_reply = _extract_text(continued_raw)
-            response_shape = _response_shape(continued_raw, continued_reply.choice_index)
-            failure_stage = "response_validation"
-            continued_action = _actions(continued_reply.text, policy)
-            quality.finish_round(finish_reason=response_shape["finish_reason"],
-                parsed_action=[key for key, value in continued_action.items() if value] if continued_action else None,
-                usage=continued_raw.get("usage"), **response_character_counts(continued_raw, continued_reply))
-            if (continued_reply.refused or continued_reply.filtered or continued_action
-                    or _action_reply_invalid(continued_reply.text, continued_action)
-                    or _investigation_deferral(continued_reply.text)
-                    or (assess_answer_completion(continued_reply.text)["status"] == "incomplete"
-                        and not (adaptive and continued_reply.truncated))):
-                failure = ("MODEL_REFUSED" if continued_reply.refused else
-                    "MODEL_CONTENT_FILTERED" if continued_reply.filtered else
-                    "INVALID_INVESTIGATION_ACTION" if _action_reply_invalid(continued_reply.text, continued_action) else
-                    "ANSWER_NOT_PRODUCED")
-                record_response_error(failure, failure_stage, shape=response_shape)
-                boundaries.append({"reason": "usable_draft_retained", "continuation_error": failure})
-                break
-            else:
-                combined = join_answer_continuation(answer, continued_reply.text)
-                text_key = hashlib.sha256(continued_reply.text.strip().encode()).hexdigest()
-                if adaptive and (combined == answer or text_key in continuation_texts):
-                    continuation.stop_reason = "answer_review_no_progress"
-                    boundaries.append({"reason": "answer_review_no_progress", "stage": "continuation"})
+                if invalid_action:
+                    if not force_answer and not investigation_reprompted:
+                        investigation_reprompted = True
+                        recovery_reason = "补查动作格式无效"
+                        protocol_answer_pending = not discovery_pending and bool(
+                            visible["source_ids"] or visible["framework_ids"])
+                        boundaries.append({"reason": "investigation_action_recovery",
+                            "from_round_id": f"round-{turns}",
+                            "next_step": "answer_from_evidence" if protocol_answer_pending else "correct_action"})
+                        continue
+                    failure = "INVALID_INVESTIGATION_ACTION"
                     break
-                continuation_texts.add(text_key)
-                answer = combined
-                truncated = continued_reply.truncated or response_shape["finish_reason"] != "stop"
-                answer_finish_reason = response_shape["finish_reason"]
-                answer_round = f"round-{turns}"
-                answer_rounds.append(answer_round)
-                for name in ("source_ids", "framework_ids"):
-                    answer_manifest[name] = sorted(set(answer_manifest[name]) | set(continuation_visible[name]))
-                evidence.sent_any_round_ids.update(continuation_visible["source_ids"])
-                sent_pages.update({page["evidence_id"]: page for page in continuation_payload["source_context"][0]["pages"]})
-                boundaries.append({"reason": "model_output_continued", "requests": 1})
+                if not action:
+                    if discovery_pending:
+                        if (not discovery_attempted and not discovery_reprompted and not force_answer
+                                and policy.max_searches_per_turn):
+                            discovery_reprompted = True
+                            continue
+                        failure = "RETRIEVAL_UNRESOLVED"
+                        break
+                    deferred = _investigation_deferral(reply.text)
+                    promised = assess_answer_completion(reply.text).get("pending_investigation", False)
+                    if promised and answer:
+                        boundaries.append({"reason": "usable_draft_retained",
+                                           "revision_error": "ANSWER_INCOMPLETE"})
+                        break
+                    if adaptive and answer and not reply.truncated:
+                        supplied = payload["source_context"][0]["pages"]
+                        candidate_review = assess_business_answer(question, reply.text,
+                            current_investigation, supplied, answer_detail=answer_detail,
+                            working_set=visible.get("working_set"))
+                        previous_review = assess_business_answer(question, answer,
+                            current_investigation, supplied, answer_detail=answer_detail,
+                            working_set=visible.get("working_set"))
+                        lost_aspects = sorted(set(candidate_review["missing_aspects"])
+                            - set(previous_review["missing_aspects"]))
+                        if lost_aspects:
+                            continuation.stop_reason = "answer_review_no_progress"
+                            boundaries.append({"reason": "usable_draft_retained",
+                                "revision_error": "ANSWER_COVERAGE_REGRESSED",
+                                "lost_aspects": lost_aspects})
+                            remember_draft()
+                            break
+                    if not force_answer and (deferred or promised or not current_investigation.get("can_answer", True)):
+                        attempted_before = len(automatic_actions)
+                        progressed, deferred_for_budget = advance_question(current_investigation)
+                        if progressed or len(automatic_actions) > attempted_before or deferred_for_budget:
+                            recovery_reason = ("已按必答项补充相关证据" if progressed else
+                                "已执行必答项对应的源码补查" if len(automatic_actions) > attempted_before else
+                                "已定位的源码证据补读需下一轮读取预算")
+                            if not deferred:
+                                answer, truncated = reply.text, reply.truncated
+                                answer_round = f"round-{turns}"
+                                answer_rounds = [answer_round]
+                                answer_finish_reason = response_shape["finish_reason"]
+                                answer_manifest = visible
+                                answer_investigation = current_investigation
+                                if (not promised and not truncated and finish_reason == "stop"
+                                        and assess_answer_completion(answer)["status"] != "incomplete"):
+                                    automatic_followup_material = _supplied_answer_material(payload)
+                            continue
+                        if (deferred or promised) and not investigation_reprompted:
+                            investigation_reprompted = True
+                            recovery_reason = "回复承诺继续调查，但尚未执行补查" if promised else "回复只提出调查需要"
+                            if not deferred:
+                                answer, truncated = reply.text, reply.truncated
+                                answer_round = f"round-{turns}"
+                                answer_rounds = [answer_round]
+                                answer_finish_reason = response_shape["finish_reason"]
+                                answer_manifest = visible
+                                answer_investigation = current_investigation
+                            continue
+                    if deferred:
+                        failure = "ANSWER_NOT_PRODUCED"
+                        break
+                    answer, truncated = reply.text, reply.truncated
+                    answer_round = f"round-{turns}"
+                    answer_rounds = [answer_round]
+                    answer_finish_reason = response_shape["finish_reason"]
+                    answer_manifest = visible
+                    answer_investigation = current_investigation
+                    if adaptive and not force_answer and not truncated and policy.max_answer_revisions:
+                        supplied = payload["source_context"][0]["pages"]
+                        assessment = assess_business_answer(question, answer, current_investigation, supplied,
+                            answer_detail=answer_detail, working_set=visible.get("working_set"))
+                        review_needed = needs_synthesis_review(question, answer, current_investigation,
+                            source_available=bool(visible["source_ids"]), source_pages=supplied,
+                            answer_detail=answer_detail, assessment=assessment,
+                            working_set=visible.get("working_set"))
+                        emit_analysis(current_investigation,
+                            summary="正在逐项核对原问题，检查已有证据是否都在答案中解释清楚。",
+                            assessment=assessment)
+                        if review_needed:
+                            synthesis_review_attempted = True
+                            if continuation.needs_followup(answer, assessment, supplied, references):
+                                # The next ordinary investigation turn can still
+                                # read/search. A revision is not a closed tool phase.
+                                recovery_reason = "依据原问题补全尚未解释的业务要点"
+                                for identifier in reversed(_REFERENCE.findall(answer)):
+                                    if identifier in sent_pages and identifier not in priority_targets:
+                                        priority_targets.append(identifier)
+                                remember_draft()
+                                continue
+                            boundaries.append({"reason": continuation.stop_reason,
+                                               "missing_aspects": assessment.get("missing_aspects", [])})
+                        remember_draft()
+                    break
+                key = json.dumps(action, sort_keys=True, ensure_ascii=False)
+                if force_answer:
+                    failure = "RETRIEVAL_UNRESOLVED" if discovery_pending else "ANSWER_NOT_PRODUCED"
+                    break
+                requested_action = _actions(reply.text, policy) or {}
+                if adaptive:
+                    continuation.awaiting_tools = True
+                for tool in ("read", "inspect_business_context", *_SEMANTIC_TOOLS):
+                    pending_model_actions.extend({"tool": tool, "arguments": arguments,
+                        "reason": "model_action_deferred_for_budget"}
+                        for arguments in requested_action.get(tool, [])[len(action.get(tool, [])):])
+                if pending_model_actions:
+                    boundaries.append({"reason": "model_action_deferred_for_budget",
+                                       "count": len(pending_model_actions)})
+                if not any(action.values()):
+                    recovery_reason = "本轮补查额度已用完"
+                    protocol_answer_pending = not pending_model_actions and not discovery_pending
+                    continue
+                if key in seen_actions:
+                    contexts.append({"notice": "该检索已执行，无新来源。请根据当前资料直接回答。"})
+                    if adaptive:
+                        protocol_answer_pending = True
+                        continuation.stop_reason = "no_evidence_progress"
+                        boundaries.append({"reason": "no_evidence_progress", "repeated_action": True})
+                    continue
+                seen_actions.add(key)
+                if adaptive:
+                    continuation.awaiting_tools = True
+                emit("retrieving")
+                if action["search"] or action.get("focus"):
+                    discovery_attempted = True
+                    tool_calls["search"] += 1
+                    focus_paths = action.get("focus")
+                    search_terms = action["search"] or focus_paths
+                    context = checked_retrieve(search_terms, max_pages=policy.search_pages,
+                        max_chars=min(policy.search_source_characters, policy.max_source_characters),
+                        focus_paths=focus_paths)
+                    added = accept(context, "search")
+                    business_map = current_map(search_terms, focus_paths=focus_paths)
+                    if focus_paths:
+                        completed_actions.append({"focus": focus_paths,
+                            "outcome": "rejected" if business_map.get("source_identity", {}).get("focus_rejected")
+                                       else "confirmed",
+                            "selected_paths": business_map.get("direct_paths", [])})
+                    add_rule_spotlights(business_map)
+                    update_complete_context()
+                    expand_map_evidence(business_map)
+                    annotate_indexed_source_roles(business_map)
+                    source_match_observed = source_match_observed or bool(context.get("matched_file_count", 0) or
+                        business_map.get("source_identity", {}).get("status") == "resolved")
+                    question_match_observed = question_match_observed or bool(context.get("matched_file_count", 0) or
+                        business_map.get("source_identity", {}).get("status") == "resolved")
+                    if source_match_observed:
+                        discovery_pending = False
+                    completed_actions.append({"search": search_terms, "added_pages": added})
+                    searches.append({"query": " / ".join(search_terms),
+                                     "matched_files": context.get("matched_file_count", 0),
+                                     "matched_pages": context.get("matched_page_count", 0)})
+                for item in action["read"]:
+                    tool_calls["read"] += 1
+                    try:
+                        arguments = {key: item[key] for key in ("relative_path", "start_line", "end_line", "evidence_id") if key in item}
+                        context = checked_read(**arguments,
+                            max_chars=min(policy.read_source_characters, policy.max_source_characters), check_cancel=check_cancel)
+                        added = accept(context, "read")
+                        priority_targets = [arguments.get("evidence_id", arguments), *priority_targets][:8]
+                        if source_match_observed and context.get("pages"):
+                            discovery_pending = False
+                        completed_actions.append({"read": arguments, "added_pages": added,
+                                                  "range_complete": context.get("range_complete"),
+                                                  "next_start_line": context.get("next_start_line"),
+                                                  "requested_range": context.get("requested_range"),
+                                                  "file_total_lines": context.get("file_total_lines")})
+                    except (ValueError, TypeError) as exc:
+                        tool_problem = True
+                        completed_actions.append({"read": {key: item.get(key) for key in ("relative_path", "start_line", "end_line")}, "outcome": "unavailable"})
+                        contexts.append({"read_unavailable": {"relative_path": str(item.get("relative_path", ""))[:300],
+                                                             "reason": "Requested source location is not available."}})
+                if action.get("framework_search"):
+                    recent_framework_ids = []
+                for tool in ("inspect_business_context", *_SEMANTIC_TOOLS):
+                    for item in action.get(tool, []):
+                        if force_answer:
+                            break
+                        tool_calls[tool] += 1
+                        automatic_turn_usage["inspect_business_context"] += 1
+                        added = add_semantic_context(item, purpose=tool if tool in _SEMANTIC_TOOLS else "explain", strict_arguments=True)
+                        if added and source_match_observed:
+                            discovery_pending = False
+                        completed_actions.append({tool: {"relative_path": item.get("relative_path"),
+                            "line": item.get("line"), "fields": item.get("fields", [])}, "added_pages": added})
+                if action.get("list_impact"):
+                    try:
+                        impact_result = list_impact(database_path, action["list_impact"], page_size=20)
+                        quality.add_tool_result(action="list_impact",
+                            actual_result_ids=[impact_result["handle"]])
+                        completed_actions.append({"list_impact": action["list_impact"],
+                            "handle": impact_result["handle"], "total": impact_result["total"]})
+                    except (ValueError, sqlite3.Error):
+                        tool_problem = True
+                        completed_actions.append({"list_impact": action["list_impact"], "outcome": "unavailable"})
+                if action.get("search_concepts"):
+                    concept_candidates = search_concepts(database_path, action["search_concepts"],
+                        framework_reference_path=framework_reference_path)
+                    quality.add_tool_result(action="search_concepts",
+                        actual_result_ids=[item.get("id") for item in concept_candidates if item.get("id")])
+                    completed_actions.append({"search_concepts": action["search_concepts"],
+                                              "candidates": len(concept_candidates)})
+                for query in action.get("framework_search", []):
+                    tool_calls["framework_search"] += 1
+                    found = search_framework_context(query, reference_path=framework_reference_path,
+                        max_references=policy.max_framework_references,
+                        max_chars=max(policy.max_framework_characters, MAX_SECTION_CHARS))
+                    # The latest targeted lookup has priority; older references
+                    # remain citation-eligible after they were actually supplied.
+                    searched_framework = {item["reference_id"]: item for item in found["references"]} | searched_framework
+                    recent_framework_ids.extend(item["reference_id"] for item in found["references"])
+                    for reference in found["references"]:
+                        reference_versions[reference["reference_id"]] = (found.get("document") or {}).get("sha256")
+                    quality.add_tool_result(action="framework_search",
+                        actual_result_ids=[item["reference_id"] for item in found["references"]],
+                        status=found.get("status", "completed"))
+                    completed_actions.append({"framework_search": query, "references": len(found["references"]),
+                                              "status": found["status"]})
+                    trace.append({"tool": "framework_search", "query": query,
+                                  "references": len(found["references"]), "network_requests": 0})
+            while (answer and truncated and answer_finish_reason == "length" and not empty_length_recovery_attempted
+                    and policy.can_request(turns) and (adaptive or not continuation_attempted)):
+                remember_draft(processed=resume_response is None)
+                # Explicitly bounded sessions retain their one-continuation contract.
+                # Interactive sessions continue while genuinely adding answer text.
+                continuation_payload = {**payload, "draft_answer": answer, "draft_continuation": True,
+                    "investigation_budget": {"remaining_model_requests": policy.remaining_model_requests(turns),
+                        "searches_per_turn": 0, "reads_per_turn": 0, "framework_searches_per_turn": 0,
+                        "business_context_actions_per_turn": 0},
+                    "task": "上一轮正文因接口长度限制中断。只续写 draft_answer 尚未完成的业务解释，"
+                        "衔接最后一句，不重写或重复已经给出的正文，不请求工具；保留必要的实际来源引用。"
+                        "若截断在词语、标识符或列表项中间，可从最后未完的句子或列表项开头原样重复后补完，"
+                        "不要改写该部分已经输出的条件或数值，也不要重新输出前面完整的段落。"
+                        "在本次输出预算内完成与问题相关的说明；不能确认的事项明确限定。"}
+                failure_stage, response_shape = "context_assembly", None
+                continuation_trims = []
+                try:
+                    continuation_messages, continuation_size = _fit_request(config, continuation_payload,
+                        history_context, policy, trim_events=continuation_trims,
+                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel)
+                except ValueError:
+                    raise APIClientError("BUSINESS_CONTEXT_TOO_LARGE") from None
+                continuation_visible = _request_manifest(continuation_payload)
+                continuation_attempted = True
+                failure_stage, response_raw = "provider_request", None
+                continued_raw = complete(continuation_messages, payload=continuation_payload,
+                    request_size=continuation_size, stage="continue", trim_events=continuation_trims)
+                response_raw = continued_raw
+                provider_usage.append(continued_raw.get("usage"))
+                check_after_response()
+                failure_stage, response_shape = "response_parse", _response_shape(continued_raw)
+                continued_reply = _extract_text(continued_raw)
+                response_shape = _response_shape(continued_raw, continued_reply.choice_index)
+                failure_stage = "response_validation"
+                continued_action = _actions(continued_reply.text, policy)
+                quality.finish_round(finish_reason=response_shape["finish_reason"],
+                    parsed_action=[key for key, value in continued_action.items() if value] if continued_action else None,
+                    usage=continued_raw.get("usage"), **response_character_counts(continued_raw, continued_reply))
+                if (continued_reply.refused or continued_reply.filtered or continued_action
+                        or _action_reply_invalid(continued_reply.text, continued_action)
+                        or _investigation_deferral(continued_reply.text)
+                        or (assess_answer_completion(continued_reply.text)["status"] == "incomplete"
+                            and not (adaptive and continued_reply.truncated))):
+                    failure = ("MODEL_REFUSED" if continued_reply.refused else
+                        "MODEL_CONTENT_FILTERED" if continued_reply.filtered else
+                        "INVALID_INVESTIGATION_ACTION" if _action_reply_invalid(continued_reply.text, continued_action) else
+                        "ANSWER_NOT_PRODUCED")
+                    record_response_error(failure, failure_stage, shape=response_shape)
+                    boundaries.append({"reason": "usable_draft_retained", "continuation_error": failure})
+                    break
+                else:
+                    combined = join_answer_continuation(answer, continued_reply.text)
+                    text_key = hashlib.sha256(continued_reply.text.strip().encode()).hexdigest()
+                    if adaptive and (combined == answer or text_key in continuation_texts):
+                        continuation.stop_reason = "answer_review_no_progress"
+                        boundaries.append({"reason": "answer_review_no_progress", "stage": "continuation"})
+                        break
+                    continuation_texts.add(text_key)
+                    answer = combined
+                    truncated = continued_reply.truncated or response_shape["finish_reason"] != "stop"
+                    answer_finish_reason = response_shape["finish_reason"]
+                    answer_round = f"round-{turns}"
+                    answer_rounds.append(answer_round)
+                    for name in ("source_ids", "framework_ids"):
+                        answer_manifest[name] = sorted(set(answer_manifest[name]) | set(continuation_visible[name]))
+                    evidence.sent_any_round_ids.update(continuation_visible["source_ids"])
+                    sent_pages.update({page["evidence_id"]: page for page in continuation_payload["source_context"][0]["pages"]})
+                    continued_this_cycle = True
+                    boundaries.append({"reason": "model_output_continued", "requests": 1})
+                    remember_draft()
+            # A transport length boundary is not a quality boundary. Once the
+            # complete text is assembled, use the same evidence-based review
+            # and allow the next investigation turn to read or revise again.
+            if (not adaptive or not continued_this_cycle or failure or truncated
+                    or not policy.max_answer_revisions or continuation.stop_reason
+                    or (question_budget and question_budget.should_answer(config.timeout_seconds))):
+                break
+            supplied = [sent_pages[identifier] for identifier in answer_manifest["source_ids"]]
+            supplied_references = [sent_framework[identifier]
+                for identifier in answer_manifest["framework_ids"]]
+            assessment = assess_business_answer(question, answer, answer_investigation or {}, supplied,
+                answer_detail=answer_detail, working_set=answer_manifest.get("working_set"))
+            if not needs_synthesis_review(question, answer, answer_investigation or {},
+                    source_available=bool(supplied), source_pages=supplied, answer_detail=answer_detail,
+                    assessment=assessment, working_set=answer_manifest.get("working_set")):
+                break
+            synthesis_review_attempted = True
+            emit_analysis(answer_investigation,
+                summary="正文已续写完成，正在核对是否解释了原问题的全部要点。", assessment=assessment)
+            if not continuation.needs_followup(answer, assessment, supplied, supplied_references):
+                boundaries.append({"reason": continuation.stop_reason,
+                                   "missing_aspects": assessment.get("missing_aspects", [])})
                 remember_draft()
+                break
+            recovery_reason = "续写已完成，继续补全原问题中尚未解释的业务要点"
+            for identifier in reversed(_REFERENCE.findall(answer)):
+                if identifier in sent_pages and identifier not in priority_targets:
+                    priority_targets.append(identifier)
+            automatic_followup_material = None
+            resume_continuation = False
+            remember_draft()
         if (not adaptive and answer and not truncated and not continuation_attempted and not empty_length_recovery_attempted
                 and policy.max_answer_revisions and policy.can_request(turns)
                 and not (question_budget and question_budget.should_answer(config.timeout_seconds))):
@@ -2807,6 +2857,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     # Stop spending investigation time, but always validate a retained answer
     # against its captured version before showing it. This phase performs no
     # provider requests and must not re-enter discovery.
+    if adaptive and answer_origin == "model" and not failure:
+        remember_draft()
+        checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
+        quality.run_store.checkpoint(quality.data["run_id"], {**checkpoint,
+            "ready_for_verification": {"boundaries": boundaries,
+                "continuation_attempted": continuation_attempted,
+                "synthesis_review_attempted": synthesis_review_attempted,
+                "tool_problem": tool_problem}})
     verification_started = time.monotonic()
     if progress:
         progress({"phase": "verifying_answer", "model_requests": turns, "unit": "steps"})

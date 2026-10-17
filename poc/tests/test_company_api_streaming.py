@@ -62,12 +62,13 @@ class StreamingClientTests(unittest.TestCase):
         transport = mock.Mock(return_value=TransportResponse(status, body, headers))
         return OpenAICompatibleChatClient(self.config(), transport=transport), transport
 
-    def native(self, chunks, timeout=2):
+    def native(self, chunks, timeout=2, diagnostics=None):
         response = ChunkResponse(chunks)
         transport = UrllibTransport()
         transport._opener = mock.Mock()
         transport._opener.open.return_value = response
-        return OpenAICompatibleChatClient(self.config(timeout), transport=transport), transport, response
+        return OpenAICompatibleChatClient(self.config(timeout), transport=transport,
+                                         diagnostics=diagnostics), transport, response
 
     def test_native_text_arrives_before_next_read_finishes_on_caller_thread(self):
         delivered = threading.Event()
@@ -324,9 +325,37 @@ class StreamingClientTests(unittest.TestCase):
         self.assertEqual(result["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"],
                          '{"file":"MAIN.cbl"}')
 
-    def test_heartbeat_reasoning_and_empty_content_do_not_renew_idle_timeout(self):
+    def test_reasoning_activity_can_precede_answer_without_being_retained_or_published(self):
+        clock = [0.0]
+        private_text = "private-reasoning-activity-marker"
+        chunks = [event({"reasoning_content": private_text}), event({"reasoning_content": private_text}),
+                  event({"reasoning": private_text}), event({"content": "Final answer"}),
+                  event(finish="stop") + b"data: [DONE]\n\n"]
+
+        def step(body):
+            def read():
+                clock[0] += 40
+                return body
+            return read
+
+        diagnostics = APIResponseDiagnostics(protected_values=(SECRET,))
+        client, transport, response = self.native([step(body) for body in chunks], timeout=60,
+                                                 diagnostics=diagnostics)
+        texts = []
+        with mock.patch.object(company_api.time, "monotonic", side_effect=lambda: clock[0]):
+            result = self.complete(client, texts.append)
+            self.assertTrue(response.closed.wait(1))
+        self.assertEqual(clock[0], 200)
+        self.assertEqual(texts, ["Final answer"])
+        self.assertEqual(result["choices"][0]["message"]["content"], "Final answer")
+        self.assertEqual(transport._opener.open.call_count, 1)
+        self.assertNotIn(private_text, json.dumps({"result": result, "diagnostics": diagnostics.to_dict()}))
+        self.assertNotIn("reasoning_content", json.dumps(result))
+        self.assertNotIn('"reasoning"', json.dumps(result))
+
+    def test_heartbeat_role_and_empty_content_do_not_renew_idle_timeout(self):
         for body in (b": heartbeat\n\n", event({"role": "assistant"}), event({"content": "   "}),
-                     event({"reasoning_content": "private analysis"}),
+                     event({"reasoning_content": "   "}), event({"reasoning": ""}),
                      event({"tool_calls": [{"index": 0, "id": "call-1", "type": "function"}]})):
             with self.subTest(body=body):
                 clock = [0.0]
