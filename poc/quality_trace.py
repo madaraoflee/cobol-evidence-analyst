@@ -8,13 +8,38 @@ import json
 from pathlib import Path
 import secrets
 import time
+from prior_source_memory import source_binding_sha256
 from run_store import RunStore
 
-PIPELINE_VERSION = "question-evidence-v22"
-PROMPT_VERSION = "business-chat-v25"
+PIPELINE_VERSION = "question-evidence-v23"
+PROMPT_VERSION = "business-chat-v26"
 
 def _digest(value):
     return hashlib.sha256(value).hexdigest()
+
+
+def _memory_diagnostics(memory):
+    """Record inherited source identities without copying candidate prose."""
+    def fingerprint(value):
+        return _digest(json.dumps(value, sort_keys=True, ensure_ascii=False,
+                                  separators=(",", ":")).encode())
+
+    blocks = []
+    for block in memory.get("blocks", []):
+        text = block.get("text", "")
+        origins = []
+        for origin in block.get("origins", []):
+            binding = origin.get("binding", {})
+            origins.append({**{key: origin.get(key) for key in
+                ("round_id", "request_body_sha256", "excerpt_sha256")},
+                "binding_sha256": fingerprint(binding),
+                **{key: binding[key] for key in
+                   ("relative_path", "source_sha256", "start_line", "end_line") if key in binding}})
+        blocks.append({"memory_id": block.get("memory_id"), "kind": block.get("kind"),
+            "verification": block.get("verification"),
+            "text_sha256": _digest(text.encode()), "characters": len(text),
+            "evidence_ids": list(block.get("evidence_ids", [])), "origins": origins})
+    return {"schema": memory.get("schema"), "sha256": fingerprint(memory), "blocks": blocks}
 
 
 class QualityTrace:
@@ -76,6 +101,7 @@ class QualityTrace:
                   "sources": [{"evidence_id": p["evidence_id"], "path": p["relative_path"],
                       "source_sha256": p["source_sha256"], "start_line": p["start_line"],
                       "end_line": p["end_line"], "excerpt_sha256": _digest(p["source_text"].encode()),
+                      "binding_sha256": source_binding_sha256(p),
                       "characters": len(p["source_text"]), "group_id": p.get("group_id"),
                       "include_chain": p.get("include_chain", []),
                       "semantic_roles": p.get("semantic_roles", [])} for p in source],
@@ -92,11 +118,15 @@ class QualityTrace:
                       "message_positions": list(range(1, len(messages) - 1))},
                   "trim_events": trims, "tool_results": [], "response": None,
                   "duration_ms": None}
+        if "prior_source_memory" in payload:
+            record["prior_source_memory"] = _memory_diagnostics(payload["prior_source_memory"])
         if self.capture_context:
             record["context"] = {"question": payload["question"],
                                  "sources": [{**s, "excerpt": p["source_text"]} for s, p in zip(record["sources"], source)],
                                  "framework": [{**f, "excerpt": r.get("text", "")} for f, r in zip(record["framework"], framework)],
                                  "history": messages[1:-1]}
+            if "prior_source_memory" in payload:
+                record["context"]["prior_source_memory"] = json.loads(json.dumps(payload["prior_source_memory"]))
         self.data["rounds"].append(record)
         self._pending_round_id = record["round_id"]
         self.run_store.start_request(self.data["run_id"], record["round_id"], record["request_body_sha256"])

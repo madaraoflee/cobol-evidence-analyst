@@ -576,6 +576,33 @@ test('phase-only polling retains the latest draft and updates content without a 
   assert.equal(h.get('conversation-analysis-live').innerHTML,'');
 });
 
+test('findings-only and malformed findings objects cannot enter live answer previews',()=>{
+  const h=harness();
+  for(const text of ['{"findings":[]}', '```json\n{"findings":[{"text":"private-note"}]}\n```',
+    '{"findings":[{"text":"private-note"', '{"findings":[],"answer":"private-note"}']){
+    h.run(`state.progress=null;rememberProgress(${JSON.stringify({phase:'writing_answer',
+      answer_preview:{text,round:2,stage:'draft'}})});`);
+    assert.equal(h.run('state.progress.answer_preview'),undefined);
+    assert.doesNotMatch(h.run('liveAnalysisView()'),/private-note|findings|answer-live-preview/);
+  }
+});
+
+test('introduced findings and tool JSON are suppressed without losing the investigation update',()=>{
+  const h=harness();
+  const action='{"findings":[{"text":"private-note","evidence_ids":["ev_sample"]}],"read":[]}';
+  for(const text of ['Continuing the investigation.\n'+action,'Continuing the investigation: '+action,
+    'Continuing the investigation.\n```json\n'+action+'\n```']){
+    h.run(`state.progress=null;rememberProgress(${JSON.stringify({phase:'writing_answer',
+      analysis_update:{round:2,summary:'Relevant source located.',evidence_count:3},
+      answer_preview:{text,round:2,stage:'draft'}})});`);
+    assert.equal(h.run('state.progress.answer_preview'),undefined);
+    assert.match(h.run('liveAnalysisView()'),/Relevant source located\./);
+    assert.doesNotMatch(h.run('liveAnalysisView()'),/private-note|findings|answer-live-preview/);
+  }
+  h.run("rememberProgress({phase:'writing_answer',answer_preview:{text:'The findings explain the calculation.',round:2,stage:'draft'}});");
+  assert.match(h.run('liveAnalysisView()'),/The findings explain the calculation\./);
+});
+
 test('live updates reject malformed counters and tool protocol previews rather than presenting them as answers',()=>{
   const h=harness();setup(h);
   const actions=['{"read":[{"relative_path":"private-action.cbl"}]}','```json\n{"search":["private-action"]}\n```','{"backward_slice":[{"relative_path":"private-action.cbl"}]}','{"tool_calls": ['];

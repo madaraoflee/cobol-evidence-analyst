@@ -792,7 +792,8 @@ function answerPreview(value){
   // Investigation actions are protocol data, never a draft for the reader.
   const text=value.text.trim();
   const candidate=text.replace(/^```(?:json)?\s*\n?/i,'').replace(/\n?```\s*$/,'').trim();
-  if(/^\s*[\[{]/.test(candidate) && /"(?:search|read|focus|framework_search|inspect_business_context|list_impact|search_concepts|backward_slice|forward_slice|explain_assignment|trace_parameter|explain_external_effect|tool_calls)"\s*:/.test(candidate))return null;
+  const objectStart=candidate.search(/[\[{]/);
+  if(objectStart>=0 && /"(?:search|read|focus|findings|framework_search|inspect_business_context|list_impact|search_concepts|backward_slice|forward_slice|explain_assignment|trace_parameter|explain_external_effect|tool_calls)"\s*:/.test(candidate.slice(objectStart)))return null;
   return {text:value.text,round:progressCount(value.round),stage:['draft','drafting','answer','answering','writing','revision','revise','revising','continuation','continuing','verifying'].includes(value.stage)?value.stage:'drafting'};
 }
 function liveAnalysisView(progress=state.progress){

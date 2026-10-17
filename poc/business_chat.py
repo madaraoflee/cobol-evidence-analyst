@@ -28,6 +28,7 @@ from framework_knowledge import MAX_SECTION_CHARS, build_framework_context, fram
 from framework_semantics import build_framework_facts, visible_framework_facts
 from quality_trace import QualityTrace, PIPELINE_VERSION, PROMPT_VERSION
 from question_budget import QuestionBudget, QuestionDeadlineExceeded
+from prior_source_memory import PriorSourceMemory, valid_findings
 from repository_identity import identity_blocks_analysis
 
 
@@ -166,7 +167,11 @@ def _actions(text, policy=None):
         item = json.loads(value)
     except (ValueError, RecursionError):
         return None
-    if not isinstance(item, dict) or not set(item) <= {"search", "read", "framework_search", "inspect_business_context", "list_impact", "search_concepts", "reason", "focus", *_SEMANTIC_TOOLS}:
+    permitted = {"search", "read", "framework_search", "inspect_business_context", "list_impact", "search_concepts", "reason", "focus", *_SEMANTIC_TOOLS}
+    if policy.max_model_requests is None:
+        permitted.add("findings")
+    if (not isinstance(item, dict) or not set(item) <= permitted
+            or "findings" in item and not valid_findings(item["findings"])):
         return None
     searches = item.get("search", [])
     reads = item.get("read", [])
@@ -226,7 +231,7 @@ def _action_reply_invalid(text, action):
         # That is a scheduling condition, not malformed model output.
         return not any(action.values()) and not any((_actions(text) or {}).values())
     value = _action_json_text(text)
-    tool_keys = {"search", "read", "framework_search", "inspect_business_context", "focus",
+    tool_keys = {"search", "read", "framework_search", "inspect_business_context", "focus", "findings",
                  "list_impact", "search_concepts", *_SEMANTIC_TOOLS}
     descriptor_keys = {"tool", "tools", "tool_calls", "function_call"}
 
@@ -234,6 +239,8 @@ def _action_reply_invalid(text, action):
         if not isinstance(item, dict):
             return False
         keys = set(item)
+        if "findings" in keys:
+            return True
         if keys & tool_keys and keys <= tool_keys | {"reason", "focus"}:
             return True
         return bool(keys & descriptor_keys and keys <= descriptor_keys |
@@ -244,9 +251,20 @@ def _action_reply_invalid(text, action):
     except (ValueError, RecursionError):
         # A malformed protocol must start with an explicit tool key. Looking
         # through the entire reply also matches citations and business examples.
+        # A complete terminal findings envelope after an inline introduction
+        # is still protocol, though it is deliberately not executed as a tool.
+        start = value.find("{")
+        if start > 0:
+            try:
+                inline = json.loads(value[start:])
+            except (ValueError, RecursionError):
+                inline = None
+            if (isinstance(inline, dict) and "findings" in inline
+                    and (isinstance(inline["findings"], list) or set(inline) & (tool_keys - {"findings"}))):
+                return True
         return bool(re.match(r'^(?:\[\s*)?\{\s*(?:"(?:reason|focus)"\s*:\s*'
             r'"(?:\\.|[^"\\])*"\s*,\s*)*["\'](?:search|read|framework_search|'
-            r'inspect_business_context|list_impact|search_concepts|focus|tool|tools|'
+            r'inspect_business_context|list_impact|search_concepts|focus|findings|tool|tools|'
             r'backward_slice|forward_slice|explain_assignment|trace_parameter|explain_external_effect|'
             r'tool_calls|function_call)["\']\s*:', value, re.I))
     if isinstance(item, list):
@@ -524,10 +542,16 @@ def _prompt_payload(payload):
                         "identity_status": identity_status,
                         "identity_unresolved": identity_blocks_analysis(identity),
                         "focus_correctable": not identity.get("hard_constraint", True)}
+    memory_blocks = projected.get("prior_source_memory", {}).get("blocks", [])
+    if memory_blocks:
+        source_selection["prior_memory_page_count"] = len({identifier for block in memory_blocks
+            for identifier in block.get("evidence_ids", [])})
+        source_selection["prior_memory_scope"] = "Only the explicitly declared prior-source-memory blocks remain available."
     detailed = (projected.get("answer_detail", "detailed") != "brief"
                 and projected.get("business_analysis_brief", {}).get("detail_requested", True))
     discovery_only = (projected.get("retrieval_status", {}).get("state") == "needs_discovery"
                       and not any(bundle.get("pages") for bundle in projected.get("source_context", []))
+                      and not memory_blocks
                       and projected.get("investigation_budget", {}).get("searches_per_turn", 0) > 0)
     contract = {"detail": ("Explain the requested business behavior thoroughly, including relevant inputs, "
                             "conditions, processing order, field changes, exceptions, results and source evidence."
@@ -586,8 +610,14 @@ def _prompt_payload(payload):
             **({"question": trailing["question"]} if "question" in trailing else {})}
 
 
+def _system_for_payload(payload):
+    if "prior_source_memory" not in payload:
+        return _SYSTEM
+    return _SYSTEM.replace("事实依据取自本轮原文。", "事实依据取自实际供应原文，包括 prior_source_memory 明确绑定的本题早先原文；其中候选解释仍须核对。", 1)
+
+
 def _fit_request(config, payload, history, policy=None, *, trim_events=None, investigation_builder=None,
-                 source_fallback_builder=None, check_cancel=None):
+                 source_fallback_builder=None, check_cancel=None, source_memory=None):
     """Bound the actual encoded request, trimming secondary context first."""
     history = list(history)
     policy = resolve_agent_policy(policy)
@@ -599,7 +629,7 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
     def encode_request():
         if check_cancel:
             check_cancel()
-        messages = [{"role": "system", "content": _SYSTEM}, *history,
+        messages = [{"role": "system", "content": _system_for_payload(payload)}, *history,
                     {"role": "user", "content": json.dumps(_prompt_payload(payload), ensure_ascii=False,
                         separators=(",", ":"))}]
         size = len(json.dumps({"model": config.chat_model, "messages": messages,
@@ -657,19 +687,21 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         # changing the actual evidence. Re-evaluate obligations only when the
         # pages, framework material or reviewed draft really change.
         material = json.dumps([bundle["pages"], payload.get("framework_facts", []),
-            payload.get("framework_references", []), payload.get("draft_answer", "")],
+            payload.get("framework_references", []), payload.get("draft_answer", ""),
+            payload.get("prior_source_memory")],
             ensure_ascii=False, separators=(",", ":"))
         material_changed = material != last_material
+        review_pages = source_memory.effective_pages(payload) if source_memory else bundle["pages"]
         if investigation_builder is not None and material_changed:
-            payload["question_investigation"] = investigation_builder(bundle["pages"],
+            payload["question_investigation"] = investigation_builder(review_pages,
                 **({"framework_facts": payload["framework_facts"]} if "framework_facts" in payload else {}))
         if "answer_review" in payload and material_changed:
             payload["answer_review"] = assess_business_answer(payload.get("question", ""),
-                payload.get("draft_answer", ""), payload.get("question_investigation", {}), bundle["pages"],
+                payload.get("draft_answer", ""), payload.get("question_investigation", {}), review_pages,
                 answer_detail=payload.get("answer_detail", "detailed"), working_set=bundle.get("working_set"))
         if not payload.get("business_analysis_brief_omitted") and material_changed:
             payload["business_analysis_brief"] = build_analysis_brief(payload.get("question", ""),
-                payload.get("question_investigation", {}), bundle["pages"],
+                payload.get("question_investigation", {}), review_pages,
                 payload.get("framework_references", []), config.max_output_tokens,
                 answer_detail=payload.get("answer_detail", "detailed"), business_map=business_map,
                 framework_facts=payload.get("framework_facts", []))
@@ -699,6 +731,9 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         elif payload.get("analysis_memory", {}).get("instruction"):
             payload["analysis_memory"].pop("instruction")
             record(None, "analysis_memory_instruction_bytes")
+        elif payload.get("prior_source_memory") and not payload["prior_source_memory"].get("blocks"):
+            payload.pop("prior_source_memory")
+            record(None, "empty_source_memory_protocol_bytes")
         elif not payload.get("budget_wire_compact"):
             payload["budget_wire_compact"] = True
             record(None, "optional_navigation_wire_bytes")
@@ -796,6 +831,9 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
             payload["omitted_evidence_group_count"] = payload.get("omitted_evidence_group_count", 0) + 1
             payload["omitted_group_core_evidence_count"] = payload.get("omitted_group_core_evidence_count", 0) + len(removed.get("core_evidence_ids", []))
             record(removed.get("group_id"), "evidence_group_metadata")
+        elif payload.get("prior_source_memory", {}).get("blocks"):
+            removed = payload["prior_source_memory"]["blocks"].pop(0)
+            record(removed.get("memory_id"), "prior_source_memory_request_bytes", len(removed.get("text", "")))
         elif bundle["pages"]:
             if source_fallback_attempted and source_fallback_builder is not None:
                 old = bundle["pages"][0]
@@ -861,11 +899,18 @@ def _framework_prompt_references(framework, searched, recent_ids, policy, format
     return references, combined
 
 
-def _request_manifest(payload):
+def _request_manifest(payload, source_memory=None):
     manifest = EvidenceContext.manifest(payload)
+    if source_memory is not None:
+        manifest["memory_source_ids"] = sorted(source_memory.visible_ids(payload))
+        manifest["source_memory"] = json.loads(json.dumps(payload.get("prior_source_memory", {})))
     manifest["framework_facts"] = json.loads(json.dumps(payload.get("framework_facts", [])))
     manifest["session_subject"] = json.loads(json.dumps(payload.get("session_subject", {})))
     return manifest
+
+
+def _bound_source_ids(manifest):
+    return sorted(set((manifest or {}).get("source_ids", [])) | set((manifest or {}).get("memory_source_ids", [])))
 
 
 def _supplied_answer_material(payload):
@@ -893,7 +938,21 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                       check_cancel=None, policy=None, capture_context=False,
                       source_session=None, answer_detail="detailed", resume_state=None, analysis_identity=None,
                       question_budget=None, **unused):
-    from business_analysis import _extract_text, _TextResponseError, _framework_for_prompt
+    from business_analysis import _extract_text as extract_business_text, _content_text, _TextResponseError, _framework_for_prompt
+
+    def _extract_text(response):
+        reply = extract_business_text(response)
+        # Findings are reserved protocol data. A simultaneous "answer" field
+        # must not hide that envelope through the generic business-text unwrap.
+        raw_text = _content_text(response["choices"][reply.choice_index]["message"].get("content"))
+        try:
+            document = json.loads(_action_json_text(raw_text))
+        except (ValueError, RecursionError):
+            document = None
+        if isinstance(document, dict) and "findings" in document:
+            return replace(reply, text=raw_text, structured=True)
+        return reply
+
     from repository_discovery import (repository_search_overview, retrieve_repository_context,
                                       read_repository_context)
     from source_session import archive_evidence, refresh_selected_sources
@@ -981,6 +1040,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         question_budget.recovery = save_budget_stop
     resume_checkpoint = (resume_state or {}).get("checkpoint", {})
     adaptive = policy.max_model_requests is None
+    source_memory = PriorSourceMemory(database_path, question=question, run_id=quality.data["run_id"],
+        context={"analysis_identity": analysis_identity,
+                 "compilation_context": source_session.options.get("compilation_context") if source_session else None}) if adaptive else None
+    if source_memory is not None:
+        source_memory.restore(resume_checkpoint.get("prior_source_memory"), quality.data["rounds"])
+        sent_pages.update(source_memory.pages)
     continuation = AnalysisContinuation(question, resume_checkpoint.get("analysis_continuation"))
     continuation_texts = set(resume_checkpoint.get("continuation_texts", []))
     resume_response = None
@@ -1070,7 +1135,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             continuation.draft = redactor._sanitize(answer)
         checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
         updates = {"analysis_continuation": continuation.checkpoint(),
-                   "continuation_texts": sorted(continuation_texts)}
+                   "continuation_texts": sorted(continuation_texts),
+                   "prior_source_memory": source_memory.checkpoint()}
         if processed:
             # Commit consumed responses together with their local effects. A
             # restart replays received-but-unprocessed responses only.
@@ -1082,9 +1148,15 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 "investigation": answer_investigation, "round": answer_round,
                 "rounds": answer_rounds, "finish_reason": answer_finish_reason,
                 "truncated": truncated,
-                "source_pages": [sent_pages[i] for i in (answer_manifest or {}).get("source_ids", [])],
+                "source_pages": [sent_pages[i] for i in _bound_source_ids(answer_manifest)],
                 "framework_references": [sent_framework[i] for i in (answer_manifest or {}).get("framework_ids", [])]}
         quality.run_store.checkpoint(quality.data["run_id"], {**checkpoint, **updates})
+
+    def remember_source_draft(payload):
+        if source_memory is not None:
+            source_memory.accept_draft(redactor._sanitize(answer), payload=payload,
+                                      round_record=quality.response_round())
+            sent_pages.update(source_memory.pages)
 
     def check_local_analysis_budget():
         if check_cancel:
@@ -1683,7 +1755,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         nonlocal turns, first_model_request_seconds, resume_response, last_request_manifest
         quality.prepare(stage=stage, payload=payload, messages=messages, trim_events=trim_events,
                         replay_round_id=f"round-{turns}" if resume_response is not None else None)
-        last_request_manifest = _request_manifest(payload)
+        last_request_manifest = _request_manifest(payload, source_memory)
         if check_cancel:
             check_cancel()
         if resume_response is not None:
@@ -2068,7 +2140,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             evidence_groups=evidence_groups, priority_targets=priority_targets,
                             max_complete_source_characters=policy.max_complete_source_characters)
                 framework, references, combined_framework, framework_facts, selected_pages = framework_material(selected_pages)
-                current_investigation = question_investigation(selected_pages, framework_facts=framework_facts)
+                prior_memory = source_memory.prompt() if source_memory else None
+                review_pages = (source_memory.effective_pages({"source_context": [{"pages": selected_pages}],
+                    "prior_source_memory": prior_memory}) if source_memory else selected_pages)
+                current_investigation = question_investigation(review_pages, framework_facts=framework_facts)
                 if adaptive:
                     continuation.observe(selected_pages, references, current_investigation)
                     if continuation.stop_reason == "no_evidence_progress":
@@ -2078,11 +2153,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     emit_analysis(current_investigation,
                         summary="补查未获得新的有效证据，正在整理已确认的结论与具体未知条件。"
                         if protocol_answer_pending else None)
-                framework_only = not selected_pages and any(reference.get("selection_reason") in
+                framework_only = not review_pages and any(reference.get("selection_reason") in
                     {"question_only", "framework_search", "source_marker"} for reference in references)
                 source_required = any(item.get("kind") == "formula" for item in
                                       current_investigation.get("required_items", []))
-                discovery_pending = can_discover(current_investigation) and (not framework_only or source_required)
+                discovery_pending = (can_discover(current_investigation) and (not framework_only or source_required)
+                                     and not (prior_memory or {}).get("blocks"))
                 force_answer = (protocol_answer_pending or policy.is_last_request(turn)
                                 or bool(question_budget and question_budget.should_answer(config.timeout_seconds)))
                 graph_prompt = {"intent": business_map["intent"],
@@ -2171,6 +2247,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                    "回答 question 中的业务问题，沿给定输入和假设推导现有行为。"
                                    "必要业务点解释完整即结束；用户未请求修改时不追加改码建议或反事实场景。"
                                    "确有具体证据缺口时先请求搜索或读取。"}
+                if adaptive:
+                    payload["prior_source_memory"] = prior_memory
                 if adaptive and answer:
                     payload["analysis_memory"] = continuation.prompt_memory()
                     if answer and not truncated:
@@ -2211,12 +2289,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 trim_events = selection_events()
                 messages, request_size = _fit_request(config, payload, history_context, policy,
                     trim_events=trim_events, investigation_builder=question_investigation,
-                    source_fallback_builder=source_fallback, check_cancel=check_cancel)
+                    source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
                 if resume_response is not None and resume_checkpoint.get("request_payload"):
                     payload = resume_checkpoint["request_payload"]
-                    messages = [{"role": "system", "content": _SYSTEM}, *history_context,
+                    messages = [{"role": "system", "content": _system_for_payload(payload)}, *history_context,
                                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
-                visible = _request_manifest(payload)
+                visible = _request_manifest(payload, source_memory)
                 current_investigation = payload["question_investigation"]
                 last_investigation = current_investigation
                 if automatic_followup_material is not None:
@@ -2232,8 +2310,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         break
                     automatic_followup_material = None
                 if (can_discover(current_investigation) and not framework_only and
-                        not visible["source_ids"] and not visible["framework_ids"]):
+                        not _bound_source_ids(visible) and not visible["framework_ids"]):
                     discovery_pending = True
+                elif visible.get("memory_source_ids"):
+                    discovery_pending = False
                 sent_pages.update({page["evidence_id"]: page for page in payload["source_context"][0]["pages"]})
                 evidence.sent_any_round_ids.update(visible["source_ids"])
                 for reference in payload["framework_references"]:
@@ -2258,6 +2338,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     recovery_evidence = (
                         any(page.get("source_text", "").strip()
                             for bundle in payload.get("source_context", []) for page in bundle.get("pages", []))
+                        or bool(visible.get("memory_source_ids"))
                         or any(reference.get("text", "").strip()
                                for reference in payload.get("framework_references", [])))
                     if (exc.code != "MODEL_TEXT_EMPTY" or shape is None or not recovery_evidence
@@ -2322,8 +2403,15 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                      error="INVALID_INVESTIGATION_ACTION" if invalid_action else None,
                                      usage=raw.get("usage"), **response_character_counts(raw, reply))
                 if action and not invalid_action:
+                    if source_memory is not None:
+                        source_memory.accept_findings(
+                            [{**row, "text": redactor._sanitize(row["text"])} for row in
+                             json.loads(_action_json_text(reply.text)).get("findings", [])],
+                            payload=payload, round_record=quality.response_round())
+                        sent_pages.update(source_memory.pages)
                     checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
                     quality.run_store.checkpoint(quality.data["run_id"], {**checkpoint,
+                        **({"prior_source_memory": source_memory.checkpoint()} if source_memory else {}),
                         "frontier": [{"tool": tool, "arguments": arguments}
                             for tool, values in action.items() if values
                             for arguments in (values if tool in {"read", "inspect_business_context", *_SEMANTIC_TOOLS}
@@ -2342,7 +2430,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         investigation_reprompted = True
                         recovery_reason = "补查动作格式无效"
                         protocol_answer_pending = not discovery_pending and bool(
-                            visible["source_ids"] or visible["framework_ids"])
+                            _bound_source_ids(visible) or visible["framework_ids"])
                         boundaries.append({"reason": "investigation_action_recovery",
                             "from_round_id": f"round-{turns}",
                             "next_step": "answer_from_evidence" if protocol_answer_pending else "correct_action"})
@@ -2364,7 +2452,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                            "revision_error": "ANSWER_INCOMPLETE"})
                         break
                     if adaptive and answer and not reply.truncated:
-                        supplied = payload["source_context"][0]["pages"]
+                        supplied = source_memory.effective_pages(payload) if source_memory else payload["source_context"][0]["pages"]
                         candidate_review = assess_business_answer(question, reply.text,
                             current_investigation, supplied, answer_detail=answer_detail,
                             working_set=visible.get("working_set"))
@@ -2393,6 +2481,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                 answer_rounds = [answer_round]
                                 answer_finish_reason = response_shape["finish_reason"]
                                 answer_manifest = visible
+                                remember_source_draft(payload)
                                 answer_investigation = current_investigation
                                 if (not promised and not truncated and finish_reason == "stop"
                                         and assess_answer_completion(answer)["status"] != "incomplete"):
@@ -2407,6 +2496,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                 answer_rounds = [answer_round]
                                 answer_finish_reason = response_shape["finish_reason"]
                                 answer_manifest = visible
+                                remember_source_draft(payload)
                                 answer_investigation = current_investigation
                             continue
                     if deferred:
@@ -2417,13 +2507,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     answer_rounds = [answer_round]
                     answer_finish_reason = response_shape["finish_reason"]
                     answer_manifest = visible
+                    remember_source_draft(payload)
                     answer_investigation = current_investigation
                     if adaptive and not force_answer and not truncated and policy.max_answer_revisions:
-                        supplied = payload["source_context"][0]["pages"]
+                        supplied = source_memory.effective_pages(payload) if source_memory else payload["source_context"][0]["pages"]
                         assessment = assess_business_answer(question, answer, current_investigation, supplied,
                             answer_detail=answer_detail, working_set=visible.get("working_set"))
                         review_needed = needs_synthesis_review(question, answer, current_investigation,
-                            source_available=bool(visible["source_ids"]), source_pages=supplied,
+                            source_available=bool(supplied), source_pages=supplied,
                             answer_detail=answer_detail, assessment=assessment,
                             working_set=visible.get("working_set"))
                         emit_analysis(current_investigation,
@@ -2576,6 +2667,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 # Explicitly bounded sessions retain their one-continuation contract.
                 # Interactive sessions continue while genuinely adding answer text.
                 continuation_payload = {**payload, "draft_answer": answer, "draft_continuation": True,
+                    **({"prior_source_memory": source_memory.prompt()} if source_memory else {}),
                     "investigation_budget": {"remaining_model_requests": policy.remaining_model_requests(turns),
                         "searches_per_turn": 0, "reads_per_turn": 0, "framework_searches_per_turn": 0,
                         "business_context_actions_per_turn": 0},
@@ -2589,10 +2681,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 try:
                     continuation_messages, continuation_size = _fit_request(config, continuation_payload,
                         history_context, policy, trim_events=continuation_trims,
-                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel)
+                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
                 except ValueError:
                     raise APIClientError("BUSINESS_CONTEXT_TOO_LARGE") from None
-                continuation_visible = _request_manifest(continuation_payload)
+                continuation_visible = _request_manifest(continuation_payload, source_memory)
                 continuation_attempted = True
                 failure_stage, response_raw = "provider_request", None
                 continued_raw = complete(continuation_messages, payload=continuation_payload,
@@ -2635,8 +2727,13 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     answer_rounds.append(answer_round)
                     for name in ("source_ids", "framework_ids"):
                         answer_manifest[name] = sorted(set(answer_manifest[name]) | set(continuation_visible[name]))
+                    if source_memory is not None:
+                        answer_manifest["memory_source_ids"] = sorted(
+                            set(answer_manifest.get("memory_source_ids", [])) |
+                            set(continuation_visible.get("memory_source_ids", [])))
                     evidence.sent_any_round_ids.update(continuation_visible["source_ids"])
                     sent_pages.update({page["evidence_id"]: page for page in continuation_payload["source_context"][0]["pages"]})
+                    remember_source_draft(continuation_payload)
                     continued_this_cycle = True
                     boundaries.append({"reason": "model_output_continued", "requests": 1})
                     remember_draft()
@@ -2647,7 +2744,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     or not policy.max_answer_revisions or continuation.stop_reason
                     or (question_budget and question_budget.should_answer(config.timeout_seconds))):
                 break
-            supplied = [sent_pages[identifier] for identifier in answer_manifest["source_ids"]]
+            supplied = [sent_pages[identifier] for identifier in _bound_source_ids(answer_manifest)]
             supplied_references = [sent_framework[identifier]
                 for identifier in answer_manifest["framework_ids"]]
             assessment = assess_business_answer(question, answer, answer_investigation or {}, supplied,
@@ -2695,7 +2792,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 except (ValueError, TypeError):
                     task.state = "stalled"
             answer_source_pages = [sent_pages[identifier]
-                for identifier in (answer_manifest or {}).get("source_ids", [])]
+                for identifier in _bound_source_ids(answer_manifest)]
             draft_completion = assess_business_answer(question, answer, answer_investigation or {}, answer_source_pages,
                 answer_detail=answer_detail, working_set=(answer_manifest or {}).get("working_set"))
             review_synthesis = needs_synthesis_review(question, answer, answer_investigation or {},
@@ -2734,7 +2831,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 try:
                     revision_messages, revision_size = _fit_request(config, revised_payload,
                         history_context, policy, trim_events=trims,
-                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel)
+                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
                 except ValueError:
                     raise APIClientError("BUSINESS_CONTEXT_TOO_LARGE") from None
                 revised_material = _supplied_answer_material(revised_payload)
@@ -2743,7 +2840,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     boundaries.append({"reason": "revision_without_new_visible_material",
                                        "draft_round_id": answer_round})
                 else:
-                    revised_visible = _request_manifest(revised_payload)
+                    revised_visible = _request_manifest(revised_payload, source_memory)
                     for reference in revised_payload["framework_references"]:
                         identifier = reference["reference_id"]
                         sent_framework[identifier] = {**combined_framework[identifier],
@@ -2871,7 +2968,20 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
 
     # A retained answer is bound to its request's captured excerpts. A later
     # live-file edit cannot revoke text the provider actually saw.
-    final_source_ids = set((answer_manifest or {}).get("source_ids", []))
+    final_current_source_ids = set((answer_manifest or {}).get("source_ids", []))
+    final_memory_source_ids = set((answer_manifest or {}).get("memory_source_ids", []))
+    final_source_ids = final_current_source_ids | final_memory_source_ids
+    if source_memory is not None:
+        for identifier in sorted(final_memory_source_ids):
+            try:
+                page = source_memory.archived_pages([identifier])[0]
+            except (ValueError, OSError, sqlite3.Error):
+                boundaries.append({"reason": "prior_source_memory_unavailable", "evidence_id": identifier})
+                final_memory_source_ids.discard(identifier)
+                if identifier not in final_current_source_ids:
+                    final_source_ids.discard(identifier)
+            else:
+                sent_pages[identifier] = page
     final_framework_ids = set((answer_manifest or {}).get("framework_ids", []))
     for identifier in final_source_ids:
         page = sent_pages[identifier]
@@ -3069,6 +3179,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                    "hard_limit_seconds": policy.hard_question_seconds},
                "retrieved_pages": len(pages), "repository_rebuilt": False,
                "history_messages": len(history or []), "source_characters": sum(len(sent_pages[i].get("source_text", "")) for i in final_source_ids),
+               **({"current_source_pages": len(final_current_source_ids),
+                   "prior_memory_source_pages": len(final_memory_source_ids - final_current_source_ids),
+                   "source_binding_mode": "current_and_declared_prior_memory"} if adaptive else {}),
                "request_bytes": request_sizes, "policy": policy.to_dict(), "tool_calls": tool_calls,
                "provider_retries": provider_retries,
                "provider_request_timings": provider_request_timings,
@@ -3235,8 +3348,13 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 if resume.get("uncertain_requests"):
                     return unknown_remote_result()
                 budget.phase = "validating_saved_sources"
-                for page in resume["checkpoint"].get("source_pages", []):
-                    if session.capture(page["relative_path"]).sha256 != page["source_sha256"]:
+                memory_pages = (resume["checkpoint"].get("prior_source_memory") or {}).get("pages", [])
+                for page in [*resume["checkpoint"].get("source_pages", []), *memory_pages]:
+                    changed = session.capture(page["relative_path"]).sha256 != page["source_sha256"]
+                    for origin in page.get("include_chain", []):
+                        if isinstance(origin, dict) and origin.get("relative_path") and origin.get("source_hash"):
+                            changed = changed or session.capture(origin["relative_path"]).sha256 != origin["source_hash"]
+                    if changed:
                         return {"runner_status": "NOT_READY", "reason_code": "RESUME_SOURCE_VERSION_CHANGED",
                             "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
                                 "answer": "调查读取的源码版本已经变化。原调查和证据已保留，需要基于新版本开始调查。"}}
