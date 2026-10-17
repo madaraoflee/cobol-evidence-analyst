@@ -1,6 +1,8 @@
 # 统一版本
 
-源码以 GitHub `main` 为准，Mac 开发目录同步同一提交。Windows 是主要交付平台；Windows x64 与 Mac arm64 应用分别在对应系统构建，使用相同源码。GitHub 的[最新发布](https://github.com/madaraoflee/cobol-evidence-analyst/releases/latest)是唯一日常下载入口，发布说明记录冻结提交和验证结果。
+源码以 GitHub `main` 为准，Mac 开发目录同步同一提交。Windows 是主要交付平台；Windows x64 与 Mac arm64 应用分别在对应系统构建，使用相同源码。GitHub 的[最新发布](https://github.com/madaraoflee/cobol-evidence-analyst/releases/latest)是正式版日常下载入口，发布说明记录冻结提交和验证结果。
+
+2026-10-17 多轮分析改造的应用提交为 `1c3fb714fb275648a053f8861f129246d73383fb`。它包含按完成度调查、实时回答和跨轮源码记忆，按候选交付；下载、构建结果与包指纹见[本次验证记录](reports/2026-10-17-completion-driven-analysis.md)。正式入口中的历史版本不包含本次改造，候选也不自动替换旧正式版。
 
 ## Windows 使用
 
@@ -18,7 +20,7 @@
 
 开发者在项目目录使用 `git switch main`、`git pull --ff-only` 更新。构建前保持工作区干净，记录完整提交；Windows 工作流与 Mac 构建都从该提交开始。发布时同时保存包的 SHA-256、源码提交、构建信息、自检结果及业务评估记录。平台依赖不同，两个包的文件指纹可以不同，源码对应关系按提交和文件清单核对。
 
-本机当前交付统一放在 `release/current`，包含 Windows ZIP、Mac ZIP、新 Mac 应用入口及交付核验记录。历史目录和基线分支仅作回退留档，不作为日常使用入口。升级保留本机配置与结果，构建包中不包含 API 密钥、真实业务源码或历史数据。
+历史本机交付曾统一放在 `release/current`，包含对应版本的 Windows ZIP、Mac ZIP、Mac 应用入口及交付核验记录；该目录记录不证明 `1c3fb71` 已具备这些包。本次候选按上方验证记录核对。历史目录和基线分支仅作回退留档，不作为新版下载入口。升级保留本机配置与结果，构建包中不包含 API 密钥、真实业务源码或历史数据。
 
 默认回答保持详细，展开当前问题涉及的业务条件、处理顺序和结果。本轮业务质量升级已将共享语句事实、来源与切片、关键结论核验及调查恢复接入默认工作台；实现和离线验证见[升级交付报告](reports/2026-10-13-business-quality-upgrade.md)。每个平台的实际可下载版本、冻结提交、构建校验及评测适用范围以对应发布说明为准；保留历史评测记录，不将离线机制通过等同于真实模型业务准确率。
 
@@ -28,4 +30,4 @@
 
 正式 Windows 发布现须通过[同包联合验收](joint-release-acceptance.md)：最终 EXE 离线回归、真实模型、逐条人工评审和目标办公设备验收缺一项即保持候选。自动构建只上传通过原生离线门禁的候选；正式发布统一使用 `tools/publish_desktop_release.py`，不得直接修改草稿状态绕过门禁。
 
-最终 Windows EXE 的本轮实际构建、55 样本原生回归、大库耗时、包指纹与发布阻断结果见[联合验收交付报告](reports/2026-10-15-desktop-joint-acceptance.md)。候选应用冻结于 `44fcb5f`；后续报告提交不改变已验收包的身份。
+2026-10-15 历史 Windows EXE 的实际构建、55 样本原生回归、大库耗时、包指纹与发布阻断结果见[联合验收交付报告](reports/2026-10-15-desktop-joint-acceptance.md)。该历史候选冻结于 `44fcb5f`，不能代替本次 `1c3fb71` 的产物；后续报告提交不改变各包的身份。

@@ -1,0 +1,363 @@
+{
+  "source_commit": "1c3fb714fb275648a053f8861f129246d73383fb",
+  "pipeline_version": "question-evidence-v23",
+  "prompt_version": "business-chat-v26",
+  "local_python": {
+    "tests": 3040,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "seconds": 264.051,
+    "python_version": "3.12.14",
+    "frozen_public_corpus_used": true,
+    "clean_commit": true,
+    "files_unchanged": 810,
+    "log_sha256": "a65972292d961a3d1c1233afe2b980fa2df0a63b8915b4492d44149c3e2d41c0"
+  },
+  "local_browser": {
+    "tests": 187,
+    "failures": 0,
+    "files": 11,
+    "node_version": "24.19.0"
+  },
+  "synthetic_local_transport_smoke": {
+    "kind": "synthetic-local-transport-smoke",
+    "passed": true,
+    "elapsed_seconds": 1.955,
+    "provider_requests": 3,
+    "tool_action_requests": 2,
+    "live_preview_samples": 30,
+    "first_preview_characters": 110,
+    "preview_before_provider_terminal_seconds": 1.183,
+    "analysis_update_retained": true,
+    "reasoning_and_tool_json_leaked": false,
+    "answer_saved": true,
+    "answer_characters": 752,
+    "journal_requests": 3,
+    "job_status": "COMPLETED",
+    "answer_status": "ANALYZED"
+  },
+  "source_memory_comparison": "2026-10-17-source-memory-comparison.json",
+  "windows_candidate": {
+    "status": "verified",
+    "artifact_available": true,
+    "run": {
+      "id": 39064458797,
+      "name": "Windows desktop x64",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "1c3fb714fb275648a053f8861f129246d73383fb",
+      "created_at": "2026-10-17T19:54:24Z",
+      "updated_at": "2026-10-17T20:36:22Z",
+      "html_url": "https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/39064458797"
+    },
+    "artifact": {
+      "id": 12114081375,
+      "name": "COBOLWorkbench-windows-x64-1c3fb714fb275648a053f8861f129246d73383fb-1",
+      "html_url": "https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/39064458797/artifacts/12114081375",
+      "size_in_bytes": 30787773,
+      "digest": "sha256:cc1df37826f4635d5482be4848d1666952d39fd85e8306f6b157e0419874bcab",
+      "created_at": "2026-10-17T20:36:17Z",
+      "expires_at": "2026-10-31T20:36:15Z"
+    },
+    "package": {
+      "file_name": "COBOLWorkbench-windows-x64.zip",
+      "size_bytes": 19241632,
+      "sha256": "c554c87184c81f2dd36c629fdf0993a28ee8505bb13de39e5baf04b97c82df34",
+      "binary_path": "COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe",
+      "binary_size_bytes": 30091264,
+      "binary_sha256": "f45d76b2b7987a6ee35b8df6b917c9c4d511839da8f7eabc5e48511618c04ae7",
+      "application_sha256": "5980758f654be49d232256a562e21f9d82ee6f1438b70106d1738c914b94c6ac",
+      "runtime": {
+        "target": "windows-x64",
+        "built_at": "2026-10-17T20:26:17.020756+00:00",
+        "python": "3.13.16",
+        "source_dirty": false,
+        "self_test": {
+          "ok": true,
+          "static_files": 9,
+          "loopback_server": true,
+          "server_stopped": true,
+          "model_calls": 0,
+          "json_accelerated": true,
+          "desktop_dependencies": true,
+          "browser_mode": false,
+          "tls_context": true
+        },
+        "release_status": "candidate_unaccepted"
+      }
+    },
+    "verification": {
+      "artifact_downloaded": true,
+      "artifact_size_and_sha256_match_github": true,
+      "outer_and_inner_zip_crc_passed": true,
+      "archive_checksum_file_matches": true,
+      "package_and_report_source_commit_match": true,
+      "packaged_build_info_matches_outer_report": true,
+      "binary_hash_matches_report_and_gate": true,
+      "candidate_gate_recomputed_with_packaged_inputs_matches": true
+    },
+    "python": {
+      "tests": 3040,
+      "duration_seconds": 1128.854,
+      "status": "passed",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2,
+      "executed_tests": 3038,
+      "skip_names_available_in_nonverbose_log": false
+    },
+    "browser": {
+      "files": 11,
+      "tests": 187,
+      "passed": 187,
+      "failed": 0,
+      "skipped": 0,
+      "duration_milliseconds": 7114.4517
+    },
+    "native": {
+      "status": "passed",
+      "samples": 67,
+      "distinct_cases": 21,
+      "elapsed_seconds": 593.761628,
+      "sample_status_counts": {
+        "passed": 67
+      },
+      "agent_status_counts": {
+        "ANALYZED": 24,
+        "PARTIAL": 37,
+        "NO_ANSWER_LIFECYCLE": 6
+      },
+      "without_answer_count": 6,
+      "lifecycle_case_counts": {
+        "cancel_unknown": 3,
+        "deadline_unknown": 3
+      },
+      "partial_stop_reason_counts": {
+        "request_budget": 14,
+        "answer_incomplete": 11,
+        "question_evidence_incomplete": 12
+      },
+      "scope_probe_count": 14,
+      "scope_probe_id_counts": {
+        "bare_group_field": 3,
+        "qualified_output_scope": 3,
+        "ambiguous_group_field": 3,
+        "large_two_if_pic": 5
+      },
+      "scope_probe_agent_status_counts": {
+        "PARTIAL": 14
+      },
+      "scope_probe_all_checks_passed": true,
+      "selection_complete": true,
+      "failures": [],
+      "errors": [],
+      "manifest_sha256": "aed4d7a51ba6f7c872b3ebc1a1d0598112fe9a7f6e9d6e3028f49218e4370014",
+      "execution_surface": "native_windows_http",
+      "runtime_platform": "Windows",
+      "transport_kind": "synthetic",
+      "external_model_calls": 0,
+      "paid_model_calls": 0,
+      "real_model_accuracy": null,
+      "business_answer_correctness": null,
+      "per_case": [
+        {
+          "id": "activation_trigger",
+          "samples": 3,
+          "agent_status_counts": {
+            "PARTIAL": 3
+          }
+        },
+        {
+          "id": "cancel_unknown",
+          "samples": 3,
+          "agent_status_counts": {
+            "NO_ANSWER_LIFECYCLE": 3
+          }
+        },
+        {
+          "id": "cl_batch_context",
+          "samples": 3,
+          "agent_status_counts": {
+            "PARTIAL": 3
+          }
+        },
+        {
+          "id": "cl_late_context",
+          "samples": 3,
+          "agent_status_counts": {
+            "PARTIAL": 3
+          }
+        },
+        {
+          "id": "claim_repair",
+          "samples": 3,
+          "agent_status_counts": {
+            "ANALYZED": 3
+          }
+        },
+        {
+          "id": "conversation",
+          "samples": 3,
+          "agent_status_counts": {
+            "PARTIAL": 3
+          }
+        },
+        {
+          "id": "deadline_unknown",
+          "samples": 3,
+          "agent_status_counts": {
+            "NO_ANSWER_LIFECYCLE": 3
+          }
+        },
+        {
+          "id": "dense_record",
+          "samples": 5,
+          "agent_status_counts": {
+            "PARTIAL": 5
+          }
+        },
+        {
+          "id": "forward_impact",
+          "samples": 3,
+          "agent_status_counts": {
+            "ANALYZED": 3
+          }
+        },
+        {
+          "id": "frontend_semantics",
+          "samples": 3,
+          "agent_status_counts": {
+            "PARTIAL": 3
+          }
+        },
+        {
+          "id": "large_repository",
+          "samples": 5,
+          "agent_status_counts": {
+            "PARTIAL": 5
+          }
+        },
+        {
+          "id": "overwrite_condition",
+          "samples": 3,
+          "agent_status_counts": {
+            "ANALYZED": 3
+          }
+        },
+        {
+          "id": "public_account_update",
+          "samples": 3,
+          "agent_status_counts": {
+            "PARTIAL": 3
+          }
+        },
+        {
+          "id": "public_file_record_mapping",
+          "samples": 3,
+          "agent_status_counts": {
+            "ANALYZED": 3
+          }
+        },
+        {
+          "id": "public_limit_rejection",
+          "samples": 3,
+          "agent_status_counts": {
+            "PARTIAL": 3
+          }
+        },
+        {
+          "id": "public_monthly_interest",
+          "samples": 3,
+          "agent_status_counts": {
+            "PARTIAL": 3
+          }
+        },
+        {
+          "id": "public_monthly_interest_repair",
+          "samples": 3,
+          "agent_status_counts": {
+            "PARTIAL": 3
+          }
+        },
+        {
+          "id": "public_unimplemented_procedure",
+          "samples": 3,
+          "agent_status_counts": {
+            "ANALYZED": 3
+          }
+        },
+        {
+          "id": "public_unimplemented_procedure_repair",
+          "samples": 3,
+          "agent_status_counts": {
+            "ANALYZED": 3
+          }
+        },
+        {
+          "id": "soft_target_answer",
+          "samples": 3,
+          "agent_status_counts": {
+            "ANALYZED": 3
+          }
+        },
+        {
+          "id": "static_call_chain",
+          "samples": 3,
+          "agent_status_counts": {
+            "ANALYZED": 3
+          }
+        }
+      ],
+      "policy_scope": "Frozen synthetic compiled-runtime acceptance explicitly selects finite request policies (runtime baseline 1 request/0 answer revisions; business cases 3 requests/0 answer revisions; explicit soft/hard timing scenarios). It is not a measurement of adaptive defaults or real-model answer completeness."
+    },
+    "gate": {
+      "candidate_allowed": true,
+      "publish_allowed": false,
+      "candidate_errors": [],
+      "publish_errors": [
+        {
+          "code": "REAL_MODEL_AND_OFFICE_ACCEPTANCE_REQUIRED"
+        }
+      ],
+      "live_cases": [],
+      "input_sha256": {
+        "policy": "1986d9b90ecd5e2fd209640a9f9071f08237b3a397f758cca98a343a8e0157e8",
+        "manifest": "aed4d7a51ba6f7c872b3ebc1a1d0598112fe9a7f6e9d6e3028f49218e4370014",
+        "compiled_report": "f9da96f24bd7de06b3ce84bcccf4e75f0e5490f4bba90ae7d3e10dd5cb13cb63"
+      }
+    },
+    "job_log_sha256": "686d86934236d9fc0637544e538f485fe39ae30b9e5fa1173387728abbecbfcf"
+  },
+  "real_model_accuracy": null,
+  "business_answer_correctness": null,
+  "target_office_device_accepted": false,
+  "formal_release_published": false,
+  "office_acceptance_kit_build": {
+    "run_id": 39067425892,
+    "html_url": "https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/39067425892",
+    "status": "in_progress",
+    "checked_at": "2026-10-17T20:38:50.512Z",
+    "jobs": [
+      {
+        "id": 117497874541,
+        "name": "lint",
+        "status": "completed",
+        "conclusion": "success",
+        "active_steps": []
+      },
+      {
+        "id": 117497944333,
+        "name": "kit",
+        "status": "in_progress",
+        "conclusion": null,
+        "active_steps": [
+          {
+            "name": "Compile standalone helper and start actual Tk on Windows",
+            "started_at": "2026-10-17T20:37:36Z"
+          }
+        ]
+      }
+    ]
+  }
+}

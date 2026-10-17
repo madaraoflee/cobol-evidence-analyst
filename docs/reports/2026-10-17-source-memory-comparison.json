@@ -1,0 +1,207 @@
+{
+  "baseline_commit": "65109e825399c6372ce297aadfc3e4534c4addaa",
+  "working_tree_implementation_sha256": {
+    "poc/business_chat.py": "4225d0f00c92c28304b8e8c57febbd04d290ea243f8e525776397bf3dbceda99",
+    "poc/prior_source_memory.py": "5309683e837557afb89a04c17f41999ede4016e7b749e18500c536154424f567"
+  },
+  "source_characters": {
+    "root.cbl": 222,
+    "helper-1.cbl": 1374,
+    "helper-2.cbl": 1374
+  },
+  "max_source_characters": 2000,
+  "max_complete_source_characters": 2000,
+  "model_transport": "offline scripted fixture, network blocked",
+  "baseline": {
+    "actual_round_sources": [
+      {
+        "round": 1,
+        "pages": [
+          {
+            "path": "root.cbl",
+            "characters": 222,
+            "start_line": 1,
+            "end_line": 10
+          }
+        ]
+      },
+      {
+        "round": 2,
+        "pages": [
+          {
+            "path": "root.cbl",
+            "characters": 222,
+            "start_line": 1,
+            "end_line": 10
+          },
+          {
+            "path": "helper-1.cbl",
+            "characters": 1374,
+            "start_line": 1,
+            "end_line": 54
+          }
+        ]
+      },
+      {
+        "round": 3,
+        "pages": [
+          {
+            "path": "root.cbl",
+            "characters": 222,
+            "start_line": 1,
+            "end_line": 10
+          },
+          {
+            "path": "helper-1.cbl",
+            "characters": 1374,
+            "start_line": 1,
+            "end_line": 54
+          }
+        ]
+      },
+      {
+        "round": 4,
+        "pages": [
+          {
+            "path": "root.cbl",
+            "characters": 222,
+            "start_line": 1,
+            "end_line": 10
+          },
+          {
+            "path": "helper-2.cbl",
+            "characters": 1374,
+            "start_line": 1,
+            "end_line": 54
+          }
+        ]
+      }
+    ],
+    "answer": "基础金额初值为10，金额按基础金额乘以二得到20。[ev_page_882b7ecd68220a3c7f524b49]\n\n该处公式、条件或效果尚未得到所引源码支持，需要核对相关语句。\n\nhelper-2.cbl 将2写入 HELPER-RESULT。[ev_page_52f03cb4cc9361fa5ae5e738]",
+    "boundaries": [
+      {
+        "reason": "invalid_citation_claim_review",
+        "unsupported_citation_ids": [
+          "ev_page_fadfa2916fae123875544d53"
+        ]
+      }
+    ],
+    "final_citations": [
+      {
+        "evidence_id": "ev_page_882b7ecd68220a3c7f524b49",
+        "relative_path": "root.cbl",
+        "start_line": 1,
+        "end_line": 10,
+        "source_sha256": "9ad0ce218830b863c606ac814154756e41e4e6f97040c04d899325f6c9d6746f",
+        "kind": "source_page"
+      },
+      {
+        "evidence_id": "ev_page_52f03cb4cc9361fa5ae5e738",
+        "relative_path": "helper-2.cbl",
+        "start_line": 1,
+        "end_line": 54,
+        "source_sha256": "5c8f9dc4dd982fa6a8079cde0dd772e244fbbb5639a9f4285b9e3452ca88e750",
+        "kind": "source_page"
+      }
+    ],
+    "final_visible_ids": 2,
+    "prior_memory_source_pages": 0
+  },
+  "memory": {
+    "actual_round_sources": [
+      {
+        "round": 1,
+        "pages": [
+          {
+            "path": "root.cbl",
+            "characters": 222,
+            "start_line": 1,
+            "end_line": 10
+          }
+        ]
+      },
+      {
+        "round": 2,
+        "pages": [
+          {
+            "path": "root.cbl",
+            "characters": 222,
+            "start_line": 1,
+            "end_line": 10
+          },
+          {
+            "path": "helper-1.cbl",
+            "characters": 1374,
+            "start_line": 1,
+            "end_line": 54
+          }
+        ]
+      },
+      {
+        "round": 3,
+        "pages": [
+          {
+            "path": "root.cbl",
+            "characters": 222,
+            "start_line": 1,
+            "end_line": 10
+          },
+          {
+            "path": "helper-1.cbl",
+            "characters": 1374,
+            "start_line": 1,
+            "end_line": 54
+          }
+        ]
+      },
+      {
+        "round": 4,
+        "pages": [
+          {
+            "path": "root.cbl",
+            "characters": 222,
+            "start_line": 1,
+            "end_line": 10
+          },
+          {
+            "path": "helper-2.cbl",
+            "characters": 1374,
+            "start_line": 1,
+            "end_line": 54
+          }
+        ]
+      }
+    ],
+    "answer": "基础金额初值为10，金额按基础金额乘以二得到20。[ev_page_882b7ecd68220a3c7f524b49]\n\nhelper-1.cbl 将1写入 HELPER-RESULT。[ev_page_fadfa2916fae123875544d53]\n\nhelper-2.cbl 将2写入 HELPER-RESULT。[ev_page_52f03cb4cc9361fa5ae5e738]",
+    "boundaries": [],
+    "final_citations": [
+      {
+        "evidence_id": "ev_page_882b7ecd68220a3c7f524b49",
+        "relative_path": "root.cbl",
+        "start_line": 1,
+        "end_line": 10,
+        "source_sha256": "9ad0ce218830b863c606ac814154756e41e4e6f97040c04d899325f6c9d6746f",
+        "kind": "source_page"
+      },
+      {
+        "evidence_id": "ev_page_fadfa2916fae123875544d53",
+        "relative_path": "helper-1.cbl",
+        "start_line": 1,
+        "end_line": 54,
+        "source_sha256": "cb3b9fd45b7c2e6e6b41de9d0e345e4d4a5862f64e4a0f7ea5aec4e13e481edb",
+        "kind": "source_page"
+      },
+      {
+        "evidence_id": "ev_page_52f03cb4cc9361fa5ae5e738",
+        "relative_path": "helper-2.cbl",
+        "start_line": 1,
+        "end_line": 54,
+        "source_sha256": "5c8f9dc4dd982fa6a8079cde0dd772e244fbbb5639a9f4285b9e3452ca88e750",
+        "kind": "source_page"
+      }
+    ],
+    "final_visible_ids": 3,
+    "prior_memory_source_pages": 1
+  },
+  "memory_commit": "1c3fb714fb275648a053f8861f129246d73383fb"
+}
