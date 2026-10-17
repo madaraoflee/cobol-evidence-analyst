@@ -1,0 +1,273 @@
+"""Offline integration coverage for completion-driven business investigations."""
+
+import json
+from pathlib import Path
+import socket
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from agent_policy import AgentPolicy
+from business_chat import run_business_chat
+from business_index import build_business_index
+from business_synthesis import assess_business_answer
+from company_api import CompanyAPIConfig, TransportResponse
+from repository_discovery import ensure_repository_search
+from run_store import RunStore
+
+
+class CompletionDrivenChatTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="completion-driven-")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.source = self.root / "source"
+        self.source.mkdir()
+        self.database = self.root / "index.sqlite"
+        self.requests = []
+        self.events = []
+        self.files = {}
+        self.question = "root.cbl 的金额如何计算？"
+        self.config = CompanyAPIConfig("https://neutral.example.invalid/v1", "neutral-model",
+                                       api_key="offline-only")
+        for owner, attribute in ((socket, "create_connection"), (socket.socket, "connect"),
+                                 (socket.socket, "connect_ex")):
+            blocker = patch.object(owner, attribute, side_effect=AssertionError("Network forbidden"))
+            blocker.start()
+            self.addCleanup(blocker.stop)
+        self.write("root.cbl", "TOTAL-RULE",
+                   "COMPUTE TOTAL-AMOUNT = BASE-AMOUNT * 2.",
+                   "01 BASE-AMOUNT PIC 9(5) VALUE 10.\n01 TOTAL-AMOUNT PIC 9(6).")
+        # Independent files prevent initial dependency expansion from supplying
+        # all of the later tool results before the scripted investigation starts.
+        for index in range(1, 8):
+            self.write(f"helper-{index}.cbl", f"HELPER-{index}",
+                       f'MOVE {index} TO HELPER-RESULT.\nDISPLAY "HELPER-{index}-MARKER".',
+                       "01 HELPER-RESULT PIC 9.")
+
+    def write(self, path, name, body, data=""):
+        text = (f"IDENTIFICATION DIVISION.\nPROGRAM-ID. {name}.\nDATA DIVISION.\n"
+                f"WORKING-STORAGE SECTION.\n{data}\nPROCEDURE DIVISION.\nMAIN.\n{body}\nGOBACK.\n")
+        (self.source / path).write_text(text, encoding="utf-8")
+        self.files[path] = text
+
+    @staticmethod
+    def pages(payload):
+        return [page for bundle in payload["source_context"] for page in bundle["pages"]]
+
+    def cited_answer(self, payload, text="基础金额初值为10，金额按基础金额乘以二得到20。"):
+        root = next(page for page in self.pages(payload) if page["relative_path"] == "root.cbl")
+        return f"{text}[{root['evidence_id']}]"
+
+    def read_helper(self, number):
+        path = f"helper-{number}.cbl"
+        return json.dumps({"read": [{"relative_path": path, "start_line": 1,
+                                     "end_line": len(self.files[path].splitlines())}]})
+
+    def ask(self, respond, *, request_guard=12, **options):
+        build_business_index(self.source, self.database, source_format="free", verify_content=True,
+                             framework_reference_path="", quiet=True)
+        ensure_repository_search(self.database, self.source)
+
+        def transport(request):
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            self.requests.append(payload)
+            self.assertLessEqual(len(self.requests), request_guard, "Investigation failed to converge")
+            self.assertEqual(payload["question"], self.question)
+            text = respond(payload, len(self.requests))
+            return TransportResponse(200, json.dumps({"choices": [{"message": {"content": text},
+                "finish_reason": "stop"}]}, ensure_ascii=False))
+
+        result = run_business_chat(self.question, self.database, self.source, self.config,
+            framework_reference_path="", transport=transport, progress=self.events.append,
+            **options)["agent_result"]
+        # The adapter converts transport exceptions into a diagnostic result;
+        # assert outside that boundary as well so a guard trip cannot pass.
+        self.assertLessEqual(len(self.requests), request_guard, "Investigation failed to converge")
+        return result
+
+    def test_default_policy_allows_seven_new_source_reads_before_final_answer(self):
+        def respond(payload, number):
+            self.assertIsNone(payload["investigation_budget"]["remaining_model_requests"])
+            if number > 1:
+                previous = f"helper-{number - 1}.cbl"
+                page = next(page for page in self.pages(payload) if page["relative_path"] == previous)
+                self.assertEqual(page["source_text"], self.files[previous].rstrip("\n"))
+            if number <= 7:
+                self.assertNotIn(f"helper-{number}.cbl", {page["relative_path"] for page in self.pages(payload)})
+                return self.read_helper(number)
+            return self.cited_answer(payload)
+
+        result = self.ask(respond)
+        self.assertEqual(len(self.requests), 8)
+        self.assertEqual(result["metrics"]["model_requests"], 8)
+        self.assertIn("金额按基础金额乘以二得到20", result["answer"])
+        self.assertTrue(result["narrative"]["citations"])
+        self.assertFalse(result["claims_semantically_verified"])
+        self.assertTrue(any(event.get("analysis_update", {}).get("round", 0) >= 8 for event in self.events))
+
+    def test_draft_review_retains_original_question_and_can_read_before_rewriting(self):
+        self.question = "root.cbl 的金额如何计算，输入初值来自哪里？"
+        draft = []
+
+        def respond(payload, number):
+            if number == 1:
+                draft.append(self.cited_answer(payload, "金额按基础金额乘以二得到。"))
+                return draft[0]
+            self.assertEqual(payload["draft_answer"], draft[0])
+            self.assertFalse(payload["analysis_memory"]["draft_is_evidence"])
+            self.assertIn("inputs", payload["answer_review"]["missing_aspects"])
+            if number == 2:
+                self.assertGreater(payload["investigation_budget"]["reads_per_turn"], 0)
+                return self.read_helper(1)
+            self.assertIn("helper-1.cbl", {page["relative_path"] for page in self.pages(payload)})
+            return self.cited_answer(payload)
+
+        result = self.ask(respond, request_guard=4)
+        self.assertEqual(len(self.requests), 3)
+        self.assertIn("初值为10", result["answer"])
+        self.assertFalse(result["business_review"]["answer_completion"]["missing_aspects"])
+
+    def test_adaptive_revision_preserves_previously_explained_aspects(self):
+        self.question = "root.cbl 的金额如何计算，输入初值来自哪里？"
+
+        def respond(payload, number):
+            # The first answer correctly explains the calculation but omits
+            # inputs. The revision adds inputs while dropping the calculation.
+            return self.cited_answer(payload, "金额按基础金额乘以二得到。" if number == 1 else
+                                     "基础金额初值来自声明中的VALUE 10。")
+
+        result = self.ask(respond, request_guard=3)
+        self.assertIn("乘以二", result["answer"])
+        self.assertNotIn("formula", result["business_review"]["answer_completion"]["missing_aspects"])
+
+    def test_tool_only_progress_is_checkpointed_before_any_answer_exists(self):
+        class UserCancelled(RuntimeError):
+            pass
+
+        def check_cancel():
+            if len(self.requests) >= 2:
+                raise UserCancelled("User cancelled after one completed source read")
+
+        with self.assertRaises(UserCancelled):
+            self.ask(lambda payload, number: self.read_helper(number), request_guard=2,
+                     check_cancel=check_cancel)
+        store = RunStore(self.database.parent / "investigation-runs.sqlite")
+        with store.connect() as db:
+            run_id = db.execute("SELECT run_id FROM investigation_runs").fetchone()[0]
+        checkpoint = store.load(run_id)["checkpoint"]
+        self.assertTrue(checkpoint["completed_actions"])
+        self.assertTrue("analysis_continuation" in checkpoint, "Tool-only continuation state was not persisted")
+        self.assertTrue(checkpoint["analysis_continuation"]["known_material"])
+
+    def test_repeated_denial_does_not_create_new_progress_by_duplicating_the_same_gap(self):
+        def respond(payload, number):
+            return self.cited_answer(payload) + " root.cbl 的完整源码本轮没有提供。" * number
+
+        result = self.ask(respond, request_guard=3)
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(result["metrics"]["convergence_stop_reason"], "answer_review_no_progress")
+
+    def test_permuted_source_denials_still_represent_the_same_gap(self):
+        def respond(payload, number):
+            if number == 1:
+                return self.read_helper(1)
+            paths = ["root.cbl", "helper-1.cbl"] if number == 2 else ["helper-1.cbl", "root.cbl"]
+            return self.cited_answer(payload) + " ".join(f"{path} 源码本轮未提供。" for path in paths)
+
+        result = self.ask(respond, request_guard=4)
+        self.assertEqual(len(self.requests), 3)
+        self.assertEqual(result["metrics"]["convergence_stop_reason"], "answer_review_no_progress")
+
+    def test_repeated_answer_gap_converges_even_when_wording_changes(self):
+        def respond(payload, number):
+            wording = "金额按基础金额乘以二得到。" if number == 1 else "计算规则是将基础金额翻倍。"
+            return self.cited_answer(payload, wording) + " root.cbl 的完整源码本轮没有提供。"
+
+        result = self.ask(respond, request_guard=3)
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["metrics"]["convergence_stop_reason"], "answer_review_no_progress")
+        self.assertTrue(result["business_review"]["answer_completion"]["source_availability_contradiction"])
+
+    def test_repeated_tool_request_converges_to_an_answer(self):
+        def respond(payload, number):
+            if number <= 2:
+                return self.read_helper(1)
+            self.assertEqual(payload["investigation_budget"]["reads_per_turn"], 0)
+            return self.cited_answer(payload)
+
+        result = self.ask(respond, request_guard=3)
+        self.assertEqual(len(self.requests), 3)
+        self.assertEqual(result["metrics"]["convergence_stop_reason"], "no_evidence_progress")
+        self.assertIn("金额按基础金额乘以二得到20", result["answer"])
+
+    def test_user_cancel_interrupts_an_active_default_investigation(self):
+        class UserCancelled(RuntimeError):
+            pass
+
+        def check_cancel():
+            if len(self.requests) >= 2:
+                raise UserCancelled("User cancelled the investigation")
+
+        with self.assertRaises(UserCancelled):
+            self.ask(lambda payload, number: self.read_helper(number), request_guard=2,
+                     check_cancel=check_cancel)
+        self.assertEqual(len(self.requests), 2)
+
+    def test_explicit_two_request_limit_still_forces_delivery_on_second_request(self):
+        def respond(payload, number):
+            if number == 1:
+                self.assertEqual(payload["investigation_budget"]["remaining_model_requests"], 2)
+                return self.read_helper(1)
+            self.assertEqual(payload["investigation_budget"]["remaining_model_requests"], 1)
+            self.assertEqual(payload["investigation_budget"]["reads_per_turn"], 0)
+            return self.cited_answer(payload)
+
+        result = self.ask(respond, policy=AgentPolicy(max_model_requests=2), request_guard=2)
+        self.assertEqual(result["metrics"]["model_requests"], 2)
+        self.assertEqual(len(self.requests), 2)
+        self.assertTrue(result["answer_available"])
+
+    def test_answer_can_improve_across_more_than_five_reviews_without_new_source(self):
+        self.question = "请完整解释 root.cbl 的七项金额计算规则。"
+        fields = [f"RESULT-{index:02d}" for index in range(1, 8)]
+        self.write("root.cbl", "TOTAL-RULE",
+                   "\n".join(f"COMPUTE {field} = BASE-AMOUNT * {index}."
+                             for index, field in enumerate(fields, 1)),
+                   "01 BASE-AMOUNT PIC 9(5) VALUE 10.\n" +
+                   "\n".join(f"01 {field} PIC 9(6)." for field in fields))
+        answers = []
+
+        def assess(question, answer, investigation, pages, **options):
+            assessment = assess_business_answer(question, answer, investigation, pages, **options)
+            missing = [field for field in fields if field not in answer]
+            # A deterministic reviewer stands in for per-rule completeness;
+            # retrieval, transport, answer retention and loop control stay real.
+            assessment.update(missing_aspects=missing, required_aspects=fields,
+                              status="incomplete" if missing else "not_assessed",
+                              reason="supplied_business_aspects_unexplained" if missing else None)
+            return assessment
+
+        def respond(payload, number):
+            if number > 1:
+                self.assertEqual(payload["draft_answer"], answers[-1])
+                self.assertEqual(payload["analysis_memory"]["unresolved_aspects"], fields[number - 1:])
+            text = "基础金额初值为10。" + " ".join(
+                f"{field} 等于基础金额乘以{index}。" for index, field in enumerate(fields[:number], 1))
+            answers.append(self.cited_answer(payload, text))
+            return answers[-1]
+
+        with patch("business_chat.assess_business_answer", side_effect=assess):
+            result = self.ask(respond, request_guard=8)
+        self.assertEqual(len(self.requests), 7)
+        self.assertEqual(result["answer"], answers[-1])
+        self.assertFalse(result["business_review"]["answer_completion"]["missing_aspects"])
+        self.assertIsNone(result["metrics"]["convergence_stop_reason"])
+
+
+if __name__ == "__main__":
+    unittest.main()

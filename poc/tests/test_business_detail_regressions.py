@@ -164,7 +164,10 @@ class BusinessDetailRegressions(unittest.TestCase):
         self.assertTrue(result["model_answer_recorded"])
         self.assertFalse(result["claims_semantically_verified"])
         self.assertEqual(self.network_attempts, [])
-        self.assertLessEqual(result["metrics"]["model_requests"], policy.max_model_requests)
+        if policy.max_model_requests is not None:
+            self.assertLessEqual(result["metrics"]["model_requests"], policy.max_model_requests)
+        else:
+            self.assertIsNone(result["metrics"]["policy"]["max_model_requests"])
         self.assertEqual(result["metrics"]["policy"], policy.to_dict())
         quality = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
         round_id = quality["final"]["final_answer_round_id"]
@@ -365,7 +368,7 @@ class BusinessDetailRegressions(unittest.TestCase):
         self.assertIn("小于零则归零", result["answer"])
         self.assert_answer_binding(result)
 
-    def test_generic_partial_gets_one_bounded_synthesis_review(self):
+    def test_generic_partial_continues_original_question_with_evidence_tools_available(self):
         self.chain()
         drafts = []
         def respond(payload):
@@ -373,11 +376,18 @@ class BusinessDetailRegressions(unittest.TestCase):
                 drafts.append("当前资料不足以给出完整业务解释，需要补齐源码。" + self.cite(payload, CHAIN_MARKERS[4]))
                 return drafts[0]
             return self.chain_answer(payload)
-        result = self.ask("请详细分析 VALUEFLOW 的业务处理流程、输入来源、条件和结果去向。", respond)
+        question = "请详细分析 VALUEFLOW 的业务处理流程、输入来源、条件和结果去向。"
+        result = self.ask(question, respond)
         self.assert_first_material(CHAIN_MARKERS)
         self.assertEqual(result["metrics"]["model_requests"], 2)
         self.assertEqual(self.requests[1]["draft_answer"], drafts[0])
-        self.assertIn("综合", self.requests[1]["task"])
+        self.assertEqual(self.requests[1]["question"], question)
+        self.assertIn("继续完成同一个原问题", self.requests[1]["task"])
+        self.assertEqual(self.requests[1]["answer_review"]["status"], "incomplete")
+        self.assertTrue({"inputs", "conditions"} <= set(self.requests[1]["answer_review"]["missing_aspects"]))
+        self.assertGreater(self.requests[1]["investigation_budget"]["reads_per_turn"], 0)
+        self.assertGreater(self.requests[1]["investigation_budget"]["searches_per_turn"], 0)
+        self.assertIsNone(self.requests[1]["investigation_budget"]["remaining_model_requests"])
         self.assertIn("固定值11", result["answer"])
         self.assertTrue(result["business_review"]["synthesis_review_attempted"])
         self.assert_answer_binding(result)

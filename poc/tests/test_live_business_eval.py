@@ -446,6 +446,28 @@ class LiveBusinessEvalTests(unittest.TestCase):
             self.assertEqual(saved["plan"]["max_model_requests"], 3)
             self.assertEqual(saved["plan"]["max_model_requests_per_case"], 2)
 
+    def test_adaptive_workbench_policy_gets_recorded_batch_evaluation_limits(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "source"
+            source.mkdir()
+            cases = root / "cases.json"
+            cases.write_text(json.dumps({"cases": [{"id": "one", "question": "Explain the flow"}]}),
+                             encoding="utf-8")
+            config = CompanyAPIConfig("https://gateway.example.invalid/v1", "test-model", api_key="test-key")
+            adaptive = AgentPolicy()
+            with mock.patch("live_business_eval.load_agent_policy", return_value=adaptive), \
+                    mock.patch("live_business_eval.OpenAICompatibleChatClient",
+                               side_effect=AssertionError("network must stay disabled")):
+                report = evaluate(source, root / "evaluation", cases, config=config, plan=True)
+            self.assertIsNone(adaptive.max_model_requests)
+            self.assertIsNone(adaptive.max_question_seconds)
+            self.assertTrue(report["plan"]["bounded_evaluation_defaults_applied"])
+            self.assertEqual(report["plan"]["max_model_requests"], 6)
+            self.assertEqual(report["plan"]["policy"]["max_model_requests"], 5)
+            self.assertEqual(report["plan"]["policy"]["max_question_seconds"], 120)
+            self.assertIsNone(report["plan"]["policy"]["hard_question_seconds"])
+
 
 if __name__ == "__main__":
     unittest.main()

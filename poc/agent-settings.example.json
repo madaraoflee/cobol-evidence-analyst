@@ -1,7 +1,9 @@
 {
   "version": 1,
   "agent": {
-    "max_model_requests": 5,
+    "max_model_requests": null,
+    "max_question_seconds": null,
+    "hard_question_seconds": null,
     "max_source_characters": 36000,
     "max_complete_source_characters": 128000,
     "max_history_characters": 18000,

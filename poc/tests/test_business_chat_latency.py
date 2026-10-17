@@ -197,7 +197,7 @@ class BusinessChatLatencyTests(unittest.TestCase):
             self.clock_value = 121.0
             page = next(p for p in self.pages(payload) if "COMPUTE BILL-AMOUNT" in p["source_text"])
             return f"BILL-AMOUNT = PRINCIPAL + FEE；账单日期已到且本金为正时输出。[{page['evidence_id']}]"
-        result = self.ask(respond=respond, policy=AgentPolicy(max_model_requests=1))
+        result = self.ask(respond=respond, policy=AgentPolicy(max_model_requests=1, max_question_seconds=120))
         self.assertEqual(len(self.requests), 1)
         self.assertTrue(result["model_answer_recorded"])
         self.assertEqual(result["answer_origin"], "model")
@@ -247,7 +247,7 @@ class BusinessChatLatencyTests(unittest.TestCase):
             self.clock_value = 95.0
             return self.answer(payload)
 
-        result = self.ask(respond=respond)
+        result = self.ask(respond=respond, policy=AgentPolicy(max_question_seconds=120))
         self.assertEqual(self.request_timeouts, [60.0, 60.0])
         self.assertEqual(self.requests[-1]["investigation_budget"]["remaining_model_requests"], 1)
         self.assertEqual(self.requests[-1]["investigation_budget"]["reads_per_turn"], 0)

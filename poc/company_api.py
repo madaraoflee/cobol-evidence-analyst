@@ -12,10 +12,12 @@ base URL, model identifiers, prompts, request bodies, or response bodies.
 from __future__ import annotations
 
 import argparse
+import codecs
 import errno
 import json
 import math
 import os
+import queue
 import re
 import sys
 import socket
@@ -486,6 +488,12 @@ HTTPResponse = TransportResponse
 Transport = Callable[[TransportRequest], TransportResponse]
 
 
+@dataclass(frozen=True)
+class _StreamProgress:
+    completed: bool
+    progressed: bool
+
+
 def _safe_request_timing(value, *, elapsed=None):
     """Retain numeric transport observations, never provider text or metadata."""
     result = {"timing_seconds": {}}
@@ -571,11 +579,13 @@ class UrllibTransport:
                     return
             current = getattr(current, "fp", None)
 
-    def __call__(self, request: TransportRequest, *, check_cancel=None) -> TransportResponse:
-        """Bound the entire native exchange, including DNS and response headers.
+    def __call__(self, request: TransportRequest, *, check_cancel=None, on_response_chunk=None) -> TransportResponse:
+        """Bound connection setup and idle generation without cutting off progress.
 
         A socket timeout is an inactivity timeout and does not bound repeated
-        header reads. The caller therefore waits against one monotonic deadline.
+        header reads. Connection setup and non-streaming responses therefore use
+        one total deadline. SSE body reads use a deadline renewed only by parsed
+        answer/tool progress; comments and heartbeat bytes cannot renew it.
         A timed-out exchange is never repeated and a late result is discarded;
         a provider may still complete or charge for the original request.
         """
@@ -587,6 +597,53 @@ class UrllibTransport:
             raise APIClientError("TRANSPORT_BUSY")
         done, abandoned = threading.Event(), threading.Event()
         exchange: dict[str, object] = {"request_timing": {"timing_seconds": {}, "response_bytes": 0}}
+        # Only the waiting caller invokes application callbacks. An abandoned
+        # socket worker can never emit late text into another question.
+        pending_chunks = queue.SimpleQueue() if on_response_chunk is not None else None
+        exchange["pending_chunks"] = pending_chunks
+        exchange["chunk_processed"] = threading.Event()
+        response_ready = threading.Event()
+        exchange["response_ready"] = response_ready
+
+        def active_deadline():
+            return exchange.get("stream_deadline", deadline)
+
+        def deliver_chunks():
+            if pending_chunks is None:
+                return False
+            while True:
+                try:
+                    chunk = pending_chunks.get_nowait()
+                except queue.Empty:
+                    return False
+                if check_cancel:
+                    check_cancel()
+                progress_at = time.monotonic()
+                try:
+                    observed = on_response_chunk(chunk)
+                    if isinstance(observed, _StreamProgress) and observed.progressed:
+                        exchange["stream_deadline"] = progress_at + request.timeout_seconds
+                finally:
+                    exchange["chunk_processed"].set()
+                if isinstance(observed, _StreamProgress) and observed.completed:
+                    return True
+
+        def completed_stream():
+            # [DONE] terminates a completion even if an SSE connection stays
+            # open. Stop this local socket; never repeat the provider request.
+            if time.monotonic() >= active_deadline():
+                raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
+            abandoned.set()
+            response = exchange["response"]
+            self._abort_socket(response)
+            observations = exchange["request_timing"]
+            observations["timing_seconds"]["response_complete"] = max(
+                0.0, time.monotonic() - (deadline - request.timeout_seconds))
+            return TransportResponse(
+                int(response.status), b"", headers=dict(response.headers.items()),
+                timing_seconds=dict(observations["timing_seconds"]),
+                response_bytes=observations["response_bytes"],
+            )
 
         def send():
             try:
@@ -596,6 +653,7 @@ class UrllibTransport:
             finally:
                 slots.release()
                 done.set()
+                response_ready.set()
 
         try:
             worker = threading.Thread(target=send, name="model-http-request", daemon=True)
@@ -607,13 +665,20 @@ class UrllibTransport:
             while not done.is_set():
                 if check_cancel:
                     check_cancel()
-                remaining = deadline - time.monotonic()
+                remaining = active_deadline() - time.monotonic()
                 if remaining <= 0:
                     raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
-                done.wait(min(0.05, remaining))
+                if deliver_chunks():
+                    return completed_stream()
+                response_ready.wait(min(0.05, remaining))
+                response_ready.clear()
+            if time.monotonic() >= active_deadline():
+                raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
+            if deliver_chunks():
+                return completed_stream()
             if "error" in exchange:
                 raise exchange["error"]
-            if time.monotonic() >= deadline:
+            if time.monotonic() >= active_deadline():
                 raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
             return exchange["result"]
         except BaseException as error:
@@ -651,13 +716,22 @@ class UrllibTransport:
                 opening_connection = False
                 exchange["response"] = response
                 mark("headers_received")
+                stream_chunks = exchange.get("pending_chunks")
+                if (not 200 <= int(response.status) < 300
+                        or not _is_event_stream_headers(dict(response.headers.items()))):
+                    stream_chunks = None
+                if stream_chunks is not None:
+                    headers_at = started + timings["headers_received"]
+                    if headers_at >= deadline:
+                        raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
+                    exchange["stream_deadline"] = headers_at + request.timeout_seconds
                 chunks: list[bytes] = []
                 body_size = 0
                 read_chunk = getattr(response, "read1", None)
                 if not callable(read_chunk):
                     read_chunk = response.read
                 while body_size <= MAX_RESPONSE_BYTES:
-                    remaining = deadline - time.monotonic()
+                    remaining = exchange.get("stream_deadline", deadline) - time.monotonic()
                     if remaining <= 0 or abandoned.is_set():
                         raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
                     self._apply_remaining_socket_timeout(response, remaining)
@@ -665,13 +739,25 @@ class UrllibTransport:
                         min(65_536, MAX_RESPONSE_BYTES + 1 - body_size)
                     )
                     observe_chunk(chunk)
-                    if time.monotonic() >= deadline:
+                    if time.monotonic() >= exchange.get("stream_deadline", deadline):
                         raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
                     if not chunk:
                         mark("response_complete")
                         break
                     chunks.append(chunk)
                     body_size += len(chunk)
+                    if stream_chunks is not None and body_size <= MAX_RESPONSE_BYTES:
+                        # Wait for parsing before choosing the next socket read
+                        # timeout; a valid delta may have renewed the idle clock.
+                        processed = exchange["chunk_processed"]
+                        processed.clear()
+                        stream_chunks.put(chunk)
+                        exchange["response_ready"].set()
+                        while not processed.is_set():
+                            remaining = exchange["stream_deadline"] - time.monotonic()
+                            if remaining <= 0 or abandoned.is_set():
+                                raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
+                            processed.wait(min(0.05, remaining))
                 body = b"".join(chunks)
                 return TransportResponse(
                     status_code=int(response.status),
@@ -741,6 +827,284 @@ def _redact_secret(value: Any, secret: str | None) -> Any:
     return value
 
 
+def _is_event_stream_headers(headers: Mapping[str, str]) -> bool:
+    if not isinstance(headers, Mapping):
+        return False
+    return any(
+        isinstance(name, str) and name.lower() == "content-type"
+        and isinstance(value, str) and value.split(";", 1)[0].strip().lower() == "text/event-stream"
+        for name, value in headers.items()
+    )
+
+
+def _completion_usage(usage):
+    if not isinstance(usage, dict):
+        return None
+    result = {name: value for name, value in usage.items()
+              if name in {"prompt_tokens", "completion_tokens", "total_tokens"}
+              and type(value) is int and value >= 0}
+    for name in ("prompt_tokens_details", "completion_tokens_details"):
+        details = usage.get(name)
+        if isinstance(details, dict):
+            result[name] = {
+                key: value for key, value in details.items()
+                if key in {"cached_tokens", "audio_tokens", "reasoning_tokens",
+                           "accepted_prediction_tokens", "rejected_prediction_tokens"}
+                and type(value) is int and value >= 0
+            }
+    return result
+
+
+def _stream_json_completion(parsed):
+    """Project a JSON fallback through the same public completion boundary as SSE."""
+    result = {name: parsed[name] for name in ("id", "model", "object") if isinstance(parsed.get(name), str)}
+    if type(parsed.get("created")) is int:
+        result["created"] = parsed["created"]
+    usage = _completion_usage(parsed.get("usage"))
+    if usage is not None:
+        result["usage"] = usage
+    result["choices"] = []
+    choices = parsed.get("choices")
+    for choice in choices if isinstance(choices, list) else []:
+        if not isinstance(choice, dict):
+            continue
+        safe_choice = {"finish_reason": choice.get("finish_reason") if isinstance(choice.get("finish_reason"), str) else None}
+        if type(choice.get("index")) is int:
+            safe_choice["index"] = choice["index"]
+        message = choice.get("message")
+        if isinstance(message, dict):
+            safe_message = {name: message[name] for name in ("role", "content", "refusal")
+                            if isinstance(message.get(name), str)}
+            content = message.get("content")
+            if content is None:
+                safe_message["content"] = None
+            elif isinstance(content, list):
+                safe_message["content"] = [
+                    {"type": part["type"], "text": part["text"]} for part in content
+                    if isinstance(part, dict) and isinstance(part.get("type"), str)
+                    and part.get("type") in {"text", "output_text"}
+                    and isinstance(part.get("text"), str)
+                ]
+            if isinstance(message.get("function_call"), dict):
+                safe_message["function_call"] = {
+                    name: message["function_call"][name] for name in ("name", "arguments")
+                    if isinstance(message["function_call"].get(name), str)}
+            if isinstance(message.get("tool_calls"), list):
+                safe_message["tool_calls"] = []
+                for call in message["tool_calls"]:
+                    if not isinstance(call, dict):
+                        continue
+                    safe_call = {name: call[name] for name in ("id", "type") if isinstance(call.get(name), str)}
+                    if isinstance(call.get("function"), dict):
+                        safe_call["function"] = {name: call["function"][name] for name in ("name", "arguments")
+                                                 if isinstance(call["function"].get(name), str)}
+                    safe_message["tool_calls"].append(safe_call)
+            safe_choice["message"] = safe_message
+        result["choices"].append(safe_choice)
+    return result
+
+
+class _StreamTextEmitter:
+    """Emit content only, withholding a possible credential across chunk edges."""
+
+    def __init__(self, callback, secret: str, check_cancel=None):
+        self.callback = callback
+        self.secret = secret
+        self.check_cancel = check_cancel
+        self.pending = ""
+
+    def emit(self, value: str, *, final=False, check_cancellation=True):
+        if check_cancellation and self.check_cancel:
+            self.check_cancel()
+        text = (self.pending + value).replace(self.secret, "[REDACTED]") if self.secret else self.pending + value
+        retained = 0
+        if not final and self.secret:
+            for size in range(min(len(self.secret) - 1, len(text)), 0, -1):
+                if text.endswith(self.secret[:size]):
+                    retained = size
+                    break
+        self.pending = text[-retained:] if retained else ""
+        safe_text = text[:-retained] if retained else text
+        if safe_text:
+            try:
+                self.callback(safe_text)
+            except Exception:
+                # Consumer failures may contain credentials or provider text.
+                raise APIClientError("STREAM_CALLBACK_FAILED") from None
+
+    def completed(self, value=""):
+        """A final preview failure must not discard an already complete reply."""
+        try:
+            self.emit(value, final=True, check_cancellation=False)
+        except APIClientError as error:
+            if error.code != "STREAM_CALLBACK_FAILED":
+                raise
+
+
+class _ChatCompletionStream:
+    """Bounded SSE decoder producing the normal Chat Completions shape.
+
+    Only assistant content from choice zero reaches the text callback. Reasoning,
+    provider metadata, tool arguments and refusal text are never progress text.
+    """
+
+    def __init__(self, callback, secret: str, check_cancel=None):
+        self.emitter = _StreamTextEmitter(callback, secret, check_cancel)
+        self.decoder = codecs.getincrementaldecoder("utf-8-sig")("strict")
+        self.buffer = ""
+        self.data_lines: list[str] = []
+        self.bytes_received = 0
+        self.done = False
+        self.progress_count = 0
+        self.choices: dict[int, dict[str, object]] = {}
+        self.metadata: dict[str, object] = {}
+
+    def feed(self, chunk: bytes):
+        before = self.progress_count
+        if not isinstance(chunk, bytes):
+            raise APIClientError("RESPONSE_BODY_INVALID")
+        self.bytes_received += len(chunk)
+        if self.bytes_received > MAX_RESPONSE_BYTES:
+            raise APIClientError("RESPONSE_TOO_LARGE")
+        try:
+            self.buffer += self.decoder.decode(chunk)
+        except UnicodeError:
+            raise APIClientError("INVALID_STREAM_RESPONSE") from None
+        self._lines()
+        return _StreamProgress(self.done, self.progress_count != before)
+
+    def _lines(self, *, final=False):
+        consumed = 0
+        for boundary in re.finditer(r"\r\n|\r|\n", self.buffer):
+            if not final and boundary.group() == "\r" and boundary.end() == len(self.buffer):
+                break
+            self._line(self.buffer[consumed:boundary.start()])
+            consumed = boundary.end()
+        self.buffer = self.buffer[consumed:]
+        if final and self.buffer:
+            self._line(self.buffer)
+            self.buffer = ""
+
+    def _line(self, line: str):
+        if self.done:
+            return
+        if not line:
+            self._event()
+        elif line.startswith("data:"):
+            value = line[5:]
+            self.data_lines.append(value[1:] if value.startswith(" ") else value)
+        elif line == "data":
+            self.data_lines.append("")
+
+    def _event(self):
+        if not self.data_lines:
+            return
+        data = "\n".join(self.data_lines)
+        self.data_lines.clear()
+        if data.strip() == "[DONE]":
+            self.done = True
+            self.progress_count += 1
+            return
+        try:
+            event = json.loads(data)
+        except (ValueError, RecursionError):
+            raise APIClientError("INVALID_STREAM_RESPONSE") from None
+        if not isinstance(event, dict):
+            raise APIClientError("INVALID_RESPONSE_SHAPE")
+        if event.get("error") is not None:
+            raise APIClientError("MODEL_ERROR_RESPONSE")
+        for name in ("id", "model"):
+            if isinstance(event.get(name), str):
+                self.metadata[name] = event[name]
+        if type(event.get("created")) is int:
+            self.metadata["created"] = event["created"]
+        usage = _completion_usage(event.get("usage"))
+        if usage is not None:
+            self.metadata["usage"] = usage
+        choices = event.get("choices", [])
+        if not isinstance(choices, list):
+            raise APIClientError("INVALID_RESPONSE_SHAPE")
+        for choice in choices:
+            if not isinstance(choice, dict):
+                raise APIClientError("INVALID_RESPONSE_SHAPE")
+            index = choice.get("index", 0)
+            if type(index) is not int or not 0 <= index < 128:
+                raise APIClientError("INVALID_RESPONSE_SHAPE")
+            state = self.choices.setdefault(index, {
+                "index": index, "message": {"role": "assistant", "content": None},
+                "finish_reason": None,
+            })
+            delta = choice.get("delta", {})
+            if not isinstance(delta, dict):
+                raise APIClientError("INVALID_RESPONSE_SHAPE")
+            message = state["message"]
+            for name in ("content", "refusal"):
+                part = delta.get(name)
+                if part is not None and not isinstance(part, str):
+                    raise APIClientError("INVALID_RESPONSE_SHAPE")
+                if isinstance(part, str):
+                    message[name] = (message.get(name) or "") + part
+                    if part.strip():
+                        self.progress_count += 1
+                    if name == "content" and index == 0:
+                        self.emitter.emit(part)
+            if delta.get("tool_calls") is not None:
+                calls = delta["tool_calls"]
+                if not isinstance(calls, list):
+                    raise APIClientError("INVALID_RESPONSE_SHAPE")
+                accumulated = message.setdefault("tool_calls", {})
+                for call in calls:
+                    if not isinstance(call, dict):
+                        raise APIClientError("INVALID_RESPONSE_SHAPE")
+                    call_index = call.get("index")
+                    if type(call_index) is not int or not 0 <= call_index < 128:
+                        raise APIClientError("INVALID_RESPONSE_SHAPE")
+                    target = accumulated.setdefault(call_index, {"function": {}})
+                    for name in ("id", "type"):
+                        if isinstance(call.get(name), str):
+                            target[name] = call[name]
+                    function = call.get("function", {})
+                    if not isinstance(function, dict):
+                        raise APIClientError("INVALID_RESPONSE_SHAPE")
+                    for name in ("name", "arguments"):
+                        part = function.get(name)
+                        if part is not None and not isinstance(part, str):
+                            raise APIClientError("INVALID_RESPONSE_SHAPE")
+                        if isinstance(part, str):
+                            target["function"][name] = target["function"].get(name, "") + part
+                            if part.strip():
+                                self.progress_count += 1
+            finish = choice.get("finish_reason")
+            if finish is not None:
+                if not isinstance(finish, str):
+                    raise APIClientError("INVALID_RESPONSE_SHAPE")
+                if finish and finish != state["finish_reason"]:
+                    self.progress_count += 1
+                state["finish_reason"] = finish
+
+    def finish(self) -> dict[str, object]:
+        try:
+            self.buffer += self.decoder.decode(b"", final=True)
+        except UnicodeError:
+            raise APIClientError("INVALID_STREAM_RESPONSE") from None
+        self._lines(final=True)
+        self._event()
+        # A socket EOF is not evidence of a complete generation. A terminal
+        # choice is mandatory, including when the gateway supplies [DONE].
+        if not self.choices or any(not choice["finish_reason"] for choice in self.choices.values()):
+            raise APIClientError("STREAM_INCOMPLETE")
+        for choice in self.choices.values():
+            message = choice["message"]
+            calls = message.get("tool_calls")
+            if isinstance(calls, dict):
+                message["tool_calls"] = [calls[index] for index in sorted(calls)]
+        # The complete response must reach the durable journal before the
+        # business workflow observes a newly arrived cancellation.
+        self.emitter.completed()
+        return {**self.metadata, "object": "chat.completion",
+                "choices": [self.choices[index] for index in sorted(self.choices)]}
+
+
 class OpenAICompatibleChatClient:
     """Small synchronous client for the Chat Completions baseline."""
 
@@ -786,13 +1150,18 @@ class OpenAICompatibleChatClient:
         tool_choice: str | Mapping[str, object] | None = "auto",
         timeout_seconds: float | None = None,
         check_cancel=None,
+        on_text_delta: Callable[[str], None] | None = None,
     ) -> dict[str, object]:
-        """Create one chat completion and return the parsed response unchanged.
+        """Create one chat completion, optionally streaming assistant content.
 
-        The sole exception is defensive credential redaction if a broken or
-        hostile gateway echoes the exact API key in its JSON response.
+        Streaming reconstructs the usual response shape and never emits hidden
+        reasoning or tool arguments. A gateway returning JSON is accepted on the
+        same request; an unsupported stream is never retried automatically.
+        Exact echoed API credentials are defensively redacted in both modes.
         """
 
+        if on_text_delta is not None and not callable(on_text_delta):
+            raise APIClientError("STREAM_CALLBACK_INVALID")
         if isinstance(messages, (str, bytes)) or not messages:
             raise APIClientError("MESSAGES_INVALID")
         try:
@@ -805,6 +1174,8 @@ class OpenAICompatibleChatClient:
             "messages": normalized_messages,
             "max_tokens": self.config.max_output_tokens,
         }
+        if on_text_delta is not None:
+            payload["stream"] = True
         if tools is not None:
             try:
                 payload["tools"] = [dict(tool) for tool in tools]
@@ -819,7 +1190,8 @@ class OpenAICompatibleChatClient:
                 raise APIClientError("RESPONSE_FORMAT_INVALID") from None
 
         response, _ = self._request_json("POST", "chat/completions", payload,
-                                       timeout_seconds=timeout_seconds, check_cancel=check_cancel)
+                                       timeout_seconds=timeout_seconds, check_cancel=check_cancel,
+                                       on_text_delta=on_text_delta)
         return response
 
     def suppress_error_capture(self, code: str) -> None:
@@ -834,6 +1206,7 @@ class OpenAICompatibleChatClient:
         *,
         timeout_seconds: float | None = None,
         check_cancel=None,
+        on_text_delta=None,
     ) -> tuple[dict[str, object], int]:
         self.last_request_timing = {}
         if self._transport is None:
@@ -872,7 +1245,7 @@ class OpenAICompatibleChatClient:
             method=method.upper(),
             url=f"{base_url}/{safe_endpoint}",
             headers={
-                "Accept": "application/json",
+                "Accept": "text/event-stream, application/json" if on_text_delta is not None else "application/json",
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {secret}",
             },
@@ -898,10 +1271,15 @@ class OpenAICompatibleChatClient:
                 cancellation.append(error)
                 raise
 
+        stream = (_ChatCompletionStream(on_text_delta, secret, cancel if check_cancel else None)
+                  if on_text_delta is not None else None)
         try:
             try:
                 if isinstance(self._transport, _NATIVE_TRANSPORT_CLASS):
-                    response = self._transport(request, check_cancel=cancel if check_cancel else None)
+                    transport_options = {"check_cancel": cancel if check_cancel else None}
+                    if stream is not None:
+                        transport_options["on_response_chunk"] = stream.feed
+                    response = self._transport(request, **transport_options)
                 else:
                     response = self._transport(request)
                 # A completed response must reach the caller's durable journal
@@ -927,14 +1305,53 @@ class OpenAICompatibleChatClient:
                 if cancellation and exc is cancellation[-1]:
                     raise
                 raise _transport_failure(exc) from None
+            streaming_response = (
+                stream is not None and isinstance(response, TransportResponse)
+                and type(response.status_code) is int and 200 <= response.status_code < 300
+                and _is_event_stream_headers(response.headers)
+            )
+            if streaming_response:
+                if not isinstance(response.body, (bytes, str)):
+                    raise APIClientError("RESPONSE_BODY_INVALID")
+                raw_size = len(response.body.encode("utf-8")) if isinstance(response.body, str) else len(response.body)
+                if raw_size > MAX_RESPONSE_BYTES:
+                    raise APIClientError("RESPONSE_TOO_LARGE")
+                if not stream.bytes_received:
+                    body = response.body
+                    if isinstance(body, str):
+                        body = body.encode("utf-8")
+                    stream.feed(body)
+                parsed_stream = stream.finish()
+                # Diagnostics and ordinary response validation see only the
+                # assembled completion, never raw SSE reasoning/provider data.
+                response = TransportResponse(
+                    response.status_code,
+                    json.dumps(parsed_stream, ensure_ascii=False).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    timing_seconds=response.timing_seconds, response_bytes=response.response_bytes,
+                )
+            elif stream is not None:
+                parsed_json, status = self._validate_response(response, secret,
+                    protected_values=(secret, self.config.base_url, self.config.chat_model, self.config.embedding_model),
+                    request_body=request_body)
+                response = TransportResponse(status,
+                    json.dumps(_stream_json_completion(parsed_json), ensure_ascii=False).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    timing_seconds=response.timing_seconds, response_bytes=response.response_bytes)
             # Capture before HTTP status, body shape, or JSON validation. The
             # shared collector redacts first and stores a bounded text preview.
             if self._diagnostics is not None:
                 exchange = self._capture_response(
                     response, safe_endpoint, started, "RESPONSE_RECEIVED"
                 )
-            return self._validate_response(response, secret, protected_values=(secret, self.config.base_url,
+            validated = self._validate_response(response, secret, protected_values=(secret, self.config.base_url,
                 self.config.chat_model, self.config.embedding_model), request_body=request_body)
+            if stream is not None and not streaming_response:
+                message = _first_message(validated[0])
+                content = message.get("content") if message is not None else None
+                if isinstance(content, str):
+                    stream.emitter.completed(content)
+            return validated
         except APIClientError as exc:
             if not self.last_request_timing:
                 self.last_request_timing = _safe_request_timing(getattr(exc, "request_timing", None),
@@ -942,6 +1359,13 @@ class OpenAICompatibleChatClient:
             if self._diagnostics is not None:
                 if not response_received:
                     exchange = self._capture_response(None, safe_endpoint, started, exc.code)
+                elif stream is not None and exchange is None:
+                    # Decoding failed before an assembled completion existed.
+                    # Record the status without retaining raw SSE/error text.
+                    safe_response = (TransportResponse(
+                        response.status_code, b"", body_omitted_reason="HTTP_ERROR_BODY_NOT_COLLECTED",
+                    ) if isinstance(response, TransportResponse) else None)
+                    exchange = self._capture_response(safe_response, safe_endpoint, started, exc.code)
                 elif exchange is not None:
                     self._diagnostics.suppress_latest_error(outcome_code=exc.code)
                 if exchange is not None:

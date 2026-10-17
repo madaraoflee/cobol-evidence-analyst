@@ -177,7 +177,10 @@ class IndependentBusinessQualityTests(unittest.TestCase):
         self.assertEqual(result["narrative"]["citations"], [])
 
     def assert_trace_and_budget(self, result, policy=AgentPolicy()):
-        self.assertLessEqual(len(self.requests), policy.max_model_requests)
+        if policy.max_model_requests is not None:
+            self.assertLessEqual(len(self.requests), policy.max_model_requests)
+        else:
+            self.assertIsNone(result["metrics"]["policy"]["max_model_requests"])
         trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
         self.assertEqual(len(trace["rounds"]), len(self.requests))
         for sent, traced in zip(self.requests, trace["rounds"]):

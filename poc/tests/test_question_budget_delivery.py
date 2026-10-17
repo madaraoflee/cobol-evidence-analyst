@@ -17,6 +17,40 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
     def budget(self, seconds=120, **options):
         return QuestionBudget(seconds, clock=lambda: self.now, **options)
 
+    def test_adaptive_default_never_forces_synthesis_due_to_elapsed_time(self):
+        policy = AgentPolicy()
+        budget = self.budget(policy.max_question_seconds, hard_seconds=policy.hard_question_seconds)
+        budget.observe_request(90)
+        self.now += 36000
+        budget.check()
+        self.assertIsNone(budget.remaining())
+        self.assertFalse(budget.target_reached())
+        self.assertFalse(budget.should_answer(300))
+        self.assertEqual(budget.request_timeout(7), 7)
+
+    def test_explicit_hard_limit_works_without_completion_target(self):
+        budget = self.budget(None, hard_seconds=90)
+        budget.observe_request(30)
+        self.now += 70
+        self.assertIsNone(budget.remaining())
+        self.assertFalse(budget.target_reached())
+        self.assertTrue(budget.should_answer(60))
+        self.assertEqual(budget.request_timeout(60), 20)
+        self.now += 20
+        with self.assertRaises(QuestionDeadlineExceeded):
+            budget.check()
+
+    def test_cancellation_still_works_without_question_timer(self):
+        cancelled = RuntimeError("User cancelled the investigation")
+
+        def cancel():
+            raise cancelled
+
+        budget = self.budget(None, check_cancel=cancel)
+        with self.assertRaises(RuntimeError) as caught:
+            budget.check()
+        self.assertIs(caught.exception, cancelled)
+
     def test_first_answer_can_arrive_after_completion_target(self):
         budget = self.budget()
         self.now += 121

@@ -12,15 +12,45 @@ from company_api import CompanyAPIConfig
 
 
 class AgentPolicyTests(unittest.TestCase):
-    def test_defaults_preserve_request_cost_and_transport_ceiling(self):
+    def test_adaptive_defaults_preserve_transport_and_context_limits(self):
         policy = resolve_agent_policy()
-        self.assertEqual(policy.max_model_requests, 5)
+        self.assertIsNone(policy.max_model_requests)
+        self.assertIsNone(policy.max_question_seconds)
+        self.assertIsNone(policy.hard_question_seconds)
         self.assertEqual(policy.max_request_bytes, 230000)
         self.assertEqual(policy.max_source_characters, 36000)
         self.assertIs(resolve_agent_policy(policy), policy)
         self.assertEqual(resolve_agent_policy({"max_model_requests": 2}).max_model_requests, 2)
         with self.assertRaises(FrozenInstanceError):
             policy.max_model_requests = 9
+
+    def test_adaptive_requests_have_no_implicit_round_limit(self):
+        policy = AgentPolicy()
+        for used in (0, 5, 32, 1000):
+            with self.subTest(used=used):
+                self.assertIsNone(policy.remaining_model_requests(used))
+                self.assertTrue(policy.can_request(used))
+                self.assertFalse(policy.is_last_request(used))
+        self.assertEqual(resolve_agent_policy(policy.to_dict()), policy)
+
+    def test_explicit_request_limit_reserves_final_request(self):
+        policy = AgentPolicy(max_model_requests=2)
+        self.assertEqual(policy.remaining_model_requests(0), 2)
+        self.assertTrue(policy.can_request(0))
+        self.assertFalse(policy.is_last_request(0))
+        self.assertEqual(policy.remaining_model_requests(1), 1)
+        self.assertTrue(policy.is_last_request(1))
+        for used in (2, 3):
+            with self.subTest(used=used):
+                self.assertEqual(policy.remaining_model_requests(used), 0)
+                self.assertFalse(policy.can_request(used))
+                self.assertFalse(policy.is_last_request(used))
+
+    def test_optional_limits_reject_invalid_values(self):
+        for field, maximum in (("max_model_requests", 32), ("max_question_seconds", 1800)):
+            for value in (0, -1, maximum + 1, True, 1.5, "5"):
+                with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                    resolve_agent_policy({field: value})
 
     def test_invalid_configuration_cannot_expand_transport_hard_limit(self):
         for value in ({"max_request_bytes": 256001}, {"max_model_requests": True},

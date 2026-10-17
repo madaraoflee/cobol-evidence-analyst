@@ -577,6 +577,7 @@ class BusinessChatTests(unittest.TestCase):
         for index in range(64):
             self.write(f"member{index:02d}.cbl", f"MEMBER{index:02d}", "CONTINUE.")
         self.build()
+        read_rounds, answer_rounds = [], []
         def respond(payload, _envelope):
             links = [link for context in payload["source_context"] for link in context.get("call_chain", {}).get("links", [])]
             identifiers = [link["relation_id"] for link in links]
@@ -584,16 +585,33 @@ class BusinessChatTests(unittest.TestCase):
             self.assertEqual(len(identifiers), len(set(identifiers)))
             self.assertLess(self.request_bytes[-1], 240000)
             turn = len(self.requests)
-            if turn < 4:
+            budget = payload["investigation_budget"]
+            if budget["reads_per_turn"]:
+                read_rounds.append(turn)
+                self.assertIsNone(budget["remaining_model_requests"])
                 return reply(json.dumps({"read": [{"relative_path": "entry.cbl", "start_line": turn * 3 + offset,
-                                                     "end_line": turn * 3 + offset} for offset in range(3)]}))
+                                                     "end_line": turn * 3 + offset}
+                                                    for offset in range(min(3, budget["reads_per_turn"]))]}))
+            # The root is already supplied. Re-reading its ranges adds no
+            # evidence, so convergence requests an answer instead of more tools.
+            answer_rounds.append(turn)
+            self.assertEqual(budget["remaining_model_requests"], 1)
+            for allowance in ("searches_per_turn", "reads_per_turn", "business_context_actions_per_turn",
+                              "framework_searches_per_turn"):
+                self.assertEqual(budget[allowance], 0)
             page = next(page for page in source_pages(payload) if "MOVE 'READY' TO REQUEST-STATE" in page["source_text"])
             self.assertIn("IF ALL-RESULT = ZERO", page["source_text"])
             return reply(f"只有ALL-RESULT为零时，请求状态才设为READY。[{page['evidence_id']}]")
         output = self.ask("ENTRYPOINT 如何决定请求就绪？", respond)
         self.assertEqual(output["runner_status"], "COMPLETED")
         self.assertNotEqual(output["reason_code"], "REQUEST_TOO_LARGE")
-        self.assertEqual(len(self.requests), 4)
+        self.assertEqual(read_rounds, [1, 2])
+        self.assertEqual(answer_rounds, [3])
+        self.assertEqual(len(self.requests), 3)
+        self.assertTrue(output["agent_result"]["model_answer_recorded"])
+        self.assertEqual(output["agent_result"]["answer_origin"], "model")
+        self.assertTrue(any(item.get("reason") == "no_evidence_progress"
+                            for item in output["agent_result"]["boundaries"]))
         self.assertIn("只有ALL-RESULT为零时", output["agent_result"]["answer"])
         self.assertTrue(all(size < 240000 for size in self.request_bytes))
 

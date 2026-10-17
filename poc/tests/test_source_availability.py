@@ -119,6 +119,65 @@ class SourceAvailabilityTests(unittest.TestCase):
             [self.page], working_set=metadata)
         self.assertFalse(assessment["source_availability_contradiction"])
 
+    def test_current_source_denial_can_bind_to_one_verified_complete_root(self):
+        metadata = {**self.working_set, "root_paths": ["programs/rule.cbl"]}
+        for text in ("本轮未提供完整源码，只能部分分析。", "当前程序的完整源码未提供。",
+                     "目前我只能看到部分代码。", "本次只提供了部分源码。",
+                     "金额乘以二。[ev_rule] 本轮未提供完整源码，只能部分分析。",
+                     "本轮未提供完整源码。[ev_rule]",
+                     "The current program source was not supplied.",
+                     "I only have part of the source for this program."):
+            with self.subTest(text=text):
+                findings = self.findings(text, working_set=metadata)
+                self.assertEqual(len(findings), 1)
+                self.assertEqual(findings[0]["relative_path"], "programs/rule.cbl")
+                self.assertEqual(findings[0]["source_sha256"], "version-one")
+                self.assertEqual(findings[0]["evidence_ids"], ["ev_rule"])
+
+    def test_current_source_denial_requires_explicit_root_and_actual_full_coverage(self):
+        text = "本轮未提供完整源码，只能部分分析。"
+        for metadata in (self.working_set,
+                         {**self.working_set, "root_paths": ["programs/rule.cbl", "other.cbl"]},
+                         {**self.working_set, "root_paths": ["other.cbl"]},
+                         {"root_paths": ["programs/rule.cbl"], "physical_complete": True}):
+            with self.subTest(metadata=metadata):
+                self.assertFalse(self.findings(text, working_set=metadata))
+        metadata = {**self.working_set, "root_paths": ["programs/rule.cbl"]}
+        for page in (self.page | {"source_sha256": "version-two"},
+                     self.page | {"span_truncated": True},
+                     self.page | {"end_line": 1, "source_text": "MAIN."},
+                     self.page | {"include_chain": [{"path": "parent.cbl", "line": 1}]},
+                     self.page | {"selection_reasons": ["repository_orientation"]}):
+            with self.subTest(page=page):
+                self.assertFalse(self.findings(text, pages=[page], working_set=metadata))
+
+    def test_complete_root_does_not_establish_dependencies_or_explanation_completeness(self):
+        metadata = {**self.working_set, "root_paths": ["programs/rule.cbl"]}
+        for text in ("本轮未提供依赖程序的完整源码。", "本轮未提供整个项目的完整源码。",
+                     "本轮只提供了部分系统代码。", "当前调用的程序源码未提供。",
+                     "当前程序的运行参数未提供。", "当前程序只能部分分析。",
+                     "本轮只能提供部分业务解读。", "当前程序的源码已经提供，但业务分析不完整。",
+                     "本轮只提供了部分源码的解释。", "当前未提供完整源码的分析。",
+                     "本轮没有提供所有源码。", "The current explanation of the source is incomplete.",
+                     "如果本轮未提供完整源码，只能部分分析。", "本轮不是未提供完整源码。",
+                     "历史回答称本轮未提供完整源码。", "当前程序的完整源码未提供时需要读取。",
+                     "当前 external.cbl 源码未提供。", "本轮未提供 HELPER-RULE 的完整源码。",
+                     "The current program's dependency source is missing.",
+                     "The current project source is incomplete.",
+                     "当前完整源码已提供。\n> 本轮未提供完整源码。"):
+            with self.subTest(text=text):
+                self.assertFalse(self.findings(text, working_set=metadata))
+
+    def test_current_root_denial_still_detected_when_dependency_source_is_partial(self):
+        dependency = self.page | {"relative_path": "helper.cbl", "evidence_id": "ev_helper", "end_line": 1,
+                                  "source_text": "HELPER."}
+        metadata = {**self.working_set, "root_paths": ["programs/rule.cbl"],
+                    "source_manifest": [*self.working_set["source_manifest"],
+                        {"relative_path": "helper.cbl", "sha256": "version-one", "line_count": 30}]}
+        findings = self.findings("当前程序完整源码未提供。", pages=[self.page, dependency], working_set=metadata)
+        self.assertEqual([item["relative_path"] for item in findings], ["programs/rule.cbl"])
+        self.assertFalse(self.findings("当前依赖程序完整源码未提供。", pages=[self.page, dependency], working_set=metadata))
+
 
 class SourceAvailabilityChatTests(unittest.TestCase):
     def setUp(self):
@@ -165,11 +224,19 @@ class SourceAvailabilityChatTests(unittest.TestCase):
         self.assertTrue(self.requests[1]["answer_review"]["source_availability_contradiction"])
         self.assertNotIn("没有提供", result["answer"])
 
+    def test_unnamed_current_source_denial_reaches_answer_review(self):
+        result = self.ask(["金额按基础金额乘以二得到。[evidence] 本轮未提供完整源码，只能部分分析。",
+                           "金额按基础金额乘以二得到。[evidence]"])
+        self.assertEqual(len(self.requests), 2)
+        self.assertTrue(self.requests[1]["answer_review"]["source_availability_contradiction"])
+        self.assertNotIn("未提供完整源码", result["answer"])
+
     def test_review_synonym_cannot_promote_false_denial_to_success(self):
         result = self.ask(["现有材料还没有选定源码。",
                           "金额按基础金额乘以二得到。[evidence] 但 rule.cbl 的完整源码本轮没有提供，无法完整解答。"])
-        self.assertEqual(len(self.requests), 2)
-        self.assertNotEqual(result["status"], "ANALYZED")
+        self.assertGreaterEqual(len(self.requests), 2)
+        self.assertLessEqual(len(self.requests), 3)
+        self.assertEqual(result["status"], "PARTIAL")
         self.assertNotEqual(result["stop_reason"], "sufficient_material")
         self.assertTrue(result["business_review"]["answer_completion"]["source_availability_contradiction"])
 

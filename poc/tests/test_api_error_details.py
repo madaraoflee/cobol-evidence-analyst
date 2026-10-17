@@ -161,6 +161,38 @@ class APIErrorDetailsTests(unittest.TestCase):
             self.assertEqual((diagnostic["category"], diagnostic["evidence_source"]), ("system_error", "local"))
         self.assertEqual(build_diagnostic("MODEL_ERROR_RESPONSE", http_status=200)["category"], "invalid_response")
 
+    def test_stream_failures_have_specific_safe_local_explanations(self):
+        cases = {
+            "INVALID_STREAM_RESPONSE": ("invalid_stream", "流式回答格式无法解析"),
+            "STREAM_INCOMPLETE": ("stream_incomplete", "尚未完整传回"),
+            "STREAM_CALLBACK_INVALID": ("stream_callback_invalid", "本次模型请求未发送"),
+            "STREAM_CALLBACK_FAILED": ("stream_callback_failed", "处理实时回答时发生错误"),
+        }
+        for code, (category, description) in cases.items():
+            with self.subTest(code=code):
+                diagnostic = build_diagnostic(code)
+                self.assertEqual(diagnostic["category"], category)
+                self.assertEqual(diagnostic["evidence_source"], "local")
+                self.assertIn(description, diagnostic["reason"])
+                forged = {**diagnostic, "reason": SOURCE, "next_step": KEY, "provider_payload": URL}
+                clean = sanitize_diagnostic(forged)
+                self.assertEqual(clean, diagnostic)
+                safe = format_diagnostic(forged)
+                for forbidden in (KEY, URL, MODEL, SOURCE):
+                    self.assertNotIn(forbidden, safe)
+
+    def test_stream_error_codes_remain_identifiable_when_capture_is_suppressed(self):
+        for code in ("INVALID_STREAM_RESPONSE", "STREAM_INCOMPLETE", "STREAM_CALLBACK_INVALID", "STREAM_CALLBACK_FAILED"):
+            with self.subTest(code=code):
+                collector = APIResponseDiagnostics(protected_values=(KEY,))
+                collector.record(phase="investigation", endpoint="chat/completions", http_status=200,
+                                 outcome_code="RESPONSE_RECEIVED", body=SOURCE, elapsed_ms=1)
+                collector.suppress_latest_error(code)
+                exchange = collector.to_dict()["exchanges"][0]
+                self.assertEqual(exchange["outcome_code"], code)
+                self.assertEqual(exchange["body_text"], "")
+                self.assertNotIn(SOURCE, json.dumps(collector.to_dict()))
+
     def test_unknown_feature_failure_does_not_assert_unsupported(self):
         def transport(request):
             payload = json.loads(request.body or b"{}")

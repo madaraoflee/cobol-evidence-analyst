@@ -138,7 +138,7 @@ function currentRefs(){
   return [];
 }
 function currentRelations(){return state.mode==='demo'?(demoCase()?.relations || []):(state.project?.relations?.edges || []);}
-function statusLabel(status){return ({ANALYZED:t('已生成業務解讀'),SCOPE_LIMIT:t('入口超出本次解析範圍'),PARTIAL:t('部分業務解讀'),CANCELLED:t('已取消'),SUPPORTED_WITH_BOUNDARIES:t('已核驗局部語句 · 保留邊界'),CITATION_VERIFIED_ONLY:t('引用已核對 · 解釋待核驗'),ABSTAINED:t('證據不足 · 尚未形成結論'),NOT_READY:t('尚未具備分析條件'),SAFE_STOP:t('調查已停止 · 需要處理'),NETWORK_DISABLED:t('尚未啟用模型問答'),NOT_REQUESTED:t('尚未提出業務問題'),BLOCKED:t('接入受阻'),INDEX_READY:t('源碼已就緒'),NEEDS_ATTENTION:t('源碼已接入 · 有待核對'),PREPARING:t('正在接入源碼')})[status] || status || t('尚未分析');}
+function statusLabel(status){return ({ANALYZED:t('已生成業務解讀'),SCOPE_LIMIT:t('入口超出本次解析範圍'),PARTIAL:t('已保留回答 · 仍有待核對項'),CANCELLED:t('已取消'),SUPPORTED_WITH_BOUNDARIES:t('已核驗局部語句 · 保留邊界'),CITATION_VERIFIED_ONLY:t('引用已核對 · 解釋待核驗'),ABSTAINED:t('證據不足 · 尚未形成結論'),NOT_READY:t('尚未具備分析條件'),SAFE_STOP:t('調查已停止 · 需要處理'),NETWORK_DISABLED:t('尚未啟用模型問答'),NOT_REQUESTED:t('尚未提出業務問題'),BLOCKED:t('接入受阻'),INDEX_READY:t('源碼已就緒'),NEEDS_ATTENTION:t('源碼已接入 · 有待核對'),PREPARING:t('正在接入源碼')})[status] || status || t('尚未分析');}
 function sourceUsable(){const d=diagnosis();return !state.project?.restore_blocked && Boolean(d && (d.catalog_ready || (d.source_manifest_verified===true && state.project?.snapshot_id)) && (currentPrograms().length>0 || Number(sourceFiles().candidate || sourceFiles().decoded)>0));}
 function repositoryIndexReady(){const d=diagnosis();return Boolean(d?.source_manifest_verified===true && state.project?.snapshot_id && d.runner_status!=='BLOCKED' && ['repository_index','repository_question'].includes(d.scope?.mode) && d.repository_search?.full_text_complete===true);}
 function sourceReadinessLabel(){return repositoryIndexReady()?t('源碼索引已就緒'):statusLabel(diagnosis()?.runner_status);}
@@ -261,7 +261,7 @@ function boundaryText(value){
 }
 function investigationStop(){
   const agent=state.project?.agent;const reason=agent?.stop_detail?.reason || result()?.stop_reason || '';
-  const outcomeReasons=['completed','model_abstained','sufficient_material','MODEL_OUTPUT_TRUNCATED','output_truncated','answer_incomplete','request_budget','usable_draft_retained','source_identity_ambiguous','source_identity_not_found','unsupported_citations','evidence_incomplete','question_evidence_incomplete','evidence_read_incomplete','working_set_transmission_incomplete','tool_unavailable'];
+  const outcomeReasons=['completed','model_abstained','sufficient_material','MODEL_OUTPUT_TRUNCATED','output_truncated','answer_incomplete','request_budget','usable_draft_retained','no_evidence_progress','answer_review_no_progress','source_identity_ambiguous','source_identity_not_found','unsupported_citations','evidence_incomplete','question_evidence_incomplete','evidence_read_incomplete','working_set_transmission_incomplete','tool_unavailable'];
   const stopped=agent?.runner_status==='SAFE_STOP' || agent?.reason_code==='AGENT_SAFETY_STOPPED' || result()?.status==='SAFE_STOP' || (reason && !outcomeReasons.includes(reason));
   return stopped?{reason,code:agent?.stop_detail?.code || (reason?reason.toUpperCase():agent?.reason_code || 'SAFE_STOP')}:null;
 }
@@ -362,6 +362,10 @@ const SAFE_API_EXPLANATIONS={
   http_5xx_unknown:['接口返回服務端錯誤，具體原因尚未確認。','憑關聯編號檢查服務端日誌和服務狀態。'],
   request_rejected:['接口拒絕本次請求，具體原因尚未確認。','憑關聯編號檢查接口支持的請求格式和服務日誌。'],
   invalid_response:['接口返回的響應格式無效。','檢查接口兼容性和服務端響應日誌。'],
+  invalid_stream:['接口返回的流式回答格式無法解析。','檢查接口是否支持標準流式回答，並憑關聯編號核對服務端記錄。'],
+  stream_incomplete:['接口連線已結束，但回答尚未完整傳回。','檢查連線和服務端記錄；已顯示內容仍是草稿，確認請求狀態後再決定是否重試。'],
+  stream_callback_invalid:['本機即時回答處理未能正確初始化，本次模型請求未發送。','重新啟動工作台；若仍失敗，憑關聯編號檢查應用日誌。'],
+  stream_callback_failed:['本機處理即時回答時發生錯誤。','憑關聯編號檢查應用日誌；遠端請求可能仍在完成，確認請求狀態後再決定是否重試。'],
   system_error:['請求處理發生系統錯誤，具體原因尚未確認。','憑關聯編號檢查應用和服務端日誌。'],
   storage_full:['本機儲存空間不足。','釋放結果目錄與暫存目錄的磁碟空間後重試。'],
   storage_permission:['無法寫入本機分析文件。','檢查結果目錄和工作台設定目錄的寫入權限。'],
@@ -375,6 +379,7 @@ const SAFE_API_EXPLANATIONS={
   source_empty:['所選目錄沒有符合設定的可用源碼。','核對源碼目錄、副檔名和無副檔名文件設定。'],
   fts_unavailable:['目前 Python 的 SQLite 不支援全文索引。','使用包含 FTS5 的 Python 3.10 或更高版本後重新啟動工作台。'],
 };
+const SAFE_STREAM_ERROR_CODES={INVALID_STREAM_RESPONSE:'invalid_stream',STREAM_INCOMPLETE:'stream_incomplete',STREAM_CALLBACK_INVALID:'stream_callback_invalid',STREAM_CALLBACK_FAILED:'stream_callback_failed'};
 const SAFE_PROVIDER_CODES=['request_too_large','payload_too_large','context_length_exceeded','context_window_exceeded','model_not_found','model_not_available','model_unavailable','unsupported_parameter','unsupported_value','unsupported_feature','max_tokens_exceeded','max_output_tokens_exceeded','output_token_limit_exceeded','insufficient_quota','quota_exceeded','billing_hard_limit_reached','rate_limit_exceeded','invalid_api_key','authentication_error','permission_denied','access_denied','internal_error','server_error'];
 const SAFE_TRANSPORT_EXPLANATIONS={
   dns_resolution_failed:'找不到接口地址，請檢查網路或地址。',
@@ -453,7 +458,7 @@ function diagnosticOnlyAnswer(subject,failures=safeFailureDiagnostics(subject)){
 function failureDiagnosticsView(subject=null,{retainedAnswer=false}={}){
   if(!subject && (state.mode!=='real' || draftChanged()))return '';
   const failures=safeFailureDiagnostics(subject);if(!failures.length)return '';
-  const heading=retainedAnswer?ui`<summary>${icon('alert')}本次請求未完成 · 部分解讀</summary>`:ui`<div class="failure-heading">${icon('alert')}本次請求未完成</div>`;
+  const heading=retainedAnswer?ui`<summary>${icon('alert')}本次請求未完成 · 已保留回答</summary>`:ui`<div class="failure-heading">${icon('alert')}本次請求未完成</div>`;
   const body=ui`${heading}${failures.slice(-4).map(failure=>`<p><strong>${failure.evidence_source==='local'?escapeHTML(t('本機處理'))+'：':''}${escapeHTML(failure.reason)}</strong>${failure.http_status?' · HTTP '+failure.http_status:''}</p><p>${escapeHTML(t('下一步'))}：${escapeHTML(failure.next_step)}</p>`).join('')}<details><summary>查看安全錯誤詳情</summary>${failures.slice(-4).map(failure=>`<p><small>${escapeHTML(t('本地關聯編號'))}：<code>${escapeHTML(failure.request_id)}</code>${failure.upstream_request_id?` · ${escapeHTML(t('上游關聯編號'))}：<code>${escapeHTML(failure.upstream_request_id)}</code>`:''}</small></p>`).join('')}<pre class="api-raw-text">${escapeHTML(JSON.stringify(failures,null,2))}</pre></details>`;
   return retainedAnswer?`<details class="narrative-notes request-failure retained-answer">${body}</details>`:`<section class="narrative-notes request-failure" role="status">${body}</section>`;
 }
@@ -505,7 +510,7 @@ function diagnosticSummaryData(){
       limitation_codes:Array.isArray(coverage.limitation_codes)?coverage.limitation_codes.filter(value=>['index_not_ready','explicit_source_not_indexed','source_identity_ambiguous','search_no_match','business_terms_unresolved','located_source_not_read','source_budget_omitted','source_read_failed','external_implementation_missing','runtime_target_unresolved','output_limit_reached','parser_failed','request_budget_exhausted','answer_incomplete','unresolved_inputs','local_analysis_budget_reached'].includes(value)).slice(0,16):[]},
     output:{finish_reason:finish(output.finish_reason),answer_truncated:output.answer_truncated===true,
       continuation_attempted:output.continuation_attempted===true,final_answer_characters:number(output.final_answer_characters)},
-    stop_reason:enumeration(summary.stop_reason,['sufficient_material','MODEL_OUTPUT_TRUNCATED','answer_incomplete','request_budget','usable_draft_retained','source_identity_ambiguous','source_identity_not_found','unsupported_citations','evidence_incomplete','question_evidence_incomplete','evidence_read_incomplete','working_set_transmission_incomplete','tool_unavailable','RETRIEVAL_UNRESOLVED','REQUEST_TIMEOUT','MODEL_CLIENT_ERROR','MODEL_RESPONSE_INVALID','MODEL_REFUSED','MODEL_CONTENT_FILTERED','MODEL_REQUEST_BUDGET_EXHAUSTED','QUESTION_TIME_BUDGET_EXHAUSTED','completed','model_abstained','unknown','other']),
+    stop_reason:enumeration(summary.stop_reason,['sufficient_material','MODEL_OUTPUT_TRUNCATED','answer_incomplete','request_budget','usable_draft_retained','no_evidence_progress','answer_review_no_progress','source_identity_ambiguous','source_identity_not_found','unsupported_citations','evidence_incomplete','question_evidence_incomplete','evidence_read_incomplete','working_set_transmission_incomplete','tool_unavailable','RETRIEVAL_UNRESOLVED','REQUEST_TIMEOUT','MODEL_CLIENT_ERROR','MODEL_RESPONSE_INVALID','INVALID_STREAM_RESPONSE','STREAM_INCOMPLETE','STREAM_CALLBACK_INVALID','STREAM_CALLBACK_FAILED','MODEL_REFUSED','MODEL_CONTENT_FILTERED','MODEL_REQUEST_BUDGET_EXHAUSTED','QUESTION_TIME_BUDGET_EXHAUSTED','completed','model_abstained','unknown','other']),
     rendering:{view:conversationMode()?'conversation':'answer',render_input_characters:typeof renderInput==='string'?Array.from(renderInput).length:null,
       persisted_conversation_characters:typeof currentMessage?.content==='string'?Array.from(currentMessage.content).length:null,
       projected_answer_truncated:omitted>0,projected_answer_omitted_characters:omitted},
@@ -573,23 +578,57 @@ function callChainCoverageText(coverage){
   return ui`已選入相關片段的呼叫：${formatNumber(chain.covered_calls)} / ${formatNumber(chain.resolved_calls)} 個已定位目標的呼叫 · ${formatNumber(chain.uncovered_calls)} 個尚未覆蓋${Number.isFinite(chain.unresolved_calls) && chain.unresolved_calls>0?ui` · 另有 ${formatNumber(chain.unresolved_calls)} 個呼叫目標未確認`:''}`;
 }
 function callChainCoverageNote(){return t('這是本次入口閱讀計劃的資料覆蓋，只表示呼叫位置、被呼叫程式入口與介面片段已選入；不代表模型已讀完、整條呼叫鏈完整或業務結果已驗證。');}
-function narrativeNotes(answer,project=state.project){
+function narrativeNotes(answer,project=state.project,{includeCompletion=true}={}){
   const coverage=answer?.reading_coverage || {};const notes=[];
+  const partial=answer?.status==='PARTIAL' || answer?.analysis_status==='PARTIAL';
   const read=Number.isFinite(coverage.sent_pages)?coverage.sent_pages:coverage.selected_pages;
   if(Number.isFinite(coverage.total_pages) && Number.isFinite(read) && coverage.total_pages>read)notes.push(ui`尚有 ${formatNumber(coverage.total_pages-read)} 頁未讀，本次解讀先涵蓋已讀內容。`);
   const failed=Number(coverage.failed_pages || coverage.failed_requests || 0);
-  if(failed>0 || (answer?.stop_reason && !['completed','model_abstained','output_truncated'].includes(answer.stop_reason)))notes.push(t('部分分析請求未完成，已保留取得的解讀；詳情可查看 API 返回。'));
+  if(failed>0 && !partial)notes.push(t('部分分析請求未完成，已保留取得的解讀；詳情可查看 API 返回。'));
   const truncated=Array.isArray(coverage.truncated_response_pages)?coverage.truncated_response_pages.length:Number(coverage.truncated_response_pages || 0);
-  if(truncated>0 || answer?.stop_reason==='output_truncated')notes.push(t('部分模型回應尚未完整輸出，已保留可用的解讀內容。'));
-  if(answer?.status==='PARTIAL' && !notes.length)notes.push(t('目前呈現已取得的解讀，尚未完成的範圍可繼續分析。'));
+  const outputIncomplete=truncated>0 || answer?.finish_reason==='length' || answer?.answer_truncated===true || ['output_truncated','MODEL_OUTPUT_TRUNCATED'].includes(answer?.stop_reason);
+  if(outputIncomplete)notes.push(t('部分模型回應尚未完整輸出，已保留可用的解讀內容。'));
+  else if(partial && includeCompletion)notes.push(answerCompletionReason(answer));
   return notes;
+}
+function answerCompletionReason(answer){
+  const completion=answer?.answer_completion || answer?.business_review?.answer_completion || {};
+  const gap=typeof answer?.material_gap==='string'?answer.material_gap:answer?.material_gap?.reason;
+  const reasons={
+    source_identity_ambiguous:'分析對象仍有多個候選，需要核對具體文件；這不表示源碼缺失。',
+    source_identity_not_found:'本次尚未定位到指定的源碼對象；這不表示文件不存在。',
+    unsupported_citations:'回答中的部分引用尚未能與本次證據對應，相關結論仍需核對。',
+    evidence_incomplete:'本題的部分關鍵證據尚未提供給最終回答，相關結論仍需核對。',
+    question_evidence_incomplete:'仍有與本題結論相關的證據待核對；這不表示源碼文件不存在。',
+    evidence_read_incomplete:'相關源碼已定位，但本次尚未讀完所需範圍。',
+    working_set_transmission_incomplete:'部分已定位源碼未能納入本次模型上下文，相關範圍尚未解讀。',
+    tool_unavailable:'本次有補查工具未能完成，相關證據仍待核對。',
+    request_budget:'本次調查已達執行限制，仍有待查項；已保留目前回答。',
+    model_request_budget_exhausted:'本次調查已達執行限制，仍有待查項；已保留目前回答。',
+    question_time_budget_exhausted:'本次調查已達時間限制，已保留目前回答與待查事項。',
+    usable_draft_retained:'後續補查或修訂未完成，這裡保留較早的可用回答。',
+    no_evidence_progress:'連續補查未取得新的相關證據，已停止重複調查並保留目前回答。',
+    answer_review_no_progress:'同一批證據的再次核對未能補全剩餘要點，已停止重複修訂並保留目前回答。',
+    request_timeout:'模型請求逾時，已保留此前取得的回答；本次補查尚未完成。',
+    model_client_error:'模型請求或回應處理失敗，請查看 HTTP 狀態與 API 返回。',
+    source_availability_contradiction:'回答對源碼供應的描述仍有矛盾，已保留正文供核對。',
+    supplied_business_aspects_unexplained:'回答尚未涵蓋本題已定位的全部業務要點，已保留目前正文。',
+    investigation_promised_without_completion:'回答中提及的後續調查尚未完成，已保留目前取得的結論。',
+    investigation_without_business_answer:'目前回答尚未充分解釋所問業務，仍需根據已讀證據補充。',
+    answer_incomplete:'回答尚有未完成的業務要點，已保留目前正文。',
+  };
+  const stop=typeof answer?.stop_reason==='string'?answer.stop_reason.toLowerCase():'';
+  const completionReason=typeof completion.reason==='string'?completion.reason.toLowerCase():'';
+  const candidates=stop==='answer_incomplete'?[completionReason,stop,gap]:[stop,gap,completionReason];
+  const reason=candidates.find(value=>typeof value==='string' && Object.hasOwn(reasons,value.toLowerCase()));
+  return reason?t(reasons[reason.toLowerCase()]):t('本次回答仍有待核對項，請查看回答依據與調查詳情。');
 }
 function answerCompletionNotice(answer,projection=null){
   const displayOmission=Array.isArray(projection?.omitted) && projection.omitted.some(item=>['agent_result.answer','agent_result.narrative.text'].includes(item?.path) && Number(item.total_characters)>Number(item.retained_characters));
   const displayNotice=(answer?.answer_display_truncated===true || displayOmission?ui`<div class="narrative-notes answer-incomplete" role="status"><p>已達頁面展示字數上限，這裡僅呈現部分正文。完整模型正文仍保存在本機結果檔。</p></div>`:'')+(answer?.retry_blocked_reason==='REMOTE_REQUEST_OUTCOME_UNKNOWN'?ui`<div class="narrative-notes answer-incomplete" role="status"><p>原遠程請求的結果尚未確認，已保留原有解讀和證據，不會自動重複請求。</p></div>`:'');
   if(answer?.finish_reason==='length' || answer?.stop_reason==='output_truncated')return displayNotice+ui`<div class="narrative-notes answer-incomplete" role="status"><p>回答未完整輸出：模型達到輸出長度限制（finish_reason=length）。已保留收到的完整正文，可繼續追問尚未說明的部分。</p></div>`;
   if(answer?.answer_truncated===true || answer?.stop_reason==='MODEL_OUTPUT_TRUNCATED')return displayNotice+ui`<div class="narrative-notes answer-incomplete" role="status"><p>部分模型回應尚未完整輸出，已保留可用的解讀內容。</p></div>`;
-  if(answer?.status==='PARTIAL' || answer?.analysis_status==='PARTIAL')return displayNotice+ui`<div class="narrative-notes answer-incomplete" role="status"><p>部分業務解讀：已保留取得的正文，尚未完成的範圍可繼續分析。</p></div>`;
+  if(answer?.status==='PARTIAL' || answer?.analysis_status==='PARTIAL')return displayNotice+`<div class="narrative-notes answer-incomplete" role="status"><p>${escapeHTML(answerCompletionReason(answer))}</p></div>`;
   return displayNotice;
 }
 function investigationView(answer=result()){
@@ -608,9 +647,9 @@ function reportDisplayNotice(){
 }
 function narrativeAnswer(answer){
   const refs=currentRefs();const frameworkRefs=answer.framework_context?.references || diagnosis()?.framework_context?.references || [];
-  const coverage=answer.reading_coverage;const coverageText=readingCoverageText(coverage);const chainText=callChainCoverageText(coverage);const notes=narrativeNotes(answer);
+  const coverage=answer.reading_coverage;const coverageText=readingCoverageText(coverage);const chainText=callChainCoverageText(coverage);const notes=narrativeNotes(answer,state.project,{includeCompletion:false});
   const boundaries=(answer.boundaries || []).filter(item=>!['framework_reference_boundary','snapshot_coverage'].includes(item?.type));
-  return ui`<article class="narrative-answer"><div class="answer-state-row"><span class="badge neutral">業務解讀</span><small>${answer.status==='PARTIAL'?t('部分解讀'):''}</small></div>${answerCompletionNotice(answer,state.project?.agent?.display_projection)}<div class="narrative-body">${narrativeMarkup(narrativeText(answer),refs,frameworkRefs)}</div><footer class="narrative-provenance">${investigationView(answer)}${programSummariesView(answer,refs,frameworkRefs)}<details class="answer-support"><summary>依據與補充說明</summary>${notes.length?`<div class="narrative-notes">${notes.map(note=>`<p>${escapeHTML(note)}</p>`).join('')}</div>`:''}${reportDisplayNotice()}${coverageText?ui`<div class="reading-coverage"><strong>閱讀覆蓋</strong><p>${escapeHTML(coverageText)}</p><small>${coverage.complete?t('本次源碼範圍已讀完；閱讀完整不等於業務結論已驗證。'):t('閱讀覆蓋描述本次讀取範圍，不代表已驗證所有業務路徑。')}</small></div>`:''}${chainText?ui`<details class="narrative-boundaries call-chain-coverage"><summary>${escapeHTML(chainText)}</summary><p>${escapeHTML(callChainCoverageNote())}</p></details>`:''}${refs.length?ui`<details class="narrative-sources"><summary>閱讀來源 · ${refs.length} 頁</summary><div>${refs.map((ref,index)=>cite(ref.evidence_id,`${index+1} · ${ref.relative_path || ref.path || t('源碼引用')} · L${Number(ref.start_line)}–${Number(ref.end_line)}`)).join('')}</div></details>`:''}${boundaries.length?ui`<details class="narrative-boundaries"><summary>補充上下文</summary>${boundaries.map(item=>`<p>${escapeHTML(boundaryText(item))}</p>`).join('')}</details>`:''}</details></footer></article>`;
+  return ui`<article class="narrative-answer"><div class="answer-state-row"><span class="badge neutral">業務解讀</span><small>${answer.status==='PARTIAL'?t('仍有待核對項'):''}</small></div>${answerCompletionNotice(answer,state.project?.agent?.display_projection)}<div class="narrative-body">${narrativeMarkup(narrativeText(answer),refs,frameworkRefs)}</div><footer class="narrative-provenance">${investigationView(answer)}${programSummariesView(answer,refs,frameworkRefs)}<details class="answer-support"><summary>依據與補充說明</summary>${notes.length?`<div class="narrative-notes">${notes.map(note=>`<p>${escapeHTML(note)}</p>`).join('')}</div>`:''}${reportDisplayNotice()}${coverageText?ui`<div class="reading-coverage"><strong>閱讀覆蓋</strong><p>${escapeHTML(coverageText)}</p><small>${coverage.complete?t('本次源碼範圍已讀完；閱讀完整不等於業務結論已驗證。'):t('閱讀覆蓋描述本次讀取範圍，不代表已驗證所有業務路徑。')}</small></div>`:''}${chainText?ui`<details class="narrative-boundaries call-chain-coverage"><summary>${escapeHTML(chainText)}</summary><p>${escapeHTML(callChainCoverageNote())}</p></details>`:''}${refs.length?ui`<details class="narrative-sources"><summary>閱讀來源 · ${refs.length} 頁</summary><div>${refs.map((ref,index)=>cite(ref.evidence_id,`${index+1} · ${ref.relative_path || ref.path || t('源碼引用')} · L${Number(ref.start_line)}–${Number(ref.end_line)}`)).join('')}</div></details>`:''}${boundaries.length?ui`<details class="narrative-boundaries"><summary>補充上下文</summary>${boundaries.map(item=>`<p>${escapeHTML(boundaryText(item))}</p>`).join('')}</details>`:''}</details></footer></article>`;
 }
 function actualAnswer(){return failureDiagnosticsView()+actualAnswerBody();}
 function actualAnswerBody(){
@@ -669,6 +708,7 @@ function phaseLabel(phase){
     using_index:t('使用已建立的代碼庫索引'),retrieving:t('查找與問題相關的依據'),answering:t('整理業務回答'),
     locating_sources:t('定位與問題相關的程序'),reading_relevant_sources:t('讀取相關段落'),
     supplementing_evidence:t('補充相關分析依據'),waiting_for_model:t('模型正在生成回答'),verifying_answer:t('核驗回答與源碼依據'),
+    writing_answer:t('正在撰寫業務回答'),reviewing_answer:t('正在核對回答與問題'),
     reading_sources:t('逐頁讀取源碼'),analyzing_pages:t('解讀已讀源碼'),synthesizing:t('整合業務解讀'),
     framework:t('檢索相關框架資料'),framework_reference:t('載入框架資料'),framework_semantics:t('整理框架與源碼的對應'),source_version:t('記錄源碼版本'),
     preparing:t('準備中'),preparing_index:t('準備索引結構'),queued:t('等待開始'),backup:t('備份現有索引'),backing_up:t('正在保留舊版本'),
@@ -701,7 +741,7 @@ function progressViewModel(){
 function discoveryPhase(phase){return ['discovery','discover','discovering'].includes(phase);}
 function backupPhase(phase){return ['backup','backing_up'].includes(phase);}
 function progressExplanation(v){
-  if(v.p.phase==='verifying_answer')return t('正在核驗已取得的回答，核驗後顯示。');
+  if(v.p.phase==='verifying_answer')return t('正在核驗目前草稿與源碼依據。');
   if(v.questionBudget!==null)return t('按問題收集證據並核驗回答；已有獨立結論會保留，無法確認的部分單獨說明。');
   if(backupPhase(v.p.phase))return t('正在備份現有索引；這裡顯示已備份資料量，不是整體接入百分比。');
   if(discoveryPhase(v.p.phase))return t('正在掃描源碼目錄；計數會隨找到的檔案增加，完成掃描後才知道總量。不估算整體接入百分比。');
@@ -712,7 +752,7 @@ function sourceJobScope(){
   const target=state.sourceJobTarget,previous=state.sourceJobBackup?.project;
   return ui`<div class="source-note" id="job-source-scope"><strong>本次接入的源碼</strong><br><code>${escapeHTML(target.source || '—')}</code><br><strong>本次結果目錄</strong><br><code>${escapeHTML(target.output || '—')}</code>${previous?.source?ui`<p>完成前保留原版本及對話。原源碼：<code>${escapeHTML(previous.source)}</code></p>`:''}</div>`;
 }
-function progressPanel(){const v=progressViewModel();return ui`<section class="answer-card progress-card" aria-label="接入進度"><div class="progress-heading"><div><div class="section-eyebrow">本次執行</div><h2 id="job-phase-name">${escapeHTML(phaseLabel(v.p.phase))}</h2></div><span id="job-percent">${v.known?v.percent.toFixed(1)+'%':t('統計中')}</span></div>${sourceJobScope()}<progress id="job-progress" max="100" ${v.known?'value="'+v.percent+'"':''} aria-label="目前階段進度"></progress><div class="progress-counts" id="job-counts">${progressCounts(v)}</div><div class="progress-metrics"><div><span>已運行</span><strong id="job-elapsed">${formatDuration(v.elapsed)}</strong></div><div><span id="job-eta-label">${v.p.eta_scope==='current_file'?t('本檔案預計剩餘'):t('本階段預計剩餘')}</span><strong id="job-eta">${v.eta===null?t('估算中'):formatDuration(v.eta)}</strong></div><div><span>本階段已處理資料</span><strong id="job-bytes">${formatBytes(v.p.bytes_completed)}</strong></div></div><div class="progress-file"><span>目前處理</span><code id="job-file">${escapeHTML(v.p.current_file || '—')}</code></div><p id="job-file-lines" class="field-hint">${fileProgress(v)}</p><p id="job-progress-explanation" class="progress-explanation">${escapeHTML(progressExplanation(v))}</p><div id="job-health" class="progress-health" role="status">${escapeHTML(progressHealth(v))}</div><div class="progress-actions"><button id="cancel-job" class="button secondary" ${state.cancelRequested || !state.jobId?'disabled':''}>${state.cancelRequested?t('正在停止，等待目前步驟結束'):t('停止本次工作')}</button><small>停止後可再次接入，重用已完成的目錄快取。</small></div></section>`;}
+function progressPanel(){if(state.jobKind==='question')return conversationProgress();const v=progressViewModel();return ui`<section class="answer-card progress-card" aria-label="接入進度"><div class="progress-heading"><div><div class="section-eyebrow">本次執行</div><h2 id="job-phase-name">${escapeHTML(phaseLabel(v.p.phase))}</h2></div><span id="job-percent">${v.known?v.percent.toFixed(1)+'%':t('統計中')}</span></div>${sourceJobScope()}<progress id="job-progress" max="100" ${v.known?'value="'+v.percent+'"':''} aria-label="目前階段進度"></progress><div class="progress-counts" id="job-counts">${progressCounts(v)}</div><div class="progress-metrics"><div><span>已運行</span><strong id="job-elapsed">${formatDuration(v.elapsed)}</strong></div><div><span id="job-eta-label">${v.p.eta_scope==='current_file'?t('本檔案預計剩餘'):t('本階段預計剩餘')}</span><strong id="job-eta">${v.eta===null?t('估算中'):formatDuration(v.eta)}</strong></div><div><span>本階段已處理資料</span><strong id="job-bytes">${formatBytes(v.p.bytes_completed)}</strong></div></div><div class="progress-file"><span>目前處理</span><code id="job-file">${escapeHTML(v.p.current_file || '—')}</code></div><p id="job-file-lines" class="field-hint">${fileProgress(v)}</p><p id="job-progress-explanation" class="progress-explanation">${escapeHTML(progressExplanation(v))}</p><div id="job-health" class="progress-health" role="status">${escapeHTML(progressHealth(v))}</div><div class="progress-actions"><button id="cancel-job" class="button secondary" ${state.cancelRequested || !state.jobId?'disabled':''}>${state.cancelRequested?t('正在停止，等待目前步驟結束'):t('停止本次工作')}</button><small>停止後可再次接入，重用已完成的目錄快取。</small></div></section>`;}
 function progressUnit(unit){return ({pages:t('頁'),bytes:t('位元組'),lines:t('行'),files:t('檔案'),directories:t('目錄')})[unit] || t('項');}
 function progressCounts(v){const unit=progressUnit(v.p.unit);if(discoveryPhase(v.p.phase)&&!v.known)return ui`已掃描 ${formatNumber(v.completed)} ${unit} · 正在確認總量`;return v.known?ui`已完成 ${formatNumber(v.completed)} / ${formatNumber(v.p.total)} ${unit} · 剩餘 ${formatNumber(v.remaining)} ${unit}`:ui`已完成 ${formatNumber(v.completed)} ${unit} · 正在確認總量`;}
 function fileProgress(v){
@@ -731,18 +771,71 @@ function questionActivity(v){
   return parts.join(' · ');
 }
 function questionBudgetLabel(v){
-  if(v.p.phase==='verifying_answer')return t('正在核驗已取得的回答，核驗後顯示。');
+  if(v.p.phase==='verifying_answer')return t('正在核驗目前草稿與源碼依據。');
   if(v.p.phase==='waiting_for_model')return t('正在根據已讀取源碼生成回答。');
   return v.questionBudget!==null?t('正在整理與本題相關的證據。'):'';
 }
-function rememberProgress(progress){if(progress){state.progress=progress;state.progressReceived=Date.now();}}
+function progressCount(value){return Number.isInteger(value)&&value>=0&&value<=1000000?value:null;}
+function analysisUpdate(value){
+  if(!value || typeof value!=='object' || Array.isArray(value))return null;
+  const update={};
+  for(const key of ['round','evidence_count','completed_items','total_items']){
+    const count=progressCount(value[key]);if(count!==null)update[key]=count;
+  }
+  if(typeof value.summary==='string' && value.summary.trim())update.summary=value.summary;
+  if(Array.isArray(value.open_items))update.open_items=value.open_items.filter(item=>typeof item==='string'&&item.trim());
+  else if(progressCount(value.open_items)!==null)update.open_items=value.open_items;
+  return Object.keys(update).length?update:null;
+}
+function answerPreview(value){
+  if(!value || typeof value!=='object' || typeof value.text!=='string' || !value.text.trim())return null;
+  // Investigation actions are protocol data, never a draft for the reader.
+  const text=value.text.trim();
+  const candidate=text.replace(/^```(?:json)?\s*\n?/i,'').replace(/\n?```\s*$/,'').trim();
+  if(/^\s*[\[{]/.test(candidate) && /"(?:search|read|focus|framework_search|inspect_business_context|list_impact|search_concepts|backward_slice|forward_slice|explain_assignment|trace_parameter|explain_external_effect|tool_calls)"\s*:/.test(candidate))return null;
+  return {text:value.text,round:progressCount(value.round),stage:['draft','drafting','answer','answering','writing','revision','revise','revising','continuation','continuing','verifying'].includes(value.stage)?value.stage:'drafting'};
+}
+function liveAnalysisView(progress=state.progress){
+  const update=analysisUpdate(progress?.analysis_update),preview=answerPreview(progress?.answer_preview);
+  const counts=[];
+  if(update?.round>0)counts.push(ui`調查輪次 ${formatNumber(update.round)}`);
+  if(update?.evidence_count!==undefined)counts.push(ui`已取得證據 ${formatNumber(update.evidence_count)} 項`);
+  if(update?.completed_items!==undefined && update?.total_items!==undefined && update.total_items>=update.completed_items)counts.push(ui`已有證據的要點 ${formatNumber(update.completed_items)} / ${formatNumber(update.total_items)}`);
+  const open=Array.isArray(update?.open_items)?update.open_items:[];
+  if(typeof update?.open_items==='number')counts.push(ui`待核對 ${formatNumber(update.open_items)} 項`);
+  const stage=['revision','revise','revising'].includes(preview?.stage)?t('修訂中'):preview?.stage==='verifying'?t('核對中'):t('撰寫中');
+  return (update?ui`<section class="analysis-live-update" aria-label="調查進展"><div class="analysis-live-counts">${escapeHTML(counts.join(' · '))}</div>${update.summary?`<p role="status" aria-live="polite">${escapeHTML(update.summary)}</p>`:''}${open.length?ui`<details class="analysis-open-items"><summary>待核對事項 · ${formatNumber(open.length)}</summary><ul>${open.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul></details>`:''}</section>`:'')+(preview?ui`<section class="answer-live-preview" aria-label="回答草稿"><div class="answer-preview-heading"><strong>${stage}</strong>${preview.round>0?`<span>${escapeHTML(ui`調查輪次 ${formatNumber(preview.round)}`)}</span>`:''}</div><p class="answer-preview-notice">內容可能修訂，請以完成後的回答為準。</p><div class="narrative-body" tabindex="0">${answerMarkdown.render(preview.text)}</div></section>`:'');
+}
+function rememberProgress(progress){
+  if(!progress || typeof progress!=='object')return;
+  const previous=state.progress || {};
+  state.progress={...progress};
+  for(const [key,normalize] of [['analysis_update',analysisUpdate],['answer_preview',answerPreview]]){
+    const value=Object.hasOwn(progress,key)?normalize(progress[key]):previous[key];
+    if(value)state.progress[key]=value;else delete state.progress[key];
+  }
+  state.progressReceived=Date.now();
+}
+function updateLiveAnalysis(){
+  const region=$('conversation-analysis-live');
+  if(!region)return;
+  const markup=liveAnalysisView();
+  if(region.innerHTML!==markup){
+    const detailsOpen=region.querySelector?.('.analysis-open-items')?.open;
+    const scrollTop=region.querySelector?.('.answer-live-preview .narrative-body')?.scrollTop;
+    region.innerHTML=markup;
+    const details=region.querySelector?.('.analysis-open-items');if(details && detailsOpen)details.open=true;
+    const body=region.querySelector?.('.answer-live-preview .narrative-body');if(body && Number.isFinite(scrollTop))body.scrollTop=scrollTop;
+  }
+}
 function updateProgressPanel(){
-  if(state.busy && conversationMode() && !['index','demo'].includes(state.jobKind)){
+  if(state.busy && (state.jobKind==='question' || conversationMode() && !['index','demo'].includes(state.jobKind))){
     const v=progressViewModel();if($('conversation-phase'))$('conversation-phase').textContent=phaseLabel(v.p.phase);
     if($('conversation-elapsed'))$('conversation-elapsed').textContent=formatDuration(v.elapsed);
     if($('conversation-activity'))$('conversation-activity').textContent=questionActivity(v);
     if($('conversation-budget'))$('conversation-budget').textContent=questionBudgetLabel(v);
     if($('conversation-health'))$('conversation-health').textContent=state.pollError || '';
+    updateLiveAnalysis();
     if($('cancel-job')){$('cancel-job').disabled=state.cancelRequested || !state.jobId;$('cancel-job').textContent=state.cancelRequested?t('正在停止，等待目前步驟結束'):t('停止');}return;
   }
   if(!state.busy || !$('job-progress'))return;
@@ -813,7 +906,7 @@ function conversationMessage(message){
 }
 function conversationProgress(){
   const v=progressViewModel();
-  return ui`<div class="conversation-progress" id="conversation-progress" role="status"><span class="working-dot"></span><div><strong id="conversation-phase">${escapeHTML(phaseLabel(v.p.phase))}</strong><small id="conversation-elapsed">${formatDuration(v.elapsed)}</small><small id="conversation-activity">${escapeHTML(questionActivity(v))}</small><small id="conversation-budget">${escapeHTML(questionBudgetLabel(v))}</small><small id="conversation-health">${escapeHTML(state.pollError || '')}</small></div><button id="cancel-job" ${state.cancelRequested || !state.jobId?'disabled':''}>${state.cancelRequested?t('正在停止，等待目前步驟結束'):t('停止')}</button></div>`;
+  return ui`<div class="conversation-progress" id="conversation-progress"><div class="conversation-progress-status" role="status"><span class="working-dot"></span><div><strong id="conversation-phase">${escapeHTML(phaseLabel(v.p.phase))}</strong><small id="conversation-elapsed">${formatDuration(v.elapsed)}</small><small id="conversation-activity">${escapeHTML(questionActivity(v))}</small><small id="conversation-budget">${escapeHTML(questionBudgetLabel(v))}</small><small id="conversation-health">${escapeHTML(state.pollError || '')}</small></div><button id="cancel-job" ${state.cancelRequested || !state.jobId?'disabled':''}>${state.cancelRequested?t('正在停止，等待目前步驟結束'):t('停止')}</button></div><div id="conversation-analysis-live">${liveAnalysisView()}</div></div>`;
 }
 function conversationEvidenceView(){
   const item=state.conversationEvidence;if(!item)return '';
@@ -937,6 +1030,7 @@ function apiErrorText(error){
   const code=error?.code || 'REQUEST_FAILED';
   if(code==='SOURCE_UPDATE_ROLLBACK_FAILED')return t('源碼更新與恢復均未完成。請保留原結果目錄，停止使用該目錄並檢查磁碟空間和寫入權限。')+(diagnostic?' '+failureDiagnosticText(diagnostic):'');
   if(diagnostic)return failureDiagnosticText(diagnostic);
+  if(typeof code==='string' && Object.hasOwn(SAFE_STREAM_ERROR_CODES,code))return SAFE_API_EXPLANATIONS[SAFE_STREAM_ERROR_CODES[code]].map(t).join(' ');
   if(code==='CONVERSATION_NOT_FOUND')return t('找不到這段對話。請從對話記錄選擇，或開始新的對話。');
   if(code==='RETRY_NOT_AVAILABLE' || code==='INVALID_RETRY')return t('這條問題已無法重試，請在對話末尾繼續提問。');
   if(code==='SOURCE_REQUIRED')return t('請先接入源碼，再開始對話。');
@@ -956,7 +1050,7 @@ async function api(path,options={}){
   catch{const error=new Error();error.diagnostic=browserDiagnostic('connection');error.browserDiagnostic=true;error.message=failureDiagnosticText(error.diagnostic)+' '+t('此關聯編號由瀏覽器產生，不是服務端請求編號。');throw error;}
   let value;try{value=await response.json();if(!value || typeof value!=='object' || Array.isArray(value))throw Error('INVALID_RESPONSE');}
   catch{const category=response.ok?'invalid_response':response.status===429?'http_429_unknown':response.status>=500?'system_error':'request_rejected';const error=new Error();error.status=response.status;error.diagnostic=browserDiagnostic(category,response.status);error.browserDiagnostic=true;error.message=failureDiagnosticText(error.diagnostic)+' '+t('此關聯編號由瀏覽器產生，不是服務端請求編號。');throw error;}
-  if(!response.ok){const error=new Error(apiErrorText(value.error));error.status=response.status;error.diagnostic=safeApiDiagnostic(value.error?.diagnostic);error.code=['REQUEST_FAILED','ANALYSIS_FAILED','MODEL_CHECK_FAILED','CONFIGURATION_INVALID','REQUEST_TIMEOUT','SOURCE_UPDATE_FAILED','SOURCE_UPDATE_ROLLBACK_FAILED'].includes(value.error?.code)?value.error.code:'REQUEST_FAILED';throw error;}
+  if(!response.ok){const error=new Error(apiErrorText(value.error));error.status=response.status;error.diagnostic=safeApiDiagnostic(value.error?.diagnostic);error.code=['REQUEST_FAILED','ANALYSIS_FAILED','MODEL_CHECK_FAILED','CONFIGURATION_INVALID','REQUEST_TIMEOUT','SOURCE_UPDATE_FAILED','SOURCE_UPDATE_ROLLBACK_FAILED',...Object.keys(SAFE_STREAM_ERROR_CODES)].includes(value.error?.code)?value.error.code:'REQUEST_FAILED';throw error;}
   return value;
 }
 function clearEvidence(){state.selectedEvidence=null;state.evidence=null;state.evidenceTicket++;}
@@ -1036,6 +1130,7 @@ function modelCheckMessage(response){
   const diagnostic=safeApiDiagnostic(response?.diagnostic);if(diagnostic)return failureDiagnosticText(diagnostic);
   const status=Number(response?.http_status || response?.status || 0);
   const code=String(response?.code || '').toUpperCase();
+  if(Object.hasOwn(SAFE_STREAM_ERROR_CODES,code))return apiErrorText({code});
   if(status===401 || code.includes('AUTH') || code.includes('API_KEY'))return t('驗證失敗：API Key 無效或未被接受，請核對本機設定。');
   if(status===403 || code.includes('FORBIDDEN'))return t('訪問被拒絕：目前帳號沒有使用此模型的權限。');
   if(status===408 || status===504 || code.includes('TIMEOUT'))return t('連線逾時：請檢查網路或模型服務後重試。');
@@ -1095,7 +1190,7 @@ async function pollJob(jobId){
   try{const job=await api(`/api/jobs/${encodeURIComponent(jobId)}`);if(state.jobId!==jobId)return;
     const demoPreparation=state.jobKind==='demo';const demoDraft=demoPreparation?state.question:null;
     rememberProgress(job.progress);state.pollError='';state.cancelRequested=Boolean(job.cancel_requested || state.cancelRequested);if(job.status==='RUNNING'){updateProgressPanel();setTimeout(()=>pollJob(jobId),1000);return;}
-    state.busy=false;state.jobId=null;stopProgressClock();
+    state.busy=false;state.jobId=null;stopProgressClock();if(job.status==='COMPLETED' && state.progress)delete state.progress.answer_preview;
     const sourceBackup=state.sourceJobBackup;
     const failedSource=state.jobKind==='index' && job.status!=='COMPLETED';
     if(failedSource){if(job.status==='FAILED' && job.error?.code==='SOURCE_UPDATE_ROLLBACK_FAILED')blockSourceRecovery(job);else restoreSourceJob();}

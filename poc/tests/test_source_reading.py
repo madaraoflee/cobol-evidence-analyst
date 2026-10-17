@@ -225,6 +225,7 @@ class SourceReadingTests(unittest.TestCase):
         call = next(item for item in result["outline"] if item["relative_path"] == "entry.cbl")["calls"][0]
         self.assertIsNone(call["target_line"])
         self.assertEqual(call["status"], "target_unavailable")
+        self.assertEqual(call["target_source_status"], "excluded")
 
     def test_ambiguous_calls_and_copy_names_are_not_reported_as_resolved(self):
         self.write("entry.cbl", 'IDENTIFICATION DIVISION.\nPROGRAM-ID. MAIN-ENTRY.\n'
@@ -236,21 +237,47 @@ class SourceReadingTests(unittest.TestCase):
         result = self.prepare()
         self.assertTrue(all(link["target_path"] is None for link in result["call_chain"]["links"]))
         self.assertTrue(all(not link["selection_complete"] for link in result["call_chain"]["links"]))
+        self.assertTrue(all(link["target_source_status"] == "unresolved"
+                            for link in result["call_chain"]["links"]))
         self.assertEqual(result["coverage"]["call_chain"]["unresolved_calls"], 1)
 
     def test_dynamic_call_field_is_not_mistaken_for_a_resolved_program(self):
         self.write("entry.cbl", 'IDENTIFICATION DIVISION.\nPROGRAM-ID. MAIN-ENTRY.\n'
                    'DATA DIVISION.\nWORKING-STORAGE SECTION.\n01 NEXT-WORKER PIC X(20).\n'
                    'PROCEDURE DIVISION.\nCALL NEXT-WORKER.\nGOBACK.\n')
+        self.write("worker.cbl", program("RULE-WORKER"))
         self.build()
         result = self.prepare()
         link = result["call_chain"]["links"][0]
         self.assertEqual(link["relation_type"], "CALL_TARGET_FROM")
         self.assertEqual(link["resolution"], "unresolved")
+        self.assertEqual(link["target_source_status"], "unresolved")
+        self.assertEqual(result["coverage"]["verified_files"], 2)
         self.assertIsNone(link["target_path"])
         self.assertEqual(result["coverage"]["call_chain"]["resolved_calls"], 0)
         self.assertEqual(result["coverage"]["call_chain"]["unresolved_calls"], 1)
         self.assertIsNone(result["outline"][0]["calls"][0]["target_path"])
+        self.assertEqual(result["outline"][0]["calls"][0]["target_source_status"], "unresolved")
+
+    def test_missing_static_target_is_not_found_in_the_index(self):
+        self.write("entry.cbl", program(body='CALL "ABSENT-WORKER".\nGOBACK.\n'))
+        self.build()
+        result = self.prepare()
+        link = result["call_chain"]["links"][0]
+        self.assertEqual(link["target_source_status"], "not_found")
+        self.assertEqual(link["target_source_status_scope"], "indexed_sources")
+        self.assertFalse(link["selection_complete"])
+        self.assertEqual(result["outline"][0]["calls"][0]["target_source_status"], "not_found")
+        self.assertIn("dependency_context_incomplete", {item["reason"] for item in result["boundaries"]})
+
+    def test_confirmed_target_outside_reading_scope_is_not_missing(self):
+        self.write("entry.cbl", program(body='CALL "RULE-WORKER".\nGOBACK.\n'))
+        self.write("worker.cbl", program("RULE-WORKER"))
+        self.build()
+        limited = self.prepare(include_paths=["entry.cbl"])
+        self.assertEqual(limited["call_chain"]["links"][0]["target_source_status"], "outside_investigation")
+        complete = self.prepare()
+        self.assertEqual(complete["call_chain"]["links"][0]["target_source_status"], "verified")
 
     def test_duplicate_entry_names_require_path_and_do_not_resolve_ambiguous_call(self):
         self.write("first/entry.cbl", program("SHARED-ENTRY", 'CALL "SHARED-ENTRY".\nDISPLAY "FIRST".\n' + '*> first\n' * 70))

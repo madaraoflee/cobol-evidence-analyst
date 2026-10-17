@@ -184,6 +184,7 @@ class APIResponseDiagnostics:
         exchange["body_text"], exchange["body_truncated"] = "", False
         exchange["body_omitted_reason"] = "ERROR_RESPONSE_BODY_OMITTED"
         safe_codes = {"MODEL_ERROR_RESPONSE", "HTTP_ERROR", "INVALID_JSON_RESPONSE", "INVALID_RESPONSE_SHAPE",
+                      "INVALID_STREAM_RESPONSE", "STREAM_INCOMPLETE", "STREAM_CALLBACK_INVALID", "STREAM_CALLBACK_FAILED",
                       "RESPONSE_BODY_INVALID", "RESPONSE_TOO_LARGE", "RESPONSE_NESTING_TOO_DEEP",
                       "TRANSPORT_RESPONSE_INVALID", "HTTP_STATUS_INVALID", "MODEL_MESSAGE_MISSING",
                       "MODEL_TEXT_EMPTY", "MODEL_TEXT_WRAPPER_UNSUPPORTED", "MODEL_ACTION_RESPONSE",

@@ -146,7 +146,10 @@ class RetrievalEvidenceRegressionTests(unittest.TestCase):
 
     def assert_visible_citations_and_budgets(self, result, policy):
         agent = result["agent_result"]
-        self.assertLessEqual(len(self.requests), policy.max_model_requests)
+        if policy.max_model_requests is not None:
+            self.assertLessEqual(len(self.requests), policy.max_model_requests)
+        else:
+            self.assertIsNone(agent["metrics"]["policy"]["max_model_requests"])
         for request in self.requests:
             self.assertLessEqual(len(request["body"]), policy.max_request_bytes)
             supplied = source_pages(request["payload"])

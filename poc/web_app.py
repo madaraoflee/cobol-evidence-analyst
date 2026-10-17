@@ -56,6 +56,32 @@ EVIDENCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}")
 LOGGER = logging.getLogger(__name__)
 
 
+def _analysis_update(value):
+    """Accept a small progress summary, never an arbitrary provider envelope."""
+    if not isinstance(value, dict) or not isinstance(value.get("summary"), str):
+        return None
+    fields = ("round", "evidence_count", "completed_items", "total_items")
+    if any(type(value.get(key)) is not int or not 0 <= value[key] <= 1_000_000 for key in fields):
+        return None
+    if value["round"] < 1 or value["completed_items"] > value["total_items"]:
+        return None
+    open_items = value.get("open_items")
+    if not isinstance(open_items, list) or any(not isinstance(item, str) for item in open_items[:32]):
+        return None
+    return {**{key: value[key] for key in fields}, "summary": value["summary"][:2000],
+            "open_items": [item[:300] for item in open_items[:32]]}
+
+
+def _answer_preview(value):
+    """Keep only a bounded display draft; it carries no answer authority."""
+    if (not isinstance(value, dict) or not isinstance(value.get("text"), str)
+            or type(value.get("round")) is not int or not 1 <= value["round"] <= 1_000_000
+            or not isinstance(value.get("stage"), str)
+            or value.get("stage") not in {"draft", "revision", "continuation", "answer"}):
+        return None
+    return {"text": value["text"][:24000], "round": value["round"], "stage": value["stage"]}
+
+
 class RequestError(ValueError):
     def __init__(self, code: str, message: str, status: int = 400, *, diagnostic=None) -> None:
         super().__init__(message)
@@ -787,6 +813,8 @@ class WorkbenchState:
                      "diagnostics": agent.get("diagnostics", []),
                      "diagnostic": sanitize_diagnostic(agent.get("diagnostic")) or sanitize_diagnostic(project_agent.get("diagnostic")),
                      "analysis_status": agent.get("status"), "stop_reason": agent.get("stop_reason"),
+                     "answer_completion": agent.get("answer_completion") or (agent.get("business_review") or {}).get("answer_completion"),
+                     "material_gap": agent.get("material_gap"),
                      "answer_origin": agent.get("answer_origin"),
                      "answer_available": available,
                      "model_answer_recorded": agent.get("model_answer_recorded"),
@@ -805,6 +833,7 @@ class WorkbenchState:
             content, status = previous["content"], "partial"
             for key in ("evidence_refs", "source_version", "investigation_state", "cited_evidence_ids",
                         "framework_references", "related_sources", "impact_result", "snapshot_id", "metrics",
+                        "answer_completion", "material_gap",
                         "answer_origin", "model_answer_recorded", "finish_reason", "answer_truncated",
                         "answer_display_truncated", "answer_complete_characters", "answer_detail"):
                 if key in previous:
@@ -1041,6 +1070,8 @@ class WorkbenchState:
         with self.lock:
             if not self.job or self.job["job_id"] != job_id:
                 raise AnalysisCancelled("The current job was replaced.")
+            if self.job["status"] != "RUNNING":
+                raise AnalysisCancelled("The current job has already finished.")
             previous = self.job["progress"]
             if (event.get("phase") != previous.get("phase") or event.get("total") != previous.get("total")
                     or (event.get("phase") == "waiting_for_model"
@@ -1064,6 +1095,14 @@ class WorkbenchState:
                 if type(value) is int and 0 <= value <= 1_000_000:
                     self.job["progress"][key] = value
             current = self.job["progress"]
+            # Summary and preview snapshots belong to the job rather than its
+            # current stage. A phase-only event must not erase useful updates.
+            for key, validate in (("analysis_update", _analysis_update), ("answer_preview", _answer_preview)):
+                snapshot = validate(event.get(key))
+                if snapshot is not None:
+                    current[key] = snapshot
+                elif key in previous:
+                    current[key] = previous[key]
             if "question_budget_seconds" in current and "question_remaining_seconds" in current:
                 current["question_remaining_seconds"] = min(current["question_remaining_seconds"],
                     current["question_budget_seconds"])
@@ -1195,6 +1234,7 @@ class WorkbenchState:
                     if update:
                         (output / SOURCE_UPDATE_PENDING).unlink()
                     self.updated_at = time.monotonic()
+                    self.job["progress"].pop("answer_preview", None)
                     self.job.update(status="COMPLETED", result=copy.deepcopy(project))
         except AnalysisCancelled:
             with self.lock:

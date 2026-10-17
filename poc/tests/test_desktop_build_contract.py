@@ -51,11 +51,14 @@ class DesktopBuildIdentityTests(unittest.TestCase):
                     mock.patch.object(builder, "target_label", return_value="windows-x64"), \
                     mock.patch.object(builder, "stage_sources", side_effect=stage) as staged, \
                     mock.patch.object(builder, "collect_licenses"), \
+                    mock.patch.object(builder, "compiler_command", return_value=["synthetic-compiler"]) as command, \
                     mock.patch.object(builder, "run_checked", side_effect=RuntimeError("stop before compilation")), \
                     mock.patch("sys.stdout", new_callable=io.StringIO):
                 with self.assertRaisesRegex(RuntimeError, "stop before compilation"):
                     builder.build(argparse.Namespace(jobs=1, output_dir=root / "delivery"))
             staged.assert_called_once()
+            command.assert_called_once_with(staged.call_args.args[0],
+                staged.call_args.args[0].parent / "compiled", jobs=1)
 
     def _finish(self, start, end):
         with tempfile.TemporaryDirectory() as directory:

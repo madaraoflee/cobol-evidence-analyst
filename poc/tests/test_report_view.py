@@ -91,6 +91,16 @@ class ReportViewTests(unittest.TestCase):
         self.assertEqual(len(view['agent_result']['tool_trace']), 300)
         self.assertGreater(view['display_projection']['omitted_field_count'], 0)
 
+    def test_completion_and_gap_survive_report_field_projection(self):
+        agent = {f"detail_{index}": "low-priority detail" for index in range(220)}
+        agent.update(answer="The calculation uses the base amount.", status="PARTIAL",
+                     answer_completion={"status": "incomplete", "missing_aspects": ["override"]},
+                     material_gap="source_not_read", stop_reason="source_not_read")
+        view = project_report({"agent_result": agent})["agent_result"]
+        self.assertEqual(view["answer_completion"], agent["answer_completion"])
+        self.assertEqual(view["material_gap"], "source_not_read")
+        self.assertEqual(view["stop_reason"], "source_not_read")
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,9 +1,10 @@
 """Separate answer scheduling from cancellation of an active investigation.
 
-The completion target stops optional discovery in favour of an answer. It is
-not a deadline for a provider response already being generated. Only explicit
-user cancellation or an optional hard runtime limit interrupts active work;
-provider requests retain their separately configured transport timeout.
+An optional completion target stops discovery in favour of an answer. It is
+not a deadline for a provider response already being generated. By default
+there is no question timer; evidence and answer quality determine completion.
+Only user cancellation or an explicit hard runtime limit interrupts active
+work; provider requests retain their separately configured transport timeout.
 """
 
 from company_api import APIClientError
@@ -26,10 +27,13 @@ class QuestionBudget:
         self.request_durations = []
 
     def remaining(self):
+        if self.limit is None:
+            return None
         return max(0.0, self.limit - (self.clock() - self.started))
 
     def target_reached(self):
-        return self.remaining() <= 0
+        remaining = self.remaining()
+        return remaining is not None and remaining <= 0
 
     def hard_remaining(self):
         if self.hard_limit is None:
@@ -59,7 +63,9 @@ class QuestionBudget:
         remaining = self.remaining()
         hard_remaining = self.hard_remaining()
         if hard_remaining is not None:
-            remaining = min(remaining, hard_remaining)
+            remaining = hard_remaining if remaining is None else min(remaining, hard_remaining)
+        if remaining is None:
+            return False
         # Even before a first response, reaching the target means the next
         # request must answer with available evidence rather than plan more work.
         if remaining <= 0:

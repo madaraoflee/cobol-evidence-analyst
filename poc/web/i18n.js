@@ -3,6 +3,51 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+已保留回答 · 仍有待核對項|已保留回答 · 仍有待核对项|Answer retained · checks remain
+仍有待核對項|仍有待核对项|Checks remain
+本次請求未完成 · 已保留回答|本次请求未完成 · 已保留回答|Request incomplete · answer retained
+分析對象仍有多個候選，需要核對具體文件；這不表示源碼缺失。|分析对象仍有多个候选，需要核对具体文件；这不表示源码缺失。|Several source candidates remain. The specific file must be identified; this does not mean source is missing.
+本次尚未定位到指定的源碼對象；這不表示文件不存在。|本次尚未定位到指定的源码对象；这不表示文件不存在。|The requested source has not yet been located. This does not mean the file is absent.
+回答中的部分引用尚未能與本次證據對應，相關結論仍需核對。|回答中的部分引用尚未能与本次证据对应，相关结论仍需核对。|Some answer citations could not be matched to the supplied evidence. The affected conclusions still need checking.
+本題的部分關鍵證據尚未提供給最終回答，相關結論仍需核對。|本题的部分关键证据尚未提供给最终回答，相关结论仍需核对。|Some key evidence for this question was not supplied to the final answer. The affected conclusions still need checking.
+仍有與本題結論相關的證據待核對；這不表示源碼文件不存在。|仍有与本题结论相关的证据待核对；这不表示源码文件不存在。|Evidence relevant to this question still needs checking. This does not mean source files are absent.
+相關源碼已定位，但本次尚未讀完所需範圍。|相关源码已定位，但本次尚未读完所需范围。|The relevant source was located, but the required range has not yet been fully read.
+部分已定位源碼未能納入本次模型上下文，相關範圍尚未解讀。|部分已定位源码未能纳入本次模型上下文，相关范围尚未解读。|Some located source did not fit into this model request. That scope remains unexplained.
+本次有補查工具未能完成，相關證據仍待核對。|本次有补查工具未能完成，相关证据仍待核对。|An investigation tool could not complete. The affected evidence still needs checking.
+本次調查已達執行限制，仍有待查項；已保留目前回答。|本次调查已达执行限制，仍有待查项；已保留目前回答。|The investigation reached its execution limit with checks still pending. The available answer is retained.
+本次調查已達時間限制，已保留目前回答與待查事項。|本次调查已达时间限制，已保留目前回答与待查事项。|The investigation reached its time limit. The available answer and pending checks are retained.
+後續補查或修訂未完成，這裡保留較早的可用回答。|后续补查或修订未完成，这里保留较早的可用回答。|A later investigation or revision did not complete. The earlier usable answer is retained here.
+連續補查未取得新的相關證據，已停止重複調查並保留目前回答。|连续补查未取得新的相关证据，已停止重复调查并保留目前回答。|Repeated checks found no new relevant evidence. Investigation has stopped and the available answer is retained.
+同一批證據的再次核對未能補全剩餘要點，已停止重複修訂並保留目前回答。|同一批证据的再次核对未能补全剩余要点，已停止重复修订并保留目前回答。|Another review of the same evidence did not resolve the remaining points. Repeated revision has stopped and the available answer is retained.
+模型請求逾時，已保留此前取得的回答；本次補查尚未完成。|模型请求超时，已保留此前取得的回答；本次补查尚未完成。|A model request timed out. The earlier answer is retained; the follow-up investigation did not complete.
+回答對源碼供應的描述仍有矛盾，已保留正文供核對。|回答对源码供应的描述仍有矛盾，已保留正文供核对。|The answer still contains conflicting statements about the supplied source. Its text is retained for review.
+回答尚未涵蓋本題已定位的全部業務要點，已保留目前正文。|回答尚未涵盖本题已定位的全部业务要点，已保留目前正文。|The answer does not yet cover all identified business points for this question. The available text is retained.
+回答中提及的後續調查尚未完成，已保留目前取得的結論。|回答中提及的后续调查尚未完成，已保留目前取得的结论。|The follow-up investigation mentioned in the answer has not completed. Available conclusions are retained.
+目前回答尚未充分解釋所問業務，仍需根據已讀證據補充。|目前回答尚未充分解释所问业务，仍需根据已读证据补充。|The answer still needs to explain the requested business behavior using the evidence already read.
+回答尚有未完成的業務要點，已保留目前正文。|回答尚有未完成的业务要点，已保留目前正文。|Some business points in the answer remain incomplete. The available text is retained.
+本次回答仍有待核對項，請查看回答依據與調查詳情。|本次回答仍有待核对项，请查看回答依据与调查详情。|Checks remain for this answer. See its evidence and investigation details.
+正在核驗目前草稿與源碼依據。|正在核验当前草稿与源码依据。|Checking the current draft against source evidence.
+調查輪次 |调查轮次 |Round\u0020
+已取得證據 |已取得证据 |Evidence collected\u0020
+已有證據的要點 |已有证据的要点 |Question items with evidence\u0020
+待核對 |待核对 |Pending checks\u0020
+調查進展|调查进展|Investigation progress
+正在撰寫業務回答|正在撰写业务回答|Writing the business answer
+正在核對回答與問題|正在核对回答与问题|Reviewing the answer against the question
+待核對事項|待核对事项|Pending checks
+回答草稿|回答草稿|Draft answer
+撰寫中|撰写中|Writing
+修訂中|修订中|Revising
+核對中|核对中|Checking
+內容可能修訂，請以完成後的回答為準。|内容可能修订，请以完成后的回答为准。|This draft may change. Use the completed answer as the final result.
+接口返回的流式回答格式無法解析。|接口返回的流式回答格式无法解析。|The streamed answer could not be parsed.
+檢查接口是否支持標準流式回答，並憑關聯編號核對服務端記錄。|检查接口是否支持标准流式回答，并凭关联编号核对服务端记录。|Check whether the endpoint supports standard streaming responses and use the correlation ID to review server records.
+接口連線已結束，但回答尚未完整傳回。|接口连接已结束，但回答尚未完整传回。|The connection ended before the complete answer was received.
+檢查連線和服務端記錄；已顯示內容仍是草稿，確認請求狀態後再決定是否重試。|检查连接和服务端记录；已显示内容仍是草稿，确认请求状态后再决定是否重试。|Check the connection and server records. Displayed content is still a draft; confirm the request status before deciding whether to retry.
+本機即時回答處理未能正確初始化，本次模型請求未發送。|本机实时回答处理未能正确初始化，本次模型请求未发送。|Local processing for the live answer could not initialize. The model request was not sent.
+重新啟動工作台；若仍失敗，憑關聯編號檢查應用日誌。|重新启动工作台；若仍失败，凭关联编号检查应用日志。|Restart the workbench. If the failure persists, use the correlation ID to check application logs.
+本機處理即時回答時發生錯誤。|本机处理实时回答时发生错误。|An error occurred while processing the live answer locally.
+憑關聯編號檢查應用日誌；遠端請求可能仍在完成，確認請求狀態後再決定是否重試。|凭关联编号检查应用日志；远程请求可能仍在完成，确认请求状态后再决定是否重试。|Use the correlation ID to check application logs. The remote request may still be completing; confirm its status before deciding whether to retry.
 編譯與 COPY 設定文件（選填）|编译与 COPY 设置文件（选填）|Compilation and COPY settings file (optional)
 已知方言、COPY 搜尋順序及編譯條件可在本機設定文件中提供；未提供時保留不確定範圍。|已知方言、COPY 搜索顺序及编译条件可在本机设置文件中提供；未提供时保留不确定范围。|Provide known dialect, COPY search order and compile conditions in a local settings file. Unknown settings remain explicit.
 本次請求未完成|本次请求未完成|This request did not complete

@@ -63,6 +63,7 @@ _ABSENCE = re.compile(
     r"(?:has|have)\s+not\s+(?:been\s+)?(?:provided|supplied|read)|unavailable|missing)\b", re.I)
 _PARTIAL = re.compile(
     r"(?:只能|仅能|僅能|仅|僅|只).{0,24}(?:看到|看见|看見|拿到|取得|读取|讀取|获得|獲得|有).{0,40}(?:部分|片段|节录|節錄)|"
+    r"(?:只|仅|僅)(?:提供|供应|供應)(?:了)?\s*(?:部分|片段|节录|節錄)|"
     r"(?:源码|源碼|代码|代碼|原文).{0,12}(?:不完整|不全)|"
     r"\b(?:only\s+(?:see|have|received|read).{0,40}(?:part|excerpts?|fragments?)|"
     r"only\s+(?:a\s+|some\s+)?(?:part|excerpts?|fragments?).{0,40}|"
@@ -80,18 +81,30 @@ _REPORTED = re.compile(r"历史|歷史|上次|之前|曾称|曾稱|示例|例子
     r"\b(?:previous|historical|example|message|log|reported|quoted)\b", re.I)
 _CALLEE = re.compile(r"被调用|被調用|被调|被調|调用|調用|外部|下游|"
     r"\b(?:callee|external|calls?|called implementation)\b", re.I)
+_CURRENT_SUBJECT = re.compile(
+    r"当前|當前|目前|本轮|本輪|本次|(?:这|這|该|該|此|本)(?:个|個|份)?(?:程序|程式|文件|源码|源碼|代码|代碼)|"
+    r"\b(?:this|current)\s+(?:program|file|source|code|turn)\b", re.I)
+_SOURCE_MATERIAL = re.compile(r"源码|源碼|代码|代碼|原文|全文|\b(?:source|code)\b", re.I)
+_SOURCE_EXPLANATION = re.compile(
+    r"(?:源码|源碼|代码|代碼|原文)(?:的)?(?:完整|全部|业务|業務)?(?:解读|解讀|解释|解釋|分析|说明|說明)|"
+    r"\b(?:explanation|analysis|interpretation)\s+of\s+(?:the\s+)?(?:source|code)\b", re.I)
+_BROADER_SCOPE = re.compile(
+    r"依赖|依賴|关联|關聯|全库|全庫|仓库|倉庫|项目|項目|系统|系統|其他|其它|所有(?:程序|文件|源码|源碼|代码|代碼)|"
+    r"\b(?:dependenc\w*|repository|project|system|other|all\s+(?:files|programs)|copybooks?)\b", re.I)
 
 
 def source_availability_contradictions(answer, source_pages, working_set=None):
-    """Return only denials contradicted by a named, actually supplied source.
+    """Return denials contradicted by an identified, actually supplied source.
 
-Unqualified partial-code statements are checked only when they explicitly name
-a source. A complete root does not establish a complete repository or complete
-dependency implementations.
+An unnamed current-source denial requires one explicit root and verified whole
+file coverage. A complete root does not establish a complete repository,
+dependency implementations, or a complete business explanation.
 """
     available = supplied_source_availability(source_pages, working_set)
     if not available:
         return []
+    roots = list(dict.fromkeys(_path(path) for path in (working_set or {}).get("root_paths", []) if path))
+    current_root = roots[0] if len(roots) == 1 and available.get(roots[0], {}).get("complete_source_supplied") else None
     text = re.sub(r"```[^\n]*\n.*?(?:```|\Z)|~~~[^\n]*\n.*?(?:~~~|\Z)", "", str(answer), flags=re.S)
     text = re.sub(r"(?m)^\s*>.*$", "", text)
     text = re.sub(r'''“[^”]*”|「[^」]*」|『[^』]*』|‘[^’]*’|"[^"\n]*"|(?<!\w)'[^'\n]*' ''', "", text, flags=re.X)
@@ -99,6 +112,12 @@ dependency implementations.
     # quoted data. Retain a lone path token, never an availability assertion.
     text = re.sub(r"`([^`\n]+)`", lambda match: match.group(1) if re.fullmatch(
         r"[A-Z0-9_$#@./\\-]+|[^\s`]+\.[A-Z][A-Z0-9]{0,9}", match.group(1), re.I) else "", text)
+    # Citation IDs can follow the previous sentence's punctuation. They identify
+    # evidence, not a newly named program that should override the current root.
+    citation_ids = {identifier for row in available.values() for identifier in row["evidence_ids"]}
+    if citation_ids:
+        text = re.sub(r"\[(?:" + "|".join(re.escape(identifier) for identifier in
+            sorted(citation_ids, key=len, reverse=True)) + r")\]", "", text)
     aliases = defaultdict(set)
     known_paths = set(available) | {_path(row.get("relative_path"))
         for row in (working_set or {}).get("source_manifest", []) if row.get("relative_path")}
@@ -123,25 +142,30 @@ dependency implementations.
             continue
         matches = list(named_source.finditer(clause))
         if not matches:
-            continue
-        # A sentence can mention a supplied caller and an absent callee. Bind
-        # the assertion to the nearest explicit filename rather than any hit.
-        nearest = min(matches, key=lambda match: min(abs(match.start() - assertion.start()),
-                                                     abs(match.end() - assertion.start())))
-        name = _path(nearest.group(1)).casefold()
-        path = names.get(name)
-        if path is None:
-            continue
-        callee = _CALLEE.search(clause)
-        if callee and nearest.end() <= callee.start() < assertion.start():
-            continue
+            if (current_root is None or not _CURRENT_SUBJECT.search(clause)
+                    or not _SOURCE_MATERIAL.search(clause) or _CALLEE.search(clause)
+                    or _BROADER_SCOPE.search(clause) or _SOURCE_EXPLANATION.search(clause)):
+                continue
+            path = current_root
+            full_denial = bool(_PARTIAL.search(clause) or _FULL.search(clause))
+        else:
+            # Bind a named denial to its nearest filename; never reinterpret an
+            # unknown callee or ambiguous basename as the current root.
+            nearest = min(matches, key=lambda match: min(abs(match.start() - assertion.start()),
+                                                         abs(match.end() - assertion.start())))
+            name = _path(nearest.group(1)).casefold()
+            path = names.get(name)
+            if path is None:
+                continue
+            callee = _CALLEE.search(clause)
+            if callee and nearest.end() <= callee.start() < assertion.start():
+                continue
+            # Answer depth alone is not a source-completeness assertion.
+            full_denial = bool(_PARTIAL.search(clause) or _FULL.search(
+                clause[max(0, nearest.start() - 16):assertion.end()]))
         row = available.get(path)
         if row is None:
             continue
-        # "Cannot give a complete answer" describes answer depth, not source
-        # completeness. Only qualifiers attached before the denial apply here.
-        full_denial = bool(_PARTIAL.search(clause) or _FULL.search(
-            clause[max(0, nearest.start() - 16):assertion.end()]))
         if full_denial and not row["complete_source_supplied"]:
             continue
         # A filename is enough to identify physical source, even when the

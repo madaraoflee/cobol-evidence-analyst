@@ -434,6 +434,13 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
     if mode not in {"automatic", "reviewed-context", "paired-synthesis"}:
         raise ValueError("EVALUATION_MODE_INVALID")
     policy = resolve_agent_policy(policy) if policy is not None else load_agent_policy()
+    # Batch acceptance needs a finite, reviewable spend estimate. Its bounded
+    # defaults are independent of the interactive workbench's adaptive policy.
+    evaluation_defaults_applied = policy.max_model_requests is None
+    if evaluation_defaults_applied:
+        policy = replace(policy, max_model_requests=5,
+                         max_question_seconds=120 if policy.max_question_seconds is None
+                         else policy.max_question_seconds)
     config = config or model_config(profile, timeout_seconds=timeout_seconds,
                                     max_output_tokens=max_output_tokens)
     turns = sum(len(_turns(item)) for item in items)
@@ -466,6 +473,7 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                            "model": config.chat_model, "messages": [{"role": "user", "content": "Reply with OK."}],
                            "max_tokens": 32}, ensure_ascii=False, separators=(",", ":")).encode("utf-8")),
                        "policy": policy.to_dict(),
+                       "bounded_evaluation_defaults_applied": evaluation_defaults_applied,
                        "configuration_scope": "evaluation_runner",
                        "workbench_defaults": {"timeout_seconds": 60.0, "max_output_tokens": WORKBENCH_MAX_OUTPUT_TOKENS},
                        "matches_workbench_defaults": config.timeout_seconds == 60.0 and config.max_output_tokens == WORKBENCH_MAX_OUTPUT_TOKENS,

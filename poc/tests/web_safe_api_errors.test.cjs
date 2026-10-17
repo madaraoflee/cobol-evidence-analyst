@@ -117,6 +117,42 @@ test('safe failure templates translate and preserve classified IDs in every loca
   }
 });
 
+test('streaming failures preserve safe classifications and provisional-answer warnings in every locale',()=>{
+  const cases={
+    INVALID_STREAM_RESPONSE:['invalid_stream',{en:/streamed answer could not be parsed/,'zh-CN':/流式回答格式无法解析/,'zh-HK':/流式回答格式無法解析/}],
+    STREAM_INCOMPLETE:['stream_incomplete',{en:/complete answer was received/,'zh-CN':/回答尚未完整传回/,'zh-HK':/回答尚未完整傳回/}],
+    STREAM_CALLBACK_INVALID:['stream_callback_invalid',{en:/model request was not sent/,'zh-CN':/本次模型请求未发送/,'zh-HK':/本次模型請求未發送/}],
+    STREAM_CALLBACK_FAILED:['stream_callback_failed',{en:/processing the live answer locally/,'zh-CN':/处理实时回答时发生错误/,'zh-HK':/處理即時回答時發生錯誤/}],
+  };
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const run=harness(locale);
+    for(const [code,[category,expected]] of Object.entries(cases)){
+      const failure=diagnostic({category,evidence_source:'local',reason:'PRIVATE-STREAM-BODY',next_step:'PRIVATE-STREAM-BODY',raw_body:'PRIVATE-STREAM-BODY'});
+      const safe=run(`safeApiDiagnostic(${JSON.stringify(failure)})`);
+      assert.equal(safe.category,category);assert.match(safe.reason,expected[locale]);
+      const markup=run(`failureDiagnosticsView({diagnostic:${JSON.stringify(failure)}})`);
+      assert.match(markup,/local-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/);assert.doesNotMatch(markup,/PRIVATE-STREAM-BODY/);
+      if(locale==='en')assert.doesNotMatch(markup,/[\u3400-\u9fff]/);
+      for(const expression of [`apiErrorText({code:'${code}',message:'PRIVATE-STREAM-BODY'})`,`modelCheckMessage({code:'${code}'})`]){
+        const text=run(expression);assert.match(text,expected[locale]);assert.doesNotMatch(text,/PRIVATE-STREAM-BODY/);
+      }
+      if(category==='stream_incomplete')assert.match(safe.next_step,locale==='en'?/still a draft.*confirm the request status/:locale==='zh-CN'?/仍是草稿.*确认请求状态/:/仍是草稿.*確認請求狀態/);
+      if(category==='stream_callback_failed')assert.match(safe.next_step,locale==='en'?/remote request may still be completing/:locale==='zh-CN'?/远程请求可能仍在完成/:/遠端請求可能仍在完成/);
+      run(`state.mode='real';state.project={agent:{agent_result:{diagnostic_summary:{schema_version:'business-answer-diagnostics/v1',stop_reason:'${code}'}}}};`);
+      assert.equal(run('diagnosticSummaryData().stop_reason'),code);
+    }
+  }
+});
+
+test('local API errors retain the four streaming codes without accepting response text',async()=>{
+  const run=harness('en');
+  for(const code of ['INVALID_STREAM_RESPONSE','STREAM_INCOMPLETE','STREAM_CALLBACK_INVALID','STREAM_CALLBACK_FAILED']){
+    run(`fetch=async()=>({ok:false,status:502,json:async()=>({error:{code:'${code}',message:'PRIVATE-STREAM-BODY'}})});`);
+    const failure=await run("api('/api/model-check').catch(error=>({code:error.code,message:error.message}))");
+    assert.equal(failure.code,code);assert.doesNotMatch(failure.message,/PRIVATE-STREAM-BODY|REQUEST_FAILED/);
+  }
+});
+
 test('local source failures rebuild translated fixed text and retain recovery warnings without private fields',()=>{
   const privateValue='PRIVATE-LOCAL-SOURCE-UPDATE';
   for(const locale of ['en','zh-CN','zh-HK']){

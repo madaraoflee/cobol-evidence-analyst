@@ -252,7 +252,7 @@ def _outline(connection: sqlite3.Connection, files: list[dict], check: Callable 
             "(unit_type='Section' AND name IN ('LINKAGE','WORKING-STORAGE'))) ORDER BY start_line", (relative,))]
         interfaces.extend(local_interfaces)
         local_relations = [dict(row) for row in connection.execute(
-            "SELECT r.relation_type,r.target_name,r.status,r.relative_path,u.program_name,e.start_line,e.end_line, "
+            "SELECT r.relation_type,r.target_name,r.status,r.metadata_json,r.relative_path,u.program_name,e.start_line,e.end_line, "
             "s.relative_path AS target_path,t.start_line AS target_line,t.program_name AS target_program "
             "FROM relations r LEFT JOIN code_units u ON u.unit_id=r.from_entity_id "
             "LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
@@ -260,6 +260,9 @@ def _outline(connection: sqlite3.Connection, files: list[dict], check: Callable 
             "JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
             "WHERE r.relative_path=? AND r.relation_type IN ('CALLS','CALL_TARGET_FROM','PERFORMS','PERFORMS_THRU','INCLUDES_COPY') "
             "ORDER BY e.start_line,r.relation_type", (relative,))]
+        for relation in local_relations:
+            metadata = json.loads(relation.pop("metadata_json") or "{}")
+            relation["resolution_reason"] = metadata.get("resolution_reason")
         relations.extend(local_relations)
         counts = {name: connection.execute(f"SELECT COUNT(*) FROM {table} WHERE relative_path=?", (relative,)).fetchone()[0]
                   for name, table in (("code_unit_count", "code_units"), ("symbol_count", "symbols"), ("relation_count", "relations"))}
@@ -272,6 +275,21 @@ def _outline(connection: sqlite3.Connection, files: list[dict], check: Callable 
                              "paragraphs": local_paragraphs[:MAX_OUTLINE_ITEMS], "calls": local_relations[:MAX_OUTLINE_ITEMS],
                              "outline_truncated": max(len(local_paragraphs), len(local_relations), len(local_interfaces), len(names)) > MAX_OUTLINE_ITEMS})
     return outlines, programs, paragraphs, relations, interfaces
+
+
+def _target_source_status(relation, target, verified, allowed):
+    if relation["relation_type"] == "CALL_TARGET_FROM":
+        return "unresolved"
+    if target:
+        return ("verified" if target in verified else
+                "outside_investigation" if target not in allowed else "excluded")
+    # A failed static lookup concerns the indexed scope, not physical absence.
+    # Dynamic, ambiguous and conditional bindings never establish that result.
+    if (relation.get("status") in {"not_found", "missing"}
+            or relation.get("status") == "unresolved"
+            and relation.get("resolution_reason") == "target_not_found"):
+        return "not_found"
+    return "unresolved"
 
 
 def _priorities(entry, paragraphs, relations, files, verified, programs=()):
@@ -317,13 +335,16 @@ def _priorities(entry, paragraphs, relations, files, verified, programs=()):
                     matches = copy_paths.get((relation["target_name"] or "").upper(), [])
                     if len(matches) == 1:
                         target, resolution = matches[0], "literal_copy_candidate"
-                target_status = ("verified" if target in verified else
-                                 "outside_investigation" if target and target not in allowed else
-                                 "excluded" if target else "missing")
+                    elif len(matches) > 1:
+                        resolution = "ambiguous_copy_candidate"
+                target_status = ("unresolved" if resolution == "ambiguous_copy_candidate" else
+                                 _target_source_status(relation, target, verified, allowed))
+                relation["target_source_status"] = target_status
                 links.append({"relation_type": relation["relation_type"], "caller_path": relative,
                               "caller_program": program_name, "start_line": relation["start_line"],
                               "end_line": relation["end_line"], "target_name": relation["target_name"],
                               "target_path": target, "resolution": resolution, "target_source_status": target_status,
+                              "target_source_status_scope": "indexed_sources",
                               "depth": depth, "_target_program": relation["target_program"],
                               "_target_line": relation["target_line"] or 1})
                 line_priority[relative].update((relation["start_line"], relation["end_line"]))
@@ -602,9 +623,13 @@ def prepare_source_reading(database_path, source_root, *, entry_program, questio
                    for item in outline]
         for item in outline:
             for relation in item.get("calls", []):
+                relation.setdefault("target_source_status", _target_source_status(
+                    relation, relation["target_path"] if relation["status"] == "confirmed" else None,
+                    verified, files_by_path))
+                relation["target_source_status_scope"] = "indexed_sources"
                 if relation["relation_type"] == "CALL_TARGET_FROM":
                     relation.update(status="unresolved", target_path=None, target_line=None,
-                                    target_program=None, target_source_status="missing")
+                                    target_program=None, target_source_status="unresolved")
                 elif relation["target_path"] in excluded:
                     relation.update(status="target_unavailable", target_source_status="excluded",
                                     target_line=None, target_program=None)

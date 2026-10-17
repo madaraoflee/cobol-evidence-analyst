@@ -524,7 +524,7 @@ test('answer verification has its own phase, localized text, and no stale invest
     const markup=h.run('conversationProgress()');
     if(locale==='en'){
       assert.match(markup,/Verifying the answer against source evidence/);
-      assert.match(markup,/Checking the available answer before displaying it/);
+      assert.match(markup,/Checking the current draft against source evidence/);
       assert.doesNotMatch(markup,/[\u3400-\u9fff]|Investigation time left|Waiting on this request/);
     }else assert.match(markup,locale==='zh-CN'?/核验回答与源码依据/:/核驗回答與源碼依據/);
     assert.equal(h.run('progressViewModel().questionRemaining'),null);
@@ -537,4 +537,96 @@ test('question progress ignores malformed activity values and never renders thei
   const markup=h.run('conversationProgress()');
   assert.doesNotMatch(markup,/private-marker|Infinity|NaN|Investigation time left|Model request|Evidence pages read/);
   assert.equal(h.run('progressViewModel().questionRemaining'),null);
+});
+
+test('live investigation shows actual evidence and question coverage while keeping drafts provisional and safe',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);setup(h);
+    h.run(`state.busy=true;state.jobId='live-job';state.jobKind='question';rememberProgress(${JSON.stringify({
+      phase:'writing_answer',model_requests:2,total:5,completed:2,question_budget_seconds:120,question_remaining_seconds:90,
+      analysis_update:{round:2,summary:'Located <img src=x onerror=alert(1)> and checked the caller.',evidence_count:7,completed_items:2,total_items:3,open_items:['Trace <script>alert(1)</script> return.']},
+      answer_preview:{round:2,stage:'draft',text:'**Known result:** The caller validates the input.\n\n<img src=x onerror=alert(1)> [unsafe](javascript:alert(1))'},
+    })});`);
+    const markup=h.run('conversationProgress()');
+    assert.match(markup,/2 \/ 3/);assert.match(markup,/<strong>Known result:<\/strong>/);
+    assert.match(markup,/Located &lt;img/);assert.match(markup,/&lt;script&gt;alert/);
+    assert.doesNotMatch(markup,/<img|<script|href="javascript:|2 \/ 5|120|01:30/);
+    if(locale==='en'){
+      assert.match(markup,/Round 2.*Evidence collected 7 items.*Question items with evidence 2 \/ 3/);
+      assert.doesNotMatch(markup,/Question items checked|answer verified|已核對要點|已核对要点/);
+      assert.match(markup,/Writing the business answer/);assert.match(markup,/This draft may change/);
+      assert.doesNotMatch(markup,/[\u3400-\u9fff]/);
+    }else assert.match(markup,locale==='zh-CN'?/内容可能修订/:/內容可能修訂/);
+  }
+});
+
+test('phase-only polling retains the latest draft and updates content without a full page render',()=>{
+  const h=harness();setup(h);
+  h.run("state.busy=true;state.jobId='live-job';state.jobKind='question';rememberProgress({phase:'writing_answer',analysis_update:{round:1,summary:'Caller read.',evidence_count:2},answer_preview:{text:'First draft.',round:1,stage:'draft'}});updateProgressPanel();");
+  assert.match(h.get('conversation-analysis-live').innerHTML,/First draft\./);
+  h.run("rememberProgress({phase:'reviewing_answer'});updateProgressPanel();");
+  assert.match(h.get('conversation-phase').textContent,/Reviewing the answer against the question/);
+  assert.match(h.get('conversation-analysis-live').innerHTML,/First draft\./);
+  assert.match(h.get('conversation-analysis-live').innerHTML,/Caller read\./);
+  h.run("rememberProgress({phase:'writing_answer',answer_preview:{text:'Revised **result**.',round:2,stage:'revision'}});updateProgressPanel();");
+  assert.match(h.get('conversation-analysis-live').innerHTML,/Revising.*Round 2/);
+  assert.match(h.get('conversation-analysis-live').innerHTML,/Revised <strong>result<\/strong>/);
+  assert.doesNotMatch(h.get('conversation-analysis-live').innerHTML,/First draft\./);
+  h.run("state.progress=null;rememberProgress({phase:'retrieving'});updateProgressPanel();");
+  assert.equal(h.get('conversation-analysis-live').innerHTML,'');
+});
+
+test('live updates reject malformed counters and tool protocol previews rather than presenting them as answers',()=>{
+  const h=harness();setup(h);
+  const actions=['{"read":[{"relative_path":"private-action.cbl"}]}','```json\n{"search":["private-action"]}\n```','{"backward_slice":[{"relative_path":"private-action.cbl"}]}','{"tool_calls": ['];
+  for(const text of actions){
+    h.run(`state.progress=null;rememberProgress(${JSON.stringify({phase:'writing_answer',
+      analysis_update:{round:'invalid-counter',summary:{secret:'invalid-summary'},evidence_count:-2,completed_items:4,total_items:2,open_items:[{secret:'invalid-open-item'}]},
+      answer_preview:{text,round:2,stage:'draft'},
+    })});`);
+    const markup=h.run('conversationProgress()');
+    assert.doesNotMatch(markup,/private-action|tool_calls|invalid-counter|invalid-summary|invalid-open-item|4 \/ 2|answer-live-preview/);
+  }
+});
+
+test('completed polling replaces the draft with the final conversation answer and the next question starts clean',async()=>{
+  const h=harness();setup(h);
+  h.run("state.busy=true;state.jobId='live-job';state.jobKind='question';rememberProgress({phase:'writing_answer',answer_preview:{text:'Unfinished provisional answer.',round:1,stage:'draft'}});");
+  h.respond(url=>url==='/api/jobs/live-job'?{status:'COMPLETED',progress:{phase:'completed'},result:{...project(),conversation:conversation(firstMessages)}}:assert.fail(url));
+  await h.run("pollJob('live-job')");
+  const markup=h.run('conversationWorkbench()');
+  assert.match(markup,/A valid request is accepted/);assert.doesNotMatch(markup,/Unfinished provisional answer|answer-live-preview/);
+  assert.equal(h.run('state.progress.answer_preview'),undefined);
+});
+
+test('question progress uses the same live view outside conversation mode without showing fixed request totals',()=>{
+  const h=harness();setup(h);
+  h.run("state.conversationSupported=false;state.busy=true;state.jobKind='question';state.jobId='legacy-job';rememberProgress({phase:'writing_answer',completed:2,total:5,unit:'requests',answer_preview:{text:'Current draft.',round:2,stage:'answer'}});updateProgressPanel();");
+  assert.match(h.run('progressPanel()'),/Current draft\./);
+  assert.doesNotMatch(h.run('progressPanel()'),/2 \/ 5|job-progress|40\.0%/);
+  assert.match(h.get('conversation-analysis-live').innerHTML,/Current draft\./);
+});
+
+test('partial answers explain the actual completion boundary without asserting source absence',()=>{
+  const h=harness();setup(h);
+  const cases=[
+    [{stop_reason:'evidence_read_incomplete'},/relevant source was located.*not yet been fully read/],
+    [{stop_reason:'working_set_transmission_incomplete'},/did not fit into this model request/],
+    [{stop_reason:'question_evidence_incomplete'},/does not mean source files are absent/],
+    [{stop_reason:'answer_incomplete',answer_completion:{reason:'supplied_business_aspects_unexplained'}},/does not yet cover all identified business points/],
+    [{stop_reason:'answer_incomplete',business_review:{answer_completion:{reason:'source_availability_contradiction'}}},/conflicting statements about the supplied source/],
+    [{stop_reason:'usable_draft_retained'},/earlier usable answer is retained/],
+    [{stop_reason:'no_evidence_progress'},/Repeated checks found no new relevant evidence/],
+    [{stop_reason:'answer_review_no_progress'},/Repeated revision has stopped/],
+    [{material_gap:'tool_unavailable'},/investigation tool could not complete/],
+    [{stop_reason:'unknown',material_gap:{reason:'source_identity_ambiguous'}},/Several source candidates remain/],
+    [{stop_reason:'unknown',answer_completion:{reason:'<script>untrusted-reason</script>'}},/Checks remain for this answer/],
+  ];
+  for(const [extra,expected] of cases){
+    const markup=h.run(`conversationMessage(${JSON.stringify({id:'partial-reason',role:'assistant',status:'completed',analysis_status:'PARTIAL',content:'Retained business conclusion.',...extra})})`);
+    assert.match(markup,expected);assert.match(markup,/Retained business conclusion\./);
+    assert.doesNotMatch(markup,/Partial business|部分業務解讀|部分业务解读|untrusted-reason/);
+  }
+  const complete=h.run("answerCompletionNotice({status:'ANALYZED',stop_reason:'sufficient_material'})");
+  assert.equal(complete,'');
 });

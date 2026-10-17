@@ -87,7 +87,11 @@ class CompleteWorkingSetTests(unittest.TestCase):
         self.assertEqual(len(requests), 1)
         self.assertFalse(output["agent_result"]["model_answer_recorded"])
         self.assertEqual(self.network_attempts, [])
-        self.assertLessEqual(output["agent_result"]["metrics"]["model_requests"], policy.max_model_requests)
+        self.assertEqual(output["agent_result"]["metrics"]["model_requests"], len(requests))
+        if policy.max_model_requests is not None:
+            self.assertLessEqual(len(requests), policy.max_model_requests)
+        else:
+            self.assertIsNone(output["agent_result"]["metrics"]["policy"]["max_model_requests"])
         return requests[0], output, request_bytes[0]
 
     def assert_exact_complete_files(self, payload, paths):

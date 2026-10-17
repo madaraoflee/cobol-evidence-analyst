@@ -50,8 +50,34 @@ test('source citations continue to use the existing evidence click handler',()=>
 
 test('reading coverage distinguishes planned, sent and interpreted pages, and partial results survive failed requests',()=>{
   const h=harness();setup(h,{status:'PARTIAL',stop_reason:'model_client_error',reading_coverage:{total_files:2,total_lines:1000,total_pages:10,selected_pages:8,selected_lines:800,planned_pages:8,sent_pages:5,summarized_pages:3,summarized_lines:300,failed_pages:2,complete:false},analysis_scope:{unresolved_dependency_count:2}});
-  const answer=h.run('actualAnswer()');assert.match(answer,/The program reads input/);assert.match(answer,/Interpreted 3 \/ 10 pages \(current source scope\)/);assert.match(answer,/Sent 5 pages/);assert.match(answer,/Selected for this run: 8 pages/);assert.match(answer,/300 \/ 1,000 lines/);assert.match(answer,/There are 5 unread pages/);assert.match(answer,/Some analysis requests did not complete/);assert.doesNotMatch(answer,/dependencies are missing implementations/);assert.doesNotMatch(answer,/>Analysis interrupted</);
+  const answer=h.run('actualAnswer()');assert.match(answer,/The program reads input/);assert.match(answer,/Interpreted 3 \/ 10 pages \(current source scope\)/);assert.match(answer,/Sent 5 pages/);assert.match(answer,/Selected for this run: 8 pages/);assert.match(answer,/300 \/ 1,000 lines/);assert.match(answer,/There are 5 unread pages/);assert.match(answer,/The model request or response processing failed/);assert.doesNotMatch(answer,/Some analysis requests did not complete|dependencies are missing implementations/);assert.doesNotMatch(answer,/>Analysis interrupted</);
   assert.match(h.run('apiSummary()'),/Model explanation available; business meaning needs review/);assert.doesNotMatch(h.run('apiSummary()'),/no business conclusion reached/);
+});
+
+test('successful retrieval completion does not invent an unfinished-request warning in the answer or export',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);setup(h,{status:'ANALYZED',analysis_mode:'retrieval',stop_reason:'sufficient_material',
+      model_answer_recorded:true,reading_coverage:{reading_strategy:'retrieval',sent_pages:2,sent_files:1,complete:false}});
+    assert.equal(h.run('narrativeNotes(result()).length'),0);
+    for(const markup of [h.run('actualAnswer()'),h.run('markdownSummary()')]){
+      assert.match(markup,/The program reads input/);
+      assert.doesNotMatch(markup,/Some analysis requests did not complete|部分分析請求未完成|部分分析请求未完成|answer-incomplete/);
+    }
+  }
+});
+
+test('partial retrieval answers and exports share the specific cause without a competing generic failure',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);setup(h,{status:'PARTIAL',analysis_mode:'retrieval',stop_reason:'evidence_read_incomplete',
+      model_answer_recorded:true,reading_coverage:{reading_strategy:'retrieval',sent_pages:2,failed_requests:1,complete:false}});
+    const reason=h.run('answerCompletionReason(result())');
+    assert.equal(h.run('narrativeNotes(result())[0]'),reason);
+    for(const markup of [h.run('actualAnswer()'),h.run('markdownSummary()')]){
+      assert.equal(markup.split(reason).length-1,1,'the precise completion cause is shown once');
+      assert.match(markup,/The program reads input/);
+      assert.doesNotMatch(markup,/Some analysis requests did not complete|部分分析請求未完成|部分分析请求未完成/);
+    }
+  }
 });
 
 test('complete reading is scoped and never upgrades model interpretation to verified business conclusions',()=>{

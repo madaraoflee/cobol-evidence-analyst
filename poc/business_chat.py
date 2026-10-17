@@ -17,6 +17,7 @@ from api_error_details import build_diagnostic, format_diagnostic, sanitize_diag
 from agent_policy import resolve_agent_policy
 from answer_markdown import ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, join_answer_continuation
 from answer_diagnostics import build_answer_diagnostics, response_character_counts
+from analysis_continuation import AnalysisContinuation, progress_snapshot
 from business_map import build_business_map
 from business_synthesis import (assess_answer_completion, assess_business_answer, build_analysis_brief, link_answer_claims,
                                 needs_synthesis_review, wants_business_detail)
@@ -65,6 +66,8 @@ _SYSTEM += '\n字段与流程工具共用 inspect_business_context 的每轮额�
     '{"trace_parameter":[{"relative_path":"programs/example.cbl","line":100}]}；' \
     '{"explain_external_effect":[{"relative_path":"programs/example.cbl","line":100}]}。' \
     '这些工具返回可能的源码控制/数据流，未知调用效果须保留；不证明路径可行、运行数据或写入成功。'
+
+
 
 
 def _action_json_text(text):
@@ -686,6 +689,9 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
                 payload["task"] += " draft_answer 因请求预算只提供原正文尾部，首段已省略；完整首答仍保留，请仅从所给末尾续写。"
             payload["omitted_draft_characters"] = payload.get("omitted_draft_characters", 0) + len(draft) - len(retained)
             record(None, "draft_answer_request_bytes", len(draft), len(retained))
+        elif payload.get("analysis_memory", {}).get("instruction"):
+            payload["analysis_memory"].pop("instruction")
+            record(None, "analysis_memory_instruction_bytes")
         elif not payload.get("budget_wire_compact"):
             payload["budget_wire_compact"] = True
             record(None, "optional_navigation_wire_bytes")
@@ -967,13 +973,17 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     if question_budget is not None:
         question_budget.recovery = save_budget_stop
     resume_checkpoint = (resume_state or {}).get("checkpoint", {})
+    adaptive = policy.max_model_requests is None
+    continuation = AnalysisContinuation(question, resume_checkpoint.get("analysis_continuation"))
+    continuation_texts = set(resume_checkpoint.get("continuation_texts", []))
     resume_response = None
     if resume_state:
         completed_actions.extend(resume_checkpoint.get("completed_actions", []))
         turns = len(quality.data["rounds"])
         for request in reversed(resume_state.get("requests", [])):
             response = json.loads(request.get("response_json") or "{}")
-            if response.get("remote_response") and request["request_id"] == f"round-{turns}":
+            if (response.get("remote_response") and request["request_id"] == f"round-{turns}"
+                    and (not adaptive or resume_checkpoint.get("processed_model_round", 0) < turns)):
                 resume_response = response["remote_response"]
                 break
     redactor = APIResponseDiagnostics(protected_values=(
@@ -1039,7 +1049,35 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                       "model_requests": turns, "retrieved_pages": len(pages),
                       **({"question_budget_seconds": question_budget.limit,
                           "question_remaining_seconds": round(question_budget.remaining(), 1)}
-                         if question_budget else {}), **details})
+                         if question_budget and question_budget.limit is not None else {}), **details})
+
+    def emit_analysis(investigation, *, summary=None, assessment=None):
+        emit("reviewing_answer" if assessment else "answering", analysis_update=progress_snapshot(
+            turns + (0 if assessment else 1), investigation or {}, len(evidence.pages),
+            summary=summary, assessment=assessment))
+
+    def remember_draft(*, processed=True):
+        if not adaptive:
+            return
+        if answer:
+            continuation.draft = redactor._sanitize(answer)
+        checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
+        updates = {"analysis_continuation": continuation.checkpoint(),
+                   "continuation_texts": sorted(continuation_texts)}
+        if processed:
+            # Commit consumed responses together with their local effects. A
+            # restart replays received-but-unprocessed responses only.
+            updates.update(processed_model_round=turns, quality=quality.data,
+                source_pages=list(evidence.pages.values()), completed_actions=completed_actions,
+                frontier=list(pending_model_actions))
+        if answer:
+            updates["accepted_draft"] = {"answer": continuation.draft, "manifest": answer_manifest,
+                "investigation": answer_investigation, "round": answer_round,
+                "rounds": answer_rounds, "finish_reason": answer_finish_reason,
+                "truncated": truncated,
+                "source_pages": [sent_pages[i] for i in (answer_manifest or {}).get("source_ids", [])],
+                "framework_references": [sent_framework[i] for i in (answer_manifest or {}).get("framework_ids", [])]}
+        quality.run_store.checkpoint(quality.data["run_id"], {**checkpoint, **updates})
 
     def check_local_analysis_budget():
         if check_cancel:
@@ -1644,7 +1682,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         if resume_response is not None:
             raw, resume_response = resume_response, None
             return raw
-        if turns >= policy.max_model_requests:
+        if not policy.can_request(turns):
             raise APIClientError("MODEL_REQUEST_BUDGET_EXHAUSTED")
         turns += 1
         if first_model_request_seconds is None:
@@ -1654,15 +1692,48 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             "round_id": f"round-{turns}", **payload.get("question_investigation", {})})
         began = time.monotonic()
         emit("waiting_for_model")
+        streamed_text, preview_at = "", 0.0
+        preview_stage = "continuation" if stage == "continue" else "revision" if payload.get("draft_answer") else "draft"
+        protected_preview_values = tuple(str(value) for value in (
+            config.resolve_api_key(), config.base_url, config.chat_model, config.embedding_model) if value)
+
+        def on_text_delta(delta):
+            nonlocal streamed_text, preview_at
+            streamed_text += delta
+            if not progress or stage == "discover":
+                return
+            candidate = streamed_text.lstrip()
+            if candidate.startswith(("{", "[", "```json")):
+                return
+            # Tool actions may follow an introductory sentence. They are never
+            # presented as an answer, and incomplete protected values are held
+            # back until the redactor can see their entire token.
+            holdback = 0
+            for protected in protected_preview_values:
+                for size in range(min(len(protected) - 1, len(streamed_text)), holdback, -1):
+                    if streamed_text.endswith(protected[:size]):
+                        holdback = size
+                        break
+            visible_text = streamed_text[:-holdback] if holdback else streamed_text
+            visible_text = re.split(r"\{|```json", visible_text, maxsplit=1)[0].rstrip()
+            now = time.monotonic()
+            if visible_text and now - preview_at >= 0.15:
+                preview_at = now
+                emit("writing_answer", answer_preview={"text": redactor._sanitize(visible_text)[:24000],
+                    "round": turns, "stage": preview_stage})
+
         try:
             raw = client.complete(messages=messages,
                 timeout_seconds=question_budget.request_timeout(config.timeout_seconds) if question_budget else None,
-                check_cancel=check_cancel)
+                check_cancel=check_cancel, **({"on_text_delta": on_text_delta} if progress else {}))
             try:
                 parsed_response = _extract_text(raw)
                 replay = {"choices": [{"message": {"role": "assistant", "content": redactor._sanitize(parsed_response.text)},
                     "finish_reason": _response_shape(raw)["finish_reason"]}], "usage": raw.get("usage")}
                 quality.record_remote_response(replay)
+                if progress and not _actions(parsed_response.text, policy) and not _action_reply_invalid(parsed_response.text, None):
+                    emit("writing_answer", answer_preview={"text": redactor._sanitize(parsed_response.text)[:24000],
+                        "round": turns, "stage": preview_stage})
             except _TextResponseError:
                 quality.record_remote_response({"response_received": True, "business_text_unavailable": True})
             return raw
@@ -1905,21 +1976,38 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             raise APIConfigurationError("NETWORK_DISABLED")
         if resume_state:
             accept({"pages": resume_checkpoint.get("source_pages", [])}, "resumed_evidence")
+            saved_draft = resume_checkpoint.get("accepted_draft") or {}
+            if adaptive and saved_draft.get("answer"):
+                answer = saved_draft["answer"]
+                answer_manifest = saved_draft.get("manifest") or {}
+                answer_investigation = saved_draft.get("investigation") or {}
+                answer_round = saved_draft.get("round")
+                answer_rounds = saved_draft.get("rounds") or []
+                answer_finish_reason = saved_draft.get("finish_reason")
+                truncated = bool(saved_draft.get("truncated"))
+                sent_pages.update({p["evidence_id"]: p for p in saved_draft.get("source_pages", [])})
+                sent_framework.update({p["reference_id"]: p for p in saved_draft.get("framework_references", [])})
+                accept({"pages": saved_draft.get("source_pages", [])}, "resumed_draft_evidence")
             pending_model_actions.extend(resume_checkpoint.get("frontier", []))
             for task in resume_checkpoint.get("read_tasks", []):
                 if task.get("state") == "open" and task.get("next_start_line"):
                     pending_model_actions.append({"tool": "read", "arguments": {
                         "relative_path": task["relative_path"], "start_line": task["next_start_line"],
                         "end_line": task["requested_range"]["end_line"]}, "reason": "resumed_read_cursor"})
-        while turns < policy.max_model_requests or resume_response is not None:
+        resume_continuation = bool(adaptive and resume_state and answer and truncated
+                                   and answer_finish_reason == "length")
+        if resume_continuation:
+            payload = resume_checkpoint["request_payload"]
+        while (policy.can_request(turns) or resume_response is not None) and not resume_continuation:
             turn = turns
+            remember_draft(processed=resume_response is None)
             automatic_turn_usage = {"read": 0, "inspect_business_context": 0}
             emit("answering")
             assembly_started = time.monotonic()
             if pending_model_actions:
                 advance_question({"planned_actions": pending_model_actions}, model_requested=True)
                 pending_model_actions = []
-            if turn == policy.max_model_requests - 1:
+            if policy.is_last_request(turn):
                 for task in list(evidence.tasks.values()):
                     if task.state != "open" or task.next_start_line is None:
                         continue
@@ -1963,12 +2051,21 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         max_complete_source_characters=policy.max_complete_source_characters)
             framework, references, combined_framework, framework_facts, selected_pages = framework_material(selected_pages)
             current_investigation = question_investigation(selected_pages, framework_facts=framework_facts)
+            if adaptive:
+                continuation.observe(selected_pages, references, current_investigation)
+                if continuation.stop_reason == "no_evidence_progress":
+                    protocol_answer_pending = True
+                    boundaries.append({"reason": "no_evidence_progress", "round": turns,
+                                       "pending_actions_preserved": True})
+                emit_analysis(current_investigation,
+                    summary="补查未获得新的有效证据，正在整理已确认的结论与具体未知条件。"
+                    if protocol_answer_pending else None)
             framework_only = not selected_pages and any(reference.get("selection_reason") in
                 {"question_only", "framework_search", "source_marker"} for reference in references)
             source_required = any(item.get("kind") == "formula" for item in
                                   current_investigation.get("required_items", []))
             discovery_pending = can_discover(current_investigation) and (not framework_only or source_required)
-            force_answer = (protocol_answer_pending or turn == policy.max_model_requests - 1
+            force_answer = (protocol_answer_pending or policy.is_last_request(turn)
                             or bool(question_budget and question_budget.should_answer(config.timeout_seconds)))
             graph_prompt = {"intent": business_map["intent"],
                             "direct_path_count": len(business_map["direct_paths"]),
@@ -2037,7 +2134,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             "current_question_match_observed": question_match_observed,
                             "history_candidates_available": bool(restored or prior_paths),
                             "source_absence_proven": False},
-                       "investigation_budget": {"remaining_model_requests": 1 if force_answer else policy.max_model_requests - turn,
+                       "investigation_budget": {"remaining_model_requests": 1 if force_answer else policy.remaining_model_requests(turn),
                             "searches_per_turn": 0 if force_answer else policy.max_searches_per_turn,
                             "reads_per_turn": 0 if force_answer else max(0, policy.max_reads_per_turn - automatic_turn_usage["read"]),
                             "business_context_actions_per_turn": 0 if force_answer else max(0,
@@ -2056,6 +2153,18 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                "回答 question 中的业务问题，沿给定输入和假设推导现有行为。"
                                "必要业务点解释完整即结束；用户未请求修改时不追加改码建议或反事实场景。"
                                "确有具体证据缺口时先请求搜索或读取。"}
+            if adaptive and answer:
+                payload["analysis_memory"] = continuation.prompt_memory()
+                if answer and not truncated:
+                    payload["draft_answer"] = redactor._sanitize(answer)
+                    payload["answer_review"] = assess_business_answer(question, answer, current_investigation,
+                        selected_pages, answer_detail=answer_detail,
+                        working_set=evidence.bundle(selected_pages)[0].get("working_set"))
+                    if not force_answer and not discovery_pending:
+                        payload["task"] = ("继续完成同一个原问题。核对 draft_answer 和 answer_review，保留正确内容，"
+                            "结合本轮实际源码补充遗漏的条件、顺序和结果。需要补充资料时返回具体补查动作；"
+                            "资料足够时输出完整的修订答案，不输出审稿意见。"
+                            "已供应源码直接使用，不把未读取、调用目标未解析或运行值未知概括成源码未提供。")
             if discovery_pending:
                 if discovery_reprompted:
                     payload["task"] += (" 上一轮没有执行检索，不能据此下结论。"
@@ -2135,12 +2244,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                            for reference in payload.get("framework_references", [])))
                 if (exc.code != "MODEL_TEXT_EMPTY" or shape is None or not recovery_evidence
                         or discovery_pending or empty_length_recovery_attempted
-                        or turns >= policy.max_model_requests):
+                        or not policy.can_request(turns)):
                     raise
                 # Reuse exactly the already-sent evidence and history. This is
                 # a single answer attempt, not another investigation cycle.
                 recovery_payload = {**payload,
-                    "investigation_budget": {"remaining_model_requests": policy.max_model_requests - turns,
+                    "investigation_budget": {"remaining_model_requests": policy.remaining_model_requests(turns),
                         "searches_per_turn": 0, "reads_per_turn": 0,
                         "framework_searches_per_turn": 0, "business_context_actions_per_turn": 0},
                     "task": "上一轮输出达到长度上限但没有可用正文。现在直接给出简明业务答案："
@@ -2207,7 +2316,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     boundaries.append({"reason": "delivery_target_reached",
                         "next_step": "answer_from_supplied_evidence", "pending_actions_preserved": True})
                     protocol_answer_pending = True
-                    if turns < policy.max_model_requests:
+                    if policy.can_request(turns):
                         continue
                     break
             if invalid_action:
@@ -2236,6 +2345,23 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     boundaries.append({"reason": "usable_draft_retained",
                                        "revision_error": "ANSWER_INCOMPLETE"})
                     break
+                if adaptive and answer and not reply.truncated:
+                    supplied = payload["source_context"][0]["pages"]
+                    candidate_review = assess_business_answer(question, reply.text,
+                        current_investigation, supplied, answer_detail=answer_detail,
+                        working_set=visible.get("working_set"))
+                    previous_review = assess_business_answer(question, answer,
+                        current_investigation, supplied, answer_detail=answer_detail,
+                        working_set=visible.get("working_set"))
+                    lost_aspects = sorted(set(candidate_review["missing_aspects"])
+                        - set(previous_review["missing_aspects"]))
+                    if lost_aspects:
+                        continuation.stop_reason = "answer_review_no_progress"
+                        boundaries.append({"reason": "usable_draft_retained",
+                            "revision_error": "ANSWER_COVERAGE_REGRESSED",
+                            "lost_aspects": lost_aspects})
+                        remember_draft()
+                        break
                 if not force_answer and (deferred or promised or not current_investigation.get("can_answer", True)):
                     attempted_before = len(automatic_actions)
                     progressed, deferred_for_budget = advance_question(current_investigation)
@@ -2274,12 +2400,39 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 answer_finish_reason = response_shape["finish_reason"]
                 answer_manifest = visible
                 answer_investigation = current_investigation
+                if adaptive and not force_answer and not truncated and policy.max_answer_revisions:
+                    supplied = payload["source_context"][0]["pages"]
+                    assessment = assess_business_answer(question, answer, current_investigation, supplied,
+                        answer_detail=answer_detail, working_set=visible.get("working_set"))
+                    review_needed = needs_synthesis_review(question, answer, current_investigation,
+                        source_available=bool(visible["source_ids"]), source_pages=supplied,
+                        answer_detail=answer_detail, assessment=assessment,
+                        working_set=visible.get("working_set"))
+                    emit_analysis(current_investigation,
+                        summary="正在逐项核对原问题，检查已有证据是否都在答案中解释清楚。",
+                        assessment=assessment)
+                    if review_needed:
+                        synthesis_review_attempted = True
+                        if continuation.needs_followup(answer, assessment, supplied, references):
+                            # The next ordinary investigation turn can still
+                            # read/search. A revision is not a closed tool phase.
+                            recovery_reason = "依据原问题补全尚未解释的业务要点"
+                            for identifier in reversed(_REFERENCE.findall(answer)):
+                                if identifier in sent_pages and identifier not in priority_targets:
+                                    priority_targets.append(identifier)
+                            remember_draft()
+                            continue
+                        boundaries.append({"reason": continuation.stop_reason,
+                                           "missing_aspects": assessment.get("missing_aspects", [])})
+                    remember_draft()
                 break
             key = json.dumps(action, sort_keys=True, ensure_ascii=False)
             if force_answer:
                 failure = "RETRIEVAL_UNRESOLVED" if discovery_pending else "ANSWER_NOT_PRODUCED"
                 break
             requested_action = _actions(reply.text, policy) or {}
+            if adaptive:
+                continuation.awaiting_tools = True
             for tool in ("read", "inspect_business_context", *_SEMANTIC_TOOLS):
                 pending_model_actions.extend({"tool": tool, "arguments": arguments,
                     "reason": "model_action_deferred_for_budget"}
@@ -2293,8 +2446,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 continue
             if key in seen_actions:
                 contexts.append({"notice": "该检索已执行，无新来源。请根据当前资料直接回答。"})
+                if adaptive:
+                    protocol_answer_pending = True
+                    continuation.stop_reason = "no_evidence_progress"
+                    boundaries.append({"reason": "no_evidence_progress", "repeated_action": True})
                 continue
             seen_actions.add(key)
+            if adaptive:
+                continuation.awaiting_tools = True
             emit("retrieving")
             if action["search"] or action.get("focus"):
                 discovery_attempted = True
@@ -2393,12 +2552,13 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                           "status": found["status"]})
                 trace.append({"tool": "framework_search", "query": query,
                               "references": len(found["references"]), "network_requests": 0})
-        if (answer and truncated and answer_finish_reason == "length" and not empty_length_recovery_attempted
-                and turns < policy.max_model_requests):
-            # Continue once using the remaining request allowance. The original
-            # text and its supplied references remain part of the final answer.
+        while (answer and truncated and answer_finish_reason == "length" and not empty_length_recovery_attempted
+                and policy.can_request(turns) and (adaptive or not continuation_attempted)):
+            remember_draft(processed=resume_response is None)
+            # Explicitly bounded sessions retain their one-continuation contract.
+            # Interactive sessions continue while genuinely adding answer text.
             continuation_payload = {**payload, "draft_answer": answer, "draft_continuation": True,
-                "investigation_budget": {"remaining_model_requests": policy.max_model_requests - turns,
+                "investigation_budget": {"remaining_model_requests": policy.remaining_model_requests(turns),
                     "searches_per_turn": 0, "reads_per_turn": 0, "framework_searches_per_turn": 0,
                     "business_context_actions_per_turn": 0},
                 "task": "上一轮正文因接口长度限制中断。只续写 draft_answer 尚未完成的业务解释，"
@@ -2433,15 +2593,24 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             if (continued_reply.refused or continued_reply.filtered or continued_action
                     or _action_reply_invalid(continued_reply.text, continued_action)
                     or _investigation_deferral(continued_reply.text)
-                    or assess_answer_completion(continued_reply.text)["status"] == "incomplete"):
+                    or (assess_answer_completion(continued_reply.text)["status"] == "incomplete"
+                        and not (adaptive and continued_reply.truncated))):
                 failure = ("MODEL_REFUSED" if continued_reply.refused else
                     "MODEL_CONTENT_FILTERED" if continued_reply.filtered else
                     "INVALID_INVESTIGATION_ACTION" if _action_reply_invalid(continued_reply.text, continued_action) else
                     "ANSWER_NOT_PRODUCED")
                 record_response_error(failure, failure_stage, shape=response_shape)
                 boundaries.append({"reason": "usable_draft_retained", "continuation_error": failure})
+                break
             else:
-                answer = join_answer_continuation(answer, continued_reply.text)
+                combined = join_answer_continuation(answer, continued_reply.text)
+                text_key = hashlib.sha256(continued_reply.text.strip().encode()).hexdigest()
+                if adaptive and (combined == answer or text_key in continuation_texts):
+                    continuation.stop_reason = "answer_review_no_progress"
+                    boundaries.append({"reason": "answer_review_no_progress", "stage": "continuation"})
+                    break
+                continuation_texts.add(text_key)
+                answer = combined
                 truncated = continued_reply.truncated or response_shape["finish_reason"] != "stop"
                 answer_finish_reason = response_shape["finish_reason"]
                 answer_round = f"round-{turns}"
@@ -2451,8 +2620,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 evidence.sent_any_round_ids.update(continuation_visible["source_ids"])
                 sent_pages.update({page["evidence_id"]: page for page in continuation_payload["source_context"][0]["pages"]})
                 boundaries.append({"reason": "model_output_continued", "requests": 1})
-        if (answer and not truncated and not continuation_attempted and not empty_length_recovery_attempted
-                and policy.max_answer_revisions and turns < policy.max_model_requests
+                remember_draft()
+        if (not adaptive and answer and not truncated and not continuation_attempted and not empty_length_recovery_attempted
+                and policy.max_answer_revisions and policy.can_request(turns)
                 and not (question_budget and question_budget.should_answer(config.timeout_seconds))):
             before = len(evidence.pages)
             for task in list(evidence.tasks.values()):
@@ -2494,7 +2664,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     "framework_references": revision_references,
                     "framework_facts": revision_facts,
                     "completed_actions": prompt_actions(),
-                    "investigation_budget": {"remaining_model_requests": policy.max_model_requests - turns,
+                    "investigation_budget": {"remaining_model_requests": policy.remaining_model_requests(turns),
                         "searches_per_turn": 0, "reads_per_turn": 0, "framework_searches_per_turn": 0},
                     "draft_answer": answer,
                     "answer_review": draft_completion,
@@ -2778,10 +2948,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         stop_reason = "MODEL_OUTPUT_TRUNCATED"
     elif answer_incomplete:
         stop_reason = "answer_incomplete"
-    elif turns >= policy.max_model_requests and (open_question_gaps or incomplete_reads):
+    elif not policy.can_request(turns) and (open_question_gaps or incomplete_reads):
         stop_reason = "request_budget"
     elif material_gap:
         stop_reason = material_gap
+    elif adaptive and continuation.stop_reason and (open_question_gaps or answer_incomplete):
+        stop_reason = continuation.stop_reason
     elif any(item.get("reason") == "usable_draft_retained" for item in boundaries):
         stop_reason = "usable_draft_retained"
     else:
@@ -2831,6 +3003,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         "question_investigation": final_investigation}
     timing["answer_verification_seconds"] = time.monotonic() - verification_started
     metrics = {"model_requests": turns, "elapsed_seconds": round(time.monotonic() - started, 3),
+               "completion_driven": adaptive,
+               "convergence_stop_reason": continuation.stop_reason if adaptive else None,
                "delivery_target": {"seconds": policy.max_question_seconds,
                    "reached": question_budget.target_reached() if question_budget else False,
                    "inflight_request_cancelled_by_target": False,
@@ -2864,6 +3038,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         ("ledger_version", "scope", "counts", "revised_claim_count", "all_claims_supported")}
     draft_retained = any(item.get("reason") == "usable_draft_retained" for item in boundaries)
     result = {"status": "PARTIAL" if usable and (failure or truncated or material_gap or draft_retained or answer_incomplete) else "ANALYZED" if usable else "ABSTAINED",
+              "answer_completion": answer_completion, "material_gap": material_gap,
               "run_id": quality.data["run_id"],
               "answer": answer, "answer_format": "markdown", "analysis_mode": "retrieval", "snapshot_id": overview["snapshot_id"],
               "answer_detail": answer_detail, "finish_reason": answer_finish_reason,
