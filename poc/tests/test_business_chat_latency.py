@@ -20,6 +20,7 @@ import business_chat
 from business_index import build_business_index
 from company_api import CompanyAPIConfig, TransportResponse
 from company_api import APIClientError
+from question_budget import QuestionBudget
 from repository_discovery import ensure_repository_search
 import semantic_scope
 
@@ -51,7 +52,8 @@ class BusinessChatLatencyTests(unittest.TestCase):
         self.config = CompanyAPIConfig("https://neutral.example.invalid/v1", "neutral-model",
                                        api_key="offline-only")
         self.clock_value = 0.0
-        self.clock = SimpleNamespace(monotonic=lambda: self.clock_value)
+        self.clock = SimpleNamespace(monotonic=lambda: self.clock_value,
+                                     time=lambda: 2000000000.0 + self.clock_value)
         self.requests = []
         self.transport_calls = []
         self.request_timeouts = []
@@ -82,7 +84,16 @@ class BusinessChatLatencyTests(unittest.TestCase):
             return TransportResponse(200, json.dumps({"choices": [{"message": {"content": text},
                 "finish_reason": "stop"}]}, ensure_ascii=False))
 
-        with mock.patch.object(business_chat, "time", self.clock):
+        def question_budget(*args, **options):
+            # The constructor's wall_clock default captures real time at
+            # import. Inject both clocks explicitly so disk/CPU latency cannot
+            # consume a simulated deadline, including the one-second case.
+            options["clock"] = self.clock.monotonic
+            options["wall_clock"] = self.clock.time
+            return QuestionBudget(*args, **options)
+
+        with mock.patch.object(business_chat, "time", self.clock), \
+                mock.patch.object(business_chat, "QuestionBudget", side_effect=question_budget):
             return business_chat.run_business_chat(question, self.database, self.source, self.config,
                 transport=transport, allow_network=False, framework_reference_path="",
                 policy=policy or AgentPolicy(), check_cancel=check_cancel)["agent_result"]
@@ -242,6 +253,25 @@ class BusinessChatLatencyTests(unittest.TestCase):
         self.assertLessEqual(self.request_timeouts[0], 1)
         self.assertEqual(result["metrics"]["delivery_target"]["seconds"], 1)
         self.assertEqual(result["metrics"]["delivery_target"]["hard_limit_seconds"], 1)
+
+    def test_legacy_one_second_limit_expires_during_preparation_without_sending(self):
+        def expired_map(*args, check_cancel, **kwargs):
+            self.clock_value = 1.0
+            check_cancel()
+            self.fail("Preparation continued after the one-second hard deadline")
+
+        with mock.patch.object(business_chat, "build_business_map", side_effect=expired_map):
+            result = self.ask(policy=AgentPolicy(max_model_requests=1, max_question_seconds=1))
+        self.assertEqual(self.requests, [])
+        self.assertEqual(self.request_timeouts, [])
+        self.assertEqual(result["stop_reason"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+        from run_store import RunStore
+        saved = RunStore(self.root / "investigation-runs.sqlite").load(result["run_id"])
+        self.assertEqual(saved["requests"], [])
+        checkpoint = saved["checkpoint"]["question_budget"]
+        self.assertEqual(checkpoint["hard_limit_seconds"], 1)
+        self.assertEqual(checkpoint["elapsed_seconds"], 1.0)
+        self.assertEqual(checkpoint["hard_deadline_epoch_seconds"], 2000000001.0)
 
     def test_provider_failure_preserves_source_answer_without_claiming_model_success(self):
         def fail(payload):

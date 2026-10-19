@@ -213,15 +213,15 @@
   "pipeline_version": "question-evidence-v31",
   "prompt_version": "business-chat-v30",
   "full_source_regressions": {
-    "tests": 3264,
+    "tests": 3265,
     "failures": 0,
     "errors": 0,
     "skipped": 0,
-    "elapsed_seconds": 177.709478,
-    "report_sha256": "c16d263fe75323c3d1c7f888ab6fc5c4dbf8089dbb645d50f45eda8ebd48c4a8",
+    "elapsed_seconds": 178.352016,
+    "report_sha256": "5f34c9e6a8944be6a16b245389e2e57fbc9beff72b5478e12ff9a6a57adeabac",
     "runtime_platform": "Darwin",
     "public_corpus_verified": true,
-    "scope": "Complete source regression after acceptance-helper SQLite closure repair; not Windows or real-model acceptance."
+    "scope": "Complete source regression after controlled-clock and explicit-test-CA repair; not Windows or real-model acceptance."
   },
   "independent_review": {
     "reviewer_kind": "independent_agent",
@@ -291,5 +291,65 @@
     "http_assertions_before_cleanup": true,
     "reviewer_kind": "independent_agent",
     "human_review": false
+  },
+  "subsequent_windows_regression_failure": {
+    "run_id": 39309675796,
+    "source_commit": "6f0b44fad11bc91455569e50fa99e8b506319841",
+    "stage": "Windows complete regressions",
+    "conclusion": "failure",
+    "compilation_started": false,
+    "candidate_assets": 0,
+    "failures": [
+      {
+        "shard": 0,
+        "test": "test_desktop_app.BrowserCompatibilityTests.test_browser_headless_check_does_not_import_embedded_renderer",
+        "observed": "DESKTOP_START_FAILED SSLError; result 1 != 0"
+      },
+      {
+        "shard": 3,
+        "test": "test_business_chat_latency.BusinessChatLatencyTests.test_legacy_one_second_limit_still_bounds_transport_to_one_second",
+        "observed": "expected one injected transport request but deadline expired during real local preparation; 0 requests"
+      }
+    ],
+    "tests": 3264,
+    "passed": 3260,
+    "failed": 2,
+    "errors": 0,
+    "skipped": 2,
+    "exactly_once": true,
+    "log_sha256": "28465e9bac46b1cb8a01b0c419059c3c8ac8d20cf013284cb27bafc35073e67b"
+  },
+  "regression_test_isolation_repair": {
+    "production_changed": false,
+    "manifest_changed": false,
+    "external_model_calls": 0,
+    "clock_repair": "Inject the same controlled monotonic and wall clock into the real QuestionBudget; retain the one-second request timeout assertion and add preparation-expired/no-request/journal assertions.",
+    "tls_repair": "Preserve operating-system runtime environment and set SSL_CERT_FILE to the existing public loopback CA. Run real configure_tls and create_default_context; assert required verification, hostname checks and fixture CA presence. The SSLError class does not identify the particular failing OS trust source.",
+    "files": [
+      {
+        "path": "poc/tests/test_business_chat_latency.py",
+        "sha256": "edf8bde96d2972b2a7b8f72c43c0da8131137d562f1d65282a850084da2a8c3d"
+      },
+      {
+        "path": "poc/tests/test_desktop_app.py",
+        "sha256": "52d30ca7e0a7eadb9f2fa29c1446e0030f88e6b84cd3b35150c2fe87cb3526b8"
+      }
+    ],
+    "focused_budget_tests": 98,
+    "independent_review_kind": "agent; not human",
+    "focused_desktop_tests": 66,
+    "focused_desktop_seconds": 4.326,
+    "independent_review_completed": true
+  },
+  "sqlite_closure_full_source_regressions": {
+    "tests": 3264,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsed_seconds": 177.709478,
+    "report_sha256": "c16d263fe75323c3d1c7f888ab6fc5c4dbf8089dbb645d50f45eda8ebd48c4a8",
+    "runtime_platform": "Darwin",
+    "public_corpus_verified": true,
+    "scope": "Complete source regression after acceptance-helper SQLite closure repair; not Windows or real-model acceptance."
   }
 }

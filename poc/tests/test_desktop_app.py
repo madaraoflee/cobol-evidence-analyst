@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -168,17 +169,36 @@ class BrowserCompatibilityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             profile = Path(directory) / "profile"
             report = Path(directory) / "result.json"
-            with mock.patch.dict(os.environ, {}, clear=True), \
+            certificate = POC_ROOT.parent / "tools/fixtures/loopback-server.crt"
+            contexts = []
+            create_default_context = ssl.create_default_context
+
+            def record_context(*args, **kwargs):
+                context = create_default_context(*args, **kwargs)
+                contexts.append(context)
+                return context
+
+            # Use the same explicit trust fixture as the real HTTP scenarios.
+            # Keep OS runtime variables (including Windows SystemRoot) needed
+            # by native TLS initialization. The profile remains explicit.
+            with mock.patch.dict(os.environ, {"SSL_CERT_FILE": str(certificate)}), \
                  mock.patch.dict(sys.modules, {"webview": None}), \
-                 mock.patch("desktop_app.configure_tls"), \
+                 mock.patch("ssl.create_default_context", side_effect=record_context) as tls, \
                  mock.patch("desktop_app.logging.basicConfig"), \
                  mock.patch("desktop_app.self_test", return_value={"ok": True}), \
                  mock.patch("desktop_app.sys.stdout", None):
                 result = desktop_app.main(["--browser", "--self-test", "--data-dir", str(profile),
                                            "--self-test-result", str(report)])
             self.assertEqual(result, 0)
+            tls.assert_called_once_with()
+            self.assertEqual(len(contexts), 1)
+            self.assertEqual(contexts[0].verify_mode, ssl.CERT_REQUIRED)
+            self.assertTrue(contexts[0].check_hostname)
+            self.assertIn(ssl.PEM_cert_to_DER_cert(certificate.read_text(encoding="ascii")),
+                          contexts[0].get_ca_certs(binary_form=True))
             self.assertTrue(json.loads(report.read_text())["browser_mode"])
             self.assertFalse(json.loads(report.read_text())["desktop_dependencies"])
+            self.assertTrue(json.loads(report.read_text())["tls_context"])
 
     def test_explicit_browser_mode_does_not_attempt_embedded_renderer(self):
         with mock.patch("desktop_app.run_desktop", side_effect=AssertionError("no renderer")), \
