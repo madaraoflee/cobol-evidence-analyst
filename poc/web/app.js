@@ -299,6 +299,11 @@ function apiExchanges(){
   const exchanges=state.project?.agent?.api_diagnostics?.exchanges;
   return Array.isArray(exchanges)?exchanges.filter(item=>item && typeof item==='object'):[];
 }
+function apiRequestCount(){
+  if(state.mode!=='real' || draftChanged())return 0;
+  const counts=[state.project?.agent?.api_diagnostics?.request_count,result()?.metrics?.model_requests,apiExchanges().length];
+  return Math.max(0,...counts.filter(value=>Number.isSafeInteger(value) && value>=0 && value<=1000000));
+}
 function apiChoice(exchange){
   try{
     const body=JSON.parse(exchange.body_text);const choices=body?.choices;if(!Array.isArray(choices))return null;
@@ -339,7 +344,7 @@ function apiSummary(){
   });
   const probeChat=agent?.capability_report?.capabilities?.chat?.status==='SUPPORTED';
   const investigationReceived=exchanges.some(item=>item.phase==='investigation');
-  const transport=chatReceived || probeChat?t('聊天回應已收到'):received?t('已收到 HTTP 回應；聊天回應尚未確認'):exchanges.length?t('未收到 HTTP 回應'):t('尚無本次請求記錄');
+  const transport=chatReceived || probeChat?t('聊天回應已收到'):received?t('已收到 HTTP 回應；聊天回應尚未確認'):exchanges.length?t('未收到 HTTP 回應'):apiRequestCount()>0?t('請求已發起；未保存返回記錄'):t('尚無本次請求記錄');
   const flow=stopped?stopExplanation(stopped.reason):['SOURCE_ANALYSIS_FAILED','SOURCE_SNAPSHOT_MISMATCH','ANSWER_SNAPSHOT_MISMATCH','SOURCE_SNAPSHOT_UNVERIFIED'].includes(agent?.reason_code)?t('源碼核對或分析失敗，本次業務結果未獲接受。'):agent?.reason_code==='COMPANY_API_NOT_READY'?t('能力探測未通過，業務調查尚未開始。'):answer?.finish_reason==='length' || answer?.answer_truncated===true?t('業務回答未完整輸出；已保留收到的正文。'):answer?.status==='PARTIAL' && answer?.model_answer_recorded===true?t('已取得部分業務回答；尚未完成的範圍可繼續分析。'):answer?.stop_reason==='completed' || answer?.stop_reason==='model_abstained' || agent?.runner_status==='COMPLETED' && answer?.model_answer_recorded===true?t('Agent 流程已完成；業務證據需另行核對。'):investigationReceived?t('已發起業務調查；完成狀態尚未確認。'):probeChat?t('聊天能力探測已通過；尚無業務調查結果。'):t('尚無 Agent 完成記錄。');
   const evidence=unacceptedResponse()?t('已保留未接受正文，不能作為目前業務結論'):narrativeText(answer)?t('已有模型解讀，業務含義尚待覆核'):stopped?t('流程中斷，尚未形成業務結論'):answer?.claims?.length?statusLabel(answer.status):answer?.status==='ABSTAINED'?t('證據不足 · 尚未形成結論'):t('尚未形成業務結論');
   return ui`<div class="api-summary"><div><span>API 連線</span><strong>${escapeHTML(transport)}</strong></div><div><span>Agent 流程</span><strong>${escapeHTML(flow)}</strong>${stopped?`<code>${escapeHTML(stopped.code)}</code>`:''}</div><div><span>業務證據</span><strong>${escapeHTML(evidence)}</strong></div></div>`;
@@ -530,7 +535,7 @@ function apiResponseView(){
   if(draftChanged())return ui`<div class="answer-empty">${icon('clock')}<h2>新問題尚未取得 API 返回</h2><p>問題、調查起點或閱讀方式已更改。發起分析後，這裡會顯示本次請求的返回資料。</p></div>`;
   const diagnostic=state.project?.agent?.api_diagnostics;const exchanges=apiExchanges();
   const ordered=exchanges.map((item,index)=>({item,sequence:Number.isInteger(item.sequence)?item.sequence:index+1})).sort((a,b)=>Number(b.item.phase==='investigation')-Number(a.item.phase==='investigation') || b.sequence-a.sequence);
-  return ui`<div class="api-response-view"><div class="answer-state-row"><span class="badge warning">未核驗的 API 返回</span><small>${exchanges.length} 次請求</small></div><h2>先確認接口返回，再核對分析結果。</h2><p class="answer-intro">這裡展示接口實際返回的文字，用於核對連線與返回格式；不代表已通過業務證據核驗。${exchanges.some(item=>item.phase==='capability_probe')?t('能力探測成功不代表業務分析已完成。'):''}</p>${apiSummary()}${diagnosticSummaryView()}${unacceptedResponseView()}${reportDisplayNotice()}<p class="api-privacy-note">API 請求記錄已遮蔽配置值，內容可能因大小限制而截斷。保留的模型正文可能包含源碼或業務內容，請在分享前核對。</p>${diagnostic?.truncated || diagnostic?.omitted_exchange_count>0?ui`<p class="api-truncated">已達診斷保存上限，部分返回內容或請求記錄未保存。${diagnostic.omitted_exchange_count>0?ui` 未保存的請求記錄：${formatNumber(diagnostic.omitted_exchange_count)}`:''}</p>`:''}${exchanges.length?ui`<p class="field-hint">業務調查優先；各階段的最新請求優先，序號保留實際呼叫順序。</p>`:''}${ordered.length?ordered.map(({item,sequence})=>{
+  return ui`<div class="api-response-view"><div class="answer-state-row"><span class="badge warning">未核驗的 API 返回</span><small>${formatNumber(apiRequestCount())} 次請求</small></div><h2>先確認接口返回，再核對分析結果。</h2><p class="answer-intro">這裡展示接口實際返回的文字，用於核對連線與返回格式；不代表已通過業務證據核驗。${exchanges.some(item=>item.phase==='capability_probe')?t('能力探測成功不代表業務分析已完成。'):''}</p>${apiSummary()}${diagnosticSummaryView()}${unacceptedResponseView()}${reportDisplayNotice()}<p class="api-privacy-note">API 請求記錄已遮蔽配置值，內容可能因大小限制而截斷。保留的模型正文可能包含源碼或業務內容，請在分享前核對。</p>${diagnostic?.truncated || diagnostic?.omitted_exchange_count>0?ui`<p class="api-truncated">已達診斷保存上限，部分返回內容或請求記錄未保存。${diagnostic.omitted_exchange_count>0?ui` 未保存的請求記錄：${formatNumber(diagnostic.omitted_exchange_count)}`:''}</p>`:''}${exchanges.length?ui`<p class="field-hint">業務調查優先；各階段的最新請求優先，序號保留實際呼叫順序。</p>`:''}${ordered.length?ordered.map(({item,sequence})=>{
     const message=apiMessage(item);const content=message?.content;
     const contentText=typeof content==='string'?content:content===null || content===undefined?'':JSON.stringify(content,null,2);
     const phase=item.phase==='capability_probe'?t('能力探測'):item.phase==='investigation'?t('業務調查'):t('未知階段');

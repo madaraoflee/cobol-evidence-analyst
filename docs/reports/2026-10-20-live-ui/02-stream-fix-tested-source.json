@@ -1,0 +1,19 @@
+{
+  "base_commit": "ea341ba3084bf384288dfa3398903dc897ca59cb",
+  "runtime": "macOS source workbench",
+  "tested_fix_files": [
+    {
+      "path": "poc/company_api.py",
+      "sha256": "23a66e8be0f84a8de21b81042ced1692861a4816207ef48f4aefe3a416077eec"
+    },
+    {
+      "path": "poc/web/app.js",
+      "sha256": "bad596b62026ff6e342bd54b643ed77cfe5f9d91fcc3e01fb8a5e8cce79d1b09"
+    },
+    {
+      "path": "poc/web/i18n.js",
+      "sha256": "384509a867e34d4922998abd82f8cdb422eea8b20823c5e28f7c32e54bb5e3fc"
+    }
+  ],
+  "executable_acceptance": false
+}

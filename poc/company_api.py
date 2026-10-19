@@ -46,6 +46,9 @@ PROBE_SCHEMA_VERSION = "company-api-capability-probe/v1"
 DEFAULT_API_KEY_ENV = "COMPANY_API_KEY"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_RESPONSE_BYTES = 1_000_000
+# SSE repeats response metadata for each small delta, including hidden reasoning.
+# Keep its wire budget separate from retained content and non-stream JSON.
+MAX_STREAM_RESPONSE_BYTES = 8_000_000
 MAX_REQUEST_BYTES = 256_000
 # DNS and TLS setup cannot always be interrupted by urllib. Abandoned native
 # requests keep their slot until their worker actually exits.
@@ -505,7 +508,7 @@ def _safe_request_timing(value, *, elapsed=None):
                 if type(seconds) in (int, float) and 0 <= seconds <= 86400:
                     result["timing_seconds"][phase] = round(float(seconds), 6)
         count = value.get("response_bytes")
-        if type(count) is int and 0 <= count <= MAX_RESPONSE_BYTES + 1:
+        if type(count) is int and 0 <= count <= MAX_STREAM_RESPONSE_BYTES + 1:
             result["response_bytes"] = count
     if type(elapsed) in (int, float) and math.isfinite(elapsed) and elapsed >= 0:
         result["timing_seconds"]["request_elapsed"] = round(float(elapsed), 6)
@@ -728,16 +731,17 @@ class UrllibTransport:
                     exchange["stream_deadline"] = headers_at + request.timeout_seconds
                 chunks: list[bytes] = []
                 body_size = 0
+                response_limit = MAX_STREAM_RESPONSE_BYTES if stream_chunks is not None else MAX_RESPONSE_BYTES
                 read_chunk = getattr(response, "read1", None)
                 if not callable(read_chunk):
                     read_chunk = response.read
-                while body_size <= MAX_RESPONSE_BYTES:
+                while body_size <= response_limit:
                     remaining = exchange.get("stream_deadline", deadline) - time.monotonic()
                     if remaining <= 0 or abandoned.is_set():
                         raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
                     self._apply_remaining_socket_timeout(response, remaining)
                     chunk = read_chunk(
-                        min(65_536, MAX_RESPONSE_BYTES + 1 - body_size)
+                        min(65_536, response_limit + 1 - body_size)
                     )
                     observe_chunk(chunk)
                     if time.monotonic() >= exchange.get("stream_deadline", deadline):
@@ -745,9 +749,12 @@ class UrllibTransport:
                     if not chunk:
                         mark("response_complete")
                         break
-                    chunks.append(chunk)
                     body_size += len(chunk)
-                    if stream_chunks is not None and body_size <= MAX_RESPONSE_BYTES:
+                    if stream_chunks is None:
+                        chunks.append(chunk)
+                    elif body_size > response_limit:
+                        raise APIClientError("RESPONSE_TOO_LARGE")
+                    else:
                         # Wait for parsing before choosing the next socket read
                         # timeout; a valid delta may have renewed the idle clock.
                         processed = exchange["chunk_processed"]
@@ -954,7 +961,9 @@ class _ChatCompletionStream:
         self.decoder = codecs.getincrementaldecoder("utf-8-sig")("strict")
         self.buffer = ""
         self.data_lines: list[str] = []
+        self.data_bytes = 0
         self.bytes_received = 0
+        self.content_bytes = 0
         self.done = False
         self.progress_count = 0
         self.choices: dict[int, dict[str, object]] = {}
@@ -965,7 +974,7 @@ class _ChatCompletionStream:
         if not isinstance(chunk, bytes):
             raise APIClientError("RESPONSE_BODY_INVALID")
         self.bytes_received += len(chunk)
-        if self.bytes_received > MAX_RESPONSE_BYTES:
+        if self.bytes_received > MAX_STREAM_RESPONSE_BYTES:
             raise APIClientError("RESPONSE_TOO_LARGE")
         try:
             self.buffer += self.decoder.decode(chunk)
@@ -982,19 +991,30 @@ class _ChatCompletionStream:
             self._line(self.buffer[consumed:boundary.start()])
             consumed = boundary.end()
         self.buffer = self.buffer[consumed:]
+        if len(self.buffer.encode("utf-8")) > MAX_RESPONSE_BYTES:
+            raise APIClientError("RESPONSE_TOO_LARGE")
         if final and self.buffer:
             self._line(self.buffer)
             self.buffer = ""
 
     def _line(self, line: str):
+        if len(line.encode("utf-8")) > MAX_RESPONSE_BYTES:
+            raise APIClientError("RESPONSE_TOO_LARGE")
         if self.done:
             return
         if not line:
             self._event()
         elif line.startswith("data:"):
             value = line[5:]
-            self.data_lines.append(value[1:] if value.startswith(" ") else value)
+            value = value[1:] if value.startswith(" ") else value
+            self.data_bytes += len(value.encode("utf-8")) + 1
+            if self.data_bytes > MAX_RESPONSE_BYTES:
+                raise APIClientError("RESPONSE_TOO_LARGE")
+            self.data_lines.append(value)
         elif line == "data":
+            self.data_bytes += 1
+            if self.data_bytes > MAX_RESPONSE_BYTES:
+                raise APIClientError("RESPONSE_TOO_LARGE")
             self.data_lines.append("")
 
     def _event(self):
@@ -1002,6 +1022,7 @@ class _ChatCompletionStream:
             return
         data = "\n".join(self.data_lines)
         self.data_lines.clear()
+        self.data_bytes = 0
         if data.strip() == "[DONE]":
             self.done = True
             self.progress_count += 1
@@ -1050,6 +1071,7 @@ class _ChatCompletionStream:
                 if part is not None and not isinstance(part, str):
                     raise APIClientError("INVALID_RESPONSE_SHAPE")
                 if isinstance(part, str):
+                    self._retain_text(part)
                     message[name] = (message.get(name) or "") + part
                     if part.strip():
                         self.progress_count += 1
@@ -1078,6 +1100,7 @@ class _ChatCompletionStream:
                         if part is not None and not isinstance(part, str):
                             raise APIClientError("INVALID_RESPONSE_SHAPE")
                         if isinstance(part, str):
+                            self._retain_text(part)
                             target["function"][name] = target["function"].get(name, "") + part
                             if part.strip():
                                 self.progress_count += 1
@@ -1088,6 +1111,11 @@ class _ChatCompletionStream:
                 if finish and finish != state["finish_reason"]:
                     self.progress_count += 1
                 state["finish_reason"] = finish
+
+    def _retain_text(self, part):
+        self.content_bytes += len(part.encode("utf-8"))
+        if self.content_bytes > MAX_RESPONSE_BYTES:
+            raise APIClientError("RESPONSE_TOO_LARGE")
 
     def finish(self) -> dict[str, object]:
         try:
@@ -1321,7 +1349,7 @@ class OpenAICompatibleChatClient:
                 if not isinstance(response.body, (bytes, str)):
                     raise APIClientError("RESPONSE_BODY_INVALID")
                 raw_size = len(response.body.encode("utf-8")) if isinstance(response.body, str) else len(response.body)
-                if raw_size > MAX_RESPONSE_BYTES:
+                if raw_size > MAX_STREAM_RESPONSE_BYTES:
                     raise APIClientError("RESPONSE_TOO_LARGE")
                 if not stream.bytes_received:
                     body = response.body
@@ -1427,7 +1455,8 @@ class OpenAICompatibleChatClient:
         raw_body = response.body
         if not isinstance(raw_body, (bytes, str)):
             raise APIClientError("RESPONSE_BODY_INVALID", http_status=status)
-        if len(raw_body) > MAX_RESPONSE_BYTES:
+        body_bytes = len(raw_body.encode("utf-8", errors="replace")) if isinstance(raw_body, str) else len(raw_body)
+        if body_bytes > MAX_RESPONSE_BYTES:
             raise APIClientError("RESPONSE_TOO_LARGE", http_status=status)
         try:
             text_body = (

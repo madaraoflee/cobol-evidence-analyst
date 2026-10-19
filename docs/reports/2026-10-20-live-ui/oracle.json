@@ -1,0 +1,333 @@
+{
+  "schema_version": 1,
+  "fixture_id": "neutral-fee-call-scope-v1",
+  "purpose": "Independent expected answers for UI Q&A checks; this file records source inspection and decimal calculations, not actual COBOL execution or model results.",
+  "source_format": "free",
+  "sources": [
+    {
+      "relative_path": "fee.cbl",
+      "program_id": "FEE-RULE",
+      "sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+      "line_count": 22
+    },
+    {
+      "relative_path": "entry.cbl",
+      "program_id": "ENTRY-RULE",
+      "sha256": "0933fc6ea7e32261beaeb67cebc949086df70a3a638ff09c61fe1c9685441d72",
+      "line_count": 314
+    }
+  ],
+  "assumptions": [
+    "Valid nonnegative numeric input matching the declared PIC fields; normal arithmetic and storage conversion.",
+    "RATE is 1.25 in the supplied working-storage source and is never modified.",
+    "The receiving FINAL-FEE field has two decimal places; ROUNDED applies to the COMPUTE assignment before the minimum and maximum checks.",
+    "CALL USING omits a passing mode, so these arguments are passed BY REFERENCE under ordinary COBOL semantics; actual runtime linkage and compilation are not exercised here.",
+    "Fresh initialization of ENTRY-RULE gives BASE-AMOUNT=500, FINAL-FEE=0, REQUEST-STATE=NORMAL, REQUEST-KIND=STANDARD.",
+    "A hypothetical nonstandard request skips the call and leaves FINAL-FEE unchanged. It equals 0 only if the starting value is the shown initial value; retained working storage from an earlier invocation must not be assumed reset."
+  ],
+  "questions": [
+    {
+      "id": "fee_rules",
+      "question": "请根据 fee.cbl 说明 FINAL-FEE 的完整计算过程，包括费率、舍入、最低和最高费用，以及 REVIEW 状态对最终结果的影响。",
+      "must_include": [
+        "RATE=1.25，按 BASE-AMOUNT * RATE / 100 计算，即基础金额的1.25%。",
+        "COMPUTE 使用 ROUNDED，FINAL-FEE 的 PIC 保留两位小数；舍入发生在上下限处理之前。",
+        "先把低于2的费用改为2，再把高于15的费用改为15。",
+        "最后如果 REQUEST-STATE='REVIEW'，MOVE 0 再次覆盖 FINAL-FEE，所以 REVIEW 的最终值为0，不受最低2约束。",
+        "GOBACK 返回调用方；不能把中间计算结果当作所有路径的最终费用。"
+      ],
+      "must_not_claim": [
+        "费率是125%或0.0125%",
+        "只有下限或只有上限",
+        "REVIEW 最终仍为2",
+        "未提供参数处理源码"
+      ],
+      "evidence": {
+        "rate": [
+          5
+        ],
+        "compute": [
+          11
+        ],
+        "minimum": [
+          13,
+          15
+        ],
+        "maximum": [
+          16,
+          18
+        ],
+        "review_overwrite": [
+          19,
+          21
+        ],
+        "return": [
+          22
+        ]
+      }
+    },
+    {
+      "id": "fee_examples",
+      "question": "费率为1.25时，BASE-AMOUNT 分别为100、500、2000且状态为NORMAL，最终 FINAL-FEE 各是多少？如果状态改为REVIEW，最终结果又是多少？请按源码说明。",
+      "examples": [
+        {
+          "base_amount": "100.00",
+          "request_state": "NORMAL",
+          "rounded_formula_result": "1.25",
+          "after_minimum_maximum": "2.00",
+          "final_fee": "2.00"
+        },
+        {
+          "base_amount": "500.00",
+          "request_state": "NORMAL",
+          "rounded_formula_result": "6.25",
+          "after_minimum_maximum": "6.25",
+          "final_fee": "6.25"
+        },
+        {
+          "base_amount": "2000.00",
+          "request_state": "NORMAL",
+          "rounded_formula_result": "25.00",
+          "after_minimum_maximum": "15.00",
+          "final_fee": "15.00"
+        },
+        {
+          "base_amount": "100.00",
+          "request_state": "REVIEW",
+          "rounded_formula_result": "1.25",
+          "after_minimum_maximum": "2.00",
+          "final_fee": "0.00"
+        },
+        {
+          "base_amount": "500.00",
+          "request_state": "REVIEW",
+          "rounded_formula_result": "6.25",
+          "after_minimum_maximum": "6.25",
+          "final_fee": "0.00"
+        },
+        {
+          "base_amount": "2000.00",
+          "request_state": "REVIEW",
+          "rounded_formula_result": "25.00",
+          "after_minimum_maximum": "15.00",
+          "final_fee": "0.00"
+        }
+      ],
+      "must_include": [
+        "NORMAL: 100→2.00，500→6.25，2000→15.00。",
+        "REVIEW: 三个输入最终均为0.00；该覆盖发生在上下限处理之后。"
+      ]
+    },
+    {
+      "id": "rounding_boundary",
+      "question": "在 fee.cbl 中，BASE-AMOUNT 为201.20且状态为NORMAL时，FINAL-FEE 最终是多少？ROUNDED 如何影响结果？",
+      "examples": [
+        {
+          "base_amount": "201.20",
+          "request_state": "NORMAL",
+          "rounded_formula_result": "2.52",
+          "after_minimum_maximum": "2.52",
+          "final_fee": "2.52"
+        }
+      ],
+      "must_include": [
+        "未舍入为2.515；按接收字段两位小数和 ROUNDED 得到2.52；不触发上下限，也没有REVIEW覆盖。"
+      ]
+    },
+    {
+      "id": "entry_call_and_writeback",
+      "question": "entry.cbl 在什么条件下调用 FEE-RULE？中间300行 CONTINUE 会不会结束 IF？传入哪些参数，FINAL-FEE 是否写回？按当前初始化值，返回后 FINAL-FEE 是多少？如果请求类型不是STANDARD，会怎样？",
+      "must_include": [
+        "CALL 在 IF REQUEST-KIND='STANDARD' 的范围内。300行 CONTINUE 没有句点，仅为空操作，不结束 IF。",
+        "IF 的明确结束是 CALL 后面的 END-IF；不能因为调用离条件很远就把它说成无条件调用。",
+        "按顺序传入 BASE-AMOUNT、FINAL-FEE、REQUEST-STATE；CALL USING 默认按引用传参，FEE-RULE 对 LINKAGE FINAL-FEE 的写入可写回调用方。",
+        "当前新初始化值为500、0、NORMAL、STANDARD，因此会调用，正常返回后的 FINAL-FEE 为6.25。",
+        "如果请求类型不是STANDARD，跳过调用，FINAL-FEE 保持原值；在本例初始值仍为0时就是0。",
+        "本源码没有把 REQUEST-KIND 改成非STANDARD；非STANDARD是问题要求讨论的条件路径，不能冒充已经运行过的结果。"
+      ],
+      "must_not_claim": [
+        "CALL 无条件执行",
+        "CONTINUE 会跳到下次循环或退出 IF",
+        "按值传参所以无法回写",
+        "非STANDARD无论先前状态如何都强制写0"
+      ],
+      "evidence": {
+        "entry_initial_values": [
+          5,
+          8
+        ],
+        "if_condition": [
+          10
+        ],
+        "continue_range": [
+          11,
+          310
+        ],
+        "continue_count": 300,
+        "call": [
+          311
+        ],
+        "end_if": [
+          313
+        ],
+        "entry_return": [
+          314
+        ],
+        "callee_linkage": [
+          6,
+          10
+        ]
+      }
+    }
+  ],
+  "inspection": {
+    "performed": [
+      "Both parameter order and PIC layouts match.",
+      "Exactly 300 CONTINUE lines with no periods are inside one explicit IF.",
+      "The later REVIEW assignment overwrites both the computed value and bounded value.",
+      "Expected numeric examples calculated independently with Decimal, ROUND_HALF_UP."
+    ],
+    "not_performed": [
+      "No model requests.",
+      "No app startup.",
+      "No COBOL compilation or executable build.",
+      "No runtime execution."
+    ],
+    "local_statement_parser": {
+      "fee.cbl": {
+        "complete": true,
+        "statement_counts": {
+          "COMPUTE": 1,
+          "MOVE": 3,
+          "GOBACK": 1
+        },
+        "calls": [],
+        "writes": [
+          {
+            "line": 11,
+            "target": "FINAL-FEE",
+            "expression": "BASE-AMOUNT * RATE / 100",
+            "rounded": true,
+            "guards": []
+          },
+          {
+            "line": 14,
+            "target": "FINAL-FEE",
+            "expression": "2",
+            "rounded": false,
+            "guards": [
+              {
+                "kind": "IF",
+                "condition": "FINAL-FEE < 2",
+                "outcome": true,
+                "span": {
+                  "start_line": 13,
+                  "end_line": 13,
+                  "start_column": 5,
+                  "end_column": 21,
+                  "start_offset": 77,
+                  "end_offset": 93
+                },
+                "selector": null,
+                "alternatives": [],
+                "prior_alternatives": [],
+                "branch_index": null,
+                "is_other": false,
+                "selector_span": null
+              }
+            ]
+          },
+          {
+            "line": 17,
+            "target": "FINAL-FEE",
+            "expression": "15",
+            "rounded": false,
+            "guards": [
+              {
+                "kind": "IF",
+                "condition": "FINAL-FEE > 15",
+                "outcome": true,
+                "span": {
+                  "start_line": 16,
+                  "end_line": 16,
+                  "start_column": 5,
+                  "end_column": 22,
+                  "start_offset": 137,
+                  "end_offset": 154
+                },
+                "selector": null,
+                "alternatives": [],
+                "prior_alternatives": [],
+                "branch_index": null,
+                "is_other": false,
+                "selector_span": null
+              }
+            ]
+          },
+          {
+            "line": 20,
+            "target": "FINAL-FEE",
+            "expression": "0",
+            "rounded": false,
+            "guards": [
+              {
+                "kind": "IF",
+                "condition": "REQUEST-STATE = 'REVIEW'",
+                "outcome": true,
+                "span": {
+                  "start_line": 19,
+                  "end_line": 19,
+                  "start_column": 5,
+                  "end_column": 32,
+                  "start_offset": 199,
+                  "end_offset": 226
+                },
+                "selector": null,
+                "alternatives": [],
+                "prior_alternatives": [],
+                "branch_index": null,
+                "is_other": false,
+                "selector_span": null
+              }
+            ]
+          }
+        ]
+      },
+      "entry.cbl": {
+        "complete": true,
+        "statement_counts": {
+          "CONTINUE": 300,
+          "CALL": 1,
+          "GOBACK": 1
+        },
+        "calls": [
+          {
+            "line": 311,
+            "guards": [
+              {
+                "kind": "IF",
+                "condition": "REQUEST-KIND = 'STANDARD'",
+                "outcome": true,
+                "span": {
+                  "start_line": 10,
+                  "end_line": 10,
+                  "start_column": 5,
+                  "end_column": 33,
+                  "start_offset": 4,
+                  "end_offset": 32
+                },
+                "selector": null,
+                "alternatives": [],
+                "prior_alternatives": [],
+                "branch_index": null,
+                "is_other": false,
+                "selector_span": null
+              }
+            ]
+          }
+        ],
+        "writes": []
+      }
+    }
+  }
+}

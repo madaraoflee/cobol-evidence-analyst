@@ -30,6 +30,41 @@ function agent(overrides={}){
   return {runner_status:'SAFE_STOP',reason_code:'AGENT_SAFETY_STOPPED',agent_result:{status:'ABSTAINED',stop_reason:'model_protocol_error',claims:[]},api_diagnostics:{captured:true,exchanges:[exchange()]},...overrides};
 }
 
+test('failed model requests remain counted when raw response capture is disabled',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);
+    setup(h,agent({agent_result:{status:'PARTIAL',answer_origin:'local_source_facts',answer_available:true,
+      model_answer_recorded:false,stop_reason:'RESPONSE_TOO_LARGE',metrics:{model_requests:1}},api_diagnostics:undefined}));
+    assert.equal(h.run('apiRequestCount()'),1);
+    const view=h.run('apiResponseView()');
+    if(locale==='en'){
+      assert.match(view,/<small>1 requests<\/small>/);
+      assert.match(view,/A request was made; no response record was saved/);
+      assert.doesNotMatch(view,/No request records for this run|Chat response received/);
+    }else{
+      assert.match(view,locale==='zh-CN'?/<small>1 次请求<\/small>/:/<small>1 次請求<\/small>/);
+      assert.match(view,locale==='zh-CN'?/请求已发起；未保存返回记录/:/請求已發起；未保存返回記錄/);
+    }
+    assert.equal(h.fetches(),0);
+  }
+});
+
+test('request totals survive saved history, truncated capture and reconnect without double counting',()=>{
+  const h=harness();
+  const saved=agent({agent_result:{status:'PARTIAL',metrics:{model_requests:2}},
+    api_diagnostics:{captured:true,request_count:5,omitted_exchange_count:3,exchanges:[exchange({sequence:4}),exchange({sequence:5})]}});
+  setup(h,saved);assert.equal(h.run('apiRequestCount()'),5);
+  setup(h,JSON.parse(JSON.stringify(saved)));assert.equal(h.run('apiRequestCount()'),5);
+  assert.match(h.run('apiResponseView()'),/<small>5 requests<\/small>/);
+  setup(h,agent());assert.equal(h.run('apiRequestCount()'),1,'old history falls back to saved exchanges');
+  for(const invalid of [-1,1.5,'7',null,1000001]){
+    setup(h,agent({agent_result:{metrics:{model_requests:invalid}},api_diagnostics:{request_count:invalid,exchanges:[]}}));
+    assert.equal(h.run('apiRequestCount()'),0);
+  }
+  setup(h,saved);h.run("state.question='Changed question'");assert.equal(h.run('apiRequestCount()'),0);
+  assert.equal(h.fetches(),0);
+});
+
 test('shareable diagnostics rebuild the field allowlist and never export business data or arbitrary strings',async()=>{
   const h=harness();const privateMarker='PRIVATE-DATA-MARKER';const answer='Received business answer 😀.';
   const diagnostic_summary={schema_version:'business-answer-diagnostics/v1',

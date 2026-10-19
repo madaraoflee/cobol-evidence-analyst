@@ -1,5 +1,6 @@
 """Conservative exact overlap handling at Markdown table cell starts."""
 
+import json
 from pathlib import Path
 import sys
 import unittest
@@ -147,6 +148,81 @@ class TableContinuationTests(unittest.TestCase):
                 draft = header + "\n" + delimiter + "\n| Ready | 是；若"
                 self.assertEqual(join_answer_continuation(draft, "是；若继续。"),
                                  draft + "继续。")
+
+
+class ExactTableRestartTests(unittest.TestCase):
+    prefix = "Earlier explanation and its citation stay unchanged. [ev:summary]\n\n"
+    table = "| Amount | Result |\n|---:|---:|\n| 100.00 | 2.00 |\n| 500.00 | 6.25 |\n| 2000."
+    completed = table + "00 | 15.00 |\n| 201.20 | 2.52 |"
+    heading = "**Results (continued)**\n\n"
+
+    def assert_preserved(self, draft, continued):
+        joined = join_answer_continuation(draft, continued)
+        self.assertTrue(joined.startswith(draft))
+        self.assertTrue(joined.endswith(continued))
+
+    def test_recorded_response_pair_replaces_only_the_exact_partial_table(self):
+        fixture = Path(__file__).resolve().parents[1] / "fixtures" / "answer-continuation-neutral" / "fee-table-restart.json"
+        recorded = json.loads(fixture.read_text(encoding="utf-8"))
+        draft, continued = recorded["draft"], recorded["continuation"]
+        self.assertEqual((recorded["draft_finish_reason"], recorded["continuation_finish_reason"]),
+                         ("length", "stop"))
+        self.assertEqual((len(draft), len(continued)), (1662, 1474))
+        table_start = draft.index("| 本金 |")
+        joined = join_answer_continuation(draft, continued)
+        self.assertEqual(joined, draft[:table_start] + continued)
+        self.assertEqual(joined.count("| 本金 |"), 1)
+        self.assertNotIn("| 2000.\n", joined)
+        self.assertIn("| 2000.00 | 25.00 | 25.00 |", joined)
+        self.assertTrue(joined.endswith(continued))
+
+    def test_direct_or_single_heading_restart_keeps_all_new_content(self):
+        for heading in ("", self.heading, "## Another exact heading\n\n", "\n\n" + self.heading):
+            with self.subTest(heading=heading):
+                continued = heading + self.completed + "\n\nA new, distinct explanation. [ev:new]"
+                self.assertEqual(join_answer_continuation(self.prefix + self.table, continued),
+                                 self.prefix + continued)
+
+    def test_differing_headers_rows_alignment_and_partial_values_are_preserved(self):
+        for changed in (self.completed.replace("Amount", "Principal", 1),
+                        self.completed.replace("|---:|---:|", "|---|---|", 1),
+                        self.completed.replace("| 500.00 | 6.25 |", "| 500.00 | 6.26 |", 1),
+                        self.completed.replace("| 2000.00 |", "| 2001.00 |", 1),
+                        self.completed.replace("| 500.00 | 6.25 |\n", "", 1),
+                        self.completed.replace("| 2000.00 |", "| 700.00 | 8.75 |\n| 2000.00 |", 1)):
+            with self.subTest(changed=changed):
+                self.assert_preserved(self.prefix + self.table, self.heading + changed)
+
+    def test_changed_citation_on_a_completed_row_is_preserved(self):
+        table = self.table.replace("| 6.25 |", "| 6.25 [ev:first] |")
+        completed = self.completed.replace("| 6.25 |", "| 6.25 [ev:second] |")
+        self.assert_preserved(self.prefix + table, self.heading + completed)
+
+    def test_complete_or_ambiguous_last_cell_rows_are_not_replaced(self):
+        for tail in ("| 2000.00 | 15.00 |", "| 2000.00 | 15", "| 2000.\n"):
+            with self.subTest(tail=tail):
+                draft = self.prefix + self.table.rsplit("\n", 1)[0] + "\n" + tail
+                self.assert_preserved(draft, self.heading + self.completed)
+
+    def test_restart_requires_a_complete_corresponding_row(self):
+        for tail in ("| 2000.", "| 2000.00", "| 2000.00 | 15.00 | Extra |"):
+            with self.subTest(tail=tail):
+                continued = self.heading + self.table.rsplit("\n", 1)[0] + "\n" + tail
+                self.assert_preserved(self.prefix + self.table, continued)
+
+    def test_arbitrary_preamble_or_multiple_headings_are_not_removed(self):
+        for preamble in ("A distinct condition applies.\n\n", self.heading + "## Another heading\n\n",
+                         "**Different condition**\nThis condition matters.\n\n"):
+            with self.subTest(preamble=preamble):
+                self.assert_preserved(self.prefix + self.table, preamble + self.completed)
+
+    def test_code_indentation_and_missing_completed_rows_do_not_establish_restart(self):
+        for table in ("```text\n" + self.table,
+                      "\n".join("    " + line for line in self.table.splitlines()),
+                      "\n".join("> " + line for line in self.table.splitlines()),
+                      "| Amount | Result |\n|---:|---:|\n| 2000."):
+            with self.subTest(table=table):
+                self.assert_preserved(self.prefix + table, self.heading + self.completed)
 
 
 if __name__ == "__main__":

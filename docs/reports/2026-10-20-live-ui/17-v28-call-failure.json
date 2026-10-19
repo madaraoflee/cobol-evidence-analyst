@@ -1,0 +1,762 @@
+{
+  "run_id": "fd7541978e9b32768f6a2d50",
+  "status": "PARTIAL",
+  "stop_reason": "TRANSPORT_ERROR",
+  "answer": "模型说明尚未完成，已读取的源码仍可直接确认以下内容：\n\n- `IF REQUEST-KIND = 'STANDARD'`（entry.cbl:10）[ev_page_110efdf954c5348f26e847d6]。\n\n- 在片段中可见的控制条件 `IF REQUEST-KIND = 'STANDARD'` 下，调用点写有 `CALL 'FEE-RULE' USING BASE-AMOUNT FINAL-FEE REQUEST-STATE`；这是程序内的调用请求，实际调用是否发生及返回效果仍需执行路径和被调用实现支持（entry.cbl:311）[ev_page_110efdf954c5348f26e847d6]。\n\n- `FINAL-FEE ROUNDED = BASE-AMOUNT * RATE / 100`（fee.cbl:11）[ev_page_eedf37efdaa217d174b754ef]。\n\n- `IF FINAL-FEE < 2`（fee.cbl:13）[ev_page_eedf37efdaa217d174b754ef]。\n\n- 在源码控制条件 `IF FINAL-FEE < 2` 下，`FINAL-FEE = 2`（fee.cbl:14）[ev_page_eedf37efdaa217d174b754ef]。\n\n- `IF FINAL-FEE > 15`（fee.cbl:16）[ev_page_eedf37efdaa217d174b754ef]。\n\n- 在源码控制条件 `IF FINAL-FEE > 15` 下，`FINAL-FEE = 15`（fee.cbl:17）[ev_page_eedf37efdaa217d174b754ef]。\n\n- 在源码控制条件 `IF REQUEST-STATE = 'REVIEW'` 下，`FINAL-FEE = 0`（fee.cbl:20）[ev_page_eedf37efdaa217d174b754ef]。\n\n以上说明仅覆盖已读取版本中的直接语句；这些语句本身不能证明实际执行路径，最终结果尚未确认。 这些调用点不能证明外部调度配置、实际运行时间或真实调用效果，仍需对应调度入口和实现证据。 当前仅展示与问题最相关的部分语句，完整来源和影响链仍待继续核对。",
+  "answer_origin": "local_source_facts",
+  "model_answer_recorded": false,
+  "claim_ledger": {
+    "all_claims_supported": false,
+    "answer_sha256": "c6d99f3a4488c4ef68e382dac71bc6b6c146f11ce295f1ce19f50a4fb3ea7262",
+    "compilation_context_fingerprint": "dac0d9ef9a8295163ddffa961d96cf622febe3f7cb201aacd2ba40f1f0238fa7",
+    "counts": {
+      "contradicted": 0,
+      "supported": 11,
+      "unsupported": 4
+    },
+    "coverage": "extracted_structures_only",
+    "entries": [
+      {
+        "checker_version": null,
+        "claim_id": "claim-1",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "模型说明尚未完成，已读取的源码仍可直接确认以下内容：",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-2",
+        "claim_type": "condition_statement",
+        "condition": [
+          "REQUEST-KIND",
+          "=",
+          "'STANDARD'"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_110efdf954c5348f26e847d6"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_d3446befb497159416dd5d3b"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 314,
+            "relative_path": "entry.cbl",
+            "source_sha256": "0933fc6ea7e32261beaeb67cebc949086df70a3a638ff09c61fe1c9685441d72",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": null,
+        "text": "- `IF REQUEST-KIND = 'STANDARD'`（entry.cbl:10）。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-3",
+        "claim_type": "condition_statement",
+        "condition": [
+          "REQUEST-KIND",
+          "=",
+          "'STANDARD'"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_110efdf954c5348f26e847d6"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_d3446befb497159416dd5d3b"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 314,
+            "relative_path": "entry.cbl",
+            "source_sha256": "0933fc6ea7e32261beaeb67cebc949086df70a3a638ff09c61fe1c9685441d72",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": null,
+        "text": "- 在片段中可见的控制条件 `IF REQUEST-KIND = 'STANDARD'` 下，调用点写有 `CALL 'FEE-RULE' USING BASE-AMOUNT FINAL-FEE REQUEST-STATE`；这是程序内的调用请求，实际调用是否发生及返回效果仍需执行路径和被调用实现支持（entry.cbl:311）。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": "compute-statement-v0.2",
+        "claim_id": "claim-4",
+        "claim_type": "assignment_statement",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": [
+          "BASE-AMOUNT",
+          "*",
+          "RATE",
+          "/",
+          "100"
+        ],
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_744f40d91803a46fc5d110ed"
+        ],
+        "reason_code": "COMPUTE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": "FINAL-FEE",
+        "text": "- `FINAL-FEE ROUNDED = BASE-AMOUNT * RATE / 100`（fee.cbl:11）。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-5",
+        "claim_type": "condition_statement",
+        "condition": [
+          "FINAL-FEE",
+          "<",
+          "2"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_f6dc4a5cda1595405cb1f919"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": null,
+        "text": "- `IF FINAL-FEE < 2`（fee.cbl:13）。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-6",
+        "claim_type": "assignment_statement",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": [
+          "2"
+        ],
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_382314d76ff0b12b36fe321b"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": "FINAL-FEE",
+        "text": "- 在源码控制条件 `IF FINAL-FEE < 2` 下，`FINAL-FEE = 2`（fee.cbl:14）。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-7",
+        "claim_type": "condition_statement",
+        "condition": [
+          "FINAL-FEE",
+          "<",
+          "2"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_f6dc4a5cda1595405cb1f919"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": null,
+        "text": "- 在源码控制条件 `IF FINAL-FEE < 2` 下，`FINAL-FEE = 2`（fee.cbl:14）。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-8",
+        "claim_type": "condition_statement",
+        "condition": [
+          "FINAL-FEE",
+          ">",
+          "15"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_53b4665d1fc5bcc17080c7ba"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": null,
+        "text": "- `IF FINAL-FEE > 15`（fee.cbl:16）。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-9",
+        "claim_type": "assignment_statement",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": [
+          "15"
+        ],
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_5694282c10f82f0b7f41ca64"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": "FINAL-FEE",
+        "text": "- 在源码控制条件 `IF FINAL-FEE > 15` 下，`FINAL-FEE = 15`（fee.cbl:17）。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-10",
+        "claim_type": "condition_statement",
+        "condition": [
+          "FINAL-FEE",
+          ">",
+          "15"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_53b4665d1fc5bcc17080c7ba"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": null,
+        "text": "- 在源码控制条件 `IF FINAL-FEE > 15` 下，`FINAL-FEE = 15`（fee.cbl:17）。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-11",
+        "claim_type": "assignment_statement",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": [
+          "0"
+        ],
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_189913bb2a50a97cd4b660a0"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": "FINAL-FEE",
+        "text": "- 在源码控制条件 `IF REQUEST-STATE = 'REVIEW'` 下，`FINAL-FEE = 0`（fee.cbl:20）。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-12",
+        "claim_type": "condition_statement",
+        "condition": [
+          "REQUEST-STATE",
+          "=",
+          "'REVIEW'"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_6dc60b88aeb391b2116dd01a"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": null,
+        "text": "- 在源码控制条件 `IF REQUEST-STATE = 'REVIEW'` 下，`FINAL-FEE = 0`（fee.cbl:20）。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-13",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "以上说明仅覆盖已读取版本中的直接语句；这些语句本身不能证明实际执行路径，最终结果尚未确认。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-14",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "这些调用点不能证明外部调度配置、实际运行时间或真实调用效果，仍需对应调度入口和实现证据。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-15",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "当前仅展示与问题最相关的部分语句，完整来源和影响链仍待继续核对。",
+        "unresolved_requirements": [],
+        "verification_facts": []
+      }
+    ],
+    "ledger_version": "answer-claim-ledger-v7",
+    "original_answer_sha256": "c6d99f3a4488c4ef68e382dac71bc6b6c146f11ce295f1ce19f50a4fb3ea7262",
+    "prose_semantics_verified": false,
+    "revised_claim_count": 0,
+    "scope": "bounded_source_statement_syntax",
+    "source_fact_count": 8
+  },
+  "metrics": {
+    "completion_driven": true,
+    "convergence_stop_reason": null,
+    "current_source_pages": 2,
+    "delivery_target": {
+      "hard_limit_seconds": 180,
+      "inflight_request_cancelled_by_target": false,
+      "reached": false,
+      "seconds": 180
+    },
+    "elapsed_seconds": 5.161,
+    "empty_length_recovery_attempted": false,
+    "final_visible_ids": 2,
+    "history_messages": 2,
+    "model_requests": 1,
+    "policy": {
+      "finalization_reserve_seconds": 45,
+      "hard_question_seconds": 180,
+      "initial_pages": 6,
+      "initial_source_characters": 24000,
+      "investigation_mode": "adaptive",
+      "max_answer_revisions": null,
+      "max_business_context_actions_per_turn": 2,
+      "max_complete_source_characters": 128000,
+      "max_evidence_groups": 12,
+      "max_framework_characters": 8000,
+      "max_framework_references": 10,
+      "max_framework_searches_per_turn": 3,
+      "max_history_characters": 18000,
+      "max_initial_context_seconds": 3,
+      "max_investigation_rounds": 5,
+      "max_local_analysis_seconds": 15,
+      "max_model_requests": 6,
+      "max_no_evidence_revisions": 2,
+      "max_question_seconds": 180,
+      "max_reads_per_turn": 3,
+      "max_request_bytes": 230000,
+      "max_searches_per_turn": 3,
+      "max_semantic_expansions": 4,
+      "max_semantic_files": 32,
+      "max_semantic_source_bytes": 33554432,
+      "max_source_characters": 36000,
+      "read_source_characters": 12000,
+      "search_pages": 8,
+      "search_source_characters": 32000,
+      "semantic_cache_bytes": 536870912,
+      "source_memory_enabled": true
+    },
+    "prior_memory_source_pages": 0,
+    "provider_request_timings": [
+      {
+        "response_bytes": 0,
+        "round_id": "round-1",
+        "stage": "investigate",
+        "timing_seconds": {
+          "request_elapsed": 5.004575
+        }
+      }
+    ],
+    "provider_retries": [],
+    "quality_stop_reason": "TRANSPORT_ERROR",
+    "question_investigation": {
+      "automatic_actions": 0,
+      "calls": 4,
+      "candidate_queries": 1
+    },
+    "repository_rebuilt": false,
+    "request_bytes": [
+      63891
+    ],
+    "retrieved_ids": 17,
+    "retrieved_pages": 17,
+    "selected_source_bytes_hashed": 6059,
+    "semantic_cache_hits": 1,
+    "sent_any_round_ids": 2,
+    "source_binding_mode": "current_and_declared_prior_memory",
+    "source_characters": 6057,
+    "timing_components_are_inclusive": true,
+    "timing_seconds": {
+      "answer_fact_completion_seconds": 0.0,
+      "answer_verification_seconds": 0.0249,
+      "business_map_seconds": 0.006,
+      "complete_working_set_seconds": 0.0,
+      "context_assembly_seconds": 0.0283,
+      "first_model_request_seconds": 0.0846,
+      "initial_context_seconds": 0.0368,
+      "local_processing_seconds": 0.1479,
+      "provider_wait_seconds": 5.0072,
+      "question_investigation_seconds": 0.0112,
+      "read_seconds": 0.0038,
+      "retrieval_seconds": 0.0079,
+      "selected_source_hash_seconds": 0.0009,
+      "semantic_evidence_seconds": 0.0149,
+      "semantic_scope_seconds": 0.0041,
+      "total_seconds": 5.1551
+    },
+    "tool_calls": {
+      "backward_slice": 0,
+      "explain_assignment": 0,
+      "explain_external_effect": 0,
+      "forward_slice": 0,
+      "framework_search": 0,
+      "inspect_business_context": 0,
+      "read": 0,
+      "search": 0,
+      "trace_parameter": 0
+    },
+    "usage": {
+      "available": false,
+      "completion_tokens": null,
+      "field_reported_requests": {
+        "completion_tokens": 0,
+        "prompt_tokens": 0,
+        "total_tokens": 0
+      },
+      "model_requests": 1,
+      "prompt_tokens": null,
+      "reported_requests": 0,
+      "status": "unavailable",
+      "total_tokens": null
+    }
+  },
+  "answer_completion": {
+    "limitation_detected": true,
+    "method": "bounded_text_and_coverage_signals",
+    "missing_aspects": [],
+    "pending_investigation": false,
+    "reason": null,
+    "required_aspects": [
+      "conditions",
+      "behavior_conditions",
+      "behavior_outcomes"
+    ],
+    "semantic_verification": "unverified",
+    "source_availability_contradiction": false,
+    "source_availability_contradictions": [],
+    "source_selection_limitation_detected": false,
+    "status": "not_assessed"
+  },
+  "evidence_refs": [
+    {
+      "end_line": 22,
+      "evidence_id": "ev_page_eedf37efdaa217d174b754ef",
+      "kind": "source_page",
+      "relative_path": "fee.cbl",
+      "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+      "start_line": 1
+    },
+    {
+      "end_line": 314,
+      "evidence_id": "ev_page_110efdf954c5348f26e847d6",
+      "kind": "source_page",
+      "relative_path": "entry.cbl",
+      "source_sha256": "0933fc6ea7e32261beaeb67cebc949086df70a3a638ff09c61fe1c9685441d72",
+      "start_line": 1
+    }
+  ],
+  "diagnostic_summary": {
+    "api_failures": [
+      {
+        "category": "connection",
+        "evidence_source": "local",
+        "next_step": "检查网络、接口地址和服务连通性。",
+        "reason": "无法建立安全连接，请联系管理员。",
+        "request_id": "local-7b6256cfde744851bf05d40831c3a34b",
+        "request_id_source": "local",
+        "schema_version": "safe-api-error/v1",
+        "stage": "provider_request",
+        "transport_reason": "tls_handshake_failed"
+      }
+    ],
+    "configured": {
+      "max_complete_source_characters": 128000,
+      "max_initial_context_seconds": 3,
+      "max_local_analysis_seconds": 15,
+      "max_model_requests": 6,
+      "max_output_tokens": 8192,
+      "max_question_seconds": 180,
+      "max_request_bytes": 230000,
+      "max_source_characters": 36000,
+      "requested_detail": "detailed"
+    },
+    "output": {
+      "answer_truncated": false,
+      "continuation_attempted": false,
+      "final_answer_characters": 971,
+      "finish_reason": "unknown"
+    },
+    "requests": [
+      {
+        "choice_index": null,
+        "finish_reason": "unknown",
+        "history_characters": 3507,
+        "history_message_count": 2,
+        "page_count": 2,
+        "parsed_answer_characters": null,
+        "raw_content_characters": null,
+        "request_bytes": 63905,
+        "response_bytes": 0,
+        "response_timing_seconds": {
+          "request_elapsed": 5.004575
+        },
+        "round_id": "round-1",
+        "source_characters": 6057,
+        "source_file_count": 2,
+        "source_line_count": 336,
+        "stage": "investigate",
+        "trim_event_count": 0
+      }
+    ],
+    "runtime": {
+      "commit": "ea341ba3084bf384288dfa3398903dc897ca59cb",
+      "model_fingerprint": "7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+      "output_limit_source": "profile",
+      "profile": "workbench"
+    },
+    "schema_version": "business-answer-diagnostics/v1",
+    "source_coverage": {
+      "closure_complete": null,
+      "complete_root_budget_applied": null,
+      "identity_status": "resolved",
+      "indexed_files": 2,
+      "limitation_codes": [],
+      "omitted_complete_files": 0,
+      "pages": 2,
+      "physical_complete": null,
+      "provided_files": 2,
+      "retrieval_status": "source_candidates",
+      "selected_files": 2,
+      "supplied_complete_files": 0,
+      "transmission_fallback_reason": "unknown",
+      "unread_tasks": 0,
+      "working_set_reason": "unknown",
+      "working_set_status": "unknown"
+    },
+    "stop_reason": "other",
+    "timing_seconds": {
+      "answer_verification_seconds": 0.0249,
+      "first_model_request_seconds": 0.0846,
+      "local_processing_seconds": 0.1479,
+      "provider_wait_seconds": 5.0072,
+      "total_seconds": 5.1551
+    }
+  }
+}

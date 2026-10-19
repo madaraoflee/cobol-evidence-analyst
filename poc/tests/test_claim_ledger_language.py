@@ -46,7 +46,7 @@ class ClaimLedgerLanguageTests(unittest.TestCase):
         self.assertEqual(ledger.entries[0].invalid_evidence_ids, ["ev_missing"])
 
     def test_unsupported_formula_gets_english_uncertainty(self):
-        answer, ledger = self.review("OTHER-AMOUNT = 999.[ev_missing]", answer_language="en")
+        answer, ledger = self.review("COMPUTE OTHER-AMOUNT = 999.[ev_missing]", answer_language="en")
         self.assert_english(answer)
         self.assertIn("does not yet support this formula, condition, or effect", answer)
         self.assertNotIn("999", answer)
@@ -66,10 +66,9 @@ class ClaimLedgerLanguageTests(unittest.TestCase):
         answer, ledger = self.review("OUT-AMOUNT always = IN-AMOUNT * 2.[ev_formula]", body,
                                      answer_language="en")
         self.assert_english(answer)
-        self.assertIn("Under source control condition", answer)
-        self.assertIn("condition is false:", answer)
-        self.assertIn("OUT-AMOUNT = 0", answer)
-        self.assertIn("the final value still requires checking control flow", answer.lower())
+        self.assertEqual(answer, "OUT-AMOUNT always = IN-AMOUNT * 2.[ev_formula]")
+        self.assertIn(["0"], [row["assertion"]["expression"] for row in ledger.entries[0].verification_facts])
+        self.assertIsNone(ledger.entries[0].revision)
         self.assertEqual(ledger.entries[0].reason_code, "FINAL_VALUE_REQUIRES_CONTROL_AND_OVERWRITE_ANALYSIS")
 
     def test_empty_procedure_correction_stays_english(self):
@@ -96,19 +95,22 @@ class ClaimLedgerLanguageTests(unittest.TestCase):
         self.assertIn("(modules/calculate.cbl:7)[ev_formula]", answer)
 
     def test_english_repairs_preserve_original_source_literals(self):
-        answer, _ = self.review('MESSAGE-TEXT = "wrong".[ev_formula]', 'MOVE "原始文字" TO MESSAGE-TEXT.',
+        answer, _ = self.review('MOVE "wrong" TO MESSAGE-TEXT.[ev_formula]', 'MOVE "原始文字" TO MESSAGE-TEXT.',
                                 answer_language="en")
         self.assertIn("The supplied source directly confirms:", answer)
         self.assertIn('MESSAGE-TEXT = "原始文字"', answer)
         self.assertNotIn("wrong", answer)
 
     def test_explicit_english_overrides_language_of_rejected_answer(self):
-        answer, _ = self.review("OUT-AMOUNT 最终等于 IN-AMOUNT * 2。[ev_formula]", answer_language="en")
+        answer, _ = self.review("OUT-AMOUNT 等于 IN-AMOUNT * 999。[ev_formula]", answer_language="en")
         self.assert_english(answer)
-        self.assertIn("the final value still requires checking", answer.lower())
+        self.assertIn("The supplied source directly confirms", answer)
+        self.assertNotIn("999", answer)
 
     def test_chinese_defaults_and_traditional_selection_remain_available(self):
-        answer, _ = self.review("WRITE OTHER-RECORD。[ev_formula]")
+        # Localization of missing evidence is separate from an inability to
+        # extract a comparable fact from an actually supplied citation.
+        answer, _ = self.review("WRITE OTHER-RECORD。[ev_missing]")
         self.assertIn("尚未得到所引源码支持", answer)
         answer, _ = self.review("OTHER-AMOUNT = 9.[ev_missing]", answer_language="zh-HK")
         self.assertIn("尚未得到所引源碼支持", answer)

@@ -168,11 +168,61 @@ def _short_table_cell_restart(draft: str, overlap: int) -> bool:
     return row[pipes[-1] + 1:].lstrip(" \t") == shared
 
 
+def _restarted_truncated_table(draft: str, continuation: str) -> str | None:
+    """Replace only an exact repeated table ending in a missing-column row.
+
+    The continuation may start with one heading, which is kept verbatim. No
+    earlier prose or differing table content is removed, and complete tables,
+    code blocks, and ambiguous last-cell truncations are left to normal joining.
+    """
+    if draft.endswith(("\n", "\r")) or _open_code_marker(draft) is not None:
+        return None
+    lines = draft.splitlines(keepends=True)
+    block_start = len(lines) - 1
+    while block_start and lines[block_start - 1].strip():
+        block_start -= 1
+    block = [line.rstrip("\r\n") for line in lines[block_start:]]
+    # Require a header, delimiter, at least one completed row, and a partial row.
+    if len(block) < 4 or any(not re.match(r" {0,3}\|", line) for line in block):
+        return None
+    columns = len(_table_cells(block[0]))
+    delimiter = _table_cells(block[1])
+    if (columns < 2 or len(delimiter) != columns
+            or not all(re.fullmatch(r":?-{3,}:?", cell) for cell in delimiter)
+            or any(len(_table_cells(line)) != columns for line in block[2:-1])
+            or not 1 <= len(_table_cells(block[-1])) < columns):
+        return None
+    continued_lines = continuation.splitlines(keepends=True)
+    table_start = 0
+    while table_start < len(continued_lines) and not continued_lines[table_start].strip():
+        table_start += 1
+    if table_start == len(continued_lines):
+        return None
+    first = continued_lines[table_start].rstrip("\r\n")
+    if re.fullmatch(r" {0,3}(?:#{1,6}\s+\S.*|\*\*[^*\n]+\*\*)", first):
+        table_start += 1
+        if table_start == len(continued_lines) or continued_lines[table_start].strip():
+            return None
+        while table_start < len(continued_lines) and not continued_lines[table_start].strip():
+            table_start += 1
+    if len(continued_lines) < table_start + len(block):
+        return None
+    offset = sum(len(line) for line in lines[:block_start])
+    repeated = "".join(continued_lines[table_start:])
+    completed_row = continued_lines[table_start + len(block) - 1].rstrip("\r\n")
+    if (not repeated.startswith(draft[offset:])
+            or not re.match(r" {0,3}\|", completed_row)
+            or len(completed_row) <= len(block[-1])
+            or len(_table_cells(completed_row)) != columns):
+        return None
+    return draft[:offset] + continuation
+
+
 def join_answer_continuation(draft: str, continuation: str) -> str:
     """Join a truncated answer without rewriting its earlier business content.
 
-    Only exact suffix/prefix repetition is removed. A short common word or
-    similar but different statement is not enough to discard text. Paragraph
+    Only exact suffix/prefix or proven partial-table repetition is removed.
+    A short common word or similar but different statement is not enough to discard text. Paragraph
     and list restarts are handled when they repeat the unfinished tail exactly;
     arbitrary paraphrases remain intact, since their equivalence is unknown.
     This assembles text, not a proof of semantic completeness or correctness.
@@ -182,6 +232,9 @@ def join_answer_continuation(draft: str, continuation: str) -> str:
     # Some continuations repeat the entire draft, including a long answer.
     if len(draft) >= 16 and continuation.startswith(draft):
         return continuation
+    restarted_table = _restarted_truncated_table(draft, continuation)
+    if restarted_table is not None:
+        return restarted_table
     overlap = _continuation_overlap(draft, continuation)
     tail = draft.rsplit("\n", 1)[-1]
     short_tail_restart = (len(tail) >= 8 and overlap == len(tail)

@@ -1,0 +1,47 @@
+{
+  "base_commit": "ea341ba3084bf384288dfa3398903dc897ca59cb",
+  "runtime": "macOS source workbench",
+  "tested_fix_files": [
+    {
+      "path": "poc/company_api.py",
+      "sha256": "23a66e8be0f84a8de21b81042ced1692861a4816207ef48f4aefe3a416077eec"
+    },
+    {
+      "path": "poc/claim_ledger.py",
+      "sha256": "7307ccd545e516c7289f5be0a403b1cc1b656a8037d3b0a2b2272c8cc8f00bc2"
+    },
+    {
+      "path": "poc/claim_support.py",
+      "sha256": "241583aa15e2c3810dcda543e49023d8c44e93296357df2fc867904f3b7e95a8"
+    },
+    {
+      "path": "poc/quality_trace.py",
+      "sha256": "b013f75e0c7274eca945871f32b17ebc98fc62a30825a40250e5562966860bc8"
+    },
+    {
+      "path": "poc/business_chat.py",
+      "sha256": "d80707fd3b43db8583632ad85994349024ef3cca5600d1019ee804a909a62a12"
+    },
+    {
+      "path": "poc/business_synthesis.py",
+      "sha256": "011df77cd7937b3857720fdf9b765f2c91d6dd0c3e773e012e38731b378cf88a"
+    },
+    {
+      "path": "poc/answer_markdown.py",
+      "sha256": "eb978e575fab2869cc52ee9cb6e791eea7b7b9dc317b03c0ee3c559b247eacd3"
+    },
+    {
+      "path": "poc/web/app.js",
+      "sha256": "bad596b62026ff6e342bd54b643ed77cfe5f9d91fcc3e01fb8a5e8cce79d1b09"
+    },
+    {
+      "path": "poc/web/i18n.js",
+      "sha256": "384509a867e34d4922998abd82f8cdb422eea8b20823c5e28f7c32e54bb5e3fc"
+    }
+  ],
+  "pipeline_version": "question-evidence-v28",
+  "prompt_version": "business-chat-v30",
+  "executable_acceptance": false,
+  "live_q1_provenance": "16-v28-fee-answer.json generated with these final file hashes.",
+  "live_q2_provenance": "17-v28-call-answer.json generated with these final file hashes."
+}

@@ -1,0 +1,2156 @@
+{
+  "run_id": "20b726b3bae8bb6be5209dfc",
+  "status": "ANALYZED",
+  "stop_reason": "sufficient_material",
+  "answer": "**结论**\n\n`FEE-RULE` 的手续费按以下顺序产生：先按本金的 **1.25%** 计算并四舍五入到分，再执行 **最低 2.00、最高 15.00** 的限制，最后如果 `REQUEST-STATE` 等于 `'REVIEW'`，则把手续费直接覆盖为 **0.00**。在非 `REVIEW` 状态下，本金 100、500、2000 分别收 **2.00、6.25、15.00**；本金 201.20 经 `ROUNDED` 后为 **2.52**。若状态为 `REVIEW`，上述金额最终都会变成 **0.00**。[ev_page_eedf37efdaa217d174b754ef]\n\n## 一、输入和计算顺序\n\n`FEE-RULE` 通过 LINKAGE 接收三个字段：本金 `BASE-AMOUNT`、手续费结果 `FINAL-FEE`、状态 `REQUEST-STATE`。费率不是调用参数，而是程序工作存储中的固定值：`RATE PIC 9V99 VALUE 1.25`。[ev_page_eedf37efdaa217d174b754ef]\n\n在提供的调用关系中，`ENTRY-RULE` 通过 `CALL 'FEE-RULE' USING BASE-AMOUNT FINAL-FEE REQUEST-STATE` 按位置传入这三个字段；其中前两个字段和状态字段分别对应被调程序的三个 LINKAGE 参数。[ev_page_110efdf954c5348f26e847d6]\n\n手续费的处理顺序如下：\n\n1. **基础公式**  \n   `FINAL-FEE ROUNDED = BASE-AMOUNT * RATE / 100`  \n   因为 `RATE` 为 1.25，且公式再除以 100，所以实际费率是 **1.25%**，不是 125%。[ev_page_eedf37efdaa217d174b754ef]\n\n2. **ROUNDED 舍入**  \n   `ROUNDED` 作用在把计算结果赋给 `FINAL-FEE` 时。`FINAL-FEE` 声明为 `PIC 9(7)V99`，即保留两位小数，因此计算结果按分四舍五入。[ev_page_eedf37efdaa217d174b754ef]\n\n3. **最低收费**  \n   计算并舍入后，如果 `FINAL-FEE < 2`，执行 `MOVE 2 TO FINAL-FEE`，即最低收 **2.00**。[ev_page_eedf37efdaa217d174b754ef]\n\n4. **最高收费**  \n   随后如果 `FINAL-FEE > 15`，执行 `MOVE 15 TO FINAL-FEE`，即最高收 **15.00**。由于最低收费在前、最高收费在后，两次判断按程序顺序执行；但正常金额不会同时触发最低和最高限制。[ev_page_eedf37efdaa217d174b754ef]\n\n5. **REVIEW 状态覆盖**  \n   最后判断 `REQUEST-STATE = 'REVIEW'`。如果成立，执行 `MOVE 0 TO FINAL-FEE`，把手费置为 **0.00**。这个判断位于最低、最高收费之后，因此会覆盖前面已经形成的最低收费或最高收费结果，而且后面没有再次执行最低/最高限制。[ev_page_eedf37efdaa217d174b754ef]\n\n## 二、给定本金的结果\n\n题中没有给出 `REQUEST-STATE` 的具体值，下表先按 **非 `REVIEW`**（例如 `NORMAL`）列出最终手续费；如果状态为 `REVIEW`，最后一列全部为 0.00。\n\n| 本金 `BASE-AMOUNT` | 计算原值（本金 × 1.25%） | `ROUNDED` 后 | 最低/最高调整后 | 最终手续费（非 `REVIEW`） | 最终手续费（`REVIEW`） |\n|---:|---:|---:|---:|---:|---:|\n| 100.00 | 1.25 | 1.25 | 2.00（触发最低） | **2.00** | 0.00 |\n| 500.00 | 6.25 | 6.25 | 6.25 | **6.25** | 0.00 |\n| 2000.00 | 25.00 | 25.00 | 15.00（触发最高） | **15.00** | 0.00 |\n| 201.20 | 2.515 | 2.52 | 2.52 | **2.52** | 0.00 |\n\n具体代入如下：\n\n- 本金 100：`100 × 1.25 / 100 = 1.25`，舍入后仍为 1.25；因为小于 2，最低收费把它改为 **2.00**。[ev_page_eedf37efdaa217d174b754ef]\n- 本金 500：`500 × 1.25 / 100 = 6.25`，舍入后为 6.25；既不小于 2，也不大于 15，所以最终为 **6.25**。[ev_page_eedf37efdaa217d174b754ef]\n- 本金 2000：`2000 × 1.25 / 100 = 25.00`，舍入后为 25.00；因为大于 15，最高收费把它改为 **15.00**。[ev_page_eedf37efdaa217d174b754ef]\n\n## 三、本金 201.20 的舍入结果\n\n计算过程为：\n\n`201.20 × 1.25 / 100 = 2.515`\n\n`FINAL-FEE` 只有两位小数，`ROUNDED` 会把第三位小数 5 进位，因此结果为：\n\n**2.52**\n\n这个值大于等于 2、小于等于 15，所以不触发最低或最高收费；在非 `REVIEW` 状态下最终手续费就是 **2.52**。如果 `REQUEST-STATE` 为 `'REVIEW'`，最后的覆盖规则仍会把它改为 **0.00**。[ev_page_eedf37efdaa217d174b754ef]",
+  "answer_origin": "model",
+  "model_answer_recorded": true,
+  "claim_ledger": {
+    "all_claims_supported": false,
+    "answer_sha256": "86312f20d94af8a6ff16581d3d5216ecdcf7f709f8f75e981d5d9d006ae8597d",
+    "compilation_context_fingerprint": "dac0d9ef9a8295163ddffa961d96cf622febe3f7cb201aacd2ba40f1f0238fa7",
+    "counts": {
+      "contradicted": 0,
+      "supported": 7,
+      "unsupported": 67
+    },
+    "coverage": "extracted_structures_only",
+    "entries": [
+      {
+        "checker_version": null,
+        "claim_id": "claim-1",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "**结论**",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-2",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "`FEE-RULE` 的手续费按以下顺序产生：先按本金的 **1.25%** 计算并四舍五入到分，再执行 **最低 2.00、最高 15.00** 的限制，最后如果 `REQUEST-STATE` 等于 `'REVIEW'`，则把手续费直接覆盖为 **0.00**。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-3",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "在非 `REVIEW` 状态下，本金 100、500、2000 分别收 **2.00、6.25、15.00**；本金 201.20 经 `ROUNDED` 后为 **2.52**。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-4",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "若状态为 `REVIEW`，上述金额最终都会变成 **0.00**。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-5",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "## 一、输入和计算顺序",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-6",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "`FEE-RULE` 通过 LINKAGE 接收三个字段：本金 `BASE-AMOUNT`、手续费结果 `FINAL-FEE`、状态 `REQUEST-STATE`。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-7",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "费率不是调用参数，而是程序工作存储中的固定值：`RATE PIC 9V99 VALUE 1.25`。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-8",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_110efdf954c5348f26e847d6"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 314,
+            "relative_path": "entry.cbl",
+            "source_sha256": "0933fc6ea7e32261beaeb67cebc949086df70a3a638ff09c61fe1c9685441d72",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "在提供的调用关系中，`ENTRY-RULE` 通过 `CALL 'FEE-RULE' USING BASE-AMOUNT FINAL-FEE REQUEST-STATE` 按位置传入这三个字段；其中前两个字段和状态字段分别对应被调程序的三个 LINKAGE 参数。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-9",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "手续费的处理顺序如下：",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-10",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "1.",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-11",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "**基础公式**",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": "compute-statement-v0.2",
+        "claim_id": "claim-12",
+        "claim_type": "assignment_statement",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": [
+          "BASE-AMOUNT",
+          "*",
+          "RATE",
+          "/",
+          "100"
+        ],
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_744f40d91803a46fc5d110ed"
+        ],
+        "reason_code": "COMPUTE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": "FINAL-FEE",
+        "text": "`FINAL-FEE ROUNDED = BASE-AMOUNT * RATE / 100`",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-13",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": [
+          "1.25"
+        ],
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_ENTITY_BINDING_UNRESOLVED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": "RATE",
+        "text": "因为 `RATE` 为 1.25，且公式再除以 100，所以实际费率是 **1.25%**，不是 125%。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-14",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "2.",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-15",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "**ROUNDED 舍入**",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-16",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "`ROUNDED` 作用在把计算结果赋给 `FINAL-FEE` 时。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-17",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "`FINAL-FEE` 声明为 `PIC 9(7)V99`，即保留两位小数，因此计算结果按分四舍五入。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-18",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "3.",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-19",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "**最低收费**",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-20",
+        "claim_type": "assignment_statement",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": [
+          "2"
+        ],
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_382314d76ff0b12b36fe321b"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": "FINAL-FEE",
+        "text": "计算并舍入后，如果 `FINAL-FEE < 2`，执行 `MOVE 2 TO FINAL-FEE`，即最低收 **2.00**。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-21",
+        "claim_type": "condition_statement",
+        "condition": [
+          "FINAL-FEE",
+          "<",
+          "2"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_f6dc4a5cda1595405cb1f919"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": null,
+        "text": "计算并舍入后，如果 `FINAL-FEE < 2`，执行 `MOVE 2 TO FINAL-FEE`，即最低收 **2.00**。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-22",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "4.",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-23",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "**最高收费**",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-24",
+        "claim_type": "assignment_statement",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": [
+          "15"
+        ],
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_5694282c10f82f0b7f41ca64"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": "FINAL-FEE",
+        "text": "随后如果 `FINAL-FEE > 15`，执行 `MOVE 15 TO FINAL-FEE`，即最高收 **15.00**。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-25",
+        "claim_type": "condition_statement",
+        "condition": [
+          "FINAL-FEE",
+          ">",
+          "15"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_53b4665d1fc5bcc17080c7ba"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": null,
+        "text": "随后如果 `FINAL-FEE > 15`，执行 `MOVE 15 TO FINAL-FEE`，即最高收 **15.00**。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-26",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "由于最低收费在前、最高收费在后，两次判断按程序顺序执行；但正常金额不会同时触发最低和最高限制。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-27",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "5.",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-28",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "**REVIEW 状态覆盖**",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-29",
+        "claim_type": "condition_statement",
+        "condition": [
+          "REQUEST-STATE",
+          "=",
+          "'REVIEW'"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_6dc60b88aeb391b2116dd01a"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": null,
+        "text": "最后判断 `REQUEST-STATE = 'REVIEW'`。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": "source-statement-support-v4",
+        "claim_id": "claim-30",
+        "claim_type": "assignment_statement",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": [
+          "0"
+        ],
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [
+          "unit_189913bb2a50a97cd4b660a0"
+        ],
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": "source_statement_syntax",
+        "support_status": "supported",
+        "target_entity": "FINAL-FEE",
+        "text": "如果成立，执行 `MOVE 0 TO FINAL-FEE`，把手费置为 **0.00**。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-31",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "这个判断位于最低、最高收费之后，因此会覆盖前面已经形成的最低收费或最高收费结果，而且后面没有再次执行最低/最高限制。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-32",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "## 二、给定本金的结果",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-33",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "题中没有给出 `REQUEST-STATE` 的具体值，下表先按 **非 `REVIEW`**（例如 `NORMAL`）列出最终手续费；如果状态为 `REVIEW`，最后一列全部为 0.00。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-34",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "本金 `BASE-AMOUNT`",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-35",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "计算原值（本金 × 1.25%）",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-36",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "`ROUNDED` 后",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-37",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "最低/最高调整后",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-38",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "最终手续费（非 `REVIEW`）",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-39",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "最终手续费（`REVIEW`）",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-40",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "100.00",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-41",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "1.25",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-42",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "1.25",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-43",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "2.00（触发最低）",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-44",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "**2.00**",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-45",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "0.00",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-46",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "500.00",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-47",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "6.25",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-48",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "6.25",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-49",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "6.25",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-50",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "**6.25**",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-51",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "0.00",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-52",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "2000.00",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-53",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "25.00",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-54",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "25.00",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-55",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "15.00（触发最高）",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-56",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "**15.00**",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-57",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "0.00",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-58",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "201.20",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-59",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "2.515",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-60",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "2.52",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-61",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "2.52",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-62",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "**2.52**",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-63",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "0.00",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-64",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "具体代入如下：",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-65",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "- 本金 100：`100 × 1.25 / 100 = 1.25`，舍入后仍为 1.25；因为小于 2，最低收费把它改为 **2.00**。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-66",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "- 本金 500：`500 × 1.25 / 100 = 6.25`，舍入后为 6.25；既不小于 2，也不大于 15，所以最终为 **6.25**。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-67",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "- 本金 2000：`2000 × 1.25 / 100 = 25.00`，舍入后为 25.00；因为大于 15，最高收费把它改为 **15.00**。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-68",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "## 三、本金 201.20 的舍入结果",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-69",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "计算过程为：",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-70",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "`201.20 × 1.25 / 100 = 2.515`",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-71",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "`FINAL-FEE` 只有两位小数，`ROUNDED` 会把第三位小数 5 进位，因此结果为：",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-72",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "**2.52**",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-73",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "这个值大于等于 2、小于等于 15，所以不触发最低或最高收费；在非 `REVIEW` 状态下最终手续费就是 **2.52**。",
+        "unresolved_requirements": []
+      },
+      {
+        "checker_version": null,
+        "claim_id": "claim-74",
+        "claim_type": "business_explanation",
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_eedf37efdaa217d174b754ef"
+        ],
+        "expression": null,
+        "invalid_evidence_ids": [],
+        "occurrence_ids": [],
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "reviewed_evidence_ids": [],
+        "revised_claims": [],
+        "revision": null,
+        "source_versions": [
+          {
+            "end_line": 22,
+            "relative_path": "fee.cbl",
+            "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+            "start_line": 1
+          }
+        ],
+        "support_scope": null,
+        "support_status": "unsupported",
+        "target_entity": null,
+        "text": "如果 `REQUEST-STATE` 为 `'REVIEW'`，最后的覆盖规则仍会把它改为 **0.00**。",
+        "unresolved_requirements": []
+      }
+    ],
+    "ledger_version": "answer-claim-ledger-v6",
+    "original_answer_sha256": "86312f20d94af8a6ff16581d3d5216ecdcf7f709f8f75e981d5d9d006ae8597d",
+    "prose_semantics_verified": false,
+    "revised_claim_count": 0,
+    "scope": "bounded_source_statement_syntax",
+    "source_fact_count": 8
+  },
+  "metrics": {
+    "completion_driven": true,
+    "convergence_stop_reason": null,
+    "current_source_pages": 2,
+    "delivery_target": {
+      "hard_limit_seconds": 180,
+      "inflight_request_cancelled_by_target": false,
+      "reached": false,
+      "seconds": 180
+    },
+    "elapsed_seconds": 33.984,
+    "empty_length_recovery_attempted": false,
+    "final_visible_ids": 2,
+    "history_messages": 0,
+    "model_requests": 1,
+    "policy": {
+      "finalization_reserve_seconds": 45,
+      "hard_question_seconds": 180,
+      "initial_pages": 6,
+      "initial_source_characters": 24000,
+      "investigation_mode": "adaptive",
+      "max_answer_revisions": null,
+      "max_business_context_actions_per_turn": 2,
+      "max_complete_source_characters": 128000,
+      "max_evidence_groups": 12,
+      "max_framework_characters": 8000,
+      "max_framework_references": 10,
+      "max_framework_searches_per_turn": 3,
+      "max_history_characters": 18000,
+      "max_initial_context_seconds": 3,
+      "max_investigation_rounds": 5,
+      "max_local_analysis_seconds": 15,
+      "max_model_requests": 6,
+      "max_no_evidence_revisions": 2,
+      "max_question_seconds": 180,
+      "max_reads_per_turn": 3,
+      "max_request_bytes": 230000,
+      "max_searches_per_turn": 3,
+      "max_semantic_expansions": 4,
+      "max_semantic_files": 32,
+      "max_semantic_source_bytes": 33554432,
+      "max_source_characters": 36000,
+      "read_source_characters": 12000,
+      "search_pages": 8,
+      "search_source_characters": 32000,
+      "semantic_cache_bytes": 536870912,
+      "source_memory_enabled": true
+    },
+    "prior_memory_source_pages": 0,
+    "provider_request_timings": [
+      {
+        "response_bytes": 2115218,
+        "round_id": "round-1",
+        "stage": "investigate",
+        "timing_seconds": {
+          "first_response_byte": 3.438488,
+          "headers_received": 3.434002,
+          "request_elapsed": 33.836529,
+          "response_complete": 33.836457
+        }
+      }
+    ],
+    "provider_retries": [],
+    "quality_stop_reason": "sufficient_material",
+    "question_investigation": {
+      "automatic_actions": 0,
+      "calls": 4,
+      "candidate_queries": 1
+    },
+    "repository_rebuilt": false,
+    "request_bytes": [
+      33606
+    ],
+    "retrieved_ids": 2,
+    "retrieved_pages": 2,
+    "selected_source_bytes_hashed": 6059,
+    "semantic_cache_hits": 0,
+    "sent_any_round_ids": 2,
+    "source_binding_mode": "current_and_declared_prior_memory",
+    "source_characters": 6057,
+    "timing_components_are_inclusive": true,
+    "timing_seconds": {
+      "answer_fact_completion_seconds": 0.0001,
+      "answer_verification_seconds": 0.0298,
+      "business_map_seconds": 0.0058,
+      "complete_working_set_seconds": 0.0021,
+      "context_assembly_seconds": 0.0148,
+      "first_model_request_seconds": 0.0434,
+      "initial_context_seconds": 0.0111,
+      "local_processing_seconds": 0.1347,
+      "provider_wait_seconds": 33.8449,
+      "question_investigation_seconds": 0.0061,
+      "read_seconds": 0.0,
+      "retrieval_seconds": 0.0046,
+      "selected_source_hash_seconds": 0.001,
+      "semantic_evidence_seconds": 0.0,
+      "semantic_scope_seconds": 0.0,
+      "total_seconds": 33.9796
+    },
+    "tool_calls": {
+      "backward_slice": 0,
+      "explain_assignment": 0,
+      "explain_external_effect": 0,
+      "forward_slice": 0,
+      "framework_search": 0,
+      "inspect_business_context": 0,
+      "read": 0,
+      "search": 0,
+      "trace_parameter": 0
+    },
+    "usage": {
+      "available": true,
+      "completion_tokens": 7042,
+      "field_reported_requests": {
+        "completion_tokens": 1,
+        "prompt_tokens": 1,
+        "total_tokens": 1
+      },
+      "model_requests": 1,
+      "prompt_tokens": 8165,
+      "reported_requests": 1,
+      "status": "complete",
+      "total_tokens": 15207
+    }
+  },
+  "answer_completion": {
+    "limitation_detected": false,
+    "method": "bounded_text_and_coverage_signals",
+    "missing_aspects": [],
+    "pending_investigation": false,
+    "reason": null,
+    "required_aspects": [
+      "formula",
+      "conditions",
+      "result_adjustments"
+    ],
+    "semantic_verification": "unverified",
+    "source_availability_contradiction": false,
+    "source_availability_contradictions": [],
+    "source_selection_limitation_detected": false,
+    "status": "not_assessed"
+  },
+  "evidence_refs": [
+    {
+      "end_line": 22,
+      "evidence_id": "ev_page_eedf37efdaa217d174b754ef",
+      "kind": "source_page",
+      "relative_path": "fee.cbl",
+      "source_sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+      "start_line": 1
+    },
+    {
+      "end_line": 314,
+      "evidence_id": "ev_page_110efdf954c5348f26e847d6",
+      "kind": "source_page",
+      "relative_path": "entry.cbl",
+      "source_sha256": "0933fc6ea7e32261beaeb67cebc949086df70a3a638ff09c61fe1c9685441d72",
+      "start_line": 1
+    }
+  ],
+  "diagnostic_summary": {
+    "api_failures": [],
+    "configured": {
+      "max_complete_source_characters": 128000,
+      "max_initial_context_seconds": 3,
+      "max_local_analysis_seconds": 15,
+      "max_model_requests": 6,
+      "max_output_tokens": 8192,
+      "max_question_seconds": 180,
+      "max_request_bytes": 230000,
+      "max_source_characters": 36000,
+      "requested_detail": "detailed"
+    },
+    "output": {
+      "answer_truncated": false,
+      "continuation_attempted": false,
+      "final_answer_characters": 2521,
+      "finish_reason": "stop"
+    },
+    "requests": [
+      {
+        "choice_index": 0,
+        "finish_reason": "stop",
+        "history_characters": 0,
+        "history_message_count": 0,
+        "page_count": 2,
+        "parsed_answer_characters": 2521,
+        "raw_content_characters": 2521,
+        "request_bytes": 33620,
+        "response_bytes": 2115218,
+        "response_timing_seconds": {
+          "first_response_byte": 3.438488,
+          "headers_received": 3.434002,
+          "request_elapsed": 33.836529,
+          "response_complete": 33.836457
+        },
+        "round_id": "round-1",
+        "source_characters": 6057,
+        "source_file_count": 2,
+        "source_line_count": 336,
+        "stage": "investigate",
+        "trim_event_count": 0
+      }
+    ],
+    "runtime": {
+      "commit": "ea341ba3084bf384288dfa3398903dc897ca59cb",
+      "model_fingerprint": "7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+      "output_limit_source": "profile",
+      "profile": "workbench"
+    },
+    "schema_version": "business-answer-diagnostics/v1",
+    "source_coverage": {
+      "closure_complete": true,
+      "complete_root_budget_applied": false,
+      "identity_status": "resolved",
+      "indexed_files": 2,
+      "limitation_codes": [],
+      "omitted_complete_files": 0,
+      "pages": 2,
+      "physical_complete": true,
+      "provided_files": 2,
+      "retrieval_status": "source_candidates",
+      "selected_files": 2,
+      "supplied_complete_files": 1,
+      "transmission_fallback_reason": "unknown",
+      "unread_tasks": 0,
+      "working_set_reason": "candidate_source_set_supplied",
+      "working_set_status": "supplied"
+    },
+    "stop_reason": "sufficient_material",
+    "timing_seconds": {
+      "answer_verification_seconds": 0.0298,
+      "first_model_request_seconds": 0.0434,
+      "local_processing_seconds": 0.1347,
+      "provider_wait_seconds": 33.8449,
+      "total_seconds": 33.9796
+    }
+  }
+}

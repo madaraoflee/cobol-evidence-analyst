@@ -1,6 +1,6 @@
 # 桌面版打包与使用
 
-当前统一使用 `main`，Windows 和 Mac 从同一冻结提交构建，下载入口与更新步骤见[统一版本说明](./unified-release.md)。[双版本使用说明](./version-switching.md)只作为历史对照和回退操作记录。
+当前统一使用 `main`。本次已获准在真实界面测试后手动构建 Windows 候选并交付 GitHub；Mac 只同步相同的开发源码，不生成 Mac 应用包。正式发布仍须通过[同包联合验收](./joint-release-acceptance.md)，构建结果以实际运行记录为准。下载入口与更新步骤见[统一版本说明](./unified-release.md)。[双版本使用说明](./version-switching.md)只作为历史对照和回退操作记录。
 
 **以后每次修改代码，只需在对应系统重新运行根目录的打包入口，把生成的 ZIP 交付给使用者。** Windows 生成包含 `.exe` 的完整应用文件夹，macOS 生成 `.app`；接收者不需要 Python、Git 或项目源码。当前采用 Nuitka 编译 Python 业务模块，以 pywebview 提供桌面窗口，原有源码分析与问答界面继续使用。
 
@@ -40,11 +40,11 @@ macOS 包的最低系统版本取决于构建时的 Python 和原生依赖。脚
 
 ## 在 GitHub 上构建 Windows x64 包
 
-仓库提供 [Windows desktop x64 工作流](../.github/workflows/windows-desktop.yml)，使用 `windows-2022`、Python 3.13 x64 和 MSVC，调用现有 `build_app.py`。**自 2026-10-19 起，按用户要求暂停生成可运行 app、候选包与 release，直到用户明确允许生成。** 桌面构建和办公室验收包工作流均只保留手动入口，推送代码、更新 PR 或其他工作流完成不会自动生成包。保留手动入口不表示已获生成授权；当前只修改、测试并提交源码。
+仓库提供 [Windows desktop x64 工作流](../.github/workflows/windows-desktop.yml)，使用 `windows-2022`、Python 3.13 x64 和 MSVC，调用现有 `build_app.py`。**2026-10-20 用户已明确恢复 Windows 候选构建与 GitHub 交付授权，先完成真实界面测试再手动构建。** 桌面构建和办公室验收包工作流均只保留手动入口，推送代码、更新 PR 或其他工作流完成不会自动生成包。正式发布仍须取得同一最终 EXE 的真实模型、逐题评审与目标办公设备验收记录。
 
 构建会先运行离线 Python 回归和浏览器入口自检，再编译并运行打包程序自检。自检检查资源、本机 HTTP 服务、桌面依赖导入和 TLS 初始化，模型调用数必须为零。构建依赖下载需要联网，但不需要配置模型接口或仓库 API 密钥。任何检查失败都不会上传交付包。
 
-成功后，从该次运行的 **Artifacts** 下载 `COBOLWorkbench-windows-x64-<commit>-<attempt>`，保留期为 14 天。解开 GitHub 下载的外层封装，可得到三个文件：真正的应用交付包 `COBOLWorkbench-windows-x64.zip`、其 `.zip.sha256` 校验文件、以及从包内原样复制的 `BUILD-INFO.json`。校验可在 PowerShell 执行 `Get-FileHash .\COBOLWorkbench-windows-x64.zip -Algorithm SHA256`，将结果与 `.sha256` 第一列比较；随后按下节解压内层交付包并打开 EXE。PR 产物对应待合并测试版本，以运行页的提交信息为准。
+成功后，从该次运行的 **Artifacts** 下载 `COBOLWorkbench-windows-x64-<commit>-<attempt>`，保留期为 14 天。解开 GitHub 下载的外层封装，可得到七项文件：应用交付包 `COBOLWorkbench-windows-x64.zip`、其 `.zip.sha256` 校验文件、`BUILD-INFO.json`、`COMPILED-ACCEPTANCE.json`、`CANDIDATE-GATE.json`、`ACCEPTANCE-MANIFEST.json` 和 `CANDIDATE-POLICY.json`。校验可在 PowerShell 执行 `Get-FileHash .\COBOLWorkbench-windows-x64.zip -Algorithm SHA256`，将结果与 `.sha256` 第一列比较；随后按下节解压内层交付包并打开 EXE。PR 不会自动生成产物，手动构建的分支、提交和 attempt 以该次运行页为准。
 
 工作流不会上传仓库源码 ZIP、构建中间目录或使用者配置，不生成签名安装器。2026-10-07 的 [Windows 原生构建](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/37511714204) 已成功，包含 2,008 项回归（2 项既有 POSIX 条件跳过）、源码浏览器自检和编译后二进制自检；交付 ZIP 已下载并复核。完整工程与回答质量记录见[本轮报告](./reports/2026-10-07-quality-speed-windows.md)。办公室电脑实机验收尚未完成。即使云端自检通过，仍需按本文末尾检查窗口或浏览器启动、文件选择和真实业务问答。运行环境与构建依赖参考 [Windows runner 清单](https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md)；工作流使用官方 [checkout](https://github.com/actions/checkout)、[setup-python](https://github.com/actions/setup-python) 和 [upload-artifact](https://github.com/actions/upload-artifact) 的固定 major 版本。
 
@@ -62,7 +62,7 @@ Windows 浏览器模式没有上述桌面菜单，会保留一个控制对话框
 
 从源码版迁移时，应核对相同的模型、接口、输出上限、框架资料、源码版本与回答详细程度，再比较答案。如果原来在 `.poc-data/agent-settings.json` 调整过调查策略，应将该文件复制到桌面版数据目录的 `agent-settings.json`，或用 `AGENT_SETTINGS_PATH` 指定它；未设置时两种入口使用相同默认策略。框架资料需要在目标电脑可读，并重新设置当地路径。只填写模型密钥而遗漏私有资料，可能让框架相关回答缺少依据，这与编译本身是否改变问答逻辑是两件事。
 
-升级或复制策略文件会保留旧的更严格值，例如 `max_model_requests: 5`、`max_question_seconds: 120`。当前源码默认采用 6 次请求、180 秒整题硬期限和 45 秒收尾预留；旧 `null` 预算会迁移到有限默认值，无需清空原有额度。有限预算仍保留跨轮源码记忆。配置示例、草稿预览及超时边界见[多轮分析与配置迁移](./completion-driven-analysis.md)。源码更新不等同桌面包更新；当前修复阶段不生成应用或安装包。
+升级或复制策略文件会保留旧的更严格值，例如 `max_model_requests: 5`、`max_question_seconds: 120`。当前源码默认采用 6 次请求、180 秒整题硬期限和 45 秒收尾预留；旧 `null` 预算会迁移到有限默认值，无需清空原有额度。有限预算仍保留跨轮源码记忆。配置示例、草稿预览及超时边界见[多轮分析与配置迁移](./completion-driven-analysis.md)。源码更新不等同桌面包更新；本次已获准手动构建 Windows 候选，具体包版本及验收状态须核对对应构建记录。
 
 当前构建没有 Windows 发布者证书签名，也没有完成 Apple Developer ID 签名与公证；macOS 的临时签名不等于可验证的发布者身份。企业设备策略仍可能限制运行 EXE，浏览器模式也不能绕过这种限制；遇到拦截应交由 IT 按公司流程批准。正式交付前应在目标电脑验证打开流程；后续有证书时再补正式签名与公证。
 

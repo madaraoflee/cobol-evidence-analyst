@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewed_at_utc": "2026-10-19T17:12:27.409364+00:00",
+  "reviewer": "Codex source_claims agent",
+  "method": "agent_source_review_and_offline_production_claim_replay",
+  "run_id": "094d0d45c3785ae63851e401",
+  "original_result_artifact": "16-v28-fee-answer.json",
+  "actual_generation_manifest": "tested-source-v28.json",
+  "actual_generation_claim_ledger_sha256": "7307ccd545e516c7289f5be0a403b1cc1b656a8037d3b0a2b2272c8cc8f00bc2",
+  "replay_claim_ledger_version": "answer-claim-ledger-v8",
+  "replay_file_sha256": {
+    "poc/claim_ledger.py": "b65c8ff20efadaf238076a0747046cd970e422149820935c2d6dc1840bfac932",
+    "poc/claim_support.py": "241583aa15e2c3810dcda543e49023d8c44e93296357df2fc867904f3b7e95a8"
+  },
+  "raw_model_answer_sha256": "43ff70ae47ff35f582aa7885e7314b8234ba49a4c30429de1924060a905953d6",
+  "archived_final_answer_sha256": "3098aea02186dea9785e70d80acbfc4cb936623bbaeb7825506cff0b44cb517b",
+  "replay_answer_sha256": "43ff70ae47ff35f582aa7885e7314b8234ba49a4c30429de1924060a905953d6",
+  "replay_preserves_raw_exactly": true,
+  "replay_revised_claim_count": 0,
+  "original_postprocessing_defect": {
+    "text": "- ① 后 `FINAL-FEE` = 1.25；",
+    "stage": "before_draft_acceptance",
+    "reason": "状态等式被误作源码字面赋值；与符号公式不一致被错误提升为反证。",
+    "archived_result_has_defect": true
+  },
+  "model_extra_claim_limitation": {
+    "text": "此时调用方的 FINAL-FEE 保持其自身工作存储区的初值 0",
+    "finding": "仅在首次或重新初始化且此前未改值的前提下成立；非STANDARD路径的一般结论是保持进入判断前的当前值。本模型原稿没有在该句明确此前提。",
+    "fixed_by_replay": false
+  },
+  "required_fee_items": "formula, rounding order, min2/max15, REVIEW override and positive numeric examples match source/Decimal; this does not erase the recorded defects",
+  "model_requests_by_reviewer": 0,
+  "formal_windows_exe_human_acceptance": false,
+  "limitation": "这是对旧真实响应的离线回放，不是真实模型重跑；不能把原始16结果记为零缺陷通过，也不代表有限语法核验已经证明业务语义或运行结果。"
+}

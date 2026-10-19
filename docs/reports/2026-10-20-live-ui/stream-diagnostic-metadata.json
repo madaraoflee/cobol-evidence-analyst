@@ -1,0 +1,29 @@
+{
+  "events": 2129,
+  "content_events": 624,
+  "content_bytes": 1704,
+  "reasoning_events": 1502,
+  "reasoning_bytes": 5039,
+  "max_event_bytes": 525,
+  "max_delta_bytes": 15,
+  "cumulative_prefix_events": 0,
+  "max_choices": 1,
+  "done_seen": true,
+  "finish_seen": true,
+  "outcome": "completed",
+  "usage": {
+    "prompt_tokens": 1643,
+    "completion_tokens": 2127,
+    "total_tokens": 3770
+  },
+  "elapsed_seconds": 10.244,
+  "transport": {
+    "timing_seconds": {
+      "headers_received": 1.063715,
+      "first_response_byte": 1.073635,
+      "response_complete": 10.243435,
+      "request_elapsed": 10.243478
+    },
+    "response_bytes": 639121
+  }
+}

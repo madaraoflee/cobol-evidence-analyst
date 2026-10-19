@@ -618,7 +618,7 @@ def _accumulation_covered(answer, hint, *, unique_candidate):
                 return False
         return True
 
-    for segment, inherited in _segments(str(answer)):
+    for segment, inherited, table_header, derived_context in _segments(str(answer)):
         ids = set(_REFERENCE.findall(segment) or inherited)
         text = _REFERENCE.sub("", segment).replace("`", "")
         clauses = re.split(r"[；;，,]|\bbut\b", text, flags=re.I)
@@ -633,7 +633,8 @@ def _accumulation_covered(answer, hint, *, unique_candidate):
             if (_LIMITATION.search(clause) or _INVESTIGATION_STATEMENT.search(clause)
                     or _ACCUMULATION_DENIAL.search(denial_text(clause)) or "?" in clause or "？" in clause):
                 continue
-            all_assertions = [row for row in _assertions(clause) if row.get("predicate") == "assignment_statement"]
+            all_assertions = [row for row in _assertions(clause, table_header=table_header, derived_context=derived_context)
+                              if row.get("predicate") == "assignment_statement"]
             assertions = [row for row in all_assertions if row.get("target") == hint["target_field"]]
             if any(same_sum(row.get("expression", ())) for row in assertions):
                 return True
