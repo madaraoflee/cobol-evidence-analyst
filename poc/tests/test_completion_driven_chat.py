@@ -89,25 +89,25 @@ class CompletionDrivenChatTests(unittest.TestCase):
         self.assertLessEqual(len(self.requests), request_guard, "Investigation failed to converge")
         return result
 
-    def test_default_policy_allows_seven_new_source_reads_before_final_answer(self):
+    def test_default_policy_bounds_investigation_and_reserves_final_answer(self):
         def respond(payload, number):
-            self.assertIsNone(payload["investigation_budget"]["remaining_model_requests"])
+            self.assertEqual(payload["investigation_budget"]["remaining_model_requests"], 7 - number)
             if number > 1:
                 previous = f"helper-{number - 1}.cbl"
                 page = next(page for page in self.pages(payload) if page["relative_path"] == previous)
                 self.assertEqual(page["source_text"], self.files[previous].rstrip("\n"))
-            if number <= 7:
+            if number <= 5:
                 self.assertNotIn(f"helper-{number}.cbl", {page["relative_path"] for page in self.pages(payload)})
                 return self.read_helper(number)
             return self.cited_answer(payload)
 
         result = self.ask(respond)
-        self.assertEqual(len(self.requests), 8)
-        self.assertEqual(result["metrics"]["model_requests"], 8)
+        self.assertEqual(len(self.requests), 6)
+        self.assertEqual(result["metrics"]["model_requests"], 6)
         self.assertIn("金额按基础金额乘以二得到20", result["answer"])
         self.assertTrue(result["narrative"]["citations"])
         self.assertFalse(result["claims_semantically_verified"])
-        self.assertTrue(any(event.get("analysis_update", {}).get("round", 0) >= 8 for event in self.events))
+        self.assertTrue(any(event.get("analysis_update", {}).get("round", 0) >= 6 for event in self.events))
 
     def test_draft_review_retains_original_question_and_can_read_before_rewriting(self):
         self.question = "root.cbl 的金额如何计算，输入初值来自哪里？"
@@ -168,8 +168,9 @@ class CompletionDrivenChatTests(unittest.TestCase):
             return self.cited_answer(payload) + " root.cbl 的完整源码本轮没有提供。" * number
 
         result = self.ask(respond, request_guard=3)
-        self.assertEqual(len(self.requests), 2)
-        self.assertEqual(result["metrics"]["convergence_stop_reason"], "answer_review_no_progress")
+        self.assertEqual(len(self.requests), 1)
+        self.assertNotIn("没有提供", result["answer"])
+        self.assertFalse(result["answer_completion"]["source_availability_contradiction"])
 
     def test_permuted_source_denials_still_represent_the_same_gap(self):
         def respond(payload, number):
@@ -179,8 +180,9 @@ class CompletionDrivenChatTests(unittest.TestCase):
             return self.cited_answer(payload) + " ".join(f"{path} 源码本轮未提供。" for path in paths)
 
         result = self.ask(respond, request_guard=4)
-        self.assertEqual(len(self.requests), 3)
-        self.assertEqual(result["metrics"]["convergence_stop_reason"], "answer_review_no_progress")
+        self.assertEqual(len(self.requests), 2)
+        self.assertNotIn("未提供", result["answer"])
+        self.assertFalse(result["answer_completion"]["source_availability_contradiction"])
 
     def test_repeated_answer_gap_converges_even_when_wording_changes(self):
         def respond(payload, number):
@@ -188,10 +190,12 @@ class CompletionDrivenChatTests(unittest.TestCase):
             return self.cited_answer(payload, wording) + " root.cbl 的完整源码本轮没有提供。"
 
         result = self.ask(respond, request_guard=3)
-        self.assertEqual(len(self.requests), 2)
-        self.assertEqual(result["status"], "PARTIAL")
-        self.assertEqual(result["metrics"]["convergence_stop_reason"], "answer_review_no_progress")
-        self.assertTrue(result["business_review"]["answer_completion"]["source_availability_contradiction"])
+        self.assertEqual(len(self.requests), 1)
+        self.assertNotIn("没有提供", result["answer"])
+        self.assertIn("乘以二", result["answer"])
+        self.assertFalse(result["business_review"]["answer_completion"]["source_availability_contradiction"])
+        trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
+        self.assertTrue(trace["source_availability_repairs"])
 
     def test_repeated_tool_request_converges_to_an_answer(self):
         def respond(payload, number):
@@ -232,7 +236,7 @@ class CompletionDrivenChatTests(unittest.TestCase):
         self.assertEqual(len(self.requests), 2)
         self.assertTrue(result["answer_available"])
 
-    def test_answer_can_improve_across_more_than_five_reviews_without_new_source(self):
+    def test_changed_wording_cannot_bypass_counted_revision_budget(self):
         self.question = "请完整解释 root.cbl 的七项金额计算规则。"
         fields = [f"RESULT-{index:02d}" for index in range(1, 8)]
         self.write("root.cbl", "TOTAL-RULE",
@@ -263,10 +267,10 @@ class CompletionDrivenChatTests(unittest.TestCase):
 
         with patch("business_chat.assess_business_answer", side_effect=assess):
             result = self.ask(respond, request_guard=8)
-        self.assertEqual(len(self.requests), 7)
+        self.assertEqual(len(self.requests), 3)
         self.assertEqual(result["answer"], answers[-1])
-        self.assertFalse(result["business_review"]["answer_completion"]["missing_aspects"])
-        self.assertIsNone(result["metrics"]["convergence_stop_reason"])
+        self.assertTrue(result["business_review"]["answer_completion"]["missing_aspects"])
+        self.assertEqual(result["metrics"]["convergence_stop_reason"], "answer_revision_budget")
 
 
 if __name__ == "__main__":

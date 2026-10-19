@@ -69,7 +69,7 @@ class ClaimLedgerLanguageTests(unittest.TestCase):
         self.assertIn("Under source control condition", answer)
         self.assertIn("condition is false:", answer)
         self.assertIn("OUT-AMOUNT = 0", answer)
-        self.assertIn("the final value still requires checking control flow", answer)
+        self.assertIn("the final value still requires checking control flow", answer.lower())
         self.assertEqual(ledger.entries[0].reason_code, "FINAL_VALUE_REQUIRES_CONTROL_AND_OVERWRITE_ANALYSIS")
 
     def test_empty_procedure_correction_stays_english(self):
@@ -105,7 +105,7 @@ class ClaimLedgerLanguageTests(unittest.TestCase):
     def test_explicit_english_overrides_language_of_rejected_answer(self):
         answer, _ = self.review("OUT-AMOUNT 最终等于 IN-AMOUNT * 2。[ev_formula]", answer_language="en")
         self.assert_english(answer)
-        self.assertIn("the final value still requires checking", answer)
+        self.assertIn("the final value still requires checking", answer.lower())
 
     def test_chinese_defaults_and_traditional_selection_remain_available(self):
         answer, _ = self.review("WRITE OTHER-RECORD。[ev_formula]")
@@ -144,6 +144,15 @@ class ClaimLedgerLanguageTests(unittest.TestCase):
                 self.assertEqual(ledger.to_dict()["revised_claim_count"], 0)
                 self.assertTrue(all(entry.claim_type == "business_explanation" for entry in ledger.entries))
                 self.assertFalse(ledger.to_dict()["all_claims_supported"])
+
+    def test_english_calculation_deferral_is_not_fabricated_as_an_assignment(self):
+        original = ("I need to check the business fields and formulas in the source before I can "
+                    "confirm how OUT-AMOUNT is calculated.")
+        answer, ledger = self.review(original, answer_language="en")
+        self.assertEqual(answer, original)
+        self.assertEqual(ledger.to_dict()["revised_claim_count"], 0)
+        self.assertTrue(all(entry.claim_type == "business_explanation" for entry in ledger.entries))
+        self.assertFalse(ledger.to_dict()["all_claims_supported"])
 
     def test_english_is_arithmetic_notation_is_still_checked(self):
         original = "OUT-AMOUNT is IN-AMOUNT * 2.[ev_formula]"

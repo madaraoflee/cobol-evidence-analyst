@@ -26,6 +26,22 @@ def page(identifier, text, role=None, group=None, path="entry.cbl", line=1):
 
 
 class EvidenceSelectionBudgetTests(unittest.TestCase):
+    def test_distant_guard_and_callsite_share_an_atomic_selection_budget(self):
+        pool = EvidenceContext()
+        guard = page("guard", "IF READY-FLAG = 1", "condition", "invocation", line=3)
+        call = page("call", 'CALL "WORKER"', "callsite", "invocation", line=304)
+        pool.accept({"pages": [guard, call]}, "business_context")
+        # Repeated nearby search hits must not displace the only condition.
+        pool.accept({"pages": [page(f"noise-{number}", "DISPLAY READY-FLAG", line=300 + number)
+                               for number in range(3)]}, "search")
+        budget = len(guard["source_text"]) + len(call["source_text"])
+        selected = pool.selected_pages(budget, priority_targets=["call"])
+        self.assertEqual({item["evidence_id"] for item in selected}, {"guard", "call"})
+        selected = pool.selected_pages(budget - 1, priority_targets=["call"])
+        self.assertNotIn("call", {item["evidence_id"] for item in selected})
+        self.assertEqual({item["evidence_id"] for item in pool.selection_frontier
+                          if "invocation" in item["group_ids"]}, {"guard", "call"})
+
     def test_core_group_is_preserved_across_paths_before_unrelated_pages(self):
         pool = EvidenceContext()
         core = [page("result", "COMPUTE VALUE", "result", "core", "z.cbl"),

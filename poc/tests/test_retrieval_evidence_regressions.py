@@ -398,7 +398,7 @@ class RetrievalEvidenceRegressionTests(unittest.TestCase):
         self.assertFalse(result["agent_result"]["investigation"]["query_expansion_attempted"])
         self.assert_visible_citations_and_budgets(result, AgentPolicy())
 
-    def test_read_revision_accounts_for_all_sent_ids_and_refreshes_prompt_budget(self):
+    def test_read_followup_accounts_for_sent_ids_budget_and_decisive_source(self):
         text = deep_source()
         self.write(TARGET, text)
         self.build()
@@ -408,16 +408,23 @@ class RetrievalEvidenceRegressionTests(unittest.TestCase):
             "relative_path": TARGET, "start_line": lines.index(INPUT) + 1,
             "end_line": lines.index(FORMULA) + 2}]})
         trace = self.assert_visible_citations_and_budgets(result, policy)
-        self.assertEqual(len(self.requests), 3)
-        self.assertEqual(trace["rounds"][-1]["stage"], "revise")
+        self.assertGreaterEqual(len(self.requests), 2, "The requested read must reach a later model request")
         sent_ids = {page["evidence_id"] for request in self.requests for page in source_pages(request["payload"])}
         self.assertEqual(result["agent_result"]["metrics"]["sent_any_round_ids"], len(sent_ids))
         self.assertEqual(set(trace["final"]["sent_any_round_ids"]), sent_ids)
-        revision = self.requests[-1]["payload"]
-        self.assertEqual(revision["investigation_budget"]["remaining_model_requests"], 3)
-        self.assertEqual(revision["investigation_budget"]["searches_per_turn"], 0)
-        self.assertEqual(revision["investigation_budget"]["reads_per_turn"], 0)
-        self.assert_all_literals(revision)
+        for used, request in enumerate(self.requests):
+            budget = request["payload"]["investigation_budget"]
+            self.assertEqual(budget["remaining_model_requests"], policy.remaining_model_requests(used))
+            self.assertLessEqual(budget["reads_per_turn"], policy.max_reads_per_turn)
+            self.assertLessEqual(budget["searches_per_turn"], policy.max_searches_per_turn)
+        followup = self.requests[-1]["payload"]
+        self.assert_all_literals(followup)
+        final = result["agent_result"]
+        for literal in (FORMULA, CONDITION, INPUT):
+            self.assertIn(literal, final["answer"])
+            self.assertTrue(any(literal in page["source_text"] and any(
+                citation["evidence_id"] == page["evidence_id"] for citation in final["narrative"]["citations"])
+                for page in source_pages(followup)), "Each decisive statement must retain an actual cited source")
 
     def test_duplicate_evidence_ids_merge_roles_without_changing_physical_provenance(self):
         text = FORMULA

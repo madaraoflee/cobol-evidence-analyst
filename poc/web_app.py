@@ -1020,6 +1020,7 @@ class WorkbenchState:
                         raise RequestError("INVALID_RETRY", "重试只能使用原来的问题。", 409)
                     options["question"] = target["question"]
                     options["retry_assistant_id"] = target["assistant_message_id"]
+                    options["start_new_investigation"] = True
                     options["conversation_history"] = self.conversation_store.model_history(
                         conversation["id"], before_position=target["position"],
                         max_characters=options["agent_policy"].max_history_characters)

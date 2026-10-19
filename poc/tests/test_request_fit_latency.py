@@ -121,6 +121,49 @@ class RequestFitLatencyTests(unittest.TestCase):
         self.assertEqual(working_set["transmission_status"], "partial")
         self.assertTrue(any(item["item_id"] == "ev:formula" and item["role"] == "source" for item in trims))
 
+    def test_byte_fitting_does_not_separate_distant_guard_and_call(self):
+        guard = self.page("ev:guard", "caller.cbl", "IF READY-FLAG = 1\n"
+            + "*> neutral source padding " * 2000, priority=True)
+        guard.update(start_line=3, end_line=303)
+        call = self.page("ev:call", "caller.cbl", 'CALL "WORKER"')
+        call.update(start_line=304, end_line=304, semantic_roles=["callsite"])
+        independent = self.page("ev:independent", "root.cbl", "MOVE ZERO TO TOTAL-AMOUNT.")
+        payload = self.payload([guard, call, independent])
+        payload["source_context"][0]["working_set"] = {"status": "partial",
+            "root_paths": ["root.cbl"], "source_manifest": []}
+        payload["evidence_groups"] = [{"group_id": "invocation",
+            "core_evidence_ids": ["ev:guard", "ev:call"],
+            "required_evidence_ids": ["ev:guard", "ev:call"], "open_frontier": []}]
+        actual, trims = self.fit(payload, lambda pages: self.investigation(
+            {page["evidence_id"] for page in pages} >= {"ev:guard", "ev:call"},
+            ["ev:guard", "ev:call"], kind="conditions"))
+        self.assertEqual(actual["source_context"][0]["pages"], [independent])
+        self.assertFalse(actual["question_investigation"]["can_answer"])
+        self.assertTrue(any(item["item_id"] == "ev:call"
+                            and item["reason"] == "core_group_request_bytes" for item in trims))
+
+    def test_narrowing_a_core_span_does_not_hide_its_omitted_guard(self):
+        whole = self.page("ev:whole", "caller.cbl", "IF READY-FLAG = 1\n"
+            + "*> neutral source padding " * 2000 + '\nCALL "WORKER"\nEND-IF.')
+        payload = self.payload([whole])
+        payload["source_context"][0]["working_set"] = {"status": "partial", "source_manifest": []}
+        whole["selection_reasons"] = ["complete_working_set"]
+        payload["evidence_groups"] = [{"group_id": "invocation",
+            "core_evidence_ids": ["ev:whole"], "required_evidence_ids": ["ev:whole"], "open_frontier": []}]
+
+        def narrow(current, **kwargs):
+            group = current["evidence_groups"][0]
+            group["core_evidence_ids"] = ["ev:guard", "ev:call"]
+            group["required_evidence_ids"] = ["ev:guard", "ev:call"]
+            return [self.page("ev:call", "caller.cbl", 'CALL "WORKER"')]
+
+        actual, trims = self.fit(payload, lambda pages: self.investigation(
+            any(page["evidence_id"] == "ev:whole" for page in pages), ["ev:whole"], kind="conditions"),
+            source_fallback_builder=narrow)
+        self.assertEqual(actual["source_context"][0]["pages"], [])
+        self.assertFalse(actual["question_investigation"]["can_answer"])
+        self.assertTrue(any(item["reason"] == "core_group_request_bytes" for item in trims))
+
     def test_removed_framework_fact_rechecks_its_dependency_support(self):
         page = self.page("ev:call", "rule.cbl", "CALL 'RECORD-SERVICE' USING INPUT-AMOUNT.")
         payload = self.payload([page])

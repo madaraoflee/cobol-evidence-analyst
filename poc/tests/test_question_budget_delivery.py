@@ -1,4 +1,4 @@
-"""Completion targets must preserve answer delivery and explicit cancellation."""
+"""Question deadlines bound work and retain consumed time across recovery."""
 
 from pathlib import Path
 import sys
@@ -17,16 +17,16 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
     def budget(self, seconds=120, **options):
         return QuestionBudget(seconds, clock=lambda: self.now, **options)
 
-    def test_adaptive_default_never_forces_synthesis_due_to_elapsed_time(self):
+    def test_standard_default_reserves_time_and_enforces_hard_deadline(self):
         policy = AgentPolicy()
         budget = self.budget(policy.max_question_seconds, hard_seconds=policy.hard_question_seconds)
-        budget.observe_request(90)
-        self.now += 36000
+        self.now += 135
+        self.assertTrue(budget.should_answer(300))
         budget.check()
-        self.assertIsNone(budget.remaining())
-        self.assertFalse(budget.target_reached())
-        self.assertFalse(budget.should_answer(300))
-        self.assertEqual(budget.request_timeout(7), 7)
+        self.now += 45
+        with self.assertRaises(QuestionDeadlineExceeded):
+            budget.check()
+        self.assertTrue(budget.target_reached())
 
     def test_explicit_hard_limit_works_without_completion_target(self):
         budget = self.budget(None, hard_seconds=90)
@@ -76,7 +76,7 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
     def test_first_discovery_is_allowed_before_target(self):
         budget = self.budget()
         self.assertFalse(budget.should_answer(300))
-        self.now += 119
+        self.now += 74
         self.assertFalse(budget.should_answer(300))
         self.now += 1
         self.assertTrue(budget.should_answer(300))
@@ -135,11 +135,11 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
                 check()
             self.assertIs(caught.exception, cancelled)
 
-    def test_legacy_policy_has_no_implicit_hard_limit(self):
+    def test_legacy_policy_preserves_stricter_time_limit(self):
         policy = resolve_agent_policy({"max_question_seconds": 7})
         self.assertEqual(policy.max_question_seconds, 7)
-        self.assertIsNone(policy.hard_question_seconds)
-        self.assertIsNone(policy.to_dict()["hard_question_seconds"])
+        self.assertEqual(policy.hard_question_seconds, 7)
+        self.assertEqual(policy.to_dict()["hard_question_seconds"], 7)
 
     def test_explicit_hard_policy_round_trips_independently_of_target(self):
         policy = AgentPolicy(max_question_seconds=120, hard_question_seconds=7)
@@ -149,6 +149,56 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
         for value in (0, -1, 1801, True, 1.5, "120"):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 AgentPolicy(hard_question_seconds=value)
+
+    def test_restart_retains_elapsed_time_including_disconnection(self):
+        wall = [1000.0]
+        budget = self.budget(180, hard_seconds=180, wall_clock=lambda: wall[0])
+        self.now += 60
+        wall[0] += 60
+        budget.observe_request(55)
+        checkpoint = budget.checkpoint()
+        self.now = 5.0  # A restarted process has a different monotonic origin.
+        wall[0] += 30
+        restored = self.budget(180, hard_seconds=180, wall_clock=lambda: wall[0])
+        restored.restore(checkpoint)
+        self.assertEqual(restored.elapsed(), 90)
+        self.assertEqual(restored.hard_remaining(), 90)
+        self.assertEqual(restored.request_durations, [55])
+        self.now += 90
+        wall[0] += 90
+        with self.assertRaises(QuestionDeadlineExceeded):
+            restored.check()
+
+    def test_repeated_restore_and_clock_rollback_cannot_extend_deadline(self):
+        wall = [1000.0]
+        budget = self.budget(180, hard_seconds=180, wall_clock=lambda: wall[0])
+        self.now += 100
+        wall[0] += 100
+        checkpoint = budget.checkpoint()
+        wall[0] -= 50
+        restored = self.budget(180, hard_seconds=180, wall_clock=lambda: wall[0])
+        restored.restore(checkpoint)
+        self.assertEqual(restored.hard_remaining(), 80)
+        self.now += 20
+        restored.restore(checkpoint)
+        self.assertEqual(restored.hard_remaining(), 60)
+
+    def test_restore_preserves_stricter_old_and_current_limits(self):
+        old = self.budget(30, hard_seconds=30)
+        self.now += 20
+        checkpoint = old.checkpoint()
+        restored = self.budget(180, hard_seconds=180)
+        restored.restore(checkpoint)
+        self.assertLessEqual(restored.hard_remaining(), 10)
+        strict = self.budget(5, hard_seconds=5)
+        strict.restore(checkpoint)
+        self.assertEqual(strict.hard_remaining(), 0)
+
+    def test_legacy_journal_uses_creation_time_fallback(self):
+        budget = self.budget(180, hard_seconds=180)
+        budget.restore(None, fallback_elapsed=181)
+        with self.assertRaises(QuestionDeadlineExceeded):
+            budget.check()
 
 
 if __name__ == "__main__":

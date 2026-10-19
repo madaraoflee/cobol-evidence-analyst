@@ -4,12 +4,9 @@ Ordinary excerpts and a uniquely resolved whole root have separate allowances.
 Changing these values is a deployment choice, never an automatic response to a
 difficult question.
 
-Investigations finish according to evidence and answer quality by default.
-``max_model_requests`` and ``max_question_seconds`` remain optional deployment
-limits for compatibility. The latter is a completion target: after it, prefer
-answering over optional investigation without cancelling a provider response.
-``hard_question_seconds`` is a separate optional runtime limit. Transport
-timeouts remain independent of all three.
+Investigation mode and source memory are independent of resource limits.
+Legacy null budgets migrate to finite defaults; stricter deployment limits
+remain stricter. Transport timeouts do not extend the question deadline.
 """
 
 from collections.abc import Mapping
@@ -18,8 +15,8 @@ from dataclasses import asdict, dataclass, fields
 
 @dataclass(frozen=True)
 class AgentPolicy:
-    max_model_requests: int | None = None
-    max_question_seconds: int | None = None
+    max_model_requests: int | None = 6
+    max_question_seconds: int | None = 180
     max_source_characters: int = 36000
     max_complete_source_characters: int = 128000
     max_history_characters: int = 18000
@@ -41,15 +38,22 @@ class AgentPolicy:
     max_evidence_groups: int = 12
     max_initial_context_seconds: int = 3
     max_local_analysis_seconds: int = 15
-    max_answer_revisions: int = 1
+    # Keep the legacy 0/1 field separate from the new counted allowance.
+    max_answer_revisions: int | None = None
     semantic_cache_bytes: int = 536870912
-    hard_question_seconds: int | None = None
+    hard_question_seconds: int | None = 180
+    investigation_mode: str = "adaptive"
+    source_memory_enabled: bool = True
+    max_investigation_rounds: int = 5
+    max_no_evidence_revisions: int = 2
+    finalization_reserve_seconds: int = 45
 
     def __post_init__(self):
         optional_limits = {
             "max_model_requests": (1, 32),
             "max_question_seconds": (1, 1800),
             "hard_question_seconds": (1, 1800),
+            "max_answer_revisions": (0, 1),
         }
         for name, (minimum, maximum) in optional_limits.items():
             value = getattr(self, name)
@@ -79,21 +83,38 @@ class AgentPolicy:
             "max_evidence_groups": (0, 64),
             "max_initial_context_seconds": (1, 120),
             "max_local_analysis_seconds": (1, 300),
-            "max_answer_revisions": (0, 1),
+            "max_investigation_rounds": (0, 5),
+            "max_no_evidence_revisions": (0, 2),
+            "finalization_reserve_seconds": (0, 180),
             "semantic_cache_bytes": (1048576, 4294967296),
         }
         for name, (minimum, maximum) in limits.items():
             value = getattr(self, name)
             if type(value) is not int or not minimum <= value <= maximum:
                 raise ValueError(f"Agent policy {name} must be an integer from {minimum} to {maximum}.")
+        if self.investigation_mode not in {"adaptive", "single_pass"}:
+            raise ValueError("Agent policy investigation_mode must be adaptive or single_pass.")
+        if type(self.source_memory_enabled) is not bool:
+            raise ValueError("Agent policy source_memory_enabled must be a boolean.")
+        # Null values came from the old unlimited profile. Never let them
+        # disable the bounded interactive contract, or widen a finite target.
+        object.__setattr__(self, "max_model_requests", self.max_model_requests or 6)
+        target = self.max_question_seconds or 180
+        hard = min(self.hard_question_seconds or 180, target, 300)
+        object.__setattr__(self, "max_question_seconds", min(target, hard))
+        object.__setattr__(self, "hard_question_seconds", hard)
+
+    @property
+    def answer_revision_limit(self):
+        if self.max_answer_revisions is None:
+            return self.max_no_evidence_revisions
+        return min(self.max_answer_revisions, self.max_no_evidence_revisions)
 
     def to_dict(self):
         return asdict(self)
 
     def remaining_model_requests(self, used):
-        """Return an explicit remaining allowance, or None for adaptive runs."""
-        if self.max_model_requests is None:
-            return None
+        """Count every provider attempt against the same question allowance."""
         return max(0, self.max_model_requests - used)
 
     def can_request(self, used):

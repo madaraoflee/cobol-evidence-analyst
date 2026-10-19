@@ -101,6 +101,60 @@ class EvidenceAnswerTests(unittest.TestCase):
         result = self.build("VALUE-WORKER 有什么操作？", [source])
         self.assertIn("OUT-AMOUNT = 8", result["answer"])
 
+    def test_exact_root_filename_retains_only_its_captured_direct_statements(self):
+        for path in ("root.cbl", "jobs/root.cbl"):
+            with self.subTest(path=path):
+                source = page("IDENTIFICATION DIVISION.\nPROGRAM-ID. VALUE-WORKER.\n"
+                              "PROCEDURE DIVISION.\nMAIN.\nMOVE 8 TO OUT-AMOUNT.\nGOBACK.", path=path)
+                unrelated = page("MOVE 99 TO OTHER-AMOUNT.", identifier="ev_other", path="other.cbl")
+                plan = {"analysis_plan": {"paths": [path], "entities": []},
+                        "source_scope": {"ranges": []}, "state": "located"}
+                result = self.build("Explain " + path + ".", [unrelated, source], plan)
+                self.assertIn("OUT-AMOUNT = 8", result["answer"])
+                self.assertNotIn("OTHER-AMOUNT", result["answer"])
+                self.assertEqual(result["source_ids"], ["ev_local"])
+                self.assertEqual(result["source_versions"][0]["source_sha256"], source["source_sha256"])
+                self.assertEqual(result["status"], "PARTIAL")
+                self.assertFalse(result["claims_semantically_verified"])
+                self.assertNotIn("未供证的后续覆盖", result["answer"])
+                self.assertIn("这些语句本身不能证明实际执行路径", self.build(
+                    path + " 有什么操作？", [source], plan)["answer"])
+
+    def test_root_file_fallback_requires_exact_path_token(self):
+        source = page("MOVE 8 TO OUT-AMOUNT.", path="root.cbl")
+        plan = {"analysis_plan": {"paths": ["root.cbl"], "entities": []}}
+        for question in ("解释 myroot.cbl", "解释 root.cbl.backup", "解释 root.cblx",
+                         "解释 root.cbl/child", "解释 jobs/root.cbl", "解释 root"):
+            with self.subTest(question=question):
+                self.assertIsNone(self.build(question, [source], plan))
+        nested = {"analysis_plan": {"paths": ["jobs/root.cbl"], "entities": []}}
+        self.assertIsNone(self.build("解释 root.cbl", [{**source, "relative_path": "jobs/root.cbl"}], nested))
+
+    def test_ambiguous_multiple_or_conflicting_root_versions_do_not_broaden(self):
+        source = page("MOVE 8 TO OUT-AMOUNT.", path="root.cbl")
+        for plan in ({"analysis_plan": {"paths": ["root.cbl", "other.cbl"]}},
+                     {"analysis_plan": {"paths": ["root.cbl"]}, "state": "unresolved"},
+                     {"analysis_plan": {"paths": ["root.cbl"]}, "source_identity": {"status": "ambiguous"}},
+                     {"analysis_plan": {"paths": ["root.cbl"], "unresolved": ["source_scope_not_resolved"]}}):
+            with self.subTest(plan=plan):
+                self.assertIsNone(self.build("解释 root.cbl", [source], plan))
+        older = page("MOVE 2 TO OUT-AMOUNT.", identifier="ev_old", path="root.cbl")
+        self.assertIsNone(self.build("解释 root.cbl", [source, older],
+                                    {"analysis_plan": {"paths": ["root.cbl"]}}))
+
+    def test_file_mention_does_not_widen_narrower_paragraph_or_field_scope(self):
+        source = page("MOVE 8 TO OUT-AMOUNT.\nMOVE 9 TO OTHER-AMOUNT.", path="root.cbl")
+        paragraph = {"analysis_plan": {"paths": ["root.cbl"], "entities": []},
+                     "source_scope": {"ranges": [{"relative_path": "root.cbl",
+                         "start_line": 2, "end_line": 2, "exclusive": True}]}}
+        result = self.build("解释 root.cbl 这个段落", [source], paragraph)
+        self.assertIn("OTHER-AMOUNT = 9", result["answer"])
+        self.assertNotIn("OUT-AMOUNT", result["answer"])
+        entity = {"analysis_plan": {"paths": ["root.cbl"], "entities": ["OUT-AMOUNT"]}}
+        result = self.build("解释 root.cbl 的这个字段", [source], entity)
+        self.assertIn("OUT-AMOUNT = 8", result["answer"])
+        self.assertNotIn("OTHER-AMOUNT", result["answer"])
+
     def test_real_call_preserves_guard_without_inventing_scheduler(self):
         source = page('PROCEDURE DIVISION.\nMAIN.\nIF RUN-FLAG = 1\nCALL "BATCH-WORKER" USING INPUT-REC\nEND-IF.\nGOBACK.')
         result = self.build("BATCH-WORKER 怎样触发？", [source])

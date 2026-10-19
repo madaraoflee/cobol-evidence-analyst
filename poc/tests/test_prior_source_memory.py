@@ -241,6 +241,43 @@ class PriorSourceMemoryTests(unittest.TestCase):
             self.assertFalse(tracker.observe(self.memory.effective_pages(self.inherited_payload()), [], {}))
         self.assertEqual(tracker.stop_reason, "no_evidence_progress")
 
+    def test_false_interpretation_can_be_retracted_without_losing_original_source(self):
+        wrong = self.note(text="RESULT-AMOUNT 等于 INPUT-AMOUNT 乘以 9。")
+        self.assertEqual(self.accept(wrong), 1)
+        original = self.inherited_payload()
+        candidate = original["prior_source_memory"]["blocks"][0]
+        self.assertEqual(candidate["content_kind"], "model_candidate")
+        self.assertEqual(original["prior_source_memory"]["confirmed_facts"], [])
+        self.assertEqual(candidate["verification"], "unverified")
+        revoked = self.memory.revoke_candidates(evidence_ids=[self.page["evidence_id"]],
+                                               reason="formula_contradicted_by_source")
+        self.assertEqual(revoked, [candidate["memory_id"]])
+        current = self.inherited_payload()
+        self.assertNotIn("乘以 9", json.dumps(current, ensure_ascii=False))
+        self.assertEqual(self.memory.visible_ids(original), {self.page["evidence_id"]})
+        self.assertEqual(self.memory.visible_ids(current), {self.page["evidence_id"]})
+        self.assertEqual(self.memory.reread_pages(), [self.page])
+        self.assertEqual(self.accept(wrong, round_record=self.round_record([self.page], 2)), 0)
+        self.assertEqual(self.memory.prompt()["blocks"][0]["content_kind"], "source_reference")
+
+        restored = self.new_memory()
+        restored.restore(self.memory.checkpoint(), [self.record])
+        self.assertEqual(restored.prompt(), self.memory.prompt())
+        self.assertEqual(restored.reread_pages(), [self.page])
+        restored.mark_reread([self.page["evidence_id"]])
+        self.assertEqual(restored.reread_pages(), [])
+        self.assertEqual(restored.effective_pages(current, verify_archive=True), [self.page])
+
+    def test_retraction_does_not_remove_unrelated_candidate(self):
+        other = self.make_page(relative_path="other.cbl")
+        self.assertEqual(self.accept(), 1)
+        self.assertEqual(self.accept(self.note(other), payload={"source_context": [{"pages": [other]}]},
+                                    round_record=self.round_record([other], 2)), 1)
+        self.memory.revoke_candidates(evidence_ids=[self.page["evidence_id"]])
+        candidates = [block for block in self.memory.prompt()["blocks"] if block["kind"] == "finding"]
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]["evidence_ids"], [other["evidence_id"]])
+
     def test_findings_protocol_never_becomes_a_business_answer(self):
         for value in ({"findings": [self.note()]}, {"findings": "malformed"},
                       {"read": [], "findings": [self.note()]},

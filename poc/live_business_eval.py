@@ -433,14 +433,18 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
             raise ValueError("EVALUATION_CASE_NOT_FOUND")
     if mode not in {"automatic", "reviewed-context", "paired-synthesis"}:
         raise ValueError("EVALUATION_MODE_INVALID")
+    evaluation_default_policy = policy is None
     policy = resolve_agent_policy(policy) if policy is not None else load_agent_policy()
-    # Batch acceptance needs a finite, reviewable spend estimate. Its bounded
-    # defaults are independent of the interactive workbench's adaptive policy.
-    evaluation_defaults_applied = policy.max_model_requests is None
-    if evaluation_defaults_applied:
-        policy = replace(policy, max_model_requests=5,
-                         max_question_seconds=120 if policy.max_question_seconds is None
-                         else policy.max_question_seconds)
+    # Keep the existing batch allowance when interactive defaults change.
+    # Explicit supplied policies remain exact; a stricter local deployment
+    # allowance is never widened by the evaluation profile.
+    evaluation_defaults_applied = False
+    if evaluation_default_policy:
+        bounded = replace(policy, max_model_requests=min(5, policy.max_model_requests),
+                          max_question_seconds=min(120, policy.max_question_seconds),
+                          hard_question_seconds=min(120, policy.hard_question_seconds))
+        evaluation_defaults_applied = bounded != policy
+        policy = bounded
     config = config or model_config(profile, timeout_seconds=timeout_seconds,
                                     max_output_tokens=max_output_tokens)
     turns = sum(len(_turns(item)) for item in items)
@@ -719,7 +723,8 @@ def main(argv: list[str] | None = None) -> int:
             report = evaluate(args.source, args.evaluation_dir, args.cases,
                           allow_network=args.allow_network, source_format=args.source_format,
                           encoding=args.encoding, framework=args.framework, plan=args.plan,
-                          policy=load_agent_policy(args.agent_settings), case_id=args.case_id,
+                          policy=load_agent_policy(args.agent_settings) if args.agent_settings else None,
+                          case_id=args.case_id,
                           mode=args.mode, profile=args.profile,
                           timeout_seconds=args.timeout_seconds,
                           max_output_tokens=args.max_output_tokens,

@@ -1,0 +1,45 @@
+{
+  "schema": "bounded-quality-verification/v1",
+  "date": "2026-10-19",
+  "baseline_commit": "7b0f6252600fccebb834bccf229b8e565c3bf3fc",
+  "tests": {
+    "python": {
+      "command": "PUBLIC_BUSINESS_SOURCE_ROOT=/private/tmp/business-public-corpus python3 -m unittest discover -s poc/tests -p 'test_*.py'",
+      "passed": 3179,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 166.536,
+      "log_sha256": "6150a5682a9f2f55c251cc5bce00573b2bf711f4478f574bde116d3e7788b209"
+    },
+    "browser": {
+      "command": "node --test poc/tests/*.test.cjs",
+      "passed": 188,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 4.965764667,
+      "log_sha256": "5a8a1e21fe4d3aa8937c3f262c4f3bc613eb2233a24ac7c6cae62df94e85efbd"
+    }
+  },
+  "production_python_manifest_sha256": "b9f436215b2517fe09920485c3c3063f6894622970e3986df20fb02767269fbc",
+  "comparison": {
+    "path": "2026-10-19-bounded-answer-comparison.json",
+    "runs": 12,
+    "code_manifest_matches_tested_sources": true,
+    "same_neutral_source_hash": true,
+    "sha256": "d8736098ae4004e89a82ff885a75245e058744b32ac618db9b1c0ede262609a4"
+  },
+  "retrieval_diagnostics": {
+    "path": "2026-10-19-retrieval-quality.json",
+    "model_calls": 0,
+    "independent_human_gold_review": false,
+    "real_model_tokens_verified": false
+  },
+  "release": {
+    "runnable_app_built": false,
+    "installer_built": false,
+    "release_published": false,
+    "workflow_dispatch_triggered": false,
+    "real_model_quality_measured": false,
+    "real_model_latency_measured": false
+  }
+}

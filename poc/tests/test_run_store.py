@@ -171,7 +171,10 @@ class RunStoreTests(unittest.TestCase):
             run_business_chat(question, self.database, self.source, self.config, transport=transport)
         with mock.patch("business_chat.PIPELINE_VERSION", "different-pipeline"):
             result = run_business_chat(question, self.database, self.source, self.config, transport=transport)
+            explicit = run_business_chat(question, self.database, self.source, self.config,
+                transport=transport, start_new_investigation=True)
         self.assertEqual(result["reason_code"], "RESUME_PIPELINE_VERSION_CHANGED")
+        self.assertEqual(explicit["reason_code"], "RESUME_PIPELINE_VERSION_CHANGED")
         self.assertEqual(len(calls), 1)
 
     def test_unchanged_source_hash_with_changed_compilation_context_cannot_resume(self):
@@ -196,6 +199,9 @@ class RunStoreTests(unittest.TestCase):
         result = run_business_chat(question, self.database, self.source, self.config, transport=transport,
                                    resume_run_id=prior["run_id"])
         self.assertEqual(result["reason_code"], "RESUME_COMPILATION_CONTEXT_CHANGED")
+        explicit = run_business_chat(question, self.database, self.source, self.config, transport=transport,
+            resume_run_id=prior["run_id"], start_new_investigation=True)
+        self.assertEqual(explicit["reason_code"], "RESUME_COMPILATION_CONTEXT_CHANGED")
         self.assertEqual(len(calls), 1)
         retained = journal.load(prior["run_id"])
         self.assertEqual(retained["checkpoint"], original_checkpoint)

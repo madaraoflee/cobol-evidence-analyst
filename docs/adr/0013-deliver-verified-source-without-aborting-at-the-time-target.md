@@ -1,8 +1,10 @@
 ---
-status: accepted
+status: partially superseded by ADR-0015
 ---
 
 # 交付目标调度调查，不中断正在返回的首答
+
+2026-10-19 更新：本文的默认无整题硬期限决策由 [ADR-0015](0015-bounded-investigation-independent-of-memory.md) 取代。交付已有可信证据、请求日志和不重复发送未知请求的约束继续保留；不再允许流式活动或恢复调查延长整题期限。
 
 当前默认工作台把 `max_question_seconds` 同时作为调查调度目标、请求超时上限和取消回调。整题达到目标时，正在进行的 HTTP 请求也被关闭；尚无正文时，只显示 `QUESTION_TIME_BUDGET_EXHAUSTED`，尽管原版本源码已经读取。这是交付缺陷，不能通过缩短截止时间或放宽答案正确性解决。
 

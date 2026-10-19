@@ -94,9 +94,9 @@ class InvestigationState:
 def page_priority(page):
     roles = set(page.get("semantic_roles", ()))
     reasons = set(page.get("selection_reasons", ()))
-    if roles & {"anchor", "result", "condition", "input", "parameter"}:
+    if roles & {"anchor", "result", "condition", "input", "parameter", "callsite"}:
         return 0
-    if roles & {"callsite", "return_processing", "declaration"}:
+    if roles & {"return_processing", "declaration"}:
         return 1
     if reasons & {"agent_requested_read", "business_rule", "conversation_context"}:
         return 1
@@ -229,7 +229,7 @@ class EvidenceContext:
                        preserve_complete_ids=()):
         """Keep recent anchors and their core evidence together within whole-page budgets."""
         self.selection_trim_events, self.selection_frontier = [], []
-        core_roles = {"anchor", "result", "condition", "input", "parameter"}
+        core_roles = {"anchor", "result", "condition", "input", "parameter", "callsite"}
         core_by_group = {}
         for page in self.pages.values():
             if set(page.get("semantic_roles", ())) & core_roles:

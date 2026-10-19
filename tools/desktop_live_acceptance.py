@@ -35,12 +35,13 @@ from model_profiles import WORKBENCH_TIMEOUT_SECONDS
 
 
 def execution_wait_policy(policy):
-    """Keep measured delivery goals separate from the harness safety watchdog.
+    """Leave cleanup time after the application's shared hard deadline.
 
     The frozen desktop uses model_config('workbench'), whose timeout is a
     shared constant, not a dotenv setting. Reserve every allowed exchange plus
     optional local analysis, two minutes for source/context preparation and
-    45 seconds for verification/checkpointing. This is a conservative watchdog,
+    45 seconds for collecting results/checkpoints. The application deadline
+    still limits investigation and model waits. This is a conservative watchdog,
     not an assertion that all local operations have a mathematical time bound.
     """
     transport = float(WORKBENCH_TIMEOUT_SECONDS)
@@ -55,6 +56,7 @@ def execution_wait_policy(policy):
         "local_processing_reserve_seconds": local_reserve,
         "verification_cleanup_reserve_seconds": cleanup,
         "hard_question_seconds": policy.hard_question_seconds,
+        "application_hard_deadline_expected": True,
         "watchdog_seconds": wait,
         "performance_target_seconds": policy.max_question_seconds,
         "performance_target_interrupts_answer": False}

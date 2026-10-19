@@ -1,0 +1,86 @@
+{
+  "schema": "retrieval-quality-fixtures/v1",
+  "review": {
+    "kind": "authored_synthetic_source_labels",
+    "basis": "Literal condition, assignment and overwrite statements in original neutral source.",
+    "independent_human_review": false,
+    "split": "development_regression",
+    "production_generalization_claimed": false
+  },
+  "cases": [
+    {
+      "id": "first-hit-does-not-cover-condition",
+      "question": "Under which condition is OUT-VALUE doubled?",
+      "sources": {"main.cbl": {"lines": [
+        "       IF ACTIVE-FLAG = 'Y'",
+        "           COMPUTE OUT-VALUE = IN-VALUE * 2",
+        "       END-IF.",
+        "       DISPLAY 'COMPLETED'."
+      ]}},
+      "evidence": [
+        {"id": "condition", "relative_path": "main.cbl", "start_line": 1, "end_line": 1},
+        {"id": "formula", "relative_path": "main.cbl", "start_line": 2, "end_line": 2},
+        {"id": "unlabeled-display", "relative_path": "main.cbl", "start_line": 4, "end_line": 4}
+      ],
+      "labels": [
+        {"id": "condition", "evidence_id": "condition", "relevance": 3},
+        {"id": "formula", "evidence_id": "formula", "relevance": 3}
+      ],
+      "required_items": [{"id": "conditional-result", "critical": true,
+                          "sufficient_sets": [["condition", "formula"]]}],
+      "candidate_ids": ["formula"]
+    },
+    {
+      "id": "recall-complete-but-wire-loses-condition",
+      "question": "Explain the condition and formula for OUT-VALUE.",
+      "sources": {
+        "main.cbl": {"lines": [
+          "       IF ACTIVE-FLAG = 'Y'",
+          "           COMPUTE OUT-VALUE = IN-VALUE * 2",
+          "       END-IF."
+        ]},
+        "background.cbl": {"lines": [
+          "       MOVE ZERO TO UNUSED-VALUE.                                                  "
+        ], "repeat": 350}
+      },
+      "evidence": [
+        {"id": "condition", "relative_path": "main.cbl", "start_line": 1, "end_line": 1},
+        {"id": "formula", "relative_path": "main.cbl", "start_line": 2, "end_line": 2},
+        {"id": "background", "relative_path": "background.cbl", "start_line": 1, "end_line": 350,
+         "semantic_roles": ["anchor"]}
+      ],
+      "labels": [
+        {"id": "condition", "evidence_id": "condition", "relevance": 3},
+        {"id": "formula", "evidence_id": "formula", "relevance": 3},
+        {"id": "background", "evidence_id": "background", "relevance": 0}
+      ],
+      "required_items": [{"id": "conditional-result", "critical": true,
+                          "sufficient_sets": [["condition", "formula"]]}],
+      "candidate_ids": ["formula", "condition", "background"],
+      "max_request_bytes": 32768
+    },
+    {
+      "id": "unjudged-result-needs-labeling",
+      "question": "When is OUT-VALUE overwritten?",
+      "sources": {"main.cbl": {"lines": [
+        "       COMPUTE OUT-VALUE = IN-VALUE * 2.",
+        "       IF RESET-FLAG = 'Y'",
+        "           MOVE ZERO TO OUT-VALUE",
+        "       END-IF.",
+        "       DISPLAY 'COMPLETED'."
+      ]}},
+      "evidence": [
+        {"id": "condition", "relative_path": "main.cbl", "start_line": 2, "end_line": 2},
+        {"id": "overwrite", "relative_path": "main.cbl", "start_line": 3, "end_line": 3},
+        {"id": "unjudged", "relative_path": "main.cbl", "start_line": 5, "end_line": 5}
+      ],
+      "labels": [
+        {"id": "condition", "evidence_id": "condition", "relevance": 3},
+        {"id": "overwrite", "evidence_id": "overwrite", "relevance": 3}
+      ],
+      "required_items": [{"id": "overwrite-rule", "critical": true,
+                          "sufficient_sets": [["condition", "overwrite"]]}],
+      "candidate_ids": ["unjudged", "condition", "overwrite"]
+    }
+  ]
+}

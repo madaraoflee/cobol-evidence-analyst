@@ -62,7 +62,7 @@ Windows 浏览器模式没有上述桌面菜单，会保留一个控制对话框
 
 从源码版迁移时，应核对相同的模型、接口、输出上限、框架资料、源码版本与回答详细程度，再比较答案。如果原来在 `.poc-data/agent-settings.json` 调整过调查策略，应将该文件复制到桌面版数据目录的 `agent-settings.json`，或用 `AGENT_SETTINGS_PATH` 指定它；未设置时两种入口使用相同默认策略。框架资料需要在目标电脑可读，并重新设置当地路径。只填写模型密钥而遗漏私有资料，可能让框架相关回答缺少依据，这与编译本身是否改变问答逻辑是两件事。
 
-升级或复制策略文件会保留旧的有限值，例如 `max_model_requests: 5`、`max_question_seconds: 120`。采用按完成度推进的新默认时，须将实际使用的 `max_model_requests`、`max_question_seconds`、`hard_question_seconds` 改为 `null`，保留其他配置；仅替换应用不会取消已有预算。配置示例、草稿预览及超时边界见[多轮分析与配置迁移](./completion-driven-analysis.md)。
+升级或复制策略文件会保留旧的更严格值，例如 `max_model_requests: 5`、`max_question_seconds: 120`。当前源码默认采用 6 次请求、180 秒整题硬期限和 45 秒收尾预留；旧 `null` 预算会迁移到有限默认值，无需清空原有额度。有限预算仍保留跨轮源码记忆。配置示例、草稿预览及超时边界见[多轮分析与配置迁移](./completion-driven-analysis.md)。源码更新不等同桌面包更新；当前修复阶段不生成应用或安装包。
 
 当前构建没有 Windows 发布者证书签名，也没有完成 Apple Developer ID 签名与公证；macOS 的临时签名不等于可验证的发布者身份。企业设备策略仍可能限制运行 EXE，浏览器模式也不能绕过这种限制；遇到拦截应交由 IT 按公司流程批准。正式交付前应在目标电脑验证打开流程；后续有证书时再补正式签名与公证。
 

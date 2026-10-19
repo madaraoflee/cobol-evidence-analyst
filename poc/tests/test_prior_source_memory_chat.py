@@ -149,7 +149,7 @@ class PriorSourceMemoryEvictionChatTests(unittest.TestCase):
         self.assertEqual(self.fixture.requests[-1]["prior_source_memory"]["blocks"], [])
         self.assert_unremembered_source_rejected(result)
 
-    def test_explicit_finite_policy_keeps_current_request_citation_contract(self):
+    def test_explicit_finite_policy_keeps_adaptive_memory_and_requires_declared_evidence(self):
         def respond(payload, number):
             self.capture(payload)
             return self.fixture.read_helper(number) if number <= 2 else self.final_answer(payload)
@@ -157,8 +157,8 @@ class PriorSourceMemoryEvictionChatTests(unittest.TestCase):
         result = self.fixture.ask(respond, policy=AgentPolicy(max_model_requests=3,
             max_source_characters=2000, max_complete_source_characters=2000), request_guard=3)
         self.assert_eviction(last_round=3)
-        self.assertTrue(all("prior_source_memory" not in payload for payload in self.fixture.requests))
-        self.assertFalse(result["metrics"]["completion_driven"])
+        self.assertTrue(all("prior_source_memory" in payload for payload in self.fixture.requests))
+        self.assertTrue(result["metrics"]["completion_driven"])
         self.assert_unremembered_source_rejected(result)
 
 

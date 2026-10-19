@@ -1,11 +1,8 @@
-"""Separate answer scheduling from cancellation of an active investigation.
+"""Shared question deadline, answer reserve, and restart-safe elapsed time."""
 
-An optional completion target stops discovery in favour of an answer. It is
-not a deadline for a provider response already being generated. By default
-there is no question timer; evidence and answer quality determine completion.
-Only user cancellation or an explicit hard runtime limit interrupts active
-work; provider requests retain their separately configured transport timeout.
-"""
+from collections.abc import Mapping
+import math
+import time
 
 from company_api import APIClientError
 
@@ -16,20 +13,28 @@ class QuestionDeadlineExceeded(APIClientError):
 
 
 class QuestionBudget:
-    def __init__(self, seconds, *, clock, check_cancel=None, hard_seconds=None):
+    def __init__(self, seconds, *, clock, check_cancel=None, hard_seconds=None,
+                 finalization_reserve_seconds=45, wall_clock=time.time):
         self.limit = seconds
         self.hard_limit = hard_seconds
         self.clock = clock
         self.started = clock()
+        self.wall_clock = wall_clock
+        self.hard_deadline_epoch = (wall_clock() + hard_seconds
+                                    if hard_seconds is not None else None)
+        self.finalization_reserve_seconds = finalization_reserve_seconds
         self.cancel = check_cancel
         self.phase = "locating_sources"
         self.recovery = None
         self.request_durations = []
 
+    def elapsed(self):
+        return max(0.0, self.clock() - self.started)
+
     def remaining(self):
         if self.limit is None:
             return None
-        return max(0.0, self.limit - (self.clock() - self.started))
+        return max(0.0, self.limit - self.elapsed())
 
     def target_reached(self):
         remaining = self.remaining()
@@ -38,7 +43,10 @@ class QuestionBudget:
     def hard_remaining(self):
         if self.hard_limit is None:
             return None
-        return max(0.0, self.hard_limit - (self.clock() - self.started))
+        remaining = self.hard_limit - self.elapsed()
+        if self.hard_deadline_epoch is not None:
+            remaining = min(remaining, self.hard_deadline_epoch - self.wall_clock())
+        return max(0.0, remaining)
 
     def check_cancel(self):
         """Check only a user's cancellation, including during provider waits."""
@@ -46,7 +54,7 @@ class QuestionBudget:
             self.cancel()
 
     def check(self):
-        """Check cancellation and an explicitly configured hard runtime limit."""
+        """Check cancellation and the shared hard deadline, including SSE waits."""
         self.check_cancel()
         if self.hard_remaining() == 0:
             raise QuestionDeadlineExceeded()
@@ -70,10 +78,54 @@ class QuestionBudget:
         # request must answer with available evidence rather than plan more work.
         if remaining <= 0:
             return True
-        if not self.request_durations:
-            return False
-        reserve = min(60.0, max(min(30.0, float(configured)), max(self.request_durations)))
+        # Reserve synthesis time before the first response too. A provider's
+        # inactivity timeout is not a prediction of how long synthesis takes.
+        reserve = float(self.finalization_reserve_seconds)
+        if self.request_durations:
+            reserve = max(reserve, min(60.0, max(self.request_durations)))
         return remaining <= reserve
 
     def observe_request(self, seconds):
         self.request_durations.append(max(0.0, seconds))
+
+    def checkpoint(self):
+        """Persist wall time as well as elapsed time; reconnects earn no time."""
+        return {"schema": "question-budget/v1", "elapsed_seconds": self.elapsed(),
+                "saved_at_epoch_seconds": self.wall_clock(),
+                "hard_deadline_epoch_seconds": self.hard_deadline_epoch,
+                "limit_seconds": self.limit, "hard_limit_seconds": self.hard_limit,
+                "request_durations": list(self.request_durations)}
+
+    def restore(self, state, *, fallback_elapsed=0):
+        """Restore consumed time without widening this run's earlier deadline.
+
+        Older journals have no budget checkpoint. Their creation time gives a
+        conservative fallback elapsed duration, including time disconnected.
+        The existing request journal remains the authority for call counts.
+        """
+        def number(value):
+            return (float(value) if type(value) in (int, float)
+                    and math.isfinite(value) and value >= 0 else None)
+
+        state = state if isinstance(state, Mapping) else {}
+        elapsed = number(state.get("elapsed_seconds")) or 0.0
+        saved_at = number(state.get("saved_at_epoch_seconds"))
+        if saved_at is not None:
+            elapsed += max(0.0, self.wall_clock() - saved_at)
+        elapsed = max(elapsed, number(fallback_elapsed) or 0.0, self.elapsed())
+        self.started = self.clock() - elapsed
+        for attribute, key in (("limit", "limit_seconds"), ("hard_limit", "hard_limit_seconds")):
+            saved_limit = number(state.get(key))
+            current = getattr(self, attribute)
+            if saved_limit is not None:
+                setattr(self, attribute, saved_limit if current is None else min(current, saved_limit))
+        saved_deadline = number(state.get("hard_deadline_epoch_seconds"))
+        if self.hard_limit is not None:
+            deadline = self.wall_clock() + max(0.0, self.hard_limit - elapsed)
+            deadlines = [value for value in (deadline, saved_deadline, self.hard_deadline_epoch)
+                         if value is not None]
+            self.hard_deadline_epoch = min(deadlines)
+        durations = state.get("request_durations")
+        if isinstance(durations, list):
+            self.request_durations = [value for item in durations
+                                      if (value := number(item)) is not None][-32:]

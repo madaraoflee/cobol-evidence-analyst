@@ -72,10 +72,12 @@ class ChatContinuationJoinTests(unittest.TestCase):
         self.assertEqual(result["investigation_state"]["session_subject"]["root_paths"], ["decision.cbl"])
         self.assertEqual(self.requests[0]["session_subject"], self.requests[1]["session_subject"])
 
-    def test_second_length_keeps_partial_status_without_third_request(self):
+    def test_repeated_length_stops_on_duplicate_continuation_within_shared_budget(self):
         result = self.ask(second_finish="length")
         self.assertEqual(result["answer"], self.prefix + self.responses[1])
-        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(len(self.requests), 3)
+        self.assertEqual(result["metrics"]["model_requests"], 3)
+        self.assertEqual(result["answer"].count("其值是12"), 1)
         self.assertTrue(result["answer_truncated"])
         self.assertEqual(result["status"], "PARTIAL")
         self.assertEqual(result["stop_reason"], "MODEL_OUTPUT_TRUNCATED")

@@ -93,7 +93,7 @@ class QuestionInvestigationChatTests(unittest.TestCase):
         self.assertTrue(self.requests[1]["source_context"][0]["pages"])
         self.assertIn("question_investigation", self.requests[1])
         self.assert_input_partial(result)
-        self.assertIsNone(result["metrics"]["policy"]["max_model_requests"])
+        self.assertEqual(result["metrics"]["policy"]["max_model_requests"], 6)
 
     def test_malformed_action_is_reprompted_and_never_recorded_as_business_answer(self):
         self.calculation()

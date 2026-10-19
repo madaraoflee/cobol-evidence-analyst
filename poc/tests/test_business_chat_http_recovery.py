@@ -172,7 +172,7 @@ class BusinessChatHTTPRecoveryTests(unittest.TestCase):
                 self.assertEqual(len(self.trace["question_investigation_rounds"]), 2)
                 continuation = json.loads(json.loads(self.requests[1].body)["messages"][-1]["content"])
                 self.assertEqual(continuation["investigation_budget"]["remaining_model_requests"], 3)
-                expected_round = "round-1" if response == 503 else "round-2"
+                expected_round = "round-2" if response == self.answer else "round-1"
                 self.assertEqual(self.trace["final"]["final_answer_round_id"], expected_round)
         result = self.ask([truncated], limit=1)
         self.assert_request_accounting(1)

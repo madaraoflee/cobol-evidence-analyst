@@ -460,13 +460,32 @@ class LiveBusinessEvalTests(unittest.TestCase):
                     mock.patch("live_business_eval.OpenAICompatibleChatClient",
                                side_effect=AssertionError("network must stay disabled")):
                 report = evaluate(source, root / "evaluation", cases, config=config, plan=True)
-            self.assertIsNone(adaptive.max_model_requests)
-            self.assertIsNone(adaptive.max_question_seconds)
+            self.assertEqual(adaptive.max_model_requests, 6)
+            self.assertEqual(adaptive.max_question_seconds, 180)
             self.assertTrue(report["plan"]["bounded_evaluation_defaults_applied"])
             self.assertEqual(report["plan"]["max_model_requests"], 6)
             self.assertEqual(report["plan"]["policy"]["max_model_requests"], 5)
             self.assertEqual(report["plan"]["policy"]["max_question_seconds"], 120)
-            self.assertIsNone(report["plan"]["policy"]["hard_question_seconds"])
+            self.assertEqual(report["plan"]["policy"]["hard_question_seconds"], 120)
+
+    def test_batch_default_never_expands_stricter_deployment_allowance(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "source"
+            source.mkdir()
+            cases = root / "cases.json"
+            cases.write_text(json.dumps({"cases": [{"id": "one", "question": "Explain the flow"}]}))
+            config = CompanyAPIConfig("https://example.invalid/v1", "test-model", api_key="test-key")
+            strict = AgentPolicy(max_model_requests=2, max_question_seconds=30, hard_question_seconds=30)
+            with mock.patch("live_business_eval.load_agent_policy", return_value=strict):
+                report = evaluate(source, root / "evaluation", cases, config=config, plan=True)
+            self.assertEqual(report["plan"]["policy"], strict.to_dict())
+            self.assertFalse(report["plan"]["bounded_evaluation_defaults_applied"])
+            self.assertEqual(report["plan"]["max_model_requests"], 3)
+            explicit = AgentPolicy(max_model_requests=6, max_question_seconds=180)
+            report = evaluate(source, root / "evaluation", cases, config=config, plan=True, policy=explicit)
+            self.assertEqual(report["plan"]["policy"], explicit.to_dict())
+            self.assertFalse(report["plan"]["bounded_evaluation_defaults_applied"])
 
 
 if __name__ == "__main__":

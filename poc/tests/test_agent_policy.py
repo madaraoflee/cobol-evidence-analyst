@@ -12,11 +12,15 @@ from company_api import CompanyAPIConfig
 
 
 class AgentPolicyTests(unittest.TestCase):
-    def test_adaptive_defaults_preserve_transport_and_context_limits(self):
+    def test_bounded_defaults_preserve_transport_context_and_adaptive_mode(self):
         policy = resolve_agent_policy()
-        self.assertIsNone(policy.max_model_requests)
-        self.assertIsNone(policy.max_question_seconds)
-        self.assertIsNone(policy.hard_question_seconds)
+        self.assertEqual(policy.max_model_requests, 6)
+        self.assertEqual(policy.max_question_seconds, 180)
+        self.assertEqual(policy.hard_question_seconds, 180)
+        self.assertEqual(policy.finalization_reserve_seconds, 45)
+        self.assertEqual(policy.max_investigation_rounds, 5)
+        self.assertEqual(policy.investigation_mode, "adaptive")
+        self.assertTrue(policy.source_memory_enabled)
         self.assertEqual(policy.max_request_bytes, 230000)
         self.assertEqual(policy.max_source_characters, 36000)
         self.assertIs(resolve_agent_policy(policy), policy)
@@ -24,14 +28,54 @@ class AgentPolicyTests(unittest.TestCase):
         with self.assertRaises(FrozenInstanceError):
             policy.max_model_requests = 9
 
-    def test_adaptive_requests_have_no_implicit_round_limit(self):
+    def test_adaptive_requests_have_a_shared_finite_allowance(self):
         policy = AgentPolicy()
         for used in (0, 5, 32, 1000):
             with self.subTest(used=used):
-                self.assertIsNone(policy.remaining_model_requests(used))
-                self.assertTrue(policy.can_request(used))
-                self.assertFalse(policy.is_last_request(used))
+                self.assertEqual(policy.remaining_model_requests(used), max(0, 6 - used))
+                self.assertEqual(policy.can_request(used), used < 6)
+                self.assertEqual(policy.is_last_request(used), used == 5)
         self.assertEqual(resolve_agent_policy(policy.to_dict()), policy)
+
+    def test_legacy_null_limits_migrate_without_disabling_memory_or_mode(self):
+        policy = resolve_agent_policy({"max_model_requests": None, "max_question_seconds": None,
+                                       "hard_question_seconds": None})
+        self.assertEqual((policy.max_model_requests, policy.max_question_seconds,
+                          policy.hard_question_seconds), (6, 180, 180))
+        self.assertEqual(policy.investigation_mode, "adaptive")
+        self.assertTrue(policy.source_memory_enabled)
+        strict = resolve_agent_policy({"max_model_requests": 2, "max_question_seconds": 7})
+        self.assertEqual((strict.max_model_requests, strict.max_question_seconds,
+                          strict.hard_question_seconds), (2, 7, 7))
+        self.assertTrue(strict.source_memory_enabled)
+
+    def test_mode_and_memory_are_independent_of_budget(self):
+        policy = AgentPolicy(investigation_mode="single_pass", source_memory_enabled=False,
+                             max_model_requests=2)
+        self.assertEqual(policy.investigation_mode, "single_pass")
+        self.assertFalse(policy.source_memory_enabled)
+        self.assertEqual(policy.max_model_requests, 2)
+        for options in ({"investigation_mode": "unknown"}, {"source_memory_enabled": 1}):
+            with self.subTest(options=options), self.assertRaises(ValueError):
+                AgentPolicy(**options)
+
+    def test_counted_revision_allowance_preserves_legacy_zero_and_one(self):
+        self.assertEqual(AgentPolicy().answer_revision_limit, 2)
+        self.assertEqual(AgentPolicy(max_answer_revisions=0).answer_revision_limit, 0)
+        self.assertEqual(AgentPolicy(max_answer_revisions=1).answer_revision_limit, 1)
+        self.assertEqual(AgentPolicy(max_no_evidence_revisions=0).answer_revision_limit, 0)
+        self.assertEqual(AgentPolicy(max_answer_revisions=1,
+                                    max_no_evidence_revisions=0).answer_revision_limit, 0)
+        for options in ({"max_answer_revisions": 2}, {"max_no_evidence_revisions": 3},
+                        {"max_investigation_rounds": 6}):
+            with self.subTest(options=options), self.assertRaises(ValueError):
+                AgentPolicy(**options)
+
+    def test_explicit_deep_deadline_is_bounded_at_five_minutes(self):
+        self.assertEqual(AgentPolicy(max_question_seconds=300,
+                                    hard_question_seconds=300).hard_question_seconds, 300)
+        self.assertEqual(AgentPolicy(max_question_seconds=1800,
+                                    hard_question_seconds=1800).hard_question_seconds, 300)
 
     def test_explicit_request_limit_reserves_final_request(self):
         policy = AgentPolicy(max_model_requests=2)

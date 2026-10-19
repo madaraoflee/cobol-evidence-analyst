@@ -177,7 +177,10 @@ class ClaimLedgerTests(unittest.TestCase):
                 self.assertEqual(ledger.entries[0].reviewed_evidence_ids, ["ev_calc"])
                 self.assertEqual(ledger.entries[0].support_status, "unsupported")
                 self.assertNotIn("OUT-AMOUNT = 0", answer)
-                self.assertIn("未供证代码", answer)
+                self.assertNotIn("未供证代码", answer)
+                self.assertIn("控制流", answer)
+                self.assertTrue(any(row["kind"] == "source_coverage_unestablished"
+                                    for row in ledger.entries[0].unresolved_requirements))
 
     def test_exception_scope_keeps_formula_fact_without_unconditional_result_proof(self):
         body = "PROCEDURE DIVISION.\nMAIN.\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 2\nON SIZE ERROR MOVE 0 TO STATUS-CODE\nEND-COMPUTE.\nGOBACK."

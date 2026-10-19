@@ -56,6 +56,8 @@ class PriorSourceMemory:
         self.origins = {}
         self.blocks = {}
         self.declared_blocks = {}
+        self.retracted_blocks = {}
+        self.pending_reread_ids = set()
 
     def _archived_page(self, identifier):
         saved = self.pages[identifier]
@@ -91,7 +93,9 @@ class PriorSourceMemory:
         return {"schema": SCHEMA, "scope": self.scope,
                 "pages": deepcopy(list(self.pages.values())),
                 "origins": deepcopy(self.origins), "blocks": deepcopy(list(self.blocks.values())),
-                "declared_blocks": deepcopy(list(self.declared_blocks.values()))}
+                "declared_blocks": deepcopy(list(self.declared_blocks.values())),
+                "retracted_blocks": deepcopy(self.retracted_blocks),
+                "pending_reread_ids": sorted(self.pending_reread_ids)}
 
     def restore(self, saved, round_records):
         if not saved:
@@ -111,6 +115,9 @@ class PriorSourceMemory:
                 body = {key: block[key] for key in ("text", "evidence_ids", "origins", "kind", "round_id")}
                 if (block["memory_id"] != "memory_" + _digest(body)
                         or block.get("verification") != "unverified"
+                        or body["kind"] not in {"finding", "draft", "source"}
+                        or block.get("content_kind", "source_reference" if body["kind"] == "source" else "model_candidate")
+                            != ("source_reference" if body["kind"] == "source" else "model_candidate")
                         or not valid_findings([{"text": body["text"], "evidence_ids": body["evidence_ids"]}])
                         or set(_REFERENCE.findall(body["text"])) - set(body["evidence_ids"])
                         or body["origins"] != [origins[identifier] for identifier in body["evidence_ids"]]):
@@ -120,15 +127,29 @@ class PriorSourceMemory:
                 if block != self.declared_blocks.get(block["memory_id"]):
                     raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
                 self.blocks[block["memory_id"]] = deepcopy(block)
+            retracted = saved.get("retracted_blocks", {})
+            pending = saved.get("pending_reread_ids", [])
+            if (not isinstance(retracted, dict) or any(key not in self.declared_blocks
+                    or self.declared_blocks[key]["kind"] == "source"
+                    or not isinstance(reason, str) or not reason for key, reason in retracted.items())
+                    or set(retracted) & self.blocks.keys()
+                    or not isinstance(pending, list) or any(key not in pages for key in pending)):
+                raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
+            self.retracted_blocks = deepcopy(retracted)
+            self.pending_reread_ids = set(pending)
         except (KeyError, TypeError, ValueError, OSError) as exc:
             self.pages, self.origins, self.blocks, self.declared_blocks = {}, {}, {}, {}
+            self.retracted_blocks, self.pending_reread_ids = {}, set()
             raise ValueError("PRIOR_SOURCE_MEMORY_INVALID") from exc
 
     def prompt(self):
         return {"schema": SCHEMA, "draft_is_evidence": False,
-                "instruction": "仅继承下列明确绑定的本题早先原文；候选解释仍须核对，新的推断应补读。"
+                "confirmed_facts": [],
+                "instruction": "source_reference只记录曾供证原文的位置；model_candidate是模型候选解释，不是确认事实。"
+                    "真实引用仅证明来源，不能证明候选的公式、条件或结论正确。决定性或有冲突的结论应按引用回读原文。"
                     "补查动作可附 findings:[{text:候选解释,evidence_ids:[当前原文或本清单的引用ID]}]，"
                     "以保存已读内容；findings不能代替补查动作或最终答案。",
+                "requires_source_reread": sorted(self.pending_reread_ids),
                 "blocks": deepcopy(list(self.blocks.values()))}
 
     def archived_pages(self, identifiers):
@@ -140,6 +161,8 @@ class PriorSourceMemory:
             return set()
         identifiers = set()
         for block in memory.get("blocks", []):
+            # Retraction changes future candidate text, not which original
+            # sources an already-sent request was authorized to cite.
             if isinstance(block, dict) and block == self.declared_blocks.get(block.get("memory_id")):
                 identifiers.update(block["evidence_ids"])
         return identifiers
@@ -158,6 +181,9 @@ class PriorSourceMemory:
             return False
         text = finding["text"].strip()
         identifiers = list(dict.fromkeys(finding["evidence_ids"]))
+        if any(old["text"] == text and set(old["evidence_ids"]) == set(identifiers)
+               for key, old in self.declared_blocks.items() if key in self.retracted_blocks):
+            return False
         # A note containing an unknown or framework citation is rejected as a
         # whole. Removing its bad reference must not authorize the remaining prose.
         if set(_REFERENCE.findall(text)) - set(identifiers) or any(not key.startswith("ev_page_") for key in identifiers):
@@ -191,10 +217,52 @@ class PriorSourceMemory:
         body = {"text": text, "evidence_ids": identifiers,
                 "origins": [deepcopy(self.origins[key]) for key in identifiers],
                 "kind": kind, "round_id": round_record["round_id"]}
-        block = {"memory_id": "memory_" + _digest(body), **body, "verification": "unverified"}
+        block = {"memory_id": "memory_" + _digest(body), **body, "verification": "unverified",
+                 "content_kind": "model_candidate"}
+        if block["memory_id"] in self.retracted_blocks:
+            return False
         self.blocks[block["memory_id"]] = block
         self.declared_blocks[block["memory_id"]] = deepcopy(block)
         return block["memory_id"]
+
+    def revoke_candidates(self, *, evidence_ids=(), memory_ids=(), reason="contradicted_claim"):
+        """Retract interpretations, retaining the independent source provenance.
+
+        A semantic reviewer supplies the affected citations or block IDs. This
+        operation does not infer that the underlying source is wrong, and does
+        not promote a corrected model sentence into a verified fact.
+        """
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError("PRIOR_SOURCE_MEMORY_RETRACTION_INVALID")
+        affected, requested = set(evidence_ids), set(memory_ids)
+        revoked = []
+        for identifier, block in list(self.blocks.items()):
+            if block["kind"] == "source" or not (
+                    identifier in requested or affected.intersection(block["evidence_ids"])):
+                continue
+            revoked.append(identifier)
+            self.retracted_blocks[identifier] = reason
+            self.blocks.pop(identifier)
+            for evidence_id in block["evidence_ids"]:
+                self.pending_reread_ids.add(evidence_id)
+                page, origin = self.pages[evidence_id], self.origins[evidence_id]
+                body = {"text": f"原文位置：{page['relative_path']}:{page['start_line']}-{page['end_line']}。",
+                        "evidence_ids": [evidence_id], "origins": [deepcopy(origin)],
+                        "kind": "source", "round_id": origin["round_id"]}
+                source_block = {"memory_id": "memory_" + _digest(body), **body,
+                                "verification": "unverified", "content_kind": "source_reference"}
+                self.blocks[source_block["memory_id"]] = source_block
+                self.declared_blocks[source_block["memory_id"]] = deepcopy(source_block)
+        return revoked
+
+    def reread_pages(self, evidence_ids=None):
+        """Recover exact archived source for a decisive or contradicted claim."""
+        identifiers = self.pending_reread_ids if evidence_ids is None else set(evidence_ids)
+        return self.archived_pages(sorted(identifiers & self.pages.keys()))
+
+    def mark_reread(self, evidence_ids):
+        """A caller invokes this only after actual request visibility is known."""
+        self.pending_reread_ids.difference_update(evidence_ids)
 
     def accept_findings(self, findings, *, payload, round_record):
         if not valid_findings(findings):

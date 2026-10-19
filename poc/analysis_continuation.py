@@ -81,6 +81,7 @@ class AnalysisContinuation:
         self.stop_reason = saved.get("stop_reason")
         self.review = saved.get("review", {})
         self.draft = saved.get("draft", "")
+        self.revision_requests = int(saved.get("revision_requests", 0))
 
     def observe(self, pages, references, investigation):
         material = material_keys(pages, references)
@@ -102,7 +103,7 @@ class AnalysisContinuation:
             self.stop_reason = "no_evidence_progress"
         return progressed
 
-    def needs_followup(self, answer, assessment, pages, references=()):
+    def needs_followup(self, answer, assessment, pages, references=(), *, max_revisions=2):
         gaps = sorted(set(assessment.get("missing_aspects", [])))
         # Reordering or repeating the same denial does not create a new gap.
         contradictions = sorted({(str(item.get("relative_path") or ""),
@@ -116,7 +117,11 @@ class AnalysisContinuation:
         if signature in self.reviewed_gaps:
             self.stop_reason = "answer_review_no_progress"
             return False
+        if self.revision_requests >= max_revisions:
+            self.stop_reason = "answer_revision_budget"
+            return False
         self.reviewed_gaps.add(signature)
+        self.revision_requests += 1
         return True
 
     def prompt_memory(self):
@@ -132,4 +137,5 @@ class AnalysisContinuation:
                 "known_obligations": sorted(self.known_obligations),
                 "reviewed_gaps": sorted(self.reviewed_gaps), "idle_tool_rounds": self.idle_tool_rounds,
                 "awaiting_tools": self.awaiting_tools, "stop_reason": self.stop_reason,
-                "draft": self.draft, "review": self.review}
+                "draft": self.draft, "review": self.review,
+                "revision_requests": self.revision_requests}

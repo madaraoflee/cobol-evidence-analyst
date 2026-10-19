@@ -588,7 +588,7 @@ class BusinessChatTests(unittest.TestCase):
             budget = payload["investigation_budget"]
             if budget["reads_per_turn"]:
                 read_rounds.append(turn)
-                self.assertIsNone(budget["remaining_model_requests"])
+                self.assertEqual(budget["remaining_model_requests"], 6 - turn + 1)
                 return reply(json.dumps({"read": [{"relative_path": "entry.cbl", "start_line": turn * 3 + offset,
                                                      "end_line": turn * 3 + offset}
                                                     for offset in range(min(3, budget["reads_per_turn"]))]}))

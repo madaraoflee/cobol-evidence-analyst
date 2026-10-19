@@ -15,9 +15,10 @@ from typing import Any
 
 from claim_support import check_statement_support, statement_tokens, supplied_statement_facts
 from response_language import localized_text, resolve_answer_language
+from source_availability import supplied_source_availability
 
 
-LEDGER_VERSION = "answer-claim-ledger-v4"
+LEDGER_VERSION = "answer-claim-ledger-v5"
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _NAME = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?:\s+(?:OF|IN)\s+[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)*"
 _ATOM = rf"(?:{_NAME}|[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|[()])"
@@ -26,7 +27,9 @@ _FORMULA = re.compile(rf"(?P<target>{_NAME})\s*(?:(?:最终|最終|最后|最後
 _ENGLISH_DESCRIPTION = re.compile(
     r"(?:not\s+)?(?:(?:an?|the)\s+(?!(?:OF|IN|times)\s|(?:multiplied|divided)\s+by\b)[A-Za-z]|"
     r"(?:declared|defined|described|documented|stored|used|treated|represented|interpreted|"
-    r"known|marked|classified|identified|calculated|computed)\s+(?:as|with|in|by|for|to|from)\b)", re.I)
+    r"known|marked|classified|identified|calculated|computed)\s+(?:as|with|in|by|for|to|from)\b|"
+    r"(?:calculated|computed|determined|derived|initialized|updated)"
+    r"(?=\s*(?:[.!?,;:]|$)|\s+(?:when|if|under|after|before)\b))", re.I)
 _ANSWER_TOKEN = re.compile(rf"\s*(?:'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|\d+(?:\.\d+)?|(?:multiplied\s+by|divided\s+by|times)\b|乘以|乘|除以|加上|减去|{_NAME}|\*\*|[()+*/×÷-])", re.I)
 _CONDITION_TOKEN = re.compile(rf"\s*(?:'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|\d+(?:\.\d+)?|{_NAME}|>=|<=|<>|\*\*|[()=<>+*/-])", re.I)
 _MULTIPLE = re.compile(rf"(?P<target>{_NAME})\s*(?:为|為|是|按|等于|等於)\s*(?P<input>{_NAME})\s*的?\s*(?P<number>\d+(?:\.\d+)?|两|兩|二|三|四|五|六|七|八|九|十)\s*倍", re.I)
@@ -59,6 +62,7 @@ class ClaimEntry:
     invalid_evidence_ids: list[str] = field(default_factory=list)
     revision: str | None = None
     revised_claims: list[dict[str, Any]] = field(default_factory=list)
+    unresolved_requirements: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -307,6 +311,10 @@ def _render_fact(fact, answer_language="zh-CN"):
     if fact.get("normal_result_condition") == "no_size_error":
         prefix += local("无 SIZE ERROR 时的算式为 ", "when there is no SIZE ERROR, the formula is ",
                         "無 SIZE ERROR 時的算式為 ")
+    if fact.get("_final_path_proof"):
+        prefix = local("若从入口按源码顺序正常执行至退出，且数值运算与接收字段转换没有错误或精度损失，退出前最后一次赋值为：",
+            "If execution proceeds from entry to normal exit without arithmetic or storage-conversion errors or precision loss, the final assignment is: ",
+            "若從入口按源碼順序正常執行至退出，且數值運算與接收欄位轉換沒有錯誤或精度損失，退出前最後一次賦值為：") + prefix
     if fact.get("compilation_status") == "candidate":
         prefix = local("编译条件尚未确认，以下仅为候选源码语句：",
                        "Compilation conditions are unconfirmed; this is a candidate source statement: ",
@@ -325,8 +333,187 @@ def _revised_claims(facts, pages):
         **check_statement_support(fact, fact, pages[fact["evidence_id"]])} for fact in facts]
 
 
+
+def _straight_line_final_assignment(target, matched, pages, facts, availability, source_format, compilation_context):
+    """Prove one last assignment on a deliberately small complete source path.
+
+    This proves source ordering to a normal exit, never real invocation or
+    arithmetic/storage precision. Unknown syntax, aliasing, branches and calls
+    keep the existing unsupported boundary rather than guessing reachability.
+    """
+    from structural_index import SourceDocument, normalize_cobol_lines, parse_document
+    from statement_parser import parse_statements
+
+    identities = {(fact["relative_path"], fact["source_sha256"]) for fact in matched}
+    if len(identities) != 1:
+        return None
+    path, digest = next(iter(identities))
+    coverage = availability.get(path, {})
+    if coverage.get("complete_source_sha256") != digest:
+        return None
+    physical = [page for page in pages.values() if page.get("relative_path") == path
+                and page.get("source_sha256") == digest and not page.get("include_chain")
+                and not page.get("span_truncated")]
+    lines = {}
+    for page in physical:
+        for line, text in enumerate(page["source_text"].split("\n"), page["start_line"]):
+            if line in lines and lines[line] != text:
+                return None
+            lines[line] = text
+    total = coverage["line_count"]
+    if total > 2000 or set(range(1, total + 1)) - lines.keys():
+        return None
+    source = "\n".join(lines[line] for line in range(1, total + 1))
+    if len(source) > 64000:
+        return None
+    normalized, hint = normalize_cobol_lines(source, source_format)
+    document = SourceDocument(path, digest, "utf-8", False, hint, "COBOL", tuple(source.splitlines()), normalized)
+    parsed = parse_document(document, compilation_context=compilation_context)
+    units = parsed.code_units
+    programs = [unit for unit in units if unit.unit_type == "Program"]
+    signatures = [unit for unit in units if unit.unit_type == "ProcedureSignature"]
+    if (len(programs) != 1 or len(signatures) != 1
+            or signatures[0].normalized_text.upper() != "PROCEDURE DIVISION."
+            or any(unit.parse_status != "complete" for unit in units)):
+        return None
+    signature = signatures[0]
+    paragraphs = [unit for unit in units if unit.unit_type == "Paragraph"]
+    if len(paragraphs) > 1 or any(unit.unit_type == "Section" and unit.start_line > signature.end_line for unit in units):
+        return None
+    # Only independent elementary numeric storage is modeled. Group fields,
+    # redefinitions, pointers, linkage, COPY and directives require richer rules.
+    declarations = [unit for unit in units if unit.unit_type == "DataItem"]
+    declaration = re.compile(r"01\s+([A-Z][A-Z0-9-]*)\s+PIC(?:TURE)?\s+S?9[9V()0-9]*"
+                             r"(?:\s+VALUE\s+[+-]?\d+(?:\.\d+)?)?\s*\.", re.I)
+    if not declarations or any(not declaration.fullmatch(unit.normalized_text) for unit in declarations):
+        return None
+    declared = [declaration.fullmatch(unit.normalized_text)[1].upper() for unit in declarations]
+    if len(declared) != len(set(declared)) or target not in declared:
+        return None
+    normalized_text = "\n".join(line.text for line in normalized)
+    if re.search(r">>|\b(?:COPY|REPLACE|REDEFINES|RENAMES|LINKAGE|EXTERNAL|GLOBAL|BASED|POINTER|OCCURS|ENTRY|SPECIAL-NAMES)\b", normalized_text, re.I):
+        return None
+    body_lines = [line for line in normalized if line.start_line > signature.end_line]
+    if paragraphs:
+        paragraph = paragraphs[0]
+        if not body_lines or body_lines[0].start_line != paragraph.start_line:
+            return None
+        body_lines = [line for line in body_lines if line.start_line > paragraph.end_line]
+    if not body_lines:
+        return None
+    first = body_lines[0].start_line
+    body = "\n".join(lines.get(line, "") for line in range(first, total + 1))
+    body_result = parse_statements(body, start_line=first, source_format=hint if hint in {"free", "fixed"} else "free")
+    nodes = body_result.nodes
+    if (not body_result.complete or len(nodes) < 2 or nodes[-1].kind not in {"GOBACK", "STOP_RUN"}
+            or any(node.kind not in {"MOVE", "COMPUTE", "CONTINUE"} or node.effects_unknown
+                   or node.guards or node.children or node.else_children or node.exception_children
+                   or node.normal_children or node.size_error_handler_present
+                   for node in nodes[:-1])):
+        return None
+    writes = [(index, node) for index, node in enumerate(nodes[:-1]) if target in node.writes]
+    if not writes:
+        return None
+    index, last_write = writes[-1]
+    if (len(last_write.writes) != 1 or target in last_write.reads
+            or any(name not in declared for node in nodes[:-1] for name in (*node.reads, *node.writes))
+            or any(set(last_write.reads) & set(node.writes) for node in nodes[index + 1:-1])):
+        return None
+    expression = statement_tokens(dict(last_write.expressions).get(target, ""))
+    final_facts = [fact for fact in facts if (fact["relative_path"], fact["source_sha256"]) == (path, digest)
+                   and fact.get("target") == target and fact.get("predicate") == "assignment_statement"
+                   and fact["start_line"] == last_write.span.start_line
+                   and tuple(fact.get("expression", [])) == expression
+                   and fact.get("rounded") == last_write.rounded
+                   and not fact.get("guards") and fact.get("compilation_status") != "candidate"]
+    if not final_facts:
+        return None
+    fact = final_facts[0]
+    return {"fact": fact, "support_status": "supported",
+            "reason_code": "COMPLETE_STRAIGHT_LINE_LAST_ASSIGNMENT",
+            "checker_version": "straight-line-final-assignment-v1",
+            "support_scope": "last_assignment_on_normal_straight_line_path",
+            "preconditions": ["program_entry_executes", "normal_exit_reached", "lossless_valid_numeric_conversion"],
+            "source_sha256": digest, "relative_path": path, "start_line": 1, "end_line": total,
+            "exit_line": nodes[-1].span.start_line,
+            "evidence_ids": coverage.get("complete_evidence_ids", [])}
+
+def _final_value_requirements(matched, pages, working_set, availability):
+    """Separate syntax limits from proven range gaps and external input values."""
+    requirements = [{"kind": "control_flow_and_overwrite_semantics_unverified"}]
+    identities = {(fact["relative_path"], fact["source_sha256"]) for fact in matched}
+    for path, digest in sorted(identities):
+        supplied = availability.get(path, {})
+        if supplied.get("complete_source_sha256") == digest:
+            requirements.append({"kind": "source_complete_semantics_unverified", "relative_path": path,
+                                 "source_sha256": digest})
+            continue
+        manifest = next((row for row in (working_set or {}).get("source_manifest", [])
+            if row.get("relative_path") == path and row.get("sha256") == digest
+            and type(row.get("line_count")) is int and row["line_count"] > 0), None)
+        version = next((row for row in supplied.get("supplied_versions", [])
+                        if row["source_sha256"] == digest), {})
+        if manifest:
+            cursor, gaps = 1, []
+            for span in sorted(version.get("supplied_ranges", []), key=lambda row: row["start_line"]):
+                if span["start_line"] > cursor:
+                    gaps.append({"start_line": cursor, "end_line": min(span["start_line"] - 1, manifest["line_count"])})
+                cursor = max(cursor, span["end_line"] + 1)
+            if cursor <= manifest["line_count"]:
+                gaps.append({"start_line": cursor, "end_line": manifest["line_count"]})
+            requirements.append({"kind": "source_ranges_not_supplied", "relative_path": path,
+                "source_sha256": digest, "ranges": [gap for gap in gaps if gap["start_line"] <= gap["end_line"]]})
+        else:
+            requirements.append({"kind": "source_coverage_unestablished", "relative_path": path,
+                                 "source_sha256": digest})
+    # ACCEPT is a directly visible runtime input, not a missing implementation.
+    # Do not infer external input merely because a formula contains a variable.
+    operands = {token for fact in matched for token in fact.get("expression", [])}
+    for page in pages.values():
+        if (page.get("relative_path"), page.get("source_sha256")) not in identities:
+            continue
+        matched_programs = {fact.get("program_name") for fact in matched if fact["evidence_id"] == page["evidence_id"]}
+        declared_programs = set(re.findall(r"\bPROGRAM-ID\.\s*([A-Z][A-Z0-9-]*)", page.get("source_text", ""), re.I))
+        if (not matched_programs or len(declared_programs) > 1
+                or (declared_programs and not declared_programs.intersection(matched_programs))):
+            continue
+        for match in re.finditer(r"(?im)^\s*(?:\d{6}\s+)?ACCEPT\s+([A-Z][A-Z0-9-]*)\b", page.get("source_text", "")):
+            if match[1].upper() in operands:
+                requirements.append({"kind": "external_runtime_input", "symbol": match[1].upper(),
+                                     "evidence_id": page["evidence_id"]})
+    return requirements
+
+
+def _final_value_qualification(requirements, answer_language):
+    def local(zh_cn, en, zh_hk=None):
+        return localized_text(answer_language, zh_cn, en, zh_hk)
+    complete = (any(row["kind"] == "source_complete_semantics_unverified" for row in requirements)
+                and not any(row["kind"] in {"source_ranges_not_supplied", "source_coverage_unestablished"}
+                            for row in requirements))
+    text = local("最终值仍需核对控制流及后续覆盖；相关源码已齐备，但这些语句尚未证明各条执行路径的最终结果。",
+                 "The relevant source is complete; the final value still requires checking control flow and later overwrites across execution paths. ",
+                 "最終值仍需核對控制流及後續覆蓋；相關源碼已齊備，但這些語句尚未證明各條執行路徑的最終結果。") if complete else local(
+                 "最终值仍需核对控制流及后续覆盖。",
+                 "The final value still requires checking control flow and later overwrites. ",
+                 "最終值仍需核對控制流及後續覆蓋。")
+    gaps = [row for row in requirements if row["kind"] == "source_ranges_not_supplied" and row["ranges"]]
+    if gaps:
+        locations = "; ".join(f"{row['relative_path']}:" + ",".join(
+            f"{span['start_line']}-{span['end_line']}" for span in row["ranges"]) for row in gaps)
+        text += local(f"尚未纳入本次核对的源码范围为 {locations}。",
+                      f"Source ranges not supplied for this review: {locations}. ",
+                      f"尚未納入本次核對的源碼範圍為 {locations}。")
+    inputs = list(dict.fromkeys(row["symbol"] for row in requirements if row["kind"] == "external_runtime_input"))
+    if inputs:
+        symbols = ", ".join(inputs)
+        text += local(f"其中 {symbols} 由运行时输入，实际数值需结合该输入确定。",
+                      f"{symbols} is supplied at runtime; its actual value depends on that input. ",
+                      f"其中 {symbols} 由執行時輸入，實際數值需結合該輸入確定。")
+    return text
+
+
 def review_answer_claims(answer: str, source_pages, allowed, *, source_format="auto", compilation_context=None,
-                         source_fact_cache=None, answer_language=None):
+                         source_fact_cache=None, answer_language=None, working_set=None):
     """Review and repair only affected segments, using actually supplied pages.
 
     Returned ledger preserves rejected claims and exact version evidence for
@@ -346,6 +533,7 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
     sentence_end = local("。", ". ")
     context = resolve_compilation_context(compilation_context, source_options={"source_format": source_format})
     pages = {page["evidence_id"]: page for page in source_pages if page.get("evidence_id") in allowed}
+    availability = supplied_source_availability(list(pages.values()), working_set)
     facts = []
     for identifier, page in pages.items():
         key = (page.get("relative_path"), page.get("source_sha256"), page.get("start_line"),
@@ -368,7 +556,7 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
         invalid = [identifier for identifier in ids if identifier not in allowed]
         valid = [identifier for identifier in ids if identifier in allowed]
         assertions = _assertions(segment)
-        replacements, retained_supported, unresolved, final_value_unverified = [], [], False, False
+        replacements, retained_supported, unresolved, final_requirements = [], [], False, []
         for fact in facts:
             if fact["predicate"] != "noop_procedure" or not re.search(r"(?<![\w-])" + re.escape(fact["target"]) + r"(?![\w-])", text, re.I):
                 continue
@@ -482,6 +670,25 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     # bounded syntax checker still cannot prove final values
                     # or exclude effects in source that was not supplied.
                     matched = [fact for fact, _ in supported]
+                    proof = _straight_line_final_assignment(assertion["target"], matched, pages, facts,
+                        availability, source_format, context)
+                    if proof:
+                        final_fact = proof.pop("fact")
+                        entry.support_status = "unsupported"
+                        entry.reason_code = "UNQUALIFIED_FINAL_VALUE_REQUIRES_NORMAL_PATH_PRECONDITIONS"
+                        entry.support_scope = proof["support_scope"]
+                        entry.checker_version = proof["checker_version"]
+                        entry.revision = "rendered_normal_path_final_assignment"
+                        entry.reviewed_evidence_ids = proof["evidence_ids"]
+                        entry.source_versions = [{key: proof[key] for key in
+                            ("relative_path", "source_sha256", "start_line", "end_line")}]
+                        entry.occurrence_ids = [final_fact["occurrence_id"]]
+                        entry.revised_claims = [{"assertion": {"predicate": "final_assignment_on_normal_path",
+                            "target": final_fact["target"], "expression": final_fact["expression"],
+                            "rounded": final_fact["rounded"]}, **proof,
+                            "evidence_id": final_fact["evidence_id"], "occurrence_id": final_fact["occurrence_id"]}]
+                        replacements.append({**final_fact, "_final_path_proof": proof})
+                        continue
                     scope = [fact for fact in facts if _same_program_version(fact, matched)]
                     same_target = _related(assertion, scope)
                     review_facts = [*same_target, *(fact for fact in scope
@@ -498,7 +705,8 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     entry.occurrence_ids = [fact["occurrence_id"] for fact in same_target[:8]]
                     entry.revised_claims = _revised_claims(same_target[:8], pages)
                     replacements.extend(same_target[:8])
-                    final_value_unverified = True
+                    entry.unresolved_requirements = _final_value_requirements(matched, pages, working_set, availability)
+                    final_requirements.extend(entry.unresolved_requirements)
                     continue
                 entry.support_status = "supported"
                 entry.reason_code = supported[0][1]["reason_code"]
@@ -546,10 +754,7 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     seen.add(key)
                     distinct.append(fact)
             trailing = "\n" if segment.endswith("\n") else ""
-            qualification = (local("这些仅为已供证语句，最终值仍需核对控制流、后续覆盖及未供证代码。",
-                             "These are only the supplied statements; the final value still requires checking control flow, later overwrites, and code that was not supplied. ",
-                             "這些僅為已供證語句，最終值仍需核對控制流、後續覆蓋及未供證程式碼。")
-                             if final_value_unverified else "")
+            qualification = _final_value_qualification(final_requirements, answer_language) if final_requirements else ""
             reviewed.append(local("已供应源码可直接确认：", "The supplied source directly confirms: ", "已提供源碼可直接確認：")
                 + fact_separator.join(_render_fact(fact, answer_language) for fact in distinct)
                 + sentence_end + qualification + trailing)

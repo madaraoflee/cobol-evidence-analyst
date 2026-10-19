@@ -454,7 +454,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
                          [len(answer) for answer in answers])
         self.assertEqual(summary["output"]["final_answer_characters"], len(result["answer"]))
 
-    def test_continuation_length_does_not_loop_or_discard_first_body(self):
+    def test_continuation_length_stops_on_duplicate_and_preserves_distinct_body(self):
         self.requests.clear()
         answers = []
 
@@ -468,8 +468,9 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
         result = run_business_chat("FINAL-AMOUNT 怎么计算？", self.database, self.source,
             self.config, transport=transport, framework_reference_path="",
             policy=AgentPolicy(max_model_requests=4, max_answer_revisions=0))["agent_result"]
-        self.assertEqual(len(self.requests), 2)
-        self.assertEqual(result["answer"], "\n\n".join(answers))
+        self.assertEqual(len(self.requests), 3)
+        self.assertEqual(result["metrics"]["model_requests"], 3)
+        self.assertEqual(result["answer"], "\n\n".join(answers[:2]))
         self.assertEqual(result["status"], "PARTIAL")
         self.assertEqual(result["stop_reason"], "MODEL_OUTPUT_TRUNCATED")
 

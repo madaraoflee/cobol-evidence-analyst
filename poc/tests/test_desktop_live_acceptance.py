@@ -267,28 +267,32 @@ class NativeLiveAcceptanceTests(unittest.TestCase):
         wait = native.execution_wait_policy(AgentPolicy(max_model_requests=3))
         self.assertEqual(wait["transport_timeout_seconds"], actual)
         self.assertEqual(actual, native.WORKBENCH_TIMEOUT_SECONDS)
-        self.assertEqual(wait["watchdog_seconds"], 3 * actual + 120 + 15 + 45)
+        self.assertEqual(wait["watchdog_seconds"], 180 + wait["verification_cleanup_reserve_seconds"])
+        self.assertTrue(wait["application_hard_deadline_expected"])
         self.assertIs(wait["performance_target_interrupts_answer"], False)
 
-    def test_sla_target_does_not_shorten_wait_but_explicit_hard_limit_does(self):
+    def test_stricter_deployment_time_limits_also_bound_acceptance_watchdog(self):
         from agent_policy import AgentPolicy
         fast = native.execution_wait_policy(AgentPolicy(max_question_seconds=1, max_model_requests=3))
-        slow = native.execution_wait_policy(AgentPolicy(max_question_seconds=600, max_model_requests=3))
-        self.assertEqual(fast["watchdog_seconds"], slow["watchdog_seconds"])
+        slow = native.execution_wait_policy(AgentPolicy(max_question_seconds=300,
+            hard_question_seconds=300, max_model_requests=3))
+        self.assertEqual(fast["watchdog_seconds"], 1 + fast["verification_cleanup_reserve_seconds"])
+        self.assertEqual(slow["watchdog_seconds"], 300 + slow["verification_cleanup_reserve_seconds"])
         limited = native.execution_wait_policy(AgentPolicy(max_question_seconds=120,
             max_model_requests=3, hard_question_seconds=10))
         self.assertEqual(limited["watchdog_seconds"], 10 + limited["verification_cleanup_reserve_seconds"])
 
-    def test_slow_answer_is_archived_with_measured_sla_miss_instead_of_killed_at_target(self):
-        with self.automatic_execution(elapsed_seconds=180) as (workbench, options):
+    def test_answer_at_hard_deadline_is_archived_with_separate_cleanup_watchdog(self):
+        with self.automatic_execution(elapsed_seconds=120) as (workbench, options):
             report = native.evaluate_native(**options)
             self.assertEqual(workbench.analyze.call_count, 5)
             paid = workbench.analyze.call_args_list[1:]
-            self.assertTrue(all(call.kwargs["timeout"] == 360 for call in paid))
+            self.assertTrue(all(call.kwargs["timeout"] == 165 for call in paid))
         self.assertEqual(report["status"], "completed_not_reviewed")
         self.assertEqual(len(report["cases"]), 4)
-        self.assertEqual(report["latency_seconds"]["p95"], 180)
+        self.assertEqual(report["latency_seconds"]["p95"], 120)
         self.assertEqual(report["plan"]["policy"]["max_question_seconds"], 120)
+        self.assertEqual(report["plan"]["policy"]["hard_question_seconds"], 120)
         self.assertIs(report["plan"]["execution_wait"]["performance_target_interrupts_answer"], False)
         self.assertEqual(report["quality_status"], "not_reviewed")
 

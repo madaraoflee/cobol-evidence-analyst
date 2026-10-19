@@ -172,7 +172,8 @@ class BusinessChatLatencyTests(unittest.TestCase):
             return self.answer(payload)
 
         with mock.patch.object(semantic_scope, "build_business_evidence", side_effect=inspected):
-            result = self.ask(respond=respond, policy=AgentPolicy(max_model_requests=2, max_question_seconds=300))
+            result = self.ask(respond=respond, policy=AgentPolicy(max_model_requests=2,
+                max_question_seconds=300, hard_question_seconds=300))
         self.assertEqual(len(self.requests), 2)
         self.assertTrue(followup_inspections)
         self.assertTrue(result["model_answer_recorded"])
@@ -182,14 +183,19 @@ class BusinessChatLatencyTests(unittest.TestCase):
         self.assertEqual(timings["local_processing_seconds"], 4.0)
         self.assertEqual(timings["total_seconds"], 244.0)
 
-    def test_delivery_target_does_not_shorten_provider_request(self):
+    def test_legacy_shorter_question_limit_bounds_provider_request(self):
         result = self.ask(policy=AgentPolicy(max_question_seconds=7, max_model_requests=1))
-        self.assertEqual(self.request_timeouts, [20.0])
+        self.assertEqual(len(self.request_timeouts), 1)
+        self.assertGreater(self.request_timeouts[0], 0)
+        self.assertLessEqual(self.request_timeouts[0], 7.0)
+        self.assertEqual(result["metrics"]["policy"]["hard_question_seconds"], 7)
         self.assertTrue(result["model_answer_recorded"])
 
     def test_explicit_hard_limit_still_bounds_provider_request(self):
         result = self.ask(policy=AgentPolicy(max_question_seconds=7, hard_question_seconds=7, max_model_requests=1))
-        self.assertEqual(self.request_timeouts, [7.0])
+        self.assertEqual(len(self.request_timeouts), 1)
+        self.assertGreater(self.request_timeouts[0], 0)
+        self.assertLessEqual(self.request_timeouts[0], 7.0)
         self.assertTrue(result["model_answer_recorded"])
 
     def test_slow_completed_first_answer_crosses_target_without_being_discarded(self):
@@ -248,7 +254,7 @@ class BusinessChatLatencyTests(unittest.TestCase):
             return self.answer(payload)
 
         result = self.ask(respond=respond, policy=AgentPolicy(max_question_seconds=120))
-        self.assertEqual(self.request_timeouts, [60.0, 60.0])
+        self.assertEqual(self.request_timeouts, [60.0, 45.0])
         self.assertEqual(self.requests[-1]["investigation_budget"]["remaining_model_requests"], 1)
         self.assertEqual(self.requests[-1]["investigation_budget"]["reads_per_turn"], 0)
         self.assertTrue(result["model_answer_recorded"])

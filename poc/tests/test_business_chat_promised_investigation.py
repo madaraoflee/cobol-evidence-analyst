@@ -113,7 +113,7 @@ class PromisedInvestigationChatTests(unittest.TestCase):
             self.cited(ANSWER)])
         self.assertEqual(len(self.requests), 3)
         self.assertGreater(self.requests[1]['investigation_budget']['reads_per_turn'], 0)
-        self.assertNotIn('answer_review', self.requests[1])
+        self.assertTrue(self.requests[1]['answer_review']['pending_investigation'])
         self.assertGreaterEqual(result['metrics']['tool_calls']['read'], 1)
         self.assertIn(ANSWER, result['answer'])
         self.assertFalse(result['business_review']['answer_completion']['pending_investigation'])
@@ -153,14 +153,15 @@ class PromisedInvestigationChatTests(unittest.TestCase):
         self.assertEqual(len(self.requests), 1)
         self.assertEqual(result['status'], 'ANALYZED')
 
-    def test_repeated_promise_does_not_replace_known_rules_before_failure(self):
+    def test_repeated_promise_stops_before_redundant_request_and_keeps_known_rules(self):
         draft = ANSWER + '\n我会继续核对外部打印步骤。'
         result = self.ask([self.cited(draft), '我会继续核对账单生成步骤，再说明。', 500])
-        self.assertEqual(len(self.requests), 3)
+        self.assertEqual(len(self.requests), 2)
         self.assertEqual(result['answer'], self.replies[0])
         self.assertEqual(result['status'], 'PARTIAL')
         self.assertTrue(result['narrative']['citations'])
-        self.assertEqual(result['diagnostics'][-1]['http_status'], 500)
+        self.assertFalse(any(row.get('http_status') for row in result['diagnostics']))
+        self.assertEqual(result['metrics']['provider_retries'], [])
         trace = json.loads(Path(result['metrics']['quality_trace_path']).read_text(encoding='utf-8'))
         self.assertEqual(trace['final']['final_answer_round_id'], 'round-1')
 
@@ -168,7 +169,7 @@ class PromisedInvestigationChatTests(unittest.TestCase):
         draft = ANSWER + '\n我会继续核对外部打印步骤。'
         promise = '我会继续核对账单生成步骤，再说明。'
         result = self.ask([self.cited(draft), promise, promise])
-        self.assertEqual(len(self.requests), 3)
+        self.assertEqual(len(self.requests), 2)
         self.assertIn('answer_review', self.requests[-1])
         self.assertEqual(result['answer'], self.replies[0])
         self.assertEqual(result['status'], 'PARTIAL')
@@ -177,7 +178,7 @@ class PromisedInvestigationChatTests(unittest.TestCase):
         trace = json.loads(Path(result['metrics']['quality_trace_path']).read_text(encoding='utf-8'))
         self.assertEqual(trace['final']['final_answer_round_id'], 'round-1')
 
-    def test_promise_after_real_source_progress_keeps_first_draft_on_followup_failure(self):
+    def test_promise_after_real_source_progress_keeps_first_draft_without_redundant_send(self):
         source = (
             'IDENTIFICATION DIVISION.\nPROGRAM-ID. BILL-RULE.\nDATA DIVISION.\n'
             'WORKING-STORAGE SECTION.\n'
@@ -197,7 +198,7 @@ class PromisedInvestigationChatTests(unittest.TestCase):
         draft = '已读金额按原值乘以二。\n我会继续核对其余账单处理步骤。'
         result = self.ask([self.cited(draft), '我会继续核对账单生成步骤，再说明。', 500],
                           policy=policy)
-        self.assertEqual(len(self.requests), 3)
+        self.assertEqual(len(self.requests), 2)
         self.assertTrue(self.requests[0]['question_investigation']['planned_actions'])
         first_reads = sum('read' in action for action in self.requests[0]['completed_actions'])
         next_reads = sum('read' in action for action in self.requests[1]['completed_actions'])
@@ -205,7 +206,7 @@ class PromisedInvestigationChatTests(unittest.TestCase):
         self.assertNotIn('回复承诺继续调查，但尚未执行补查', self.requests[1]['task'])
         self.assertEqual(result['answer'], self.replies[0])
         self.assertEqual(result['status'], 'PARTIAL')
-        self.assertEqual(result['diagnostics'][-1]['http_status'], 500)
+        self.assertFalse(any(row.get('http_status') for row in result['diagnostics']))
         self.assertEqual(result['metrics']['provider_retries'], [])
         first_ids = {page['evidence_id'] for page in self.requests[0]['source_context'][0]['pages']}
         self.assertTrue(result['narrative']['citations'])

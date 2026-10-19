@@ -153,7 +153,9 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
         self.clock_value = 130.0
         resumed = self.ask()
         self.assertEqual(resumed["agent_result"]["run_id"], result["run_id"])
-        self.assertIn("OUT-AMOUNT = IN-AMOUNT * 2", resumed["agent_result"]["answer"])
+        self.assertEqual(resumed["reason_code"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+        self.assertEqual(self.calls, 1)
+        self.assertTrue(self.store.load(result["run_id"])["checkpoint"].get("frontier"))
 
     def test_saved_response_replay_finishes_the_original_trace_round(self):
         original = QualityTrace.record_remote_response
@@ -254,7 +256,7 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
                 self.ask(check_cancel=cancel)
         self.assertEqual(self.calls, 0)
 
-    def test_initial_deadline_can_resume_without_another_run(self):
+    def test_initial_deadline_reconnect_does_not_reset_budget(self):
         def slow_map(*args, check_cancel, **kwargs):
             self.clock_value = 121.0
             check_cancel()
@@ -266,8 +268,43 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
         self.clock_value = 130.0
         second = self.ask()
         self.assertEqual(second["agent_result"]["run_id"], run_id)
+        self.assertEqual(self.calls, 0)
+        self.assertEqual(second["reason_code"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+        third = self.ask(start_new_investigation=True)
         self.assertEqual(self.calls, 1)
-        self.assertIn("OUT-AMOUNT = IN-AMOUNT * 2", second["agent_result"]["answer"])
+        self.assertNotEqual(third["agent_result"]["run_id"], run_id)
+        self.assertIn("OUT-AMOUNT = IN-AMOUNT * 2", third["agent_result"]["answer"])
+
+    def test_explicit_retry_never_repeats_an_uncertain_remote_request(self):
+        def lost(request):
+            self.calls += 1
+            raise APIClientError("REQUEST_TIMEOUT")
+        self.ask(transport=lost)
+        self.clock_value = 130.0
+        second = self.ask(start_new_investigation=True)
+        self.assertEqual(self.calls, 1)
+        self.assertEqual(second["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
+
+    def test_explicit_retry_checks_saved_source_before_reusing_frontier(self):
+        original = QualityTrace.record_remote_response
+        saved_ids = []
+
+        def interrupt(trace, response):
+            original(trace, response)
+            saved_ids.append(trace.data["run_id"])
+            raise RuntimeError("saved_before_interruption")
+
+        with mock.patch.object(QualityTrace, "record_remote_response", new=interrupt):
+            with self.assertRaisesRegex(RuntimeError, "saved_before_interruption"):
+                self.ask()
+        source = self.source / "entry.cbl"
+        source.write_text(source.read_text().replace("IN-AMOUNT * 2", "IN-AMOUNT * 3"))
+        self.clock_value = 130.0
+        second = self.ask(start_new_investigation=True)
+        self.assertEqual(second["reason_code"], "RESUME_SOURCE_VERSION_CHANGED")
+        self.assertEqual(second["agent_result"]["run_id"], saved_ids[0])
+        self.assertEqual(self.calls, 1)
+        self.assertFalse(self.store.load(saved_ids[0])["checkpoint"].get("superseded_by_explicit_retry"))
 
     def test_long_provider_timeout_does_not_disable_initial_source_discovery(self):
         def discover(request):

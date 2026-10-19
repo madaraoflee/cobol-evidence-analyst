@@ -45,6 +45,27 @@ def _matches(reference, name):
         for left in requested for right in supplied)
 
 
+def _explicit_root_path(question, plan, investigation, ranges, pages):
+    """An exact, unique file question can nominate its captured statements.
+
+    A file name inside another path, a fuzzy basename, or a narrower unresolved
+    subject does not authorize widening the answer to every operation in a file.
+    """
+    paths = set(plan.get("paths") or [])
+    if (len(paths) != 1 or plan.get("entities") or ranges or plan.get("source_scopes")
+            or plan.get("file_entities") or plan.get("unresolved")
+            or investigation.get("state") in {"unresolved", "ambiguous"}
+            or (investigation.get("source_identity") or {}).get("status") in {"ambiguous", "not_found"}):
+        return None
+    path = next(iter(paths))
+    if not isinstance(path, str) or not path or len({page["source_sha256"] for page in pages
+            if page["relative_path"] == path}) != 1:
+        return None
+    token = (r"(?<![A-Za-z0-9_$#@./\\-])" + re.escape(path)
+             + r"(?![A-Za-z0-9_$#@/\\-]|\.[A-Za-z0-9_$#@/\\-])")
+    return path if re.search(token, str(question)) else None
+
+
 def _call_facts(page, source_format, compilation_context):
     """Use the structural front end for actual CALL/PERFORM occurrences.
 
@@ -236,6 +257,7 @@ def build_evidence_answer(question, source_pages, investigation, *, source_forma
         else:
             valid[identifier] = page
     valid = {identifier: page for identifier, page in valid.items() if identifier not in conflicts}
+    explicit_root_path = _explicit_root_path(question, plan, investigation, ranges, valid.values())
     for caller in bound_callers:
         if (caller.get("binding_confirmed") is True and caller.get("occurrence_id")
                 and type(caller.get("line")) is int and any(page["relative_path"] == caller.get("relative_path")
@@ -281,7 +303,7 @@ def build_evidence_answer(question, source_pages, investigation, *, source_forma
             target_match = any(_matches(reference, target) for reference in references)
             input_match = any(_matches(reference, inputs) for reference in references)
             program_match = fact.get("program_name") and fact["program_name"] in references
-            scoped = bool(path_ranges)
+            scoped = bool(path_ranges) or page["relative_path"] == explicit_root_path
             if activation_only and not target_match:
                 continue
             if not (target_match or input_match or program_match or scoped):
@@ -321,9 +343,9 @@ def build_evidence_answer(question, source_pages, investigation, *, source_forma
         ("evidence_id", "relative_path", "start_line", "end_line", "source_sha256", "include_chain", "copy_instance")
         if key in valid[identifier]}} for identifier in identifiers]
     unknowns = [localized_text(answer_language,
-        "以上说明仅覆盖已读取版本中的直接语句；实际执行路径、未供证的后续覆盖和最终结果尚未确认。",
-        "These observations cover only direct statements in the captured source versions; the actual execution path, later overwrites without supplied evidence, and final results remain unconfirmed.",
-        "以上說明僅涵蓋已讀取版本中的直接語句；實際執行路徑、未供證的後續覆寫和最終結果尚未確認。")]
+        "以上说明仅覆盖已读取版本中的直接语句；这些语句本身不能证明实际执行路径，最终结果尚未确认。",
+        "These observations cover only direct statements in the captured source versions; the statements alone do not establish actual execution paths, and final results remain unconfirmed.",
+        "以上說明僅涵蓋已讀取版本中的直接語句；這些語句本身不能證明實際執行路徑，最終結果尚未確認。")]
     if any(fact["predicate"] == "call_statement" for fact in selected):
         unknowns.append(localized_text(answer_language,
             "这些调用点不能证明外部调度配置、实际运行时间或真实调用效果，仍需对应调度入口和实现证据。",

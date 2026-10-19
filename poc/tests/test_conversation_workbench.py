@@ -712,7 +712,12 @@ class ConversationWorkbenchTests(unittest.TestCase):
             resumed = self.run_job(question=question, allow_network=True,
                 conversation_id=conversation["id"], retry_message_id=conversation["messages"][0]["id"])
         final = resumed["agent"]["agent_result"]
-        self.assertEqual(final["run_id"], result["run_id"])
+        self.assertNotEqual(final["run_id"], result["run_id"])
+        trace = json.loads(Path(final["metrics"]["quality_trace_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(trace["continued_from_run_id"], result["run_id"])
+        previous = RunStore(self.output / "investigation-runs.sqlite").load(result["run_id"])
+        self.assertTrue(previous["checkpoint"]["superseded_by_explicit_retry"])
+        self.assertEqual(len(previous["requests"]), 1)
         self.assertTrue(final["model_answer_recorded"])
         self.assertEqual(len(self.calls), 2)
         self.assertGreaterEqual(final["metrics"]["tool_calls"]["read"], 1)

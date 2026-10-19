@@ -216,29 +216,38 @@ class SourceAvailabilityChatTests(unittest.TestCase):
             CompanyAPIConfig("https://neutral.example.invalid/v1", "neutral-model", api_key="offline-only"),
             framework_reference_path="", transport=transport)["agent_result"]
 
-    def test_first_answer_false_denial_gets_one_review_with_default_policy(self):
-        result = self.ask(["金额按基础金额乘以二得到。[evidence] 但 rule.cbl 源码本轮没有提供，无法完整解答。",
-                           "金额按基础金额乘以二得到。[evidence]"])
-        self.assertEqual(len(self.requests), 2)
-        self.assertTrue(result["business_review"]["synthesis_review_attempted"])
-        self.assertTrue(self.requests[1]["answer_review"]["source_availability_contradiction"])
+    def assert_local_repair(self, result):
+        self.assertIn("金额按基础金额乘以二得到", result["answer"])
         self.assertNotIn("没有提供", result["answer"])
-
-    def test_unnamed_current_source_denial_reaches_answer_review(self):
-        result = self.ask(["金额按基础金额乘以二得到。[evidence] 本轮未提供完整源码，只能部分分析。",
-                           "金额按基础金额乘以二得到。[evidence]"])
-        self.assertEqual(len(self.requests), 2)
-        self.assertTrue(self.requests[1]["answer_review"]["source_availability_contradiction"])
         self.assertNotIn("未提供完整源码", result["answer"])
+        self.assertNotIn("无法完整解答", result["answer"])
+        self.assertFalse(result["business_review"]["answer_completion"]["source_availability_contradiction"])
+        trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
+        repairs = trace["source_availability_repairs"]
+        self.assertTrue(repairs)
+        self.assertTrue(all(row["source_sha256"] for row in repairs))
+        self.assertTrue(all(row["supplied_ranges"] for row in repairs))
+        self.assertTrue(any("未提供" in row["original_text"] or "没有提供" in row["original_text"]
+                            for row in repairs))
+        self.assertFalse(result["claims_semantically_verified"])
 
-    def test_review_synonym_cannot_promote_false_denial_to_success(self):
+    def test_first_false_denial_is_repaired_in_one_request(self):
+        result = self.ask(["金额按基础金额乘以二得到。[evidence] 但 rule.cbl 源码本轮没有提供，无法完整解答。"])
+        self.assertEqual(len(self.requests), 1)
+        self.assertFalse(result["business_review"]["synthesis_review_attempted"])
+        self.assert_local_repair(result)
+
+    def test_unnamed_current_source_denial_is_locally_repaired(self):
+        result = self.ask(["金额按基础金额乘以二得到。[evidence] 本轮未提供完整源码，只能部分分析。"])
+        self.assertEqual(len(self.requests), 1)
+        self.assertNotIn("只能部分分析", result["answer"])
+        self.assert_local_repair(result)
+
+    def test_false_denial_in_revision_is_corrected_before_delivery(self):
         result = self.ask(["现有材料还没有选定源码。",
                           "金额按基础金额乘以二得到。[evidence] 但 rule.cbl 的完整源码本轮没有提供，无法完整解答。"])
-        self.assertGreaterEqual(len(self.requests), 2)
-        self.assertLessEqual(len(self.requests), 3)
-        self.assertEqual(result["status"], "PARTIAL")
-        self.assertNotEqual(result["stop_reason"], "sufficient_material")
-        self.assertTrue(result["business_review"]["answer_completion"]["source_availability_contradiction"])
+        self.assertEqual(len(self.requests), 2)
+        self.assert_local_repair(result)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import company_api
 from company_api import APIClientError, CompanyAPIConfig, OpenAICompatibleChatClient, TransportResponse, UrllibTransport
 from api_diagnostics import APIResponseDiagnostics
+from question_budget import QuestionBudget, QuestionDeadlineExceeded
 
 
 STREAM_HEADERS = {"Content-Type": "text/event-stream; charset=utf-8"}
@@ -413,6 +414,29 @@ class StreamingClientTests(unittest.TestCase):
         self.assertIs(raised.exception, failure)
         self.assertEqual(clock[0], 120)
         self.assertEqual(texts, ["Continued answer. ", "Continued answer. "])
+
+    def test_valid_sse_activity_cannot_extend_shared_question_deadline(self):
+        for delta in ({"content": "Business answer. "}, {"reasoning_content": "private activity"},
+                      {"tool_calls": [{"index": 0, "function": {"arguments": "partial"}}]}):
+            with self.subTest(delta=delta):
+                clock = [0.0]
+                budget = QuestionBudget(90, hard_seconds=90, clock=lambda: clock[0],
+                                        wall_clock=lambda: 1000 + clock[0])
+
+                def active_chunk():
+                    clock[0] += 30
+                    return event(delta)
+
+                client, transport, response = self.native([active_chunk] * 10, timeout=60)
+                texts = []
+                with mock.patch.object(company_api.time, "monotonic", side_effect=lambda: clock[0]):
+                    with self.assertRaises(QuestionDeadlineExceeded):
+                        self.complete(client, texts.append, check_cancel=budget.check,
+                                      timeout_seconds=budget.request_timeout(60))
+                    self.assertTrue(response.closed.wait(1))
+                self.assertEqual(clock[0], 90)
+                self.assertEqual(transport._opener.open.call_count, 1)
+                self.assertEqual(texts, ["Business answer. "] * 2 if "content" in delta else [])
 
     def test_done_finishes_without_waiting_for_a_persistent_sse_connection(self):
         release = threading.Event()

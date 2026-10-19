@@ -205,6 +205,19 @@ class ActivationEvidenceTests(unittest.TestCase):
         self.assertTrue(any(action["arguments"]["start_line"] <= guard <= action["arguments"]["end_line"]
             for action in result["planned_actions"] if action["arguments"]["relative_path"] == "caller.cbl"))
 
+    def test_line_304_call_cannot_satisfy_conditions_without_line_3_guard(self):
+        self.source.joinpath("caller.cbl").write_text(
+            "IDENTIFICATION DIVISION.\nPROGRAM-ID. LAUNCHER. PROCEDURE DIVISION.\n"
+            "IF READY-FLAG = 1\n" + "DISPLAY READY-FLAG\n" * 300
+            + 'CALL "JOB-STEP"\nEND-IF.\nGOBACK.\n')
+        self.build()
+        self.assertEqual(self.line("caller.cbl", "IF READY-FLAG"), 3)
+        self.assertEqual(self.line("caller.cbl", 'CALL "JOB-STEP"'), 304)
+        result = self.investigate([self.page("job.cbl"), self.page("caller.cbl", 304, 304)])
+        self.assertNotEqual(self.item(result, "activation_conditions")["status"], "SATISFIED")
+        self.assertTrue(any(action["arguments"]["start_line"] <= 3 <= action["arguments"]["end_line"]
+            for action in result["planned_actions"] if action["arguments"]["relative_path"] == "caller.cbl"))
+
     def test_page_hash_and_contents_must_both_match_the_indexed_source(self):
         self.build()
         original = self.page("caller.cbl")
