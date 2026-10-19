@@ -18,7 +18,7 @@ from business_index import build_business_index
 from company_api import APIClientError, CompanyAPIConfig, TransportResponse
 from quality_trace import QualityTrace
 from repository_discovery import ensure_repository_search
-from run_store import RunStore
+from run_store import RunStore, fingerprint
 from source_session import QuestionSourceSession
 
 
@@ -172,6 +172,87 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
         trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text(encoding="utf-8"))
         self.assertIsNotNone(trace["rounds"][0]["response"])
         self.assertEqual(trace["rounds"][0]["response"]["finish_reason"], "stop")
+
+    def legacy_policy_metadata(self, run_id, *, previous_pipeline=False, invalid=False):
+        saved = self.store.load(run_id)
+        metadata = saved["metadata"]
+        metadata["configuration"]["policy"].pop("delivery_target_seconds")
+        if previous_pipeline:
+            metadata["pipeline_version"] = "question-evidence-v30"
+        if invalid:
+            metadata["configuration"]["policy"]["max_question_seconds"] = "invalid"
+        with self.store.connect() as database:
+            database.execute("UPDATE investigation_runs SET metadata_json=?,identity=? WHERE run_id=?",
+                (json.dumps(metadata), fingerprint(metadata), run_id))
+        return self.store.load(run_id)
+
+    def interrupted_received_response(self):
+        original = QualityTrace.record_remote_response
+        run_ids = []
+
+        def interrupt(trace, response):
+            original(trace, response)
+            run_ids.append(trace.data["run_id"])
+            raise RuntimeError("interrupted_after_response_saved")
+
+        with mock.patch.object(QualityTrace, "record_remote_response", new=interrupt):
+            with self.assertRaisesRegex(RuntimeError, "interrupted_after_response_saved"):
+                self.ask()
+        return run_ids[0]
+
+    def test_auto_discovered_old_policy_missing_new_field_still_hits_upgrade_gate(self):
+        run_id = self.interrupted_received_response()
+        before = self.legacy_policy_metadata(run_id, previous_pipeline=True)
+        self.assertEqual(before["state"], "running")
+        self.assertFalse(before["uncertain_requests"])
+        self.assertEqual([row["state"] for row in before["requests"]], ["completed"])
+        self.assertIsNotNone(before["checkpoint"]["question_budget"])
+        self.clock_value = 130
+        for options in ({}, {"resume_run_id": run_id}, {"start_new_investigation": True}):
+            with self.subTest(options=options):
+                result = self.ask(**options)
+                self.assertEqual(result["reason_code"], "RESUME_PIPELINE_VERSION_CHANGED")
+                self.assertEqual(result["agent_result"]["run_id"], run_id)
+                self.assertEqual(self.calls, 1)
+                self.assertEqual(self.store.load(run_id), before)
+                with self.store.connect() as database:
+                    self.assertEqual(database.execute("SELECT COUNT(*) FROM investigation_runs").fetchone()[0], 1)
+
+    def test_invalid_saved_policy_does_not_become_default_compatible_policy(self):
+        run_id = self.interrupted_received_response()
+        before = self.legacy_policy_metadata(run_id, previous_pipeline=True, invalid=True)
+        result = self.ask(resume_run_id=run_id)
+        self.assertEqual(result["reason_code"], "RESUME_IDENTITY_MISMATCH")
+        self.assertEqual(self.calls, 1)
+        self.assertEqual(self.store.load(run_id), before)
+
+    def test_missing_optional_policy_field_keeps_expired_budget_on_same_pipeline(self):
+        def action(request):
+            self.calls += 1
+            return TransportResponse(200, json.dumps({"choices": [{"message": {"content": json.dumps({
+                "read": [{"relative_path": "entry.cbl", "start_line": 7, "end_line": 10}]})},
+                "finish_reason": "stop"}]}))
+
+        def progress(event):
+            if self.calls and event.get("phase") == "retrieving":
+                self.clock_value = 121
+
+        first = self.ask(transport=action, progress=progress)["agent_result"]
+        self.assertEqual(first["stop_reason"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+        before = self.legacy_policy_metadata(first["run_id"])
+        self.assertEqual(before["state"], "running")
+        self.assertFalse(before["uncertain_requests"])
+        self.assertEqual([row["state"] for row in before["requests"]], ["completed"])
+        self.clock_value = 130
+        second = self.ask()
+        self.assertEqual(second["reason_code"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+        self.assertEqual(second["agent_result"]["run_id"], first["run_id"])
+        self.assertEqual(self.calls, 1)
+        after = self.store.load(first["run_id"])
+        self.assertEqual(after["requests"], before["requests"])
+        old_budget, new_budget = before["checkpoint"]["question_budget"], after["checkpoint"]["question_budget"]
+        self.assertGreaterEqual(new_budget["elapsed_seconds"], old_budget["elapsed_seconds"])
+        self.assertLessEqual(new_budget["hard_deadline_epoch_seconds"], old_budget["hard_deadline_epoch_seconds"])
 
     def test_deadline_while_revalidating_saved_sources_preserves_the_same_run(self):
         original_record = QualityTrace.record_remote_response

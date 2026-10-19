@@ -221,7 +221,8 @@ def _claim(command, root, case, sample_index):
         return ordinary(envelope, payload, index)
     with LoopbackProvider(root / "provider", respond) as provider:
         environment = write_profile(root / "profile", provider,
-            {"max_question_seconds": 1} if soft_target else None)
+            {"delivery_target_seconds": 1, "hard_question_seconds": 120}
+            if soft_target else None)
         with NativeWorkbench(command, root / "profile", environment, root) as workbench:
             cold = _index(workbench, source, output, provider)
             observation = workbench.analyze(source, output, QUESTION)
@@ -231,7 +232,8 @@ def _claim(command, root, case, sample_index):
                 target = agent["metrics"].get("delivery_target", {})
                 requests = read_journal(output)["requests"]
                 checks["quality_target_does_not_discard_first_answer"] = (
-                    target.get("reached") is True and target.get("hard_limit_seconds") is None
+                    target.get("reached") is True and target.get("seconds") == 1
+                    and target.get("hard_limit_seconds") == 120
                     and target.get("inflight_request_cancelled_by_target") is False
                     and agent.get("answer_origin") == "model" and agent.get("answer_available") is True
                     and agent.get("stop_reason") != "QUESTION_TIME_BUDGET_EXHAUSTED")

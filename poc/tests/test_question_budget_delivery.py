@@ -141,6 +141,40 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
         self.assertEqual(policy.hard_question_seconds, 7)
         self.assertEqual(policy.to_dict()["hard_question_seconds"], 7)
 
+    def test_policy_soft_target_does_not_cancel_request_before_finite_hard_deadline(self):
+        policy = AgentPolicy(max_question_seconds=120, delivery_target_seconds=1)
+        budget = self.budget(policy.effective_delivery_target_seconds, hard_seconds=policy.hard_question_seconds)
+        self.now += 1.25
+        self.assertTrue(budget.target_reached())
+        budget.check()
+        self.assertEqual(budget.request_timeout(60), 60)
+        self.now += 118.75
+        with self.assertRaises(QuestionDeadlineExceeded):
+            budget.check()
+
+    def test_soft_target_checkpoint_restore_cannot_extend_target_or_hard_deadline(self):
+        wall = [1000.0]
+        policy = AgentPolicy(max_question_seconds=120, delivery_target_seconds=1)
+        budget = self.budget(policy.effective_delivery_target_seconds,
+                             hard_seconds=policy.hard_question_seconds, wall_clock=lambda: wall[0])
+        self.now += 1.25
+        wall[0] += 1.25
+        saved = budget.checkpoint()
+        self.assertEqual((saved["limit_seconds"], saved["hard_limit_seconds"]), (1, 120))
+        wall[0] += 30
+        self.now = 0
+        wider = AgentPolicy(max_question_seconds=180, delivery_target_seconds=60)
+        restored = self.budget(wider.effective_delivery_target_seconds,
+            hard_seconds=wider.hard_question_seconds, wall_clock=lambda: wall[0])
+        restored.restore(saved)
+        self.assertEqual(restored.limit, 1)
+        self.assertTrue(restored.target_reached())
+        self.assertEqual(restored.hard_limit, 120)
+        self.assertEqual(restored.hard_remaining(), 88.75)
+        self.now += 88.75
+        with self.assertRaises(QuestionDeadlineExceeded):
+            restored.check()
+
     def test_explicit_hard_policy_round_trips_independently_of_target(self):
         policy = AgentPolicy(max_question_seconds=120, hard_question_seconds=7)
         self.assertEqual(resolve_agent_policy(policy.to_dict()), policy)

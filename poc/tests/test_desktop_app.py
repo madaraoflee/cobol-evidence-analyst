@@ -153,6 +153,15 @@ class DesktopRuntimeTests(unittest.TestCase):
             desktop_app.configure_tls()
             self.assertEqual(os.environ["SSL_CERT_FILE"], "/private/custom.pem")
 
+    def test_explicit_certificate_does_not_require_the_unused_default_bundle(self):
+        with mock.patch.dict(sys.modules, {"certifi": None}), \
+             mock.patch.dict(os.environ, {"SSL_CERT_FILE": "/private/custom.pem"}, clear=True):
+            desktop_app.configure_tls()
+            self.assertEqual(os.environ["SSL_CERT_FILE"], "/private/custom.pem")
+        with mock.patch.dict(sys.modules, {"certifi": None}), mock.patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(ModuleNotFoundError):
+                desktop_app.configure_tls()
+
 
 class BrowserCompatibilityTests(unittest.TestCase):
     def test_browser_headless_check_does_not_import_embedded_renderer(self):

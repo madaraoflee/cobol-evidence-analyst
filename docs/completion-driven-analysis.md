@@ -54,6 +54,7 @@
     "max_model_requests": 6,
     "max_question_seconds": 180,
     "hard_question_seconds": 180,
+    "delivery_target_seconds": null,
     "investigation_mode": "adaptive",
     "source_memory_enabled": true,
     "max_investigation_rounds": 5,
@@ -64,6 +65,8 @@
 ```
 
 `max_question_seconds` 与 `hard_question_seconds` 取更小的有限值作为本题期限，避免旧的较短额度被扩大。收尾会提前开始；近期模型等待较长时可更早收尾，但不扩期限。维护者确需深入模式时须显式同时设置两项为最多 300 秒，系统不会自行延长。接口请求超时、密钥、模型配置、单轮材料和输出限制仍分别生效。`investigation_mode` 支持 `adaptive` 与 `single_pass`，预算不会隐式切换调查行为。
+
+`delivery_target_seconds` 是可选的较早交付目标，缺省或 `null` 时沿用本题期限。它只让调查更早收尾，不取消已经发出的请求，也不能延长硬期限。例如总预算 120 秒、交付目标 1 秒时，1.25 秒返回的首答仍可接收；总预算本身设为 1 秒时仍须在 1 秒截止。交付目标不得被误写到 `max_question_seconds` 中；恢复任务仍保留已消耗时间和原先更早的截止点。
 
 `max_answer_revisions` 保留旧的 `0/1` 配置格式，不把新值 `2` 写入旧字段。旧 `0` 继续关闭无新证据修订，旧 `1` 保守限制为最多一次；未设置旧字段时采用 `max_no_evidence_revisions` 的默认两次，二者并存时取更严格值。修订必须指出已供应材料中要补全或纠正的具体内容。输出长度限制触发续写后，拼接后的正文仍须经过同一质量复核；续写与修订共享模型请求总额度。
 

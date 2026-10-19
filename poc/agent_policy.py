@@ -42,6 +42,8 @@ class AgentPolicy:
     max_answer_revisions: int | None = None
     semantic_cache_bytes: int = 536870912
     hard_question_seconds: int | None = 180
+    # Optional synthesis target; never changes the finite total deadline.
+    delivery_target_seconds: int | None = None
     investigation_mode: str = "adaptive"
     source_memory_enabled: bool = True
     max_investigation_rounds: int = 5
@@ -53,6 +55,7 @@ class AgentPolicy:
             "max_model_requests": (1, 32),
             "max_question_seconds": (1, 1800),
             "hard_question_seconds": (1, 1800),
+            "delivery_target_seconds": (1, 1800),
             "max_answer_revisions": (0, 1),
         }
         for name, (minimum, maximum) in optional_limits.items():
@@ -103,6 +106,11 @@ class AgentPolicy:
         hard = min(self.hard_question_seconds or 180, target, 300)
         object.__setattr__(self, "max_question_seconds", min(target, hard))
         object.__setattr__(self, "hard_question_seconds", hard)
+
+    @property
+    def effective_delivery_target_seconds(self):
+        target = self.delivery_target_seconds if self.delivery_target_seconds is not None else self.max_question_seconds
+        return min(target, self.hard_question_seconds)
 
     @property
     def answer_revision_limit(self):

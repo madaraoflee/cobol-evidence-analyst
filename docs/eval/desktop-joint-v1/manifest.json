@@ -150,7 +150,7 @@
         "question_seconds": 30
       },
       "corpus": "runtime_claim",
-      "timing_interpretation": "1.25s deliberate provider wait crosses 1s soft delivery target; validates answer delivery and claim checking, not a measured model SLA."
+      "timing_interpretation": "1.25s deliberate provider wait crosses an explicit 1s soft delivery target inside a finite 120s hard question budget; the existing 30s sample ceiling still applies. Validates answer delivery and claim checking, not a measured model SLA."
     },
     {
       "id": "activation_trigger",

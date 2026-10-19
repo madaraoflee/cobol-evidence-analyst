@@ -259,9 +259,9 @@ def open_profile(root: Path, *, edit_config=False):
 
 
 def configure_tls():
-    import certifi
-
     if "SSL_CERT_FILE" not in os.environ:
+        import certifi
+
         os.environ["SSL_CERT_FILE"] = certifi.where()
 
 

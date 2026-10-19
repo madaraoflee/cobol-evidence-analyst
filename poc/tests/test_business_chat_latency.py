@@ -198,7 +198,9 @@ class BusinessChatLatencyTests(unittest.TestCase):
         self.assertLessEqual(self.request_timeouts[0], 7.0)
         self.assertTrue(result["model_answer_recorded"])
 
-    def test_slow_completed_first_answer_crosses_target_without_being_discarded(self):
+    def test_already_returned_first_answer_is_preserved_at_hard_deadline(self):
+        # This injected transport has already returned its response. It tests
+        # local delivery, not permission to keep an in-flight request running.
         def respond(payload):
             self.clock_value = 121.0
             page = next(p for p in self.pages(payload) if "COMPUTE BILL-AMOUNT" in p["source_text"])
@@ -211,6 +213,35 @@ class BusinessChatLatencyTests(unittest.TestCase):
         self.assertTrue(result["metrics"]["delivery_target"]["reached"])
         self.assertFalse(result["metrics"]["delivery_target"]["inflight_request_cancelled_by_target"])
         self.assertNotEqual(result["stop_reason"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+
+    def test_explicit_one_second_soft_target_retains_first_answer_with_finite_hard_budget(self):
+        def respond(payload):
+            self.clock_value = 1.25
+            return self.answer(payload)
+
+        policy = AgentPolicy(max_model_requests=1, max_question_seconds=120, delivery_target_seconds=1)
+        result = self.ask(respond=respond, policy=policy)
+        self.assertEqual(len(self.requests), 1)
+        self.assertGreater(self.request_timeouts[0], 1.25)
+        self.assertTrue(result["model_answer_recorded"])
+        self.assertEqual(result["answer_origin"], "model")
+        self.assertIn("本金加费用", result["answer"])
+        self.assertEqual(result["metrics"]["delivery_target"], {"seconds": 1, "reached": True,
+            "inflight_request_cancelled_by_target": False, "hard_limit_seconds": 120})
+        from run_store import RunStore
+        saved = RunStore(self.root / "investigation-runs.sqlite").load(result["run_id"])
+        self.assertEqual(len(saved["requests"]), 1)
+        self.assertEqual(saved["requests"][0]["state"], "completed")
+        checkpoint = saved["checkpoint"]["question_budget"]
+        self.assertEqual((checkpoint["limit_seconds"], checkpoint["hard_limit_seconds"]), (1, 120))
+
+    def test_legacy_one_second_limit_still_bounds_transport_to_one_second(self):
+        result = self.ask(policy=AgentPolicy(max_model_requests=1, max_question_seconds=1))
+        self.assertEqual(len(self.requests), 1)
+        self.assertGreater(self.request_timeouts[0], 0)
+        self.assertLessEqual(self.request_timeouts[0], 1)
+        self.assertEqual(result["metrics"]["delivery_target"]["seconds"], 1)
+        self.assertEqual(result["metrics"]["delivery_target"]["hard_limit_seconds"], 1)
 
     def test_provider_failure_preserves_source_answer_without_claiming_model_success(self):
         def fail(payload):

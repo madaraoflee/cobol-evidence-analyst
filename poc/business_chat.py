@@ -3391,10 +3391,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     metrics = {"model_requests": turns, "elapsed_seconds": round(question_budget.elapsed() if question_budget else time.monotonic() - started, 3),
                "completion_driven": adaptive,
                "convergence_stop_reason": continuation.stop_reason if adaptive else None,
-               "delivery_target": {"seconds": policy.max_question_seconds,
+               "delivery_target": {"seconds": question_budget.limit if question_budget else policy.effective_delivery_target_seconds,
                    "reached": question_budget.target_reached() if question_budget else False,
                    "inflight_request_cancelled_by_target": False,
-                   "hard_limit_seconds": policy.hard_question_seconds},
+                   "hard_limit_seconds": question_budget.hard_limit if question_budget else policy.hard_question_seconds},
                "retrieved_pages": len(pages), "repository_rebuilt": False,
                "history_messages": len(history or []), "source_characters": sum(len(sent_pages[i].get("source_text", "")) for i in final_source_ids),
                **({"current_source_pages": len(final_current_source_ids),
@@ -3489,7 +3489,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
     if type(explicit_retry) is not bool:
         raise ValueError("start_new_investigation must be a boolean")
     selected_policy = resolve_agent_policy(kwargs.get("policy"))
-    budget = QuestionBudget(selected_policy.max_question_seconds,
+    budget = QuestionBudget(selected_policy.effective_delivery_target_seconds,
                             hard_seconds=selected_policy.hard_question_seconds,
                             finalization_reserve_seconds=selected_policy.finalization_reserve_seconds,
                             clock=lambda: time.monotonic(), check_cancel=kwargs.get("check_cancel"))
@@ -3549,9 +3549,18 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
         # Changing a timeout or output allowance does not establish that the
         # previous charged request failed. Resolve uncertainty before deciding
         # whether any saved answer/configuration can be replayed.
+        saved_policy = metadata.get("configuration", {}).get("policy")
+        try:
+            policy_compatible = (isinstance(saved_policy, Mapping)
+                and resolve_agent_policy(saved_policy) == selected_policy)
+        except (ValueError, TypeError):
+            policy_compatible = False
+        # Added optional fields may be absent in older journals. Compare their
+        # normalized meaning before the version gate, without discarding the
+        # saved request ledger or granting the same question a fresh deadline.
         compatible = same_question and (bool(resume.get("uncertain_requests")) or (
             metadata.get("configuration", {}).get("configuration_fingerprint") == expected_configuration
-            and metadata.get("configuration", {}).get("policy") == resolve_agent_policy(kwargs.get("policy")).to_dict()))
+            and policy_compatible))
         if not compatible:
             if (resume.get("uncertain_requests") and metadata.get("question_id") == question_id
                     and metadata.get("analysis_identity") in prior_language_identities
@@ -3591,7 +3600,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
             kwargs["continued_from_run_id"] = resume["run_id"]
             retry_seed = resume
             resume = None
-            budget = QuestionBudget(selected_policy.max_question_seconds,
+            budget = QuestionBudget(selected_policy.effective_delivery_target_seconds,
                 hard_seconds=selected_policy.hard_question_seconds,
                 finalization_reserve_seconds=selected_policy.finalization_reserve_seconds,
                 clock=lambda: time.monotonic(), check_cancel=budget.cancel)

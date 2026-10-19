@@ -10,6 +10,8 @@ status: partially superseded by ADR-0015
 
 保留 Python 模块化单体、现有默认入口和 SQLite 请求日志。`max_question_seconds` 保留配置兼容性，改为交付调度目标：达到目标后不再扩展可选调查，优先用实际供应的证据回答；已发出的请求继续按照独立 HTTP 超时与用户取消处理。需要硬停止的维护场景须显式设置 `hard_question_seconds`；默认没有该硬截止。请求次数、原有 HTTP 超时、输出额度不增加。
 
+2026-10-20 后续决策：上述无硬期限配置已被有界调查策略取代。`max_question_seconds` 与 `hard_question_seconds` 的更小有限值是硬期限，默认 180 秒，旧的更严格额度保留。较早交付目标改由独立可选字段 `delivery_target_seconds` 表达，只影响收尾调度；达到该目标但尚未到硬期限的首答继续接收。最终 EXE 的慢响应验收保留 1 秒目标、1.25 秒模型等待及原 30 秒样本门槛，同时明确使用 120 秒硬期限，不再要求无界等待。当前配置见[多轮分析与配置迁移](../completion-driven-analysis.md)。
+
 ```mermaid
 flowchart LR
     Q[工作台问题与会话焦点] --> E[有界定位与版本证据]

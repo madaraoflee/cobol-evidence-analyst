@@ -17,6 +17,8 @@ class AgentPolicyTests(unittest.TestCase):
         self.assertEqual(policy.max_model_requests, 6)
         self.assertEqual(policy.max_question_seconds, 180)
         self.assertEqual(policy.hard_question_seconds, 180)
+        self.assertIsNone(policy.delivery_target_seconds)
+        self.assertEqual(policy.effective_delivery_target_seconds, 180)
         self.assertEqual(policy.finalization_reserve_seconds, 45)
         self.assertEqual(policy.max_investigation_rounds, 5)
         self.assertEqual(policy.investigation_mode, "adaptive")
@@ -91,10 +93,23 @@ class AgentPolicyTests(unittest.TestCase):
                 self.assertFalse(policy.is_last_request(used))
 
     def test_optional_limits_reject_invalid_values(self):
-        for field, maximum in (("max_model_requests", 32), ("max_question_seconds", 1800)):
+        for field, maximum in (("max_model_requests", 32), ("max_question_seconds", 1800),
+                               ("delivery_target_seconds", 1800)):
             for value in (0, -1, maximum + 1, True, 1.5, "5"):
                 with self.subTest(field=field, value=value), self.assertRaises(ValueError):
                     resolve_agent_policy({field: value})
+
+    def test_explicit_delivery_target_is_separate_and_cannot_extend_total_deadline(self):
+        policy = AgentPolicy(max_question_seconds=120, delivery_target_seconds=1)
+        self.assertEqual(policy.effective_delivery_target_seconds, 1)
+        self.assertEqual((policy.max_question_seconds, policy.hard_question_seconds), (120, 120))
+        self.assertEqual(resolve_agent_policy(policy.to_dict()), policy)
+        self.assertEqual(AgentPolicy(max_question_seconds=120, delivery_target_seconds=1800)
+                         .effective_delivery_target_seconds, 120)
+        strict = AgentPolicy(max_question_seconds=1, delivery_target_seconds=120)
+        self.assertEqual((strict.effective_delivery_target_seconds, strict.hard_question_seconds), (1, 1))
+        legacy = AgentPolicy(max_question_seconds=1)
+        self.assertEqual((legacy.effective_delivery_target_seconds, legacy.hard_question_seconds), (1, 1))
 
     def test_invalid_configuration_cannot_expand_transport_hard_limit(self):
         for value in ({"max_request_bytes": 256001}, {"max_model_requests": True},
