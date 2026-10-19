@@ -47,6 +47,41 @@ _EXPLANATIONS = {
     "source_empty": ("所选目录没有符合设置的可用源码。", "核对源码目录、扩展名和无扩展名文件设置。"),
     "fts_unavailable": ("当前 Python 的 SQLite 不支持全文索引。", "使用包含 FTS5 的 Python 3.10 或更高版本后重新启动工作台。"),
 }
+_EXPLANATIONS_EN = {
+    "request_too_large": ("The request body exceeds the size limit.", "Reduce the source code or reference material supplied in this request, then try again."),
+    "context_too_large": ("This request exceeds the model's context limit.", "Reduce the conversation history and supplied material, then analyze it in smaller parts."),
+    "model_unavailable": ("The selected model is unavailable or inaccessible to this account.", "Check the model configuration and the models available to the account."),
+    "unsupported_feature": ("The API explicitly does not support the requested feature or parameter.", "Use a supported feature or adjust the request parameters."),
+    "output_limit": ("The requested output allowance or output parameter exceeds the limit.", "Reduce the maximum output allowance for this request, then try again."),
+    "quota_exhausted": ("The account has insufficient quota or remaining usage allowance.", "Check the account quota or billing status, then try again after the allowance is restored."),
+    "rate_limit": ("The API explicitly reported a request rate limit.", "Wait for the rate limit window to end before retrying manually."),
+    "authentication": ("API authentication failed.", "Check the API key and authentication configuration."),
+    "permission": ("The API denied access to the current account.", "Check the account permissions and resource access authorization."),
+    "timeout": ("The request timed out.", "Check the network and service status before retrying manually."),
+    "transport_busy": ("A local model connection is still active; this request was not sent.", "Wait for the connection to finish before retrying manually."),
+    "question_time_budget": ("This investigation reached its time budget and further checks have stopped.", "Review the saved evidence and pending checks. If a remote request's result is unknown, confirm its status before deciding whether to retry."),
+    "connection": ("The API could not be reached.", "Check the network, API address, and service connectivity."),
+    "http_429_unknown": ("The API returned HTTP 429 without a confirmed cause.", "Check the account allowance and service rate limit information before deciding whether to retry."),
+    "http_5xx_unknown": ("The API returned a server error; the specific cause is unconfirmed.", "Use the correlation ID to check server logs and service status."),
+    "request_rejected": ("The API rejected this request; the specific cause is unconfirmed.", "Use the correlation ID to check supported request formats and service logs."),
+    "invalid_response": ("The API returned an invalid response format.", "Check API compatibility and server response logs."),
+    "invalid_stream": ("The API's streamed answer could not be parsed.", "Check whether the API supports the standard streaming format and use the correlation ID to review server records."),
+    "stream_incomplete": ("The API connection ended before the full answer was received.", "Check the connection and server records. The displayed content remains a draft; confirm the request status before deciding whether to retry."),
+    "stream_callback_invalid": ("Local live answer processing could not initialize; this model request was not sent.", "Restart the workbench. If the failure persists, use the correlation ID to check application logs."),
+    "stream_callback_failed": ("An error occurred while processing the live answer locally.", "Use the correlation ID to check application logs. The remote request may still be completing; confirm its status before deciding whether to retry."),
+    "system_error": ("A system error occurred while processing the request; the specific cause is unconfirmed.", "Use the correlation ID to check application and server logs."),
+    "storage_full": ("Local storage is full.", "Free disk space in the results and temporary directories, then try again."),
+    "storage_permission": ("Local analysis files could not be written.", "Check write permissions for the results and workbench configuration directories."),
+    "storage_locked": ("A local database or file is in use.", "Stop other workbench instances using the same results directory, then try again."),
+    "storage_corrupt": ("The local analysis database is corrupt or has an invalid format.", "Preserve the original results directory and rebuild the index in a new, separate results directory."),
+    "report_invalid": ("The local analysis report could not be read or has an invalid format.", "Preserve the original file, check the import details, and regenerate the analysis output."),
+    "source_snapshot_mismatch": ("The imported program list does not match the index snapshot.", "Preserve the original library and update the source code again."),
+    "index_update_required": ("The existing index is incompatible with the current parser or compilation settings.", "Complete an index update using Update source before asking another question."),
+    "source_encoding_invalid": ("An imported file could not be read using the selected encoding.", "Check the file shown in the import progress, confirm it is text source code, and select the correct encoding before retrying."),
+    "source_changed": ("Source code changed during import, preventing a consistent index.", "Pause source editing or synchronization and import again after the files are stable."),
+    "source_empty": ("The selected directory has no usable source files matching the settings.", "Check the source directory, file extensions, and settings for files without an extension."),
+    "fts_unavailable": ("This Python installation's SQLite does not support full-text indexing.", "Use Python 3.10 or later with FTS5 support, then restart the workbench."),
+}
 TRANSPORT_EXPLANATIONS = {
     "dns_resolution_failed": "找不到接口地址，请检查网络或地址。",
     "tls_certificate_invalid": "连接验证失败，请联系管理员检查证书。",
@@ -55,6 +90,15 @@ TRANSPORT_EXPLANATIONS = {
     "connection_reset": "接口连接中断，请稍后重试。",
     "network_unreachable": "无法连上接口网络，请检查网络连接。",
     "timeout": "接口响应超时，请稍后重试。",
+}
+_TRANSPORT_EXPLANATIONS_EN = {
+    "dns_resolution_failed": "The API address could not be found. Check the network or address.",
+    "tls_certificate_invalid": "Connection verification failed. Contact an administrator to check the certificate.",
+    "tls_handshake_failed": "A secure connection could not be established. Contact an administrator.",
+    "connection_refused": "The API refused the connection. Confirm that the service is running.",
+    "connection_reset": "The API connection was interrupted. Try again later.",
+    "network_unreachable": "The API network could not be reached. Check the network connection.",
+    "timeout": "The API response timed out. Try again later.",
 }
 _CODE_CATEGORY = {
     "request_too_large": "request_too_large", "payload_too_large": "request_too_large",
@@ -182,10 +226,20 @@ def sanitize_diagnostic(value):
     return result
 
 
-def format_diagnostic(value):
+def format_diagnostic(value, *, language="zh-CN"):
     safe = sanitize_diagnostic(value)
     if safe is None:
         return ""
+    if language == "en":
+        reason, next_step = _EXPLANATIONS_EN[safe["category"]]
+        reason = _TRANSPORT_EXPLANATIONS_EN.get(safe.get("transport_reason"), reason)
+        text = reason + " " + next_step
+        if "http_status" in safe:
+            text += f" HTTP {safe['http_status']}."
+        text += f" Local correlation ID: {safe['request_id']}."
+        if "upstream_request_id" in safe:
+            text += f" Upstream correlation ID: {safe['upstream_request_id']}."
+        return text
     text = safe["reason"] + " " + safe["next_step"]
     if "http_status" in safe:
         text += f" HTTP {safe['http_status']}。"

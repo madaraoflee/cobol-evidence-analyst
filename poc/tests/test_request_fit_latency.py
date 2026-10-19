@@ -88,7 +88,7 @@ class RequestFitLatencyTests(unittest.TestCase):
         self.assertEqual(sum(item["reason"] == "request_bytes" for item in trims), len(links) - len(retained))
         retained.append(links[len(retained)])
         payload["source_context"][0]["call_chain"]["omitted_links"] -= 1
-        messages = [{"role": "system", "content": business_chat._SYSTEM},
+        messages = [{"role": "system", "content": business_chat._system_for_payload(payload)},
                     {"role": "user", "content": json.dumps(business_chat._prompt_payload(payload),
                         ensure_ascii=False, separators=(",", ":"))}]
         size = len(json.dumps({"model": self.config.chat_model, "messages": messages,

@@ -429,6 +429,17 @@ class WebAppTests(unittest.TestCase):
         for secret in (TEST_KEY, TEST_ENDPOINT, TEST_MODEL):
             self.assertNotIn(secret, json.dumps(result))
 
+    def test_question_locale_reaches_analyzer_without_changing_question(self) -> None:
+        source = self.source("source", "ORDER-RULE")
+        analyzer = mock.Mock(wraps=analyze_source)
+        self.app.analyzer = analyzer
+        question = "Explain the order rules."
+        result = self.finish(self.submit(source, self.root / "output", question=question, locale="en"))
+        self.assertEqual(result["status"], "COMPLETED", result)
+        self.assertEqual(analyzer.call_args.kwargs["locale"], "en")
+        self.assertEqual(analyzer.call_args.kwargs["question"], question)
+        self.assertFalse(analyzer.call_args.kwargs["allow_network"])
+
     def test_refresh_preserves_old_project_until_commit_while_only_one_job_runs(self) -> None:
         first = self.source("first", "STOCK-READ")
         second = self.source("second", "STOCK-WRITE")

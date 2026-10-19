@@ -103,6 +103,22 @@ class RunStore:
                     return self.load(row["run_id"])
         return None
 
+    def uncertain(self, question_id, model_fingerprint, analysis_identities):
+        """Find pending remote work even when a newer safe run has the same identity."""
+        identities = set(analysis_identities)
+        with self.connect() as db:
+            rows = db.execute("SELECT run_id,metadata_json FROM investigation_runs r "
+                              "WHERE state IN ('running','attention') AND EXISTS "
+                              "(SELECT 1 FROM investigation_requests q WHERE q.run_id=r.run_id AND q.state='started') "
+                              "ORDER BY updated_at DESC")
+            for row in rows:
+                metadata = json.loads(row["metadata_json"])
+                if (metadata.get("question_id") == question_id
+                    and metadata.get("configuration", {}).get("model_fingerprint") == model_fingerprint
+                    and metadata.get("analysis_identity") in identities):
+                    return self.load(row["run_id"])
+        return None
+
     def start_step(self, run_id, tool, arguments):
         key = fingerprint({"tool": tool, "arguments": arguments})
         with self.connect() as db:

@@ -40,6 +40,7 @@ from api_error_details import build_diagnostic, build_local_diagnostic, format_d
 from source_versions import record_version, versions
 from source_update import SourceUpdateBackup
 from app_paths import RESOURCE_ROOT, state_root
+from response_language import localized_text, resolve_answer_language
 
 
 WEB_ROOT = RESOURCE_ROOT / "web"
@@ -156,7 +157,7 @@ def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 102
 
 
 def _validate_options(payload: object) -> dict:
-    fields = {"source", "output", "encoding", "source_format", "entry", "question", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "answer_detail", "conversation_id", "retry_message_id", "framework_reference_path", "capture_api_responses", "compilation_context_path"}
+    fields = {"source", "output", "encoding", "source_format", "entry", "question", "locale", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "answer_detail", "conversation_id", "retry_message_id", "framework_reference_path", "capture_api_responses", "compilation_context_path"}
     if not isinstance(payload, dict) or set(payload) - fields:
         raise RequestError("INVALID_OPTIONS", "请求包含未知设置。")
     source_text, output_text = _text(payload, "source", required=True), _text(payload, "output", required=True)
@@ -209,6 +210,9 @@ def _validate_options(payload: object) -> dict:
     answer_detail = _text(payload, "answer_detail", maximum=16) or "detailed"
     if answer_detail not in {"brief", "detailed"}:
         raise RequestError("INVALID_OPTIONS", "回答详略须为 brief 或 detailed。")
+    locale = _text(payload, "locale", maximum=16)
+    if locale is not None and locale not in {"en", "zh-CN", "zh-HK"}:
+        raise RequestError("INVALID_OPTIONS", "locale must be en, zh-CN or zh-HK.")
     extension_text = _text(payload, "extensions", maximum=256)
     try:
         extensions = parse_extensions(extension_text)
@@ -229,6 +233,7 @@ def _validate_options(payload: object) -> dict:
         "capture_api_responses": capture_api_responses,
         "analysis_mode": "business", "max_source_pages": max_source_pages, "reading_strategy": reading_strategy,
         "answer_detail": answer_detail,
+        **({"locale": locale} if locale is not None else {}),
         "conversation_id": _text(payload, "conversation_id", maximum=64),
         "retry_message_id": retry_message_id,
         "framework_reference_path": _text(payload, "framework_reference_path", maximum=4096),
@@ -796,7 +801,12 @@ class WorkbenchState:
         status = ("partial" if available and (agent.get("status") == "PARTIAL"
             or agent.get("answer_origin") == "local_source_facts" or project_agent.get("runner_status") != "COMPLETED")
             else "completed" if available else "failed")
-        content = agent.get("answer") or "本次没有取得模型回答。对话已保留，可以重试。"
+        answer_language = agent.get("answer_language") or resolve_answer_language(
+            options.get("question", ""), locale=options.get("locale"), history=options.get("conversation_history"))
+        content = agent.get("answer") or localized_text(answer_language,
+            "本次没有取得模型回答。对话已保留，可以重试。",
+            "No model answer was received. The conversation has been retained; you can retry.",
+            "本次沒有取得模型回答。對話已保留，可以重試。")
         projection = (project.get("agent") or {}).get("display_projection") or {}
         answer_omissions = [item for item in projection.get("omitted", [])
                             if isinstance(item, dict) and item.get("path") == "agent_result.answer"]
@@ -824,7 +834,8 @@ class WorkbenchState:
                      "diagnostic_summary": agent.get("diagnostic_summary") or project_agent.get("diagnostic_summary"),
                      "answer_display_truncated": complete_characters > len(content),
                      "answer_complete_characters": complete_characters,
-                     "answer_detail": options.get("answer_detail", "detailed")}
+                     "answer_detail": options.get("answer_detail", "detailed"),
+                     "locale": options.get("locale"), "answer_language": answer_language}
         previous = next((message for message in (self.conversation or {}).get("messages", ())
             if message.get("id") == options.get("retry_assistant_id") and message.get("role") == "assistant"), None)
         if not available and previous is not None and _has_business_answer(previous):
@@ -836,7 +847,7 @@ class WorkbenchState:
                         "framework_references", "related_sources", "impact_result", "snapshot_id", "metrics",
                         "answer_completion", "material_gap",
                         "answer_origin", "model_answer_recorded", "finish_reason", "answer_truncated",
-                        "answer_display_truncated", "answer_complete_characters", "answer_detail"):
+                        "answer_display_truncated", "answer_complete_characters", "answer_detail", "locale", "answer_language"):
                 if key in previous:
                     details[key] = copy.deepcopy(previous[key])
             details.update(analysis_status="PARTIAL", answer_available=True)

@@ -12,6 +12,7 @@ import re
 
 from claim_ledger import _assertions
 from claim_support import supplied_statement_facts
+from response_language import localized_text, resolve_answer_language
 from statement_facts import CobolLexError, data_references, io_clause_guards, lex_cobol
 
 VERSION = "source-fact-completion/v2"
@@ -42,22 +43,26 @@ def _parsed(page, source_format, context):
     return parse_document(document, compilation_context=context)
 
 
-def _guard_description(guard):
+def _guard_description(guard, *, answer_language="zh-CN"):
     """Render guard roles without turning non-boolean branch labels into false."""
     condition, outcome = str(guard.get("condition", "")), guard.get("outcome")
     kind = str(guard.get("kind", "")).upper()
     if kind == "IF":
         if outcome is True or outcome == "true":
-            return "`" + condition + "` 成立"
+            return localized_text(answer_language, f"`{condition}` 成立", f"`{condition}` is true", f"`{condition}` 成立")
         if outcome is False or outcome == "false":
-            return "`" + condition + "` 不成立"
+            return localized_text(answer_language, f"`{condition}` 不成立", f"`{condition}` is false", f"`{condition}` 不成立")
     if kind in {"WHEN", "EVALUATE_WHEN"} or condition.upper().startswith("WHEN "):
         selector = guard.get("selector")
         evaluate = guard.get("evaluate_source") or ("EVALUATE " + str(selector) if selector else None)
-        prefix = "`" + evaluate + "` 的 " if evaluate else ""
         prior = guard.get("prior_when_sources") or guard.get("prior_alternatives")
-        return prefix + "`" + condition + "` 分支" + ("（此前 WHEN 均未命中）" if prior else "")
-    return "`" + condition + "` 源码分支"
+        branch = localized_text(answer_language,
+            (f"`{evaluate}` 的 " if evaluate else "") + f"`{condition}` 分支",
+            f"the `{condition}` branch" + (f" of `{evaluate}`" if evaluate else ""))
+        return branch + (localized_text(answer_language, "（此前 WHEN 均未命中）",
+            " (no earlier WHEN branch matched)", "（此前 WHEN 均未命中）") if prior else "")
+    return localized_text(answer_language, f"`{condition}` 源码分支",
+        f"the `{condition}` source branch", f"`{condition}` 源碼分支")
 
 
 def _unit_guards(parsed, by_id, unit_id):
@@ -73,11 +78,13 @@ def _unit_guards(parsed, by_id, unit_id):
     return guards
 
 
-def _condition_descriptions(guards, io_guards, line):
+def _condition_descriptions(guards, io_guards, line, *, answer_language="zh-CN"):
     clauses = [guard for guard in io_guards if guard["start_line"] <= line <= guard["end_line"]]
-    descriptions = [f"`{guard['operation_text'] or guard['operation']}` 的 {guard['condition']} 分支"
+    descriptions = [localized_text(answer_language,
+                        f"`{guard['operation_text'] or guard['operation']}` 的 {guard['condition']} 分支",
+                        f"the {guard['condition']} branch of `{guard['operation_text'] or guard['operation']}`")
                     for guard in sorted(clauses, key=lambda guard: guard["operation_line"])]
-    descriptions.extend(_guard_description(guard) for guard in guards)
+    descriptions.extend(_guard_description(guard, answer_language=answer_language) for guard in guards)
     return descriptions
 
 
@@ -100,12 +107,14 @@ def _io_conditions_complete(io_facts, line, end_line=None):
 
 
 def complete_supplied_answer(question, answer, investigation, source_pages, *, source_format="auto",
-                             compilation_context=None, answer_detail="detailed", source_fact_cache=None):
+                             compilation_context=None, answer_detail="detailed", source_fact_cache=None,
+                             answer_language=None):
     """Return the preserved answer plus narrowly selected omitted source facts.
 
     Selection requires locally bound procedure/occurrence scopes. Whole-program
     source supply does not turn every statement into an answer obligation.
     """
+    answer_language = answer_language or resolve_answer_language(question)
     report = {"version": VERSION, "mode": "non_blocking_local_source_rendering",
               "model_requests": 0, "answer_preserved": True, "added_facts": [],
               "preservation_scope": "source_completion_before_claim_review",
@@ -189,12 +198,15 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
                             for row in _assertions(answer))):
                 continue
             formula = fact["target"] + " = " + " ".join(fact["expression"])
-            prefix = "原文还给出 "
-            conditions = _condition_descriptions(guards, io_guards, fact["start_line"] - base)
+            prefix = localized_text(answer_language, "原文还给出 ", "The source also gives ", "原文還給出 ")
+            conditions = _condition_descriptions(guards, io_guards, fact["start_line"] - base,
+                                                  answer_language=answer_language)
             if conditions:
-                prefix = "在 " + " 且 ".join(conditions) + "时，"
+                prefix = localized_text(answer_language, "在 " + " 且 ".join(conditions) + "时，",
+                    "When " + " and ".join(conditions) + ", ", "在 " + " 且 ".join(conditions) + "時，")
             if fact.get("normal_result_condition") == "no_size_error":
-                prefix += "无 SIZE ERROR 时的算式为 "
+                prefix += localized_text(answer_language, "无 SIZE ERROR 时的算式为 ",
+                    "the formula when no SIZE ERROR occurs is ", "無 SIZE ERROR 時的算式為 ")
             candidates.append((page, fact["start_line"], fact["end_line"], "assignment", formula,
                                prefix + "`" + formula + "`"))
         # A calculation's directly following local invocation is a visible
@@ -216,11 +228,18 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
                             if guards is None or not _io_conditions_complete(io_facts, unit.start_line, unit.end_line):
                                 report["omitted_candidate_count"] += 1
                                 continue
-                            conditions = _condition_descriptions(guards, io_guards, unit.start_line)
-                            prefix = "在 " + " 且 ".join(conditions) + "时，" if conditions else "随后"
+                            conditions = _condition_descriptions(guards, io_guards, unit.start_line,
+                                                                  answer_language=answer_language)
+                            prefix = localized_text(answer_language,
+                                "在 " + " 且 ".join(conditions) + "时，",
+                                "When " + " and ".join(conditions) + ", ",
+                                "在 " + " 且 ".join(conditions) + "時，") if conditions else localized_text(
+                                    answer_language, "随后", "Then ", "隨後")
+                            invocation = unit.normalized_text.rstrip(".")
                             candidates.append((page, base + unit.start_line, base + unit.end_line,
                                 "following_invocation", unit.normalized_text,
-                                prefix + "发起 `" + unit.normalized_text.rstrip(".") + "` 调用"))
+                                prefix + localized_text(answer_language, f"发起 `{invocation}` 调用",
+                                    f"the source requests `{invocation}`", f"發起 `{invocation}` 呼叫")))
             # Incoming conditions are linked to the exact local procedure and
             # formula inputs, avoiding unrelated outer end-of-file checks.
             names = {scope.get("procedure_name") for scope in limits}
@@ -241,10 +260,11 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
                 if input_fields.intersection(refs) and guard.normalized_text.upper() not in answer.upper():
                     condition = guard.normalized_text
                     description = _guard_description({"kind": guard.name, "condition": condition,
-                                                      **relation.metadata})
+                                                      **relation.metadata}, answer_language=answer_language)
                     candidates.append((page, base + guard.start_line, base + call.end_line,
                         "invocation_condition", condition,
-                        "此处调用受 " + description + "控制"))
+                        localized_text(answer_language, "此处调用受 " + description + "控制",
+                            "The call here requires " + description, "此處呼叫受 " + description + "控制")))
             for unit in parsed.code_units:
                 if unit.unit_type != "DataItem" or unit.name not in targets or unit.parse_status != "complete":
                     continue
@@ -252,14 +272,22 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
                 if picture and picture[1].upper() not in answer.upper():
                     from numeric_semantics import numeric_layout
                     layout = numeric_layout(unit.normalized_text)
-                    scale = f"（{layout.scale} 位小数）" if layout.scale is not None else ""
+                    scale = localized_text(answer_language, f"（{layout.scale} 位小数）",
+                        f" ({layout.scale} decimal places)", f"（{layout.scale} 位小數）") if layout.scale is not None else ""
                     rounded_modes = {fact.get("rounded") for fact in arithmetic
                                      if fact["target"] == unit.name and fact["statement_kind"] == "COMPUTE"}
-                    rounding = ("本次计算" + ("使用 ROUNDED" if True in rounded_modes else "没有 ROUNDED")
-                                if len(rounded_modes) == 1 else "各条计算的 ROUNDED 设置不同")
+                    rounding = (localized_text(answer_language, "本次计算使用 ROUNDED", "this calculation uses ROUNDED",
+                                    "本次計算使用 ROUNDED") if True in rounded_modes else localized_text(
+                                    answer_language, "本次计算没有 ROUNDED", "this calculation has no ROUNDED clause",
+                                    "本次計算沒有 ROUNDED")) if len(rounded_modes) == 1 else localized_text(
+                                    answer_language, "各条计算的 ROUNDED 设置不同", "the calculations have different ROUNDED settings",
+                                    "各條計算的 ROUNDED 設定不同")
                     candidates.append((page, base + unit.start_line, base + unit.end_line,
                         "numeric_layout", unit.normalized_text,
-                        f"`{unit.name}` 声明为 `PIC {picture[1]}`{scale}，{rounding}；存储尺度与溢出处理须按目标编译环境解释"))
+                        localized_text(answer_language,
+                            f"`{unit.name}` 声明为 `PIC {picture[1]}`{scale}，{rounding}；存储尺度与溢出处理须按目标编译环境解释",
+                            f"`{unit.name}` has declaration `PIC {picture[1]}`{scale}; {rounding}; storage scale and overflow handling depend on the target compilation environment",
+                            f"`{unit.name}` 宣告為 `PIC {picture[1]}`{scale}，{rounding}；儲存尺度與溢位處理須按目標編譯環境解釋")))
     additions = []
     for page, first, last, kind, statement, text in candidates:
         key = (page["relative_path"], page["source_sha256"], first, last, kind, statement)
@@ -270,7 +298,7 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
             report["omitted_candidate_count"] += 1
             continue
         identifier = page["evidence_id"]
-        additions.append(text + f"。[{identifier}]")
+        additions.append(text + localized_text(answer_language, "。", ". ") + f"[{identifier}]")
         report["added_facts"].append({"kind": kind, "statement": statement, "evidence_id": identifier,
             "relative_path": page["relative_path"], "source_sha256": page["source_sha256"],
             "start_line": first, "end_line": last, "support_scope": "supplied_source_syntax"})

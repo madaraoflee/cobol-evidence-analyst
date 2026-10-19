@@ -40,7 +40,7 @@ macOS 包的最低系统版本取决于构建时的 Python 和原生依赖。脚
 
 ## 在 GitHub 上构建 Windows x64 包
 
-仓库提供 [Windows desktop x64 工作流](../.github/workflows/windows-desktop.yml)，使用 `windows-2022`、Python 3.13 x64 和 MSVC，调用现有 `build_app.py`。工作流只在手动运行，或面向 `main` 的 PR（含草稿） 修改应用代码、图标、构建入口或工作流时执行；没有 `push` 构建和自动发布。首次使用手动按钮前，工作流需要先存在于默认分支；在此之前可由包含该文件的 PR 验证。触发方式见 [GitHub 官方说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch)。
+仓库提供 [Windows desktop x64 工作流](../.github/workflows/windows-desktop.yml)，使用 `windows-2022`、Python 3.13 x64 和 MSVC，调用现有 `build_app.py`。**自 2026-10-19 起，按用户要求暂停生成可运行 app、候选包与 release，直到用户明确允许生成。** 桌面构建和办公室验收包工作流均只保留手动入口，推送代码、更新 PR 或其他工作流完成不会自动生成包。保留手动入口不表示已获生成授权；当前只修改、测试并提交源码。
 
 构建会先运行离线 Python 回归和浏览器入口自检，再编译并运行打包程序自检。自检检查资源、本机 HTTP 服务、桌面依赖导入和 TLS 初始化，模型调用数必须为零。构建依赖下载需要联网，但不需要配置模型接口或仓库 API 密钥。任何检查失败都不会上传交付包。
 

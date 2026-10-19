@@ -30,6 +30,7 @@ from quality_trace import QualityTrace, PIPELINE_VERSION, PROMPT_VERSION
 from question_budget import QuestionBudget, QuestionDeadlineExceeded
 from prior_source_memory import PriorSourceMemory, valid_findings
 from repository_identity import identity_blocks_analysis
+from response_language import answer_language_instruction, localized_text, resolve_answer_language
 
 
 class _LocalAnalysisBudgetExceeded(RuntimeError):
@@ -569,6 +570,7 @@ def _prompt_payload(payload):
                     "content": "Choose likely source terms, synonyms or abbreviations for the current question. "
                                "Respect investigation_budget.searches_per_turn; use the returned source in a later round.",
                     "scope": "This round plans source discovery only. Do not write a business answer or a material-gap report."}
+    contract["answer_language"] = payload.get("answer_language") or resolve_answer_language(payload.get("question"))
     navigation = payload.get("business_map", {})
     direct_paths = navigation.get("direct_paths", [])
     caller_paths = [path for path in direct_paths if any(
@@ -611,9 +613,11 @@ def _prompt_payload(payload):
 
 
 def _system_for_payload(payload):
-    if "prior_source_memory" not in payload:
-        return _SYSTEM
-    return _SYSTEM.replace("事实依据取自本轮原文。", "事实依据取自实际供应原文，包括 prior_source_memory 明确绑定的本题早先原文；其中候选解释仍须核对。", 1)
+    system = _SYSTEM
+    if "prior_source_memory" in payload:
+        system = system.replace("事实依据取自本轮原文。", "事实依据取自实际供应原文，包括 prior_source_memory 明确绑定的本题早先原文；其中候选解释仍须核对。", 1)
+    language = payload.get("answer_language") or resolve_answer_language(payload.get("question"))
+    return system + "\n" + answer_language_instruction(language, compact=bool(payload.get("budget_wire_compact")))
 
 
 def _fit_request(config, payload, history, policy=None, *, trim_events=None, investigation_builder=None,
@@ -937,7 +941,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                       allow_network=False, capture_api_responses=False, progress=None,
                       check_cancel=None, policy=None, capture_context=False,
                       source_session=None, answer_detail="detailed", resume_state=None, analysis_identity=None,
-                      question_budget=None, **unused):
+                      question_budget=None, answer_language=None, locale=None, **unused):
     from business_analysis import _extract_text as extract_business_text, _content_text, _TextResponseError, _framework_for_prompt
 
     def _extract_text(response):
@@ -962,6 +966,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     from question_investigation import build_question_investigation
     from complete_working_set import build_complete_working_set
     from file_impact_evidence import is_file_impact_question
+    answer_language = answer_language or resolve_answer_language(question, locale=locale, history=history)
+    def local(zh_cn, en):
+        return localized_text(answer_language, zh_cn, en)
+
     started = time.monotonic()
     timing = {"selected_source_hash_seconds": 0.0, "business_map_seconds": 0.0,
               "retrieval_seconds": 0.0, "read_seconds": 0.0,
@@ -1126,7 +1134,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     def emit_analysis(investigation, *, summary=None, assessment=None):
         emit("reviewing_answer" if assessment else "answering", analysis_update=progress_snapshot(
             turns + (0 if assessment else 1), investigation or {}, len(evidence.pages),
-            summary=summary, assessment=assessment))
+            summary=summary, assessment=assessment, answer_language=answer_language))
 
     def remember_draft(*, processed=True):
         if not adaptive:
@@ -2151,7 +2159,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         boundaries.append({"reason": "no_evidence_progress", "round": turns,
                                            "pending_actions_preserved": True})
                     emit_analysis(current_investigation,
-                        summary="补查未获得新的有效证据，正在整理已确认的结论与具体未知条件。"
+                        summary=local("补查未获得新的有效证据，正在整理已确认的结论与具体未知条件。", "Further lookup found no new usable evidence. Organizing supported conclusions and specific unknown conditions.")
                         if protocol_answer_pending else None)
                 framework_only = not review_pages and any(reference.get("selection_reason") in
                     {"question_only", "framework_search", "source_marker"} for reference in references)
@@ -2195,7 +2203,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     "omitted_query_frontier": max(0, len(coverage.get("query_frontier", [])) - 8),
                     "omitted_rules_per_path": dict(list(coverage.get("omitted_rules_per_path", {}).items())[:8]),
                     "omitted_rule_path_count": max(0, len(coverage.get("omitted_rules_per_path", {})) - 8)}
-                payload = {"question": question, "answer_detail": answer_detail,
+                payload = {"question": question, "answer_detail": answer_detail, "answer_language": answer_language,
                            "session_subject": business_map.get("session_subject", {}),
                            "repository": {key: overview.get(key) for key in
                            ("snapshot_id", "indexed_files", "indexed_pages", "program_samples")},
@@ -2518,7 +2526,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             answer_detail=answer_detail, assessment=assessment,
                             working_set=visible.get("working_set"))
                         emit_analysis(current_investigation,
-                            summary="正在逐项核对原问题，检查已有证据是否都在答案中解释清楚。",
+                            summary=local("正在逐项核对原问题，检查已有证据是否都在答案中解释清楚。", "Reviewing the original question and checking that the answer explains the relevant evidence."),
                             assessment=assessment)
                         if review_needed:
                             synthesis_review_attempted = True
@@ -2755,7 +2763,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 break
             synthesis_review_attempted = True
             emit_analysis(answer_investigation,
-                summary="正文已续写完成，正在核对是否解释了原问题的全部要点。", assessment=assessment)
+                summary=local("正文已续写完成，正在核对是否解释了原问题的全部要点。", "The continuation is complete. Checking that all relevant parts of the original question are explained."), assessment=assessment)
             if not continuation.needs_followup(answer, assessment, supplied, supplied_references):
                 boundaries.append({"reason": continuation.stop_reason,
                                    "missing_aspects": assessment.get("missing_aspects", [])})
@@ -2938,7 +2946,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         supplied = (last_request_manifest or {}).get("source_ids", [])
         local_answer = build_evidence_answer(question,
             [sent_pages[identifier] for identifier in supplied if identifier in sent_pages],
-            last_investigation or {},
+            last_investigation or {}, answer_language=answer_language,
             source_format=source_session.options.get("source_format", "auto") if source_session else "auto",
             compilation_context=source_session.options.get("compilation_context") if source_session else None)
         if local_answer:
@@ -3016,13 +3024,13 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         answer_investigation or {}, [sent_pages[identifier] for identifier in final_source_ids],
         source_format=source_session.options.get("source_format", "auto") if source_session else "auto",
         compilation_context=source_session.options.get("compilation_context") if source_session else None,
-        answer_detail=answer_detail, source_fact_cache=answer_source_fact_cache)
+        answer_detail=answer_detail, source_fact_cache=answer_source_fact_cache, answer_language=answer_language)
     timing["answer_fact_completion_seconds"] = time.monotonic() - source_completion_started
     answer, claim_ledger = review_answer_claims(redactor._sanitize(answer),
         [sent_pages[identifier] for identifier in final_source_ids], allowed,
         source_format=source_session.options.get("source_format", "auto") if source_session else "auto",
         compilation_context=source_session.options.get("compilation_context") if source_session else None,
-        source_fact_cache=answer_source_fact_cache)
+        source_fact_cache=answer_source_fact_cache, answer_language=answer_language)
     ledger_record = claim_ledger.to_dict()
     if ledger_record["revised_claim_count"]:
         boundaries.append({"reason": "claim_support_local_revision",
@@ -3041,29 +3049,29 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         http_status = next((item.get("http_status") for item in errors if item.get("http_status")), None)
         api_failure = next((item["diagnostic"] for item in reversed(errors) if item.get("diagnostic")), None)
         if failure == "RETRIEVAL_UNRESOLVED":
-            answer = "本次尚未定位到能回答这个业务问题的相关源码，因此还不能给出可靠的业务结论。这不表示程序或资料不存在；需要继续核对业务用语与源码词项的对应关系。"
+            answer = local("本次尚未定位到能回答这个业务问题的相关源码，因此还不能给出可靠的业务结论。这不表示程序或资料不存在；需要继续核对业务用语与源码词项的对应关系。", "Relevant source for this business question has not yet been located, so a reliable conclusion is not available. This does not mean the program or documents are absent; the business terms still need to be matched to source terms.")
         elif api_failure is not None:
-            answer = format_diagnostic(api_failure) + "\n\n对话和源码索引已保留。"
+            answer = format_diagnostic(api_failure, language=answer_language) + local("\n\n对话和源码索引已保留。", "\n\nThe conversation and source index have been preserved.")
         elif http_status == 401:
-            answer = "模型接口鉴权失败（HTTP 401）。请检查本机 .env 中的接口密钥与地址，更新后重启服务。对话和源码索引已保留。"
+            answer = local("模型接口鉴权失败（HTTP 401）。请检查本机 .env 中的接口密钥与地址，更新后重启服务。对话和源码索引已保留。", "Model authentication failed (HTTP 401). Check the API key and endpoint in the local .env file, then restart the service. The conversation and source index have been preserved.")
         elif http_status == 403:
-            answer = "模型接口拒绝了本次访问（HTTP 403）。请核对该接口或模型的使用权限。对话和源码索引已保留。"
+            answer = local("模型接口拒绝了本次访问（HTTP 403）。请核对该接口或模型的使用权限。对话和源码索引已保留。", "The model service denied access (HTTP 403). Check permission to use the endpoint or model. The conversation and source index have been preserved.")
         elif failure == "QUESTION_TIME_BUDGET_EXHAUSTED":
-            answer = "本次调查已达到时间预算。已完成的步骤、源码证据和待查位置已保存；尚未取得可展示的业务答案。在工作台点击原问题的“重试这个问题”，或重新提交原问题，即可继续调查，无需重新导入源码。"
+            answer = local("本次调查已达到时间预算。已完成的步骤、源码证据和待查位置已保存；尚未取得可展示的业务答案。在工作台点击原问题的“重试这个问题”，或重新提交原问题，即可继续调查，无需重新导入源码。", "This investigation reached its time budget before producing a usable business answer. Completed steps, source evidence and pending locations have been saved. Select “Retry this question” or submit the original question again to continue; no source reimport is needed.")
         elif failure == "REQUEST_TIMEOUT":
-            answer = "模型接口本次响应超时。对话和源码索引已保留，可以重试，不需要重新接入源码。"
+            answer = local("模型接口本次响应超时。对话和源码索引已保留，可以重试，不需要重新接入源码。", "The model response timed out. The conversation and source index have been preserved. You can retry without reimporting the source.")
         else:
-            answer = "本次未取得模型回答。对话和源码索引已保留，可以重试或查看接口返回。"
+            answer = local("本次未取得模型回答。对话和源码索引已保留，可以重试或查看接口返回。", "No model answer was obtained. The conversation and source index have been preserved. You can retry or inspect the API response.")
         if errors:
             error = errors[-1]
-            answer += f"\n\n诊断：{error['code']}；阶段：{error['stage']}。"
+            answer += local(f"\n\n诊断：{error['code']}；阶段：{error['stage']}。", f"\n\nDiagnostic: {error['code']}; stage: {error['stage']}.")
             if error.get("http_status") and api_failure is None:
-                answer += f" HTTP {error['http_status']}。"
+                answer += f" HTTP {error['http_status']}" + local("。", ".")
             shape = error.get("response_shape", {})
             if shape.get("finish_reason") == "length":
-                answer += " 接口输出已达长度限制，尚未提供可用正文。"
+                answer += local(" 接口输出已达长度限制，尚未提供可用正文。", " The model reached its output length limit without providing usable answer text.")
             elif shape.get("tool_calls_present"):
-                answer += " 接口返回了工具调用，尚未提供可用业务正文。"
+                answer += local(" 接口返回了工具调用，尚未提供可用业务正文。", " The model returned tool calls without providing usable business answer text.")
     refs = [ref for ref in allowed.values() if ref.get("kind") == "source_page"]
     quality.data["base_snapshot_id"] = base_snapshot_id
     quality.data["analysis_revision"] = overview["snapshot_id"]
@@ -3212,7 +3220,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
               "answer_completion": answer_completion, "material_gap": material_gap,
               "run_id": quality.data["run_id"],
               "answer": answer, "answer_format": "markdown", "analysis_mode": "retrieval", "snapshot_id": overview["snapshot_id"],
-              "answer_detail": answer_detail, "finish_reason": answer_finish_reason,
+              "answer_detail": answer_detail, "answer_language": answer_language, "finish_reason": answer_finish_reason,
               "answer_truncated": truncated, "continuation_attempted": continuation_attempted,
               "narrative": {"text": answer, "format": "markdown", "verification": "unverified", "citations": [allowed[i] for i in cited]},
               "claims": claims, "claims_semantically_verified": False, "claim_ledger": ledger_record,
@@ -3261,6 +3269,11 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
     from run_store import RunStore, fingerprint
     from pathlib import Path
     import hashlib
+    answer_language = resolve_answer_language(question, locale=kwargs.get("locale"), history=kwargs.get("history"))
+    kwargs["answer_language"] = answer_language
+    def local(zh_cn, en):
+        return localized_text(answer_language, zh_cn, en)
+
     selected_policy = resolve_agent_policy(kwargs.get("policy"))
     budget = QuestionBudget(selected_policy.max_question_seconds,
                             hard_seconds=selected_policy.hard_question_seconds,
@@ -3268,7 +3281,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
     kwargs["check_cancel"] = budget.check
     kwargs["question_budget"] = budget
     store = RunStore(Path(database_path).resolve().parent / "investigation-runs.sqlite")
-    analysis_identity = fingerprint({
+    identity_scope = {
         "database_path": str(Path(database_path).resolve()),
         "source_root": str(Path(source_root).resolve()),
         "entry_program": kwargs.get("entry_program"),
@@ -3277,60 +3290,77 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
             if kwargs.get("framework_reference_path") else None,
         "answer_detail": kwargs.get("answer_detail", "detailed"),
         "conversation_id": kwargs.get("conversation_id"),
-    })
+    }
+    analysis_identity = fingerprint({**identity_scope, "answer_language": answer_language})
+    prior_language_identities = {fingerprint({**identity_scope, "answer_language": language})
+        for language in ("en", "zh-CN", "zh-HK") if language != answer_language}
+    prior_language_identities.add(fingerprint(identity_scope))
+    question_id = "sha256:" + hashlib.sha256(question.encode()).hexdigest()
+    model_fingerprint = hashlib.sha256(config.chat_model.encode()).hexdigest()
     kwargs["analysis_identity"] = analysis_identity
     resume_id = kwargs.pop("resume_run_id", None)
     resume = store.load(resume_id) if resume_id else store.unfinished(
-        "sha256:" + hashlib.sha256(question.encode()).hexdigest(), hashlib.sha256(config.chat_model.encode()).hexdigest(),
-        analysis_identity=analysis_identity)
+        question_id, model_fingerprint, analysis_identity=analysis_identity)
     expected_configuration = hashlib.sha256(json.dumps({
         "base_url": config.base_url, "model": config.chat_model,
         "timeout_seconds": config.timeout_seconds, "max_output_tokens": config.max_output_tokens,
         "api_style": config.api_style}, sort_keys=True).encode()).hexdigest()
+    def unknown_remote_result(saved, *, retain_answer=True):
+        retained = saved["checkpoint"].get("result")
+        if retain_answer and isinstance(retained, dict) and (retained.get("agent_result") or {}).get("answer_available"):
+            from copy import deepcopy
+            result = deepcopy(retained)
+            result["reason_code"] = "REMOTE_REQUEST_OUTCOME_UNKNOWN"
+            result["agent_result"]["resume_state"] = {
+                "completed_steps": len(saved["completed_steps"]),
+                "frontier": saved["checkpoint"].get("frontier", []),
+                "uncertain_requests": saved["uncertain_requests"],
+                "retained_answer_from_saved_run": True, "automatic_resend": False, "exactly_once": False}
+            return result
+        return {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
+            "runner_status": "NOT_READY", "reason_code": "REMOTE_REQUEST_OUTCOME_UNKNOWN",
+            "agent_result": {"status": "PARTIAL", "run_id": saved["run_id"], "answer":
+                local("这次调查已保存，但上一次远程模型请求的结果未知。已完成的源码读取和待查位置仍可恢复；需要先确认该请求状态，再决定是否重试。", "This investigation has been saved, but the previous remote model request has an unknown outcome. Completed source reads and pending locations can be recovered. Confirm the request status before deciding whether to retry."),
+                "answer_origin": "diagnostic", "answer_available": False, "model_answer_recorded": False,
+                "answer_language": answer_language,
+                "resume_state": {"completed_steps": len(saved["completed_steps"]),
+                    "frontier": saved["checkpoint"].get("frontier", []),
+                    "uncertain_requests": saved["uncertain_requests"], "automatic_resend": False, "exactly_once": False}}}
     if resume:
         metadata = resume["metadata"]
-        same_question = (metadata.get("question_id") == "sha256:" + hashlib.sha256(question.encode()).hexdigest()
+        same_question = (metadata.get("question_id") == question_id
             and metadata.get("analysis_identity") == analysis_identity
-            and metadata.get("configuration", {}).get("model_fingerprint") == hashlib.sha256(config.chat_model.encode()).hexdigest())
+            and metadata.get("configuration", {}).get("model_fingerprint") == model_fingerprint)
         # Changing a timeout or output allowance does not establish that the
         # previous charged request failed. Resolve uncertainty before deciding
         # whether any saved answer/configuration can be replayed.
-        def unknown_remote_result():
-            retained = resume["checkpoint"].get("result")
-            if isinstance(retained, dict) and (retained.get("agent_result") or {}).get("answer_available"):
-                from copy import deepcopy
-                result = deepcopy(retained)
-                result["reason_code"] = "REMOTE_REQUEST_OUTCOME_UNKNOWN"
-                result["agent_result"]["resume_state"] = {
-                    "completed_steps": len(resume["completed_steps"]),
-                    "frontier": resume["checkpoint"].get("frontier", []),
-                    "uncertain_requests": resume["uncertain_requests"],
-                    "retained_answer_from_saved_run": True, "automatic_resend": False, "exactly_once": False}
-                return result
-            return {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
-                "runner_status": "NOT_READY", "reason_code": "REMOTE_REQUEST_OUTCOME_UNKNOWN",
-                "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"], "answer":
-                    "这次调查已保存，但上一次远程模型请求的结果未知。已完成的源码读取和待查位置仍可恢复；需要先确认该请求状态，再决定是否重试。",
-                    "answer_origin": "diagnostic", "answer_available": False, "model_answer_recorded": False,
-                    "resume_state": {"completed_steps": len(resume["completed_steps"]),
-                        "frontier": resume["checkpoint"].get("frontier", []),
-                        "uncertain_requests": resume["uncertain_requests"], "exactly_once": False}}}
         compatible = same_question and (bool(resume.get("uncertain_requests")) or (
             metadata.get("configuration", {}).get("configuration_fingerprint") == expected_configuration
             and metadata.get("configuration", {}).get("policy") == resolve_agent_policy(kwargs.get("policy")).to_dict()))
         if not compatible:
+            if (resume.get("uncertain_requests") and metadata.get("question_id") == question_id
+                    and metadata.get("analysis_identity") in prior_language_identities
+                    and metadata.get("configuration", {}).get("model_fingerprint") == model_fingerprint):
+                return unknown_remote_result(resume, retain_answer=False)
             if resume_id:
                 return {"runner_status": "NOT_READY", "reason_code": "RESUME_IDENTITY_MISMATCH",
                     "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
-                        "answer": "这条调查属于不同的问题、入口、会话焦点、框架资料、模型配置或预算。原记录已保留，当前问题需使用自己的调查记录。"}}
+                        "answer": local("这条调查属于不同的问题、入口、会话焦点、框架资料、模型配置或预算。原记录已保留，当前问题需使用自己的调查记录。", "This investigation belongs to a different question, entry, conversation focus, framework reference, answer language, model configuration or budget. The original record is preserved; the current question needs its own investigation record.")}}
             resume = None
     if resume and resume.get("state") == "completed" and resume["checkpoint"].get("result"):
         return resume["checkpoint"]["result"]
+    # A language change or upgrade cannot establish that an earlier charged
+    # request failed. Block resending, but never replay another language's draft.
+    if not (resume and resume.get("uncertain_requests")):
+        pending = store.uncertain(question_id, model_fingerprint, prior_language_identities | {analysis_identity})
+        if pending:
+            return unknown_remote_result(pending,
+                retain_answer=pending["metadata"].get("analysis_identity") == analysis_identity)
     if resume and (resume["metadata"].get("pipeline_version") != PIPELINE_VERSION
                    or resume["metadata"].get("prompt_version") != PROMPT_VERSION):
         return {"runner_status": "NOT_READY", "reason_code": "RESUME_PIPELINE_VERSION_CHANGED",
             "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
-                "answer": "调查使用的分析或提示版本已经变化。原步骤、证据和请求状态已保留，需要先核对原请求结果，再按当前版本开始调查。"}}
+                "answer": local("调查使用的分析或提示版本已经变化。原步骤、证据和请求状态已保留，需要先核对原请求结果，再按当前版本开始调查。", "The analysis or prompt version has changed. Previous steps, evidence and request states are preserved. Check the original request outcome before starting an investigation with the current version.")}}
     with QuestionSourceSession(database_path, source_root, check_cancel=kwargs.get("check_cancel")) as session:
         try:
             if resume:
@@ -3341,12 +3371,12 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                     return {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
                         "runner_status": "NOT_READY", "reason_code": "RESUME_COMPILATION_CONTEXT_CHANGED",
                         "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
-                            "answer": "调查使用的编译配置已经变化。原调查和证据已保留，需要按当前方言、COPY、编译条件及框架版本开始新的调查。",
+                            "answer": local("调查使用的编译配置已经变化。原调查和证据已保留，需要按当前方言、COPY、编译条件及框架版本开始新的调查。", "The compilation configuration has changed. The previous investigation and evidence are preserved. Start a new investigation with the current dialect, COPY settings, compilation conditions and framework version."),
                             "resume_state": {"compilation_context_fingerprint": fingerprint(prior_context),
                                 "current_compilation_context_fingerprint": fingerprint(current_context),
                                 "exactly_once": False}}}
                 if resume.get("uncertain_requests"):
-                    return unknown_remote_result()
+                    return unknown_remote_result(resume)
                 budget.phase = "validating_saved_sources"
                 memory_pages = (resume["checkpoint"].get("prior_source_memory") or {}).get("pages", [])
                 for page in [*resume["checkpoint"].get("source_pages", []), *memory_pages]:
@@ -3357,7 +3387,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                     if changed:
                         return {"runner_status": "NOT_READY", "reason_code": "RESUME_SOURCE_VERSION_CHANGED",
                             "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
-                                "answer": "调查读取的源码版本已经变化。原调查和证据已保留，需要基于新版本开始调查。"}}
+                                "answer": local("调查读取的源码版本已经变化。原调查和证据已保留，需要基于新版本开始调查。", "The source version has changed. The previous investigation and evidence are preserved. Start a new investigation using the new version.")}}
             return _run_business_chat(question, database_path, source_root, config,
                                       source_session=session, resume_state=resume, **kwargs)
         except QuestionDeadlineExceeded:
@@ -3377,7 +3407,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 "agent_result": {"status": "PARTIAL", "run_id": run_id,
                     "answer_origin": "diagnostic", "answer_available": False, "model_answer_recorded": False,
                     "stop_reason": "QUESTION_TIME_BUDGET_EXHAUSTED",
-                    "answer": "本次调查已达到时间预算。已完成的源码读取和待查位置已保存，尚未完成业务判断。在工作台点击原问题的“重试这个问题”，或重新提交原问题，即可继续调查，无需重新导入源码。",
+                    "answer": local("本次调查已达到时间预算。已完成的源码读取和待查位置已保存，尚未完成业务判断。在工作台点击原问题的“重试这个问题”，或重新提交原问题，即可继续调查，无需重新导入源码。", "This investigation reached its time budget before completing the business analysis. Completed source reads and pending locations have been saved. Select “Retry this question” or submit the original question again to continue; no source reimport is needed."),
                     "resume_state": {"frontier": checkpoint.get("frontier", []), "exactly_once": False},
                     "metrics": {"policy": resolve_agent_policy(kwargs.get("policy")).to_dict(),
                         "timing_seconds": {"total_seconds": round(time.monotonic() - budget.started, 4)},

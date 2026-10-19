@@ -12,6 +12,7 @@ import re
 from claim_ledger import _render_fact
 from claim_support import supplied_statement_facts
 from question_planner import question_references
+from response_language import localized_text, resolve_answer_language
 from statement_facts import data_references
 
 
@@ -86,17 +87,28 @@ def _call_facts(page, source_format, compilation_context):
     return facts
 
 
-def _render_call(fact):
-    guards = [(("条件不成立：" if guard.get("outcome") in {False, "false"} else "")
+def _render_call(fact, *, answer_language="zh-CN"):
+    guards = [((localized_text(answer_language, "条件不成立：", "false condition: ", "條件不成立：")
+        if guard.get("outcome") in {False, "false"} else "")
         + guard["condition"]) for guard in fact.get("guards", [])]
-    prefix = "在片段中可见的控制条件 `" + "；".join(guards) + "` 下，" if guards else ""
+    prefix = localized_text(answer_language,
+        "在片段中可见的控制条件 `" + "；".join(guards) + "` 下，",
+        "Under the control conditions visible in this excerpt, `" + "; ".join(guards) + "`, ",
+        "在片段中可見的控制條件 `" + "；".join(guards) + "` 下，") if guards else ""
     if fact.get("conditions_status") == "not_fully_verified":
-        prefix = "该调用的控制条件尚未完整核对；" + prefix
+        prefix = localized_text(answer_language, "该调用的控制条件尚未完整核对；",
+            "The control conditions of this call have not been fully checked; ",
+            "該呼叫的控制條件尚未完整核對；") + prefix
     if fact.get("compilation_status") == "candidate":
-        prefix = "编译条件尚未确认，以下仅为候选源码语句：" + prefix
-    return (prefix + "调用点写有 `" + fact["statement"] + "`；这是程序内的调用请求，"
-        "实际调用是否发生及返回效果仍需执行路径和被调用实现支持"
-        f"（{fact['relative_path']}:{fact['start_line']}）" + "".join(
+        prefix = localized_text(answer_language, "编译条件尚未确认，以下仅为候选源码语句：",
+            "Compilation conditions are unconfirmed; only a candidate source statement follows: ",
+            "編譯條件尚未確認，以下僅為候選源碼語句：") + prefix
+    statement = fact["statement"]
+    location = f"{fact['relative_path']}:{fact['start_line']}"
+    return (prefix + localized_text(answer_language,
+        f"调用点写有 `{statement}`；这是程序内的调用请求，实际调用是否发生及返回效果仍需执行路径和被调用实现支持（{location}）",
+        f"the call site contains `{statement}`, requesting a call within the program; whether the call runs and what it returns still require evidence from the execution path and called implementation ({location})",
+        f"呼叫點寫有 `{statement}`；這是程式內的呼叫請求，實際呼叫是否發生及傳回效果仍需執行路徑和被呼叫實作支持（{location}）") + "".join(
             "[" + identifier + "]" for identifier in dict.fromkeys(
                 [fact["evidence_id"], *fact.get("guard_evidence_ids", [])])))
 
@@ -191,7 +203,8 @@ def _bound_call_conditions(fact, caller, page, pages, source_format, compilation
             "bound_occurrence_id": caller["occurrence_id"], "conditions_status": "supplied_source_scope"}
 
 
-def build_evidence_answer(question, source_pages, investigation, *, source_format="auto", compilation_context=None):
+def build_evidence_answer(question, source_pages, investigation, *, source_format="auto", compilation_context=None,
+                          answer_language=None):
     """Return a PARTIAL source answer, or None when no relevant fact is bound.
 
     The caller must pass captured pages, retain their versions and run its usual
@@ -199,6 +212,7 @@ def build_evidence_answer(question, source_pages, investigation, *, source_forma
     re-encoding of an excerpt. Duplicate evidence IDs with conflicting content
     are rejected rather than selecting one version.
     """
+    answer_language = answer_language or resolve_answer_language(question)
     investigation = investigation if isinstance(investigation, dict) else {}
     plan = investigation.get("analysis_plan") or {}
     ranges = (investigation.get("source_scope") or {}).get("ranges") or plan.get("source_scopes") or []
@@ -306,14 +320,28 @@ def build_evidence_answer(question, source_pages, investigation, *, source_forma
     citations = [{"kind": "source_page", **{key: valid[identifier][key] for key in
         ("evidence_id", "relative_path", "start_line", "end_line", "source_sha256", "include_chain", "copy_instance")
         if key in valid[identifier]}} for identifier in identifiers]
-    unknowns = ["以上说明仅覆盖已读取版本中的直接语句；实际执行路径、未供证的后续覆盖和最终结果尚未确认。"]
+    unknowns = [localized_text(answer_language,
+        "以上说明仅覆盖已读取版本中的直接语句；实际执行路径、未供证的后续覆盖和最终结果尚未确认。",
+        "These observations cover only direct statements in the captured source versions; the actual execution path, later overwrites without supplied evidence, and final results remain unconfirmed.",
+        "以上說明僅涵蓋已讀取版本中的直接語句；實際執行路徑、未供證的後續覆寫和最終結果尚未確認。")]
     if any(fact["predicate"] == "call_statement" for fact in selected):
-        unknowns.append("这些调用点不能证明外部调度配置、实际运行时间或真实调用效果，仍需对应调度入口和实现证据。")
+        unknowns.append(localized_text(answer_language,
+            "这些调用点不能证明外部调度配置、实际运行时间或真实调用效果，仍需对应调度入口和实现证据。",
+            "These call sites do not establish external scheduling configuration, actual run times, or call outcomes; the corresponding scheduling entry points and implementations still need evidence.",
+            "這些呼叫點不能證明外部排程設定、實際執行時間或真實呼叫效果，仍需對應排程入口和實作證據。"))
     if len(candidates) > len(selected):
-        unknowns.append("当前仅展示与问题最相关的部分语句，完整来源和影响链仍待继续核对。")
-    lines = [_render_call(fact) if fact["predicate"] == "call_statement" else _render_fact(fact) for fact in selected]
-    answer = ("模型说明尚未完成，已读取的源码仍可直接确认以下内容：\n\n"
-        + "\n\n".join("- " + line + "。" for line in lines) + "\n\n" + " ".join(unknowns))
+        unknowns.append(localized_text(answer_language,
+            "当前仅展示与问题最相关的部分语句，完整来源和影响链仍待继续核对。",
+            "Only the statements most relevant to the question are shown; the complete source and impact chains still need to be checked.",
+            "目前僅展示與問題最相關的部分語句，完整來源和影響鏈仍待繼續核對。"))
+    lines = [_render_call(fact, answer_language=answer_language) if fact["predicate"] == "call_statement"
+             else _render_fact(fact, answer_language=answer_language) for fact in selected]
+    answer = (localized_text(answer_language,
+        "模型说明尚未完成，已读取的源码仍可直接确认以下内容：",
+        "The model explanation is incomplete, but the captured source directly supports the following:",
+        "模型說明尚未完成，已讀取的源碼仍可直接確認以下內容：") + "\n\n"
+        + "\n\n".join("- " + line + localized_text(answer_language, "。", ".") for line in lines)
+        + "\n\n" + " ".join(unknowns))
     return {"answer": answer, "answer_origin": "local_source_facts", "answer_available": True,
         "model_answer_recorded": False, "status": "PARTIAL", "semantic_scope": "supplied_source_statement_syntax",
         "claims_semantically_verified": False, "execution_verified": False, "facts": selected, "unknowns": unknowns,

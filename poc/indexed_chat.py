@@ -97,7 +97,7 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
                          encoding, source_format, config, api_options, transport,
                          framework_reference_path, capture_api_responses, history,
                          progress, check_cancel, policy=None, answer_detail="detailed", compilation_context=None,
-                         conversation_id=None):
+                         conversation_id=None, locale=None):
     from repository_discovery import _connect, repository_search_overview
     from business_chat import run_business_chat
     from business_index import PARSER_VERSION
@@ -177,7 +177,7 @@ def try_indexed_question(source, output, *, question, entry, extensions, include
             history=history, conversation_id=conversation_id,
             entry_program=entry, framework_reference_path=framework_reference_path,
             capture_api_responses=capture_api_responses, allow_network=True, transport=transport,
-            progress=progress, check_cancel=check_cancel, policy=policy, answer_detail=answer_detail)
+            progress=progress, check_cancel=check_cancel, policy=policy, answer_detail=answer_detail, locale=locale)
     except APIConfigurationError as exc:
         agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
         diagnostic = sanitize_diagnostic(getattr(exc, "diagnostic", None))

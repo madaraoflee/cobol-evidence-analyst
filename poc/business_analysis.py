@@ -20,6 +20,7 @@ from api_error_details import build_diagnostic, format_diagnostic, sanitize_diag
 from answer_markdown import ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, normalize_answer_markdown
 from company_api import APIClientError, APIConfigurationError, CompanyAPIConfig, OpenAICompatibleChatClient, Transport
 from framework_knowledge import build_framework_context
+from response_language import answer_language_instruction, localized_text, resolve_answer_language
 from source_reading import prepare_source_reading, read_source_page_batch
 from business_investigation import investigate_repository
 
@@ -343,6 +344,7 @@ def run_business_analysis(
     max_pages: int = 12,
     reading_strategy: str = "focused",
     answer_detail: str = "detailed",
+    locale: str | None = None,
 ) -> dict[str, object]:
     """Read source pages, explain them, and retain useful partial responses."""
 
@@ -354,6 +356,11 @@ def run_business_analysis(
         raise ValueError("reading_strategy must be focused or full_chain")
     if answer_detail not in {"brief", "detailed"}:
         raise ValueError("answer_detail must be brief or detailed")
+    answer_language = resolve_answer_language(question, locale=locale)
+
+    def local_text(zh_cn, en, zh_hk=None):
+        return localized_text(answer_language, zh_cn, en, zh_hk)
+
     full_chain = reading_strategy == "full_chain"
     redactor = APIResponseDiagnostics(protected_values=(
         config.resolve_api_key(), config.base_url, config.chat_model, config.embedding_model,
@@ -519,10 +526,15 @@ def run_business_analysis(
             reason_code="FRAMEWORK_SOURCE_CONTEXT_STALE", source_matches=[], references=[], external_calls=[],
             boundaries=["Framework source matches refer to another snapshot or source entry."],
         )
-        boundaries.append(_boundary("FRAMEWORK_SOURCE_CONTEXT_STALE", "框架资料的源码匹配来自其他快照或入口，本次未使用这些旧匹配。"))
+        boundaries.append(_boundary("FRAMEWORK_SOURCE_CONTEXT_STALE", local_text(
+            "框架资料的源码匹配来自其他快照或入口，本次未使用这些旧匹配。",
+            "Framework source matches refer to a different snapshot or entry point; those stale matches were excluded.",
+            "框架資料的源碼匹配來自其他快照或入口，本次未使用這些舊匹配。")))
     boundaries.append(_boundary(
         "MODEL_EXPLANATION_UNVERIFIED",
-        "以下为模型依据已提供源码与框架资料生成的业务解释；来源引用不代表业务判断已逐条核验。",
+        local_text("以下为模型依据已提供源码与框架资料生成的业务解释；来源引用不代表业务判断已逐条核验。",
+              "This business explanation was generated from the supplied source and framework material; source citations do not mean each business judgment has been verified.",
+              "以下為模型依據已提供源碼與框架資料生成的業務解釋；來源引用不代表業務判斷已逐條核驗。"),
     ))
     references = _framework_for_prompt(selected_framework)
     supplied_references: dict[str, dict[str, object]] = {}
@@ -560,7 +572,10 @@ def run_business_analysis(
     source_scope, call_chain = _source_context_for_prompt(analysis_scope or {}, plan)
     supplied_question = question.strip()[:6_000]
     if supplied_question != question.strip():
-        boundaries.append(_boundary("QUESTION_TRUNCATED", "问题超过本次上下文长度限制，已使用前 6000 个字符。"))
+        boundaries.append(_boundary("QUESTION_TRUNCATED", local_text(
+            "问题超过本次上下文长度限制，已使用前 6000 个字符。",
+            "The question exceeds the context limit; only its first 6000 characters were used.",
+            "問題超過本次上下文長度限制，已使用前 6000 個字元。")))
     summary_limit = MAX_SUMMARY_CHARACTERS if full_chain else min(MAX_SUMMARY_CHARACTERS, max(256, MAX_SYNTHESIS_SUMMARY_CHARACTERS // len(pages)))
 
     def request_text(stage: str, page_group: list[Mapping[str, object]], instruction: str,
@@ -607,7 +622,7 @@ def run_business_analysis(
             "reference_ids", "source_text_truncated", "target_resolution", "relation_type",
             "parameter_binding_verified", "runtime_verified"), maximum=24, byte_limit=12_000)
         payload: dict[str, object] = {
-            "question": supplied_question, "answer_detail": answer_detail,
+            "question": supplied_question, "answer_detail": answer_detail, "answer_language": answer_language,
             "task": ("简要说明结论和关键条件，保留必要依据；" if answer_detail == "brief" else
                      "按问题需要充分解释相关业务结论、步骤、条件、例外和依据；") + instruction,
             "scope": {"kind": "indexed_sources", "snapshot_id": plan.get("snapshot_id"), "planned_pages": len(pages),
@@ -637,7 +652,7 @@ def run_business_analysis(
                     original = str(item["text"])
                     item["text"] = original[:MAX_SUMMARY_CHARACTERS]
                     item["summary_truncated"] = len(original) > MAX_SUMMARY_CHARACTERS or bool(item.get("summary_truncated"))
-        messages = [{"role": "system", "content": _SYSTEM},
+        messages = [{"role": "system", "content": _SYSTEM + "\n" + answer_language_instruction(answer_language)},
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
         # JSON escaping and multibyte text can expand substantially. Check the
         # actual request representation, keeping supplied source pages intact.
@@ -880,7 +895,8 @@ def run_business_analysis(
                 if len(summary_items) > SUMMARY_FAN_IN:
                     # Each branch includes all child programs. No final request
                     # receives the unbounded list of page or program summaries.
-                    summary_items = [reduce_summaries(summary_items, "chain_synthesis", "已分析程序的业务过程")]
+                    summary_items = [reduce_summaries(summary_items, "chain_synthesis", local_text(
+                        "已分析程序的业务过程", "Business process of the analyzed programs", "已分析程式的業務過程"))]
             emit("synthesizing", len(summarized_pages), len(pages))
             try:
                 if requests_stopped:
@@ -904,11 +920,17 @@ def run_business_analysis(
                 preserve_unaccepted(exc.code, getattr(exc, "text", ""))
             if synthesis_failed:
                 if full_chain:
-                    answer = "已完成的程序业务解释（综合请求未完成；各页原说明仍保留）：\n\n" + "\n\n".join(
+                    answer = local_text("已完成的程序业务解释（综合请求未完成；各页原说明仍保留）：",
+                        "Completed program explanations (the synthesis request did not finish; the original page explanations are retained):",
+                        "已完成的程式業務解釋（綜合請求未完成；各頁原說明仍保留）：") + "\n\n" + "\n\n".join(
                         f"{item['relative_path']}\n{item['text']}" for item in program_summaries if item["text"])
                 else:
-                    answer = "已完成的分段业务解释（综合请求未完成）：\n\n" + "\n\n".join(
-                        f"{page.get('relative_path')}：第 {page.get('start_line')}–{page.get('end_line')} 行\n{text}"
+                    answer = local_text("已完成的分段业务解释（综合请求未完成）：",
+                        "Completed section explanations (the synthesis request did not finish):",
+                        "已完成的分段業務解釋（綜合請求未完成）：") + "\n\n" + "\n\n".join(
+                        local_text(f"{page.get('relative_path')}：第 {page.get('start_line')}–{page.get('end_line')} 行",
+                              f"{page.get('relative_path')}: lines {page.get('start_line')}–{page.get('end_line')}",
+                              f"{page.get('relative_path')}：第 {page.get('start_line')}–{page.get('end_line')} 行") + f"\n{text}"
                         for page, text in summaries)
 
     if full_chain and direct:
@@ -933,7 +955,7 @@ def run_business_analysis(
             return match[0]
         if identifier not in unknown:
             unknown.append(identifier)
-        return "【未确认来源引用】"
+        return local_text("【未确认来源引用】", "[unconfirmed source reference]", "【未確認來源引用】")
 
     page_summaries = [{
         **_reference_metadata(page),
@@ -946,7 +968,10 @@ def run_business_analysis(
     answer = _REFERENCE.sub(validate_reference, answer)
     if unknown:
         warnings.append({"code": "UNKNOWN_SOURCE_REFERENCE", "references": unknown[:100]})
-        boundaries.append(_boundary("UNKNOWN_SOURCE_REFERENCE", "模型给出了未提供的来源标识；这些标识已移除，不能用作证据。"))
+        boundaries.append(_boundary("UNKNOWN_SOURCE_REFERENCE", local_text(
+            "模型给出了未提供的来源标识；这些标识已移除，不能用作证据。",
+            "The model included source identifiers that were not supplied; these identifiers were removed and cannot be used as evidence.",
+            "模型給出了未提供的來源標識；這些標識已移除，不能用作證據。")))
     coverage = dict(plan.get("coverage", {}))
     structured_responses = [warning for warning in warnings if warning["code"] == "MODEL_STRUCTURED_TEXT_PRESERVED"]
     incomplete_page_response = any(item["stage"] in {"direct", "page"} for item in [*errors, *structured_responses])
@@ -979,33 +1004,61 @@ def run_business_analysis(
     partial = bool(errors or structured_responses or final_truncated or final_filtered or truncated_response_pages
                    or filtered_response_pages or not coverage["complete"] or source_scope_incomplete or incomplete_calls)
     if source_scope_incomplete:
-        boundaries.append(_boundary("SOURCE_SCOPE_INCOMPLETE", "已解释本次纳入的源码；仍有后续程序、动态目标或受范围限制的依赖未纳入，因此不能视为完整业务过程。"))
+        boundaries.append(_boundary("SOURCE_SCOPE_INCOMPLETE", local_text(
+            "已解释本次纳入的源码；仍有后续程序、动态目标或受范围限制的依赖未纳入，因此不能视为完整业务过程。",
+            "The included source has been explained; downstream programs, dynamic targets, or dependencies outside the selected scope are still missing, so this does not cover the complete business process.",
+            "已解釋本次納入的源碼；仍有後續程式、動態目標或受範圍限制的依賴未納入，因此不能視為完整業務過程。")))
     if incomplete_calls:
-        boundaries.append(_boundary("CALL_CHAIN_INCOMPLETE", "调用链仍有未覆盖或未解析的环节；保留已读源码支持的业务解释，其余环节单独作为边界。", **incomplete_calls))
+        boundaries.append(_boundary("CALL_CHAIN_INCOMPLETE", local_text(
+            "调用链仍有未覆盖或未解析的环节；保留已读源码支持的业务解释，其余环节单独作为边界。",
+            "Some call-chain steps remain uncovered or unresolved; explanations supported by the captured source are retained, and the remaining steps are recorded as limitations.",
+            "呼叫鏈仍有未涵蓋或未解析的環節；保留已讀源碼支持的業務解釋，其餘環節單獨作為邊界。"), **incomplete_calls))
     if errors:
-        boundaries.append(_boundary("MODEL_REQUEST_INCOMPLETE", "部分模型请求未完成；已保留成功生成的业务解释。", failures=errors))
+        boundaries.append(_boundary("MODEL_REQUEST_INCOMPLETE", local_text(
+            "部分模型请求未完成；已保留成功生成的业务解释。",
+            "Some model requests did not complete; successfully generated business explanations are retained.",
+            "部分模型請求未完成；已保留成功生成的業務解釋。"), failures=errors))
     if requests_stopped:
-        boundaries.append(_boundary("MODEL_REQUESTS_STOPPED", "接口请求失败或服务端明确拒绝，已停止后续模型请求；已经生成的说明保留，剩余页没有视作已分析。"))
+        boundaries.append(_boundary("MODEL_REQUESTS_STOPPED", local_text(
+            "接口请求失败或服务端明确拒绝，已停止后续模型请求；已经生成的说明保留，剩余页没有视作已分析。",
+            "Further model requests stopped after an API failure or server refusal; existing explanations are retained, and the remaining pages have not been treated as analyzed.",
+            "介面請求失敗或伺服器明確拒絕，已停止後續模型請求；已經生成的說明保留，剩餘頁沒有視作已分析。")))
     if any(error["code"] == "MODEL_REFUSED" for error in errors):
-        boundaries.append(_boundary("MODEL_REFUSED", "服务端明确拒绝了部分内容；如已返回可用正文，将保留为部分解读，不自动重试绕过拒绝。"))
+        boundaries.append(_boundary("MODEL_REFUSED", local_text(
+            "服务端明确拒绝了部分内容；如已返回可用正文，将保留为部分解读，不自动重试绕过拒绝。",
+            "The server refused some content; any usable text already returned is retained as a partial explanation, without automatically retrying to bypass the refusal.",
+            "伺服器明確拒絕了部分內容；如已傳回可用正文，將保留為部分解讀，不自動重試繞過拒絕。")))
     if structured_responses:
-        boundaries.append(_boundary("MODEL_STRUCTURED_TEXT_PRESERVED", "模型返回了结构化正文，已按原文保留为未核验的部分解读；没有猜测自定义字段的含义。"))
+        boundaries.append(_boundary("MODEL_STRUCTURED_TEXT_PRESERVED", local_text(
+            "模型返回了结构化正文，已按原文保留为未核验的部分解读；没有猜测自定义字段的含义。",
+            "The model returned structured text, retained verbatim as an unverified partial explanation; custom field meanings have not been inferred.",
+            "模型傳回了結構化正文，已按原文保留為未核驗的部分解讀；沒有猜測自訂欄位的含義。")))
     if final_truncated or truncated_response_pages:
-        boundaries.append(_boundary("MODEL_OUTPUT_TRUNCATED", "模型输出达到长度限制，以下保留已返回的部分正文。"))
+        boundaries.append(_boundary("MODEL_OUTPUT_TRUNCATED", local_text(
+            "模型输出达到长度限制，以下保留已返回的部分正文。",
+            "The model output reached its length limit; the partial text already returned is retained below.",
+            "模型輸出達到長度限制，以下保留已傳回的部分正文。")))
     if final_filtered or filtered_response_pages:
-        boundaries.append(_boundary("MODEL_CONTENT_FILTERED", "服务端过滤中断了部分模型输出，以下保留已经返回的正文。"))
+        boundaries.append(_boundary("MODEL_CONTENT_FILTERED", local_text(
+            "服务端过滤中断了部分模型输出，以下保留已经返回的正文。",
+            "Server filtering interrupted some model output; the text already returned is retained below.",
+            "伺服器過濾中斷了部分模型輸出，以下保留已經傳回的正文。")))
         warnings.append({"code": "MODEL_CONTENT_FILTERED", "stage": "direct" if direct else "synthesis" if final_filtered else "page"})
     if not answer:
         diagnostic = next((item["diagnostic"] for item in errors if item.get("diagnostic")), None)
-        answer = (format_diagnostic(diagnostic) + "\n\n源码阅读计划已保留。" if diagnostic else
-                  "本次未取得可阅读的业务解释。请查看 API 返回与错误代码；源码阅读计划已保留。")
+        answer = (format_diagnostic(diagnostic, language=answer_language) + "\n\n" + local_text(
+                    "源码阅读计划已保留。", "The source reading plan has been retained.", "源碼閱讀計劃已保留。") if diagnostic else local_text(
+                    "本次未取得可阅读的业务解释。请查看 API 返回与错误代码；源码阅读计划已保留。",
+                    "No readable business explanation was returned. Check the API response and error code; the source reading plan has been retained.",
+                    "本次未取得可閱讀的業務解釋。請查看 API 傳回與錯誤代碼；源碼閱讀計劃已保留。"))
     usable = bool(summarized_pages)
     status = "PARTIAL" if usable and partial else "ANALYZED" if usable else "ABSTAINED"
     stop_reason = ("model_refused" if any(error["code"] == "MODEL_REFUSED" for error in errors)
                    else "model_client_error" if errors else "output_truncated" if final_truncated or truncated_response_pages
                    else "model_response_filtered" if final_filtered or filtered_response_pages else "completed")
     result: dict[str, Any] = {
-        "status": status, "answer": answer, "answer_format": "markdown", "analysis_mode": "source_reading",
+        "status": status, "answer": answer, "answer_language": answer_language,
+        "answer_format": "markdown", "analysis_mode": "source_reading",
         "narrative": {"text": answer, "format": "markdown", "verification": "unverified", "citation_scope": "source_reference_only",
                       "citations": [allowed_refs[identifier] for identifier in cited]},
         "claims": [], "claims_semantically_verified": False,

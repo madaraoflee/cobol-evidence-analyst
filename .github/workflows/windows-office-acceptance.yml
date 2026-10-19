@@ -15,32 +15,6 @@ on:
         description: 'Optional artifact ID; must be the exact candidate from the selected run and attempt'
         type: string
         default: ''
-  workflow_run:
-    workflows: ['Windows desktop x64']
-    types: [completed]
-    branches: [main]
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/windows-office-acceptance.yml'
-      - 'tools/office_acceptance_*.py'
-      - 'tools/build_office_acceptance.py'
-      - 'tools/collect_office_acceptance_kit.py'
-      - 'tools/resolve_office_candidate.py'
-      - 'poc/tests/test_office_candidate_binding.py'
-      - 'tools/acceptance_diagnostics.py'
-      - 'docs/office-acceptance-steps.md'
-  pull_request:
-    branches: [main]
-    paths:
-      - '.github/workflows/windows-office-acceptance.yml'
-      - 'tools/office_acceptance_*.py'
-      - 'tools/build_office_acceptance.py'
-      - 'tools/collect_office_acceptance_kit.py'
-      - 'tools/resolve_office_candidate.py'
-      - 'poc/tests/test_office_candidate_binding.py'
-      - 'tools/acceptance_diagnostics.py'
-      - 'docs/office-acceptance-steps.md'
 
 permissions:
   contents: read
@@ -65,12 +39,7 @@ jobs:
   kit:
     runs-on: windows-2022
     needs: lint
-    if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main' &&
-       github.event.workflow_run.head_repository.full_name == github.repository &&
-       (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch'))
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     timeout-minutes: 75
     defaults:
       run:

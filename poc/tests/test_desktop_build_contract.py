@@ -121,6 +121,10 @@ class WindowsAcceptanceWorkflowTests(unittest.TestCase):
     def step(self, phrase):
         return next((index, body) for index, (name, body) in enumerate(self.steps) if phrase in name)
 
+    def test_build_requires_manual_dispatch_during_bug_fix_phase(self):
+        triggers = self.text.split("on:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertEqual(re.findall(r"^  ([a-z_]+):", triggers, re.M), ["workflow_dispatch"])
+
     def test_mandatory_public_corpus_precedes_tests_and_final_exe_gate_precedes_upload(self):
         public, public_body = self.step("mandatory frozen public corpus")
         tests, _ = self.step("offline Python regressions")

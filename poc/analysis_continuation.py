@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from response_language import localized_text
 
 
 _LABELS = {
@@ -20,6 +21,15 @@ _LABELS = {
     "exceptions": "异常分支", "file_io": "文件读写", "call": "调用关系",
     "declarations": "字段定义", "file_definitions": "文件定义",
     "scheduler_binding": "调度条件", "source_availability": "源码读取状态",
+}
+_ENGLISH_LABELS = {
+    "inputs": "Input sources", "conditions": "Processing conditions", "formula": "Calculation rules",
+    "formulas": "Calculation rules", "calculation": "Calculation rules", "dependencies": "Related implementations",
+    "accumulation": "Accumulation", "accumulation_step": "Accumulation", "rounding": "Rounding rules",
+    "result_adjustments": "Later adjustments", "result_overrides": "Later overwrites", "outputs": "Outputs",
+    "exceptions": "Exception branches", "file_io": "File access", "call": "Calls",
+    "declarations": "Field definitions", "file_definitions": "File definitions",
+    "scheduler_binding": "Scheduling conditions", "source_availability": "Source availability",
 }
 
 
@@ -38,18 +48,23 @@ def material_keys(pages, references=()):
     return {_digest(value) for value in values}
 
 
-def progress_snapshot(round_number, investigation, evidence_count, *, summary=None, assessment=None):
+def progress_snapshot(round_number, investigation, evidence_count, *, summary=None, assessment=None,
+                      answer_language="zh-CN"):
     items = [item for item in investigation.get("required_items", [])
              if item.get("status") != "NOT_APPLICABLE"]
     completed = sum(item.get("status") == "SATISFIED" for item in items)
     gaps = [item.get("kind", item.get("id", "")) for item in items
             if item.get("status") != "SATISFIED"]
     gaps.extend((assessment or {}).get("missing_aspects", []))
-    labels = list(dict.fromkeys(_LABELS.get(item, "相关业务细节") for item in gaps if item))
+    labels = list(dict.fromkeys(localized_text(answer_language, _LABELS.get(item, "相关业务细节"),
+        _ENGLISH_LABELS.get(item, "Relevant business details")) for item in gaps if item))
     return {"round": max(1, round_number), "evidence_count": evidence_count,
             "completed_items": completed, "total_items": len(items), "open_items": labels[:32],
-            "summary": summary or ("已补充相关源码，正在核对处理条件与结果。" if evidence_count
-                                   else "正在根据原问题定位相关程序和业务规则。")}
+            "summary": summary or (localized_text(answer_language,
+                "已补充相关源码，正在核对处理条件与结果。",
+                "Relevant source has been added. Checking processing conditions and outcomes.") if evidence_count
+                else localized_text(answer_language, "正在根据原问题定位相关程序和业务规则。",
+                    "Locating relevant programs and business rules for the original question."))}
 
 
 class AnalysisContinuation:

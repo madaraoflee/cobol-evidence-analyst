@@ -1185,7 +1185,7 @@ function sameSourceWorkspace(left,right){
 }
 function analysisOptions(question,extra={}){
   const p=state.project;const opts=p.diagnosis.source_options || {};
-  return {source:p.source,output:p.output,encoding:opts.encoding || 'auto',source_format:opts.source_format || 'auto',...(opts.compilation_context_path?{compilation_context_path:opts.compilation_context_path}:{}),extensions:opts.extensions?.join(',') || null,entry:state.entry || null,question,max_source_pages:state.maxSourcePages,reading_strategy:conversationMode()?'retrieval':state.readingStrategy,answer_detail:state.answerDetail,allow_network:true,index_mode:opts.index_mode || 'catalog',...(conversationMode()?{conversation_id:state.conversation?.id || null}:{}),...extra};
+  return {source:p.source,output:p.output,encoding:opts.encoding || 'auto',source_format:opts.source_format || 'auto',...(opts.compilation_context_path?{compilation_context_path:opts.compilation_context_path}:{}),extensions:opts.extensions?.join(',') || null,entry:state.entry || null,question,locale:currentLocale,max_source_pages:state.maxSourcePages,reading_strategy:conversationMode()?'retrieval':state.readingStrategy,answer_detail:state.answerDetail,allow_network:true,index_mode:opts.index_mode || 'catalog',...(conversationMode()?{conversation_id:state.conversation?.id || null}:{}),...extra};
 }
 async function pollJob(jobId){
   try{const job=await api(`/api/jobs/${encodeURIComponent(jobId)}`);if(state.jobId!==jobId)return;

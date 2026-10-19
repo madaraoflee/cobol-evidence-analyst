@@ -48,6 +48,19 @@ test('switching language retains local drafts, source scope, answers and pending
   const before=h.run('JSON.stringify(state)');h.change('en');
   assert.equal(h.run('JSON.stringify(state)'),before);assert.equal(h.fetches(),0);
 });
+test('new questions carry the current interface locale without changing question text',()=>{
+  const h=harness('en');
+  h.run("state.mode='real';state.project={source:'D:/source',output:'D:/output',diagnosis:{source_options:{}}};");
+  for(const locale of ['en','zh-CN','zh-HK']){
+    h.run(`selectInterfaceLocale('${locale}')`);
+    const options=h.run("analysisOptions('Explain the order calculation.')");
+    assert.equal(options.locale,locale);
+    assert.equal(options.question,'Explain the order calculation.');
+  }
+  h.run("state.conversationSupported=false;state.readingStrategy='focused';selectInterfaceLocale('en')");
+  assert.equal(h.run("analysisOptions('ORDER-AMOUNT').locale"),'en');
+  assert.equal(h.fetches(),0);
+});
 test('case suggestions follow the selected locale and real questions remain editable separately',()=>{
   const h=harness();h.fixture();h.run('render=()=>{}');h.change('en');
   assert.equal(h.run('state.question'),'Explain Service request intake.');

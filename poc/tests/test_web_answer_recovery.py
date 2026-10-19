@@ -29,6 +29,27 @@ class WebAnswerRecoveryTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(RequestError):
                 _validate_options({**payload, "answer_detail": value})
 
+    def test_interface_locale_is_optional_and_accepts_only_supported_values(self):
+        payload = {"source": str(self.source), "output": str(self.root / "output")}
+        self.assertNotIn("locale", _validate_options(payload))
+        for value in ("en", "zh-CN", "zh-HK"):
+            self.assertEqual(_validate_options({**payload, "locale": value})["locale"], value)
+        for value in ("fr", "en-US", True, [], 7):
+            with self.subTest(value=value), self.assertRaises(RequestError):
+                _validate_options({**payload, "locale": value})
+
+    def test_missing_answer_uses_question_language_and_persists_language_metadata(self):
+        app = WorkbenchState(state_path=None)
+        app.conversation_store = ConversationStore(self.root / "output", self.source)
+        conversation = app.conversation_store.create()
+        question = "Explain the eligibility rules."
+        app._record_answer({"conversation_id": conversation["id"], "question": question, "locale": "zh-HK"},
+                           "missing-answer", {"agent": {"runner_status": "NOT_READY"}})
+        message = ConversationStore(self.root / "output", self.source).get(conversation["id"])["messages"][0]
+        self.assertEqual(message["content"], "No model answer was received. The conversation has been retained; you can retry.")
+        self.assertEqual(message["answer_language"], "en")
+        self.assertEqual(message["locale"], "zh-HK")
+
     def test_long_answer_and_length_status_survive_conversation_reload(self):
         app = WorkbenchState(state_path=None)
         app.conversation_store = ConversationStore(self.root / "output", self.source)

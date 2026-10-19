@@ -14,6 +14,7 @@ import re
 from typing import Any
 
 from claim_support import check_statement_support, statement_tokens, supplied_statement_facts
+from response_language import localized_text, resolve_answer_language
 
 
 LEDGER_VERSION = "answer-claim-ledger-v4"
@@ -22,6 +23,10 @@ _NAME = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?:\s+(?:OF|IN)\s+[A-Z][A-Z0-9]*(?:-[A-Z0
 _ATOM = rf"(?:{_NAME}|[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|[()])"
 _EXPRESSION = rf"{_ATOM}(?:\s*(?:\*\*|[+*/×÷-]|\b(?:multiplied\s+by|times|divided\s+by)\b|乘以|乘|除以|加上|减去)\s*{_ATOM})*"
 _FORMULA = re.compile(rf"(?P<target>{_NAME})\s*(?:(?:最终|最終|最后|最後|总是|總是|一定|always|finally)\s*)?(?:ROUNDED\s*)?(?:=(?!=)|等于|等於|(?:为|為|是)\s*|\bis\s+)\s*", re.I)
+_ENGLISH_DESCRIPTION = re.compile(
+    r"(?:not\s+)?(?:(?:an?|the)\s+(?!(?:OF|IN|times)\s|(?:multiplied|divided)\s+by\b)[A-Za-z]|"
+    r"(?:declared|defined|described|documented|stored|used|treated|represented|interpreted|"
+    r"known|marked|classified|identified|calculated|computed)\s+(?:as|with|in|by|for|to|from)\b)", re.I)
 _ANSWER_TOKEN = re.compile(rf"\s*(?:'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|\d+(?:\.\d+)?|(?:multiplied\s+by|divided\s+by|times)\b|乘以|乘|除以|加上|减去|{_NAME}|\*\*|[()+*/×÷-])", re.I)
 _CONDITION_TOKEN = re.compile(rf"\s*(?:'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|\d+(?:\.\d+)?|{_NAME}|>=|<=|<>|\*\*|[()=<>+*/-])", re.I)
 _MULTIPLE = re.compile(rf"(?P<target>{_NAME})\s*(?:为|為|是|按|等于|等於)\s*(?P<input>{_NAME})\s*的?\s*(?P<number>\d+(?:\.\d+)?|两|兩|二|三|四|五|六|七|八|九|十)\s*倍", re.I)
@@ -181,6 +186,12 @@ def _assertions(text):
                 continue
             if re.search(r"假设|假設|例如|示例|假如|\b(?:suppose|assuming)\b", text[max(0, match.start() - 24):match.start()], re.I):
                 continue
+            if (pattern is _FORMULA and re.search(r"\bis\s*$", match[0], re.I)
+                    and _ENGLISH_DESCRIPTION.match(text, match.end())):
+                # English descriptions are not assignment notation. Reading
+                # only their first token invents formulas such as THIS = AN
+                # or FIELD = DECLARED and can erase a valid cited sentence.
+                continue
             tokens, expression_end = (_tokens(match["expression"]), match.end()) if pattern is _MOVE else _read_expression(text, match.end())
             if tokens:
                 assertions.append({"predicate": "assignment_statement", "target": match["target"].upper(),
@@ -263,28 +274,45 @@ def _same_program_version(fact, matched):
              or fact["program_name"] == source["program_name"]) for source in matched)
 
 
-def _render_fact(fact):
+def _render_fact(fact, answer_language="zh-CN"):
+    def local(zh_cn, en, zh_hk=None):
+        return localized_text(answer_language, zh_cn, en, zh_hk)
+
     if fact["predicate"] == "noop_procedure":
-        text = f"`{fact['target']}` 段落只有 {' / '.join(fact['body_kinds'])}，未实现本段计算或写入逻辑"
+        body = ' / '.join(fact['body_kinds'])
+        text = local(
+            f"`{fact['target']}` 段落只有 {body}，未实现本段计算或写入逻辑",
+            f"The `{fact['target']}` paragraph contains only {body}; its calculation or write logic is not implemented",
+            f"`{fact['target']}` 段落只有 {body}，未實現本段計算或寫入邏輯")
     elif fact["predicate"] == "assignment_statement":
         rounded = " ROUNDED" if fact["rounded"] else ""
         text = f"`{fact['target']}{rounded} = {' '.join(fact['expression'])}`"
     elif fact["predicate"] == "condition_statement":
         text = f"`IF {' '.join(fact['condition'])}`"
     else:
-        text = f"`{fact['effect']} {fact['target']}`（显式写入请求，成功结果需运行状态确认）"
+        text = f"`{fact['effect']} {fact['target']}`" + local(
+            "（显式写入请求，成功结果需运行状态确认）",
+            " (an explicit write request; success requires runtime confirmation)",
+            "（明確的寫入請求，成功結果需執行狀態確認）")
     guards = []
     for guard in fact.get("guards", []):
         condition = guard["condition"]
         if guard.get("outcome") in {"false", False}:
-            condition = "条件不成立：" + condition
+            condition = local("条件不成立：", "condition is false: ", "條件不成立：") + condition
         guards.append(condition)
-    prefix = "在源码控制条件 `" + "；".join(guards) + "` 下，" if guards else ""
+    joined_guards = local("；", "; ").join(guards)
+    prefix = local(f"在源码控制条件 `{joined_guards}` 下，",
+                   f"Under source control condition `{joined_guards}`, ",
+                   f"在源碼控制條件 `{joined_guards}` 下，") if guards else ""
     if fact.get("normal_result_condition") == "no_size_error":
-        prefix += "无 SIZE ERROR 时的算式为 "
+        prefix += local("无 SIZE ERROR 时的算式为 ", "when there is no SIZE ERROR, the formula is ",
+                        "無 SIZE ERROR 時的算式為 ")
     if fact.get("compilation_status") == "candidate":
-        prefix = "编译条件尚未确认，以下仅为候选源码语句：" + prefix
-    return f"{prefix}{text}（{fact['relative_path']}:{fact['start_line']}）[{fact['evidence_id']}]"
+        prefix = local("编译条件尚未确认，以下仅为候选源码语句：",
+                       "Compilation conditions are unconfirmed; this is a candidate source statement: ",
+                       "編譯條件尚未確認，以下僅為候選源碼語句：") + prefix
+    location = f"{fact['relative_path']}:{fact['start_line']}"
+    return f"{prefix}{text}" + local(f"（{location}）", f" ({location})") + f"[{fact['evidence_id']}]"
 
 
 def _revised_claims(facts, pages):
@@ -298,7 +326,7 @@ def _revised_claims(facts, pages):
 
 
 def review_answer_claims(answer: str, source_pages, allowed, *, source_format="auto", compilation_context=None,
-                         source_fact_cache=None):
+                         source_fact_cache=None, answer_language=None):
     """Review and repair only affected segments, using actually supplied pages.
 
     Returned ledger preserves rejected claims and exact version evidence for
@@ -308,6 +336,14 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
     checker cannot establish the associated statement.
     """
     from compilation_context import resolve_compilation_context
+    if answer_language is None:
+        answer_language = resolve_answer_language(answer)
+
+    def local(zh_cn, en, zh_hk=None):
+        return localized_text(answer_language, zh_cn, en, zh_hk)
+
+    fact_separator = local("；", "; ")
+    sentence_end = local("。", ". ")
     context = resolve_compilation_context(compilation_context, source_options={"source_format": source_format})
     pages = {page["evidence_id"]: page for page in source_pages if page.get("evidence_id") in allowed}
     facts = []
@@ -350,7 +386,9 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                         "source_sha256": fact["source_sha256"]}]))
                 replacements.append(fact)
         if replacements:
-            reviewed.append("所引源码可直接确认：" + "；".join(_render_fact(fact) for fact in replacements) + "。" + ("\n" if segment.endswith("\n") else ""))
+            reviewed.append(local("所引源码可直接确认：", "The cited source directly confirms: ", "所引源碼可直接確認：")
+                + fact_separator.join(_render_fact(fact, answer_language) for fact in replacements)
+                + sentence_end + ("\n" if segment.endswith("\n") else ""))
             continue
         for assertion in assertions or [{}]:
             entry = ClaimEntry(f"claim-{len(ledger.entries) + 1}", assertion.get("predicate", "business_explanation"),
@@ -508,15 +546,24 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     seen.add(key)
                     distinct.append(fact)
             trailing = "\n" if segment.endswith("\n") else ""
-            qualification = ("这些仅为已供证语句，最终值仍需核对控制流、后续覆盖及未供证代码。"
+            qualification = (local("这些仅为已供证语句，最终值仍需核对控制流、后续覆盖及未供证代码。",
+                             "These are only the supplied statements; the final value still requires checking control flow, later overwrites, and code that was not supplied. ",
+                             "這些僅為已供證語句，最終值仍需核對控制流、後續覆蓋及未供證程式碼。")
                              if final_value_unverified else "")
-            reviewed.append("已供应源码可直接确认：" + "；".join(_render_fact(fact) for fact in distinct) + "。" + qualification + trailing)
+            reviewed.append(local("已供应源码可直接确认：", "The supplied source directly confirms: ", "已提供源碼可直接確認：")
+                + fact_separator.join(_render_fact(fact, answer_language) for fact in distinct)
+                + sentence_end + qualification + trailing)
         elif unresolved:
             clean = _REFERENCE.sub(lambda match: match[0] if match[1] in allowed else "", segment)
             if assertions:
-                reviewed.append("该处公式、条件或效果尚未得到所引源码支持，需要核对相关语句。" + ("\n" if segment.endswith("\n") else ""))
+                reviewed.append(local("该处公式、条件或效果尚未得到所引源码支持，需要核对相关语句。",
+                    "The cited source does not yet support this formula, condition, or effect; the relevant statements need to be checked. ",
+                    "該處公式、條件或效果尚未得到所引源碼支持，需要核對相關語句。")
+                    + ("\n" if segment.endswith("\n") else ""))
             else:
-                reviewed.append(clean.rstrip("\n") + "（本句有未供应的引用，这部分陈述尚未核实。）" + ("\n" if segment.endswith("\n") else ""))
+                reviewed.append(clean.rstrip("\n") + local("（本句有未供应的引用，这部分陈述尚未核实。）",
+                    " (This sentence cites evidence that was not supplied; this part of the statement remains unverified.)",
+                    "（本句有未提供的引用，這部分陳述尚未核實。）") + ("\n" if segment.endswith("\n") else ""))
         else:
             reviewed.append(_REFERENCE.sub(lambda match: match[0] if match[1] in allowed else "", segment))
     result = "".join(reviewed)

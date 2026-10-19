@@ -2,36 +2,13 @@ name: Windows desktop x64
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/windows-desktop.yml'
-      - '.gitattributes'
-      - 'build_app.py'
-      - 'desktop-requirements.txt'
-      - 'poc/**'
-      - 'tools/**'
-      - 'docs/eval/**'
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - '.github/workflows/windows-desktop.yml'
-      - 'build_app.py'
-      - 'build_app.bat'
-      - 'desktop-requirements.txt'
-      - 'assets/app.ico'
-      - 'poc/**'
-      - 'tools/**'
-      - 'docs/eval/**'
-      - '.gitattributes'
 
 permissions:
   contents: read
 
 concurrency:
   group: windows-desktop-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+  cancel-in-progress: false
 
 jobs:
   workflow_lint:

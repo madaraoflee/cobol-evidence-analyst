@@ -214,9 +214,11 @@ class OfficeCandidateBindingTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaisesRegex(ValueError, code):
                 resolver.validate_helper_contracts(**{**arguments, key: value})
 
-    def test_workflow_has_no_old_candidate_defaults_and_pushes_do_not_compile(self):
+    def test_workflow_requires_manual_dispatch_and_has_no_old_candidate_defaults(self):
         workflow = (ROOT / ".github/workflows/windows-office-acceptance.yml").read_text(encoding="utf-8")
-        self.assertIn("workflow_run:", workflow)
+        triggers = workflow.split("on:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertEqual([line.strip().removesuffix(":") for line in triggers.splitlines()
+                          if line.startswith("  ") and not line.startswith("   ")], ["workflow_dispatch"])
         self.assertIn("github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'", workflow)
         self.assertIn("steps.candidate.outputs.artifact_id", workflow)
         self.assertIn("steps.candidate.outputs.run_id", workflow)
