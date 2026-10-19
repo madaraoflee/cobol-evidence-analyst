@@ -63,6 +63,13 @@ class AccumulationCoverageTests(unittest.TestCase):
                                 "COMPUTE TOTAL-AMOUNT = TOTAL-AMOUNT * 2.")
         self.assertNotIn("accumulation", review["required_aspects"])
 
+    def test_table_segment_metadata_preserves_actual_accumulation_coverage(self):
+        for expression, covered in (("TOTAL-AMOUNT + PERIOD-AMOUNT", True), ("TOTAL-AMOUNT + 999", False)):
+            with self.subTest(expression=expression):
+                answer = "| Result | Operation |\n| --- | --- |\n| Total | TOTAL-AMOUNT = " + expression + ". [ev:accrual] |"
+                review = self.assessment("TOTAL-AMOUNT 如何累加？", answer)
+                self.assertEqual("accumulation" not in review["missing_aspects"], covered)
+
     def test_constant_reset_and_wrong_increment_do_not_masquerade_as_accumulation(self):
         for answer in ("TOTAL-AMOUNT = 0。", "TOTAL-AMOUNT = 99。", "TOTAL-AMOUNT = PERIOD-AMOUNT。",
                        "TOTAL-AMOUNT = TOTAL-AMOUNT + 999。", "ADD 999 TO TOTAL-AMOUNT。",

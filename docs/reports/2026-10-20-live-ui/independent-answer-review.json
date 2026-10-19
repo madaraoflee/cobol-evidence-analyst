@@ -1,0 +1,204 @@
+{
+  "schema_version": 2,
+  "reviewed_at_utc": "2026-10-19T17:20:38.919295+00:00",
+  "reviewer": "Codex source_claims agent",
+  "review_type": "agent_review",
+  "method": "independent source inspection + Decimal calculations + offline production claim replay",
+  "review_stage": "final_source_review_of_live_Q1_18_and_Q2_19",
+  "delivery_status": "core_questions_reviewed_with_recorded_limitations_and_replay_provenance",
+  "runtime": "macOS source workbench",
+  "formal_windows_exe_human_acceptance": false,
+  "model_requests_by_reviewer": 0,
+  "source_sha256": {
+    "fee.cbl": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+    "entry.cbl": "0933fc6ea7e32261beaeb67cebc949086df70a3a638ff09c61fe1c9685441d72"
+  },
+  "oracle_artifact": "oracle.json",
+  "scope": "只将用户实际两道问题作为必答项；额外说明独立记录。真实请求产物与最终代码离线回放分别记录，不把后者冒充同一次真实执行。",
+  "numeric_check": {
+    "method": "Decimal with ROUND_HALF_UP, positive valid numeric inputs, no COBOL executable run",
+    "examples": [
+      {
+        "base_amount": "100",
+        "exact_formula_result": "1.25",
+        "rounded_result": "1.25",
+        "non_review_final": "2.00",
+        "review_final": "0.00"
+      },
+      {
+        "base_amount": "500",
+        "exact_formula_result": "6.25",
+        "rounded_result": "6.25",
+        "non_review_final": "6.25",
+        "review_final": "0.00"
+      },
+      {
+        "base_amount": "2000",
+        "exact_formula_result": "25.00",
+        "rounded_result": "25.00",
+        "non_review_final": "15.00",
+        "review_final": "0.00"
+      },
+      {
+        "base_amount": "201.20",
+        "exact_formula_result": "2.5150",
+        "rounded_result": "2.52",
+        "non_review_final": "2.52",
+        "review_final": "0.00"
+      }
+    ]
+  },
+  "questions": [
+    {
+      "id": "Q1",
+      "run_id": "5132dddfe8a92055ed3867bd",
+      "question": "fee.cbl 的手续费如何计算？请按执行顺序说明基础公式、ROUNDED 舍入、最低/最高收费和 REVIEW 的后续覆盖；本金为 100、500、2000，费率均为 1.25% 时各收多少？再说明本金 201.20 的舍入结果。",
+      "question_sha256": "5097fe1ae207f2c4491e619da4c2892042898f2ee869f5f9f139bd1dc28f3283",
+      "artifact": "18-v29-fee-answer.json",
+      "artifact_sha256": "e7d7222e33af891da3f46c92abe7b41e1d16d1cfb944a50118590931d89c67e6",
+      "actual_model_requests": 1,
+      "actual_elapsed_seconds": 24.732,
+      "actual_pipeline_version": "question-evidence-v29",
+      "actual_generation_manifest": "tested-source-v29.json",
+      "actual_generation_claim_ledger_sha256": "b65c8ff20efadaf238076a0747046cd970e422149820935c2d6dc1840bfac932",
+      "actual_final_revised_claim_count": 1,
+      "raw_answer_sha256": "cda84a74db9b2ab40127100b5a2d658fa256b6d2f83b774967b4b80ec3ec597a",
+      "archived_final_answer_sha256": "ea695518e24c248fc2d355800b1aeaa93376c2553e9b508921285aaf252c0b11",
+      "final_code_replay_preserves_raw_exactly": true,
+      "final_code_replay_revised_claim_count": 0,
+      "required_items_review": "pass_source_and_decimal_review_with_original_postprocessing_defect_recorded",
+      "checks": [
+        {
+          "item": "基础公式为 BASE-AMOUNT * RATE / 100，RATE 为 1.25",
+          "result": "pass",
+          "evidence": "fee.cbl:5,11"
+        },
+        {
+          "item": "先 ROUNDED 到 FINAL-FEE 的两位小数，再检查上下限",
+          "result": "pass",
+          "evidence": "fee.cbl:8,11-18"
+        },
+        {
+          "item": "最低2、最高15，REVIEW 最后覆盖为0",
+          "result": "pass",
+          "evidence": "fee.cbl:13-21"
+        },
+        {
+          "item": "100→2.00，500→6.25，2000→15.00，201.20 精确值2.515→2.52；REVIEW均0",
+          "result": "pass",
+          "evidence": "independent Decimal calculations below; raw and archived answer tables"
+        }
+      ],
+      "original_postprocessing_defect": {
+        "severity": "material_answer_preservation_defect",
+        "raw_text": "FINAL-FEE = BASE-AMOUNT × 1.25 ÷ 100 = BASE-AMOUNT × 1.25%",
+        "finding": "完整链式数学说明被截取成一条源码公式，因 token 不等而被误改。原始18有1次误改，不能记为零缺陷通过。",
+        "repair_evidence": "最终代码将不完整解析的数学推导保留为 unsupported；final-claim-replay.json 显示原稿逐字保留、0修订。",
+        "actual_request_repeated_after_fix": false
+      },
+      "extra_model_claims_review": "未发现影响原问题核心结论的额外错误；ENTRY-RULE 补充说明限定了初值与直接调用时的外部状态。有限语法检查器不能据此宣称全文业务语义已证明。"
+    },
+    {
+      "id": "Q2",
+      "run_id": "8ca129b1295e6d00498b626c",
+      "question": "ENTRY-RULE 在什么条件下调用 FEE-RULE？请说明三个参数怎样传入、手续费怎样返回；不是 STANDARD 时，FINAL-FEE 会怎样变化？",
+      "question_sha256": "8abb3d73e104796ffd04a1643683ef0799869ce887876d2901fd43df2a41b84d",
+      "artifact": "19-v30-call-answer.json",
+      "artifact_sha256": "fdf76dd2cfb4ddf5747c31cbe09a67ec8a17b89311dd2345d2fc0260bb4a4ee8",
+      "actual_model_requests": 1,
+      "actual_elapsed_seconds": 31.949,
+      "actual_pipeline_version": "question-evidence-v30",
+      "actual_generation_manifest": "19-tested-source.json",
+      "actual_generation_claim_ledger_sha256": "b64d9f5381cebb5450e456ee4fc119f480eb7d339213fc3a57be3301a92987c6",
+      "actual_final_revised_claim_count": 0,
+      "raw_answer_sha256": "c7258bd9f28035f51a81442840c54784cb3193cc93e9fb7dc98a980fa02911fb",
+      "archived_final_answer_sha256": "c7258bd9f28035f51a81442840c54784cb3193cc93e9fb7dc98a980fa02911fb",
+      "final_code_replay_preserves_raw_exactly": true,
+      "final_code_replay_revised_claim_count": 0,
+      "required_items_review": "pass_source_review_with_minor_extra_wording_boundary",
+      "checks": [
+        {
+          "item": "仅 IF REQUEST-KIND = 'STANDARD' 成立时调用 FEE-RULE",
+          "result": "pass",
+          "evidence": "entry.cbl:10-313"
+        },
+        {
+          "item": "按 BASE-AMOUNT、FINAL-FEE、REQUEST-STATE 顺序传入，默认 BY REFERENCE",
+          "result": "pass",
+          "evidence": "entry.cbl:311; fee.cbl:6-10; ordinary COBOL calling convention, not runtime execution"
+        },
+        {
+          "item": "第二个参数回写 FINAL-FEE，调用方在正常返回后没有再覆盖",
+          "result": "pass",
+          "evidence": "fee.cbl:11-22; entry.cbl:311-314"
+        },
+        {
+          "item": "非 STANDARD 跳过 CALL，保留当前 FINAL-FEE；0仅是首次初始化条件下的值",
+          "result": "pass",
+          "evidence": "entry.cbl:6,10-314"
+        },
+        {
+          "item": "未把 VALUE 初始化当成每次激活重置",
+          "result": "pass",
+          "evidence": "actual answer explicitly distinguishes first initialization and retained working storage"
+        }
+      ],
+      "extra_model_claims_review": [
+        {
+          "severity": "minor_qualification_needed",
+          "text": "如果它的值是其他内容，包括大小写不同或带多余空格的值，条件不成立",
+          "finding": "按 PIC X(8) 字段已经存储的值解释，只有等于八字符 STANDARD 才匹配；若把这句话推广为任何带空格的外部输入一定不匹配，就过强。字段接收时可能截断或填充，源码没有给出输入赋值/规范化路径。应明确比较的是字段存储值，不能推断所有输入场景。",
+          "affects_required_call_condition": false
+        },
+        {
+          "severity": "boundary",
+          "finding": "答案说明源码没有使用 RETURNING 或单独业务返回码字段；这不能理解为语言隐式 RETURN-CODE 机制不存在。答案没有用隐式返回码解释手续费。"
+        }
+      ],
+      "original_postprocessing_defect": null,
+      "actual_raw_equals_archived_final": true
+    }
+  ],
+  "final_claim_code": {
+    "ledger_version": "answer-claim-ledger-v9",
+    "checker_version": "source-statement-support-v4",
+    "sha256": {
+      "poc/claim_ledger.py": "d50075ac3dcf8cde570c962031ca111da5937bc8b3d49798c141cb2402dedd36",
+      "poc/claim_support.py": "241583aa15e2c3810dcda543e49023d8c44e93296357df2fc867904f3b7e95a8"
+    },
+    "replay_artifact": "final-claim-replay.json",
+    "replayed_runs": [
+      "cc737f26d06e8a82afba6180",
+      "094d0d45c3785ae63851e401",
+      "5132dddfe8a92055ed3867bd",
+      "8ca129b1295e6d00498b626c"
+    ],
+    "all_raw_responses_preserved_exactly": true,
+    "affected_source_tests": {
+      "count": 174,
+      "passed": 174,
+      "includes": "claim, default ledger, answer completion, business accumulation, answer fact completion; complete ASCII COMPUTE/END-COMPUTE/MOVE and wrong condition regressions retained"
+    }
+  },
+  "historical_limitations": [
+    {
+      "artifact": "16-v28-fee-answer.json",
+      "finding": "原始中间值1.25被后处理误改；最终回放已保留。模型另把非STANDARD保持初值0作为额外概括，缺少首次初始化前提；保留为模型局限，不由回放消除。"
+    },
+    {
+      "artifact": "17-v28-call-failure.json",
+      "run_id": "fd7541978e9b32768f6a2d50",
+      "classification": "transport_failure_not_model_answer_error",
+      "finding": "TRANSPORT_ERROR/TLS，model_answer_recorded=false；不能计为模型答错或真实模型质量通过。"
+    }
+  ],
+  "overall": "原问题的核心手续费与调用语义经代理源码/Decimal复核成立。Q1原始18仍是有后处理缺陷的真实记录；最终代码离线保留其正确原稿。Q2原始19无后处理修订，核心完整，但额外空格表述需要范围限定。不得概括为100%模型正确或最终EXE验收通过。",
+  "acceptance_limits": [
+    "有限语法检查器只核验所覆盖的局部源码事实；unsupported保留正文不等于 verified，不证明完整业务语义或运行结果。",
+    "这些题在开发中多轮暴露问题并修补，不是未经调试的一次性盲测，也不是广泛质量基准。",
+    "24.732秒与31.949秒是各一次真实请求的观测，不是稳定延迟或整体速度保证。",
+    "18和19实际运行的claim文件hash都早于最终d500版本；最终hash只做了明确记录的离线回放与源码测试，没有伪称同hash真实请求。",
+    "未进行COBOL编译运行、Windows最终EXE、同包门禁或人类目标设备验收。",
+    "本评审未独立检查最终截图像素；结构与结论基于实际保存的原始/最终回答及源码。"
+  ]
+}

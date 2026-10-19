@@ -596,6 +596,9 @@ def _prompt_payload(payload):
             "caller_outcomes": "解释跳过调用时，完整说明主程序自己的提前返回、实际 CALL、"
                 "ON EXCEPTION 与正常返回分支及最终状态来源。先说明入口对相关状态和输出字段的初始化，"
                 "再逐路径追踪赋值；提前返回时未再赋值的字段仍取该路径此前确定的值。"
+                "VALUE 声明只说明初始化时的值，不代表每次调用都会重置。"
+                "使用声明初值举例时明确以首次初始化或已知输入为前提；"
+                "重复激活且 WORKING-STORAGE 保留时，不把未重新赋值的字段写成再次恢复初值。"
                 "即使被调用实现有多个候选，"
                 "主程序原文已经确定的调用与返回处理仍可直接说明。"
                 "CALL 异常按异常分支解释，不能仅凭 ON EXCEPTION 推定被调用方必未进入。",
@@ -603,7 +606,9 @@ def _prompt_payload(payload):
                 "依据 PROCEDURE DIVISION USING、BY REFERENCE、BY CONTENT、BY VALUE、RETURNING 及显式赋值说明可见性；"
                 "调用方自己的 WORKING-STORAGE 临时字段不因接收被调用返回参数就自动成为对外输出。",
             "operation_status": "返回状态的含义以实际赋值和检查为准。涉及文件时，核对 OPEN、WRITE、CLOSE"
-                "及其后的 FILE STATUS 检查；程序未检查或未传出的后续状态，不扩写成全部操作正常的保证。",
+                "及其后的 FILE STATUS 检查；程序未检查或未传出的后续状态，不扩写成全部操作正常的保证。"
+                "区分源码未显式设置、传出或检查返回状态与运行环境行为；"
+                "不把未写 RETURNING 或未显式处理返回状态概括成没有返回码。",
             "source_state": "使用当前原文及 callee_source_status。ambiguous 表示有多个实现候选，"
                 "只限制被调用实现的结论；not_supplied 表示本轮未供应实现原文，不能据此声称仓库没有实现。"}
     return {**{key: value for key, value in projected.items() if key not in trailing},

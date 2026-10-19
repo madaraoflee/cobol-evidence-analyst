@@ -1,0 +1,57 @@
+{
+  "schema": "live-ui-reproduction/v1",
+  "source_commit": "ea341ba3084bf384288dfa3398903dc897ca59cb",
+  "runtime": "macOS source web workbench",
+  "model_fingerprint": "7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+  "model_output_limit": 8192,
+  "sources": [
+    {
+      "path": "entry.cbl",
+      "sha256": "0933fc6ea7e32261beaeb67cebc949086df70a3a638ff09c61fe1c9685441d72"
+    },
+    {
+      "path": "fee.cbl",
+      "sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994"
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "4f92b33af0b9e5eeeb652321",
+      "stop_reason": "RESPONSE_TOO_LARGE",
+      "answer_origin": "local_source_facts",
+      "provider_request_timings": [
+        {
+          "round_id": "round-1",
+          "stage": "investigate",
+          "timing_seconds": {
+            "headers_received": 1.105419,
+            "first_response_byte": 1.123722,
+            "request_elapsed": 17.652291
+          },
+          "response_bytes": 1000001
+        }
+      ],
+      "model_calls": 1
+    },
+    {
+      "run_id": "fd818e599a1733ece492d51c",
+      "stop_reason": "RESPONSE_TOO_LARGE",
+      "answer_origin": "local_source_facts",
+      "provider_request_timings": [
+        {
+          "round_id": "round-1",
+          "stage": "investigate",
+          "timing_seconds": {
+            "headers_received": 1.400048,
+            "first_response_byte": 1.408447,
+            "request_elapsed": 17.547498
+          },
+          "response_bytes": 1000001
+        }
+      ],
+      "model_calls": 1
+    }
+  ],
+  "complete_answer_accepted": false,
+  "windows_exe_acceptance": false
+}

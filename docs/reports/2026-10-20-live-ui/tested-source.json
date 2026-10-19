@@ -1,0 +1,64 @@
+{
+  "base_commit": "ea341ba3084bf384288dfa3398903dc897ca59cb",
+  "runtime": "macOS source workbench",
+  "tested_fix_files": [
+    {
+      "path": "poc/company_api.py",
+      "sha256": "23a66e8be0f84a8de21b81042ced1692861a4816207ef48f4aefe3a416077eec"
+    },
+    {
+      "path": "poc/claim_ledger.py",
+      "sha256": "d50075ac3dcf8cde570c962031ca111da5937bc8b3d49798c141cb2402dedd36"
+    },
+    {
+      "path": "poc/claim_support.py",
+      "sha256": "241583aa15e2c3810dcda543e49023d8c44e93296357df2fc867904f3b7e95a8"
+    },
+    {
+      "path": "poc/quality_trace.py",
+      "sha256": "670eb7b821fdd4bc1c1ee4634cf289036eb2d8731104067a116f1d4f4a84b64f"
+    },
+    {
+      "path": "poc/business_chat.py",
+      "sha256": "d80707fd3b43db8583632ad85994349024ef3cca5600d1019ee804a909a62a12"
+    },
+    {
+      "path": "poc/business_synthesis.py",
+      "sha256": "011df77cd7937b3857720fdf9b765f2c91d6dd0c3e773e012e38731b378cf88a"
+    },
+    {
+      "path": "poc/answer_markdown.py",
+      "sha256": "eb978e575fab2869cc52ee9cb6e791eea7b7b9dc317b03c0ee3c559b247eacd3"
+    },
+    {
+      "path": "poc/web/app.js",
+      "sha256": "bad596b62026ff6e342bd54b643ed77cfe5f9d91fcc3e01fb8a5e8cce79d1b09"
+    },
+    {
+      "path": "poc/web/i18n.js",
+      "sha256": "384509a867e34d4922998abd82f8cdb422eea8b20823c5e28f7c32e54bb5e3fc"
+    }
+  ],
+  "pipeline_version": "question-evidence-v30",
+  "prompt_version": "business-chat-v30",
+  "executable_acceptance": false,
+  "live_q1_provenance": "18-v29-fee-answer.json was generated before the final expression-completeness fix; tested-source-v29.json records actual runtime. Final-code offline replay is documented separately.",
+  "live_q2_provenance": "19-v30-call-answer.json was generated with 19-tested-source.json hashes, before final END-COMPUTE expression-terminator fix; final-code offline replay is documented separately.",
+  "automated_checks": {
+    "python": {
+      "tests": 3224,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 172.753,
+      "public_corpus_verified": true
+    },
+    "browser": {
+      "tests": 190,
+      "failures": 0,
+      "skipped": 0,
+      "elapsed_seconds": 5.108401667,
+      "note": "Browser code and test hashes unchanged since the v26 browser run."
+    }
+  }
+}

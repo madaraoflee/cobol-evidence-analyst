@@ -18,7 +18,7 @@ from response_language import localized_text, resolve_answer_language
 from source_availability import supplied_source_availability
 
 
-LEDGER_VERSION = "answer-claim-ledger-v5"
+LEDGER_VERSION = "answer-claim-ledger-v9"
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _NAME = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?:\s+(?:OF|IN)\s+[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)*"
 _ATOM = rf"(?:{_NAME}|[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|[()])"
@@ -38,6 +38,15 @@ _CONDITION = re.compile(rf"(?P<left>{_NAME})\s*(?P<operator>>=|<=|<>|>|<|(?:NOT\
 _WRITE = re.compile(rf"\b(?P<effect>WRITE|REWRITE|DELETE)\s+(?P<target>{_NAME})", re.I)
 _NATURAL_EFFECT = re.compile(rf"(?:写入|寫入|改写|改寫|重写|重寫|删除|刪除)\s*`?(?P<target>{_NAME})", re.I)
 _NARRATIVE_MULTIPLIER = re.compile(r"(?:乘以|乘|multiplied\s+by|times)\s*(?P<after>\d+(?:\.\d+)?)|(?P<before>\d+(?:\.\d+)?)\s*倍", re.I)
+_DERIVATION_CONTEXT = re.compile(r"(?:按|以|根据|根據)[^。\n]{0,48}(?:初值|初始值|给定输入|給定輸入)"
+                                 r"[^。\n]{0,240}(?:推导|推導|计算|計算)[：:]")
+_DECLARATION_LIST_PREFIX = re.compile(
+    rf"(?:默认值|默認值|初始值|初值)\s*(?:包括|为|為|是|如下)?\s*[：:]?\s*"
+    rf"(?:{_NAME}\s*=\s*(?:[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\")\s*[、,，]\s*)*$", re.I)
+_LITERAL_LIST_PREFIX = re.compile(
+    rf"\s*(?:{_NAME}\s*=\s*(?:[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\")\s*[、,，]\s*)*$", re.I)
+_EXPLICIT_ASSIGNMENT = re.compile(
+    r"\b(?:MOVE|COMPUTE|SET|ASSIGN)\b|(?:执行|執行|显式|顯式)?(?:赋值|賦值|写入|寫入|设置|設置|设为|設為|置为|置為)", re.I)
 _NUMBERS = {"两": "2", "兩": "2", "二": "2", "三": "3", "四": "4", "五": "5", "六": "6",
             "七": "7", "八": "8", "九": "9", "十": "10"}
 
@@ -62,6 +71,7 @@ class ClaimEntry:
     invalid_evidence_ids: list[str] = field(default_factory=list)
     revision: str | None = None
     revised_claims: list[dict[str, Any]] = field(default_factory=list)
+    verification_facts: list[dict[str, Any]] = field(default_factory=list)
     unresolved_requirements: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -105,21 +115,29 @@ def _read_expression(text, start):
     from statement_parser import _BoundaryError, _Expression, _Source, _lex
     end = start
     for _ in range(80):
+        if re.match(r"\s*END-COMPUTE(?![A-Za-z0-9-])", text[end:], re.I):
+            break
         token = _ANSWER_TOKEN.match(text, end)
         if token is None or token.end() == end:
             break
         end = token.end()
     tokens = _tokens(text[start:end])
     if not tokens:
-        return None, end
+        return None, end, False
     try:
         lexical = _lex(_Source(" ".join(tokens), 1), "free", 512)
         parser = _Expression(lexical)
         if not parser.arithmetic(text_operand=True) or parser.position == 0:
-            return None, end
-        return tuple(token.value for token in lexical[:parser.position]), end
+            return None, end, False
+        return tuple(token.value for token in lexical[:parser.position]), end, parser.position == len(lexical)
     except (_BoundaryError, ValueError):
-        return None, end
+        return None, end, False
+
+
+def _source_expression_complete(text, start, end, parsed_all):
+    """A parsed prefix of a mathematical derivation is not a source formula."""
+    return bool(parsed_all and not re.search(r"[×÷%％]", text[start:end])
+                and not re.match(r"\s*[=＝%％≈≃≅≠<>≤≥+*/×÷-]", text[end:]))
 
 
 def _read_condition(text, start):
@@ -141,7 +159,26 @@ def _read_condition(text, start):
         return None, end
 
 
-def _assertions(text):
+def _clause_prefix(text, start, limit=48):
+    return re.split(r"[，,;；。!?\n（(）)]|\.(?!\d)|(?<!\d)\.", text[max(0, start - limit):start])[-1]
+
+
+def _declaration_list_context(text, start):
+    prefix = text[max(0, start - 1024):start]
+    if _DECLARATION_LIST_PREFIX.search(prefix):
+        return True
+    # A declaration introduction may contain explanatory clauses before its
+    # colon. Only continuous literal equalities inherit that role afterwards.
+    head, separator, items = re.split(r"([：:])", prefix)[-3:] if re.search(r"[：:]", prefix) else ("", "", "")
+    if not separator or not _LITERAL_LIST_PREFIX.fullmatch(items):
+        return False
+    head = re.split(r"[;；。!?\n]|\.(?!\d)|(?<!\d)\.", head)[-1]
+    declaration = re.search(r"初值|初始值|初始化|默认值|默認值|声明|聲明", head)
+    return bool(declaration and not _EXPLICIT_ASSIGNMENT.search(head[declaration.end():])
+                and not re.search(r"最终|最終|最后|最後|总是|總是|一定|运行时|執行時", head[declaration.end():]))
+
+
+def _assertions(text, *, table_header=False, derived_context=False):
     """Translate a bounded answer notation, not source syntax, into candidates."""
     text = _REFERENCE.sub("", text).replace("`", "")
     # Strip paired Markdown strong delimiters, preserving the COBOL power
@@ -150,6 +187,7 @@ def _assertions(text):
     for index in range(0, len(parts), 2):
         parts[index] = re.sub(r"(?<!\w)\*\*(?=\S)(.+?)(?<=\S)\*\*(?!\w)", r"\1", parts[index])
     text = "".join(parts)
+    local_derivation = _DERIVATION_CONTEXT.search(text)
     assertions, occupied = [], []
     conditions, explicit_conditions = [], []
     # A compound IF is one assertion. Splitting it into its two comparisons
@@ -164,11 +202,14 @@ def _assertions(text):
         if any(first <= match.start() < last for first, last in explicit_conditions):
             continue
         tokens, end = _read_condition(text, match.start())
-        prefix, suffix = text[max(0, match.start() - 32):match.start()], text[end:end + 48]
-        conditional_context = (re.search(r"(?:若|如果|当|當)\s*$|\b(?:if|when|unless)\s*$", prefix, re.I)
+        prefix, suffix = _clause_prefix(text, match.start(), 32), text[end:end + 48]
+        assignment_context = _EXPLICIT_ASSIGNMENT.search(prefix)
+        conditional_context = (re.search(r"(?:若|如果|当|當|只有|仅当|僅當|只要|只在|只有在|仅在|僅在|检查|檢查|判断|判斷)\s*$|\b(?:if|when|unless|checks?|checking)\s*$", prefix, re.I)
+            or re.match(r"\s*(?:时|時)(?:才|会|會|则|則|调用|調用|执行|執行|置|设|設|赋值|賦值|写入|寫入|进入|進入|返回|[，,；;。.]|$)", suffix)
             or re.match(r"\s*的?\s*(?:(?:源码|源碼|控制)\s*)?(?:条件|條件)(?:下|成立|不成立)?", suffix)
-            or re.match(r"\s*(?:source\s+)?condition\b", suffix, re.I))
-        if tokens and conditional_context:
+            or re.match(r"\s*(?:source\s+)?condition\b", suffix, re.I)
+            or (table_header and match["right"].startswith(("'", '"'))))
+        if tokens and conditional_context and not assignment_context:
             # Explicit natural-language condition context chooses the role;
             # the full expression still has to match a real supplied IF fact.
             conditions.append((match.start(), end, tokens))
@@ -190,16 +231,58 @@ def _assertions(text):
                 continue
             if re.search(r"假设|假設|例如|示例|假如|\b(?:suppose|assuming)\b", text[max(0, match.start() - 24):match.start()], re.I):
                 continue
+            if pattern is _FORMULA and re.search(r"(?:给定输入|給定輸入)\s*$", prefix):
+                occupied.append(match.span())
+                continue  # A supplied example input is not a source assignment.
             if (pattern is _FORMULA and re.search(r"\bis\s*$", match[0], re.I)
                     and _ENGLISH_DESCRIPTION.match(text, match.end())):
                 # English descriptions are not assignment notation. Reading
                 # only their first token invents formulas such as THIS = AN
                 # or FIELD = DECLARED and can erase a valid cited sentence.
                 continue
-            tokens, expression_end = (_tokens(match["expression"]), match.end()) if pattern is _MOVE else _read_expression(text, match.end())
+            tokens, expression_end, parsed_all = ((_tokens(match["expression"]), match.end(), True)
+                if pattern is _MOVE else _read_expression(text, match.end()))
             if tokens:
-                assertions.append({"predicate": "assignment_statement", "target": match["target"].upper(),
-                                   "expression": list(tokens), "rounded": "ROUNDED" in match[0].upper()})
+                if pattern is _FORMULA and not _source_expression_complete(text, match.end(), expression_end, parsed_all):
+                    # Keep the whole mathematical clause outside the source
+                    # assertion checker, including chained equalities. Merely
+                    # parsing its prefix cannot establish a contradiction.
+                    clause_end = expression_end + re.match(r"[^，,;；。!?\n]*", text[expression_end:]).end()
+                    assertions.append({"predicate": "mathematical_expression", "target": match["target"].upper(),
+                                       "expression": list(tokens)})
+                    occupied.append((match.start(), clause_end))
+                    continue
+                clause_prefix = _clause_prefix(text, match.start())
+                explicit_assignment = _EXPLICIT_ASSIGNMENT.search(clause_prefix + match[0])
+                if (pattern is _FORMULA and not explicit_assignment
+                        and re.search(r"(?:为|為|是|\bis\s+)\s*$", match[0], re.I)
+                        and len(tokens) == 1 and tokens[0].isdigit()
+                        and re.match(r"\s*(?:位(?:定长|定長)?(?:字符|字元|数字|數字)|(?:characters?|digits?)\b)", text[expression_end:], re.I)):
+                    # A field's width is descriptive syntax, not a runtime
+                    # assignment. The bounded statement checker does not prove it.
+                    occupied.append((match.start(), expression_end))
+                    continue
+                declaration_context = (pattern is _FORMULA and not explicit_assignment and (re.search(
+                    r"(?:默认值|默認值|初值|初始(?:值)?|初始化|声明|聲明|工作存储|工作存儲)|\b(?:initial(?:ized)?|declar(?:ed|ation)|working-storage|VALUE)\b",
+                    clause_prefix, re.I) or _declaration_list_context(text, match.start())) and not re.search(
+                    r"最终|最終|最后|最後|总是|總是|一定|运行时|執行時|(?<![\w-])(?:always|finally|final|runtime)(?![\w-])",
+                    clause_prefix + match[0], re.I))
+                derived_result = (pattern is _FORMULA and not explicit_assignment
+                    and (derived_context or local_derivation and local_derivation.end() <= match.start())
+                    and not declaration_context
+                    and re.fullmatch(r"[+-]?\d+(?:\.\d+)?", "".join(tokens)) is not None
+                    and re.search(r"最终|最終|最后|最後|(?<![\w-])(?:finally|final)(?![\w-])", clause_prefix + match[0], re.I))
+                state_value = (pattern is _FORMULA and not explicit_assignment and not declaration_context
+                    and not derived_result
+                    and (re.fullmatch(r"[+-]?\d+(?:\.\d+)?", "".join(tokens)) is not None
+                         or len(tokens) == 1 and tokens[0].startswith(("'", '"'))))
+                assertion = {"predicate": "declaration_value" if declaration_context else
+                             "derived_numeric_result" if derived_result else
+                             "business_state_value" if state_value else "assignment_statement",
+                             "target": match["target"].upper(), "expression": list(tokens)}
+                if not declaration_context and not derived_result and not state_value:
+                    assertion["rounded"] = "ROUNDED" in match[0].upper()
+                assertions.append(assertion)
                 occupied.append((match.start(), expression_end))
     for match in _CONDITION.finditer(text):
         if any(first <= match.start() < last for first, last in explicit_conditions):
@@ -230,16 +313,34 @@ def _assertions(text):
 
 
 def _segments(answer):
-    """Keep fences and table rows intact; review ordinary prose by sentence."""
+    """Review table cells separately so a repair cannot erase their columns."""
     for block in re.split(r"(```[^\n]*\n.*?(?:```|\Z)|~~~[^\n]*\n.*?(?:~~~|\Z))", answer, flags=re.S):
         if block.startswith(("```", "~~~")):
-            yield block, []
+            yield block, [], False, False
             continue
         for paragraph in re.split(r"(\n[ \t]*\n)", block):
             inherited = list(dict.fromkeys(_REFERENCE.findall(paragraph)))
-            for line in paragraph.splitlines(keepends=True) or [paragraph]:
+            # A numeric conclusion following explicit inputs and a derivation
+            # is not a claim that source contains a literal MOVE of that value.
+            # Other formulas, guards and input declarations remain checkable.
+            derivation = _DERIVATION_CONTEXT.search(paragraph)
+            lines = paragraph.splitlines(keepends=True) or [paragraph]
+            position = 0
+            for index, line in enumerate(lines):
+                line_start = position
+                position += len(line)
                 if line.lstrip().startswith("|"):
-                    yield line, inherited
+                    header = (index + 1 < len(lines) and "|" in lines[index + 1]
+                              and re.fullmatch(r"[\s|:-]+", lines[index + 1]) is not None)
+                    protected = [match.span() for match in re.finditer(r"(`+)[^`\r\n]*?\1", line)]
+                    start = 0
+                    for separator in re.finditer(r"(?<!\\)\|", line):
+                        if any(first <= separator.start() < last for first, last in protected):
+                            continue
+                        yield line[start:separator.start()], inherited, header, False
+                        yield "|", [], False, False
+                        start = separator.end()
+                    yield line[start:], inherited, header, False
                     continue
                 protected = [match.span() for match in re.finditer(
                     r"(`+)[^`\r\n]*?\1|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|"
@@ -253,10 +354,10 @@ def _segments(answer):
                             and re.match(r"[A-Za-z0-9_-]", line[match.start() - 1])
                             and re.match(r"[A-Za-z0-9_-]", line[match.start() + 1])):
                         continue  # A path/member/version separator is not sentence punctuation.
-                    yield line[start:match.end()], inherited
+                    yield line[start:match.end()], inherited, False, bool(derivation and derivation.end() <= line_start + start)
                     start = match.end()
                 if start < len(line):
-                    yield line[start:], inherited
+                    yield line[start:], inherited, False, bool(derivation and derivation.end() <= line_start + start)
 
 
 def _related(assertion, facts):
@@ -288,6 +389,8 @@ def _render_fact(fact, answer_language="zh-CN"):
             f"`{fact['target']}` 段落只有 {body}，未实现本段计算或写入逻辑",
             f"The `{fact['target']}` paragraph contains only {body}; its calculation or write logic is not implemented",
             f"`{fact['target']}` 段落只有 {body}，未實現本段計算或寫入邏輯")
+    elif fact["predicate"] == "declaration_value":
+        text = local("声明的初始值：", "Declared initial value: ", "聲明的初始值：") + f"`{fact['target']} = {' '.join(fact['expression'])}`"
     elif fact["predicate"] == "assignment_statement":
         rounded = " ROUNDED" if fact["rounded"] else ""
         text = f"`{fact['target']}{rounded} = {' '.join(fact['expression'])}`"
@@ -535,19 +638,29 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
     pages = {page["evidence_id"]: page for page in source_pages if page.get("evidence_id") in allowed}
     availability = supplied_source_availability(list(pages.values()), working_set)
     facts = []
+    needs_declarations = any(assertion["predicate"] == "declaration_value" for assertion in _assertions(answer))
     for identifier, page in pages.items():
         key = (page.get("relative_path"), page.get("source_sha256"), page.get("start_line"),
                page.get("end_line"), page.get("source_text"), context.fingerprint)
         cached = source_fact_cache.get(key) if isinstance(source_fact_cache, dict) else None
         projected = cached if cached is not None else supplied_statement_facts(
             page, source_format=source_format, compilation_context=context)
+        if needs_declarations:
+            declaration_key = ("declaration_values", *key)
+            declarations = source_fact_cache.get(declaration_key) if isinstance(source_fact_cache, dict) else None
+            if declarations is None:
+                declarations = [fact for fact in supplied_statement_facts(page, source_format=source_format,
+                    compilation_context=context, include_declarations=True) if fact["predicate"] == "declaration_value"]
+                if isinstance(source_fact_cache, dict):
+                    source_fact_cache[declaration_key] = declarations
+            projected = [*projected, *declarations]
         for fact in projected:
             facts.append({**fact, "evidence_id": identifier,
                           "relative_path": page.get("relative_path"), "source_sha256": page["source_sha256"]})
     ledger = ClaimLedger(original_answer_sha256=hashlib.sha256(answer.encode()).hexdigest(),
                          source_fact_count=len(facts), compilation_context_fingerprint=context.fingerprint)
     reviewed = []
-    for segment, inherited in _segments(answer):
+    for segment, inherited, table_header, derived_context in _segments(answer):
         text = _REFERENCE.sub("", segment).strip()
         if not text or re.fullmatch(r"[-|: ]+", text):
             reviewed.append(segment)
@@ -555,8 +668,9 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
         ids = list(dict.fromkeys(_REFERENCE.findall(segment) or inherited))
         invalid = [identifier for identifier in ids if identifier not in allowed]
         valid = [identifier for identifier in ids if identifier in allowed]
-        assertions = _assertions(segment)
+        assertions = _assertions(segment, table_header=table_header, derived_context=derived_context)
         replacements, retained_supported, unresolved, final_requirements = [], [], False, []
+        citation_additions = []
         for fact in facts:
             if fact["predicate"] != "noop_procedure" or not re.search(r"(?<![\w-])" + re.escape(fact["target"]) + r"(?![\w-])", text, re.I):
                 continue
@@ -592,6 +706,35 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     entry.reason_code = "INVALID_CITATION_REQUIRES_REVIEW"
                     unresolved = True
                 continue
+            if assertion["predicate"] == "derived_numeric_result":
+                entry.reason_code = "DERIVED_RESULT_NOT_FORMALLY_VERIFIED"
+                entry.support_scope = "unverified_conditional_numeric_result"
+                if invalid:
+                    unresolved = True
+                continue
+            if assertion["predicate"] == "mathematical_expression":
+                entry.reason_code = "MATHEMATICAL_EXPRESSION_NOT_SOURCE_STATEMENT"
+                entry.support_scope = "unverified_mathematical_derivation"
+                if invalid:
+                    unresolved = True
+                continue
+            if assertion["predicate"] == "business_state_value":
+                assignment = {**assertion, "predicate": "assignment_statement", "rounded": False}
+                scoped = [fact for fact in facts if fact["evidence_id"] in valid] if ids else facts
+                matches = [fact for fact in _related(assignment, scoped)
+                    if check_statement_support(assignment, fact, pages[fact["evidence_id"]])["support_status"] == "supported"]
+                if matches and re.search(r"最终|最終|最后|最後|总是|總是|一定|\b(?:always|finally|final\s+value)\b", text, re.I):
+                    # A literal that matches a known write can still trigger
+                    # the existing final-value control/overwrite review.
+                    assertion = assignment
+                else:
+                    # A natural-language state/result is not a claim that
+                    # source contains a literal assignment of this value.
+                    entry.reason_code = "BUSINESS_STATE_VALUE_NOT_FORMALLY_VERIFIED"
+                    entry.support_scope = "unverified_business_state_value"
+                    if invalid:
+                        unresolved = True
+                    continue
             if (assertion.get("predicate") == "assignment_statement"
                     and "-" not in str(assertion.get("target", ""))
                     and not _related(assertion, facts)
@@ -658,8 +801,25 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     continue
             cited_facts = [fact for fact in facts if fact["evidence_id"] in valid] if ids else facts
             candidates = _related(assertion, cited_facts)
+            if assertion["predicate"] == "declaration_value" and (len({
+                    (fact["relative_path"], fact["source_sha256"], fact.get("program_name")) for fact in candidates}) > 1
+                    or len({tuple(fact["expression"]) for fact in candidates}) > 1):
+                entry.reason_code = "DECLARATION_IDENTITY_AMBIGUOUS"
+                entry.support_scope = "unverified_declaration_binding"
+                if invalid:
+                    unresolved = True
+                continue
             checked = [(fact, check_statement_support(assertion, fact, pages[fact["evidence_id"]])) for fact in candidates]
             supported = [(fact, verdict) for fact, verdict in checked if verdict["support_status"] == "supported"]
+            rebound = False
+            if assertion["predicate"] == "declaration_value" and not candidates and ids and not invalid:
+                supplied = _related(assertion, facts)
+                identities = {(fact["relative_path"], fact["source_sha256"], fact.get("program_name")) for fact in supplied}
+                values = {tuple(fact["expression"]) for fact in supplied}
+                if len(identities) == 1 and len(values) == 1:
+                    supported = [(fact, verdict) for fact in supplied
+                        if (verdict := check_statement_support(assertion, fact, pages[fact["evidence_id"]]))["support_status"] == "supported"]
+                    rebound = bool(supported)
             if supported:
                 final_value_claim = (assertion["predicate"] == "assignment_statement" and
                     re.search(r"最终|最終|最后|最後|总是|總是|一定|\b(?:always|finally|final\s+value)\b", text, re.I))
@@ -678,16 +838,14 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                         entry.reason_code = "UNQUALIFIED_FINAL_VALUE_REQUIRES_NORMAL_PATH_PRECONDITIONS"
                         entry.support_scope = proof["support_scope"]
                         entry.checker_version = proof["checker_version"]
-                        entry.revision = "rendered_normal_path_final_assignment"
                         entry.reviewed_evidence_ids = proof["evidence_ids"]
                         entry.source_versions = [{key: proof[key] for key in
                             ("relative_path", "source_sha256", "start_line", "end_line")}]
                         entry.occurrence_ids = [final_fact["occurrence_id"]]
-                        entry.revised_claims = [{"assertion": {"predicate": "final_assignment_on_normal_path",
+                        entry.verification_facts = [{"assertion": {"predicate": "final_assignment_on_normal_path",
                             "target": final_fact["target"], "expression": final_fact["expression"],
                             "rounded": final_fact["rounded"]}, **proof,
                             "evidence_id": final_fact["evidence_id"], "occurrence_id": final_fact["occurrence_id"]}]
-                        replacements.append({**final_fact, "_final_path_proof": proof})
                         continue
                     scope = [fact for fact in facts if _same_program_version(fact, matched)]
                     same_target = _related(assertion, scope)
@@ -697,16 +855,13 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     entry.reason_code = "FINAL_VALUE_REQUIRES_CONTROL_AND_OVERWRITE_ANALYSIS"
                     entry.support_scope = "source_statement_syntax"
                     entry.checker_version = LEDGER_VERSION
-                    entry.revision = "rendered_conditional_source_statements"
                     entry.reviewed_evidence_ids = list(dict.fromkeys(fact["evidence_id"] for fact in review_facts))
                     entry.source_versions = [{key: fact[key] for key in
                         ("relative_path", "source_sha256", "start_line", "end_line", "program_name")
                         if key in fact} for fact in review_facts]
                     entry.occurrence_ids = [fact["occurrence_id"] for fact in same_target[:8]]
-                    entry.revised_claims = _revised_claims(same_target[:8], pages)
-                    replacements.extend(same_target[:8])
+                    entry.verification_facts = _revised_claims(same_target[:8], pages)
                     entry.unresolved_requirements = _final_value_requirements(matched, pages, working_set, availability)
-                    final_requirements.extend(entry.unresolved_requirements)
                     continue
                 entry.support_status = "supported"
                 entry.reason_code = supported[0][1]["reason_code"]
@@ -714,20 +869,49 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                 entry.support_scope = supported[0][1]["support_scope"]
                 entry.occurrence_ids = list(dict.fromkeys(fact["occurrence_id"] for fact, _ in supported))
                 retained_supported.extend(fact for fact, _ in supported)
-                if not ids:
+                if not ids or rebound:
                     entry.evidence_ids = list(dict.fromkeys(fact["evidence_id"] for fact, _ in supported))
                     entry.source_versions = [{key: fact[key] for key in
                         ("relative_path", "source_sha256", "start_line", "end_line")} for fact, _ in supported]
+                if rebound:
+                    entry.reason_code = "SUPPLIED_DECLARATION_MATCH_CITATION_REBOUND"
+                    entry.revision = "declaration_citation_rebound"
+                    entry.reviewed_evidence_ids = entry.evidence_ids
+                    entry.revised_claims = _revised_claims([fact for fact, _ in supported], pages)
+                    citation_additions.extend(identifier for identifier in entry.evidence_ids if identifier not in valid)
                 continue
             # A missing or mismatching citation is not repaired by deleting its
             # marker. Search the supplied facts for the named local entity and
             # render their exact statement, including alternatives if needed.
-            repair = _related(assertion, facts)
-            entry.reason_code = ("SOURCE_STATEMENT_MISMATCH" if candidates else
-                                 "CITATION_CONTENT_MISMATCH" if valid else "EVIDENCE_NOT_SUPPLIED")
-            entry.support_status = "contradicted" if candidates else "unsupported"
-            entry.checker_version = checked[0][1]["checker_version"] if checked else None
+            repair = candidates if valid and not invalid else _related(assertion, facts)
+            if not candidates and valid and not invalid and all(
+                    str(pages.get(identifier, {}).get("source_text") or "").strip() for identifier in valid):
+                # The cited program has no comparable parsed fact. A write
+                # to the same field name in another program cannot refute it.
+                entry.reason_code = "SOURCE_ASSERTION_NOT_LOCALLY_VERIFIABLE"
+                entry.support_scope = "unverified_source_assertion"
+                continue
+            comparisons = checked or ([(fact, check_statement_support(assertion, fact, pages[fact["evidence_id"]]))
+                for fact in repair] if invalid else [])
+            # The legacy COMPUTE checker reports parsed token inequality with
+            # an explicit mismatch code while retaining its older unsupported
+            # status vocabulary. Only that exact comparison is a contradiction.
+            contradicted = bool(comparisons) and all(
+                verdict["support_status"] == "contradicted" or verdict["reason_code"] == "COMPUTE_ASSERTION_MISMATCH"
+                for _, verdict in comparisons)
+            entry.reason_code = ("SOURCE_STATEMENT_MISMATCH" if contradicted else
+                "INVALID_CITATION_REQUIRES_REVIEW" if invalid else
+                "SOURCE_ASSERTION_NOT_LOCALLY_VERIFIABLE" if pages else "EVIDENCE_NOT_SUPPLIED")
+            entry.support_status = "contradicted" if contradicted else "unsupported"
+            entry.checker_version = comparisons[0][1]["checker_version"] if comparisons else None
             entry.support_scope = "source_statement_syntax"
+            if not contradicted and not invalid:
+                # The only normal authority for destructive replacement is a
+                # contradiction established by the bounded checker. Missing
+                # inline citations, missing projections and uncertain control
+                # semantics remain audit findings; they do not erase prose.
+                entry.support_scope = "unverified_source_assertion"
+                continue
             if repair:
                 unique = []
                 for fact in repair:
@@ -770,7 +954,10 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     " (This sentence cites evidence that was not supplied; this part of the statement remains unverified.)",
                     "（本句有未提供的引用，這部分陳述尚未核實。）") + ("\n" if segment.endswith("\n") else ""))
         else:
-            reviewed.append(_REFERENCE.sub(lambda match: match[0] if match[1] in allowed else "", segment))
+            clean = _REFERENCE.sub(lambda match: match[0] if match[1] in allowed else "", segment)
+            if citation_additions:
+                clean = clean.rstrip("\n") + "".join(f"[{identifier}]" for identifier in dict.fromkeys(citation_additions)) + ("\n" if clean.endswith("\n") else "")
+            reviewed.append(clean)
     result = "".join(reviewed)
     ledger.answer_sha256 = hashlib.sha256(result.encode()).hexdigest()
     return result, ledger

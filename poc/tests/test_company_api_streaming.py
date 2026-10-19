@@ -234,6 +234,102 @@ class StreamingClientTests(unittest.TestCase):
                 with self.assertRaisesRegex(APIClientError, "RESPONSE_TOO_LARGE"):
                     self.complete(client, lambda _: None)
 
+    def test_small_deltas_with_repeated_metadata_can_exceed_json_wire_budget(self):
+        metadata = {"id": "completion-" + "m" * 160, "model": "neutral-stream-model", "created": 1}
+        body = (event({"reasoning_content": "hidden"}, **metadata) * 2500
+                + event({"content": "字"}, **metadata) * 1500
+                + event(finish="stop", **metadata) + b"data: [DONE]\n\n")
+        self.assertGreater(len(body), company_api.MAX_RESPONSE_BYTES)
+        self.assertLess(len(body), company_api.MAX_STREAM_RESPONSE_BYTES)
+        for native in (False, True):
+            with self.subTest(native=native):
+                emitted = []
+                if native:
+                    client, transport, _ = self.native([body[i:i + 65536] for i in range(0, len(body), 65536)])
+                else:
+                    client, transport = self.injected(body)
+                result = self.complete(client, emitted.append)
+                self.assertEqual(result["choices"][0]["message"]["content"], "字" * 1500)
+                self.assertEqual("".join(emitted), "字" * 1500)
+                self.assertNotIn("hidden", json.dumps(result))
+                self.assertEqual(client.last_request_timing["response_bytes"], len(body))
+                self.assertEqual(transport._opener.open.call_count if native else transport.call_count, 1)
+
+    def test_native_stream_retains_assembled_content_without_raw_sse_body(self):
+        body = event({"content": "Small"}, finish="stop")
+        client, transport, _ = self.native([body])
+        stream = company_api._ChatCompletionStream(lambda _: None, SECRET)
+        request = company_api.TransportRequest("POST", "https://example.invalid/v1/chat/completions", {},
+                                               timeout_seconds=2)
+        response = transport(request, on_response_chunk=stream.feed)
+        self.assertEqual(response.body, b"")
+        self.assertEqual(response.response_bytes, len(body))
+        self.assertEqual(stream.finish()["choices"][0]["message"]["content"], "Small")
+
+    def test_sse_wire_budget_remains_bounded_for_repeated_small_comments(self):
+        body = b": heartbeat\n\n" * 100 + completion("Small")
+        for native in (False, True):
+            with self.subTest(native=native), mock.patch.object(company_api, "MAX_STREAM_RESPONSE_BYTES", 1024):
+                if native:
+                    client, transport, _ = self.native([body[i:i + 64] for i in range(0, len(body), 64)])
+                else:
+                    client, transport = self.injected(body)
+                with self.assertRaisesRegex(APIClientError, "RESPONSE_TOO_LARGE"):
+                    self.complete(client, lambda _: None)
+                self.assertEqual(transport._opener.open.call_count if native else transport.call_count, 1)
+
+    def test_multiline_single_event_and_unterminated_line_are_bounded(self):
+        for body in (b"data: " + b"x" * 1025,
+                     b"data: " + b"x" * 600 + b"\ndata: " + b"y" * 600 + b"\n\n"):
+            with self.subTest(size=len(body)), mock.patch.object(company_api, "MAX_RESPONSE_BYTES", 1024):
+                stream = company_api._ChatCompletionStream(lambda _: None, SECRET)
+                with self.assertRaisesRegex(APIClientError, "RESPONSE_TOO_LARGE"):
+                    for start in range(0, len(body), 64):
+                        stream.feed(body[start:start + 64])
+
+    def test_accumulated_content_and_tool_arguments_keep_json_content_budget(self):
+        for field in ("content", "refusal", "tool_calls"):
+            delta = ({field: "x" * 600} if field != "tool_calls" else
+                     {"tool_calls": [{"index": 0, "function": {"arguments": "x" * 600}}]})
+            body = event(delta) * 2 + event(finish="stop") + b"data: [DONE]\n\n"
+            for native in (False, True):
+                with self.subTest(field=field, native=native), mock.patch.object(company_api, "MAX_RESPONSE_BYTES", 1024):
+                    if native:
+                        client, _, _ = self.native([body[i:i + 64] for i in range(0, len(body), 64)])
+                    else:
+                        client, _ = self.injected(body)
+                    emitted = []
+                    with self.assertRaisesRegex(APIClientError, "RESPONSE_TOO_LARGE"):
+                        self.complete(client, emitted.append)
+                    self.assertLessEqual(len("".join(emitted).encode()), 1024)
+
+    def test_ordinary_json_response_keeps_smaller_budget_when_stream_requested(self):
+        body = json.dumps({"choices": [{"message": {"content": "x" * 1100}, "finish_reason": "stop"}]})
+        for native in (False, True):
+            with self.subTest(native=native), mock.patch.object(company_api, "MAX_RESPONSE_BYTES", 1024):
+                if native:
+                    client, _, response = self.native([body.encode()])
+                    response.headers = {"Content-Type": "application/json"}
+                else:
+                    client, _ = self.injected(body, headers={"Content-Type": "application/json"})
+                with self.assertRaisesRegex(APIClientError, "RESPONSE_TOO_LARGE"):
+                    self.complete(client, lambda _: None)
+
+    def test_safe_timing_retains_stream_boundary_byte_count(self):
+        count = company_api.MAX_STREAM_RESPONSE_BYTES + 1
+        self.assertEqual(company_api._safe_request_timing({"response_bytes": count})["response_bytes"], count)
+        self.assertNotIn("response_bytes", company_api._safe_request_timing({"response_bytes": count + 1}))
+
+    def test_injected_json_size_is_measured_in_utf8_bytes(self):
+        body = json.dumps({"choices": [{"message": {"content": "字" * 400}, "finish_reason": "stop"}]},
+                          ensure_ascii=False)
+        self.assertLess(len(body), 1024)
+        self.assertGreater(len(body.encode()), 1024)
+        client, _ = self.injected(body, headers={"Content-Type": "application/json"})
+        with mock.patch.object(company_api, "MAX_RESPONSE_BYTES", 1024):
+            with self.assertRaisesRegex(APIClientError, "RESPONSE_TOO_LARGE"):
+                self.complete(client, lambda _: None)
+
     def test_cancelled_native_stream_has_no_late_callbacks(self):
         release = threading.Event()
         delivered = threading.Event()

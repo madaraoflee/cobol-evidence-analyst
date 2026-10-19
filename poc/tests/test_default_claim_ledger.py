@@ -77,12 +77,12 @@ class ClaimLedgerTests(unittest.TestCase):
 
     def test_unknown_compilation_branch_supports_syntax_without_final_value(self):
         body = "PROCEDURE DIVISION.\nMAIN.\n>>IF FEATURE-A\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 2.\n>>END-IF\nGOBACK."
-        answer, ledger = self.review("OUT-AMOUNT 最终等于 IN-AMOUNT * 2。[ev_formula] 输入来源另查。", body)
-        self.assertIn("编译条件尚未确认", answer)
-        self.assertIn("候选源码语句", answer)
+        text = "OUT-AMOUNT 最终等于 IN-AMOUNT * 2。[ev_formula] 输入来源另查。"
+        answer, ledger = self.review(text, body)
+        self.assertEqual(answer, text)
         self.assertIn("输入来源另查", answer)
         self.assertEqual(ledger.entries[0].support_status, "unsupported")
-        self.assertEqual(ledger.entries[0].revised_claims[0]["compilation_status"], "candidate")
+        self.assertEqual(ledger.entries[0].verification_facts[0]["compilation_status"], "candidate")
 
     def test_supplied_compilation_context_selects_effective_formula(self):
         body = "PROCEDURE DIVISION.\nMAIN.\n>>IF FEATURE-A\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 2.\n>>ELSE\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 3.\n>>END-IF\nGOBACK."
@@ -136,14 +136,16 @@ class ClaimLedgerTests(unittest.TestCase):
         text = "OUT-AMOUNT 总是等于 IN-AMOUNT * 2。[ev_formula] 输入金额另行读取。[ev_formula]"
         body = "IF IN-AMOUNT > 0\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 2\nELSE\nMOVE 0 TO OUT-AMOUNT\nEND-IF."
         answer, ledger = self.review(text, body)
-        self.assertNotIn("总是等于", answer)
-        self.assertIn("IF IN-AMOUNT > 0", answer)
-        self.assertIn("条件不成立", answer)
-        self.assertIn("OUT-AMOUNT = 0", answer)
+        self.assertEqual(answer, text)
+        facts = ledger.entries[0].verification_facts
+        self.assertEqual([row["assertion"]["expression"] for row in facts], [["IN-AMOUNT", "*", "2"], ["0"]])
+        self.assertEqual(facts[0]["source_guards"][0]["condition"], "IF IN-AMOUNT > 0")
+        self.assertEqual(facts[1]["source_guards"][0]["outcome"], "false")
         self.assertIn("输入金额另行读取", answer)
         self.assertEqual(ledger.entries[0].reason_code, "FINAL_VALUE_REQUIRES_CONTROL_AND_OVERWRITE_ANALYSIS")
         self.assertEqual(ledger.entries[0].support_status, "unsupported")
-        self.assertTrue(all(row["support_status"] == "supported" for row in ledger.entries[0].revised_claims))
+        self.assertTrue(all(row["support_status"] == "supported" for row in facts))
+        self.assertIsNone(ledger.entries[0].revision)
 
     def test_final_value_review_includes_other_supplied_same_version_writes(self):
         body = "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2.\nMOVE 0 TO OUT-AMOUNT."
@@ -157,8 +159,8 @@ class ClaimLedgerTests(unittest.TestCase):
         self.assertEqual(ledger.entries[0].support_status, "supported")
         self.assertEqual(ledger.entries[1].support_status, "unsupported")
         self.assertIn("ev_zero", ledger.entries[1].reviewed_evidence_ids)
-        self.assertIn("OUT-AMOUNT = 0", answer)
-        self.assertNotIn("最终等于", answer)
+        self.assertEqual(answer, text)
+        self.assertIn(["0"], [row["assertion"]["expression"] for row in ledger.entries[1].verification_facts])
         self.assertIn("输入仍需核对", answer)
 
     def test_final_value_review_keeps_program_and_version_boundaries(self):
@@ -178,7 +180,7 @@ class ClaimLedgerTests(unittest.TestCase):
                 self.assertEqual(ledger.entries[0].support_status, "unsupported")
                 self.assertNotIn("OUT-AMOUNT = 0", answer)
                 self.assertNotIn("未供证代码", answer)
-                self.assertIn("控制流", answer)
+                self.assertEqual(ledger.entries[0].reason_code, "FINAL_VALUE_REQUIRES_CONTROL_AND_OVERWRITE_ANALYSIS")
                 self.assertTrue(any(row["kind"] == "source_coverage_unestablished"
                                     for row in ledger.entries[0].unresolved_requirements))
 
@@ -190,14 +192,15 @@ class ClaimLedgerTests(unittest.TestCase):
         self.assertEqual(ledger.entries[0].support_status, "supported")
         self.assertEqual(ledger.entries[0].support_scope, "source_statement_syntax")
         answer, ledger = self.review("OUT-AMOUNT 总是等于 IN-AMOUNT * 2。[ev_formula]", body)
-        self.assertIn("无 SIZE ERROR", answer)
+        self.assertEqual(answer, "OUT-AMOUNT 总是等于 IN-AMOUNT * 2。[ev_formula]")
+        self.assertTrue(ledger.entries[0].verification_facts)
         self.assertEqual(ledger.entries[0].support_status, "unsupported")
 
     def test_move_arithmetic_condition_and_write_request_are_bounded_checks(self):
         cases = [("MOVE 9 TO OUT-AMOUNT", "MOVE 2 TO OUT-AMOUNT.", "OUT-AMOUNT = 2"),
                  ("OUT-AMOUNT = IN-AMOUNT * 9", "MULTIPLY 2 BY IN-AMOUNT GIVING OUT-AMOUNT.", "2 * IN-AMOUNT"),
                  ("IF IN-AMOUNT > 999", "IF IN-AMOUNT > 2\nMOVE 1 TO STATUS-CODE\nEND-IF.", "IF IN-AMOUNT > 2"),
-                 ("WRITE WRONG-RECORD", "WRITE OUTPUT-RECORD.", None)]
+                 ("REWRITE OUTPUT-RECORD", "WRITE OUTPUT-RECORD.", "WRITE OUTPUT-RECORD")]
         for wrong, body, expected in cases:
             with self.subTest(wrong=wrong):
                 answer, ledger = self.review(wrong + "。[ev_formula]", body)
@@ -211,6 +214,29 @@ class ClaimLedgerTests(unittest.TestCase):
         self.assertEqual(ledger.entries[0].support_status, "supported")
         self.assertEqual(ledger.entries[0].claim_type, "write_statement")
         self.assertNotIn("success", ledger.to_dict()["scope"])
+
+    def test_supplied_citation_without_comparable_fact_is_unverified_not_disproved(self):
+        # No same-target WRITE fact is not a contradiction. Keep the claim
+        # visibly distinct in the ledger from supported source statements.
+        for text in ["WRITE OTHER-RECORD。[ev_formula]", "COMPUTE OTHER-AMOUNT = 999。[ev_formula]"]:
+            with self.subTest(text=text):
+                answer, ledger = self.review(text, "WRITE OUTPUT-RECORD.")
+                self.assertEqual(answer, text)
+                self.assertEqual(ledger.entries[0].support_status, "unsupported")
+                self.assertEqual(ledger.entries[0].reason_code, "SOURCE_ASSERTION_NOT_LOCALLY_VERIFIABLE")
+                self.assertEqual(ledger.entries[0].support_scope, "unverified_source_assertion")
+                self.assertIsNone(ledger.entries[0].revision)
+                self.assertFalse(ledger.to_dict()["all_claims_supported"])
+        for citation in ["ev_missing", "ev_formula][ev_missing"]:
+            answer, ledger = self.review(f"WRITE OTHER-RECORD。[{citation}]", "WRITE OUTPUT-RECORD.")
+            self.assertNotIn("WRITE OTHER-RECORD", answer)
+            self.assertEqual(ledger.entries[0].revision, "scoped_uncertainty")
+        source = page("WRITE OUTPUT-RECORD.")
+        answer, ledger = review_answer_claims("WRITE OTHER-RECORD。[ev_formula]", [], {"ev_formula": source})
+        self.assertEqual(answer, "WRITE OTHER-RECORD。[ev_formula]")
+        self.assertEqual(ledger.entries[0].support_status, "unsupported")
+        self.assertEqual(ledger.entries[0].reason_code, "EVIDENCE_NOT_SUPPLIED")
+        self.assertIsNone(ledger.entries[0].revision)
 
     def test_invalid_citation_reviews_its_statement_and_keeps_independent_prose(self):
         text = "OUT-AMOUNT = IN-AMOUNT * 999。[ev_missing] 输入由用户提供。[ev_formula]"
@@ -304,7 +330,7 @@ class DefaultClaimGateTests(unittest.TestCase):
                                      ("999", "contradicted")):
             with self.subTest(expression=expression):
                 result = self.ask(lambda _payload, evidence, _count:
-                    response(f"**OUT-AMOUNT = {expression}**。[{evidence['evidence_id']}] 输入名称沿用源码。"),
+                    response(f"**COMPUTE OUT-AMOUNT = {expression}**。[{evidence['evidence_id']}] 输入名称沿用源码。"),
                     policy=AgentPolicy(max_model_requests=1, max_answer_revisions=0))
                 self.assertIn("OUT-AMOUNT = IN-AMOUNT ** 2", result["answer"])
                 self.assertNotIn("999", result["answer"])
@@ -335,8 +361,9 @@ class DefaultClaimGateTests(unittest.TestCase):
         self.assertEqual(entries[0]["support_status"], "supported")
         self.assertEqual(entries[1]["support_status"], "unsupported")
         self.assertIn(supplied_overwrite[0], entries[1]["reviewed_evidence_ids"])
-        self.assertIn("OUT-AMOUNT = 0", result["answer"])
-        self.assertNotIn("最终等于", result["answer"])
+        self.assertIn(["0"], [row["assertion"]["expression"] for row in entries[1]["verification_facts"]])
+        self.assertIn("最终等于", result["answer"])
+        self.assertIsNone(entries[1]["revision"])
         self.assertIn("输入仍需核对", result["answer"])
 
     def test_continuation_formula_passes_the_same_gate(self):

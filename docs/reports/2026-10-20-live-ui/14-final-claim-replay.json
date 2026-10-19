@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewed_at_utc": "2026-10-19T17:00:06.137732+00:00",
+  "reviewer": "Codex source_claims agent",
+  "method": "offline_production_claim_review_and_continuation_join",
+  "run_id": "48cfcb21416480d288756682",
+  "original_answer_artifact": "14-v27-fee-answer.json",
+  "actual_generation_manifest": "14-tested-source.json",
+  "actual_generation_claim_ledger_sha256": "af80e0ac8bb58235c766e2102549b206c90fa82ccea1f3ff596439ce64c45b0e",
+  "replay_file_sha256": {
+    "poc/claim_ledger.py": "8fe1ef5204c4b75179f7fcb016960419765b4ff7f87b75a7aac6a7012b98d320",
+    "poc/claim_support.py": "241583aa15e2c3810dcda543e49023d8c44e93296357df2fc867904f3b7e95a8",
+    "poc/answer_markdown.py": "eb978e575fab2869cc52ee9cb6e791eea7b7b9dc317b03c0ee3c559b247eacd3"
+  },
+  "source_scope": "persisted run checkpoint.source_pages; source hashes unchanged",
+  "response_replays": [
+    {
+      "response_index": 1,
+      "raw_sha256": "5a30fa8c6b28bcae6806dc24735c2c3c1f7588fefb6e6323a70e4684262b4906",
+      "replay_sha256": "5a30fa8c6b28bcae6806dc24735c2c3c1f7588fefb6e6323a70e4684262b4906",
+      "unchanged": true,
+      "revised_claim_count": 0
+    },
+    {
+      "response_index": 2,
+      "raw_sha256": "7b864bb26326de891e36b6af8792a38f7bb14ab26ca7fc4b7240124ecafab387",
+      "replay_sha256": "7b864bb26326de891e36b6af8792a38f7bb14ab26ca7fc4b7240124ecafab387",
+      "unchanged": true,
+      "revised_claim_count": 0
+    }
+  ],
+  "joined_result": {
+    "production_join_function": "answer_markdown.join_answer_continuation",
+    "matches_archived_answer": true,
+    "answer_sha256": "449ebb8dcd480ba8d432448ca761938ff4ecf43ca0a8998a853364186c8ab2fe",
+    "revised_claim_count": 0,
+    "ledger_counts": {
+      "supported": 7,
+      "contradicted": 0,
+      "unsupported": 75
+    }
+  },
+  "model_requests_by_reviewer": 0,
+  "formal_windows_exe_human_acceptance": false,
+  "limitation": "真实Q1在最后一行引用身份收窄之前生成；本记录只证明最终claim代码对相同持久化响应离线回放不改变结果，不声称原始两次请求使用了最终claim文件hash。"
+}

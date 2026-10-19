@@ -281,7 +281,7 @@ def check_claim_support(
     return result
 
 
-STATEMENT_CHECKER_VERSION = "source-statement-support-v3"
+STATEMENT_CHECKER_VERSION = "source-statement-support-v4"
 
 
 def statement_tokens(text: str) -> tuple[str, ...] | None:
@@ -295,7 +295,8 @@ def statement_tokens(text: str) -> tuple[str, ...] | None:
 
 
 def supplied_statement_facts(page: Mapping[str, Any], *, source_format: str = "auto",
-                             compilation_context=None, parsed_document=None) -> list[dict[str, Any]]:
+                             compilation_context=None, parsed_document=None,
+                             include_declarations=False) -> list[dict[str, Any]]:
     """Project supported statement occurrences from an already captured excerpt.
 
     This uses the same structural/statement front ends as indexing. Evidence
@@ -348,7 +349,9 @@ def supplied_statement_facts(page: Mapping[str, Any], *, source_format: str = "a
             "end_line": first + condition_unit.end_line - 1})
     facts = []
     for unit in parsed.code_units:
-        if unit.unit_type != "Statement" or unit.parse_status not in {"complete", "candidate"}:
+        if unit.parse_status not in {"complete", "candidate"}:
+            continue
+        if unit.unit_type != "Statement" and not (include_declarations and unit.unit_type == "DataItem"):
             continue
         body = unit.normalized_text
         location = {"start_line": first + unit.start_line - 1,
@@ -359,6 +362,17 @@ def supplied_statement_facts(page: Mapping[str, Any], *, source_format: str = "a
                     "guards": controls.get(unit.unit_id, []),
                     "source_text": "\n".join(source.splitlines()[unit.start_line - 1:unit.end_line]),
                     **compilation.get(unit.unit_id, {})}
+        if unit.unit_type == "DataItem":
+            # An elementary VALUE clause proves only the declared initial
+            # literal, never a runtime or final value after later writes.
+            declaration = re.fullmatch(r"(?:01|77)\s+([A-Z][A-Z0-9-]*)\s+PIC(?:TURE)?\s+"
+                r"[A-Z0-9()]+\s+VALUE(?:\s+IS)?\s+([+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\")\s*\.", body, re.I)
+            if declaration:
+                tokens = statement_tokens(declaration[2])
+                if tokens:
+                    facts.append({**location, "predicate": "declaration_value", "target": declaration[1].upper(),
+                                  "expression": list(tokens)})
+            continue
         if unit.name in {"COMPUTE", "MOVE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"}:
             assignment = assignment_facts(body)
             exceptional_header = (assignment is not None and assignment.effects_unknown
@@ -436,11 +450,14 @@ def check_statement_support(assertion: Mapping[str, Any], fact: Mapping[str, Any
     """
     predicate = assertion.get("predicate")
     fields = {"assignment_statement": ("target", "expression", "rounded"),
+              "declaration_value": ("target", "expression"),
               "condition_statement": ("condition", "outcome"),
               "write_statement": ("target", "effect")}.get(predicate)
     result = {"support_status": "unsupported", "reason_code": "SEMANTICS_NOT_SUPPORTED",
               "checker_version": STATEMENT_CHECKER_VERSION,
               "support_scope": "source_statement_syntax"}
+    if predicate == "declaration_value":
+        result["support_scope"] = "source_declared_initial_value"
     if fields is None or predicate != fact.get("predicate"):
         return result
     if predicate == "assignment_statement" and fact.get("statement_kind") == "COMPUTE":
@@ -453,7 +470,20 @@ def check_statement_support(assertion: Mapping[str, Any], fact: Mapping[str, Any
         checked = check_claim_support(narrow, [identifier], {identifier: span})
         if checked["reason_code"] not in {"SOURCE_FORM_NOT_SUPPORTED", "INVALID_ASSERTION"}:
             return {**checked, "support_scope": "source_statement_syntax"}
-    matched = all(assertion.get(field) == fact.get(field) for field in fields)
+    def same_field(field):
+        claimed, supplied = assertion.get(field), fact.get(field)
+        if predicate == "declaration_value" and field == "expression" and claimed != supplied:
+            # Numeric VALUE literals have exact decimal meaning; formatting
+            # such as 500 versus 500.00 does not change that declared value.
+            # This does not normalize formulas or simulate storage conversion.
+            from decimal import Decimal
+            if (isinstance(claimed, list) and isinstance(supplied, list)
+                    and len(claimed) <= 2 and len(supplied) <= 2):
+                left, right = "".join(claimed), "".join(supplied)
+                if re.fullmatch(r"[+-]?\d+(?:\.\d+)?", left) and re.fullmatch(r"[+-]?\d+(?:\.\d+)?", right):
+                    return Decimal(left) == Decimal(right)
+        return claimed == supplied
+    matched = all(same_field(field) for field in fields)
     result.update(support_status="supported" if matched else "contradicted",
                   reason_code="SOURCE_STATEMENT_MATCH" if matched else "SOURCE_STATEMENT_MISMATCH")
     return result

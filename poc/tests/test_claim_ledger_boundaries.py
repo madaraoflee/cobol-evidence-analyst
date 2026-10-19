@@ -92,7 +92,7 @@ class ClaimLedgerBoundaryTests(unittest.TestCase):
 
     def test_literal_punctuation_and_string_move_remain_supported(self):
         body = 'MOVE "A. B *> STILL TEXT" TO MESSAGE-TEXT.'
-        text = '`MESSAGE-TEXT = "A. B *> STILL TEXT"`（modules/rules.v2/amount.cbl:1）[ev_guarded]。'
+        text = '`MOVE "A. B *> STILL TEXT" TO MESSAGE-TEXT`（modules/rules.v2/amount.cbl:1）[ev_guarded]。'
         answer, ledger = self.review(text, body)
         self.assertEqual(answer, text)
         self.assertEqual(ledger["entries"][0]["claim_type"], "assignment_statement")
@@ -100,7 +100,7 @@ class ClaimLedgerBoundaryTests(unittest.TestCase):
 
     def test_wrong_string_move_is_repaired_without_orphaned_location(self):
         body = 'MOVE "A. B" TO MESSAGE-TEXT.'
-        text = '`MESSAGE-TEXT = "WRONG. VALUE"`（modules/rules.v2/amount.cbl:1）[ev_guarded]。'
+        text = '`MOVE "WRONG. VALUE" TO MESSAGE-TEXT`（modules/rules.v2/amount.cbl:1）[ev_guarded]。'
         answer, ledger = self.review(text, body)
         self.assertIn('MESSAGE-TEXT = "A. B"', answer)
         self.assertNotIn("WRONG", answer)
@@ -148,14 +148,24 @@ class ClaimLedgerBoundaryTests(unittest.TestCase):
 
     def test_assignment_wording_cannot_borrow_an_if_as_its_support(self):
         body = 'PROCEDURE DIVISION.\nMAIN.\nIF READY-FLAG = 1\nCALL "JOB-STEP"\nEND-IF.\nGOBACK.'
-        answer, ledger = self.review("程序执行赋值 READY-FLAG = 1。[ev_guarded]", body)
-        self.assertNotIn("程序执行赋值 READY-FLAG = 1", answer)
+        text = "程序执行赋值 READY-FLAG = 1。[ev_guarded]"
+        answer, ledger = self.review(text, body)
+        # An IF cannot certify an assignment. Absence of an assignment fact
+        # in the bounded projection also cannot certify a contradiction.
+        self.assertEqual(answer, text)
+        self.assertEqual(ledger["entries"][0]["claim_type"], "assignment_statement")
+        self.assertEqual(ledger["entries"][0]["reason_code"], "SOURCE_ASSERTION_NOT_LOCALLY_VERIFIABLE")
+        self.assertEqual(ledger["entries"][0]["support_status"], "unsupported")
         self.assertFalse(ledger["all_claims_supported"])
         self.assertEqual(ledger["counts"]["supported"], 0)
 
     def test_natural_wrong_guard_without_source_condition_is_not_marked_supported(self):
-        answer, ledger = self.review("在 READY-FLAG = 1 的条件下调用。[ev_guarded]", 'CALL "JOB-STEP".')
-        self.assertNotIn("在 READY-FLAG = 1 的条件下调用", answer)
+        text = "在 READY-FLAG = 1 的条件下调用。[ev_guarded]"
+        answer, ledger = self.review(text, 'CALL "JOB-STEP".')
+        self.assertEqual(answer, text)
+        self.assertEqual(ledger["entries"][0]["claim_type"], "condition_statement")
+        self.assertEqual(ledger["entries"][0]["reason_code"], "SOURCE_ASSERTION_NOT_LOCALLY_VERIFIABLE")
+        self.assertEqual(ledger["entries"][0]["support_status"], "unsupported")
         self.assertEqual(ledger["counts"]["supported"], 0)
 
     def test_default_activation_answer_keeps_real_caller_guard_and_unknown_scheduler(self):

@@ -529,6 +529,7 @@ Agent 流程|Agent 流程|Agent workflow
 已收到 HTTP 回應；聊天回應尚未確認|已收到 HTTP 响应；聊天响应尚未确认|HTTP response received; chat response not confirmed
 未收到 HTTP 回應|未收到 HTTP 响应|No HTTP response received
 尚無本次請求記錄|尚无本次请求记录|No request records for this run
+請求已發起；未保存返回記錄|请求已发起；未保存返回记录|A request was made; no response record was saved
 能力探測未通過，業務調查尚未開始。|能力探测未通过，业务调查尚未开始。|Capability checks failed; the business investigation has not started.
 Agent 流程已完成；業務證據需另行核對。|Agent 流程已完成；业务证据需另行核对。|The Agent workflow completed; business evidence requires separate review.
 已發起業務調查；完成狀態尚未確認。|已发起业务调查；完成状态尚未确认。|A business investigation was started; completion has not been confirmed.
