@@ -195,6 +195,77 @@
     },
     {
       "path": "tools/desktop_acceptance_scenarios.py",
+      "sha256": "5ce2c6c4e4822e066eb0fff7f06a23cb49d071dc03dbb8d83252a2943840a2c0"
+    },
+    {
+      "path": "docs/eval/desktop-joint-v1/manifest.json",
+      "sha256": "062b39cc210e5cc02dec8833e22073b159ed3ccf5e7dbc28cca4d2eccd6f7641"
+    },
+    {
+      "path": "tools/desktop_acceptance_runtime.py",
+      "sha256": "22e21fb0ec735fb72eeeef3d3f7fc541e1eef6d97a303ea88575c882840987b6"
+    },
+    {
+      "path": "poc/tests/test_desktop_acceptance_sqlite.py",
+      "sha256": "4ea06b15bd762ad456c0516acd750ec45fb5b98d2d61357eee5a0285d68edcda"
+    }
+  ],
+  "pipeline_version": "question-evidence-v31",
+  "prompt_version": "business-chat-v30",
+  "full_source_regressions": {
+    "tests": 3264,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsed_seconds": 177.709478,
+    "report_sha256": "c16d263fe75323c3d1c7f888ab6fc5c4dbf8089dbb645d50f45eda8ebd48c4a8",
+    "runtime_platform": "Darwin",
+    "public_corpus_verified": true,
+    "scope": "Complete source regression after acceptance-helper SQLite closure repair; not Windows or real-model acceptance."
+  },
+  "independent_review": {
+    "reviewer_kind": "independent_agent",
+    "completed": true,
+    "human_review": false,
+    "finding_fixed": "Normalize older policy records before comparison so absent optional fields cannot bypass pipeline and original deadline guards."
+  },
+  "subsequent_windows_precompile_failure": {
+    "run_id": 39308303291,
+    "source_commit": "957314c39b3987aecd577f5e24e829a6f49c7396",
+    "stage": "Windows precompile contract tests",
+    "full_regression_started": false,
+    "compilation_started": false,
+    "candidate_assets": 0,
+    "log_sha256": "4f3e0bbd3f16a8bf133e0e8245dd6536316c924b211249862f85e9c93c72e0bd",
+    "failure": "New source HTTP scenario failed during TemporaryDirectory cleanup with Windows error 32 on structural-index.sqlite; helper SQLite connections had not been explicitly closed. Answer assertions followed cleanup and cannot be claimed as passed from this log."
+  },
+  "delivery_repair_files": [
+    {
+      "path": "poc/agent_policy.py",
+      "sha256": "efef08c8e995582429337ee23c6045f2bcfa9077cc6a5339871254827bdd3a4b"
+    },
+    {
+      "path": "poc/business_chat.py",
+      "sha256": "b97771f855df12a4049ff25a7c00d9c5f2cf939bff8a1f7c7dfe3fa736c15392"
+    },
+    {
+      "path": "poc/desktop_app.py",
+      "sha256": "7c96ed57b4635b5e45e44cb4c83ef6e58762de39b7420d0e3a4cafe8807e1fa1"
+    },
+    {
+      "path": "poc/quality_trace.py",
+      "sha256": "6bbba5472efa167e227d5bf0aa6c5dab2f7af4d1d1fa7ca70714a5bdbaddbb28"
+    },
+    {
+      "path": "poc/claim_ledger.py",
+      "sha256": "d50075ac3dcf8cde570c962031ca111da5937bc8b3d49798c141cb2402dedd36"
+    },
+    {
+      "path": "poc/claim_support.py",
+      "sha256": "241583aa15e2c3810dcda543e49023d8c44e93296357df2fc867904f3b7e95a8"
+    },
+    {
+      "path": "tools/desktop_acceptance_scenarios.py",
       "sha256": "2c38314508fae08ee194f3bfe17a389281f12463a130abec1d961091c841534e"
     },
     {
@@ -202,9 +273,7 @@
       "sha256": "062b39cc210e5cc02dec8833e22073b159ed3ccf5e7dbc28cca4d2eccd6f7641"
     }
   ],
-  "pipeline_version": "question-evidence-v31",
-  "prompt_version": "business-chat-v30",
-  "full_source_regressions": {
+  "delivery_full_source_regressions": {
     "tests": 3260,
     "failures": 0,
     "errors": 0,
@@ -215,10 +284,12 @@
     "public_corpus_verified": true,
     "scope": "All discovered source tests, including actual source HTTP delayed-response scenario; not Windows executable or real-model acceptance."
   },
-  "independent_review": {
+  "helper_closure_review": {
+    "four_connections_explicitly_closed": true,
+    "transaction_commit_and_wal_order_preserved": true,
+    "cleanup_errors_still_fail": true,
+    "http_assertions_before_cleanup": true,
     "reviewer_kind": "independent_agent",
-    "completed": true,
-    "human_review": false,
-    "finding_fixed": "Normalize older policy records before comparison so absent optional fields cannot bypass pipeline and original deadline guards."
+    "human_review": false
   }
 }

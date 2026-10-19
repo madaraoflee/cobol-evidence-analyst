@@ -5,6 +5,7 @@ The fixture key is public test material and must never protect a real service.
 """
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass, field
 import hashlib
 import http.client
@@ -346,7 +347,7 @@ class NativeWorkbench:
 def read_journal(output):
     path = Path(output).resolve() / "investigation-runs.sqlite"
     require(path.is_file(), "RunStore missing")
-    with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True) as database:
+    with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as database:
         database.row_factory = sqlite3.Row
         return {"runs": [dict(row) for row in database.execute("SELECT run_id,state FROM investigation_runs")],
             "requests": [dict(row) for row in database.execute(

@@ -5,6 +5,7 @@ the actual request and results are read from the compiled workbench output.
 """
 from __future__ import annotations
 
+from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
@@ -190,7 +191,7 @@ def _index(workbench, source, output, provider):
 def _index_stamp(output):
     """Read build timestamps and source identities without mutating the index."""
     path = (output / "structural-index.sqlite").resolve()
-    with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True) as database:
+    with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as database:
         return {"metadata": database.execute("SELECT key,value FROM metadata WHERE key IN "
                 "('indexed_at_utc','snapshot_id','parser_version') ORDER BY key").fetchall(),
             "sources": database.execute("SELECT relative_path,sha256,indexed_at_utc FROM source_files ORDER BY relative_path").fetchall()}
@@ -198,7 +199,7 @@ def _index_stamp(output):
 
 def _old_index_guard(workbench, source, output, provider):
     database = output / "structural-index.sqlite"
-    with sqlite3.connect(database) as db:
+    with closing(sqlite3.connect(database)) as db, db:
         db.execute("UPDATE metadata SET value='business-sparse-previous' WHERE key='parser_version'")
         db.commit()
         db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
@@ -341,7 +342,7 @@ def _dense(command, root, case):
                 checks["lifecycle_index_reused"] = agent["metrics"]["repository_rebuilt"] is False
                 documents = []
                 for path in (output / "semantic-scopes").glob("*.sqlite"):
-                    with sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True) as db:
+                    with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)) as db:
                         documents.extend(json.loads(row[0]) for row in db.execute("SELECT ir_json FROM semantic_ir_documents"))
                 checks["completeness_dense_ir_fields"] = any(len(ir["data_items"]) == 2001
                     and sum(bool(item.get("picture")) for item in ir["data_items"]) == 2000
