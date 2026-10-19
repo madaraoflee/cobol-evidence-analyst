@@ -26,6 +26,7 @@ _COPY_WORD = re.compile(r"(?<![A-Z0-9_$#@-])COPY(?![A-Z0-9_$#@-])", re.I)
 _REPLACE_WORD = re.compile(r"(?<![A-Z0-9_$#@-])REPLACE(?![A-Z0-9_$#@-])", re.I)
 _COPY = re.compile(rf"\s*COPY\s+(?:({_MEMBER})|'({_MEMBER})'|\"({_MEMBER})\")\s*\.\s*", re.I)
 _COPY_HEAD = re.compile(rf"COPY\s+(?:({_MEMBER})|'({_MEMBER})'|\"({_MEMBER})\")", re.I)
+LEXICAL_SOURCE_VERSION = "copy-physical-tokens-v1"
 
 
 @dataclass(frozen=True)
@@ -185,6 +186,7 @@ def expand_program(
         raise ValueError("max_lines must be a positive integer.")
     suffixes = _extensions(extensions)
     context = resolve_compilation_context(compilation_context)
+    lexical_identity = (LEXICAL_SOURCE_VERSION, context.fingerprint)
     entry = entry_program.upper()
     sources: dict[str, _Source] = {}
     members: dict[str, list[str]] = defaultdict(list)
@@ -199,9 +201,19 @@ def expand_program(
             check_cancel()
         if relative in sources:
             return
+        cache_key = None
+        cache_get = getattr(source_provider, "cached_expansion_source", None)
+        cache_put = getattr(source_provider, "cache_expansion_source", None)
         try:
             if source_provider is not None:
                 captured = source_provider.capture(relative)
+                if callable(cache_get) and callable(cache_put) and isinstance(getattr(captured, "sha256", None), str):
+                    cache_key = (relative, captured.sha256, captured.encoding, *lexical_identity)
+                cached = cache_get(cache_key) if cache_key is not None else None
+                if isinstance(cached, _Source):
+                    sources[relative] = cached
+                    entries.extend(relative for name in cached.programs if name == entry)
+                    return
                 raw = captured.path.read_bytes()
                 decoded = decode_source(raw, captured.encoding)
             else:
@@ -250,6 +262,8 @@ def expand_program(
             problems += ((1, "source_encoding_uncertain"),)
         programs = tuple(name for name, _, _ in program_identifiers("\n".join(code)))
         source = _Source(relative, digest, lines, code, masked, problems, programs, tuple(line_ends))
+        if cache_key is not None and digest == cache_key[1] and callable(cache_put):
+            cache_put(cache_key, source)
         sources[relative] = source
         entries.extend(relative for name in programs if name == entry)
 

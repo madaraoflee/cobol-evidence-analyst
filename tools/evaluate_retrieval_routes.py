@@ -50,7 +50,7 @@ def main():
         spec.loader.exec_module(module)
     import repository_discovery as retrieval
     from business_index import build_business_index
-    from retrieval_quality_eval import evaluate_evidence
+    from retrieval_quality_eval import evaluate_evidence, production_loader
 
     scenarios = [
         {"id": "long-question-new-english-clue", "question": LONG_QUESTION,
@@ -66,10 +66,19 @@ def main():
          "target_body": "*> SETTLEMENT-CUTOFF-CODE controls the final branch.\n" + "\n".join(f"MOVE {n} TO WORK-VALUE-{n}." for n in range(220)),
          "distractor": "*> settlement cutoff code appear as separate generic words."},
     ]
-    report = {"schema": "adaptive-retrieval-probe/v1", "scope": "authored synthetic retrieval regressions",
+    crop_question = "approval status adjustment threshold verification processing transaction eligibility calculation"
+    for name, clue, prefix in (("exact-clue-crop", "LANTERN-CAP-VALUE", False),
+                               ("plain-clue-crop", "orchidallocation", False),
+                               ("identifier-boundary-crop", "LANTERN-CAP-VALUE", True)):
+        scenarios.append({"id": name, "question": crop_question, "search_terms": [clue],
+            "needle": clue, "target_line_count": 2, "max_chars": 512,
+            "target_body": f"*> {clue}.\nCOMPUTE FINAL-VALUE = BASE-VALUE + 37.\n" +
+                "CONTINUE.\n" * 250 + (f"*> PREFIX-{clue}-SUFFIX " if prefix else "*> ") + crop_question,
+            "distractor": "*> Ordinary unrelated source."})
+    report = {"schema": "adaptive-retrieval-probe/v2", "scope": "authored synthetic retrieval regressions",
               "production_retrieval_executed": True, "final_answer_evaluated": False,
               "retrieval_module_sha256": hashlib.sha256(Path(retrieval.__file__).read_bytes()).hexdigest(),
-              "independent_review": False, "model_calls": 0, "max_pages": 1, "max_chars": 12000, "cases": []}
+              "independent_review": False, "model_calls": 0, "max_pages": 1, "default_max_chars": 12000, "cases": []}
     with mock.patch.object(socket, "create_connection", side_effect=AssertionError("Offline probe")), \
          mock.patch.object(socket.socket, "connect", side_effect=AssertionError("Offline probe")), \
          tempfile.TemporaryDirectory(prefix="adaptive-retrieval-probe-") as temporary:
@@ -85,20 +94,25 @@ def main():
             build_business_index(source, database, source_format="free", verify_content=True)
             retrieval.ensure_repository_search(database, source)
             discovery = retrieval.discover_repository(database, case["question"], search_terms=case["search_terms"], fallback_to_repository=False)
-            context = retrieval.retrieve_repository_context(database, source, case["question"], search_terms=case["search_terms"], max_pages=1, max_chars=12000)
+            max_chars = case.get("max_chars", 12000)
+            context = retrieval.retrieve_repository_context(database, source, case["question"], search_terms=case["search_terms"], max_pages=1, max_chars=max_chars)
             lines = target.read_text(encoding="utf-8").splitlines()
             line = next(i for i, text in enumerate(lines, 1) if case["needle"] in text)
+            end_line = line + case.get("target_line_count", 1) - 1
             gold = {"units": [{"id": "literal-target", "relative_path": "z-target.cbl", "source_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
-                              "start_line": line, "end_line": line, "source_text": lines[line - 1], "relevance": 3}],
+                              "start_line": line, "end_line": end_line, "source_text": "\n".join(lines[line - 1:end_line]), "relevance": 3}],
                     "required_items": [{"id": "literal-target", "critical": True, "sufficient_sets": [["literal-target"]]}]}
             pages = context["pages"]
             non_orientation = [] if context["orientation_only"] else pages
             raw = evaluate_evidence(gold, pages, pages, k=1)
-            usable = evaluate_evidence(gold, non_orientation, non_orientation, k=1)
+            loaded = production_loader(case["question"])(non_orientation)["pages"]
+            usable = evaluate_evidence(gold, non_orientation, loaded, k=1)
             report["cases"].append({"id": case["id"], "question_characters": len(case["question"]),
                 "search_terms": case["search_terms"], "question_only_terms": len(retrieval._tokens(case["question"])),
                 "target_sha256": gold["units"][0]["source_sha256"], "target_line": line,
+                "target_end_line": end_line, "max_chars": max_chars,
                 "raw_returned_recall_at_1": raw["recall_at_k"], "non_orientation_recall_at_1": usable["recall_at_k"],
+                "loaded_sufficiency": usable["loaded_sufficiency"]["rate"],
                 "first_returned_path": pages[0]["relative_path"] if pages else None,
                 "orientation_only": context["orientation_only"], "context_matched_pages": context["matched_page_count"],
                 "context_matched_files": context["matched_file_count"], "discovery_matched_files": discovery["matched_file_count"],

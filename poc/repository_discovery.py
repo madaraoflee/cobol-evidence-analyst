@@ -100,6 +100,13 @@ def _match_expression(terms):
     return " OR ".join('"' + term.replace('"', '""') + '"' for term in terms)
 
 
+def _contains_identifier(text, identifiers):
+    folded = (text or "").casefold()
+    if not any(identifier in folded for identifier in identifiers):
+        return False
+    return any(match.group().rstrip(".") in identifiers for match in _WORDS.finditer(folded))
+
+
 def _retrieval_query_groups(question, search_terms, terms):
     """Prioritize exact identifiers and keep independent search leads distinct.
 
@@ -118,7 +125,7 @@ def _retrieval_query_groups(question, search_terms, terms):
 
     def route(values, exact=False):
         values = tuple(values)
-        return _match_expression(values), values if exact else ()
+        return _match_expression(values), values if exact else (), values
 
     def channel(values, broad_terms=None):
         broad_terms = list(dict.fromkeys(term for value in values for term in selected(value))) if broad_terms is None else broad_terms
@@ -137,7 +144,7 @@ def _retrieval_query_groups(question, search_terms, terms):
 
 
 def _search_route_rows(connection, route, scope_sql, scope_values, max_pages, check_cancel):
-    expression, identifiers = route
+    expression, identifiers, route_terms = route
     _cancel(check_cancel)
     joins, exact_scope, failures = "", "", []
     if identifiers:
@@ -146,7 +153,7 @@ def _search_route_rows(connection, route, scope_sql, scope_values, max_pages, ch
         def has_identifier(text):
             try:
                 _cancel(check_cancel)
-                return any(word.rstrip(".") in exact for word in _WORDS.findall((text or "").casefold()))
+                return _contains_identifier(text, exact)
             except BaseException as exc:
                 failures.append(exc)
                 raise
@@ -167,7 +174,8 @@ def _search_route_rows(connection, route, scope_sql, scope_values, max_pages, ch
             (expression, *scope_values, max_pages * 16))
         for row in candidates:
             _cancel(check_cancel)
-            rows.append(dict(row))
+            rows.append({**dict(row), "retrieval_terms": route_terms,
+                         "retrieval_identifiers": identifiers})
     except sqlite3.OperationalError:
         if failures:
             raise failures[0]
@@ -1060,9 +1068,17 @@ def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=N
         return None
     if start_line is None:
         folded = [line.casefold() for line in lines]
-        hits = [(sum(min(32, len(term)) for term in terms if term in text), index)
+        route_terms = row.get("retrieval_terms", ())
+        exact = {term.rstrip(".") for term in row.get("retrieval_identifiers", ())}
+        # Preserve the reason this page was selected when choosing its crop.
+        # Broad original-question words elsewhere on the page must not hide a
+        # new search lead, and substrings cannot outrank a complete identifier.
+        hits = [(bool(exact) and _contains_identifier(text, exact),
+                 sum(min(32, len(term)) for term in route_terms if term in text),
+                 sum(min(32, len(term)) for term in terms if term in text), index)
                 for index, text in enumerate(folded)]
-        _, center = max(hits, default=(0, lower), key=lambda pair: (pair[0], -pair[1]))
+        *_, center = max(hits, default=(False, 0, 0, lower),
+                         key=lambda item: (*item[:3], -item[3]))
         if row.get("focus_line") is not None:
             center = row["focus_line"] - row["start_line"]
         center = min(max(center, lower), upper - 1)
