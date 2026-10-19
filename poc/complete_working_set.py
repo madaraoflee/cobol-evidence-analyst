@@ -88,6 +88,9 @@ def build_complete_working_set(database_path, source_session, business_map, poli
     byte_limit = min(policy.max_semantic_source_bytes,
                      (root_limit + policy.max_source_characters) * 4 + policy.max_semantic_files * 4)
     records = []
+    located_copies = {edge["relation_id"]: edge["target_path"]
+        for edge in business_map.get("relations", ()) if edge.get("relation_type") == "INCLUDES_COPY"
+        and edge.get("resolution") == "unbound_copy_candidate" and edge.get("target_path") and edge.get("relation_id")}
     try:
         with closing(_connect(database_path)) as db:
             db.execute("BEGIN")
@@ -124,13 +127,18 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                     else:
                         queued.add(target)
                         pending.append((target, depth + 1))
-                unresolved = db.execute("SELECT DISTINCT r.relation_type,r.target_name,r.status "
+                unresolved = db.execute("SELECT DISTINCT r.relation_id,r.relation_type,r.target_name,r.status "
                     "FROM relations r LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
                     "WHERE r.relative_path=? AND (r.relation_type='CALL_TARGET_FROM' OR "
                     "(r.relation_type IN ('CALLS','INCLUDES_COPY') AND "
                     "(r.status IS NULL OR r.status!='confirmed' OR s.relative_path IS NULL))) "
                     "ORDER BY r.relation_type,r.target_name LIMIT ?", (relative, _FRONTIER_LIMIT + 1)).fetchall()
                 for edge in unresolved[:_FRONTIER_LIMIT]:
+                    target = located_copies.get(edge["relation_id"]) if edge["relation_type"] == "INCLUDES_COPY" else None
+                    if target and db.execute("SELECT 1 FROM source_files WHERE relative_path=?", (target,)).fetchone():
+                        frontier("copy_binding_unresolved", relative, target_name=edge["target_name"],
+                                 relation_type=edge["relation_type"], target_path=target, source_available=True)
+                        continue
                     frontier("runtime_target_unresolved" if edge["relation_type"] == "CALL_TARGET_FROM"
                              else "external_implementation_unavailable", relative,
                              target_name=edge["target_name"], relation_type=edge["relation_type"])

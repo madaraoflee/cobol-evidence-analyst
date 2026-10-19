@@ -1,0 +1,1361 @@
+{
+  "schema_version": "business-quality-trace/v1",
+  "run_id": "a383fa9fad1c4b33c5998de8",
+  "question_id": "sha256:836de8ee52b343eaef4be386b4117efff0f2f61362c6f0f00800582ff77c02e5",
+  "conversation_id": null,
+  "created_at_utc": "2026-10-19T21:48:47.466664+00:00",
+  "pipeline_version": "question-evidence-v32",
+  "prompt_version": "business-chat-v30",
+  "analysis_identity": "da7bc3482f85f900b4fe09751d8abc5c9d7596c591c33dc3691f71ab03657737",
+  "configuration": {
+    "model_fingerprint": "7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+    "configuration_fingerprint": "56dbaaf74095c19a23d76a0681b3d5bb317ab994eac13d3a3d4d13974dfdb24d",
+    "timeout_seconds": 60.0,
+    "max_output_tokens": 8192,
+    "sampling": "provider_default",
+    "policy": {
+      "max_model_requests": 6,
+      "max_question_seconds": 180,
+      "max_source_characters": 36000,
+      "max_complete_source_characters": 128000,
+      "max_history_characters": 18000,
+      "max_request_bytes": 230000,
+      "max_searches_per_turn": 3,
+      "max_reads_per_turn": 3,
+      "max_framework_searches_per_turn": 3,
+      "initial_pages": 6,
+      "initial_source_characters": 24000,
+      "search_pages": 8,
+      "search_source_characters": 32000,
+      "read_source_characters": 12000,
+      "max_framework_references": 10,
+      "max_framework_characters": 8000,
+      "max_business_context_actions_per_turn": 2,
+      "max_semantic_files": 32,
+      "max_semantic_source_bytes": 33554432,
+      "max_semantic_expansions": 4,
+      "max_evidence_groups": 12,
+      "max_initial_context_seconds": 3,
+      "max_local_analysis_seconds": 15,
+      "max_answer_revisions": null,
+      "semantic_cache_bytes": 536870912,
+      "hard_question_seconds": 180,
+      "delivery_target_seconds": null,
+      "investigation_mode": "adaptive",
+      "source_memory_enabled": true,
+      "max_investigation_rounds": 5,
+      "max_no_evidence_revisions": 2,
+      "finalization_reserve_seconds": 45
+    }
+  },
+  "rounds": [
+    {
+      "round_id": "round-1",
+      "stage": "investigate",
+      "request_bytes": 67246,
+      "request_body_sha256": "aad3c3c257c6659b0c63fefab391def940236bf79fa1badecffd2f3a02907c58",
+      "system_prompt_sha256": "868b355a42f588473d71d7375820f0cfc59833502e4444fbd8e032bd8e0506a7",
+      "sources": [
+        {
+          "evidence_id": "ev_page_798817dc9e3b8b165f7e921f",
+          "path": "entry/request.cbl",
+          "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+          "start_line": 1,
+          "end_line": 112,
+          "excerpt_sha256": "2e16b1743e369a958170f0aaa282c805cff2650977eaf9f0ac41d8e74e5d6480",
+          "binding_sha256": "cb7ae5754e5ba0689f9680147698d5fa068c50792058214d5ab9c25227486f35",
+          "characters": 3991,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": [
+            "condition"
+          ]
+        },
+        {
+          "evidence_id": "ev_page_2c3a1d9c8da9ef4573ce540f",
+          "path": "entry/request.cbl",
+          "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+          "start_line": 66618,
+          "end_line": 66716,
+          "excerpt_sha256": "0648c1e3500480dac3038c456b8c33568fc8cb25bac01076077eee8873aa9892",
+          "binding_sha256": "6281c38853fc56c84511a84d4b2c678288f058b6f82c67bd785add3ab85e0d7c",
+          "characters": 4000,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": [
+            "condition",
+            "result"
+          ]
+        },
+        {
+          "evidence_id": "ev_page_3e0b7d562ac3ef1c4b0d3e46",
+          "path": "entry/request.cbl",
+          "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+          "start_line": 99943,
+          "end_line": 100000,
+          "excerpt_sha256": "36df0c11097763159cfe5376b736b324f69add27952802fcd8573b0d072d8a32",
+          "binding_sha256": "20776618af0bc8f8903ccd1977ff92c3c1560c695c90ba6684f2d26828c05e8d",
+          "characters": 2157,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": []
+        },
+        {
+          "evidence_id": "ev_page_9b1b59e6ddc9c9fb6881b1e7",
+          "path": "entry/request.cbl",
+          "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+          "start_line": 66883,
+          "end_line": 66977,
+          "excerpt_sha256": "174a6cd3991706285c70a495da00e72330e492d9a457d722633995a86f933131",
+          "binding_sha256": "83681a547ab087085bab6d630f9604a98bebaadeb4efcaf57caa85dbb0b7e1ba",
+          "characters": 3989,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": []
+        },
+        {
+          "evidence_id": "ev_page_ff4790da5511ec8111e095a9",
+          "path": "active/layout-root.cpy",
+          "source_sha256": "d758ea5af8b8bfd69fefd9ae8f51a05d9e0ef4b650cf12ffb048402bdeb661ac",
+          "start_line": 1,
+          "end_line": 1,
+          "excerpt_sha256": "d77217fd9d9cbed8a2e9615abb8e55f2a31763aace8c2903f990157de9af53f2",
+          "binding_sha256": "aba71f20d15a2ef9bff50a3fdcd45a030efe9b2d58a6285326b697adaed79f57",
+          "characters": 30,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": []
+        },
+        {
+          "evidence_id": "ev_page_f9118d706a9c971dc1b4a0b1",
+          "path": "active/request-skeleton.cpy",
+          "source_sha256": "54134d0cb024f4daf6092d040ff4bfdec72aa1b0d97ea87bc972c6c31a708a4a",
+          "start_line": 1,
+          "end_line": 4,
+          "excerpt_sha256": "8c4c674c403b0bda3c77b0617243768f88539f359d020edc148efef814d1e624",
+          "binding_sha256": "13eb4582226b55ecf7c682b0e9e9291d1dd10a74f03503d99717d6d811e833a6",
+          "characters": 70,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": []
+        },
+        {
+          "evidence_id": "ev_page_a737f834356fa3a91e1f3edf",
+          "path": "entry/request.cbl",
+          "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+          "start_line": 33326,
+          "end_line": 33346,
+          "excerpt_sha256": "fed7d3ba39d1a28a38ef3e1ed3f99b307b1ab4713dfd884a3d42edefefa2f192",
+          "binding_sha256": "8ac61eb5a8b7355bc9d9c23d1d1bff908534d9290f1f5e7fadd16fab285c5ab3",
+          "characters": 848,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": []
+        },
+        {
+          "evidence_id": "ev_page_ca0658f95d895e7188bb66a1",
+          "path": "active/rule-leaf.cpy",
+          "source_sha256": "4268e1d877d142db8376c7c213b4a7a33201c4536b421a4dde8748bb1481eb83",
+          "start_line": 1,
+          "end_line": 5,
+          "excerpt_sha256": "702ecdd7c8ec7a8a8c979066ca4db801aec8d911d8d6b70051c2926eff871491",
+          "binding_sha256": "597605bb396d99991f1cc4aa2e6871088056463a0250ef504acaa2ce773f7421",
+          "characters": 112,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": [
+            "condition",
+            "result"
+          ]
+        },
+        {
+          "evidence_id": "ev_page_0bec5bc1f0d4b1550a81af17",
+          "path": "active/rule-root.cpy",
+          "source_sha256": "589f40bfff78bfd5eb90e1544f481b88d1d911a1fffc68c275153e6d11a14358",
+          "start_line": 1,
+          "end_line": 1,
+          "excerpt_sha256": "d7d766377448227f5b523c9ef288994b2c805dc68059a03e6868ed18036248d4",
+          "binding_sha256": "8ab7489437a59fd4a8ea60510ed3e15dd6a68b88458c7b40057ef829622ff16f",
+          "characters": 28,
+          "group_id": null,
+          "include_chain": [],
+          "semantic_roles": []
+        }
+      ],
+      "framework": [
+        {
+          "reference_id": "fw:60b0431243fa823e:7-8",
+          "document_sha256": "60b0431243fa823ebd53a474ac1d9854ff6b0b6b3c5af779c389e4de3bd720b6",
+          "document_name": "framework-reference.md",
+          "range": {
+            "start_line": 7,
+            "end_line": 8
+          },
+          "text_offset_chars": 0,
+          "excerpt_sha256": "1a848592a2fb1c03726c2c19d6bf950a854ef68fb061d5b79d985f201171b2b9",
+          "characters": 159,
+          "text_truncated": false
+        },
+        {
+          "reference_id": "fw:60b0431243fa823e:14-14",
+          "document_sha256": "60b0431243fa823ebd53a474ac1d9854ff6b0b6b3c5af779c389e4de3bd720b6",
+          "document_name": "framework-reference.md",
+          "range": {
+            "start_line": 14,
+            "end_line": 14
+          },
+          "text_offset_chars": 0,
+          "excerpt_sha256": "5a37e9bbed4f0d6258df8badfa8fb2fdb8294e860f1b2a1706ccb1cd789cfa45",
+          "characters": 138,
+          "text_truncated": false
+        }
+      ],
+      "history_summary": {
+        "count": 0,
+        "characters": 0,
+        "message_positions": []
+      },
+      "trim_events": [],
+      "tool_results": [],
+      "response": {
+        "finish_reason": null,
+        "parsed_action": null,
+        "usage": null,
+        "error": "HTTP_ERROR",
+        "raw_content_characters": null,
+        "parsed_answer_characters": null,
+        "choice_index": null,
+        "error_stage": "provider_request",
+        "http_status": 402
+      },
+      "duration_ms": 1457.58,
+      "prior_source_memory": {
+        "schema": "prior-source-memory/v1",
+        "sha256": "b1e473c039e5c7551c8338d91227210106ce1b8e2e512f7a59cc4664c59cc7f1",
+        "blocks": []
+      },
+      "context": {
+        "question": "请分析 entry/request.cbl：从入口 COPY 骨架开始，FINAL-AMOUNT 怎样计算？说明外层开关、计算条件、公式、舍入和后续覆盖。INPUT-AMOUNT=10、ROUTE-ENABLED=1 时，OVERRIDE-FLAG 分别为 0 和 1，最终值各是多少？ROUTE-ENABLED=0 时又怎样？",
+        "sources": [
+          {
+            "evidence_id": "ev_page_798817dc9e3b8b165f7e921f",
+            "path": "entry/request.cbl",
+            "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+            "start_line": 1,
+            "end_line": 112,
+            "excerpt_sha256": "2e16b1743e369a958170f0aaa282c805cff2650977eaf9f0ac41d8e74e5d6480",
+            "binding_sha256": "cb7ae5754e5ba0689f9680147698d5fa068c50792058214d5ab9c25227486f35",
+            "characters": 3991,
+            "group_id": null,
+            "include_chain": [],
+            "semantic_roles": [
+              "condition"
+            ],
+            "excerpt": "IDENTIFICATION DIVISION.\nPROGRAM-ID. REQUEST-ENTRY.\nENVIRONMENT DIVISION.\nINPUT-OUTPUT SECTION.\nFILE-CONTROL.\nSELECT LEDGER-FILE ASSIGN TO \"LEDGER-LF\"\n ORGANIZATION IS INDEXED\n ACCESS MODE IS DYNAMIC\n RECORD KEY IS ACCOUNT-KEY\n FILE STATUS IS FILE-STATUS.\nDATA DIVISION.\nFILE SECTION.\nFD LEDGER-FILE.\n01 LEDGER-RECORD.\n 05 ACCOUNT-KEY PIC X(8).\n 05 RECORD-AMOUNT PIC 9(9)V99.\nWORKING-STORAGE SECTION.\nCOPY \"active/layout-root.cpy\".\n01 INPUT-AMOUNT PIC 9(9)V99.\n01 SERVICE-FEE PIC 9(5)V99 VALUE 7.\n01 FINAL-AMOUNT PIC 9(9)V99.\n01 OVERRIDE-FLAG PIC 9.\n01 ROUTE-ENABLED PIC 9.\n01 STOP-FLAG PIC 9.\n01 FILE-STATUS PIC XX.\n01 AUX-COUNT PIC 9(12).\nCOPY \"active/rate-template.cpy\"\n REPLACING ==RATE-TOKEN== BY ==RATE-VALUE==\n ==FACTOR== BY ==3==.\nPROCEDURE DIVISION.\nCOPY \"active/request-skeleton.cpy\".\nINITIALIZE-REQUEST.\nMOVE 0 TO STOP-FLAG.\nEXIT.\nMAIN-ACTION.\nIF ROUTE-ENABLED = 1\nADD 2 TO AUX-COUNT *> neutral row 000037\nADD 3 TO AUX-COUNT *> neutral row 000038\nADD 4 TO AUX-COUNT *> neutral row 000039\nADD 5 TO AUX-COUNT *> neutral row 000040\nADD 6 TO AUX-COUNT *> neutral row 000041\nADD 0 TO AUX-COUNT *> neutral row 000042\nADD 1 TO AUX-COUNT *> neutral row 000043\nADD 2 TO AUX-COUNT *> neutral row 000044\nADD 3 TO AUX-COUNT *> neutral row 000045\nADD 4 TO AUX-COUNT *> neutral row 000046\nADD 5 TO AUX-COUNT *> neutral row 000047\nADD 6 TO AUX-COUNT *> neutral row 000048\nADD 0 TO AUX-COUNT *> neutral row 000049\nADD 1 TO AUX-COUNT *> neutral row 000050\nADD 2 TO AUX-COUNT *> neutral row 000051\nADD 3 TO AUX-COUNT *> neutral row 000052\nADD 4 TO AUX-COUNT *> neutral row 000053\nADD 5 TO AUX-COUNT *> neutral row 000054\nADD 6 TO AUX-COUNT *> neutral row 000055\nADD 0 TO AUX-COUNT *> neutral row 000056\nADD 1 TO AUX-COUNT *> neutral row 000057\nADD 2 TO AUX-COUNT *> neutral row 000058\nADD 3 TO AUX-COUNT *> neutral row 000059\nADD 4 TO AUX-COUNT *> neutral row 000060\nADD 5 TO AUX-COUNT *> neutral row 000061\nADD 6 TO AUX-COUNT *> neutral row 000062\nADD 0 TO AUX-COUNT *> neutral row 000063\nADD 1 TO AUX-COUNT *> neutral row 000064\nADD 2 TO AUX-COUNT *> neutral row 000065\nADD 3 TO AUX-COUNT *> neutral row 000066\nADD 4 TO AUX-COUNT *> neutral row 000067\nADD 5 TO AUX-COUNT *> neutral row 000068\nADD 6 TO AUX-COUNT *> neutral row 000069\nADD 0 TO AUX-COUNT *> neutral row 000070\nADD 1 TO AUX-COUNT *> neutral row 000071\nADD 2 TO AUX-COUNT *> neutral row 000072\nADD 3 TO AUX-COUNT *> neutral row 000073\nADD 4 TO AUX-COUNT *> neutral row 000074\nADD 5 TO AUX-COUNT *> neutral row 000075\nADD 6 TO AUX-COUNT *> neutral row 000076\nADD 0 TO AUX-COUNT *> neutral row 000077\nADD 1 TO AUX-COUNT *> neutral row 000078\nADD 2 TO AUX-COUNT *> neutral row 000079\nADD 3 TO AUX-COUNT *> neutral row 000080\nADD 4 TO AUX-COUNT *> neutral row 000081\nADD 5 TO AUX-COUNT *> neutral row 000082\nADD 6 TO AUX-COUNT *> neutral row 000083\nADD 0 TO AUX-COUNT *> neutral row 000084\nADD 1 TO AUX-COUNT *> neutral row 000085\nADD 2 TO AUX-COUNT *> neutral row 000086\nADD 3 TO AUX-COUNT *> neutral row 000087\nADD 4 TO AUX-COUNT *> neutral row 000088\nADD 5 TO AUX-COUNT *> neutral row 000089\nADD 6 TO AUX-COUNT *> neutral row 000090\nADD 0 TO AUX-COUNT *> neutral row 000091\nADD 1 TO AUX-COUNT *> neutral row 000092\nADD 2 TO AUX-COUNT *> neutral row 000093\nADD 3 TO AUX-COUNT *> neutral row 000094\nADD 4 TO AUX-COUNT *> neutral row 000095\nADD 5 TO AUX-COUNT *> neutral row 000096\nADD 6 TO AUX-COUNT *> neutral row 000097\nADD 0 TO AUX-COUNT *> neutral row 000098\nADD 1 TO AUX-COUNT *> neutral row 000099\nADD 2 TO AUX-COUNT *> neutral row 000100\nADD 3 TO AUX-COUNT *> neutral row 000101\nADD 4 TO AUX-COUNT *> neutral row 000102\nADD 5 TO AUX-COUNT *> neutral row 000103\nADD 6 TO AUX-COUNT *> neutral row 000104\nADD 0 TO AUX-COUNT *> neutral row 000105\nADD 1 TO AUX-COUNT *> neutral row 000106\nADD 2 TO AUX-COUNT *> neutral row 000107\nADD 3 TO AUX-COUNT *> neutral row 000108\nADD 4 TO AUX-COUNT *> neutral row 000109\nADD 5 TO AUX-COUNT *> neutral row 000110\nADD 6 TO AUX-COUNT *> neutral row 000111\nADD 0 TO AUX-COUNT *> neutral row 000112"
+          },
+          {
+            "evidence_id": "ev_page_2c3a1d9c8da9ef4573ce540f",
+            "path": "entry/request.cbl",
+            "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+            "start_line": 66618,
+            "end_line": 66716,
+            "excerpt_sha256": "0648c1e3500480dac3038c456b8c33568fc8cb25bac01076077eee8873aa9892",
+            "binding_sha256": "6281c38853fc56c84511a84d4b2c678288f058b6f82c67bd785add3ab85e0d7c",
+            "characters": 4000,
+            "group_id": null,
+            "include_chain": [],
+            "semantic_roles": [
+              "condition",
+              "result"
+            ],
+            "excerpt": "ADD 6 TO AUX-COUNT *> neutral row 066618\nADD 0 TO AUX-COUNT *> neutral row 066619\nADD 1 TO AUX-COUNT *> neutral row 066620\nADD 2 TO AUX-COUNT *> neutral row 066621\nADD 3 TO AUX-COUNT *> neutral row 066622\nADD 4 TO AUX-COUNT *> neutral row 066623\nADD 5 TO AUX-COUNT *> neutral row 066624\nADD 6 TO AUX-COUNT *> neutral row 066625\nADD 0 TO AUX-COUNT *> neutral row 066626\nADD 1 TO AUX-COUNT *> neutral row 066627\nADD 2 TO AUX-COUNT *> neutral row 066628\nADD 3 TO AUX-COUNT *> neutral row 066629\nADD 4 TO AUX-COUNT *> neutral row 066630\nADD 5 TO AUX-COUNT *> neutral row 066631\nADD 6 TO AUX-COUNT *> neutral row 066632\nADD 0 TO AUX-COUNT *> neutral row 066633\nADD 1 TO AUX-COUNT *> neutral row 066634\nADD 2 TO AUX-COUNT *> neutral row 066635\nADD 3 TO AUX-COUNT *> neutral row 066636\nADD 4 TO AUX-COUNT *> neutral row 066637\nADD 5 TO AUX-COUNT *> neutral row 066638\nADD 6 TO AUX-COUNT *> neutral row 066639\nADD 0 TO AUX-COUNT *> neutral row 066640\nADD 1 TO AUX-COUNT *> neutral row 066641\nADD 2 TO AUX-COUNT *> neutral row 066642\nADD 3 TO AUX-COUNT *> neutral row 066643\nADD 4 TO AUX-COUNT *> neutral row 066644\nADD 5 TO AUX-COUNT *> neutral row 066645\nADD 6 TO AUX-COUNT *> neutral row 066646\nADD 0 TO AUX-COUNT *> neutral row 066647\nADD 1 TO AUX-COUNT *> neutral row 066648\nADD 2 TO AUX-COUNT *> neutral row 066649\nADD 3 TO AUX-COUNT *> neutral row 066650\nADD 4 TO AUX-COUNT *> neutral row 066651\nADD 5 TO AUX-COUNT *> neutral row 066652\nADD 6 TO AUX-COUNT *> neutral row 066653\nADD 0 TO AUX-COUNT *> neutral row 066654\nADD 1 TO AUX-COUNT *> neutral row 066655\nADD 2 TO AUX-COUNT *> neutral row 066656\nADD 3 TO AUX-COUNT *> neutral row 066657\nADD 4 TO AUX-COUNT *> neutral row 066658\nADD 5 TO AUX-COUNT *> neutral row 066659\nADD 6 TO AUX-COUNT *> neutral row 066660\nADD 0 TO AUX-COUNT *> neutral row 066661\nADD 1 TO AUX-COUNT *> neutral row 066662\nADD 2 TO AUX-COUNT *> neutral row 066663\nADD 3 TO AUX-COUNT *> neutral row 066664\nADD 4 TO AUX-COUNT *> neutral row 066665\nADD 5 TO AUX-COUNT *> neutral row 066666\nIF OVERRIDE-FLAG = 1\n MOVE 0 TO FINAL-AMOUNT\nEND-IF\nEND-IF.\nADD 3 TO AUX-COUNT. *> neutral row 066671\nADD 4 TO AUX-COUNT. *> neutral row 066672\nADD 5 TO AUX-COUNT. *> neutral row 066673\nADD 6 TO AUX-COUNT. *> neutral row 066674\nADD 0 TO AUX-COUNT. *> neutral row 066675\nADD 1 TO AUX-COUNT. *> neutral row 066676\nADD 2 TO AUX-COUNT. *> neutral row 066677\nADD 3 TO AUX-COUNT. *> neutral row 066678\nADD 4 TO AUX-COUNT. *> neutral row 066679\nADD 5 TO AUX-COUNT. *> neutral row 066680\nADD 6 TO AUX-COUNT. *> neutral row 066681\nADD 0 TO AUX-COUNT. *> neutral row 066682\nADD 1 TO AUX-COUNT. *> neutral row 066683\nADD 2 TO AUX-COUNT. *> neutral row 066684\nADD 3 TO AUX-COUNT. *> neutral row 066685\nADD 4 TO AUX-COUNT. *> neutral row 066686\nADD 5 TO AUX-COUNT. *> neutral row 066687\nADD 6 TO AUX-COUNT. *> neutral row 066688\nADD 0 TO AUX-COUNT. *> neutral row 066689\nADD 1 TO AUX-COUNT. *> neutral row 066690\nADD 2 TO AUX-COUNT. *> neutral row 066691\nADD 3 TO AUX-COUNT. *> neutral row 066692\nADD 4 TO AUX-COUNT. *> neutral row 066693\nADD 5 TO AUX-COUNT. *> neutral row 066694\nADD 6 TO AUX-COUNT. *> neutral row 066695\nADD 0 TO AUX-COUNT. *> neutral row 066696\nADD 1 TO AUX-COUNT. *> neutral row 066697\nADD 2 TO AUX-COUNT. *> neutral row 066698\nADD 3 TO AUX-COUNT. *> neutral row 066699\nADD 4 TO AUX-COUNT. *> neutral row 066700\nADD 5 TO AUX-COUNT. *> neutral row 066701\nADD 6 TO AUX-COUNT. *> neutral row 066702\nADD 0 TO AUX-COUNT. *> neutral row 066703\nADD 1 TO AUX-COUNT. *> neutral row 066704\nADD 2 TO AUX-COUNT. *> neutral row 066705\nADD 3 TO AUX-COUNT. *> neutral row 066706\nADD 4 TO AUX-COUNT. *> neutral row 066707\nADD 5 TO AUX-COUNT. *> neutral row 066708\nADD 6 TO AUX-COUNT. *> neutral row 066709\nADD 0 TO AUX-COUNT. *> neutral row 066710\nADD 1 TO AUX-COUNT. *> neutral row 066711\nADD 2 TO AUX-COUNT. *> neutral row 066712\nADD 3 TO AUX-COUNT. *> neutral row 066713\nADD 4 TO AUX-COUNT. *> neutral row 066714\nADD 5 TO AUX-COUNT. *> neutral row 066715\nADD 6 TO AUX-COUNT. *> neutral row 066716"
+          },
+          {
+            "evidence_id": "ev_page_3e0b7d562ac3ef1c4b0d3e46",
+            "path": "entry/request.cbl",
+            "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+            "start_line": 99943,
+            "end_line": 100000,
+            "excerpt_sha256": "36df0c11097763159cfe5376b736b324f69add27952802fcd8573b0d072d8a32",
+            "binding_sha256": "20776618af0bc8f8903ccd1977ff92c3c1560c695c90ba6684f2d26828c05e8d",
+            "characters": 2157,
+            "group_id": null,
+            "include_chain": [],
+            "semantic_roles": [],
+            "excerpt": "ADD 4 TO AUX-COUNT. *> neutral row 099943\nADD 5 TO AUX-COUNT. *> neutral row 099944\nADD 6 TO AUX-COUNT. *> neutral row 099945\nADD 0 TO AUX-COUNT. *> neutral row 099946\nADD 1 TO AUX-COUNT. *> neutral row 099947\nADD 2 TO AUX-COUNT. *> neutral row 099948\nADD 3 TO AUX-COUNT. *> neutral row 099949\nADD 4 TO AUX-COUNT. *> neutral row 099950\nADD 5 TO AUX-COUNT. *> neutral row 099951\nADD 6 TO AUX-COUNT. *> neutral row 099952\nADD 0 TO AUX-COUNT. *> neutral row 099953\nADD 1 TO AUX-COUNT. *> neutral row 099954\nADD 2 TO AUX-COUNT. *> neutral row 099955\nADD 3 TO AUX-COUNT. *> neutral row 099956\nADD 4 TO AUX-COUNT. *> neutral row 099957\nADD 5 TO AUX-COUNT. *> neutral row 099958\nADD 6 TO AUX-COUNT. *> neutral row 099959\nADD 0 TO AUX-COUNT. *> neutral row 099960\nADD 1 TO AUX-COUNT. *> neutral row 099961\nADD 2 TO AUX-COUNT. *> neutral row 099962\nADD 3 TO AUX-COUNT. *> neutral row 099963\nADD 4 TO AUX-COUNT. *> neutral row 099964\nADD 5 TO AUX-COUNT. *> neutral row 099965\nADD 6 TO AUX-COUNT. *> neutral row 099966\nADD 0 TO AUX-COUNT. *> neutral row 099967\nADD 1 TO AUX-COUNT. *> neutral row 099968\nADD 2 TO AUX-COUNT. *> neutral row 099969\nADD 3 TO AUX-COUNT. *> neutral row 099970\nADD 4 TO AUX-COUNT. *> neutral row 099971\nADD 5 TO AUX-COUNT. *> neutral row 099972\nADD 6 TO AUX-COUNT. *> neutral row 099973\nADD 0 TO AUX-COUNT. *> neutral row 099974\nADD 1 TO AUX-COUNT. *> neutral row 099975\nADD 2 TO AUX-COUNT. *> neutral row 099976\nADD 3 TO AUX-COUNT. *> neutral row 099977\nADD 4 TO AUX-COUNT. *> neutral row 099978\nADD 5 TO AUX-COUNT. *> neutral row 099979\nADD 6 TO AUX-COUNT. *> neutral row 099980\nMOVE \"NX\" TO LEDGER-FUNCTION\nMOVE ACCOUNT-KEY TO LEDGER-KEY\nMOVE \"LEDGER-LF\" TO LEDGER-VIEW\nCALL \"LEDGERIO\"\n USING BY REFERENCE\n LEDGER-PARAMS\n ON EXCEPTION MOVE \"90\" TO LEDGER-STATUS\nEND-CALL.\nIF LEDGER-STATUS = \"00\"\n MOVE FINAL-AMOUNT TO RECORD-AMOUNT\n WRITE LEDGER-RECORD\nEND-IF.\nMOVE 1 TO STOP-FLAG.\nADD 6 TO AUX-COUNT. *> neutral row 099994\nADD 0 TO AUX-COUNT. *> neutral row 099995\nADD 1 TO AUX-COUNT. *> neutral row 099996\nADD 2 TO AUX-COUNT. *> neutral row 099997\nADD 3 TO AUX-COUNT. *> neutral row 099998\nADD 4 TO AUX-COUNT. *> neutral row 099999\nEXIT."
+          },
+          {
+            "evidence_id": "ev_page_9b1b59e6ddc9c9fb6881b1e7",
+            "path": "entry/request.cbl",
+            "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+            "start_line": 66883,
+            "end_line": 66977,
+            "excerpt_sha256": "174a6cd3991706285c70a495da00e72330e492d9a457d722633995a86f933131",
+            "binding_sha256": "83681a547ab087085bab6d630f9604a98bebaadeb4efcaf57caa85dbb0b7e1ba",
+            "characters": 3989,
+            "group_id": null,
+            "include_chain": [],
+            "semantic_roles": [],
+            "excerpt": "ADD 5 TO AUX-COUNT. *> neutral row 066883\nADD 6 TO AUX-COUNT. *> neutral row 066884\nADD 0 TO AUX-COUNT. *> neutral row 066885\nADD 1 TO AUX-COUNT. *> neutral row 066886\nADD 2 TO AUX-COUNT. *> neutral row 066887\nADD 3 TO AUX-COUNT. *> neutral row 066888\nADD 4 TO AUX-COUNT. *> neutral row 066889\nADD 5 TO AUX-COUNT. *> neutral row 066890\nADD 6 TO AUX-COUNT. *> neutral row 066891\nADD 0 TO AUX-COUNT. *> neutral row 066892\nADD 1 TO AUX-COUNT. *> neutral row 066893\nADD 2 TO AUX-COUNT. *> neutral row 066894\nADD 3 TO AUX-COUNT. *> neutral row 066895\nADD 4 TO AUX-COUNT. *> neutral row 066896\nADD 5 TO AUX-COUNT. *> neutral row 066897\nADD 6 TO AUX-COUNT. *> neutral row 066898\nADD 0 TO AUX-COUNT. *> neutral row 066899\nADD 1 TO AUX-COUNT. *> neutral row 066900\nADD 2 TO AUX-COUNT. *> neutral row 066901\nADD 3 TO AUX-COUNT. *> neutral row 066902\nADD 4 TO AUX-COUNT. *> neutral row 066903\nADD 5 TO AUX-COUNT. *> neutral row 066904\nADD 6 TO AUX-COUNT. *> neutral row 066905\nADD 0 TO AUX-COUNT. *> neutral row 066906\nADD 1 TO AUX-COUNT. *> neutral row 066907\nADD 2 TO AUX-COUNT. *> neutral row 066908\nADD 3 TO AUX-COUNT. *> neutral row 066909\nADD 4 TO AUX-COUNT. *> neutral row 066910\nADD 5 TO AUX-COUNT. *> neutral row 066911\nADD 6 TO AUX-COUNT. *> neutral row 066912\nADD 0 TO AUX-COUNT. *> neutral row 066913\nADD 1 TO AUX-COUNT. *> neutral row 066914\nADD 2 TO AUX-COUNT. *> neutral row 066915\nADD 3 TO AUX-COUNT. *> neutral row 066916\nADD 4 TO AUX-COUNT. *> neutral row 066917\nADD 5 TO AUX-COUNT. *> neutral row 066918\nADD 6 TO AUX-COUNT. *> neutral row 066919\nADD 0 TO AUX-COUNT. *> neutral row 066920\nADD 1 TO AUX-COUNT. *> neutral row 066921\nADD 2 TO AUX-COUNT. *> neutral row 066922\nADD 3 TO AUX-COUNT. *> neutral row 066923\nADD 4 TO AUX-COUNT. *> neutral row 066924\nADD 5 TO AUX-COUNT. *> neutral row 066925\nADD 6 TO AUX-COUNT. *> neutral row 066926\nADD 0 TO AUX-COUNT. *> neutral row 066927\nADD 1 TO AUX-COUNT. *> neutral row 066928\nADD 2 TO AUX-COUNT. *> neutral row 066929\nADD 3 TO AUX-COUNT. *> neutral row 066930\nADD 4 TO AUX-COUNT. *> neutral row 066931\nADD 5 TO AUX-COUNT. *> neutral row 066932\nADD 6 TO AUX-COUNT. *> neutral row 066933\nADD 0 TO AUX-COUNT. *> neutral row 066934\nADD 1 TO AUX-COUNT. *> neutral row 066935\nADD 2 TO AUX-COUNT. *> neutral row 066936\nADD 3 TO AUX-COUNT. *> neutral row 066937\nADD 4 TO AUX-COUNT. *> neutral row 066938\nADD 5 TO AUX-COUNT. *> neutral row 066939\nADD 6 TO AUX-COUNT. *> neutral row 066940\nADD 0 TO AUX-COUNT. *> neutral row 066941\nADD 1 TO AUX-COUNT. *> neutral row 066942\nADD 2 TO AUX-COUNT. *> neutral row 066943\nADD 3 TO AUX-COUNT. *> neutral row 066944\nADD 4 TO AUX-COUNT. *> neutral row 066945\nADD 5 TO AUX-COUNT. *> neutral row 066946\nADD 6 TO AUX-COUNT. *> neutral row 066947\nADD 0 TO AUX-COUNT. *> neutral row 066948\nADD 1 TO AUX-COUNT. *> neutral row 066949\nADD 2 TO AUX-COUNT. *> neutral row 066950\nADD 3 TO AUX-COUNT. *> neutral row 066951\nADD 4 TO AUX-COUNT. *> neutral row 066952\nADD 5 TO AUX-COUNT. *> neutral row 066953\nADD 6 TO AUX-COUNT. *> neutral row 066954\nADD 0 TO AUX-COUNT. *> neutral row 066955\nADD 1 TO AUX-COUNT. *> neutral row 066956\nADD 2 TO AUX-COUNT. *> neutral row 066957\nADD 3 TO AUX-COUNT. *> neutral row 066958\nADD 4 TO AUX-COUNT. *> neutral row 066959\nADD 5 TO AUX-COUNT. *> neutral row 066960\nADD 6 TO AUX-COUNT. *> neutral row 066961\nADD 0 TO AUX-COUNT. *> neutral row 066962\nADD 1 TO AUX-COUNT. *> neutral row 066963\nADD 2 TO AUX-COUNT. *> neutral row 066964\nADD 3 TO AUX-COUNT. *> neutral row 066965\nADD 4 TO AUX-COUNT. *> neutral row 066966\nADD 5 TO AUX-COUNT. *> neutral row 066967\nADD 6 TO AUX-COUNT. *> neutral row 066968\nADD 0 TO AUX-COUNT. *> neutral row 066969\nADD 1 TO AUX-COUNT. *> neutral row 066970\nADD 2 TO AUX-COUNT. *> neutral row 066971\nADD 3 TO AUX-COUNT. *> neutral row 066972\nADD 4 TO AUX-COUNT. *> neutral row 066973\nADD 5 TO AUX-COUNT. *> neutral row 066974\nADD 6 TO AUX-COUNT. *> neutral row 066975\nADD 0 TO AUX-COUNT. *> neutral row 066976\nADD 1 TO AUX-COUNT. *> neutral row 066977"
+          },
+          {
+            "evidence_id": "ev_page_ff4790da5511ec8111e095a9",
+            "path": "active/layout-root.cpy",
+            "source_sha256": "d758ea5af8b8bfd69fefd9ae8f51a05d9e0ef4b650cf12ffb048402bdeb661ac",
+            "start_line": 1,
+            "end_line": 1,
+            "excerpt_sha256": "d77217fd9d9cbed8a2e9615abb8e55f2a31763aace8c2903f990157de9af53f2",
+            "binding_sha256": "aba71f20d15a2ef9bff50a3fdcd45a030efe9b2d58a6285326b697adaed79f57",
+            "characters": 30,
+            "group_id": null,
+            "include_chain": [],
+            "semantic_roles": [],
+            "excerpt": "COPY \"active/layout-leaf.cpy\"."
+          },
+          {
+            "evidence_id": "ev_page_f9118d706a9c971dc1b4a0b1",
+            "path": "active/request-skeleton.cpy",
+            "source_sha256": "54134d0cb024f4daf6092d040ff4bfdec72aa1b0d97ea87bc972c6c31a708a4a",
+            "start_line": 1,
+            "end_line": 4,
+            "excerpt_sha256": "8c4c674c403b0bda3c77b0617243768f88539f359d020edc148efef814d1e624",
+            "binding_sha256": "13eb4582226b55ecf7c682b0e9e9291d1dd10a74f03503d99717d6d811e833a6",
+            "characters": 70,
+            "group_id": null,
+            "include_chain": [],
+            "semantic_roles": [],
+            "excerpt": "REQUEST-BOOT.\nPERFORM INITIALIZE-REQUEST.\nPERFORM MAIN-ACTION.\nGOBACK."
+          },
+          {
+            "evidence_id": "ev_page_a737f834356fa3a91e1f3edf",
+            "path": "entry/request.cbl",
+            "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+            "start_line": 33326,
+            "end_line": 33346,
+            "excerpt_sha256": "fed7d3ba39d1a28a38ef3e1ed3f99b307b1ab4713dfd884a3d42edefefa2f192",
+            "binding_sha256": "8ac61eb5a8b7355bc9d9c23d1d1bff908534d9290f1f5e7fadd16fab285c5ab3",
+            "characters": 848,
+            "group_id": null,
+            "include_chain": [],
+            "semantic_roles": [],
+            "excerpt": "ADD 6 TO AUX-COUNT *> neutral row 033326\nADD 0 TO AUX-COUNT *> neutral row 033327\nADD 1 TO AUX-COUNT *> neutral row 033328\nADD 2 TO AUX-COUNT *> neutral row 033329\nADD 3 TO AUX-COUNT *> neutral row 033330\nADD 4 TO AUX-COUNT *> neutral row 033331\nADD 5 TO AUX-COUNT *> neutral row 033332\nADD 6 TO AUX-COUNT *> neutral row 033333\nCOPY \"active/rule-root.cpy\".\nADD 1 TO AUX-COUNT *> neutral row 033335\nADD 2 TO AUX-COUNT *> neutral row 033336\nADD 3 TO AUX-COUNT *> neutral row 033337\nADD 4 TO AUX-COUNT *> neutral row 033338\nADD 5 TO AUX-COUNT *> neutral row 033339\nADD 6 TO AUX-COUNT *> neutral row 033340\nADD 0 TO AUX-COUNT *> neutral row 033341\nADD 1 TO AUX-COUNT *> neutral row 033342\nADD 2 TO AUX-COUNT *> neutral row 033343\nADD 3 TO AUX-COUNT *> neutral row 033344\nADD 4 TO AUX-COUNT *> neutral row 033345\nADD 5 TO AUX-COUNT *> neutral row 033346"
+          },
+          {
+            "evidence_id": "ev_page_ca0658f95d895e7188bb66a1",
+            "path": "active/rule-leaf.cpy",
+            "source_sha256": "4268e1d877d142db8376c7c213b4a7a33201c4536b421a4dde8748bb1481eb83",
+            "start_line": 1,
+            "end_line": 5,
+            "excerpt_sha256": "702ecdd7c8ec7a8a8c979066ca4db801aec8d911d8d6b70051c2926eff871491",
+            "binding_sha256": "597605bb396d99991f1cc4aa2e6871088056463a0250ef504acaa2ce773f7421",
+            "characters": 112,
+            "group_id": null,
+            "include_chain": [],
+            "semantic_roles": [
+              "condition",
+              "result"
+            ],
+            "excerpt": "IF INPUT-AMOUNT > 0\n COMPUTE FINAL-AMOUNT ROUNDED =\n INPUT-AMOUNT * RATE-VALUE + SERVICE-FEE\n END-COMPUTE\nEND-IF"
+          },
+          {
+            "evidence_id": "ev_page_0bec5bc1f0d4b1550a81af17",
+            "path": "active/rule-root.cpy",
+            "source_sha256": "589f40bfff78bfd5eb90e1544f481b88d1d911a1fffc68c275153e6d11a14358",
+            "start_line": 1,
+            "end_line": 1,
+            "excerpt_sha256": "d7d766377448227f5b523c9ef288994b2c805dc68059a03e6868ed18036248d4",
+            "binding_sha256": "8ab7489437a59fd4a8ea60510ed3e15dd6a68b88458c7b40057ef829622ff16f",
+            "characters": 28,
+            "group_id": null,
+            "include_chain": [],
+            "semantic_roles": [],
+            "excerpt": "COPY \"active/rule-leaf.cpy\"."
+          }
+        ],
+        "framework": [
+          {
+            "reference_id": "fw:60b0431243fa823e:7-8",
+            "document_sha256": "60b0431243fa823ebd53a474ac1d9854ff6b0b6b3c5af779c389e4de3bd720b6",
+            "document_name": "framework-reference.md",
+            "range": {
+              "start_line": 7,
+              "end_line": 8
+            },
+            "text_offset_chars": 0,
+            "excerpt_sha256": "1a848592a2fb1c03726c2c19d6bf950a854ef68fb061d5b79d985f201171b2b9",
+            "characters": 159,
+            "text_truncated": false,
+            "excerpt": "The operation is selected by XXXX-FUNCTION. XXXX-KEY is a caller supplied key;\nXXXX-VIEW names the requested logical view. The caller must inspect XXXX-STATUS."
+          },
+          {
+            "reference_id": "fw:60b0431243fa823e:14-14",
+            "document_sha256": "60b0431243fa823ebd53a474ac1d9854ff6b0b6b3c5af779c389e4de3bd720b6",
+            "document_name": "framework-reference.md",
+            "range": {
+              "start_line": 14,
+              "end_line": 14
+            },
+            "text_offset_chars": 0,
+            "excerpt_sha256": "5a37e9bbed4f0d6258df8badfa8fb2fdb8294e860f1b2a1706ccb1cd789cfa45",
+            "characters": 138,
+            "text_truncated": false,
+            "excerpt": "| Function | Meaning | Caution |\n| NX | Request the following record. | No returned row or cursor behavior is guaranteed by the request. |"
+          }
+        ],
+        "history": [],
+        "prior_source_memory": {
+          "schema": "prior-source-memory/v1",
+          "draft_is_evidence": false,
+          "confirmed_facts": [],
+          "instruction": "source_reference只记录曾供证原文的位置；model_candidate是模型候选解释，不是确认事实。真实引用仅证明来源，不能证明候选的公式、条件或结论正确。决定性或有冲突的结论应按引用回读原文。补查动作可附 findings:[{text:候选解释,evidence_ids:[当前原文或本清单的引用ID]}]，以保存已读内容；findings不能代替补查动作或最终答案。",
+          "requires_source_reread": [],
+          "blocks": []
+        }
+      }
+    }
+  ],
+  "final": {
+    "final_answer_round_id": null,
+    "answer_origin": "local_source_facts",
+    "answer_available": true,
+    "final_answer_round_ids": [],
+    "answer_truncated": false,
+    "continuation_attempted": false,
+    "empty_length_recovery_attempted": false,
+    "final_visible_ids": [
+      "ev_page_2c3a1d9c8da9ef4573ce540f",
+      "ev_page_3e0b7d562ac3ef1c4b0d3e46",
+      "ev_page_798817dc9e3b8b165f7e921f"
+    ],
+    "cited_ids": [
+      "ev_page_798817dc9e3b8b165f7e921f",
+      "ev_page_2c3a1d9c8da9ef4573ce540f",
+      "ev_page_3e0b7d562ac3ef1c4b0d3e46"
+    ],
+    "unsupported_citation_ids": [],
+    "retrieved_ids": [
+      "ev_page_0bec5bc1f0d4b1550a81af17",
+      "ev_page_2c3a1d9c8da9ef4573ce540f",
+      "ev_page_3e0b7d562ac3ef1c4b0d3e46",
+      "ev_page_798817dc9e3b8b165f7e921f",
+      "ev_page_9b1b59e6ddc9c9fb6881b1e7",
+      "ev_page_a737f834356fa3a91e1f3edf",
+      "ev_page_ca0658f95d895e7188bb66a1",
+      "ev_page_f9118d706a9c971dc1b4a0b1",
+      "ev_page_ff4790da5511ec8111e095a9"
+    ],
+    "sent_any_round_ids": [
+      "ev_page_0bec5bc1f0d4b1550a81af17",
+      "ev_page_2c3a1d9c8da9ef4573ce540f",
+      "ev_page_3e0b7d562ac3ef1c4b0d3e46",
+      "ev_page_798817dc9e3b8b165f7e921f",
+      "ev_page_9b1b59e6ddc9c9fb6881b1e7",
+      "ev_page_a737f834356fa3a91e1f3edf",
+      "ev_page_ca0658f95d895e7188bb66a1",
+      "ev_page_f9118d706a9c971dc1b4a0b1",
+      "ev_page_ff4790da5511ec8111e095a9",
+      "fw:60b0431243fa823e:14-14",
+      "fw:60b0431243fa823e:7-8"
+    ],
+    "open_tasks": [],
+    "missing_core_evidence_ids": [],
+    "question_investigation": {
+      "scope": "source_candidates",
+      "semantic_execution_verified": false,
+      "analysis_plan": {
+        "intents": [
+          "overwrite",
+          "condition",
+          "calculation"
+        ],
+        "entities": [
+          "FINAL-AMOUNT",
+          "INPUT-AMOUNT",
+          "ROUTE-ENABLED",
+          "OVERRIDE-FLAG"
+        ],
+        "paths": [
+          "entry/request.cbl"
+        ],
+        "tools": [
+          "explain_assignment",
+          "backward_slice",
+          "forward_slice"
+        ],
+        "required_obligations": [
+          "source_identity",
+          "supplied_source",
+          "reaching_definitions",
+          "later_writes",
+          "control_conditions",
+          "assignment_expression",
+          "input_definitions",
+          "numeric_layout"
+        ],
+        "focus_basis": "question_and_source",
+        "unresolved": [],
+        "source_scopes": [],
+        "file_entities": [],
+        "version": "business-analysis-plan/v7"
+      },
+      "source_scope": {
+        "ranges": [],
+        "interpretation": "source_occurrences_not_runtime_execution"
+      },
+      "required_items": [
+        {
+          "id": "calculation_procedure_body",
+          "kind": "procedure_body",
+          "status": "NOT_APPLICABLE",
+          "evidence_ids": [],
+          "candidate_count": 0,
+          "missing_count": 0,
+          "reason": "no_indexed_candidate"
+        },
+        {
+          "id": "calculation_formula",
+          "kind": "formula",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_ca0658f95d895e7188bb66a1"
+          ],
+          "candidate_count": 1,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_declarations",
+          "kind": "declarations",
+          "status": "NOT_APPLICABLE",
+          "evidence_ids": [],
+          "candidate_count": 0,
+          "missing_count": 0,
+          "reason": "no_indexed_candidate"
+        },
+        {
+          "id": "calculation_inputs",
+          "kind": "inputs",
+          "status": "UNRESOLVED",
+          "evidence_ids": [],
+          "candidate_count": 0,
+          "missing_count": 0,
+          "reason": "input_source_not_located",
+          "fields": [
+            "INPUT-AMOUNT",
+            "RATE-VALUE",
+            "SERVICE-FEE"
+          ]
+        },
+        {
+          "id": "calculation_conditions",
+          "kind": "conditions",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_ca0658f95d895e7188bb66a1"
+          ],
+          "candidate_count": 1,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_result_adjustments",
+          "kind": "result_adjustments",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_ca0658f95d895e7188bb66a1"
+          ],
+          "candidate_count": 1,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_dependencies",
+          "kind": "dependencies",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_0bec5bc1f0d4b1550a81af17"
+          ],
+          "candidate_count": 1,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        }
+      ],
+      "planned_actions": [],
+      "open_gaps": [
+        {
+          "kind": "inputs",
+          "status": "UNRESOLVED",
+          "reason": "input_source_not_located"
+        }
+      ],
+      "state": "bounded_partial",
+      "can_answer": true,
+      "candidate_paths": [
+        "entry/request.cbl",
+        "active/layout-root.cpy",
+        "active/request-skeleton.cpy",
+        "active/rule-root.cpy",
+        "active/layout-leaf.cpy",
+        "active/rule-leaf.cpy"
+      ],
+      "candidate_cache": {
+        "hit": true,
+        "candidate_count": 4
+      }
+    },
+    "answer_completion": {
+      "status": "not_assessed",
+      "reason": null,
+      "pending_investigation": false,
+      "limitation_detected": true,
+      "source_selection_limitation_detected": false,
+      "method": "bounded_text_and_coverage_signals",
+      "semantic_verification": "unverified",
+      "source_availability_contradiction": false,
+      "source_availability_contradictions": [],
+      "required_aspects": [],
+      "missing_aspects": []
+    },
+    "stop_reason": "HTTP_ERROR"
+  },
+  "question_investigation_rounds": [
+    {
+      "round_id": "round-1",
+      "scope": "source_candidates",
+      "semantic_execution_verified": false,
+      "analysis_plan": {
+        "intents": [
+          "overwrite",
+          "condition",
+          "calculation"
+        ],
+        "entities": [
+          "FINAL-AMOUNT",
+          "INPUT-AMOUNT",
+          "ROUTE-ENABLED",
+          "OVERRIDE-FLAG"
+        ],
+        "paths": [
+          "entry/request.cbl"
+        ],
+        "tools": [
+          "explain_assignment",
+          "backward_slice",
+          "forward_slice"
+        ],
+        "required_obligations": [
+          "source_identity",
+          "supplied_source",
+          "reaching_definitions",
+          "later_writes",
+          "control_conditions",
+          "assignment_expression",
+          "input_definitions",
+          "numeric_layout"
+        ],
+        "focus_basis": "question_and_source",
+        "unresolved": [],
+        "source_scopes": [],
+        "file_entities": [],
+        "version": "business-analysis-plan/v7"
+      },
+      "source_scope": {
+        "ranges": [],
+        "interpretation": "source_occurrences_not_runtime_execution"
+      },
+      "required_items": [
+        {
+          "id": "calculation_procedure_body",
+          "kind": "procedure_body",
+          "status": "NOT_APPLICABLE",
+          "evidence_ids": [],
+          "candidate_count": 0,
+          "missing_count": 0,
+          "reason": "no_indexed_candidate"
+        },
+        {
+          "id": "calculation_formula",
+          "kind": "formula",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_ca0658f95d895e7188bb66a1"
+          ],
+          "candidate_count": 1,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_declarations",
+          "kind": "declarations",
+          "status": "NOT_APPLICABLE",
+          "evidence_ids": [],
+          "candidate_count": 0,
+          "missing_count": 0,
+          "reason": "no_indexed_candidate"
+        },
+        {
+          "id": "calculation_inputs",
+          "kind": "inputs",
+          "status": "UNRESOLVED",
+          "evidence_ids": [],
+          "candidate_count": 0,
+          "missing_count": 0,
+          "reason": "input_source_not_located",
+          "fields": [
+            "INPUT-AMOUNT",
+            "RATE-VALUE",
+            "SERVICE-FEE"
+          ]
+        },
+        {
+          "id": "calculation_conditions",
+          "kind": "conditions",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_ca0658f95d895e7188bb66a1"
+          ],
+          "candidate_count": 1,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_result_adjustments",
+          "kind": "result_adjustments",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_ca0658f95d895e7188bb66a1"
+          ],
+          "candidate_count": 1,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_dependencies",
+          "kind": "dependencies",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_0bec5bc1f0d4b1550a81af17"
+          ],
+          "candidate_count": 1,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        }
+      ],
+      "planned_actions": [],
+      "open_gaps": [
+        {
+          "kind": "inputs",
+          "status": "UNRESOLVED",
+          "reason": "input_source_not_located"
+        }
+      ],
+      "state": "bounded_partial",
+      "can_answer": true,
+      "candidate_paths": [
+        "entry/request.cbl",
+        "active/layout-root.cpy",
+        "active/request-skeleton.cpy",
+        "active/rule-root.cpy",
+        "active/layout-leaf.cpy",
+        "active/rule-leaf.cpy"
+      ],
+      "candidate_cache": {
+        "hit": true,
+        "candidate_count": 4
+      }
+    }
+  ],
+  "provider_request_timings": [
+    {
+      "round_id": "round-1",
+      "stage": "investigate",
+      "timing_seconds": {
+        "headers_received": 1.450778,
+        "first_response_byte": 1.450877,
+        "response_complete": 1.450885,
+        "request_elapsed": 1.450959
+      },
+      "response_bytes": 162
+    }
+  ],
+  "base_snapshot_id": "sha256:693f610f921b9b791a63c38796fede5866871c5d778918107dd16d94c1b7a163",
+  "analysis_revision": "sha256:693f610f921b9b791a63c38796fede5866871c5d778918107dd16d94c1b7a163",
+  "question_source_manifest": [
+    {
+      "relative_path": "entry/request.cbl",
+      "sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+      "encoding": "utf-8",
+      "source_format": "free",
+      "captured_at_utc": "2026-10-19T21:48:47.787919+00:00"
+    },
+    {
+      "relative_path": "active/layout-root.cpy",
+      "sha256": "d758ea5af8b8bfd69fefd9ae8f51a05d9e0ef4b650cf12ffb048402bdeb661ac",
+      "encoding": "utf-8",
+      "source_format": "free",
+      "captured_at_utc": "2026-10-19T21:48:47.792403+00:00"
+    },
+    {
+      "relative_path": "active/request-skeleton.cpy",
+      "sha256": "54134d0cb024f4daf6092d040ff4bfdec72aa1b0d97ea87bc972c6c31a708a4a",
+      "encoding": "utf-8",
+      "source_format": "free",
+      "captured_at_utc": "2026-10-19T21:48:47.793266+00:00"
+    },
+    {
+      "relative_path": "entry/batch.cbl",
+      "sha256": "0401c7f9f4b2b543b9027e3872f46999ae0fb43c11ab2df6b7d314ba457cc9e5",
+      "encoding": "utf-8",
+      "source_format": "free",
+      "captured_at_utc": "2026-10-19T21:48:47.801091+00:00"
+    },
+    {
+      "relative_path": "active/rule-leaf.cpy",
+      "sha256": "4268e1d877d142db8376c7c213b4a7a33201c4536b421a4dde8748bb1481eb83",
+      "encoding": "utf-8",
+      "source_format": "free",
+      "captured_at_utc": "2026-10-19T21:48:47.813271+00:00"
+    },
+    {
+      "relative_path": "active/rule-root.cpy",
+      "sha256": "589f40bfff78bfd5eb90e1544f481b88d1d911a1fffc68c275153e6d11a14358",
+      "encoding": "utf-8",
+      "source_format": "free",
+      "captured_at_utc": "2026-10-19T21:48:47.814657+00:00"
+    },
+    {
+      "relative_path": "active/layout-leaf.cpy",
+      "sha256": "6e9a422862faa3432b3c812bd8d00d1c6fe2255ae9cf8c0db095e533875c9d11",
+      "encoding": "utf-8",
+      "source_format": "free",
+      "captured_at_utc": "2026-10-19T21:48:47.824481+00:00"
+    }
+  ],
+  "claim_ledger": {
+    "ledger_version": "answer-claim-ledger-v9",
+    "scope": "bounded_source_statement_syntax",
+    "coverage": "extracted_structures_only",
+    "prose_semantics_verified": false,
+    "entries": [
+      {
+        "claim_id": "claim-1",
+        "claim_type": "business_explanation",
+        "text": "模型说明尚未完成，已读取的源码仍可直接确认以下内容：",
+        "target_entity": null,
+        "expression": null,
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "reviewed_evidence_ids": [],
+        "source_versions": [],
+        "support_status": "unsupported",
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "checker_version": null,
+        "support_scope": null,
+        "occurrence_ids": [],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      },
+      {
+        "claim_id": "claim-2",
+        "claim_type": "condition_statement",
+        "text": "- `IF ROUTE-ENABLED = 1`（entry/request.cbl:36）。",
+        "target_entity": null,
+        "expression": null,
+        "condition": [
+          "ROUTE-ENABLED",
+          "=",
+          "1"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_798817dc9e3b8b165f7e921f"
+        ],
+        "reviewed_evidence_ids": [],
+        "source_versions": [
+          {
+            "relative_path": "entry/request.cbl",
+            "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+            "start_line": 1,
+            "end_line": 112
+          }
+        ],
+        "support_status": "supported",
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "checker_version": "source-statement-support-v4",
+        "support_scope": "source_statement_syntax",
+        "occurrence_ids": [
+          "unit_ebca57f07db55365e702176f"
+        ],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      },
+      {
+        "claim_id": "claim-3",
+        "claim_type": "condition_statement",
+        "text": "- `IF OVERRIDE-FLAG = 1`（entry/request.cbl:66667）。",
+        "target_entity": null,
+        "expression": null,
+        "condition": [
+          "OVERRIDE-FLAG",
+          "=",
+          "1"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_2c3a1d9c8da9ef4573ce540f"
+        ],
+        "reviewed_evidence_ids": [],
+        "source_versions": [
+          {
+            "relative_path": "entry/request.cbl",
+            "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+            "start_line": 66618,
+            "end_line": 66716
+          }
+        ],
+        "support_status": "supported",
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "checker_version": "source-statement-support-v4",
+        "support_scope": "source_statement_syntax",
+        "occurrence_ids": [
+          "unit_87ed85011a0653c82abc3ad6"
+        ],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      },
+      {
+        "claim_id": "claim-4",
+        "claim_type": "business_state_value",
+        "text": "- 在源码控制条件 `IF OVERRIDE-FLAG = 1` 下，`FINAL-AMOUNT = 0`（entry/request.cbl:66668）。",
+        "target_entity": "FINAL-AMOUNT",
+        "expression": [
+          "0"
+        ],
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_2c3a1d9c8da9ef4573ce540f"
+        ],
+        "reviewed_evidence_ids": [],
+        "source_versions": [
+          {
+            "relative_path": "entry/request.cbl",
+            "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+            "start_line": 66618,
+            "end_line": 66716
+          }
+        ],
+        "support_status": "unsupported",
+        "reason_code": "BUSINESS_STATE_VALUE_NOT_FORMALLY_VERIFIED",
+        "checker_version": null,
+        "support_scope": "unverified_business_state_value",
+        "occurrence_ids": [],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      },
+      {
+        "claim_id": "claim-5",
+        "claim_type": "condition_statement",
+        "text": "- 在源码控制条件 `IF OVERRIDE-FLAG = 1` 下，`FINAL-AMOUNT = 0`（entry/request.cbl:66668）。",
+        "target_entity": null,
+        "expression": null,
+        "condition": [
+          "OVERRIDE-FLAG",
+          "=",
+          "1"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_2c3a1d9c8da9ef4573ce540f"
+        ],
+        "reviewed_evidence_ids": [],
+        "source_versions": [
+          {
+            "relative_path": "entry/request.cbl",
+            "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+            "start_line": 66618,
+            "end_line": 66716
+          }
+        ],
+        "support_status": "supported",
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "checker_version": "source-statement-support-v4",
+        "support_scope": "source_statement_syntax",
+        "occurrence_ids": [
+          "unit_87ed85011a0653c82abc3ad6"
+        ],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      },
+      {
+        "claim_id": "claim-6",
+        "claim_type": "assignment_statement",
+        "text": "- 在源码控制条件 `IF LEDGER-STATUS = \"00\"` 下，`RECORD-AMOUNT = FINAL-AMOUNT`（entry/request.cbl:99990）。",
+        "target_entity": "RECORD-AMOUNT",
+        "expression": [
+          "FINAL-AMOUNT"
+        ],
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_3e0b7d562ac3ef1c4b0d3e46"
+        ],
+        "reviewed_evidence_ids": [],
+        "source_versions": [
+          {
+            "relative_path": "entry/request.cbl",
+            "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+            "start_line": 99943,
+            "end_line": 100000
+          }
+        ],
+        "support_status": "supported",
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "checker_version": "source-statement-support-v4",
+        "support_scope": "source_statement_syntax",
+        "occurrence_ids": [
+          "unit_5579429e9bbc55d89b2fbba2"
+        ],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      },
+      {
+        "claim_id": "claim-7",
+        "claim_type": "condition_statement",
+        "text": "- 在源码控制条件 `IF LEDGER-STATUS = \"00\"` 下，`RECORD-AMOUNT = FINAL-AMOUNT`（entry/request.cbl:99990）。",
+        "target_entity": null,
+        "expression": null,
+        "condition": [
+          "LEDGER-STATUS",
+          "=",
+          "\"00\""
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_3e0b7d562ac3ef1c4b0d3e46"
+        ],
+        "reviewed_evidence_ids": [],
+        "source_versions": [
+          {
+            "relative_path": "entry/request.cbl",
+            "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+            "start_line": 99943,
+            "end_line": 100000
+          }
+        ],
+        "support_status": "supported",
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "checker_version": "source-statement-support-v4",
+        "support_scope": "source_statement_syntax",
+        "occurrence_ids": [
+          "unit_0745725d63bd38467d5e7a76"
+        ],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      },
+      {
+        "claim_id": "claim-8",
+        "claim_type": "business_explanation",
+        "text": "以上说明仅覆盖已读取版本中的直接语句；这些语句本身不能证明实际执行路径，最终结果尚未确认。",
+        "target_entity": null,
+        "expression": null,
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "reviewed_evidence_ids": [],
+        "source_versions": [],
+        "support_status": "unsupported",
+        "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+        "checker_version": null,
+        "support_scope": null,
+        "occurrence_ids": [],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      }
+    ],
+    "counts": {
+      "supported": 5,
+      "contradicted": 0,
+      "unsupported": 3
+    },
+    "source_fact_count": 226,
+    "compilation_context_fingerprint": "dac0d9ef9a8295163ddffa961d96cf622febe3f7cb201aacd2ba40f1f0238fa7",
+    "revised_claim_count": 0,
+    "answer_sha256": "f2a5ec9b00571fae82fb8f7b231d11a5f3a0bcb76ea1406c57a5741d0568980d",
+    "original_answer_sha256": "f2a5ec9b00571fae82fb8f7b231d11a5f3a0bcb76ea1406c57a5741d0568980d",
+    "all_claims_supported": false
+  },
+  "source_fact_completion": {
+    "version": "source-fact-completion/v2",
+    "mode": "non_blocking_local_source_rendering",
+    "model_requests": 0,
+    "answer_preserved": true,
+    "added_facts": [],
+    "preservation_scope": "source_completion_before_claim_review",
+    "input_answer_sha256": "f2a5ec9b00571fae82fb8f7b231d11a5f3a0bcb76ea1406c57a5741d0568980d",
+    "scanned_characters": 0,
+    "omitted_candidate_count": 0,
+    "execution_verified": false,
+    "status": "scope_not_applicable",
+    "final_answer_sha256": "f2a5ec9b00571fae82fb8f7b231d11a5f3a0bcb76ea1406c57a5741d0568980d"
+  },
+  "repository_boundaries": [
+    {
+      "reason": "source_line_exceeds_search_page_budget",
+      "relative_path": "probes/longline.cbl",
+      "truncated_pages": 1,
+      "message": "Oversized source lines were indexed only as bounded excerpts; text-search coverage is incomplete.",
+      "scope_basis": "outside_locally_selected_source_paths",
+      "scope": "repository_diagnostic_without_question_relevance_proof"
+    }
+  ],
+  "source_selection_frontier": [],
+  "rule_lead_coverage": {
+    "scope": "navigation_candidates",
+    "preview_budget": 32,
+    "preview_candidates": 200,
+    "omitted_previews": 168,
+    "path_budget": 80,
+    "path_candidates": 1,
+    "omitted_paths": 0,
+    "per_path_rule_budget": 4,
+    "global_rule_budget": 48,
+    "candidate_rules": 28,
+    "selected_rules": 4,
+    "omitted_rules_per_path": {
+      "entry/request.cbl": 24
+    },
+    "omitted_rules_global": 0,
+    "query_frontier": [],
+    "candidate_selection_complete": false,
+    "omitted_rule_query_terms": 0,
+    "related_rules_added": 2,
+    "semantic_anchor_candidates": 2,
+    "semantic_anchor_budget": 4,
+    "omitted_semantic_anchors": 0
+  },
+  "question_investigation": {
+    "scope": "source_candidates",
+    "semantic_execution_verified": false,
+    "analysis_plan": {
+      "intents": [
+        "overwrite",
+        "condition",
+        "calculation"
+      ],
+      "entities": [
+        "FINAL-AMOUNT",
+        "INPUT-AMOUNT",
+        "ROUTE-ENABLED",
+        "OVERRIDE-FLAG"
+      ],
+      "paths": [
+        "entry/request.cbl"
+      ],
+      "tools": [
+        "explain_assignment",
+        "backward_slice",
+        "forward_slice"
+      ],
+      "required_obligations": [
+        "source_identity",
+        "supplied_source",
+        "reaching_definitions",
+        "later_writes",
+        "control_conditions",
+        "assignment_expression",
+        "input_definitions",
+        "numeric_layout"
+      ],
+      "focus_basis": "question_and_source",
+      "unresolved": [],
+      "source_scopes": [],
+      "file_entities": [],
+      "version": "business-analysis-plan/v7"
+    },
+    "source_scope": {
+      "ranges": [],
+      "interpretation": "source_occurrences_not_runtime_execution"
+    },
+    "required_items": [
+      {
+        "id": "calculation_procedure_body",
+        "kind": "procedure_body",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_formula",
+        "kind": "formula",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_ca0658f95d895e7188bb66a1"
+        ],
+        "candidate_count": 1,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_declarations",
+        "kind": "declarations",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_inputs",
+        "kind": "inputs",
+        "status": "UNRESOLVED",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "input_source_not_located",
+        "fields": [
+          "INPUT-AMOUNT",
+          "RATE-VALUE",
+          "SERVICE-FEE"
+        ]
+      },
+      {
+        "id": "calculation_conditions",
+        "kind": "conditions",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_ca0658f95d895e7188bb66a1"
+        ],
+        "candidate_count": 1,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_result_adjustments",
+        "kind": "result_adjustments",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_ca0658f95d895e7188bb66a1"
+        ],
+        "candidate_count": 1,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_dependencies",
+        "kind": "dependencies",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_0bec5bc1f0d4b1550a81af17"
+        ],
+        "candidate_count": 1,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      }
+    ],
+    "planned_actions": [],
+    "open_gaps": [
+      {
+        "kind": "inputs",
+        "status": "UNRESOLVED",
+        "reason": "input_source_not_located"
+      }
+    ],
+    "state": "bounded_partial",
+    "can_answer": true,
+    "candidate_paths": [
+      "entry/request.cbl",
+      "active/layout-root.cpy",
+      "active/request-skeleton.cpy",
+      "active/rule-root.cpy",
+      "active/layout-leaf.cpy",
+      "active/rule-leaf.cpy"
+    ],
+    "candidate_cache": {
+      "hit": true,
+      "candidate_count": 4
+    }
+  },
+  "working_set": {
+    "status": "fallback",
+    "physical_complete": false,
+    "physical_completeness_scope": "candidate_paths",
+    "closure_complete": false,
+    "semantic_execution_verified": false,
+    "root_paths": [
+      "entry/request.cbl"
+    ],
+    "candidate_paths": [
+      "entry/request.cbl",
+      "active/layout-root.cpy",
+      "active/request-skeleton.cpy",
+      "active/rule-root.cpy",
+      "active/layout-leaf.cpy",
+      "active/rule-leaf.cpy"
+    ],
+    "source_manifest": [],
+    "frontier": [
+      {
+        "reason": "external_implementation_unavailable",
+        "target_name": "LEDGERIO",
+        "relation_type": "CALLS",
+        "relative_path": "entry/request.cbl"
+      },
+      {
+        "reason": "external_implementation_unavailable",
+        "target_name": "ACTIVE/RATE-TEMPLATE.CPY",
+        "relation_type": "INCLUDES_COPY",
+        "relative_path": "entry/request.cbl"
+      },
+      {
+        "reason": "source_byte_budget",
+        "byte_limit": 656128,
+        "relative_path": "entry/request.cbl"
+      }
+    ],
+    "omitted_candidate_paths": [
+      "entry/request.cbl"
+    ],
+    "omitted_candidate_path_count": 1,
+    "omitted_frontier_count": 0,
+    "source_characters": 0,
+    "max_source_characters": 36000,
+    "max_complete_source_characters": 128000,
+    "complete_root_budget_applied": false,
+    "root_source_characters": 0,
+    "non_root_source_characters": 0,
+    "depth_limit": 4,
+    "reason": "source_byte_budget",
+    "supplied_complete_paths": [],
+    "omitted_complete_paths": [],
+    "transmission_status": "fallback"
+  },
+  "provider_retries": []
+}

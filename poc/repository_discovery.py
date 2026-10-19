@@ -1172,7 +1172,7 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
 
 
 def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_cancel=None,
-                       source_session=None, requested_span=None):
+                       source_session=None, requested_span=None, page_chars=PAGE_CHARS):
     """Search bounded original excerpts when the text index has no hits.
 
     The imported file table is the only namespace. A precisely located file
@@ -1184,7 +1184,7 @@ def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_ca
     generation = tuple(connection.execute("SELECT key,value FROM metadata WHERE key IN "
         "('snapshot_id','parser_version','indexed_at_utc') ORDER BY key"))
     cache_key = (tuple(tuple(row) for row in generation), tuple(terms), tuple(direct), scope_sql,
-                 tuple(scope_values), max_pages, tuple((requested_span or {}).items()))
+                 tuple(scope_values), max_pages, tuple((requested_span or {}).items()), page_chars)
     cache = getattr(source_session, "_raw_fallback_cache", {}) if source_session else {}
     if cache_key in cache:
         rows, report = cache[cache_key]
@@ -1194,7 +1194,7 @@ def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_ca
         "SELECT p.*,e.text FROM repo_pages p JOIN evidence_spans e ON e.evidence_id=p.evidence_id "
         "JOIN source_files f ON f.relative_path=p.relative_path AND f.sha256=p.source_sha256 "
         "WHERE p.span_truncated=0" + scope_sql + " ORDER BY p.relative_path,p.start_line LIMIT ?",
-        (*scope_values, RAW_FALLBACK_PAGES + 1))
+        (*scope_values, RAW_FALLBACK_PAGES + 1)) if requested_span is None else ()
     for original in candidates:
         _cancel(check_cancel)
         text = original["text"]
@@ -1220,7 +1220,11 @@ def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_ca
         if item is None:
             continue
         try:
-            if _safe_file(root, relative).stat().st_size > RAW_FALLBACK_FILE_BYTES:
+            # An exact requested range is already located. Stream its file for
+            # identity verification under cancellation, while retaining only
+            # bounded overlapping pages. The small-file search allowance must
+            # not make a known range in a large imported file unreadable.
+            if requested_span is None and _safe_file(root, relative).stat().st_size > RAW_FALLBACK_FILE_BYTES:
                 exhausted = True
                 failures.append({"relative_path": relative, "reason": "direct_source_byte_budget"})
                 continue
@@ -1231,7 +1235,7 @@ def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_ca
                     raise ValueError("SOURCE_HASH_MISMATCH")
                 read_root = source_session.mirror_root
             staged = []
-            for page in _verified_pages(read_root, dict(item), check_cancel, [], PAGE_CHARS):
+            for page in _verified_pages(read_root, dict(item), check_cancel, [], page_chars):
                 if requested_span and (page["end_line"] < requested_span["start_line"]
                         or page["start_line"] > requested_span["end_line"]):
                     continue
@@ -1451,16 +1455,23 @@ def read_repository_context(database_path, source_root, *, relative_path=None, s
         file_row = connection.execute("SELECT line_count FROM source_files WHERE relative_path=?", (relative_path,)).fetchone()
         total_lines = file_row[0] if file_row else 0
         raw_fallback = None
-        if not rows and total_lines >= start_line:
+        if (not rows or any(row["span_truncated"] for row in rows)) and total_lines >= start_line:
             rows, raw_fallback = _raw_text_fallback(connection, root, [],
                 {"status": "resolved", "direct_paths": [relative_path], "hard_constraint": True},
                 max_pages=32, check_cancel=check_cancel, source_session=source_session,
-                requested_span={"start_line": start_line, "end_line": end_line})
+                requested_span={"start_line": start_line, "end_line": end_line}, page_chars=max_chars)
         result = _assemble_context(connection, root, overview, rows, [], max_pages=32,
                                    max_chars=max_chars, check_cancel=check_cancel,
                                    requested_span={"start_line": start_line, "end_line": end_line},
                                    source_session=source_session, relation_cache=relation_cache)
-        last_line = max((page["end_line"] for page in result["pages"]), default=start_line - 1)
+        # Reaching a later page does not cover a missing or oversized line in
+        # between. Resume at the first unread line rather than skipping it.
+        cursor = start_line
+        for page in sorted(result["pages"], key=lambda item: item["start_line"]):
+            if page.get("span_truncated") or page["start_line"] > cursor:
+                break
+            cursor = max(cursor, page["end_line"] + 1)
+        last_line = cursor - 1
         if raw_fallback is not None:
             result["raw_fallback"] = raw_fallback
             if raw_fallback["exhausted"] or raw_fallback["failures"]:

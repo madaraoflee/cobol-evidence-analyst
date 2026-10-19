@@ -116,6 +116,8 @@ class EvidenceContext:
         self.selection_frontier = []
         self._accept_sequence = 0
         self._page_order = {}
+        self._targeted_read_ids = set()
+        self._pending_continuation_ids = set()
         self._group_sequence = {}
         self.working_set = None
 
@@ -194,6 +196,8 @@ class EvidenceContext:
                     *([saved["group_id"]] if saved.get("group_id") else []),
                     *([page["group_id"]] if page.get("group_id") else [])]))
                 self._page_order[identifier] = (self._accept_sequence, position, operation)
+                if operation == "read":
+                    self._targeted_read_ids.add(identifier)
                 for group in [*page.get("group_ids", []), *([page["group_id"]] if page.get("group_id") else [])]:
                     self._group_sequence[group] = self._accept_sequence
         self.contexts.append({"call_chain": context.get("call_chain", {}),
@@ -207,11 +211,15 @@ class EvidenceContext:
                 if item.state == "open" and item.relative_path == requested["relative_path"]
                 and item.requested_range["start_line"] <= requested["start_line"]
                 and item.requested_range["end_line"] >= requested["end_line"]), None)
+            continuing_task = task is not None
             if task is None:
                 task = self.tasks.setdefault(key, ReadTask(
                     "read_" + hashlib.sha256(key.encode()).hexdigest()[:16],
                     requested["relative_path"], requested,
                     next_start_line=requested["start_line"]))
+            previous_cursor = task.next_start_line
+            continuing = (continuing_task and operation == "read_continuation" and task.state == "open"
+                          and task.material_to_question and previous_cursor is not None)
             versions = {page.get("source_sha256") for page in context.get("pages", [])
                         if page.get("relative_path") == requested["relative_path"]}
             prior_supplied = [page for identifier, page in self.pages.items()
@@ -222,6 +230,16 @@ class EvidenceContext:
             # The cursor represents unread physical source. Reuse exact pages
             # already supplied in this run instead of rereading their lines.
             task.advance({**context, "pages": [*prior_supplied, *context.get("pages", [])]})
+            if continuing and (task.state == "complete" or
+                    task.next_start_line is not None and task.next_start_line > previous_cursor):
+                # A retrieved cursor page remains pending until its physical
+                # text is actually supplied, including the task's final page.
+                self._pending_continuation_ids.update(page["evidence_id"]
+                    for page in context.get("pages", [])
+                    if page.get("evidence_id") and page.get("relative_path") == task.relative_path
+                    and not page.get("span_truncated") and not page.get("derived")
+                    and page.get("source_text") and page["end_line"] >= previous_cursor
+                    and page["start_line"] <= task.requested_range["end_line"])
         return fresh
 
     def selected_pages(self, maximum, *, evidence_groups=(), priority_targets=(),
@@ -241,6 +259,44 @@ class EvidenceContext:
                     core_by_group.setdefault(group.group_id, set()).update(
                         ref.evidence_id for ref in observation.source_refs if ref.evidence_id in self.pages)
         core_identifiers = {identifier for members in core_by_group.values() for identifier in members}
+
+        def source_instance(page):
+            return (page.get("relative_path"), page.get("source_sha256"),
+                json.dumps(page.get("include_chain") or [], sort_keys=True),
+                json.dumps(page.get("replacement_trace") or [], sort_keys=True))
+
+        supplied_by_instance = {}
+        for identifier in self.sent_any_round_ids if self._pending_continuation_ids else ():
+            page = self.pages.get(identifier)
+            if (page and page.get("source_sha256") and page.get("source_text")
+                    and not page.get("span_truncated") and not page.get("derived")):
+                lines = page["source_text"].split("\n")
+                if len(lines) == page["end_line"] - page["start_line"] + 1:
+                    supplied_by_instance.setdefault(source_instance(page), []).append((page, lines))
+
+        def already_supplied(page):
+            # IDs and maximum end lines alone cannot prove exact coverage.
+            # Combine only matching physical text from the same source instance.
+            lines = page.get("source_text", "").split("\n")
+            if (not page.get("source_sha256") or page.get("span_truncated") or page.get("derived")
+                    or len(lines) != page["end_line"] - page["start_line"] + 1):
+                return False
+            ranges = []
+            for prior, prior_lines in supplied_by_instance.get(source_instance(page), ()):
+                first, last = max(page["start_line"], prior["start_line"]), min(page["end_line"], prior["end_line"])
+                if first <= last and (lines[first - page["start_line"]:last - page["start_line"] + 1]
+                        == prior_lines[first - prior["start_line"]:last - prior["start_line"] + 1]):
+                    ranges.append((first, last))
+            cursor = page["start_line"]
+            for first, last in sorted(ranges):
+                if first > cursor:
+                    break
+                cursor = max(cursor, last + 1)
+            return cursor > page["end_line"]
+
+        self._pending_continuation_ids.difference_update(identifier
+            for identifier in tuple(self._pending_continuation_ids)
+            if identifier not in self.pages or already_supplied(self.pages[identifier]))
 
         complete = [page for page in self.pages.values()
                     if include_complete and "complete_working_set" in page.get("selection_reasons", ())]
@@ -263,6 +319,7 @@ class EvidenceContext:
                          for group, identifiers in core_by_group.items()}
         core_by_group = {group: identifiers & candidates.keys() for group, identifiers in core_by_group.items()}
         core_identifiers = {identifier for members in core_by_group.values() for identifier in members}
+        pending_candidates = self._pending_continuation_ids & candidates.keys()
 
         def target_rank(page):
             for index, target in enumerate(priority_targets):
@@ -279,8 +336,20 @@ class EvidenceContext:
 
         def rank(page):
             sequence, position, operation = self._page_order.get(page["evidence_id"], (0, 0, ""))
-            recent_request = operation in {"read", "read_continuation"}
-            return (target_rank(page), 0 if recent_request or page["evidence_id"] in core_identifiers else page_priority(page),
+            # Protect located prerequisites before cursor progress. A real
+            # pending read can displace generic search text, while unrelated
+            # or already supplied continuation pages remain lowest priority.
+            core = page["evidence_id"] in core_identifiers or bool(
+                set(page.get("semantic_roles", ())) & core_roles)
+            recent_request = page["evidence_id"] in self._targeted_read_ids
+            continuation = operation == "read_continuation" and not core and not recent_request
+            protected = core or recent_request or "dependency_context" in page.get("selection_reasons", ())
+            pending = page["evidence_id"] in pending_candidates
+            # With no cursor progress to make room for, preserve the existing
+            # ordering of explicit search targets and earlier semantic groups.
+            tier = (0 if not pending_candidates and not continuation else
+                    0 if protected else 1 if pending else 3 if continuation else 2)
+            return (tier, target_rank(page), 0 if recent_request or core else page_priority(page),
                     -sequence, position)
 
         pages = sorted(candidates.values(), key=rank)

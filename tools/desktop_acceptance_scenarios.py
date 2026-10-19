@@ -19,7 +19,7 @@ from tools.desktop_acceptance_runtime import (LoopbackProvider, NativeWorkbench,
 from tools.acceptance_diagnostics import capture_diagnostics
 
 
-RUNTIME_CASES = {"claim_repair", "soft_target_answer", "activation_trigger", "cancel_unknown", "deadline_unknown", "conversation", "dense_record"}
+RUNTIME_CASES = {"claim_repair", "soft_target_answer", "activation_trigger", "cancel_unknown", "deadline_unknown", "conversation", "dense_record", "framework_page_chain"}
 QUESTION = "FLOW-CLAIM OUT-AMOUNT 怎样计算？"
 ACTIVATION_QUESTION = "JOB-STEP 的 batch 操作是怎么 trigger的？源码能确认外部调度吗？"
 
@@ -518,6 +518,9 @@ def run_scenarios(command, root, manifest, case_ids=None):
             try:
                 if case["id"] == "dense_record":
                     measured = _dense(command, path, case)
+                elif case["id"] == "framework_page_chain":
+                    from tools.desktop_acceptance_framework import run_framework_page_chain
+                    measured = run_framework_page_chain(command, path, case, sample_index)
                 else:
                     function = _activation if case["id"] == "activation_trigger" else _conversation if case["id"] == "conversation" else (
                         _unknown if case["id"] in {"cancel_unknown", "deadline_unknown"} else _claim)
