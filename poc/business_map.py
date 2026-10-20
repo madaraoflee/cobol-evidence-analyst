@@ -14,6 +14,7 @@ import re
 from repository_discovery import _connect, _fast_snapshot, _navigation_graph, _query_terms, discover_repository
 from repository_identity import identity_blocks_analysis, resolve_source_identity
 from conversation_focus import build_session_subject
+from question_planner import program_relation_direction
 from source_reading import _cancel
 from file_impact_evidence import is_file_impact_question
 
@@ -435,8 +436,11 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
     It reads the saved index only. In particular, it does not rescan source files
     or ask the model to summarise individual pages.
     """
+    relation_direction = program_relation_direction(question)
+    impact_requested = relation_direction == "incoming" or (
+        relation_direction != "outgoing" and bool(_IMPACT_LANGUAGE.search(question)))
     def navigation_scopes(identity):
-        if _IMPACT_LANGUAGE.search(question) or identity.get("status") != "resolved":
+        if impact_requested or identity.get("status") != "resolved":
             return []
         from question_investigation import _question_scopes
         return _question_scopes(database_path, identity.get("direct_paths", []), question, history)
@@ -477,7 +481,7 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         historical = _paths_from_history(connection, prior_paths)
         if not direct and not blocked:
             direct.update(historical)
-        intent = "impact" if _IMPACT_LANGUAGE.search(question) else "explain"
+        intent = "impact" if impact_requested else "explain"
         rooted = discovery.get("rooted_navigation")
         incoming, all_edges = (_call_graph(connection, check_cancel,
             **({"navigation_rows": rooted["rows"]} if rooted else {})) if direct else ({}, []))
@@ -553,13 +557,17 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         rule_coverage["omitted_semantic_anchors"] = max(0, len(anchors) - 4)
         spotlights = []
         relation_candidates = [edge for edge in relevant_edges if edge["target_path"] in selected]
+        if relation_direction:
+            relation_candidates = [edge for edge in relevant_edges if edge["relation_type"] == "CALLS" and
+                (relation_direction in {"outgoing", "related"} and edge["caller_path"] in direct or
+                 relation_direction in {"incoming", "related"} and edge["target_path"] in direct)]
         relation_candidates.sort(key=lambda edge: (edge["caller_path"] not in direct,
                                                      -edge["caller_line"], edge["caller_path"]))
         seen_callers = set()
         for edge in relation_candidates:
             if edge["caller_path"] in seen_callers:
                 continue
-            if intent != "impact" and edge["caller_line"] < 2000 and edge["caller_path"] in direct:
+            if not relation_direction and intent != "impact" and edge["caller_line"] < 2000 and edge["caller_path"] in direct:
                 continue
             spotlights.append({"relative_path": edge["caller_path"],
                                "start_line": max(1, edge["caller_line"] - 8),
@@ -583,7 +591,7 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
                 break
         boundaries, repository_boundaries = question_boundaries(discovery["boundaries"], ordered,
             source_scopes=rooted["source_scopes"] if rooted else (), source_versions=source_versions)
-        return {"snapshot_id": overview["snapshot_id"], "intent": intent,
+        return {"snapshot_id": overview["snapshot_id"], "intent": intent, "relation_direction": relation_direction,
                 "direct_paths": sorted(query_direct), "selected_paths": ordered,
                 "outgoing_dependency_paths": sorted(set(outgoing) - direct,
                     key=lambda path: (outgoing[path], path)),

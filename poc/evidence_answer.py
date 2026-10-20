@@ -66,6 +66,31 @@ def _explicit_root_path(question, plan, investigation, ranges, pages):
     return path if re.search(token, str(question)) else None
 
 
+def _relationship_root(plan, investigation, ranges, pages):
+    """Consume a locally revalidated relationship subject, never a fuzzy path."""
+    root = plan.get("relation_root")
+    if ("call_relationships" not in plan.get("intents", ())
+            or plan.get("relation_direction") not in {"outgoing", "incoming", "related"}
+            or not isinstance(root, dict)
+            or not all(isinstance(root.get(key), str) and root[key]
+                       for key in ("relative_path", "source_sha256", "program_name"))
+            or _HASH.fullmatch(root["source_sha256"]) is None
+            or set(plan.get("paths", ())) != {root["relative_path"]}
+            or plan.get("unresolved") or investigation.get("state") in {"unresolved", "ambiguous"}
+            or (investigation.get("source_identity") or {}).get("status") in {"ambiguous", "not_found"}):
+        return None
+    versions = {page["source_sha256"] for page in pages if page["relative_path"] == root["relative_path"]}
+    if versions != {root["source_sha256"]}:
+        return None
+    scoped = [scope for scope in ranges if scope.get("relative_path") == root["relative_path"]
+              and scope.get("exclusive") is not False]
+    if any(scope.get("source_sha256", root["source_sha256"]) != root["source_sha256"]
+           or type(scope.get("start_line")) is not int or type(scope.get("end_line")) is not int
+           or not 0 < scope["start_line"] <= scope["end_line"] for scope in scoped):
+        return None
+    return {**root, "ranges": scoped}
+
+
 def _call_facts(page, source_format, compilation_context):
     """Use the structural front end for actual CALL/PERFORM occurrences.
 
@@ -106,6 +131,18 @@ def _call_facts(page, source_format, compilation_context):
             "call_form": relation.metadata.get("call_form"),
             "support_scope": "source_call_statement_syntax", "execution_verified": False})
     return facts
+
+
+def _incoming_relation_matches(item, fact, page, root):
+    """A located graph edge still needs its complete, same-version CALL text."""
+    return (root is not None and item.get("kind") == "calls" and item.get("status") == "SATISFIED"
+        and item.get("relation_direction") == "incoming" and item.get("target_path") == root["relative_path"]
+        and item.get("relative_path") == page["relative_path"]
+        and item.get("source_sha256") == page["source_sha256"]
+        and item.get("target_name", "").casefold() == root["program_name"].casefold()
+        and fact.get("target", "").casefold() == root["program_name"].casefold()
+        and item.get("start_line") == fact["start_line"] and item.get("end_line") == fact["end_line"]
+        and page["evidence_id"] in item.get("evidence_ids", []))
 
 
 def _render_call(fact, *, answer_language="zh-CN"):
@@ -258,6 +295,16 @@ def build_evidence_answer(question, source_pages, investigation, *, source_forma
             valid[identifier] = page
     valid = {identifier: page for identifier, page in valid.items() if identifier not in conflicts}
     explicit_root_path = _explicit_root_path(question, plan, investigation, ranges, valid.values())
+    relationship_requested = "call_relationships" in intents
+    relationship_root = _relationship_root(plan, investigation, ranges, valid.values())
+    relationship_direction = plan.get("relation_direction")
+    relationship_only = relationship_requested and not intents.intersection({
+        "calculation", "accumulation", "origin", "overwrite", "condition", "exception", "file_mapping"})
+    relation_items = [item for item in investigation.get("required_items", [])
+        if isinstance(item, dict) and relationship_root is not None and item.get("kind") == "calls"
+        and item.get("status") == "SATISFIED" and item.get("relation_direction") == "incoming"
+        and item.get("target_path") == relationship_root["relative_path"]]
+    paths.update(item["relative_path"] for item in relation_items if isinstance(item.get("relative_path"), str))
     for caller in bound_callers:
         if (caller.get("binding_confirmed") is True and caller.get("occurrence_id")
                 and type(caller.get("line")) is int and any(page["relative_path"] == caller.get("relative_path")
@@ -280,33 +327,67 @@ def build_evidence_answer(question, source_pages, investigation, *, source_forma
             # Unsupported or malformed source cannot become a guessed answer.
             continue
         for fact in facts:
+            if relationship_only and fact.get("predicate") != "call_statement":
+                continue
             if activation_only and fact.get("predicate") != "call_statement":
                 continue
             if root_paths and page["relative_path"] not in root_paths and fact.get("predicate") != "call_statement":
                 continue
             fact = {**fact, "evidence_id": page["evidence_id"], "relative_path": page["relative_path"],
                     "source_sha256": page["source_sha256"], "execution_verified": False}
+            if relationship_requested:
+                exclusive = [scope for scope in ranges if scope.get("relative_path") == page["relative_path"]
+                             and scope.get("exclusive") is not False]
+                if any(scope.get("source_sha256", page["source_sha256"]) != page["source_sha256"]
+                       or type(scope.get("start_line")) is not int or type(scope.get("end_line")) is not int
+                       or not 0 < scope["start_line"] <= scope["end_line"] for scope in exclusive):
+                    continue
+                if exclusive and not any(scope["start_line"] <= fact["start_line"]
+                                         and fact["end_line"] <= scope["end_line"] for scope in exclusive):
+                    continue
             path_ranges = [scope for scope in ranges if scope.get("relative_path") == page["relative_path"]
                            and scope.get("source_sha256", page["source_sha256"]) == page["source_sha256"]
                            and scope.get("exclusive") is not False]
             if path_ranges and not any(type(scope.get("start_line")) is int and type(scope.get("end_line")) is int
                     and scope["start_line"] <= fact["start_line"] <= scope["end_line"] for scope in path_ranges):
                 continue
+            relationship_match = False
             if fact.get("predicate") == "call_statement":
                 matched = [caller for caller in bound_callers if _bound_caller_matches(caller, fact, page)]
-                if root_paths and page["relative_path"] not in root_paths and not matched:
+                relation_matched = any(_incoming_relation_matches(item, fact, page, relationship_root)
+                                       for item in relation_items)
+                if root_paths and page["relative_path"] not in root_paths and not (matched or relation_matched):
                     continue
                 if len(matched) == 1:
                     fact["_bound_caller"] = matched[0]
+                if relationship_requested:
+                    if relationship_root is None or fact.get("statement_kind") != "CALL":
+                        continue
+                    root = relationship_root
+                    outgoing = (page["relative_path"] == root["relative_path"]
+                        and page["source_sha256"] == root["source_sha256"]
+                        and not any(page.get(key) for key in ("include_chain", "replacement_trace", "copy_instance"))
+                        and (not fact.get("program_name") or fact["program_name"].casefold() == root["program_name"].casefold())
+                        and (not root["ranges"] or any(scope["start_line"] <= fact["start_line"]
+                            and fact["end_line"] <= scope["end_line"] for scope in root["ranges"])))
+                    incoming = ((len(matched) == 1 or relation_matched)
+                        and fact.get("target", "").casefold() == root["program_name"].casefold())
+                    relationship_match = ((relationship_direction in {"outgoing", "related"} and outgoing)
+                        or (relationship_direction in {"incoming", "related"} and incoming))
+                    if not relationship_match:
+                        continue
+                    fact["relationship_direction"] = "outgoing" if outgoing and relationship_direction != "incoming" else "incoming"
+                    if not fact.get("program_name") and not matched:
+                        fact["conditions_status"] = "not_fully_verified"
             target = fact.get("target") or ""
             inputs = " ".join(fact.get("expression") or fact.get("condition") or [])
             target_match = any(_matches(reference, target) for reference in references)
             input_match = any(_matches(reference, inputs) for reference in references)
             program_match = fact.get("program_name") and fact["program_name"] in references
             scoped = bool(path_ranges) or page["relative_path"] == explicit_root_path
-            if activation_only and not target_match:
+            if activation_only and not (target_match or relationship_match):
                 continue
-            if not (target_match or input_match or program_match or scoped):
+            if not (target_match or input_match or program_match or scoped or relationship_match):
                 continue
             score = 3 if target_match else 2 if input_match else 1
             candidates.append((score, fact))
@@ -351,6 +432,11 @@ def build_evidence_answer(question, source_pages, investigation, *, source_forma
             "这些调用点不能证明外部调度配置、实际运行时间或真实调用效果，仍需对应调度入口和实现证据。",
             "These call sites do not establish external scheduling configuration, actual run times, or call outcomes; the corresponding scheduling entry points and implementations still need evidence.",
             "這些呼叫點不能證明外部排程設定、實際執行時間或真實呼叫效果，仍需對應排程入口和實作證據。"))
+    if relationship_requested:
+        unknowns.append(localized_text(answer_language,
+            "已列出的是本次原文可见的调用点，不代表完整的上下游程序清单。",
+            "These are call sites visible in the captured source, not a complete inventory of upstream and downstream programs.",
+            "已列出的是本次原文可見的呼叫點，不代表完整的上下游程式清單。"))
     if len(candidates) > len(selected):
         unknowns.append(localized_text(answer_language,
             "当前仅展示与问题最相关的部分语句，完整来源和影响链仍待继续核对。",

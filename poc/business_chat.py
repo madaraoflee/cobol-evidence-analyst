@@ -1197,10 +1197,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 if transport_reason:
                     response["transport_reason"] = transport_reason
 
-    def emit(phase, **details):
+    def emit(phase, *, response_delivery=False, **details):
         if question_budget is not None:
             question_budget.phase = phase
-        if check_cancel:
+        if response_delivery and question_budget is not None:
+            # The transport enforces the in-flight deadline. Rendering text
+            # already received must retain cancellation without discarding it.
+            question_budget.check_cancel()
+        elif check_cancel:
             check_cancel()
         if progress:
             progress({"phase": phase, "completed": turns, "total": None, "unit": "requests",
@@ -1882,10 +1886,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         nonlocal turns, first_model_request_seconds, resume_response, last_request_manifest
         quality.prepare(stage=stage, payload=payload, messages=messages, trim_events=trim_events,
                         replay_round_id=f"round-{turns}" if resume_response is not None else None)
-        last_request_manifest = _request_manifest(payload, source_memory)
+        request_manifest = _request_manifest(payload, source_memory)
         if check_cancel:
             check_cancel()
         if resume_response is not None:
+            last_request_manifest = request_manifest
             raw, resume_response = resume_response, None
             return raw
         if not policy.can_request(turns):
@@ -1929,7 +1934,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             now = time.monotonic()
             if visible_text and now - preview_at >= 0.15:
                 preview_at = now
-                emit("writing_answer", answer_preview={"text": redactor._sanitize(visible_text)[:24000],
+                emit("writing_answer", response_delivery=True, answer_preview={"text": redactor._sanitize(visible_text)[:24000],
                     "round": turns, "stage": preview_stage})
 
         try:
@@ -1945,12 +1950,16 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     "finish_reason": _response_shape(raw)["finish_reason"]}], "usage": raw.get("usage")}
                 quality.record_remote_response(replay)
                 if progress and not _actions(parsed_response.text, policy) and not _action_reply_invalid(parsed_response.text, None):
-                    emit("writing_answer", answer_preview={"text": redactor._sanitize(parsed_response.text)[:24000],
+                    emit("writing_answer", response_delivery=True, answer_preview={"text": redactor._sanitize(parsed_response.text)[:24000],
                         "round": turns, "stage": preview_stage})
             except _TextResponseError:
                 quality.record_remote_response({"response_received": True, "business_text_unavailable": True})
             return raw
         finally:
+            # prepare() can precede a deadline/configuration failure. Only the
+            # request observer (or the replay above) establishes supplied input.
+            if quality.response_round() is not None:
+                last_request_manifest = request_manifest
             duration = time.monotonic() - began
             timing["provider_wait_seconds"] += duration
             observed_timing = getattr(client, "last_request_timing", {})
@@ -2102,9 +2111,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         """Spend only the existing per-turn tool allowance on concrete gaps."""
         nonlocal tool_problem, priority_targets
         progressed = deferred_for_budget = False
-        if question_budget and question_budget.target_reached():
-            # The target schedules delivery. It cannot cancel an already sent
-            # request or turn a saved source-backed answer into an error page.
+        if question_budget and question_budget.should_stop_local_investigation():
+            # Stop optional reads at the answer reserve; this cannot turn a
+            # saved source-backed answer into an error page.
             return False, True
         # A transmission limit cannot be repaired by acquiring the same source
         # again. Keep its visible-material gap and reserve tools for source that
@@ -2238,7 +2247,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     or policy.is_last_request(turn)
                     or bool(question_budget and question_budget.should_answer(config.timeout_seconds)))
                 local_evidence_allowed = not (question_budget
-                    and question_budget.should_answer(config.timeout_seconds))
+                    and question_budget.should_stop_local_investigation())
                 if investigation_rounds >= policy.max_investigation_rounds:
                     continuation.stop_reason = continuation.stop_reason or "investigation_round_budget"
                 if pending_model_actions and local_evidence_allowed:
@@ -2584,10 +2593,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             for tool, values in action.items() if values
                             for arguments in (values if tool in {"read", "inspect_business_context", *_SEMANTIC_TOOLS}
                                               else [values])]})
-                if question_budget and question_budget.target_reached():
+                if question_budget and question_budget.should_stop_local_investigation():
                     force_answer = True
                     if action:
-                        boundaries.append({"reason": "delivery_target_reached",
+                        boundaries.append({"reason": "answer_reserve_reached",
                             "next_step": "answer_from_supplied_evidence", "pending_actions_preserved": True})
                         protocol_answer_pending = True
                         if policy.can_request(turns):
@@ -2642,6 +2651,18 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                     break
                         review_draft(reply.text, payload, current_investigation)
                         reply = replace(reply, text=candidate["answer"])
+                    if not deferred:
+                        # Bind and persist usable received text before optional
+                        # evidence work can reach the hard deadline. Its captured
+                        # source version remains available for final validation.
+                        answer, truncated = reply.text, reply.truncated
+                        answer_round = f"round-{turns}"
+                        answer_rounds = [answer_round]
+                        answer_finish_reason = response_shape["finish_reason"]
+                        answer_manifest = visible
+                        answer_investigation = current_investigation
+                        remember_source_draft(payload)
+                        remember_draft()
                     if not force_answer and (deferred or promised or not current_investigation.get("can_answer", True)):
                         attempted_before = len(automatic_actions)
                         progressed, deferred_for_budget = advance_question(current_investigation)
@@ -3130,15 +3151,28 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         answer_origin = "model"
     elif not identity_blocks_analysis(business_map.get("source_identity", {})):
         from evidence_answer import build_evidence_answer
-        supplied = (last_request_manifest or {}).get("source_ids", [])
+        supplied = set((last_request_manifest or {}).get("source_ids", []))
+        verified_memory = set()
+        if source_memory is not None:
+            for identifier in (last_request_manifest or {}).get("memory_source_ids", []):
+                try:
+                    page = source_memory.archived_pages([identifier])[0]
+                except (KeyError, ValueError, OSError, sqlite3.Error):
+                    boundaries.append({"reason": "prior_source_memory_unavailable", "evidence_id": identifier})
+                else:
+                    sent_pages[identifier] = page
+                    verified_memory.add(identifier)
         local_answer = build_evidence_answer(question,
-            [sent_pages[identifier] for identifier in supplied if identifier in sent_pages],
+            [sent_pages[identifier] for identifier in sorted(supplied | verified_memory) if identifier in sent_pages],
             last_investigation or {}, answer_language=answer_language,
             source_format=source_session.options.get("source_format", "auto") if source_session else "auto",
             compilation_context=source_session.options.get("compilation_context") if source_session else None)
         if local_answer:
             answer = local_answer["answer"]
             answer_manifest = {**(last_request_manifest or {}), **local_answer["manifest"]}
+            used = set(local_answer["manifest"]["source_ids"])
+            answer_manifest["source_ids"] = sorted(used & supplied)
+            answer_manifest["memory_source_ids"] = sorted((used & verified_memory) - supplied)
             answer_investigation = last_investigation
             answer_origin = "local_source_facts"
             failure = failure or "ANSWER_NOT_PRODUCED"

@@ -4,10 +4,14 @@ import json
 from pathlib import Path
 import sys
 import unittest
+from unittest import mock
 
 sys.path[:0] = [str(Path(__file__).resolve().parent), str(Path(__file__).resolve().parents[1])]
 
 from agent_policy import AgentPolicy
+from company_api import APIClientError
+import evidence_answer
+from prior_source_memory import PriorSourceMemory
 from run_store import RunStore
 import test_completion_driven_chat as chat_fixtures
 
@@ -160,6 +164,74 @@ class PriorSourceMemoryEvictionChatTests(unittest.TestCase):
         self.assertTrue(all("prior_source_memory" in payload for payload in self.fixture.requests))
         self.assertTrue(result["metrics"]["completion_driven"])
         self.assert_unremembered_source_rejected(result)
+
+    def local_failure(self, *, remember=True, corrupt_archive=False):
+        original_builder = evidence_answer.build_evidence_answer
+        original_archive = PriorSourceMemory._archived_page
+        supplied_to_fallback = []
+
+        def respond(payload, number):
+            self.capture(payload)
+            if number == 1:
+                return self.fixture.read_helper(1)
+            if number == 2:
+                action = json.loads(self.fixture.read_helper(2))
+                if remember:
+                    action["findings"] = [{"text": self.helper_claim(1),
+                        "evidence_ids": [self.identifiers["helper-1.cbl"]]}]
+                return json.dumps(action, ensure_ascii=False)
+            raise APIClientError("REQUEST_TIMEOUT")
+
+        def archived(memory, identifier):
+            if (corrupt_archive and len(self.fixture.requests) >= 3
+                    and identifier == self.identifiers.get("helper-1.cbl")):
+                raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
+            return original_archive(memory, identifier)
+
+        def render(question, pages, investigation, **options):
+            supplied_to_fallback.extend(pages)
+            # Isolate evidence delivery from the renderer's question relevance
+            # policy: select a real statement from the evicted, declared page.
+            retained = [page for page in pages if page["relative_path"] == "helper-1.cbl"]
+            if retained:
+                return original_builder("helper-1.cbl 的 HELPER-RESULT 怎样赋值？", retained,
+                    {"analysis_plan": {"paths": ["helper-1.cbl"], "entities": ["HELPER-RESULT"]}}, **options)
+            return original_builder(question, pages, investigation, **options)
+
+        with mock.patch.object(PriorSourceMemory, "_archived_page", archived), \
+                mock.patch.object(evidence_answer, "build_evidence_answer", side_effect=render):
+            result = self.fixture.ask(respond, policy=self.policy, request_guard=3)
+        self.assert_eviction(last_round=3)
+        return result, supplied_to_fallback
+
+    def test_local_failure_retains_verified_memory_with_original_request_binding(self):
+        result, supplied = self.local_failure()
+        old_id = self.identifiers["helper-1.cbl"]
+        self.assertIn(old_id, {page["evidence_id"] for page in supplied})
+        self.assertEqual(result["answer_origin"], "local_source_facts")
+        self.assertFalse(result["model_answer_recorded"])
+        self.assertIn(f"[{old_id}]", result["answer"])
+        self.assertIn("HELPER-RESULT = 1", result["answer"])
+        self.assertEqual(result["metrics"]["current_source_pages"], 0)
+        self.assertEqual(result["metrics"]["prior_memory_source_pages"], 1)
+        self.assertEqual(result["stop_reason"], "REQUEST_TIMEOUT")
+        trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
+        self.assertIn(old_id, trace["final"]["final_visible_ids"])
+        self.assertEqual(trace["final"]["unsupported_citation_ids"], [])
+
+    def test_invalid_archived_memory_is_not_used_for_local_failure_answer(self):
+        result, supplied = self.local_failure(corrupt_archive=True)
+        old_id = self.identifiers["helper-1.cbl"]
+        self.assertNotIn(old_id, {page["evidence_id"] for page in supplied})
+        self.assertNotIn(f"[{old_id}]", result["answer"])
+        self.assertTrue(any(item.get("reason") == "prior_source_memory_unavailable"
+                            and item.get("evidence_id") == old_id for item in result["boundaries"]))
+
+    def test_seen_but_undeclared_memory_is_not_used_for_local_failure_answer(self):
+        result, supplied = self.local_failure(remember=False)
+        old_id = self.identifiers["helper-1.cbl"]
+        self.assertNotIn(old_id, {page["evidence_id"] for page in supplied})
+        self.assertNotIn(f"[{old_id}]", result["answer"])
 
 
 if __name__ == "__main__":

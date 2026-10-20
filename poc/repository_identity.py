@@ -303,6 +303,12 @@ def _resolve_identifiers(connection, text):
         stems = stems_by_name.get(name.casefold(), [])
         if stems:
             candidates.append({"identifier": name, "kind": "stem", "relative_paths": stems})
+    # An explicit program noun remains an object request when its definition
+    # is absent; it must not silently reuse the previous conversation subject.
+    for name in dict.fromkeys(_PROGRAM_SUBJECT.findall(text)):
+        if not any(item["identifier"].casefold() == name.casefold() for item in candidates):
+            candidates.append({"identifier": name, "kind": "program",
+                               "relative_paths": _program_paths(connection, name)})
     return _result(candidates)
 
 

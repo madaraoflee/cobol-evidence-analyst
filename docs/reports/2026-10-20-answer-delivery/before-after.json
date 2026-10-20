@@ -1,0 +1,114 @@
+{
+  "test_kind": "offline_scripted_provider_and_virtual_deadline",
+  "real_model_acceptance": false,
+  "paid_requests": 0,
+  "external_requests": 0,
+  "baseline_commit": "3217adf2469729a17dc19b1b28691984872c8bff",
+  "virtual_clock_note": "The answer arrives at virtual second 119; optional source reading then advances the clock to second 181. Wall times are fixture execution only, not real model latency.",
+  "cases": {
+    "baseline": {
+      "questions": [
+        "请解释程序 ENTRYPOINT 的处理步骤。",
+        "用到的相关程序呢？"
+      ],
+      "scripted_response": "ENTRYPOINT 调用的相关程序是 HELPER01。仅当 REQUEST-COUNT 大于零时，才通过 CALL 将 REQUEST-COUNT 传入；数量为零时跳过这次调用。[ev_page_71d58350585c6b5994c5931d]\n\nHELPER01 的入口通过 USING INPUT-COUNT 接收参数，执行 DISPLAY INPUT-COUNT，然后 GOBACK 返回。[ev_page_f0c741704aea3fc7b4394033]\n\n这些是当前源码中的调用和处理步骤；未执行程序，不能据此确认某次运行的实际输出。",
+      "provider_requests": 2,
+      "virtual_clock": [
+        {
+          "started_at": 119.0,
+          "stopped_at": 181.0
+        }
+      ],
+      "wall_seconds": [
+        0.14967816700664116,
+        0.05932712499634363
+      ],
+      "result": {
+        "status": "ABSTAINED",
+        "answer": "本次调查已达到时间预算，已停止继续补查。 查看已保存的证据和待查事项；远程请求结果未知时，先确认请求状态，再决定是否重试。 本地关联编号：local-d2801a1dc9c94588b9bbdc4b33049c76。\n\n对话和源码索引已保留。\n\n诊断：QUESTION_TIME_BUDGET_EXHAUSTED；阶段：response_validation。",
+        "answer_origin": "diagnostic",
+        "answer_available": false,
+        "model_answer_recorded": false,
+        "stop_reason": "QUESTION_TIME_BUDGET_EXHAUSTED",
+        "evidence_refs": []
+      }
+    },
+    "fixed": {
+      "questions": [
+        "请解释程序 ENTRYPOINT 的处理步骤。",
+        "用到的相关程序呢？"
+      ],
+      "scripted_response": "ENTRYPOINT 调用的相关程序是 HELPER01。仅当 REQUEST-COUNT 大于零时，才通过 CALL 将 REQUEST-COUNT 传入；数量为零时跳过这次调用。[ev_page_71d58350585c6b5994c5931d]\n\nHELPER01 的入口通过 USING INPUT-COUNT 接收参数，执行 DISPLAY INPUT-COUNT，然后 GOBACK 返回。[ev_page_f0c741704aea3fc7b4394033]\n\n这些是当前源码中的调用和处理步骤；未执行程序，不能据此确认某次运行的实际输出。",
+      "provider_requests": 2,
+      "virtual_clock": [
+        {
+          "started_at": 119.0,
+          "stopped_at": 181.0
+        }
+      ],
+      "wall_seconds": [
+        0.12193187500088243,
+        0.07383575000130804
+      ],
+      "result": {
+        "status": "PARTIAL",
+        "answer": "ENTRYPOINT 调用的相关程序是 HELPER01。仅当 REQUEST-COUNT 大于零时，才通过 CALL 将 REQUEST-COUNT 传入；数量为零时跳过这次调用。[ev_page_71d58350585c6b5994c5931d]\n\nHELPER01 的入口通过 USING INPUT-COUNT 接收参数，执行 DISPLAY INPUT-COUNT，然后 GOBACK 返回。[ev_page_f0c741704aea3fc7b4394033]\n\n这些是当前源码中的调用和处理步骤；未执行程序，不能据此确认某次运行的实际输出。",
+        "answer_origin": "model",
+        "answer_available": true,
+        "model_answer_recorded": true,
+        "stop_reason": "QUESTION_TIME_BUDGET_EXHAUSTED",
+        "evidence_refs": [
+          {
+            "end_line": 9,
+            "evidence_id": "ev_page_f0c741704aea3fc7b4394033",
+            "kind": "source_page",
+            "relative_path": "helper.cbl",
+            "source_sha256": "0997d1fc9733603bad146c591393ae10010263108d70ff889d5c798e4297a066",
+            "start_line": 1
+          },
+          {
+            "end_line": 11,
+            "evidence_id": "ev_page_71d58350585c6b5994c5931d",
+            "kind": "source_page",
+            "relative_path": "entry.cbl",
+            "source_sha256": "c465bd5ddaea51fec0a67c7c2a4835d66a819fdb433e399cfa55530fc79c10b5",
+            "start_line": 1
+          }
+        ]
+      }
+    }
+  },
+  "screenshots": [
+    {
+      "path": "00-baseline-failure.png",
+      "sha256": "a29753366867f6e50b6ac7156306a46d488aee3642bb87e2164b6c9d5b9ee2a0"
+    },
+    {
+      "path": "01-retained-followup.png",
+      "sha256": "4bf50abe8db4987118d99a7b8a01d059c9d14a0b958cf6bdb6bdd8d008a7a499"
+    },
+    {
+      "path": "02-retained-citation.png",
+      "sha256": "ea608368c68bab783b6aa88ff3ebd079af6097ac3f7baeafa8f01485f47b1f3b"
+    }
+  ],
+  "fixed_source_sha256": {
+    "poc/business_chat.py": "dc18bd333b312bee0e3c9fe7b4dba0d551d496e9836e5969b277810822efba94",
+    "poc/business_map.py": "809afe980c241293cb1978f5d7e4ab438515cdf5fb5f9c8843d43048281b1078",
+    "poc/evidence_answer.py": "d1f2f205dd6227f73bd5b1e43f1d77f29702cfdfa0277e31ffd12aa659e5f93d",
+    "poc/quality_trace.py": "1cfb65a48baf1dfef5d1d427c35aeef1419507bd02b311008afab77008e49a9f",
+    "poc/question_budget.py": "b4fb59a777758c2d2a4646f519959ccb61e12f99f3a9064b69f59df96930988d",
+    "poc/question_investigation.py": "50df87e85e7fa8ab31f9a2e8923ff89224ce0181fefae9f39de7b473f246d2cd",
+    "poc/question_planner.py": "268b13d3f773788cd0fa49fe2ebc7a84b0495a4cae0683c598222d5920edb0d5",
+    "poc/repository_identity.py": "0a2c28f5dd0a7870018f20b56bacedc5c731cf997523d540e23fc6bacbf3e9a5",
+    "poc/tests/test_prior_source_memory_chat.py": "659e46df9b828e56fda18f13f47a3c9db1060aaff57fb307b9881922b1faeb41",
+    "poc/tests/test_question_budget_delivery.py": "aabbf7a495e73d868dff7347802df6f721bdb27243d1ca23290285b4b5993724",
+    "poc/tests/web_evidence_answer.test.cjs": "cd1f8e1e9d589c1a34c16684f1d5aec53ef15dae2bbc395a9ee7f1e39821afd7",
+    "poc/web/app.js": "f949a4aa38b6cc21e6bd64f1941b38f4a15ddf30b9d339b58949e444a5ad5a98",
+    "poc/tests/answer_delivery_fixture.py": "685c0c29ccd6d0368e89299033c8c0b06726edaab0452c4e4a153cccee74d59e",
+    "poc/tests/test_answer_delivery_workbench.py": "8f7495e3cbf3956d077e6a9196db1c98f2f1c7f70067766114fc395ac67bf432",
+    "poc/tests/test_business_chat_answer_delivery_deadline.py": "9cb343655cf670f0d258073b0162e79d819f2c725f5a8c0663ffb4e83abb30a0",
+    "poc/tests/test_evidence_answer_relationships.py": "ac36a9499d111623a95913ba87403d36d6cbeafa8a04140827f00a803eea7401",
+    "poc/tests/test_related_program_followup.py": "68a4fb2843dd366e635e53fea4fc1e1c713bd199d0201b0b56bd5cd75d224445"
+  }
+}

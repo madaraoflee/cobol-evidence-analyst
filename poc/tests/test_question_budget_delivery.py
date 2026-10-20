@@ -90,6 +90,16 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
         budget.check()
         self.assertEqual(budget.request_timeout(60), 60)
 
+    def test_next_planning_wait_and_final_answer_are_reserved_separately_from_local_reads(self):
+        budget = self.budget(180, hard_seconds=180)
+        budget.observe_request(60)
+        self.now += 60
+        self.assertTrue(budget.should_answer(300))
+        self.assertFalse(budget.should_stop_local_investigation())
+        self.assertEqual(budget.request_timeout(300), 120)
+        self.now += 60
+        self.assertTrue(budget.should_stop_local_investigation())
+
     def test_explicit_hard_limit_bounds_request_and_active_wait(self):
         budget = self.budget(hard_seconds=30)
         self.now += 23
