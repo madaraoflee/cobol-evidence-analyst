@@ -811,7 +811,7 @@ function liveAnalysisView(progress=state.progress){
   if(update?.completed_items!==undefined && update?.total_items!==undefined && update.total_items>=update.completed_items)counts.push(ui`已有證據的要點 ${formatNumber(update.completed_items)} / ${formatNumber(update.total_items)}`);
   const open=Array.isArray(update?.open_items)?update.open_items:[];
   if(typeof update?.open_items==='number')counts.push(ui`待核對 ${formatNumber(update.open_items)} 項`);
-  const stage=['revision','revise','revising'].includes(preview?.stage)?t('修訂中'):preview?.stage==='verifying'?t('核對中'):t('撰寫中');
+  const stage=['reviewing_answer','verifying_answer'].includes(progress?.phase) || preview?.stage==='verifying'?t('核對中'):['revision','revise','revising'].includes(preview?.stage)?t('修訂中'):t('撰寫中');
   return (update?ui`<section class="analysis-live-update" aria-label="調查進展"><div class="analysis-live-counts">${escapeHTML(counts.join(' · '))}</div>${update.summary?`<p role="status" aria-live="polite">${escapeHTML(update.summary)}</p>`:''}${open.length?ui`<details class="analysis-open-items"><summary>待核對事項 · ${formatNumber(open.length)}</summary><ul>${open.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul></details>`:''}</section>`:'')+(preview?ui`<section class="answer-live-preview" aria-label="回答草稿"><div class="answer-preview-heading"><strong>${stage}</strong>${preview.round>0?`<span>${escapeHTML(ui`調查輪次 ${formatNumber(preview.round)}`)}</span>`:''}</div><p class="answer-preview-notice">內容可能修訂，請以完成後的回答為準。</p><div class="narrative-body" tabindex="0">${answerMarkdown.render(preview.text)}</div></section>`:'');
 }
 function rememberProgress(progress){
@@ -1194,10 +1194,12 @@ function analysisOptions(question,extra={}){
   const p=state.project;const opts=p.diagnosis.source_options || {};
   return {source:p.source,output:p.output,encoding:opts.encoding || 'auto',source_format:opts.source_format || 'auto',...(opts.compilation_context_path?{compilation_context_path:opts.compilation_context_path}:{}),extensions:opts.extensions?.join(',') || null,entry:state.entry || null,question,locale:currentLocale,max_source_pages:state.maxSourcePages,reading_strategy:conversationMode()?'retrieval':state.readingStrategy,answer_detail:state.answerDetail,allow_network:true,index_mode:opts.index_mode || 'catalog',...(conversationMode()?{conversation_id:state.conversation?.id || null}:{}),...extra};
 }
-async function pollJob(jobId){
-  try{const job=await api(`/api/jobs/${encodeURIComponent(jobId)}`);if(state.jobId!==jobId)return;
+async function pollJob(jobId,afterRevision=null,waitSupported=true){
+  const waiting=state.jobKind==='question' && waitSupported && Number.isSafeInteger(afterRevision) && afterRevision>=0;
+  const path=`/api/jobs/${encodeURIComponent(jobId)}`+(waiting?`/progress?after=${afterRevision}&wait_ms=20000`:'');
+  try{const job=await api(path);if(state.jobId!==jobId)return;
     const demoPreparation=state.jobKind==='demo';const demoDraft=demoPreparation?state.question:null;
-    rememberProgress(job.progress);state.pollError='';state.cancelRequested=Boolean(job.cancel_requested || state.cancelRequested);if(job.status==='RUNNING'){updateProgressPanel();setTimeout(()=>pollJob(jobId),1000);return;}
+    rememberProgress(job.progress);state.pollError='';state.cancelRequested=Boolean(job.cancel_requested || state.cancelRequested);if(job.status==='RUNNING'){updateProgressPanel();const revision=Number.isSafeInteger(job.progress_revision)&&job.progress_revision>=0?job.progress_revision:null;const nextWait=state.jobKind==='question'&&waitSupported&&revision!==null;setTimeout(()=>pollJob(jobId,revision,waitSupported),nextWait?0:1000);return;}
     state.busy=false;state.jobId=null;stopProgressClock();if(job.status==='COMPLETED' && state.progress)delete state.progress.answer_preview;
     const sourceBackup=state.sourceJobBackup;
     const failedSource=state.jobKind==='index' && job.status!=='COMPLETED';
@@ -1217,7 +1219,7 @@ async function pollJob(jobId){
     if(demoPreparation){state.question=demoDraft;if(job.status==='COMPLETED'){state.entry='';state.readingStrategy='retrieval';if(!job.result?.conversation && !job.conversation)state.conversation=null;}else{state.mode='demo';state.project=state.demoRestore?.project || null;state.conversation=state.demoRestore?.conversation || null;}state.demoRestore=null;}
     if(state.mode==='real' && state.jobKind==='index' && sourceUsable())state.page=state.conversationSupported?'workbench':'sources';
     render();if(demoPreparation && job.status==='COMPLETED')promptDemoQuestion();if(state.mode==='real' && !conversationMode())loadFirstEvidence();
-  }catch(error){if(state.jobId!==jobId)return;if(error.status===404 || error.status===403){state.busy=false;state.jobId=null;stopProgressClock();restoreSourceJob();state.error=error.message;if(state.jobKind==='demo'){state.mode='demo';state.project=state.demoRestore?.project || null;state.conversation=state.demoRestore?.conversation || null;state.demoRestore=null;}render();return;}state.pollError=t('進度連線中斷，正在重試；後台工作可能仍在繼續。');updateProgressPanel();setTimeout(()=>pollJob(jobId),2500);}
+  }catch(error){if(state.jobId!==jobId)return;if(waiting && [400,404,405].includes(error.status)){setTimeout(()=>pollJob(jobId,null,false),0);return;}if(error.status===404 || error.status===403){state.busy=false;state.jobId=null;stopProgressClock();restoreSourceJob();state.error=error.message;if(state.jobKind==='demo'){state.mode='demo';state.project=state.demoRestore?.project || null;state.conversation=state.demoRestore?.conversation || null;state.demoRestore=null;}render();return;}state.pollError=t('進度連線中斷，正在重試；後台工作可能仍在繼續。');updateProgressPanel();setTimeout(()=>pollJob(jobId,afterRevision,waitSupported),2500);}
 }
 async function loadFirstEvidence(){const first=currentRefs()[0];if(first&&!state.evidence&&!state.busy)await loadEvidence(first.evidence_id);}
 async function newConversation(){

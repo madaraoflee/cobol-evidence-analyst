@@ -54,6 +54,9 @@ _CJK = re.compile(r"[\u3400-\u9fff]{2,}")
 _BACKGROUND_HEADING = re.compile(
     r"\b(?:overview|architecture|fundamentals|introduction|conventions)\b"
     r"|总体架构|整体架构|框架概览|基础概念|分布式业务语义", re.I)
+_CONSTRAINT_HEADING = re.compile(
+    r"\b(?:scope|applicability|limitations?|constraints?|caveats?|preconditions?|"
+    r"restrictions?|boundaries|boundary)\b|适用范围|适用条件|限制|约束|前提|边界|注意事项", re.I)
 # Language syntax and generic labels cannot alone establish framework use.
 _GENERIC = frozenset("""
 ACCEPT ADD ALL ALTER AND ARE ASCENDING ASSIGN AT AUTHOR BEFORE BINARY BY
@@ -97,6 +100,8 @@ class _Section:
     terms: frozenset[str]
     document_name: str = ""
     document_sha256: str = ""
+    heading_path: tuple[str, ...] = ()
+    text_truncated: bool = False
 
 
 @dataclass(frozen=True)
@@ -189,7 +194,8 @@ def _parse_document(text: str, digest: str) -> _Document:
         if not body:
             return
         # A physical line may be arbitrarily large; keep each retrieval bounded.
-        if len(body) > MAX_SECTION_CHARS:
+        body_truncated = len(body) > MAX_SECTION_CHARS
+        if body_truncated:
             body = body[:MAX_SECTION_CHARS]
             truncated = True
         if header:
@@ -198,7 +204,9 @@ def _parse_document(text: str, digest: str) -> _Document:
             truncated = True
             return
         heading = " / ".join(value for _, value in headings[-3:])[:320] or title[:200]
-        sections.append(_Section(heading, page, items[0][0], items[-1][0], body, _technical_terms(body)))
+        sections.append(_Section(heading, page, items[0][0], items[-1][0], body, _technical_terms(body),
+                                 heading_path=tuple(value for _, value in headings),
+                                 text_truncated=body_truncated))
 
     for number, line in enumerate(lines, 1):
         marker = _PAGE.search(line)
@@ -267,8 +275,7 @@ def _parse_document(text: str, digest: str) -> _Document:
                 if len(names) == 1:
                     aliases.update(names)
         if aliases:
-            sections[index] = _Section(section.heading, section.page, section.start_line,
-                                       section.end_line, section.text, section.terms | aliases)
+            sections[index] = replace(section, terms=section.terms | aliases)
     terms = frozenset(term for section in sections for term in section.terms)
     return _Document(title[:200], digest, tuple(sections), terms, truncated)
 
@@ -416,6 +423,59 @@ def framework_status(reference_path: Path | str | None = None) -> dict:
         return _summary(None, code=error.code)
 
 
+def _section_reference(section: _Section, document: _Document) -> dict:
+    digest = section.document_sha256 or document.sha256
+    name_key = hashlib.sha256(section.document_name.encode()).hexdigest()[:8] + ":" if section.document_name else ""
+    return {"reference_id": f"fw:{digest[:16]}:{name_key}{section.start_line}-{section.end_line}",
+            "heading": section.heading, "page": section.page,
+            "start_line": section.start_line, "end_line": section.end_line, "text": section.text,
+            "document_name": section.document_name or document.documents[0]["name"],
+            "document_sha256": digest, "matched_terms": [],
+            **({"text_truncated": True} if section.text_truncated else {})}
+
+
+def _constraint_dependencies(document: _Document, check_cancel=None) -> dict[int, tuple[int, ...]]:
+    """Link explicit qualification headings to their enclosing document scope.
+
+    These are excerpt dependencies, not executable rules. A chapter's caveats
+    apply only within that chapter; a document-level boundary applies throughout
+    that document. Never borrow a similarly named boundary from another file.
+    """
+    scopes = defaultdict(list)
+    constraint_indices = set()
+    for index, section in enumerate(document.sections):
+        if check_cancel:
+            check_cancel()
+        path = section.heading_path or tuple(section.heading.split(" / "))
+        boundary = next((offset for offset, label in enumerate(path)
+                         if _CONSTRAINT_HEADING.search(label)), None)
+        if boundary is not None:
+            identity = (section.document_name, section.document_sha256 or document.sha256)
+            scopes[(identity, path[:boundary])].append(index)
+            constraint_indices.add(index)
+    result = {}
+    for index, section in enumerate(document.sections):
+        if check_cancel:
+            check_cancel()
+        if index in constraint_indices:
+            continue
+        path = section.heading_path or tuple(section.heading.split(" / "))
+        identity = (section.document_name, section.document_sha256 or document.sha256)
+        dependencies = [value for length in range(len(path) + 1)
+                        for value in scopes.get((identity, path[:length]), ())]
+        if dependencies:
+            result[index] = tuple(dict.fromkeys(dependencies))
+    return result
+
+
+def _reference_catalog(document: _Document, check_cancel=None) -> tuple[list[dict], dict[int, tuple[int, ...]]]:
+    dependencies = _constraint_dependencies(document, check_cancel)
+    references = [_section_reference(section, document) for section in document.sections]
+    for index, required in dependencies.items():
+        references[index]["required_reference_ids"] = [references[value]["reference_id"] for value in required]
+    return references, dependencies
+
+
 def search_framework_context(query: str, *, reference_path=None, max_references=10, max_chars=8000) -> dict:
     """Search the configured manuals independently of retrieved source markers.
 
@@ -440,26 +500,28 @@ def search_framework_context(query: str, *, reference_path=None, max_references=
             ranked.append((len(hits) + heading_hits * 2, position, hits))
     ranked.sort(key=lambda item: (-item[0], item[1]))
     remaining = min(max_chars, MAX_REFERENCE_CHARS)
+    catalog, dependencies = _reference_catalog(document)
+    selected, omitted_groups = set(), 0
     for _, position, hits in ranked:
-        section = document.sections[position]
-        if len(result["references"]) >= max_references:
-            break
-        if len(section.text) > remaining:
+        if position in selected:
             continue
-        remaining -= len(section.text)
-        digest = section.document_sha256 or document.sha256
-        name_key = hashlib.sha256(section.document_name.encode()).hexdigest()[:8] + ":" if section.document_name else ""
-        result["references"].append({
-            "reference_id": f"fw:{digest[:16]}:{name_key}{section.start_line}-{section.end_line}",
-            "heading": section.heading, "page": section.page,
-            "start_line": section.start_line, "end_line": section.end_line, "text": section.text,
-            "document_name": section.document_name or document.documents[0]["name"],
-            "document_sha256": digest, "matched_terms": sorted(hits),
-            "selection_reason": "framework_search",
-        })
+        group = [value for value in (position, *dependencies.get(position, ())) if value not in selected]
+        cost = sum(len(document.sections[value].text) for value in group)
+        if (len(selected) + len(group) > min(max_references, MAX_REFERENCES) or cost > remaining
+                or dependencies.get(position) and any(document.sections[value].text_truncated
+                    for value in (position, *dependencies[position]))):
+            omitted_groups += bool(dependencies.get(position))
+            continue
+        for value in group:
+            result["references"].append({**catalog[value],
+                "matched_terms": sorted(hits) if value == position else [],
+                "selection_reason": "framework_search" if value == position else "document_constraint"})
+            selected.add(value)
+        remaining -= cost
     result["coverage"].update(matched_sections=len(ranked),
                               references_selected=len(result["references"]),
-                              references_truncated=len(ranked) > len(result["references"]))
+                              references_truncated=any(position not in selected for _, position, _ in ranked),
+                              constraint_groups_omitted=omitted_groups)
     return result
 
 
@@ -889,6 +951,7 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
     if document is None:
         return result
     result["coverage"]["document_truncated"] = document.truncated
+    catalog, dependencies = _reference_catalog(document, check_cancel)
     candidates, source_terms, source_error = [], set(), None
     if source_pages is not None:
         candidates, source_terms, source_error = _retrieved_source_candidates(
@@ -943,6 +1006,8 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
         return {relative for term in terms for relative in term_files[term]}
     # Prefer newly observed constructs and topics before repeated glossary rows.
     omitted_sections = 0
+    selected_indices = set()
+    omitted_groups = 0
     while rankings and len(result["references"]) < MAX_REFERENCES:
         best = max(range(len(rankings)), key=lambda position: (
             rankings[position][0]
@@ -954,27 +1019,29 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
             -rankings[position][1],
         ))
         _, index, source_hits, query_hits = rankings.pop(best)
-        section = document.sections[index]
-        if len(section.text) > remaining:
-            omitted_sections += 1
+        if index in selected_indices:
             continue
-        remaining -= len(section.text)
+        section = document.sections[index]
+        group = [value for value in (index, *dependencies.get(index, ())) if value not in selected_indices]
+        cost = sum(len(document.sections[value].text) for value in group)
+        if (len(selected_indices) + len(group) > MAX_REFERENCES or cost > remaining
+                or dependencies.get(index) and any(document.sections[value].text_truncated
+                    for value in (index, *dependencies[index]))):
+            omitted_sections += 1
+            omitted_groups += bool(dependencies.get(index))
+            continue
+        remaining -= cost
         covered_terms.update(source_hits)
         covered_headings.add(section.heading)
         covered_documents.add(section.document_name)
         covered_files.update(matching_files(source_hits))
-        reference_digest = section.document_sha256 or document.sha256
-        name_key = hashlib.sha256(section.document_name.encode()).hexdigest()[:8] + ":" if section.document_name else ""
-        result["references"].append({
-            "reference_id": f"fw:{reference_digest[:16]}:{name_key}{section.start_line}-{section.end_line}",
-            "heading": section.heading, "page": section.page,
-            "start_line": section.start_line, "end_line": section.end_line, "text": section.text,
-            "document_name": section.document_name or document.documents[0]["name"],
-            "document_sha256": reference_digest,
-            "matched_terms": sorted(source_hits) if source_hits else sorted(query_hits),
-            "selection_reason": ("source_marker" if source_hits else "document_overview"
-                                 if overview_selection or index in background_indices else "question_only"),
-        })
+        for value in group:
+            result["references"].append({**catalog[value],
+                "matched_terms": (sorted(source_hits) if source_hits else sorted(query_hits)) if value == index else [],
+                "selection_reason": ("document_constraint" if value != index else
+                                     "source_marker" if source_hits else "document_overview"
+                                     if overview_selection or index in background_indices else "question_only")})
+            selected_indices.add(value)
     seen_evidence: set[str] = set()
     eligible_matches = []
     # Order by reference relevance first, while retaining different constructs.
@@ -1008,6 +1075,7 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
                                    item["selection_reason"] == "document_overview" for item in result["references"]),
                                "reference_selection": "document_overview" if overview_selection else "relevant_sections",
                                "references_truncated": bool(rankings) or bool(omitted_sections),
+                               "constraint_groups_omitted": omitted_groups,
                                "source_matches_selected": len(result["source_matches"]),
                                "source_matches_truncated": len(eligible_matches) > len(result["source_matches"]),
                                "external_calls_selected": len(result["external_calls"])})

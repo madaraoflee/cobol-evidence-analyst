@@ -202,6 +202,7 @@ _ASPECT_LABELS = {"formula": "具体算式或运算关系", "inputs": "输入的
 # useful short explanations and domain terms remain available without a retry.
 _GENERIC_BEHAVIOR_WORDS = re.compile(
     r"这个|這個|当前|當前|首先|然后|然後|接着|接著|最后|最後|"
+    r"这样|這樣|这些|這些|一个|一個|上述|以上|如此|整个|整個|完整|全部|操作|已经|已經|完毕|完畢|结束|結束|就|都|"
     r"程序|系统|系統|流程|业务|業務|相关|相關|具体|具體|相应|相應|"
     r"根据|根據|按照|依据|依據|通过|通過|进行|進行|完成|执行|執行|"
     r"判断|判斷|校验|校驗|检查|檢查|验证|驗證|处理|處理|计算|計算|更新|"
@@ -209,6 +210,7 @@ _GENERIC_BEHAVIOR_WORDS = re.compile(
     r"数据|數據|信息|输入|輸入|记录|記錄|状态|狀態|结果|結果|"
     r"是否|满足|滿足|符合|要求|该|該|本|先|再|并|並|且|和|与|與|及|的|了|会|會|将|將|对|對|按|后|後|时|時|来|來|做|有|关|關|等|地|它|这|這|是|在|所|作|出|以|用|于|於|"
     r"\b(?:the|a|an|this|that|it|system|program|process|workflow|business|"
+    r"these|those|above|all|entire|complete[ds]?|completing|operation[s]?|step[s]?|"
     r"first|then|finally|and|or|to|of|for|in|on|with|according|based|"
     r"validat\w*|check\w*|process\w*|calculat\w*|updat\w*|generat\w*|"
     r"return\w*|output\w*|perform\w*|condition\w*|rule\w*|configuration|"
@@ -249,6 +251,33 @@ _BUSINESS_OVERVIEW = re.compile(
     r"\b(?:business (?:purpose|function|workflow|process|logic|overview)|"
     r"end.to.end (?:business |processing )?(?:flow|process)|"
     r"what (?:does|is) (?:this |the )?(?:program|function).{0,24}(?:do|for))\b", re.I)
+# Ordinary onboarding requests should use the existing source-bound overview;
+# an explicit field, formula or implementation question remains a direct answer.
+_PROGRAM_EXPLANATION = re.compile(
+    r"(?:分析|解釋|解释|解读|解讀|介绍|介紹|讲讲|講講|说明|說明|了解|看懂)"
+    r"[^。！？?!\n]{0,48}(?:程序|程式|模块|模塊)|"
+    r"(?:程序|程式|模块|模塊)[^。！？?!\n]{0,16}(?:干嘛|幹嘛|做啥)|"
+    r"\b(?:explain|describe|introduce|analy[sz]e|walk me through)\b"
+    r"[^.!?\n]{0,48}\b(?:program|module)\b", re.I)
+_NEWCOMER_EXPLANATION = re.compile(
+    r"(?:新人|新手|初学|初學|入门|入門)[^。！？?!\n]{0,48}"
+    r"(?:分析|解釋|解释|解读|解讀|介绍|介紹|讲讲|講講|说明|說明|了解|看懂)|"
+    r"\b(?:beginner|newcomer|new to)\b[^.!?\n]{0,60}"
+    r"\b(?:explain|describe|introduce|understand|walk me through)\b", re.I)
+_NARROW_EXPLANATION = re.compile(
+    r"字段|欄位|栏位|变量|變量|参数|參數|初值|初始值|取值|返回值|状态码|狀態碼|"
+    r"公式|算式|(?:调用|呼叫)(?:了|的是|的)?(?:关系|關係|哪些|什么|甚麼|誰|谁|链|鏈)|"
+    r"(?:哪些|哪[个個]些?|谁|誰)[^。！？?!\n]{0,24}(?:调用|呼叫)|"
+    r"(?:如何|怎么|怎麼|是否|会不会|會不會)[^。！？?!\n]{0,24}(?:调用|呼叫)|"
+    r"\b(?:fields?|variables?|parameters?|arguments?|values?|formulas?|callers?|callees?)\b|"
+    r"\bcall(?:ing)?\s+(?:graphs?|relationships?|chains?)\b|"
+    r"\b(?:which|who|when|how|whether|does|will)\b[^.!?\n]{0,48}\bcalls?\b", re.I)
+_IMPLEMENTATION_EXPLANATION = re.compile(
+    r"逐行|逐句|每[行句]|语法|語法|开发实现|開發實現|代码实现|代碼實現|"
+    r"\b(?:line.by.line|statement.by.statement|syntax|implementation)\b", re.I)
+_IMPLEMENTATION_NEGATION = re.compile(
+    r"(?:不要|不用|无需|無需|不需要|不是要|别|別)[^，,。！？?!；;\n]{0,12}$|"
+    r"\b(?:without|not|avoid|no need for|do not|don't|don’t)[^,;.!?\n]{0,24}$", re.I)
 _NARRATIVE_ASPECTS = {
     "business_purpose": ("purpose_candidates",
         "用原文说明或适用手册解释处理目的，并区分文档说明、合理解释与已见规则；不猜业务名称"),
@@ -271,10 +300,19 @@ _TECHNICAL_SCAFFOLD = re.compile(
 
 def wants_business_overview(question, *, answer_detail="detailed"):
     """A broad explanation request, not every detailed or relationship reply."""
-    topics = _BUSINESS_OVERVIEW.findall(str(question))
-    return (wants_business_detail(question, answer_detail=answer_detail) and bool(topics)
-            and (calculation_intent(str(question)) != "rules"
-                 or any(not re.search(r"逻辑|邏輯|\blogic\b", topic, re.I) for topic in topics)))
+    text = str(question)
+    implementation_requested = any(not _IMPLEMENTATION_NEGATION.search(text[max(0, match.start() - 64):match.start()])
+                                   for match in _IMPLEMENTATION_EXPLANATION.finditer(text))
+    if not wants_business_detail(text, answer_detail=answer_detail) or implementation_requested:
+        return False
+    topics = _BUSINESS_OVERVIEW.findall(text)
+    explicit_topics = [topic for topic in topics if not re.match(r"(?:新人|新手)", topic)]
+    if explicit_topics:
+        return (calculation_intent(text) != "rules"
+                or any(not re.search(r"逻辑|邏輯|\blogic\b", topic, re.I) for topic in explicit_topics))
+    if calculation_intent(text) is not None or _NARROW_EXPLANATION.search(text):
+        return False
+    return bool(topics or _PROGRAM_EXPLANATION.search(text) or _NEWCOMER_EXPLANATION.search(text))
 
 
 def _technical_inventory_only(answer):

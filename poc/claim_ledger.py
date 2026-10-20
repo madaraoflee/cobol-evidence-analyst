@@ -18,7 +18,7 @@ from response_language import localized_text, resolve_answer_language
 from source_availability import supplied_source_availability
 
 
-LEDGER_VERSION = "answer-claim-ledger-v11"
+LEDGER_VERSION = "answer-claim-ledger-v12"
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _NAME = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?:\s+(?:OF|IN)\s+[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)*"
 _ATOM = rf"(?:{_NAME}|[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|[()])"
@@ -392,6 +392,74 @@ def _segments(answer):
                     yield line[start:], inherited, False, bool(derivation and derivation.end() <= line_start + start)
 
 
+def _independent_statement_span(segment, assertion):
+    """Locate a terminal MOVE/COMPUTE after independent, unchecked prose.
+
+    This is not comma-based sentence splitting. The explicit statement must
+    parse as exactly the contradicted assertion, including quoted operands and
+    the complete arithmetic expression. Any prose after the statement, or
+    control, causal or numeric introductory prose, keeps the existing
+    conservative whole-segment repair.
+    """
+    if assertion.get("predicate") != "assignment_statement" or "\n" in segment.rstrip("\n"):
+        return None
+    quoted = [match.span() for match in re.finditer(r"""'(?:[^']|'')*'|"(?:[^"]|"")*" """,
+                                                   segment, re.X)]
+    references = [match.span() for match in _REFERENCE.finditer(segment)]
+    inline = list(re.finditer(r"(`+)([^`\r\n]*)\1", segment))
+    spans = []
+    compute = re.compile(rf"\bCOMPUTE\s+{_NAME}\s*(?:ROUNDED\s*)?=(?!=)\s*", re.I)
+    for pattern in (_MOVE, compute):
+        for match in pattern.finditer(segment):
+            start, end = match.span()
+            if any(first <= start < last for first, last in [*quoted, *references]):
+                continue
+            if pattern is compute:
+                tokens, end, parsed_all = _read_expression(segment, end)
+                if not tokens or not _source_expression_complete(segment, match.end(), end, parsed_all):
+                    continue
+                terminator = re.match(r"\s*END-COMPUTE\b", segment[end:], re.I)
+                if terminator:
+                    end += terminator.end()
+            fragment = segment[start:end]
+            if _assertions(fragment) != [assertion]:
+                continue
+            wrapper = next((item for item in inline if item.start() <= start < item.end()), None)
+            if wrapper:
+                if wrapper[2].strip() != fragment.strip():
+                    continue
+                start, end = wrapper.span()
+            left, right = segment[:start].rstrip(), segment[end:].lstrip()
+            if (left and left[-1] not in "，,：:" or
+                    right and right[0] not in "，,。.!?！？；;：:" and not _REFERENCE.match(right)):
+                continue
+            spans.append((start, end))
+    if len(spans) != 1:
+        return None
+    start, end = spans[0]
+    # An appended clause may qualify this assignment or infer its outcome.
+    # Preserve only an introduction followed by a terminal explicit statement;
+    # do not guess whether trailing prose is independently true.
+    suffix = _REFERENCE.sub("", segment[end:]).strip(" \t\r\n，,。.!?！？；;：:")
+    if suffix:
+        return None
+    remainder = segment[:start] + segment[end:]
+    prose = _REFERENCE.sub("", remainder).strip(" \t\r\n，,。.!?！？；;：:")
+    if not prose or _assertions(remainder):
+        return None
+    if re.search(r"[，,：:；;]", prose):
+        return None  # Multiple introductory clauses are not independently separable here.
+    if re.search(
+            r"\d|['\"`]|(?:若|如果|当|當|只有|仅当|僅當|仅对|僅對|只要|条件|條件|否则|否則|"
+            r"假设|假設|例如|最终|最終|最后|最後|因此|所以|从而|從而|导致|導致|"
+            r"因而|因为|因為|故|意味着|意味著|说明|說明|表明|此时|此時|这样|這樣|"
+            r"之后|之後|之前|成功|失败|失敗)|"
+            r"\b(?:if|when|unless|then|otherwise|assuming|suppose|therefore|hence|thus|"
+            r"because|after|before|always|finally|so|success|failure)\b", prose, re.I):
+        return None
+    return start, end, prose
+
+
 def _related(assertion, facts):
     predicate, target = assertion["predicate"], assertion.get("target")
     result = [fact for fact in facts if fact["predicate"] == predicate and (target is None or fact.get("target") == target)]
@@ -695,6 +763,7 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                          source_fact_count=len(facts), compilation_context_fingerprint=context.fingerprint)
     reviewed = []
     for segment, inherited, table_header, derived_context in _segments(answer):
+        entry_start = len(ledger.entries)
         text = _REFERENCE.sub("", segment).strip()
         if not text or re.fullmatch(r"[-|: ]+", text):
             reviewed.append(segment)
@@ -989,6 +1058,23 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     distinct.append(fact)
             trailing = "\n" if segment.endswith("\n") else ""
             qualification = _final_value_qualification(final_requirements, answer_language) if final_requirements else ""
+            segment_entries = ledger.entries[entry_start:]
+            isolated = (_independent_statement_span(segment, assertions[0])
+                if len(assertions) == len(segment_entries) == 1
+                and segment_entries[0].support_status == "contradicted"
+                and not invalid and not unresolved and not final_requirements
+                and not table_header and not derived_context else None)
+            if isolated:
+                start, end, prose = isolated
+                reviewed.append(segment[:start]
+                    + local("已供应源码可直接确认：", "The supplied source directly confirms: ", "已提供源碼可直接確認：")
+                    + fact_separator.join(_render_fact(fact, answer_language) for fact in distinct)
+                    + segment[end:])
+                segment_entries[0].revision = "rendered_explicit_statement_span"
+                ledger.entries.append(ClaimEntry(f"claim-{len(ledger.entries) + 1}", "business_explanation", prose,
+                    evidence_ids=valid, source_versions=list(segment_entries[0].source_versions),
+                    reason_code="PROSE_REMAINDER_NOT_CHECKED", support_scope="unverified_business_explanation"))
+                continue
             reviewed.append(local("已供应源码可直接确认：", "The supplied source directly confirms: ", "已提供源碼可直接確認：")
                 + fact_separator.join(_render_fact(fact, answer_language) for fact in distinct)
                 + sentence_end + qualification + trailing)

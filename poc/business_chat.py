@@ -18,10 +18,11 @@ from agent_policy import resolve_agent_policy
 from answer_markdown import (ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY,
                              join_answer_continuation, strip_incomplete_source_citation)
 from answer_diagnostics import build_answer_diagnostics, response_character_counts
+from answer_preview import visible_answer_prefix
 from analysis_continuation import AnalysisContinuation, progress_snapshot
 from business_map import build_business_map
 from business_synthesis import (assess_answer_completion, assess_business_answer, build_analysis_brief, link_answer_claims,
-                                needs_synthesis_review, wants_business_detail)
+                                needs_synthesis_review, wants_business_detail, wants_business_overview)
 from company_api import APIClientError, APIConfigurationError, OpenAICompatibleChatClient
 from claim_ledger import review_answer_claims
 from evidence_context import EvidenceContext, page_priority
@@ -579,6 +580,14 @@ def _prompt_payload(payload):
                 "Explain what each operation accomplishes for the business; retain exact names for locating it. "
                 "Name unknown business terminology as an interpretation, and qualify only affected claims. "
                 "Do not invent a schedule, online deployment, domain label or successful runtime outcome."}
+    elif not discovery_only and wants_business_overview(payload.get("question", ""),
+                                                       answer_detail=payload.get("answer_detail", "detailed")):
+        # Optional navigation may be removed to fit a request; the user's
+        # intended audience and explanation style still belong to the task.
+        contract["business_explanation"] = {
+            "audience": "A newcomer learning the business process.",
+            "task": "Explain the evidenced purpose, responsibilities, data roles, rules and outcomes in business language; "
+                    "identifiers locate evidence and cannot replace explanations. Do not invent missing domain meanings."}
     if discovery_only:
         contract = {"format": "Return one JSON object containing a nonempty search array.",
                     "content": "Choose likely source terms, synonyms or abbreviations for the current question. "
@@ -766,6 +775,17 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         if check_cancel:
             check_cancel()
         EvidenceContext.reconcile_payload(payload)
+        # A convention without its applicable limitations is incomplete input.
+        # Request-byte trimming can remove a dependency after initial selection.
+        references = payload.get("framework_references", [])
+        retained = _complete_framework_reference_groups(references)
+        if len(retained) != len(references):
+            kept = {item.get("reference_id") for item in retained}
+            if trim_events is not None:
+                trim_events.extend({"item_id": item.get("reference_id"), "role": "framework",
+                    "reason": "framework_constraint_not_supplied", "before_characters": len(item.get("text", "")),
+                    "after_characters": 0} for item in references if item.get("reference_id") not in kept)
+            payload["framework_references"] = retained
         if "framework_facts" in payload:
             payload["framework_facts"] = visible_framework_facts(payload["framework_facts"],
                 bundle["pages"], payload.get("framework_references", []))
@@ -965,6 +985,41 @@ def _usage_report(usages, requests):
             "field_reported_requests": coverage}
 
 
+def _framework_reference_group(identifier, references, active=()):
+    """Follow same-version manual dependencies without accepting cycles."""
+    if identifier not in references or identifier in active or len(active) >= 16:
+        return None
+    item = references[identifier]
+    required = item.get("required_reference_ids", [])
+    if not isinstance(required, (list, tuple)) or not all(isinstance(value, str) for value in required):
+        return None
+    group = [identifier]
+    for dependency in required:
+        other = references.get(dependency)
+        if other is None or any(not item.get(key) or item.get(key) != other.get(key)
+                                for key in ("document_sha256", "document_name")):
+            return None
+        nested = _framework_reference_group(dependency, references, (*active, identifier))
+        if nested is None:
+            return None
+        group.extend(nested)
+    return list(dict.fromkeys(group))
+
+
+def _complete_framework_reference_groups(references):
+    by_id = {item["reference_id"]: item for item in references if isinstance(item.get("reference_id"), str)}
+    retained = []
+    for item in references:
+        if not isinstance(item.get("reference_id"), str):
+            if not item.get("required_reference_ids"):
+                retained.append(item)
+            continue
+        group = _framework_reference_group(item["reference_id"], by_id)
+        if group is not None and (len(group) == 1 or not any(by_id[key].get("text_truncated") for key in group)):
+            retained.append(item)
+    return retained
+
+
 def _framework_prompt_references(framework, searched, recent_ids, policy, formatter, *, priority_ids=()):
     """Keep the current lookup and its source-linked framework context visible."""
     automatic = {item["reference_id"]: item for item in framework.get("references", [])}
@@ -977,24 +1032,51 @@ def _framework_prompt_references(framework, searched, recent_ids, policy, format
     order = list(dict.fromkeys([identifier for identifier in priority_ids if identifier in combined] +
                                recent[:1] + source_linked[:1] + recent[1:] +
                                list(searched) + list(automatic)))
-    references, remaining = [], policy.max_framework_characters
-    for reference in formatter({**framework, "references": [combined[key] for key in order]}):
+    references, remaining, selected = [], policy.max_framework_characters, set()
+    for identifier in order:
         if len(references) >= policy.max_framework_references or remaining <= 0:
             break
+        if identifier in selected:
+            continue
+        group = _framework_reference_group(identifier, combined)
+        if group is None:
+            continue
+        pending = [key for key in group if key not in selected]
+        formatted = formatter({**framework, "references": [combined[key] for key in pending]})
+        if {item["reference_id"] for item in formatted} != set(pending):
+            continue
+        linked = len(group) > 1
+        selected_rows = {item["reference_id"]: item for item in references}
+        if linked and (len(references) + len(formatted) > policy.max_framework_references
+                or sum(len(item["text"]) for item in formatted) > remaining
+                or any(item.get("text_truncated") or combined[item["reference_id"]].get("text_truncated")
+                       for item in formatted)
+                or any(combined[key].get("text_truncated") or selected_rows.get(key, {}).get("text_truncated")
+                       for key in group)):
+            continue
+        for reference in formatted:
+            if combined[reference["reference_id"]].get("required_reference_ids"):
+                reference["required_reference_ids"] = list(combined[reference["reference_id"]]["required_reference_ids"])
+            reference["text_truncated"] = bool(reference.get("text_truncated") or
+                                                combined[reference["reference_id"]].get("text_truncated"))
+            references.append({**reference, **{key: combined[reference["reference_id"]].get(key)
+                for key in ("document_sha256", "document_name", "start_line", "end_line")}})
+            selected.add(reference["reference_id"])
+            remaining -= len(reference["text"])
+        if linked or not formatted:
+            continue
+        # Unlinked background retains the existing bounded excerpt behavior.
+        reference = references[-1]
         text = reference["text"]
-        if len(text) > remaining:
+        allowance = remaining + len(text)
+        if len(text) > allowance:
             terms = [str(term).casefold() for term in reference.get("matched_terms", [])]
             positions = [text.casefold().find(term) for term in terms if term]
             positions = [position for position in positions if position >= 0]
-            start = max(0, min(positions, default=0) - remaining // 3)
-            reference = {**reference, "text": text[start:start + remaining],
+            start = max(0, min(positions, default=0) - allowance // 3)
+            references[-1] = {**reference, "text": text[start:start + allowance],
                          "text_truncated": True, "text_offset_chars": start}
-        references.append({**reference,
-            "document_sha256": combined[reference["reference_id"]].get("document_sha256"),
-            "document_name": combined[reference["reference_id"]].get("document_name"),
-            "start_line": combined[reference["reference_id"]].get("start_line"),
-            "end_line": combined[reference["reference_id"]].get("end_line")})
-        remaining -= len(reference["text"])
+            remaining = 0
     return references, combined
 
 
@@ -1239,7 +1321,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     def emit_analysis(investigation, *, summary=None, assessment=None):
         emit("reviewing_answer" if assessment else "answering", analysis_update=progress_snapshot(
             turns + (0 if assessment else 1), investigation or {}, len(evidence.pages),
-            summary=summary, assessment=assessment, answer_language=answer_language))
+            summary=summary, assessment=assessment, answer_language=answer_language),
+            **({"answer_preview": {"text": redactor._sanitize(answer)[:24000],
+                                   "round": turns, "stage": "verifying"}}
+               if assessment and answer else {}))
 
     def remember_draft(*, processed=True):
         if not adaptive:
@@ -1931,7 +2016,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         began = time.monotonic()
         emit("waiting_for_model")
         streamed_text, preview_at = "", 0.0
-        preview_stage = "continuation" if stage == "continue" else "revision" if payload.get("draft_answer") else "draft"
+        preview_stage = "continuation" if stage == "continue" else "revision" if payload.get("draft_answer") else "answer"
         protected_preview_values = tuple(str(value) for value in (
             config.resolve_api_key(), config.base_url, config.chat_model, config.embedding_model) if value)
 
@@ -1940,20 +2025,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             streamed_text += delta
             if not progress or stage == "discover":
                 return
-            candidate = streamed_text.lstrip()
-            if candidate.startswith(("{", "[", "```json")):
-                return
-            # Tool actions may follow an introductory sentence. They are never
-            # presented as an answer, and incomplete protected values are held
-            # back until the redactor can see their entire token.
-            holdback = 0
-            for protected in protected_preview_values:
-                for size in range(min(len(protected) - 1, len(streamed_text)), holdback, -1):
-                    if streamed_text.endswith(protected[:size]):
-                        holdback = size
-                        break
-            visible_text = streamed_text[:-holdback] if holdback else streamed_text
-            visible_text = re.split(r"\{|```json", visible_text, maxsplit=1)[0].rstrip()
+            visible_text = visible_answer_prefix(streamed_text, protected_preview_values)
             now = time.monotonic()
             if visible_text and now - preview_at >= 0.15:
                 preview_at = now
