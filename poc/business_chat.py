@@ -598,9 +598,8 @@ def _prompt_payload(payload):
             "sql": "A SELECT establishes the visible query and host outputs, not absence of locks, blocking or transaction effects. "
                 "Describe the actual SQLCODE condition and ELSE branch. Map database events such as no rows or multiple rows "
                 "to codes only when an applicable supplied contract establishes that mapping; do not invent it.",
-            "file_io": "A WRITE is a write request under the source condition, not proof every eligible record was persisted. "
-                "DISPLAY is visible output; do not claim no trace at all when it is present. "
-                "File names and CL overrides do not establish LF/PF object types without definitions.",
+            "file_io": "WRITE requests a write, not persistence. DISPLAY destination (screen/job log) needs supplied definitions. "
+                "Missing return-code assignment does not exclude observable output or effects. Names/overrides do not prove LF/PF types.",
             "framework": "When explaining why a convention applies, connect its documented meaning to the call, "
                 "parameter layout and last effective assignment. Explain why intervening writes preserve or overwrite "
                 "the operation field, including shared storage; an initial operation literal alone is insufficient. "
