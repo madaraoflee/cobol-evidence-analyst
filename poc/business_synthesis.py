@@ -768,6 +768,520 @@ def _accumulation_covered(answer, hint, *, unique_candidate):
     return False
 
 
+_UNIVERSAL_RESULT = re.compile(
+    r"(?:其他|其它|其余|其餘)(?:情况|情況|情形).{0,12}(?:一律|统一|統一|全部|都)|"
+    r"(?:任何|所有|全部|一切)[^，,。；;|]{0,16}(?:异常|異常|错误|錯誤|失败|失敗)|"
+    r"(?:无论|無論|不论|不論).{0,24}(?:异常|異常|错误|錯誤|失败|失敗)|"
+    r"\b(?:all|any|every)\s+(?:(?:other|possible|runtime)\s+)?(?:exceptions?|errors?|failures?|cases?)\b|"
+    r"\botherwise\s+always\b", re.I)
+_INVALID_INPUT = re.compile(
+    r"(?:输入|輸入|传入|傳入|参数|參數|键|鍵|号码|號碼).{0,24}(?:非法|无效|無效|格式不符|零值)|"
+    r"(?:非法|无效|無效|格式不符).{0,24}(?:输入|輸入|参数|參數|键|鍵)|"
+    r"(?:零|0)(?:键|鍵|输入|輸入)|"
+    r"\b(?:invalid|malformed|zero)\s+(?:input|parameter|argument|key|identifier)\b", re.I)
+_RESULT_ASSERTION = re.compile(
+    r"返回|回傳|响应码|響應碼|应答码|應答碼|结果码|結果碼|"
+    r"(?:查询|查詢).{0,12}(?:失败|失敗|不到|无结果|無結果)|"
+    r"(?:给|給|回|设为|設為|置为|置為)\s*[\"']?[0-9]+|"
+    r"\b(?:returns?|response\s+code|result\s+code|(?:query|lookup)\s+(?:fails?|finds?\s+nothing))\b", re.I)
+_RESULT_UNCERTAINTY = re.compile(
+    r"不(?:能|会|會|是|保证|保證|一定|代表|等于|等於|意味)|无法|無法|未必|并非|並非|可能|取决于|取決於|"
+    r"\b(?:not|cannot|can't|never|may|might|depends?|no\s+guarantee)\b", re.I)
+_RETURN_PATH_SCOPE = re.compile(
+    r"(?:正常|成功)(?:返回|回傳)|(?:执行|執行|运行|運行|控制流).{0,16}(?:到达|到達|走到|回到|进入|進入).{0,8}(?:IF|判断|判斷|分支)|"
+    r"(?:到达|到達|走到|回到).{0,8}(?:IF|判断|判斷)|"
+    r"(?:仅|只|僅).{0,8}(?:静态|靜態|源码|源碼).{0,8}(?:分支|条件|條件)|"
+    r"\b(?:normal(?:ly)?\s+return|returns?\s+normally|control\s+(?:reaches|returns)|"
+    r"reaches?\s+(?:the\s+)?(?:IF|condition|branch)|only\s+(?:the\s+)?static\s+branch)\b", re.I)
+
+
+_POST_CALL_PROBLEM = re.compile(
+    r"(?:即使|即便|无论|無論|不论|不論).{0,80}(?:异常|異常|出错|出錯|出问题|出問題|失败|失敗)|"
+    r"\b(?:even\s+if|regardless\s+of).{0,80}(?:errors?|failures?|fails?|throws?|exception)\b", re.I)
+_POST_CALL_CONTINUE = re.compile(
+    r"无条件.{0,12}继续|無條件.{0,12}繼續|(?:仍|也|总会|總會).{0,20}(?:继续|繼續)|"
+    r"不会.{0,12}(?:改变|影响).{0,12}(?:流程|后续)|不會.{0,12}(?:改變|影響).{0,12}(?:流程|後續)|"
+    r"\b(?:still|always|unconditionally)\s+(?:continue|run|proceed|finish)|"
+    r"\b(?:will\s+not|won't)\s+(?:change|affect).{0,20}(?:flow|steps?)\b", re.I)
+
+
+_EMPTY_INPUT = re.compile(r"空(?:输入|輸入|文件|檔案)|(?:输入|輸入|文件).{0,8}(?:为空|為空|无记录|無記錄)|\bempty\s+(?:input|file)\b", re.I)
+_ZERO_LOOP = re.compile(
+    r"(?:循环体|循環體)\s*(?:一次|一遍|一轮|一輪)?\s*(?:也|都)?\s*(?:不(?:会|會)?(?:进入|進入|进|進|执行|執行)|没有进入|未进入)|"
+    r"(?:一次|一遍|一轮|一輪)\s*(?:循环体|循環體)\s*(?:也|都)?\s*不(?:进|進|执行|執行)|"
+    r"\b(?:never\s+enters?\s+(?:the\s+)?loop\s+body|zero\s+loop\s+iterations)\b", re.I)
+_SUCCESS_ONLY = re.compile(
+    r"(?:只(?:有|在)?|仅(?:在)?|僅(?:在)?).{0,24}(?:查询成功|查詢成功|查出结果|查出結果|查到结果|查到結果|成功).{0,20}(?:赋值|賦值|设置|設置|写入|寫入)|"
+    r"\bonly.{0,40}(?:success|successful|result\s+found).{0,40}(?:assign(?:ed|s)?|set|writ(?:e|es|ten|ing))", re.I)
+_STATUS_ROLE = re.compile(r"(?:响应|響應|返回|状态|狀態|结果|結果)(?:码|碼|标识|標識)|\b(?:response|return|status|result)\s+(?:code|indicator)\b", re.I)
+_DATABASE_CHECK_DENIAL = re.compile(
+    r"(?:没有|沒有|未见|未見)\s*(?:文件\s*[/、和]\s*)?(?:数据库|資料庫|SQLCODE|SQL)\s*"
+    r"(?:状态|狀態|结果|結果)?(?:检查|檢查|判断|判斷)(?=$|[，,、:：|]|但|而)|"
+    r"\bno\s+(?:database\s+(?:status|result)|SQLCODE)\s+checks?(?=$|[,.|]|\s+but\b)", re.I)
+
+
+def _pending_quoted_result_check(clause, start, end):
+    """A quoted proposition to verify is not an asserted return guarantee.
+
+    Only the matched proposition is excluded. A different target or a later
+    affirmative clause cannot inherit this pending-review frame.
+    """
+    pattern = re.compile(
+        r"(?:若要|如果要)(?:知道|确认|確認|判定|验证|驗證)\s*[“「『]"
+        r"(?P<claim>[^”」』\n]{1,300})[”」』]\s*[，,]\s*"
+        r"(?:还需|還需|仍需|尚需|需要)(?:确认|確認|核对|核對|验证|驗證)")
+    return any(match.start("claim") <= start < end <= match.end("claim")
+               for match in pattern.finditer(clause))
+
+
+def _structured_review_boundaries(pages, kinds):
+    """Captured syntax witnesses, deliberately narrower than execution proof."""
+    from claim_support import supplied_statement_facts, statement_tokens
+    from statement_parser import parse_statements
+    from structural_index import normalize_cobol_lines
+    from syntax_evidence import _bodies
+
+    result = []
+    for page in pages:
+        text = page["source_text"]
+        if (len(text) > 16000 or page.get("include_chain") or page.get("replacement_trace")
+                or type(page.get("start_line")) is not int or type(page.get("end_line")) is not int
+                or page["start_line"] < 1 or page["end_line"] < page["start_line"]
+                or len(text.splitlines()) != page["end_line"]-page["start_line"]+1):
+            continue
+        lines, hint = normalize_cobol_lines(text)
+        normalized = "\n".join(line.text for line in lines)
+        if (len(re.findall(r"\bPROGRAM-ID\s*\.", normalized, re.I)) != 1
+                or re.search(r"(?m)^\s*>>|\b(?:COPY|REDEFINES|RENAMES)\b", normalized, re.I)):
+            continue
+        def record(kind, first, last, **extra):
+            result.append({"kind": kind, "relative_path": page["relative_path"],
+                "source_sha256": page["source_sha256"], "start_line": first, "end_line": last,
+                "supplied_reference_ids": [page["evidence_id"]], **extra})
+        facts = None
+        if "empty_input_zero_loop" in kinds and "PERFORM" in normalized.upper():
+            facts = supplied_statement_facts(page, include_declarations=True)
+            bodies, _ = _bodies(text, page["start_line"])
+            # Earlier paragraphs may reset the flag or transfer control. This
+            # narrow witness does not solve those paths or infer re-entry.
+            for _, body, first, source_format in bodies if len(bodies) == 1 else []:
+                parsed = parse_statements(body, start_line=first, source_format=source_format, max_tokens=4096)
+                if not parsed.complete or parsed.boundaries:
+                    continue
+                for position, node in enumerate(parsed.nodes):
+                    if (node.kind != "PERFORM" or not node.loop or node.loop.get("kind") != "until"
+                            or not node.children or node.children[0].kind != "READ" or node.guards):
+                        continue
+                    reader = node.children[0]
+                    if not re.search(r"\bAT\s+END\b", reader.text, re.I) or "END-READ" not in reader.text.upper():
+                        continue
+                    condition = statement_tokens(node.loop.get("condition", ""))
+                    if not condition or len(condition) != 3 or condition[1] not in {"=", "EQUAL"}:
+                        continue
+                    target, _, stop = condition
+                    declarations = [fact for fact in facts if fact["predicate"] == "declaration_value"
+                                    and fact.get("target") == target and fact.get("compilation_status") != "candidate"]
+                    if len(declarations) != 1 or len(declarations[0].get("expression", ())) != 1:
+                        continue
+                    # Only the visible first-initialization path is a review
+                    # witness. VALUE is never asserted to reset on every call.
+                    value = declarations[0]["expression"][0]
+                    try:
+                        initial, terminal = Decimal(value), Decimal("0" if stop in {"ZERO", "ZEROS", "ZEROES"} else stop)
+                    except InvalidOperation:
+                        continue
+                    if initial == terminal or any(item.kind not in {"OPEN", "CONTINUE"} for item in parsed.nodes[:position]):
+                        continue
+                    record("read_inside_until_loop", declarations[0]["start_line"], node.span.end_line,
+                           control_field=target, declared_initial=value, stop_value=stop,
+                           loop_start_line=node.span.start_line, read_start_line=reader.span.start_line,
+                           read_end_line=reader.span.end_line)
+        if kinds.intersection({"success_only_status_assignment", "database_status_check_denial"}):
+            # Require a real complete SQL request before a complete IF/ELSE;
+            # a bare field name or another program's branch cannot bind this.
+            from answer_grounding import answer_grounding_risks
+            sql = [row for row in answer_grounding_risks([page])["reasons"]
+                   if row["kind"] == "sql_select_into_effect_boundary"]
+            if not sql:
+                continue
+            for index, line in enumerate(lines):
+                if not re.fullmatch(r"IF\s+SQLCODE\s*=\s*(?:0|ZERO|ZEROS|ZEROES)(?:\s+THEN)?", line.text.strip(), re.I):
+                    continue
+                # Parse physical source, including comments/blank lines, so
+                # assignment and END-IF spans cannot shift after normalization.
+                window = "\n".join(text.splitlines()[line.start_line-1:line.start_line+63])
+                ending = re.search(r"\bEND-IF\b", window, re.I)
+                if not ending or ending.end() > 4096 or hint == "mixed":
+                    continue
+                first = page["start_line"] + line.start_line - 1
+                parsed = parse_statements(window[:ending.end()], start_line=first,
+                                          source_format="fixed" if hint == "fixed" else "free", max_tokens=1024)
+                if not parsed.complete or parsed.boundaries or len(parsed.nodes) != 1:
+                    continue
+                node = parsed.nodes[0]
+                if node.kind != "IF" or len(node.children) != 1 or len(node.else_children) != 1:
+                    continue
+                yes, no = node.children[0], node.else_children[0]
+                if (yes.kind != "MOVE" or no.kind != "MOVE" or yes.effects_unknown or no.effects_unknown
+                        or len(yes.writes) != 1 or yes.writes != no.writes):
+                    continue
+                preceding = [row for row in sql if row["end_line"] < first]
+                if len(preceding) != 1:
+                    continue
+                program = re.search(r"\bPROGRAM-ID\s*\.\s*([A-Z][A-Z0-9_-]*)", normalized, re.I)
+                if program is None:
+                    continue
+                record("status_assigned_in_both_sql_branches", preceding[0]["start_line"], node.span.end_line,
+                       target_name=yes.writes[0], condition_start_line=first,
+                       program_name=program[1].upper(),
+                       success_assignment_line=yes.span.start_line, failure_assignment_line=no.span.start_line)
+    return result
+
+
+def _assertion_prefix(clause, position):
+    """Earlier independent claims cannot negate this assertion's own scope."""
+    separators = list(re.finditer(r"[，,、:：|]", clause[:position]))
+    return separators[-1].end() if separators else 0
+
+
+def _local_assertion_scope(clause, end):
+    # A contrasting clause starts a new commitment. A qualification attached
+    # to an earlier assertion cannot silently narrow a later stronger claim.
+    transitions = list(re.finditer(r"但(?:是)?|然而|不过|不過|\b(?:but|however)\b", clause[:end], re.I))
+    return clause[transitions[-1].end() if transitions else 0:end]
+
+
+def _cl_continuation_boundaries(pages):
+    """Locate CL call/next-command source only; do not infer abnormal return."""
+    from cl_context import collect_cl_context, is_cl_path
+    eligible = [page for page in pages if is_cl_path(page.get("relative_path", ""))]
+    if not eligible:
+        return []
+    observations = collect_cl_context(eligible, max_observations=96, max_source_chars=80000)["observations"]
+    result = []
+    for call in observations:
+        if (call.get("command") != "CALL" or call.get("status") != "confirmed_source_syntax"
+                or not call.get("target_name") or call.get("diagnostics")):
+            continue
+        following = next((row for row in observations
+                          if row["relative_path"] == call["relative_path"]
+                          and row["source_sha256"] == call["source_sha256"]
+                          and row["start_line"] > call["end_line"]
+                          and row.get("status") == "confirmed_source_syntax"), None)
+        if following is None:
+            continue
+        supporting = [page for page in eligible
+                      if page["relative_path"] == call["relative_path"]
+                      and page["source_sha256"] == call["source_sha256"]
+                      and page.get("start_line", 0) <= call["start_line"]
+                      and page.get("end_line", 0) >= following["end_line"]
+                      and len(page["source_text"].splitlines()) == page["end_line"]-page["start_line"]+1]
+        if supporting:
+            result.append({"kind": "cl_call_continuation_boundary", "target_name": call["target_name"],
+                "relative_path": call["relative_path"], "source_sha256": call["source_sha256"],
+                "start_line": call["start_line"], "end_line": following["end_line"],
+                "supplied_reference_ids": [page["evidence_id"] for page in supporting]})
+    return result
+
+
+def _numeric_rejection_pages(pages):
+    """Prepare only complete, small captured declarations for a review exception."""
+    from collections import Counter
+    from call_bindings import parse_signature
+    from claim_support import supplied_statement_facts
+    from structural_index import DATA_ITEM_RE, normalize_cobol_lines
+
+    result = []
+    for page in pages:
+        if len(page["source_text"]) > 16000:
+            continue
+        lines, _ = normalize_cobol_lines(page["source_text"])
+        normalized = "\n".join(line.text for line in lines)
+        signatures = re.findall(r"\bPROCEDURE\s+DIVISION\b[^.]*\.", normalized, re.I)
+        if len(signatures) != 1 or len(re.findall(r"\bPROGRAM-ID\s*\.", normalized, re.I)) != 1:
+            continue
+        try:
+            parameters = {item.name for item in parse_signature(signatures[0]) if item.mode == "REFERENCE"}
+        except ValueError:
+            continue
+        fields = Counter(match.group(2).upper() for line in lines
+                         if (match := DATA_ITEM_RE.match(line.text)))
+        result.append((page, supplied_statement_facts(page), fields, parameters))
+    return result
+
+
+def _explicit_numeric_rejection(clause, page, fact, fields, parameters):
+    """Recognize a named parameter set immediately before a complete return.
+
+    This only declines a review nomination. It does not establish input
+    validity, caller storage, successful execution, or general prose truth.
+    """
+    from statement_parser import parse_statements
+    from structural_index import normalize_cobol_lines
+
+    target = fact.get("target")
+    expression = fact.get("expression", ())
+    guards = fact.get("guards", ())
+    if (fact.get("compilation_status") == "candidate" or not fact.get("program_name")
+            or fact.get("statement_kind") != "MOVE" or len(expression) != 1
+            or target not in parameters or fields[target] != 1 or len(guards) != 1):
+        return False
+    guard = guards[0]
+    checked = re.fullmatch(r"IF\s+([A-Z][A-Z0-9_-]*)\s+(?:IS\s+)?NOT\s+NUMERIC",
+                           str(guard.get("condition", "")), re.I)
+    if (guard.get("kind") != "IF" or guard.get("outcome") not in (True, "true")
+            or not checked or fields[checked[1].upper()] != 1):
+        return False
+    field = checked[1].upper()
+    mentioned = {name for name in fields if re.search(
+        r"(?<![A-Z0-9_-])" + re.escape(name) + r"(?![A-Z0-9_-])", clause, re.I)}
+    value = expression[0].strip("'\"")
+    if (field not in parameters or mentioned != {field, target} or not value
+            or not re.search(r"(?<![\w])" + re.escape(value) + r"(?![\w])", clause)
+            or not re.search(r"非法|无效|無效|格式不符|\b(?:invalid|malformed)\b", clause, re.I)):
+        return False
+    first = guard.get("start_line")
+    if not isinstance(first, int) or not page["start_line"] <= first <= page["end_line"]:
+        return False
+    physical = page["source_text"].splitlines()
+    snippet = "\n".join(physical[first-page["start_line"]:first-page["start_line"]+64])
+    lines, _ = normalize_cobol_lines(snippet)
+    normalized = "\n".join(line.text for line in lines)
+    ending = re.search(r"\bEND-IF\b", normalized, re.I)
+    if ending is None or ending.end() > 4096:
+        return False
+    parsed = parse_statements(normalized[:ending.end()], source_format="free", max_tokens=1024)
+    if not parsed.complete or parsed.boundaries or len(parsed.nodes) != 1:
+        return False
+    control = parsed.nodes[0]
+    body = control.children
+    return (control.kind == "IF" and not control.else_children and len(body) == 2
+            and not any(node.effects_unknown for node in body)
+            and body[0].kind == "MOVE" and body[0].expressions == ((target, expression[0]),)
+            and (body[1].kind == "GOBACK" or body[1].kind == "EXIT" and body[1].exit_kind == "PROGRAM"))
+
+
+def semantic_risk_candidates(answer, source_pages):
+    """Nominate narrow overclaim risks, never decide prose truth or edit text.
+
+    A candidate requires an actual supplied external-operation boundary. The
+    bounded review only asks for a source-grounded scope check; a citation,
+    candidate or absence of candidates is not semantic verification.
+    """
+    text = str(answer)[:48000]
+    nominated = []
+    fenced, table_columns = False, []
+    lines = text.splitlines()[:600]
+    for line_index, line in enumerate(lines):
+        if line.lstrip().startswith(("```", "~~~")):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if re.match(r"^\s*#{1,6}\s", line):
+            table_columns = []
+            continue
+        ids = set(_REFERENCE.findall(line))
+        clean = _REFERENCE.sub("", line).replace("`", "").replace("**", "")
+        table_row = clean.strip().startswith("|") and clean.strip().endswith("|")
+        if not table_row:
+            table_columns = []
+        cells = [cell.strip() for cell in clean.strip().strip("|").split("|")] if table_row else []
+        if (table_row and line_index + 1 < len(lines)
+                and re.fullmatch(r"\s*\|?[ :|-]+\|?\s*", lines[line_index + 1])
+                and "-" in lines[line_index + 1]):
+            table_columns = [index for index, cell in enumerate(cells)
+                             if _RESULT_ASSERTION.search(cell)]
+            continue
+        table_result = any(index < len(cells) and re.fullmatch(r"[\"']?[+-]?\d+(?:\.\d+)?[\"']?", cells[index])
+                           for index in table_columns)
+        for clause in re.split(r"[。；;]+|(?<=[！？])|(?<=[.!?])\s+", clean):
+            if (not clause.strip() or "?" in clause or "？" in clause
+                    or re.search(r"是否|能否|会不会|會不會|\bwhether\b", clause, re.I)):
+                continue
+            zero_loop = _ZERO_LOOP.search(clause)
+            success_only = _SUCCESS_ONLY.search(clause)
+            check_denial = _DATABASE_CHECK_DENIAL.search(clause)
+            if check_denial:
+                prefix = clause[_assertion_prefix(clause, check_denial.start()):check_denial.start()]
+                if (not _RESULT_UNCERTAINTY.search(prefix)
+                        and not re.search(r"若|如果|假设|假設|需核|待核|\bif\b", prefix, re.I)):
+                    nominated.append(("database_status_check_denial", clause.strip()[:1200], ids))
+            if (zero_loop and _EMPTY_INPUT.search(clause)
+                    and not _RESULT_UNCERTAINTY.search(clause[_assertion_prefix(clause, zero_loop.start()):zero_loop.start()])):
+                nominated.append(("empty_input_zero_loop", clause.strip()[:1200], ids))
+            if (success_only and not _RESULT_UNCERTAINTY.search(
+                    clause[_assertion_prefix(clause, success_only.start()):success_only.start()])):
+                nominated.append(("success_only_status_assignment", clause.strip()[:1200], ids))
+            problem = _POST_CALL_PROBLEM.search(clause)
+            continuing = _POST_CALL_CONTINUE.search(clause, problem.end()) if problem else None
+            if (problem and continuing and not _RETURN_PATH_SCOPE.search(_local_assertion_scope(clause, continuing.end()))
+                    and not _RESULT_UNCERTAINTY.search(clause[_assertion_prefix(clause, problem.start()):continuing.start()])
+                    and not re.search(r"(?:不能|不会|不會|未必|不一定).{0,8}(?:继续|繼續)", continuing[0])):
+                nominated.append(("unconditional_post_call_continuation", clause.strip()[:1200], ids))
+            if _RESULT_ASSERTION.search(clause) or table_result:
+                for kind, pattern in (("unconditional_exception_result", _UNIVERSAL_RESULT),
+                                      ("unvalidated_input_outcome", _INVALID_INPUT)):
+                    for match in pattern.finditer(clause):
+                        # A negation is scoped to this assertion; a later caveat
+                        # cannot retract an earlier positive guarantee implicitly.
+                        outcome = _RESULT_ASSERTION.search(clause, match.end())
+                        assertion_end = outcome.end() if outcome else match.end()
+                        if _RESULT_UNCERTAINTY.search(clause[_assertion_prefix(clause, match.start()):assertion_end]):
+                            continue
+                        if (kind == "unconditional_exception_result"
+                                and _pending_quoted_result_check(clause, match.start(), assertion_end)):
+                            continue
+                        if (kind == "unconditional_exception_result"
+                                and _RETURN_PATH_SCOPE.search(_local_assertion_scope(clause, assertion_end))):
+                            continue
+                        nominated.append((kind, clause.strip()[:1200], ids))
+                        break
+                    if len(nominated) >= 12:
+                        break
+            if len(nominated) >= 12:
+                break
+        if len(nominated) >= 12:
+            break
+    if not nominated:
+        return []
+    versions = {}
+    for page in source_pages:
+        versions.setdefault(page.get("relative_path"), set()).add(page.get("source_sha256"))
+    pages, characters = [], 0
+    for page in source_pages[:128]:
+        body = page.get("source_text")
+        if (page.get("span_truncated") or not page.get("evidence_id") or not isinstance(body, str)
+                or not re.fullmatch(r"[a-fA-F0-9]{64}", str(page.get("source_sha256", "")))
+                or len(versions.get(page.get("relative_path"), ())) != 1):
+            continue
+        if characters + len(body) > 80000:
+            continue
+        characters += len(body)
+        pages.append(page)
+    if not pages:
+        return []
+    from answer_grounding import answer_grounding_risks
+    boundaries = [row for row in answer_grounding_risks(pages)["reasons"]
+                  if row["kind"] in {"sql_select_into_effect_boundary", "call_implementation_not_supplied",
+                                     "runtime_call_target", "call_reference_effect_boundary"}]
+    if any(kind == "unconditional_post_call_continuation" for kind, _, _ in nominated):
+        boundaries.extend(_cl_continuation_boundaries(pages))
+    structural_kinds = {kind for kind, _, _ in nominated}.intersection({
+        "empty_input_zero_loop", "success_only_status_assignment", "database_status_check_denial"})
+    if structural_kinds:
+        boundaries.extend(_structured_review_boundaries(pages, structural_kinds))
+    if not boundaries:
+        return []
+    validation_pages = None
+    answer_ids = set(_REFERENCE.findall(text))
+    result = []
+    for kind, clause, ids in nominated:
+        boundary_kind = {"unconditional_post_call_continuation": "cl_call_continuation_boundary",
+                         "empty_input_zero_loop": "read_inside_until_loop",
+                         "success_only_status_assignment": "status_assigned_in_both_sql_branches",
+                         "database_status_check_denial": "status_assigned_in_both_sql_branches"}.get(kind)
+        special = {"cl_call_continuation_boundary", "read_inside_until_loop", "status_assigned_in_both_sql_branches"}
+        selected = [row for row in boundaries if row["kind"] == boundary_kind] if boundary_kind else [
+            row for row in boundaries if row["kind"] not in special]
+        if kind == "unconditional_post_call_continuation":
+            selected = [row for row in selected if re.search(
+                r"(?<![A-Z0-9_-])" + re.escape(row["target_name"]) + r"(?![A-Z0-9_-])", clause, re.I)]
+        if kind == "empty_input_zero_loop":
+            before_loop = clause[:_ZERO_LOOP.search(clause).start()]
+            # A named run-state assumption is not the declaration's initial
+            # state. Do not resolve that hypothesis by borrowing VALUE.
+            if re.search(r"若|如果|假[设設定]|已|调用前|調用前|(?:进入|進入).{0,8}前|"
+                         r"\b(?:if|when|assuming|already|before|prior)\b", before_loop, re.I):
+                selected = [row for row in selected if not re.search(
+                    r"(?<![A-Z0-9_-])" + re.escape(row["control_field"]) + r"(?![A-Z0-9_-])",
+                    before_loop, re.I)]
+        if kind == "success_only_status_assignment":
+            # Bind prose roles through the answer's own explicit parameter
+            # table, then still require the actual target in both source arms.
+            # A different output in an earlier comma/contrast clause cannot
+            # lend its identity to this success-only assignment assertion.
+            assignment = _SUCCESS_ONLY.search(clause)
+            # Writing one particular value only on success is different from
+            # writing the target only on success. This check does not prove
+            # value-specific claims, so leave those outside this candidate.
+            if re.match(r"\s*(?:为|為|成|=|[:：]|[\"']|[+-]?\d|\b(?:to|as)\b)",
+                        clause[assignment.end():], re.I):
+                continue
+            subject = _local_assertion_scope(clause, assignment.start())
+            subject = subject[_assertion_prefix(subject, len(subject)):]
+            role_targets = set()
+            if _STATUS_ROLE.search(subject):
+                for table_line in text.splitlines():
+                    cells = [cell.strip().replace("`", "").replace("**", "") for cell in table_line.strip().strip("|").split("|")]
+                    if len(cells) >= 2 and re.fullmatch(r"[A-Z][A-Z0-9_-]*", cells[0], re.I) and _STATUS_ROLE.search(" ".join(cells[1:])):
+                        role_targets.add(cells[0].upper())
+            selected = [row for row in selected if re.search(
+                r"(?<![A-Z0-9_-])" + re.escape(row["target_name"]) + r"(?![A-Z0-9_-])", subject, re.I)
+                or role_targets == {row["target_name"]}]
+        if kind == "database_status_check_denial":
+            # A named different program cannot borrow this program's check.
+            # Generic wording still needs the usual unique/cited source bind.
+            named = set(re.findall(r"(?<![A-Z0-9_-])[A-Z][A-Z0-9_-]{2,}(?![A-Z0-9_-])", clause))
+            denial = _DATABASE_CHECK_DENIAL.search(clause)
+            subject = re.search(r"(?<![A-Z0-9_-])([A-Z][A-Z0-9_-]{2,})\s*(?:程序|源码|源碼)?\s*$",
+                                clause[:denial.start()], re.I)
+            if subject:
+                named.add(subject[1].upper())
+            named.difference_update({"SQL", "SQLCODE", "IF", "ELSE"})
+            selected = [row for row in selected if not named or named == {row["program_name"]}]
+        relevant = [row for row in selected if ids.intersection(row["supplied_reference_ids"])]
+        binding_basis = "assertion_cited_boundary"
+        cited = [row for row in selected if answer_ids.intersection(row["supplied_reference_ids"])]
+        if not ids:
+            if len({(row["relative_path"], row["source_sha256"]) for row in cited}) == 1:
+                relevant, binding_basis = cited, "unique_answer_cited_boundary"
+            elif len({(row["relative_path"], row["source_sha256"]) for row in selected}) == 1:
+                relevant, binding_basis = selected, "unique_supplied_boundary"
+        if not relevant:
+            continue
+        if kind == "unvalidated_input_outcome":
+            if validation_pages is None:
+                validation_pages = _numeric_rejection_pages(pages)
+            if any(_explicit_numeric_rejection(clause, page, fact, fields, parameters)
+                   for page, facts, fields, parameters in validation_pages
+                   if any(row["relative_path"] == page["relative_path"]
+                          and row["source_sha256"] == page["source_sha256"] for row in relevant)
+                   for fact in facts):
+                continue
+        feedback = (
+            "核对“没有数据库状态检查”的否定结论。实际已供应的同一程序在 SQL 请求后有 "
+            "IF SQLCODE = 0，并在两分支给同一状态参数赋值。说明已存在的状态判断，"
+            "与未展示完整异常处理或不能保证所有异常返回分别表达；此候选不证明真实执行结果。"
+            if kind == "database_status_check_denial" else
+            "核对空输入时循环体零次进入的断言。当前完整原文把 READ/AT END 放在 PERFORM 循环体内，"
+            "并显示与停止值不同的声明初值；只要已到达该 READ/AT END，就已进入循环体，"
+            "这与未进入 NOT AT END 业务处理分支不同。"
+            "结合首次初始化及实际到达循环的前提解释，不把 VALUE 当每次调用重置，也不据此保证外部文件操作成功。"
+            if kind == "empty_input_zero_loop" else
+            "核对只有查出结果/成功才给该输出赋值的排他结论。实际同一 SQLCODE IF 的两条分支均对该目标赋值，"
+            "成功分支与 ELSE 分支应分别说明；区分查询数据输出和状态参数，不把正常返回条件省略或把两类字段混为一谈。"
+            if kind == "success_only_status_assignment" else
+            "核对这句从静态 CALL 后续命令推出被调用程序发生任何问题后仍继续的保证。"
+            "实际原文只显示调用与后续命令的位置；须区分控制流正常返回后的顺序，和调用异常时是否返回。"
+            "按已供应的调用/异常处理约定限定本句，不能把未检查返回状态推导为异常不会改变流程。"
+            if kind == "unconditional_post_call_continuation" else
+            "核对这句/表格中的全异常或无条件返回保证。当前原文显示操作请求和后续状态分支，"
+            "不能仅据此推出所有异常均能正常返回并到达赋值处。保留有据结论，在该句就地写明控制流前提；"
+            "若实际来源已支持更强保证，请引用具体处理规则。"
+            if kind == "unconditional_exception_result" else
+            "核对这句/表格把非法、格式不符或零输入直接映射到失败结果的推断。"
+            "没有输入校验不证明查询必失败，也不确定外部接口如何处理无效字节。"
+            "按实际输入拒绝分支或已供应接口约定说明；否则把该输入结果保留为具体未知。")
+        result.append({"kind": kind, "status": "review_candidate", "assertion": clause,
+                       "feedback": feedback, "semantic_verification": False,
+                       "binding_basis": binding_basis,
+                       "source_refs": [{key: row[key] for key in
+                           ("relative_path", "source_sha256", "start_line", "end_line", "supplied_reference_ids")}
+                           for row in relevant[:4]]})
+    return result
+
+
 def assess_business_answer(question, answer, investigation, source_pages, *, answer_detail="detailed", working_set=None):
     """Detect obvious omissions without treating source supply as answer quality."""
     completion = assess_answer_completion(answer)
@@ -828,6 +1342,12 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
             "missing_aspects": [kind for kind in missing if kind in _NARRATIVE_ASPECTS]}
     if missing and completion["status"] != "incomplete":
         completion.update(status="incomplete", reason="supplied_business_aspects_unexplained")
+    risks = semantic_risk_candidates(answer, source_pages)
+    completion["semantic_risk_candidates"] = risks
+    if risks:
+        completion["missing_aspects"] = list(dict.fromkeys([
+            *completion["missing_aspects"], *("semantic_scope_" + risk["kind"] for risk in risks)]))
+        completion.update(status="incomplete", reason="semantic_scope_review_needed")
     completion["method"] = "bounded_text_and_coverage_signals"
     return completion
 

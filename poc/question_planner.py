@@ -7,7 +7,7 @@ import re
 from statement_facts import data_references
 
 
-PLAN_VERSION = "business-analysis-plan/v8"
+PLAN_VERSION = "business-analysis-plan/v9"
 _ACCUMULATION = re.compile(
     r"累加|累[计計积積]|加总|加總|"
     r"(?<![A-Za-z0-9_$#@-])(?:accumulat(?:e[ds]?|ing|ion)|running\s+totals?)(?![A-Za-z0-9_$#@-])|"
@@ -45,6 +45,22 @@ _UPSTREAM_ACTIVATION = re.compile(
     r"批处理|批處理|调度|調度|启动|啟動|入口|由谁|由誰|谁调用|誰調用|"
     r"(?:怎么|怎麼|如何|怎样|怎樣|由谁|由誰|谁|誰|how).{0,16}(?:触发|觸發|trigger)|"
     r"(?<![A-Za-z0-9_-])(?:batch|schedul(?:e|ed|ing)|launch(?:ed|ing)?|entry[ -]?point)(?![A-Za-z0-9_-])", re.I)
+_BATCH_NOUN = re.compile(r"批处理|批處理|(?<![A-Za-z0-9_-])batch(?![A-Za-z0-9_-])", re.I)
+_RUNTIME_ACTIVATION = re.compile(
+    r"启动|啟動|调度|調度|排程|"
+    r"(?:发起者|發起者).{0,6}(?:谁|誰)|"
+    r"(?:何时|何時|什么时候|什麼時候|幾點|几点|谁|誰|何人|多久|频率|頻率)"
+    r".{0,20}(?:启动|啟動|触发|觸發|执行|執行|运行|運行)|"
+    r"(?:实际|實際|运行时|運行時).{0,12}(?:启动|啟動|触发|觸發|执行|執行|运行|運行)|"
+    r"(?:怎么|怎麼|如何|怎样|怎樣|由谁|由誰|谁|誰|how).{0,16}(?:触发|觸發|trigger)|"
+    r"(?<![A-Za-z0-9_-])(?:schedul\w*|cron|launch\w*)(?![A-Za-z0-9_-])|"
+    r"\b(?:when|who|what\s+time|how\s+often)\s+.{0,80}\b(?:run|start|launch|execut|trigger|initiat)\w*\b|"
+    r"\bruntime\s+(?:execution|scheduling|launch)\b", re.I)
+
+
+def runtime_activation_requested(question):
+    """Identify an actual launch/time request, independently of program kind."""
+    return bool(_RUNTIME_ACTIVATION.search(str(question)))
 
 
 def program_relation_direction(question):
@@ -229,15 +245,29 @@ class QuestionPlanner:
                 intent_question = re.sub(r"(?<![A-Za-z0-9_$#@-])" + re.escape(name) +
                                          r"(?![A-Za-z0-9_$#@-])", " ", intent_question, flags=re.I)
         intents = [name for name, pattern in _HINTS.items() if re.search(pattern, intent_question, re.I)]
+        explicit_activation = runtime_activation_requested(intent_question)
+        if explicit_activation and "activation" not in intents:
+            intents.append("activation")
         relation_direction = program_relation_direction(intent_question)
         if relation_direction:
             intents.append("call_relationships")
         if accumulation_requested(intent_question):
             intents.append("accumulation")
+        if "activation" in intents and _BATCH_NOUN.search(intent_question):
+            without_batch = _BATCH_NOUN.sub(" ", intent_question)
+            if not re.search(_HINTS["activation"], without_batch, re.I):
+                from business_synthesis import wants_business_overview
+                entry_requested = (explicit_activation or _UPSTREAM_ACTIVATION.search(without_batch)
+                                   or re.search(r"\bentry\b", without_batch, re.I))
+                # A batch noun identifies the kind of program, not a request
+                # to discover who launches it. Local I/O and exception followups
+                # retain their own obligations without an unrelated scheduler.
+                if not entry_requested and not wants_business_overview(intent_question):
+                    intents.remove("activation")
         # A rule's trigger condition belongs to its local IF/control analysis.
         # Upstream launch or batch wording asks the separate caller/scheduler
         # question; calculation and activation obligations can then coexist.
-        if "activation" in intents and not _UPSTREAM_ACTIVATION.search(intent_question):
+        if "activation" in intents and not explicit_activation and not _UPSTREAM_ACTIVATION.search(intent_question):
             intents.remove("activation")
             if "condition" not in intents:
                 intents.append("condition")

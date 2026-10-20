@@ -75,7 +75,7 @@ class AnswerMarkdownTests(unittest.TestCase):
     def test_only_supplied_unclosed_source_citation_at_truncated_prose_tail_is_removed(self):
         identifier = "ev_page_0123456789abcdef01234567"
         prefix = "已完成的业务正文和完整引用保留。[" + identifier + "]\n\n其后调用："
-        for suffix in ("[" + identifier[:18], "[" + identifier, "[" + identifier[:18] + "\n"):
+        for suffix in ("[ev_page_", "[" + identifier[:18], "[" + identifier, "[" + identifier[:18] + "\n"):
             with self.subTest(suffix=suffix):
                 self.assertEqual(strip_incomplete_source_citation(prefix + suffix, truncated=True,
                                  evidence_ids=[identifier]), prefix)
@@ -85,12 +85,14 @@ class AnswerMarkdownTests(unittest.TestCase):
     def test_ordinary_brackets_complete_unknown_and_nonterminal_markers_are_unchanged(self):
         identifier = "ev_page_0123456789abcdef01234567"
         samples = ("普通条件 [尚未写完", "普通圆括号（尚未写完", "完整 [" + identifier + "]",
-                   "未知 [ev_page_ffffffff", "片段 [ev_page_", "内部[ev_page_012345 后有正文",
+                   "未知 [ev_page_ffffffff", "片段 [ev_page", "内部[ev_page_012345 后有正文",
                    "转义 \\[ev_page_012345", "多于哈希长度 [" + identifier + "a")
         for sample in samples:
             with self.subTest(sample=sample):
                 self.assertEqual(strip_incomplete_source_citation(sample, truncated=True,
                                  evidence_ids=[identifier]), sample)
+        self.assertEqual(strip_incomplete_source_citation("片段 [ev_page_", truncated=True,
+                         evidence_ids=[]), "片段 [ev_page_")
 
     def test_incomplete_internal_marker_inside_code_is_not_display_repaired(self):
         identifier = "ev_page_0123456789abcdef01234567"

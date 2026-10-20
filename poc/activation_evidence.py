@@ -206,13 +206,82 @@ def _candidates(database_path, business_map):
     return entries, callers, gaps
 
 
-def investigate_activation(business_map, pages, *, database_path=None, max_actions=4, candidate_cache=None):
+def _bound_cl_callers(database_path, business_map, context):
+    """Reuse supplied CL syntax without claiming a resolved runtime object."""
+    if (not database_path or not context or context.get("frontier")
+            or context.get("unread_candidate_count") != 0):
+        return []
+    roots = list(dict.fromkeys(business_map.get("direct_paths", ())))
+    if len(roots) != 1:
+        return []
+    observations = [row for row in context.get("observations", ()) if row.get("command") == "CALL"]
+    if len(observations) > _MAX_CALLS:
+        return []
+    with closing(sqlite3.connect(Path(database_path).resolve().as_uri() + "?mode=ro", uri=True)) as db:
+        names = [row[0] for row in db.execute(
+            "SELECT name FROM symbols WHERE relative_path=? AND symbol_type='Program' LIMIT 2", roots)]
+        if len(names) != 1:
+            return []
+        definitions = list(db.execute(
+            "SELECT relative_path FROM symbols WHERE name=? AND symbol_type='Program' LIMIT 2", names))
+        if definitions != [(roots[0],)]:
+            return []
+        paths = list(dict.fromkeys(row.get("relative_path") for row in observations if row.get("relative_path")))
+        hashes = dict(db.execute("SELECT relative_path,sha256 FROM source_files WHERE relative_path IN ("
+            + ",".join("?" for _ in paths) + ")", paths)) if paths else {}
+
+    def reference(ref):
+        first, last, text = (ref.get(key) for key in ("start_line", "end_line", "statement"))
+        if (type(first) is not int or type(last) is not int or first < 1 or last < first
+                or not isinstance(text, str) or len(text.splitlines()) != last-first+1
+                or hashes.get(ref.get("relative_path")) != ref.get("source_sha256")):
+            return None
+        return {key: ref[key] for key in ("relative_path", "source_sha256", "start_line", "end_line")} | {
+            "expected_lines": dict(enumerate(text.splitlines(), first))}
+
+    callers = []
+    for row in observations:
+        target = row.get("target") or {}
+        if (row.get("command") != "CALL" or row.get("target_name") != names[0]
+                or target.get("name") != names[0]
+                or target.get("binding_status") not in {"library_list_candidate", "explicit_source_spelling"}
+                or row.get("diagnostics")
+                or row.get("binding_basis") != "indexed_complete_source_parse_and_supplied_span"):
+            continue
+        source_ref = reference(row)
+        if source_ref is None:
+            continue
+        conditions, condition_refs = [], []
+        for guard in row.get("guards", ()):
+            for ref in (guard.get("source_ref"), guard.get("if_source_ref")):
+                if ref is not None:
+                    conditions.append(dict(guard))
+                    condition_refs.append(reference(ref))
+        callers.append({"relative_path": row["relative_path"], "line": row["start_line"],
+            "source_sha256": row["source_sha256"], "target_name": names[0],
+            "target_path": roots[0], "relation_type": "CL_CALL", "source_language": "CL",
+            "occurrence_id": row["occurrence_id"], "source_ref": source_ref,
+            "conditions": conditions, "condition_refs": condition_refs,
+            "scope_known": row.get("control_scope_supplied") is True and row.get("scope_known") is True,
+            "scope_unknown_reason": "cl_control_or_environment_source_not_supplied",
+            "compilation_status": "active", "binding_confirmed": False,
+            "static_target_name_match": True,
+            "target_binding_basis": "unique_program_source_name_not_runtime_object",
+            "runtime_object_verified": False, "command_context": row.get("command_context")})
+    return callers
+
+
+def investigate_activation(business_map, pages, *, database_path=None, max_actions=4, candidate_cache=None,
+                           cl_context=None):
     cache = candidate_cache if isinstance(candidate_cache, dict) else {}
     key = (str(database_path), business_map.get("snapshot_id"), tuple(business_map.get("direct_paths", ())))
     if cache.get("activation_key") != key:
         cache["activation_candidates"] = _candidates(database_path, business_map)
         cache["activation_key"] = key
     entries, callers, frontier = cache["activation_candidates"]
+    # The CL context was rebuilt against this request's actual pages. Do not
+    # cache its visibility with the stable index candidates above.
+    callers = [*callers, *_bound_cl_callers(database_path, business_map, cl_context)]
 
     def covered(ref):
         expected = ref["expected_lines"]
@@ -270,7 +339,8 @@ def investigate_activation(business_map, pages, *, database_path=None, max_actio
                         "reason": candidate["scope_unknown_reason"]}
                     if frontier not in local_frontier:
                         local_frontier.append(frontier)
-            active = candidate["compilation_status"] == "active" and candidate.get("binding_confirmed", True)
+            active = candidate["compilation_status"] == "active" and (
+                candidate.get("binding_confirmed", True) or candidate.get("static_target_name_match") is True)
             satisfied.append(bool(identifiers) and active and (complete if conditions else True))
             if identifiers:
                 observations.append({key: value for key, value in candidate.items()
@@ -285,7 +355,9 @@ def investigate_activation(business_map, pages, *, database_path=None, max_actio
     caller_rows, caller_ok = supplied(callers)
     _, condition_ok = supplied(callers, conditions=True)
     def obligation(kind, candidates, rows, fulfilled, missing):
-        uncertain = any(row["compilation_status"] != "active" or not row.get("binding_confirmed", True) for row in rows)
+        uncertain = any(row["compilation_status"] != "active" or
+                        not (row.get("binding_confirmed", True) or row.get("static_target_name_match") is True)
+                        for row in rows)
         status = "SATISFIED" if fulfilled and all(fulfilled) else "UNRESOLVED" if uncertain else "PARTIAL" if rows else "OPEN"
         return {"id": "activation_" + kind, "kind": kind, "status": status,
             "evidence_ids": list(dict.fromkeys(identifier for row in rows for identifier in

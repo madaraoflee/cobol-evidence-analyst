@@ -1,0 +1,45 @@
+{
+  "schema": "neutral-captured-answer-review/v1",
+  "original_pipeline_version": "question-evidence-v43",
+  "original_prompt_version": "business-chat-v38",
+  "question": "请基于 nightjob.clle、settle.cbl、balance.cbl。继续核对业务边界：这批处理遇到空输入会怎样？ORDER SKIPPED 到哪里、金额大于零能否直接等同非零？BALANCEQ 是否任何异常都能返回90？这两项业务能否确定完全无关？请先说明源码能确认的结论，再指出还需要哪些具体运行资料。",
+  "raw_answer": "## 结论\n\n以下三个“能确认”与一个“只能部分确认”：\n\n- **空输入**：按 `END-OF-ORDERS` 初值为 0 的初始状态，且 `OPEN INPUT ORDER-IN` 成功，第一次 `READ` 就遇到 `AT END`，直接结束循环，不进入订单判断，因此**不产生 `ORDER SKIPPED` 输出请求**，随后关闭文件、返回。[ev_page_0a5bd724415b32dba5d08161]\n- **`ORDER SKIPPED` 的去向**：源码只写了一条 `DISPLAY`，属于把文字送到运行时显示输出的请求；未提供作业提交参数或输出目的地定义，**不能断定它写进 SETTLEOUT、打印队列或作业日志**，也不能断言会被丢弃。\n- **“金额大于零”是否等同“非零”**：`ORDER-AMOUNT` 声明为无符号的 `9(7)V99`，在**数据符合声明、为无符号数值**的前提下，大于零确实等同非零；程序没有做输入合法性校验，若实际字节不符合该格式，这条等价不能保证。[ev_page_0a5bd724415b32dba5d08161]\n- **BALANCEQ 是否任何异常都返回 '90'**：只能确认**当执行到判断且 `SQLCODE` 非零时返回 '90'**；这不等于“任何异常都会返回 '90'”，因为程序加载失败、SQL 语句未能执行、`SQLCODE` 未按预期赋值等情形，源码没有交代，也没有文件/数据库状态检查。[ev_page_41c62f686dca8a6b3a26a3e9]\n- **两项业务是否完全无关**：材料内**没有**夜间作业与结算程序调用 BALANCEQ，也没有共享的文件或记录，从静态调用和数据定义看是两条独立路径；但这只说明“材料内未见关联”，不证明系统全局无关。\n\n## 分别说明\n\n**1. 空输入的处理路径（SETTLE）**\n\n处理顺序是：打开输入 `ORDERIN`（通过夜间作业的 `OVRDBF` 指向 APPDATA/ORDERS）与输出 `SETTLEOUT` → 循环 `READ` → `AT END` 分支把 `END-OF-ORDERS` 置 1 → 循环条件不成立而退出 → 关闭两个文件 → 返回。[ev_page_b8c4a50484c207378485e3de][ev_page_0a5bd724415b32dba5d08161]\n\n也就是说，空输入时没有读入任何订单记录，`SETTLEMENT-OUT` 不发起任何 `WRITE` 请求，程序正常关闭结束。按所示逻辑，这属于“没有可处理记录”，并非异常分支；源码未声明文件状态码，也没有针对“文件不存在/打不开”的处理。因此这条结论仅限 `OPEN` 成功、`READ` 首次即 `AT END` 的情形。\n\n**2. `ORDER SKIPPED` 何时出现、到哪里**\n\n它只在 `READ` 成功读到记录、且“状态不为 'A' 或 金额不大于零”这一 `ELSE` 分支执行；通过审核的订单走 `WRITE SETTLEMENT-REC`，不会显示该文字。[ev_page_0a5bd724415b32dba5d08161]\n\n至于目的地，源码层面只能确认这是 `DISPLAY` 输出请求。需要运行资料：作业提交时的输出/日志定义、`DISPLAY` 在批处理中的实际去向。\n\n**3. “大于零”与“非零”的适用条件**\n\n| 前提 | 能否等同 |\n|---|---|\n| `ORDER-AMOUNT` 数据符合 `9(7)V99`、为无符号数值 | 可以，> 0 与 ≠ 0 等价 |\n| 外部字节非法或格式不符 | 不能保证，需检查数据 |\n\n字段本身不含符号位，程序也没有做范围或格式校验，因此这只是一种“数据合规时的等价”，不能反推为所有输入都成立。[ev_page_0a5bd724415b32dba5d08161]\n\n**4. BALANCEQ 的返回码边界**\n\n程序流程：以账户号查询 `ACCOUNT_BALANCES`，把 `AVAILABLE_BALANCE` 放入 `CURRENT-BALANCE` → 判断 `SQLCODE = 0` → 是则 `RESPONSE-CODE = '00'`，否则 `'90'` → 返回。[ev_page_41c62f686dca8a6b3a26a3e9]\n\n可确定的边界：\n\n- 非零 `SQLCODE` 时统一回 '90'，**不区分**“账户不存在/无记录”和“真正的数据库错误”。按常见的 SQL 约定，无行通常也是非零码（推断，材料未给出 SQLCODE 取值说明），故调用方无法从 '90' 分辨这两种情况。\n- 非零分支下，`CURRENT-BALANCE` 的值取决于 SQL 执行语义，**不能假定保持调用前的值**；源码没有为它补默认值。\n- '90' 只表示“执行到判断时 `SQLCODE` 非零”；程序内部没有更细的状态记录，也没有日志或消息输出。\n\n需补的运行资料：数据库实际返回的 SQLCODE 值分布、`ACCOUNT_BALANCES` 中账户是否存在、以及调用方如何解释 '00'/'90'。若要知道“任何异常都返回 '90'”，还需确认程序加载/入口调用成功、SQL 语句确实被执行并回填 `SQLCODE`。\n\n**5. 两条业务路径的关系**\n\n- 夜间作业 `nightjob.clle` 只做一件事：把 `ORDERIN` 覆盖到 APPDATA/ORDERS，调用 `SETTLE`，再删除覆盖。[ev_page_b8c4a50484c207378485e3de]\n- `SETTLE` 使用订单文件与结算输出文件；`BALANCEQ` 使用 `ACCOUNT_BALANCES` 表，二者无共享文件、无共享记录、无相互调用。\n\n因此从已给材料看，两者在程序层面互不影响；结算是否会影响账户余额、余额查询是否在结算之后运行，属于业务时序问题，材料中没有依据，不能判定“完全无关”或“有关”。要判断这一点，需要调度关系、表结构（结算记录与账户余额表是否有关联键）以及数据更新来源。\n\n## 仍需的运行资料\n\n1. `ORDERIN`（APPDATA/ORDERS）的实际内容，用于验证空输入场景；\n2. 作业输出配置，用于确定 `DISPLAY 'ORDER SKIPPED'` 的实际去向；\n3. 订单金额字段的实际数据质量（是否存在非数值字节）；\n4. 数据库返回的 SQLCODE 实际值与无记录时的取值约定；\n5. `nightjob` 与余额查询的调度/时序关系，以及结算是否回写 `ACCOUNT_BALANCES`。",
+  "raw_answer_sha256": "34ac90b7ff4e22bab73c53e22bb2722cb436934e9fdfc69538b639830edaf0d4",
+  "source_sha256": {
+    "nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+    "settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+    "balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5"
+  },
+  "source_pages": [
+    {
+      "relative_path": "balance.cbl",
+      "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+      "source_text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. BALANCEQ.\n*> FUNCTION PURPOSE: Query account balance for an operator; online query entry.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 SQLCODE PIC S9(9).\nLINKAGE SECTION.\n01 ACCOUNT-KEY PIC 9(8).\n01 CURRENT-BALANCE PIC S9(7)V99.\n01 RESPONSE-CODE PIC XX.\nPROCEDURE DIVISION USING ACCOUNT-KEY CURRENT-BALANCE RESPONSE-CODE.\nMAIN.\nEXEC SQL\nSELECT AVAILABLE_BALANCE INTO :CURRENT-BALANCE\nFROM ACCOUNT_BALANCES WHERE ACCOUNT_ID = :ACCOUNT-KEY\nEND-EXEC.\nIF SQLCODE = 0\nMOVE '00' TO RESPONSE-CODE\nELSE MOVE '90' TO RESPONSE-CODE\nEND-IF.\nGOBACK.",
+      "start_line": 1,
+      "end_line": 21,
+      "evidence_id": "ev_page_41c62f686dca8a6b3a26a3e9",
+      "supplied_excerpt_sha256": "759ece45e78016f57df33fd833c5c5de9414fc6d1f8ff15d8b8ca533768732b5",
+      "format_hint": "free"
+    },
+    {
+      "relative_path": "nightjob.clle",
+      "source_sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+      "source_text": "/* Settlement export job: process approved orders. */\nPGM\nOVRDBF FILE(ORDERIN) TOFILE(APPDATA/ORDERS)\nCALL PGM(SETTLE)\nDLTOVR FILE(ORDERIN)\nENDPGM",
+      "start_line": 1,
+      "end_line": 6,
+      "evidence_id": "ev_page_b8c4a50484c207378485e3de",
+      "supplied_excerpt_sha256": "d6f08ae0a954d499767fb50f61888509dcc2675237df93b96d98d18452c93c01",
+      "format_hint": "free"
+    },
+    {
+      "relative_path": "settle.cbl",
+      "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+      "source_text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. SETTLE.\n*> BUSINESS PURPOSE: Create settlement records for approved orders.\nENVIRONMENT DIVISION.\nINPUT-OUTPUT SECTION.\nFILE-CONTROL.\nSELECT ORDER-IN ASSIGN TO ORDERIN.\nSELECT SETTLEMENT-OUT ASSIGN TO SETTLEOUT.\nDATA DIVISION.\nFILE SECTION.\nFD ORDER-IN.\n01 ORDER-REC.\n05 ORDER-ID PIC 9(8).\n05 ORDER-STATUS PIC X.\n05 ORDER-AMOUNT PIC 9(7)V99.\nFD SETTLEMENT-OUT.\n01 SETTLEMENT-REC.\n05 SETTLEMENT-ID PIC 9(8).\n05 SETTLEMENT-AMOUNT PIC 9(7)V99.\nWORKING-STORAGE SECTION.\n01 END-OF-ORDERS PIC 9 VALUE 0.\nPROCEDURE DIVISION.\nMAIN.\nOPEN INPUT ORDER-IN OUTPUT SETTLEMENT-OUT.\nPERFORM UNTIL END-OF-ORDERS = 1\nREAD ORDER-IN\nAT END MOVE 1 TO END-OF-ORDERS\nNOT AT END\nIF ORDER-STATUS = 'A' AND ORDER-AMOUNT > ZERO\nMOVE ORDER-ID TO SETTLEMENT-ID\nMOVE ORDER-AMOUNT TO SETTLEMENT-AMOUNT\nWRITE SETTLEMENT-REC\nELSE DISPLAY 'ORDER SKIPPED'\nEND-IF\nEND-READ\nEND-PERFORM.\nCLOSE ORDER-IN SETTLEMENT-OUT.\nGOBACK.",
+      "start_line": 1,
+      "end_line": 38,
+      "evidence_id": "ev_page_0a5bd724415b32dba5d08161",
+      "supplied_excerpt_sha256": "17a5a9383a388d75f437e9f5b16afd82840caf7f9852fbd052ba30014e9c6464",
+      "format_hint": "free"
+    }
+  ]
+}

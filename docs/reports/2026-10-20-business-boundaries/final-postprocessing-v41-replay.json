@@ -1,0 +1,58 @@
+{
+  "schema_version": "final-postprocessing-replay/v1",
+  "source_results_file": "real-model-results-phase4.json",
+  "source_results_sha256": "fb2ad099bcfe75286f7038669e14aef8c877aeafae17563627c267323f871ff9",
+  "final_product_hashes": {
+    "poc/answer_markdown.py": "1b04c357f2ea5a42037686d6b353ab51bd30043a66dc000f745c3cb459c8019e",
+    "poc/business_chat.py": "87ec8b3bca71804ec0e52bd069ab73a99a886c0b698362e36e406f20b9427f2c",
+    "poc/quality_trace.py": "9425211c6be9866a5efac609f727b7710049ae399c2d20ea0b2e737e74a2d953"
+  },
+  "replay_pipeline_version": "question-evidence-v41",
+  "replay_prompt_version": "business-chat-v36",
+  "same_version_three_question_live_test": false,
+  "no_model_requests": true,
+  "cases": [
+    {
+      "id": "batch",
+      "run_id": "a6432670f848eb5ec97f818b",
+      "source_pipeline_version": "question-evidence-v39",
+      "source_prompt_version": "business-chat-v35",
+      "original_delivered_answer_sha256": "edc54718015bc117fe18b85f7093af4dc6d16ad4d2ef24252a42735d1973c06d",
+      "raw_response_rounds": [
+        {
+          "round_id": "round-1",
+          "raw_answer_sha256": "34939fcd2263e0ae0a03dad12bdf56dc3c99548044e5101b9626158ee4223494",
+          "finish_reason": "length"
+        },
+        {
+          "round_id": "round-2",
+          "raw_answer_sha256": "8d262ab888caaa98fd2300a01117e5add49a08c0cd745b23af51119c5e6a0d8f",
+          "finish_reason": "stop"
+        }
+      ],
+      "replayed_answer_sha256": "edc54718015bc117fe18b85f7093af4dc6d16ad4d2ef24252a42735d1973c06d",
+      "byte_identical_to_original": true,
+      "method": "Captured original text and actual supplied page IDs through final join_answer_continuation, strip_incomplete_source_citation, normalize_answer_markdown. No new provider call."
+    },
+    {
+      "id": "online",
+      "run_id": "850853d2c8abbeff2419bb5d",
+      "source_pipeline_version": "question-evidence-v39",
+      "source_prompt_version": "business-chat-v35",
+      "original_delivered_answer_sha256": "74109c5e9651275dc07478e9c54063561feefc2ea4415729c4f8aa899317ec95",
+      "raw_response_rounds": [
+        {
+          "round_id": "round-1",
+          "raw_answer_sha256": "74109c5e9651275dc07478e9c54063561feefc2ea4415729c4f8aa899317ec95",
+          "finish_reason": "stop"
+        }
+      ],
+      "replayed_answer_sha256": "74109c5e9651275dc07478e9c54063561feefc2ea4415729c4f8aa899317ec95",
+      "byte_identical_to_original": true,
+      "method": "Captured original text and actual supplied page IDs through final join_answer_continuation, strip_incomplete_source_citation, normalize_answer_markdown. No new provider call."
+    }
+  ],
+  "limitation": "These are old v39/prompt35 real responses replayed through the frozen v41/prompt36 postprocessor. Generation guidance changed; this does not test what the final guidance would generate for batch or online, and is not a three-question same-version live test or general semantic proof.",
+  "generation_guidance_changed_since_live": true,
+  "earlier_questions_freshly_generated_with_final_guidance": false
+}

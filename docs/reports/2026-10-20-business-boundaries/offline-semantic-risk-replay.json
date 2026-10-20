@@ -1,0 +1,168 @@
+{
+  "schema_version": "bounded-semantic-risk-replay/v1",
+  "kind": "offline_recheck_of_frozen_real_answers_not_new_model_calls",
+  "real_model_requests": 0,
+  "original_record_sha256": "b95d1f4bb47f95233d1551c7a2aa8ec75431742e4fffafe8851ab094addc5342",
+  "production_sha256": {
+    "poc/business_synthesis.py": "ea99191f33961333ac5571aad5030fd7a8a6999803deb734f3cfc21f25055e55",
+    "poc/business_chat.py": "b2a5b95dc2a56893face892270ed3e50fffadc4f8aa2ee991e3276459f81d3d9"
+  },
+  "cases": [
+    {
+      "id": "batch",
+      "input": "frozen_raw_model_response",
+      "raw_answer_sha256": "bd20e639977d18012913adb64cf4c3d78d5b8c16328c3f14f5cd8f76d422cf21",
+      "trace_sha256": "f00bdf73f3d3948c1e77a0bcbbf47dc96cf6916fdca68b2cce1bb3be8100852c",
+      "actual_supplied_pages": [
+        {
+          "relative_path": "settle.cbl",
+          "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+          "start_line": 1,
+          "end_line": 38,
+          "evidence_id": "ev_page_0a5bd724415b32dba5d08161",
+          "excerpt_sha256": "17a5a9383a388d75f437e9f5b16afd82840caf7f9852fbd052ba30014e9c6464"
+        },
+        {
+          "relative_path": "nightjob.clle",
+          "source_sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+          "start_line": 1,
+          "end_line": 6,
+          "evidence_id": "ev_page_b8c4a50484c207378485e3de",
+          "excerpt_sha256": "d6f08ae0a954d499767fb50f61888509dcc2675237df93b96d98d18452c93c01"
+        }
+      ],
+      "prior_memory_block_count": 0,
+      "elapsed_seconds": 0.0278559580037836,
+      "candidate_count": 0,
+      "candidates": [],
+      "assessment_status": "not_assessed",
+      "assessment_reason": null,
+      "semantic_verification": "unverified",
+      "model_text_modified_by_risk_review": false
+    },
+    {
+      "id": "online",
+      "input": "frozen_raw_model_response",
+      "raw_answer_sha256": "838351673f975ad71c538f5a91928ef6b5c284b8cb3c8288a587efb79cc37e5f",
+      "trace_sha256": "5755f4cae86f13ba0bc687213df57611fdc6559a9e05bc93159f9121235745d5",
+      "actual_supplied_pages": [
+        {
+          "relative_path": "balance.cbl",
+          "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+          "start_line": 1,
+          "end_line": 21,
+          "evidence_id": "ev_page_41c62f686dca8a6b3a26a3e9",
+          "excerpt_sha256": "759ece45e78016f57df33fd833c5c5de9414fc6d1f8ff15d8b8ca533768732b5"
+        }
+      ],
+      "prior_memory_block_count": 0,
+      "elapsed_seconds": 0.016728958013118245,
+      "candidate_count": 2,
+      "candidates": [
+        {
+          "kind": "unconditional_exception_result",
+          "status": "review_candidate",
+          "assertion": "取到后（结果码为 0）返回响应码 '00'，其他情况一律返回 '90'",
+          "feedback": "核对这句/表格中的全异常或无条件返回保证。当前原文显示操作请求和后续状态分支，不能仅据此推出所有异常均能正常返回并到达赋值处。保留有据结论，在该句就地写明控制流前提；若实际来源已支持更强保证，请引用具体处理规则。",
+          "semantic_verification": false,
+          "binding_basis": "assertion_cited_boundary",
+          "source_refs": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 13,
+              "end_line": 16,
+              "supplied_reference_ids": [
+                "ev_page_41c62f686dca8a6b3a26a3e9"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "unvalidated_input_outcome",
+          "status": "review_candidate",
+          "assertion": "| 传入的账户号非法或格式不符 | 响应码 '90' | 程序不预先校验输入，交由数据库判断",
+          "feedback": "核对这句/表格把非法、格式不符或零输入直接映射到失败结果的推断。没有输入校验不证明查询必失败，也不确定外部接口如何处理无效字节。按实际输入拒绝分支或已供应接口约定说明；否则把该输入结果保留为具体未知。",
+          "semantic_verification": false,
+          "binding_basis": "unique_answer_cited_boundary",
+          "source_refs": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 13,
+              "end_line": 16,
+              "supplied_reference_ids": [
+                "ev_page_41c62f686dca8a6b3a26a3e9"
+              ]
+            }
+          ]
+        }
+      ],
+      "assessment_status": "incomplete",
+      "assessment_reason": "semantic_scope_review_needed",
+      "semantic_verification": "unverified",
+      "model_text_modified_by_risk_review": false
+    },
+    {
+      "id": "boundary-followup",
+      "input": "frozen_raw_model_response",
+      "raw_answer_sha256": "c746d313baf6874390c493f164fb9bff53521c45139892e5e71dc25d6f4fb095",
+      "trace_sha256": "d4f1cc964ac25705abf7285d68318c13a07405bbc72748926e878dc8e3b7229d",
+      "actual_supplied_pages": [
+        {
+          "relative_path": "balance.cbl",
+          "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+          "start_line": 1,
+          "end_line": 21,
+          "evidence_id": "ev_page_41c62f686dca8a6b3a26a3e9",
+          "excerpt_sha256": "759ece45e78016f57df33fd833c5c5de9414fc6d1f8ff15d8b8ca533768732b5"
+        },
+        {
+          "relative_path": "settle.cbl",
+          "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+          "start_line": 1,
+          "end_line": 38,
+          "evidence_id": "ev_page_0a5bd724415b32dba5d08161",
+          "excerpt_sha256": "17a5a9383a388d75f437e9f5b16afd82840caf7f9852fbd052ba30014e9c6464"
+        }
+      ],
+      "prior_memory_block_count": 0,
+      "elapsed_seconds": 0.00743195899121929,
+      "candidate_count": 0,
+      "candidates": [],
+      "assessment_status": "not_assessed",
+      "assessment_reason": null,
+      "semantic_verification": "unverified",
+      "model_text_modified_by_risk_review": false
+    }
+  ],
+  "original_record_preserved": true,
+  "targeted_regression": {
+    "tests_run": 164,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsed_seconds": 17.001,
+    "method": "local unittest with injected neutral provider responses; no model network requests",
+    "new_risk_module_test_count": 15,
+    "modules": [
+      "test_semantic_risk_review",
+      "test_business_chat",
+      "test_business_detail_regressions",
+      "test_business_synthesis_limits",
+      "test_business_narrative_quality",
+      "test_adaptive_post_continuation_review",
+      "test_adaptive_resume_review",
+      "test_analysis_continuation_review",
+      "test_business_boundary_contract",
+      "test_answer_grounding",
+      "test_static_business_sufficiency",
+      "test_business_synthesis_controls",
+      "test_claim_conditional_excerpt"
+    ]
+  },
+  "test_sha256": {
+    "poc/tests/test_semantic_risk_review.py": "cd11ca8230c7579f12dab2f457688b4a942cba014d8d77760ba505beb6285251"
+  },
+  "scope": "Narrow source-bound risk nomination and bounded revision routing; absence of candidates does not verify arbitrary business semantics."
+}

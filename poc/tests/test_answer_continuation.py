@@ -1,6 +1,8 @@
 """Exact-only joins at the boundary of a truncated Markdown response."""
 
 from pathlib import Path
+import hashlib
+import json
 import sys
 import unittest
 
@@ -10,6 +12,61 @@ from answer_markdown import join_answer_continuation
 
 
 class AnswerContinuationTests(unittest.TestCase):
+    def test_supplied_bare_citation_tail_does_not_swallow_new_markdown(self):
+        identifier = "ev_page_0123456789abcdef01234567"
+        draft = "已有业务结论保持不变。[ev_page_"
+        continuation = "**输入边界**\n\n新的业务说明完整保留。"
+        self.assertEqual(join_answer_continuation(draft, continuation, evidence_ids=[identifier]),
+                         "已有业务结论保持不变。\n\n" + continuation)
+        self.assertEqual(join_answer_continuation(draft, continuation),
+                         draft + continuation)
+
+    def test_literal_continuation_completes_only_an_actual_supplied_citation(self):
+        identifier = "ev_page_0123456789abcdef01234567"
+        for split in (len("ev_page_"), 18, len(identifier)):
+            draft = "已有结论。[" + identifier[:split]
+            continuation = identifier[split:] + "]\n\n后续业务说明。"
+            with self.subTest(split=split):
+                self.assertEqual(join_answer_continuation(draft, continuation, evidence_ids=[identifier]),
+                                 draft + continuation)
+        self.assertEqual(join_answer_continuation("[ev_page_", "**新段落**", evidence_ids=[identifier]),
+                         "**新段落**")
+
+    def test_citation_repair_keeps_unknown_code_escape_and_blockquote_tails(self):
+        identifier = "ev_page_0123456789abcdef01234567"
+        continuation = "**新的说明**"
+        for draft in (
+            "其它前缀 [ev_page_ffffffff", "未识别前缀 [ev_other_",
+            "源码 `[ev_page_", "```text\n[ev_page_", "~~~text\n[ev_page_",
+            "\\[ev_page_", "> 引用 [ev_page_", "    [ev_page_", "\t[ev_page_",
+        ):
+            with self.subTest(draft=draft):
+                self.assertEqual(join_answer_continuation(draft, continuation, evidence_ids=[identifier]),
+                                 join_answer_continuation(draft, continuation))
+
+    def test_frozen_two_real_continuations_preserve_business_text_and_known_ids(self):
+        frozen = json.loads((Path(__file__).parent / "fixtures" / "answer_continuation_phase4.json").read_text())
+        self.assertEqual(len(frozen["cases"]), 2)
+        for case in frozen["cases"]:
+            with self.subTest(case=case["id"]):
+                draft, continuation = case["raw_answers"]
+                self.assertEqual([hashlib.sha256(text.encode()).hexdigest() for text in case["raw_answers"]],
+                                 case["raw_answer_sha256"])
+                joined = join_answer_continuation(draft, continuation, evidence_ids=case["evidence_ids"])
+                self.assertIn(continuation, joined)
+                if case["id"] == "boundary-followup":
+                    self.assertTrue(draft.endswith("[ev_page_"))
+                    self.assertEqual(joined, draft[:-len("[ev_page_")] + "\n\n" + continuation)
+                    self.assertNotIn("[ev_page_**", joined)
+                else:
+                    # The model repeated the exact unfinished sentence and
+                    # supplied its full reference; retain that existing join.
+                    self.assertTrue(draft.endswith("[ev_page"))
+                    self.assertEqual(joined, join_answer_continuation(draft, continuation))
+                    self.assertIn(draft[:-len("[ev_page")], joined)
+                self.assertEqual([hashlib.sha256(text.encode()).hexdigest() for text in case["raw_answers"]],
+                                 case["raw_answer_sha256"])
+
     def test_partial_list_item_restarted_from_its_beginning(self):
         prefix = "已说明的业务结论不变。[ev:summary]\n\n1. 首项保留。\n\n"
         tail = "2. 接着检查上限：`LIMIT-AMO"

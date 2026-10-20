@@ -282,7 +282,7 @@ def check_claim_support(
     return result
 
 
-STATEMENT_CHECKER_VERSION = "source-statement-support-v5"
+STATEMENT_CHECKER_VERSION = "source-statement-support-v6"
 
 
 def statement_tokens(text: str) -> tuple[str, ...] | None:
@@ -363,6 +363,26 @@ def supplied_statement_facts(page: Mapping[str, Any], *, source_format: str = "a
                     "guards": controls.get(unit.unit_id, []),
                     "source_text": "\n".join(source.splitlines()[unit.start_line - 1:unit.end_line]),
                     **compilation.get(unit.unit_id, {})}
+        if (unit.name == "ELSE" and unit.parse_status == "complete"
+                and any(guard.get("kind") == "IF" and guard.get("outcome") in (False, "false")
+                        for guard in location["guards"])):
+            # The structural unit retains an inline ELSE and its statement on
+            # one physical line. Project the complete MOVE after that marker,
+            # keeping the already confirmed false-branch guard and raw span.
+            branch = parse_statements(re.sub(r"^ELSE\s+", "", body, count=1, flags=re.I),
+                                      start_line=location["start_line"], source_format="free")
+            if (branch.complete and not branch.boundaries and len(branch.statements) == 1
+                    and branch.statements[0].kind == "MOVE"
+                    and not branch.statements[0].effects_unknown):
+                node = branch.statements[0]
+                for target, expression in node.expressions:
+                    tokens = statement_tokens(expression)
+                    if tokens:
+                        facts.append({**location, "statement_kind": "MOVE",
+                            "predicate": "assignment_statement", "target": target,
+                            "expression": list(tokens), "rounded": False,
+                            "normal_result_condition": None, "exception_effects_unverified": False})
+            continue
         if unit.unit_type == "DataItem":
             # An elementary VALUE clause proves only the declared initial
             # literal, never a runtime or final value after later writes.

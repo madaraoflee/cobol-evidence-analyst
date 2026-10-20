@@ -1,0 +1,88 @@
+{
+  "schema": "observed-latency-breakdown/v1",
+  "phase": 3,
+  "real_answers_semantic_status": "failed_independent_review",
+  "results_sha256": "c5313c3c1a2126504e1fec3d0b92d2164359a05a5f5e36f50961a50c44dd4df6",
+  "source_kind": "three_neutral_small_source_files",
+  "reasoning_effort": "low",
+  "timing_components_are_inclusive": true,
+  "cases": [
+    {
+      "id": "batch",
+      "observed_wall_seconds": 18.883842417009873,
+      "timing_seconds": {
+        "answer_fact_completion_seconds": 0.0001,
+        "answer_verification_seconds": 0.025,
+        "business_map_seconds": 0.0045,
+        "complete_working_set_seconds": 0.0013,
+        "context_assembly_seconds": 0.036,
+        "first_model_request_seconds": 0.0629,
+        "initial_context_seconds": 0.0072,
+        "local_processing_seconds": 0.1707,
+        "provider_wait_seconds": 18.5947,
+        "question_investigation_seconds": 0.021,
+        "read_seconds": 0.0,
+        "retrieval_seconds": 0.0027,
+        "selected_source_hash_seconds": 0.0005,
+        "semantic_evidence_seconds": 0.0,
+        "semantic_scope_seconds": 0.0,
+        "total_seconds": 18.7654
+      },
+      "model_requests": 1,
+      "repository_rebuilt": false
+    },
+    {
+      "id": "online",
+      "observed_wall_seconds": 13.692824458994437,
+      "timing_seconds": {
+        "answer_fact_completion_seconds": 0.0001,
+        "answer_verification_seconds": 0.0235,
+        "business_map_seconds": 0.0043,
+        "complete_working_set_seconds": 0.0017,
+        "context_assembly_seconds": 0.0134,
+        "first_model_request_seconds": 0.038,
+        "initial_context_seconds": 0.0104,
+        "local_processing_seconds": 0.1246,
+        "provider_wait_seconds": 13.5279,
+        "question_investigation_seconds": 0.0062,
+        "read_seconds": 0.0,
+        "retrieval_seconds": 0.0028,
+        "selected_source_hash_seconds": 0.0006,
+        "semantic_evidence_seconds": 0.0,
+        "semantic_scope_seconds": 0.0,
+        "total_seconds": 13.6525
+      },
+      "model_requests": 1,
+      "repository_rebuilt": false
+    },
+    {
+      "id": "boundary-followup",
+      "observed_wall_seconds": 24.033940124994842,
+      "timing_seconds": {
+        "answer_fact_completion_seconds": 0.0001,
+        "answer_verification_seconds": 0.0258,
+        "business_map_seconds": 0.0048,
+        "complete_working_set_seconds": 0.0013,
+        "context_assembly_seconds": 0.013,
+        "first_model_request_seconds": 0.0415,
+        "initial_context_seconds": 0.013,
+        "local_processing_seconds": 0.1365,
+        "provider_wait_seconds": 23.8591,
+        "question_investigation_seconds": 0.0068,
+        "read_seconds": 0.0016,
+        "retrieval_seconds": 0.0058,
+        "selected_source_hash_seconds": 0.0009,
+        "semantic_evidence_seconds": 0.0,
+        "semantic_scope_seconds": 0.0,
+        "total_seconds": 23.9957
+      },
+      "model_requests": 1,
+      "repository_rebuilt": false
+    }
+  ],
+  "limitations": [
+    "These small-source observations are not a large-repository latency benchmark or a service guarantee.",
+    "Provider wait includes transport and generation; it does not isolate inference compute or tokenizer time.",
+    "Do not add inclusive timing components or infer answer correctness from latency."
+  ]
+}

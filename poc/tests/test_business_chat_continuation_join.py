@@ -119,6 +119,34 @@ class ChatContinuationJoinTests(unittest.TestCase):
         self.assertEqual(trace["answer_display_repairs"], [{"kind": "incomplete_source_citation_tail",
                                                          "removed_characters": len(marker)}])
 
+    def test_length_tail_bare_citation_is_repaired_before_complete_continuation(self):
+        requests, replies = [], []
+
+        def transport(request):
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            requests.append(payload)
+            identifier = payload["source_context"][0]["pages"][0]["evidence_id"]
+            text = ("已完成的业务说明保持不变。[ev_page_" if len(requests) == 1 else
+                    "**后续说明**\n\n程序随后返回。[" + identifier + "]")
+            replies.append(text)
+            return TransportResponse(200, json.dumps({"choices": [{"message": {
+                "role": "assistant", "content": text},
+                "finish_reason": "length" if len(requests) == 1 else "stop"}]}, ensure_ascii=False))
+
+        output = run_business_chat("DECISION 返回什么？", self.database, self.source, self.config,
+            transport=transport, framework_reference_path="", capture_api_responses=True,
+            policy=AgentPolicy(max_model_requests=2, max_answer_revisions=0))
+        result = output["agent_result"]
+        self.assertEqual(result["answer"], "已完成的业务说明保持不变。\n\n" + replies[1])
+        self.assertEqual(result["narrative"]["text"], result["answer"])
+        self.assertFalse(result["answer_truncated"])
+        self.assertEqual(result["finish_reason"], "stop")
+        self.assertEqual(len(requests), result["metrics"]["model_requests"])
+        self.assertEqual(len(requests), 2)
+        self.assertEqual(requests[1]["draft_answer"], replies[0])
+        for reply, exchange in zip(replies, output["api_diagnostics"]["exchanges"]):
+            self.assertEqual(json.loads(exchange["body_text"])["choices"][0]["message"]["content"], reply)
+
 
 if __name__ == "__main__":
     unittest.main()

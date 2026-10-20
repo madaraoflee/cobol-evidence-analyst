@@ -1,0 +1,175 @@
+{
+  "schema_version": "offline-static-business-scope/v1",
+  "real_model_requests": 0,
+  "original_record_sha256": "f92dead5d3d32594729fd563bcc589f6e7e75ad7e87957b9d9de7108cfcfe66f",
+  "gold_sha256": "790fabb0d868a511de5e845e32958a8e372622174be68d85cb449111bf62248f",
+  "production_sha256": {
+    "poc/activation_evidence.py": "05d890d923dfcf16c0778197fc6d5d0cfdd4c8f2143ee7f65a0bbe9a8155593f",
+    "poc/field_origin.py": "4a7d77190059139adb7bfbd6e892cca169f5753d7800b3ee76ee4972237ac5a8",
+    "poc/question_investigation.py": "d497281350fb3ae7f72fc5a16bca5bf4c5bed66ab763770533d87c52bcc7e5d3",
+    "poc/question_planner.py": "9d04bd2fdf2e23a1d7e7f052c1830abc3b45a284196fc7a774648b2ab38e25ea",
+    "poc/business_chat.py": "80671de295eac7714066c04b92e6883c0ca4ef249b4a7e072d0005a69f334b0c"
+  },
+  "cases": [
+    {
+      "id": "batch",
+      "kind": "frozen_real_answer_offline_replay",
+      "original_status": "PARTIAL",
+      "status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "material_gap": null,
+      "fake_transport_requests": 1,
+      "elapsed_seconds": 0.18500229199707974,
+      "body_preserved_after_reference_rebinding": true,
+      "runtime_limitations": [
+        {
+          "kind": "scheduler_binding",
+          "status": "OPEN",
+          "reason": "external_schedule_binding_not_verified",
+          "scope": "schedule_configuration_and_runtime_launch_are_separate_from_static_CALL",
+          "execution_verified": false,
+          "blocks_static_source_explanation": false
+        }
+      ],
+      "claims_semantically_verified": false,
+      "open_gaps": [
+        {
+          "kind": "scheduler_binding",
+          "status": "OPEN",
+          "reason": "external_schedule_binding_not_verified"
+        }
+      ],
+      "plan": {
+        "intents": [
+          "exception",
+          "flow",
+          "activation"
+        ],
+        "entities": [],
+        "paths": [
+          "settle.cbl"
+        ],
+        "tools": [
+          "explain_external_effect",
+          "trace_parameter",
+          "backward_slice",
+          "inspect_business_context"
+        ],
+        "required_obligations": [
+          "source_identity",
+          "supplied_source",
+          "error_return",
+          "control_conditions",
+          "calls",
+          "external_effects",
+          "entry_point",
+          "caller_invocation",
+          "activation_conditions",
+          "scheduler_binding"
+        ],
+        "focus_basis": "question_and_source",
+        "unresolved": [],
+        "source_scopes": [],
+        "file_entities": [],
+        "relation_direction": null,
+        "relation_root": null,
+        "version": "business-analysis-plan/v9"
+      }
+    },
+    {
+      "id": "online",
+      "kind": "frozen_real_answer_offline_replay",
+      "original_status": "ANALYZED",
+      "status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "material_gap": null,
+      "fake_transport_requests": 1,
+      "elapsed_seconds": 0.12267279099614825,
+      "body_preserved_after_reference_rebinding": true,
+      "runtime_limitations": [],
+      "claims_semantically_verified": false,
+      "open_gaps": [],
+      "plan": {
+        "intents": [
+          "condition",
+          "exception"
+        ],
+        "entities": [],
+        "paths": [
+          "balance.cbl"
+        ],
+        "tools": [
+          "backward_slice",
+          "explain_assignment",
+          "explain_external_effect",
+          "trace_parameter"
+        ],
+        "required_obligations": [
+          "source_identity",
+          "supplied_source",
+          "control_conditions",
+          "error_return"
+        ],
+        "focus_basis": "question_and_source",
+        "unresolved": [
+          "conversation_entity_not_resolved"
+        ],
+        "source_scopes": [],
+        "file_entities": [],
+        "relation_direction": null,
+        "relation_root": null,
+        "version": "business-analysis-plan/v9"
+      }
+    },
+    {
+      "id": "boundary-followup",
+      "kind": "planner_only_full_source_probe_no_model_answer",
+      "wants_business_overview": false,
+      "direct_paths": [
+        "balance.cbl"
+      ],
+      "plan": {
+        "intents": [
+          "exception",
+          "flow"
+        ],
+        "entities": [],
+        "paths": [
+          "balance.cbl"
+        ],
+        "tools": [
+          "explain_external_effect",
+          "trace_parameter",
+          "backward_slice"
+        ],
+        "required_obligations": [
+          "source_identity",
+          "supplied_source",
+          "error_return",
+          "control_conditions",
+          "calls",
+          "external_effects"
+        ],
+        "focus_basis": "question_and_source",
+        "unresolved": [],
+        "source_scopes": [],
+        "file_entities": [],
+        "relation_direction": null,
+        "relation_root": null,
+        "version": "business-analysis-plan/v9"
+      },
+      "material_gaps": [],
+      "runtime_limitations": [],
+      "planned_actions": [],
+      "semantic_execution_verified": false,
+      "scope_note": "No overall answer status or free-form semantic quality is inferred from this planner-only probe."
+    }
+  ],
+  "source_sha256": {
+    "nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+    "settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+    "balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5"
+  },
+  "original_record_preserved": true,
+  "gold_preserved": true
+}

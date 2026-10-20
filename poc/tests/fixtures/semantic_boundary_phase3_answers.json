@@ -1,0 +1,106 @@
+{
+  "schema": "semantic-boundary-raw-answer-fixture-v1",
+  "original_public_record_sha256": "518b34cf454e4ddbf1129041bab8490f3a7e611340484d3aa99fc5e50caf3862",
+  "captured_pipeline_version": "question-evidence-v38",
+  "captured_prompt_version": "business-chat-v34",
+  "source_sha256": {
+    "nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+    "settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+    "balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5"
+  },
+  "cases": [
+    {
+      "id": "batch-round-1",
+      "question": "我是新人，请从业务目的解释 SETTLE 的整体业务流程，包括 Batch job、programs、输入输出 files 和异常。",
+      "raw_answer": "## 结论\n\n按当前供应的源码，`SETTLE` 的作用是：**逐笔读取订单文件，把“状态为已批准（`'A'`）且金额大于 0”的订单复制成一条结算记录写入结算文件**；其余订单只跳过、不落结算记录。它由一个 CL 作业 `nightjob.clle` 先做输入文件覆盖再 `CALL` 启动，处理完撤销覆盖。程序自身没有文件状态码检查，也没有错误分支，因此“异常”只能从可见的控制流说清：跳过单据、空输入、以及未处理的 I/O 失败这三类。\n\n下面按业务目的→作业入口→程序职责→文件角色→规则与异常的顺序展开。\n\n## 1. 业务目的与产出\n\n- 程序头部注释写明目的：“Create settlement records for approved orders.”（为已批准的订单创建结算记录）[ev_page_0a5bd724415b32dba5d08161]。这是**作者文档说明**，不是运行验证过的业务口径。\n- 从可见语句看，产出就是结算输出文件里一条条 `SETTLEMENT-REC`，每条只有两个字段：结算号（`SETTLEMENT-ID`）与结算金额（`SETTLEMENT-AMOUNT`）[ev_page_0a5bd724415b32dba5d08161]。\n- 因此可稳妥理解为“订单→结算单”的筛选式转换：**不是计算价格、不是汇总，而是挑单并搬运金额**。源码中没有任何加减折扣、税费或四舍五入的算式。\n\n## 2. 批处理作业入口\n\n`nightjob.clle` 是一个 CL 源成员，注释称其为 “Settlement export job: process approved orders.”（结算导出作业：处理已批准订单）[ev_page_b8c4a50484c207378485e3de]。可见命令顺序为：\n\n| 步骤 | 命令 | 业务含义 |\n|---|---|---|\n| 1 | `PGM` … `ENDPGM` | 该 CL 源是一个可被调起的程序体 |\n| 2 | `OVRDBF FILE(ORDERIN) TOFILE(APPDATA/ORDERS)` | 在调用前，把程序逻辑名 `ORDERIN` 指向库 `APPDATA` 中的 `ORDERS` 文件 |\n| 3 | `CALL PGM(SETTLE)` | 调用结算程序 `SETTLE`（无传入参数、无返回码检查） |\n| 4 | `DLTOVR FILE(ORDERIN)` | 调用返回后删除 `ORDERIN` 的文件覆盖 |\n\n要点与限制：\n\n- 覆盖只针对输入文件 `ORDERIN`；**输出文件 `SETTLEMENT-OUT` 没有任何覆盖声明**，其实际指向只能由作业环境/库列表决定，源码未说明 [ev_page_b8c4a50484c207378485e3de]。\n- 覆盖只在 `CALL` 之前生效、在 `CALL` 之后撤销，属于**声明式的作业级环境设置**；是否真正生效、目标库与成员是否存在，需要运行配置，当前材料不能证明。\n- 注释里出现 “job” 只是文字描述；**调度频率、批或联机部署方式、实际启动时间均未提供**，不应据此断言每天/每月运行。\n- `DLTOVR` 在 `CALL` 之后：只有控制流从 `SETTLE` 正常返回，清理才会执行；程序异常终止时该行是否执行不在证据范围内。\n\n## 3. 程序职责与交接\n\n`SETTLE` 是被调用的处理程序（`PROGRAM-ID. SETTLE.`），入口为 `PROCEDURE DIVISION` 下的 `MAIN` 段 [ev_page_0a5bd724415b32dba5d08161]。它不接收参数，不向调用方返回值，结束时用 `GOBACK` 返回。整体职责链条是：\n\n**作业准备输入指向（CL）→ SETTLE 打开两文件 → 循环读订单并筛选 → 写结算记录 → 关闭文件 → 返回作业 → 撤销覆盖**。\n\n## 4. 输入/输出文件的角色\n\n| 文件 | 程序内逻辑名 | 角色 | 记录结构 |\n|---|---|---|---|\n| `ORDER-IN` | `ORDERIN` | 只读输入，逐条读取订单 | `ORDER-REC`：订单号 `ORDER-ID` 9(8)、状态 `ORDER-STATUS` X(1)、金额 `ORDER-AMOUNT` 9(7)V99 |\n| `SETTLEMENT-OUT` | `SETTLEOUT` | 输出，承接写入的结算记录 | `SETTLEMENT-REC`：结算号 `SETTLEMENT-ID` 9(8)、结算金额 `SETTLEMENT-AMOUNT` 9(7)V99 |\n\n- 两个金额字段位数完全一致（7 位整数 + 2 位小数），复制时不会发生截断或缩放；号码字段也同为 8 位 [ev_page_0a5bd724415b32dba5d08161]。\n- 输入文件在作业侧被覆盖到 `APPDATA/ORDERS`（见上节），程序侧不感知物理库名。\n- 程序以“输入 + 输出”方式打开两个文件，**没有声明文件状态字段**（无 `FILE STATUS`），也没有打开方式之外的共享/扩展选项 [ev_page_0a5bd724415b32dba5d08161]。\n\n## 5. 逐笔处理流程\n\n1. 打开输入与输出文件。\n2. 进入循环，条件是“结束标志 `END-OF-ORDERS` 不等于 1”，其初值为 0。\n3. 每条循环先读一条订单：\n   - **读到文件尾（AT END）**：把 `END-OF-ORDERS` 置 1，循环在下次判断时结束，本次不再判断状态、不写记录。\n   - **读到记录（NOT AT END）**：此时 `ORDER-REC` 才有本轮订单数据。\n4. 判断 `ORDER-STATUS = 'A' AND ORDER-AMOUNT > ZERO`：\n   - **成立**：`ORDER-ID` 复制到 `SETTLEMENT-ID`，`ORDER-AMOUNT` 复制到 `SETTLEMENT-AMOUNT`，然后写出 `SETTLEMENT-REC`。\n   - **不成立**：只执行 `DISPLAY 'ORDER SKIPPED'`，不写任何结算记录。\n5. 读到文件尾后退出循环，关闭两个文件，返回。\n\n## 6. 决定结果的业务规则\n\n| 规则 | 判定条件 | 结果 |\n|---|---|---|\n| 结算资格（两个条件需同时成立） | 状态等于大写 `'A'` **且** 金额大于零 | 生成一条结算记录 |\n| 状态不符 | 状态是其他任何值（如 `'B'`、`'P'` 或小写 `'a'`） | 跳过，不写记录 |\n| 金额不符 | 状态为 `'A'` 但金额为 0 | 跳过，不写记录（金额字段为无符号声明，故按数据有效前提，`> 0` 等价于“非零”；负数不适用于该声明，外部字节是否合法不由 PIC 保证） |\n| 空输入 | 文件正常打开且第一条读即到文件尾 | 循环体一次也不进，**不产生任何结算记录**，随后关闭文件正常返回；这不代表物理输出文件被清空 |\n| 处理结束 | `END-OF-ORDERS` 被置 1 后 | 关闭两文件并返回调用方 |\n\n需要强调的字段状态：`SETTLEMENT-ID` 与 `SETTLEMENT-AMOUNT` 只在**资格成立的分支内**被赋值，紧接着是同一次循环内的写出；跳过分支不会重置它们，但由于跳过分支也不写出，这两个字段的旧值不会被当作新记录输出 [ev_page_0a5bd724415b32dba5d08161]。\n\n## 7. 异常与缺失的处理\n\n- **“跳过”是唯一可见的异常式反馈**：一条订单未获结算资格时，程序只发出 `'ORDER SKIPPED'` 这一文本。源码没有说明该 `DISPLAY` 输出到屏幕、作业日志还是其他设备，因此不能断定新人能在哪里看到它，也不能断言它在生产日志里留下痕迹 [ev_page_0a5bd724415b32dba5d08161]。\n- **没有打开/读/写失败的处理**：程序未声明文件状态字段，也没有对 `OPEN`、`READ`、`WRITE` 的结果做判断；因此“文件打不开”“写盘失败”这类情况在源码中没有对应分支，不能推演出它会继续安全处理或给出提示。\n- **没有程序级返回码与调用方检查**：`SETTLE` 以 `GOBACK` 结束，CL 侧 `CALL` 之后直接 `DLTOVR`，未检查任何返回状态，所以作业层面也无法从这份源码看出“结算失败”会被上报。\n- **无重复控制**：同一订单号若在输入中出现多次，都会按同一规则各自生成结算记录，程序不做去重或累计。\n\n## 8. 新手上手时可记住的一句话\n\n`ORDERIN`（作业内指向 `APPDATA/ORDERS`）是待处理订单池，`SETTLE` 按“已批准 + 金额大于 0”挑单，把订单号和金额原样搬到 `SETTLEMENT-OUT` 的结算记录里，其余订单静默跳过；处理受文件尾信号控制，结束后关闭文件、撤销覆盖并返回。\n\n需要限定的地方：本解释完全基于已供应的两份源码，**调度方式、覆盖是否实际生效、`ORDERS` 与结算文件是否真实存在、以及运行中的读写成败都未验证**；这些缺口只影响“实际运行结果”的结论，不影响对程序筛选规则的判断。",
+      "raw_answer_sha256": "f50b381ef92a3288b43de6d8d3c68a02f124ec99a109b925b432b393d1aa7d7d",
+      "source_refs": [
+        {
+          "relative_path": "settle.cbl",
+          "binding_sha256": "90daa3e7600e66c60b79223694026cd4535e2d6b8152490d77a9ae5638ac7096",
+          "semantic_roles": [
+            "condition",
+            "result"
+          ],
+          "end_line": 38,
+          "group_id": null,
+          "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+          "evidence_id": "ev_page_0a5bd724415b32dba5d08161",
+          "start_line": 1,
+          "characters": 925,
+          "excerpt_sha256": "17a5a9383a388d75f437e9f5b16afd82840caf7f9852fbd052ba30014e9c6464"
+        },
+        {
+          "relative_path": "nightjob.clle",
+          "binding_sha256": "d8412e02a0b8972ccf18934e083d2b83a9abc0d212558654cf735e02e7d2e147",
+          "semantic_roles": [],
+          "end_line": 6,
+          "group_id": null,
+          "source_sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+          "evidence_id": "ev_page_b8c4a50484c207378485e3de",
+          "start_line": 1,
+          "characters": 146,
+          "excerpt_sha256": "d6f08ae0a954d499767fb50f61888509dcc2675237df93b96d98d18452c93c01"
+        }
+      ]
+    },
+    {
+      "id": "online-round-1",
+      "question": "我是新人，请解释 BALANCEQ 这个在线查询功能的业务用途、输入输出和 tables，哪些条件会返回失败？",
+      "raw_answer": "## 结论\n\n`BALANCEQ` 是一个**按账户号查询可用余额的查询程序**：它接收一个账户号，去 `ACCOUNT_BALANCES` 表里查出该账户的可用余额，再把余额和两个字符的响应码交回给调用方。**只有查询语句执行后 SQLCODE 为 0，才算“查成功”并返回 `'00'`；SQLCODE 非 0 一律返回 `'90'`**，源码不区分“账户不存在”和“数据库出错”。程序本身不写库、不改数据。\n\n---\n\n## 1. 业务用途：查余额，不改账\n\n程序第 3 行的作者注释写明：“FUNCTION PURPOSE: Query account balance for an operator; online query entry.”（功能用途：为操作员查询账户余额；联机查询入口）[ev_page_41c62f686dca8a6b3a26a3e9]。\n\n这句属于**原作者写的文档说明**，与可见语句是一致的：整个程序体只有一条 `SELECT ... INTO`、一次条件判断、两次给响应码赋值，最后返回，没有任何 `INSERT`/`UPDATE`/`DELETE`，也没有提交或回滚。所以“只读查询”这个判断有语句支撑；而“联机”“面向操作员”只是注释说法，**当前材料没有调用方或界面成员，无法验证它实际是屏幕交易、菜单入口还是别的调用方式**。\n\n## 2. 入口与调用约定\n\n- 程序名 `BALANCEQ`，程序入口声明带三个参数：`ACCOUNT-KEY`、`CURRENT-BALANCE`、`RESPONSE-CODE` [ev_page_41c62f686dca8a6b3a26a3e9]。\n- 三个参数都在链接区声明，即“由调用方传入、由程序回填”的接口，而不是程序自己持有的工作数据。\n- 处理体是 `MAIN` 段，执行完用 `GOBACK` 交回控制权给调用方。\n- **谁调用它、传什么账户号、返回码之后怎么用，材料里没有**（调用链为空），所以下面只说明程序自己做了什么。\n\n## 3. 参数角色：谁进、谁出\n\n| 参数 | 声明 | 方向 | 业务含义 |\n|---|---|---|---|\n| `ACCOUNT-KEY` | `9(8)`，8 位无符号 | 输入 | 要查询的账户号 |\n| `CURRENT-BALANCE` | `S9(7)V99`，有符号，7 位整数 + 2 位小数 | 输出 | 查到的可用余额 |\n| `RESPONSE-CODE` | `XX`，2 个字符 | 输出 | 查询结果标识：`'00'` 或 `'90'` |\n\n需要注意两点：\n\n- 余额字段是**有符号**的，字段声明本身允许负值；能查出什么值取决于表里的数据，程序不做取绝对值、四舍五入或格式化。\n- 余额和响应码都**只在查出结果后才被赋值**（详见第 5 节），程序没有在开头给它们设初值。\n\n## 4. 表与查询条件\n\n唯一的数据库访问是第 13–16 行的查询：从 `ACCOUNT_BALANCES` 表中取出 `AVAILABLE_BALANCE` 字段，条件是 `ACCOUNT_ID = :ACCOUNT-KEY`，结果放入 `CURRENT-BALANCE` [ev_page_41c62f686dca8a6b3a26a3e9]。\n\n- **表的角色是只读的余额数据源**：它提供“账户 → 可用余额”的对应关系，本程序只查不写。\n- 业务口径上，查的是**可用余额（available）**，而不是账面余额；这是字段名的含义，程序没有额外计算可用额度。\n- 源码未说明表所属库/模式、索引、以及一个账户号在表中是否唯一；如果实际存在多条同账户记录，取哪一条由数据库行为决定，源码没有处理。\n- “联机查询”意味着操作员输入的账户号可能不存在或输错——这正是下面失败分支的业务场景，但程序**没有专门的输入校验语句**（不检查账户号是否为零或空），这类输入会直接带去查询。\n\n## 5. 处理顺序与字段变化\n\n1. 执行余额查询：用输入的 `ACCOUNT-KEY` 作为条件，查询结果写入 `CURRENT-BALANCE`，数据库执行结果体现在 `SQLCODE` 中。\n2. 判断 `SQLCODE = 0` [ev_page_41c62f686dca8a6b3a26a3e9]：\n   - **成立（等于 0）**：`RESPONSE-CODE` 置 `'00'`，程序按“查询成功”返回，`CURRENT-BALANCE` 视为本次查到的余额。\n   - **不成立（非 0）**：走 `ELSE`，`RESPONSE-CODE` 置 `'90'` [ev_page_41c62f686dca8a6b3a26a3e9]。\n3. 两条分支汇合后 `GOBACK`，把 `CURRENT-BALANCE` 和 `RESPONSE-CODE` 交回调用方。\n\n`RESPONSE-CODE` 在源码中**只有这两个取值**，没有其他代码，也没有初始化。\n\n## 6. 哪些条件返回失败\n\n按源码，**判定失败的唯一条件是查询执行后的 `SQLCODE` 不等于 0**，此时返回码是 `'90'`。\n\n| 情形 | 代码走法 | 返回给调用方 | 余额参数状态 |\n|---|---|---|---|\n| 查询执行且 SQLCODE = 0（查到账户） | IF 成立 | `RESPONSE-CODE` = `'00'` | 为本次查询结果 |\n| 查询执行且 SQLCODE ≠ 0（未查到 / 执行异常） | ELSE | `RESPONSE-CODE` = `'90'` | **不确定** |\n| 查询根本没执行、程序异常中止 | 无对应语句 | 无返回 | — |\n\n对新人最容易误解的三点，要讲清楚：\n\n- **失败原因不分类**：`'90'` 是“单一失败码”。源码里没有把“账户不存在”和“数据库故障”分开的分支，调用方从这个码看不出是哪一种。具体哪个 SQLCODE 数值表示“无此记录”，取决于所用数据库的约定，**材料中没有对应手册，不能断言**。\n- **失败时余额不可当作有效值**：`CURRENT-BALANCE` 是查询语句的输出参数，在查询未成功返回的情况下，它的内容**不能假定保持调用前的值，也不能假定被清空**；源码在此之后也没有对它做任何赋值。所以调用方应先看响应码，再决定是否使用余额。\n- **没有捕获式异常处理**：程序对查询语句没有其他状态处理、没有重试、没有日志。如果执行环境在某种严重错误下中止程序而不是返回 SQLCODE，那已经超出这几行源码的控制范围，不能推断它一定会返回 `'90'`。\n\n## 7. 一句话总结与限制\n\n业务上把它理解成“**柜面/操作员查账户可用余额的一个只读查询接口**”：输入账户号 → 查 `ACCOUNT_BALANCES` 的可用余额 → 用 `'00'`/`'90'` 告诉调用方这次查询成没成功。\n\n限制要说清：**是否真的联机运行、由谁调用、`ACCOUNT_BALANCES` 实际属于哪个库、查询是否真的返回数据、失败码在界面上如何呈现**，这些都不在这份 21 行源码里，属于运行与配置层面的事实，本文未作断言。",
+      "raw_answer_sha256": "a52af37500b46566431fd31bc9b56504e2032d663465dabe2e5e6ac5df0b32bc",
+      "source_refs": [
+        {
+          "relative_path": "balance.cbl",
+          "binding_sha256": "fce97de82cca7b4fc584c54497cdccd5ce50e5ba74b53525cfe086efe4c6cf8e",
+          "semantic_roles": [
+            "condition",
+            "result"
+          ],
+          "end_line": 21,
+          "group_id": null,
+          "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+          "evidence_id": "ev_page_41c62f686dca8a6b3a26a3e9",
+          "start_line": 1,
+          "characters": 572,
+          "excerpt_sha256": "759ece45e78016f57df33fd833c5c5de9414fc6d1f8ff15d8b8ca533768732b5"
+        }
+      ]
+    },
+    {
+      "id": "boundary-followup-round-1",
+      "question": "继续核对业务边界：这批处理遇到空输入会怎样？ORDER SKIPPED 到哪里、金额大于零能否直接等同非零？BALANCEQ 是否任何异常都能返回90？这两项业务能否确定完全无关？请先说明源码能确认的结论，再指出还需要哪些具体运行资料。",
+      "raw_answer": "## 结论\n\n四个边界问题里，**源码能确认三点半，不能确认半**：\n\n1. **空输入**：只要输入文件正常打开、第一条读即到文件尾，`SETTLE` 一次循环体都不进，不发起任何结算记录写入，正常关闭并返回；但“物理输出文件里什么都没有”不能由源码保证。\n2. **`'ORDER SKIPPED'`**：程序只发出显示动作，**没有指定接收端**，去向不可从源码断定；**金额“大于零”在该字段声明下可视为“非零”，前提是数据本身有效**，外部字节是否合法不受 PIC 保证。\n3. **`BALANCEQ` 不是“任何异常都返回 `'90'`”**：只有查询语句执行完、`SQLCODE` 非 0 并走到 `ELSE` 才置 `'90'`；程序级中断、加载/调用失败没有对应分支，也就没有返回码。\n4. **两个程序的“无关”只能说到“已供材料内未见关联”**，不能证明系统层面无关。\n\n---\n\n## 1. 空输入：程序做什么、不做什么\n\n执行顺序如下（`settle.cbl` 第 23–38 行 [ev_page_0a5bd724415b32dba5d08161]）：\n\n| 步骤 | 语句/条件 | 结果 |\n|---|---|---|\n| 1 | `OPEN INPUT ORDER-IN OUTPUT SETTLEMENT-OUT` | 两文件以输入/输出方式打开 |\n| 2 | `END-OF-ORDERS` 初值 0，`PERFORM UNTIL END-OF-ORDERS = 1` | 条件不成立，进入循环 |\n| 3 | `READ ORDER-IN`，**AT END 分支** | `END-OF-ORDERS` 置 1；本轮不判断状态、不读 `ORDER-REC`、不写 |\n| 4 | 回到循环判断，`END-OF-ORDERS = 1` | 循环结束 |\n| 5 | `CLOSE` 两文件，`GOBACK` | 正常结束，返回调用方 |\n\n要点：\n\n- **不发起写入**：唯一写记录的 `WRITE SETTLEMENT-REC` 在 `NOT AT END` 分支内，空输入下该分支从未执行；`SETTLEMENT-ID` / `SETTLEMENT-AMOUNT` 也从未被赋值。\n- **正常结束**：这是“正常打开 + 读到 AT END”后的路径，程序仍执行 `CLOSE` 并按正常流返回；这不是“异常退出”。\n- **“输出为空”不能从源码断言**：源码只证“不发写请求”。输出文件以 `OUTPUT` 方式打开时，既有内容是否被建立/重置属于打开方式的运行语义与环境约定，**当前材料没有提供对应手册条款**，因此只能说“程序没有写任何记录，物理输出取决于打开方式的环境实现”。\n- 另有一个前置条件：若打开阶段就失败，程序没有文件状态字段、也没有打开结果判断，这条“空输入”推导不适用。\n\n## 2. `'ORDER SKIPPED'` 到哪里去了\n\n语句是 `ELSE DISPLAY 'ORDER SKIPPED'`（第 35 行），**没有 `UPON` 设备子句、没有指定目的** [ev_page_0a5bd724415b32dba5d08161]。\n\n- 源码能确认的只是：**程序在跳过分支发出了一次文本显示动作**，触发条件是 `ORDER-STATUS = 'A' AND ORDER-AMOUNT > ZERO` 不成立。\n- 源码**不能**确认它落在终端、作业日志、系统消息队列还是别处。适用手册对无目的 `DISPLAY` 的去向有约定，但本次材料未提供该约定，因此不能说“一定会出现在批处理日志里”，也不能说“用户会看到”。\n- 附带一点：该分支没有写记录，也没有对结算字段做任何重置；因其后不写记录，字段旧值不会被当作新结算记录输出。\n\n## 3. “金额大于零”能否等同“非零”\n\n字段声明是 `ORDER-AMOUNT PIC 9(7)V99`，**不带 `S`，即无符号** [ev_page_0a5bd724415b32dba5d08161]。\n\n| 条件 | 结论 | 依据与限制 |\n|---|---|---|\n| 数据符合声明（0 至 9,999,999.99 的数值） | `> ZERO` 与“不等于零”等价 | 无符号字段的合法取值不含负数，故大于零只排除 0 |\n| 数据含非法字节或负号形态 | 不能直接等同 | PIC 只描述字段格式，**不保证外部文件字节一定有效**；无效数据下比较结果不可断言 |\n| 金额为 0 | 不算结算 | 状态为 `'A'` 也不写，走跳过分支 |\n\n所以对新人实用的说法是：**在“订单文件数据可信”的前提下，可以把规则讲成“已批准且金额非零”；脱离这个前提就不能把 `> 0` 无条件说成“非零”**。此外该判断只看金额本身，不涉及舍入或换算——金额是两个字段之间原样复制，位数一致（7 位整数 + 2 位小数）。\n\n## 4. `BALANCEQ` 是否“任何异常都返回 `'90'`”\n\n**不能这样概括。** 源码结构只有：一条 `SELECT ... INTO`、一个 `IF SQLCODE = 0`、两个 `MOVE`，然后 `GOBACK` [ev_page_41c62f686dca8a6b3a26a3e9]。\n\n| 情形 | 是否走 `ELSE` 得到 `'90'` | 说明 |\n|---|---|---|\n| 查询已执行，`SQLCODE` 非 0（如无匹配记录、数据库报错） | 是（前提是控制流到达 IF） | 这是源码唯一写 `'90'` 的地方 |\n| 查询已执行，`SQLCODE = 0` | 否 | 置 `'00'` |\n| 程序未被成功调用/加载、运行中止、连接级严重错误 | **无对应分支** | 没有这些情形的检查语句，不能断言会返回 `'90'` |\n\n补充三点边界：\n\n- **只有一个失败码**：程序不区分“账户不存在”和“数据库出错”，都落到 `'90'`。`SQLCODE` 各数值的具体含义取决于所用数据库的约定，**本次材料没有该约定**，不能断定哪个数值代表“无记录”。\n- **失败时余额不可当有效值**：`CURRENT-BALANCE` 是 `SELECT ... INTO` 的输出宿主变量，查询未成功返回时，它既不能假定保持调用前值，也不能假定被清空；源码在此之后没有对它再赋值 [ev_page_41c62f686dca8a6b3a26a3e9]。调用方应先判响应码。\n- **`SQLCODE` 没有初值声明**：工作存储区声明为 `PIC S9(9)`，无 `VALUE` 子句。执行到 `IF` 意味着查询语句已返回；不应把“未执行查询”的情形当作已赋值的 `'90'` 分支。\n\n## 5. 两项业务能否确定“完全无关”\n\n**只能确定“在当前供应的材料里看不到关联”，不能证明系统层面无关。**\n\n材料内可见的事实：\n\n| 对比项 | `SETTLE` | `BALANCEQ` |\n|---|---|---|\n| 触发方式 | 批处理作业调用（CL 内 `CALL PGM(SETTLE)`） | 注释称为“联机查询入口”，材料中无调用方 |\n| 数据访问方式 | 顺序文件读/写 | SQL 访问表 |\n| 涉及对象 | `ORDERIN`（作业内被覆盖指向 `APPDATA/ORDERS`）、`SETTLEOUT` | `ACCOUNT_BALANCES` 表 |\n| 数据项 | `ORDER-ID`、`ORDER-STATUS`、`ORDER-AMOUNT` → `SETTLEMENT-ID`、`SETTLEMENT-AMOUNT` | `ACCOUNT-KEY`、`CURRENT-BALANCE`、`RESPONSE-CODE`、`SQLCODE` |\n| 写动作 | 写结算文件 | 无写库语句 |\n\n- 调用链为空，两者之间**没有互相调用**；字段名也没有重叠。\n- 但“系统层面是否相关”还取决于两件材料外的事：结算输出文件后续是否被别的程序加载进 `ACCOUNT_BALANCES` 或影响余额计算；订单文件与 `ACCOUNT_BALANCES` 是否来自同一业务数据源。**这些不在当前 3 个索引文件里，不能下“无关”的全局结论。**\n\n## 6. 要坐实上述边界，还缺哪些运行资料\n\n1. **输出文件打开语义**：`SETTLEOUT` 的真实数据集与打开方式（是否为新建/覆盖），用于判断空输入时既有文件内容会否保留。\n2. **`DISPLAY` 去向**：作业提交参数、CL/JCL 中输出路由设置，用于确认 `'ORDER SKIPPED'` 是进作业日志、终端还是消息队列。\n3. **订单数据质量**：`ORDER-STATUS` 的实际取值集合、`ORDER-AMOUNT` 是否恒为合法无符号数值，用于确认“> 0 即非零”是否在所有真实数据上成立。\n4. **输出文件绑定**：CL 只覆盖了 `ORDERIN`，`SETTLEOUT` 的库/成员由运行环境决定；没有这份绑定就无法判断“结算记录写到了哪”。\n5. **`BALANCEQ` 的调用方与界面**：谁传账户号、`'00'`/`'90'` 如何呈现给操作员，以及数据库对 `SQLCODE` 的码值定义（尤其“无记录”的取值）。\n6. **跨对象关系证据**：结算文件是否有下游入库程序、`ACCOUNT_BALANCES` 是否由订单/结算数据更新——需要更多成员或数据字典，当前材料不覆盖。\n\n以上 6 项只影响“实际运行结果、去向和系统关联”的判断；第 1–5 节中关于筛选规则、字段赋值、响应码来源的结论，均由已供应的两份原文直接支撑。",
+      "raw_answer_sha256": "40c72cce9e3e97ba0ba1063cef2d227db72afd214bbc12d88f4820bac8a02060",
+      "source_refs": [
+        {
+          "relative_path": "balance.cbl",
+          "binding_sha256": "fce97de82cca7b4fc584c54497cdccd5ce50e5ba74b53525cfe086efe4c6cf8e",
+          "semantic_roles": [
+            "condition",
+            "result"
+          ],
+          "end_line": 21,
+          "group_id": null,
+          "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+          "evidence_id": "ev_page_41c62f686dca8a6b3a26a3e9",
+          "start_line": 1,
+          "characters": 572,
+          "excerpt_sha256": "759ece45e78016f57df33fd833c5c5de9414fc6d1f8ff15d8b8ca533768732b5"
+        },
+        {
+          "relative_path": "settle.cbl",
+          "binding_sha256": "90daa3e7600e66c60b79223694026cd4535e2d6b8152490d77a9ae5638ac7096",
+          "semantic_roles": [],
+          "end_line": 38,
+          "group_id": null,
+          "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+          "evidence_id": "ev_page_0a5bd724415b32dba5d08161",
+          "start_line": 1,
+          "characters": 925,
+          "excerpt_sha256": "17a5a9383a388d75f437e9f5b16afd82840caf7f9852fbd052ba30014e9c6464"
+        }
+      ]
+    }
+  ]
+}

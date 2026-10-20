@@ -1,0 +1,115 @@
+{
+  "schema_version": "phase3-risk-offline-replay/v1",
+  "scope": "Offline replay of preserved phase3 raw answers against captured neutral source excerpts; no new model request, no prose rewrite, no semantic verification.",
+  "production_sha256": {
+    "poc/business_synthesis.py": "a3e65e1f2c819cbb0be009187449dcd6cc3bffb7989bcff1a529587552827f4c",
+    "poc/tests/test_semantic_risk_review.py": "0ea917d8e50b12cd5ac9ffb9c39ff69c8cd2f2357680c6ca1a1ef3418608f241"
+  },
+  "raw_fixture_sha256": "e3a4a52760d34389b20519797f73b5466cad325770d19e07e2309c1e09fd8160",
+  "original_public_record_preserved": true,
+  "public_original_sha256": "518b34cf454e4ddbf1129041bab8490f3a7e611340484d3aa99fc5e50caf3862",
+  "real_model_requests": 0,
+  "targeted_regression": {
+    "targeted_tests": 29,
+    "targeted_seconds": 0.593,
+    "related_tests": 178,
+    "related_seconds": 15.92,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "independent_review": {
+    "agent": "source_claims",
+    "production_sha256": "a3e65e1f2c819cbb0be009187449dcd6cc3bffb7989bcff1a529587552827f4c",
+    "blocking_findings": 0,
+    "pure_function_tests_run": 29,
+    "elapsed_seconds": 0.654,
+    "additional_scope_counterexamples": 9
+  },
+  "cases": [
+    {
+      "id": "batch-round-1",
+      "raw_answer_sha256": "f50b381ef92a3288b43de6d8d3c68a02f124ec99a109b925b432b393d1aa7d7d",
+      "raw_text_unchanged": true,
+      "semantic_verification": false,
+      "candidate_count": 1,
+      "candidates": [
+        {
+          "binding_basis": "unique_answer_cited_boundary",
+          "kind": "empty_input_zero_loop",
+          "assertion": "| 空输入 | 文件正常打开且第一条读即到文件尾 | 循环体一次也不进，不产生任何结算记录，随后关闭文件正常返回",
+          "feedback": "核对空输入时循环体零次进入的断言。当前完整原文把 READ/AT END 放在 PERFORM 循环体内，并显示与停止值不同的声明初值；只要已到达该 READ/AT END，就已进入循环体，这与未进入 NOT AT END 业务处理分支不同。结合首次初始化及实际到达循环的前提解释，不把 VALUE 当每次调用重置，也不据此保证外部文件操作成功。",
+          "status": "review_candidate",
+          "semantic_verification": false,
+          "source_refs": [
+            {
+              "start_line": 21,
+              "end_line": 36,
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "supplied_reference_ids": [
+                "ev_page_0a5bd724415b32dba5d08161"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "online-round-1",
+      "raw_answer_sha256": "a52af37500b46566431fd31bc9b56504e2032d663465dabe2e5e6ac5df0b32bc",
+      "raw_text_unchanged": true,
+      "semantic_verification": false,
+      "candidate_count": 1,
+      "candidates": [
+        {
+          "binding_basis": "unique_answer_cited_boundary",
+          "kind": "success_only_status_assignment",
+          "assertion": "- 余额和响应码都只在查出结果后才被赋值（详见第 5 节），程序没有在开头给它们设初值",
+          "feedback": "核对只有查出结果/成功才给该输出赋值的排他结论。实际同一 SQLCODE IF 的两条分支均对该目标赋值，成功分支与 ELSE 分支应分别说明；区分查询数据输出和状态参数，不把正常返回条件省略或把两类字段混为一谈。",
+          "status": "review_candidate",
+          "semantic_verification": false,
+          "source_refs": [
+            {
+              "start_line": 13,
+              "end_line": 20,
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "supplied_reference_ids": [
+                "ev_page_41c62f686dca8a6b3a26a3e9"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "boundary-followup-round-1",
+      "raw_answer_sha256": "40c72cce9e3e97ba0ba1063cef2d227db72afd214bbc12d88f4820bac8a02060",
+      "raw_text_unchanged": true,
+      "semantic_verification": false,
+      "candidate_count": 1,
+      "candidates": [
+        {
+          "binding_basis": "unique_answer_cited_boundary",
+          "kind": "empty_input_zero_loop",
+          "assertion": "空输入：只要输入文件正常打开、第一条读即到文件尾，SETTLE 一次循环体都不进，不发起任何结算记录写入，正常关闭并返回",
+          "feedback": "核对空输入时循环体零次进入的断言。当前完整原文把 READ/AT END 放在 PERFORM 循环体内，并显示与停止值不同的声明初值；只要已到达该 READ/AT END，就已进入循环体，这与未进入 NOT AT END 业务处理分支不同。结合首次初始化及实际到达循环的前提解释，不把 VALUE 当每次调用重置，也不据此保证外部文件操作成功。",
+          "status": "review_candidate",
+          "semantic_verification": false,
+          "source_refs": [
+            {
+              "start_line": 21,
+              "end_line": 36,
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "supplied_reference_ids": [
+                "ev_page_0a5bd724415b32dba5d08161"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

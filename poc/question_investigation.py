@@ -1484,7 +1484,8 @@ def build_question_investigation(question, business_map, *, database_path=None,
     if "activation" in plan.intents:
         from activation_evidence import investigate_activation
         activation = investigate_activation(business_map, source_pages, database_path=database_path,
-            max_actions=max_actions, candidate_cache=candidate_cache)
+            max_actions=max_actions, candidate_cache=candidate_cache,
+            cl_context=batch.get("cl_context") if batch else None)
         if database_path is not None:
             activation = _entry_context_reads(activation, question, database_path, source_scopes)
         if not set(plan.intents) & {"calculation", "accumulation", "origin", "overwrite", "impact", "exception", "file_mapping"}:
@@ -1697,6 +1698,14 @@ def build_question_investigation(question, business_map, *, database_path=None,
                      for field in [*(field for field in row["writes"] if field not in row["reads"]),
                                    *row.get("input_fields", [])]}
     flow_origins, invalidated_origins, origin_witnesses = _flow_input_origins(candidates, pages, evidence_groups)
+    from field_origin import supplied_file_read_origins
+    file_origins, file_witnesses = supplied_file_read_origins(candidates, pages)
+    # A static successful-READ source binding does not override a stronger
+    # unresolved occurrence/return proof, or establish the runtime input value.
+    file_origins -= invalidated_origins
+    origin_witnesses.extend(witness for witness in file_witnesses
+                            if (witness["relative_path"], witness["field"]) in file_origins)
+    flow_origins |= file_origins
     input_origins = (input_origins - invalidated_origins) | flow_origins
     # The field-name graph is an overapproximation without occurrence order.
     # Replace only its cycle warning for reads whose stronger source-flow

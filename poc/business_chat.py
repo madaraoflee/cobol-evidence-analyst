@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from api_diagnostics import APIResponseDiagnostics
 from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
 from agent_policy import resolve_agent_policy
-from answer_markdown import (ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY,
+from answer_markdown import (ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, BUSINESS_RUNTIME_BOUNDARY_POLICY,
                              join_answer_continuation, strip_incomplete_source_citation)
 from answer_diagnostics import build_answer_diagnostics, response_character_counts
 from analysis_continuation import AnalysisContinuation, progress_snapshot
@@ -343,13 +343,62 @@ def _empty_length_recovery_shape(raw, choice_index=None):
     return _response_shape(raw, choice_index)
 
 
-def _history_messages(history, policy=None):
-    """Keep the full transcript on disk; bound only the provider context."""
+def _history_projection_mode(question):
+    """Route provider history, not source semantics or persisted conversation.
+
+    Explicit answer editing and ambiguous follow-ups retain the prior text.
+    Only source questions with an independent named object omit explanations;
+    the complete history still drives source identity, navigation and rereads.
+    """
+    if question is None:
+        return "legacy"
+    text = str(question).strip()
+    if re.search(
+            r"(?:上次|上一(?:次|个|個|条|條)?|刚才|剛才|刚刚|剛剛|之前|前面|上面|上述|先前|你的|您的|"
+            r"(?:这|這|那)(?:个|個|条|條|次)?)"
+            r"(?:的)?(?:回答|答复|答覆|回复|回覆|解释|解釋|说明|說明|结论|結論|说法|說法|表格|内容|內容|段落|段|答)|"
+            r"你(?:刚才|剛才|之前|前面)?(?:说|說|提到|写|寫)|"
+            r"(?:改写|改寫|重写|重寫|修改|更正|翻译|翻譯|引用|回顾|回顧|复述|複述)"
+            r"[^。！？\n]{0,24}(?:回答|答复|答覆|回复|回覆|上文|这段|這段|那段|解释|解釋|结论|結論)|"
+            r"第\s*[一二三四五六七八九十\d]+\s*(?:点|點|段|项|項|条|條)|"
+            r"\b(?:previous|prior|earlier|last|above|your|this|that)\s+(?:(?:\w+)\s+){0,2}"
+            r"(?:answer|response|reply|explanation|summary|conclusion|paragraph|table)\b|"
+            r"\byou\s+(?:said|wrote|mentioned|claimed)\b|"
+            r"\b(?:rewrite|rephrase|translate|quote|revise|correct|review)\b[^.!?\n]{0,50}"
+            r"\b(?:answer|response|reply|paragraph|what you|it|that|this)\b|"
+            r"\b(?:point|item|paragraph|section)\s+(?:\d+|one|two|three)\b", text, re.I):
+        return "prior_answer_requested"
+    if len(text) <= 120 and re.search(
+            r"这样|這樣|那样|那樣|如此|(?:这|這|那)[^。！？\n]{0,36}呢[？?。.!！]?$|"
+            r"(?:这|這|那|该|該|此)(?:个|個|条|條)?(?:字段|欄位|公式|值|条件|條件|表格)|"
+            r"\b(?:this|that)\s+(?:field|formula|value|condition|table)\b|"
+            r"\bwhat\s+about\s+(?:this|that|it|the)\b|\bdo(?:es)?\s+(?:this|that)\b|"
+            r"\b(?:why|how)\s+(?:so|is that)\b", text, re.I):
+        return "ambiguous_followup"
+    # Category words such as "program", "exception" or "formula" do not name
+    # an independent subject. Without an explicit identifier/file/code object,
+    # preserve context rather than guessing which earlier explanation is meant.
+    if re.search(
+            r"(?-i:\b[A-Z][A-Z0-9]*(?:[-_][A-Z0-9]+)+\b)|"
+            r"\b[\w.-]+\.(?:cbl|cob|cpy|clle|sql)\b|"
+            r"`[A-Za-z][A-Za-z0-9_.-]*`", text, re.I):
+        return "source_question"
+    if any(token not in {"COBOL", "SQL", "IF", "ELSE", "CALL", "READ", "WRITE",
+                         "MOVE", "COMPUTE", "DISPLAY", "COPY", "OPEN", "CLOSE", "PIC"}
+           for token in re.findall(r"\b[A-Z][A-Z0-9]{2,}\b", text)):
+        return "source_question"
+    return "ambiguous_followup"
+
+
+def _history_messages(history, policy=None, *, question=None):
+    """Keep the full transcript on disk; project only the provider context."""
     policy = resolve_agent_policy(policy)
     retained, remaining = [], policy.max_history_characters
     if not remaining:
         return retained
-    indexed = list(enumerate(history or []))
+    source_question = _history_projection_mode(question) == "source_question"
+    indexed = [(index, item) for index, item in enumerate(history or [])
+               if not source_question or item.get("role") != "assistant"]
     latest_user = next(((index, item) for index, item in reversed(indexed)
                         if item.get("role") == "user" and item.get("content")), None)
     reserved_user = (min(len(str(latest_user[1]["content"])), max(1, remaining // 4))
@@ -639,12 +688,16 @@ def _system_for_payload(payload):
             "概览面向新人，按有依据的业务目的、批次或联机入口、程序职责、表文件角色串成过程；"
             "名称清单与逐句代码翻译不能代替解释。简短追问只答所问。注释、源码、手册与推断区分，"
             "不凭名称推定调度、在线部署、写入成功或提交结果。"
-            "未校验输入不证明查不到；未检查状态不证明不会异常，后续动作以正常返回为前提。"
+            + BUSINESS_RUNTIME_BOUNDARY_POLICY +
             "给定场景沿已选路径推导；优先分支命中后，后续分支是未执行，不补造其条件真假。"
             "区分调用前门槛、尝试调用异常、被调校验和返回后处理。"
             "按执行顺序追踪赋值和覆盖，跨程序同时核对实参与入口声明、传递方式和返回可见性；"
-            "外部实现未知的引用参数返回后保持未知，后续明确赋值再建立已知值；VALUE不代表每次重置。"
+            "外部实现及适用约定均未说明的引用参数值，返回后保持未知，后续明确赋值再建立已知值；VALUE不代表每次重置。"
             "只限定受未知事项影响的判断，正文与表格保持相同条件，除非要求实现否则不用代码块。")
+    if (payload.get("answer_review") or {}).get("semantic_risk_candidates"):
+        system += ("\nanswer_review.semantic_risk_candidates 是需要结合原文复核的候选风险，不是业务事实。"
+                   "核对完整控制条件，让首段、表格、正文和结尾采用相同范围；保留正确业务内容，"
+                   "不能用文末限制抵消前面的无条件保证。")
     if "prior_source_memory" in payload:
         system = system.replace("事实依据取自本轮原文。", "事实依据取自实际供应原文，包括 prior_source_memory 明确绑定的本题早先原文；其中候选解释仍须核对。", 1)
     language = payload.get("answer_language") or resolve_answer_language(payload.get("question"))
@@ -1900,7 +1953,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     discovery_pending = can_discover()
     searches.append({"query": question, "matched_files": initial.get("matched_file_count", 0),
                      "matched_pages": initial.get("matched_page_count", 0)})
-    history_context = _history_messages(history, policy)
+    history_context = _history_messages(history, policy, question=question)
     client = OpenAICompatibleChatClient(config, transport=transport, allow_network=allow_network,
                                        diagnostics=diagnostics, diagnostic_phase="business_chat",
                                        request_observer=quality.observe)
@@ -2472,6 +2525,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     payload["task"] += (" 当前身份是可修正的问句候选。根据 question 的业务意图和已供应原文确认"
                         "调用方、被调用方与当前关注点；必要时搜索候选程序名或读取已知路径。"
                         "分别说明有原文支持的结论，多个实现保持路径区分。")
+                if (payload.get("answer_review") or {}).get("semantic_risk_candidates"):
+                    payload["task"] += (" answer_review.semantic_risk_candidates 是有具体原句和来源的复核候选，"
+                        "不是已判定错误。逐项对照原文和 feedback，核对摘要、表格及结论中的适用范围；"
+                        "保留有据业务内容，把必要前提写在该断言处，不能只在末尾补一句限制。输出完整修订答案。")
                 trim_events = selection_events()
                 messages, request_size = _fit_request(config, payload, history_context, policy,
                     trim_events=trim_events, investigation_builder=question_investigation,
@@ -2940,7 +2997,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     boundaries.append({"reason": "usable_draft_retained", "continuation_error": failure})
                     break
                 else:
-                    combined = join_answer_continuation(answer, continued_reply.text)
+                    combined = join_answer_continuation(answer, continued_reply.text,
+                                                        evidence_ids=sent_pages.keys())
                     text_key = hashlib.sha256(continued_reply.text.strip().encode()).hexdigest()
                     if adaptive and (combined == answer or text_key in continuation_texts):
                         continuation.stop_reason = "answer_review_no_progress"
@@ -3055,6 +3113,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     revised_payload["task"] += (" 若 answer_review.source_availability_contradiction 为 true，"
                         "逐项对照 source_availability_contradictions 的文件、版本和行范围，修正与实际供应矛盾的缺失断言。"
                         "直接根据 source_context 原文解释业务；真实缺失的依赖和运行资料仍需限定相关结论。")
+                if draft_completion.get("semantic_risk_candidates"):
+                    revised_payload["task"] += (" answer_review.semantic_risk_candidates 是待复核候选，不是错误裁决。"
+                        "按其中实际原文和 feedback 核对每处摘要、表格、结论的范围，"
+                        "保留有据内容，并在相关断言处写清必要前提；不要只在答案末尾增加笼统限制。")
                 synthesis_review_attempted = review_synthesis
                 trims = selection_events()
                 failure_stage = "context_assembly"
@@ -3335,6 +3397,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     answer_completion = assess_business_answer(question, answer, answer_investigation or {},
         [sent_pages[identifier] for identifier in final_source_ids], answer_detail=answer_detail,
         working_set=(answer_manifest or {}).get("working_set"))
+    if answer_completion.get("semantic_risk_candidates"):
+        boundaries.append({"reason": "semantic_scope_review_needed",
+            "candidate_count": len(answer_completion["semantic_risk_candidates"]),
+            "revision_limit": policy.answer_revision_limit,
+            "review_attempted": synthesis_review_attempted, "semantic_verification": False})
     if not answer:
         answer_origin = "diagnostic"
         http_status = next((item.get("http_status") for item in errors if item.get("http_status")), None)
@@ -3383,7 +3450,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         source_versions=business_map.get("source_versions", {}))
     repository_boundaries = [*business_map.get("repository_boundaries", []), *scoped_out_boundaries]
     quality.data["repository_boundaries"] = repository_boundaries
-    open_question_gaps = final_investigation.get("open_gaps", [])
+    open_question_gaps, runtime_limitations = _answer_scope_gaps(
+        question, final_investigation, answer_detail=answer_detail)
+    quality.data["runtime_limitations"] = runtime_limitations
     incomplete_reads = any(task.material_to_question and task.state != "complete"
                            for task in evidence.tasks.values())
     final_working_set = (answer_manifest or {}).get("working_set")
@@ -3440,6 +3509,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                        for t in evidence.tasks.values() if t.state != "complete"],
         "missing_core_evidence_ids": sorted(missing_core),
         "question_investigation": final_investigation, "answer_completion": answer_completion,
+        "runtime_limitations": runtime_limitations,
         "stop_reason": stop_reason})
     investigation = {"mode": "retrieval", "searches": searches, "search_rounds": len(searches),
                      "retrieval_status": "source_candidates" if refs and source_match_observed else
@@ -3469,6 +3539,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         "completed_actions": completed_actions[-16:],
         "question_investigation": final_investigation}
     timing["answer_verification_seconds"] = time.monotonic() - verification_started
+    wire_history_summary = (quality.data.get("rounds") or [{}])[-1].get("history_summary", {})
     metrics = {"model_requests": turns, "elapsed_seconds": round(question_budget.elapsed() if question_budget else time.monotonic() - started, 3),
                "completion_driven": adaptive,
                "convergence_stop_reason": continuation.stop_reason if adaptive else None,
@@ -3477,7 +3548,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                    "inflight_request_cancelled_by_target": False,
                    "hard_limit_seconds": question_budget.hard_limit if question_budget else policy.hard_question_seconds},
                "retrieved_pages": len(pages), "repository_rebuilt": False,
-               "history_messages": len(history or []), "source_characters": sum(len(sent_pages[i].get("source_text", "")) for i in final_source_ids),
+               "history_messages": len(history or []),
+               "wire_history_messages": wire_history_summary.get("count", 0),
+               "wire_history_characters": wire_history_summary.get("characters", 0),
+               "wire_history_assistant_messages": wire_history_summary.get("assistant_count", 0),
+               "wire_history_projection_mode": _history_projection_mode(question),
+               "source_characters": sum(len(sent_pages[i].get("source_text", "")) for i in final_source_ids),
                **({"current_source_pages": len(final_current_source_ids),
                    "prior_memory_source_pages": len(final_memory_source_ids - final_current_source_ids),
                    "source_binding_mode": "current_and_declared_prior_memory"} if adaptive else {}),
@@ -3509,6 +3585,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     draft_retained = any(item.get("reason") == "usable_draft_retained" for item in boundaries)
     result = {"status": "PARTIAL" if usable and (failure or truncated or material_gap or draft_retained or answer_incomplete) else "ANALYZED" if usable else "ABSTAINED",
               "answer_completion": answer_completion, "material_gap": material_gap,
+              "runtime_limitations": runtime_limitations,
               "run_id": quality.data["run_id"],
               "answer": answer, "answer_format": "markdown", "analysis_mode": "retrieval", "snapshot_id": overview["snapshot_id"],
               "answer_detail": answer_detail, "answer_language": answer_language, "finish_reason": answer_finish_reason,
@@ -3553,6 +3630,40 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         status="attention" if uncertain else "running" if failure == "QUESTION_TIME_BUDGET_EXHAUSTED"
             and answer_origin != "model" else "completed")
     return output
+
+
+def _answer_scope_gaps(question, investigation, *, answer_detail="detailed"):
+    """Keep external runtime limits without treating them as missing source.
+
+    This only separates the known scheduler limitation of a broad static
+    explanation, after actual entry/caller/guard source obligations are met.
+    It neither satisfies the runtime obligation nor verifies execution.
+    """
+    from business_synthesis import wants_business_overview
+    from question_planner import runtime_activation_requested
+    gaps = list(investigation.get("open_gaps", ()))
+    if (not wants_business_overview(question, answer_detail=answer_detail)
+            or runtime_activation_requested(question)):
+        return gaps, []
+    items = {item.get("kind"): item for item in investigation.get("required_items", ())}
+    if any(items.get(kind, {}).get("status") != "SATISFIED"
+           or not items[kind].get("evidence_ids")
+           for kind in ("entry_point", "caller_invocation", "activation_conditions")):
+        return gaps, []
+    scheduler = items.get("scheduler_binding", {})
+    if (scheduler.get("status") != "OPEN"
+            or scheduler.get("reason") != "external_schedule_binding_not_verified"
+            or scheduler.get("scope") != "schedule_configuration_and_runtime_launch_are_separate_from_static_CALL"):
+        return gaps, []
+    material, limits = [], []
+    for gap in gaps:
+        if (gap.get("kind") == "scheduler_binding" and gap.get("status") == "OPEN"
+                and gap.get("reason") == "external_schedule_binding_not_verified"):
+            limits.append({**gap, "scope": scheduler["scope"], "execution_verified": False,
+                           "blocks_static_source_explanation": False})
+        else:
+            material.append(gap)
+    return material, limits
 
 
 def run_business_chat(question, database_path, source_root, config, **kwargs):

@@ -1,0 +1,235 @@
+{
+  "schema_version": "business-boundary-source-review/v1",
+  "purpose": "Frozen source-based expectations for independent review of real responses; not an automatic semantic scorer or final Windows acceptance.",
+  "source_fixture": "tools/business_onboarding_fixture.py",
+  "source_sha256": {
+    "nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+    "settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+    "balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5"
+  },
+  "cases": [
+    {
+      "id": "batch",
+      "question": "我是新人，请从业务目的解释 SETTLE 的整体业务流程，包括 Batch job、programs、输入输出 files 和异常。",
+      "required_findings": [
+        {
+          "id": "batch-rule",
+          "meaning": "结算记录生成：正常文件处理路径中筛选状态A且金额>0，复制订单编号/金额后请求WRITE；A=批准属于用途注释支持的解释，不冒充外部字典。",
+          "supporting_ranges": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 2,
+              "end_line": 3
+            },
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 24,
+              "end_line": 38
+            }
+          ]
+        },
+        {
+          "id": "batch-entry",
+          "meaning": "CL声明ORDERIN到APPDATA/ORDERS覆盖，CALL SETTLE，正常返回后撤销；这足以说明静态业务入口，但不证明已调度或覆盖运行生效。",
+          "supporting_ranges": [
+            {
+              "relative_path": "nightjob.clle",
+              "source_sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+              "start_line": 1,
+              "end_line": 6
+            }
+          ]
+        },
+        {
+          "id": "batch-file-input",
+          "meaning": "SELECT/FD定义和READ共同确定订单字段来自输入记录，原文能明确说明，不应说ORDER-ID/AMOUNT输入来源未定位。",
+          "supporting_ranges": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 7,
+              "end_line": 19
+            },
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 24,
+              "end_line": 32
+            }
+          ]
+        },
+        {
+          "id": "batch-limits",
+          "meaning": "业务跳过输出固定提示；没有FILE STATUS/显式IO恢复分支，不能保证写成功；真实调度与输出物理绑定是环境事项，不抹去源代码已知结论。",
+          "supporting_ranges": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 7,
+              "end_line": 38
+            },
+            {
+              "relative_path": "nightjob.clle",
+              "source_sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+              "start_line": 1,
+              "end_line": 6
+            }
+          ]
+        }
+      ],
+      "forbidden_claims": [
+        "仅凭未提供调度配置就称批处理业务无法解释或输入来源不明",
+        "保证实际结算已成功或所有失败均被业务跳过",
+        "断言日志/屏幕目的地已由未指定目标的DISPLAY确定"
+      ]
+    },
+    {
+      "id": "online",
+      "question": "我是新人，请解释 BALANCEQ 这个在线查询功能的业务用途、输入输出和 tables，哪些条件会返回失败？",
+      "required_findings": [
+        {
+          "id": "online-purpose-and-data",
+          "meaning": "注释定位在线余额查询意图；按传入账户键读ACCOUNT_BALANCES.AVAILABLE_BALANCE给输出参数，不更新余额；实际屏幕或部署未提供。",
+          "supporting_ranges": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 2,
+              "end_line": 16
+            }
+          ]
+        },
+        {
+          "id": "online-code-scope",
+          "meaning": "控制流正常返回并执行SQLCODE判断时，零置业务参数00，否则置90；不保证任意异常都会执行判断并返回。",
+          "supporting_ranges": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 13,
+              "end_line": 21
+            }
+          ]
+        },
+        {
+          "id": "online-failed-balance",
+          "meaning": "失败分支未显式重新赋值余额，不保证得到零或可用余额；未校验输入不意味着该账户一定不存在。",
+          "supporting_ranges": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 7,
+              "end_line": 21
+            }
+          ]
+        }
+      ],
+      "forbidden_claims": [
+        "任何异常保证返回90",
+        "所有非正常情形都返回90而没有控制流到达IF的前提",
+        "因为未校验零键所以必然查不到",
+        "仅凭当前无直接连接断言两个业务全局无关"
+      ]
+    },
+    {
+      "id": "boundary-followup",
+      "question": "继续核对业务边界：这批处理遇到空输入会怎样？ORDER SKIPPED 到哪里、金额大于零能否直接等同非零？BALANCEQ 是否任何异常都能返回90？这两项业务能否确定完全无关？请先说明源码能确认的结论，再指出还需要哪些具体运行资料。",
+      "required_findings": [
+        {
+          "id": "empty-input",
+          "meaning": "正常OPEN并首次READ返回AT END时，只置结束标志，不执行NOT AT END分支中的业务WRITE；后续正常CLOSE才到GOBACK。不能由此担保实际输出物理对象为空或清空成功。",
+          "supporting_ranges": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 24,
+              "end_line": 38
+            }
+          ]
+        },
+        {
+          "id": "display-destination",
+          "meaning": "DISPLAY发出固定ORDER SKIPPED提示，未指定接收目标；实际目的地和保存方式依赖运行配置。",
+          "supporting_ranges": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 29,
+              "end_line": 34
+            }
+          ]
+        },
+        {
+          "id": "valid-numeric-domain",
+          "meaning": "保持明确筛选条件>ZERO；只在符合无符号PIC声明的有效数值范围内可等同非零，不能由声明担保外部数据字节有效。",
+          "supporting_ranges": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 13,
+              "end_line": 15
+            },
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 29,
+              "end_line": 29
+            }
+          ]
+        },
+        {
+          "id": "sql-control-return",
+          "meaning": "SQLCODE正常返回到IF时为零置00、非零置90；不返回此处的异常不能保证业务码。",
+          "supporting_ranges": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 13,
+              "end_line": 21
+            }
+          ]
+        },
+        {
+          "id": "visible-scope",
+          "meaning": "这三份已供文件中未见两个程序互调或共享表/文件；只能说明当前可见范围，不证明系统全局无依赖。",
+          "supporting_ranges": [
+            {
+              "relative_path": "nightjob.clle",
+              "source_sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+              "start_line": 1,
+              "end_line": 6
+            },
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 1,
+              "end_line": 38
+            },
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 1,
+              "end_line": 21
+            }
+          ]
+        }
+      ],
+      "forbidden_claims": [
+        "空输入保证正常完成且实际输出为空",
+        "DISPLAY保证进入作业日志或屏幕",
+        "PIC声明保证外部数据总有效",
+        "任意异常均返回90",
+        "两项业务全局完全无关"
+      ]
+    }
+  ],
+  "review_rules": [
+    "Keep full original model text and failures.",
+    "A citation or ANALYZED status does not prove free-form semantics.",
+    "Score each required finding with met/omitted/incorrect and locate any overclaim.",
+    "Runtime uncertainty must be specific, while source-confirmable behavior is stated positively.",
+    "These small neutral sources are not a representative large-source or target-device quality benchmark."
+  ]
+}

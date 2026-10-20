@@ -1,0 +1,29 @@
+{
+  "schema_version": "pre-request-initialization-failure/v1",
+  "phase": 6,
+  "error": "MAX_OUTPUT_TOKENS_INVALID",
+  "physical_requests": 0,
+  "incremental_model_cost_micro_cny": 0,
+  "cumulative_known_usage_micro_cny": 1639944,
+  "failure_before_started_and_budget_guard_install": true,
+  "requested_output_tokens": 12288,
+  "supported_output_tokens_maximum": 8192,
+  "product_changed": false,
+  "ready_sha256": "5854b488c62c1cde2357078f3910ea3b52ef97e9233a16345a45f0f9435cd164",
+  "console_sha256": "570463bdc310206b7b669654112566c8d4706a7b2c232d07739ed756e2fc63c7",
+  "started_ledger_results_absent": [
+    "started.json",
+    "budget-ledger.json",
+    "paid-closed.json",
+    "results.json"
+  ],
+  "root_audit_sha256": "f360c300081dd1f5a8d70324b6c784be05fbad83a9e59a44eb8b7c10e259ed82",
+  "independent_history_audit_sha256": "654ca84f45330a159dd4d777bf60737c9f557a54d4592f2f535b79adf98c8a69",
+  "actual_stored_messages": 8,
+  "actual_transcript_canonical_sha256": "6624f3af261e788dc691d1ce3cb43b0e694d1e88a22049edd6902fb70b9d697e",
+  "phase6_history_before_sha256": "d8a6220fb68fbfbbbaf2e60cfc4d164e171086205c91a59250bd94455c6346dc",
+  "phase5_transcript_sha256": "d8a6220fb68fbfbbbaf2e60cfc4d164e171086205c91a59250bd94455c6346dc",
+  "live_history_equals_phase6_before_and_phase5_snapshot": true,
+  "live_database_files_unchanged_by_audit": true,
+  "scope": "Independent read-only history and absent-start/ledger check; initialization failure is not a model answer or quality score."
+}

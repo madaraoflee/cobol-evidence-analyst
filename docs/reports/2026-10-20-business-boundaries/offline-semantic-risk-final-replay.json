@@ -1,0 +1,133 @@
+{
+  "schema_version": "offline-final-semantic-review-replay/v1",
+  "review_kind": "agent_offline_mechanism_review",
+  "new_model_requests": 0,
+  "human_acceptance": false,
+  "actual_paid_answer": {
+    "results_file": "real-model-results-phase10.json",
+    "results_sha256": "568653f8405e7618533e23ac1c234dd033ba2534c6c6d131f5f8c8cbe3351b5f",
+    "run_id": "4311451f3bd0c15fa80c23bc",
+    "pipeline_version": "question-evidence-v43",
+    "prompt_version": "business-chat-v38",
+    "answer_sha256": "34ac90b7ff4e22bab73c53e22bb2722cb436934e9fdfc69538b639830edaf0d4",
+    "question_variant": {
+      "original_question": "继续核对业务边界：这批处理遇到空输入会怎样？ORDER SKIPPED 到哪里、金额大于零能否直接等同非零？BALANCEQ 是否任何异常都能返回90？这两项业务能否确定完全无关？请先说明源码能确认的结论，再指出还需要哪些具体运行资料。",
+      "original_question_sha256": "040be07e957007f7c08de97c3e02144281aedb3ae39c35ce832e2d810c9d61ea",
+      "scope_only_prefix": "请基于 nightjob.clle、settle.cbl、balance.cbl。",
+      "variant_reason": "Fresh conversation has no earlier business referent; explicit source filenames add scope only, not an answer or condition.",
+      "original_gold_sha256": "790fabb0d868a511de5e845e32958a8e372622174be68d85cb449111bf62248f",
+      "same_question_same_conditions_comparison": false
+    },
+    "raw_and_delivered_byte_identical": true
+  },
+  "offline_implementation": {
+    "pipeline_version": "question-evidence-v44",
+    "prompt_version": "business-chat-v39",
+    "changed_product_files_since_actual_paid_answer": [
+      "poc/business_synthesis.py",
+      "poc/quality_trace.py"
+    ],
+    "product_sha256": {
+      "poc/business_synthesis.py": "f96c58923d3eeec92037dded1f4bc5509bb4f129ce1b0ef12436f1d1080a4f27",
+      "poc/quality_trace.py": "201daf836dab5e6d894cd9c6d5d973d96a384f1e81cfba9087d1682da6bf356b"
+    },
+    "first_request_generation_policy_changed": false,
+    "history_projection_changed": false,
+    "answer_join_or_markdown_changed": false,
+    "actual_paid_answer_was_generated_by_this_implementation": false
+  },
+  "fixture": {
+    "file": "poc/tests/fixtures/semantic_boundary_final_answer.json",
+    "sha256": "ab65e55734dd10b2b000eaf15199365312e7e3ed7461688018691cf4e8fc1136",
+    "source_sha256": {
+      "nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+      "settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+      "balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5"
+    },
+    "raw_answer_sha256": "34ac90b7ff4e22bab73c53e22bb2722cb436934e9fdfc69538b639830edaf0d4"
+  },
+  "before": {
+    "captured_pipeline": "question-evidence-v43",
+    "candidates": [
+      {
+        "feedback": "核对这句/表格中的全异常或无条件返回保证。当前原文显示操作请求和后续状态分支，不能仅据此推出所有异常均能正常返回并到达赋值处。保留有据结论，在该句就地写明控制流前提；若实际来源已支持更强保证，请引用具体处理规则。",
+        "status": "review_candidate",
+        "binding_basis": "unique_answer_cited_boundary",
+        "semantic_verification": false,
+        "assertion": "若要知道“任何异常都返回 '90'”，还需确认程序加载/入口调用成功、SQL 语句确实被执行并回填 SQLCODE",
+        "kind": "unconditional_exception_result",
+        "source_refs": [
+          {
+            "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+            "end_line": 16,
+            "relative_path": "balance.cbl",
+            "start_line": 13,
+            "supplied_reference_ids": [
+              "ev_page_41c62f686dca8a6b3a26a3e9"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "offline_candidates": [
+      {
+        "kind": "database_status_check_denial",
+        "status": "review_candidate",
+        "assertion": "这不等于“任何异常都会返回 '90'”，因为程序加载失败、SQL 语句未能执行、SQLCODE 未按预期赋值等情形，源码没有交代，也没有文件/数据库状态检查",
+        "feedback": "核对“没有数据库状态检查”的否定结论。实际已供应的同一程序在 SQL 请求后有 IF SQLCODE = 0，并在两分支给同一状态参数赋值。说明已存在的状态判断，与未展示完整异常处理或不能保证所有异常返回分别表达；此候选不证明真实执行结果。",
+        "semantic_verification": false,
+        "binding_basis": "assertion_cited_boundary",
+        "source_refs": [
+          {
+            "relative_path": "balance.cbl",
+            "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+            "start_line": 13,
+            "end_line": 20,
+            "supplied_reference_ids": [
+              "ev_page_41c62f686dca8a6b3a26a3e9"
+            ]
+          }
+        ]
+      }
+    ],
+    "semantic_verification": false,
+    "answer_status_if_assessed_with_zero_revisions": "incomplete",
+    "reason": "semantic_scope_review_needed",
+    "answer_sha256_unchanged": "34ac90b7ff4e22bab73c53e22bb2722cb436934e9fdfc69538b639830edaf0d4",
+    "automatic_body_replacement": false
+  },
+  "interpretation": {
+    "pending_quoted_proposition_false_positive_removed": true,
+    "actual_database_status_check_denial_nominated": true,
+    "no_assertion_became_verified": true,
+    "full_answer_became_correct": false,
+    "actual_answer_and_failed_quality_review_preserved": true,
+    "review_file": "independent-review-final.json",
+    "review_sha256": "6405db4008985a071e6b941ef539668a80a7dec868a7f23d1581d6c66d124723",
+    "note": "The v43 paid answer remains unchanged and retains its material error. The v44 local review replaces a misleading candidate with a source-bound candidate for that error; it neither rewrites the answer nor demonstrates what a subsequent model revision would produce."
+  },
+  "bounded_scope": [
+    "Pending exception is limited to the same quoted proposition inside an explicit same-sentence verification frame. Earlier/later affirmative guarantees remain reviewable.",
+    "Database-check denial needs supplied same-version complete SQL followed by a complete IF SQLCODE=0 whose two arms write the same status field. Missing pages, conflicts, fake references and a different named program do not provide this witness.",
+    "Program identity comparison includes lower/mixed-case direct subjects. It is not general natural-language identity or semantic proof.",
+    "Other conservative review kinds and request/revision limits retain their behavior; unsupported prose is not upgraded to verified."
+  ],
+  "verification": {
+    "new_test_methods": 6,
+    "new_test_file": "poc/tests/test_semantic_review_qualification.py",
+    "new_test_sha256": "c6610eb18c2c9fec4fc126caaf0eea18a70c312badc56f3690d144261f5f9dc4",
+    "risk_tests_passed": 35,
+    "risk_tests_seconds": 0.672,
+    "related_tests_passed": 62,
+    "related_tests_seconds": 2.67,
+    "total_focused_passed": 97,
+    "includes_32k_full_compact_source_checks": true,
+    "includes_old_formula_condition_claim_checks": true,
+    "includes_history_and_continuation_regressions": true,
+    "independent_case_insensitive_identity_counterexamples_rechecked": true,
+    "full_suite_results": "Reported separately by the parent; not inferred from focused checks."
+  },
+  "privacy": "Neutral source and exact public answer only; no endpoint, headers, credentials, private absolute paths or hidden reasoning."
+}
