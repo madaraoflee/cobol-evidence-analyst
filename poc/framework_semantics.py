@@ -15,7 +15,7 @@ import sqlite3
 import time
 
 
-SEMANTICS_VERSION = "framework-semantics/v1.4"
+SEMANTICS_VERSION = "framework-semantics/v1.5"
 MAX_FILE_FACTS = 2048
 MAX_REQUEST_FACTS = 32
 
@@ -200,10 +200,10 @@ def _page_runs(pages):
             continue
         key = (page.get("relative_path"), page.get("source_sha256"))
         text = page.get("source_text", page.get("text", ""))
-        if not all(key) or not isinstance(text, str) or not isinstance(page.get("start_line"), int):
+        if not all(key) or not isinstance(text, str) or not text or not isinstance(page.get("start_line"), int):
             continue
         formats[key] = page.get("format_hint", "auto")
-        for number, line in enumerate(text.splitlines(), page["start_line"]):
+        for number, line in enumerate(text.split("\n"), page["start_line"]):
             if number > page.get("end_line", 0):
                 break
             if number in by_file[key] and by_file[key][number] != line:
@@ -324,11 +324,12 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
         # bounded missing spans so the caller may read them within its existing
         # budget; the fact still cannot survive until that source is supplied.
         requests = {}
+        supplied_lines = _source_evidence_lines(source_pages)
         for fact in checked[:MAX_REQUEST_FACTS]:
             if not fact.get("dependency_covered"):
                 continue
             for span in fact.get("source_ranges", []):
-                if _span_evidence(fact, span, source_pages):
+                if _span_evidence(fact, span, supplied_lines):
                     continue
                 request = {"relative_path": span.get("relative_path", fact["relative_path"]),
                            "source_sha256": span.get("source_sha256", fact["source_sha256"]),
@@ -348,19 +349,50 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
     return result
 
 
-def _span_evidence(fact, span, pages):
-    return [p["evidence_id"] for p in pages if not p.get("span_truncated") and not p.get("include_chain")
-        and p.get("relative_path") == span.get("relative_path", fact.get("relative_path"))
-        and p.get("source_sha256") == span.get("source_sha256", fact.get("source_sha256"))
-        and p.get("evidence_id") and isinstance(p.get("start_line"), int)
-        and p["start_line"] <= span["start_line"] and p.get("end_line", 0) >= span["end_line"]
-        and len(p.get("source_text", p.get("text", "")).splitlines()) >= span["end_line"] - p["start_line"] + 1]
+def _source_evidence_lines(pages):
+    """Index actual supplied lines once, preserving version and overlap conflicts."""
+    supplied = defaultdict(dict)
+    for page in pages:
+        key = (page.get("relative_path"), page.get("source_sha256"))
+        text = page.get("source_text", page.get("text", ""))
+        start, end = page.get("start_line"), page.get("end_line")
+        if (page.get("span_truncated") or page.get("include_chain") or not all(key)
+                or not page.get("evidence_id") or not isinstance(text, str) or not text
+                or type(start) is not int or type(end) is not int or not 1 <= start <= end):
+            continue
+        lines = supplied[key]
+        # Source pages use newline-joined physical rows. A final separator
+        # therefore represents a real blank row, bounded by the supplied end.
+        for number, line in enumerate(text.split("\n"), start):
+            if number > end:
+                break
+            if number not in lines:
+                lines[number] = (line, page["evidence_id"])
+            elif lines[number] is not None and lines[number][0] != line:
+                # Conflicting text cannot be repaired by picking a convenient
+                # page, even if another page alone covers the complete span.
+                lines[number] = None
+    return supplied
+
+
+def _span_evidence(fact, span, supplied_lines):
+    key = (span.get("relative_path", fact.get("relative_path")),
+           span.get("source_sha256", fact.get("source_sha256")))
+    lines = supplied_lines.get(key, {})
+    evidence = []
+    for number in range(span["start_line"], span["end_line"] + 1):
+        row = lines.get(number)
+        if row is None:
+            return []
+        evidence.append(row[1])
+    return list(dict.fromkeys(evidence))
 
 
 def visible_framework_facts(facts, pages, references):
     """Only transmitted, untruncated source and rules can support a conclusion."""
     usable = {ref.get("reference_id") for ref in references
               if ref.get("text") and not ref.get("text_truncated")}
+    supplied_lines = _source_evidence_lines(pages)
     result = []
     for original in facts:
         ids = original.get("reference_ids", [])
@@ -371,10 +403,10 @@ def visible_framework_facts(facts, pages, references):
             continue
         evidence = []
         for span in spans:
-            candidates = _span_evidence(original, span, pages)
+            candidates = _span_evidence(original, span, supplied_lines)
             if not candidates:
                 break
-            evidence.append(candidates[0])
+            evidence.extend(candidates)
         else:
             row = deepcopy(original)
             row["source_evidence_ids"] = list(dict.fromkeys(evidence))

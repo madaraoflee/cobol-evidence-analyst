@@ -7,7 +7,7 @@ import re
 from statement_facts import data_references
 
 
-PLAN_VERSION = "business-analysis-plan/v7"
+PLAN_VERSION = "business-analysis-plan/v8"
 _ACCUMULATION = re.compile(
     r"累加|累[计計积積]|加总|加總|"
     r"(?<![A-Za-z0-9_$#@-])(?:accumulat(?:e[ds]?|ing|ion)|running\s+totals?)(?![A-Za-z0-9_$#@-])|"
@@ -45,6 +45,21 @@ _UPSTREAM_ACTIVATION = re.compile(
     r"批处理|批處理|调度|調度|启动|啟動|入口|由谁|由誰|谁调用|誰調用|"
     r"(?:怎么|怎麼|如何|怎样|怎樣|由谁|由誰|谁|誰|how).{0,16}(?:触发|觸發|trigger)|"
     r"(?<![A-Za-z0-9_-])(?:batch|schedul(?:e|ed|ing)|launch(?:ed|ing)?|entry[ -]?point)(?![A-Za-z0-9_-])", re.I)
+
+
+def program_relation_direction(question):
+    """Distinguish program consumers from a program's own dependencies."""
+    text = str(question)
+    if re.search(r"(?:哪些|哪幾|哪几|什么|甚麼)\s*(?:相关|相關)?(?:程序|程式).{0,12}(?:用到|使用|调用|調用|呼叫)|"
+                 r"(?:谁|誰).{0,6}(?:调用|調用|呼叫)|"
+                 r"\b(?:callers?|called\s+by|used\s+by|(?:which|what)\s+programs?\s+(?:call|use))\b", text, re.I):
+        return "incoming"
+    if re.search(r"(?:用到|使用|调用|調用|呼叫)\s*(?:的)?\s*(?:哪些|什么|甚麼|相关|相關|其他|其它|子|关联|關聯)*\s*(?:程序|程式)|"
+                 r"\b(?:callees?|called\s+programs?|programs?\s+(?:it\s+)?(?:calls|uses))\b", text, re.I):
+        return "outgoing"
+    if re.search(r"(?:相关|相關|关联|關聯)(?:的)?(?:程序|程式)|\brelated\s+programs?\b", text, re.I):
+        return "related"
+    return None
 
 
 def question_references(question):
@@ -159,6 +174,8 @@ class AnalysisPlan:
     unresolved: tuple[str, ...] = ()
     source_scopes: tuple[dict, ...] = ()
     file_entities: tuple[dict, ...] = ()
+    relation_direction: str | None = None
+    relation_root: dict | None = None
     version: str = PLAN_VERSION
 
     def to_dict(self):
@@ -212,6 +229,9 @@ class QuestionPlanner:
                 intent_question = re.sub(r"(?<![A-Za-z0-9_$#@-])" + re.escape(name) +
                                          r"(?![A-Za-z0-9_$#@-])", " ", intent_question, flags=re.I)
         intents = [name for name, pattern in _HINTS.items() if re.search(pattern, intent_question, re.I)]
+        relation_direction = program_relation_direction(intent_question)
+        if relation_direction:
+            intents.append("call_relationships")
         if accumulation_requested(intent_question):
             intents.append("accumulation")
         # A rule's trigger condition belongs to its local IF/control analysis.
@@ -240,7 +260,8 @@ class QuestionPlanner:
             else:
                 intents.append("file_mapping")
         tools = list(dict.fromkeys(tool for intent in intents for tool in
-                    (_TOOLS[intent] if intent != "file_mapping" else ("explain_external_effect", "inspect_business_context"))))
+                    (_TOOLS[intent] if intent not in {"file_mapping", "call_relationships"}
+                     else ("explain_external_effect", "inspect_business_context"))))
         unresolved = []
         unresolved.extend(reason for reason in subject.get("unresolved", ())
                           if not ((source_scopes or file_entities) and not referring and reason == "conversation_field_not_bound"))
@@ -262,11 +283,25 @@ class QuestionPlanner:
                 "accumulation": ("accumulation_step", "input_definitions"),
                 "flow": ("control_conditions", "calls", "external_effects"),
                 "activation": ("entry_point", "caller_invocation", "activation_conditions", "scheduler_binding"),
+                "call_relationships": ("calls",),
                 "declaration": ("declaration_layout",)}.get(intent, ()))
         if file_entities:
             obligations.extend(("file_assignment", "file_record_layout", "copy_layout", "file_io_mapping"))
+        relation_root = None
+        identity = business_map.get("source_identity") or {}
+        roots = identity.get("direct_paths", ())
+        programs = subject.get("programs", ())
+        if (relation_direction and identity.get("status") == "resolved" and len(roots) == 1
+                and subject.get("status") == "resolved" and subject.get("revalidated") is True
+                and subject.get("root_paths") == list(roots) and len(programs) == 1):
+            program = programs[0]
+            if (program.get("relative_path") == roots[0] and program.get("program_name")
+                    and re.fullmatch(r"[0-9a-f]{64}", str(program.get("source_sha256", "")))
+                    and program.get("source_sha256") == business_map.get("source_versions", {}).get(roots[0])):
+                relation_root = {key: program[key] for key in ("relative_path", "source_sha256", "program_name")}
         return AnalysisPlan(tuple(intents), tuple(dict.fromkeys(entities)), tuple(dict.fromkeys(paths)),
-            tuple(tools), tuple(dict.fromkeys(obligations)), basis, tuple(unresolved), tuple(source_scopes), tuple(file_entities))
+            tuple(tools), tuple(dict.fromkeys(obligations)), basis, tuple(unresolved), tuple(source_scopes), tuple(file_entities),
+            relation_direction=relation_direction, relation_root=relation_root)
 
 
 class EvidencePlanner:

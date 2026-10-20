@@ -28,10 +28,100 @@ jobs:
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
           "$(go env GOPATH)/bin/actionlint" -shellcheck= -pyflakes= .github/workflows/windows-desktop.yml
 
+  regression:
+    name: Windows Python regressions ${{ matrix.shard }}
+    runs-on: windows-2022
+    needs: workflow_lint
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: Check out the selected revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python x64
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          architecture: x64
+
+      - name: Fetch and verify the mandatory frozen public corpus
+        shell: python
+        run: |
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+
+          manifest = json.loads(Path('docs/eval/public-business-v1/manifest.json').read_text(encoding='utf-8'))
+          target = Path(os.environ['RUNNER_TEMP']) / 'public-business-source'
+          target.mkdir()
+          for arguments in (['init'], ['config', 'core.autocrlf', 'false'],
+                            ['remote', 'add', 'origin', manifest['repository']],
+                            ['fetch', '--depth', '1', 'origin', manifest['commit']],
+                            ['checkout', '--detach', 'FETCH_HEAD']):
+              subprocess.run(['git', '-C', str(target), *arguments], check=True)
+          actual = subprocess.check_output(['git', '-C', str(target), 'rev-parse', 'HEAD'], text=True).strip()
+          if actual != manifest['commit']:
+              raise SystemExit('Frozen public corpus revision mismatch.')
+          for item in manifest['files']:
+              if hashlib.sha256((target / item['path']).read_bytes()).hexdigest() != item['sha256']:
+                  raise SystemExit('Frozen public corpus content mismatch.')
+          with Path(os.environ['GITHUB_ENV']).open('a', encoding='utf-8') as handle:
+              handle.write(f'PUBLIC_BUSINESS_SOURCE_ROOT={target}\n')
+
+      - name: Fail fast on desktop acceptance and publication contracts
+        shell: python
+        run: |
+          import subprocess
+          import sys
+
+          for pattern in ('test_activation_evidence.py', 'test_question_budget_delivery.py',
+                          'test_prior_source_memory.py', 'test_web_app.py',
+                          'test_cl_context.py', 'test_batch_context_evidence.py',
+                          'test_answer_fact_completion.py', 'test_statement_io_clauses.py',
+                          'test_frontend_io_boundaries.py',
+                          'test_evidence_answer.py', 'test_evidence_context.py',
+                          'test_business_accumulation.py',
+                          'test_desktop_acceptance_runtime.py', 'test_desktop_build_contract.py',
+                          'test_release_acceptance.py', 'test_publish_desktop_release.py',
+                          'test_desktop_live_acceptance.py', 'test_desktop_candidate_collection.py',
+                          'test_desktop_acceptance_cases.py'):
+              subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', 'poc/tests',
+                              '-p', pattern], check=True)
+
+      - name: Run all assigned offline Python regressions
+        timeout-minutes: 45
+        env:
+          SHARD_INDEX: ${{ matrix.shard }}
+        run: |
+          python tools/run_python_regressions.py --shard-index $env:SHARD_INDEX --shard-count 4 --source-commit $env:GITHUB_SHA --output "$env:RUNNER_TEMP\python-regressions-$env:SHARD_INDEX.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Preserve the complete regression shard report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-regressions-${{ github.sha }}-${{ github.run_attempt }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/python-regressions-${{ matrix.shard }}.json
+          if-no-files-found: error
+          retention-days: 14
+
   build:
     name: Compile and verify Windows x64
     runs-on: windows-2022
-    needs: workflow_lint
+    needs: [workflow_lint, regression]
     timeout-minutes: 120
     defaults:
       run:
@@ -50,6 +140,26 @@ jobs:
         with:
           python-version: '3.13'
           architecture: x64
+
+      - name: Download all regression reports for this revision and attempt
+        uses: actions/download-artifact@v7
+        with:
+          pattern: python-regressions-${{ github.sha }}-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/python-regression-reports
+          merge-multiple: true
+
+      - name: Verify every Python test ran exactly once before compiling
+        run: |
+          python tools/check_python_regression_reports.py --reports-dir "$env:RUNNER_TEMP\python-regression-reports" --output "$env:RUNNER_TEMP\python-regressions-summary.json" --expected-shards 4 --source-commit $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Preserve the verified regression summary
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-regressions-summary-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/python-regressions-summary.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Fetch and verify the mandatory frozen public corpus
         shell: python
@@ -113,30 +223,6 @@ jobs:
             if (Test-Path -LiteralPath $diagnostic) { Get-Content -LiteralPath $diagnostic -Tail 40 }
             exit $selfTestCode
           }
-
-      - name: Fail fast on desktop acceptance and publication contracts
-        shell: python
-        run: |
-          import subprocess
-          import sys
-
-          for pattern in ('test_activation_evidence.py', 'test_question_budget_delivery.py',
-                          'test_prior_source_memory.py', 'test_web_app.py',
-                          'test_cl_context.py', 'test_batch_context_evidence.py',
-                          'test_answer_fact_completion.py', 'test_statement_io_clauses.py',
-                          'test_frontend_io_boundaries.py',
-                          'test_evidence_answer.py', 'test_evidence_context.py',
-                          'test_business_accumulation.py',
-                          'test_desktop_acceptance_runtime.py', 'test_desktop_build_contract.py',
-                          'test_release_acceptance.py', 'test_publish_desktop_release.py',
-                          'test_desktop_live_acceptance.py', 'test_desktop_candidate_collection.py',
-                          'test_desktop_acceptance_cases.py'):
-              subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', 'poc/tests',
-                              '-p', pattern], check=True)
-
-      - name: Run offline Python regressions
-        timeout-minutes: 45
-        run: python -m unittest discover -s poc/tests -p 'test_*.py'
 
       - name: Run browser regressions
         shell: python

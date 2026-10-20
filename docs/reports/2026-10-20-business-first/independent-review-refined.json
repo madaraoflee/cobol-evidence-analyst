@@ -1,0 +1,454 @@
+{
+  "schema_version": "business-answer-agent-review/v1",
+  "reviewer_type": "independent_agent_source_review",
+  "human_acceptance": false,
+  "review_method": "Full saved answers compared independently with neutral source text, statement ordering, interfaces and data roles. Citation validity and zero local rewrites are not semantic scores.",
+  "input_artifact": {
+    "file_name": "real-model-results.json",
+    "sha256": "3ea8feb0a18a52513b135d0f57c6ce4e1d9259654ef97be079323aa35a11603c",
+    "phase": "refined",
+    "original_record_sha256": "f92dead5d3d32594729fd563bcc589f6e7e75ad7e87957b9d9de7108cfcfe66f"
+  },
+  "prior_review": {
+    "file_name": "independent-review-initial.json",
+    "sha256": "643a1087e67fa9762476d2baf15550a6a3352a1a1fd5aecc85eed99c9ab0d604",
+    "original_review_sha256": "ccae62656008dd6d882bf3f8bf7f5ff090a92e27fea518307796d81ed4d56419",
+    "preserved": true
+  },
+  "source_fixture": {
+    "file": "tools/business_onboarding_fixture.py",
+    "sha256": "534e09903318dcd7d9d099a39146bfaf3b0444bf28cedef081b65c9d09adbb48",
+    "actual_live_source_hashes_match_fixture": true,
+    "sources": [
+      {
+        "relative_path": "nightjob.clle",
+        "sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+        "line_count": 6
+      },
+      {
+        "relative_path": "settle.cbl",
+        "sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+        "line_count": 38
+      },
+      {
+        "relative_path": "balance.cbl",
+        "sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+        "line_count": 21
+      }
+    ]
+  },
+  "decision": {
+    "answer_content_blocks_candidate": false,
+    "critical_findings": 0,
+    "judgment": "核心业务用途、流程、角色和条件解释可用，未发现足以单独阻断候选发布的严重规则错误；仍保留五处运行范围或措辞缺陷。",
+    "fully_correct": false,
+    "formal_release_approval": false,
+    "other_release_gates_reviewed": false
+  },
+  "scope_limits": [
+    "Only two refined real responses to small neutral sources; not a representative accuracy benchmark.",
+    "The first two real responses and their seven findings remain preserved; no failures were discarded.",
+    "The comparison is descriptive, not proof that the wording change alone caused improvement.",
+    "No IBM i compilation, real database execution, target Windows device or human acceptance was performed by this review.",
+    "The finite local checker cannot prove free-form business semantics or runtime outcomes.",
+    "Timings are observations from these two source-level runs, not a guaranteed latency or measured speedup.",
+    "No production files changed and no additional model requests were made during this review."
+  ],
+  "new_model_requests_by_review": 0,
+  "original_answers_preserved": true,
+  "cases": [
+    {
+      "id": "batch",
+      "question": "我是新人，请从业务目的解释 SETTLE 的整体业务流程，包括 Batch job、programs、输入输出 files 和异常。",
+      "run_id": "a2effe1226bee87455af0508",
+      "pipeline_version": "question-evidence-v35",
+      "prompt_version": "business-chat-v31",
+      "observations": {
+        "elapsed_seconds": 19.48536270800105,
+        "model_requests": 1,
+        "answer_characters": 3539,
+        "answer_truncated": false,
+        "finish_reason": "stop",
+        "local_revised_claim_count": 0,
+        "status": "PARTIAL",
+        "stop_reason": "question_evidence_incomplete",
+        "answer_origin": "model"
+      },
+      "original_answer_sha256": "0e1405d30336c6b080a787b02cd3cae9cbde841f134a8f4254aa567448beb11b",
+      "original_answer": "## 结论\n\nSETTLE 是一个**批量结算记录生成程序**：它逐条读取订单文件，把“已批准（状态码 `A`）且金额大于 0”的订单，转成一条结算记录写入结算输出文件；其余订单只显示一条“ORDER SKIPPED”提示，不产生结算记录。[ev_page_0a5bd724415b32dba5d08161]\n\n从已供原文看，它由 CL 批处理作业 `nightjob.clle` 以 `CALL PGM(SETTLE)` 方式启动，作业先在调用前把输入文件名 `ORDERIN` 覆盖指向 `APPDATA/ORDERS`，调用结束后再删除该覆盖。[ev_page_b8c4a50484c207378485e3de]\n\n## 一、业务目的（原文说明 + 推断）\n\n- 程序头注释写明：“BUSINESS PURPOSE: Create settlement records for approved orders.”——为已批准订单创建结算记录。这属于**源码注释说明**，不是运行验证过的业务事实。[ev_page_0a5bd724415b32dba5d08161]\n- 作业注释写明：“Settlement export job: process approved orders.”，说明这条作业的定位是结算导出类处理。[ev_page_b8c4a50484c207378485e3de]\n- 推断（依据状态码取值与注释用词）：`ORDER-STATUS = 'A'` 就是注释所说的“approved”。原文没有状态码字典，因此 `A` 的确切业务含义只能作为合理推断。\n\n## 二、作业与程序的分工\n\n| 角色 | 对象 | 职责 |\n|---|---|---|\n| 批处理作业（入口） | `nightjob.clle` | 先覆盖输入文件指向，再调用结算程序，最后删除覆盖 | \n| 结算程序 | `SETTLE`（`settle.cbl`） | 打开两个文件、循环读订单、按条件写结算记录、关闭文件 |\n\n作业内的执行顺序（源码可见）：\n\n1. `OVRDBF FILE(ORDERIN) TOFILE(APPDATA/ORDERS)`：把本作业中的文件引用名 `ORDERIN` 覆盖为库 `APPDATA` 下的 `ORDERS`。[ev_page_b8c4a50484c207378485e3de]\n2. `CALL PGM(SETTLE)`：调用结算程序，**没有传任何参数**，程序之间不通过参数传数据，只通过文件交接。[ev_page_b8c4a50484c207378485e3de]\n3. `DLTOVR FILE(ORDERIN)`：调用结束后删除该覆盖。[ev_page_b8c4a50484c207378485e3de]\n\n需要提醒新人的两点限制：覆盖是否真的被被调程序生效，取决于调用时的激活组/继承关系，原文只证明了“作业这样声明”，未证明运行生效；`SETTLEMENT-OUT` 在作业里没有任何覆盖声明，其实际落库位置在已供材料中没有依据。[ev_page_b8c4a50484c207378485e3de]\n\n## 三、输入与输出文件的角色\n\n| 文件 | 程序中引用名 | 记录结构 | 在流程中的作用 |\n|---|---|---|---|\n| 订单输入文件 `ORDER-IN` | `ORDERIN` | `ORDER-ID`（8 位数字）、`ORDER-STATUS`（1 位字符）、`ORDER-AMOUNT`（7 位整数 + 2 位小数） | 只读输入，逐条提供订单编号、审批状态和金额 |\n| 结算输出文件 `SETTLEMENT-OUT` | `SETTLEOUT` | `SETTLEMENT-ID`、`SETTLEMENT-AMOUNT` | 只写输出，承接通过筛选的订单所生成的结算记录 |\n\n[ev_page_0a5bd724415b32dba5d08161]\n\n输出侧只有两个字段：编号与金额。**没有**状态、结算日期、来源订单状态等字段，因此“结算记录”在原文层面只是订单编号与金额的复制，不做金额计算、汇总或批次合计。\n\n## 四、逐条处理的业务规则\n\n程序以 `END-OF-ORDERS`（初值 0）作为结束标志，循环读取直到它为 1，主体步骤如下：[ev_page_0a5bd724415b32dba5d08161]\n\n1. 打开输入文件（读）与输出文件（写）。\n2. 循环：对输入文件执行 `READ`。\n   - **读到文件尾（AT END）**：把结束标志置 1。本轮不处理任何订单；循环条件在下一轮判断时成立，循环结束。\n   - **读到一条订单（NOT AT END）**：进入筛选判断。\n3. 筛选条件：`ORDER-STATUS = 'A'` **且** `ORDER-AMOUNT > ZERO`，两个条件必须同时满足。\n   - 满足时：把 `ORDER-ID` 原样搬到 `SETTLEMENT-ID`，把 `ORDER-AMOUNT` 原样搬到 `SETTLEMENT-AMOUNT`，然后写出整条 `SETTLEMENT-REC`。\n   - 不满足时：只显示 `ORDER SKIPPED`，不写任何结算记录。\n4. 处理完当前记录后继续下一轮，直到文件读完。\n5. 关闭两个文件，程序结束（`GOBACK`）。\n\n### 结果的判定范围\n\n| 订单情况 | 是否写结算记录 | 程序表现 |\n|---|---|---|\n| 状态为 `A`，金额 > 0 | 写，一条订单对应一条结算记录 | 编号、金额被复制后写出 |\n| 状态为 `A`，金额 = 0 | 不写 | 显示 `ORDER SKIPPED` |\n| 状态不是 `A`（不论金额多少） | 不写 | 显示 `ORDER SKIPPED` |\n\n金额字段是无符号的 `PIC 9(7)V99`，本身不能存放负值，所以“金额 > 0”实质上是“金额非零”；该字段能表示的最大金额为 9,999,999.99。[ev_page_0a5bd724415b32dba5d08161]\n\n## 五、异常与边界情况（原文明确与未明确的部分）\n\n- **唯一的“异常提示”是业务层面的跳过**：`ELSE DISPLAY 'ORDER SKIPPED'`，只输出到作业日志/屏幕，没有记录被跳过的是哪一张订单、也没有跳过原因区分（状态不符还是金额为零），更没有累计计数。[ev_page_0a5bd724415b32dba5d08161]\n- **程序没有文件状态检查**：文件定义中没有 `FILE STATUS`，打开、读取、写入的返回状态均未被检查，因此原文**没有**任何针对“文件打不开、读出错、写失败”的处理分支。这类情况在源码层面无法被判定为“被跳过”或“已处理”，只能说明程序没有为此编写处理逻辑；实际会不会中断作业，取决于运行环境，已供材料未证明。[ev_page_0a5bd724415b32dba5d08161]\n- **空输入文件不是错误**：第一次读取就遇文件尾，只置结束标志、正常关闭两文件后结束，输出文件为空。[ev_page_0a5bd724415b32dba5d08161]\n- **重复执行不会在程序内去重**：程序不做“该订单是否已结算”的判断，是否会重复生成结算记录取决于输出文件是否有唯一键约束等外部条件，原文没有依据。[ev_page_0a5bd724415b32dba5d08161]\n\n## 六、尚未被证实的部分\n\n以下内容属于运行配置或外部环境，已供源码不足以支持结论，新人阅读时不要当作既定事实：\n\n- 作业是否按计划定时调度、实际以哪个用户/库列表运行（源码只显示一个 CL 程序的存在）。[ev_page_b8c4a50484c207378485e3de]\n- `ORDERIN` 的覆盖在 `SETTLE` 内部是否真正生效，以及 `SETTLEOUT` 实际写入哪个物理文件。\n- 输入文件中的真实数据内容与订单状态码字典。\n\n概括来说：这条流程是一条“**读订单 → 按状态与金额筛选 → 复制编号和金额生成结算记录**”的直线式批处理，业务上的“异常”在代码里只体现为被跳过的订单提示，而不是可追踪的错误处理。[ev_page_0a5bd724415b32dba5d08161][ev_page_b8c4a50484c207378485e3de]",
+      "source_refs": [
+        {
+          "end_line": 6,
+          "evidence_id": "ev_page_b8c4a50484c207378485e3de",
+          "kind": "source_page",
+          "relative_path": "nightjob.clle",
+          "source_sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+          "start_line": 1
+        },
+        {
+          "end_line": 38,
+          "evidence_id": "ev_page_0a5bd724415b32dba5d08161",
+          "kind": "source_page",
+          "relative_path": "settle.cbl",
+          "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+          "start_line": 1
+        }
+      ],
+      "facet_reviews": {
+        "business_purpose": {
+          "status": "pass_for_source_documentation",
+          "judgment": "正确解释按状态与正金额筛选订单并形成结算记录；明确A=approved是注释与代码结合的合理解释，不冒充状态字典。",
+          "source_locations": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 3,
+              "end_line": 3
+            },
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 29,
+              "end_line": 32
+            },
+            {
+              "relative_path": "nightjob.clle",
+              "source_sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+              "start_line": 1,
+              "end_line": 1
+            }
+          ]
+        },
+        "entry_and_execution_mode": {
+          "status": "pass_with_runtime_caveat",
+          "judgment": "正确连接CL覆盖输入、CALL与撤销覆盖；清楚说明未证实调度、用户、库列表或实际覆盖生效。",
+          "source_locations": [
+            {
+              "relative_path": "nightjob.clle",
+              "source_sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+              "start_line": 1,
+              "end_line": 6
+            }
+          ]
+        },
+        "program_responsibility": {
+          "status": "pass_for_visible_normal_path",
+          "judgment": "正确说明打开文件、读循环、条件搬运/写出、文件尾结束、关闭，无金额计算或汇总。实际操作成功仍未验证。",
+          "source_locations": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 24,
+              "end_line": 38
+            }
+          ]
+        },
+        "data_roles": {
+          "status": "pass_for_source_bindings",
+          "judgment": "准确说明订单输入、结算输出、两组字段及ASSIGN名，承认输出物理对象未绑定。",
+          "source_locations": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 7,
+              "end_line": 19
+            },
+            {
+              "relative_path": "nightjob.clle",
+              "source_sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+              "start_line": 3,
+              "end_line": 3
+            }
+          ]
+        },
+        "business_rules": {
+          "status": "pass_for_normal_valid_data_path",
+          "judgment": "条件A且金额>0、两个MOVE、WRITE以及不满足时DISPLAY、AT END置结束标志均与原文一致。无符号金额的非零等价仅限有效数字数据。",
+          "source_locations": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 15,
+              "end_line": 15
+            },
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 21,
+              "end_line": 37
+            }
+          ]
+        },
+        "errors_and_runtime_boundaries": {
+          "status": "pass_with_remaining_overstatement",
+          "judgment": "正确区分业务跳过与I/O失败，明确未知是否中止；仍对空输入正常关闭/空输出以及DISPLAY目的地说得过满。",
+          "source_locations": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 24,
+              "end_line": 38
+            }
+          ]
+        }
+      },
+      "specific_findings": [
+        {
+          "id": "refined-batch-empty-input-preconditions",
+          "severity": "moderate",
+          "candidate_blocking": false,
+          "quote": "第一次读取就遇文件尾，只置结束标志、正常关闭两文件后结束，输出文件为空。",
+          "reason": "源码可确定AT END后不执行记录写入；不能独立保证文件正常打开、关闭、运行结束或实际输出对象状态。邻近段落已有I/O未知边界，因此是局部未限定结论，不是核心规则反转。",
+          "bounded_rephrasing": "若文件正常打开、READ以AT END返回且后续关闭正常完成，则不发起业务记录WRITE；实际输出对象状态仍需环境确认。",
+          "source_locations": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 24,
+              "end_line": 38
+            }
+          ]
+        },
+        {
+          "id": "refined-batch-display-destination",
+          "severity": "minor",
+          "candidate_blocking": false,
+          "quote": "只输出到作业日志/屏幕",
+          "reason": "原文只有DISPLAY，没有证实运行环境把它送到作业日志还是屏幕；可见的是输出固定提示文本。",
+          "bounded_rephrasing": "显示固定ORDER SKIPPED提示；目的地与日志保留由运行环境决定。",
+          "source_locations": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 33,
+              "end_line": 33
+            }
+          ]
+        },
+        {
+          "id": "refined-batch-valid-numeric-data",
+          "severity": "minor",
+          "candidate_blocking": false,
+          "quote": "金额字段是无符号的 `PIC 9(7)V99`，本身不能存放负值，所以“金额 > 0”实质上是“金额非零”",
+          "reason": "这一数值等价应限定为符合字段声明的有效数字数据；不能由PIC声明证明外部文件字节永远有效。核心筛选条件已准确保留为>0。",
+          "bounded_rephrasing": "在符合该无符号数字字段声明的有效数据范围内，>0等价于非零；异常数据未验证。",
+          "source_locations": [
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 15,
+              "end_line": 15
+            },
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 29,
+              "end_line": 29
+            }
+          ]
+        }
+      ],
+      "prior_findings_followup": [
+        {
+          "prior_id": "batch-call-error-propagation",
+          "status": "resolved_in_this_answer",
+          "basis": "明确实际是否中断取决于运行环境，不再声称无状态检查就不会报错。"
+        },
+        {
+          "prior_id": "batch-empty-input-error-guarantee",
+          "status": "partially_resolved",
+          "remaining_finding": "refined-batch-empty-input-preconditions",
+          "basis": "删除“不报错”，但仍缺正常打开/关闭前提。"
+        },
+        {
+          "prior_id": "batch-trace-and-return-terminology",
+          "status": "resolved_with_new_destination_caveat",
+          "basis": "不再说“没有任何留痕”或“没有返回码”；如实说无订单号、原因区分和计数，但DISPLAY目的地仍未验证。"
+        }
+      ],
+      "verdict": "usable_business_explanation_with_recorded_runtime_scope_limitations"
+    },
+    {
+      "id": "online",
+      "question": "我是新人，请解释 BALANCEQ 这个在线查询功能的业务用途、输入输出和 tables，哪些条件会返回失败？",
+      "run_id": "31fd1f6198c0328ee0d2f253",
+      "pipeline_version": "question-evidence-v35",
+      "prompt_version": "business-chat-v31",
+      "observations": {
+        "elapsed_seconds": 25.39318495900079,
+        "model_requests": 1,
+        "answer_characters": 3576,
+        "answer_truncated": false,
+        "finish_reason": "stop",
+        "local_revised_claim_count": 0,
+        "status": "ANALYZED",
+        "stop_reason": "sufficient_material",
+        "answer_origin": "model"
+      },
+      "original_answer_sha256": "c1b1f2207a32d6fb3fbcb1dcd4e3d3920abcc7aed8606b5a129fa31eb9a288b2",
+      "original_answer": "## 结论\n\nBALANCEQ 是一个**按账户号查询可用余额的单笔查询程序**：调用方传入 8 位账户号，程序到 `ACCOUNT_BALANCES` 表中按 `ACCOUNT_ID` 查出 `AVAILABLE_BALANCE`，通过两个返回参数交回“余额”和“处理结果码”。结果码只分两种：SQL 执行成功返回 `00`，其余一切情况统一返回 `90`。[ev_page_41c62f686dca8a6b3a26a3e9]\n\n需要先说清一个边界：源码注释称它是“online query entry”（联机查询入口），但当前供应的原文只是一个被调用程序，没有调用方、菜单、事务或提交语句，因此**联机部署方式和调用者身份未被证实**，只有程序自身的查询逻辑是有据可见的。[ev_page_41c62f686dca8a6b3a26a3e9]\n\n## 一、业务目的\n\n程序头注释写明：“FUNCTION PURPOSE: Query account balance for an operator; online query entry.”——供操作员查询账户余额，属于联机查询入口。这是**原文说明**，不等于已运行验证的行为。[ev_page_41c62f686dca8a6b3a26a3e9]\n\n从字段与表名推断（合理推断，非原文断言）：它面向的是**柜面/操作员查看某个账户当前可用余额**这类“查完即走”的读取场景——因为它只读不写、不产生流水、不更新任何余额。\n\n## 二、入口与输入输出\n\n程序以 `PROCEDURE DIVISION USING ACCOUNT-KEY CURRENT-BALANCE RESPONSE-CODE` 定义接口，三个参数全部由调用方传入，程序内回填后两者，然后 `GOBACK` 返回。[ev_page_41c62f686dca8a6b3a26a3e9]\n\n| 参数 | 类型 | 方向（业务含义） | 内容 |\n|---|---|---|---|\n| `ACCOUNT-KEY` | `PIC 9(8)` | **输入** | 要查询的 8 位账户号，用于定位表记录 |\n| `CURRENT-BALANCE` | `PIC S9(7)V99` | **输出** | 查询到的可用余额，带 2 位小数，带符号，绝对值上限 9,999,999.99 |\n| `RESPONSE-CODE` | `PIC XX` | **输出** | 结果码：`00` 成功，`90` 失败 |\n\n[ev_page_41c62f686dca8a6b3a26a3e9]\n\n要点：\n\n- **没有文件输入输出**（没有 SELECT/ASSIGN 文件、没有 READ/WRITE），全部数据来自数据库表；也不像批处理那样循环处理多条。\n- `ACCOUNT-KEY` **未做任何校验**：不检查是否为空、是否全零、是否在合法区间，程序直接拿它去查表。未校验不证明查不到——结果仍由数据库按实际数据决定。[ev_page_41c62f686dca8a6b3a26a3e9]\n- 余额是**带符号**字段，理论上可承载负余额（例如透支），程序不做任何取舍或四舍五入。[ev_page_41c62f686dca8a6b3a26a3e9]\n\n## 三、表与数据角色\n\n| 表 | 列（原文出现） | 角色 |\n|---|---|---|\n| `ACCOUNT_BALANCES` | `ACCOUNT_ID`（用于 WHERE 匹配）、`AVAILABLE_BALANCE`（被取出） | **只读**；唯一的输入数据源 |\n\n[ev_page_41c62f686dca8a6b3a26a3e9]\n\n说明：\n\n- 程序只执行一条嵌入式 `SELECT ... INTO`，**没有任何 UPDATE/INSERT/DELETE**，所以查询不会改变账户余额，是纯读取。\n- 取的是 `AVAILABLE_BALANCE`（名字上看是“可用余额”）而非其他余额口径，说明业务上关心的是“可用”的金额；这是据列名作出的推断，原文没有口径定义。\n- 表是否唯一键、`ACCOUNT_ID` 是否唯一，原文没有 DDL 依据，不能断言。\n\n## 四、处理顺序与字段变化\n\n1. 调用方传入 `ACCOUNT-KEY`（以及两个输出参数占位）。\n2. 执行 `SELECT AVAILABLE_BALANCE INTO :CURRENT-BALANCE FROM ACCOUNT_BALANCES WHERE ACCOUNT_ID = :ACCOUNT-KEY`。\n3. 判断 `SQLCODE = 0`：\n   - **成立**：把 `'00'` 移入 `RESPONSE-CODE`。\n   - **不成立（ELSE 分支）**：把 `'90'` 移入 `RESPONSE-CODE`。\n4. `GOBACK` 返回调用方，两个输出参数带上结果。\n\n[ev_page_41c62f686dca8a6b3a26a3e9]\n\n关于 `CURRENT-BALANCE` 的关键提醒：它是 SQL `INTO` 的落点，**其返回值完全取决于这条 SQL 的执行结果**；原文在失败分支没有给它任何赋值或清零，因此失败时它是否保持调用前的传入值、还是变成其它内容，**原文不能保证**。下游不要把它当作有效余额使用，必须搭配 `RESPONSE-CODE` 判断。[ev_page_41c62f686dca8a6b3a26a3e9]\n\n## 五、哪些条件会返回失败\n\n失败判定只有**一个门槛**：`SQLCODE = 0` 是否成立。[ev_page_41c62f686dca8a6b3a26a3e9]\n\n| 情况 | 判断结果 | `RESPONSE-CODE` | `CURRENT-BALANCE` |\n|---|---|---|---|\n| SQL 执行成功并取到余额（`SQLCODE` = 0） | 成功 | `00` | 表中 `AVAILABLE_BALANCE` 的值 |\n| `SQLCODE` ≠ 0（任何非零） | 失败 | `90` | 不可依赖（原文未赋值） |\n\n需要注意的细节：\n\n- **失败不区分原因**。程序只看“是不是 0”，因此“账户不存在/查无数据”、“SQL 执行出错”等各种非零情形，对外一律是同一个 `90`，调用方和操作员无法从返回码分辨是“没这个账户”还是“数据库出问题”。[ev_page_41c62f686dca8a6b3a26a3e9]\n- **`SQLCODE` 的初值**：它在 WORKING-STORAGE 中声明为 `PIC S9(9)`，原文没有初始化语句；正常情况下由 SQL 执行结果写入，但若 SQL 因故未真正执行，其取值属于运行期语义，原文不足以判定。[ev_page_41c62f686dca8a6b3a26a3e9]\n- **程序不捕获数据库异常**：没有 `WHENEVER SQLERROR` 之类的声明，也没有对 `SQLCODE` 具体数值的判断；若数据库接口在严重错误时抛出运行时错误而非仅设置 `SQLCODE`，后续 `IF`/`GOBACK` 的前提就不成立——这一点已供原文无法证明，只说明程序没有为此编写处理。[ev_page_41c62f686dca8a6b3a26a3e9]\n- 关于“查无数据时 `SQLCODE` 取什么值”属于数据库产品的语义，**当前没有适用手册条目绑定到这条语句**，所以本文只按原文可证的部分表述为“非 0 即失败”，不虚构具体数值。\n\n## 六、新人易混淆的三点\n\n1. **这是查询，不是结算**。它不写任何文件、不改余额；与此前讨论的 SETTLE 批处理是两条互不相关的路径（`ACCOUNT_BALANCES` 也不是 SETTLE 的订单/结算文件）。[ev_page_41c62f686dca8a6b3a26a3e9]\n2. **结果码是程序自己定义的两位约定**（`00`/`90`），不是把 `SQLCODE` 直接回传；具体 SQL 返回码在程序内部被“压平”了，外部看不到。[ev_page_41c62f686dca8a6b3a26a3e9]\n3. **“查到了余额”与“返回值可用”是两件事**：只有 `RESPONSE-CODE = '00'` 时，`CURRENT-BALANCE` 才有可依赖的业务含义。[ev_page_41c62f686dca8a6b3a26a3e9]",
+      "source_refs": [
+        {
+          "end_line": 21,
+          "evidence_id": "ev_page_41c62f686dca8a6b3a26a3e9",
+          "kind": "source_page",
+          "relative_path": "balance.cbl",
+          "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+          "start_line": 1
+        }
+      ],
+      "facet_reviews": {
+        "business_purpose": {
+          "status": "pass_for_source_documentation",
+          "judgment": "正确讲清按账户查询可用余额，并把online用途归于注释；柜面场景标为推断，仍应视为未验证。",
+          "source_locations": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 3,
+              "end_line": 3
+            },
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 13,
+              "end_line": 16
+            }
+          ]
+        },
+        "entry_and_execution_mode": {
+          "status": "pass_with_runtime_caveat",
+          "judgment": "正确说明三参数接口，并明确缺调用方、菜单、事务与部署证据。",
+          "source_locations": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 7,
+              "end_line": 11
+            }
+          ]
+        },
+        "program_responsibility": {
+          "status": "pass_for_visible_normal_path",
+          "judgment": "正确说明单次SELECT INTO、SQLCODE分支、响应参数及返回；无显式表写入或程序内金额计算。",
+          "source_locations": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 13,
+              "end_line": 21
+            }
+          ]
+        },
+        "data_roles": {
+          "status": "pass_for_source_bindings",
+          "judgment": "正确区分账号输入、余额INTO目标、业务响应码、查询表与列；未把缺DDL当作唯一键证明。",
+          "source_locations": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 8,
+              "end_line": 19
+            }
+          ]
+        },
+        "business_rules": {
+          "status": "pass_with_summary_scope_caveat",
+          "judgment": "SQL正常返回到IF后，0置00、非0置90；失败余额不可凭缺MOVE推为保持或零。正文已加严重异常可能不返回的前提，但开头仍用“其余一切情况”。",
+          "source_locations": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 13,
+              "end_line": 21
+            }
+          ]
+        },
+        "errors_and_runtime_boundaries": {
+          "status": "pass_with_remaining_overstatement",
+          "judgment": "明确未校验不证明查不到，承认真实数据、适用SQL约定与异常传播未知；剩余“与SETTLE互不相关”超出当前证据。",
+          "source_locations": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 8,
+              "end_line": 21
+            }
+          ]
+        }
+      },
+      "specific_findings": [
+        {
+          "id": "refined-online-summary-error-scope",
+          "severity": "moderate",
+          "candidate_blocking": false,
+          "quote": "其余一切情况统一返回 `90`",
+          "reason": "开头摘要未限定SQL正常返回到IF；正文随后准确说明严重异常可能令IF/GOBACK不执行。应让摘要与正文一致。",
+          "bounded_rephrasing": "SQL正常返回到该IF时，SQLCODE为0置00，其余非零置90；未返回的异常不能据此保证响应码。",
+          "source_locations": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 13,
+              "end_line": 21
+            }
+          ]
+        },
+        {
+          "id": "refined-online-unrelated-paths",
+          "severity": "minor",
+          "candidate_blocking": false,
+          "quote": "与此前讨论的 SETTLE 批处理是两条互不相关的路径",
+          "reason": "当前所见没有直接调用或共同表/文件，不能证明两项业务在系统全局无依赖或无间接关联。",
+          "bounded_rephrasing": "在已供应的这几份原文中，没有看到本查询与该批处理的直接调用或共同表/文件绑定。",
+          "source_locations": [
+            {
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "start_line": 1,
+              "end_line": 21
+            },
+            {
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "start_line": 1,
+              "end_line": 38
+            }
+          ]
+        }
+      ],
+      "prior_findings_followup": [
+        {
+          "prior_id": "online-zero-key-no-row",
+          "status": "resolved_in_this_answer",
+          "basis": "明确“未校验不证明查不到——结果仍由数据库按实际数据决定”。"
+        },
+        {
+          "prior_id": "online-caller-knowledge",
+          "status": "resolved_in_this_answer",
+          "basis": "不再断言调用方不知道表名。"
+        },
+        {
+          "prior_id": "online-return-code-terminology",
+          "status": "resolved_in_this_answer",
+          "basis": "明确业务结果参数00/90与内部SQLCODE不同，不再声称无返回码。"
+        },
+        {
+          "prior_id": "online-all-error-paths-return",
+          "status": "partially_resolved",
+          "remaining_finding": "refined-online-summary-error-scope",
+          "basis": "正文已明确运行异常可能不执行IF/GOBACK；摘要仍过宽。"
+        }
+      ],
+      "verdict": "usable_business_explanation_with_recorded_runtime_scope_limitations"
+    }
+  ],
+  "tested_product_sha256": {
+    "poc/answer_markdown.py": "f2abe58115db6b3afc4a294fa4b913c07818c40ff3ce6e1413a5f7ce3176d4b6",
+    "poc/business_synthesis.py": "975f7fae6d43f3a5beb3bbc6ce3a85f311717bc41aa6802effb12c324dbf3f11",
+    "poc/claim_ledger.py": "37a8d89f4d71efa3cc579fcc9b09a81dde51421c84544362da2f792269508b60",
+    "poc/business_chat.py": "cd4512542ba8f2ed5afda11faf37afe1a741f7463d1a7b81b3cec29116b49f53",
+    "poc/quality_trace.py": "8491c5a0adeb9a4eeab1515809feb752c496013156b3df7472da654738b00924"
+  },
+  "publication_note": "Only report references and explicit delivery-status observations were normalized for this public copy; original answers and substantive findings are unchanged."
+}

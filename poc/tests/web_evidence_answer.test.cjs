@@ -43,6 +43,35 @@ test('retained source facts remain visible while the model failure is collapsed'
   }
 });
 
+test('legacy result page retains available local facts and citations without claiming a model answer',()=>{
+  for(const locale of ['zh-CN','zh-HK','en']){
+    const run=harness(locale);const text='OUT-AMOUNT = IN-AMOUNT * 2。[ev_local]';
+    const result={status:'PARTIAL',answer_origin:'local_source_facts',answer_available:true,
+      model_answer_recorded:false,answer:text,narrative:{text,citations:[]},claims:[],
+      evidence_refs:[{evidence_id:'ev_local',relative_path:'rule.cbl',start_line:4,end_line:4}],
+      diagnostics:[{stage:'response_validation',diagnostic}],stop_reason:'QUESTION_TIME_BUDGET_EXHAUSTED'};
+    run(`state.mode='real';applyProject(${JSON.stringify({diagnosis:{question:'Explain flow',entry_requested:'ENTRY'},
+      agent:{runner_status:'NOT_READY',reason_code:'QUESTION_TIME_BUDGET_EXHAUSTED',agent_result:result}})});`);
+    const html=run('actualAnswer()');
+    assert.equal(run('narrativeText(result())'),text);
+    assert.match(html,/OUT-AMOUNT = IN-AMOUNT \* 2/);assert.match(html,/data-evidence="ev_local"/);
+    assert.match(html,/<details class="narrative-notes request-failure retained-answer">/);
+    assert.doesNotMatch(html,/<details class="narrative-notes request-failure retained-answer" open/);
+    assert.doesNotMatch(run('apiSummary()'),/已有模型解读|已有模型解讀|Model interpretation available/);
+    assert.equal(run('result().model_answer_recorded'),false);
+    run('delete state.project.agent.agent_result.narrative');
+    assert.equal(run('narrativeText(result())'),text);
+  }
+});
+
+test('legacy result page does not promote diagnostic or unavailable local text to an answer',()=>{
+  const run=harness();const base={status:'PARTIAL',answer_origin:'local_source_facts',answer_available:true,
+    model_answer_recorded:false,answer:'UNACCEPTED-TEXT',narrative:{text:'UNACCEPTED-TEXT'}};
+  for(const extra of [{answer_origin:'diagnostic'},{answer_available:false},{answer_available:undefined},{status:'ABSTAINED'}]){
+    assert.equal(run(`narrativeText(${JSON.stringify({...base,...extra})})`),'');
+  }
+});
+
 test('old diagnostic-only history renders one error explanation and retains original content',()=>{
   const run=harness();const item=message(legacy,{analysis_status:'ABSTAINED'});
   const html=run(`conversationMessage(${JSON.stringify(item)})`);

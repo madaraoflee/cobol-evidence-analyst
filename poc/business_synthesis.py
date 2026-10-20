@@ -238,6 +238,103 @@ def _behavior_requirements(guide):
                                  "supplied_reference_ids": references[:8]})
     return requirements
 
+
+_BUSINESS_OVERVIEW = re.compile(
+    r"业务(?:目的|用途|作用|功能|流程|过程|逻辑|概览|介绍)|"
+    r"業務(?:目的|用途|作用|功能|流程|過程|邏輯|概覽|介紹)|"
+    r"整体(?:功能|流程|处理)|整體(?:功能|流程|處理)|"
+    r"(?:程序|程式|模块|模塊)(?:的)?(?:功能|用途|作用)|"
+    r"(?:新人|新手).{0,48}(?:程序|程式|功能)|"
+    r"(?:程序|程式|功能).{0,12}(?:做什么|做什麼|解决什么|解決什麼)|"
+    r"\b(?:business (?:purpose|function|workflow|process|logic|overview)|"
+    r"end.to.end (?:business |processing )?(?:flow|process)|"
+    r"what (?:does|is) (?:this |the )?(?:program|function).{0,24}(?:do|for))\b", re.I)
+_NARRATIVE_ASPECTS = {
+    "business_purpose": ("purpose_candidates",
+        "用原文说明或适用手册解释处理目的，并区分文档说明、合理解释与已见规则；不猜业务名称"),
+    "program_roles": ("relationships",
+        "说明已见入口和程序在业务步骤中的职责与联系，不只列调用指令或程序名"),
+    "data_roles": ("data_roles",
+        "说明已见表或文件提供什么输入、承接什么输出、在哪一步被读写，不只列标识和操作码"),
+}
+_TECHNICAL_SCAFFOLD = re.compile(
+    r"调用|呼叫|赋值|賦值|设置|設置|设为|設為|置为|置為|"
+    r"读写|讀寫|读取|讀取|写入|寫入|复制|複製|拷贝|拷貝|包含|引用|定义|定義|"
+    r"段落|字段|欄位|栏位|变量|變量|指令|语句|語句|源码|源碼|代码|代碼|"
+    r"标识|標識|清单|清單|列表|名称|名稱|职责|職責|说明|說明|用途|目的|功能|"
+    r"文件|数据表|資料表|如下|依次|接着|接著|给|給|把|为|為|到|"
+    r"(?<![A-Za-z])(?:call(?:s|ed|ing)?|move[ds]?|assign(?:s|ed|ment)?|"
+    r"read[sn]?|writ(?:e[sn]?|ing)|cop(?:y|ies|ied)|statement[s]?|instruction[s]?|"
+    r"identifier[s]?|field[s]?|variable[s]?|paragraph[s]?|section[s]?|"
+    r"source|code|list(?:s|ed)?|name[s]?|follow(?:s|ing)?|then)(?![A-Za-z])", re.I)
+
+
+def wants_business_overview(question, *, answer_detail="detailed"):
+    """A broad explanation request, not every detailed or relationship reply."""
+    topics = _BUSINESS_OVERVIEW.findall(str(question))
+    return (wants_business_detail(question, answer_detail=answer_detail) and bool(topics)
+            and (calculation_intent(str(question)) != "rules"
+                 or any(not re.search(r"逻辑|邏輯|\blogic\b", topic, re.I) for topic in topics)))
+
+
+def _technical_inventory_only(answer):
+    """Recognize obvious syntax inventories, never score unfamiliar prose.
+
+    Removing exact code/name tokens and low-information scaffolding leaves
+    domain language intact. Any remaining explanatory wording makes this check
+    abstain; it does not prove the answer correct or complete.
+    """
+    text = _REFERENCE.sub("", str(answer))
+    text = re.sub(r"(?m)^\s*#{1,6}\s+.*$", "", text)
+    text = re.sub(r"```[^\n]*\n.*?(?:```|\Z)|~~~[^\n]*\n.*?(?:~~~|\Z)", "", text, flags=re.S)
+    text = re.sub(r"`[^`\n]*`", "", text)
+    text = re.sub(r"(?<![\w.-])[\w./-]+\.(?:cbl|cob|cobol|cpy|copy|cl|clle|sql|dds)(?![\w.-])",
+                  "", text, flags=re.I)
+    text = re.sub(r"""'(?:[^']|'')*'|"(?:[^"]|"")*" """, "", text, flags=re.X)
+    text = re.sub(r"(?<![A-Za-z0-9_$#@-])[A-Z][A-Z0-9_$#@-]*(?![A-Za-z0-9_$#@-])", "", text)
+    text = _TECHNICAL_SCAFFOLD.sub("", text)
+    text = _GENERIC_BEHAVIOR_WORDS.sub("", text)
+    return not re.search(r"[^\W\d_]", text, re.UNICODE)
+
+
+def _business_narrative_requirements(question, orientation, source_pages, *, answer_detail="detailed"):
+    """Only supplied orientation facets can nominate a business explanation."""
+    if not wants_business_overview(question, answer_detail=answer_detail):
+        return []
+    visible = {page.get("evidence_id") for page in source_pages if page.get("source_text")}
+    available = set(orientation.get("available_facets", ()))
+    requirements = []
+    for kind, (group, description) in _NARRATIVE_ASPECTS.items():
+        if kind not in available:
+            continue
+        rows = list(orientation.get(group, ()))
+        if kind == "program_roles":
+            rows += [row for row in orientation.get("entries", ()) if row.get("command") == "SBMJOB"]
+            if orientation.get("visible_rules") or orientation.get("data_roles"):
+                rows += list(orientation.get("entries", ())) + list(orientation.get("programs", ()))
+        references = list(dict.fromkeys(identifier for row in rows if isinstance(row, dict)
+            for identifier in row.get("supplied_reference_ids", ()) if identifier in visible))
+        if references:
+            requirements.append({"kind": kind, "description": description,
+                                 "supplied_reference_ids": references[:8]})
+    return requirements
+
+
+def _business_explanation_contract(question, orientation, *, answer_detail="detailed"):
+    from answer_markdown import BUSINESS_RUNTIME_BOUNDARY_POLICY
+
+    overview = wants_business_overview(question, answer_detail=answer_detail)
+    return {"mode": "business_overview" if overview else "direct_answer",
+        "available_facets": orientation.get("available_facets", []),
+        "semantic_verification": False,
+        "task": ("面向不熟悉代码的读者，把有依据的业务目的、批处理作业或联机功能、程序职责、表文件角色、"
+                 "业务规则与输入输出/异常串成连贯解释；没有依据的环节不补造。程序/文件名用于追溯，不代替用途说明。"
+                 if overview else
+                 "直接解释当前所问关系、规则或结果；不为补齐业务概览而扩展无关章节。")
+                + "source_documentation 是原文说明，source_syntax 是可见语句，framework_convention 是适用约定；"
+                  "据此作出的业务理解明确标注推断，均不证明生产运行。缺口只限定受影响的具体判断。"
+                + (BUSINESS_RUNTIME_BOUNDARY_POLICY if overview else "")}
+
 _SOURCE_VERBS = re.compile(
     r"(?<![A-Z0-9_$#@-])(?:END-IF|END-EVALUATE|EVALUATE|WHEN|ELSE|IF|COMPUTE|"
     r"MOVE|ADD|SUBTRACT|MULTIPLY|DIVIDE|DISPLAY|CALL|PERFORM|GOBACK|STOP|"
@@ -447,7 +544,8 @@ def _supplied_calculation_hints(question, investigation, source_pages):
             "coverage_hints": hints[:32]}
 
 
-def answer_requirements(question, investigation, source_pages, *, answer_detail="detailed", behavior_guide=None):
+def answer_requirements(question, investigation, source_pages, *, answer_detail="detailed", behavior_guide=None,
+                        business_orientation=None):
     """Nominate answer aspects only from question-relevant, supplied candidates.
 
     These are bounded lexical coverage hints, not a semantic answer score. A
@@ -508,6 +606,13 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
         guide = (build_behavior_guide(question, investigation, source_pages)
                  if behavior_guide is None else behavior_guide)
         requirements.extend(_behavior_requirements(guide))
+    if (wants_business_overview(question, answer_detail=answer_detail)
+            and investigation.get("state") not in {"unresolved", "ambiguous"}):
+        if business_orientation is None:
+            from business_orientation import build_business_orientation
+            business_orientation = build_business_orientation(question, investigation, source_pages)
+        requirements.extend(_business_narrative_requirements(question, business_orientation, source_pages,
+                                                             answer_detail=answer_detail))
     return requirements
 
 
@@ -692,8 +797,10 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
             or not (_LIMITATION.search(clause) or _INVESTIGATION_STATEMENT.search(clause)))
         and not re.search(r"[?？]", clause))
     generic_behavior = _generic_behavior_summary(explanation)
+    technical_inventory = _technical_inventory_only(answer)
     missing = [item["kind"] for item in requirements if item["kind"] != "accumulation"
-               if (generic_behavior if item["kind"].startswith("behavior_")
+               if (technical_inventory or generic_behavior if item["kind"] in _NARRATIVE_ASPECTS
+                   else generic_behavior if item["kind"].startswith("behavior_")
                    else not _ANSWER_SIGNALS[item["kind"]].search(explanation))]
     for item in requirements:
         for hint in item.get("coverage_hints", []):
@@ -713,6 +820,12 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
                                  explanation, re.I) for name in names):
                 missing.append(group)
     completion.update(required_aspects=[item["kind"] for item in requirements], missing_aspects=missing)
+    narrative = [item["kind"] for item in requirements if item["kind"] in _NARRATIVE_ASPECTS]
+    if narrative:
+        completion["business_explanation_review"] = {
+            "method": "source_bound_obvious_inventory_only", "semantic_verification": False,
+            "technical_inventory_only": technical_inventory, "required_aspects": narrative,
+            "missing_aspects": [kind for kind in missing if kind in _NARRATIVE_ASPECTS]}
     if missing and completion["status"] != "incomplete":
         completion.update(status="incomplete", reason="supplied_business_aspects_unexplained")
     completion["method"] = "bounded_text_and_coverage_signals"
@@ -809,6 +922,11 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
         if item.get("reason") in {"external_implementation_unavailable", "runtime_target_unresolved"}
         for target in item.get("targets", [])))
     behavior_guide = build_behavior_guide(question, investigation, source_pages)
+    orientation = {}
+    if wants_business_overview(question, answer_detail=answer_detail):
+        from business_orientation import build_business_orientation
+        orientation = build_business_orientation(question, investigation, source_pages, business_map=business_map,
+            framework_references=framework_references, framework_facts=framework_facts)
     from syntax_evidence import build_inline_syntax_guide
     syntax_guide = build_inline_syntax_guide(source_pages, include_priority_branches=True)
     from answer_grounding import answer_grounding_risks
@@ -819,7 +937,10 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
     return {"detail_requested": wants_business_detail(question, answer_detail=answer_detail),
             "output_budget_tokens": max_output_tokens,
             "required_answer_aspects": answer_requirements(question, investigation, source_pages,
-                                                            answer_detail=answer_detail, behavior_guide=behavior_guide),
+                answer_detail=answer_detail, behavior_guide=behavior_guide, business_orientation=orientation),
+            **({"business_orientation": orientation} if orientation.get("available_facets") else {}),
+            "business_explanation_contract": _business_explanation_contract(
+                question, orientation, answer_detail=answer_detail),
             **({"behavior_guide": behavior_guide} if behavior_guide.get("observations") else {}),
             **({"syntax_guide": syntax_guide} if syntax_guide.get("facts") else {}),
             **({"call_effect_boundaries": call_boundaries} if call_boundaries["required"] else {}),

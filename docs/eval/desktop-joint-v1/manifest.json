@@ -150,7 +150,7 @@
         "question_seconds": 30
       },
       "corpus": "runtime_claim",
-      "timing_interpretation": "1.25s deliberate provider wait crosses 1s soft delivery target; validates answer delivery and claim checking, not a measured model SLA."
+      "timing_interpretation": "1.25s deliberate provider wait crosses an explicit 1s soft delivery target inside a finite 120s hard question budget; the existing 30s sample ceiling still applies. Validates answer delivery and claim checking, not a measured model SLA."
     },
     {
       "id": "activation_trigger",
@@ -1197,6 +1197,159 @@
         "源码",
         "未知"
       ]
+    },
+    {
+      "id": "framework_page_chain",
+      "owner": "runtime",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "quality_visible_caller_logic_preserved",
+        "quality_closed_runtime_not_proven",
+        "completeness_framework_fact_supplied",
+        "completeness_fixed_reads_completed",
+        "evidence_framework_pages_exact",
+        "evidence_call_requires_multiple_pages",
+        "evidence_framework_all_supports_supplied",
+        "evidence_visible_answer_matches"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_visible_caller_logic_preserved",
+          "quality_closed_runtime_not_proven"
+        ],
+        "completeness": [
+          "completeness_framework_fact_supplied",
+          "completeness_fixed_reads_completed"
+        ],
+        "evidence": [
+          "evidence_framework_pages_exact",
+          "evidence_call_requires_multiple_pages",
+          "evidence_framework_all_supports_supplied",
+          "evidence_visible_answer_matches"
+        ],
+        "lifecycle": []
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "runtime_framework_pages",
+      "fixture_sha256": {
+        "entry.cbl": "9778394980385dc6282171eb4eb10029fd8137451cad5a381416c7190d00d2e3",
+        "ROW-LAYOUT.cpy": "0ff31d25cbf0e472b5dee5580c19b31da2d693fa934d7b48f40ce05dff08f1ca",
+        "reference.md": "c002bd28ae18c3b4c9cde22b63d6ae1415344f767ac0675213a2a61ce9e36929"
+      },
+      "policy": {
+        "max_model_requests": 2,
+        "max_answer_revisions": 0,
+        "max_reads_per_turn": 8,
+        "max_complete_source_characters": 512,
+        "initial_source_characters": 512,
+        "search_source_characters": 512,
+        "read_source_characters": 12000,
+        "max_business_context_actions_per_turn": 0,
+        "max_evidence_groups": 0
+      }
+    },
+    {
+      "id": "business_batch_overview",
+      "owner": "runtime",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "quality_business_purpose_and_data_roles_preserved",
+        "quality_runtime_unknowns_remain_local",
+        "completeness_roles_supplied_before_answer",
+        "completeness_one_model_request",
+        "evidence_raw_source_and_versions_match",
+        "evidence_visible_answer_matches",
+        "lifecycle_default_has_no_fixed_total_deadline"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_business_purpose_and_data_roles_preserved",
+          "quality_runtime_unknowns_remain_local"
+        ],
+        "completeness": [
+          "completeness_roles_supplied_before_answer",
+          "completeness_one_model_request"
+        ],
+        "evidence": [
+          "evidence_raw_source_and_versions_match",
+          "evidence_visible_answer_matches"
+        ],
+        "lifecycle": [
+          "lifecycle_default_has_no_fixed_total_deadline"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "runtime_business_onboarding",
+      "fixture_sha256": {
+        "nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+        "settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+        "balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5"
+      },
+      "policy": {
+        "max_model_requests": 6,
+        "max_question_seconds": null,
+        "hard_question_seconds": null,
+        "max_answer_revisions": 0
+      }
+    },
+    {
+      "id": "business_online_overview",
+      "owner": "runtime",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "quality_business_purpose_and_data_roles_preserved",
+        "quality_runtime_unknowns_remain_local",
+        "completeness_roles_supplied_before_answer",
+        "completeness_one_model_request",
+        "evidence_raw_source_and_versions_match",
+        "evidence_visible_answer_matches",
+        "lifecycle_default_has_no_fixed_total_deadline"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_business_purpose_and_data_roles_preserved",
+          "quality_runtime_unknowns_remain_local"
+        ],
+        "completeness": [
+          "completeness_roles_supplied_before_answer",
+          "completeness_one_model_request"
+        ],
+        "evidence": [
+          "evidence_raw_source_and_versions_match",
+          "evidence_visible_answer_matches"
+        ],
+        "lifecycle": [
+          "lifecycle_default_has_no_fixed_total_deadline"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "runtime_business_onboarding",
+      "fixture_sha256": {
+        "nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+        "settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+        "balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5"
+      },
+      "policy": {
+        "max_model_requests": 6,
+        "max_question_seconds": null,
+        "hard_question_seconds": null,
+        "max_answer_revisions": 0
+      }
     }
   ]
 }

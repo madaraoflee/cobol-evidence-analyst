@@ -346,7 +346,7 @@ function apiSummary(){
   const investigationReceived=exchanges.some(item=>item.phase==='investigation');
   const transport=chatReceived || probeChat?t('聊天回應已收到'):received?t('已收到 HTTP 回應；聊天回應尚未確認'):exchanges.length?t('未收到 HTTP 回應'):apiRequestCount()>0?t('請求已發起；未保存返回記錄'):t('尚無本次請求記錄');
   const flow=stopped?stopExplanation(stopped.reason):['SOURCE_ANALYSIS_FAILED','SOURCE_SNAPSHOT_MISMATCH','ANSWER_SNAPSHOT_MISMATCH','SOURCE_SNAPSHOT_UNVERIFIED'].includes(agent?.reason_code)?t('源碼核對或分析失敗，本次業務結果未獲接受。'):agent?.reason_code==='COMPANY_API_NOT_READY'?t('能力探測未通過，業務調查尚未開始。'):answer?.finish_reason==='length' || answer?.answer_truncated===true?t('業務回答未完整輸出；已保留收到的正文。'):answer?.status==='PARTIAL' && answer?.model_answer_recorded===true?t('已取得部分業務回答；尚未完成的範圍可繼續分析。'):answer?.stop_reason==='completed' || answer?.stop_reason==='model_abstained' || agent?.runner_status==='COMPLETED' && answer?.model_answer_recorded===true?t('Agent 流程已完成；業務證據需另行核對。'):investigationReceived?t('已發起業務調查；完成狀態尚未確認。'):probeChat?t('聊天能力探測已通過；尚無業務調查結果。'):t('尚無 Agent 完成記錄。');
-  const evidence=unacceptedResponse()?t('已保留未接受正文，不能作為目前業務結論'):narrativeText(answer)?t('已有模型解讀，業務含義尚待覆核'):stopped?t('流程中斷，尚未形成業務結論'):answer?.claims?.length?statusLabel(answer.status):answer?.status==='ABSTAINED'?t('證據不足 · 尚未形成結論'):t('尚未形成業務結論');
+  const evidence=unacceptedResponse()?t('已保留未接受正文，不能作為目前業務結論'):narrativeText(answer)?answer?.answer_origin==='local_source_facts'?statusLabel('CITATION_VERIFIED_ONLY'):t('已有模型解讀，業務含義尚待覆核'):stopped?t('流程中斷，尚未形成業務結論'):answer?.claims?.length?statusLabel(answer.status):answer?.status==='ABSTAINED'?t('證據不足 · 尚未形成結論'):t('尚未形成業務結論');
   return ui`<div class="api-summary"><div><span>API 連線</span><strong>${escapeHTML(transport)}</strong></div><div><span>Agent 流程</span><strong>${escapeHTML(flow)}</strong>${stopped?`<code>${escapeHTML(stopped.code)}</code>`:''}</div><div><span>業務證據</span><strong>${escapeHTML(evidence)}</strong></div></div>`;
 }
 const SAFE_API_EXPLANATIONS={
@@ -544,9 +544,11 @@ function apiResponseView(){
   }).join(''):ui`<div class="answer-empty"><p>${state.project?.agent?.runner_status==='NETWORK_DISABLED'?t('尚未發起模型分析；接入源碼本身不會呼叫模型。'):diagnostic?.captured?t('本次尚未發出接口請求，請先處理接入或配置問題。'):state.project?.agent?t('這份分析未保存 API 返回原文。重新發起分析後，可在這裡查看。'):t('尚未發起模型分析；接入源碼本身不會呼叫模型。')}</p></div>`}</div>`;
 }
 function narrativeText(answer){
-  if(answer?.status==='ABSTAINED' || answer?.model_answer_recorded===false)return '';
+  const localAnswer=answer?.answer_origin==='local_source_facts' && answer?.answer_available===true;
+  if(answer?.status==='ABSTAINED' || answer?.answer_available===false || answer?.answer_origin==='diagnostic'
+      || answer?.model_answer_recorded===false && !localAnswer)return '';
   if(typeof answer?.narrative?.text==='string' && answer.narrative.text.trim())return answer.narrative.text;
-  return answer?.analysis_mode==='source_reading' && typeof answer.answer==='string' && answer.answer.trim()?answer.answer:'';
+  return (localAnswer || answer?.analysis_mode==='source_reading') && typeof answer.answer==='string' && answer.answer.trim()?answer.answer:'';
 }
 function narrativeMarkup(text,refs,frameworkRefs,allowedSourceIds=null){
   const sourceIds=new Map(refs.filter(ref=>typeof ref?.evidence_id==='string').map((ref,index)=>[ref.evidence_id,index+1]).filter(([id])=>!allowedSourceIds || allowedSourceIds.has(id)));
@@ -656,7 +658,7 @@ function narrativeAnswer(answer){
   const boundaries=(answer.boundaries || []).filter(item=>!['framework_reference_boundary','snapshot_coverage'].includes(item?.type));
   return ui`<article class="narrative-answer"><div class="answer-state-row"><span class="badge neutral">業務解讀</span><small>${answer.status==='PARTIAL'?t('仍有待核對項'):''}</small></div>${answerCompletionNotice(answer,state.project?.agent?.display_projection)}<div class="narrative-body">${narrativeMarkup(narrativeText(answer),refs,frameworkRefs)}</div><footer class="narrative-provenance">${investigationView(answer)}${programSummariesView(answer,refs,frameworkRefs)}<details class="answer-support"><summary>依據與補充說明</summary>${notes.length?`<div class="narrative-notes">${notes.map(note=>`<p>${escapeHTML(note)}</p>`).join('')}</div>`:''}${reportDisplayNotice()}${coverageText?ui`<div class="reading-coverage"><strong>閱讀覆蓋</strong><p>${escapeHTML(coverageText)}</p><small>${coverage.complete?t('本次源碼範圍已讀完；閱讀完整不等於業務結論已驗證。'):t('閱讀覆蓋描述本次讀取範圍，不代表已驗證所有業務路徑。')}</small></div>`:''}${chainText?ui`<details class="narrative-boundaries call-chain-coverage"><summary>${escapeHTML(chainText)}</summary><p>${escapeHTML(callChainCoverageNote())}</p></details>`:''}${refs.length?ui`<details class="narrative-sources"><summary>閱讀來源 · ${refs.length} 頁</summary><div>${refs.map((ref,index)=>cite(ref.evidence_id,`${index+1} · ${ref.relative_path || ref.path || t('源碼引用')} · L${Number(ref.start_line)}–${Number(ref.end_line)}`)).join('')}</div></details>`:''}${boundaries.length?ui`<details class="narrative-boundaries"><summary>補充上下文</summary>${boundaries.map(item=>`<p>${escapeHTML(boundaryText(item))}</p>`).join('')}</details>`:''}</details></footer></article>`;
 }
-function actualAnswer(){return failureDiagnosticsView()+actualAnswerBody();}
+function actualAnswer(){return failureDiagnosticsView(null,{retainedAnswer:Boolean(narrativeText(result()))})+actualAnswerBody();}
 function actualAnswerBody(){
   const answer=result();const d=diagnosis();const status=answer?.status || d?.question_status;
   if(syntheticProject() && sourceUsable() && state.project?.agent?.runner_status==='NETWORK_DISABLED'){

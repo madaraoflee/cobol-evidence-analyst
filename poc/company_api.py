@@ -55,16 +55,19 @@ MAX_REQUEST_BYTES = 256_000
 MAX_PENDING_NATIVE_REQUESTS = 4
 _NATIVE_REQUEST_SLOTS = threading.BoundedSemaphore(MAX_PENDING_NATIVE_REQUESTS)
 DEFAULT_MAX_OUTPUT_TOKENS = 1_024
+# A content allowance, not a tokenizer estimate or a wall-clock deadline.
+REASONING_CHARACTERS_PER_OUTPUT_TOKEN = 16
 SUPPORTED_API_STYLE = "openai_compatible"
 PROJECT_ENV_FILE = config_root() / ".env"
 MAX_ENV_FILE_BYTES = 65_536
 CONFIG_ENV_KEYS = frozenset({
     "COMPANY_API_BASE_URL", "COMPANY_API_KEY", "COMPANY_CHAT_MODEL",
     "COMPANY_EMBEDDING_MODEL", "COMPANY_API_STYLE", "COMPANY_MAX_OUTPUT_TOKENS",
-    "FRAMEWORK_REFERENCE_PATH",
+    "COMPANY_REASONING_EFFORT", "FRAMEWORK_REFERENCE_PATH",
 })
 MODEL_PROFILE_NAMES = frozenset({"adapter", "workbench", "analysis", "custom"})
 OUTPUT_LIMIT_SOURCES = frozenset({"profile", "environment", "dotenv", "explicit", "unknown"})
+REASONING_EFFORTS = frozenset({"low", "medium", "high"})
 
 _SAFE_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
 
@@ -240,6 +243,8 @@ class CompanyAPIConfig:
     profile_name: str = field(default="custom", repr=False, compare=False)
     # Direct constructors do not reveal whether their token default was explicit.
     output_limit_source: str = field(default="unknown", repr=False, compare=False)
+    # Omit this optional parameter unless the deployment explicitly selects it.
+    reasoning_effort: str | None = None
 
     def __repr__(self) -> str:
         return (
@@ -251,6 +256,7 @@ class CompanyAPIConfig:
             f"api_key_source={self.api_key_source!r}, "
             f"timeout_seconds={self.timeout_seconds!r}, "
             f"max_output_tokens={self.max_output_tokens!r}, "
+            f"reasoning_effort={self.safe_reasoning_effort!r}, "
             f"profile_name={self.safe_profile_name!r}, "
             f"output_limit_source={self.safe_output_limit_source!r}, "
             f"allow_insecure_localhost={self.allow_insecure_localhost!r})"
@@ -269,6 +275,19 @@ class CompanyAPIConfig:
     def safe_output_limit_source(self) -> str:
         return (self.output_limit_source if isinstance(self.output_limit_source, str)
                 and self.output_limit_source in OUTPUT_LIMIT_SOURCES else "unknown")
+
+    @property
+    def safe_reasoning_effort(self) -> str | None:
+        if self.reasoning_effort is None:
+            return None
+        return (self.reasoning_effort if isinstance(self.reasoning_effort, str)
+                and self.reasoning_effort in REASONING_EFFORTS else "unknown")
+
+    def generation_parameters(self) -> dict[str, str]:
+        """Optional wire parameters, also shared by request sizing and hashes."""
+        if self.safe_reasoning_effort == "unknown":
+            raise APIConfigurationError("REASONING_EFFORT_INVALID")
+        return {} if self.reasoning_effort is None else {"reasoning_effort": self.reasoning_effort}
 
     @property
     def api_key_source(self) -> str:
@@ -295,6 +314,7 @@ class CompanyAPIConfig:
             raise APIConfigurationError("MODEL_PROFILE_INVALID")
         if not isinstance(self.output_limit_source, str) or self.output_limit_source not in OUTPUT_LIMIT_SOURCES:
             raise APIConfigurationError("OUTPUT_LIMIT_SOURCE_INVALID")
+        self.generation_parameters()
         if self.normalized_api_style != SUPPORTED_API_STYLE:
             raise APIConfigurationError("API_STYLE_UNSUPPORTED")
         if not self.base_url.strip():
@@ -346,6 +366,7 @@ class CompanyAPIConfig:
             "api_key_source": self.api_key_source,
             "timeout_seconds": float(self.timeout_seconds),
             "max_output_tokens": self.max_output_tokens,
+            "reasoning_effort": self.safe_reasoning_effort,
             "profile_name": self.safe_profile_name,
             "output_limit_source": self.safe_output_limit_source,
             "allow_insecure_localhost": self.allow_insecure_localhost,
@@ -364,6 +385,7 @@ class CompanyAPIConfig:
         api_style: str | None = None,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         max_output_tokens: int | None = None,
+        reasoning_effort: str | None = None,
         default_max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
         profile_name: str = "adapter",
         allow_insecure_localhost: bool = False,
@@ -381,6 +403,11 @@ class CompanyAPIConfig:
             _read_local_env(PROJECT_ENV_FILE) if environ is None else {}
         )
         source = {**local, **{key: environment[key] for key in CONFIG_ENV_KEYS if key in environment}}
+        resolved_reasoning_effort = reasoning_effort
+        if resolved_reasoning_effort is None:
+            resolved_reasoning_effort = source.get("COMPANY_REASONING_EFFORT")
+            if resolved_reasoning_effort == "":
+                resolved_reasoning_effort = None
         resolved_output_tokens = default_max_output_tokens
         output_limit_source = "profile"
         if max_output_tokens is not None:
@@ -431,6 +458,7 @@ class CompanyAPIConfig:
             ),
             timeout_seconds=timeout_seconds,
             max_output_tokens=resolved_output_tokens,
+            reasoning_effort=resolved_reasoning_effort,
             profile_name=profile_name,
             output_limit_source=output_limit_source,
             allow_insecure_localhost=allow_insecure_localhost,
@@ -956,7 +984,8 @@ class _ChatCompletionStream:
     provider metadata, tool arguments and refusal text are never progress text.
     """
 
-    def __init__(self, callback, secret: str, check_cancel=None):
+    def __init__(self, callback, secret: str, check_cancel=None, *,
+                 max_output_tokens=DEFAULT_MAX_OUTPUT_TOKENS):
         self.emitter = _StreamTextEmitter(callback, secret, check_cancel)
         self.decoder = codecs.getincrementaldecoder("utf-8-sig")("strict")
         self.buffer = ""
@@ -966,6 +995,8 @@ class _ChatCompletionStream:
         self.content_bytes = 0
         self.done = False
         self.progress_count = 0
+        self.reasoning_characters = 0
+        self.reasoning_character_limit = max_output_tokens * REASONING_CHARACTERS_PER_OUTPUT_TOKEN
         self.choices: dict[int, dict[str, object]] = {}
         self.metadata: dict[str, object] = {}
 
@@ -1065,6 +1096,8 @@ class _ChatCompletionStream:
             if any(isinstance(delta.get(name), str) and delta[name].strip()
                    for name in ("reasoning_content", "reasoning")):
                 self.progress_count += 1
+            self.reasoning_characters += sum(len(delta[name])
+                for name in ("reasoning_content", "reasoning") if isinstance(delta.get(name), str))
             message = state["message"]
             for name in ("content", "refusal"):
                 part = delta.get(name)
@@ -1111,6 +1144,41 @@ class _ChatCompletionStream:
                 if finish and finish != state["finish_reason"]:
                     self.progress_count += 1
                 state["finish_reason"] = finish
+        # Process the entire event first so visible text in the same event is
+        # retained. A provider terminal event is known completion, not a locally
+        # abandoned request, even if its final hidden delta crosses the limit.
+        if self.reasoning_characters > self.reasoning_character_limit:
+            if self.provider_completed():
+                self.done = True
+            else:
+                raise APIClientError("MODEL_REASONING_LIMIT_EXCEEDED")
+
+    def provider_completed(self):
+        return bool(self.choices) and all(choice["finish_reason"] for choice in self.choices.values())
+
+    def visible_partial_response(self, protected_values=()):
+        """Retain only choice-zero visible text, without claiming completion."""
+        choice = self.choices.get(0, {})
+        content = choice.get("message", {}).get("content")
+        if not isinstance(content, str) or not content.strip():
+            return None
+        protected = tuple(str(value) for value in (self.emitter.secret, *protected_values) if value)
+        sanitizer = APIResponseDiagnostics(protected_values=protected)
+        content = sanitizer._sanitize(content)
+        # An interrupted stream may end in a partial protected value. Hold it
+        # back just as the live preview does; never expose an incomplete key.
+        retained = 0
+        for value in protected:
+            for size in range(min(len(value) - 1, len(content)), retained, -1):
+                if content.endswith(value[:size]):
+                    retained = size
+                    break
+        if retained:
+            content = content[:-retained]
+        if not content.strip():
+            return None
+        return {"object": "chat.completion", "choices": [{"index": 0,
+            "message": {"role": "assistant", "content": content}, "finish_reason": None}]}
 
     def _retain_text(self, part):
         self.content_bytes += len(part.encode("utf-8"))
@@ -1204,10 +1272,15 @@ class OpenAICompatibleChatClient:
         except (TypeError, ValueError):
             raise APIClientError("MESSAGES_INVALID") from None
 
+        try:
+            generation_parameters = self.config.generation_parameters()
+        except APIConfigurationError as exc:
+            raise APIClientError(exc.code) from None
         payload: dict[str, object] = {
             "model": self.config.chat_model,
             "messages": normalized_messages,
             "max_tokens": self.config.max_output_tokens,
+            **generation_parameters,
         }
         if on_text_delta is not None:
             payload["stream"] = True
@@ -1306,7 +1379,8 @@ class OpenAICompatibleChatClient:
                 cancellation.append(error)
                 raise
 
-        stream = (_ChatCompletionStream(on_text_delta, secret, cancel if check_cancel else None)
+        stream = (_ChatCompletionStream(on_text_delta, secret, cancel if check_cancel else None,
+                                       max_output_tokens=self.config.max_output_tokens)
                   if on_text_delta is not None else None)
         try:
             try:
@@ -1388,6 +1462,13 @@ class OpenAICompatibleChatClient:
                     stream.emitter.completed(content)
             return validated
         except APIClientError as exc:
+            if (exc.code == "MODEL_REASONING_LIMIT_EXCEEDED" and stream is not None
+                    and stream.reasoning_characters > stream.reasoning_character_limit):
+                exc.partial_response = stream.visible_partial_response((self.config.base_url,
+                    self.config.chat_model, self.config.embedding_model))
+                exc.remote_outcome_unknown = not stream.provider_completed()
+                exc.reasoning_characters = stream.reasoning_characters
+                exc.reasoning_character_limit = stream.reasoning_character_limit
             if not self.last_request_timing:
                 self.last_request_timing = _safe_request_timing(getattr(exc, "request_timing", None),
                     elapsed=time.monotonic() - started if safe_endpoint == "chat/completions" else None)

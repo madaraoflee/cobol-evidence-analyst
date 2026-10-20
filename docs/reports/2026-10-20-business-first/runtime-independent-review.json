@@ -1,0 +1,104 @@
+{
+  "schema": "runtime-focused-review/v1",
+  "reviewed_at_utc": "2026-10-20T04:27:52.153946+00:00",
+  "base_commit": "ce4db38d4649047094170c717d75f18fc7e8d3f5",
+  "working_tree_review": true,
+  "conclusion": "No blocking regression found within the reviewed runtime boundaries.",
+  "blocking_findings": [],
+  "scope": [
+    "Default and explicit total-time policy; finite model request, investigation and revision limits.",
+    "Resume identity and legacy finite deadline preservation; uncertain request non-resend gates.",
+    "Native and injected SSE hidden-content allowance, visible partial retention, completion and cancellation boundaries.",
+    "Optional reasoning effort configuration, wire sizing, quality trace and resume configuration fingerprints.",
+    "Related current-source business orientation projection reviewed separately without product edits."
+  ],
+  "checks": [
+    {
+      "id": "bounded_default",
+      "result": "pass",
+      "evidence": "Default total time is unset. Default model requests remain 6; investigation rounds remain 5; no-evidence revisions remain 2. Explicit model request allowances remain bounded from 1 to 32. Elapsed time alone no longer forces a default answer."
+    },
+    {
+      "id": "progress_and_transport",
+      "result": "pass",
+      "evidence": "Repeated actions without evidence converge; all provider attempts share the request ledger. Native connection/nonstream deadlines remain finite; SSE idle time renews only for parsed generated activity. Comments, heartbeats, empty roles and whitespace do not renew it. Explicit cancellation and configured total deadlines remain binding."
+    },
+    {
+      "id": "hidden_content_allowance",
+      "result": "pass",
+      "evidence": "All choices and both hidden-text fields share max_output_tokens times 16 Unicode characters. Visible content does not reset this allowance. Crossing events retain visible text first. Incomplete results raise MODEL_REASONING_LIMIT_EXCEEDED with sanitized choice-zero partial text, finish_reason null and unknown remote outcome. Already completed choices close normally at the allowance. Native and injected paths share the decoder, without automatic retry."
+    },
+    {
+      "id": "response_limits",
+      "result": "pass",
+      "evidence": "Existing ordinary JSON and assembled retained text limits remain 1000000 bytes; raw SSE remains bounded at 8000000 bytes. Hidden SSE text is excluded from response diagnostics and partial answer bodies."
+    },
+    {
+      "id": "configuration_identity",
+      "result": "pass",
+      "evidence": "Only null, low, medium and high are accepted. Null omits the wire parameter and contributes no extra fingerprint key. Explicit effort is shared by actual requests, sizing, quality trace configuration and recovery fingerprints through generation_parameters. Unsupported endpoint responses do not cause parameter removal and resend."
+    },
+    {
+      "id": "legacy_recovery",
+      "result": "pass",
+      "evidence": "Ordinary recovery retains old finite policy and consumed elapsed time when the only effective change is removal of a default deadline. Incompatible configuration cannot discard that ledger silently. Pipeline, compilation and uncertain-outcome gates remain effective. Only an explicit new investigation may obtain current defaults after existing retry gates."
+    },
+    {
+      "id": "privacy",
+      "result": "pass_with_scope_limit",
+      "evidence": "Reviewed changed runtime code and neutral offline fixtures contain no newly introduced provider-specific branch, private configuration value or hidden reasoning transcript. This review did not read local credential files."
+    }
+  ],
+  "validation": {
+    "tests": 211,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "elapsed_seconds": 4.261,
+    "source_unchanged_during_tests": true,
+    "changed_during_tests": [],
+    "modules": [
+      "test_reasoning_stream_budget",
+      "test_reasoning_effort_config",
+      "test_company_api_streaming",
+      "test_streaming_review_boundaries",
+      "test_transport_total_deadline",
+      "test_company_api",
+      "test_local_api_config",
+      "test_model_output_budget",
+      "test_transport_failure_diagnostics",
+      "test_agent_policy",
+      "test_question_budget_delivery",
+      "test_runtime_settings",
+      "test_question_deadline_recovery_audit",
+      "test_run_store",
+      "test_business_first_delivery.BusinessFirstDeliveryTests.test_default_answer_can_arrive_after_previous_total_deadline",
+      "test_business_first_delivery.BusinessFirstDeliveryTests.test_repeated_read_without_new_evidence_converges_before_call_limit",
+      "test_business_first_delivery.BusinessFirstDeliveryTests.test_hidden_output_limit_preserves_visible_text_and_prevents_unknown_resend"
+    ],
+    "source_sha256": {
+      "poc/agent_policy.py": "56141db74f987ba6f344d7df0630516ff26a79205c05cf47eb2fbb172c6f32d5",
+      "poc/question_budget.py": "3b8f1bb209a9819eb163d42d9193e5ba21a29303eb1d9ced4aeaa28e43558782",
+      "poc/runtime_settings.py": "81f12631a1fb20ac2588589e3269ea38ffe51accd119d9e8244766ef4ecd4458",
+      "poc/company_api.py": "aa135a1c2a94e5287fac9bc824703655adfce71b9e05d79f9573c9ae11e1cb1c",
+      "poc/model_profiles.py": "84463230029959fbf76b60d698a441fbb3443a829937304e0b0c58baf2f703a6",
+      "poc/business_chat.py": "cd4512542ba8f2ed5afda11faf37afe1a741f7463d1a7b81b3cec29116b49f53",
+      "poc/quality_trace.py": "8491c5a0adeb9a4eeab1515809feb752c496013156b3df7472da654738b00924",
+      "poc/business_analysis.py": "a33dcb8c4636b4bfc298c7a725c79c04ff77b47e15bb7de80353d306da45e2ef",
+      "poc/live_business_eval.py": "db7a3b31207c57f5a798c37fdc3876a031464eaa0385afa9cd45934c83adcff0"
+    }
+  },
+  "peer_review": {
+    "scope": "company_api optional effort and hidden stream changes",
+    "result": "No blocking findings reported by a separate reviewer; that reviewer reported 27 passing targeted tests."
+  },
+  "limitations": [
+    "This is a focused source/runtime review and offline verification, not a complete security audit or proof of all application behavior.",
+    "The reviewer authored the policy and API configuration/stream changes; an additional separate reviewer checked the stream/configuration boundaries.",
+    "No real model request, credential inspection, external network call, Windows executable build or release action was performed for this review.",
+    "Synthetic transports and clocks test behavior and boundaries; they do not establish model answer quality, real provider latency, billing outcome or actual remote cancellation.",
+    "The hidden character allowance is a conservative content bound, not a tokenizer measurement or a total-time guarantee.",
+    "The initial verification overlapped a source edit and was not treated as same-version evidence. The recorded 211-test rerun had unchanged hashes across its execution.",
+    "Source hashes identify the reviewed working tree; subsequent edits require a new applicability check."
+  ]
+}

@@ -18,7 +18,7 @@ from response_language import localized_text, resolve_answer_language
 from source_availability import supplied_source_availability
 
 
-LEDGER_VERSION = "answer-claim-ledger-v9"
+LEDGER_VERSION = "answer-claim-ledger-v11"
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _NAME = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?:\s+(?:OF|IN)\s+[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)*"
 _ATOM = rf"(?:{_NAME}|[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|[()])"
@@ -178,6 +178,23 @@ def _declaration_list_context(text, start):
                 and not re.search(r"最终|最終|最后|最後|总是|總是|一定|运行时|執行時", head[declaration.end():]))
 
 
+def _condition_scenario(prefix, suffix):
+    """Inputs and non-execution paths do not assert a literal source IF."""
+    if re.search(r"假设|假設|假如|给定|給定|(?:输入|輸入)(?:值)?\s*(?:为|為|是|[：:])?\s*$|"
+                 r"\b(?:assuming|suppose|given|input|scenario)\b", prefix, re.I):
+        return True
+    tail = re.split(r"[;；。!?\n]", suffix, maxsplit=1)[0]
+    timed = re.match(r"\s*(?:时|時)(.*)", tail)
+    consequence = (timed[1] if timed else tail).lstrip(" ，,：:")
+    first_clause = re.split(r"[，,]", consequence, maxsplit=1)[0]
+    if timed and (not timed[1].strip(" ，,：:") or re.match(
+            r"\s*[，,：:]?\s*(?:无论|無論|不论|不論|即使|即便)", timed[1])):
+        return True
+    return bool(re.search(r"(?:不(?:会|會|执行|執行|进入|進入|调用|調用|计算|計算|覆盖|覆蓋|赋值|賦值)|"
+        r"未(?:执行|執行|进入|進入|调用|調用|计算|計算|赋值|賦值))|"
+        r"\b(?:(?:does?|will|would|is|are)\s+not|(?:is|are)\s+skipped|regardless)\b", first_clause, re.I))
+
+
 def _assertions(text, *, table_header=False, derived_context=False):
     """Translate a bounded answer notation, not source syntax, into candidates."""
     text = _REFERENCE.sub("", text).replace("`", "")
@@ -202,14 +219,19 @@ def _assertions(text, *, table_header=False, derived_context=False):
         if any(first <= match.start() < last for first, last in explicit_conditions):
             continue
         tokens, end = _read_condition(text, match.start())
-        prefix, suffix = _clause_prefix(text, match.start(), 32), text[end:end + 48]
+        prefix, suffix = _clause_prefix(text, match.start(), 32), text[end:end + 192]
         assignment_context = _EXPLICIT_ASSIGNMENT.search(prefix)
         conditional_context = (re.search(r"(?:若|如果|当|當|只有|仅当|僅當|只要|只在|只有在|仅在|僅在|检查|檢查|判断|判斷)\s*$|\b(?:if|when|unless|checks?|checking)\s*$", prefix, re.I)
             or re.match(r"\s*(?:时|時)(?:才|会|會|则|則|调用|調用|执行|執行|置|设|設|赋值|賦值|写入|寫入|进入|進入|返回|[，,；;。.]|$)", suffix)
+            or re.fullmatch(r"\s*(?:时|時)\s*", suffix)
             or re.match(r"\s*的?\s*(?:(?:源码|源碼|控制)\s*)?(?:条件|條件)(?:下|成立|不成立)?", suffix)
             or re.match(r"\s*(?:source\s+)?condition\b", suffix, re.I)
             or (table_header and match["right"].startswith(("'", '"'))))
         if tokens and conditional_context and not assignment_context:
+            if _condition_scenario(prefix, suffix):
+                assertions.append({"predicate": "condition_scenario", "condition": list(tokens)})
+                explicit_conditions.append((match.start(), end))
+                continue
             # Explicit natural-language condition context chooses the role;
             # the full expression still has to match a real supplied IF fact.
             conditions.append((match.start(), end, tokens))
@@ -282,6 +304,16 @@ def _assertions(text, *, table_header=False, derived_context=False):
                              "target": match["target"].upper(), "expression": list(tokens)}
                 if not declaration_context and not derived_result and not state_value:
                     assertion["rounded"] = "ROUNDED" in match[0].upper()
+                    if re.search(r"\bCOMPUTE\s*$", clause_prefix, re.I):
+                        assertion["statement_kind"] = "COMPUTE"
+                    elif (pattern is _FORMULA and "=" not in match[0]
+                            and len(tokens) == 1 and re.fullmatch(r"\d+(?:\.\d+)?", tokens[0])
+                            and not re.search(r"\b(?:MOVE|COMPUTE)\b", clause_prefix, re.I)):
+                        # A prose code such as "set STATUS-CODE to 00" does
+                        # not specify whether source spells it as 00 or '00'.
+                        # Keep that representation boundary out of exact
+                        # source-token contradiction checks.
+                        assertion["literal_notation"] = "unquoted_prose"
                 assertions.append(assertion)
                 occupied.append((match.start(), expression_end))
     for match in _CONDITION.finditer(text):
@@ -347,7 +379,7 @@ def _segments(answer):
                     r"[（(][^()（）\r\n]{1,512}:\d+(?:[–-]\d+)?[）)]", line)]
                 protected.extend(match.span() for match in _REFERENCE.finditer(line))
                 start = 0
-                for match in re.finditer(r"[。！？](?:[ \t]*\[(?:ev[_:-]|fw:)[^\]\r\n]+\])*|(?:[!?]|\.(?!\d)|(?<!\d)\.)(?:[ \t]*\[(?:ev[_:-]|fw:)[^\]\r\n]+\])*", line):
+                for match in re.finditer(r"[。！？;；](?:[ \t]*\[(?:ev[_:-]|fw:)[^\]\r\n]+\])*|(?:[!?]|\.(?!\d)|(?<!\d)\.)(?:[ \t]*\[(?:ev[_:-]|fw:)[^\]\r\n]+\])*", line):
                     if any(first <= match.start() < last for first, last in protected):
                         continue
                     if (line[match.start()] == "." and 0 < match.start() < len(line) - 1
@@ -363,6 +395,8 @@ def _segments(answer):
 def _related(assertion, facts):
     predicate, target = assertion["predicate"], assertion.get("target")
     result = [fact for fact in facts if fact["predicate"] == predicate and (target is None or fact.get("target") == target)]
+    if assertion.get("statement_kind"):
+        result = [fact for fact in result if fact.get("statement_kind") == assertion["statement_kind"]]
     if predicate == "condition_statement":
         # Only compare conditions about the same first operand; another IF in
         # the excerpt is not a correction candidate for the current condition.
@@ -712,6 +746,12 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                 if invalid:
                     unresolved = True
                 continue
+            if assertion["predicate"] == "condition_scenario":
+                entry.reason_code = "BUSINESS_CONDITION_SCENARIO_NOT_FORMALLY_VERIFIED"
+                entry.support_scope = "unverified_control_flow_scenario"
+                if invalid:
+                    unresolved = True
+                continue
             if assertion["predicate"] == "mathematical_expression":
                 entry.reason_code = "MATHEMATICAL_EXPRESSION_NOT_SOURCE_STATEMENT"
                 entry.support_scope = "unverified_mathematical_derivation"
@@ -801,6 +841,16 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     continue
             cited_facts = [fact for fact in facts if fact["evidence_id"] in valid] if ids else facts
             candidates = _related(assertion, cited_facts)
+            if (assertion.get("literal_notation") == "unquoted_prose" and not invalid
+                    and any(fact.get("expression") in ([f"'{assertion['expression'][0]}'"],
+                                                     [f'"{assertion["expression"][0]}"'])
+                            for fact in candidates)):
+                # Equal displayed characters with different quoting are not
+                # a proved mismatch. Do not infer COBOL numeric conversion,
+                # branch reachability, or support for the surrounding prose.
+                entry.reason_code = "PROSE_LITERAL_REPRESENTATION_NOT_FORMALLY_VERIFIED"
+                entry.support_scope = "unverified_source_literal_representation"
+                continue
             if assertion["predicate"] == "declaration_value" and (len({
                     (fact["relative_path"], fact["source_sha256"], fact.get("program_name")) for fact in candidates}) > 1
                     or len({tuple(fact["expression"]) for fact in candidates}) > 1):

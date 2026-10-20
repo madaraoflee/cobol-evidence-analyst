@@ -15,7 +15,8 @@ from collections.abc import Mapping
 from api_diagnostics import APIResponseDiagnostics
 from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
 from agent_policy import resolve_agent_policy
-from answer_markdown import ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, join_answer_continuation
+from answer_markdown import (ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY,
+                             join_answer_continuation, strip_incomplete_source_citation)
 from answer_diagnostics import build_answer_diagnostics, response_character_counts
 from analysis_continuation import AnalysisContinuation, progress_snapshot
 from business_map import build_business_map
@@ -567,6 +568,17 @@ def _prompt_payload(payload):
         contract = {"detail": "Explain the requested behavior, decisive conditions, values and source evidence.",
                     "content": "Lead with the conclusion; qualify only affected claims.",
                     "time_scope": "Keep call inputs, returned values and later outcomes distinct; retain each scenario's assumptions."}
+    explanation_contract = projected.get("business_analysis_brief", {}).get("business_explanation_contract", {})
+    if not discovery_only and explanation_contract.get("mode") == "business_overview":
+        contract["business_explanation"] = {
+            "audience": "A newcomer learning the business process.",
+            "order": ["business purpose and outcome", "batch job or online entry when evidenced",
+                      "program responsibilities and handoffs", "table and file input/output roles",
+                      "decisive business rules, exceptions and concrete limits"],
+            "grounding": "Use business_analysis_brief.business_orientation as source-bound navigation. "
+                "Explain what each operation accomplishes for the business; retain exact names for locating it. "
+                "Name unknown business terminology as an interpretation, and qualify only affected claims. "
+                "Do not invent a schedule, online deployment, domain label or successful runtime outcome."}
     if discovery_only:
         contract = {"format": "Return one JSON object containing a nonempty search array.",
                     "content": "Choose likely source terms, synonyms or abbreviations for the current question. "
@@ -621,6 +633,18 @@ def _prompt_payload(payload):
 
 def _system_for_payload(payload):
     system = _SYSTEM
+    if payload.get("budget_wire_compact"):
+        system = system.replace(BUSINESS_ANSWER_POLICY,
+            "直接回答当前业务问题，说明决定结论的条件、输入、顺序、结果与异常，引用实际供应原文。"
+            "概览面向新人，按有依据的业务目的、批次或联机入口、程序职责、表文件角色串成过程；"
+            "名称清单与逐句代码翻译不能代替解释。简短追问只答所问。注释、源码、手册与推断区分，"
+            "不凭名称推定调度、在线部署、写入成功或提交结果。"
+            "未校验输入不证明查不到；未检查状态不证明不会异常，后续动作以正常返回为前提。"
+            "给定场景沿已选路径推导；优先分支命中后，后续分支是未执行，不补造其条件真假。"
+            "区分调用前门槛、尝试调用异常、被调校验和返回后处理。"
+            "按执行顺序追踪赋值和覆盖，跨程序同时核对实参与入口声明、传递方式和返回可见性；"
+            "外部实现未知的引用参数返回后保持未知，后续明确赋值再建立已知值；VALUE不代表每次重置。"
+            "只限定受未知事项影响的判断，正文与表格保持相同条件，除非要求实现否则不用代码块。")
     if "prior_source_memory" in payload:
         system = system.replace("事实依据取自本轮原文。", "事实依据取自实际供应原文，包括 prior_source_memory 明确绑定的本题早先原文；其中候选解释仍须核对。", 1)
     language = payload.get("answer_language") or resolve_answer_language(payload.get("question"))
@@ -695,7 +719,7 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
                     {"role": "user", "content": json.dumps(projected, ensure_ascii=False,
                         separators=(",", ":"))}]
         size = len(json.dumps({"model": config.chat_model, "messages": messages,
-                              "max_tokens": config.max_output_tokens}, ensure_ascii=False,
+                              "max_tokens": config.max_output_tokens, **config.generation_parameters()}, ensure_ascii=False,
                              separators=(",", ":")).encode("utf-8"))
         return messages, size
 
@@ -1196,10 +1220,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 if transport_reason:
                     response["transport_reason"] = transport_reason
 
-    def emit(phase, **details):
+    def emit(phase, *, response_delivery=False, **details):
         if question_budget is not None:
             question_budget.phase = phase
-        if check_cancel:
+        if response_delivery and question_budget is not None:
+            # The transport enforces the in-flight deadline. Rendering text
+            # already received must retain cancellation without discarding it.
+            question_budget.check_cancel()
+        elif check_cancel:
             check_cancel()
         if progress:
             progress({"phase": phase, "completed": turns, "total": None, "unit": "requests",
@@ -1881,10 +1909,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         nonlocal turns, first_model_request_seconds, resume_response, last_request_manifest
         quality.prepare(stage=stage, payload=payload, messages=messages, trim_events=trim_events,
                         replay_round_id=f"round-{turns}" if resume_response is not None else None)
-        last_request_manifest = _request_manifest(payload, source_memory)
+        request_manifest = _request_manifest(payload, source_memory)
         if check_cancel:
             check_cancel()
         if resume_response is not None:
+            last_request_manifest = request_manifest
             raw, resume_response = resume_response, None
             return raw
         if not policy.can_request(turns):
@@ -1928,7 +1957,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             now = time.monotonic()
             if visible_text and now - preview_at >= 0.15:
                 preview_at = now
-                emit("writing_answer", answer_preview={"text": redactor._sanitize(visible_text)[:24000],
+                emit("writing_answer", response_delivery=True, answer_preview={"text": redactor._sanitize(visible_text)[:24000],
                     "round": turns, "stage": preview_stage})
 
         try:
@@ -1944,12 +1973,16 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     "finish_reason": _response_shape(raw)["finish_reason"]}], "usage": raw.get("usage")}
                 quality.record_remote_response(replay)
                 if progress and not _actions(parsed_response.text, policy) and not _action_reply_invalid(parsed_response.text, None):
-                    emit("writing_answer", answer_preview={"text": redactor._sanitize(parsed_response.text)[:24000],
+                    emit("writing_answer", response_delivery=True, answer_preview={"text": redactor._sanitize(parsed_response.text)[:24000],
                         "round": turns, "stage": preview_stage})
             except _TextResponseError:
                 quality.record_remote_response({"response_received": True, "business_text_unavailable": True})
             return raw
         finally:
+            # prepare() can precede a deadline/configuration failure. Only the
+            # request observer (or the replay above) establishes supplied input.
+            if quality.response_round() is not None:
+                last_request_manifest = request_manifest
             duration = time.monotonic() - began
             timing["provider_wait_seconds"] += duration
             observed_timing = getattr(client, "last_request_timing", {})
@@ -2101,9 +2134,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         """Spend only the existing per-turn tool allowance on concrete gaps."""
         nonlocal tool_problem, priority_targets
         progressed = deferred_for_budget = False
-        if question_budget and question_budget.target_reached():
-            # The target schedules delivery. It cannot cancel an already sent
-            # request or turn a saved source-backed answer into an error page.
+        if question_budget and question_budget.should_stop_local_investigation():
+            # Stop optional reads at the answer reserve; this cannot turn a
+            # saved source-backed answer into an error page.
             return False, True
         # A transmission limit cannot be repaired by acquiring the same source
         # again. Keep its visible-material gap and reserve tools for source that
@@ -2237,7 +2270,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     or policy.is_last_request(turn)
                     or bool(question_budget and question_budget.should_answer(config.timeout_seconds)))
                 local_evidence_allowed = not (question_budget
-                    and question_budget.should_answer(config.timeout_seconds))
+                    and question_budget.should_stop_local_investigation())
                 if investigation_rounds >= policy.max_investigation_rounds:
                     continuation.stop_reason = continuation.stop_reason or "investigation_round_budget"
                 if pending_model_actions and local_evidence_allowed:
@@ -2511,7 +2544,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     recovery_messages = [*messages[:-1], {"role": "user", "content": json.dumps(
                         _prompt_payload(recovery_payload), ensure_ascii=False, separators=(",", ":"))}]
                     recovery_size = len(json.dumps({"model": config.chat_model, "messages": recovery_messages,
-                        "max_tokens": config.max_output_tokens}, ensure_ascii=False,
+                        "max_tokens": config.max_output_tokens, **config.generation_parameters()}, ensure_ascii=False,
                         separators=(",", ":")).encode("utf-8"))
                     # Do not trim or replace evidence to make a recovery fit.
                     if recovery_size > policy.max_request_bytes:
@@ -2583,10 +2616,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             for tool, values in action.items() if values
                             for arguments in (values if tool in {"read", "inspect_business_context", *_SEMANTIC_TOOLS}
                                               else [values])]})
-                if question_budget and question_budget.target_reached():
+                if question_budget and question_budget.should_stop_local_investigation():
                     force_answer = True
                     if action:
-                        boundaries.append({"reason": "delivery_target_reached",
+                        boundaries.append({"reason": "answer_reserve_reached",
                             "next_step": "answer_from_supplied_evidence", "pending_actions_preserved": True})
                         protocol_answer_pending = True
                         if policy.can_request(turns):
@@ -2641,6 +2674,18 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                     break
                         review_draft(reply.text, payload, current_investigation)
                         reply = replace(reply, text=candidate["answer"])
+                    if not deferred:
+                        # Bind and persist usable received text before optional
+                        # evidence work can reach the hard deadline. Its captured
+                        # source version remains available for final validation.
+                        answer, truncated = reply.text, reply.truncated
+                        answer_round = f"round-{turns}"
+                        answer_rounds = [answer_round]
+                        answer_finish_reason = response_shape["finish_reason"]
+                        answer_manifest = visible
+                        answer_investigation = current_investigation
+                        remember_source_draft(payload)
+                        remember_draft()
                     if not force_answer and (deferred or promised or not current_investigation.get("can_answer", True)):
                         attempted_before = len(automatic_actions)
                         progressed, deferred_for_budget = advance_question(current_investigation)
@@ -3114,6 +3159,23 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     except (APIClientError, APIConfigurationError, _TextResponseError) as exc:
         if isinstance(exc, _TextResponseError) and diagnostics is not None:
             diagnostics.suppress_latest_error(exc.code)
+        if exc.code == "MODEL_REASONING_LIMIT_EXCEEDED" and not answer:
+            partial = getattr(exc, "partial_response", None)
+            try:
+                received = _extract_text(partial) if isinstance(partial, Mapping) else None
+            except _TextResponseError:
+                received = None
+            if (received is not None and not received.refused and not received.filtered
+                    and not _actions(received.text, policy)
+                    and not _action_reply_invalid(received.text, None)
+                    and not _investigation_deferral(received.text)):
+                answer, truncated = received.text, True
+                answer_round = f"round-{turns}"
+                answer_rounds = [answer_round]
+                answer_finish_reason = None
+                answer_manifest = last_request_manifest
+                answer_investigation = last_investigation
+                remember_draft()
         finish_failed_response(exc)
         failure = exc.code
         record_response_error(exc.code, failure_stage,
@@ -3129,15 +3191,28 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         answer_origin = "model"
     elif not identity_blocks_analysis(business_map.get("source_identity", {})):
         from evidence_answer import build_evidence_answer
-        supplied = (last_request_manifest or {}).get("source_ids", [])
+        supplied = set((last_request_manifest or {}).get("source_ids", []))
+        verified_memory = set()
+        if source_memory is not None:
+            for identifier in (last_request_manifest or {}).get("memory_source_ids", []):
+                try:
+                    page = source_memory.archived_pages([identifier])[0]
+                except (KeyError, ValueError, OSError, sqlite3.Error):
+                    boundaries.append({"reason": "prior_source_memory_unavailable", "evidence_id": identifier})
+                else:
+                    sent_pages[identifier] = page
+                    verified_memory.add(identifier)
         local_answer = build_evidence_answer(question,
-            [sent_pages[identifier] for identifier in supplied if identifier in sent_pages],
+            [sent_pages[identifier] for identifier in sorted(supplied | verified_memory) if identifier in sent_pages],
             last_investigation or {}, answer_language=answer_language,
             source_format=source_session.options.get("source_format", "auto") if source_session else "auto",
             compilation_context=source_session.options.get("compilation_context") if source_session else None)
         if local_answer:
             answer = local_answer["answer"]
             answer_manifest = {**(last_request_manifest or {}), **local_answer["manifest"]}
+            used = set(local_answer["manifest"]["source_ids"])
+            answer_manifest["source_ids"] = sorted(used & supplied)
+            answer_manifest["memory_source_ids"] = sorted((used & verified_memory) - supplied)
             answer_investigation = last_investigation
             answer_origin = "local_source_facts"
             failure = failure or "ANSWER_NOT_PRODUCED"
@@ -3203,6 +3278,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         return match[0]
 
     retained_review = reviewed_answers.get(hashlib.sha256(answer.encode()).hexdigest())
+    display_answer = strip_incomplete_source_citation(answer, truncated=truncated,
+                                                     evidence_ids=final_source_ids)
+    if display_answer != answer:
+        quality.data.setdefault("answer_display_repairs", []).append({
+            "kind": "incomplete_source_citation_tail", "removed_characters": len(answer) - len(display_answer)})
+        answer = display_answer
     unsupported = sorted(set(_REFERENCE.findall(answer)) - set(allowed))
     from answer_fact_completion import complete_supplied_answer
     answer, final_source_repairs = repair_source_availability_assertions(redactor._sanitize(answer),
@@ -3391,10 +3472,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     metrics = {"model_requests": turns, "elapsed_seconds": round(question_budget.elapsed() if question_budget else time.monotonic() - started, 3),
                "completion_driven": adaptive,
                "convergence_stop_reason": continuation.stop_reason if adaptive else None,
-               "delivery_target": {"seconds": policy.max_question_seconds,
+               "delivery_target": {"seconds": question_budget.limit if question_budget else policy.effective_delivery_target_seconds,
                    "reached": question_budget.target_reached() if question_budget else False,
                    "inflight_request_cancelled_by_target": False,
-                   "hard_limit_seconds": policy.hard_question_seconds},
+                   "hard_limit_seconds": question_budget.hard_limit if question_budget else policy.hard_question_seconds},
                "retrieved_pages": len(pages), "repository_rebuilt": False,
                "history_messages": len(history or []), "source_characters": sum(len(sent_pages[i].get("source_text", "")) for i in final_source_ids),
                **({"current_source_pages": len(final_current_source_ids),
@@ -3489,7 +3570,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
     if type(explicit_retry) is not bool:
         raise ValueError("start_new_investigation must be a boolean")
     selected_policy = resolve_agent_policy(kwargs.get("policy"))
-    budget = QuestionBudget(selected_policy.max_question_seconds,
+    budget = QuestionBudget(selected_policy.effective_delivery_target_seconds,
                             hard_seconds=selected_policy.hard_question_seconds,
                             finalization_reserve_seconds=selected_policy.finalization_reserve_seconds,
                             clock=lambda: time.monotonic(), check_cancel=kwargs.get("check_cancel"))
@@ -3519,7 +3600,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
     expected_configuration = hashlib.sha256(json.dumps({
         "base_url": config.base_url, "model": config.chat_model,
         "timeout_seconds": config.timeout_seconds, "max_output_tokens": config.max_output_tokens,
-        "api_style": config.api_style}, sort_keys=True).encode()).hexdigest()
+        "api_style": config.api_style, **config.generation_parameters()}, sort_keys=True).encode()).hexdigest()
     def unknown_remote_result(saved, *, retain_answer=True):
         retained = saved["checkpoint"].get("result")
         if retain_answer and isinstance(retained, dict) and (retained.get("agent_result") or {}).get("answer_available"):
@@ -3541,27 +3622,71 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 "resume_state": {"completed_steps": len(saved["completed_steps"]),
                     "frontier": saved["checkpoint"].get("frontier", []),
                     "uncertain_requests": saved["uncertain_requests"], "automatic_resend": False, "exactly_once": False}}}
+    def changed_pipeline_result(saved):
+        return {"runner_status": "NOT_READY", "reason_code": "RESUME_PIPELINE_VERSION_CHANGED",
+            "agent_result": {"status": "PARTIAL", "run_id": saved["run_id"],
+                "answer": local("调查使用的分析或提示版本已经变化。原步骤、证据和请求状态已保留，需要先核对原请求结果，再按当前版本开始调查。", "The analysis or prompt version has changed. Previous steps, evidence and request states are preserved. Check the original request outcome before starting an investigation with the current version.")}}
     if resume:
         metadata = resume["metadata"]
         same_question = (metadata.get("question_id") == question_id
             and metadata.get("analysis_identity") == analysis_identity
             and metadata.get("configuration", {}).get("model_fingerprint") == model_fingerprint)
+        # A new default or parser version cannot turn the same unfinished
+        # question into a fresh provider allowance. Keep explicit upgrade and
+        # compilation gates; none of them authorize resending unknown outcomes.
+        pipeline_changed = (metadata.get("pipeline_version") != PIPELINE_VERSION
+                            or metadata.get("prompt_version") != PROMPT_VERSION)
         # Changing a timeout or output allowance does not establish that the
         # previous charged request failed. Resolve uncertainty before deciding
         # whether any saved answer/configuration can be replayed.
+        saved_policy = metadata.get("configuration", {}).get("policy")
+        restored_policy = None
+        normalized_policy = None
+        relaxed_deadline = False
+        try:
+            normalized_policy = resolve_agent_policy(saved_policy) if isinstance(saved_policy, Mapping) else None
+            policy_compatible = normalized_policy == selected_policy
+            if normalized_policy is not None:
+                relaxed_deadline = (normalized_policy.hard_question_seconds is not None
+                                    and selected_policy.hard_question_seconds is None)
+                if relaxed_deadline:
+                    restore_values = selected_policy.to_dict()
+                    for key in ("max_question_seconds", "hard_question_seconds", "delivery_target_seconds"):
+                        if restore_values[key] is None:
+                            restore_values[key] = getattr(normalized_policy, key)
+                    candidate = resolve_agent_policy(restore_values)
+                    if candidate == normalized_policy:
+                        policy_compatible, restored_policy = True, candidate
+        except (ValueError, TypeError):
+            policy_compatible = False
+        if same_question and pipeline_changed and normalized_policy is not None:
+            return changed_pipeline_result(resume)
+        # Added optional fields may be absent in older journals. Compare their
+        # normalized meaning before the version gate, without discarding the
+        # saved request ledger or granting the same question a fresh deadline.
         compatible = same_question and (bool(resume.get("uncertain_requests")) or (
             metadata.get("configuration", {}).get("configuration_fingerprint") == expected_configuration
-            and metadata.get("configuration", {}).get("policy") == resolve_agent_policy(kwargs.get("policy")).to_dict()))
+            and policy_compatible))
         if not compatible:
             if (resume.get("uncertain_requests") and metadata.get("question_id") == question_id
                     and metadata.get("analysis_identity") in prior_language_identities
                     and metadata.get("configuration", {}).get("model_fingerprint") == model_fingerprint):
                 return unknown_remote_result(resume, retain_answer=False)
-            if resume_id:
+            if resume_id or same_question and (relaxed_deadline or pipeline_changed):
                 return {"runner_status": "NOT_READY", "reason_code": "RESUME_IDENTITY_MISMATCH",
                     "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
                         "answer": local("这条调查属于不同的问题、入口、会话焦点、框架资料、模型配置或预算。原记录已保留，当前问题需使用自己的调查记录。", "This investigation belongs to a different question, entry, conversation focus, framework reference, answer language, model configuration or budget. The original record is preserved; the current question needs its own investigation record.")}}
             resume = None
+        elif restored_policy is not None:
+            # Restore a finite legacy policy even when its checkpoint predates
+            # budget serialization. Explicit new investigations below reset to
+            # the requested policy only after the saved ledger permits it.
+            kwargs["policy"] = restored_policy
+            budget = QuestionBudget(restored_policy.effective_delivery_target_seconds,
+                hard_seconds=restored_policy.hard_question_seconds,
+                finalization_reserve_seconds=restored_policy.finalization_reserve_seconds,
+                clock=lambda: time.monotonic(), check_cancel=budget.cancel)
+            kwargs["question_budget"], kwargs["check_cancel"] = budget, budget.check
     if (resume and not resume.get("uncertain_requests") and not explicit_retry
             and resume.get("state") == "completed" and resume["checkpoint"].get("result")):
         return resume["checkpoint"]["result"]
@@ -3574,9 +3699,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 retain_answer=pending["metadata"].get("analysis_identity") == analysis_identity)
     if resume and (resume["metadata"].get("pipeline_version") != PIPELINE_VERSION
                    or resume["metadata"].get("prompt_version") != PROMPT_VERSION):
-        return {"runner_status": "NOT_READY", "reason_code": "RESUME_PIPELINE_VERSION_CHANGED",
-            "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
-                "answer": local("调查使用的分析或提示版本已经变化。原步骤、证据和请求状态已保留，需要先核对原请求结果，再按当前版本开始调查。", "The analysis or prompt version has changed. Previous steps, evidence and request states are preserved. Check the original request outcome before starting an investigation with the current version.")}}
+        return changed_pipeline_result(resume)
     retry_seed = None
     if resume:
         from datetime import datetime, timezone
@@ -3591,11 +3714,12 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
             kwargs["continued_from_run_id"] = resume["run_id"]
             retry_seed = resume
             resume = None
-            budget = QuestionBudget(selected_policy.max_question_seconds,
+            budget = QuestionBudget(selected_policy.effective_delivery_target_seconds,
                 hard_seconds=selected_policy.hard_question_seconds,
                 finalization_reserve_seconds=selected_policy.finalization_reserve_seconds,
                 clock=lambda: time.monotonic(), check_cancel=budget.cancel)
             kwargs["question_budget"], kwargs["check_cancel"] = budget, budget.check
+            kwargs["policy"] = selected_policy
         elif (not resume.get("uncertain_requests") and resume.get("state") == "completed"
                 and resume["checkpoint"].get("result")):
             return resume["checkpoint"]["result"]

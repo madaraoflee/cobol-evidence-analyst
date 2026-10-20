@@ -14,6 +14,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import textwrap
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -114,39 +115,98 @@ class DesktopBuildIdentityTests(unittest.TestCase):
 class WindowsAcceptanceWorkflowTests(unittest.TestCase):
     def setUp(self):
         self.text = (ROOT / ".github/workflows/windows-desktop.yml").read_text(encoding="utf-8")
-        starts = list(re.finditer(r"^      - name: (.+)$", self.text, re.M))
-        self.steps = [(match.group(1), self.text[match.end():starts[index + 1].start() if index + 1 < len(starts) else None])
-            for index, match in enumerate(starts)]
+        jobs = self.text.split("\njobs:\n", 1)[1]
+        starts = list(re.finditer(r"^  ([A-Za-z0-9_-]+):\s*$", jobs, re.M))
+        self.jobs = {match.group(1): jobs[match.end():starts[index + 1].start()
+            if index + 1 < len(starts) else None] for index, match in enumerate(starts)}
+        self.job_steps = {}
+        for job, body in self.jobs.items():
+            starts = list(re.finditer(r"^      - (.+)$", body, re.M))
+            self.job_steps[job] = [(match.group(1).removeprefix("name: "),
+                body[match.end():starts[index + 1].start() if index + 1 < len(starts) else None])
+                for index, match in enumerate(starts)]
+        self.steps = [step for steps in self.job_steps.values() for step in steps]
 
-    def step(self, phrase):
-        return next((index, body) for index, (name, body) in enumerate(self.steps) if phrase in name)
+    def step(self, phrase, job="build"):
+        return next((index, body) for index, (name, body) in enumerate(self.job_steps[job]) if phrase in name)
+
+    def needs(self, job):
+        value = re.search(r"^    needs: (.+)$", self.jobs[job], re.M).group(1)
+        return {item.strip().strip("'\"") for item in value.strip("[]").split(",")}
 
     def test_build_requires_manual_dispatch_during_bug_fix_phase(self):
         triggers = self.text.split("on:\n", 1)[1].split("\npermissions:", 1)[0]
         self.assertEqual(re.findall(r"^  ([a-z_]+):", triggers, re.M), ["workflow_dispatch"])
 
+    def test_regression_matrix_and_exact_coverage_gate_are_required_before_compilation(self):
+        regression = self.jobs["regression"]
+        build = self.jobs["build"]
+        self.assertEqual(self.needs("regression"), {"workflow_lint"})
+        self.assertEqual(self.needs("build"), {"workflow_lint", "regression"})
+        for job in (regression, build):
+            self.assertRegex(job, r"(?m)^    runs-on: windows-2022$")
+            self.assertNotIn("continue-on-error", job)
+            self.assertNotRegex(job, r"(?m)^    if:")
+        self.assertRegex(regression, r"(?m)^      fail-fast: false$")
+        self.assertRegex(regression, r"(?m)^        shard: \[0,\s*1,\s*2,\s*3\]$")
+        full, full_body = self.step("offline Python regressions", "regression")
+        self.assertIn("tools/run_python_regressions.py", full_body)
+        self.assertIn("--shard-index $env:SHARD_INDEX --shard-count 4", full_body)
+        self.assertIn("--source-commit $env:GITHUB_SHA", full_body)
+        self.assertIn("SHARD_INDEX: ${{ matrix.shard }}", full_body)
+        self.assertIn("if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }", full_body)
+        self.assertNotRegex(full_body, r"(?m)^        if:")
+        report, report_body = self.step("complete regression shard report", "regression")
+        self.assertLess(full, report)
+        self.assertIn("if: always()", report_body)
+        self.assertIn("python-regressions-${{ github.sha }}-${{ github.run_attempt }}-${{ matrix.shard }}", report_body)
+        self.assertIn("if-no-files-found: error", report_body)
+        self.assertNotIn("windows-delivery", report_body)
+        download, download_body = self.step("Download all regression reports")
+        coverage, coverage_body = self.step("every Python test ran exactly once")
+        compile_index, _ = self.step("Compile with MSVC")
+        self.assertLess(download, coverage)
+        self.assertLess(coverage, compile_index)
+        self.assertIn("uses: actions/download-artifact@", download_body)
+        self.assertIn("pattern: python-regressions-${{ github.sha }}-${{ github.run_attempt }}-*", download_body)
+        self.assertIn("merge-multiple: true", download_body)
+        self.assertNotRegex(download_body, r"(?m)^          (?:run-id|repository):")
+        self.assertIn("tools/check_python_regression_reports.py", coverage_body)
+        self.assertIn("--expected-shards 4 --source-commit $env:GITHUB_SHA", coverage_body)
+        self.assertIn("if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }", coverage_body)
+        self.assertNotRegex(coverage_body, r"(?m)^        if:")
+        self.assertNotIn("python -m unittest discover", build)
+
     def test_mandatory_public_corpus_precedes_tests_and_final_exe_gate_precedes_upload(self):
+        public_test, public_test_body = self.step("mandatory frozen public corpus", "regression")
+        tests, _ = self.step("offline Python regressions", "regression")
+        self.assertLess(public_test, tests)
         public, public_body = self.step("mandatory frozen public corpus")
-        tests, _ = self.step("offline Python regressions")
         compile_index, compile_body = self.step("Compile with MSVC")
         gate, gate_body = self.step("Exercise final EXE")
         artifact, artifact_body = self.step("Upload only the accepted candidate")
-        self.assertLess(public, tests)
-        self.assertLess(tests, compile_index)
+        self.assertLess(public, compile_index)
         self.assertLess(compile_index, gate)
         self.assertLess(gate, artifact)
-        self.assertIn("manifest['files']", public_body)
-        self.assertIn("hashlib.sha256", public_body)
-        self.assertIn("check=True", public_body)
-        self.assertNotIn("continue-on-error", public_body + gate_body + artifact_body)
+        for corpus_body in (public_body, public_test_body):
+            self.assertIn("manifest['files']", corpus_body)
+            self.assertIn("hashlib.sha256", corpus_body)
+            self.assertIn("actual != manifest['commit']", corpus_body)
+            self.assertIn("PUBLIC_BUSINESS_SOURCE_ROOT={target}", corpus_body)
+            self.assertIn("check=True", corpus_body)
+            self.assertNotIn("continue-on-error", corpus_body)
+            self.assertNotRegex(corpus_body, r"(?m)^        if:")
+        self.assertNotIn("continue-on-error", gate_body + artifact_body)
         self.assertNotRegex(artifact_body, r"\bif:\s*(?:always\(\)|failure\(\))")
         self.assertIn("python build_app.py --skip-install", compile_body)
         self.assertIn("'--archive', str(archive)", gate_body)
         self.assertNotIn("--source-root", gate_body)
         self.assertLess(gate_body.index("tools/desktop_acceptance.py"), gate_body.index("tools/collect_desktop_candidate.py"))
         self.assertEqual(gate_body.count("check=True"), 2)
-        for artifact_name in ("COMPILED-ACCEPTANCE.json", "CANDIDATE-GATE.json", "ACCEPTANCE-MANIFEST.json", "CANDIDATE-POLICY.json"):
-            self.assertIn("windows-delivery/" + artifact_name, artifact_body)
+        expected_assets = {"COBOLWorkbench-windows-x64.zip", "COBOLWorkbench-windows-x64.zip.sha256",
+            "BUILD-INFO.json", "COMPILED-ACCEPTANCE.json", "CANDIDATE-GATE.json",
+            "ACCEPTANCE-MANIFEST.json", "CANDIDATE-POLICY.json"}
+        self.assertEqual(set(re.findall(r"(?m)^            windows-delivery/(\S+)$", artifact_body)), expected_assets)
         self.assertIn("if-no-files-found: error", artifact_body)
 
     def test_workflow_has_no_formal_release_or_unconditional_binary_upload(self):
@@ -158,13 +218,14 @@ class WindowsAcceptanceWorkflowTests(unittest.TestCase):
         self.assertNotIn("windows-delivery", failure)
 
     def test_context_lint_precedes_native_build_and_corpus_path_is_step_runtime(self):
-        self.assertIn("needs: workflow_lint", self.text)
+        self.assertEqual(self.needs("regression"), {"workflow_lint"})
+        self.assertIn("workflow_lint", self.needs("build"))
         self.assertIn("actionlint/cmd/actionlint@v1.7.7", self.text)
         self.assertIn("Path(os.environ['RUNNER_TEMP']) / 'public-business-source'", self.text)
         self.assertIn("PUBLIC_BUSINESS_SOURCE_ROOT={target}", self.text)
         self.assertNotIn("PUBLIC_BUSINESS_SOURCE_ROOT: ${{ runner.temp }}", self.text)
-        first, fast = self.step("Fail fast")
-        full, _ = self.step("offline Python regressions")
+        first, fast = self.step("Fail fast", "regression")
+        full, _ = self.step("offline Python regressions", "regression")
         self.assertLess(first, full)
         self.assertIn("test_desktop_acceptance_runtime.py", fast)
         self.assertIn("test_publish_desktop_release.py", fast)
@@ -173,8 +234,8 @@ class WindowsAcceptanceWorkflowTests(unittest.TestCase):
         for name, body in self.steps:
             if "shell: python" not in body:
                 continue
-            code = body.split("run: |\n", 1)[1]
-            source = "\n".join(line[10:] if line.startswith("          ") else line for line in code.splitlines())
+            code = re.search(r"(?m)^        run: \|\n((?:          .*\n|\n)*)", body).group(1)
+            source = textwrap.dedent(code)
             ast.parse(source, filename=name)
             self.assertNotIn("/usr/bin/", source)
             self.assertNotIn("os.killpg", source)

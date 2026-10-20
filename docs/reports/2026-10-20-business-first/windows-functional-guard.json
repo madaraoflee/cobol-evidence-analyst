@@ -1,0 +1,28 @@
+{
+  "schema": "windows-functional-transport-guard-review/v1",
+  "failed_run_id": 39371103186,
+  "failed_job_id": 118459236671,
+  "failure_test": "test_web_app.WebAppTests.test_custom_extensions_and_empty_optional_fields_are_supported",
+  "observed_failure": "Client timed out reading local GET job response headers. Server subsequently wrote to the closed connection. No model call in this case.",
+  "not_established": [
+    "Original source analysis error",
+    "Deadlock",
+    "Provider latency regression"
+  ],
+  "change_scope": "Only common functional test helper waits: socket timeout 3 to 10 seconds; polling start deadline 5 to 15 seconds. A request can outlast the polling start deadline, which is not a performance guarantee.",
+  "business_assertions_unchanged": true,
+  "post_automatic_retry": false,
+  "production_code_changed": false,
+  "native_acceptance_manifest_sha256": "6954ff651a39f5e334fbabf2138be10cdb66efce8e6cdbb6324291c0e2df2b97",
+  "native_speed_thresholds_changed": false,
+  "related_validation": {
+    "tests": 22,
+    "failures": 0,
+    "errors": 0,
+    "elapsed_seconds": 12.039,
+    "log_sha256": "ad2a986b6ed51d3692875efbd3e774237882da2d2ceca611b560d0a081375981"
+  },
+  "failed_log_sha256": "13f2680a86b3add4baa57601e704af140b02c73b9c389960acc02ffe970ab1a4",
+  "test_file_sha256": "451b796415dc81ed77b0f39f8a6ae101c28429fab6653dae64f2ddca06cac910",
+  "reviewer_type": "independent_agent_review_not_human_acceptance"
+}

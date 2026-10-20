@@ -5,6 +5,7 @@ the actual request and results are read from the compiled workbench output.
 """
 from __future__ import annotations
 
+from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
@@ -18,7 +19,7 @@ from tools.desktop_acceptance_runtime import (LoopbackProvider, NativeWorkbench,
 from tools.acceptance_diagnostics import capture_diagnostics
 
 
-RUNTIME_CASES = {"claim_repair", "soft_target_answer", "activation_trigger", "cancel_unknown", "deadline_unknown", "conversation", "dense_record"}
+RUNTIME_CASES = {"claim_repair", "soft_target_answer", "activation_trigger", "cancel_unknown", "deadline_unknown", "conversation", "dense_record", "framework_page_chain", "business_batch_overview", "business_online_overview"}
 QUESTION = "FLOW-CLAIM OUT-AMOUNT 怎样计算？"
 ACTIVATION_QUESTION = "JOB-STEP 的 batch 操作是怎么 trigger的？源码能确认外部调度吗？"
 
@@ -190,7 +191,7 @@ def _index(workbench, source, output, provider):
 def _index_stamp(output):
     """Read build timestamps and source identities without mutating the index."""
     path = (output / "structural-index.sqlite").resolve()
-    with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True) as database:
+    with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as database:
         return {"metadata": database.execute("SELECT key,value FROM metadata WHERE key IN "
                 "('indexed_at_utc','snapshot_id','parser_version') ORDER BY key").fetchall(),
             "sources": database.execute("SELECT relative_path,sha256,indexed_at_utc FROM source_files ORDER BY relative_path").fetchall()}
@@ -198,7 +199,7 @@ def _index_stamp(output):
 
 def _old_index_guard(workbench, source, output, provider):
     database = output / "structural-index.sqlite"
-    with sqlite3.connect(database) as db:
+    with closing(sqlite3.connect(database)) as db, db:
         db.execute("UPDATE metadata SET value='business-sparse-previous' WHERE key='parser_version'")
         db.commit()
         db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
@@ -221,7 +222,8 @@ def _claim(command, root, case, sample_index):
         return ordinary(envelope, payload, index)
     with LoopbackProvider(root / "provider", respond) as provider:
         environment = write_profile(root / "profile", provider,
-            {"max_question_seconds": 1} if soft_target else None)
+            {"delivery_target_seconds": 1, "hard_question_seconds": 120}
+            if soft_target else None)
         with NativeWorkbench(command, root / "profile", environment, root) as workbench:
             cold = _index(workbench, source, output, provider)
             observation = workbench.analyze(source, output, QUESTION)
@@ -231,7 +233,8 @@ def _claim(command, root, case, sample_index):
                 target = agent["metrics"].get("delivery_target", {})
                 requests = read_journal(output)["requests"]
                 checks["quality_target_does_not_discard_first_answer"] = (
-                    target.get("reached") is True and target.get("hard_limit_seconds") is None
+                    target.get("reached") is True and target.get("seconds") == 1
+                    and target.get("hard_limit_seconds") == 120
                     and target.get("inflight_request_cancelled_by_target") is False
                     and agent.get("answer_origin") == "model" and agent.get("answer_available") is True
                     and agent.get("stop_reason") != "QUESTION_TIME_BUDGET_EXHAUSTED")
@@ -339,7 +342,7 @@ def _dense(command, root, case):
                 checks["lifecycle_index_reused"] = agent["metrics"]["repository_rebuilt"] is False
                 documents = []
                 for path in (output / "semantic-scopes").glob("*.sqlite"):
-                    with sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True) as db:
+                    with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)) as db:
                         documents.extend(json.loads(row[0]) for row in db.execute("SELECT ir_json FROM semantic_ir_documents"))
                 checks["completeness_dense_ir_fields"] = any(len(ir["data_items"]) == 2001
                     and sum(bool(item.get("picture")) for item in ir["data_items"]) == 2000
@@ -515,6 +518,12 @@ def run_scenarios(command, root, manifest, case_ids=None):
             try:
                 if case["id"] == "dense_record":
                     measured = _dense(command, path, case)
+                elif case["id"] == "framework_page_chain":
+                    from tools.desktop_acceptance_framework import run_framework_page_chain
+                    measured = run_framework_page_chain(command, path, case, sample_index)
+                elif case["id"] in {"business_batch_overview", "business_online_overview"}:
+                    from tools.desktop_acceptance_business import run_business_overview
+                    measured = run_business_overview(command, path, case, sample_index)
                 else:
                     function = _activation if case["id"] == "activation_trigger" else _conversation if case["id"] == "conversation" else (
                         _unknown if case["id"] in {"cancel_unknown", "deadline_unknown"} else _claim)

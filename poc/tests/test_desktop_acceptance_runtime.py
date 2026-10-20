@@ -319,6 +319,22 @@ class DesktopAcceptanceRuntimeTests(unittest.TestCase):
             self.assertIn("wrong formula", rows[0]["error"])
             self.assertTrue((Path(directory) / "claim_repair/sample-01/failure.txt").is_file())
 
+    def test_soft_target_scenario_runs_actual_source_with_finite_deadline(self):
+        manifest = json.loads((ROOT / "docs/eval/desktop-joint-v1/manifest.json").read_text())
+        case = next(row for row in manifest["cases"] if row["id"] == "soft_target_answer")
+        with tempfile.TemporaryDirectory() as directory:
+            rows = run_scenarios([sys.executable, str(ROOT / "poc/desktop_app.py")],
+                directory, {"cases": [{**case, "repeats": 1}]})
+            self.assertEqual(len(rows), 1)
+            row = rows[0]
+            self.assertEqual(row["status"], "passed", row.get("error"))
+            self.assertEqual(set(row["checks"]), set(case["assertions"]))
+            self.assertTrue(all(row["checks"].values()), row["checks"])
+            self.assertTrue(row["run_id"])
+            self.assertTrue(row["answer_sha256"])
+            self.assertGreaterEqual(row["timings"]["question_seconds"], 1.25)
+            self.assertLessEqual(row["timings"]["question_seconds"], case["limits"]["question_seconds"])
+
     def test_unmeasured_manifest_assertion_fails_the_scenario(self):
         case = {"id": "claim_repair", "repeats": 1, "assertions": ["observed", "unmeasured"]}
         with tempfile.TemporaryDirectory() as directory, \

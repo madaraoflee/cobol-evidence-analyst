@@ -233,6 +233,97 @@ class OfflineFrameworkSemanticsTests(unittest.TestCase):
         references = [{**r, "text_truncated": True} for r in result["references"]]
         self.assertFalse(visible_framework_facts(result["facts"], self.pages(), references))
 
+    def test_multiline_call_survives_page_split_without_rebinding_or_runtime_proof(self):
+        text = SOURCE.replace("CALL 'ROWSIO' USING ROWS-PARAMS.",
+                              "CALL 'ROWSIO'\nUSING ROWS-PARAMS.")
+        self.path.write_text(text)
+        self.build()
+        whole = self.pages()[0]
+        lines = text.splitlines()
+        first = {**whole, "evidence_id": "ev-first", "end_line": 11,
+                 "source_text": "\n".join(lines[:11])}
+        last = {**whole, "evidence_id": "ev-last", "start_line": 12,
+                "source_text": "\n".join(lines[11:])}
+        with patch("framework_binding.bind_framework_source", side_effect=AssertionError("unneeded rescan")):
+            result = self.facts([first, last])
+        fact, = result["facts"]
+        self.assertEqual(fact["operation"]["value"], "ADVANCE")
+        self.assertEqual(fact["source_evidence_ids"], ["ev-first", "ev-last"])
+        self.assertTrue(fact["dependency_covered"])
+        self.assertFalse(fact["target_source_available"])
+        self.assertFalse(fact["runtime_verified"])
+        self.assertEqual(result["source_requests"], [])
+
+        # Declared ranges alone cannot bridge an actual missing, stale,
+        # truncated or derived-source line in a split statement.
+        invalid_tails = [
+            {**last, "start_line": 13, "source_text": "\n".join(lines[12:])},
+            {**last, "source_text": ""},
+            {**last, "source_sha256": "0" * 64},
+            {**last, "relative_path": "other.cbl"},
+            {**last, "span_truncated": True},
+            {**last, "include_chain": [{"relative_path": "host.cbl", "line": 1}]},
+        ]
+        for tail in invalid_tails:
+            with self.subTest(tail=tail):
+                self.assertEqual(visible_framework_facts(result["facts"], [first, tail],
+                                                        result["references"]), [])
+
+    def test_overlapping_pages_must_agree_even_when_one_page_covers_the_span(self):
+        self.build()
+        result = self.facts()
+        whole = self.pages()[0]
+        overlap = {**whole, "evidence_id": "ev-overlap", "start_line": 10, "end_line": 11,
+                   "source_text": "\n".join(SOURCE.splitlines()[9:11])}
+        self.assertEqual(len(visible_framework_facts(result["facts"], [whole, overlap],
+                                                     result["references"])), 1)
+        conflicting = {**overlap, "source_text": overlap["source_text"].replace("ADVANCE", "STORE")}
+        for pages in ([whole, conflicting], [conflicting, whole], [whole, conflicting, overlap]):
+            with self.subTest(evidence_order=[page["evidence_id"] for page in pages]):
+                self.assertEqual(visible_framework_facts(result["facts"], pages, result["references"]), [])
+
+    def test_split_call_keeps_real_blank_line_at_end_of_page(self):
+        text = SOURCE.replace("CALL 'ROWSIO' USING ROWS-PARAMS.",
+                              "CALL 'ROWSIO'\n\nUSING ROWS-PARAMS.")
+        self.path.write_text(text)
+        self.build()
+        whole = self.pages()[0]
+        lines = text.splitlines()
+        first = {**whole, "evidence_id": "ev-before", "end_line": 12,
+                 "source_text": "\n".join(lines[:12])}
+        last = {**whole, "evidence_id": "ev-after", "start_line": 13,
+                "source_text": "\n".join(lines[12:])}
+        self.assertTrue(first["source_text"].endswith("\n"))
+        for cached in (True, False):
+            with self.subTest(cached=cached):
+                if not cached:
+                    with closing(sqlite3.connect(self.database)) as db, db:
+                        db.execute("DROP TABLE framework_file_semantics")
+                fact, = self.facts([first, last])["facts"]
+                self.assertTrue(fact["dependency_covered"])
+                self.assertEqual(set(fact["source_evidence_ids"]), {"ev-before", "ev-after"})
+                self.assertFalse(fact["runtime_verified"])
+
+    def test_copy_layout_declaration_can_span_pages_with_original_source_evidence(self):
+        declarations = "01 ROWS-PARAMS.\n  05 ROWS-FUNCTION PIC X(8).\n  05 ROWS-STATUS PIC X(4).\n"
+        self.path.write_text(SOURCE.replace(declarations, "COPY ROW-LAYOUT.\n"))
+        copied = "01 ROWS-PARAMS.\n  05 ROWS-FUNCTION\n    PIC X(8).\n  05 ROWS-STATUS PIC X(4).\n"
+        path = self.source / "ROW-LAYOUT.cpy"
+        path.write_text(copied)
+        self.build()
+        page = {"relative_path": path.name, "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "format_hint": "free", "evidence_id": "ev-copy-first", "start_line": 1, "end_line": 2,
+                "source_text": "\n".join(copied.splitlines()[:2])}
+        tail = {**page, "evidence_id": "ev-copy-last", "start_line": 3, "end_line": 4,
+                "source_text": "\n".join(copied.splitlines()[2:])}
+        result = self.facts(self.pages() + [page, tail])
+        fact, = result["facts"]
+        self.assertTrue(fact["dependency_covered"])
+        self.assertFalse(fact["runtime_verified"])
+        self.assertEqual(set(fact["source_evidence_ids"]), {"ev-test", "ev-copy-first", "ev-copy-last"})
+        self.assertEqual(result["source_requests"], [])
+        self.assertEqual(self.facts(self.pages() + [page])["facts"], [])
+
     def test_visible_call_requests_missing_layout_without_premature_coverage(self):
         self.build()
         page = self.pages()[0]

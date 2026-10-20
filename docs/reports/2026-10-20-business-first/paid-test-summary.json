@@ -1,0 +1,266 @@
+{
+  "schema": "public-paid-test-summary/v1",
+  "created_local_date": "2026-10-20",
+  "scope": "Offline reconciliation of three frozen ledgers and all eight reported response usages; no model request was made while creating this summary.",
+  "currency": "CNY",
+  "pricing_basis": {
+    "source": "Previously captured rate record, independently checked against ledger arithmetic; no new pricing lookup.",
+    "record_sha256": "96f3784fc63f7e482b4950e926d7bfefabd8f50bb2a75acd4e268c23af43ca2c",
+    "peak_input_cache_miss_per_million": "2",
+    "peak_input_cache_hit_per_million": "0.04",
+    "peak_output_per_million": "8",
+    "upper_estimate_assumptions": "Peak rates with every input token charged at cache-miss rate; uses all reported output tokens including reasoning. This is a conditional usage estimate, not an invoice or account debit."
+  },
+  "phases": [
+    {
+      "phase_id": "earlier_large_source_test",
+      "paid_testing_closed": true,
+      "physical_requests": 4,
+      "ledger_sha256": "8412fc97b6574e116e0c9d1ea47a9610ef89bd9e3baffdd88bdf575a1bb0abde",
+      "usage_available_for_all_requests": true,
+      "pre_request_reserved_cny": "1.226752",
+      "phase_reservation_ceiling_cny": "1.700000",
+      "usage_peak_no_cache_upper_cny": "0.464940",
+      "usage_peak_with_reported_cache_cny": "0.35304752",
+      "questions": [],
+      "rounds": [
+        {
+          "case_id": "question-1",
+          "round": 1,
+          "input_tokens": 21933,
+          "output_tokens": 8192,
+          "cache_hit_tokens": 1792,
+          "reasoning_tokens_included_in_output": 8192,
+          "usage_peak_no_cache_upper_cny": "0.109402",
+          "usage_peak_with_reported_cache_cny": "0.10588968",
+          "request_body_bytes": 75152,
+          "pre_request_reserved_cny": "0.248608",
+          "reported_output_above_requested_limit_tokens": 0
+        },
+        {
+          "case_id": "question-1",
+          "round": 2,
+          "input_tokens": 21952,
+          "output_tokens": 8193,
+          "cache_hit_tokens": 19072,
+          "reasoning_tokens_included_in_output": 6302,
+          "usage_peak_no_cache_upper_cny": "0.109448",
+          "usage_peak_with_reported_cache_cny": "0.07206688",
+          "request_body_bytes": 75253,
+          "pre_request_reserved_cny": "0.248810",
+          "reported_output_above_requested_limit_tokens": 1
+        },
+        {
+          "case_id": "question-2",
+          "round": 1,
+          "input_tokens": 37841,
+          "output_tokens": 8192,
+          "cache_hit_tokens": 1792,
+          "reasoning_tokens_included_in_output": 8192,
+          "usage_peak_no_cache_upper_cny": "0.141218",
+          "usage_peak_with_reported_cache_cny": "0.13770568",
+          "request_body_bytes": 133131,
+          "pre_request_reserved_cny": "0.364566",
+          "reported_output_above_requested_limit_tokens": 0
+        },
+        {
+          "case_id": "question-2",
+          "round": 2,
+          "input_tokens": 37860,
+          "output_tokens": 3644,
+          "cache_hit_tokens": 34432,
+          "reasoning_tokens_included_in_output": 1896,
+          "usage_peak_no_cache_upper_cny": "0.104872",
+          "usage_peak_with_reported_cache_cny": "0.03738528",
+          "request_body_bytes": 133232,
+          "pre_request_reserved_cny": "0.364768",
+          "reported_output_above_requested_limit_tokens": 0
+        }
+      ]
+    },
+    {
+      "phase_id": "business_initial",
+      "paid_testing_closed": true,
+      "physical_requests": 2,
+      "ledger_sha256": "46bdb1568f7a1227c78c892c9f158900c46cd28f9a4438f2c9a25b6a20e17e74",
+      "usage_available_for_all_requests": true,
+      "pre_request_reserved_cny": "0.370152",
+      "phase_reservation_ceiling_cny": "1.000000",
+      "usage_peak_no_cache_upper_cny": "0.090634",
+      "usage_peak_with_reported_cache_cny": "0.08687080",
+      "questions": [
+        {
+          "case_id": "batch",
+          "job_status": "COMPLETED",
+          "agent_status": "PARTIAL",
+          "elapsed_seconds": 18.587015,
+          "answer_origin": "model",
+          "answer_available": true,
+          "answer_truncated": false,
+          "stop_reason": "question_evidence_incomplete",
+          "claims_semantically_verified": false
+        },
+        {
+          "case_id": "online",
+          "job_status": "COMPLETED",
+          "agent_status": "ANALYZED",
+          "elapsed_seconds": 20.840082,
+          "answer_origin": "model",
+          "answer_available": true,
+          "answer_truncated": false,
+          "stop_reason": "sufficient_material",
+          "claims_semantically_verified": false
+        }
+      ],
+      "rounds": [
+        {
+          "case_id": "batch",
+          "round": 1,
+          "input_tokens": 12311,
+          "output_tokens": 3030,
+          "cache_hit_tokens": 0,
+          "reasoning_tokens_included_in_output": 1164,
+          "usage_peak_no_cache_upper_cny": "0.048862",
+          "usage_peak_with_reported_cache_cny": "0.04886200",
+          "request_body_bytes": 46538,
+          "pre_request_reserved_cny": "0.191380",
+          "reported_output_above_requested_limit_tokens": 0
+        },
+        {
+          "case_id": "online",
+          "round": 1,
+          "input_tokens": 10370,
+          "output_tokens": 2629,
+          "cache_hit_tokens": 1920,
+          "reasoning_tokens_included_in_output": 959,
+          "usage_peak_no_cache_upper_cny": "0.041772",
+          "usage_peak_with_reported_cache_cny": "0.03800880",
+          "request_body_bytes": 40234,
+          "pre_request_reserved_cny": "0.178772",
+          "reported_output_above_requested_limit_tokens": 0
+        }
+      ],
+      "results_sha256": "968451177754d2f11761436605a19ceb975734b716ff0e9cc40c0b15adc5b7a0",
+      "configuration": {
+        "reasoning_effort": "low",
+        "max_output_tokens": 8192,
+        "max_model_requests_per_question": 2,
+        "max_question_seconds": null
+      }
+    },
+    {
+      "phase_id": "business_refined",
+      "paid_testing_closed": true,
+      "physical_requests": 2,
+      "ledger_sha256": "cdd6900958e58101dde869418de22f64155687fa740d25913f47352cd8ad3d83",
+      "usage_available_for_all_requests": true,
+      "pre_request_reserved_cny": "0.372052",
+      "phase_reservation_ceiling_cny": "0.629848",
+      "usage_peak_no_cache_upper_cny": "0.087570",
+      "usage_peak_with_reported_cache_cny": "0.08154888",
+      "questions": [
+        {
+          "case_id": "batch",
+          "job_status": "COMPLETED",
+          "agent_status": "PARTIAL",
+          "elapsed_seconds": 19.485363,
+          "answer_origin": "model",
+          "answer_available": true,
+          "answer_truncated": false,
+          "stop_reason": "question_evidence_incomplete",
+          "claims_semantically_verified": false
+        },
+        {
+          "case_id": "online",
+          "job_status": "COMPLETED",
+          "agent_status": "ANALYZED",
+          "elapsed_seconds": 25.393185,
+          "answer_origin": "model",
+          "answer_available": true,
+          "answer_truncated": false,
+          "stop_reason": "sufficient_material",
+          "claims_semantically_verified": false
+        }
+      ],
+      "rounds": [
+        {
+          "case_id": "batch",
+          "round": 1,
+          "input_tokens": 12411,
+          "output_tokens": 2489,
+          "cache_hit_tokens": 1152,
+          "reasoning_tokens_included_in_output": 591,
+          "usage_peak_no_cache_upper_cny": "0.044734",
+          "usage_peak_with_reported_cache_cny": "0.04247608",
+          "request_body_bytes": 47002,
+          "pre_request_reserved_cny": "0.192308",
+          "reported_output_above_requested_limit_tokens": 0
+        },
+        {
+          "case_id": "online",
+          "round": 1,
+          "input_tokens": 10502,
+          "output_tokens": 2729,
+          "cache_hit_tokens": 1920,
+          "reasoning_tokens_included_in_output": 784,
+          "usage_peak_no_cache_upper_cny": "0.042836",
+          "usage_peak_with_reported_cache_cny": "0.03907280",
+          "request_body_bytes": 40720,
+          "pre_request_reserved_cny": "0.179744",
+          "reported_output_above_requested_limit_tokens": 0
+        }
+      ],
+      "results_sha256": "f92dead5d3d32594729fd563bcc589f6e7e75ad7e87957b9d9de7108cfcfe66f",
+      "configuration": {
+        "reasoning_effort": "low",
+        "max_output_tokens": 8192,
+        "max_model_requests_per_question": 2,
+        "max_question_seconds": null
+      }
+    }
+  ],
+  "current_business_two_phases": {
+    "physical_requests": 4,
+    "input_tokens": 45594,
+    "output_tokens": 10877,
+    "reasoning_tokens_included_in_output": 3498,
+    "usage_peak_no_cache_upper_cny": "0.178204",
+    "usage_peak_with_reported_cache_cny": "0.16841968",
+    "pre_request_reserved_cny": "0.742204"
+  },
+  "all_recorded_phases": {
+    "physical_requests": 8,
+    "input_tokens": 165180,
+    "output_tokens": 39098,
+    "reasoning_tokens_included_in_output": 28080,
+    "usage_peak_no_cache_upper_cny": "0.643144",
+    "usage_peak_with_reported_cache_cny": "0.52146720",
+    "pre_request_reserved_cny": "1.968956"
+  },
+  "budget_reconciliation": {
+    "original_user_ceiling_cny": "2.000000",
+    "current_combined_phase_reservation_ceiling_cny": "1.000000",
+    "previous_usage_upper_plus_current_phase_ceiling_cny": "1.464940",
+    "previous_usage_upper_plus_current_actual_reservations_cny": "1.207144",
+    "reservation_is_not_actual_spend": true,
+    "phase_reserved_amounts_were_not_refunded_in_original_ledgers": true,
+    "previous_phase_usage_is_counted_once": true,
+    "all_paid_phases_closed": true
+  },
+  "limitations": [
+    "Rate-based usage upper estimates are conditional on the captured prices and reported usage; final billing was not queried or verified.",
+    "Reasoning tokens are a subset of reported output tokens and are not added a second time.",
+    "One earlier response reported 8193 output tokens against requested 8192. The usage calculation includes all 8193; the original reservation is retained unchanged. Its total reservation still exceeds observed rate-based cost.",
+    "The refined batch result remains PARTIAL with a usable model answer; these records do not establish exhaustive business correctness, target-device acceptance, or a latency percentile.",
+    "Provider identity, endpoint, model name/hash, credentials, account data, source/question/answer text, private paths and conversation IDs are omitted."
+  ],
+  "validation": {
+    "ledger_record_counts_and_sums_match": true,
+    "all_ledger_outcomes_received_http_200": true,
+    "result_embedded_ledgers_match_frozen_files": true,
+    "response_usage_totals_match_result_metrics": true,
+    "current_request_bytes_match_diagnostics": true,
+    "refined_plan_matches_initial_frozen_ledger": true,
+    "original_input_files_unchanged_after_read": true
+  }
+}

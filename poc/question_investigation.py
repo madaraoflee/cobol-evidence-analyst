@@ -1236,6 +1236,171 @@ def _calculation_paths(business_map, source_pages, *, source_scopes=()):
     return paths
 
 
+def _located_copy_sources(database_path, business_map, pages, paths, source_scopes, cache=None):
+    """Read an identified physical COPY without promoting its unbound semantics."""
+    edges = [edge for edge in business_map.get("relations", ())
+        if edge.get("relation_type") == "INCLUDES_COPY"
+        and edge.get("resolution") == "unbound_copy_candidate"
+        and edge.get("caller_path") in paths and edge.get("target_path")
+        and edge.get("relation_id")][:_MAX_PATHS]
+    if not edges:
+        return []
+    key = (str(database_path), business_map.get("snapshot_id"),
+           tuple((edge["relation_id"], edge["target_path"]) for edge in edges))
+    rows = cache.get("copy_source_rows") if isinstance(cache, dict) and cache.get("copy_source_key") == key else None
+    if rows is None:
+        rows = []
+        encoded = quote(Path(database_path).resolve().as_posix(), safe="/:")
+        with closing(sqlite3.connect(f"file:{encoded}?mode=ro", uri=True)) as db:
+            db.row_factory = sqlite3.Row
+            for edge in edges:
+                row = db.execute("SELECT r.relative_path,r.metadata_json,e.start_line,e.end_line,e.text,"
+                    "f.sha256 AS caller_hash,t.relative_path AS target_path,t.sha256 AS target_hash,t.line_count "
+                    "FROM relations r JOIN evidence_spans e USING(evidence_id) "
+                    "JOIN source_files f ON f.relative_path=r.relative_path "
+                    "JOIN source_files t ON t.relative_path=? "
+                    "WHERE r.relation_id=? AND r.relation_type='INCLUDES_COPY' AND r.status='candidate'",
+                    (edge["target_path"], edge["relation_id"])).fetchone()
+                if row is None:
+                    continue
+                metadata = json.loads(row["metadata_json"])
+                if (metadata.get("boundary") != "copy_replacing_or_library_not_expanded"
+                        or metadata.get("compilation_status") == "candidate"):
+                    continue
+                rows.append(dict(row))
+        if isinstance(cache, dict):
+            cache.update(copy_source_key=key, copy_source_rows=rows)
+    result = []
+    for row in rows:
+        limits = [scope for scope in source_scopes if scope["relative_path"] == row["relative_path"]
+                  and scope.get("exclusive") is not False]
+        if limits and not any(scope["start_line"] <= row["start_line"] <= row["end_line"] <= scope["end_line"]
+                              for scope in limits):
+            continue
+        caller_pages = [page for page in pages if page.get("source_sha256") == row["caller_hash"]
+                        and not page.get("span_truncated") and not page.get("include_chain")]
+        caller_ids = _visible_ids({**row, "statement": row["text"], "source_sha256": row["caller_hash"]}, caller_pages)
+        if not caller_ids or row["line_count"] < 1:
+            continue
+        last = min(96, row["line_count"])
+        supplied, identifiers = {}, []
+        for page in pages:
+            if (page.get("relative_path") != row["target_path"] or page.get("source_sha256") != row["target_hash"]
+                    or page.get("span_truncated") or page.get("include_chain") or not page.get("source_text")):
+                continue
+            for number, text in enumerate(page["source_text"].split("\n"), page["start_line"]):
+                if 1 <= number <= min(last, page["end_line"]):
+                    if number not in supplied:
+                        supplied[number] = text
+                    elif supplied[number] != text:
+                        supplied[number] = None
+            identifiers.append(page["evidence_id"])
+        visible = all(number in supplied and supplied[number] is not None for number in range(1, last + 1))
+        result.append({"relative_path": row["target_path"], "source_sha256": row["target_hash"],
+            "start_line": 1, "end_line": last, "file_total_lines": row["line_count"],
+            "caller_evidence_ids": caller_ids, "source_evidence_ids": list(dict.fromkeys(identifiers)) if visible else [],
+            "source_available": True, "source_supplied": visible,
+            "physical_complete": visible and last == row["line_count"],
+            "binding_status": "unbound_copy_candidate", "semantic_execution_verified": False})
+    return result
+
+
+def _call_relationship_evidence(plan, business_map, source_pages, database_path, max_actions):
+    """Read only already located CALL occurrences in the requested direction."""
+    root = plan.relation_root
+    if not root or database_path is None:
+        return {"required_items": [{"id": "call_relationships", "kind": "calls", "status": "OPEN",
+                    "evidence_ids": [], "reason": "call_root_not_uniquely_bound"}],
+                "planned_actions": [], "open_gaps": [{"kind": "calls", "reason": "call_root_not_uniquely_bound"}],
+                "state": "unresolved", "can_answer": False}
+    direction, root_path = plan.relation_direction, root["relative_path"]
+    edges = [edge for edge in business_map.get("relations", ())
+        if edge.get("relation_type") in {"CALLS", "CALL_TARGET_FROM"} and
+        (direction in {"outgoing", "related"} and edge.get("caller_path") == root_path or
+         direction in {"incoming", "related"} and edge.get("target_path") == root_path)]
+    identifiers = list(dict.fromkeys(edge["relation_id"] for edge in edges if edge.get("relation_id")))
+    items, actions, gaps = [], [], []
+    if len(identifiers) > 64:
+        gaps.append({"kind": "calls", "reason": "call_relationship_candidate_budget", "omitted_count": len(identifiers) - 64})
+    encoded = quote(Path(database_path).resolve().as_posix(), safe="/:")
+    with closing(sqlite3.connect(f"file:{encoded}?mode=ro", uri=True)) as db:
+        db.row_factory = sqlite3.Row
+        current = db.execute("SELECT sha256 FROM source_files WHERE relative_path=?", (root_path,)).fetchone()
+        if current is None or current[0] != root["source_sha256"]:
+            return {"required_items": [], "planned_actions": [],
+                "open_gaps": [{"kind": "calls", "reason": "call_root_version_changed"}],
+                "state": "unresolved", "can_answer": False}
+        rows = db.execute("SELECT r.relation_id,r.relation_type,r.relative_path,r.target_name,r.status,e.start_line,e.end_line,e.text,"
+            "s.relative_path AS target_path,"
+            "f.sha256 AS source_sha256,f.format_hint AS source_format FROM relations r JOIN evidence_spans e USING(evidence_id) "
+            "LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
+            "JOIN source_files f ON f.relative_path=r.relative_path WHERE r.relation_id IN (" +
+            ",".join("?" for _ in identifiers[:64]) + ") ORDER BY r.relative_path,e.start_line,r.relation_id",
+            identifiers[:64]).fetchall() if identifiers else []
+    for row in rows:
+        target_path = row["target_path"] if row["status"] == "confirmed" and row["relation_type"] == "CALLS" else None
+        item_direction = "outgoing" if row["relative_path"] == root_path else "incoming"
+        if not (direction in {"outgoing", "related"} and row["relative_path"] == root_path or
+                direction in {"incoming", "related"} and target_path == root_path):
+            continue
+        candidate = {"relative_path": row["relative_path"], "source_sha256": row["source_sha256"],
+            "start_line": row["start_line"], "end_line": row["end_line"], "statement": row["text"],
+            "source_format": row["source_format"]}
+        visible = _visible_ids(candidate, [page for page in source_pages
+            if page.get("source_sha256") == row["source_sha256"] and not page.get("span_truncated")
+            and len(str(page.get("source_text", "")).splitlines()) ==
+                page.get("end_line", 0) - page.get("start_line", 0) + 1])
+        items.append({"id": row["relation_id"], "kind": "calls", "status": "SATISFIED" if visible else "OPEN",
+            "evidence_ids": visible, "relative_path": row["relative_path"], "source_sha256": row["source_sha256"],
+            "start_line": row["start_line"], "end_line": row["end_line"], "target_name": row["target_name"],
+            "relation_direction": item_direction, "target_path": target_path,
+            "reason": "call_source_supplied" if visible else "call_source_not_supplied"})
+        if not visible:
+            gaps.append({"kind": "calls", "reason": "call_source_not_supplied",
+                **{key: value for key, value in candidate.items() if key not in {"statement", "source_format"}}})
+            if len(actions) < max(0, max_actions):
+                actions.append({"tool": "read", "arguments": {"relative_path": row["relative_path"],
+                    "start_line": row["start_line"], "end_line": row["end_line"]},
+                    "reason": "call_source_not_supplied", "material": True})
+    if not items:
+        gaps.append({"kind": "calls", "reason": "call_relationship_not_located"})
+    return {"required_items": items, "planned_actions": actions, "open_gaps": gaps,
+            "state": "needs_evidence" if actions else "bounded_partial" if gaps else "located",
+            "can_answer": bool(items) and any(item["evidence_ids"] for item in items) and not actions}
+
+
+def _entry_context_reads(activation, question, database_path, source_scopes):
+    """Widen an existing entry read, never infer a new semantic obligation."""
+    explicit_entry = re.search(r"入口|骨架|(?<![A-Za-z0-9_$#@./-])"
+        r"(?:entry[ -]point|(?:entry|control)[ -]skeleton|skeleton)(?![A-Za-z0-9_$#@./-])", str(question), re.I)
+    line_limit = re.search(r"(?:第\s*)?\d+\s*(?:[-–—~至到]\s*\d+\s*)?行|"
+        r"\blines?\s+\d+|\.(?:cbl|cob|cobol|cpy|copy|cpb|inc):\d+", str(question), re.I)
+    entry = next((item for item in activation.get("required_items", ()) if item.get("kind") == "entry_point"), {})
+    if not explicit_entry or line_limit or entry.get("candidate_count") != 1:
+        return activation
+    actions = []
+    for action in activation.get("planned_actions", ()):
+        args = action.get("arguments", {})
+        path, first, last = args.get("relative_path"), args.get("start_line"), args.get("end_line")
+        excluded = any(scope.get("relative_path") == path and scope.get("exclusive") is not False
+                       for scope in source_scopes)
+        if (action.get("tool") != "read" or action.get("reason") != "entry_definition_not_supplied"
+                or type(first) is not int or first != last or excluded):
+            actions.append(action)
+            continue
+        with closing(sqlite3.connect(Path(database_path).resolve().as_uri() + "?mode=ro", uri=True)) as db:
+            row = db.execute("SELECT line_count FROM source_files WHERE relative_path=?", (path,)).fetchone()
+        if row is None or row[0] < first:
+            actions.append(action)
+            continue
+        # A late PROCEDURE DIVISION needs its own neighborhood, not an
+        # unrelated first page of a potentially enormous data section.
+        start = 1 if first <= 96 else first - 32
+        actions.append({**action, "arguments": {**args, "start_line": start, "end_line": min(row[0], start + 95)},
+                        "source_context_basis": "bounded_entry_context", "semantic_execution_verified": False})
+    return {**activation, "planned_actions": actions}
+
+
 def build_question_investigation(question, business_map, *, database_path=None,
                                 source_pages=(), evidence_groups=(), completed_actions=(), max_actions=4,
                                 candidate_cache=None, framework_facts=(), history=()):
@@ -1287,8 +1452,19 @@ def build_question_investigation(question, business_map, *, database_path=None,
             "state": "located" if located else "unresolved", "can_answer": located}
     if identity_blocks_analysis(identity):
         return {**base, "state": "unresolved", "can_answer": False}
+    if set(plan.intents) == {"call_relationships"}:
+        return {**base, **_call_relationship_evidence(plan, business_map, source_pages, database_path, max_actions)}
     batch = None
-    if database_path and (set(plan.intents) & {"activation", "file_mapping", "impact"}
+    from business_synthesis import wants_business_overview
+    exclusive_paths = ({path for path in identity.get("direct_paths", [])}
+                       if identity.get("exclusive_source_scope") else set())
+    exclusive_ranges = [scope for scope in source_scopes if scope.get("exclusive") is not False]
+    batch_outside_scope = ((bool(exclusive_paths) and not any(Path(path).suffix.lower() in
+        {".cl", ".clle", ".clp"} for path in exclusive_paths)) or
+        (bool(exclusive_ranges) and not any(Path(scope.get("relative_path", "")).suffix.lower() in
+        {".cl", ".clle", ".clp"} for scope in exclusive_ranges)))
+    if database_path and not batch_outside_scope and (wants_business_overview(question)
+            or set(plan.intents) & {"activation", "file_mapping", "impact"}
             or any(Path(path).suffix.lower() in {".cl", ".clle", ".clp"} for path in paths)):
         from batch_context_evidence import investigate_batch_context
         batch = investigate_batch_context(business_map, source_pages, database_path=database_path,
@@ -1309,6 +1485,8 @@ def build_question_investigation(question, business_map, *, database_path=None,
         from activation_evidence import investigate_activation
         activation = investigate_activation(business_map, source_pages, database_path=database_path,
             max_actions=max_actions, candidate_cache=candidate_cache)
+        if database_path is not None:
+            activation = _entry_context_reads(activation, question, database_path, source_scopes)
         if not set(plan.intents) & {"calculation", "accumulation", "origin", "overwrite", "impact", "exception", "file_mapping"}:
             return include_batch({**base, **activation})
 
@@ -1645,6 +1823,22 @@ def build_question_investigation(question, business_map, *, database_path=None,
                 "reason": "input_origin_not_supplied"})
             if len(plans) >= min(max_actions, 4):
                 break
+    copy_sources = (_located_copy_sources(database_path, business_map, source_pages, paths, source_scopes, candidate_cache)
+                    if database_path is not None else [])
+    if copy_sources:
+        base["copy_source_candidates"] = copy_sources
+        items.append({"id": "calculation_copy_source", "kind": "copy_source", "status": "UNRESOLVED"
+            if all(row["source_supplied"] for row in copy_sources) else "OPEN",
+            "candidate_count": len(copy_sources), "missing_count": sum(not row["source_supplied"] for row in copy_sources),
+            "evidence_ids": list(dict.fromkeys(identifier for row in copy_sources for identifier in row["source_evidence_ids"])),
+            "reason": "copy_binding_unresolved" if all(row["source_supplied"] for row in copy_sources)
+                      else "located_copy_source_not_supplied"})
+        for row in copy_sources:
+            if (row["source_supplied"] or ("read", row["relative_path"], 1) in seen
+                    or len(plans) >= min(max_actions, 4)):
+                continue
+            plans.append({"tool": "read", "arguments": {key: row[key] for key in
+                ("relative_path", "start_line", "end_line")}, "reason": "located_copy_source_not_supplied"})
     if max_actions <= 0:
         plans = []
     external = next((item for item in items if item["kind"] == "dependencies"

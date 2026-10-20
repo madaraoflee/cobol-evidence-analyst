@@ -17,16 +17,48 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
     def budget(self, seconds=120, **options):
         return QuestionBudget(seconds, clock=lambda: self.now, **options)
 
-    def test_standard_default_reserves_time_and_enforces_hard_deadline(self):
+    def test_standard_default_does_not_cancel_or_force_synthesis_at_180_seconds(self):
         policy = AgentPolicy()
-        budget = self.budget(policy.max_question_seconds, hard_seconds=policy.hard_question_seconds)
-        self.now += 135
-        self.assertTrue(budget.should_answer(300))
-        budget.check()
-        self.now += 45
-        with self.assertRaises(QuestionDeadlineExceeded):
+        budget = self.budget(policy.effective_delivery_target_seconds, hard_seconds=policy.hard_question_seconds)
+        for elapsed in (135, 180, 600):
+            self.now = budget.started + elapsed
+            budget.observe_request(60)
             budget.check()
-        self.assertTrue(budget.target_reached())
+            self.assertFalse(budget.should_answer(300))
+            self.assertFalse(budget.should_stop_local_investigation())
+            self.assertFalse(budget.target_reached())
+            self.assertIsNone(budget.hard_remaining())
+            self.assertEqual(budget.request_timeout(7), 7)
+        self.assertFalse(policy.can_request(6))
+
+    def test_progress_default_checkpoint_preserves_elapsed_without_inventing_deadline(self):
+        wall = [1000.0]
+        budget = self.budget(None, wall_clock=lambda: wall[0])
+        self.now += 200
+        wall[0] += 200
+        budget.observe_request(60)
+        saved = budget.checkpoint()
+        wall[0] += 100
+        restored = self.budget(None, wall_clock=lambda: wall[0])
+        restored.restore(saved)
+        self.assertEqual(restored.elapsed(), 300)
+        self.assertEqual(restored.request_durations, [60])
+        self.assertIsNone(restored.hard_limit)
+        self.assertIsNone(restored.hard_deadline_epoch)
+        restored.check()
+
+    def test_progress_default_restore_keeps_an_older_explicit_deadline(self):
+        wall = [1000.0]
+        old = self.budget(180, hard_seconds=180, wall_clock=lambda: wall[0])
+        self.now += 100
+        wall[0] += 100
+        saved = old.checkpoint()
+        wall[0] += 81
+        restored = self.budget(None, wall_clock=lambda: wall[0])
+        restored.restore(saved)
+        self.assertEqual(restored.hard_limit, 180)
+        with self.assertRaises(QuestionDeadlineExceeded):
+            restored.check()
 
     def test_explicit_hard_limit_works_without_completion_target(self):
         budget = self.budget(None, hard_seconds=90)
@@ -90,6 +122,16 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
         budget.check()
         self.assertEqual(budget.request_timeout(60), 60)
 
+    def test_next_planning_wait_and_final_answer_are_reserved_separately_from_local_reads(self):
+        budget = self.budget(180, hard_seconds=180)
+        budget.observe_request(60)
+        self.now += 60
+        self.assertTrue(budget.should_answer(300))
+        self.assertFalse(budget.should_stop_local_investigation())
+        self.assertEqual(budget.request_timeout(300), 120)
+        self.now += 60
+        self.assertTrue(budget.should_stop_local_investigation())
+
     def test_explicit_hard_limit_bounds_request_and_active_wait(self):
         budget = self.budget(hard_seconds=30)
         self.now += 23
@@ -140,6 +182,40 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
         self.assertEqual(policy.max_question_seconds, 7)
         self.assertEqual(policy.hard_question_seconds, 7)
         self.assertEqual(policy.to_dict()["hard_question_seconds"], 7)
+
+    def test_policy_soft_target_does_not_cancel_request_before_finite_hard_deadline(self):
+        policy = AgentPolicy(max_question_seconds=120, delivery_target_seconds=1)
+        budget = self.budget(policy.effective_delivery_target_seconds, hard_seconds=policy.hard_question_seconds)
+        self.now += 1.25
+        self.assertTrue(budget.target_reached())
+        budget.check()
+        self.assertEqual(budget.request_timeout(60), 60)
+        self.now += 118.75
+        with self.assertRaises(QuestionDeadlineExceeded):
+            budget.check()
+
+    def test_soft_target_checkpoint_restore_cannot_extend_target_or_hard_deadline(self):
+        wall = [1000.0]
+        policy = AgentPolicy(max_question_seconds=120, delivery_target_seconds=1)
+        budget = self.budget(policy.effective_delivery_target_seconds,
+                             hard_seconds=policy.hard_question_seconds, wall_clock=lambda: wall[0])
+        self.now += 1.25
+        wall[0] += 1.25
+        saved = budget.checkpoint()
+        self.assertEqual((saved["limit_seconds"], saved["hard_limit_seconds"]), (1, 120))
+        wall[0] += 30
+        self.now = 0
+        wider = AgentPolicy(max_question_seconds=180, delivery_target_seconds=60)
+        restored = self.budget(wider.effective_delivery_target_seconds,
+            hard_seconds=wider.hard_question_seconds, wall_clock=lambda: wall[0])
+        restored.restore(saved)
+        self.assertEqual(restored.limit, 1)
+        self.assertTrue(restored.target_reached())
+        self.assertEqual(restored.hard_limit, 120)
+        self.assertEqual(restored.hard_remaining(), 88.75)
+        self.now += 88.75
+        with self.assertRaises(QuestionDeadlineExceeded):
+            restored.check()
 
     def test_explicit_hard_policy_round_trips_independently_of_target(self):
         policy = AgentPolicy(max_question_seconds=120, hard_question_seconds=7)

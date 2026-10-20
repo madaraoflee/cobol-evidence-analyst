@@ -5,11 +5,19 @@ from __future__ import annotations
 import re
 
 
+BUSINESS_RUNTIME_BOUNDARY_POLICY = (
+    "未校验输入不证明该值查不到；查询结果须有数据或明确假设。"
+    "未检查返回状态不证明不会报错或异常上抛；后续分支只在调用正常返回时成立。"
+    "区分返回参数与语言返回码。")
+
+
 BUSINESS_ANSWER_POLICY = """交付围绕当前问题、充分展开的业务解释。开头直接给结论，随后详细说明决定结论的条件、相关输入来源、处理顺序、字段变化、异常分支和结果，并引用来源。具体场景按用户给定的输入和假设沿执行路径逐步推导；一般规则问题则完整覆盖决定结果的分支。复杂答案使用简短标题、步骤或比较表，保留理解业务所需的细节和推导，不以缩短答案代替分析。相关补充场景明确写出各自成立条件；避免重复相同结论。用户明确要求简答时保留关键条件并压缩说明。
+面向不熟悉代码的读者，业务概览按有依据的目的→批处理作业或联机功能→程序职责→表文件角色→规则、输入输出和异常串成过程，不能用 CALL/MOVE/COPY 或名称清单代替解释。区分源码可见规则、注释说明、适用手册约定与合理推断，推断须说明依据；均不证明实际运行。没有业务名称时解释可见操作用途，不猜调度频率、联机菜单、真实表或提交结果。简短关系追问、公式题只解释所问内容，不强套概览。
 写作前核对：每个值属于哪个业务对象、在哪个调用点和条件下产生、之后是否被覆盖；分清调用前跳过、尝试调用但加载失败、被调程序执行后返回业务错误。表格与正文保持同一条件范围。跨程序回写要同时沿调用方传递方式和被调方入口声明追踪。只回答当前问题涉及的行为；用户要求改法或其他情景时再展开变更建议和假设分析。
 解释按优先级选择的分支时，明确区分条件不成立与分支未执行：EVALUATE 已命中前面的 WHEN，后续分支标为未执行；沿已选路径推导结果，不把未检查的条件或字段值补成事实。
 追踪字段值时，按执行顺序经过每个调用点。外部实现或适用约定未说明的引用参数及其下级字段，返回后以未知值继续推导；后续本地赋值重新建立已知值。先前的初始化同样经过这条规则。SQL INTO 的输出也按执行语义与后续赋值追踪。只展开决定当前问题结果的字段和时点。
 用业务含义表达公式和处理过程；定位程序、文件、字段时保留准确标识。除非用户明确要求源码或开发实现，否则只给业务解释，不输出代码块或逐行翻译。framework_references 中的约定须与当前调用条件和实参对应。缺少被调实现和适用约定时，准确写出调用者做了什么，例如设置操作码、传入记录、发起请求、检查返回状态、选择下一分支；操作名称本身不提供读取、锁定、保存或提交的实现细节。把已知的业务规则讲清楚，仅在未知事项影响用户所问结果时简短说明。"""
+BUSINESS_ANSWER_POLICY += "\n" + BUSINESS_RUNTIME_BOUNDARY_POLICY
 
 ANSWER_MARKDOWN_POLICY = """最终给用户的答案使用 Markdown 正文：开头直接回答问题，用自然段推进说明；需要比较时用表格，需要步骤或并列内容时用列表，重点可用加粗。段落、列表和表格之间留空行，长答案按需使用简短的小标题，短答案无需套模板。
 不要将整篇答案放进 markdown、md、text 或其他代码围栏，不要把正文包装成 JSON，也不要输出 HTML。只有用户明确要求源码示例或开发实现时才给局部代码块，并注明语言；业务规则优先解释含义、条件和结果。保留给定的来源引用标识。Markdown 是展示约定，不改变调查方式或工具请求格式。"""
@@ -91,6 +99,32 @@ def _open_code_marker(text: str) -> tuple[str, str] | None:
             elif token == inline:
                 inline = None
     return ("fence", fence) if fence else ("inline", inline) if inline else None
+
+
+def strip_incomplete_source_citation(text: str, *, truncated: bool, evidence_ids) -> str:
+    """Remove only a truncated prose tail matching an actually supplied page ID.
+
+    This display repair neither completes an ID nor establishes answer
+    completeness. Raw provider records and all preceding text stay unchanged.
+    Ambiguous or code-like tails are deliberately retained.
+    """
+    if not truncated:
+        return text
+    match = re.search(r"\[(ev_page_[0-9a-f]{1,24})[ \t\r\n]*\Z", text)
+    if match is None or not any(
+            isinstance(identifier, str) and re.fullmatch(r"ev_page_[0-9a-f]{24}", identifier)
+            and identifier.startswith(match[1]) for identifier in evidence_ids):
+        return text
+    prefix = text[:match.start()]
+    escaped = len(prefix) - len(prefix.rstrip("\\"))
+    last_line = prefix.rsplit("\n", 1)[-1]
+    # Paired backslashes do not escape a following code delimiter.
+    code_prefix = re.sub(r"(?<!\\)(?:\\\\)+(?=`)", "", prefix)
+    if (escaped % 2 or last_line.expandtabs(4).startswith("    ")
+            or last_line.lstrip().startswith(">")
+            or _open_code_marker(code_prefix) is not None):
+        return text
+    return prefix
 
 
 def _continuation_restart_boundary(draft: str, offset: int) -> bool:

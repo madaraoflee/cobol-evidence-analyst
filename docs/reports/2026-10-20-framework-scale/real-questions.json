@@ -1,0 +1,51 @@
+{
+  "scope": "Four fixed source-review questions; synthetic source and manual; real model; no IBM i execution or human scoring.",
+  "cases": [
+    {
+      "id": "q1",
+      "question": "请分析 entry/request.cbl：从入口 COPY 骨架开始，FINAL-AMOUNT 怎样计算？说明外层开关、计算条件、公式、舍入和后续覆盖。INPUT-AMOUNT=10、ROUTE-ENABLED=1 时，OVERRIDE-FLAG 分别为 0 和 1，最终值各是多少？ROUTE-ENABLED=0 时又怎样？",
+      "expected": [
+        "入口PERFORM INITIALIZE-REQUEST后MAIN-ACTION再GOBACK",
+        "外层ROUTE-ENABLED=1且INPUT-AMOUNT>0才计算",
+        "COPY REPLACING得RATE-VALUE=3，SERVICE-FEE=7",
+        "接收字段两位小数ROUNDED，示例37.00及0.00",
+        "覆盖受外层开关控制，开关0不改FINAL-AMOUNT当前值"
+      ]
+    },
+    {
+      "id": "q2",
+      "question": "entry/batch.cbl 的批处理入口和结束条件是什么？请说明 FINAL-AMOUNT 的完整计算顺序，与 request.cbl 的系数有何不同；INPUT-AMOUNT=10、ROUTE-ENABLED=1、OVERRIDE-FLAG=0 时结果是多少？不要把同名冗余 COPY 的声明混进来。",
+      "expected": [
+        "批骨架初始化STOP-FLAG=0，默认先测试PERFORM MAIN-ACTION UNTIL STOP-FLAG=1",
+        "MAIN-ACTION末段MOVE1到STOP-FLAG后返回，正常路径循环一次",
+        "batch替换系数5、request3",
+        "外层开关及正输入条件，乘系数加7并按接收字段舍入；随后override1覆盖0",
+        "示例57.00，明确active/rate-template.cpy绑定"
+      ]
+    },
+    {
+      "id": "q3",
+      "question": "entry/request.cbl 调用 LEDGERIO 时传了什么，NX 表示什么请求？调用异常和 LEDGER-STATUS=00 各会怎样处理，后面的 WRITE 对应哪个文件？即使 LEDGERIO 的封闭源码没有提供，也请先把调用者能够确认的业务步骤讲清楚。",
+      "expected": [
+        "LEDGER-FUNCTION=NX、KEY=ACCOUNT-KEY、VIEW=LEDGER-LF，LEDGER-PARAMS按引用",
+        "中性手册NX请求下一条，不能证明游标/返回记录",
+        "CALL ON EXCEPTION设置90，业务返回00条件进入写分支",
+        "00时FINAL-AMOUNT移动到RECORD-AMOUNT再WRITE LEDGER-RECORD",
+        "FD对应LEDGER-FILE，SELECT目标LEDGER-LF；运行成功、状态00实际返回及提交不可证",
+        "CALL/WRITE位于外层ROUTE条件之外；无OPEN，不能声称实际写成功"
+      ]
+    },
+    {
+      "id": "q4",
+      "question": "请结合 data/ledger-lf.dds 和 data/ledger-pf.dds 解释逻辑视图的记录格式、字段、键和筛选条件。这些定义与 entry/request.cbl 请求 LEDGER-LF、后续 WRITE 的关系是什么？能否据此确认底层记录已经更新或事务已经提交？",
+      "expected": [
+        "LF记录LEDGERREC来自PFILE(LEDGERPF)",
+        "LF包含ACCOUNTKEY及FINALAMT，按ACCOUNTKEY排序",
+        "选择ACTIVE=Y",
+        "PF提供ACCOUNTKEY8A、FINALAMT11P2、ACTIVE1A布局",
+        "COPY视图参数和SELECT映射只证明请求/声明意图，不证明运行解析正确",
+        "无封闭实现/OPEN/事务运行证据，不可确认实际更新和提交"
+      ]
+    }
+  ]
+}

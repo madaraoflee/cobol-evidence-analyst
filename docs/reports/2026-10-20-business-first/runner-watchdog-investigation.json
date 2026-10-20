@@ -1,0 +1,47 @@
+{
+  "scope": "Read-only investigation of prior Windows runner failure and bounded diagnostic mitigation; no proof of native root cause.",
+  "observed_run": 39371720804,
+  "observed_commit": "b8a0cab24f496833396e07372ee17f9d0965fc18",
+  "runtime_observed": "CPython 3.13.16 x64 Windows; workflow requests ordinary 3.13, not free-threaded build. Runtime GIL state was not captured.",
+  "observations": [
+    "Two 120-second periodic C-level stack dumps completed and tests continued.",
+    "The third dump ended mid-line in statement_facts.py, followed by process exit code 1; no complete exception traceback or regression JSON was produced.",
+    "The last public-business test started about 11 seconds before the last periodic dump; this was not a 120-second per-test timeout.",
+    "Local search found no test explicitly closing stderr, dup2-ing its descriptor, calling os._exit, or reloading faulthandler before the failure. Temporary object mocks of sys.stderr exist but do not by themselves close the original stream."
+  ],
+  "primary_sources": [
+    {
+      "url": "https://docs.python.org/3.13/library/faulthandler.html",
+      "finding": "Timed dumps default to exit=False; only exit=True requests immediate exit(1). The output descriptor must remain open; descriptor replacement can redirect the dump."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/python/cpython/v3.13.16/Modules/faulthandler.c",
+      "finding": "The timer calls _Py_DumpTracebackThreads from its watchdog thread. Its exit flag defaults to zero. The manual Python dump path has a stop-the-world wrapper that is absent from this timer path; this is not a reproduction of the observed failure."
+    },
+    {
+      "url": "https://github.com/python/cpython/issues/158200",
+      "finding": "A primary report reproduces timer-dump use of freed code metadata on debug Linux main/3.16. It supports a related risk, not a Windows 3.13 root-cause claim."
+    },
+    {
+      "url": "https://docs.python.org/3.13/library/sys.html#sys._current_frames",
+      "finding": "Python-owned current-frame snapshots are intended for specialized deadlock diagnosis; active-thread frames are a snapshot rather than a stable statement of later activity."
+    }
+  ],
+  "mitigation": [
+    "Replace periodic C-level timer sampling with a daemon Python watchdog using Event waits, sys._current_frames and traceback.format_stack; discard all frame references after each snapshot and before output I/O.",
+    "Keep the 120-second diagnostic interval and existing 45-minute CI test-step watchdog. Diagnostic snapshots are not test deadlines.",
+    "Atomically persist an initial running report, selected/discovered identities before execution, first-start progress, later progress at most every five seconds on test boundaries, and failure/error details immediately. Complete exact execution is required before status can be passed.",
+    "The collector is unchanged and rejects a running report or missing/duplicate executions. No skipped or interrupted test is converted into a pass."
+  ],
+  "limits": [
+    "No Windows reproduction of the native failure has been established; this isolates a plausible diagnostic risk without declaring the public business test defective.",
+    "A Python watchdog cannot run while native code permanently holds the GIL; external CI timeout remains the finite backstop.",
+    "A hard process exit may leave only the last persisted checkpoint. START/END stdout retains finer-grained last activity where output flushing succeeded.",
+    "No native crash stack is guaranteed when the process terminates abruptly. No build, dispatch, cancellation, release, paid model or product change was performed by this subtask."
+  ],
+  "changed_files": {
+    "tools/run_python_regressions.py": "a0661bc5ed894aab75a48d1dc271d5e23c70127bb11b54c86f44af7c30420100",
+    "poc/tests/test_python_regression_runner.py": "2a88c3c374c919c8ff62f3873722d949639c3cf704ed47c5db2ede4935a5ab32"
+  },
+  "tests_log": "runner-watchdog-final-tests.log"
+}

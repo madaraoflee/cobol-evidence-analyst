@@ -5,8 +5,8 @@ Changing these values is a deployment choice, never an automatic response to a
 difficult question.
 
 Investigation mode and source memory are independent of resource limits.
-Legacy null budgets migrate to finite defaults; stricter deployment limits
-remain stricter. Transport timeouts do not extend the question deadline.
+Request, investigation and revision counts remain finite by default. Total
+question time is optional; an explicit deployment deadline remains binding.
 """
 
 from collections.abc import Mapping
@@ -16,7 +16,7 @@ from dataclasses import asdict, dataclass, fields
 @dataclass(frozen=True)
 class AgentPolicy:
     max_model_requests: int | None = 6
-    max_question_seconds: int | None = 180
+    max_question_seconds: int | None = None
     max_source_characters: int = 36000
     max_complete_source_characters: int = 128000
     max_history_characters: int = 18000
@@ -41,7 +41,9 @@ class AgentPolicy:
     # Keep the legacy 0/1 field separate from the new counted allowance.
     max_answer_revisions: int | None = None
     semantic_cache_bytes: int = 536870912
-    hard_question_seconds: int | None = 180
+    hard_question_seconds: int | None = None
+    # Optional synthesis target; never creates or extends a hard deadline.
+    delivery_target_seconds: int | None = None
     investigation_mode: str = "adaptive"
     source_memory_enabled: bool = True
     max_investigation_rounds: int = 5
@@ -53,6 +55,7 @@ class AgentPolicy:
             "max_model_requests": (1, 32),
             "max_question_seconds": (1, 1800),
             "hard_question_seconds": (1, 1800),
+            "delivery_target_seconds": (1, 1800),
             "max_answer_revisions": (0, 1),
         }
         for name, (minimum, maximum) in optional_limits.items():
@@ -96,13 +99,22 @@ class AgentPolicy:
             raise ValueError("Agent policy investigation_mode must be adaptive or single_pass.")
         if type(self.source_memory_enabled) is not bool:
             raise ValueError("Agent policy source_memory_enabled must be a boolean.")
-        # Null values came from the old unlimited profile. Never let them
-        # disable the bounded interactive contract, or widen a finite target.
+        # A missing request limit still uses the finite interactive allowance.
+        # A missing time limit leaves progress and call counts in control.
+        # Explicit legacy targets retain their existing hard-deadline meaning.
         object.__setattr__(self, "max_model_requests", self.max_model_requests or 6)
-        target = self.max_question_seconds or 180
-        hard = min(self.hard_question_seconds or 180, target, 300)
-        object.__setattr__(self, "max_question_seconds", min(target, hard))
+        deadlines = [value for value in (self.max_question_seconds, self.hard_question_seconds)
+                     if value is not None]
+        hard = min(*deadlines, 300) if deadlines else None
+        object.__setattr__(self, "max_question_seconds", hard)
         object.__setattr__(self, "hard_question_seconds", hard)
+
+    @property
+    def effective_delivery_target_seconds(self):
+        target = self.delivery_target_seconds if self.delivery_target_seconds is not None else self.max_question_seconds
+        if target is None or self.hard_question_seconds is None:
+            return target
+        return min(target, self.hard_question_seconds)
 
     @property
     def answer_revision_limit(self):

@@ -1,0 +1,355 @@
+{
+  "kind": "bounded-delivery-migration-repair",
+  "prior_native_run": 39302602324,
+  "prior_native_commit": "b1c66ebe2e9c67e166a04a55c3a3b6aff17b5aec",
+  "prior_native_report_sha256": "e039a0eb49cb7fa8f974c345b5e0b3bc6266ef8e85ef2114fa12acf064935636",
+  "prior_native_archive_sha256": "98cc85cc7c7241b3cfd53eac2bd4ab73834f4ee193d0ecc481cbec77ee7d208c",
+  "prior_native_binary_sha256": "517a289e923449b83ae3f86f6856629ab2432ca23a451ac8b5cd4a3f46278745",
+  "prior_native_surface": "native_windows_http",
+  "prior_native_samples": 67,
+  "prior_native_passed_samples": 64,
+  "prior_native_failed_samples": [
+    {
+      "id": "soft_target_answer",
+      "sample_index": 1,
+      "error": "AssertionError: No received model answer was recorded",
+      "elapsed_seconds": 1.5282505000000128
+    },
+    {
+      "id": "soft_target_answer",
+      "sample_index": 2,
+      "error": "AssertionError: No received model answer was recorded",
+      "elapsed_seconds": 2.0177905000000464
+    },
+    {
+      "id": "soft_target_answer",
+      "sample_index": 3,
+      "error": "AssertionError: No received model answer was recorded",
+      "elapsed_seconds": 1.5159572000000026
+    }
+  ],
+  "cause": "Legacy soft-target acceptance used max_question_seconds=1, now intentionally normalized to a strict finite one-second deadline; the synthetic provider waits 1.25 seconds. No received model answer remained for the claim checks.",
+  "repair": "Separate optional delivery_target_seconds from unchanged finite max/hard limits; retain all 21 cases, 67 samples, assertions and timing ceilings. Soft-target case now explicitly uses target 1 and hard 120.",
+  "source_preview": {
+    "report_sha256": "9f26f225d0df876c959ec2922016d7f24dab9dfa07b7147105fc6ef857eb97c5",
+    "application_sha256": "4c59f92583a697b4ff47934e5a6a27d1c610c106ecc3275c7c49e0d40efafc91",
+    "execution_surface": "source_python_http",
+    "status": "passed",
+    "selection_complete": false,
+    "elapsed_seconds": 18.010297,
+    "samples": [
+      {
+        "id": "soft_target_answer",
+        "sample_index": 1,
+        "run_id": "f0445a9e96145e4bca74598c",
+        "status": "passed",
+        "checks": {
+          "quality_wrong_formula_repaired": true,
+          "quality_independent_move_preserved": true,
+          "completeness_critical_claims_verified": true,
+          "evidence_supplied_hashes_match": true,
+          "evidence_visible_answer_matches": true,
+          "lifecycle_old_index_requires_explicit_update": true,
+          "quality_target_does_not_discard_first_answer": true,
+          "lifecycle_slow_response_journal_completed_once": true
+        },
+        "timings": {
+          "cold_index_seconds": 0.06308083300245926,
+          "first_provider_seconds": 0.1213300839990552,
+          "question_seconds": 1.4553579999992508,
+          "synthetic_provider_delay_seconds": 1.25
+        }
+      },
+      {
+        "id": "soft_target_answer",
+        "sample_index": 2,
+        "run_id": "597287a0361b3510877783fe",
+        "status": "passed",
+        "checks": {
+          "quality_wrong_formula_repaired": true,
+          "quality_independent_move_preserved": true,
+          "completeness_critical_claims_verified": true,
+          "evidence_supplied_hashes_match": true,
+          "evidence_visible_answer_matches": true,
+          "lifecycle_old_index_requires_explicit_update": true,
+          "quality_target_does_not_discard_first_answer": true,
+          "lifecycle_slow_response_journal_completed_once": true
+        },
+        "timings": {
+          "cold_index_seconds": 0.0632724999995844,
+          "first_provider_seconds": 0.11593358300160617,
+          "question_seconds": 1.4867503330024192,
+          "synthetic_provider_delay_seconds": 1.25
+        }
+      },
+      {
+        "id": "soft_target_answer",
+        "sample_index": 3,
+        "run_id": "4d29639c29fd7731ab4a20c4",
+        "status": "passed",
+        "checks": {
+          "quality_wrong_formula_repaired": true,
+          "quality_independent_move_preserved": true,
+          "completeness_critical_claims_verified": true,
+          "evidence_supplied_hashes_match": true,
+          "evidence_visible_answer_matches": true,
+          "lifecycle_old_index_requires_explicit_update": true,
+          "quality_target_does_not_discard_first_answer": true,
+          "lifecycle_slow_response_journal_completed_once": true
+        },
+        "timings": {
+          "cold_index_seconds": 0.06565437500103144,
+          "first_provider_seconds": 0.11323045799872489,
+          "question_seconds": 1.4739301250010612,
+          "synthetic_provider_delay_seconds": 1.25
+        }
+      },
+      {
+        "id": "deadline_unknown",
+        "sample_index": 1,
+        "run_id": "7b7b416f37f2f9787990ee1d",
+        "status": "passed",
+        "checks": {
+          "lifecycle_total_deadline_enforced": true,
+          "lifecycle_remote_unknown_preserved": true,
+          "lifecycle_no_automatic_resend": true,
+          "lifecycle_restart_restored": true,
+          "lifecycle_unknown_isolated_between_conversations": true
+        },
+        "timings": {
+          "cold_index_seconds": 0.05598866700165672,
+          "first_provider_seconds": 0.10791899999821908,
+          "question_seconds": 3.1478306249991874,
+          "cancel_seconds": null
+        }
+      },
+      {
+        "id": "deadline_unknown",
+        "sample_index": 2,
+        "run_id": "b46dad6085c76149857cc451",
+        "status": "passed",
+        "checks": {
+          "lifecycle_total_deadline_enforced": true,
+          "lifecycle_remote_unknown_preserved": true,
+          "lifecycle_no_automatic_resend": true,
+          "lifecycle_restart_restored": true,
+          "lifecycle_unknown_isolated_between_conversations": true
+        },
+        "timings": {
+          "cold_index_seconds": 0.06346216699967044,
+          "first_provider_seconds": 0.10815516599905095,
+          "question_seconds": 3.1739542909999727,
+          "cancel_seconds": null
+        }
+      },
+      {
+        "id": "deadline_unknown",
+        "sample_index": 3,
+        "run_id": "23f42cdda90f94bccf931e1b",
+        "status": "passed",
+        "checks": {
+          "lifecycle_total_deadline_enforced": true,
+          "lifecycle_remote_unknown_preserved": true,
+          "lifecycle_no_automatic_resend": true,
+          "lifecycle_restart_restored": true,
+          "lifecycle_unknown_isolated_between_conversations": true
+        },
+        "timings": {
+          "cold_index_seconds": 0.0626855410009739,
+          "first_provider_seconds": 0.1058773749973625,
+          "question_seconds": 3.139707249996718,
+          "cancel_seconds": null
+        }
+      }
+    ],
+    "scope": "Six actual source-workbench HTTP samples with a local TLS synthetic provider; not Windows or real-model acceptance."
+  },
+  "initial_source_preview_failure": "System Python lacked certifi; startup imported the unused default bundle despite an explicit SSL_CERT_FILE. Moved the import inside the absent-override branch; verification still uses the explicit CA and still fails without either trust configuration.",
+  "interrupted_full_regression": "Initial full source run stopped at 2363 tests after the new HTTP scenario exposed the startup dependency; its log/report remain separate and are not counted as a pass.",
+  "external_model_calls": 0,
+  "final_windows_acceptance_pending": true,
+  "final_repair_files": [
+    {
+      "path": "poc/agent_policy.py",
+      "sha256": "efef08c8e995582429337ee23c6045f2bcfa9077cc6a5339871254827bdd3a4b"
+    },
+    {
+      "path": "poc/business_chat.py",
+      "sha256": "b97771f855df12a4049ff25a7c00d9c5f2cf939bff8a1f7c7dfe3fa736c15392"
+    },
+    {
+      "path": "poc/desktop_app.py",
+      "sha256": "7c96ed57b4635b5e45e44cb4c83ef6e58762de39b7420d0e3a4cafe8807e1fa1"
+    },
+    {
+      "path": "poc/quality_trace.py",
+      "sha256": "6bbba5472efa167e227d5bf0aa6c5dab2f7af4d1d1fa7ca70714a5bdbaddbb28"
+    },
+    {
+      "path": "poc/claim_ledger.py",
+      "sha256": "d50075ac3dcf8cde570c962031ca111da5937bc8b3d49798c141cb2402dedd36"
+    },
+    {
+      "path": "poc/claim_support.py",
+      "sha256": "241583aa15e2c3810dcda543e49023d8c44e93296357df2fc867904f3b7e95a8"
+    },
+    {
+      "path": "tools/desktop_acceptance_scenarios.py",
+      "sha256": "5ce2c6c4e4822e066eb0fff7f06a23cb49d071dc03dbb8d83252a2943840a2c0"
+    },
+    {
+      "path": "docs/eval/desktop-joint-v1/manifest.json",
+      "sha256": "062b39cc210e5cc02dec8833e22073b159ed3ccf5e7dbc28cca4d2eccd6f7641"
+    },
+    {
+      "path": "tools/desktop_acceptance_runtime.py",
+      "sha256": "22e21fb0ec735fb72eeeef3d3f7fc541e1eef6d97a303ea88575c882840987b6"
+    },
+    {
+      "path": "poc/tests/test_desktop_acceptance_sqlite.py",
+      "sha256": "4ea06b15bd762ad456c0516acd750ec45fb5b98d2d61357eee5a0285d68edcda"
+    }
+  ],
+  "pipeline_version": "question-evidence-v31",
+  "prompt_version": "business-chat-v30",
+  "full_source_regressions": {
+    "tests": 3265,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsed_seconds": 178.352016,
+    "report_sha256": "5f34c9e6a8944be6a16b245389e2e57fbc9beff72b5478e12ff9a6a57adeabac",
+    "runtime_platform": "Darwin",
+    "public_corpus_verified": true,
+    "scope": "Complete source regression after controlled-clock and explicit-test-CA repair; not Windows or real-model acceptance."
+  },
+  "independent_review": {
+    "reviewer_kind": "independent_agent",
+    "completed": true,
+    "human_review": false,
+    "finding_fixed": "Normalize older policy records before comparison so absent optional fields cannot bypass pipeline and original deadline guards."
+  },
+  "subsequent_windows_precompile_failure": {
+    "run_id": 39308303291,
+    "source_commit": "957314c39b3987aecd577f5e24e829a6f49c7396",
+    "stage": "Windows precompile contract tests",
+    "full_regression_started": false,
+    "compilation_started": false,
+    "candidate_assets": 0,
+    "log_sha256": "4f3e0bbd3f16a8bf133e0e8245dd6536316c924b211249862f85e9c93c72e0bd",
+    "failure": "New source HTTP scenario failed during TemporaryDirectory cleanup with Windows error 32 on structural-index.sqlite; helper SQLite connections had not been explicitly closed. Answer assertions followed cleanup and cannot be claimed as passed from this log."
+  },
+  "delivery_repair_files": [
+    {
+      "path": "poc/agent_policy.py",
+      "sha256": "efef08c8e995582429337ee23c6045f2bcfa9077cc6a5339871254827bdd3a4b"
+    },
+    {
+      "path": "poc/business_chat.py",
+      "sha256": "b97771f855df12a4049ff25a7c00d9c5f2cf939bff8a1f7c7dfe3fa736c15392"
+    },
+    {
+      "path": "poc/desktop_app.py",
+      "sha256": "7c96ed57b4635b5e45e44cb4c83ef6e58762de39b7420d0e3a4cafe8807e1fa1"
+    },
+    {
+      "path": "poc/quality_trace.py",
+      "sha256": "6bbba5472efa167e227d5bf0aa6c5dab2f7af4d1d1fa7ca70714a5bdbaddbb28"
+    },
+    {
+      "path": "poc/claim_ledger.py",
+      "sha256": "d50075ac3dcf8cde570c962031ca111da5937bc8b3d49798c141cb2402dedd36"
+    },
+    {
+      "path": "poc/claim_support.py",
+      "sha256": "241583aa15e2c3810dcda543e49023d8c44e93296357df2fc867904f3b7e95a8"
+    },
+    {
+      "path": "tools/desktop_acceptance_scenarios.py",
+      "sha256": "2c38314508fae08ee194f3bfe17a389281f12463a130abec1d961091c841534e"
+    },
+    {
+      "path": "docs/eval/desktop-joint-v1/manifest.json",
+      "sha256": "062b39cc210e5cc02dec8833e22073b159ed3ccf5e7dbc28cca4d2eccd6f7641"
+    }
+  ],
+  "delivery_full_source_regressions": {
+    "tests": 3260,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsed_seconds": 180.259494,
+    "report_sha256": "8e0294ab755ce117a8ef42c3e5ef65b6c2e936160b45f546df22e0c11aedcede",
+    "runtime_platform": "Darwin",
+    "public_corpus_verified": true,
+    "scope": "All discovered source tests, including actual source HTTP delayed-response scenario; not Windows executable or real-model acceptance."
+  },
+  "helper_closure_review": {
+    "four_connections_explicitly_closed": true,
+    "transaction_commit_and_wal_order_preserved": true,
+    "cleanup_errors_still_fail": true,
+    "http_assertions_before_cleanup": true,
+    "reviewer_kind": "independent_agent",
+    "human_review": false
+  },
+  "subsequent_windows_regression_failure": {
+    "run_id": 39309675796,
+    "source_commit": "6f0b44fad11bc91455569e50fa99e8b506319841",
+    "stage": "Windows complete regressions",
+    "conclusion": "failure",
+    "compilation_started": false,
+    "candidate_assets": 0,
+    "failures": [
+      {
+        "shard": 0,
+        "test": "test_desktop_app.BrowserCompatibilityTests.test_browser_headless_check_does_not_import_embedded_renderer",
+        "observed": "DESKTOP_START_FAILED SSLError; result 1 != 0"
+      },
+      {
+        "shard": 3,
+        "test": "test_business_chat_latency.BusinessChatLatencyTests.test_legacy_one_second_limit_still_bounds_transport_to_one_second",
+        "observed": "expected one injected transport request but deadline expired during real local preparation; 0 requests"
+      }
+    ],
+    "tests": 3264,
+    "passed": 3260,
+    "failed": 2,
+    "errors": 0,
+    "skipped": 2,
+    "exactly_once": true,
+    "log_sha256": "28465e9bac46b1cb8a01b0c419059c3c8ac8d20cf013284cb27bafc35073e67b"
+  },
+  "regression_test_isolation_repair": {
+    "production_changed": false,
+    "manifest_changed": false,
+    "external_model_calls": 0,
+    "clock_repair": "Inject the same controlled monotonic and wall clock into the real QuestionBudget; retain the one-second request timeout assertion and add preparation-expired/no-request/journal assertions.",
+    "tls_repair": "Preserve operating-system runtime environment and set SSL_CERT_FILE to the existing public loopback CA. Run real configure_tls and create_default_context; assert required verification, hostname checks and fixture CA presence. The SSLError class does not identify the particular failing OS trust source.",
+    "files": [
+      {
+        "path": "poc/tests/test_business_chat_latency.py",
+        "sha256": "edf8bde96d2972b2a7b8f72c43c0da8131137d562f1d65282a850084da2a8c3d"
+      },
+      {
+        "path": "poc/tests/test_desktop_app.py",
+        "sha256": "52d30ca7e0a7eadb9f2fa29c1446e0030f88e6b84cd3b35150c2fe87cb3526b8"
+      }
+    ],
+    "focused_budget_tests": 98,
+    "independent_review_kind": "agent; not human",
+    "focused_desktop_tests": 66,
+    "focused_desktop_seconds": 4.326,
+    "independent_review_completed": true
+  },
+  "sqlite_closure_full_source_regressions": {
+    "tests": 3264,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsed_seconds": 177.709478,
+    "report_sha256": "c16d263fe75323c3d1c7f888ab6fc5c4dbf8089dbb645d50f45eda8ebd48c4a8",
+    "runtime_platform": "Darwin",
+    "public_corpus_verified": true,
+    "scope": "Complete source regression after acceptance-helper SQLite closure repair; not Windows or real-model acceptance."
+  }
+}

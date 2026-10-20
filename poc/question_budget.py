@@ -1,4 +1,4 @@
-"""Shared question deadline, answer reserve, and restart-safe elapsed time."""
+"""Optional question deadline, answer reserve, and restart-safe elapsed time."""
 
 from collections.abc import Mapping
 import math
@@ -54,7 +54,7 @@ class QuestionBudget:
             self.cancel()
 
     def check(self):
-        """Check cancellation and the shared hard deadline, including SSE waits."""
+        """Check cancellation and any explicit hard deadline, including SSE waits."""
         self.check_cancel()
         if self.hard_remaining() == 0:
             raise QuestionDeadlineExceeded()
@@ -64,26 +64,39 @@ class QuestionBudget:
         remaining = self.hard_remaining()
         return float(configured) if remaining is None else min(float(configured), remaining)
 
-    def should_answer(self, configured):
-        # A configured timeout is an upper bound, not a latency prediction.
-        # In particular a large provider timeout must not disable first-round
-        # discovery. Use observed waits with a bounded synthesis allowance.
+    def _delivery_remaining(self):
         remaining = self.remaining()
         hard_remaining = self.hard_remaining()
         if hard_remaining is not None:
             remaining = hard_remaining if remaining is None else min(remaining, hard_remaining)
+        return remaining
+
+    def _answer_reserve(self):
+        reserve = float(self.finalization_reserve_seconds)
+        if self.request_durations:
+            reserve = max(reserve, min(60.0, max(self.request_durations)))
+        return reserve
+
+    def should_stop_local_investigation(self):
+        """Keep cheap necessary source reads until the actual answer reserve."""
+        remaining = self._delivery_remaining()
+        return remaining is not None and remaining <= self._answer_reserve()
+
+    def should_answer(self, configured):
+        # A configured timeout is an upper bound, not a latency prediction.
+        # Reserve the observed cost of another planning response as well as
+        # synthesis, without imposing that planning allowance on local reads.
+        remaining = self._delivery_remaining()
         if remaining is None:
+            # The caller still enforces request/progress limits. Elapsed time
+            # alone does not force an answer when no target was configured.
             return False
         # Even before a first response, reaching the target means the next
         # request must answer with available evidence rather than plan more work.
         if remaining <= 0:
             return True
-        # Reserve synthesis time before the first response too. A provider's
-        # inactivity timeout is not a prediction of how long synthesis takes.
-        reserve = float(self.finalization_reserve_seconds)
-        if self.request_durations:
-            reserve = max(reserve, min(60.0, max(self.request_durations)))
-        return remaining <= reserve
+        next_investigation = max(self.request_durations, default=0.0)
+        return remaining <= self._answer_reserve() + next_investigation
 
     def observe_request(self, seconds):
         self.request_durations.append(max(0.0, seconds))

@@ -12,11 +12,13 @@ from company_api import CompanyAPIConfig
 
 
 class AgentPolicyTests(unittest.TestCase):
-    def test_bounded_defaults_preserve_transport_context_and_adaptive_mode(self):
+    def test_progress_defaults_preserve_finite_calls_context_and_adaptive_mode(self):
         policy = resolve_agent_policy()
         self.assertEqual(policy.max_model_requests, 6)
-        self.assertEqual(policy.max_question_seconds, 180)
-        self.assertEqual(policy.hard_question_seconds, 180)
+        self.assertIsNone(policy.max_question_seconds)
+        self.assertIsNone(policy.hard_question_seconds)
+        self.assertIsNone(policy.delivery_target_seconds)
+        self.assertIsNone(policy.effective_delivery_target_seconds)
         self.assertEqual(policy.finalization_reserve_seconds, 45)
         self.assertEqual(policy.max_investigation_rounds, 5)
         self.assertEqual(policy.investigation_mode, "adaptive")
@@ -41,7 +43,7 @@ class AgentPolicyTests(unittest.TestCase):
         policy = resolve_agent_policy({"max_model_requests": None, "max_question_seconds": None,
                                        "hard_question_seconds": None})
         self.assertEqual((policy.max_model_requests, policy.max_question_seconds,
-                          policy.hard_question_seconds), (6, 180, 180))
+                          policy.hard_question_seconds), (6, None, None))
         self.assertEqual(policy.investigation_mode, "adaptive")
         self.assertTrue(policy.source_memory_enabled)
         strict = resolve_agent_policy({"max_model_requests": 2, "max_question_seconds": 7})
@@ -77,6 +79,32 @@ class AgentPolicyTests(unittest.TestCase):
         self.assertEqual(AgentPolicy(max_question_seconds=1800,
                                     hard_question_seconds=1800).hard_question_seconds, 300)
 
+    def test_explicit_deadlines_are_preserved_without_a_default_timer(self):
+        for options, expected in (({"max_question_seconds": 180}, 180),
+                                  ({"hard_question_seconds": 120}, 120),
+                                  ({"max_question_seconds": 300}, 300),
+                                  ({"hard_question_seconds": 300}, 300),
+                                  ({"max_question_seconds": 90, "hard_question_seconds": 120}, 90),
+                                  ({"max_question_seconds": 120, "hard_question_seconds": 7}, 7)):
+            with self.subTest(options=options):
+                policy = resolve_agent_policy(options)
+                self.assertEqual((policy.max_question_seconds, policy.hard_question_seconds), (expected, expected))
+                self.assertEqual(policy.effective_delivery_target_seconds, expected)
+                self.assertEqual(resolve_agent_policy(policy.to_dict()), policy)
+
+    def test_standalone_delivery_target_does_not_create_a_hard_deadline(self):
+        policy = AgentPolicy(delivery_target_seconds=120)
+        self.assertEqual(policy.effective_delivery_target_seconds, 120)
+        self.assertIsNone(policy.max_question_seconds)
+        self.assertIsNone(policy.hard_question_seconds)
+        self.assertEqual(resolve_agent_policy(policy.to_dict()), policy)
+
+    def test_explicit_finite_request_override_is_preserved(self):
+        policy = AgentPolicy(max_model_requests=8)
+        self.assertEqual(policy.max_model_requests, 8)
+        self.assertTrue(policy.is_last_request(7))
+        self.assertFalse(policy.can_request(8))
+
     def test_explicit_request_limit_reserves_final_request(self):
         policy = AgentPolicy(max_model_requests=2)
         self.assertEqual(policy.remaining_model_requests(0), 2)
@@ -91,10 +119,23 @@ class AgentPolicyTests(unittest.TestCase):
                 self.assertFalse(policy.is_last_request(used))
 
     def test_optional_limits_reject_invalid_values(self):
-        for field, maximum in (("max_model_requests", 32), ("max_question_seconds", 1800)):
+        for field, maximum in (("max_model_requests", 32), ("max_question_seconds", 1800),
+                               ("delivery_target_seconds", 1800)):
             for value in (0, -1, maximum + 1, True, 1.5, "5"):
                 with self.subTest(field=field, value=value), self.assertRaises(ValueError):
                     resolve_agent_policy({field: value})
+
+    def test_explicit_delivery_target_is_separate_and_cannot_extend_total_deadline(self):
+        policy = AgentPolicy(max_question_seconds=120, delivery_target_seconds=1)
+        self.assertEqual(policy.effective_delivery_target_seconds, 1)
+        self.assertEqual((policy.max_question_seconds, policy.hard_question_seconds), (120, 120))
+        self.assertEqual(resolve_agent_policy(policy.to_dict()), policy)
+        self.assertEqual(AgentPolicy(max_question_seconds=120, delivery_target_seconds=1800)
+                         .effective_delivery_target_seconds, 120)
+        strict = AgentPolicy(max_question_seconds=1, delivery_target_seconds=120)
+        self.assertEqual((strict.effective_delivery_target_seconds, strict.hard_question_seconds), (1, 1))
+        legacy = AgentPolicy(max_question_seconds=1)
+        self.assertEqual((legacy.effective_delivery_target_seconds, legacy.hard_question_seconds), (1, 1))
 
     def test_invalid_configuration_cannot_expand_transport_hard_limit(self):
         for value in ({"max_request_bytes": 256001}, {"max_model_requests": True},

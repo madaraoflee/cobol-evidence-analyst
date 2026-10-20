@@ -1,0 +1,14 @@
+{
+  "capture_kind": "Actual local application rendering saved genuine model answers; isolated replay copy, external model transport disabled.",
+  "source": "live-refined results",
+  "questions_and_answers_preserved": true,
+  "reload_restored_both_questions": true,
+  "screenshots": {
+    "01-real-batch-question-answer.png": "53a5c58aa7792c867545622c4db1cd3ad1f369b5472e45eacf4af2dacfc17d19",
+    "02-real-online-question-answer.png": "12b5343b3fceea4621e06bdad9330da62bec81bca5758796369cc9c4311628fa",
+    "03-real-online-table-role.png": "9b580d2bb241607e4cfc1cd38c001b59e6ddd977734188bd6a5eadf121c7fe02",
+    "04-real-online-failure-boundaries.png": "6d8083543c3bd3af766ababe52053f40f15e16179d86ef04efc3d0abb87110af",
+    "05-real-batch-program-file-roles.png": "e48f67637113cc809e0547d5cdba6ab5441ff924e809807dc46f1ebb49ab8a1c",
+    "06-real-batch-source-citation.png": "cb1728c6d687ee9a806dc82ce2ea36710ca7ba44bc5c0d5dd18aea894c9587ae"
+  }
+}

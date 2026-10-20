@@ -1,0 +1,182 @@
+{
+  "schema": "business-orientation-offline-scale-probe/v1",
+  "created_local_date": "2026-10-20",
+  "runtime": {
+    "platform": "Darwin",
+    "python": "3.14.4"
+  },
+  "tested_production_sha256": "605558aa5d7002151818e0fdc227565e042adf42a85b263eeb9ed19a2c4fded2",
+  "fixture_basis": "Existing neutral settlement fixture; repeated statements inserted after PROCEDURE DIVISION and before original READ/IF/COMPUTE/WRITE/CALL/GOBACK.",
+  "settings": {
+    "max_items_per_group": 32,
+    "max_source_chars": 262144,
+    "max_metadata_bytes": 24000,
+    "parse_cache_max_entries": 8,
+    "parse_cache_max_single_run_utf8_bytes": 131072
+  },
+  "cases": [
+    {
+      "neutral_repeated_statement": "CONTINUE",
+      "repeat_count": 5000,
+      "source_bytes": 45603,
+      "source_physical_lines": 5025,
+      "source_sha256": "620928ee2a5b05b731d3126a2fef2463c83e8c1f9f24b77acb566b59f7676e71",
+      "source_ends_with_original_goback": true,
+      "first_projection_seconds": 0.61419,
+      "identical_repeat_projection_seconds": 0.015857,
+      "cache": {
+        "hits": 1,
+        "misses": 1,
+        "current_entries": 1,
+        "max_entries": 8
+      },
+      "identical_repeat_result": true,
+      "late_expected_physical_lines": {
+        "formula": 5021,
+        "read": 5019,
+        "write": 5022,
+        "call": 5024
+      },
+      "retained_late_observations": {
+        "late_formula": true,
+        "late_read": true,
+        "late_write": true,
+        "late_call": true
+      },
+      "projection_truncated": false,
+      "projection_json_bytes": 8085,
+      "visible_rules_count": 2,
+      "boundary_reasons": [
+        "called_implementation_not_in_supplied_projection",
+        "source_data_roles_do_not_verify_runtime_object_identity_or_success",
+        "assignment_form_not_supported"
+      ]
+    },
+    {
+      "neutral_repeated_statement": "CONTINUE",
+      "repeat_count": 10000,
+      "source_bytes": 90603,
+      "source_physical_lines": 10025,
+      "source_sha256": "78148f4c76c00d0ca3e0d9aae2d73811cf0b471abb29d6f44a534bc96f87a5bc",
+      "source_ends_with_original_goback": true,
+      "first_projection_seconds": 2.039731,
+      "identical_repeat_projection_seconds": 0.032028,
+      "cache": {
+        "hits": 1,
+        "misses": 1,
+        "current_entries": 1,
+        "max_entries": 8
+      },
+      "identical_repeat_result": true,
+      "late_expected_physical_lines": {
+        "formula": 10021,
+        "read": 10019,
+        "write": 10022,
+        "call": 10024
+      },
+      "retained_late_observations": {
+        "late_formula": true,
+        "late_read": true,
+        "late_write": true,
+        "late_call": true
+      },
+      "projection_truncated": false,
+      "projection_json_bytes": 8099,
+      "visible_rules_count": 2,
+      "boundary_reasons": [
+        "called_implementation_not_in_supplied_projection",
+        "source_data_roles_do_not_verify_runtime_object_identity_or_success",
+        "assignment_form_not_supported"
+      ]
+    },
+    {
+      "neutral_repeated_statement": "MOVE 0 TO TEMP-VALUE.",
+      "repeat_count": 5000,
+      "source_bytes": 110603,
+      "source_physical_lines": 5025,
+      "source_sha256": "b0ba854f75094465e9a7ba97137f7c5740e3338abb59778390a1a7c728fb60aa",
+      "source_ends_with_original_goback": true,
+      "first_projection_seconds": 1.539223,
+      "identical_repeat_projection_seconds": 0.209165,
+      "cache": {
+        "hits": 1,
+        "misses": 1,
+        "current_entries": 1,
+        "max_entries": 8
+      },
+      "identical_repeat_result": true,
+      "late_expected_physical_lines": {
+        "formula": 5021,
+        "read": 5019,
+        "write": 5022,
+        "call": 5024
+      },
+      "retained_late_observations": {
+        "late_formula": false,
+        "late_read": false,
+        "late_write": false,
+        "late_call": true
+      },
+      "projection_truncated": true,
+      "projection_json_bytes": 23101,
+      "visible_rules_count": 32,
+      "boundary_reasons": [
+        "orientation_observation_budget",
+        "called_implementation_not_in_supplied_projection",
+        "source_data_roles_do_not_verify_runtime_object_identity_or_success",
+        "assignment_form_not_supported",
+        "record_binding_observation_limit",
+        "file_impact_budget_reached",
+        "orientation_is_bounded_not_a_complete_business_inventory"
+      ]
+    },
+    {
+      "neutral_repeated_statement": "MOVE 0 TO TEMP-VALUE.",
+      "repeat_count": 10000,
+      "source_bytes": 220603,
+      "source_physical_lines": 10025,
+      "source_sha256": "80bfb7d74f5c6d9c7d60d60c44bb87a8d1b2485b893dd0f226e9e2c2690237fb",
+      "source_ends_with_original_goback": true,
+      "first_projection_seconds": 4.278833,
+      "identical_repeat_projection_seconds": 4.289388,
+      "cache": {
+        "hits": 0,
+        "misses": 0,
+        "current_entries": 0,
+        "max_entries": 8
+      },
+      "identical_repeat_result": true,
+      "late_expected_physical_lines": {
+        "formula": 10021,
+        "read": 10019,
+        "write": 10022,
+        "call": 10024
+      },
+      "retained_late_observations": {
+        "late_formula": false,
+        "late_read": false,
+        "late_write": false,
+        "late_call": true
+      },
+      "projection_truncated": true,
+      "projection_json_bytes": 23103,
+      "visible_rules_count": 32,
+      "boundary_reasons": [
+        "orientation_observation_budget",
+        "called_implementation_not_in_supplied_projection",
+        "source_data_roles_do_not_verify_runtime_object_identity_or_success",
+        "assignment_form_not_supported",
+        "record_binding_observation_limit",
+        "file_impact_budget_reached",
+        "orientation_is_bounded_not_a_complete_business_inventory"
+      ]
+    }
+  ],
+  "limitations": [
+    "One local offline invocation pair per case; this is not p95, full repository throughput, model latency or business accuracy.",
+    "The source pages are fully retained as inputs; this optional projection is intentionally bounded and cannot represent every statement.",
+    "Repeated MOVE can exhaust bounded parser/observation/metadata capacity. Late observations absent from this projection are explicitly recorded; source input completeness does not imply projection completeness.",
+    "Runs larger than the fixed cache limit are deliberately not retained, so repeat parsing cost may remain. No performance threshold or new correctness guarantee is claimed.",
+    "No source, production settings, prompt, model, budget, or frozen paid-test record was changed; no external request was made."
+  ]
+}

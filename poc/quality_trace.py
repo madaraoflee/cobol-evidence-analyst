@@ -11,8 +11,8 @@ import time
 from prior_source_memory import source_binding_sha256
 from run_store import RunStore
 
-PIPELINE_VERSION = "question-evidence-v30"
-PROMPT_VERSION = "business-chat-v30"
+PIPELINE_VERSION = "question-evidence-v35"
+PROMPT_VERSION = "business-chat-v31"
 
 def _digest(value):
     return hashlib.sha256(value).hexdigest()
@@ -61,10 +61,10 @@ class QualityTrace:
                              "base_url": config.base_url, "model": config.chat_model,
                              "timeout_seconds": config.timeout_seconds,
                              "max_output_tokens": config.max_output_tokens,
-                             "api_style": config.api_style}, sort_keys=True).encode()),
+                             "api_style": config.api_style, **config.generation_parameters()}, sort_keys=True).encode()),
                          "timeout_seconds": config.timeout_seconds,
                          "max_output_tokens": config.max_output_tokens,
-                         "sampling": "provider_default", "policy": policy.to_dict()},
+                         **config.generation_parameters(), "sampling": "provider_default", "policy": policy.to_dict()},
                      "rounds": [], "final": {}}
         self._pending = None
         self._pending_round_id = None
@@ -160,7 +160,7 @@ class QualityTrace:
                            "parsed_answer_characters": parsed_answer_characters,
                            "choice_index": choice_index}
         if error not in {"REQUEST_TIMEOUT", "TRANSPORT_ERROR", "TRANSPORT_RESPONSE_INVALID",
-                         "QUESTION_TIME_BUDGET_EXHAUSTED"}:
+                         "QUESTION_TIME_BUDGET_EXHAUSTED", "MODEL_REASONING_LIMIT_EXCEEDED"}:
             self.run_store.finish_request(self.data["run_id"], row["round_id"], row["response"])
         self._pending = None
 
