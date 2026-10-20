@@ -160,7 +160,8 @@ class DesktopAcceptanceEvidenceTests(unittest.TestCase):
             self.assertIn("completeness_cl_single_request", case["assertions"])
         late = (self.root / "cl_late_context/late.clle").read_text(encoding="utf-8").splitlines()
         self.assertGreater(next(index for index, line in enumerate(late, 1) if line.startswith("CALL ")), 300)
-        self.assertIn("quality_cl_late_scope_unknown", cases["cl_late_context"]["assertions"])
+        self.assertIn("quality_cl_late_control_source_supplied", cases["cl_late_context"]["assertions"])
+        self.assertIn("quality_cl_late_runtime_unknown", cases["cl_late_context"]["assertions"])
 
     def test_old_incomplete_repair_cannot_pass_new_source_completion_gate(self):
         case, agent, trace = self.monthly_fixture(repair=True)

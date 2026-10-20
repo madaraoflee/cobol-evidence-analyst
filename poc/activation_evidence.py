@@ -257,13 +257,14 @@ def _bound_cl_callers(database_path, business_map, context):
                 if ref is not None:
                     conditions.append(dict(guard))
                     condition_refs.append(reference(ref))
+        scope_known = row.get("control_scope_supplied") is True and row.get("scope_known") is True
         callers.append({"relative_path": row["relative_path"], "line": row["start_line"],
             "source_sha256": row["source_sha256"], "target_name": names[0],
             "target_path": roots[0], "relation_type": "CL_CALL", "source_language": "CL",
             "occurrence_id": row["occurrence_id"], "source_ref": source_ref,
             "conditions": conditions, "condition_refs": condition_refs,
-            "scope_known": row.get("control_scope_supplied") is True and row.get("scope_known") is True,
-            "scope_unknown_reason": "cl_control_or_environment_source_not_supplied",
+            "scope_known": scope_known,
+            "scope_unknown_reason": None if scope_known else "cl_control_or_environment_source_not_supplied",
             "compilation_status": "active", "binding_confirmed": False,
             "static_target_name_match": True,
             "target_binding_basis": "unique_program_source_name_not_runtime_object",

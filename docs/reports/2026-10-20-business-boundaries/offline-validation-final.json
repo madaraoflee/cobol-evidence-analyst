@@ -1,7 +1,7 @@
 {
   "schema": "final-source-validation/v1",
   "product_sha256": {
-    "poc/activation_evidence.py": "05d890d923dfcf16c0778197fc6d5d0cfdd4c8f2143ee7f65a0bbe9a8155593f",
+    "poc/activation_evidence.py": "466e65c581fb6e713f38f93577c22f7d2bffd11bec8f431dfb19e4a8432ef73d",
     "poc/agent_loop.py": "15a66a72e5d88be7fe0ce9f43e87e9115535faafa4fe855275c2bd4896239893",
     "poc/agent_policy.py": "56141db74f987ba6f344d7df0630516ff26a79205c05cf47eb2fbb172c6f32d5",
     "poc/analysis_continuation.py": "08913658d4c685186371bcdf924c0189e7a561c83f2ac98e12fc62741eeac763",
@@ -79,7 +79,7 @@
     "poc/procedure_expansion.py": "3bc972bb71499e595201777f5dd1e15dba3da982566f03f2f0680e4cdbf605f0",
     "poc/prompt_projection.py": "2af16d6e34858ab1ce0b51e29e8c63b0d3227f20025601f64d378922af8e398c",
     "poc/public_business_acceptance.py": "217ca271310a8ee60470f4980e983fb8a2f0d5eefef49daad0d89456d41a6fca",
-    "poc/quality_trace.py": "201daf836dab5e6d894cd9c6d5d973d96a384f1e81cfba9087d1682da6bf356b",
+    "poc/quality_trace.py": "ccca986ea078c0f212ff4b084f05cd54288b0954d15818e1637fd624a7d79ff8",
     "poc/question_budget.py": "3b8f1bb209a9819eb163d42d9193e5ba21a29303eb1d9ced4aeaa28e43558782",
     "poc/question_intent.py": "ba2374f2a5096eefc52c2fffeadc6bdc48e934a27fad4fa445b36d14aa77b51c",
     "poc/question_investigation.py": "d497281350fb3ae7f72fc5a16bca5bf4c5bed66ab763770533d87c52bcc7e5d3",
@@ -112,9 +112,9 @@
     "poc/syntax_evidence.py": "800f82c0d51de2830d3ea818087aa600643beffaf22757206fdef1f77b5269c6",
     "poc/web_app.py": "9d8a71e7d8ad2c00cbd273ae8e935102d19a240fd04b81b0873e441cecb6c2f6"
   },
-  "pipeline_version": "question-evidence-v44",
-  "prompt_version": "business-chat-v39",
-  "python_3_10_syntax_files": 433,
+  "pipeline_version": "question-evidence-v45",
+  "prompt_version": "business-chat-v40",
+  "python_3_10_syntax_files": 434,
   "browser_tests": {
     "passed": 192,
     "failed": 0,
@@ -123,28 +123,41 @@
   },
   "python_regressions": {
     "status": "passed",
-    "selected_count": 3531,
-    "tests_run": 3531,
+    "selected_count": 3539,
+    "tests_run": 3539,
     "failures": [],
     "errors": [],
     "skipped": [],
     "runner_errors": [],
     "diagnostic_errors": [],
-    "elapsed_seconds": 210.893328
+    "elapsed_seconds": 218.850634
   },
-  "local_regression_report_sha256": "d6407dd6d9a35ef74ba5028e90c6598cdcec5791685d969ef7f8044cd2fe6ba5",
+  "local_regression_report_sha256": "66defec87e17c02cd454f9410dcffc21c28a6846ed2be123cffc70517d52e436",
   "semantic_quality_not_inferred_from_source_tests": true,
   "python_3_10_syntax_scope": "All poc/**/*.py and tools/**/*.py plus build_app.py",
   "boundary_retest_ready_sha256": "1513e0f211513434229096914802e8a3a6d81ec80f2df2b287d5a93e20d42d28",
-  "live_retest_scope": "Final live question is phase10 v43 source-file-only scope variant in a fresh independent conversation with low effort and brief detail. Published v44 has only offline replay and source/native regressions for its later review fix; it is not v44 model acceptance.",
+  "live_retest_scope": "Phase10 v43 fresh source-scope-only variant is the last paid request. v44 and v45 received only offline/source HTTP and native regression verification, not fresh real-model acceptance.",
   "zero_call_configuration_failure_record": "phase6-initialization-failure.json",
   "prior_failed_source_regression": "offline-validation-phase8-failed.json",
   "last_live_pipeline": "question-evidence-v43",
   "last_live_prompt": "business-chat-v38",
   "last_live_source_validation": "offline-validation-phase10-live.json",
   "post_live_changed_product_files": [
+    "poc/activation_evidence.py",
     "poc/business_synthesis.py",
     "poc/quality_trace.py"
   ],
-  "post_live_change_scope": "Only bounded semantic review candidate nomination and version constants. No new paid model test after this change. Raw and delivered historical answers and their independent semantic failures remain unchanged."
+  "post_live_change_scope": "v44 bounded semantic review fix and v45 correction of a stale source-unknown reason when the CL guard is actually supplied. No new paid model test; initial generation metadata changed at v45. Raw and delivered v43 answers and their failed semantic review remain unchanged.",
+  "prior_v44_validation": "offline-validation-v44.json",
+  "prior_failed_native_build": "windows-native-attempt1.json",
+  "native_acceptance_contract": {
+    "cases": 25,
+    "samples": 79,
+    "manifest_sha256": "62cfd53caf3137c22b208b210b9ac63f2b27d16a6ea10807e364e10ad38315f9",
+    "tool_sha256": "7b27b78f8f86132399b58cb231e6d0733bcf1e77b11871603392b053fd6d63b6",
+    "source_http_replay_sha256": "e6d8455f5f02e846c573dc7e196c2550a87fccd9525af9f3821a59cb94059a64",
+    "source_http_replay_samples": 3,
+    "source_http_real_model_calls": 0,
+    "source_http_is_windows_exe_acceptance": false
+  }
 }

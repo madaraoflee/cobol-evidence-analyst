@@ -321,6 +321,32 @@ def _public_case(case):
     return next(item for item in cases if item["id"] == case["public_case_id"])
 
 
+def _cl_guard_sources_supplied(call, pages):
+    """Require each indexed guard's exact physical text in the actual wire."""
+    guards = call.get("guards", [])
+    if not guards:
+        return False
+    for guard in guards:
+        ref, identifiers = guard.get("source_ref") or {}, set(guard.get("evidence_ids", []))
+        start, end = ref.get("start_line"), ref.get("end_line")
+        if (guard.get("source_supplied") is not True or guard.get("outcome_evaluated") is not False
+                or not identifiers or type(start) is not int or type(end) is not int
+                or not 1 <= start <= end or guard.get("source_line") != start
+                or ref.get("relative_path") != call.get("relative_path")
+                or ref.get("source_sha256") != call.get("source_sha256") or not ref.get("statement")):
+            return False
+        witnesses = {page["evidence_id"] for page in pages
+            if page.get("evidence_id") in identifiers and not page.get("span_truncated")
+            and page.get("relative_path") == ref["relative_path"]
+            and page.get("source_sha256") == ref["source_sha256"]
+            and page["start_line"] <= start <= end <= page["end_line"]
+            and "\n".join(page["source_text"].splitlines()[
+                start - page["start_line"]:end - page["start_line"] + 1]) == ref["statement"]}
+        if not identifiers <= witnesses:
+            return False
+    return True
+
+
 def _provider_answer(case, source, payload, first_request):
     pages = supplied_pages(payload)
     verify_pages(source, pages)
@@ -337,8 +363,12 @@ def _provider_answer(case, source, payload, first_request):
         require(context.get("unread_candidate_count") == 0, "CL candidates remain unread before first response")
         if case["id"] == "cl_late_context":
             call = calls[0]
+            require(_cl_guard_sources_supplied(call, pages), "Late CL guard raw source was not supplied")
+            guard = call["guards"][0]
+            require(guard.get("outcome") is True, "Late CL call must belong to the supplied true branch")
             return (f"源码在晚出现的调用点声明 CALL BATCHPAY，实参为 &READY。[{call['evidence_ids'][0]}] "
-                "前序控制范围未完整供应，是否走到该调用及实际作业执行保持未知。")
+                f"它位于 {guard['condition']} 成立的源码分支。[{guard['evidence_ids'][0]}] "
+                "条件的实际取值、前序命令能否正常完成、是否走到该调用及实际作业执行保持未知。")
         submit = next(row for row in observations if row.get("command") == "SBMJOB")
         override = next(row for row in observations if row.get("command") == "OVRDBF")
         deleted = next(row for row in observations if row.get("command") == "DLTOVR")
@@ -422,8 +452,25 @@ def _cl_context_checks(case, agent, pages, trace):
         late = [row for row in actual if row.get("relative_path") == "late.clle" and row.get("start_line", 0) > 300]
         checks["quality_cl_late_indexed_fact_bound"] = bool(bound and late and all(
             row.get("binding_basis") == "indexed_complete_source_parse_and_supplied_span" for row in late))
-        checks["quality_cl_late_scope_unknown"] = bool(late and all(row.get("control_scope_supplied") is False
-            and row.get("runtime_execution_verified") is False for row in late)
+        callers = (_investigation(trace or {}).get("activation_evidence") or {}).get("callers", [])
+        checks["quality_cl_late_control_source_supplied"] = bool(bound and late and all(
+            row.get("control_scope_supplied") is True and row.get("scope_known") is True
+            and row.get("scope_unknown") is False and not row.get("missing_guard_source_lines")
+            and _cl_guard_sources_supplied(row, pages)
+            and any(guard.get("source_line") == 3 and guard.get("condition") == "&READY *EQ 'Y'"
+                and guard.get("outcome") is True
+                for guard in row.get("guards", []))
+            and any(caller.get("occurrence_id") == row["occurrence_id"]
+                and caller.get("scope_known") is True and caller.get("scope_unknown_reason") is None
+                for caller in callers) for row in late)
+            and "&READY *EQ 'Y'" in agent.get("answer", "")
+            and "前序控制范围未完整供应" not in agent.get("answer", ""))
+        checks["quality_cl_late_runtime_unknown"] = bool(late and all(
+            row.get("runtime_execution_verified") is False and row.get("runtime_object_verified") is False
+            and all(guard.get("outcome_evaluated") is False for guard in row.get("guards", []))
+            for row in late) and context.get("scope", {}).get("scheduler_verified") is False
+            and all(caller.get("execution_verified") is False and caller.get("binding_confirmed") is False
+                for caller in callers if caller.get("occurrence_id") in {row["occurrence_id"] for row in late})
             and "未知" in agent.get("answer", ""))
         checks["completeness_cl_no_repeated_read"] = (context.get("unread_candidate_count") == 0
             and not any(action.get("reason") == "indexed_batch_context_not_supplied"

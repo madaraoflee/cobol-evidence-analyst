@@ -1,9 +1,14 @@
 """A program category does not add an unasked launch investigation."""
+import hashlib
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from activation_evidence import investigate_activation
+from batch_context_evidence import investigate_batch_context
+from business_index import build_business_index
 from question_planner import QuestionPlanner, runtime_activation_requested
 
 
@@ -85,6 +90,102 @@ class ActivationQuestionScopeTests(unittest.TestCase):
                 self.assertIn("activation", plan.intents)
                 self.assertIn("scheduler_binding", plan.required_obligations)
         self.assertFalse(runtime_activation_requested("批处理输入记录里的发起者字段是什么意思？"))
+
+
+class SuppliedCLScopeReasonTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.source = self.root / "source"
+        self.source.mkdir()
+        self.database = self.root / "index.sqlite"
+        (self.source / "service.cbl").write_bytes(
+            b"IDENTIFICATION DIVISION.\nPROGRAM-ID. SERVICE.\nPROCEDURE DIVISION.\nGOBACK.\n")
+
+    def fixture(self, *, environment=False):
+        lines = ["PGM", "DCL VAR(&READY) TYPE(*CHAR) LEN(1)",
+                 "IF COND(&READY *EQ 'Y') THEN(DO)"]
+        if environment:
+            lines.insert(2, "OVRDBF FILE(INPUTLF) TOFILE(DATALIB/INPUTPF)")
+        lines += ["/* neutral source context */"] * 300
+        lines += ["CALL SERVICE PARM(&READY)", "ENDDO", "ENDPGM"]
+        (self.source / "launch.clle").write_bytes(("\n".join(lines) + "\n").encode("utf-8"))
+        build_business_index(self.source, self.database, source_format="free",
+                             framework_reference_path="", quiet=True, verify_content=True)
+        return lines.index("IF COND(&READY *EQ 'Y') THEN(DO)") + 1, len(lines) - 2
+
+    def page(self, path, first=1, last=None):
+        raw = (self.source / path).read_bytes()
+        lines = raw.decode("utf-8").splitlines()
+        last = len(lines) if last is None else last
+        return {"relative_path": path, "source_sha256": hashlib.sha256(raw).hexdigest(),
+                "source_text": "\n".join(lines[first-1:last]), "start_line": first,
+                "end_line": last, "evidence_id": f"ev_{path}_{first}_{last}", "span_truncated": False}
+
+    def investigate(self, pages):
+        mapping = {"direct_paths": ["service.cbl"], "programs": [
+            {"relative_path": "service.cbl", "program_names": ["SERVICE"]}]}
+        context = investigate_batch_context(mapping, pages, database_path=self.database)["cl_context"]
+        result = investigate_activation(mapping, pages, database_path=self.database, cl_context=context)
+        for caller in result["activation_evidence"]["callers"]:
+            self.assertFalse(caller["execution_verified"])
+            self.assertFalse(caller["runtime_object_verified"])
+            self.assertFalse(caller["binding_confirmed"])
+        self.assertFalse(result["activation_evidence"]["scheduler_binding_verified"])
+        self.assertFalse(result["activation_evidence"]["execution_verified"])
+        return result
+
+    def test_exact_separate_guard_page_clears_only_static_scope_unknown_reason(self):
+        guard_line, call_line = self.fixture()
+        self.assertGreater(call_line, 300)
+        pages = [self.page("service.cbl"), self.page("launch.clle", guard_line, guard_line),
+                 self.page("launch.clle", call_line, call_line)]
+        result = self.investigate(pages)
+        caller, = result["activation_evidence"]["callers"]
+        self.assertTrue(caller["scope_known"])
+        self.assertIsNone(caller["scope_unknown_reason"])
+        self.assertTrue(caller["conditions_supplied"])
+        self.assertEqual(caller["condition_evidence_ids"], [pages[1]["evidence_id"]])
+        self.assertEqual(caller["conditions"][0]["condition"], "&READY *EQ 'Y'")
+        self.assertFalse(caller["conditions"][0]["outcome_evaluated"])
+        statuses = {item["kind"]: item["status"] for item in result["required_items"]}
+        self.assertEqual(statuses["activation_conditions"], "SATISFIED")
+        self.assertEqual(statuses["scheduler_binding"], "OPEN")
+
+    def test_missing_or_invalid_guard_keeps_unknown_reason_and_runtime_unverified(self):
+        guard_line, call_line = self.fixture()
+        guard = self.page("launch.clle", guard_line, guard_line)
+        for changed in (None, {**guard, "source_sha256": "0" * 64},
+                        {**guard, "source_text": "IF COND(&READY *EQ 'N') THEN(DO)"},
+                        {**guard, "span_truncated": True}):
+            with self.subTest(guard=changed):
+                pages = [self.page("service.cbl"), self.page("launch.clle", call_line, call_line)]
+                if changed is not None:
+                    pages.append(changed)
+                result = self.investigate(pages)
+                caller, = result["activation_evidence"]["callers"]
+                self.assertFalse(caller["scope_known"])
+                self.assertEqual(caller["scope_unknown_reason"],
+                                 "cl_control_or_environment_source_not_supplied")
+                self.assertFalse(caller["conditions_supplied"])
+                self.assertNotEqual(next(item["status"] for item in result["required_items"]
+                    if item["kind"] == "activation_conditions"), "SATISFIED")
+
+    def test_supplied_guard_without_environment_predecessor_cannot_claim_known_scope(self):
+        guard_line, call_line = self.fixture(environment=True)
+        pages = [self.page("service.cbl"), self.page("launch.clle", guard_line, guard_line),
+                 self.page("launch.clle", call_line, call_line)]
+        partial = self.investigate(pages)
+        self.assertFalse(partial["activation_evidence"]["callers"])
+        self.assertNotEqual(next(item["status"] for item in partial["required_items"]
+            if item["kind"] == "activation_conditions"), "SATISFIED")
+        result = self.investigate([*pages, self.page("launch.clle", 3, 3)])
+        complete, = result["activation_evidence"]["callers"]
+        self.assertTrue(complete["scope_known"])
+        self.assertIsNone(complete["scope_unknown_reason"])
+        self.assertEqual(next(item["status"] for item in result["required_items"]
+            if item["kind"] == "activation_conditions"), "SATISFIED")
 
 
 if __name__ == "__main__":

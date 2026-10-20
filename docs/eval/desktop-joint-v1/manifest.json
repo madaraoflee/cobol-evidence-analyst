@@ -1150,14 +1150,16 @@
         "lifecycle_index_reused",
         "completeness_reviewed_ranges_supplied",
         "quality_cl_late_indexed_fact_bound",
-        "quality_cl_late_scope_unknown",
+        "quality_cl_late_control_source_supplied",
+        "quality_cl_late_runtime_unknown",
         "completeness_cl_no_repeated_read",
         "completeness_cl_single_request"
       ],
       "assertion_groups": {
         "quality": [
           "quality_cl_late_indexed_fact_bound",
-          "quality_cl_late_scope_unknown"
+          "quality_cl_late_control_source_supplied",
+          "quality_cl_late_runtime_unknown"
         ],
         "completeness": [
           "completeness_answer_recorded",
