@@ -1252,6 +1252,104 @@
         "max_business_context_actions_per_turn": 0,
         "max_evidence_groups": 0
       }
+    },
+    {
+      "id": "business_batch_overview",
+      "owner": "runtime",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "quality_business_purpose_and_data_roles_preserved",
+        "quality_runtime_unknowns_remain_local",
+        "completeness_roles_supplied_before_answer",
+        "completeness_one_model_request",
+        "evidence_raw_source_and_versions_match",
+        "evidence_visible_answer_matches",
+        "lifecycle_default_has_no_fixed_total_deadline"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_business_purpose_and_data_roles_preserved",
+          "quality_runtime_unknowns_remain_local"
+        ],
+        "completeness": [
+          "completeness_roles_supplied_before_answer",
+          "completeness_one_model_request"
+        ],
+        "evidence": [
+          "evidence_raw_source_and_versions_match",
+          "evidence_visible_answer_matches"
+        ],
+        "lifecycle": [
+          "lifecycle_default_has_no_fixed_total_deadline"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "runtime_business_onboarding",
+      "fixture_sha256": {
+        "nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+        "settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+        "balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5"
+      },
+      "policy": {
+        "max_model_requests": 6,
+        "max_question_seconds": null,
+        "hard_question_seconds": null,
+        "max_answer_revisions": 0
+      }
+    },
+    {
+      "id": "business_online_overview",
+      "owner": "runtime",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "quality_business_purpose_and_data_roles_preserved",
+        "quality_runtime_unknowns_remain_local",
+        "completeness_roles_supplied_before_answer",
+        "completeness_one_model_request",
+        "evidence_raw_source_and_versions_match",
+        "evidence_visible_answer_matches",
+        "lifecycle_default_has_no_fixed_total_deadline"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_business_purpose_and_data_roles_preserved",
+          "quality_runtime_unknowns_remain_local"
+        ],
+        "completeness": [
+          "completeness_roles_supplied_before_answer",
+          "completeness_one_model_request"
+        ],
+        "evidence": [
+          "evidence_raw_source_and_versions_match",
+          "evidence_visible_answer_matches"
+        ],
+        "lifecycle": [
+          "lifecycle_default_has_no_fixed_total_deadline"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "runtime_business_onboarding",
+      "fixture_sha256": {
+        "nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+        "settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+        "balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5"
+      },
+      "policy": {
+        "max_model_requests": 6,
+        "max_question_seconds": null,
+        "hard_question_seconds": null,
+        "max_answer_revisions": 0
+      }
     }
   ]
 }

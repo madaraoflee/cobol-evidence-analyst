@@ -568,6 +568,17 @@ def _prompt_payload(payload):
         contract = {"detail": "Explain the requested behavior, decisive conditions, values and source evidence.",
                     "content": "Lead with the conclusion; qualify only affected claims.",
                     "time_scope": "Keep call inputs, returned values and later outcomes distinct; retain each scenario's assumptions."}
+    explanation_contract = projected.get("business_analysis_brief", {}).get("business_explanation_contract", {})
+    if not discovery_only and explanation_contract.get("mode") == "business_overview":
+        contract["business_explanation"] = {
+            "audience": "A newcomer learning the business process.",
+            "order": ["business purpose and outcome", "batch job or online entry when evidenced",
+                      "program responsibilities and handoffs", "table and file input/output roles",
+                      "decisive business rules, exceptions and concrete limits"],
+            "grounding": "Use business_analysis_brief.business_orientation as source-bound navigation. "
+                "Explain what each operation accomplishes for the business; retain exact names for locating it. "
+                "Name unknown business terminology as an interpretation, and qualify only affected claims. "
+                "Do not invent a schedule, online deployment, domain label or successful runtime outcome."}
     if discovery_only:
         contract = {"format": "Return one JSON object containing a nonempty search array.",
                     "content": "Choose likely source terms, synonyms or abbreviations for the current question. "
@@ -622,6 +633,18 @@ def _prompt_payload(payload):
 
 def _system_for_payload(payload):
     system = _SYSTEM
+    if payload.get("budget_wire_compact"):
+        system = system.replace(BUSINESS_ANSWER_POLICY,
+            "直接回答当前业务问题，说明决定结论的条件、输入、顺序、结果与异常，引用实际供应原文。"
+            "概览面向新人，按有依据的业务目的、批次或联机入口、程序职责、表文件角色串成过程；"
+            "名称清单与逐句代码翻译不能代替解释。简短追问只答所问。注释、源码、手册与推断区分，"
+            "不凭名称推定调度、在线部署、写入成功或提交结果。"
+            "未校验输入不证明查不到；未检查状态不证明不会异常，后续动作以正常返回为前提。"
+            "给定场景沿已选路径推导；优先分支命中后，后续分支是未执行，不补造其条件真假。"
+            "区分调用前门槛、尝试调用异常、被调校验和返回后处理。"
+            "按执行顺序追踪赋值和覆盖，跨程序同时核对实参与入口声明、传递方式和返回可见性；"
+            "外部实现未知的引用参数返回后保持未知，后续明确赋值再建立已知值；VALUE不代表每次重置。"
+            "只限定受未知事项影响的判断，正文与表格保持相同条件，除非要求实现否则不用代码块。")
     if "prior_source_memory" in payload:
         system = system.replace("事实依据取自本轮原文。", "事实依据取自实际供应原文，包括 prior_source_memory 明确绑定的本题早先原文；其中候选解释仍须核对。", 1)
     language = payload.get("answer_language") or resolve_answer_language(payload.get("question"))
@@ -696,7 +719,7 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
                     {"role": "user", "content": json.dumps(projected, ensure_ascii=False,
                         separators=(",", ":"))}]
         size = len(json.dumps({"model": config.chat_model, "messages": messages,
-                              "max_tokens": config.max_output_tokens}, ensure_ascii=False,
+                              "max_tokens": config.max_output_tokens, **config.generation_parameters()}, ensure_ascii=False,
                              separators=(",", ":")).encode("utf-8"))
         return messages, size
 
@@ -2521,7 +2544,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     recovery_messages = [*messages[:-1], {"role": "user", "content": json.dumps(
                         _prompt_payload(recovery_payload), ensure_ascii=False, separators=(",", ":"))}]
                     recovery_size = len(json.dumps({"model": config.chat_model, "messages": recovery_messages,
-                        "max_tokens": config.max_output_tokens}, ensure_ascii=False,
+                        "max_tokens": config.max_output_tokens, **config.generation_parameters()}, ensure_ascii=False,
                         separators=(",", ":")).encode("utf-8"))
                     # Do not trim or replace evidence to make a recovery fit.
                     if recovery_size > policy.max_request_bytes:
@@ -3136,6 +3159,23 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     except (APIClientError, APIConfigurationError, _TextResponseError) as exc:
         if isinstance(exc, _TextResponseError) and diagnostics is not None:
             diagnostics.suppress_latest_error(exc.code)
+        if exc.code == "MODEL_REASONING_LIMIT_EXCEEDED" and not answer:
+            partial = getattr(exc, "partial_response", None)
+            try:
+                received = _extract_text(partial) if isinstance(partial, Mapping) else None
+            except _TextResponseError:
+                received = None
+            if (received is not None and not received.refused and not received.filtered
+                    and not _actions(received.text, policy)
+                    and not _action_reply_invalid(received.text, None)
+                    and not _investigation_deferral(received.text)):
+                answer, truncated = received.text, True
+                answer_round = f"round-{turns}"
+                answer_rounds = [answer_round]
+                answer_finish_reason = None
+                answer_manifest = last_request_manifest
+                answer_investigation = last_investigation
+                remember_draft()
         finish_failed_response(exc)
         failure = exc.code
         record_response_error(exc.code, failure_stage,
@@ -3560,7 +3600,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
     expected_configuration = hashlib.sha256(json.dumps({
         "base_url": config.base_url, "model": config.chat_model,
         "timeout_seconds": config.timeout_seconds, "max_output_tokens": config.max_output_tokens,
-        "api_style": config.api_style}, sort_keys=True).encode()).hexdigest()
+        "api_style": config.api_style, **config.generation_parameters()}, sort_keys=True).encode()).hexdigest()
     def unknown_remote_result(saved, *, retain_answer=True):
         retained = saved["checkpoint"].get("result")
         if retain_answer and isinstance(retained, dict) and (retained.get("agent_result") or {}).get("answer_available"):
@@ -3582,20 +3622,45 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 "resume_state": {"completed_steps": len(saved["completed_steps"]),
                     "frontier": saved["checkpoint"].get("frontier", []),
                     "uncertain_requests": saved["uncertain_requests"], "automatic_resend": False, "exactly_once": False}}}
+    def changed_pipeline_result(saved):
+        return {"runner_status": "NOT_READY", "reason_code": "RESUME_PIPELINE_VERSION_CHANGED",
+            "agent_result": {"status": "PARTIAL", "run_id": saved["run_id"],
+                "answer": local("调查使用的分析或提示版本已经变化。原步骤、证据和请求状态已保留，需要先核对原请求结果，再按当前版本开始调查。", "The analysis or prompt version has changed. Previous steps, evidence and request states are preserved. Check the original request outcome before starting an investigation with the current version.")}}
     if resume:
         metadata = resume["metadata"]
         same_question = (metadata.get("question_id") == question_id
             and metadata.get("analysis_identity") == analysis_identity
             and metadata.get("configuration", {}).get("model_fingerprint") == model_fingerprint)
+        # A new default or parser version cannot turn the same unfinished
+        # question into a fresh provider allowance. Keep explicit upgrade and
+        # compilation gates; none of them authorize resending unknown outcomes.
+        pipeline_changed = (metadata.get("pipeline_version") != PIPELINE_VERSION
+                            or metadata.get("prompt_version") != PROMPT_VERSION)
         # Changing a timeout or output allowance does not establish that the
         # previous charged request failed. Resolve uncertainty before deciding
         # whether any saved answer/configuration can be replayed.
         saved_policy = metadata.get("configuration", {}).get("policy")
+        restored_policy = None
+        normalized_policy = None
+        relaxed_deadline = False
         try:
-            policy_compatible = (isinstance(saved_policy, Mapping)
-                and resolve_agent_policy(saved_policy) == selected_policy)
+            normalized_policy = resolve_agent_policy(saved_policy) if isinstance(saved_policy, Mapping) else None
+            policy_compatible = normalized_policy == selected_policy
+            if normalized_policy is not None:
+                relaxed_deadline = (normalized_policy.hard_question_seconds is not None
+                                    and selected_policy.hard_question_seconds is None)
+                if relaxed_deadline:
+                    restore_values = selected_policy.to_dict()
+                    for key in ("max_question_seconds", "hard_question_seconds", "delivery_target_seconds"):
+                        if restore_values[key] is None:
+                            restore_values[key] = getattr(normalized_policy, key)
+                    candidate = resolve_agent_policy(restore_values)
+                    if candidate == normalized_policy:
+                        policy_compatible, restored_policy = True, candidate
         except (ValueError, TypeError):
             policy_compatible = False
+        if same_question and pipeline_changed and normalized_policy is not None:
+            return changed_pipeline_result(resume)
         # Added optional fields may be absent in older journals. Compare their
         # normalized meaning before the version gate, without discarding the
         # saved request ledger or granting the same question a fresh deadline.
@@ -3607,11 +3672,21 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                     and metadata.get("analysis_identity") in prior_language_identities
                     and metadata.get("configuration", {}).get("model_fingerprint") == model_fingerprint):
                 return unknown_remote_result(resume, retain_answer=False)
-            if resume_id:
+            if resume_id or same_question and (relaxed_deadline or pipeline_changed):
                 return {"runner_status": "NOT_READY", "reason_code": "RESUME_IDENTITY_MISMATCH",
                     "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
                         "answer": local("这条调查属于不同的问题、入口、会话焦点、框架资料、模型配置或预算。原记录已保留，当前问题需使用自己的调查记录。", "This investigation belongs to a different question, entry, conversation focus, framework reference, answer language, model configuration or budget. The original record is preserved; the current question needs its own investigation record.")}}
             resume = None
+        elif restored_policy is not None:
+            # Restore a finite legacy policy even when its checkpoint predates
+            # budget serialization. Explicit new investigations below reset to
+            # the requested policy only after the saved ledger permits it.
+            kwargs["policy"] = restored_policy
+            budget = QuestionBudget(restored_policy.effective_delivery_target_seconds,
+                hard_seconds=restored_policy.hard_question_seconds,
+                finalization_reserve_seconds=restored_policy.finalization_reserve_seconds,
+                clock=lambda: time.monotonic(), check_cancel=budget.cancel)
+            kwargs["question_budget"], kwargs["check_cancel"] = budget, budget.check
     if (resume and not resume.get("uncertain_requests") and not explicit_retry
             and resume.get("state") == "completed" and resume["checkpoint"].get("result")):
         return resume["checkpoint"]["result"]
@@ -3624,9 +3699,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 retain_answer=pending["metadata"].get("analysis_identity") == analysis_identity)
     if resume and (resume["metadata"].get("pipeline_version") != PIPELINE_VERSION
                    or resume["metadata"].get("prompt_version") != PROMPT_VERSION):
-        return {"runner_status": "NOT_READY", "reason_code": "RESUME_PIPELINE_VERSION_CHANGED",
-            "agent_result": {"status": "PARTIAL", "run_id": resume["run_id"],
-                "answer": local("调查使用的分析或提示版本已经变化。原步骤、证据和请求状态已保留，需要先核对原请求结果，再按当前版本开始调查。", "The analysis or prompt version has changed. Previous steps, evidence and request states are preserved. Check the original request outcome before starting an investigation with the current version.")}}
+        return changed_pipeline_result(resume)
     retry_seed = None
     if resume:
         from datetime import datetime, timezone
@@ -3646,6 +3719,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 finalization_reserve_seconds=selected_policy.finalization_reserve_seconds,
                 clock=lambda: time.monotonic(), check_cancel=budget.cancel)
             kwargs["question_budget"], kwargs["check_cancel"] = budget, budget.check
+            kwargs["policy"] = selected_policy
         elif (not resume.get("uncertain_requests") and resume.get("state") == "completed"
                 and resume["checkpoint"].get("result")):
             return resume["checkpoint"]["result"]

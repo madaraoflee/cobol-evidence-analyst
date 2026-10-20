@@ -254,6 +254,122 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
         self.assertGreaterEqual(new_budget["elapsed_seconds"], old_budget["elapsed_seconds"])
         self.assertLessEqual(new_budget["hard_deadline_epoch_seconds"], old_budget["hard_deadline_epoch_seconds"])
 
+    def expired_planning_run(self):
+        def action(request):
+            self.calls += 1
+            return TransportResponse(200, json.dumps({"choices": [{"message": {"content": json.dumps({
+                "read": [{"relative_path": "entry.cbl", "start_line": 7, "end_line": 10}]})},
+                "finish_reason": "stop"}]}))
+
+        def progress(event):
+            if self.calls and event.get("phase") == "retrieving":
+                self.clock_value = 121
+
+        first = self.ask(transport=action, progress=progress)["agent_result"]
+        self.assertEqual(first["stop_reason"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+        saved = self.store.load(first["run_id"])
+        self.assertGreaterEqual(saved["checkpoint"]["question_budget"]["elapsed_seconds"], 121)
+        self.assertEqual(saved["checkpoint"]["question_budget"]["hard_limit_seconds"], 120)
+        self.assertFalse(saved["uncertain_requests"])
+        return first["run_id"]
+
+    def remove_current_default_deadline(self):
+        self.policy = replace(self.policy, max_question_seconds=None, hard_question_seconds=None)
+        self.assertIsNone(self.policy.hard_question_seconds)
+
+    def test_new_default_without_deadline_preserves_expired_ledger_until_explicit_retry(self):
+        run_id = self.expired_planning_run()
+        before = self.store.load(run_id)
+        self.remove_current_default_deadline()
+        for options in ({}, {"resume_run_id": run_id}):
+            with self.subTest(options=options):
+                result = self.ask(**options)
+                self.assertEqual(result["reason_code"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+                self.assertEqual(result["agent_result"]["run_id"], run_id)
+                self.assertEqual(self.calls, 1)
+                self.assertEqual(self.store.load(run_id)["requests"], before["requests"])
+                with self.store.connect() as db:
+                    self.assertEqual(db.execute("SELECT COUNT(*) FROM investigation_runs").fetchone()[0], 1)
+        retried = self.ask(start_new_investigation=True)
+        self.assertNotEqual(retried["agent_result"]["run_id"], run_id)
+        self.assertEqual(self.calls, 2)
+        self.assertIsNone(retried["agent_result"]["metrics"]["policy"]["hard_question_seconds"])
+        self.assertIn("OUT-AMOUNT = IN-AMOUNT * 2", retried["agent_result"]["answer"])
+        self.assertTrue(self.store.load(run_id)["checkpoint"]["superseded_by_explicit_retry"])
+
+    def test_new_default_replays_completed_response_with_original_finite_policy(self):
+        run_id = self.interrupted_received_response()
+        self.remove_current_default_deadline()
+        result = self.ask()["agent_result"]
+        self.assertEqual(result["run_id"], run_id)
+        self.assertEqual(self.calls, 1)
+        self.assertEqual(result["metrics"]["policy"]["hard_question_seconds"], 120)
+        self.assertIn("OUT-AMOUNT = IN-AMOUNT * 2", result["answer"])
+
+    def test_default_change_and_configuration_change_cannot_bypass_old_pipeline_gate(self):
+        run_id = self.interrupted_received_response()
+        before = self.legacy_policy_metadata(run_id, previous_pipeline=True)
+        self.remove_current_default_deadline()
+        self.config = replace(self.config, timeout_seconds=60)
+        for options in ({}, {"resume_run_id": run_id}, {"start_new_investigation": True}):
+            with self.subTest(options=options):
+                result = self.ask(**options)
+                self.assertEqual(result["reason_code"], "RESUME_PIPELINE_VERSION_CHANGED")
+                self.assertEqual(result["agent_result"]["run_id"], run_id)
+                self.assertEqual(self.calls, 1)
+                self.assertEqual(self.store.load(run_id), before)
+
+    def test_removed_deadline_does_not_silently_reset_other_incompatible_configuration(self):
+        run_id = self.interrupted_received_response()
+        self.remove_current_default_deadline()
+        self.config = replace(self.config, timeout_seconds=60)
+        result = self.ask()
+        self.assertEqual(result["reason_code"], "RESUME_IDENTITY_MISMATCH")
+        self.assertEqual(result["agent_result"]["run_id"], run_id)
+        self.assertEqual(self.calls, 1)
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM investigation_runs").fetchone()[0], 1)
+
+    def test_legacy_metadata_restores_finite_limit_without_budget_checkpoint(self):
+        from datetime import datetime, timedelta, timezone
+        run_id = self.expired_planning_run()
+        saved = self.store.load(run_id)
+        checkpoint = saved["checkpoint"]
+        checkpoint.pop("question_budget")
+        self.store.checkpoint(run_id, checkpoint, status="running")
+        with self.store.connect() as db:
+            db.execute("UPDATE investigation_runs SET created_at=? WHERE run_id=?",
+                ((datetime.now(timezone.utc) - timedelta(seconds=130)).isoformat(), run_id))
+        self.remove_current_default_deadline()
+        result = self.ask()
+        self.assertEqual(result["reason_code"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+        self.assertEqual(result["agent_result"]["run_id"], run_id)
+        self.assertEqual(self.calls, 1)
+
+    def test_unknown_outcome_is_never_resent_across_default_and_pipeline_gates(self):
+        def lost(request):
+            self.calls += 1
+            raise APIClientError("REQUEST_TIMEOUT")
+        first = self.ask(transport=lost)
+        run_id = first["agent_result"]["run_id"]
+        before = self.store.load(run_id)
+        self.remove_current_default_deadline()
+        for options in ({}, {"start_new_investigation": True}):
+            with self.subTest(options=options):
+                result = self.ask(transport=lost, **options)
+                self.assertEqual(result["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
+                self.assertEqual(result["agent_result"]["run_id"], run_id)
+                self.assertEqual(self.calls, 1)
+                self.assertEqual(self.store.load(run_id)["requests"], before["requests"])
+        self.legacy_policy_metadata(run_id, previous_pipeline=True)
+        for options in ({}, {"start_new_investigation": True}):
+            with self.subTest(pipeline_changed=True, options=options):
+                result = self.ask(transport=lost, **options)
+                self.assertEqual(result["reason_code"], "RESUME_PIPELINE_VERSION_CHANGED")
+                self.assertEqual(result["agent_result"]["run_id"], run_id)
+                self.assertEqual(self.calls, 1)
+                self.assertEqual(self.store.load(run_id)["requests"], before["requests"])
+
     def test_deadline_while_revalidating_saved_sources_preserves_the_same_run(self):
         original_record = QualityTrace.record_remote_response
         original_capture = QuestionSourceSession.capture

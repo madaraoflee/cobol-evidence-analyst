@@ -441,8 +441,8 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
     evaluation_defaults_applied = False
     if evaluation_default_policy:
         bounded = replace(policy, max_model_requests=min(5, policy.max_model_requests),
-                          max_question_seconds=min(120, policy.max_question_seconds),
-                          hard_question_seconds=min(120, policy.hard_question_seconds))
+                          max_question_seconds=min(120, policy.max_question_seconds or 120),
+                          hard_question_seconds=min(120, policy.hard_question_seconds or 120))
         evaluation_defaults_applied = bounded != policy
         policy = bounded
     config = config or model_config(profile, timeout_seconds=timeout_seconds,
@@ -475,7 +475,7 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                        "max_request_bytes": policy.max_request_bytes,
                        "preflight_request_bytes": len(json.dumps({
                            "model": config.chat_model, "messages": [{"role": "user", "content": "Reply with OK."}],
-                           "max_tokens": 32}, ensure_ascii=False, separators=(",", ":")).encode("utf-8")),
+                           "max_tokens": 32, **config.generation_parameters()}, ensure_ascii=False, separators=(",", ":")).encode("utf-8")),
                        "policy": policy.to_dict(),
                        "bounded_evaluation_defaults_applied": evaluation_defaults_applied,
                        "configuration_scope": "evaluation_runner",
@@ -537,7 +537,7 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                         branch_started = time.monotonic()
                         messages = synthesis_messages(turn["question"], history, context)
                         request = json.dumps({"model": config.chat_model, "messages": messages,
-                            "max_tokens": config.max_output_tokens}, ensure_ascii=False,
+                            "max_tokens": config.max_output_tokens, **config.generation_parameters()}, ensure_ascii=False,
                             separators=(",", ":")).encode()
                         if len(request) > policy.max_request_bytes:
                             raise ValueError("SYNTHESIS_CONTEXT_TOO_LARGE")

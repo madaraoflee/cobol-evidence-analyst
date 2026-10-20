@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from analyze_source import analyze_source
+from agent_policy import AgentPolicy
 import business_chat
 from company_api import CompanyAPIConfig, TransportResponse
 from question_budget import QuestionBudget
@@ -93,7 +94,8 @@ def run_scenario(root):
                 patch.object(question_investigation, "build_question_investigation", side_effect=plan), \
                 patch.object(repository_discovery, "read_repository_context", side_effect=read):
             return analyze_source(source, output, transport=transport,
-                                  **{**options, "framework_reference_path": ""})
+                                  **{**options, "framework_reference_path": "",
+                                     "agent_policy": AgentPolicy(max_question_seconds=180)})
 
     state_path = root / "state.json"
     app = WorkbenchState(analyzer=analyzer, config_provider=lambda: config,

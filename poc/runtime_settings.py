@@ -17,6 +17,9 @@ def load_agent_policy(path=None, *, environ=None):
 
     Missing default settings preserve existing behavior. An explicitly selected
     missing or invalid file must not silently expand a configured call budget.
+    Missing/null total-time fields use progress-based defaults. Any explicit
+    numeric deadline, including an older saved 180, remains an override: its
+    provenance cannot be inferred safely from its value alone.
     """
     environment = os.environ if environ is None else environ
     selected = path if path is not None else environment.get("AGENT_SETTINGS_PATH")

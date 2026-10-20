@@ -39,6 +39,34 @@ class RuntimeSettingsTests(unittest.TestCase):
         self.assertEqual(explicit.max_history_characters, 3000)
         self.assertEqual(environment["UNRELATED"], "unchanged")
 
+    def test_missing_and_null_timers_use_progress_defaults_with_finite_calls(self):
+        for settings in ({}, {"max_model_requests": None, "max_question_seconds": None,
+                              "hard_question_seconds": None}):
+            with self.subTest(settings=settings):
+                self.write({"version": 1, "agent": settings})
+                original = self.path.read_bytes()
+                policy = load_agent_policy(self.path)
+                self.assertEqual(policy.max_model_requests, 6)
+                self.assertIsNone(policy.max_question_seconds)
+                self.assertIsNone(policy.hard_question_seconds)
+                self.assertEqual(self.path.read_bytes(), original)
+
+    def test_saved_explicit_deadline_is_not_guessed_to_be_an_old_default(self):
+        for settings, expected in (({"max_question_seconds": 180, "hard_question_seconds": 180}, 180),
+                                   ({"max_question_seconds": 7}, 7),
+                                   ({"hard_question_seconds": 120}, 120)):
+            with self.subTest(settings=settings):
+                self.write({"version": 1, "agent": settings})
+                policy = load_agent_policy(self.path)
+                self.assertEqual(policy.hard_question_seconds, expected)
+                self.assertEqual(policy.max_question_seconds, expected)
+
+    def test_soft_target_alone_does_not_migrate_into_a_hard_deadline(self):
+        self.write({"version": 1, "agent": {"delivery_target_seconds": 120}})
+        policy = load_agent_policy(self.path)
+        self.assertEqual(policy.effective_delivery_target_seconds, 120)
+        self.assertIsNone(policy.hard_question_seconds)
+
     def test_invalid_settings_errors_do_not_echo_supplied_values(self):
         for value in ({"version": True, "agent": {}}, {"version": 2, "agent": {}},
                       {"version": 1, "agent": {"max_model_requests": 0}},

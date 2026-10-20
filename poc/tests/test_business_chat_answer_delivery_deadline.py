@@ -26,6 +26,10 @@ class ReceivedAnswerDeadlineTests(unittest.TestCase):
         self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
 
+    def ask(self, **kwargs):
+        kwargs.setdefault("policy", AgentPolicy(max_question_seconds=180))
+        return self.fixture.ask(**kwargs)
+
     def test_received_answer_is_saved_before_optional_read_reaches_deadline(self):
         fixture = self.fixture
         original_plan = question_investigation.build_question_investigation
@@ -52,7 +56,7 @@ class ReceivedAnswerDeadlineTests(unittest.TestCase):
         with mock.patch.object(question_investigation, "build_question_investigation", side_effect=plan), \
                 mock.patch.object(repository_discovery, "read_repository_context", side_effect=read), \
                 mock.patch.object(business_chat, "wants_business_detail", return_value=False):
-            result = fixture.ask(question="BILL-RULE 的相关程序有哪些？", respond=respond)
+            result = self.ask(question="BILL-RULE 的相关程序有哪些？", respond=respond)
         self.assertEqual(reads, [119.0])
         self.assertEqual(len(fixture.requests), 1)
         self.assertTrue(result["model_answer_recorded"])
@@ -83,7 +87,7 @@ class ReceivedAnswerDeadlineTests(unittest.TestCase):
             return fixture.answer(payload)
 
         with mock.patch.object(repository_discovery, "read_repository_context", side_effect=read):
-            result = fixture.ask(respond=respond)
+            result = self.ask(respond=respond)
         self.assertEqual(reads, [60.0])
         self.assertEqual(len(fixture.requests), 2)
         self.assertTrue(result["model_answer_recorded"])
@@ -109,7 +113,7 @@ class ReceivedAnswerDeadlineTests(unittest.TestCase):
             return fixture.answer(payload)
 
         with mock.patch.object(repository_discovery, "read_repository_context", side_effect=read):
-            result = fixture.ask(respond=respond)
+            result = self.ask(respond=respond)
         self.assertEqual(reads, [])
         self.assertEqual(len(fixture.requests), 2)
         self.assertTrue(result["model_answer_recorded"])
@@ -131,7 +135,7 @@ class ReceivedAnswerDeadlineTests(unittest.TestCase):
 
         with mock.patch.object(business_chat, "run_business_chat", side_effect=run), \
                 mock.patch.object(QualityTrace, "record_remote_response", new=recorded):
-            result = fixture.ask(policy=AgentPolicy(max_model_requests=1))
+            result = self.ask(policy=AgentPolicy(max_model_requests=1, max_question_seconds=180))
         self.assertEqual(len(fixture.requests), 1)
         self.assertTrue(result["model_answer_recorded"])
         self.assertTrue(any(event.get("answer_preview") for event in events))
@@ -166,7 +170,7 @@ class ReceivedAnswerDeadlineTests(unittest.TestCase):
 
         with mock.patch.object(QualityTrace, "prepare", new=prepared), \
                 mock.patch.object(evidence_answer, "build_evidence_answer", side_effect=render):
-            result = fixture.ask()
+            result = self.ask()
         self.assertTrue(prepared_pages)
         self.assertEqual(fixture.requests, [])
         self.assertEqual(fallback_pages, [])
@@ -199,7 +203,7 @@ class ReceivedAnswerDeadlineTests(unittest.TestCase):
 
         with mock.patch.object(QualityTrace, "prepare", new=preparing), \
                 mock.patch.object(evidence_answer, "build_evidence_answer", side_effect=render):
-            result = fixture.ask(respond=lambda payload: json.dumps({"read": [
+            result = self.ask(respond=lambda payload: json.dumps({"read": [
                 {"relative_path": "extra.cbl", "start_line": 1, "end_line": 5}]}))
         self.assertEqual(len(fixture.requests), 1)
         self.assertEqual(len(prepared), 2)

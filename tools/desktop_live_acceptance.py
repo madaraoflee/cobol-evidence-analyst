@@ -56,7 +56,7 @@ def execution_wait_policy(policy):
         "local_processing_reserve_seconds": local_reserve,
         "verification_cleanup_reserve_seconds": cleanup,
         "hard_question_seconds": policy.hard_question_seconds,
-        "application_hard_deadline_expected": True,
+        "application_hard_deadline_expected": policy.hard_question_seconds is not None,
         "watchdog_seconds": wait,
         "performance_target_seconds": policy.max_question_seconds,
         "performance_target_interrupts_answer": False}

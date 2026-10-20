@@ -1,4 +1,4 @@
-"""Shared question deadline, answer reserve, and restart-safe elapsed time."""
+"""Optional question deadline, answer reserve, and restart-safe elapsed time."""
 
 from collections.abc import Mapping
 import math
@@ -54,7 +54,7 @@ class QuestionBudget:
             self.cancel()
 
     def check(self):
-        """Check cancellation and the shared hard deadline, including SSE waits."""
+        """Check cancellation and any explicit hard deadline, including SSE waits."""
         self.check_cancel()
         if self.hard_remaining() == 0:
             raise QuestionDeadlineExceeded()
@@ -88,6 +88,8 @@ class QuestionBudget:
         # synthesis, without imposing that planning allowance on local reads.
         remaining = self._delivery_remaining()
         if remaining is None:
+            # The caller still enforces request/progress limits. Elapsed time
+            # alone does not force an answer when no target was configured.
             return False
         # Even before a first response, reaching the target means the next
         # request must answer with available evidence rather than plan more work.

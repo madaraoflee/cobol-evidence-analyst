@@ -461,7 +461,7 @@ class LiveBusinessEvalTests(unittest.TestCase):
                                side_effect=AssertionError("network must stay disabled")):
                 report = evaluate(source, root / "evaluation", cases, config=config, plan=True)
             self.assertEqual(adaptive.max_model_requests, 6)
-            self.assertEqual(adaptive.max_question_seconds, 180)
+            self.assertIsNone(adaptive.max_question_seconds)
             self.assertTrue(report["plan"]["bounded_evaluation_defaults_applied"])
             self.assertEqual(report["plan"]["max_model_requests"], 6)
             self.assertEqual(report["plan"]["policy"]["max_model_requests"], 5)

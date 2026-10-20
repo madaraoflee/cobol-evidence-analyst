@@ -18,7 +18,7 @@ from response_language import localized_text, resolve_answer_language
 from source_availability import supplied_source_availability
 
 
-LEDGER_VERSION = "answer-claim-ledger-v10"
+LEDGER_VERSION = "answer-claim-ledger-v11"
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _NAME = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?:\s+(?:OF|IN)\s+[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)*"
 _ATOM = rf"(?:{_NAME}|[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|[()])"
@@ -306,6 +306,14 @@ def _assertions(text, *, table_header=False, derived_context=False):
                     assertion["rounded"] = "ROUNDED" in match[0].upper()
                     if re.search(r"\bCOMPUTE\s*$", clause_prefix, re.I):
                         assertion["statement_kind"] = "COMPUTE"
+                    elif (pattern is _FORMULA and "=" not in match[0]
+                            and len(tokens) == 1 and re.fullmatch(r"\d+(?:\.\d+)?", tokens[0])
+                            and not re.search(r"\b(?:MOVE|COMPUTE)\b", clause_prefix, re.I)):
+                        # A prose code such as "set STATUS-CODE to 00" does
+                        # not specify whether source spells it as 00 or '00'.
+                        # Keep that representation boundary out of exact
+                        # source-token contradiction checks.
+                        assertion["literal_notation"] = "unquoted_prose"
                 assertions.append(assertion)
                 occupied.append((match.start(), expression_end))
     for match in _CONDITION.finditer(text):
@@ -371,7 +379,7 @@ def _segments(answer):
                     r"[（(][^()（）\r\n]{1,512}:\d+(?:[–-]\d+)?[）)]", line)]
                 protected.extend(match.span() for match in _REFERENCE.finditer(line))
                 start = 0
-                for match in re.finditer(r"[。！？](?:[ \t]*\[(?:ev[_:-]|fw:)[^\]\r\n]+\])*|(?:[!?]|\.(?!\d)|(?<!\d)\.)(?:[ \t]*\[(?:ev[_:-]|fw:)[^\]\r\n]+\])*", line):
+                for match in re.finditer(r"[。！？;；](?:[ \t]*\[(?:ev[_:-]|fw:)[^\]\r\n]+\])*|(?:[!?]|\.(?!\d)|(?<!\d)\.)(?:[ \t]*\[(?:ev[_:-]|fw:)[^\]\r\n]+\])*", line):
                     if any(first <= match.start() < last for first, last in protected):
                         continue
                     if (line[match.start()] == "." and 0 < match.start() < len(line) - 1
@@ -833,6 +841,16 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     continue
             cited_facts = [fact for fact in facts if fact["evidence_id"] in valid] if ids else facts
             candidates = _related(assertion, cited_facts)
+            if (assertion.get("literal_notation") == "unquoted_prose" and not invalid
+                    and any(fact.get("expression") in ([f"'{assertion['expression'][0]}'"],
+                                                     [f'"{assertion["expression"][0]}"'])
+                            for fact in candidates)):
+                # Equal displayed characters with different quoting are not
+                # a proved mismatch. Do not infer COBOL numeric conversion,
+                # branch reachability, or support for the surrounding prose.
+                entry.reason_code = "PROSE_LITERAL_REPRESENTATION_NOT_FORMALLY_VERIFIED"
+                entry.support_scope = "unverified_source_literal_representation"
+                continue
             if assertion["predicate"] == "declaration_value" and (len({
                     (fact["relative_path"], fact["source_sha256"], fact.get("program_name")) for fact in candidates}) > 1
                     or len({tuple(fact["expression"]) for fact in candidates}) > 1):

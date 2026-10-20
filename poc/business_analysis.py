@@ -208,7 +208,7 @@ def _failure(error: APIClientError | APIConfigurationError | _TextResponseError,
 
 def _prompt_size(config: CompanyAPIConfig, messages: list[dict[str, str]]) -> int:
     return len(json.dumps({"model": config.chat_model, "messages": messages,
-                           "max_tokens": config.max_output_tokens},
+                           "max_tokens": config.max_output_tokens, **config.generation_parameters()},
                           ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
 
 

@@ -1455,7 +1455,16 @@ def build_question_investigation(question, business_map, *, database_path=None,
     if set(plan.intents) == {"call_relationships"}:
         return {**base, **_call_relationship_evidence(plan, business_map, source_pages, database_path, max_actions)}
     batch = None
-    if database_path and (set(plan.intents) & {"activation", "file_mapping", "impact"}
+    from business_synthesis import wants_business_overview
+    exclusive_paths = ({path for path in identity.get("direct_paths", [])}
+                       if identity.get("exclusive_source_scope") else set())
+    exclusive_ranges = [scope for scope in source_scopes if scope.get("exclusive") is not False]
+    batch_outside_scope = ((bool(exclusive_paths) and not any(Path(path).suffix.lower() in
+        {".cl", ".clle", ".clp"} for path in exclusive_paths)) or
+        (bool(exclusive_ranges) and not any(Path(scope.get("relative_path", "")).suffix.lower() in
+        {".cl", ".clle", ".clp"} for scope in exclusive_ranges)))
+    if database_path and not batch_outside_scope and (wants_business_overview(question)
+            or set(plan.intents) & {"activation", "file_mapping", "impact"}
             or any(Path(path).suffix.lower() in {".cl", ".clle", ".clp"} for path in paths)):
         from batch_context_evidence import investigate_batch_context
         batch = investigate_batch_context(business_map, source_pages, database_path=database_path,
