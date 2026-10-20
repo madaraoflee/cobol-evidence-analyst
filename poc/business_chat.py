@@ -571,6 +571,10 @@ def _prompt_payload(payload):
                     "time_scope": "Keep call inputs, returned values and later outcomes distinct; retain each scenario's assumptions."}
     explanation_contract = projected.get("business_analysis_brief", {}).get("business_explanation_contract", {})
     if not discovery_only and explanation_contract.get("mode") == "business_overview":
+        contract["detail"] = (
+            "Explain the concrete business purpose, data flow and decisive rules as a coherent process. "
+            "Include declarations or implementation details only when they explain the requested behavior; "
+            "do not expand a general introduction into a field/type inventory or unrelated scenarios.")
         contract["business_explanation"] = {
             "audience": "A newcomer learning the business process.",
             "order": ["business purpose and outcome", "batch job or online entry when evidenced",
@@ -588,6 +592,19 @@ def _prompt_payload(payload):
             "audience": "A newcomer learning the business process.",
             "task": "Explain the evidenced purpose, responsibilities, data roles, rules and outcomes in business language; "
                     "identifiers locate evidence and cannot replace explanations. Do not invent missing domain meanings."}
+    if not discovery_only:
+        contract["evidence_boundaries"] = {
+            "sql": "A SELECT establishes the visible query and host outputs, not absence of locks, blocking or transaction effects. "
+                "Describe the actual SQLCODE condition and ELSE branch. Map database events such as no rows or multiple rows "
+                "to codes only when an applicable supplied contract establishes that mapping; do not invent it.",
+            "file_io": "A WRITE is a write request under the source condition, not proof every eligible record was persisted. "
+                "DISPLAY is visible output; do not claim no trace at all when it is present. "
+                "File names and CL overrides do not establish LF/PF object types without definitions.",
+            "framework": "When explaining why a convention applies, connect its documented meaning to the call, "
+                "parameter layout and last effective assignment. Explain why intervening writes preserve or overwrite "
+                "the operation field, including shared storage; an initial operation literal alone is insufficient.",
+            "citations": "Use only supplied source evidence_id and manual reference_id markers. "
+                "Internal rule IDs are navigation, never user-facing citations. Do not guess a replacement source."}
     if discovery_only:
         contract = {"format": "Return one JSON object containing a nonempty search array.",
                     "content": "Choose likely source terms, synonyms or abbreviations for the current question. "
@@ -2735,7 +2752,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                 # Only retain a draft after checking it against current
                                 # source versions; changed evidence can discredit it too.
                                 if (not previous["ledger"]["counts"]["contradicted"]
-                                        and (regression == "ANSWER_COVERAGE_REGRESSED"
+                                        and (regression in {"ANSWER_COVERAGE_REGRESSED", "ANSWER_BOUNDARIES_REGRESSED"}
                                              or previous["ledger"]["counts"]["supported"])):
                                     continuation.stop_reason = "answer_review_no_progress"
                                     boundaries.append({"reason": "usable_draft_retained",
@@ -3190,7 +3207,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                 - set(draft_in_revision_context["missing_aspects"]))
                             revised_answer_completion = assess_answer_completion(revised_reply.text)
                             if (regression and not previous["ledger"]["counts"]["contradicted"]
-                                    and (regression == "ANSWER_COVERAGE_REGRESSED" or previous["ledger"]["counts"]["supported"])):
+                                    and (regression in {"ANSWER_COVERAGE_REGRESSED", "ANSWER_BOUNDARIES_REGRESSED"}
+                                         or previous["ledger"]["counts"]["supported"])):
                                 boundaries.append({"reason": "usable_draft_retained", "revision_error": regression})
                             elif (revised_answer_completion.get("pending_investigation")
                                     or revised_answer_completion["status"] == "incomplete"

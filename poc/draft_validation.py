@@ -43,5 +43,11 @@ def revision_regression(previous, candidate):
 
     if errors(candidate) - errors(previous):
         return "ANSWER_FACTS_REGRESSED"
+    def sql_risks(review):
+        return {(row["kind"], (row.get("answer_span") or {}).get("text", "").strip())
+                for row in review["assessment"].get("sql_boundary_review", {}).get("risks", [])}
+
+    if sql_risks(candidate) - sql_risks(previous):
+        return "ANSWER_BOUNDARIES_REGRESSED"
     lost = set(candidate["assessment"]["missing_aspects"]) - set(previous["assessment"]["missing_aspects"])
     return "ANSWER_COVERAGE_REGRESSED" if lost else None

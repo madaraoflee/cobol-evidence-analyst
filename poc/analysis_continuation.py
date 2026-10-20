@@ -111,6 +111,10 @@ class AnalysisContinuation:
                                  for item in assessment.get("source_availability_contradictions", [])})
         signature = _digest({"material": sorted(material_keys(pages, references)),
                              "gaps": gaps, "contradictions": contradictions,
+                             "sql_risks": [{"kind": row["kind"],
+                                 "claim": (row.get("answer_span") or {}).get("text"),
+                                 "source_refs": row.get("source_refs", [])}
+                                 for row in assessment.get("sql_boundary_review", {}).get("risks", [])],
                              "status": assessment.get("status")})
         self.draft = answer
         self.review = assessment

@@ -7,6 +7,7 @@ import re
 from decimal import Decimal, InvalidOperation
 
 from business_behavior import build_behavior_guide
+from answer_sql_boundaries import assess_sql_answer_boundaries
 from file_impact_evidence import is_file_impact_question
 from question_intent import calculation_intent
 from source_availability import source_availability_contradictions
@@ -857,6 +858,24 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
             if not any(re.search(r"(?<![A-Z0-9_$#@-])" + re.escape(name) + r"(?![A-Z0-9_$#@-])",
                                  explanation, re.I) for name in names):
                 missing.append(group)
+    boundary_review = assess_sql_answer_boundaries(answer, source_pages)
+    # Rule IDs identify internal navigation; unlike source/manual IDs they are
+    # not resolvable citations. Never invent a source when asking for repair.
+    reference_prose = re.sub(
+        r"(?ms)^[ \t]*```[^\n]*\n.*?(?:^[ \t]*```[^\n]*(?:\n|$)|\Z)|"
+        r"^[ \t]*~~~[^\n]*\n.*?(?:^[ \t]*~~~[^\n]*(?:\n|$)|\Z)|`[^`\n]*`", "", str(answer))
+    internal_references = [match.group() for match in re.finditer(
+        r"\[rule_[0-9a-f]{8,64}_[0-9a-f]{8,64}\]", reference_prose, re.I)]
+    if internal_references:
+        missing.append("unresolvable_internal_references")
+        completion["citation_review"] = {
+            "invalid_markers": list(dict.fromkeys(internal_references)),
+            "revision_hint": "Replace internal rule markers with actually supplied source/manual IDs "
+                "supporting the claim. Do not guess a correspondence or treat a navigation ID as evidence."}
+    if boundary_review["review_required"]:
+        missing.extend(row["kind"] for row in boundary_review["risks"])
+    completion["sql_boundary_review"] = boundary_review
+    missing = list(dict.fromkeys(missing))
     completion.update(required_aspects=[item["kind"] for item in requirements], missing_aspects=missing)
     narrative = [item["kind"] for item in requirements if item["kind"] in _NARRATIVE_ASPECTS]
     if narrative:
@@ -865,7 +884,9 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
             "technical_inventory_only": technical_inventory, "required_aspects": narrative,
             "missing_aspects": [kind for kind in missing if kind in _NARRATIVE_ASPECTS]}
     if missing and completion["status"] != "incomplete":
-        completion.update(status="incomplete", reason="supplied_business_aspects_unexplained")
+        completion.update(status="incomplete", reason=("answer_evidence_boundary_review_required"
+            if boundary_review["review_required"] or internal_references
+            else "supplied_business_aspects_unexplained"))
     completion["method"] = "bounded_text_and_coverage_signals"
     return completion
 

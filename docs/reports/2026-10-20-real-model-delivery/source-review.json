@@ -1,0 +1,28 @@
+{
+  "python_tests": 3557,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "product_hashes_stable": true,
+  "product_files": 121,
+  "python310_syntax_files": 439,
+  "independent_review_focused_tests": 34,
+  "sql_grounding_focused_tests": 46,
+  "delivery_path_tests": 7,
+  "source_probe_100_sql": {
+    "before_bytes": 16454,
+    "review_bytes": 18779,
+    "source_pages_before": 1,
+    "source_pages_after": 1,
+    "risks_after": 1
+  },
+  "source_probe_200_sql": {
+    "before_bytes": 23254,
+    "review_bytes": 25580,
+    "source_pages_before": 1,
+    "source_pages_after": 1,
+    "risks_after": 1
+  },
+  "model_calls_in_source_tests": 0,
+  "review_kind": "agent_code_review_not_human_release_acceptance"
+}
