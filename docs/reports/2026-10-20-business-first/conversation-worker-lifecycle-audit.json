@@ -1,0 +1,70 @@
+{
+  "schema": "conversation-test-worker-lifecycle-audit/v1",
+  "created_local_date": "2026-10-20",
+  "base_source_commit": "b8a0cab24f496833396e07372ee17f9d0965fc18",
+  "observed_windows_failure": {
+    "run_id": "39371720804",
+    "shard": 3,
+    "test_id": "test_conversation_workbench.ConversationWorkbenchTests.test_directory_symlink_version_store_is_rejected_before_analysis_and_preserves_workspace",
+    "original_report_sha256": "0c01cd2a92fe5246ae3c6e84d4974c3a6ae5dffe542037a373bef6d5f932b48b",
+    "original_test_total_seconds": 12.275186,
+    "failed_before_symlink_setup": true,
+    "primary_failure": "Eight-second functional wait expired during setup question.",
+    "secondary_error": "Temporary-directory cleanup encountered an open investigation database after the still-running worker was not cancelled or joined.",
+    "cause_of_initial_delay": "Unconfirmed: no final progress or worker stack was captured by the old test helper. This audit does not claim deadlock or diagnose a specific I/O delay."
+  },
+  "change": {
+    "files": [
+      {
+        "path": "poc/tests/test_conversation_workbench.py",
+        "sha256": "ef2e7cf56023e3a3766fd41f577a546bf404b8ebb550a7ba1728abf522c85365"
+      }
+    ],
+    "functional_completion_guard_seconds": 30,
+    "cleanup_guard_seconds": 30,
+    "real_workbench_run_and_model_transport_preserved": true,
+    "terminal_job_status_requires_finally_event_and_thread_exit": true,
+    "timeout_still_fails": true,
+    "timeout_diagnostics": [
+      "last status and phase",
+      "bounded numeric progress",
+      "synthetic model call count",
+      "worker stack file, line and function names without local-variable values"
+    ],
+    "cleanup": "Cancel active jobs, wait within a shared cleanup deadline for the real worker finally and thread exit, then remove the temporary directory. Failure is propagated; cleanup errors are not ignored.",
+    "restarted_workbenches_tracked": true,
+    "production_modified": false,
+    "native_executable_acceptance_speed_limits_modified": false
+  },
+  "correctness_assertions": {
+    "original_test_methods": 31,
+    "original_assertion_calls": 224,
+    "all_original_test_method_assertion_asts_unchanged": true
+  },
+  "new_regressions": [
+    {
+      "id": "WorkbenchWorkerGuardTests.test_timeout_keeps_diagnostics_and_cancellation_closes_real_database_before_cleanup",
+      "coverage": "Runs a real Workbench worker holding a real SQLite connection; a deliberately short helper wait fails with progress and stack evidence, then real cooperative cancellation closes the connection before strict temporary-directory cleanup."
+    },
+    {
+      "id": "WorkbenchWorkerGuardTests.test_terminal_status_does_not_allow_cleanup_until_real_worker_finally_exits",
+      "coverage": "The real Workbench failure path has already published FAILED, but its outer finally remains blocked. Both wait and the actual test cleanup helper must fail rather than delete the directory. Release permits joined cleanup."
+    }
+  ],
+  "local_validation": {
+    "runtime_platform": "Darwin",
+    "module": "test_conversation_workbench",
+    "tests_run": 33,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 4.603,
+    "test_log_sha256": "51e8f2bda805f6d87cdf59434c8d682eb0b1259122393a5dc43c0838abf45375",
+    "git_diff_check_passed": true
+  },
+  "limitations": [
+    "Local functional verification does not replace the next native Windows full-regression workflow.",
+    "The 30-second guard bounds functional waiting in this test module; it is not a new production deadline or response-speed acceptance threshold.",
+    "No real model, external network, build, release, or production source mutation was performed."
+  ]
+}

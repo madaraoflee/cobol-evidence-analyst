@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict
-import faulthandler
 import hashlib
 import json
 import os
@@ -14,6 +13,7 @@ import platform
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import traceback
 import unittest
@@ -21,6 +21,56 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 _timer = time.perf_counter
+PROGRESS_CHECKPOINT_SECONDS = 5
+
+
+def format_thread_stacks():
+    """Take Python-owned frame references; never retain business locals."""
+    frames = sys._current_frames()
+    frame = None
+    try:
+        lines = ["Python thread stack snapshot (diagnostic only; not a test timeout)\n"]
+        for identifier, frame in sorted(frames.items()):
+            lines.append(f"Thread {identifier} (most recent call last):\n")
+            lines.extend(traceback.format_stack(frame, limit=100))
+        return "".join(lines)
+    finally:
+        frame = None
+        frames.clear()
+
+
+class StackWatchdog:
+    """Diagnostic sampling, with the external CI timeout as the hard guard."""
+
+    def __init__(self, interval, stream):
+        self.interval = interval
+        self.stream = stream
+        self.errors = []
+        self.stop_event = threading.Event()
+        self.thread = threading.Thread(target=self._run, name="regression-stack-watchdog",
+                                       daemon=True)
+
+    def start(self):
+        self.thread.start()
+
+    def _run(self):
+        while not self.stop_event.wait(self.interval):
+            try:
+                # Release all frame references before potentially blocking I/O.
+                text = format_thread_stacks()
+                self.stream.write(text)
+                self.stream.flush()
+            except Exception as error:
+                self.errors.append(f"Thread stack diagnostic failed: {type(error).__name__}")
+                return
+
+    def stop(self):
+        self.stop_event.set()
+        if self.thread.ident is None:
+            return
+        self.thread.join(timeout=2)
+        if self.thread.is_alive():
+            self.errors.append("Thread stack diagnostic did not stop within two seconds")
 
 
 def json_digest(value):
@@ -80,6 +130,11 @@ class TimedResult(unittest.TextTestResult):
         self.test_results = []
         self._started = {}
         self._outcomes = {}
+        self.checkpoint = None
+
+    def _checkpoint(self, *, force=False):
+        if self.checkpoint is not None:
+            self.checkpoint(force=force)
 
     def startTest(self, test):
         unittest.TestResult.startTest(self, test)
@@ -89,6 +144,7 @@ class TimedResult(unittest.TextTestResult):
         self._outcomes[identifier] = "passed"
         self.stream.write(f"START {identifier}\n")
         self.stream.flush()
+        self._checkpoint(force=len(self.started_ids) == 1)
 
     def stopTest(self, test):
         identifier = test.id()
@@ -98,6 +154,7 @@ class TimedResult(unittest.TextTestResult):
         self.stream.write(f"END {identifier} {outcome} ({seconds:.6f}s)\n")
         self.stream.flush()
         unittest.TestResult.stopTest(self, test)
+        self._checkpoint(force=outcome != "passed")
 
     def _mark(self, test, outcome):
         if test.id() in self._outcomes:
@@ -109,10 +166,12 @@ class TimedResult(unittest.TextTestResult):
     def addFailure(self, test, err):
         self._mark(test, "failed")
         unittest.TestResult.addFailure(self, test, err)
+        self._checkpoint(force=True)
 
     def addError(self, test, err):
         self._mark(test, "error")
         unittest.TestResult.addError(self, test, err)
+        self._checkpoint(force=True)
 
     def addSkip(self, test, reason):
         self._mark(test, "skipped")
@@ -130,6 +189,19 @@ class TimedResult(unittest.TextTestResult):
         if err is not None:
             self._mark(test, "failed" if issubclass(err[0], test.failureException) else "error")
         unittest.TestResult.addSubTest(self, test, subtest, err)
+        if err is not None:
+            self._checkpoint(force=True)
+
+
+def update_result_report(report, result):
+    report.update(tests_run=result.testsRun, started_ids=list(result.started_ids),
+                  test_results=list(result.test_results),
+                  failures=[{"id": test.id(), "traceback": detail} for test, detail in result.failures],
+                  errors=[{"id": test.id(), "traceback": detail} for test, detail in result.errors],
+                  skipped=[{"id": test.id(), "reason": reason} for test, reason in result.skipped],
+                  unexpected_successes=[test.id() for test in result.unexpectedSuccesses],
+                  expected_failures=[{"id": test.id(), "traceback": detail}
+                                     for test, detail in result.expectedFailures])
 
 
 def write_report(path, report):
@@ -153,17 +225,33 @@ def run_regressions(*, tests_dir, shard_index, shard_count, output,
     stream = stream or sys.stderr
     started = _timer()
     report = {"schema_version": 1, "source_commit": None, "source_dirty": None,
-              "runtime_platform": platform.system(), "status": "runner_error",
+              "runtime_platform": platform.system(), "status": "running",
               "shard_index": shard_index, "shard_count": shard_count,
               "discovery": {"count": 0, "ids": [], "ids_sha256": json_digest([]),
                             "test_sources": [], "test_sources_sha256": json_digest([])},
               "selected_ids": [], "selected_count": 0, "tests_run": 0,
               "started_ids": [], "test_results": [], "failures": [], "errors": [],
               "skipped": [], "unexpected_successes": [], "expected_failures": [],
-              "discovery_errors": [], "runner_errors": [], "elapsed_seconds": 0.0}
+              "discovery_errors": [], "runner_errors": [], "diagnostic_errors": [],
+              "elapsed_seconds": 0.0}
     result = None
-    dump_started = False
+    watchdog = None
+    last_checkpoint = started
+
+    def checkpoint(*, force=False):
+        nonlocal last_checkpoint
+        now = _timer()
+        if not force and now - last_checkpoint < PROGRESS_CHECKPOINT_SECONDS:
+            return
+        update_result_report(report, result)
+        report["elapsed_seconds"] = round(max(0.0, now - started), 6)
+        write_report(output, report)
+        last_checkpoint = now
+
     try:
+        # A native exit can bypass finally. A partial report must never pass
+        # the collector's complete-discovery and exact-execution gate.
+        write_report(output, report)
         if shard_count < 1 or not 0 <= shard_index < shard_count:
             raise ValueError("shard-index must be in [0, shard-count)")
         if stack_dump_interval < 0:
@@ -207,13 +295,15 @@ def run_regressions(*, tests_dir, shard_index, shard_count, output,
             stream.write(f"Discovered {len(tests)} tests; shard {shard_index}/{shard_count} "
                          f"selects {len(selected)} tests\n")
             stream.flush()
-            if stack_dump_interval:
-                faulthandler.dump_traceback_later(stack_dump_interval, repeat=True, file=stream)
-                dump_started = True
             runner = unittest.TextTestRunner(stream=stream, verbosity=2, resultclass=TimedResult)
             # Retain the result even when a test interrupts the runner.
             result = runner._makeResult()
             runner._makeResult = lambda: result
+            result.checkpoint = checkpoint
+            checkpoint(force=True)
+            if stack_dump_interval:
+                watchdog = StackWatchdog(stack_dump_interval, stream)
+                watchdog.start()
             runner.run(unittest.TestSuite(selected))
             ran_ids = [row["id"] for row in result.test_results]
             complete = (result.testsRun == len(selected)
@@ -228,17 +318,11 @@ def run_regressions(*, tests_dir, shard_index, shard_count, output,
         stream.write(report["runner_errors"][-1])
         stream.flush()
     finally:
-        if dump_started:
-            faulthandler.cancel_dump_traceback_later()
+        if watchdog is not None:
+            watchdog.stop()
+            report["diagnostic_errors"] = list(watchdog.errors)
         if result is not None:
-            report.update(tests_run=result.testsRun, started_ids=result.started_ids,
-                          test_results=result.test_results,
-                          failures=[{"id": test.id(), "traceback": detail} for test, detail in result.failures],
-                          errors=[{"id": test.id(), "traceback": detail} for test, detail in result.errors],
-                          skipped=[{"id": test.id(), "reason": reason} for test, reason in result.skipped],
-                          unexpected_successes=[test.id() for test in result.unexpectedSuccesses],
-                          expected_failures=[{"id": test.id(), "traceback": detail}
-                                             for test, detail in result.expectedFailures])
+            update_result_report(report, result)
         if report["source_commit"] is not None:
             try:
                 final_commit, final_dirty = git_provenance()

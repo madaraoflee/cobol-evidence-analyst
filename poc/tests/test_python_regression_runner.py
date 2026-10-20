@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 
@@ -179,6 +180,139 @@ def load_tests(loader, tests, pattern):
         self.assertEqual(report["status"], "discovery_error")
         self.assertEqual(report["tests_run"], 0)
         self.assertIn("Duplicate discovered test IDs", report["discovery_errors"][0])
+
+    def test_periodic_python_stacks_do_not_interrupt_running_tests(self):
+        self.module("test_sampling.py", """import time
+import unittest
+class Cases(unittest.TestCase):
+    def test_dynamic_code(self):
+        until = time.monotonic() + 2.2
+        while time.monotonic() < until:
+            exec(compile('value = sum(range(100))', '<temporary-test-code>', 'exec'), {})
+            time.sleep(.001)
+""")
+        process, report = self.invoke(extra=("--stack-dump-interval", "1"))
+        self.assertEqual(process.returncode, 0, process.stderr)
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(report["diagnostic_errors"], [])
+        self.assertIn("Python thread stack snapshot", process.stderr)
+        self.assertIn("test_dynamic_code", process.stderr)
+        self.assertIn("END test_sampling.Cases.test_dynamic_code passed", process.stderr)
+        self.assertNotIn("Timeout (", process.stderr)
+
+    def test_native_exit_retains_running_discovery_and_never_marks_active_test_passed(self):
+        self.module("test_abrupt.py", """import os
+import unittest
+class Cases(unittest.TestCase):
+    def test_a_exit(self): os._exit(7)
+    def test_b_not_run(self): pass
+""")
+        process, report = self.invoke()
+        self.assertEqual(process.returncode, 7)
+        self.assertEqual(report["status"], "running")
+        self.assertEqual(report["selected_count"], 2)
+        self.assertEqual(report["discovery"]["count"], 2)
+        self.assertEqual(report["tests_run"], 1)
+        self.assertEqual(report["started_ids"], ["test_abrupt.Cases.test_a_exit"])
+        self.assertEqual(report["test_results"], [])
+        self.assertIn("START test_abrupt.Cases.test_a_exit", process.stderr)
+        self.assertNotIn("END test_abrupt.Cases.test_a_exit", process.stderr)
+
+        from tools.check_python_regression_reports import check_reports
+        # Remove unrelated platform/working-tree gate failures so the partial
+        # execution itself must still be rejected.
+        report["runtime_platform"] = "Windows"
+        report["source_dirty"] = False
+        merged = check_reports([("partial.json", report)], source_commit=report["source_commit"],
+                               expected_shards=1, required_test_ids=())
+        self.assertEqual(merged["status"], "failed")
+        self.assertTrue(any("runner status must be passed" in item
+                            for item in merged["validation_errors"]))
+        self.assertTrue(any("executed test IDs differ" in item
+                            for item in merged["validation_errors"]))
+
+    def test_failure_trace_is_checkpointed_before_later_native_exit(self):
+        self.module("test_abrupt.py", """import os
+import unittest
+class Cases(unittest.TestCase):
+    def test_a_failure(self): self.fail('failure before native exit')
+    def test_b_exit(self): os._exit(9)
+""")
+        process, report = self.invoke()
+        self.assertEqual(process.returncode, 9)
+        self.assertEqual(report["status"], "running")
+        self.assertEqual(report["selected_count"], 2)
+        self.assertEqual(report["test_results"][0]["outcome"], "failed")
+        self.assertIn("failure before native exit", report["failures"][0]["traceback"])
+        self.assertNotIn("test_abrupt.Cases.test_b_exit",
+                         [row["id"] for row in report["test_results"]])
+
+    def test_external_watchdog_can_stop_hang_with_diagnostic_and_partial_report(self):
+        self.module("test_hang.py", """import threading
+import unittest
+class Cases(unittest.TestCase):
+    def test_wait_forever(self): threading.Event().wait()
+""")
+        output = self.root / "hanging-report.json"
+        log_path = self.root / "hanging-stderr.log"
+        with log_path.open("w", encoding="utf-8") as log:
+            process = subprocess.Popen(
+                [sys.executable, str(RUNNER), "--tests-dir", str(self.tests),
+                 "--stack-dump-interval", "1", "--output", str(output)],
+                cwd=ROOT, stdout=log, stderr=log)
+            try:
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    if "Python thread stack snapshot" in log_path.read_text(encoding="utf-8"):
+                        break
+                    if process.poll() is not None:
+                        break
+                    time.sleep(.05)
+                self.assertIsNone(process.poll(), log_path.read_text(encoding="utf-8"))
+                self.assertIn("Python thread stack snapshot", log_path.read_text(encoding="utf-8"))
+                process.terminate()
+                process.wait(timeout=10)
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait(timeout=10)
+        report = json.loads(output.read_text(encoding="utf-8"))
+        self.assertNotEqual(process.returncode, 0)
+        self.assertEqual(report["status"], "running")
+        self.assertEqual(report["started_ids"], ["test_hang.Cases.test_wait_forever"])
+        self.assertEqual(report["test_results"], [])
+        self.assertIn("test_wait_forever", log_path.read_text(encoding="utf-8"))
+
+    def test_snapshot_releases_frames_even_if_formatting_fails(self):
+        from tools import run_python_regressions as runner
+        from unittest.mock import patch
+
+        frames = {1: sys._getframe()}
+        with patch.object(runner.sys, "_current_frames", return_value=frames):
+            with patch.object(runner.traceback, "format_stack", side_effect=ValueError("format failure")):
+                with self.assertRaisesRegex(ValueError, "format failure"):
+                    runner.format_thread_stacks()
+        self.assertEqual(frames, {})
+
+    def test_diagnostic_stream_error_is_recorded_and_watchdog_stops(self):
+        from tools import run_python_regressions as runner
+        import threading
+
+        attempted = threading.Event()
+
+        class ClosedStream:
+            def write(self, text):
+                attempted.set()
+                raise ValueError("stream closed")
+
+        watchdog = runner.StackWatchdog(.01, ClosedStream())
+        watchdog.start()
+        try:
+            self.assertTrue(attempted.wait(timeout=10))
+        finally:
+            watchdog.stop()
+        self.assertFalse(watchdog.thread.is_alive())
+        self.assertEqual(watchdog.errors, ["Thread stack diagnostic failed: ValueError"])
 
 
 if __name__ == "__main__":

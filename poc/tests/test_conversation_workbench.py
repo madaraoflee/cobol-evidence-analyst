@@ -10,6 +10,7 @@ import sys
 import tempfile
 import threading
 import time
+import traceback
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -23,10 +24,101 @@ from run_store import RunStore
 from web_app import RequestError, WorkbenchState
 
 
+class _WorkbenchWorkerGuard:
+    """Functional waiting only; native acceptance owns response-time limits."""
+
+    def __init__(self, model_calls, timeout=30):
+        self.model_calls = model_calls
+        self.timeout = timeout
+        self.apps = []
+        self.workers = {}
+        self.lock = threading.Lock()
+
+    def track(self, app):
+        original_run = app._run
+
+        def tracked_run(job_id, options):
+            record = {"done": threading.Event(), "thread": threading.current_thread()}
+            with self.lock:
+                self.workers[(app, job_id)] = record
+            try:
+                return original_run(job_id, options)
+            finally:
+                # A terminal job status can precede the real _run's finally.
+                record["done"].set()
+
+        app._run = tracked_run
+        self.apps.append(app)
+        return app
+
+    def _diagnostic(self, app, job_id, job):
+        with self.lock:
+            record = self.workers.get((app, job_id))
+        thread = record["thread"] if record else None
+        frame = sys._current_frames().get(thread.ident) if thread else None
+        stack = ("\n".join(f"{Path(row.filename).name}:{row.lineno} in {row.name}"
+                           for row in traceback.extract_stack(frame))
+                 if frame else "worker frame unavailable")
+        progress = (job or {}).get("progress") or {}
+        metadata = {"status": (job or {}).get("status"), "phase": progress.get("phase"),
+                    "progress": {key: progress.get(key) for key in
+                                 ("completed", "total", "unit", "model_requests", "retrieved_pages",
+                                  "elapsed_seconds", "last_update_seconds")},
+                    "model_calls": self.model_calls(),
+                    "worker_exited": bool(record and record["done"].is_set())}
+        return "worker timeout: " + json.dumps(metadata, sort_keys=True) + "\nworker stack:\n" + stack
+
+    def wait(self, app, job_id, *, timeout=None):
+        deadline = time.monotonic() + (self.timeout if timeout is None else timeout)
+        job = None
+        while True:
+            if not app.lock.acquire(timeout=max(0, deadline - time.monotonic())):
+                raise AssertionError(self._diagnostic(app, job_id, job))
+            try:
+                job = app.get_job(job_id)
+            finally:
+                app.lock.release()
+            with self.lock:
+                record = self.workers.get((app, job_id))
+            remaining = max(0, deadline - time.monotonic())
+            if job["status"] != "RUNNING" and record and record["done"].is_set():
+                record["thread"].join(timeout=remaining)
+                if not record["thread"].is_alive():
+                    return job
+            if remaining <= 0:
+                raise AssertionError(self._diagnostic(app, job_id, job))
+            time.sleep(min(.01, remaining))
+
+    def shutdown(self, *, timeout=None):
+        deadline = time.monotonic() + (self.timeout if timeout is None else timeout)
+        for app in self.apps:
+            # Cancellation is cooperative and retains the real persistence path.
+            if not app.lock.acquire(timeout=max(0, deadline - time.monotonic())):
+                app.cancel_event.set()
+                raise AssertionError(self._diagnostic(app, None, None))
+            try:
+                job_id = app.job["job_id"] if app.job else None
+                if job_id:
+                    app.cancel(job_id)
+            finally:
+                app.lock.release()
+            if job_id:
+                self.wait(app, job_id, timeout=max(0, deadline - time.monotonic()))
+        with self.lock:
+            records = list(self.workers.items())
+        for (app, job_id), record in records:
+            record["done"].wait(max(0, deadline - time.monotonic()))
+            record["thread"].join(timeout=max(0, deadline - time.monotonic()))
+            if not record["done"].is_set() or record["thread"].is_alive():
+                raise AssertionError(self._diagnostic(app, job_id, None))
+
+
 class ConversationWorkbenchTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
+        self.calls = []
+        self.workers = _WorkbenchWorkerGuard(lambda: len(self.calls))
+        self.addCleanup(self.cleanup_workspace)
         self.root = Path(self.temp.name)
         self.source = self.root / "source"
         self.source.mkdir()
@@ -35,7 +127,6 @@ class ConversationWorkbenchTests(unittest.TestCase):
             "01 RESERVED-COUNT PIC 9(4).\n01 CAPACITY PIC 9(4).\nPROCEDURE DIVISION.\n"
             "IF RESERVED-COUNT > CAPACITY DISPLAY 'CAPACITY EXCEEDED' END-IF.\nGOBACK.\n")
         self.output = self.root / "output"
-        self.calls = []
         self.config = CompanyAPIConfig("https://gateway.example.invalid/v1", "neutral-model", api_key="test-credential")
 
         def transport(request):
@@ -54,28 +145,22 @@ class ConversationWorkbenchTests(unittest.TestCase):
 
         self.analyzer = analyzer
         self.state_path = self.root / "settings.json"
-        self.app = WorkbenchState(analyzer=analyzer, config_provider=lambda: self.config, state_path=self.state_path)
+        self.app = self.workers.track(WorkbenchState(
+            analyzer=analyzer, config_provider=lambda: self.config, state_path=self.state_path))
+
+    def cleanup_workspace(self):
+        self.workers.shutdown()
+        self.temp.cleanup()
 
     def run_job(self, **values):
         options = {"source": str(self.source), "output": str(self.output), "source_format": "free", **values}
         job_id = self.app.start(options)["job_id"]
-        deadline = time.monotonic() + 8
-        while time.monotonic() < deadline:
-            job = self.app.get_job(job_id)
-            if job["status"] != "RUNNING":
-                self.assertEqual(job["status"], "COMPLETED", job.get("error"))
-                return job["result"]
-            time.sleep(.01)
-        self.fail("worker timeout")
+        job = self.wait_for_job(job_id)
+        self.assertEqual(job["status"], "COMPLETED", job.get("error"))
+        return job["result"]
 
     def wait_for_job(self, job_id):
-        deadline = time.monotonic() + 8
-        while time.monotonic() < deadline:
-            job = self.app.get_job(job_id)
-            if job["status"] != "RUNNING":
-                return job
-            time.sleep(.01)
-        self.fail("worker timeout")
+        return self.workers.wait(self.app, job_id)
 
     def test_two_turns_reuse_index_and_survive_restart_with_valid_history_citations(self):
         indexed = self.run_job()
@@ -630,7 +715,8 @@ class ConversationWorkbenchTests(unittest.TestCase):
         original = conversation["messages"][-1]
         self.assertEqual(original["status"], "partial")
         self.assertEqual(original["answer_origin"], "local_source_facts")
-        self.app = WorkbenchState(analyzer=self.analyzer, config_provider=lambda: self.config, state_path=self.state_path)
+        self.app = self.workers.track(WorkbenchState(
+            analyzer=self.analyzer, config_provider=lambda: self.config, state_path=self.state_path))
         repeated = self.run_job(question=question, allow_network=True, conversation_id=conversation["id"])
         self.assertEqual(repeated["agent"]["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
         self.assertEqual(repeated["agent"]["agent_result"]["run_id"], original_run)
@@ -795,7 +881,8 @@ class ConversationWorkbenchTests(unittest.TestCase):
         self.transport = lambda request: TransportResponse(401, "{}")
         first = self.run_job(question="How is CAPACITY checked?", allow_network=True)
         original = first["conversation"]["messages"][-1]
-        self.app = WorkbenchState(analyzer=self.analyzer, config_provider=lambda: self.config, state_path=self.state_path)
+        self.app = self.workers.track(WorkbenchState(
+            analyzer=self.analyzer, config_provider=lambda: self.config, state_path=self.state_path))
         restored = self.app.state()["conversation"]
         self.assertEqual(restored["messages"][-1]["content"], original["content"])
         self.assertEqual(restored["messages"][-1]["status"], "partial")
@@ -837,6 +924,101 @@ class ConversationWorkbenchTests(unittest.TestCase):
         self.assertEqual(self.app.conversation_store.model_history(failed["conversation"]["id"]), [])
         self.assertEqual(self.app.conversation_store.retry_target(failed["conversation"]["id"], messages[0]["id"])["question"],
                          messages[0]["content"])
+
+
+class WorkbenchWorkerGuardTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.source, self.output = self.root / "source", self.root / "output"
+        self.source.mkdir()
+        (self.source / "entry.cbl").write_bytes(b"PROGRAM-ID. ENTRY.\nGOBACK.\n")
+        self.guard = _WorkbenchWorkerGuard(lambda: 0)
+        self.release = threading.Event()
+        self.addCleanup(self.cleanup_workspace)
+
+    def cleanup_workspace(self):
+        self.release.set()
+        self.guard.shutdown()
+        self.temp.cleanup()
+
+    def start(self, app):
+        return app.start({"source": str(self.source), "output": str(self.output),
+                          "source_format": "free"})["job_id"]
+
+    def test_timeout_keeps_diagnostics_and_cancellation_closes_real_database_before_cleanup(self):
+        entered, closed = threading.Event(), threading.Event()
+
+        def waiting_analyzer(source, output, **options):
+            database = sqlite3.connect(output / "investigation-runs.sqlite")
+            try:
+                database.execute("CREATE TABLE held(value TEXT)")
+                database.execute("INSERT INTO held VALUES ('pending')")
+                options["progress"]({"phase": "fixture_wait", "completed": 0, "total": 1,
+                                     "unit": "steps", "model_requests": 0})
+                entered.set()
+                while not self.release.wait(.01):
+                    options["check_cancel"]()
+                options["check_cancel"]()
+            finally:
+                database.rollback()
+                database.close()
+                closed.set()
+
+        app = self.guard.track(WorkbenchState(analyzer=waiting_analyzer))
+        job_id = self.start(app)
+        self.assertTrue(entered.wait(5))
+        with self.assertRaisesRegex(AssertionError, "worker timeout") as error:
+            self.guard.wait(app, job_id, timeout=.02)
+        self.assertIn('"phase": "fixture_wait"', str(error.exception))
+        self.assertIn('"model_calls": 0', str(error.exception))
+        self.assertIn("waiting_analyzer", str(error.exception))
+        self.assertFalse(closed.is_set())
+        self.guard.shutdown()
+        self.assertTrue(closed.is_set())
+        self.assertEqual(app.get_job(job_id)["status"], "CANCELLED")
+        record = self.guard.workers[(app, job_id)]
+        self.assertTrue(record["done"].is_set())
+        self.assertFalse(record["thread"].is_alive())
+        self.temp.cleanup()
+        self.assertFalse(self.root.exists())
+
+    def test_terminal_status_does_not_allow_cleanup_until_real_worker_finally_exits(self):
+        finishing = threading.Event()
+
+        def failing_analyzer(source, output, **options):
+            raise RuntimeError("controlled local failure")
+
+        app = WorkbenchState(analyzer=failing_analyzer)
+        original_run = app._run
+
+        def delayed_finally(job_id, options):
+            try:
+                original_run(job_id, options)
+            finally:
+                finishing.set()
+                self.release.wait(30)
+
+        app._run = delayed_finally
+        self.guard.track(app)
+        job_id = self.start(app)
+        self.assertTrue(finishing.wait(5))
+        self.assertEqual(app.get_job(job_id)["status"], "FAILED")
+        with self.assertRaisesRegex(AssertionError, "worker timeout") as error:
+            self.guard.wait(app, job_id, timeout=.02)
+        self.assertIn('"status": "FAILED"', str(error.exception))
+        self.assertIn("delayed_finally", str(error.exception))
+        with patch.object(self.guard, "timeout", .02):
+            with self.assertRaisesRegex(AssertionError, "worker timeout"):
+                ConversationWorkbenchTests.cleanup_workspace(
+                    SimpleNamespace(workers=self.guard, temp=self.temp))
+        self.assertTrue(self.root.is_dir())
+        self.assertTrue(self.guard.workers[(app, job_id)]["thread"].is_alive())
+        self.release.set()
+        self.guard.shutdown()
+        self.assertFalse(self.guard.workers[(app, job_id)]["thread"].is_alive())
+        self.temp.cleanup()
+        self.assertFalse(self.root.exists())
 
 
 if __name__ == "__main__":
