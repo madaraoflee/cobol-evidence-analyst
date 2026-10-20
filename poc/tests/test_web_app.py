@@ -62,7 +62,8 @@ class WebAppTests(unittest.TestCase):
         if payload is not None:
             body = json.dumps(payload).encode("utf-8")
             request_headers["Content-Type"] = "application/json"
-        connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+        # Functional transport guard; native acceptance measures response speed.
+        connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=10)
         try:
             connection.request(method, path, body=body, headers=request_headers)
             response = connection.getresponse()
@@ -96,7 +97,7 @@ class WebAppTests(unittest.TestCase):
         return result["job_id"]
 
     def finish(self, job_id: str) -> dict:
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + 15
         while time.monotonic() < deadline:
             status, result, _ = self.request("GET", f"/api/jobs/{job_id}")
             self.assertEqual(status, 200, result)
