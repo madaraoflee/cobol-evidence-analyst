@@ -271,6 +271,17 @@ class NativeLiveAcceptanceTests(unittest.TestCase):
         self.assertFalse(wait["application_hard_deadline_expected"])
         self.assertIs(wait["performance_target_interrupts_answer"], False)
 
+    def test_external_watchdog_stays_finite_without_product_local_timer(self):
+        from agent_policy import AgentPolicy
+        policy = AgentPolicy()
+        wait = native.execution_wait_policy(policy)
+        self.assertEqual(wait["local_processing_reserve_seconds"], 135)
+        self.assertEqual(wait["watchdog_seconds"], 6 * native.WORKBENCH_TIMEOUT_SECONDS + 135 + 45)
+        self.assertIsNone(policy.max_local_analysis_seconds)
+        self.assertIsNone(wait["hard_question_seconds"])
+        explicit = native.execution_wait_policy(AgentPolicy(max_local_analysis_seconds=7))
+        self.assertEqual(explicit["local_processing_reserve_seconds"], 127)
+
     def test_stricter_deployment_time_limits_also_bound_acceptance_watchdog(self):
         from agent_policy import AgentPolicy
         fast = native.execution_wait_policy(AgentPolicy(max_question_seconds=1, max_model_requests=3))

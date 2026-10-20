@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 import socket
 import sys
@@ -22,6 +23,7 @@ from company_api import CompanyAPIConfig, TransportResponse
 from company_api import APIClientError
 from question_budget import QuestionBudget
 from repository_discovery import ensure_repository_search
+import repository_discovery
 import semantic_scope
 
 
@@ -94,9 +96,95 @@ class BusinessChatLatencyTests(unittest.TestCase):
 
         with mock.patch.object(business_chat, "time", self.clock), \
                 mock.patch.object(business_chat, "QuestionBudget", side_effect=question_budget):
-            return business_chat.run_business_chat(question, self.database, self.source, self.config,
+            self.last_output = business_chat.run_business_chat(question, self.database, self.source, self.config,
                 transport=transport, allow_network=False, framework_reference_path="",
-                policy=policy or AgentPolicy(), check_cancel=check_cancel)["agent_result"]
+                policy=policy or AgentPolicy(), check_cancel=check_cancel)
+            return self.last_output["agent_result"]
+
+    def test_slow_retrieval_keeps_real_selected_semantics_in_cold_and_warm_first_wire(self):
+        original = repository_discovery.retrieve_repository_context
+        for warm in (False, True):
+            with self.subTest(warm=warm):
+                delayed = False
+                began = self.clock_value
+
+                def slow_retrieval(*args, **kwargs):
+                    nonlocal delayed
+                    context = original(*args, **kwargs)
+                    if not delayed:
+                        # Model the scheduler/disk delay before optional semantic
+                        # work starts, without waiting or substituting its result.
+                        self.clock_value += 16.0
+                        delayed = True
+                    return context
+
+                before = len(self.requests)
+                with mock.patch.object(repository_discovery, "retrieve_repository_context",
+                                       side_effect=slow_retrieval):
+                    result = self.ask(policy=AgentPolicy(max_model_requests=1))
+                self.assertTrue(delayed)
+                self.assertEqual(len(self.requests), before + 1)
+                self.assertEqual(self.transport_calls[-1] - began, 16.0)
+                self.assertIn("semantic_scope", self.last_output)
+                self.assertEqual(self.last_output["semantic_scope"]["cache_hit"], warm)
+                payload = self.requests[-1]
+                self.assertTrue(payload["evidence_groups"])
+                groups = json.dumps(payload["evidence_groups"])
+                for statement in ("COMPUTE BILL-AMOUNT = PRINCIPAL + FEE",
+                                  "IF BILL-DATE <= TODAY-DATE AND PRINCIPAL > ZERO"):
+                    self.assertIn(statement, groups)
+                pages = self.pages(payload)
+                expected_hash = hashlib.sha256((self.source / "rule.cbl").read_bytes()).hexdigest()
+                self.assertTrue(pages)
+                for page in pages:
+                    self.assertEqual(page["source_sha256"], expected_hash)
+                    self.assertEqual(page["source_text"], "\n".join(
+                        self.text.splitlines()[page["start_line"] - 1:page["end_line"]]))
+                self.assertTrue(result["model_answer_recorded"])
+                self.assertFalse(any(item.get("reason") == "local_analysis_budget_reached"
+                                     for item in result["boundaries"]))
+
+    def test_slow_selected_parser_keeps_semantics_without_default_timer(self):
+        original = semantic_scope.prepare_semantic_scope
+
+        def slow_prepare(*args, check_cancel, **kwargs):
+            self.clock_value = 16.0
+            check_cancel()
+            return original(*args, check_cancel=check_cancel, **kwargs)
+
+        with mock.patch.object(semantic_scope, "prepare_semantic_scope", side_effect=slow_prepare):
+            result = self.ask(policy=AgentPolicy(max_model_requests=1))
+        self.assertEqual(len(self.requests), 1)
+        self.assertIn("semantic_scope", self.last_output)
+        self.assertTrue(self.requests[0]["evidence_groups"])
+        self.assertIn("PRINCIPAL + FEE", json.dumps(self.requests[0]["evidence_groups"]))
+        self.assertTrue(result["model_answer_recorded"])
+
+    def test_explicit_local_timer_alone_still_stops_slow_selected_parser(self):
+        def slow_prepare(*args, check_cancel, **kwargs):
+            self.clock_value = 16.0
+            check_cancel()
+            self.fail("The explicit local deadline was ignored")
+
+        with mock.patch.object(semantic_scope, "prepare_semantic_scope", side_effect=slow_prepare):
+            result = self.ask(policy=AgentPolicy(max_model_requests=1, max_local_analysis_seconds=15))
+        self.assertEqual(len(self.requests), 1)
+        boundary = next(item for item in result["boundaries"]
+                        if item.get("reason") == "local_analysis_budget_reached")
+        self.assertEqual(boundary["limit_seconds"], 15)
+        self.assertNotIn("semantic_scope", self.last_output)
+        self.assertIn("PRINCIPAL + FEE", json.dumps(self.requests[0]["source_context"]))
+
+    def test_explicit_question_deadline_stops_parser_without_local_timers(self):
+        def slow_prepare(*args, check_cancel, **kwargs):
+            self.clock_value = 16.0
+            check_cancel()
+            self.fail("The explicit question deadline was ignored")
+
+        with mock.patch.object(semantic_scope, "prepare_semantic_scope", side_effect=slow_prepare):
+            result = self.ask(policy=AgentPolicy(max_model_requests=1, hard_question_seconds=7))
+        self.assertEqual(self.requests, [])
+        self.assertEqual(result["stop_reason"], "QUESTION_TIME_BUDGET_EXHAUSTED")
 
     def test_optional_semantic_budget_keeps_raw_conditions_formula_and_output(self):
         def slow_prepare(*args, check_cancel, **kwargs):
@@ -105,7 +193,7 @@ class BusinessChatLatencyTests(unittest.TestCase):
             raise AssertionError("Optional analysis continued beyond its budget")
 
         with mock.patch.object(semantic_scope, "prepare_semantic_scope", side_effect=slow_prepare) as prepare:
-            result = self.ask(policy=AgentPolicy(max_model_requests=1))
+            result = self.ask(policy=AgentPolicy(max_model_requests=1, max_initial_context_seconds=3))
         self.assertGreater(prepare.call_count, 0)
         self.assertEqual(len(self.requests), 1)
         supplied = "\n".join(page["source_text"] for page in self.pages(self.requests[0]))
@@ -184,7 +272,8 @@ class BusinessChatLatencyTests(unittest.TestCase):
 
         with mock.patch.object(semantic_scope, "build_business_evidence", side_effect=inspected):
             result = self.ask(respond=respond, policy=AgentPolicy(max_model_requests=2,
-                max_question_seconds=300, hard_question_seconds=300))
+                max_question_seconds=300, hard_question_seconds=300,
+                max_initial_context_seconds=3, max_local_analysis_seconds=15))
         self.assertEqual(len(self.requests), 2)
         self.assertTrue(followup_inspections)
         self.assertTrue(result["model_answer_recorded"])

@@ -102,8 +102,8 @@
     "The previous 5.199-second TLS failure had no model answer and is excluded from successful model latency.",
     "Application timing components are inclusive and must not be added together.",
     "No fixed total-question deadline was configured. Per-request I/O timeout and finite request limits still apply.",
-    "All paid samples precede publication pipeline45. Later semantic-review and CL unknown-reason fixes received offline/source HTTP verification only; these timings do not measure pipeline45 model performance."
+    "All paid samples precede publication pipeline46. Later semantic-review, CL metadata and local time-gate fixes received offline verification only; these timings do not measure pipeline46 model performance."
   ],
-  "publication_pipeline_version": "question-evidence-v45",
+  "publication_pipeline_version": "question-evidence-v46",
   "last_paid_pipeline_version": "question-evidence-v43"
 }

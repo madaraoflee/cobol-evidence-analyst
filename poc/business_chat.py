@@ -1368,9 +1368,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     def check_local_analysis_budget():
         if check_cancel:
             check_cancel()
+        limits = [value for value in (
+            policy.max_local_analysis_seconds,
+            policy.max_initial_context_seconds if turns == 0 else None,
+        ) if value is not None]
+        if not limits:
+            return
         local_elapsed = time.monotonic() - started - timing["provider_wait_seconds"]
-        limit = min(policy.max_initial_context_seconds, policy.max_local_analysis_seconds) \
-            if turns == 0 else policy.max_local_analysis_seconds
+        limit = min(limits)
         if local_elapsed >= limit:
             stage = "initial_context" if turns == 0 else "local_analysis"
             if stage not in local_budget_frontiers:

@@ -40,7 +40,8 @@ class CompletedReadRequestFitTests(unittest.TestCase):
 
         with mock.patch.object(semantic_scope, "prepare_semantic_scope", side_effect=expire_initial_context), \
                 mock.patch.object(business_chat.time, "monotonic", side_effect=lambda: clock() + offset):
-            payload, output, size = fixture.capture(question, policy=AgentPolicy(max_request_bytes=32768))
+            payload, output, size = fixture.capture(question, policy=AgentPolicy(
+                max_request_bytes=32768, max_initial_context_seconds=3))
 
         self.assertLessEqual(size, 32768)
         self.assertEqual(payload["question"], question)

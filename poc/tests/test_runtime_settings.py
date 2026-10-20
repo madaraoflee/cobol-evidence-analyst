@@ -41,7 +41,8 @@ class RuntimeSettingsTests(unittest.TestCase):
 
     def test_missing_and_null_timers_use_progress_defaults_with_finite_calls(self):
         for settings in ({}, {"max_model_requests": None, "max_question_seconds": None,
-                              "hard_question_seconds": None}):
+                              "hard_question_seconds": None, "max_initial_context_seconds": None,
+                              "max_local_analysis_seconds": None}):
             with self.subTest(settings=settings):
                 self.write({"version": 1, "agent": settings})
                 original = self.path.read_bytes()
@@ -49,7 +50,24 @@ class RuntimeSettingsTests(unittest.TestCase):
                 self.assertEqual(policy.max_model_requests, 6)
                 self.assertIsNone(policy.max_question_seconds)
                 self.assertIsNone(policy.hard_question_seconds)
+                self.assertIsNone(policy.max_initial_context_seconds)
+                self.assertIsNone(policy.max_local_analysis_seconds)
                 self.assertEqual(self.path.read_bytes(), original)
+
+    def test_explicit_local_timers_are_not_guessed_or_rewritten(self):
+        for initial, local in ((3, 15), (2, 8), (None, 15), (3, None)):
+            with self.subTest(initial=initial, local=local):
+                self.write({"version": 1, "agent": {
+                    "max_initial_context_seconds": initial, "max_local_analysis_seconds": local}})
+                original = self.path.read_bytes()
+                policy = load_agent_policy(self.path)
+                self.assertEqual((policy.max_initial_context_seconds,
+                                  policy.max_local_analysis_seconds), (initial, local))
+                self.assertEqual(self.path.read_bytes(), original)
+
+    def test_example_uses_progress_defaults_without_adding_time_cutoffs(self):
+        policy = load_agent_policy(Path(__file__).resolve().parents[1] / "agent-settings.example.json")
+        self.assertEqual(policy, AgentPolicy())
 
     def test_saved_explicit_deadline_is_not_guessed_to_be_an_old_default(self):
         for settings, expected in (({"max_question_seconds": 180, "hard_question_seconds": 180}, 180),

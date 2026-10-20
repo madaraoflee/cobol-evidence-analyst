@@ -19,6 +19,12 @@ class AgentPolicyTests(unittest.TestCase):
         self.assertIsNone(policy.hard_question_seconds)
         self.assertIsNone(policy.delivery_target_seconds)
         self.assertIsNone(policy.effective_delivery_target_seconds)
+        self.assertIsNone(policy.max_initial_context_seconds)
+        self.assertIsNone(policy.max_local_analysis_seconds)
+        self.assertEqual((policy.max_semantic_files, policy.max_semantic_source_bytes,
+                          policy.max_semantic_expansions, policy.max_evidence_groups,
+                          policy.max_business_context_actions_per_turn),
+                         (32, 33554432, 4, 12, 2))
         self.assertEqual(policy.finalization_reserve_seconds, 45)
         self.assertEqual(policy.max_investigation_rounds, 5)
         self.assertEqual(policy.investigation_mode, "adaptive")
@@ -120,10 +126,22 @@ class AgentPolicyTests(unittest.TestCase):
 
     def test_optional_limits_reject_invalid_values(self):
         for field, maximum in (("max_model_requests", 32), ("max_question_seconds", 1800),
-                               ("delivery_target_seconds", 1800)):
+                               ("delivery_target_seconds", 1800),
+                               ("max_initial_context_seconds", 120),
+                               ("max_local_analysis_seconds", 300)):
             for value in (0, -1, maximum + 1, True, 1.5, "5"):
                 with self.subTest(field=field, value=value), self.assertRaises(ValueError):
                     resolve_agent_policy({field: value})
+
+    def test_explicit_local_timers_round_trip_independently(self):
+        for initial, local in ((None, None), (3, 15), (7, None), (None, 9), (120, 300)):
+            with self.subTest(initial=initial, local=local):
+                policy = AgentPolicy(max_initial_context_seconds=initial,
+                                     max_local_analysis_seconds=local)
+                self.assertEqual(resolve_agent_policy(policy.to_dict()), policy)
+                self.assertEqual((policy.max_initial_context_seconds,
+                                  policy.max_local_analysis_seconds), (initial, local))
+                self.assertIsNone(policy.hard_question_seconds)
 
     def test_explicit_delivery_target_is_separate_and_cannot_extend_total_deadline(self):
         policy = AgentPolicy(max_question_seconds=120, delivery_target_seconds=1)

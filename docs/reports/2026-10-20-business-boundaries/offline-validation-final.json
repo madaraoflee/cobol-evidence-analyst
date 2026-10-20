@@ -3,7 +3,7 @@
   "product_sha256": {
     "poc/activation_evidence.py": "466e65c581fb6e713f38f93577c22f7d2bffd11bec8f431dfb19e4a8432ef73d",
     "poc/agent_loop.py": "15a66a72e5d88be7fe0ce9f43e87e9115535faafa4fe855275c2bd4896239893",
-    "poc/agent_policy.py": "56141db74f987ba6f344d7df0630516ff26a79205c05cf47eb2fbb172c6f32d5",
+    "poc/agent_policy.py": "4840fb08ecb3ae50443e1d5a6780bc344d5eaa4a9f8adec804583a29c11663ea",
     "poc/analysis_continuation.py": "08913658d4c685186371bcdf924c0189e7a561c83f2ac98e12fc62741eeac763",
     "poc/analyze_source.py": "d9ea72209e59420329a61896c030d0bb0cf15639a7f482362808764d0e777f0e",
     "poc/answer_diagnostics.py": "35bec6e548bad70e1b6d4d1a144d1fee4ef5b58d6affe7aba3dcf109653df07b",
@@ -23,7 +23,7 @@
     "poc/business_acceptance.py": "02914ff693e8bdb384cab005c5f96ebf6d302984e0b0b542a73aa2ccbefb74cd",
     "poc/business_analysis.py": "a33dcb8c4636b4bfc298c7a725c79c04ff77b47e15bb7de80353d306da45e2ef",
     "poc/business_behavior.py": "88dfdbba7753697550d3b1330892796a2481920b7d749be6e47cae8ad9aa8dbb",
-    "poc/business_chat.py": "0992702e07b77ebf0a3af600ad0155563df66c1522e551215293d260cc01c17c",
+    "poc/business_chat.py": "243cd75fe1fcc8eb62796c75a76e389fd1b268ced1682ca31614501a78842a99",
     "poc/business_index.py": "dac92753585105b6548682529986599bbccd6bfec9425265e817136787fbff33",
     "poc/business_investigation.py": "1a38251f06593bc877f6c6f78b890b8aec05cd513ee2fe5b388aae24b21b5c4e",
     "poc/business_map.py": "809afe980c241293cb1978f5d7e4ab438515cdf5fb5f9c8843d43048281b1078",
@@ -79,7 +79,7 @@
     "poc/procedure_expansion.py": "3bc972bb71499e595201777f5dd1e15dba3da982566f03f2f0680e4cdbf605f0",
     "poc/prompt_projection.py": "2af16d6e34858ab1ce0b51e29e8c63b0d3227f20025601f64d378922af8e398c",
     "poc/public_business_acceptance.py": "217ca271310a8ee60470f4980e983fb8a2f0d5eefef49daad0d89456d41a6fca",
-    "poc/quality_trace.py": "ccca986ea078c0f212ff4b084f05cd54288b0954d15818e1637fd624a7d79ff8",
+    "poc/quality_trace.py": "1c24dd6277b91bafba5dbfde772e97b352f7fe8fdaf62649b61d9b34365e5a9e",
     "poc/question_budget.py": "3b8f1bb209a9819eb163d42d9193e5ba21a29303eb1d9ced4aeaa28e43558782",
     "poc/question_intent.py": "ba2374f2a5096eefc52c2fffeadc6bdc48e934a27fad4fa445b36d14aa77b51c",
     "poc/question_investigation.py": "d497281350fb3ae7f72fc5a16bca5bf4c5bed66ab763770533d87c52bcc7e5d3",
@@ -110,9 +110,11 @@
     "poc/statement_parser.py": "e1d5751f81bdc467bfe690f2c28362508ea21e97020389f98d1cd8c5dedb5360",
     "poc/structural_index.py": "830ddc9452179eecca05250f96ca6f05460c55404af0311427fe5559c742b6fd",
     "poc/syntax_evidence.py": "800f82c0d51de2830d3ea818087aa600643beffaf22757206fdef1f77b5269c6",
-    "poc/web_app.py": "9d8a71e7d8ad2c00cbd273ae8e935102d19a240fd04b81b0873e441cecb6c2f6"
+    "poc/web_app.py": "9d8a71e7d8ad2c00cbd273ae8e935102d19a240fd04b81b0873e441cecb6c2f6",
+    "poc/agent-settings.example.json": "50018f2b85a90f4538aee27ce8dacb549be5871e13b8cb04abd7eda9490eba92",
+    "tools/desktop_live_acceptance.py": "4dff946ca090626945664abe2e200b457a90a625a85e7e6c12eed2adcd001f06"
   },
-  "pipeline_version": "question-evidence-v45",
+  "pipeline_version": "question-evidence-v46",
   "prompt_version": "business-chat-v40",
   "python_3_10_syntax_files": 434,
   "browser_tests": {
@@ -123,20 +125,20 @@
   },
   "python_regressions": {
     "status": "passed",
-    "selected_count": 3539,
-    "tests_run": 3539,
+    "selected_count": 3547,
+    "tests_run": 3547,
     "failures": [],
     "errors": [],
     "skipped": [],
     "runner_errors": [],
     "diagnostic_errors": [],
-    "elapsed_seconds": 218.850634
+    "elapsed_seconds": 216.143643
   },
-  "local_regression_report_sha256": "66defec87e17c02cd454f9410dcffc21c28a6846ed2be123cffc70517d52e436",
+  "local_regression_report_sha256": "edb29e07ea9acc97f74482ba60858e24cab9fdccc70fe0f8176b15d9f9305202",
   "semantic_quality_not_inferred_from_source_tests": true,
   "python_3_10_syntax_scope": "All poc/**/*.py and tools/**/*.py plus build_app.py",
   "boundary_retest_ready_sha256": "1513e0f211513434229096914802e8a3a6d81ec80f2df2b287d5a93e20d42d28",
-  "live_retest_scope": "Phase10 v43 fresh source-scope-only variant is the last paid request. v44 and v45 received only offline/source HTTP and native regression verification, not fresh real-model acceptance.",
+  "live_retest_scope": "Last paid request is phase10 v43 fresh source-scope-only question. Later v44/v45/v46 changes have offline verification only and do not establish new model semantic correctness or latency.",
   "zero_call_configuration_failure_record": "phase6-initialization-failure.json",
   "prior_failed_source_regression": "offline-validation-phase8-failed.json",
   "last_live_pipeline": "question-evidence-v43",
@@ -144,10 +146,14 @@
   "last_live_source_validation": "offline-validation-phase10-live.json",
   "post_live_changed_product_files": [
     "poc/activation_evidence.py",
+    "poc/agent_policy.py",
+    "poc/business_chat.py",
     "poc/business_synthesis.py",
-    "poc/quality_trace.py"
+    "poc/quality_trace.py",
+    "poc/agent-settings.example.json",
+    "tools/desktop_live_acceptance.py"
   ],
-  "post_live_change_scope": "v44 bounded semantic review fix and v45 correction of a stale source-unknown reason when the CL guard is actually supplied. No new paid model test; initial generation metadata changed at v45. Raw and delivered v43 answers and their failed semantic review remain unchanged.",
+  "post_live_change_scope": "v44 bounded semantic review, v45 supplied CL guard unknown-reason correction, v46 default local time gates removed in favor of unchanged finite work limits. Explicit deadlines/cancellation preserved; saved explicit timers never guessed or rewritten. No new paid model test or raw answer/score modification.",
   "prior_v44_validation": "offline-validation-v44.json",
   "prior_failed_native_build": "windows-native-attempt1.json",
   "native_acceptance_contract": {
@@ -159,5 +165,27 @@
     "source_http_replay_samples": 3,
     "source_http_real_model_calls": 0,
     "source_http_is_windows_exe_acceptance": false
+  },
+  "prior_v45_validation": "offline-validation-v45.json",
+  "prior_failed_windows_regression": "windows-regression-attempt2.json",
+  "local_progress_regression": {
+    "targeted_tests": 75,
+    "targeted_elapsed_seconds": 3.805,
+    "targeted_log_sha256": "2f1597178b1b216c5431ada5218613d4c21d71d06a0450d664e430be2775c389",
+    "independent_key_tests": 9,
+    "independent_elapsed_seconds": 0.452,
+    "delay_injection_seconds": 16,
+    "real_source_semantic_parser_used": true,
+    "raw_source_hash_and_first_wire_evidence_groups_checked": true,
+    "original_windows_failed_test_file_unmodified": true,
+    "explicit_local_and_total_limits_preserved": true,
+    "cancellation_preserved": true,
+    "work_limits_unchanged": true,
+    "paid_calls": 0,
+    "limitations": [
+      "Elapsed delay is injected, not real model latency.",
+      "Default work limits do not guarantee wall-clock latency on all hardware.",
+      "Explicit saved 3/15 second timers still apply unless changed by the deployment."
+    ]
   }
 }

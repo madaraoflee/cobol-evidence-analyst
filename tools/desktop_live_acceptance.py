@@ -40,12 +40,15 @@ def execution_wait_policy(policy):
     The frozen desktop uses model_config('workbench'), whose timeout is a
     shared constant, not a dotenv setting. Reserve every allowed exchange plus
     optional local analysis, two minutes for source/context preparation and
-    45 seconds for collecting results/checkpoints. The application deadline
-    still limits investigation and model waits. This is a conservative watchdog,
+    45 seconds for collecting results/checkpoints. An explicit application
+    deadline still limits investigation and model waits. This is a conservative watchdog,
     not an assertion that all local operations have a mathematical time bound.
     """
     transport = float(WORKBENCH_TIMEOUT_SECONDS)
-    local_reserve = 120 + policy.max_local_analysis_seconds
+    # Keep the external test watchdog finite when the application uses work
+    # limits instead of a local timer; this reserve is not a product deadline.
+    local_reserve = 120 + (policy.max_local_analysis_seconds
+                           if policy.max_local_analysis_seconds is not None else 15)
     cleanup = 45
     wait = policy.max_model_requests * transport + local_reserve + cleanup
     if policy.hard_question_seconds is not None:
