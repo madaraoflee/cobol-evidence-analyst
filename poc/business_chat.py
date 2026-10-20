@@ -561,7 +561,8 @@ def _prompt_payload(payload):
     contract = {"detail": ("Explain the requested business behavior thoroughly, including relevant inputs, "
                             "conditions, processing order, field changes, exceptions, results and source evidence."
                             if detailed else "Give a concise answer while preserving decisive conditions and evidence."),
-                "organization": "Use short headings, steps and comparison tables where they help explain the details.",
+                "organization": "Choose the minimum structure needed for this question. Use short headings, steps or comparisons "
+                    "where helpful; do not automatically enumerate declarations and unrelated scenarios.",
                 "content": "Lead with the conclusion, then show how the supplied source and assumptions establish it.",
                 "time_scope": "Distinguish values passed into each call from its returned values. "
                               "For additional scenarios, state their own required conditions before giving outcomes."}
@@ -602,7 +603,10 @@ def _prompt_payload(payload):
                 "File names and CL overrides do not establish LF/PF object types without definitions.",
             "framework": "When explaining why a convention applies, connect its documented meaning to the call, "
                 "parameter layout and last effective assignment. Explain why intervening writes preserve or overwrite "
-                "the operation field, including shared storage; an initial operation literal alone is insufficient.",
+                "the operation field, including shared storage; an initial operation literal alone is insufficient. "
+                "Storage layout does not establish a field's business role. A name or literal proves neither that it is "
+                "nor that it is not a primary key, view or selector. If the supplied contract does not define the role, "
+                "state that it is unknown; do not invent an alternative meaning or mechanism.",
             "citations": "Use only supplied source evidence_id and manual reference_id markers. "
                 "Internal rule IDs are navigation, never user-facing citations. Do not guess a replacement source."}
     if discovery_only:
@@ -821,7 +825,8 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         if "answer_review" in payload and material_changed:
             payload["answer_review"] = assess_business_answer(payload.get("question", ""),
                 payload.get("draft_answer", ""), payload.get("question_investigation", {}), review_pages,
-                answer_detail=payload.get("answer_detail", "detailed"), working_set=bundle.get("working_set"))
+                answer_detail=payload.get("answer_detail", "detailed"), working_set=bundle.get("working_set"),
+                framework_references=payload.get("framework_references", []))
         if not payload.get("business_analysis_brief_omitted") and material_changed:
             payload["business_analysis_brief"] = build_analysis_brief(payload.get("question", ""),
                 payload.get("question_investigation", {}), review_pages,
@@ -1391,7 +1396,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         if audit:
             quality.data.setdefault("draft_reviews", []).append({"round_id": f"round-{turns}",
                 "claim_ledger": review["ledger"], "answer_completion": review["assessment"],
-                "source_fact_completion": review["fact_completion"]})
+                "source_fact_completion": review["fact_completion"],
+                "reference_repairs": review.get("reference_repairs", {})})
             invalid_ids = sorted({identifier for entry in review["ledger"]["entries"]
                 for identifier in entry.get("invalid_evidence_ids", [])})
             if invalid_ids:
@@ -2530,7 +2536,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         payload["draft_answer"] = redactor._sanitize(answer)
                         payload["answer_review"] = assess_business_answer(question, answer, current_investigation,
                             selected_pages, answer_detail=answer_detail,
-                            working_set=evidence.bundle(selected_pages)[0].get("working_set"))
+                            working_set=evidence.bundle(selected_pages)[0].get("working_set"),
+                            framework_references=payload.get("framework_references", []))
                         if not force_answer and not discovery_pending:
                             payload["task"] = ("继续完成同一个原问题。核对 draft_answer 和 answer_review，保留正确内容，"
                                 "结合本轮实际源码补充遗漏的条件、顺序和结果。需要补充资料时返回具体补查动作；"
@@ -2819,7 +2826,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     if adaptive and not force_answer and not truncated and policy.answer_revision_limit:
                         supplied = source_memory.effective_pages(payload) if source_memory else payload["source_context"][0]["pages"]
                         assessment = assess_business_answer(question, answer, current_investigation, supplied,
-                            answer_detail=answer_detail, working_set=visible.get("working_set"))
+                            answer_detail=answer_detail, working_set=visible.get("working_set"),
+                            framework_references=payload.get("framework_references", []))
                         review_needed = needs_synthesis_review(question, answer, current_investigation,
                             source_available=bool(supplied), source_pages=supplied,
                             answer_detail=answer_detail, assessment=assessment,
@@ -3113,7 +3121,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             answer_source_pages = [sent_pages[identifier]
                 for identifier in _bound_source_ids(answer_manifest)]
             draft_completion = assess_business_answer(question, answer, answer_investigation or {}, answer_source_pages,
-                answer_detail=answer_detail, working_set=(answer_manifest or {}).get("working_set"))
+                answer_detail=answer_detail, working_set=(answer_manifest or {}).get("working_set"),
+                framework_references=[sent_framework[i] for i in (answer_manifest or {}).get("framework_ids", [])])
             review_synthesis = needs_synthesis_review(question, answer, answer_investigation or {},
                 source_available=bool((answer_manifest or {}).get("source_ids")), source_pages=answer_source_pages,
                 answer_detail=answer_detail, assessment=draft_completion,
@@ -3195,14 +3204,16 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             revised_completion = assess_business_answer(question, revised_reply.text,
                                 revised_payload["question_investigation"], revised_payload["source_context"][0]["pages"],
                                 answer_detail=answer_detail,
-                                working_set=revised_payload["source_context"][0].get("working_set"))
+                                working_set=revised_payload["source_context"][0].get("working_set"),
+                                framework_references=revised_payload.get("framework_references", []))
                             # Compare both candidates against the actual revision
                             # context, which can gain or lose source during fitting.
                             # Coverage signals do not establish semantic correctness.
                             draft_in_revision_context = assess_business_answer(question, answer,
                                 revised_payload["question_investigation"], revised_payload["source_context"][0]["pages"],
                                 answer_detail=answer_detail,
-                                working_set=revised_payload["source_context"][0].get("working_set"))
+                                working_set=revised_payload["source_context"][0].get("working_set"),
+                                framework_references=revised_payload.get("framework_references", []))
                             lost_aspects = sorted(set(revised_completion["missing_aspects"])
                                 - set(draft_in_revision_context["missing_aspects"]))
                             revised_answer_completion = assess_answer_completion(revised_reply.text)
@@ -3374,6 +3385,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         quality.data.setdefault("answer_display_repairs", []).append({
             "kind": "incomplete_source_citation_tail", "removed_characters": len(answer) - len(display_answer)})
         answer = display_answer
+    from answer_reference_normalization import normalize_answer_references
+    reference_review = normalize_answer_references(answer, allowed)
+    answer = reference_review["answer"]
+    if reference_review["repairs"] or reference_review["unresolved"]:
+        quality.data["final_reference_repairs"] = {
+            key: value for key, value in reference_review.items() if key != "answer"}
     unsupported = sorted(set(_REFERENCE.findall(answer)) - set(allowed))
     from answer_fact_completion import complete_supplied_answer
     answer, final_source_repairs = repair_source_availability_assertions(redactor._sanitize(answer),
@@ -3424,7 +3441,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     usable = bool(answer.strip())
     answer_completion = assess_business_answer(question, answer, answer_investigation or {},
         [sent_pages[identifier] for identifier in final_source_ids], answer_detail=answer_detail,
-        working_set=(answer_manifest or {}).get("working_set"))
+        working_set=(answer_manifest or {}).get("working_set"),
+        framework_references=[sent_framework[i] for i in final_framework_ids])
     if not answer:
         answer_origin = "diagnostic"
         http_status = next((item.get("http_status") for item in errors if item.get("http_status")), None)

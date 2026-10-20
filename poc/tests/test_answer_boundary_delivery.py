@@ -18,7 +18,7 @@ from tools.business_onboarding_fixture import sources
 
 
 class AnswerBoundaryDeliveryTests(unittest.TestCase):
-    def ask(self, first, *, requests=3):
+    def ask(self, first, *, requests=3, citation_style="square"):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "source"
@@ -38,7 +38,8 @@ class AnswerBoundaryDeliveryTests(unittest.TestCase):
                 page = next(row for context in payload["source_context"] for row in context["pages"]
                             if row["relative_path"] == "balance.cbl")
                 answer = (first if len(sent) == 1 and first is not None else good)
-                answer += f" [{page['evidence_id']}]"
+                answer += (f" （{page['evidence_id']}）" if citation_style == "round"
+                           else f" [{page['evidence_id']}]")
                 return TransportResponse(200, json.dumps({"choices": [{"message": {
                     "role": "assistant", "content": answer}, "finish_reason": "stop"}]}))
 
@@ -81,6 +82,31 @@ class AnswerBoundaryDeliveryTests(unittest.TestCase):
         self.assertEqual(len(sent), 2)
         self.assertIn("unresolvable_internal_references", sent[1]["answer_review"]["missing_aspects"])
         self.assertNotIn("[rule_", result["answer"])
+
+    def test_exact_supplied_round_reference_is_delivered_without_another_request(self):
+        sent, result = self.ask(None, citation_style="round")
+        self.assertEqual(len(sent), 1)
+        page = next(row for context in sent[0]["source_context"] for row in context["pages"]
+                    if row["relative_path"] == "balance.cbl")
+        self.assertIn(f"[{page['evidence_id']}]", result["answer"])
+        self.assertNotIn(f"（{page['evidence_id']}）", result["answer"])
+        self.assertFalse(result["business_review"]["synthesis_review_attempted"])
+
+    def test_unknown_round_reference_stays_incomplete_when_budget_is_exhausted(self):
+        sent, result = self.ask("按账号查询余额，调用方输入账号，余额表提供结果。"
+            "SQLCODE=0返回00，否则90，失败分支未赋值余额。（ev_unknown_page）", requests=1)
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertIn("unresolvable_reference_markers", result["answer_completion"]["missing_aspects"])
+        self.assertIn("（ev_unknown_page）", result["answer"])
+
+    def test_manual_round_reference_is_assessed_against_actual_supplied_manual(self):
+        reference = {"reference_id": "fw:record-contract", "text": "ADVANCE requests the following record."}
+        assessment = assess_business_answer("解释约定", "约定只说明请求下一条记录。（fw:record-contract）",
+            {}, [], framework_references=[reference])
+        self.assertNotIn("unresolvable_reference_markers", assessment["missing_aspects"])
+        absent = assess_business_answer("解释约定", "约定只说明请求下一条记录。（fw:record-contract）", {}, [])
+        self.assertIn("unresolvable_reference_markers", absent["missing_aspects"])
 
     def test_literal_reference_examples_are_not_treated_as_citations(self):
         marker = "[rule_0123456789ab_0123456789abcdef01234567]"

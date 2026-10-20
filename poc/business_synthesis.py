@@ -8,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 
 from business_behavior import build_behavior_guide
 from answer_sql_boundaries import assess_sql_answer_boundaries
+from answer_reference_normalization import normalize_answer_references
 from file_impact_evidence import is_file_impact_question
 from question_intent import calculation_intent
 from source_availability import source_availability_contradictions
@@ -807,7 +808,8 @@ def _accumulation_covered(answer, hint, *, unique_candidate):
     return False
 
 
-def assess_business_answer(question, answer, investigation, source_pages, *, answer_detail="detailed", working_set=None):
+def assess_business_answer(question, answer, investigation, source_pages, *, answer_detail="detailed", working_set=None,
+                           framework_references=()):
     """Detect obvious omissions without treating source supply as answer quality."""
     completion = assess_answer_completion(answer)
     # Only the excerpts actually sent to this answer can contradict a global
@@ -859,13 +861,20 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
                                  explanation, re.I) for name in names):
                 missing.append(group)
     boundary_review = assess_sql_answer_boundaries(answer, source_pages)
+    reference_review = normalize_answer_references(answer, [*source_pages, *framework_references])
+    if reference_review["unresolved"]:
+        missing.append("unresolvable_reference_markers")
+        completion["reference_review"] = {
+            "unresolved": reference_review["unresolved"],
+            "revision_hint": "Use only actual supplied source/manual IDs. An unknown or ambiguous ID "
+                "cannot be repaired by guessing a source from nearby text."}
     # Rule IDs identify internal navigation; unlike source/manual IDs they are
     # not resolvable citations. Never invent a source when asking for repair.
     reference_prose = re.sub(
         r"(?ms)^[ \t]*```[^\n]*\n.*?(?:^[ \t]*```[^\n]*(?:\n|$)|\Z)|"
         r"^[ \t]*~~~[^\n]*\n.*?(?:^[ \t]*~~~[^\n]*(?:\n|$)|\Z)|`[^`\n]*`", "", str(answer))
     internal_references = [match.group() for match in re.finditer(
-        r"\[rule_[0-9a-f]{8,64}_[0-9a-f]{8,64}\]", reference_prose, re.I)]
+        r"[\[(（]rule_[0-9a-f]{8,64}_[0-9a-f]{8,64}[\])）]", reference_prose, re.I)]
     if internal_references:
         missing.append("unresolvable_internal_references")
         completion["citation_review"] = {
@@ -885,7 +894,7 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
             "missing_aspects": [kind for kind in missing if kind in _NARRATIVE_ASPECTS]}
     if missing and completion["status"] != "incomplete":
         completion.update(status="incomplete", reason=("answer_evidence_boundary_review_required"
-            if boundary_review["review_required"] or internal_references
+            if boundary_review["review_required"] or internal_references or reference_review["unresolved"]
             else "supplied_business_aspects_unexplained"))
     completion["method"] = "bounded_text_and_coverage_signals"
     return completion
