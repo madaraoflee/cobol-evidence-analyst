@@ -25,7 +25,8 @@ class BusinessOverviewScopeTests(unittest.TestCase):
         self.source.mkdir()
         contents = sources()
         for name, text in contents.items():
-            (self.source / name).write_text(text, encoding="utf-8")
+            # Match the exact bytes hashed by the captured source page below.
+            (self.source / name).write_bytes(text.encode("utf-8"))
         self.database = root / "index.sqlite"
         build_business_index(self.source, self.database, source_format="free", quiet=True,
                              framework_reference_path="")

@@ -1,0 +1,79 @@
+{
+  "schema": "test-fixture-byte-portability-audit/v1",
+  "created_local_date": "2026-10-20",
+  "base_source_commit": "54c3eebd05f03f2dd3d2e82e84cf6c15031a13f5",
+  "failed_windows_run_id": "39370176559",
+  "failed_shard": 2,
+  "original_windows_report_sha256": "654299cea8b170febd491f878f67dc49e91ee891da4da54b7826fd99efc30f2e",
+  "failure_ids": [
+    "test_business_orientation.BusinessOrientationTests.test_framework_convention_requires_visible_source_and_manual_together",
+    "test_business_orientation.BusinessOrientationTests.test_indexed_cl_context_requires_same_captured_statement_and_current_guard",
+    "test_business_overview_scope.BusinessOverviewScopeTests.test_exclusive_overview_does_not_nominate_external_cl_or_leave_its_read_pending",
+    "test_business_overview_scope.BusinessOverviewScopeTests.test_ordinary_overview_still_nominates_the_known_cl_caller_with_one_read"
+  ],
+  "root_cause": "Default text-mode fixture writes translate LF to CRLF on Windows. The index correctly hashes physical bytes, while supplied in-memory pages hash the original LF UTF-8 string. The differing source versions correctly fail strict evidence binding.",
+  "reproduction": {
+    "runtime_platform": "Darwin",
+    "kind": "Controlled simulation of default Windows text-mode newline translation; not native Windows verification.",
+    "method": "Temporarily wrap pathlib.Path.write_text: only when newline is None, replace LF with CRLF, then call the original writer with newline=\"\". No product function or assertion is mocked.",
+    "before_fix": {
+      "tests_run": 4,
+      "failures": 4,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.134,
+      "matches_original_windows_failure_sites_and_planned_actions": true
+    },
+    "after_fix": {
+      "tests_run": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.166
+    }
+  },
+  "normal_local_tests": [
+    {
+      "module": "test_business_orientation",
+      "tests_run": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.111
+    },
+    {
+      "module": "test_business_overview_scope",
+      "tests_run": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.084
+    }
+  ],
+  "change": {
+    "description": "Replace five fixture text-write call sites with explicit UTF-8 write_bytes so indexed files and captured-page hash inputs are byte-identical across platforms. Manual fixture encoding is explicit as well.",
+    "production_files_modified": false,
+    "original_behavior_assertions_changed": false,
+    "hash_or_evidence_validation_relaxed": false,
+    "modified_files": [
+      {
+        "path": "poc/tests/test_business_orientation.py",
+        "sha256": "75b8beb4b9004de1b6d7ed3ece45179ca3d0f4221f9d732af5105609025eef0f"
+      },
+      {
+        "path": "poc/tests/test_business_overview_scope.py",
+        "sha256": "dc7f85642fb2ea2c21c29bc9dcb52165d1c80719e97492a2e861b49ea028ad06"
+      }
+    ]
+  },
+  "validation": {
+    "git_diff_check_passed": true,
+    "only_these_two_poc_test_files_modified": true,
+    "independent_read_only_diff_review_passed": true
+  },
+  "limitations": [
+    "This local fix verification is not a completed native Windows workflow. The next Windows full regression run must verify the candidate.",
+    "No full local suite was rerun for this fixture-only portability fix; production semantics and all existing correctness assertions remain unchanged.",
+    "No model, provider, source upload, build, release or network request occurred in this audit."
+  ]
+}

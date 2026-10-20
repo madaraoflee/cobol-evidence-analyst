@@ -196,8 +196,9 @@ class BusinessOrientationTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             source.mkdir()
-            (source / "nightjob.cl").write_text(BATCH)
-            (source / "settle.cbl").write_text(SETTLEMENT)
+            # Captured pages hash these exact UTF-8 bytes on every platform.
+            (source / "nightjob.cl").write_bytes(BATCH.encode("utf-8"))
+            (source / "settle.cbl").write_bytes(SETTLEMENT.encode("utf-8"))
             database = root / "index.sqlite"
             build_business_index(source, database, source_format="free", quiet=True)
             cl = page("nightjob.cl", "\n".join(BATCH.splitlines()[1:3]), first=2, full_text=BATCH)
@@ -269,9 +270,10 @@ class BusinessOrientationTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             source.mkdir()
-            (source / "entry.cbl").write_text(SOURCE)
+            # Keep indexed bytes identical to the in-memory captured page.
+            (source / "entry.cbl").write_bytes(SOURCE.encode("utf-8"))
             manual = root / "manual.md"
-            manual.write_text(MANUAL)
+            manual.write_bytes(MANUAL.encode("utf-8"))
             database = root / "index.sqlite"
             build_business_index(source, database, source_format="free", quiet=True, framework_reference_path=manual)
             pages = [page("entry.cbl", SOURCE)]
