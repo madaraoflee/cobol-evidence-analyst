@@ -82,6 +82,43 @@ class ChatContinuationJoinTests(unittest.TestCase):
         self.assertEqual(result["status"], "PARTIAL")
         self.assertEqual(result["stop_reason"], "MODEL_OUTPUT_TRUNCATED")
 
+    def test_two_truncated_responses_drop_only_incomplete_citation_and_keep_raw_diagnostics(self):
+        requests, replies = [], []
+        def transport(request):
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            requests.append(payload)
+            identifier = payload["source_context"][0]["pages"][0]["evidence_id"]
+            text = ("入口给结果字段赋值12。[" + identifier + "]" if len(requests) == 1 else
+                    "随后程序返回，以上已完成的业务说明保留。[" + identifier[:25])
+            replies.append(text)
+            return TransportResponse(200, json.dumps({"choices": [{"message": {
+                "role": "assistant", "content": text}, "finish_reason": "length"}]}, ensure_ascii=False))
+
+        output = run_business_chat("DECISION 返回什么？", self.database, self.source, self.config,
+            transport=transport, framework_reference_path="", capture_api_responses=True,
+            policy=AgentPolicy(max_model_requests=2, max_answer_revisions=0))
+        result = output["agent_result"]
+        marker = replies[1][replies[1].rfind("["):]
+        self.assertEqual(len(requests), 2)
+        self.assertEqual(result["metrics"]["model_requests"], 2)
+        self.assertEqual(result["finish_reason"], "length")
+        self.assertTrue(result["answer_truncated"])
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["stop_reason"], "MODEL_OUTPUT_TRUNCATED")
+        self.assertIn(replies[0], result["answer"])
+        self.assertIn(replies[1][:-len(marker)], result["answer"])
+        self.assertFalse(result["answer"].endswith(marker))
+        self.assertEqual(result["narrative"]["text"], result["answer"])
+        self.assertTrue(result["narrative"]["citations"])
+        exchanges = output["api_diagnostics"]["exchanges"]
+        self.assertEqual(len(exchanges), 2)
+        raw = json.loads(exchanges[-1]["body_text"])
+        self.assertEqual(raw["choices"][0]["message"]["content"], replies[-1])
+        self.assertEqual(raw["choices"][0]["finish_reason"], "length")
+        trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
+        self.assertEqual(trace["answer_display_repairs"], [{"kind": "incomplete_source_citation_tail",
+                                                         "removed_characters": len(marker)}])
+
 
 if __name__ == "__main__":
     unittest.main()

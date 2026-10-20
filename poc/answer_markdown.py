@@ -93,6 +93,32 @@ def _open_code_marker(text: str) -> tuple[str, str] | None:
     return ("fence", fence) if fence else ("inline", inline) if inline else None
 
 
+def strip_incomplete_source_citation(text: str, *, truncated: bool, evidence_ids) -> str:
+    """Remove only a truncated prose tail matching an actually supplied page ID.
+
+    This display repair neither completes an ID nor establishes answer
+    completeness. Raw provider records and all preceding text stay unchanged.
+    Ambiguous or code-like tails are deliberately retained.
+    """
+    if not truncated:
+        return text
+    match = re.search(r"\[(ev_page_[0-9a-f]{1,24})[ \t\r\n]*\Z", text)
+    if match is None or not any(
+            isinstance(identifier, str) and re.fullmatch(r"ev_page_[0-9a-f]{24}", identifier)
+            and identifier.startswith(match[1]) for identifier in evidence_ids):
+        return text
+    prefix = text[:match.start()]
+    escaped = len(prefix) - len(prefix.rstrip("\\"))
+    last_line = prefix.rsplit("\n", 1)[-1]
+    # Paired backslashes do not escape a following code delimiter.
+    code_prefix = re.sub(r"(?<!\\)(?:\\\\)+(?=`)", "", prefix)
+    if (escaped % 2 or last_line.expandtabs(4).startswith("    ")
+            or last_line.lstrip().startswith(">")
+            or _open_code_marker(code_prefix) is not None):
+        return text
+    return prefix
+
+
 def _continuation_restart_boundary(draft: str, offset: int) -> bool:
     """A shared identifier inside a sentence cannot establish a text restart."""
     if offset == 0 or draft[offset - 1] == "\n":

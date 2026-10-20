@@ -15,7 +15,8 @@ from collections.abc import Mapping
 from api_diagnostics import APIResponseDiagnostics
 from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
 from agent_policy import resolve_agent_policy
-from answer_markdown import ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, join_answer_continuation
+from answer_markdown import (ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY,
+                             join_answer_continuation, strip_incomplete_source_citation)
 from answer_diagnostics import build_answer_diagnostics, response_character_counts
 from analysis_continuation import AnalysisContinuation, progress_snapshot
 from business_map import build_business_map
@@ -3203,6 +3204,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         return match[0]
 
     retained_review = reviewed_answers.get(hashlib.sha256(answer.encode()).hexdigest())
+    display_answer = strip_incomplete_source_citation(answer, truncated=truncated,
+                                                     evidence_ids=final_source_ids)
+    if display_answer != answer:
+        quality.data.setdefault("answer_display_repairs", []).append({
+            "kind": "incomplete_source_citation_tail", "removed_characters": len(answer) - len(display_answer)})
+        answer = display_answer
     unsupported = sorted(set(_REFERENCE.findall(answer)) - set(allowed))
     from answer_fact_completion import complete_supplied_answer
     answer, final_source_repairs = repair_source_availability_assertions(redactor._sanitize(answer),

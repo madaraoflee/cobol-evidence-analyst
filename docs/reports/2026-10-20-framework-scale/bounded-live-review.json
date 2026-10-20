@@ -1,0 +1,831 @@
+{
+  "schema_version": "independent-source-answer-review/v1",
+  "review_method": "Independent comparison of supplied raw source excerpts, original model answer, rendered answer, and frozen fixture source; no model requests used for scoring.",
+  "scope": "Two fixed synthetic source-review questions. This is a case-specific completeness and support review, not a population quality estimate or runtime/compiler acceptance.",
+  "manual_sha256": "e609150c2f29d7066d90f9123e86af2e8f3074c227ac2482648051c3de346ed1",
+  "score_definition": {
+    "complete": "All parts of this criterion are present and correct.",
+    "partial": "Useful correct content remains, but part is omitted, unsupported, or locally damaged.",
+    "incorrect": "Materially wrong displayed content within this criterion.",
+    "missing": "The required criterion is not discussed.",
+    "fully_satisfied_count": "Counts only complete criteria. This is not an overall probability of answer correctness.",
+    "citation_validation": "Citation membership and exact excerpt integrity are checked separately from whether an assertion follows from that excerpt."
+  },
+  "cases": [
+    {
+      "id": "q1",
+      "run_id": "99e8ddd0f6184dc0792b1f67",
+      "record_sha256": "56f4a657795297de752a742d983d88719fa0055642dada21c4061bbc5388f049",
+      "trace_sha256": "48f7704a94fe48cc89a52e546902d6acc673df20e0f9cb437133fc6c51b56b19",
+      "tested_commit": "e35dbd2693740da2357cb31a81556680bfc96936",
+      "pipeline_version": "question-evidence-v32",
+      "prompt_version": "business-chat-v30",
+      "original_answer_sha256": "4f1e154bf750424007c6a0f6ab10a6c1f84111abfa78704d55e5755f5096b30b",
+      "displayed_answer_sha256": "a50035d756dd097af229777faeec344171c013dee14c148c12bb46ef5b75bb0d",
+      "original_answer_characters": 3505,
+      "displayed_answer_characters": 3592,
+      "original_equals_displayed": false,
+      "score": {
+        "criteria_count": 6,
+        "original_fully_satisfied": 5,
+        "displayed_fully_satisfied": 4,
+        "original_status_counts": {
+          "complete": 5,
+          "partial": 1,
+          "incorrect": 0,
+          "missing": 0
+        },
+        "displayed_status_counts": {
+          "complete": 4,
+          "partial": 1,
+          "incorrect": 1,
+          "missing": 0
+        },
+        "fully_satisfied": false
+      },
+      "criteria": [
+        {
+          "id": "entry_flow",
+          "required": "INITIALIZE-REQUEST, then MAIN-ACTION, then GOBACK",
+          "original": "complete",
+          "displayed": "complete",
+          "assessment": "The exact entry skeleton and initialization paragraph were explained.",
+          "oracle_source_refs": [
+            "active/request-skeleton.cpy:1-4",
+            "entry/request.cbl:31-35"
+          ]
+        },
+        {
+          "id": "calculation_guards",
+          "required": "Compute only within ROUTE-ENABLED=1 and INPUT-AMOUNT>0",
+          "original": "complete",
+          "displayed": "complete",
+          "assessment": "Both guards are explained correctly in the conclusion and body; the separate damaged route-zero table is scored below.",
+          "oracle_source_refs": [
+            "entry/request.cbl:36",
+            "active/rule-leaf.cpy:1-5"
+          ]
+        },
+        {
+          "id": "factor_fee_formula",
+          "required": "COPY REPLACING yields factor 3; fee 7; general formula INPUT-AMOUNT*RATE-VALUE+SERVICE-FEE",
+          "original": "complete",
+          "displayed": "partial",
+          "assessment": "The original correctly quoted the complete COMPUTE. Local review replaced that block with the later zero assignment. Factor, fee and the numeric 10*3+7 example remain, but the general formula presentation is damaged.",
+          "oracle_source_refs": [
+            "entry/request.cbl:20",
+            "entry/request.cbl:27-29",
+            "active/rate-template.cpy:1",
+            "active/rule-leaf.cpy:1-5"
+          ]
+        },
+        {
+          "id": "rounding",
+          "required": "ROUNDED into a receiver with two decimal places",
+          "original": "complete",
+          "displayed": "complete",
+          "assessment": "Two decimal places and rounding, including no rounding difference for 37.00, are stated.",
+          "oracle_source_refs": [
+            "entry/request.cbl:21",
+            "active/rule-leaf.cpy:2-4"
+          ]
+        },
+        {
+          "id": "worked_values_and_overwrite",
+          "required": "For input 10 and route 1, override 0 gives 37.00 and override 1 gives 0.00; overwrite follows calculation",
+          "original": "complete",
+          "displayed": "complete",
+          "assessment": "Both examples and overwrite order are correct.",
+          "oracle_source_refs": [
+            "active/rule-leaf.cpy:1-5",
+            "entry/request.cbl:66667-66670"
+          ]
+        },
+        {
+          "id": "route_zero_preserves_value",
+          "required": "Route 0 skips both calculation and overwrite; no fixed initial value is proven",
+          "original": "partial",
+          "displayed": "incorrect",
+          "assessment": "Both versions state the correct retained-value conclusion but add an unsupported first-activation 0.00 assumption. The displayed table additionally replaces route 0 with source IF route 1 while retaining no-execution cells.",
+          "oracle_source_refs": [
+            "entry/request.cbl:21",
+            "entry/request.cbl:32-36",
+            "entry/request.cbl:66667-66670"
+          ]
+        }
+      ],
+      "findings": [
+        {
+          "code": "UNSUPPORTED_INITIAL_ZERO",
+          "origin": "model",
+          "severity": "material",
+          "description": "The answer adds a conventional first-activation numeric 0.00 assumption. Neither the source declaration without VALUE, the initialization paragraph, nor the supplied manual establishes this value. Later qualifications do not make this added premise supported.",
+          "evidence": "entry/request.cbl:21,32-34"
+        },
+        {
+          "code": "VALID_HYPOTHETICAL_CONDITION_REWRITTEN",
+          "origin": "local_review",
+          "severity": "material",
+          "claim_ids": [
+            "claim-24",
+            "claim-72"
+          ],
+          "description": "Correct route-zero scenario and negated-path prose were treated as conflicting source IF statements. The table now labels route 1 alongside no-execution outcomes, and the correct override-scope explanation was removed."
+        },
+        {
+          "code": "CORRECT_COMPUTE_REPLACED_WITH_OTHER_ASSIGNMENT",
+          "origin": "local_review",
+          "severity": "material",
+          "claim_ids": [
+            "claim-48"
+          ],
+          "description": "The correctly quoted COMPUTE from the supplied rule-leaf was replaced by the later MOVE zero from a different source position. This is not a genuine contradiction in the original answer."
+        },
+        {
+          "code": "OUTPUT_TRUNCATED",
+          "origin": "model_response",
+          "severity": "material",
+          "description": "The final answer stops mid-citation in an additional call/write section. The requested core calculation content appears before this truncation, but the delivery is unfinished. No continuation was attempted."
+        }
+      ],
+      "delivery": {
+        "finish_reason": "length",
+        "answer_truncated": true,
+        "continuation_attempted": false,
+        "stop_reason": "MODEL_OUTPUT_TRUNCATED",
+        "model_requests": 2,
+        "elapsed_seconds": 82.338,
+        "provider_wait_seconds": 79.0993,
+        "local_processing_seconds": 3.2386
+      },
+      "wire_rounds": [
+        {
+          "round_id": "round-1",
+          "stage": "investigate",
+          "finish_reason": "length",
+          "response_error": "MODEL_TEXT_EMPTY",
+          "raw_content_characters": 0,
+          "request_body_sha256": "5061383e1d8e78e8bef8588ba3bd912dd1948492baaa9463878c27d3e6f99021",
+          "source_page_count": 10,
+          "source_file_count": 6,
+          "source_line_count": 397,
+          "source_character_count": 15258,
+          "source_pages": [
+            {
+              "evidence_id": "ev_page_798817dc9e3b8b165f7e921f",
+              "path": "entry/request.cbl",
+              "start_line": 1,
+              "end_line": 112,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_2c3a1d9c8da9ef4573ce540f",
+              "path": "entry/request.cbl",
+              "start_line": 66618,
+              "end_line": 66716,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_3e0b7d562ac3ef1c4b0d3e46",
+              "path": "entry/request.cbl",
+              "start_line": 99943,
+              "end_line": 100000,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_9b1b59e6ddc9c9fb6881b1e7",
+              "path": "entry/request.cbl",
+              "start_line": 66883,
+              "end_line": 66977,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_ff4790da5511ec8111e095a9",
+              "path": "active/layout-root.cpy",
+              "start_line": 1,
+              "end_line": 1,
+              "source_sha256": "d758ea5af8b8bfd69fefd9ae8f51a05d9e0ef4b650cf12ffb048402bdeb661ac",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_f9118d706a9c971dc1b4a0b1",
+              "path": "active/request-skeleton.cpy",
+              "start_line": 1,
+              "end_line": 4,
+              "source_sha256": "54134d0cb024f4daf6092d040ff4bfdec72aa1b0d97ea87bc972c6c31a708a4a",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_a737f834356fa3a91e1f3edf",
+              "path": "entry/request.cbl",
+              "start_line": 33326,
+              "end_line": 33346,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_ca0658f95d895e7188bb66a1",
+              "path": "active/rule-leaf.cpy",
+              "start_line": 1,
+              "end_line": 5,
+              "source_sha256": "4268e1d877d142db8376c7c213b4a7a33201c4536b421a4dde8748bb1481eb83",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_8aab45cee6488b135df6c1af",
+              "path": "active/rate-template.cpy",
+              "start_line": 1,
+              "end_line": 1,
+              "source_sha256": "b1418bfe465c6d2258fe7ca1618d0ccff8c441e36c8a3df164e126a390f435ca",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_0bec5bc1f0d4b1550a81af17",
+              "path": "active/rule-root.cpy",
+              "start_line": 1,
+              "end_line": 1,
+              "source_sha256": "589f40bfff78bfd5eb90e1544f481b88d1d911a1fffc68c275153e6d11a14358",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            }
+          ],
+          "framework_reference_ids": [
+            "fw:e609150c2f29d706:5-5",
+            "fw:e609150c2f29d706:7-8",
+            "fw:e609150c2f29d706:14-14",
+            "fw:e609150c2f29d706:20-20",
+            "fw:e609150c2f29d706:21-21"
+          ]
+        },
+        {
+          "round_id": "round-2",
+          "stage": "empty_length_recovery",
+          "finish_reason": "length",
+          "response_error": null,
+          "raw_content_characters": 3505,
+          "request_body_sha256": "33b87ed32cc98b619d90865d1cd35343c63716fafe24215a544c8a0fc12f599b",
+          "source_page_count": 10,
+          "source_file_count": 6,
+          "source_line_count": 397,
+          "source_character_count": 15258,
+          "source_pages": [
+            {
+              "evidence_id": "ev_page_798817dc9e3b8b165f7e921f",
+              "path": "entry/request.cbl",
+              "start_line": 1,
+              "end_line": 112,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_2c3a1d9c8da9ef4573ce540f",
+              "path": "entry/request.cbl",
+              "start_line": 66618,
+              "end_line": 66716,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_3e0b7d562ac3ef1c4b0d3e46",
+              "path": "entry/request.cbl",
+              "start_line": 99943,
+              "end_line": 100000,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_9b1b59e6ddc9c9fb6881b1e7",
+              "path": "entry/request.cbl",
+              "start_line": 66883,
+              "end_line": 66977,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_ff4790da5511ec8111e095a9",
+              "path": "active/layout-root.cpy",
+              "start_line": 1,
+              "end_line": 1,
+              "source_sha256": "d758ea5af8b8bfd69fefd9ae8f51a05d9e0ef4b650cf12ffb048402bdeb661ac",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_f9118d706a9c971dc1b4a0b1",
+              "path": "active/request-skeleton.cpy",
+              "start_line": 1,
+              "end_line": 4,
+              "source_sha256": "54134d0cb024f4daf6092d040ff4bfdec72aa1b0d97ea87bc972c6c31a708a4a",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_a737f834356fa3a91e1f3edf",
+              "path": "entry/request.cbl",
+              "start_line": 33326,
+              "end_line": 33346,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_ca0658f95d895e7188bb66a1",
+              "path": "active/rule-leaf.cpy",
+              "start_line": 1,
+              "end_line": 5,
+              "source_sha256": "4268e1d877d142db8376c7c213b4a7a33201c4536b421a4dde8748bb1481eb83",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_8aab45cee6488b135df6c1af",
+              "path": "active/rate-template.cpy",
+              "start_line": 1,
+              "end_line": 1,
+              "source_sha256": "b1418bfe465c6d2258fe7ca1618d0ccff8c441e36c8a3df164e126a390f435ca",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_0bec5bc1f0d4b1550a81af17",
+              "path": "active/rule-root.cpy",
+              "start_line": 1,
+              "end_line": 1,
+              "source_sha256": "589f40bfff78bfd5eb90e1544f481b88d1d911a1fffc68c275153e6d11a14358",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            }
+          ],
+          "framework_reference_ids": [
+            "fw:e609150c2f29d706:5-5",
+            "fw:e609150c2f29d706:7-8",
+            "fw:e609150c2f29d706:14-14",
+            "fw:e609150c2f29d706:20-20",
+            "fw:e609150c2f29d706:21-21"
+          ]
+        }
+      ],
+      "citation_check": {
+        "complete_cited_ids": [
+          "ev_page_798817dc9e3b8b165f7e921f",
+          "ev_page_f9118d706a9c971dc1b4a0b1",
+          "ev_page_a737f834356fa3a91e1f3edf",
+          "ev_page_2c3a1d9c8da9ef4573ce540f",
+          "ev_page_0bec5bc1f0d4b1550a81af17",
+          "ev_page_ca0658f95d895e7188bb66a1",
+          "ev_page_8aab45cee6488b135df6c1af"
+        ],
+        "all_complete_citations_available": true,
+        "unsupported_citation_ids": [],
+        "all_source_hashes_and_excerpts_match": true
+      },
+      "support_boundary": {
+        "exact_source_excerpt_validation": "All source excerpts in both request contexts match the frozen physical source ranges and source hashes.",
+        "citation_membership": "Every complete citation used in the displayed answer was available in its actual request context. Membership alone does not validate the associated interpretation.",
+        "full_program_scope": "The wire contains selected intervals, not the full 100000-line program. The independent oracle verifies the long-distance scope; full interval execution semantics are not formally proved by citation membership.",
+        "raw_source_gaps": [],
+        "runtime_boundary": "No compiler execution, closed runtime implementation, actual returned row/status, successful file operation, or transaction completion is verified by this review.",
+        "truncated_citation": "The terminal source citation is incomplete because the model output was truncated. Its intended source page was supplied; this is not evidence of a fabricated complete citation."
+      },
+      "automatic_ledger_counts": {
+        "contradicted": 3,
+        "supported": 10,
+        "unsupported": 70
+      },
+      "ledger_interpretation": "All three recorded contradictions are false-positive local rewrites, not three demonstrated errors in the original answer.",
+      "private_record_name": "q1.json",
+      "private_trace_name": "99e8ddd0f6184dc0792b1f67.json"
+    },
+    {
+      "id": "q3",
+      "run_id": "48395b9a3240249d48ed4aca",
+      "record_sha256": "1e19f19b1a22e08b69f9230734776edd67149661cb94b1b1fd8ad4610fde8287",
+      "trace_sha256": "d159b748827d523e6722c892b0cafd204b6875953e8e650bd1785c5409ff8ed5",
+      "tested_commit": "e35dbd2693740da2357cb31a81556680bfc96936",
+      "pipeline_version": "question-evidence-v32",
+      "prompt_version": "business-chat-v30",
+      "original_answer_sha256": "8a998d7571d07a52b4547ef2aebeaba37b51335980fdfac50f9159976a1c4023",
+      "displayed_answer_sha256": "8a998d7571d07a52b4547ef2aebeaba37b51335980fdfac50f9159976a1c4023",
+      "original_answer_characters": 3223,
+      "displayed_answer_characters": 3223,
+      "original_equals_displayed": true,
+      "score": {
+        "criteria_count": 6,
+        "original_fully_satisfied": 4,
+        "displayed_fully_satisfied": 4,
+        "original_status_counts": {
+          "complete": 4,
+          "partial": 1,
+          "incorrect": 0,
+          "missing": 1
+        },
+        "displayed_status_counts": {
+          "complete": 4,
+          "partial": 1,
+          "incorrect": 0,
+          "missing": 1
+        },
+        "fully_satisfied": false
+      },
+      "criteria": [
+        {
+          "id": "call_parameters",
+          "required": "NX, ACCOUNT-KEY and LEDGER-LF populate function/key/view; pass LEDGER-PARAMS BY REFERENCE",
+          "original": "complete",
+          "displayed": "complete",
+          "assessment": "The three assignments and by-reference group are explained. The text later distinguishes the status field as not assigned before this call.",
+          "oracle_source_refs": [
+            "active/layout-leaf.cpy:1-5",
+            "entry/request.cbl:99981-99986"
+          ]
+        },
+        {
+          "id": "operation_request_boundary",
+          "required": "NX requests the following record; no returned row or cursor result is guaranteed",
+          "original": "complete",
+          "displayed": "complete",
+          "assessment": "The interface request and both unknowns are explicit.",
+          "oracle_source_refs": [
+            "framework-reference.md:14"
+          ]
+        },
+        {
+          "id": "exception_and_status",
+          "required": "CALL exception sets status 90; subsequent status 00 controls the write branch",
+          "original": "complete",
+          "displayed": "complete",
+          "assessment": "Exception and business-status paths are distinguished; neither actual status 00 nor a successful return is asserted.",
+          "oracle_source_refs": [
+            "entry/request.cbl:99984-99992",
+            "framework-reference.md:20-21"
+          ]
+        },
+        {
+          "id": "write_sequence",
+          "required": "On status 00, MOVE FINAL-AMOUNT to RECORD-AMOUNT, then WRITE LEDGER-RECORD",
+          "original": "complete",
+          "displayed": "complete",
+          "assessment": "The caller sequence is correct. The separate extra amount-provenance explanation is incomplete and is recorded as a finding.",
+          "oracle_source_refs": [
+            "entry/request.cbl:99989-99992"
+          ]
+        },
+        {
+          "id": "file_mapping_and_runtime_boundary",
+          "required": "FD maps LEDGER-RECORD to LEDGER-FILE; SELECT targets LEDGER-LF; actual write and transaction success remain unproven",
+          "original": "partial",
+          "displayed": "partial",
+          "assessment": "File mapping and unknown write success are explicit. Transaction/commit uncertainty is omitted. No claim that a commit succeeded is made.",
+          "oracle_source_refs": [
+            "entry/request.cbl:6-16",
+            "framework-reference.md:25-29"
+          ]
+        },
+        {
+          "id": "route_scope_and_open_boundary",
+          "required": "CALL/WRITE are outside the outer ROUTE condition; no OPEN is present in the inspected caller chain",
+          "original": "missing",
+          "displayed": "missing",
+          "assessment": "Neither the outside-ROUTE location nor missing OPEN is discussed. Unknown write success is stated, but only justified with the uninspected FILE-STATUS.",
+          "oracle_source_refs": [
+            "entry/request.cbl:66670",
+            "entry/request.cbl:99981-99992"
+          ]
+        }
+      ],
+      "findings": [
+        {
+          "code": "ROUTE_SCOPE_OMITTED",
+          "origin": "model",
+          "severity": "material",
+          "description": "The answer does not say that CALL and conditional WRITE occur after the outer END-IF. The extra amount explanation lists computation or overwrite but omits the retained-value possibility when ROUTE is zero."
+        },
+        {
+          "code": "OPEN_BOUNDARY_OMITTED",
+          "origin": "model",
+          "severity": "material",
+          "description": "The full independently inspected caller and its bound COPY chain contain no OPEN. The answer does not mention this and gives the absence of a FILE-STATUS check as its write-success limitation instead."
+        },
+        {
+          "code": "COMMIT_BOUNDARY_OMITTED",
+          "origin": "model",
+          "severity": "minor",
+          "description": "Transaction completion is not established by the supplied source or interface manual, but the answer does not state that limitation. It does not claim a commit actually occurred."
+        },
+        {
+          "code": "INTERFACE_STATUS_MUTATION_NOT_PROVEN",
+          "origin": "model",
+          "severity": "minor",
+          "description": "The table wording that status is determined by the call result or exception is broader than the known code. Only the caller exception assignment is proved; the unavailable callee may or may not assign status. Subsequent branches are correctly expressed conditionally."
+        }
+      ],
+      "delivery": {
+        "finish_reason": "stop",
+        "answer_truncated": false,
+        "continuation_attempted": false,
+        "stop_reason": "question_evidence_incomplete",
+        "model_requests": 2,
+        "elapsed_seconds": 63.6845,
+        "provider_wait_seconds": 59.8891,
+        "local_processing_seconds": 3.7953
+      },
+      "wire_rounds": [
+        {
+          "round_id": "round-1",
+          "stage": "investigate",
+          "finish_reason": "length",
+          "response_error": "MODEL_TEXT_EMPTY",
+          "raw_content_characters": 0,
+          "request_body_sha256": "5a439e926cb5633893e49e818235323ed4a68ec60350b827d29ebb7a4d385e94",
+          "source_page_count": 11,
+          "source_file_count": 6,
+          "source_line_count": 414,
+          "source_character_count": 15947,
+          "source_pages": [
+            {
+              "evidence_id": "ev_page_3e0b7d562ac3ef1c4b0d3e46",
+              "path": "entry/request.cbl",
+              "start_line": 99943,
+              "end_line": 100000,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_798817dc9e3b8b165f7e921f",
+              "path": "entry/request.cbl",
+              "start_line": 1,
+              "end_line": 112,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_9b1b59e6ddc9c9fb6881b1e7",
+              "path": "entry/request.cbl",
+              "start_line": 66883,
+              "end_line": 66977,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_c8ea64814863e75c16c5ab7f",
+              "path": "entry/request.cbl",
+              "start_line": 67168,
+              "end_line": 67262,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_ff4790da5511ec8111e095a9",
+              "path": "active/layout-root.cpy",
+              "start_line": 1,
+              "end_line": 1,
+              "source_sha256": "d758ea5af8b8bfd69fefd9ae8f51a05d9e0ef4b650cf12ffb048402bdeb661ac",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_f9118d706a9c971dc1b4a0b1",
+              "path": "active/request-skeleton.cpy",
+              "start_line": 1,
+              "end_line": 4,
+              "source_sha256": "54134d0cb024f4daf6092d040ff4bfdec72aa1b0d97ea87bc972c6c31a708a4a",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_a737f834356fa3a91e1f3edf",
+              "path": "entry/request.cbl",
+              "start_line": 33326,
+              "end_line": 33346,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_ca0658f95d895e7188bb66a1",
+              "path": "active/rule-leaf.cpy",
+              "start_line": 1,
+              "end_line": 5,
+              "source_sha256": "4268e1d877d142db8376c7c213b4a7a33201c4536b421a4dde8748bb1481eb83",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_d6d1056e7cb9361bc39cba5c",
+              "path": "active/layout-leaf.cpy",
+              "start_line": 1,
+              "end_line": 5,
+              "source_sha256": "6e9a422862faa3432b3c812bd8d00d1c6fe2255ae9cf8c0db095e533875c9d11",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_4fc6ae2110c8a931dc163670",
+              "path": "data/ledger-lf.dds",
+              "start_line": 1,
+              "end_line": 5,
+              "source_sha256": "d120911ccc5e5f106205c59558be5589611e4daaf482921449b1b38be8a28d8c",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_81c10e8a1b4c9cb9b4f98d3a",
+              "path": "entry/request.cbl",
+              "start_line": 66663,
+              "end_line": 66675,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            }
+          ],
+          "framework_reference_ids": [
+            "fw:e609150c2f29d706:5-5",
+            "fw:e609150c2f29d706:7-8",
+            "fw:e609150c2f29d706:14-14",
+            "fw:e609150c2f29d706:20-20",
+            "fw:e609150c2f29d706:21-21"
+          ]
+        },
+        {
+          "round_id": "round-2",
+          "stage": "empty_length_recovery",
+          "finish_reason": "stop",
+          "response_error": null,
+          "raw_content_characters": 3223,
+          "request_body_sha256": "9f8b0037a003272250afe300e92bbb6077195f08acf37954d07dbbf3added0f3",
+          "source_page_count": 11,
+          "source_file_count": 6,
+          "source_line_count": 414,
+          "source_character_count": 15947,
+          "source_pages": [
+            {
+              "evidence_id": "ev_page_3e0b7d562ac3ef1c4b0d3e46",
+              "path": "entry/request.cbl",
+              "start_line": 99943,
+              "end_line": 100000,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_798817dc9e3b8b165f7e921f",
+              "path": "entry/request.cbl",
+              "start_line": 1,
+              "end_line": 112,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_9b1b59e6ddc9c9fb6881b1e7",
+              "path": "entry/request.cbl",
+              "start_line": 66883,
+              "end_line": 66977,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_c8ea64814863e75c16c5ab7f",
+              "path": "entry/request.cbl",
+              "start_line": 67168,
+              "end_line": 67262,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_ff4790da5511ec8111e095a9",
+              "path": "active/layout-root.cpy",
+              "start_line": 1,
+              "end_line": 1,
+              "source_sha256": "d758ea5af8b8bfd69fefd9ae8f51a05d9e0ef4b650cf12ffb048402bdeb661ac",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_f9118d706a9c971dc1b4a0b1",
+              "path": "active/request-skeleton.cpy",
+              "start_line": 1,
+              "end_line": 4,
+              "source_sha256": "54134d0cb024f4daf6092d040ff4bfdec72aa1b0d97ea87bc972c6c31a708a4a",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_a737f834356fa3a91e1f3edf",
+              "path": "entry/request.cbl",
+              "start_line": 33326,
+              "end_line": 33346,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_ca0658f95d895e7188bb66a1",
+              "path": "active/rule-leaf.cpy",
+              "start_line": 1,
+              "end_line": 5,
+              "source_sha256": "4268e1d877d142db8376c7c213b4a7a33201c4536b421a4dde8748bb1481eb83",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_d6d1056e7cb9361bc39cba5c",
+              "path": "active/layout-leaf.cpy",
+              "start_line": 1,
+              "end_line": 5,
+              "source_sha256": "6e9a422862faa3432b3c812bd8d00d1c6fe2255ae9cf8c0db095e533875c9d11",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_4fc6ae2110c8a931dc163670",
+              "path": "data/ledger-lf.dds",
+              "start_line": 1,
+              "end_line": 5,
+              "source_sha256": "d120911ccc5e5f106205c59558be5589611e4daaf482921449b1b38be8a28d8c",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            },
+            {
+              "evidence_id": "ev_page_81c10e8a1b4c9cb9b4f98d3a",
+              "path": "entry/request.cbl",
+              "start_line": 66663,
+              "end_line": 66675,
+              "source_sha256": "064edd4cf5844060a74483a278a8e4807ac196df33a7616d345be686fa051f8f",
+              "source_hash_matches": true,
+              "excerpt_matches_physical_source": true
+            }
+          ],
+          "framework_reference_ids": [
+            "fw:e609150c2f29d706:5-5",
+            "fw:e609150c2f29d706:7-8",
+            "fw:e609150c2f29d706:14-14",
+            "fw:e609150c2f29d706:20-20",
+            "fw:e609150c2f29d706:21-21"
+          ]
+        }
+      ],
+      "citation_check": {
+        "complete_cited_ids": [
+          "ev_page_d6d1056e7cb9361bc39cba5c",
+          "ev_page_3e0b7d562ac3ef1c4b0d3e46",
+          "fw:e609150c2f29d706:7-8",
+          "fw:e609150c2f29d706:14-14",
+          "fw:e609150c2f29d706:21-21",
+          "fw:e609150c2f29d706:20-20",
+          "ev_page_ca0658f95d895e7188bb66a1",
+          "ev_page_798817dc9e3b8b165f7e921f",
+          "ev_page_81c10e8a1b4c9cb9b4f98d3a",
+          "ev_page_4fc6ae2110c8a931dc163670"
+        ],
+        "all_complete_citations_available": true,
+        "unsupported_citation_ids": [],
+        "all_source_hashes_and_excerpts_match": true
+      },
+      "support_boundary": {
+        "exact_source_excerpt_validation": "All source excerpts in both request contexts match the frozen physical source ranges and source hashes.",
+        "citation_membership": "Every complete citation used in the displayed answer was available in its actual request context. Membership alone does not validate the associated interpretation.",
+        "full_program_scope": "The wire contains selected intervals, not the full 100000-line program. The independent oracle verifies the long-distance scope; full interval execution semantics are not formally proved by citation membership.",
+        "raw_source_gaps": [
+          "active/rate-template.cpy was located but not supplied; request COPY REPLACING lines were supplied.",
+          "data/ledger-pf.dds was not supplied; its name appears in the supplied LF definition.",
+          "The manual evidence-boundary paragraph was not among the selected framework excerpts."
+        ],
+        "runtime_boundary": "No compiler execution, closed runtime implementation, actual returned row/status, successful file operation, or transaction completion is verified by this review."
+      },
+      "automatic_ledger_counts": {
+        "contradicted": 0,
+        "supported": 7,
+        "unsupported": 54
+      },
+      "ledger_interpretation": "No contradiction-triggered local rewrite occurred. Unsupported entries are not proof that all underlying business explanations are false or true.",
+      "private_record_name": "q3.json",
+      "private_trace_name": "48395b9a3240249d48ed4aca.json"
+    }
+  ],
+  "source_corpus": "synthetic focused-v2 source",
+  "manual_reference": "synthetic-reference.md"
+}

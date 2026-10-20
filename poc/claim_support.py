@@ -8,6 +8,7 @@ claim.  It does not evaluate arithmetic, infer execution paths, or assess prose.
 from __future__ import annotations
 
 import re
+import hashlib
 from bisect import bisect_left, bisect_right
 from collections.abc import Mapping
 from typing import Any
@@ -281,7 +282,7 @@ def check_claim_support(
     return result
 
 
-STATEMENT_CHECKER_VERSION = "source-statement-support-v4"
+STATEMENT_CHECKER_VERSION = "source-statement-support-v5"
 
 
 def statement_tokens(text: str) -> tuple[str, ...] | None:
@@ -413,6 +414,49 @@ def supplied_statement_facts(page: Mapping[str, Any], *, source_format: str = "a
             if statement.complete and tokens and len(tokens) >= 2 and _is_identifier(tokens[1]):
                 facts.append({**location, "predicate": "write_statement", "target": tokens[1],
                               "effect": unit.name})
+    # A procedural COPY or captured body can have no division header. The
+    # structural index deliberately does not join its physical lines as a
+    # program body. Recover only complete, bounded COMPUTE nodes from the
+    # actual supplied text; this proves syntax, never COPY binding or execution.
+    if (len(source) <= MAX_SOURCE_CHARS and document.format_hint in {"free", "fixed"}
+            and any(unit.name == "COMPUTE" for unit in parsed.code_units)
+            and not any(unit.unit_type in {"Program", "ProcedureSignature", "DataItem"}
+                        for unit in parsed.code_units)):
+        standalone = parse_statements(source, start_line=first, source_format=document.format_hint,
+                                      max_tokens=4096)
+        if standalone.complete and not standalone.boundaries:
+            raw_lines = source.splitlines()
+            existing = {(fact["statement_kind"], fact["start_line"], fact.get("target")) for fact in facts}
+            for node in standalone.statements:
+                if (node.kind != "COMPUTE" or node.effects_unknown
+                        or node.span.end_line <= node.span.start_line):
+                    continue
+                if not (re.search(r"\bEND-COMPUTE\s*$", node.text, re.I)
+                        or re.match(r"\s*\.", source[node.span.end_offset:])):
+                    # A physical page ending after a valid expression may
+                    # still omit a following arithmetic continuation line.
+                    continue
+                for target, expression in node.expressions:
+                    if (node.kind, node.span.start_line, target) in existing:
+                        continue
+                    tokens = statement_tokens(expression)
+                    if not tokens:
+                        continue
+                    identity = "\x1f".join(str(value) for value in (document.relative_path,
+                        document.source_sha256, node.span.start_line, node.span.end_line,
+                        node.span.start_column, node.span.end_column, node.text, target))
+                    facts.append({"start_line": node.span.start_line, "end_line": node.span.end_line,
+                        "program_name": None,
+                        "occurrence_id": "supplied_" + hashlib.sha256(identity.encode()).hexdigest()[:24],
+                        "statement_kind": node.kind,
+                        "guards": [{"kind": guard.kind,
+                            "condition": source[guard.span.start_offset:guard.span.end_offset],
+                            "outcome": guard.outcome, "start_line": guard.span.start_line,
+                            "end_line": guard.span.end_line} for guard in node.guards],
+                        "source_text": "\n".join(raw_lines[node.span.start_line - first:node.span.end_line - first + 1]),
+                        "predicate": "assignment_statement", "target": target,
+                        "expression": list(tokens), "rounded": node.rounded,
+                        "normal_result_condition": None, "exception_effects_unverified": False})
     boundaries = sorted((unit for unit in parsed.code_units if unit.unit_type in
                   {"Paragraph", "Section", "Program", "ProcedureSignature"}), key=lambda unit: unit.start_line)
     boundary_starts = [unit.start_line for unit in boundaries]
@@ -459,6 +503,9 @@ def check_statement_support(assertion: Mapping[str, Any], fact: Mapping[str, Any
     if predicate == "declaration_value":
         result["support_scope"] = "source_declared_initial_value"
     if fields is None or predicate != fact.get("predicate"):
+        return result
+    if assertion.get("statement_kind") and assertion["statement_kind"] != fact.get("statement_kind"):
+        result["reason_code"] = "SOURCE_OPERATION_NOT_COMPARABLE"
         return result
     if predicate == "assignment_statement" and fact.get("statement_kind") == "COMPUTE":
         narrow = {"predicate": "compute_statement", "target": assertion.get("target"),
