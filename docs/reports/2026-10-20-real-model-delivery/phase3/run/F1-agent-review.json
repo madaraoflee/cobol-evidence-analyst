@@ -1,0 +1,149 @@
+{
+  "schema_version": "business-framework-agent-review/v1",
+  "review_label": "agent_review",
+  "human_acceptance": false,
+  "run_label": "phase3",
+  "case_id": "F1",
+  "tested_commit": "a4669339f3f63799b796f235b6447cac7ebebb5f",
+  "gold_baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "gold_path": "/tmp/business-framework-live-20261020-phase3/cases.json",
+  "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "plan_sha256": "86f8104d3355c3c0c88b360eb84ad56bbedbb339874938a500d518db8f28ce14",
+  "observation_path": "/tmp/business-framework-live-20261020-phase3/run/F1-observation.json",
+  "observation_sha256": "f44814c947d50424ef9b4c86ffa94a5eea1cddd7f3c710fa9599ee0fdb551db1",
+  "final_answer_sha256": "03ee7bdbbcdd06595bb6691e2e5067164627909c01c2fe444ed218c399226313",
+  "reviewed_material": "final_visible_answer after product checks; independently compared with frozen gold and actual source; product status is not a semantic score",
+  "forbidden_results": [
+    {
+      "criterion_id": "F1-X1",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "已实际读取到下一条记录、已加锁、已提交或更新成功。"
+    },
+    {
+      "criterion_id": "F1-X2",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "ENTRYJOB检查了DONE、执行了循环读到结束，或已得到某个返回状态。"
+    },
+    {
+      "criterion_id": "F1-X3",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "调用方局部布局确认等于被调方ABI已完整验证。"
+    },
+    {
+      "criterion_id": "F1-X4",
+      "result": "FAIL_ASSERTED",
+      "claim": "KEY或VIEW的业务/数据库作用已由当前材料明确，而材料并未定义。",
+      "answer_quote": "4. **没有从结果中读出记录内容。** `ROWS-KEY='KEY'`、`ROWS-VIEW='VIEW'` 是两个固定字面量，是**传入**的上下文，不是从记录读出的字段值；“KEY”“VIEW”本身也不是某个具体键值，说明这次请求没有携带具体主键，而是用某种标识定位（具体语义由 ROWSIO 决定）。程序返回前也没有读取 `ROWS-VIEW`、`ROWS-KEY` 或 `ROWS-STATUS`。",
+      "reason": "把未知的KEY/VIEW用途解释成已排除主键且采用标识定位。"
+    }
+  ],
+  "scope": "独立代理评审，不是人工签字或目标设备验收；首轮、冻结gold与产品不变。",
+  "decision": "FAIL",
+  "summary": "普通COPY独立字段与末次有效操作码的论证已补齐，运行结果限制正确；但又无依据断言KEY不是具体主键并引入标识定位解释，且全部引用写成圆括号裸ID，其中COPY引用ID还缺少page_，未达到原冻结要求。",
+  "required_results": [
+    {
+      "criterion_id": "F1-R1",
+      "result": "PASS",
+      "answer_quotes": [
+        "**如果按框架约定解释，可以把这次调用理解为“请求取下一条记录”，但这里只是发出请求，并不等于成功取到了一条记录，也不等于对记录做了修改。** ENTRYJOB 自身没有打开文件、读取文件或写入文件，只组装了一个四个字段的参数块（ROWS-PARAMS），把功能码设为 `ADVANCE`、键设为 `'KEY'`、视图设为 `'VIEW'`，然后调用 `ROWSIO`，调用结束后立即返回；它既不检查返回状态，也不使用任何返回值。"
+      ],
+      "source_basis": [
+        "entry.cbl:8-11",
+        "reference.md:5,7,13"
+      ],
+      "reason": "明确解释参数准备与请求下一条记录，区分请求和真实返回。"
+    },
+    {
+      "criterion_id": "F1-R2",
+      "result": "PASS",
+      "answer_quotes": [
+        "关键在于**调用发出时该字段的有效值**。`'ADVANCE'` 在第 8 行写入 `ROWS-FUNCTION` 之后，第 9、10 行分别写的是 `ROWS-KEY`、`ROWS-VIEW`，它们是参数块里的不同字段，不发生共享存储重叠，因此不会覆盖功能码；第 11 行 CALL 之前也没有其他赋给 `ROWS-FUNCTION` 的语句。所以 CALL 发出时的功能码仍来自第 8 行，为 `'ADVANCE'`（字段为 8 位，移动字母数字字面量时左对齐，实际存储相当于 `ADVANCE` 加一个尾随空格；这里把 `ADVANCE` 视为语义值）。"
+      ],
+      "source_basis": [
+        "entry.cbl:5,8-11",
+        "layout.cpy:1-5"
+      ],
+      "reason": "本次明确说明KEY/VIEW与功能字段不共享重叠存储，后写不会覆盖ADVANCE，满足首轮缺失项。"
+    },
+    {
+      "criterion_id": "F1-R3",
+      "result": "PASS",
+      "answer_quotes": [
+        "1. **只是请求，不保证有返回行。** 手册明确说该操作描述的是一个请求，不保证返回任何行（fw:76c91a6ff373c92f:23-23）。因此不能从 ENTRYJOB 的代码得出“确实取到了下一条记录”。",
+        "2. **不证明游标位置、锁或事务结果。** 手册说明运行实现缺失，参考资料不确立成功持久化、游标位置、锁或事务完成（fw:76c91a6ff373c92f:27-28）。`ROWSIO` 的实现也不在已供应材料里（调用关系为未解析、目标源码不可得），所以其中是否真读、是否加锁、是否分页都属未知。"
+      ],
+      "source_basis": [
+        "reference.md:23,27-28"
+      ],
+      "reason": "手册局部和全局限制清楚，未断言实际读到、锁定或提交成功。"
+    },
+    {
+      "criterion_id": "F1-R4",
+      "result": "FAIL",
+      "answer_quotes": [
+        "4. **没有从结果中读出记录内容。** `ROWS-KEY='KEY'`、`ROWS-VIEW='VIEW'` 是两个固定字面量，是**传入**的上下文，不是从记录读出的字段值；“KEY”“VIEW”本身也不是某个具体键值，说明这次请求没有携带具体主键，而是用某种标识定位（具体语义由 ROWSIO 决定）。程序返回前也没有读取 `ROWS-VIEW`、`ROWS-KEY` 或 `ROWS-STATUS`。"
+      ],
+      "source_basis": [
+        "entry.cbl:9-10",
+        "layout.cpy:4-5",
+        "reference.md:5-28"
+      ],
+      "reason": "KEY/VIEW是传入字面量，但材料没有排除该字面量在被调实现中充当具体键值，也未证明采用某种标识定位。将未知作用写成否定主键及肯定定位方式，违反原gold。"
+    }
+  ],
+  "business_expression": {
+    "result": "PASS",
+    "answer_quote": "**如果按框架约定解释，可以把这次调用理解为“请求取下一条记录”，但这里只是发出请求，并不等于成功取到了一条记录，也不等于对记录做了修改。** ENTRYJOB 自身没有打开文件、读取文件或写入文件，只组装了一个四个字段的参数块（ROWS-PARAMS），把功能码设为 `ADVANCE`、键设为 `'KEY'`、视图设为 `'VIEW'`，然后调用 `ROWSIO`，调用结束后立即返回；它既不检查返回状态，也不使用任何返回值。",
+    "reason": "首段直接给出请求含义与业务边界。"
+  },
+  "citations": {
+    "result": "FAIL_MALFORMED_AND_UNKNOWN_REFERENCES",
+    "square_bracket_reference_count": 0,
+    "bare_reference_ids": [
+      "ev_8b8c9ee23007f81cfdc2b305",
+      "ev_page_1e6110cd9f21ac204ddb2182",
+      "fw:76c91a6ff373c92f:13-13",
+      "fw:76c91a6ff373c92f:19-19",
+      "fw:76c91a6ff373c92f:23-23",
+      "fw:76c91a6ff373c92f:27-28",
+      "fw:76c91a6ff373c92f:7-7"
+    ],
+    "unknown_reference_ids": [
+      "ev_8b8c9ee23007f81cfdc2b305"
+    ],
+    "reason": "正文全部使用圆括号裸ID，而实际Markdown引用扩展只识别方括号；COPY处另将ev_page_8b...写成不存在的ev_8b...。源码和手册存在不等于正文引用可打开。",
+    "renderer_source": "poc/web/markdown.js:84-90; poc/web/app.js:553-556"
+  },
+  "additional_findings": [
+    {
+      "finding_id": "F1-O1",
+      "priority": "P2",
+      "kind": "unsupported_negative_domain_claim",
+      "answer_quote": "4. **没有从结果中读出记录内容。** `ROWS-KEY='KEY'`、`ROWS-VIEW='VIEW'` 是两个固定字面量，是**传入**的上下文，不是从记录读出的字段值；“KEY”“VIEW”本身也不是某个具体键值，说明这次请求没有携带具体主键，而是用某种标识定位（具体语义由 ROWSIO 决定）。程序返回前也没有读取 `ROWS-VIEW`、`ROWS-KEY` 或 `ROWS-STATUS`。",
+      "reason": "“并非具体主键”“用某种标识定位”都超出手册与赋值原文。后缀“具体语义由ROWSIO决定”不能证明前面两项断言。",
+      "acceptable_correction": "只说KEY和VIEW是调用前设置的固定字面量，其业务意义和被调方是否使用均未知。"
+    },
+    {
+      "finding_id": "F1-O2",
+      "priority": "P2",
+      "kind": "malformed_and_unknown_source_citation",
+      "answer_quotes": [
+        "源码只有 4 个可执行的赋值和调用动作（ev_page_1e6110cd9f21ac204ddb2182）：",
+        "这些字段都来自第 5 行 `COPY \"layout.cpy\"` 引入的参数块（ev_8b8c9ee23007f81cfdc2b305），排列为：`ROWS-PARAMS` → `ROWS-FUNCTION`、`ROWS-STATUS`、`ROWS-KEY`、`ROWS-VIEW`，前四个字段都在同一个记录下，调用时整块以 **BY REFERENCE** 传进去，因此被调程序看到的就是这同一块存储的地址。"
+      ],
+      "reason": "圆括号ID不会经当前renderer转成引用；COPY ID还缺少page_，不是供应标识。",
+      "acceptable_correction": "使用本轮实际供应的完整方括号引用ID，不猜测或改写ID。"
+    }
+  ],
+  "phase1_findings_recheck": [
+    {
+      "finding_id": "F1-R2",
+      "result": "RESOLVED",
+      "answer_quote": "关键在于**调用发出时该字段的有效值**。`'ADVANCE'` 在第 8 行写入 `ROWS-FUNCTION` 之后，第 9、10 行分别写的是 `ROWS-KEY`、`ROWS-VIEW`，它们是参数块里的不同字段，不发生共享存储重叠，因此不会覆盖功能码；第 11 行 CALL 之前也没有其他赋给 `ROWS-FUNCTION` 的语句。所以 CALL 发出时的功能码仍来自第 8 行，为 `'ADVANCE'`（字段为 8 位，移动字母数字字面量时左对齐，实际存储相当于 `ADVANCE` 加一个尾随空格；这里把 `ADVANCE` 视为语义值）。"
+    }
+  ],
+  "open_review_notes": [
+    "四个赋值/调用动作加一条GOBACK的表格不单独算计数错误；前文四项明确限定为赋值和调用。",
+    "本次仍失败的原因来自原R4及原引用要求，不是追加题目或要求额外模型重写。"
+  ]
+}

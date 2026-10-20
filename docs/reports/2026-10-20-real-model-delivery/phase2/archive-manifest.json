@@ -1,0 +1,46 @@
+{
+  "schema": "neutral-model-test-archive/v1",
+  "source_commit": "a4669339f3f63799b796f235b6447cac7ebebb5f",
+  "execution_surface": "mac_source_python",
+  "review_kind": "independent_agent_review_not_human_acceptance",
+  "original_files_preserved": true,
+  "fixtures_identical_to_phase1": true,
+  "files": [
+    {
+      "path": "cases.json",
+      "sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491"
+    },
+    {
+      "path": "plan.json",
+      "sha256": "3ae192c13db7c906747433d7fba42830cb7bb08c245e363903104637dffe1dab"
+    },
+    {
+      "path": "phase-budget.json",
+      "sha256": "9762b65c02b8f52dd100716f8e4167ef3b3b57837f8c50189e1d9a313af3030a"
+    },
+    {
+      "path": "run/B1-observation.json",
+      "sha256": "d0aebff05ba89792a44630a3e1c85f05bd3b6a2b64809e5d0906ed7cca8401aa"
+    },
+    {
+      "path": "run/B2-observation.json",
+      "sha256": "e56da4875562bdb64006d0c553ea4973f55529cca24ce5a01e31475d0836ed17"
+    },
+    {
+      "path": "run/B2-agent-review.json",
+      "sha256": "b80558a2572c4f7e55c3528c448b895811a58e978c93ce8ff273713798d8e9e4"
+    },
+    {
+      "path": "run/B1-agent-review.json",
+      "sha256": "0ebed38252a56dc3d0251bdf3fd211b83b199e875d23c0bac204e62ee192c78e"
+    },
+    {
+      "path": "run/summary.json",
+      "sha256": "1e99f4e198fb6f5b0762d02c0509202775414c0c629e265d0cc31b2873756491"
+    },
+    {
+      "path": "run/budget-ledger.json",
+      "sha256": "893087548ad650d4dddc9789bdb33e099ef83ce4f77ad5c772dc051a3ee419bd"
+    }
+  ]
+}

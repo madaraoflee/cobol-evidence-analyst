@@ -1,0 +1,77 @@
+{
+  "schema": "neutral-model-test-archive/v1",
+  "source_commit": "a4669339f3f63799b796f235b6447cac7ebebb5f",
+  "gold_baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "execution_surface": "mac_source_python",
+  "review_kind": "independent_agent_review_not_human_acceptance",
+  "original_files_preserved": true,
+  "fixtures_identical_to_phase1": true,
+  "reused_gold": {
+    "path": "../phase1/cases.json",
+    "sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491"
+  },
+  "case_result": {
+    "case_id": "F1",
+    "decision": "FAIL",
+    "stream_result": "PASS_NATIVE_AND_WAITER_INCREMENTAL",
+    "not_executed": [
+      "B2",
+      "F2"
+    ]
+  },
+  "budget": {
+    "phase_reserved_micro_cny": 186122,
+    "phase_physical_calls": 1,
+    "combined_reserved_micro_cny": 1223522,
+    "combined_physical_calls": 7,
+    "failed_reservations_refunded": false
+  },
+  "operator_stop_recorded": true,
+  "summary_origin": "computed_offline_from_preserved_plan_ledger_and_completed_case_after_operator_interrupt",
+  "privacy_scan": {
+    "configured_secret_values_checked": 1,
+    "configured_secret_matches": 0,
+    "sensitive_field_matches": 0,
+    "credential_pattern_matches": 0,
+    "allowlist_only": true,
+    "excluded": [
+      "configuration_files",
+      "sqlite_databases",
+      "hidden_reasoning",
+      "raw_http_bodies",
+      "private_source_material"
+    ]
+  },
+  "files": [
+    {
+      "path": "plan.json",
+      "sha256": "86f8104d3355c3c0c88b360eb84ad56bbedbb339874938a500d518db8f28ce14",
+      "bytes": 103369
+    },
+    {
+      "path": "phase-budget.json",
+      "sha256": "0f8e82b7fe8652739304c08ee681573356a6acb4e0d8d0f4e1f1edf2dab32ad8",
+      "bytes": 5880
+    },
+    {
+      "path": "run/budget-ledger.json",
+      "sha256": "b693b2c8856ce4db2f05a0f2bcdc67fc3ba2f803134eeb04804c63f89b3caab5",
+      "bytes": 837
+    },
+    {
+      "path": "run/F1-observation.json",
+      "sha256": "f44814c947d50424ef9b4c86ffa94a5eea1cddd7f3c710fa9599ee0fdb551db1",
+      "bytes": 611474
+    },
+    {
+      "path": "run/F1-agent-review.json",
+      "sha256": "256aa1500fb3b2c8bc4d972d569ef4bd02e99e78550efd7577f702c8f7518be6",
+      "bytes": 10353
+    },
+    {
+      "path": "run/summary.json",
+      "sha256": "ca711ccba8af2a4ad886cb14ad5c215d4f61ebcf4d649e9d1fd8042f13fb7d7a",
+      "bytes": 6896
+    }
+  ]
+}

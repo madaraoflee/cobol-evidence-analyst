@@ -1,0 +1,140 @@
+{
+  "schema": "neutral-model-test-archive/v1",
+  "source_commit": "4a4e0c8aded571dc4a0fd86d922d40e87b8fef40",
+  "gold_baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "execution_surface": "mac_source_python",
+  "review_kind": "independent_agent_review_not_human_acceptance",
+  "original_files_preserved": true,
+  "original_pending_annotations_preserved": true,
+  "fixtures_identical_to_phase1": true,
+  "reused_gold": {
+    "path": "../phase1/cases.json",
+    "sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491"
+  },
+  "case_result": {
+    "case_id": "B2",
+    "fresh_model_request": true,
+    "overall_result": "FAIL",
+    "frozen_gold_result": "FAIL",
+    "open_review_result": "FAIL",
+    "human_acceptance": false
+  },
+  "budget": {
+    "phase_reserved_micro_cny": 179902,
+    "phase_physical_calls": 1,
+    "combined_reserved_micro_cny": 1956896,
+    "combined_physical_calls": 11,
+    "failed_reservations_refunded": false
+  },
+  "source_validation": {
+    "failed_prior_run": {
+      "path": "../absence-source-regressions-failed.json",
+      "tests_run": 3581,
+      "failures": 1,
+      "errors": 0
+    },
+    "final_run": {
+      "path": "../final-source-regressions.json",
+      "tests_run": 3581,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 201.44312066699786,
+      "module_hash_count": 122,
+      "before_after_and_current_hashes_match": true
+    }
+  },
+  "offline_replays": {
+    "directory": "../replay",
+    "fresh_model_request": false,
+    "does_not_replace_original_phase4_F1_FAIL": true
+  },
+  "privacy_scan": {
+    "configured_secret_values_checked": 1,
+    "configured_secret_matches": 0,
+    "sensitive_field_matches": 0,
+    "credential_pattern_matches": 0,
+    "allowlist_only": true,
+    "excluded": [
+      "configuration_files",
+      "sqlite_databases",
+      "hidden_reasoning",
+      "raw_http_bodies",
+      "private_source_material"
+    ]
+  },
+  "files": [
+    {
+      "path": "phase-budget.json",
+      "sha256": "97d0d64eaf1447aabad7bc85c703fbc9d798d8c19d46c343b1411c4b0da44374",
+      "bytes": 11904
+    },
+    {
+      "path": "plan.json",
+      "sha256": "688f3795b4130716b0d650960556f677ec5387a8584f679a9085950d98a6d2e5",
+      "bytes": 110465
+    },
+    {
+      "path": "run/B2-agent-review.json",
+      "sha256": "d67c1874326043f215683a496b4f9494794aff3de6a8a9af2551c769aca014c2",
+      "bytes": 11231
+    },
+    {
+      "path": "run/B2-observation.json",
+      "sha256": "e9d1fb93d074eb6861f2078ec980227b13d955d83a550625e2759c3b6bfdf9cd",
+      "bytes": 596825
+    },
+    {
+      "path": "run/budget-ledger.json",
+      "sha256": "d86a4a56f42be52dfaa1b242105eaf575958860514281ff7e571bf430a2743e3",
+      "bytes": 812
+    },
+    {
+      "path": "run/summary.json",
+      "sha256": "35471a1090af582f69832bc819e1f8bdb1dc49ebb864d03e981abc849216e250",
+      "bytes": 12894
+    }
+  ],
+  "related_files": [
+    {
+      "path": "../absence-source-regressions-failed.json",
+      "sha256": "72e9a3735430089130344ac59cab8bc2c9d9a0cc489b5560478983a428bf54f2",
+      "bytes": 24653
+    },
+    {
+      "path": "../absence-source-regressions-failed.log",
+      "sha256": "9b6cfdc1ab5ee08a363027d14788728f876956a1845ab032da8ba0ad197f583b",
+      "bytes": 18152
+    },
+    {
+      "path": "../final-source-regressions.json",
+      "sha256": "9f286985b4e1beb18989336eaa371bb5ac6d9c850cdb27675a85c091936d69cb",
+      "bytes": 24509
+    },
+    {
+      "path": "../final-source-regressions.log",
+      "sha256": "3639c06c76c385a21f0965b71f40af63464abc28db7ce427664bdede94ff90d0",
+      "bytes": 17407
+    },
+    {
+      "path": "../replay/F1-recorded-model-independent-replay.json",
+      "sha256": "83bfc8c55333c49369e6863004f438a84efb342cd9c55ac7c6ca18e7d10e592b",
+      "bytes": 8087
+    },
+    {
+      "path": "../replay/F1-recorded-model-replay-agent-review.json",
+      "sha256": "ae65d5d2c13ada52924079e61be2092abfd0dd790919df2f0ce7e4b2e5c8996c",
+      "bytes": 8953
+    },
+    {
+      "path": "../replay/F1-recorded-model-replay.json",
+      "sha256": "47be022d60ff6f09cb9b7057bce3c415a209c2dc92b9e54caf5e50154ffb7195",
+      "bytes": 7364
+    },
+    {
+      "path": "../replay/minimum-source-budget-agent-check.json",
+      "sha256": "7e797e641b9b2c9fe6bbb30fcaa104dab8bed3ece91d1fdec85c8f2b726ee01f",
+      "bytes": 2909
+    }
+  ]
+}

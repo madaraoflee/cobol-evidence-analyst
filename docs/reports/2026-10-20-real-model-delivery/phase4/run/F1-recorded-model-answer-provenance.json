@@ -1,0 +1,52 @@
+{
+  "schema_version": "recorded-live-model-answer-reconstruction/v1",
+  "case_id": "F1",
+  "run_label": "phase4",
+  "tested_commit": "099582f07cbd6baa554fab584f154e200def6185",
+  "fresh_model_request": false,
+  "description": "Reconstruction of the existing real model body by reversing the exact source_availability repair; no new model request or product edit. Intended only for explicitly labelled offline replay.",
+  "observation_path": "/tmp/business-framework-live-20261020-phase4/run/F1-observation.json",
+  "observation_sha256": "14e56adcf8b4ea6115ea7bf6d3cf611abf7615692a154ea346431898dfa711d5",
+  "quality_trace_path": "/private/tmp/business-framework-live-20261020-phase4/run/F1/quality-traces/ac56500a9cd23c08274d449c.json",
+  "quality_trace_sha256": "2227218f051af12d5e65b6d10ea7be7d02fa9ffd1dabc89473873b3ab04e8f66",
+  "final_visible_answer_sha256": "adfd4ab65402c1fdf314106767f9ff57fe32645294feda17d644782493101bb6",
+  "recorded_model_answer_path": "/tmp/business-framework-live-20261020-phase4/run/F1-recorded-model-answer.txt",
+  "recorded_model_answer_sha256": "e1a1bcc3e9f91701410da62a464d85c0a24d17ca125618d97827a470fea10786",
+  "characters": 2796,
+  "matches_observed_first_complete_visible_body": true,
+  "first_complete_visible_body": {
+    "characters": 2796,
+    "sha256": "e1a1bcc3e9f91701410da62a464d85c0a24d17ca125618d97827a470fea10786"
+  },
+  "reverse_edits": [
+    {
+      "method": "reverse_exact_audited_replacement",
+      "final_start_offset": 2654,
+      "final_end_offset": 2708,
+      "removed_text": "`entry.cbl` 的完整源码已提供[ev_page_1e6110cd9f21ac204ddb2182]",
+      "restored_text": "没有提供",
+      "audit": {
+        "relative_path": "entry.cbl",
+        "assertion": "source_not_supplied",
+        "evidence_ids": [
+          "ev_page_1e6110cd9f21ac204ddb2182"
+        ],
+        "source_sha256": "f9171cb729da5f8a76d73cf48bdfd48ead48f23fbb27368b280cccb54e85939d",
+        "line_count": 12,
+        "supplied_ranges": [
+          {
+            "start_line": 1,
+            "end_line": 12
+          }
+        ],
+        "original_text": "没有提供",
+        "replacement_text": "`entry.cbl` 的完整源码已提供[ev_page_1e6110cd9f21ac204ddb2182]",
+        "start_offset": 2654,
+        "end_offset": 2658,
+        "reason_code": "SUPPLIED_SOURCE_DENIAL_CORRECTED"
+      }
+    }
+  ],
+  "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "plan_sha256": "f8ba100efb301349260d7a08b6cb9fc3b900f2612339e7cc007ff78fce8d89da"
+}

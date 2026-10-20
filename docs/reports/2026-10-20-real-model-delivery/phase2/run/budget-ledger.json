@@ -1,0 +1,41 @@
+{
+  "policy": {
+    "schema": "stream-observation-reservation/v1",
+    "limit_micro_cny": 1301208,
+    "max_calls": 8,
+    "per_case": 2,
+    "max_body_bytes": 120000,
+    "output_tokens": 8192,
+    "input_overhead_tokens": 16384,
+    "input_micro_cny_per_token": 2,
+    "output_micro_cny_per_token": 8,
+    "endpoint_sha256": "948f1ecb6b48f91adc4e110d0351cd172b16450e9936d358992e0dfad7b863f3",
+    "model_sha256": "7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+    "cases": [
+      "B1",
+      "B2",
+      "F1",
+      "F2"
+    ]
+  },
+  "records": [
+    {
+      "sequence": 1,
+      "case_id": "B1",
+      "body_bytes": 30391,
+      "request_sha256": "45dd23b46a25ce3893125fcf6ccd96bc22c0a742085bc31f42175b3271938b2b",
+      "reserved_micro_cny": 159086,
+      "outcome": "response_received",
+      "http_status": 200
+    },
+    {
+      "sequence": 2,
+      "case_id": "B2",
+      "body_bytes": 40609,
+      "request_sha256": "26d1875d8bdf8ce3d7002adb171535be7eef9ce216ba84766367da3a74e25e34",
+      "reserved_micro_cny": 179522,
+      "outcome": "transport_error",
+      "http_status": null
+    }
+  ]
+}

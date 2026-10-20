@@ -1,0 +1,155 @@
+{
+  "schema_version": "business-framework-agent-review/v1",
+  "review_label": "agent_review",
+  "human_acceptance": false,
+  "run_label": "phase4",
+  "case_id": "B2",
+  "tested_commit": "099582f07cbd6baa554fab584f154e200def6185",
+  "gold_baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "gold_path": "/tmp/business-framework-live-20261020-phase4/cases.json",
+  "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "plan_sha256": "f8ba100efb301349260d7a08b6cb9fc3b900f2612339e7cc007ff78fce8d89da",
+  "observation_path": "/tmp/business-framework-live-20261020-phase4/run/B2-observation.json",
+  "observation_sha256": "93b49f1c1a23241560e522f793be416ba45b4214a041e5ec22f082c3d17ef8c4",
+  "final_answer_sha256": "0565345dede0efa64d37bd7bcc678488d52a40d862c278591e751bc951a94497",
+  "reviewed_material": "final_visible_answer after product checks; independently compared with frozen gold and actual source; product status is not a semantic score",
+  "forbidden_results": [
+    {
+      "criterion_id": "B2-X1",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "已经发生扣款、资金入账、到账或实际资金结算完成。"
+    },
+    {
+      "criterion_id": "B2-X2",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "已证明每天固定时间调度。"
+    },
+    {
+      "criterion_id": "B2-X3",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "无I/O或运行前提保证空输入、所有异常情况下都正常完成。"
+    },
+    {
+      "criterion_id": "B2-X4",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "DISPLAY目的地已确定为特定业务日志。"
+    }
+  ],
+  "scope": "独立代理评审，不是人工签字或目标设备验收。原冻结 gold 与产品不变；开放审查另外核对新增断言，不把新问题伪装为原 gold 禁止项。",
+  "required_results": [
+    {
+      "criterion_id": "B2-R1",
+      "result": "PASS",
+      "evidence_quotes": [
+        "SETTLE 是一个**结算记录的生成程序**：它逐条读取订单，只把“状态为批准、且金额大于零”的订单转换成一条结算记录，写入结算输出文件；其余订单只显示一条跳过提示。它由 CL 作业 `nightjob.clle` 通过 `CALL PGM(SETTLE)` 调用，属于批处理式处理入口（`PGM … ENDPGM`）[ev_page_b8c4a50484c207378485e3de][ev_page_0a5bd724415b32dba5d08161]。",
+        "- **订单输入文件**（程序里叫 `ORDER-IN`，外部名 `ORDERIN`）：只读，提供三类信息，订单号、订单状态、订单金额；程序靠它决定“要不要结算、结算多少”[ev_page_0a5bd724415b32dba5d08161]。",
+        "- **结算输出文件**（`SETTLEMENT-OUT` / `SETTLEOUT`）：只写，承接结算结果，每条记录只有结算号与结算金额两个字段，**不带订单状态、日期或任何处理标记**[ev_page_0a5bd724415b32dba5d08161]。因此从结算文件本身看不出该条来自哪次处理批次。"
+      ],
+      "reason": "业务目的先于实现，准确说明批准且正金额订单生成结算记录，输入输出角色明确，未把生成记录当实际资金结算。"
+    },
+    {
+      "criterion_id": "B2-R2",
+      "result": "PASS",
+      "evidence_quotes": [
+        "**决定结果的只有一条门槛**：状态为 `'A'` **并且** 金额大于零。二者是与关系，任一不满足即整条订单跳过。",
+        "5. **条件成立**：`ORDER-ID` 抄到 `SETTLEMENT-ID`，`ORDER-AMOUNT` 抄到 `SETTLEMENT-AMOUNT`，然后写入 `SETTLEMENT-REC`，即**一条订单最多一条结算记录，金额原样照搬、不做计算或折算**[ev_page_0a5bd724415b32dba5d08161]。",
+        "6. **条件不成立**：不做任何搬移，也不写结算文件，只输出一行 `ORDER SKIPPED` 提示[ev_page_0a5bd724415b32dba5d08161]。"
+      ],
+      "reason": "A 与金额大于零的合取关系、复制编号和金额及跳过路径准确。"
+    },
+    {
+      "criterion_id": "B2-R3",
+      "result": "PASS",
+      "evidence_quotes": [
+        "3. **读到文件末尾**：把 `END-OF-ORDERS` 置为 1，本圈不做任何搬移和写入，回到循环判断后退出[ev_page_0a5bd724415b32dba5d08161]。",
+        "- 需注意：`WRITE` 只是“发出写入请求”，源码层面不能证明每条合格订单都已持久化；程序也没有显式提交语句，提交行为取决于运行环境[ev_page_0a5bd724415b32dba5d08161]。",
+        "**异常处理是明显缺口**：程序没有声明文件状态码，也没有对 `OPEN`、`READ`、`WRITE` 的失败状态做判断，可见分支只区分“正常读到数据”和“到文件末尾”。因此文件打不开、读写出错时的实际后果无法从现有源码确定，不能假定为“仅提示跳过”[ev_page_0a5bd724415b32dba5d08161]。另外，跳过提示只输出固定文字、不带订单号，运行人员无法据此定位是哪一条订单被跳过；`GOBACK` 处也未设置非零返回码，作业层看不到“有订单被跳过”的信号。"
+      ],
+      "reason": "说明 EOF 设置结束标志、无文件状态检查、写入请求不能证明持久化；空输入正常路径与后文运行失败未知一起阅读，不解读成任意 I/O 条件均成功的保证。"
+    }
+  ],
+  "citation_review": {
+    "result": "PASS",
+    "all_references_resolve": true,
+    "used_reference_ids": [
+      "ev_page_0a5bd724415b32dba5d08161",
+      "ev_page_b8c4a50484c207378485e3de"
+    ],
+    "reason": "核心结论可回到本轮实际供应的源码或手册；逐项支持范围另经正文审查。",
+    "used_reference_count": 2
+  },
+  "optional_observations": [
+    {
+      "result": "PRESENT",
+      "reason": "说明 CL 覆盖 ORDERIN、调用 SETTLE、不传参数及撤销覆盖；没有再将 ORDERIN/ORDERS 武断分类为 LF/PF。"
+    }
+  ],
+  "open_review_findings": [
+    {
+      "finding_id": "B2-OPEN-1",
+      "severity": "P2",
+      "result": "FAIL",
+      "category": "unsupported_display_destination",
+      "final_quote": "按字段声明 `ORDER-AMOUNT PIC 9(7)V99` 为无符号数值（类型推断），它只可能为 0 或正数，所以金额条件实际起到的作用是**把“批准但金额为 0”的订单排除在结算之外**。",
+      "reason": "源码只有 DISPLAY 字面量，没有设备或最终目的地声明；把显示语句具体解释成“屏幕提示”超出了供应材料。原 gold B2-X4 只列了特定业务日志，本问题是独立开放审查新增发现，不改变该冻结条目。",
+      "source_basis": [
+        {
+          "path": "settle.cbl",
+          "start_line": 33,
+          "end_line": 33,
+          "exact_text": "ELSE DISPLAY 'ORDER SKIPPED'"
+        }
+      ]
+    },
+    {
+      "finding_id": "B2-OPEN-2",
+      "severity": "P2",
+      "result": "FAIL",
+      "category": "unsupported_negative_runtime_observability",
+      "final_quote": "**异常处理是明显缺口**：程序没有声明文件状态码，也没有对 `OPEN`、`READ`、`WRITE` 的失败状态做判断，可见分支只区分“正常读到数据”和“到文件末尾”。因此文件打不开、读写出错时的实际后果无法从现有源码确定，不能假定为“仅提示跳过”[ev_page_0a5bd724415b32dba5d08161]。另外，跳过提示只输出固定文字、不带订单号，运行人员无法据此定位是哪一条订单被跳过；`GOBACK` 处也未设置非零返回码，作业层看不到“有订单被跳过”的信号。",
+      "reason": "没有显式设置非零返回码只能支持“没有显式返回码通知”；不能推出整个作业层无法观察跳过。源码本身有 DISPLAY，实际设备、捕获和作业处理方式均未提供。最终句把缺少一种通知机制扩大成不存在任何可观测信号。",
+      "source_basis": [
+        {
+          "path": "settle.cbl",
+          "start_line": 33,
+          "end_line": 38,
+          "reason": "包含 DISPLAY 与 GOBACK，未给定显示去向或运行观测机制。"
+        },
+        {
+          "path": "nightjob.clle",
+          "start_line": 2,
+          "end_line": 6,
+          "reason": "可见 CL 只包含覆盖、CALL 和撤销覆盖，没有完整运行日志或观测配置。"
+        }
+      ]
+    }
+  ],
+  "contextual_judgments": [
+    {
+      "topic": "空输入及重复输入的运行措辞",
+      "result": "NOT_SEPARATELY_FAILED",
+      "reason": "正文已经明确写入只是请求且 OPEN/READ/WRITE 失败后果未知；不因局部简写另计无条件成功保证。重复记录描述也应放在前文 A 且正金额门槛内理解。"
+    }
+  ],
+  "required_pass_count": 3,
+  "required_total_count": 3,
+  "frozen_gold_result": "PASS",
+  "open_review_result": "FAIL",
+  "overall_result": "FAIL",
+  "summary": "核心业务解释、原冻结必需项及引用通过；新增“屏幕提示”和“作业层看不到跳过信号”超出可见证据，开放语义审查失败。",
+  "runtime_observation": {
+    "real_provider_requests": 1,
+    "client_attempts": 1,
+    "final_seconds": 15.775842,
+    "first_browser_preview_receipt_seconds": 8.307864,
+    "browser_changed_previews": 38,
+    "stream_result": "PASS_NATIVE_AND_WAITER_INCREMENTAL",
+    "answer_status": "ANALYZED",
+    "stop_reason": "sufficient_material",
+    "product_status_is_not_review_score": true
+  },
+  "body_identity": {
+    "first_complete_visible_body_equals_final": true,
+    "reason": "本题最终正文哈希与第一份完整正文相同；这些断言并非 F1 那类本地替换新产生。"
+  }
+}

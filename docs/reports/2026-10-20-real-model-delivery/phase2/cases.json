@@ -1,0 +1,458 @@
+{
+  "schema_version": "business-framework-live-gold/v1",
+  "frozen_at_date": "2026-10-20",
+  "baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "fixture_encoding": "utf-8",
+  "fixture_newlines": "LF",
+  "fixture_provenance": [
+    "tools/business_onboarding_fixture.py:sources",
+    "poc/tests/test_framework_copy_assignments.py:SOURCE,LAYOUT",
+    "poc/tests/test_framework_reference_constraints.py:MANUAL",
+    "F2 derives from LAYOUT by placing ROWS-KEY REDEFINES ROWS-FUNCTION immediately after ROWS-FUNCTION; no other source/manual changes."
+  ],
+  "evaluation_rules": {
+    "gold_is_evaluator_only": true,
+    "fresh_conversation_each_case": true,
+    "judge_final_delivered_answer_not_preview_or_raw_model_draft": true,
+    "mandatory_revision": false,
+    "do_not_select_best_of_retries": true,
+    "retain_initial_failures": true,
+    "answer_review_label": "independent_agent_review_not_human_acceptance",
+    "required_grading": "Each required item is pass/fail with exact final-answer quotation and source comparison; semantic equivalents count, verbatim target wording is not required.",
+    "forbidden_grading": "Any asserted forbidden conclusion fails that case. Explicitly denying or qualifying it is not a forbidden assertion.",
+    "business_expression": "B1/B2/F1 open with a concrete purpose or request meaning, not an identifier list plus generic completion. F2 foregrounds the overwritten-operation counterexample.",
+    "citation_requirement": "Main source and manual claims have resolvable references to actually supplied material; mere citation syntax does not establish support.",
+    "case_pass": "All required items, business-expression requirement and citation requirement pass, with no forbidden assertions.",
+    "optional_observations_do_not_change_pass": true,
+    "no_model_correctness_claim_from_local_assessment_status": true,
+    "execution_parameters_record_separately": [
+      "model",
+      "reasoning_effort",
+      "request_byte_limit",
+      "output_token_limit",
+      "max_model_requests",
+      "elapsed_seconds",
+      "actual_requests",
+      "cost_ledger"
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "B1",
+      "title": "普通新人问法：账户余额查询",
+      "question": "我是新人，讲讲 BALANCEQ。",
+      "source_root": "/tmp/business-framework-live-20261020/fixtures/B1/source",
+      "framework_reference_path": "",
+      "source_format": "free",
+      "entry_program": null,
+      "source_manifest": [
+        {
+          "relative_path": "balance.cbl",
+          "sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+          "line_count": 21
+        }
+      ],
+      "framework_reference_manifest": null,
+      "gold": {
+        "required": [
+          {
+            "criterion_id": "B1-R1",
+            "expectation": "说明按账号查询可用余额的用途，以及调用方账号、余额表和输出余额参数各自的作用；不能只列标识符。",
+            "source_basis": [
+              {
+                "path": "balance.cbl",
+                "start_line": 3,
+                "end_line": 3,
+                "exact_text": "*> FUNCTION PURPOSE: Query account balance for an operator; online query entry."
+              },
+              {
+                "path": "balance.cbl",
+                "start_line": 8,
+                "end_line": 15,
+                "exact_text": "01 ACCOUNT-KEY PIC 9(8).\n01 CURRENT-BALANCE PIC S9(7)V99.\n01 RESPONSE-CODE PIC XX.\nPROCEDURE DIVISION USING ACCOUNT-KEY CURRENT-BALANCE RESPONSE-CODE.\nMAIN.\nEXEC SQL\nSELECT AVAILABLE_BALANCE INTO :CURRENT-BALANCE\nFROM ACCOUNT_BALANCES WHERE ACCOUNT_ID = :ACCOUNT-KEY"
+              }
+            ]
+          },
+          {
+            "criterion_id": "B1-R2",
+            "expectation": "说明所示实现只查询，没有修改账户余额的语句；限定为供应的这份实现。",
+            "source_basis": [
+              {
+                "path": "balance.cbl",
+                "start_line": 13,
+                "end_line": 16,
+                "exact_text": "EXEC SQL\nSELECT AVAILABLE_BALANCE INTO :CURRENT-BALANCE\nFROM ACCOUNT_BALANCES WHERE ACCOUNT_ID = :ACCOUNT-KEY\nEND-EXEC."
+              }
+            ]
+          },
+          {
+            "criterion_id": "B1-R3",
+            "expectation": "说明 SQLCODE=0 时返回码为00，其他值为90；失败分支没有显式重置余额，需结合返回状态使用结果。",
+            "source_basis": [
+              {
+                "path": "balance.cbl",
+                "start_line": 17,
+                "end_line": 20,
+                "exact_text": "IF SQLCODE = 0\nMOVE '00' TO RESPONSE-CODE\nELSE MOVE '90' TO RESPONSE-CODE\nEND-IF."
+              }
+            ]
+          }
+        ],
+        "forbidden": [
+          {
+            "criterion_id": "B1-X1",
+            "claim": "失败时余额必定为零或必定保持某个旧值。"
+          },
+          {
+            "criterion_id": "B1-X2",
+            "claim": "已证明部署为具体屏幕、交易或联机系统。"
+          },
+          {
+            "criterion_id": "B1-X3",
+            "claim": "源码已明确可用余额的业务计算口径。"
+          },
+          {
+            "criterion_id": "B1-X4",
+            "claim": "返回码90只代表账户不存在，或SQLCODE非零被区分为源码未提供的独立业务原因。"
+          }
+        ],
+        "optional_observations": []
+      }
+    },
+    {
+      "case_id": "B2",
+      "title": "普通程序分析：订单转结算记录",
+      "question": "帮我分析 SETTLE 这个程序。",
+      "source_root": "/tmp/business-framework-live-20261020/fixtures/B2/source",
+      "framework_reference_path": "",
+      "source_format": "free",
+      "entry_program": null,
+      "source_manifest": [
+        {
+          "relative_path": "settle.cbl",
+          "sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+          "line_count": 38
+        },
+        {
+          "relative_path": "nightjob.clle",
+          "sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+          "line_count": 6
+        }
+      ],
+      "framework_reference_manifest": null,
+      "gold": {
+        "required": [
+          {
+            "criterion_id": "B2-R1",
+            "expectation": "说明把获批且金额为正的订单整理成结算记录，订单文件是输入、结算记录文件是产出。",
+            "source_basis": [
+              {
+                "path": "settle.cbl",
+                "start_line": 3,
+                "end_line": 3,
+                "exact_text": "*> BUSINESS PURPOSE: Create settlement records for approved orders."
+              },
+              {
+                "path": "settle.cbl",
+                "start_line": 7,
+                "end_line": 8,
+                "exact_text": "SELECT ORDER-IN ASSIGN TO ORDERIN.\nSELECT SETTLEMENT-OUT ASSIGN TO SETTLEOUT."
+              },
+              {
+                "path": "settle.cbl",
+                "start_line": 24,
+                "end_line": 32,
+                "exact_text": "OPEN INPUT ORDER-IN OUTPUT SETTLEMENT-OUT.\nPERFORM UNTIL END-OF-ORDERS = 1\nREAD ORDER-IN\nAT END MOVE 1 TO END-OF-ORDERS\nNOT AT END\nIF ORDER-STATUS = 'A' AND ORDER-AMOUNT > ZERO\nMOVE ORDER-ID TO SETTLEMENT-ID\nMOVE ORDER-AMOUNT TO SETTLEMENT-AMOUNT\nWRITE SETTLEMENT-REC"
+              }
+            ]
+          },
+          {
+            "criterion_id": "B2-R2",
+            "expectation": "准确说明状态A并且金额大于零的合取条件，复制订单编号和金额后写出；其他订单显示跳过提示。",
+            "source_basis": [
+              {
+                "path": "settle.cbl",
+                "start_line": 29,
+                "end_line": 34,
+                "exact_text": "IF ORDER-STATUS = 'A' AND ORDER-AMOUNT > ZERO\nMOVE ORDER-ID TO SETTLEMENT-ID\nMOVE ORDER-AMOUNT TO SETTLEMENT-AMOUNT\nWRITE SETTLEMENT-REC\nELSE DISPLAY 'ORDER SKIPPED'\nEND-IF"
+              }
+            ]
+          },
+          {
+            "criterion_id": "B2-R3",
+            "expectation": "说明文件结束控制循环结束；没有文件状态检查，不能把写出请求解释成每笔实际成功的保证。",
+            "source_basis": [
+              {
+                "path": "settle.cbl",
+                "start_line": 24,
+                "end_line": 38,
+                "exact_text": "OPEN INPUT ORDER-IN OUTPUT SETTLEMENT-OUT.\nPERFORM UNTIL END-OF-ORDERS = 1\nREAD ORDER-IN\nAT END MOVE 1 TO END-OF-ORDERS\nNOT AT END\nIF ORDER-STATUS = 'A' AND ORDER-AMOUNT > ZERO\nMOVE ORDER-ID TO SETTLEMENT-ID\nMOVE ORDER-AMOUNT TO SETTLEMENT-AMOUNT\nWRITE SETTLEMENT-REC\nELSE DISPLAY 'ORDER SKIPPED'\nEND-IF\nEND-READ\nEND-PERFORM.\nCLOSE ORDER-IN SETTLEMENT-OUT.\nGOBACK."
+              }
+            ]
+          }
+        ],
+        "forbidden": [
+          {
+            "criterion_id": "B2-X1",
+            "claim": "已经发生扣款、资金入账、到账或实际资金结算完成。"
+          },
+          {
+            "criterion_id": "B2-X2",
+            "claim": "已证明每天固定时间调度。"
+          },
+          {
+            "criterion_id": "B2-X3",
+            "claim": "无I/O或运行前提保证空输入、所有异常情况下都正常完成。"
+          },
+          {
+            "criterion_id": "B2-X4",
+            "claim": "DISPLAY目的地已确定为特定业务日志。"
+          }
+        ],
+        "optional_observations": [
+          {
+            "observation": "是否发现CL文件覆盖→调用SETTLE→撤销覆盖；未主动展开CL不单独判失败。",
+            "source_basis": [
+              {
+                "path": "nightjob.clle",
+                "start_line": 3,
+                "end_line": 5,
+                "exact_text": "OVRDBF FILE(ORDERIN) TOFILE(APPDATA/ORDERS)\nCALL PGM(SETTLE)\nDLTOVR FILE(ORDERIN)"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "F1",
+      "title": "普通COPY绑定：请求含义与运行限制",
+      "question": "帮我分析 ENTRYJOB 对记录做了什么，为什么可以或不可以按 ADVANCE 理解这次调用？",
+      "source_root": "/tmp/business-framework-live-20261020/fixtures/F1/source",
+      "framework_reference_path": "/tmp/business-framework-live-20261020/fixtures/F1/reference.md",
+      "source_format": "free",
+      "entry_program": null,
+      "source_manifest": [
+        {
+          "relative_path": "entry.cbl",
+          "sha256": "f9171cb729da5f8a76d73cf48bdfd48ead48f23fbb27368b280cccb54e85939d",
+          "line_count": 12
+        },
+        {
+          "relative_path": "layout.cpy",
+          "sha256": "85ab9626bf1c13f18f62c2d92692eb8fcced25b53c03f9445edba491058904cb",
+          "line_count": 5
+        }
+      ],
+      "framework_reference_manifest": {
+        "relative_path": "reference.md",
+        "sha256": "76c91a6ff373c92fe88468a737892fdb4fdacd03232e68aa33fe911b224099e1",
+        "line_count": 36
+      },
+      "gold": {
+        "required": [
+          {
+            "criterion_id": "F1-R1",
+            "expectation": "解释调用方准备参数并发出“请求下一条记录”的约定操作，不能只翻译MOVE和CALL。",
+            "source_basis": [
+              {
+                "path": "entry.cbl",
+                "start_line": 8,
+                "end_line": 11,
+                "exact_text": "MOVE 'ADVANCE' TO ROWS-FUNCTION.\nMOVE 'KEY' TO ROWS-KEY.\nMOVE 'VIEW' TO ROWS-VIEW.\nCALL 'ROWSIO' USING ROWS-PARAMS."
+              },
+              {
+                "path": "reference.md",
+                "start_line": 5,
+                "end_line": 7,
+                "exact_text": "CALL XXXXIO USING XXXX-PARAMS\n\nThe operation is selected by XXXX-FUNCTION."
+              },
+              {
+                "path": "reference.md",
+                "start_line": 13,
+                "end_line": 13,
+                "exact_text": "| ADVANCE | Request the following record. |"
+              }
+            ]
+          },
+          {
+            "criterion_id": "F1-R2",
+            "expectation": "结合普通COPY中的独立字段声明，解释后续KEY、VIEW赋值不覆盖功能字段的ADVANCE；不能忽略COPY布局。",
+            "source_basis": [
+              {
+                "path": "entry.cbl",
+                "start_line": 5,
+                "end_line": 11,
+                "exact_text": "COPY \"layout.cpy\".\nPROCEDURE DIVISION.\nMAIN.\nMOVE 'ADVANCE' TO ROWS-FUNCTION.\nMOVE 'KEY' TO ROWS-KEY.\nMOVE 'VIEW' TO ROWS-VIEW.\nCALL 'ROWSIO' USING ROWS-PARAMS."
+              },
+              {
+                "path": "layout.cpy",
+                "start_line": 1,
+                "end_line": 5,
+                "exact_text": "01 ROWS-PARAMS.\n  05 ROWS-FUNCTION PIC X(8).\n  05 ROWS-STATUS PIC X(4).\n  05 ROWS-KEY PIC X(8).\n  05 ROWS-VIEW PIC X(8)."
+              }
+            ]
+          },
+          {
+            "criterion_id": "F1-R3",
+            "expectation": "明确这只是请求约定；缺少被调实现及运行结果，不能确认实际取得记录、游标位置、锁、持久化或事务完成。",
+            "source_basis": [
+              {
+                "path": "reference.md",
+                "start_line": 23,
+                "end_line": 23,
+                "exact_text": "The operation describes a request; no returned row is guaranteed."
+              },
+              {
+                "path": "reference.md",
+                "start_line": 27,
+                "end_line": 28,
+                "exact_text": "The runtime implementation is absent. This reference does not establish\nsuccessful persistence, cursor position, locks, or transaction completion."
+              }
+            ]
+          },
+          {
+            "criterion_id": "F1-R4",
+            "expectation": "KEY和VIEW只作为源码设置的参数解释；不得将字段名扩写成无出处的主键、数据库视图或具体筛选规则。无需为了合格逐一复述所有未知项。",
+            "source_basis": [
+              {
+                "path": "entry.cbl",
+                "start_line": 9,
+                "end_line": 10,
+                "exact_text": "MOVE 'KEY' TO ROWS-KEY.\nMOVE 'VIEW' TO ROWS-VIEW."
+              },
+              {
+                "path": "layout.cpy",
+                "start_line": 4,
+                "end_line": 5,
+                "exact_text": "  05 ROWS-KEY PIC X(8).\n  05 ROWS-VIEW PIC X(8)."
+              }
+            ]
+          }
+        ],
+        "forbidden": [
+          {
+            "criterion_id": "F1-X1",
+            "claim": "已实际读取到下一条记录、已加锁、已提交或更新成功。"
+          },
+          {
+            "criterion_id": "F1-X2",
+            "claim": "ENTRYJOB检查了DONE、执行了循环读到结束，或已得到某个返回状态。"
+          },
+          {
+            "criterion_id": "F1-X3",
+            "claim": "调用方局部布局确认等于被调方ABI已完整验证。"
+          },
+          {
+            "criterion_id": "F1-X4",
+            "claim": "KEY或VIEW的业务/数据库作用已由当前材料明确，而材料并未定义。"
+          }
+        ],
+        "optional_observations": []
+      }
+    },
+    {
+      "case_id": "F2",
+      "title": "反例：REDEFINES覆盖操作码",
+      "question": "帮我分析 ENTRYJOB 对记录做了什么，为什么可以或不可以按 ADVANCE 理解这次调用？",
+      "source_root": "/tmp/business-framework-live-20261020/fixtures/F2/source",
+      "framework_reference_path": "/tmp/business-framework-live-20261020/fixtures/F2/reference.md",
+      "source_format": "free",
+      "entry_program": null,
+      "source_manifest": [
+        {
+          "relative_path": "entry.cbl",
+          "sha256": "f9171cb729da5f8a76d73cf48bdfd48ead48f23fbb27368b280cccb54e85939d",
+          "line_count": 12
+        },
+        {
+          "relative_path": "layout.cpy",
+          "sha256": "f817b90eb7f2afa45a30c72fa2819b0947b61aa42a4a5f90e417333cbacf3a10",
+          "line_count": 5
+        }
+      ],
+      "framework_reference_manifest": {
+        "relative_path": "reference.md",
+        "sha256": "76c91a6ff373c92fe88468a737892fdb4fdacd03232e68aa33fe911b224099e1",
+        "line_count": 36
+      },
+      "gold": {
+        "required": [
+          {
+            "criterion_id": "F2-R1",
+            "expectation": "识别ROWS-KEY与ROWS-FUNCTION共享存储，后续键值写入会覆盖功能字段，不能把它们当作独立字段。",
+            "source_basis": [
+              {
+                "path": "layout.cpy",
+                "start_line": 1,
+                "end_line": 5,
+                "exact_text": "01 ROWS-PARAMS.\n  05 ROWS-FUNCTION PIC X(8).\n  05 ROWS-KEY REDEFINES ROWS-FUNCTION PIC X(8).\n  05 ROWS-STATUS PIC X(4).\n  05 ROWS-VIEW PIC X(8)."
+              },
+              {
+                "path": "entry.cbl",
+                "start_line": 8,
+                "end_line": 11,
+                "exact_text": "MOVE 'ADVANCE' TO ROWS-FUNCTION.\nMOVE 'KEY' TO ROWS-KEY.\nMOVE 'VIEW' TO ROWS-VIEW.\nCALL 'ROWSIO' USING ROWS-PARAMS."
+              }
+            ]
+          },
+          {
+            "criterion_id": "F2-R2",
+            "expectation": "撤回“初始ADVANCE就是最终调用操作”的解释；手册没有定义最终KEY操作的业务行为，不得从初始赋值直接认定请求下一条。允许说明相应字符存储在顺序执行下被KEY覆盖，但不要求逐字给出填充空格。",
+            "source_basis": [
+              {
+                "path": "entry.cbl",
+                "start_line": 8,
+                "end_line": 11,
+                "exact_text": "MOVE 'ADVANCE' TO ROWS-FUNCTION.\nMOVE 'KEY' TO ROWS-KEY.\nMOVE 'VIEW' TO ROWS-VIEW.\nCALL 'ROWSIO' USING ROWS-PARAMS."
+              },
+              {
+                "path": "layout.cpy",
+                "start_line": 2,
+                "end_line": 3,
+                "exact_text": "  05 ROWS-FUNCTION PIC X(8).\n  05 ROWS-KEY REDEFINES ROWS-FUNCTION PIC X(8)."
+              },
+              {
+                "path": "reference.md",
+                "start_line": 7,
+                "end_line": 13,
+                "exact_text": "The operation is selected by XXXX-FUNCTION.\n\n### Operations\n\n| Function | Meaning |\n| --- | --- |\n| ADVANCE | Request the following record. |"
+              }
+            ]
+          },
+          {
+            "criterion_id": "F2-R3",
+            "expectation": "保留运行边界：当前材料不能证明实际返回记录、加锁、持久化或事务完成；未能确认操作不等于已经证明运行失败。",
+            "source_basis": [
+              {
+                "path": "reference.md",
+                "start_line": 23,
+                "end_line": 28,
+                "exact_text": "The operation describes a request; no returned row is guaranteed.\n\n## Evidence boundary\n\nThe runtime implementation is absent. This reference does not establish\nsuccessful persistence, cursor position, locks, or transaction completion."
+              }
+            ]
+          }
+        ],
+        "forbidden": [
+          {
+            "criterion_id": "F2-X1",
+            "claim": "KEY字段写入不影响功能码，或最终调用可直接按ADVANCE解释。"
+          },
+          {
+            "criterion_id": "F2-X2",
+            "claim": "系统已完整验证此别名布局或实际执行结果。"
+          },
+          {
+            "criterion_id": "F2-X3",
+            "claim": "未确认最终操作便断言调用必然失败、必定抛错或一定返回某错误码。"
+          },
+          {
+            "criterion_id": "F2-X4",
+            "claim": "已实际取得记录、加锁、持久化或事务完成。"
+          }
+        ],
+        "optional_observations": []
+      }
+    }
+  ]
+}
