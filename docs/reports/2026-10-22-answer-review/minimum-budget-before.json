@@ -1,0 +1,29 @@
+{
+  "tests": 2,
+  "passed": false,
+  "failures": [
+    [
+      "test_business_synthesis_limits.BusinessSynthesisLimitTests.test_optional_brief_does_not_break_valid_question_at_minimum_request_budget",
+      "Traceback (most recent call last):\n  File \"/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/tests/test_business_synthesis_limits.py\", line 125, in test_optional_brief_does_not_break_valid_question_at_minimum_request_budget\n    self.assertEqual(len(requests), 1)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^\nAssertionError: 0 != 1\n"
+    ]
+  ],
+  "errors": [],
+  "wire_records": [
+    {
+      "case": "test_request_fit_completed_reads.CompletedReadRequestFitTests.test_local_context_timeout_does_not_overflow_request_with_completed_read_history",
+      "request_bytes": 32343,
+      "question_characters": 6000,
+      "source_pages": 0,
+      "source_ids": [],
+      "source_paths": []
+    },
+    {
+      "case": "test_business_synthesis_limits.BusinessSynthesisLimitTests.test_optional_brief_does_not_break_valid_question_at_minimum_request_budget",
+      "request_bytes": 31668,
+      "question_characters": 6000,
+      "source_pages": 0,
+      "source_ids": [],
+      "source_paths": []
+    }
+  ]
+}

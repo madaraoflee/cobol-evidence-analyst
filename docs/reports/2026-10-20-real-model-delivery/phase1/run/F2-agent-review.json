@@ -1,0 +1,55 @@
+{
+  "schema_version": "business-framework-agent-review/v1",
+  "review_label": "agent_review",
+  "human_acceptance": false,
+  "case_id": "F2",
+  "baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "gold_path": "/tmp/business-framework-live-20261020/cases.json",
+  "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "observation_path": "/tmp/business-framework-live-20261020/run/F2-observation.json",
+  "observation_sha256": "cc07318e58f989d65d3297c28b906ae9e18be67378efd67650bb871d18f3b3de",
+  "decision": "INCOMPLETE",
+  "quality_scored": false,
+  "real_model_body_available": false,
+  "provider_attempts": 1,
+  "received_body_deltas": 0,
+  "stop_reason": "TRANSPORT_ERROR",
+  "transport_failure_detail": "tls_handshake_failed reported by root runner; no model body received",
+  "local_fallback_excluded_from_quality_scoring": true,
+  "local_fallback_sha256": "5ebcbe888879f60c34f7721433d8f59b6816dd6a4e7415e7a8d49e1c5f49ee3f",
+  "required_results": [
+    {
+      "criterion_id": "F2-R1",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    },
+    {
+      "criterion_id": "F2-R2",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    },
+    {
+      "criterion_id": "F2-R3",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    }
+  ],
+  "forbidden_results": [
+    {
+      "criterion_id": "F2-X1",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    },
+    {
+      "criterion_id": "F2-X2",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    },
+    {
+      "criterion_id": "F2-X3",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    },
+    {
+      "criterion_id": "F2-X4",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    }
+  ],
+  "additional_findings": [],
+  "summary": "真实模型请求未产生正文；本地回退列出直接语句不能算真实模型质量或成功完成反例。",
+  "scope": "独立代理记录，不是人工验收；保留失败和费用预留，不自动重试或把未知请求计为零费用。"
+}

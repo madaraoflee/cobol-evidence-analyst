@@ -1,0 +1,45 @@
+{
+  "schema": "minimum-source-budget-agent-check/v1",
+  "review_label": "agent_review",
+  "product_commit": "4a4e0c8aded571dc4a0fd86d922d40e87b8fef40",
+  "source_modified": false,
+  "test_modified": false,
+  "test_result": "PASS",
+  "tests_run": 3,
+  "remote_calls": 0,
+  "network_connect_attempts": 0,
+  "minimum_budget_request": {
+    "physical_request_bytes": 32726,
+    "policy_request_bytes": 32768,
+    "source_pages": [
+      {
+        "id": "ev_page_441fcfd6b79fe24d18376488",
+        "path": "rule.cbl",
+        "sha256": "660048fd99cbbb3f902d157377cbb928791c202bbe9f3aa7e96a9484f5edec25",
+        "lines": [
+          1,
+          15
+        ]
+      }
+    ],
+    "question_characters": 6000,
+    "file_io_prompt": "WRITE requests a write, not persistence. DISPLAY destination (screen/job log) needs supplied definitions. Missing return-code assignment does not exclude observable output or effects. Names/overrides do not prove LF/PF types.",
+    "optional_brief_omitted": true
+  },
+  "file_io_prompt_utf8_bytes": 225,
+  "product_hashes": {
+    "business_chat.py": "6c786c116c28a6af95a2eaaef43f97ab363b834ec1a98a4633079e3bece9b625",
+    "source_availability.py": "0fbb66295c4361da273115b6a1acd0d97b2d284c6542c41ff0c30acaf65e2db6",
+    "quality_trace.py": "059d67f3690c24df67bef29b85b783ae585d8266d8dd04fd35a592e0a2674c86"
+  },
+  "test_output": "test_last_turn_continuation_and_preliminary_read_share_the_actual_cap (test_business_synthesis_limits.BusinessSynthesisLimitTests.test_last_turn_continuation_and_preliminary_read_share_the_actual_cap) ... ok\ntest_optional_brief_does_not_break_valid_question_at_minimum_request_budget (test_business_synthesis_limits.BusinessSynthesisLimitTests.test_optional_brief_does_not_break_valid_question_at_minimum_request_budget) ... ok\ntest_revision_review_rebinds_after_the_formula_page_is_trimmed (test_business_synthesis_limits.BusinessSynthesisLimitTests.test_revision_review_rebinds_after_the_formula_page_is_trimmed) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 2.039s\n\nOK\n",
+  "previous_failure": {
+    "log": "/tmp/business-framework-source-tests-absence.log",
+    "tests_run": 3581,
+    "failures": 1,
+    "failing_test": "test_optional_brief_does_not_break_valid_question_at_minimum_request_budget",
+    "observed_failure": "requests was empty; callback had not appended a successful request.",
+    "parent_diagnosed_cause": "Longer file_io prompt crossed the 32768-byte request budget; trimming removed the only source page; next(page) raised StopIteration inside scripted transport and was surfaced as TRANSPORT_ERROR. This was not a real network failure and not caused by the semantic noun-scope guard.",
+    "fix": "Compress the same evidence-boundary instruction to 225 UTF-8 bytes as independently measured on the actual wire payload. Keep the test and 32768-byte policy unchanged."
+  }
+}

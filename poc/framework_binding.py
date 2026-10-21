@@ -25,6 +25,7 @@ _PROGRAM = re.compile(rf"PROGRAM-ID\s*\.\s*(?:'({_NAME})'|\"({_NAME})\"|({_NAME}
 _SECTION = re.compile(rf"({_PROCEDURE_NAME})\s+SECTION\s*\.", re.I)
 _PARAGRAPH = re.compile(rf"({_PROCEDURE_NAME})\s*\.", re.I)
 _DECLARATION = re.compile(rf"(?:0?[1-9]|[1-4][0-9]|66|77|88)\s+({_NAME})\b", re.I)
+_PLAIN_DATA_COPY = re.compile(r"COPY\s+(?:'[A-Z0-9_./-]+'|\"[A-Z0-9_./-]+\"|[A-Z0-9_-]+)\s*\.", re.I)
 _LAYOUT_DECLARATION = re.compile(rf"(\d{{1,2}})\s+({_NAME})\b(.*)", re.I)
 _ELEMENTARY = re.compile(
     rf"(?:PIC|PICTURE)\s+(?:IS\s+)?(?:[XA]+(?:\s*\(\s*\d+\s*\))?|"
@@ -125,6 +126,7 @@ def bind_framework_source(
     uncertain_layout: set[tuple[str, str]] = set()
     declaration_stack: list[dict] = []
     storage_section: str | None = None
+    plain_data_copy = False
     program_occurrences: Counter = Counter()
     previous_line: int | None = None
     selected_ranges = None if focus_ranges is None else [
@@ -162,9 +164,20 @@ def bind_framework_source(
             return False
         interface, stem = matches[0]
         argument = _instantiate(interface.get("argument_template", ""), stem)
-        if not argument or any(len(layout_nodes[(program, name)]) != 1
-                               for name in (function, destination, argument)):
+        if not argument:
             return False
+        counts = [len(layout_nodes[(program, name)]) for name in (function, destination, argument)]
+        if any(count != 1 for count in counts):
+            if not plain_data_copy or any(count > 1 for count in counts):
+                return False
+            # Keep only a candidate until the existing layout validator proves
+            # that the ordinary COPY supplies disjoint elementary storage.
+            # No declaration, operation coverage or source evidence is invented.
+            last_move.setdefault("pending_layout_assignments", []).append(
+                {"field": destination, "start_line": start, "end_line": end})
+            last_move.setdefault("preserved_source_ranges", []).append(
+                {"start_line": start, "end_line": end, "role": "disjoint_field_assignment_candidate"})
+            return True
         function_node, destination_node, argument_node = (
             layout_nodes[(program, name)][0] for name in (function, destination, argument))
         storage = function_node["storage"]
@@ -257,6 +270,10 @@ def bind_framework_source(
                 if fact["operation"]:
                     fact["documented_operation_candidate"] = fact.pop("operation")
                     fact["operation"] = None
+            if fact.get("dependency_covered") and last_move.get("pending_layout_assignments"):
+                fact["pending_layout_assignments"] = list(last_move["pending_layout_assignments"])
+                fact["documented_operation_candidate"] = fact["operation"]
+                fact.update(operation=None, dependency_covered=False, reason="assignment_layout_not_verified")
         facts.append(fact)
 
     def flush(*, discard: bool = False) -> None:
@@ -334,6 +351,7 @@ def bind_framework_source(
             controls.clear()
             declaration_stack.clear()
             storage_section = None
+            plain_data_copy = False
             continue
         division_match = re.match(r"^(IDENTIFICATION|ENVIRONMENT|DATA|PROCEDURE)\s+DIVISION\b", upper)
         if division_match:
@@ -355,6 +373,8 @@ def bind_framework_source(
         if division == "DATA":
             if re.match(r"REPLACE\b", upper):
                 replacement_active = not bool(re.fullmatch(r"REPLACE\s+OFF\s*\.?", upper))
+            if storage_section in _STORAGE and _PLAIN_DATA_COPY.fullmatch(code):
+                plain_data_copy = True
             declaration = _DECLARATION.match(upper)
             if declaration and program:
                 declarations[(program, declaration.group(1))] += 1

@@ -1,0 +1,4297 @@
+{
+  "schema": "retrieval-route-benchmark/v2",
+  "synthetic": true,
+  "model_calls": 0,
+  "answer_quality_evaluated": false,
+  "instrumented_timings": true,
+  "os_disk_cache_flushed": false,
+  "cold_definition": "Python graph/token caches cleared; new SQLite connection; OS page cache uncontrolled",
+  "baseline_ref": "7bfad65a11574e86831d73f520a241330aa8089b",
+  "module_sha256": {
+    "baseline": "8a0544071abd119c7aad7f31715780380b3b1d5b1946c25782d2ed7c9e23e963",
+    "candidate": "27fa9011f9e02f2fd6a86d82ab1e0e4b303259b30f5c9800efe03009f514b2dd"
+  },
+  "warm_repeats": 3,
+  "speed_cases": [
+    {
+      "kind": "output_equivalent_speed",
+      "size": "small",
+      "scenario": "exact",
+      "corpus": {
+        "files": 24,
+        "lines": 400,
+        "version": 1,
+        "build_seconds": 0.14604487500037067,
+        "indexed_pages": 76,
+        "source_bytes": 858688
+      },
+      "max_pages": 8,
+      "max_chars": 32000,
+      "runs": {
+        "baseline": [
+          {
+            "seconds": 0.011445333000665414,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 779,
+            "fts_statements": 3,
+            "vm_steps_approx": 22000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 1,
+                "seconds": 0.0003053330001421273
+              },
+              {
+                "exact": false,
+                "query_sha256": "34074bf35b56866a658ba5de92b5110889f1c28aecf3bd1fdfa93a63a6bb6710",
+                "rows": 76,
+                "seconds": 0.0010723340001277393
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "be93ec5a9f2e9d6a566372b5c828c13e0e0bfa67d4c658553a6db566224ea559",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.0055067080011212965,
+            "cache_mode": "warm",
+            "sql_statements": 779,
+            "fts_statements": 3,
+            "vm_steps_approx": 22000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 1,
+                "seconds": 0.0002530840010877
+              },
+              {
+                "exact": false,
+                "query_sha256": "34074bf35b56866a658ba5de92b5110889f1c28aecf3bd1fdfa93a63a6bb6710",
+                "rows": 76,
+                "seconds": 0.0010143749987037154
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "be93ec5a9f2e9d6a566372b5c828c13e0e0bfa67d4c658553a6db566224ea559",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.005444832999273785,
+            "cache_mode": "warm",
+            "sql_statements": 779,
+            "fts_statements": 3,
+            "vm_steps_approx": 22000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 1,
+                "seconds": 0.0002631249990372453
+              },
+              {
+                "exact": false,
+                "query_sha256": "34074bf35b56866a658ba5de92b5110889f1c28aecf3bd1fdfa93a63a6bb6710",
+                "rows": 76,
+                "seconds": 0.0010063749996334082
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "be93ec5a9f2e9d6a566372b5c828c13e0e0bfa67d4c658553a6db566224ea559",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.005493041999216075,
+            "cache_mode": "warm",
+            "sql_statements": 779,
+            "fts_statements": 3,
+            "vm_steps_approx": 22000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 1,
+                "seconds": 0.00025579199973435607
+              },
+              {
+                "exact": false,
+                "query_sha256": "34074bf35b56866a658ba5de92b5110889f1c28aecf3bd1fdfa93a63a6bb6710",
+                "rows": 76,
+                "seconds": 0.001028624999889871
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "be93ec5a9f2e9d6a566372b5c828c13e0e0bfa67d4c658553a6db566224ea559",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.006236749999516178,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 779,
+            "fts_statements": 3,
+            "vm_steps_approx": 22000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 1,
+                "seconds": 0.00030162499933794606
+              },
+              {
+                "exact": false,
+                "query_sha256": "0cdb66b653c9ee81119c8892fd507a36beba92764a5e08b88969bbe27f28ddd5",
+                "rows": 76,
+                "seconds": 0.0010627499996189727
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "be93ec5a9f2e9d6a566372b5c828c13e0e0bfa67d4c658553a6db566224ea559",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.005851625001014327,
+            "cache_mode": "warm",
+            "sql_statements": 779,
+            "fts_statements": 3,
+            "vm_steps_approx": 22000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 1,
+                "seconds": 0.00026316699950257316
+              },
+              {
+                "exact": false,
+                "query_sha256": "0cdb66b653c9ee81119c8892fd507a36beba92764a5e08b88969bbe27f28ddd5",
+                "rows": 76,
+                "seconds": 0.0010229169984086184
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "be93ec5a9f2e9d6a566372b5c828c13e0e0bfa67d4c658553a6db566224ea559",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.005857666001247708,
+            "cache_mode": "warm",
+            "sql_statements": 779,
+            "fts_statements": 3,
+            "vm_steps_approx": 22000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 1,
+                "seconds": 0.00025749999986146577
+              },
+              {
+                "exact": false,
+                "query_sha256": "0cdb66b653c9ee81119c8892fd507a36beba92764a5e08b88969bbe27f28ddd5",
+                "rows": 76,
+                "seconds": 0.0010489999986020848
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "be93ec5a9f2e9d6a566372b5c828c13e0e0bfa67d4c658553a6db566224ea559",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.0060307499988994095,
+            "cache_mode": "warm",
+            "sql_statements": 779,
+            "fts_statements": 3,
+            "vm_steps_approx": 22000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 1,
+                "seconds": 0.00027754199982155114
+              },
+              {
+                "exact": false,
+                "query_sha256": "0cdb66b653c9ee81119c8892fd507a36beba92764a5e08b88969bbe27f28ddd5",
+                "rows": 76,
+                "seconds": 0.0010541659994487418
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "be93ec5a9f2e9d6a566372b5c828c13e0e0bfa67d4c658553a6db566224ea559",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ]
+      },
+      "evidence_identity_equal": true,
+      "full_result_equal": true,
+      "warm_median_seconds": {
+        "baseline": 0.005493041999216075,
+        "candidate": 0.005857666001247708
+      },
+      "included_in_speed_comparison": true,
+      "speedup": 0.9377526813659286
+    },
+    {
+      "kind": "output_equivalent_speed",
+      "size": "small",
+      "scenario": "broad",
+      "corpus": {
+        "files": 24,
+        "lines": 400,
+        "version": 1,
+        "build_seconds": 0.14604487500037067,
+        "indexed_pages": 76,
+        "source_bytes": 858688
+      },
+      "max_pages": 8,
+      "max_chars": 32000,
+      "runs": {
+        "baseline": [
+          {
+            "seconds": 0.00506275000043388,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 239,
+            "fts_statements": 2,
+            "vm_steps_approx": 15000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "c4e12914e2e11120f16a7f2be04015435c3efac3c1b857a30cf64de6d6877232",
+                "rows": 76,
+                "seconds": 0.0006753749985364266
+              }
+            ],
+            "evidence_identity_sha256": "d1deffa675b42cd0ed5afa67cba12e169c73daff49aead5967c52d72a5204227",
+            "full_result_sha256": "617bbfee911bef62d9430a9bcb6718b2086047bc2f382844f3b5dc24b7d743bc",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.004907582999294391,
+            "cache_mode": "warm",
+            "sql_statements": 239,
+            "fts_statements": 2,
+            "vm_steps_approx": 15000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "c4e12914e2e11120f16a7f2be04015435c3efac3c1b857a30cf64de6d6877232",
+                "rows": 76,
+                "seconds": 0.0006347079997794935
+              }
+            ],
+            "evidence_identity_sha256": "d1deffa675b42cd0ed5afa67cba12e169c73daff49aead5967c52d72a5204227",
+            "full_result_sha256": "617bbfee911bef62d9430a9bcb6718b2086047bc2f382844f3b5dc24b7d743bc",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.004631334000805509,
+            "cache_mode": "warm",
+            "sql_statements": 239,
+            "fts_statements": 2,
+            "vm_steps_approx": 15000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "c4e12914e2e11120f16a7f2be04015435c3efac3c1b857a30cf64de6d6877232",
+                "rows": 76,
+                "seconds": 0.0006275409996305825
+              }
+            ],
+            "evidence_identity_sha256": "d1deffa675b42cd0ed5afa67cba12e169c73daff49aead5967c52d72a5204227",
+            "full_result_sha256": "617bbfee911bef62d9430a9bcb6718b2086047bc2f382844f3b5dc24b7d743bc",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.0042779579998750705,
+            "cache_mode": "warm",
+            "sql_statements": 239,
+            "fts_statements": 2,
+            "vm_steps_approx": 15000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "c4e12914e2e11120f16a7f2be04015435c3efac3c1b857a30cf64de6d6877232",
+                "rows": 76,
+                "seconds": 0.0006018750009388896
+              }
+            ],
+            "evidence_identity_sha256": "d1deffa675b42cd0ed5afa67cba12e169c73daff49aead5967c52d72a5204227",
+            "full_result_sha256": "617bbfee911bef62d9430a9bcb6718b2086047bc2f382844f3b5dc24b7d743bc",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.005080749999251566,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 239,
+            "fts_statements": 2,
+            "vm_steps_approx": 15000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "30b6a1d4a476634d6dd1d6f182560f7d3c0c2b07f4abd7c2240db81b31c6341b",
+                "rows": 76,
+                "seconds": 0.0006778329989174381
+              }
+            ],
+            "evidence_identity_sha256": "d1deffa675b42cd0ed5afa67cba12e169c73daff49aead5967c52d72a5204227",
+            "full_result_sha256": "617bbfee911bef62d9430a9bcb6718b2086047bc2f382844f3b5dc24b7d743bc",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.004994875000193133,
+            "cache_mode": "warm",
+            "sql_statements": 239,
+            "fts_statements": 2,
+            "vm_steps_approx": 15000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "30b6a1d4a476634d6dd1d6f182560f7d3c0c2b07f4abd7c2240db81b31c6341b",
+                "rows": 76,
+                "seconds": 0.0006722500002069864
+              }
+            ],
+            "evidence_identity_sha256": "d1deffa675b42cd0ed5afa67cba12e169c73daff49aead5967c52d72a5204227",
+            "full_result_sha256": "617bbfee911bef62d9430a9bcb6718b2086047bc2f382844f3b5dc24b7d743bc",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.004709291999461129,
+            "cache_mode": "warm",
+            "sql_statements": 239,
+            "fts_statements": 2,
+            "vm_steps_approx": 15000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "30b6a1d4a476634d6dd1d6f182560f7d3c0c2b07f4abd7c2240db81b31c6341b",
+                "rows": 76,
+                "seconds": 0.0006571670000994345
+              }
+            ],
+            "evidence_identity_sha256": "d1deffa675b42cd0ed5afa67cba12e169c73daff49aead5967c52d72a5204227",
+            "full_result_sha256": "617bbfee911bef62d9430a9bcb6718b2086047bc2f382844f3b5dc24b7d743bc",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.004629249999197782,
+            "cache_mode": "warm",
+            "sql_statements": 239,
+            "fts_statements": 2,
+            "vm_steps_approx": 15000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "30b6a1d4a476634d6dd1d6f182560f7d3c0c2b07f4abd7c2240db81b31c6341b",
+                "rows": 76,
+                "seconds": 0.0006178750008984935
+              }
+            ],
+            "evidence_identity_sha256": "d1deffa675b42cd0ed5afa67cba12e169c73daff49aead5967c52d72a5204227",
+            "full_result_sha256": "617bbfee911bef62d9430a9bcb6718b2086047bc2f382844f3b5dc24b7d743bc",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ]
+      },
+      "evidence_identity_equal": true,
+      "full_result_equal": true,
+      "warm_median_seconds": {
+        "baseline": 0.004631334000805509,
+        "candidate": 0.004709291999461129
+      },
+      "included_in_speed_comparison": true,
+      "speedup": 0.9834459195427804
+    },
+    {
+      "kind": "output_equivalent_speed",
+      "size": "small",
+      "scenario": "long_multi",
+      "corpus": {
+        "files": 24,
+        "lines": 400,
+        "version": 1,
+        "build_seconds": 0.14604487500037067,
+        "indexed_pages": 76,
+        "source_bytes": 858688
+      },
+      "max_pages": 8,
+      "max_chars": 32000,
+      "runs": {
+        "baseline": [
+          {
+            "seconds": 0.036238167000192334,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 4330,
+            "fts_statements": 8,
+            "vm_steps_approx": 134000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "ff6b9b803e77f5ce067bdcea697358d2e9844313609530ff6c7a4e11ffc9bcc0",
+                "rows": 76,
+                "seconds": 0.01213662500049395
+              },
+              {
+                "exact": false,
+                "query_sha256": "211d600163ce31e11db6dec7213b73a49717d411e6bcdbd694e716b7c2807317",
+                "rows": 76,
+                "seconds": 0.0006420829995477106
+              },
+              {
+                "exact": true,
+                "query_sha256": "ad6ba68082ba23fe42572c84ea2f32723918bde5d065f011d72c0e3de854a530",
+                "rows": 76,
+                "seconds": 0.011782792000303743
+              },
+              {
+                "exact": false,
+                "query_sha256": "0147389384206540208206769d38be58ebe061d868fcf4ed0a51ff1c399104ba",
+                "rows": 76,
+                "seconds": 0.0005764590005128412
+              },
+              {
+                "exact": false,
+                "query_sha256": "932436ed4ffbb8d6b3084b5e19513d0c2ae4d2747d55bcfd747b54d47d0c51e2",
+                "rows": 76,
+                "seconds": 0.0005098329984321026
+              },
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 6.941699939488899e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "3ddef56ff32ecbceedaf81766b5e7df9fce2dfcf78a760ce7f7301f6f28163aa",
+                "rows": 76,
+                "seconds": 0.003555041999788955
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "60fd08295ff3cc8281bcce378880ad92fbbf5e656825e7ae929baca1fcca2a55",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.035065416999714216,
+            "cache_mode": "warm",
+            "sql_statements": 4330,
+            "fts_statements": 8,
+            "vm_steps_approx": 134000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "ff6b9b803e77f5ce067bdcea697358d2e9844313609530ff6c7a4e11ffc9bcc0",
+                "rows": 76,
+                "seconds": 0.011672332999296486
+              },
+              {
+                "exact": false,
+                "query_sha256": "211d600163ce31e11db6dec7213b73a49717d411e6bcdbd694e716b7c2807317",
+                "rows": 76,
+                "seconds": 0.0006501660009234911
+              },
+              {
+                "exact": true,
+                "query_sha256": "ad6ba68082ba23fe42572c84ea2f32723918bde5d065f011d72c0e3de854a530",
+                "rows": 76,
+                "seconds": 0.011433791998570086
+              },
+              {
+                "exact": false,
+                "query_sha256": "0147389384206540208206769d38be58ebe061d868fcf4ed0a51ff1c399104ba",
+                "rows": 76,
+                "seconds": 0.000578790999497869
+              },
+              {
+                "exact": false,
+                "query_sha256": "932436ed4ffbb8d6b3084b5e19513d0c2ae4d2747d55bcfd747b54d47d0c51e2",
+                "rows": 76,
+                "seconds": 0.0005047909999120748
+              },
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 6.983400089666247e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "3ddef56ff32ecbceedaf81766b5e7df9fce2dfcf78a760ce7f7301f6f28163aa",
+                "rows": 76,
+                "seconds": 0.003494124999633641
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "60fd08295ff3cc8281bcce378880ad92fbbf5e656825e7ae929baca1fcca2a55",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.036184500000672415,
+            "cache_mode": "warm",
+            "sql_statements": 4330,
+            "fts_statements": 8,
+            "vm_steps_approx": 134000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "ff6b9b803e77f5ce067bdcea697358d2e9844313609530ff6c7a4e11ffc9bcc0",
+                "rows": 76,
+                "seconds": 0.01169554199987033
+              },
+              {
+                "exact": false,
+                "query_sha256": "211d600163ce31e11db6dec7213b73a49717d411e6bcdbd694e716b7c2807317",
+                "rows": 76,
+                "seconds": 0.0006522080002469011
+              },
+              {
+                "exact": true,
+                "query_sha256": "ad6ba68082ba23fe42572c84ea2f32723918bde5d065f011d72c0e3de854a530",
+                "rows": 76,
+                "seconds": 0.011971249999987776
+              },
+              {
+                "exact": false,
+                "query_sha256": "0147389384206540208206769d38be58ebe061d868fcf4ed0a51ff1c399104ba",
+                "rows": 76,
+                "seconds": 0.0006299160013440996
+              },
+              {
+                "exact": false,
+                "query_sha256": "932436ed4ffbb8d6b3084b5e19513d0c2ae4d2747d55bcfd747b54d47d0c51e2",
+                "rows": 76,
+                "seconds": 0.0005323339992173715
+              },
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 7.424999967042822e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "3ddef56ff32ecbceedaf81766b5e7df9fce2dfcf78a760ce7f7301f6f28163aa",
+                "rows": 76,
+                "seconds": 0.00356383299913432
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "60fd08295ff3cc8281bcce378880ad92fbbf5e656825e7ae929baca1fcca2a55",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.0354261669999687,
+            "cache_mode": "warm",
+            "sql_statements": 4330,
+            "fts_statements": 8,
+            "vm_steps_approx": 134000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "ff6b9b803e77f5ce067bdcea697358d2e9844313609530ff6c7a4e11ffc9bcc0",
+                "rows": 76,
+                "seconds": 0.011550125000212574
+              },
+              {
+                "exact": false,
+                "query_sha256": "211d600163ce31e11db6dec7213b73a49717d411e6bcdbd694e716b7c2807317",
+                "rows": 76,
+                "seconds": 0.000623500000074273
+              },
+              {
+                "exact": true,
+                "query_sha256": "ad6ba68082ba23fe42572c84ea2f32723918bde5d065f011d72c0e3de854a530",
+                "rows": 76,
+                "seconds": 0.011710167000273941
+              },
+              {
+                "exact": false,
+                "query_sha256": "0147389384206540208206769d38be58ebe061d868fcf4ed0a51ff1c399104ba",
+                "rows": 76,
+                "seconds": 0.0005815420008730143
+              },
+              {
+                "exact": false,
+                "query_sha256": "932436ed4ffbb8d6b3084b5e19513d0c2ae4d2747d55bcfd747b54d47d0c51e2",
+                "rows": 76,
+                "seconds": 0.0005272920006973436
+              },
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 7.187500159488991e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "3ddef56ff32ecbceedaf81766b5e7df9fce2dfcf78a760ce7f7301f6f28163aa",
+                "rows": 76,
+                "seconds": 0.0036499999987427145
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "60fd08295ff3cc8281bcce378880ad92fbbf5e656825e7ae929baca1fcca2a55",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.015498875000048429,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 4330,
+            "fts_statements": 8,
+            "vm_steps_approx": 134000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7bfdb4a48e63bb054353a3f2bbd0e4cb75159a63690572cb6b5a0bd3a2726e01",
+                "rows": 76,
+                "seconds": 0.0013234170000941958
+              },
+              {
+                "exact": false,
+                "query_sha256": "badc3268ddf6dc548042b7e620449d58217572187b5b10ab24749dea8b183b53",
+                "rows": 76,
+                "seconds": 0.0006883339992782567
+              },
+              {
+                "exact": true,
+                "query_sha256": "a2bf04841673286904f6b38af4a6824de347ca214c1c5e0f126b761c6ef708ee",
+                "rows": 76,
+                "seconds": 0.0013087080005789176
+              },
+              {
+                "exact": false,
+                "query_sha256": "bf2362557a41f51d19ee2ea2b81738802cb4b870283db0cb3f81c7d988c6ab51",
+                "rows": 76,
+                "seconds": 0.0005770839998149313
+              },
+              {
+                "exact": false,
+                "query_sha256": "e8c8aa5ebfbada4454433163eaca61fa1557c3787f33d3a2f3c15358787d9f6b",
+                "rows": 76,
+                "seconds": 0.0005100409998703981
+              },
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 6.933300028322265e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "6fad28ddccfdb06940385e9cbd7ff5aa3e4b9ce7548946a78cf50cec44f0a9ff",
+                "rows": 76,
+                "seconds": 0.0034753749987430638
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "60fd08295ff3cc8281bcce378880ad92fbbf5e656825e7ae929baca1fcca2a55",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.016106875000332366,
+            "cache_mode": "warm",
+            "sql_statements": 4330,
+            "fts_statements": 8,
+            "vm_steps_approx": 134000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7bfdb4a48e63bb054353a3f2bbd0e4cb75159a63690572cb6b5a0bd3a2726e01",
+                "rows": 76,
+                "seconds": 0.0013344580002012663
+              },
+              {
+                "exact": false,
+                "query_sha256": "badc3268ddf6dc548042b7e620449d58217572187b5b10ab24749dea8b183b53",
+                "rows": 76,
+                "seconds": 0.0006560000001627486
+              },
+              {
+                "exact": true,
+                "query_sha256": "a2bf04841673286904f6b38af4a6824de347ca214c1c5e0f126b761c6ef708ee",
+                "rows": 76,
+                "seconds": 0.0017131249987869523
+              },
+              {
+                "exact": false,
+                "query_sha256": "bf2362557a41f51d19ee2ea2b81738802cb4b870283db0cb3f81c7d988c6ab51",
+                "rows": 76,
+                "seconds": 0.0006228749989531934
+              },
+              {
+                "exact": false,
+                "query_sha256": "e8c8aa5ebfbada4454433163eaca61fa1557c3787f33d3a2f3c15358787d9f6b",
+                "rows": 76,
+                "seconds": 0.0005344159999367548
+              },
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 7.091600127751008e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "6fad28ddccfdb06940385e9cbd7ff5aa3e4b9ce7548946a78cf50cec44f0a9ff",
+                "rows": 76,
+                "seconds": 0.0035051670001848834
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "60fd08295ff3cc8281bcce378880ad92fbbf5e656825e7ae929baca1fcca2a55",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.015754957999888575,
+            "cache_mode": "warm",
+            "sql_statements": 4330,
+            "fts_statements": 8,
+            "vm_steps_approx": 134000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7bfdb4a48e63bb054353a3f2bbd0e4cb75159a63690572cb6b5a0bd3a2726e01",
+                "rows": 76,
+                "seconds": 0.0013149579990567872
+              },
+              {
+                "exact": false,
+                "query_sha256": "badc3268ddf6dc548042b7e620449d58217572187b5b10ab24749dea8b183b53",
+                "rows": 76,
+                "seconds": 0.0006370409992086934
+              },
+              {
+                "exact": true,
+                "query_sha256": "a2bf04841673286904f6b38af4a6824de347ca214c1c5e0f126b761c6ef708ee",
+                "rows": 76,
+                "seconds": 0.0012456659987947205
+              },
+              {
+                "exact": false,
+                "query_sha256": "bf2362557a41f51d19ee2ea2b81738802cb4b870283db0cb3f81c7d988c6ab51",
+                "rows": 76,
+                "seconds": 0.0005717920012102695
+              },
+              {
+                "exact": false,
+                "query_sha256": "e8c8aa5ebfbada4454433163eaca61fa1557c3787f33d3a2f3c15358787d9f6b",
+                "rows": 76,
+                "seconds": 0.0005115409985592123
+              },
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 6.74580005579628e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "6fad28ddccfdb06940385e9cbd7ff5aa3e4b9ce7548946a78cf50cec44f0a9ff",
+                "rows": 76,
+                "seconds": 0.0035791669997706776
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "60fd08295ff3cc8281bcce378880ad92fbbf5e656825e7ae929baca1fcca2a55",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.01604145799865364,
+            "cache_mode": "warm",
+            "sql_statements": 4330,
+            "fts_statements": 8,
+            "vm_steps_approx": 134000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7bfdb4a48e63bb054353a3f2bbd0e4cb75159a63690572cb6b5a0bd3a2726e01",
+                "rows": 76,
+                "seconds": 0.0013214169994171243
+              },
+              {
+                "exact": false,
+                "query_sha256": "badc3268ddf6dc548042b7e620449d58217572187b5b10ab24749dea8b183b53",
+                "rows": 76,
+                "seconds": 0.0006261250000534346
+              },
+              {
+                "exact": true,
+                "query_sha256": "a2bf04841673286904f6b38af4a6824de347ca214c1c5e0f126b761c6ef708ee",
+                "rows": 76,
+                "seconds": 0.0012162499988335185
+              },
+              {
+                "exact": false,
+                "query_sha256": "bf2362557a41f51d19ee2ea2b81738802cb4b870283db0cb3f81c7d988c6ab51",
+                "rows": 76,
+                "seconds": 0.0005898749986954499
+              },
+              {
+                "exact": false,
+                "query_sha256": "e8c8aa5ebfbada4454433163eaca61fa1557c3787f33d3a2f3c15358787d9f6b",
+                "rows": 76,
+                "seconds": 0.0005244999993010424
+              },
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 6.795899935241323e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "6fad28ddccfdb06940385e9cbd7ff5aa3e4b9ce7548946a78cf50cec44f0a9ff",
+                "rows": 76,
+                "seconds": 0.0034989169998880243
+              }
+            ],
+            "evidence_identity_sha256": "9011fdf5c6fe3543c071b4a8890bd1449d3838c4659c7aa6612efe888701e55e",
+            "full_result_sha256": "60fd08295ff3cc8281bcce378880ad92fbbf5e656825e7ae929baca1fcca2a55",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00023.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl"
+            ],
+            "matched_page_count": 76,
+            "matched_file_count": 24,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ]
+      },
+      "evidence_identity_equal": true,
+      "full_result_equal": true,
+      "warm_median_seconds": {
+        "baseline": 0.0354261669999687,
+        "candidate": 0.01604145799865364
+      },
+      "included_in_speed_comparison": true,
+      "speedup": 2.2084131631265698
+    },
+    {
+      "kind": "output_equivalent_speed",
+      "size": "small",
+      "scenario": "no_hit",
+      "corpus": {
+        "files": 24,
+        "lines": 400,
+        "version": 1,
+        "build_seconds": 0.14604487500037067,
+        "indexed_pages": 76,
+        "source_bytes": 858688
+      },
+      "max_pages": 8,
+      "max_chars": 32000,
+      "runs": {
+        "baseline": [
+          {
+            "seconds": 0.009685832999821287,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 2395,
+            "fts_statements": 3,
+            "vm_steps_approx": 44000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 0.0001287080012843944
+              },
+              {
+                "exact": false,
+                "query_sha256": "c0817b73609c10407f3dbea40370d49db240227585f57cf09b510212b0c97313",
+                "rows": 0,
+                "seconds": 0.0014080420005484484
+              }
+            ],
+            "evidence_identity_sha256": "21e8888d614a2eee8375349657cd9f80f930c4bcef0ee8f2bd9cfa38753d4ca2",
+            "full_result_sha256": "cac03a240d7a0eb2ce222de6712772c2cb702d0ccb459f0eac923cf0716c1851",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.009184708000248065,
+            "cache_mode": "warm",
+            "sql_statements": 2395,
+            "fts_statements": 3,
+            "vm_steps_approx": 44000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 0.00013154099906387273
+              },
+              {
+                "exact": false,
+                "query_sha256": "c0817b73609c10407f3dbea40370d49db240227585f57cf09b510212b0c97313",
+                "rows": 0,
+                "seconds": 0.0014122500015218975
+              }
+            ],
+            "evidence_identity_sha256": "21e8888d614a2eee8375349657cd9f80f930c4bcef0ee8f2bd9cfa38753d4ca2",
+            "full_result_sha256": "cac03a240d7a0eb2ce222de6712772c2cb702d0ccb459f0eac923cf0716c1851",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.009440791000088211,
+            "cache_mode": "warm",
+            "sql_statements": 2395,
+            "fts_statements": 3,
+            "vm_steps_approx": 44000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 0.0001481669987697387
+              },
+              {
+                "exact": false,
+                "query_sha256": "c0817b73609c10407f3dbea40370d49db240227585f57cf09b510212b0c97313",
+                "rows": 0,
+                "seconds": 0.0015017080004327
+              }
+            ],
+            "evidence_identity_sha256": "21e8888d614a2eee8375349657cd9f80f930c4bcef0ee8f2bd9cfa38753d4ca2",
+            "full_result_sha256": "cac03a240d7a0eb2ce222de6712772c2cb702d0ccb459f0eac923cf0716c1851",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.009379334000186645,
+            "cache_mode": "warm",
+            "sql_statements": 2395,
+            "fts_statements": 3,
+            "vm_steps_approx": 44000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 0.0001320000010309741
+              },
+              {
+                "exact": false,
+                "query_sha256": "c0817b73609c10407f3dbea40370d49db240227585f57cf09b510212b0c97313",
+                "rows": 0,
+                "seconds": 0.0015105000002222368
+              }
+            ],
+            "evidence_identity_sha256": "21e8888d614a2eee8375349657cd9f80f930c4bcef0ee8f2bd9cfa38753d4ca2",
+            "full_result_sha256": "cac03a240d7a0eb2ce222de6712772c2cb702d0ccb459f0eac923cf0716c1851",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.009723750001285225,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 2395,
+            "fts_statements": 3,
+            "vm_steps_approx": 44000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 0.00014304199976322707
+              },
+              {
+                "exact": false,
+                "query_sha256": "eb2edd6af944bc4a990d1dedb236669079de90cb3f694213554ce582b325c524",
+                "rows": 0,
+                "seconds": 0.0014184579995344393
+              }
+            ],
+            "evidence_identity_sha256": "21e8888d614a2eee8375349657cd9f80f930c4bcef0ee8f2bd9cfa38753d4ca2",
+            "full_result_sha256": "cac03a240d7a0eb2ce222de6712772c2cb702d0ccb459f0eac923cf0716c1851",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.009735666999404202,
+            "cache_mode": "warm",
+            "sql_statements": 2395,
+            "fts_statements": 3,
+            "vm_steps_approx": 44000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 0.00013000000035390258
+              },
+              {
+                "exact": false,
+                "query_sha256": "eb2edd6af944bc4a990d1dedb236669079de90cb3f694213554ce582b325c524",
+                "rows": 0,
+                "seconds": 0.0014322080005513271
+              }
+            ],
+            "evidence_identity_sha256": "21e8888d614a2eee8375349657cd9f80f930c4bcef0ee8f2bd9cfa38753d4ca2",
+            "full_result_sha256": "cac03a240d7a0eb2ce222de6712772c2cb702d0ccb459f0eac923cf0716c1851",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.009938000001056935,
+            "cache_mode": "warm",
+            "sql_statements": 2395,
+            "fts_statements": 3,
+            "vm_steps_approx": 44000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 0.00014116700003796723
+              },
+              {
+                "exact": false,
+                "query_sha256": "eb2edd6af944bc4a990d1dedb236669079de90cb3f694213554ce582b325c524",
+                "rows": 0,
+                "seconds": 0.0014144169999781298
+              }
+            ],
+            "evidence_identity_sha256": "21e8888d614a2eee8375349657cd9f80f930c4bcef0ee8f2bd9cfa38753d4ca2",
+            "full_result_sha256": "cac03a240d7a0eb2ce222de6712772c2cb702d0ccb459f0eac923cf0716c1851",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.00965166700007103,
+            "cache_mode": "warm",
+            "sql_statements": 2395,
+            "fts_statements": 3,
+            "vm_steps_approx": 44000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 0.00013433300046017393
+              },
+              {
+                "exact": false,
+                "query_sha256": "eb2edd6af944bc4a990d1dedb236669079de90cb3f694213554ce582b325c524",
+                "rows": 0,
+                "seconds": 0.0014780000001337612
+              }
+            ],
+            "evidence_identity_sha256": "21e8888d614a2eee8375349657cd9f80f930c4bcef0ee8f2bd9cfa38753d4ca2",
+            "full_result_sha256": "cac03a240d7a0eb2ce222de6712772c2cb702d0ccb459f0eac923cf0716c1851",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ]
+      },
+      "evidence_identity_equal": true,
+      "full_result_equal": true,
+      "warm_median_seconds": {
+        "baseline": 0.009379334000186645,
+        "candidate": 0.009735666999404202
+      },
+      "included_in_speed_comparison": true,
+      "speedup": 0.9633992206965004
+    },
+    {
+      "kind": "output_equivalent_speed",
+      "size": "small",
+      "scenario": "exclusive",
+      "corpus": {
+        "files": 24,
+        "lines": 400,
+        "version": 1,
+        "build_seconds": 0.14604487500037067,
+        "indexed_pages": 76,
+        "source_bytes": 858688
+      },
+      "max_pages": 8,
+      "max_chars": 32000,
+      "runs": {
+        "baseline": [
+          {
+            "seconds": 0.004615875001036329,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 587,
+            "fts_statements": 5,
+            "vm_steps_approx": 8000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 0,
+                "seconds": 0.00018520900084695313
+              },
+              {
+                "exact": false,
+                "query_sha256": "da2c4ce88353ea1484e70aeec73eb77d6e54a3c0d1c88190b9ae3babb540c12f",
+                "rows": 3,
+                "seconds": 0.0002889160004997393
+              },
+              {
+                "exact": true,
+                "query_sha256": "338aa3637d982fd797ff1898d6601f92f120b2deba111a385371bdb1c99d1c06",
+                "rows": 3,
+                "seconds": 0.0006739579985151067
+              },
+              {
+                "exact": false,
+                "query_sha256": "8dac7074557a924354631ec14af7e87797ebba08dd209c1a3aa7ba35a87f6acc",
+                "rows": 3,
+                "seconds": 0.0003806669992627576
+              }
+            ],
+            "evidence_identity_sha256": "d6d265be4b2c4767ecd63ee5b38262d8cf629e0d595049acba492db19237a2ce",
+            "full_result_sha256": "2a8bebb69db704bdc8d78c5cc02e189f64cc7e1e2cce8c4d9e79343fd908599a",
+            "page_count": 3,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 3,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.003923999998733052,
+            "cache_mode": "warm",
+            "sql_statements": 587,
+            "fts_statements": 5,
+            "vm_steps_approx": 8000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 0,
+                "seconds": 0.00018512499991629738
+              },
+              {
+                "exact": false,
+                "query_sha256": "da2c4ce88353ea1484e70aeec73eb77d6e54a3c0d1c88190b9ae3babb540c12f",
+                "rows": 3,
+                "seconds": 0.0002835000013874378
+              },
+              {
+                "exact": true,
+                "query_sha256": "338aa3637d982fd797ff1898d6601f92f120b2deba111a385371bdb1c99d1c06",
+                "rows": 3,
+                "seconds": 0.0006331250006041955
+              },
+              {
+                "exact": false,
+                "query_sha256": "8dac7074557a924354631ec14af7e87797ebba08dd209c1a3aa7ba35a87f6acc",
+                "rows": 3,
+                "seconds": 0.000389000000723172
+              }
+            ],
+            "evidence_identity_sha256": "d6d265be4b2c4767ecd63ee5b38262d8cf629e0d595049acba492db19237a2ce",
+            "full_result_sha256": "2a8bebb69db704bdc8d78c5cc02e189f64cc7e1e2cce8c4d9e79343fd908599a",
+            "page_count": 3,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 3,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.003837707999991835,
+            "cache_mode": "warm",
+            "sql_statements": 587,
+            "fts_statements": 5,
+            "vm_steps_approx": 8000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 0,
+                "seconds": 0.00018191699928138405
+              },
+              {
+                "exact": false,
+                "query_sha256": "da2c4ce88353ea1484e70aeec73eb77d6e54a3c0d1c88190b9ae3babb540c12f",
+                "rows": 3,
+                "seconds": 0.00028079200092179235
+              },
+              {
+                "exact": true,
+                "query_sha256": "338aa3637d982fd797ff1898d6601f92f120b2deba111a385371bdb1c99d1c06",
+                "rows": 3,
+                "seconds": 0.000623709000137751
+              },
+              {
+                "exact": false,
+                "query_sha256": "8dac7074557a924354631ec14af7e87797ebba08dd209c1a3aa7ba35a87f6acc",
+                "rows": 3,
+                "seconds": 0.00038670799949613865
+              }
+            ],
+            "evidence_identity_sha256": "d6d265be4b2c4767ecd63ee5b38262d8cf629e0d595049acba492db19237a2ce",
+            "full_result_sha256": "2a8bebb69db704bdc8d78c5cc02e189f64cc7e1e2cce8c4d9e79343fd908599a",
+            "page_count": 3,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 3,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.00383170799977961,
+            "cache_mode": "warm",
+            "sql_statements": 587,
+            "fts_statements": 5,
+            "vm_steps_approx": 8000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 0,
+                "seconds": 0.0001838749994931277
+              },
+              {
+                "exact": false,
+                "query_sha256": "da2c4ce88353ea1484e70aeec73eb77d6e54a3c0d1c88190b9ae3babb540c12f",
+                "rows": 3,
+                "seconds": 0.0002824589992087567
+              },
+              {
+                "exact": true,
+                "query_sha256": "338aa3637d982fd797ff1898d6601f92f120b2deba111a385371bdb1c99d1c06",
+                "rows": 3,
+                "seconds": 0.0006291669997153804
+              },
+              {
+                "exact": false,
+                "query_sha256": "8dac7074557a924354631ec14af7e87797ebba08dd209c1a3aa7ba35a87f6acc",
+                "rows": 3,
+                "seconds": 0.00036833299964200705
+              }
+            ],
+            "evidence_identity_sha256": "d6d265be4b2c4767ecd63ee5b38262d8cf629e0d595049acba492db19237a2ce",
+            "full_result_sha256": "2a8bebb69db704bdc8d78c5cc02e189f64cc7e1e2cce8c4d9e79343fd908599a",
+            "page_count": 3,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 3,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.0037468329992407234,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 587,
+            "fts_statements": 5,
+            "vm_steps_approx": 8000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 0,
+                "seconds": 0.00018545899911259767
+              },
+              {
+                "exact": false,
+                "query_sha256": "b52a7876980e5669b7bf829027e7911614111578537b321c5615afa32fedbc86",
+                "rows": 3,
+                "seconds": 0.00028666599973803386
+              },
+              {
+                "exact": true,
+                "query_sha256": "6027b1311d2d3a1ebb4a677b3a965064f8ecd2a315c57c8e9f411dbd32e0e2d8",
+                "rows": 3,
+                "seconds": 0.00022083299882069696
+              },
+              {
+                "exact": false,
+                "query_sha256": "1a54ececc2b6bf40ae446fe8af23fadc60811c3b312615ea654bb03b500e0710",
+                "rows": 3,
+                "seconds": 0.0003943329993489897
+              }
+            ],
+            "evidence_identity_sha256": "d6d265be4b2c4767ecd63ee5b38262d8cf629e0d595049acba492db19237a2ce",
+            "full_result_sha256": "2a8bebb69db704bdc8d78c5cc02e189f64cc7e1e2cce8c4d9e79343fd908599a",
+            "page_count": 3,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 3,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.00390375000097265,
+            "cache_mode": "warm",
+            "sql_statements": 587,
+            "fts_statements": 5,
+            "vm_steps_approx": 8000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 0,
+                "seconds": 0.00020924999989802018
+              },
+              {
+                "exact": false,
+                "query_sha256": "b52a7876980e5669b7bf829027e7911614111578537b321c5615afa32fedbc86",
+                "rows": 3,
+                "seconds": 0.0003182079999533016
+              },
+              {
+                "exact": true,
+                "query_sha256": "6027b1311d2d3a1ebb4a677b3a965064f8ecd2a315c57c8e9f411dbd32e0e2d8",
+                "rows": 3,
+                "seconds": 0.00022237499979382847
+              },
+              {
+                "exact": false,
+                "query_sha256": "1a54ececc2b6bf40ae446fe8af23fadc60811c3b312615ea654bb03b500e0710",
+                "rows": 3,
+                "seconds": 0.0003885000005539041
+              }
+            ],
+            "evidence_identity_sha256": "d6d265be4b2c4767ecd63ee5b38262d8cf629e0d595049acba492db19237a2ce",
+            "full_result_sha256": "2a8bebb69db704bdc8d78c5cc02e189f64cc7e1e2cce8c4d9e79343fd908599a",
+            "page_count": 3,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 3,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.0036359170007926878,
+            "cache_mode": "warm",
+            "sql_statements": 587,
+            "fts_statements": 5,
+            "vm_steps_approx": 8000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 0,
+                "seconds": 0.00018054099928122014
+              },
+              {
+                "exact": false,
+                "query_sha256": "b52a7876980e5669b7bf829027e7911614111578537b321c5615afa32fedbc86",
+                "rows": 3,
+                "seconds": 0.00028249999922991265
+              },
+              {
+                "exact": true,
+                "query_sha256": "6027b1311d2d3a1ebb4a677b3a965064f8ecd2a315c57c8e9f411dbd32e0e2d8",
+                "rows": 3,
+                "seconds": 0.00019633299962151796
+              },
+              {
+                "exact": false,
+                "query_sha256": "1a54ececc2b6bf40ae446fe8af23fadc60811c3b312615ea654bb03b500e0710",
+                "rows": 3,
+                "seconds": 0.000370165998901939
+              }
+            ],
+            "evidence_identity_sha256": "d6d265be4b2c4767ecd63ee5b38262d8cf629e0d595049acba492db19237a2ce",
+            "full_result_sha256": "2a8bebb69db704bdc8d78c5cc02e189f64cc7e1e2cce8c4d9e79343fd908599a",
+            "page_count": 3,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 3,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.003726124999957392,
+            "cache_mode": "warm",
+            "sql_statements": 587,
+            "fts_statements": 5,
+            "vm_steps_approx": 8000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 0,
+                "seconds": 0.00018312499923922587
+              },
+              {
+                "exact": false,
+                "query_sha256": "b52a7876980e5669b7bf829027e7911614111578537b321c5615afa32fedbc86",
+                "rows": 3,
+                "seconds": 0.00028516600104921963
+              },
+              {
+                "exact": true,
+                "query_sha256": "6027b1311d2d3a1ebb4a677b3a965064f8ecd2a315c57c8e9f411dbd32e0e2d8",
+                "rows": 3,
+                "seconds": 0.00019941699974879157
+              },
+              {
+                "exact": false,
+                "query_sha256": "1a54ececc2b6bf40ae446fe8af23fadc60811c3b312615ea654bb03b500e0710",
+                "rows": 3,
+                "seconds": 0.00038233300074352883
+              }
+            ],
+            "evidence_identity_sha256": "d6d265be4b2c4767ecd63ee5b38262d8cf629e0d595049acba492db19237a2ce",
+            "full_result_sha256": "2a8bebb69db704bdc8d78c5cc02e189f64cc7e1e2cce8c4d9e79343fd908599a",
+            "page_count": 3,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 3,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ]
+      },
+      "evidence_identity_equal": true,
+      "full_result_equal": true,
+      "warm_median_seconds": {
+        "baseline": 0.003837707999991835,
+        "candidate": 0.003726124999957392
+      },
+      "included_in_speed_comparison": true,
+      "speedup": 1.0299461236635161
+    },
+    {
+      "kind": "output_equivalent_speed",
+      "size": "medium",
+      "scenario": "exact",
+      "corpus": {
+        "files": 160,
+        "lines": 1200,
+        "version": 1,
+        "build_seconds": 1.165514667000025,
+        "indexed_pages": 1476,
+        "source_bytes": 17131112
+      },
+      "max_pages": 8,
+      "max_chars": 32000,
+      "runs": {
+        "baseline": [
+          {
+            "seconds": 0.012044666000292636,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 1834,
+            "fts_statements": 3,
+            "vm_steps_approx": 215000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 1,
+                "seconds": 0.0006091670002206229
+              },
+              {
+                "exact": false,
+                "query_sha256": "34074bf35b56866a658ba5de92b5110889f1c28aecf3bd1fdfa93a63a6bb6710",
+                "rows": 128,
+                "seconds": 0.00626666700009082
+              }
+            ],
+            "evidence_identity_sha256": "09365fdebab980838f93f2aa5b624a2ebd8952f166904ced4d623738cb34b14f",
+            "full_result_sha256": "4dcae8bb75ef61e8bb32015a877112d16f58fb2b51829f97fc56f118252de12e",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00159.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.010967415999402874,
+            "cache_mode": "warm",
+            "sql_statements": 1834,
+            "fts_statements": 3,
+            "vm_steps_approx": 215000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 1,
+                "seconds": 0.0006001660003676079
+              },
+              {
+                "exact": false,
+                "query_sha256": "34074bf35b56866a658ba5de92b5110889f1c28aecf3bd1fdfa93a63a6bb6710",
+                "rows": 128,
+                "seconds": 0.005868041000212543
+              }
+            ],
+            "evidence_identity_sha256": "09365fdebab980838f93f2aa5b624a2ebd8952f166904ced4d623738cb34b14f",
+            "full_result_sha256": "4dcae8bb75ef61e8bb32015a877112d16f58fb2b51829f97fc56f118252de12e",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00159.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.011468541999420268,
+            "cache_mode": "warm",
+            "sql_statements": 1834,
+            "fts_statements": 3,
+            "vm_steps_approx": 215000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 1,
+                "seconds": 0.0007064590008667437
+              },
+              {
+                "exact": false,
+                "query_sha256": "34074bf35b56866a658ba5de92b5110889f1c28aecf3bd1fdfa93a63a6bb6710",
+                "rows": 128,
+                "seconds": 0.006029791999026202
+              }
+            ],
+            "evidence_identity_sha256": "09365fdebab980838f93f2aa5b624a2ebd8952f166904ced4d623738cb34b14f",
+            "full_result_sha256": "4dcae8bb75ef61e8bb32015a877112d16f58fb2b51829f97fc56f118252de12e",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00159.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.010954500001389533,
+            "cache_mode": "warm",
+            "sql_statements": 1834,
+            "fts_statements": 3,
+            "vm_steps_approx": 215000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 1,
+                "seconds": 0.0005823749997944105
+              },
+              {
+                "exact": false,
+                "query_sha256": "34074bf35b56866a658ba5de92b5110889f1c28aecf3bd1fdfa93a63a6bb6710",
+                "rows": 128,
+                "seconds": 0.0059069159997307
+              }
+            ],
+            "evidence_identity_sha256": "09365fdebab980838f93f2aa5b624a2ebd8952f166904ced4d623738cb34b14f",
+            "full_result_sha256": "4dcae8bb75ef61e8bb32015a877112d16f58fb2b51829f97fc56f118252de12e",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00159.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.011853207999592996,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 1834,
+            "fts_statements": 3,
+            "vm_steps_approx": 215000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 1,
+                "seconds": 0.0006498749989987118
+              },
+              {
+                "exact": false,
+                "query_sha256": "0cdb66b653c9ee81119c8892fd507a36beba92764a5e08b88969bbe27f28ddd5",
+                "rows": 128,
+                "seconds": 0.006237625000721891
+              }
+            ],
+            "evidence_identity_sha256": "09365fdebab980838f93f2aa5b624a2ebd8952f166904ced4d623738cb34b14f",
+            "full_result_sha256": "4dcae8bb75ef61e8bb32015a877112d16f58fb2b51829f97fc56f118252de12e",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00159.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.011637749999863445,
+            "cache_mode": "warm",
+            "sql_statements": 1834,
+            "fts_statements": 3,
+            "vm_steps_approx": 215000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 1,
+                "seconds": 0.0006539579990203492
+              },
+              {
+                "exact": false,
+                "query_sha256": "0cdb66b653c9ee81119c8892fd507a36beba92764a5e08b88969bbe27f28ddd5",
+                "rows": 128,
+                "seconds": 0.005840792000526562
+              }
+            ],
+            "evidence_identity_sha256": "09365fdebab980838f93f2aa5b624a2ebd8952f166904ced4d623738cb34b14f",
+            "full_result_sha256": "4dcae8bb75ef61e8bb32015a877112d16f58fb2b51829f97fc56f118252de12e",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00159.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.011660874999506632,
+            "cache_mode": "warm",
+            "sql_statements": 1834,
+            "fts_statements": 3,
+            "vm_steps_approx": 215000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 1,
+                "seconds": 0.000662583999655908
+              },
+              {
+                "exact": false,
+                "query_sha256": "0cdb66b653c9ee81119c8892fd507a36beba92764a5e08b88969bbe27f28ddd5",
+                "rows": 128,
+                "seconds": 0.005989541999952053
+              }
+            ],
+            "evidence_identity_sha256": "09365fdebab980838f93f2aa5b624a2ebd8952f166904ced4d623738cb34b14f",
+            "full_result_sha256": "4dcae8bb75ef61e8bb32015a877112d16f58fb2b51829f97fc56f118252de12e",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00159.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.011185374998603947,
+            "cache_mode": "warm",
+            "sql_statements": 1834,
+            "fts_statements": 3,
+            "vm_steps_approx": 215000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 1,
+                "seconds": 0.0006554579995281529
+              },
+              {
+                "exact": false,
+                "query_sha256": "0cdb66b653c9ee81119c8892fd507a36beba92764a5e08b88969bbe27f28ddd5",
+                "rows": 128,
+                "seconds": 0.005860957999175298
+              }
+            ],
+            "evidence_identity_sha256": "09365fdebab980838f93f2aa5b624a2ebd8952f166904ced4d623738cb34b14f",
+            "full_result_sha256": "4dcae8bb75ef61e8bb32015a877112d16f58fb2b51829f97fc56f118252de12e",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00159.cbl",
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ]
+      },
+      "evidence_identity_equal": true,
+      "full_result_equal": true,
+      "warm_median_seconds": {
+        "baseline": 0.010967415999402874,
+        "candidate": 0.011637749999863445
+      },
+      "included_in_speed_comparison": true,
+      "speedup": 0.9424000343306536
+    },
+    {
+      "kind": "output_equivalent_speed",
+      "size": "medium",
+      "scenario": "broad",
+      "corpus": {
+        "files": 160,
+        "lines": 1200,
+        "version": 1,
+        "build_seconds": 1.165514667000025,
+        "indexed_pages": 1476,
+        "source_bytes": 17131112
+      },
+      "max_pages": 8,
+      "max_chars": 32000,
+      "runs": {
+        "baseline": [
+          {
+            "seconds": 0.009521583999230643,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 1594,
+            "fts_statements": 2,
+            "vm_steps_approx": 212000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "c4e12914e2e11120f16a7f2be04015435c3efac3c1b857a30cf64de6d6877232",
+                "rows": 128,
+                "seconds": 0.005132250000315253
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "a81c2180343294220bd088bc31c5355c2e2a90ddc2cffde38cad92ec23c5aa1c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.009139584000877221,
+            "cache_mode": "warm",
+            "sql_statements": 1594,
+            "fts_statements": 2,
+            "vm_steps_approx": 212000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "c4e12914e2e11120f16a7f2be04015435c3efac3c1b857a30cf64de6d6877232",
+                "rows": 128,
+                "seconds": 0.0051417920003586914
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "a81c2180343294220bd088bc31c5355c2e2a90ddc2cffde38cad92ec23c5aa1c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.009165416999167064,
+            "cache_mode": "warm",
+            "sql_statements": 1594,
+            "fts_statements": 2,
+            "vm_steps_approx": 212000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "c4e12914e2e11120f16a7f2be04015435c3efac3c1b857a30cf64de6d6877232",
+                "rows": 128,
+                "seconds": 0.005112167000334011
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "a81c2180343294220bd088bc31c5355c2e2a90ddc2cffde38cad92ec23c5aa1c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.009168624999801978,
+            "cache_mode": "warm",
+            "sql_statements": 1594,
+            "fts_statements": 2,
+            "vm_steps_approx": 212000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "c4e12914e2e11120f16a7f2be04015435c3efac3c1b857a30cf64de6d6877232",
+                "rows": 128,
+                "seconds": 0.005073874999652617
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "a81c2180343294220bd088bc31c5355c2e2a90ddc2cffde38cad92ec23c5aa1c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.009489207999649807,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 1594,
+            "fts_statements": 2,
+            "vm_steps_approx": 212000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "30b6a1d4a476634d6dd1d6f182560f7d3c0c2b07f4abd7c2240db81b31c6341b",
+                "rows": 128,
+                "seconds": 0.005390250000345986
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "a81c2180343294220bd088bc31c5355c2e2a90ddc2cffde38cad92ec23c5aa1c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.009233040998879005,
+            "cache_mode": "warm",
+            "sql_statements": 1594,
+            "fts_statements": 2,
+            "vm_steps_approx": 212000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "30b6a1d4a476634d6dd1d6f182560f7d3c0c2b07f4abd7c2240db81b31c6341b",
+                "rows": 128,
+                "seconds": 0.005194166998990113
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "a81c2180343294220bd088bc31c5355c2e2a90ddc2cffde38cad92ec23c5aa1c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.009169625000140513,
+            "cache_mode": "warm",
+            "sql_statements": 1594,
+            "fts_statements": 2,
+            "vm_steps_approx": 212000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "30b6a1d4a476634d6dd1d6f182560f7d3c0c2b07f4abd7c2240db81b31c6341b",
+                "rows": 128,
+                "seconds": 0.005163207999430597
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "a81c2180343294220bd088bc31c5355c2e2a90ddc2cffde38cad92ec23c5aa1c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.00911462499971094,
+            "cache_mode": "warm",
+            "sql_statements": 1594,
+            "fts_statements": 2,
+            "vm_steps_approx": 212000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "30b6a1d4a476634d6dd1d6f182560f7d3c0c2b07f4abd7c2240db81b31c6341b",
+                "rows": 128,
+                "seconds": 0.005232875000729109
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "a81c2180343294220bd088bc31c5355c2e2a90ddc2cffde38cad92ec23c5aa1c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ]
+      },
+      "evidence_identity_equal": true,
+      "full_result_equal": true,
+      "warm_median_seconds": {
+        "baseline": 0.009165416999167064,
+        "candidate": 0.009169625000140513
+      },
+      "included_in_speed_comparison": true,
+      "speedup": 0.9995410934500174
+    },
+    {
+      "kind": "output_equivalent_speed",
+      "size": "medium",
+      "scenario": "long_multi",
+      "corpus": {
+        "files": 160,
+        "lines": 1200,
+        "version": 1,
+        "build_seconds": 1.165514667000025,
+        "indexed_pages": 1476,
+        "source_bytes": 17131112
+      },
+      "max_pages": 8,
+      "max_chars": 32000,
+      "runs": {
+        "baseline": [
+          {
+            "seconds": 0.4923564999990049,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 10635,
+            "fts_statements": 8,
+            "vm_steps_approx": 1287000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "ff6b9b803e77f5ce067bdcea697358d2e9844313609530ff6c7a4e11ffc9bcc0",
+                "rows": 128,
+                "seconds": 0.22925237500021467
+              },
+              {
+                "exact": false,
+                "query_sha256": "211d600163ce31e11db6dec7213b73a49717d411e6bcdbd694e716b7c2807317",
+                "rows": 128,
+                "seconds": 0.005561624999245396
+              },
+              {
+                "exact": true,
+                "query_sha256": "ad6ba68082ba23fe42572c84ea2f32723918bde5d065f011d72c0e3de854a530",
+                "rows": 128,
+                "seconds": 0.22953216700079793
+              },
+              {
+                "exact": false,
+                "query_sha256": "0147389384206540208206769d38be58ebe061d868fcf4ed0a51ff1c399104ba",
+                "rows": 128,
+                "seconds": 0.005368666999856941
+              },
+              {
+                "exact": false,
+                "query_sha256": "932436ed4ffbb8d6b3084b5e19513d0c2ae4d2747d55bcfd747b54d47d0c51e2",
+                "rows": 128,
+                "seconds": 0.004973791999873356
+              },
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 7.52079995436361e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "3ddef56ff32ecbceedaf81766b5e7df9fce2dfcf78a760ce7f7301f6f28163aa",
+                "rows": 128,
+                "seconds": 0.010494957999981125
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "bcdb7a802fde2917570d443ed25bac44c5ba4e438810acf54597c550d290a5fd",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.5108270410000841,
+            "cache_mode": "warm",
+            "sql_statements": 10635,
+            "fts_statements": 8,
+            "vm_steps_approx": 1287000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "ff6b9b803e77f5ce067bdcea697358d2e9844313609530ff6c7a4e11ffc9bcc0",
+                "rows": 128,
+                "seconds": 0.24552220799887436
+              },
+              {
+                "exact": false,
+                "query_sha256": "211d600163ce31e11db6dec7213b73a49717d411e6bcdbd694e716b7c2807317",
+                "rows": 128,
+                "seconds": 0.005531582999537932
+              },
+              {
+                "exact": true,
+                "query_sha256": "ad6ba68082ba23fe42572c84ea2f32723918bde5d065f011d72c0e3de854a530",
+                "rows": 128,
+                "seconds": 0.22901499999898078
+              },
+              {
+                "exact": false,
+                "query_sha256": "0147389384206540208206769d38be58ebe061d868fcf4ed0a51ff1c399104ba",
+                "rows": 128,
+                "seconds": 0.005602624998573447
+              },
+              {
+                "exact": false,
+                "query_sha256": "932436ed4ffbb8d6b3084b5e19513d0c2ae4d2747d55bcfd747b54d47d0c51e2",
+                "rows": 128,
+                "seconds": 0.005033374998674844
+              },
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 8.595799954491667e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "3ddef56ff32ecbceedaf81766b5e7df9fce2dfcf78a760ce7f7301f6f28163aa",
+                "rows": 128,
+                "seconds": 0.010777875000712811
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "bcdb7a802fde2917570d443ed25bac44c5ba4e438810acf54597c550d290a5fd",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.4933021249999001,
+            "cache_mode": "warm",
+            "sql_statements": 10635,
+            "fts_statements": 8,
+            "vm_steps_approx": 1287000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "ff6b9b803e77f5ce067bdcea697358d2e9844313609530ff6c7a4e11ffc9bcc0",
+                "rows": 128,
+                "seconds": 0.23049245799847995
+              },
+              {
+                "exact": false,
+                "query_sha256": "211d600163ce31e11db6dec7213b73a49717d411e6bcdbd694e716b7c2807317",
+                "rows": 128,
+                "seconds": 0.005861208001078921
+              },
+              {
+                "exact": true,
+                "query_sha256": "ad6ba68082ba23fe42572c84ea2f32723918bde5d065f011d72c0e3de854a530",
+                "rows": 128,
+                "seconds": 0.22882237499834446
+              },
+              {
+                "exact": false,
+                "query_sha256": "0147389384206540208206769d38be58ebe061d868fcf4ed0a51ff1c399104ba",
+                "rows": 128,
+                "seconds": 0.005432707999716513
+              },
+              {
+                "exact": false,
+                "query_sha256": "932436ed4ffbb8d6b3084b5e19513d0c2ae4d2747d55bcfd747b54d47d0c51e2",
+                "rows": 128,
+                "seconds": 0.00513508299991372
+              },
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 0.00013841600048181135
+              },
+              {
+                "exact": false,
+                "query_sha256": "3ddef56ff32ecbceedaf81766b5e7df9fce2dfcf78a760ce7f7301f6f28163aa",
+                "rows": 128,
+                "seconds": 0.010354959000324016
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "bcdb7a802fde2917570d443ed25bac44c5ba4e438810acf54597c550d290a5fd",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.4906447079993086,
+            "cache_mode": "warm",
+            "sql_statements": 10635,
+            "fts_statements": 8,
+            "vm_steps_approx": 1287000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "ff6b9b803e77f5ce067bdcea697358d2e9844313609530ff6c7a4e11ffc9bcc0",
+                "rows": 128,
+                "seconds": 0.22880500000064785
+              },
+              {
+                "exact": false,
+                "query_sha256": "211d600163ce31e11db6dec7213b73a49717d411e6bcdbd694e716b7c2807317",
+                "rows": 128,
+                "seconds": 0.005600584001513198
+              },
+              {
+                "exact": true,
+                "query_sha256": "ad6ba68082ba23fe42572c84ea2f32723918bde5d065f011d72c0e3de854a530",
+                "rows": 128,
+                "seconds": 0.22756775000016205
+              },
+              {
+                "exact": false,
+                "query_sha256": "0147389384206540208206769d38be58ebe061d868fcf4ed0a51ff1c399104ba",
+                "rows": 128,
+                "seconds": 0.005569207998632919
+              },
+              {
+                "exact": false,
+                "query_sha256": "932436ed4ffbb8d6b3084b5e19513d0c2ae4d2747d55bcfd747b54d47d0c51e2",
+                "rows": 128,
+                "seconds": 0.005334749999747146
+              },
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 0.00011808400086010806
+              },
+              {
+                "exact": false,
+                "query_sha256": "3ddef56ff32ecbceedaf81766b5e7df9fce2dfcf78a760ce7f7301f6f28163aa",
+                "rows": 128,
+                "seconds": 0.010737583001173334
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "bcdb7a802fde2917570d443ed25bac44c5ba4e438810acf54597c550d290a5fd",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.07195554100144363,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 10635,
+            "fts_statements": 8,
+            "vm_steps_approx": 1287000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7bfdb4a48e63bb054353a3f2bbd0e4cb75159a63690572cb6b5a0bd3a2726e01",
+                "rows": 128,
+                "seconds": 0.01908512499903736
+              },
+              {
+                "exact": false,
+                "query_sha256": "badc3268ddf6dc548042b7e620449d58217572187b5b10ab24749dea8b183b53",
+                "rows": 128,
+                "seconds": 0.005413000000771717
+              },
+              {
+                "exact": true,
+                "query_sha256": "a2bf04841673286904f6b38af4a6824de347ca214c1c5e0f126b761c6ef708ee",
+                "rows": 128,
+                "seconds": 0.019776082999669597
+              },
+              {
+                "exact": false,
+                "query_sha256": "bf2362557a41f51d19ee2ea2b81738802cb4b870283db0cb3f81c7d988c6ab51",
+                "rows": 128,
+                "seconds": 0.005312041999786743
+              },
+              {
+                "exact": false,
+                "query_sha256": "e8c8aa5ebfbada4454433163eaca61fa1557c3787f33d3a2f3c15358787d9f6b",
+                "rows": 128,
+                "seconds": 0.005037834000177099
+              },
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 8.129100024234504e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "6fad28ddccfdb06940385e9cbd7ff5aa3e4b9ce7548946a78cf50cec44f0a9ff",
+                "rows": 128,
+                "seconds": 0.010358292000091751
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "bcdb7a802fde2917570d443ed25bac44c5ba4e438810acf54597c550d290a5fd",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.10409162500036473,
+            "cache_mode": "warm",
+            "sql_statements": 10635,
+            "fts_statements": 8,
+            "vm_steps_approx": 1287000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7bfdb4a48e63bb054353a3f2bbd0e4cb75159a63690572cb6b5a0bd3a2726e01",
+                "rows": 128,
+                "seconds": 0.028577834000316216
+              },
+              {
+                "exact": false,
+                "query_sha256": "badc3268ddf6dc548042b7e620449d58217572187b5b10ab24749dea8b183b53",
+                "rows": 128,
+                "seconds": 0.006461499999204534
+              },
+              {
+                "exact": true,
+                "query_sha256": "a2bf04841673286904f6b38af4a6824de347ca214c1c5e0f126b761c6ef708ee",
+                "rows": 128,
+                "seconds": 0.037164499999562395
+              },
+              {
+                "exact": false,
+                "query_sha256": "bf2362557a41f51d19ee2ea2b81738802cb4b870283db0cb3f81c7d988c6ab51",
+                "rows": 128,
+                "seconds": 0.006996916999923997
+              },
+              {
+                "exact": false,
+                "query_sha256": "e8c8aa5ebfbada4454433163eaca61fa1557c3787f33d3a2f3c15358787d9f6b",
+                "rows": 128,
+                "seconds": 0.005531124999833992
+              },
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 0.00011041699872293975
+              },
+              {
+                "exact": false,
+                "query_sha256": "6fad28ddccfdb06940385e9cbd7ff5aa3e4b9ce7548946a78cf50cec44f0a9ff",
+                "rows": 128,
+                "seconds": 0.01151012499940407
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "bcdb7a802fde2917570d443ed25bac44c5ba4e438810acf54597c550d290a5fd",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.072595249999722,
+            "cache_mode": "warm",
+            "sql_statements": 10635,
+            "fts_statements": 8,
+            "vm_steps_approx": 1287000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7bfdb4a48e63bb054353a3f2bbd0e4cb75159a63690572cb6b5a0bd3a2726e01",
+                "rows": 128,
+                "seconds": 0.01893045799988613
+              },
+              {
+                "exact": false,
+                "query_sha256": "badc3268ddf6dc548042b7e620449d58217572187b5b10ab24749dea8b183b53",
+                "rows": 128,
+                "seconds": 0.005401750000601169
+              },
+              {
+                "exact": true,
+                "query_sha256": "a2bf04841673286904f6b38af4a6824de347ca214c1c5e0f126b761c6ef708ee",
+                "rows": 128,
+                "seconds": 0.01964333299838472
+              },
+              {
+                "exact": false,
+                "query_sha256": "bf2362557a41f51d19ee2ea2b81738802cb4b870283db0cb3f81c7d988c6ab51",
+                "rows": 128,
+                "seconds": 0.005582374998994055
+              },
+              {
+                "exact": false,
+                "query_sha256": "e8c8aa5ebfbada4454433163eaca61fa1557c3787f33d3a2f3c15358787d9f6b",
+                "rows": 128,
+                "seconds": 0.0051574999997683335
+              },
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 7.745800030534156e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "6fad28ddccfdb06940385e9cbd7ff5aa3e4b9ce7548946a78cf50cec44f0a9ff",
+                "rows": 128,
+                "seconds": 0.010766915998829063
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "bcdb7a802fde2917570d443ed25bac44c5ba4e438810acf54597c550d290a5fd",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.07265766700038512,
+            "cache_mode": "warm",
+            "sql_statements": 10635,
+            "fts_statements": 8,
+            "vm_steps_approx": 1287000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7bfdb4a48e63bb054353a3f2bbd0e4cb75159a63690572cb6b5a0bd3a2726e01",
+                "rows": 128,
+                "seconds": 0.01880258300116111
+              },
+              {
+                "exact": false,
+                "query_sha256": "badc3268ddf6dc548042b7e620449d58217572187b5b10ab24749dea8b183b53",
+                "rows": 128,
+                "seconds": 0.005680624999513384
+              },
+              {
+                "exact": true,
+                "query_sha256": "a2bf04841673286904f6b38af4a6824de347ca214c1c5e0f126b761c6ef708ee",
+                "rows": 128,
+                "seconds": 0.020118374999583466
+              },
+              {
+                "exact": false,
+                "query_sha256": "bf2362557a41f51d19ee2ea2b81738802cb4b870283db0cb3f81c7d988c6ab51",
+                "rows": 128,
+                "seconds": 0.0053459579994523665
+              },
+              {
+                "exact": false,
+                "query_sha256": "e8c8aa5ebfbada4454433163eaca61fa1557c3787f33d3a2f3c15358787d9f6b",
+                "rows": 128,
+                "seconds": 0.0049771659996622475
+              },
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 7.691700011491776e-05
+              },
+              {
+                "exact": false,
+                "query_sha256": "6fad28ddccfdb06940385e9cbd7ff5aa3e4b9ce7548946a78cf50cec44f0a9ff",
+                "rows": 128,
+                "seconds": 0.01077804099986679
+              }
+            ],
+            "evidence_identity_sha256": "eba7798890007f3b84643f5c2af7f312867f495bb3f791520109485fc53b91a1",
+            "full_result_sha256": "bcdb7a802fde2917570d443ed25bac44c5ba4e438810acf54597c550d290a5fd",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00010.cbl",
+              "source-00011.cbl",
+              "source-00012.cbl",
+              "source-00023.cbl",
+              "source-00024.cbl",
+              "source-00025.cbl",
+              "source-00036.cbl",
+              "source-00037.cbl"
+            ],
+            "matched_page_count": 1476,
+            "matched_file_count": 160,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ]
+      },
+      "evidence_identity_equal": true,
+      "full_result_equal": true,
+      "warm_median_seconds": {
+        "baseline": 0.4933021249999001,
+        "candidate": 0.07265766700038512
+      },
+      "included_in_speed_comparison": true,
+      "speedup": 6.789402211294307
+    },
+    {
+      "kind": "output_equivalent_speed",
+      "size": "medium",
+      "scenario": "no_hit",
+      "corpus": {
+        "files": 160,
+        "lines": 1200,
+        "version": 1,
+        "build_seconds": 1.165514667000025,
+        "indexed_pages": 1476,
+        "source_bytes": 17131112
+      },
+      "max_pages": 8,
+      "max_chars": 32000,
+      "runs": {
+        "baseline": [
+          {
+            "seconds": 0.009464334001677344,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 1110,
+            "fts_statements": 3,
+            "vm_steps_approx": 40000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 0.00013624999883177225
+              },
+              {
+                "exact": false,
+                "query_sha256": "c0817b73609c10407f3dbea40370d49db240227585f57cf09b510212b0c97313",
+                "rows": 0,
+                "seconds": 0.0006517500005429611
+              }
+            ],
+            "evidence_identity_sha256": "93c84d79c29576ffa4b9bb99d84b3e4b0649bb50d85c158b1511584a51c501b2",
+            "full_result_sha256": "5d8f12e2d00a5cf6d5333bed80f2c3538e200a635f7db6c86d6854eb6803c45b",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.008433958000750863,
+            "cache_mode": "warm",
+            "sql_statements": 1110,
+            "fts_statements": 3,
+            "vm_steps_approx": 40000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 0.00012608299948624335
+              },
+              {
+                "exact": false,
+                "query_sha256": "c0817b73609c10407f3dbea40370d49db240227585f57cf09b510212b0c97313",
+                "rows": 0,
+                "seconds": 0.000653582999802893
+              }
+            ],
+            "evidence_identity_sha256": "93c84d79c29576ffa4b9bb99d84b3e4b0649bb50d85c158b1511584a51c501b2",
+            "full_result_sha256": "5d8f12e2d00a5cf6d5333bed80f2c3538e200a635f7db6c86d6854eb6803c45b",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.008612958001322113,
+            "cache_mode": "warm",
+            "sql_statements": 1110,
+            "fts_statements": 3,
+            "vm_steps_approx": 40000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 0.00013108299935993273
+              },
+              {
+                "exact": false,
+                "query_sha256": "c0817b73609c10407f3dbea40370d49db240227585f57cf09b510212b0c97313",
+                "rows": 0,
+                "seconds": 0.0006348330007313052
+              }
+            ],
+            "evidence_identity_sha256": "93c84d79c29576ffa4b9bb99d84b3e4b0649bb50d85c158b1511584a51c501b2",
+            "full_result_sha256": "5d8f12e2d00a5cf6d5333bed80f2c3538e200a635f7db6c86d6854eb6803c45b",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.00838020799892547,
+            "cache_mode": "warm",
+            "sql_statements": 1110,
+            "fts_statements": 3,
+            "vm_steps_approx": 40000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "81659f07ff6db5e167a6076b8df0dcd9b6cae171ec8e1df24c3c0cca5a4ec571",
+                "rows": 0,
+                "seconds": 0.00013550000039685983
+              },
+              {
+                "exact": false,
+                "query_sha256": "c0817b73609c10407f3dbea40370d49db240227585f57cf09b510212b0c97313",
+                "rows": 0,
+                "seconds": 0.0006992500002525048
+              }
+            ],
+            "evidence_identity_sha256": "93c84d79c29576ffa4b9bb99d84b3e4b0649bb50d85c158b1511584a51c501b2",
+            "full_result_sha256": "5d8f12e2d00a5cf6d5333bed80f2c3538e200a635f7db6c86d6854eb6803c45b",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.008600708000813029,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 1110,
+            "fts_statements": 3,
+            "vm_steps_approx": 40000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 0.00012712499847111758
+              },
+              {
+                "exact": false,
+                "query_sha256": "eb2edd6af944bc4a990d1dedb236669079de90cb3f694213554ce582b325c524",
+                "rows": 0,
+                "seconds": 0.0006427080006687902
+              }
+            ],
+            "evidence_identity_sha256": "93c84d79c29576ffa4b9bb99d84b3e4b0649bb50d85c158b1511584a51c501b2",
+            "full_result_sha256": "5d8f12e2d00a5cf6d5333bed80f2c3538e200a635f7db6c86d6854eb6803c45b",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.008657291999043082,
+            "cache_mode": "warm",
+            "sql_statements": 1110,
+            "fts_statements": 3,
+            "vm_steps_approx": 40000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 0.00012758299999404699
+              },
+              {
+                "exact": false,
+                "query_sha256": "eb2edd6af944bc4a990d1dedb236669079de90cb3f694213554ce582b325c524",
+                "rows": 0,
+                "seconds": 0.0006611669996345881
+              }
+            ],
+            "evidence_identity_sha256": "93c84d79c29576ffa4b9bb99d84b3e4b0649bb50d85c158b1511584a51c501b2",
+            "full_result_sha256": "5d8f12e2d00a5cf6d5333bed80f2c3538e200a635f7db6c86d6854eb6803c45b",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.008816250001473236,
+            "cache_mode": "warm",
+            "sql_statements": 1110,
+            "fts_statements": 3,
+            "vm_steps_approx": 40000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 0.00012862500079791062
+              },
+              {
+                "exact": false,
+                "query_sha256": "eb2edd6af944bc4a990d1dedb236669079de90cb3f694213554ce582b325c524",
+                "rows": 0,
+                "seconds": 0.0006527909990836633
+              }
+            ],
+            "evidence_identity_sha256": "93c84d79c29576ffa4b9bb99d84b3e4b0649bb50d85c158b1511584a51c501b2",
+            "full_result_sha256": "5d8f12e2d00a5cf6d5333bed80f2c3538e200a635f7db6c86d6854eb6803c45b",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.008654167000713642,
+            "cache_mode": "warm",
+            "sql_statements": 1110,
+            "fts_statements": 3,
+            "vm_steps_approx": 40000,
+            "routes": [
+              {
+                "exact": false,
+                "query_sha256": "db308376973e3bfe65497bf0d0dceb1af6bb7c6a01436de2075166ab75bd3534",
+                "rows": 0,
+                "seconds": 0.00012891700134787243
+              },
+              {
+                "exact": false,
+                "query_sha256": "eb2edd6af944bc4a990d1dedb236669079de90cb3f694213554ce582b325c524",
+                "rows": 0,
+                "seconds": 0.0006489170009444933
+              }
+            ],
+            "evidence_identity_sha256": "93c84d79c29576ffa4b9bb99d84b3e4b0649bb50d85c158b1511584a51c501b2",
+            "full_result_sha256": "5d8f12e2d00a5cf6d5333bed80f2c3538e200a635f7db6c86d6854eb6803c45b",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00001.cbl",
+              "source-00002.cbl",
+              "source-00003.cbl",
+              "source-00004.cbl",
+              "source-00005.cbl",
+              "source-00006.cbl",
+              "source-00007.cbl"
+            ],
+            "matched_page_count": 0,
+            "matched_file_count": 0,
+            "orientation_only": true,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ]
+      },
+      "evidence_identity_equal": true,
+      "full_result_equal": true,
+      "warm_median_seconds": {
+        "baseline": 0.008433958000750863,
+        "candidate": 0.008657291999043082
+      },
+      "included_in_speed_comparison": true,
+      "speedup": 0.9742027878559595
+    },
+    {
+      "kind": "output_equivalent_speed",
+      "size": "medium",
+      "scenario": "exclusive",
+      "corpus": {
+        "files": 160,
+        "lines": 1200,
+        "version": 1,
+        "build_seconds": 1.165514667000025,
+        "indexed_pages": 1476,
+        "source_bytes": 17131112
+      },
+      "max_pages": 8,
+      "max_chars": 32000,
+      "runs": {
+        "baseline": [
+          {
+            "seconds": 0.008234791999711888,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 320,
+            "fts_statements": 5,
+            "vm_steps_approx": 28000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 0,
+                "seconds": 0.0002676249987416668
+              },
+              {
+                "exact": false,
+                "query_sha256": "da2c4ce88353ea1484e70aeec73eb77d6e54a3c0d1c88190b9ae3babb540c12f",
+                "rows": 9,
+                "seconds": 0.0006328749987005722
+              },
+              {
+                "exact": true,
+                "query_sha256": "338aa3637d982fd797ff1898d6601f92f120b2deba111a385371bdb1c99d1c06",
+                "rows": 9,
+                "seconds": 0.001601457999640843
+              },
+              {
+                "exact": false,
+                "query_sha256": "8dac7074557a924354631ec14af7e87797ebba08dd209c1a3aa7ba35a87f6acc",
+                "rows": 9,
+                "seconds": 0.0009226249985658797
+              }
+            ],
+            "evidence_identity_sha256": "d18063690e2c3e066a5aedac799c7dba0d83b2f480ca83ebaf7fc54400eaa407",
+            "full_result_sha256": "7cc7140af9ba4e76dbe96bbd56968eef4efba77833f331ecb7b0a53e1ac3776c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 9,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.006851957999970182,
+            "cache_mode": "warm",
+            "sql_statements": 320,
+            "fts_statements": 5,
+            "vm_steps_approx": 28000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 0,
+                "seconds": 0.00030020800113561563
+              },
+              {
+                "exact": false,
+                "query_sha256": "da2c4ce88353ea1484e70aeec73eb77d6e54a3c0d1c88190b9ae3babb540c12f",
+                "rows": 9,
+                "seconds": 0.0006462090004788479
+              },
+              {
+                "exact": true,
+                "query_sha256": "338aa3637d982fd797ff1898d6601f92f120b2deba111a385371bdb1c99d1c06",
+                "rows": 9,
+                "seconds": 0.0015457919998880243
+              },
+              {
+                "exact": false,
+                "query_sha256": "8dac7074557a924354631ec14af7e87797ebba08dd209c1a3aa7ba35a87f6acc",
+                "rows": 9,
+                "seconds": 0.0007091659990692278
+              }
+            ],
+            "evidence_identity_sha256": "d18063690e2c3e066a5aedac799c7dba0d83b2f480ca83ebaf7fc54400eaa407",
+            "full_result_sha256": "7cc7140af9ba4e76dbe96bbd56968eef4efba77833f331ecb7b0a53e1ac3776c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 9,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.006656790999841178,
+            "cache_mode": "warm",
+            "sql_statements": 320,
+            "fts_statements": 5,
+            "vm_steps_approx": 28000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 0,
+                "seconds": 0.0002573330002633156
+              },
+              {
+                "exact": false,
+                "query_sha256": "da2c4ce88353ea1484e70aeec73eb77d6e54a3c0d1c88190b9ae3babb540c12f",
+                "rows": 9,
+                "seconds": 0.0006106250002630986
+              },
+              {
+                "exact": true,
+                "query_sha256": "338aa3637d982fd797ff1898d6601f92f120b2deba111a385371bdb1c99d1c06",
+                "rows": 9,
+                "seconds": 0.0015388330011774087
+              },
+              {
+                "exact": false,
+                "query_sha256": "8dac7074557a924354631ec14af7e87797ebba08dd209c1a3aa7ba35a87f6acc",
+                "rows": 9,
+                "seconds": 0.0007250420003401814
+              }
+            ],
+            "evidence_identity_sha256": "d18063690e2c3e066a5aedac799c7dba0d83b2f480ca83ebaf7fc54400eaa407",
+            "full_result_sha256": "7cc7140af9ba4e76dbe96bbd56968eef4efba77833f331ecb7b0a53e1ac3776c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 9,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.006765957999959937,
+            "cache_mode": "warm",
+            "sql_statements": 320,
+            "fts_statements": 5,
+            "vm_steps_approx": 28000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 0,
+                "seconds": 0.0002606660000310512
+              },
+              {
+                "exact": false,
+                "query_sha256": "da2c4ce88353ea1484e70aeec73eb77d6e54a3c0d1c88190b9ae3babb540c12f",
+                "rows": 9,
+                "seconds": 0.0006510839994007256
+              },
+              {
+                "exact": true,
+                "query_sha256": "338aa3637d982fd797ff1898d6601f92f120b2deba111a385371bdb1c99d1c06",
+                "rows": 9,
+                "seconds": 0.0016854589994181879
+              },
+              {
+                "exact": false,
+                "query_sha256": "8dac7074557a924354631ec14af7e87797ebba08dd209c1a3aa7ba35a87f6acc",
+                "rows": 9,
+                "seconds": 0.0007288750002771849
+              }
+            ],
+            "evidence_identity_sha256": "d18063690e2c3e066a5aedac799c7dba0d83b2f480ca83ebaf7fc54400eaa407",
+            "full_result_sha256": "7cc7140af9ba4e76dbe96bbd56968eef4efba77833f331ecb7b0a53e1ac3776c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 9,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.006104292000600253,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 320,
+            "fts_statements": 5,
+            "vm_steps_approx": 28000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 0,
+                "seconds": 0.0002842499998223502
+              },
+              {
+                "exact": false,
+                "query_sha256": "b52a7876980e5669b7bf829027e7911614111578537b321c5615afa32fedbc86",
+                "rows": 9,
+                "seconds": 0.0006372499992721714
+              },
+              {
+                "exact": true,
+                "query_sha256": "6027b1311d2d3a1ebb4a677b3a965064f8ecd2a315c57c8e9f411dbd32e0e2d8",
+                "rows": 9,
+                "seconds": 0.0002641669998411089
+              },
+              {
+                "exact": false,
+                "query_sha256": "1a54ececc2b6bf40ae446fe8af23fadc60811c3b312615ea654bb03b500e0710",
+                "rows": 9,
+                "seconds": 0.000713333000021521
+              }
+            ],
+            "evidence_identity_sha256": "d18063690e2c3e066a5aedac799c7dba0d83b2f480ca83ebaf7fc54400eaa407",
+            "full_result_sha256": "7cc7140af9ba4e76dbe96bbd56968eef4efba77833f331ecb7b0a53e1ac3776c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 9,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.005990625000777072,
+            "cache_mode": "warm",
+            "sql_statements": 320,
+            "fts_statements": 5,
+            "vm_steps_approx": 28000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 0,
+                "seconds": 0.0002687500000320142
+              },
+              {
+                "exact": false,
+                "query_sha256": "b52a7876980e5669b7bf829027e7911614111578537b321c5615afa32fedbc86",
+                "rows": 9,
+                "seconds": 0.0006530840000777971
+              },
+              {
+                "exact": true,
+                "query_sha256": "6027b1311d2d3a1ebb4a677b3a965064f8ecd2a315c57c8e9f411dbd32e0e2d8",
+                "rows": 9,
+                "seconds": 0.0002799160010908963
+              },
+              {
+                "exact": false,
+                "query_sha256": "1a54ececc2b6bf40ae446fe8af23fadc60811c3b312615ea654bb03b500e0710",
+                "rows": 9,
+                "seconds": 0.0007202080014394596
+              }
+            ],
+            "evidence_identity_sha256": "d18063690e2c3e066a5aedac799c7dba0d83b2f480ca83ebaf7fc54400eaa407",
+            "full_result_sha256": "7cc7140af9ba4e76dbe96bbd56968eef4efba77833f331ecb7b0a53e1ac3776c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 9,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.005936500001553213,
+            "cache_mode": "warm",
+            "sql_statements": 320,
+            "fts_statements": 5,
+            "vm_steps_approx": 28000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 0,
+                "seconds": 0.00026129099933314137
+              },
+              {
+                "exact": false,
+                "query_sha256": "b52a7876980e5669b7bf829027e7911614111578537b321c5615afa32fedbc86",
+                "rows": 9,
+                "seconds": 0.0006204589990375098
+              },
+              {
+                "exact": true,
+                "query_sha256": "6027b1311d2d3a1ebb4a677b3a965064f8ecd2a315c57c8e9f411dbd32e0e2d8",
+                "rows": 9,
+                "seconds": 0.0002603329994599335
+              },
+              {
+                "exact": false,
+                "query_sha256": "1a54ececc2b6bf40ae446fe8af23fadc60811c3b312615ea654bb03b500e0710",
+                "rows": 9,
+                "seconds": 0.0007135410014598165
+              }
+            ],
+            "evidence_identity_sha256": "d18063690e2c3e066a5aedac799c7dba0d83b2f480ca83ebaf7fc54400eaa407",
+            "full_result_sha256": "7cc7140af9ba4e76dbe96bbd56968eef4efba77833f331ecb7b0a53e1ac3776c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 9,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          },
+          {
+            "seconds": 0.005910500000027241,
+            "cache_mode": "warm",
+            "sql_statements": 320,
+            "fts_statements": 5,
+            "vm_steps_approx": 28000,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 0,
+                "seconds": 0.00025620899941714015
+              },
+              {
+                "exact": false,
+                "query_sha256": "b52a7876980e5669b7bf829027e7911614111578537b321c5615afa32fedbc86",
+                "rows": 9,
+                "seconds": 0.0006244579999474809
+              },
+              {
+                "exact": true,
+                "query_sha256": "6027b1311d2d3a1ebb4a677b3a965064f8ecd2a315c57c8e9f411dbd32e0e2d8",
+                "rows": 9,
+                "seconds": 0.0002556670006015338
+              },
+              {
+                "exact": false,
+                "query_sha256": "1a54ececc2b6bf40ae446fe8af23fadc60811c3b312615ea654bb03b500e0710",
+                "rows": 9,
+                "seconds": 0.0007357089998549782
+              }
+            ],
+            "evidence_identity_sha256": "d18063690e2c3e066a5aedac799c7dba0d83b2f480ca83ebaf7fc54400eaa407",
+            "full_result_sha256": "7cc7140af9ba4e76dbe96bbd56968eef4efba77833f331ecb7b0a53e1ac3776c",
+            "page_count": 8,
+            "returned_paths": [
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl",
+              "source-00000.cbl"
+            ],
+            "matched_page_count": 9,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": null
+          }
+        ]
+      },
+      "evidence_identity_equal": true,
+      "full_result_equal": true,
+      "warm_median_seconds": {
+        "baseline": 0.006765957999959937,
+        "candidate": 0.005936500001553213
+      },
+      "included_in_speed_comparison": true,
+      "speedup": 1.1397217212481607
+    }
+  ],
+  "quality_cases": [
+    {
+      "kind": "crop_quality",
+      "size": "single_page",
+      "scenario": "exact_clue_survives_budget_crop",
+      "corpus": {
+        "files": 1,
+        "source_bytes": 2772,
+        "source_sha256": "bd0c91032b0d81e3cb1ad870e528fb21632d419a14f308234359de92ac16c932"
+      },
+      "max_pages": 1,
+      "max_chars": 512,
+      "runs": {
+        "baseline": [
+          {
+            "seconds": 0.002632582998558064,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 126,
+            "fts_statements": 4,
+            "vm_steps_approx": 0,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 1,
+                "seconds": 0.00020391600082803052
+              },
+              {
+                "exact": false,
+                "query_sha256": "da2c4ce88353ea1484e70aeec73eb77d6e54a3c0d1c88190b9ae3babb540c12f",
+                "rows": 1,
+                "seconds": 0.00013204100105213001
+              },
+              {
+                "exact": false,
+                "query_sha256": "5bd5a406e24d9386c1fb43cf44078400a02ea2f4f416259bdbfb3450d44191de",
+                "rows": 1,
+                "seconds": 0.00011699999959091656
+              }
+            ],
+            "evidence_identity_sha256": "031450db310e2206184ec7eb5b3d9666deabeab02b52c6b225754e120b7d8e50",
+            "full_result_sha256": "2030bdbc2a787e4c1d70b520cc3bf7de1d9470268c27d8d8d801195fea2199c1",
+            "page_count": 1,
+            "returned_paths": [
+              "target.cbl"
+            ],
+            "matched_page_count": 1,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": false
+          },
+          {
+            "seconds": 0.0027832079995278036,
+            "cache_mode": "warm",
+            "sql_statements": 126,
+            "fts_statements": 4,
+            "vm_steps_approx": 0,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 1,
+                "seconds": 0.00027066700022260193
+              },
+              {
+                "exact": false,
+                "query_sha256": "da2c4ce88353ea1484e70aeec73eb77d6e54a3c0d1c88190b9ae3babb540c12f",
+                "rows": 1,
+                "seconds": 0.00019695899936778005
+              },
+              {
+                "exact": false,
+                "query_sha256": "5bd5a406e24d9386c1fb43cf44078400a02ea2f4f416259bdbfb3450d44191de",
+                "rows": 1,
+                "seconds": 0.0001339999998890562
+              }
+            ],
+            "evidence_identity_sha256": "031450db310e2206184ec7eb5b3d9666deabeab02b52c6b225754e120b7d8e50",
+            "full_result_sha256": "2030bdbc2a787e4c1d70b520cc3bf7de1d9470268c27d8d8d801195fea2199c1",
+            "page_count": 1,
+            "returned_paths": [
+              "target.cbl"
+            ],
+            "matched_page_count": 1,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": false
+          },
+          {
+            "seconds": 0.0024276249987451592,
+            "cache_mode": "warm",
+            "sql_statements": 126,
+            "fts_statements": 4,
+            "vm_steps_approx": 0,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 1,
+                "seconds": 0.0002002080000238493
+              },
+              {
+                "exact": false,
+                "query_sha256": "da2c4ce88353ea1484e70aeec73eb77d6e54a3c0d1c88190b9ae3babb540c12f",
+                "rows": 1,
+                "seconds": 0.00012904100003652275
+              },
+              {
+                "exact": false,
+                "query_sha256": "5bd5a406e24d9386c1fb43cf44078400a02ea2f4f416259bdbfb3450d44191de",
+                "rows": 1,
+                "seconds": 0.00011524999899847899
+              }
+            ],
+            "evidence_identity_sha256": "031450db310e2206184ec7eb5b3d9666deabeab02b52c6b225754e120b7d8e50",
+            "full_result_sha256": "2030bdbc2a787e4c1d70b520cc3bf7de1d9470268c27d8d8d801195fea2199c1",
+            "page_count": 1,
+            "returned_paths": [
+              "target.cbl"
+            ],
+            "matched_page_count": 1,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": false
+          },
+          {
+            "seconds": 0.0024538329998904373,
+            "cache_mode": "warm",
+            "sql_statements": 126,
+            "fts_statements": 4,
+            "vm_steps_approx": 0,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "7637b591492fd3d93ecf5abebbb3d82e415bdeccc63fc76433ce597ffbe93ea6",
+                "rows": 1,
+                "seconds": 0.00020220899932610337
+              },
+              {
+                "exact": false,
+                "query_sha256": "da2c4ce88353ea1484e70aeec73eb77d6e54a3c0d1c88190b9ae3babb540c12f",
+                "rows": 1,
+                "seconds": 0.00013125000077707227
+              },
+              {
+                "exact": false,
+                "query_sha256": "5bd5a406e24d9386c1fb43cf44078400a02ea2f4f416259bdbfb3450d44191de",
+                "rows": 1,
+                "seconds": 0.00011412499952712096
+              }
+            ],
+            "evidence_identity_sha256": "031450db310e2206184ec7eb5b3d9666deabeab02b52c6b225754e120b7d8e50",
+            "full_result_sha256": "2030bdbc2a787e4c1d70b520cc3bf7de1d9470268c27d8d8d801195fea2199c1",
+            "page_count": 1,
+            "returned_paths": [
+              "target.cbl"
+            ],
+            "matched_page_count": 1,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": false
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.0027303330007271143,
+            "cache_mode": "python_cache_cold",
+            "sql_statements": 126,
+            "fts_statements": 4,
+            "vm_steps_approx": 0,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 1,
+                "seconds": 0.00018074999934469815
+              },
+              {
+                "exact": false,
+                "query_sha256": "b52a7876980e5669b7bf829027e7911614111578537b321c5615afa32fedbc86",
+                "rows": 1,
+                "seconds": 0.00013154199950804468
+              },
+              {
+                "exact": false,
+                "query_sha256": "82c6a22801dc523d972fb4cd633efd25895e88941a6b564fdf4a005f04c48d2e",
+                "rows": 1,
+                "seconds": 0.00011850000009872019
+              }
+            ],
+            "evidence_identity_sha256": "5d990e8a6cd8e11e49e5b0e17b3b5b0414cbe504b13d3a67996578197aa4c873",
+            "full_result_sha256": "3ec4d0503e17d900cb07d2143cdf01a6d927a4b91e501f247e8c863e6b7f1fbe",
+            "page_count": 1,
+            "returned_paths": [
+              "target.cbl"
+            ],
+            "matched_page_count": 1,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": true
+          },
+          {
+            "seconds": 0.002579624999270891,
+            "cache_mode": "warm",
+            "sql_statements": 126,
+            "fts_statements": 4,
+            "vm_steps_approx": 0,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 1,
+                "seconds": 0.00017870800002128817
+              },
+              {
+                "exact": false,
+                "query_sha256": "b52a7876980e5669b7bf829027e7911614111578537b321c5615afa32fedbc86",
+                "rows": 1,
+                "seconds": 0.00015108299885469023
+              },
+              {
+                "exact": false,
+                "query_sha256": "82c6a22801dc523d972fb4cd633efd25895e88941a6b564fdf4a005f04c48d2e",
+                "rows": 1,
+                "seconds": 0.00012966700160177425
+              }
+            ],
+            "evidence_identity_sha256": "5d990e8a6cd8e11e49e5b0e17b3b5b0414cbe504b13d3a67996578197aa4c873",
+            "full_result_sha256": "3ec4d0503e17d900cb07d2143cdf01a6d927a4b91e501f247e8c863e6b7f1fbe",
+            "page_count": 1,
+            "returned_paths": [
+              "target.cbl"
+            ],
+            "matched_page_count": 1,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": true
+          },
+          {
+            "seconds": 0.0026151660003961297,
+            "cache_mode": "warm",
+            "sql_statements": 126,
+            "fts_statements": 4,
+            "vm_steps_approx": 0,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 1,
+                "seconds": 0.0001744579985825112
+              },
+              {
+                "exact": false,
+                "query_sha256": "b52a7876980e5669b7bf829027e7911614111578537b321c5615afa32fedbc86",
+                "rows": 1,
+                "seconds": 0.00013070900058664847
+              },
+              {
+                "exact": false,
+                "query_sha256": "82c6a22801dc523d972fb4cd633efd25895e88941a6b564fdf4a005f04c48d2e",
+                "rows": 1,
+                "seconds": 0.00011700000140990596
+              }
+            ],
+            "evidence_identity_sha256": "5d990e8a6cd8e11e49e5b0e17b3b5b0414cbe504b13d3a67996578197aa4c873",
+            "full_result_sha256": "3ec4d0503e17d900cb07d2143cdf01a6d927a4b91e501f247e8c863e6b7f1fbe",
+            "page_count": 1,
+            "returned_paths": [
+              "target.cbl"
+            ],
+            "matched_page_count": 1,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": true
+          },
+          {
+            "seconds": 0.0030810000007477356,
+            "cache_mode": "warm",
+            "sql_statements": 126,
+            "fts_statements": 4,
+            "vm_steps_approx": 0,
+            "routes": [
+              {
+                "exact": true,
+                "query_sha256": "a58fd6a3274f223f619eb63874f7e8ef09d258ca5d31f74084a9537de76b4dae",
+                "rows": 1,
+                "seconds": 0.00018500000078347512
+              },
+              {
+                "exact": false,
+                "query_sha256": "b52a7876980e5669b7bf829027e7911614111578537b321c5615afa32fedbc86",
+                "rows": 1,
+                "seconds": 0.00013187500007916242
+              },
+              {
+                "exact": false,
+                "query_sha256": "82c6a22801dc523d972fb4cd633efd25895e88941a6b564fdf4a005f04c48d2e",
+                "rows": 1,
+                "seconds": 0.00011862499923154246
+              }
+            ],
+            "evidence_identity_sha256": "5d990e8a6cd8e11e49e5b0e17b3b5b0414cbe504b13d3a67996578197aa4c873",
+            "full_result_sha256": "3ec4d0503e17d900cb07d2143cdf01a6d927a4b91e501f247e8c863e6b7f1fbe",
+            "page_count": 1,
+            "returned_paths": [
+              "target.cbl"
+            ],
+            "matched_page_count": 1,
+            "matched_file_count": 1,
+            "orientation_only": false,
+            "physical_source_verified": true,
+            "target_literal_visible": true
+          }
+        ]
+      },
+      "evidence_identity_equal": false,
+      "full_result_equal": false,
+      "warm_median_seconds": {
+        "baseline": 0.0024538329998904373,
+        "candidate": 0.0026151660003961297
+      },
+      "included_in_speed_comparison": false
+    }
+  ],
+  "modules_unchanged_during_benchmark": true,
+  "all_speed_outputs_identical": true,
+  "candidate_preserves_quality_target": true
+}

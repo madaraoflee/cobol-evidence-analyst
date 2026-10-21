@@ -22,6 +22,7 @@ const UI_MESSAGES = `
 模型請求逾時，已保留此前取得的回答；本次補查尚未完成。|模型请求超时，已保留此前取得的回答；本次补查尚未完成。|A model request timed out. The earlier answer is retained; the follow-up investigation did not complete.
 回答對源碼供應的描述仍有矛盾，已保留正文供核對。|回答对源码供应的描述仍有矛盾，已保留正文供核对。|The answer still contains conflicting statements about the supplied source. Its text is retained for review.
 回答尚未涵蓋本題已定位的全部業務要點，已保留目前正文。|回答尚未涵盖本题已定位的全部业务要点，已保留目前正文。|The answer does not yet cover all identified business points for this question. The available text is retained.
+這份回答的業務結論尚未完成核對，部分推斷或遺漏仍待確認；目前正文已保留。|这份回答的业务结论尚未完成核对，部分推断或遗漏仍待确认；目前正文已保留。|The business conclusions have not finished review. Some inferences or omissions still need checking; the available answer is retained.
 回答中提及的後續調查尚未完成，已保留目前取得的結論。|回答中提及的后续调查尚未完成，已保留目前取得的结论。|The follow-up investigation mentioned in the answer has not completed. Available conclusions are retained.
 目前回答尚未充分解釋所問業務，仍需根據已讀證據補充。|目前回答尚未充分解释所问业务，仍需根据已读证据补充。|The answer still needs to explain the requested business behavior using the evidence already read.
 回答尚有未完成的業務要點，已保留目前正文。|回答尚有未完成的业务要点，已保留目前正文。|Some business points in the answer remain incomplete. The available text is retained.

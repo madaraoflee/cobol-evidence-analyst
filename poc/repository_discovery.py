@@ -24,6 +24,7 @@ SEARCH_VERSION = "repository-text-v1"
 PAGE_CHARS = 12000
 MAX_MATCHED_PAGES = 200
 MAX_QUERY_TERMS = 128
+MAX_INDEPENDENT_SEARCHES = 3
 RAW_FALLBACK_PAGES = 128
 RAW_FALLBACK_CHARACTERS = 512 * 1024
 RAW_FALLBACK_FILE_BYTES = 2 * 1024 * 1024
@@ -73,9 +74,141 @@ def _query_terms(question, search_terms):
         inputs = [question, *search_terms]
     else:
         raise ValueError("REPOSITORY_SEARCH_TERMS_INVALID")
-    terms = list(dict.fromkeys(term for value in inputs for term in _tokens(value)
-                              if term not in _STOP and term not in _CJK_STOP and len(term) > 1))
-    return terms[:MAX_QUERY_TERMS], max(0, len(terms) - MAX_QUERY_TERMS)
+    groups = [deque(term for term in _tokens(value)
+                    if term not in _STOP and term not in _CJK_STOP and len(term) > 1)
+              for value in inputs]
+    total = len({term for group in groups for term in group})
+    # Share the finite budget across inputs. A long CJK question generates many
+    # overlapping grams; it must not consume a later, model-suggested identifier.
+    # Follow-up searches get the first slot, then the original question.
+    pending = deque(group for group in [*groups[1:], groups[0]] if group)
+    terms, seen = [], set()
+    while pending and len(terms) < MAX_QUERY_TERMS:
+        group = pending.popleft()
+        while group and group[0] in seen:
+            group.popleft()
+        if group:
+            term = group.popleft()
+            terms.append(term)
+            seen.add(term)
+        if group:
+            pending.append(group)
+    return terms, max(0, total - len(terms))
+
+
+def _match_expression(terms):
+    return " OR ".join('"' + term.replace('"', '""') + '"' for term in terms)
+
+
+def _contains_identifier(text, identifiers):
+    folded = (text or "").casefold()
+    if not any(identifier in folded for identifier in identifiers):
+        return False
+    return any(match.group().rstrip(".") in identifiers for match in _WORDS.finditer(folded))
+
+
+def _retrieval_query_groups(question, search_terms, terms):
+    """Prioritize exact identifiers and keep independent search leads distinct.
+
+    Every route is a subset of the shared query budget, so match counts,
+    discovery roots and the orientation flag describe the same search. The
+    final broad route retains recall when no complete identifier is present.
+    """
+    allowed = set(terms)
+
+    def selected(value):
+        return [term for term in _tokens(value) if term in allowed]
+
+    def compounds(values):
+        return list(dict.fromkeys(word.casefold() for value in values for word in _WORDS.findall(value)
+            if word.casefold() in allowed and len([part for part in _PARTS.split(word) if part]) > 1))
+
+    def route(values, exact=False):
+        values = tuple(values)
+        return _match_expression(values), values if exact else (), values
+
+    def channel(values, broad_terms=None):
+        broad_terms = list(dict.fromkeys(term for value in values for term in selected(value))) if broad_terms is None else broad_terms
+        return [item for item in (route(compounds(values), exact=True), route(broad_terms)) if item[0]]
+
+    additions = list(search_terms or [])
+    independent = [channel([value]) for value in additions[:MAX_INDEPENDENT_SEARCHES]]
+    # Excess suggestions still participate, without creating an unbounded
+    # number of SQLite queries for a single question.
+    if len(additions) > MAX_INDEPENDENT_SEARCHES:
+        independent.append(channel(additions[MAX_INDEPENDENT_SEARCHES:]))
+    # Exact preference is local to a lead: common compound fields from one
+    # suggestion must not displace another suggestion's unsplit rare word.
+    # At most four supplementary channels plus the question, two routes each.
+    return [[item for item in independent if item], [channel([question], terms)]]
+
+
+def _search_route_rows(connection, route, scope_sql, scope_values, max_pages, check_cancel):
+    expression, identifiers, route_terms = route
+    _cancel(check_cancel)
+    joins, exact_scope, failures = "", "", []
+    if identifiers:
+        exact = {identifier.rstrip(".") for identifier in identifiers}
+
+        def has_identifier(text):
+            try:
+                _cancel(check_cancel)
+                return _contains_identifier(text, exact)
+            except BaseException as exc:
+                failures.append(exc)
+                raise
+
+        connection.create_function("query_identifier_present", 1, has_identifier)
+        joins = " LEFT JOIN evidence_spans e ON e.evidence_id=p.evidence_id "
+        # unicode61 makes a hyphenated identifier indistinguishable from
+        # adjacent ordinary words. Check saved original tokens before LIMIT
+        # so short phrase-only hits cannot hide a complete identifier.
+        exact_scope = " AND query_identifier_present(p.relative_path || char(10) || COALESCE(e.text,p.fallback_text))"
+    rows = []
+    try:
+        candidates = connection.execute(
+            "WITH matches AS MATERIALIZED (SELECT p.*,bm25(repo_fts) AS score FROM repo_fts "
+            "JOIN repo_pages p ON p.page_id=repo_fts.rowid" + joins + " WHERE repo_fts MATCH ?" + scope_sql + exact_scope + ") "
+            "SELECT *,ROW_NUMBER() OVER (PARTITION BY relative_path ORDER BY score,start_line) AS file_rank "
+            "FROM matches ORDER BY file_rank,score,relative_path,start_line LIMIT ?",
+            (expression, *scope_values, max_pages * 16))
+        for row in candidates:
+            _cancel(check_cancel)
+            rows.append({**dict(row), "retrieval_terms": route_terms,
+                         "retrieval_identifiers": identifiers})
+    except sqlite3.OperationalError:
+        if failures:
+            raise failures[0]
+        raise
+    return rows
+
+
+def _ranked_search_rows(connection, query_groups, scope_sql, scope_values, max_pages, check_cancel):
+    """Interleave independent leads within each priority tier, with bounded reads."""
+    ranked, seen, cached = [], set(), {}
+    for group in query_groups:
+        channels = []
+        for routes in group:
+            channel = deque()
+            for route in routes:
+                if route not in cached:
+                    cached[route] = _search_route_rows(connection, route,
+                        scope_sql, scope_values, max_pages, check_cancel)
+                channel.extend(cached[route])
+            if channel:
+                channels.append(channel)
+        pending = deque(channels)
+        while pending:
+            channel = pending.popleft()
+            while channel and channel[0]["page_id"] in seen:
+                channel.popleft()
+            if channel:
+                row = channel.popleft()
+                ranked.append(row)
+                seen.add(row["page_id"])
+            if channel:
+                pending.append(channel)
+    return ranked
 
 
 def _connect(database_path, writable=False):
@@ -737,7 +870,7 @@ def discover_repository(database_path, question, *, search_terms=None, focus_pat
             scope_sql += " AND p.relative_path IN (" + ",".join("?" for _ in roots) + ")"
             scope_values = [*scope_values, *roots]
         all_paths = {row[0] for row in connection.execute("SELECT relative_path FROM source_files")}
-        query = " OR ".join('"' + term.replace('"', '""') + '"' for term in terms)
+        query = _match_expression(terms)
         matches, seeds, matched_count = [], set(identity["direct_paths"]), 0
         preview_by_path, preview_count = {}, 0
         if query and not blocked:
@@ -935,9 +1068,17 @@ def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=N
         return None
     if start_line is None:
         folded = [line.casefold() for line in lines]
-        hits = [(sum(min(32, len(term)) for term in terms if term in text), index)
+        route_terms = row.get("retrieval_terms", ())
+        exact = {term.rstrip(".") for term in row.get("retrieval_identifiers", ())}
+        # Preserve the reason this page was selected when choosing its crop.
+        # Broad original-question words elsewhere on the page must not hide a
+        # new search lead, and substrings cannot outrank a complete identifier.
+        hits = [(bool(exact) and _contains_identifier(text, exact),
+                 sum(min(32, len(term)) for term in route_terms if term in text),
+                 sum(min(32, len(term)) for term in terms if term in text), index)
                 for index, text in enumerate(folded)]
-        _, center = max(hits, default=(0, lower), key=lambda pair: (pair[0], -pair[1]))
+        *_, center = max(hits, default=(False, 0, 0, lower),
+                         key=lambda item: (*item[:3], -item[3]))
         if row.get("focus_line") is not None:
             center = row["focus_line"] - row["start_line"]
         center = min(max(center, lower), upper - 1)
@@ -1301,25 +1442,13 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
                                            entry_program=entry_program, history=history)
         blocked = identity_blocks_analysis(identity)
         scope_sql, scope_values = identity_sql_scope(identity, supplemental=bool(search_terms))
-        query = " OR ".join('"' + term.replace('"', '""') + '"' for term in terms)
+        query = _match_expression(terms)
         ranked, matched_count, matched_files = [], 0, 0
         if query and not blocked:
             matched_count, matched_files = connection.execute("SELECT COUNT(*),COUNT(DISTINCT p.relative_path) FROM repo_fts JOIN repo_pages p ON p.page_id=repo_fts.rowid WHERE repo_fts MATCH ?" + scope_sql, (query, *scope_values)).fetchone()
-            # Explicit follow-up searches take priority over previous-question
-            # terms. A new rare identifier must not lose to repeated old hits.
-            additions, _ = _query_terms("", search_terms)
-            refined_query = " OR ".join('"' + term.replace('"', '""') + '"' for term in additions)
-            seen = set()
-            for active_query in dict.fromkeys(value for value in (refined_query, query) if value):
-                candidates = connection.execute(
-                    "WITH matches AS MATERIALIZED (SELECT p.*,bm25(repo_fts) AS score FROM repo_fts "
-                    "JOIN repo_pages p ON p.page_id=repo_fts.rowid WHERE repo_fts MATCH ?" + scope_sql + ") "
-                    "SELECT *,ROW_NUMBER() OVER (PARTITION BY relative_path ORDER BY score,start_line) AS file_rank "
-                    "FROM matches ORDER BY file_rank,score,relative_path,start_line LIMIT ?", (active_query, *scope_values, max_pages * 16))
-                for row in candidates:
-                    if row["page_id"] not in seen:
-                        ranked.append(dict(row))
-                        seen.add(row["page_id"])
+            ranked = _ranked_search_rows(connection,
+                _retrieval_query_groups(question, search_terms, terms),
+                scope_sql, scope_values, max_pages, check_cancel)
         raw_fallback = None
         if not ranked and not blocked:
             ranked, raw_fallback = _raw_text_fallback(connection, root, terms, identity,

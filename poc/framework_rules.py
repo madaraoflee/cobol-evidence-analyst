@@ -10,11 +10,12 @@ import hashlib
 import json
 import re
 
-from framework_knowledge import MAX_SECTION_CHARS, _ReferenceError, _load_document, _summary
+from framework_knowledge import (MAX_SECTION_CHARS, _ReferenceError, _load_document,
+                                 _reference_catalog, _section_reference, _summary)
 
 
 SCHEMA_VERSION = "framework-rules/v1"
-COMPILER_VERSION = "documented-conventions-v1.2"
+COMPILER_VERSION = "documented-conventions-v1.3"
 _IDENTIFIER = r"[A-Z0-9_$#@-]+"
 _CALL = re.compile(rf"\bCALL\s+(?:[\"']({_IDENTIFIER})[\"']|({_IDENTIFIER}))\s+USING\s+({_IDENTIFIER})([^\n]*)", re.I)
 _FUNCTION = re.compile(r"\b[A-Z0-9_$#@-]*X{2,8}[A-Z0-9_$#@-]*-FUNCTION\b")
@@ -51,13 +52,7 @@ def _cells(line):
 
 
 def _reference(section, document):
-    digest = section.document_sha256 or document.sha256
-    name_key = hashlib.sha256(section.document_name.encode()).hexdigest()[:8] + ":" if section.document_name else ""
-    return {"reference_id": f"fw:{digest[:16]}:{name_key}{section.start_line}-{section.end_line}",
-            "heading": section.heading, "page": section.page,
-            "start_line": section.start_line, "end_line": section.end_line, "text": section.text,
-            "document_name": section.document_name or document.documents[0]["name"],
-            "document_sha256": digest, "matched_terms": [], "selection_reason": "compiled_rule"}
+    return {**_section_reference(section, document), "selection_reason": "compiled_rule"}
 
 
 def _in_scope(heading, scope):
@@ -103,6 +98,8 @@ def compile_framework_rules(reference_path=None) -> dict:
     versions = {row["name"]: next(iter(_VERSION.findall(row["title"])), None) for row in document.documents}
     result["document"] = {**result["document"], "target_version": next(iter(_VERSION.findall(document.title)), None)}
     references = {}
+    catalog, dependencies = _reference_catalog(document)
+    section_indices = {id(section): index for index, section in enumerate(document.sections)}
     sections = []
     rules_by_key = defaultdict(list)
     stage_sources = {}
@@ -113,9 +110,17 @@ def compile_framework_rules(reference_path=None) -> dict:
             stage_sources.setdefault((name, digest, section.heading, symbol), section)
 
     def retain(section):
-        reference = _reference(section, document)
+        index = section_indices[id(section)]
+        reference = {**catalog[index], "selection_reason": "compiled_rule"}
         references[reference["reference_id"]] = reference
+        for required in dependencies.get(index, ()):
+            constraint = {**catalog[required], "selection_reason": "document_constraint"}
+            references[constraint["reference_id"]] = constraint
         return reference
+
+    def retained_ids(section):
+        reference = retain(section)
+        return [reference["reference_id"], *reference.get("required_reference_ids", [])]
 
     for section in document.sections:
         digest = section.document_sha256 or document.sha256
@@ -153,15 +158,14 @@ def compile_framework_rules(reference_path=None) -> dict:
             for symbol in symbols:
                 if not re.fullmatch(r"[A-Z0-9_$#@*-]{1,128}", symbol) or not symbol.strip("-"):
                     continue
-                reference = retain(section)
-                reference_ids = [reference["reference_id"]]
+                reference_ids = retained_ids(section)
                 if kind == "section" and raw_symbol.isdigit():
                     origin = stage_sources.get((name, digest, section.heading, symbol))
                     if origin is None:
                         result["boundaries"].append({"reason": "section_name_origin_unavailable",
                             "symbol": raw_symbol, "reference_ids": reference_ids})
                         continue
-                    reference_ids.append(retain(origin)["reference_id"])
+                    reference_ids.extend(retained_ids(origin))
                 meaning, caveat = cells[1], " | ".join(cells[2:])
                 rule = {"rule_id": _id("fwr:", COMPILER_VERSION, digest, name, section.heading, kind, symbol, meaning, caveat),
                         "kind": kind, "symbol": symbol, "meaning": meaning, "caveat": caveat,
@@ -224,8 +228,8 @@ def compile_framework_rules(reference_path=None) -> dict:
             result["boundaries"].append({"reason": "interface_rule_scope_ambiguous",
                 "reference_ids": [retain(call_section)["reference_id"]]})
             continue
-        reference_ids = {retain(call_section)["reference_id"]}
-        reference_ids.update(retain(section)["reference_id"] for section in function_sections)
+        reference_ids = set(retained_ids(call_section))
+        reference_ids.update(identifier for section in function_sections for identifier in retained_ids(section))
         interface = {"interface_id": _id("fwi:", COMPILER_VERSION, digest, name, target, argument, function, scope),
             "target_template": target, "argument_template": argument, "function_template": function,
             "scope": scope, "document_sha256": digest, "document_name": name, "target_version": versions.get(name),

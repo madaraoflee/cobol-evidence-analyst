@@ -1,0 +1,211 @@
+{
+  "schema": "live-stream-phase-budget/v1",
+  "phase": 4,
+  "allocation_kind": "lower_of_original_remaining_budget_and_new_supplemental_cap",
+  "total_authorized_micro_cny": 2000000,
+  "total_max_physical_requests": 12,
+  "previous_reserved_micro_cny": 1223522,
+  "previous_physical_requests": 7,
+  "original_remaining_micro_cny": 776478,
+  "supplemental_user_cap_micro_cny": 1000000,
+  "phase_limit_micro_cny": 770000,
+  "max_combined_micro_cny": 1993522,
+  "unallocated_micro_cny": 6478,
+  "phase_max_physical_requests": 3,
+  "phase_max_per_case": 1,
+  "phase_case_order": [
+    "F1",
+    "B2",
+    "F2"
+  ],
+  "pause_between_required": true,
+  "unknown_outcome_retry_authorization": {
+    "status": "explicit_user_approved",
+    "user_instruction": "把预算控制在1元内，补测",
+    "case_ids": [
+      "B2",
+      "F2"
+    ],
+    "max_explicit_attempts_each": 1
+  },
+  "previous_failures_retained": [
+    {
+      "phase": 1,
+      "case_id": "F2",
+      "outcome": "transport_error",
+      "reserved_micro_cny": 180928,
+      "reservation_refunded": false
+    },
+    {
+      "phase": 2,
+      "case_id": "B2",
+      "outcome": "transport_error",
+      "reserved_micro_cny": 179522,
+      "reservation_refunded": false
+    }
+  ],
+  "execution_kind": "explicit_post_fix_new_frozen_run_and_new_conversations",
+  "prior_phases": [
+    {
+      "phase": 1,
+      "summary": "/tmp/business-framework-live-20261020-phase4/phase1-frozen/summary.json",
+      "ledger": "/tmp/business-framework-live-20261020-phase4/phase1-frozen/budget-ledger.json",
+      "reserved_micro_cny": 698792,
+      "physical_requests": 4
+    },
+    {
+      "phase": 2,
+      "summary": "/tmp/business-framework-live-20261020-phase4/phase2-frozen/summary.json",
+      "ledger": "/tmp/business-framework-live-20261020-phase4/phase2-frozen/budget-ledger.json",
+      "reserved_micro_cny": 338608,
+      "physical_requests": 2
+    },
+    {
+      "phase": 3,
+      "summary": "/tmp/business-framework-live-20261020-phase4/phase3-frozen/summary.json",
+      "ledger": "/tmp/business-framework-live-20261020-phase4/phase3-frozen/budget-ledger.json",
+      "reserved_micro_cny": 186122,
+      "physical_requests": 1
+    }
+  ],
+  "prior_files": [
+    {
+      "phase": 1,
+      "source": "/tmp/business-framework-live-20261020/stream_observer.py",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase1-frozen/stream_observer.py",
+      "sha256": "1d0e9bab7033fe266fa2d66fa9c818a09f4391a328e036bfb459c53fa998265f"
+    },
+    {
+      "phase": 1,
+      "source": "/tmp/business-framework-live-20261020/budget_guard.py",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase1-frozen/budget_guard.py",
+      "sha256": "b823608c269299a8a997fbd3d0542604a4fc2554d3e2d2e7556c1880f966df32"
+    },
+    {
+      "phase": 1,
+      "source": "/tmp/business-framework-live-20261020/test_observer.py",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase1-frozen/test_observer.py",
+      "sha256": "0c0d6903aa5866954cf6738465bf4570b427f8b0e11c86bd121a51a6e35fcd89"
+    },
+    {
+      "phase": 1,
+      "source": "/tmp/business-framework-live-20261020/plan.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase1-frozen/plan.json",
+      "sha256": "2e69c3c6e9992807fad7fd1cff7b465259ce151cde7b80363814b6321c9bbf0d"
+    },
+    {
+      "phase": 1,
+      "source": "/tmp/business-framework-live-20261020/cases.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase1-frozen/cases.json",
+      "sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491"
+    },
+    {
+      "phase": 1,
+      "source": "/tmp/business-framework-live-20261020/run/summary.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase1-frozen/summary.json",
+      "sha256": "4b1b6a274defb65edfbd1563b4df86ccb28f78e793c285634da0f07c2332ec02"
+    },
+    {
+      "phase": 1,
+      "source": "/tmp/business-framework-live-20261020/run/budget-ledger.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase1-frozen/budget-ledger.json",
+      "sha256": "b695f64e916e9985516de4f27cc532d4fdf547af9c9cebdd2ba358b38d2ba6c8"
+    },
+    {
+      "phase": 2,
+      "source": "/tmp/business-framework-live-20261020-phase2/stream_observer.py",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase2-frozen/stream_observer.py",
+      "sha256": "cc4bcf29073faf93bda402c849c5084de833b570dc552eeb045fa146c11ba452"
+    },
+    {
+      "phase": 2,
+      "source": "/tmp/business-framework-live-20261020-phase2/budget_guard.py",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase2-frozen/budget_guard.py",
+      "sha256": "8a232fb30ec3df27ca879ba7dd089c2486f7e6907b2848f1a5195fd7581007cc"
+    },
+    {
+      "phase": 2,
+      "source": "/tmp/business-framework-live-20261020-phase2/test_observer.py",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase2-frozen/test_observer.py",
+      "sha256": "4ba179c9f1843d62b5f93330147ef602435f180ad6b6f180df639f95336d2670"
+    },
+    {
+      "phase": 2,
+      "source": "/tmp/business-framework-live-20261020-phase2/plan.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase2-frozen/plan.json",
+      "sha256": "3ae192c13db7c906747433d7fba42830cb7bb08c245e363903104637dffe1dab"
+    },
+    {
+      "phase": 2,
+      "source": "/tmp/business-framework-live-20261020-phase2/cases.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase2-frozen/cases.json",
+      "sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491"
+    },
+    {
+      "phase": 2,
+      "source": "/tmp/business-framework-live-20261020-phase2/run/summary.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase2-frozen/summary.json",
+      "sha256": "1e99f4e198fb6f5b0762d02c0509202775414c0c629e265d0cc31b2873756491"
+    },
+    {
+      "phase": 2,
+      "source": "/tmp/business-framework-live-20261020-phase2/run/budget-ledger.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase2-frozen/budget-ledger.json",
+      "sha256": "893087548ad650d4dddc9789bdb33e099ef83ce4f77ad5c772dc051a3ee419bd"
+    },
+    {
+      "phase": 2,
+      "source": "/tmp/business-framework-live-20261020-phase2/phase-budget.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase2-frozen/phase-budget.json",
+      "sha256": "9762b65c02b8f52dd100716f8e4167ef3b3b57837f8c50189e1d9a313af3030a"
+    },
+    {
+      "phase": 3,
+      "source": "/tmp/business-framework-live-20261020-phase3/stream_observer.py",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase3-frozen/stream_observer.py",
+      "sha256": "00d7525015021dba217a2458fb8c9463a65e41f45ce10960618bc1c15425d534"
+    },
+    {
+      "phase": 3,
+      "source": "/tmp/business-framework-live-20261020-phase3/budget_guard.py",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase3-frozen/budget_guard.py",
+      "sha256": "23ea411ae285d57b6d6da82b1782736766b05f2e92e201f48018fcbac5b4f7e9"
+    },
+    {
+      "phase": 3,
+      "source": "/tmp/business-framework-live-20261020-phase3/test_observer.py",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase3-frozen/test_observer.py",
+      "sha256": "7999fab80a5f7c18ed4d85ed5b11b83bd6044079730d48ae25a2370501e7e2cf"
+    },
+    {
+      "phase": 3,
+      "source": "/tmp/business-framework-live-20261020-phase3/plan.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase3-frozen/plan.json",
+      "sha256": "86f8104d3355c3c0c88b360eb84ad56bbedbb339874938a500d518db8f28ce14"
+    },
+    {
+      "phase": 3,
+      "source": "/tmp/business-framework-live-20261020-phase3/cases.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase3-frozen/cases.json",
+      "sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491"
+    },
+    {
+      "phase": 3,
+      "source": "/tmp/business-framework-live-20261020-phase3/run/summary.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase3-frozen/summary.json",
+      "sha256": "ca711ccba8af2a4ad886cb14ad5c215d4f61ebcf4d649e9d1fd8042f13fb7d7a"
+    },
+    {
+      "phase": 3,
+      "source": "/tmp/business-framework-live-20261020-phase3/run/budget-ledger.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase3-frozen/budget-ledger.json",
+      "sha256": "b693b2c8856ce4db2f05a0f2bcdc67fc3ba2f803134eeb04804c63f89b3caab5"
+    },
+    {
+      "phase": 3,
+      "source": "/tmp/business-framework-live-20261020-phase3/phase-budget.json",
+      "archive": "/tmp/business-framework-live-20261020-phase4/phase3-frozen/phase-budget.json",
+      "sha256": "0f8e82b7fe8652739304c08ee681573356a6acb4e0d8d0f4e1f1edf2dab32ad8"
+    }
+  ]
+}

@@ -244,7 +244,7 @@ def _framework_for_prompt(context: Mapping[str, object]) -> list[dict[str, objec
             "heading": str(reference.get("heading", ""))[:320],
             "page": reference.get("page"),
             "text": retained,
-            "text_truncated": retained != text,
+            "text_truncated": bool(reference.get("text_truncated")) or retained != text,
             "selection_reason": reference.get("selection_reason"),
             "matched_terms": [term[:160] for term in terms[:32] if isinstance(term, str)] if isinstance(terms, list) else [],
             "source_locations": locations,

@@ -1,0 +1,55 @@
+{
+  "schema": "live-stream-phase-budget/v1",
+  "phase": 2,
+  "allocation_kind": "remaining_original_authorized_budget",
+  "total_authorized_micro_cny": 2000000,
+  "total_max_physical_requests": 12,
+  "previous_reserved_micro_cny": 698792,
+  "previous_physical_requests": 4,
+  "phase_limit_micro_cny": 1301208,
+  "phase_max_physical_requests": 8,
+  "phase_max_per_case": 2,
+  "previous_failure_retained": {
+    "case_id": "F2",
+    "outcome": "transport_error",
+    "reservation_refunded": false
+  },
+  "execution_kind": "explicit_post_fix_new_frozen_run_and_new_conversations",
+  "prior_files": [
+    {
+      "source": "/tmp/business-framework-live-20261020/stream_observer.py",
+      "archive": "/tmp/business-framework-live-20261020-phase2/phase1-frozen/stream_observer.py",
+      "sha256": "1d0e9bab7033fe266fa2d66fa9c818a09f4391a328e036bfb459c53fa998265f"
+    },
+    {
+      "source": "/tmp/business-framework-live-20261020/budget_guard.py",
+      "archive": "/tmp/business-framework-live-20261020-phase2/phase1-frozen/budget_guard.py",
+      "sha256": "b823608c269299a8a997fbd3d0542604a4fc2554d3e2d2e7556c1880f966df32"
+    },
+    {
+      "source": "/tmp/business-framework-live-20261020/test_observer.py",
+      "archive": "/tmp/business-framework-live-20261020-phase2/phase1-frozen/test_observer.py",
+      "sha256": "0c0d6903aa5866954cf6738465bf4570b427f8b0e11c86bd121a51a6e35fcd89"
+    },
+    {
+      "source": "/tmp/business-framework-live-20261020/plan.json",
+      "archive": "/tmp/business-framework-live-20261020-phase2/phase1-frozen/plan.json",
+      "sha256": "2e69c3c6e9992807fad7fd1cff7b465259ce151cde7b80363814b6321c9bbf0d"
+    },
+    {
+      "source": "/tmp/business-framework-live-20261020/cases.json",
+      "archive": "/tmp/business-framework-live-20261020-phase2/phase1-frozen/cases.json",
+      "sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491"
+    },
+    {
+      "source": "/tmp/business-framework-live-20261020/run/summary.json",
+      "archive": "/tmp/business-framework-live-20261020-phase2/phase1-frozen/summary.json",
+      "sha256": "4b1b6a274defb65edfbd1563b4df86ccb28f78e793c285634da0f07c2332ec02"
+    },
+    {
+      "source": "/tmp/business-framework-live-20261020/run/budget-ledger.json",
+      "archive": "/tmp/business-framework-live-20261020-phase2/phase1-frozen/budget-ledger.json",
+      "sha256": "b695f64e916e9985516de4f27cc532d4fdf547af9c9cebdd2ba358b38d2ba6c8"
+    }
+  ]
+}

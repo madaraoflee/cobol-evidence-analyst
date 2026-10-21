@@ -1,0 +1,29 @@
+{
+  "policy": {
+    "schema": "stream-observation-reservation/v1",
+    "limit_micro_cny": 220000,
+    "max_calls": 1,
+    "per_case": 1,
+    "max_body_bytes": 60000,
+    "output_tokens": 8192,
+    "input_overhead_tokens": 16384,
+    "input_micro_cny_per_token": 2,
+    "output_micro_cny_per_token": 8,
+    "endpoint_sha256": "948f1ecb6b48f91adc4e110d0351cd172b16450e9936d358992e0dfad7b863f3",
+    "model_sha256": "7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+    "cases": [
+      "B2"
+    ]
+  },
+  "records": [
+    {
+      "sequence": 1,
+      "case_id": "B2",
+      "body_bytes": 40799,
+      "request_sha256": "b217b2af75e628c70bb1e56cd964a38da91bb665e415eb2a2c334a2279a787b4",
+      "reserved_micro_cny": 179902,
+      "outcome": "response_received",
+      "http_status": 200
+    }
+  ]
+}

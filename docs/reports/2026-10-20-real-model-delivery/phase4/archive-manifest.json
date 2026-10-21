@@ -1,0 +1,137 @@
+{
+  "schema": "neutral-model-test-archive/v1",
+  "source_commit": "099582f07cbd6baa554fab584f154e200def6185",
+  "gold_baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "execution_surface": "mac_source_python",
+  "review_kind": "independent_agent_review_not_human_acceptance",
+  "original_files_preserved": true,
+  "fixtures_identical_to_phase1": true,
+  "reused_gold": {
+    "path": "../phase1/cases.json",
+    "sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491"
+  },
+  "case_results": [
+    {
+      "case_id": "F1",
+      "fresh_model_request": true,
+      "physical_calls": 1,
+      "frozen_gold_result": "PASS",
+      "open_review_result": "FAIL",
+      "overall_result": "FAIL",
+      "human_acceptance": false,
+      "stream_result": "PASS_NATIVE_AND_WAITER_INCREMENTAL"
+    },
+    {
+      "case_id": "B2",
+      "fresh_model_request": true,
+      "physical_calls": 1,
+      "frozen_gold_result": "PASS",
+      "open_review_result": "FAIL",
+      "overall_result": "FAIL",
+      "human_acceptance": false,
+      "stream_result": "PASS_NATIVE_AND_WAITER_INCREMENTAL"
+    },
+    {
+      "case_id": "F2",
+      "fresh_model_request": true,
+      "physical_calls": 1,
+      "frozen_gold_result": "PASS",
+      "open_review_result": "PASS",
+      "overall_result": "PASS",
+      "human_acceptance": false,
+      "stream_result": "PASS_NATIVE_AND_WAITER_INCREMENTAL"
+    }
+  ],
+  "recorded_answer_reconstruction": {
+    "case_id": "F1",
+    "answer_path": "run/F1-recorded-model-answer.txt",
+    "provenance_path": "run/F1-recorded-model-answer-provenance.json",
+    "fresh_model_request": false,
+    "offline_replay_result_included": false,
+    "description": "Reconstructed existing provider-visible body only; not a fresh successful retest. Original phase4 final-answer FAIL remains unchanged."
+  },
+  "budget": {
+    "phase_reserved_micro_cny": 553472,
+    "phase_physical_calls": 3,
+    "combined_reserved_micro_cny": 1776994,
+    "combined_physical_calls": 10,
+    "failed_reservations_refunded": false
+  },
+  "privacy_scan": {
+    "configured_secret_values_checked": 1,
+    "configured_secret_matches": 0,
+    "sensitive_field_matches": 0,
+    "credential_pattern_matches": 0,
+    "http_urls": 0,
+    "allowlist_only": true,
+    "excluded": [
+      "configuration_files",
+      "sqlite_databases",
+      "hidden_reasoning",
+      "raw_http_bodies",
+      "private_source_material"
+    ]
+  },
+  "files": [
+    {
+      "path": "phase-budget.json",
+      "sha256": "5c3047c8c22b93d3a6fa0d05b5b850b8a9b51a0facc839bfbbe158b9e6a804ff",
+      "bytes": 8810
+    },
+    {
+      "path": "plan.json",
+      "sha256": "f8ba100efb301349260d7a08b6cb9fc3b900f2612339e7cc007ff78fce8d89da",
+      "bytes": 107042
+    },
+    {
+      "path": "run/B2-agent-review.json",
+      "sha256": "eb8410ee061a872629791a73db42d3f48e8d7f7330e38374b42df749d5dfafc4",
+      "bytes": 9565
+    },
+    {
+      "path": "run/B2-observation.json",
+      "sha256": "93b49f1c1a23241560e522f793be416ba45b4214a041e5ec22f082c3d17ef8c4",
+      "bytes": 610936
+    },
+    {
+      "path": "run/F1-agent-review.json",
+      "sha256": "2111a646c7945fa49daa933693894f39982a004b65d1639beac3f005688a0af9",
+      "bytes": 10253
+    },
+    {
+      "path": "run/F1-observation.json",
+      "sha256": "14e56adcf8b4ea6115ea7bf6d3cf611abf7615692a154ea346431898dfa711d5",
+      "bytes": 590322
+    },
+    {
+      "path": "run/F1-recorded-model-answer-provenance.json",
+      "sha256": "af88ac1ab966e1a3dd8c8e5c076319f31ad454fee75d2747431d2edfb6c6a23c",
+      "bytes": 2520
+    },
+    {
+      "path": "run/F1-recorded-model-answer.txt",
+      "sha256": "e1a1bcc3e9f91701410da62a464d85c0a24d17ca125618d97827a470fea10786",
+      "bytes": 5552
+    },
+    {
+      "path": "run/F2-agent-review.json",
+      "sha256": "2a5c168a7bf06d0597bbd5d07c9ce289d4a912db7a8531984736f69d0a217714",
+      "bytes": 6812
+    },
+    {
+      "path": "run/F2-observation.json",
+      "sha256": "fb4574a43f4c1c5b1b347bbdb9fd925ab6fc11b283d1376e5af1ab237c7917ac",
+      "bytes": 620476
+    },
+    {
+      "path": "run/budget-ledger.json",
+      "sha256": "586373487dc37ced77e2152635cb3f14240ba629e3a95ee409f88614d10f9a8c",
+      "bytes": 1387
+    },
+    {
+      "path": "run/summary.json",
+      "sha256": "49158277cdcc5ceb91d290d8151bbf1c6fbaca8cb649d05645883d776954b438",
+      "bytes": 9901
+    }
+  ]
+}

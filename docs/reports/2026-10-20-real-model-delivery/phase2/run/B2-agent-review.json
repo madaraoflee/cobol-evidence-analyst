@@ -1,0 +1,57 @@
+{
+  "schema_version": "business-framework-agent-review/v1",
+  "review_label": "agent_review",
+  "human_acceptance": false,
+  "run_label": "phase2",
+  "case_id": "B2",
+  "tested_commit": "a4669339f3f63799b796f235b6447cac7ebebb5f",
+  "gold_baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "gold_path": "/tmp/business-framework-live-20261020-phase2/cases.json",
+  "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "plan_sha256": "3ae192c13db7c906747433d7fba42830cb7bb08c245e363903104637dffe1dab",
+  "observation_path": "/tmp/business-framework-live-20261020-phase2/run/B2-observation.json",
+  "observation_sha256": "e56da4875562bdb64006d0c553ea4973f55529cca24ce5a01e31475d0836ed17",
+  "decision": "INCOMPLETE",
+  "quality_scored": false,
+  "real_model_body_available": false,
+  "provider_attempts": 1,
+  "received_body_deltas": 0,
+  "stop_reason": "TRANSPORT_ERROR",
+  "local_fallback_excluded_from_quality_scoring": true,
+  "local_fallback_sha256": "9818aa9ffc9f93ace5991f4d7849399d44a32729aa42cc24552ddf714d9d98ba",
+  "required_results": [
+    {
+      "criterion_id": "B2-R1",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    },
+    {
+      "criterion_id": "B2-R2",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    },
+    {
+      "criterion_id": "B2-R3",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    }
+  ],
+  "forbidden_results": [
+    {
+      "criterion_id": "B2-X1",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    },
+    {
+      "criterion_id": "B2-X2",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    },
+    {
+      "criterion_id": "B2-X3",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    },
+    {
+      "criterion_id": "B2-X4",
+      "result": "NOT_ASSESSED_NO_MODEL_ANSWER"
+    }
+  ],
+  "additional_findings": [],
+  "summary": "未收到真实模型正文，只有本地源码回退；无法评审B2业务解释质量或确认首轮问题已修复。",
+  "scope": "独立代理记录，不是人工或目标设备验收；未知远程结果与费用预留保留，不自动重试。"
+}

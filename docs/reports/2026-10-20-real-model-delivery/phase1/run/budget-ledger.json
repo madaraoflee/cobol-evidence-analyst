@@ -1,0 +1,59 @@
+{
+  "policy": {
+    "schema": "stream-observation-reservation/v1",
+    "limit_micro_cny": 2000000,
+    "max_calls": 12,
+    "per_case": 3,
+    "max_body_bytes": 120000,
+    "output_tokens": 8192,
+    "input_overhead_tokens": 16384,
+    "input_micro_cny_per_token": 2,
+    "output_micro_cny_per_token": 8,
+    "endpoint_sha256": "948f1ecb6b48f91adc4e110d0351cd172b16450e9936d358992e0dfad7b863f3",
+    "model_sha256": "7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+    "cases": [
+      "B1",
+      "B2",
+      "F1",
+      "F2"
+    ]
+  },
+  "records": [
+    {
+      "sequence": 1,
+      "case_id": "B1",
+      "body_bytes": 29160,
+      "request_sha256": "9edd1c0984c1f435a515ed41c4dae7b84dfcc932ca3612c0c02548c150502447",
+      "reserved_micro_cny": 156624,
+      "outcome": "response_received",
+      "http_status": 200
+    },
+    {
+      "sequence": 2,
+      "case_id": "B2",
+      "body_bytes": 39378,
+      "request_sha256": "f1b8ce75c13844fd3b0f4faee297382a7ac35035335ba0afe86b50273e64af16",
+      "reserved_micro_cny": 177060,
+      "outcome": "response_received",
+      "http_status": 200
+    },
+    {
+      "sequence": 3,
+      "case_id": "F1",
+      "body_bytes": 42938,
+      "request_sha256": "863b5249083cc4887d41996be9eda5f09a977ae9f57de210be8e095ddc32a991",
+      "reserved_micro_cny": 184180,
+      "outcome": "response_received",
+      "http_status": 200
+    },
+    {
+      "sequence": 4,
+      "case_id": "F2",
+      "body_bytes": 41312,
+      "request_sha256": "84b6087a4a38309c9d2c50ac0536d379de65d765b300e91042d08d334e0badb6",
+      "reserved_micro_cny": 180928,
+      "outcome": "transport_error",
+      "http_status": null
+    }
+  ]
+}

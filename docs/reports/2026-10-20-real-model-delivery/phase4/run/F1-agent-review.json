@@ -1,0 +1,151 @@
+{
+  "schema_version": "business-framework-agent-review/v1",
+  "review_label": "agent_review",
+  "human_acceptance": false,
+  "run_label": "phase4",
+  "case_id": "F1",
+  "tested_commit": "099582f07cbd6baa554fab584f154e200def6185",
+  "gold_baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "gold_path": "/tmp/business-framework-live-20261020-phase4/cases.json",
+  "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "plan_sha256": "f8ba100efb301349260d7a08b6cb9fc3b900f2612339e7cc007ff78fce8d89da",
+  "observation_path": "/tmp/business-framework-live-20261020-phase4/run/F1-observation.json",
+  "observation_sha256": "14e56adcf8b4ea6115ea7bf6d3cf611abf7615692a154ea346431898dfa711d5",
+  "final_answer_sha256": "adfd4ab65402c1fdf314106767f9ff57fe32645294feda17d644782493101bb6",
+  "reviewed_material": "final_visible_answer after product checks; independently compared with frozen gold and actual source; product status is not a semantic score",
+  "forbidden_results": [
+    {
+      "criterion_id": "F1-X1",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "已实际读取到下一条记录、已加锁、已提交或更新成功。"
+    },
+    {
+      "criterion_id": "F1-X2",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "ENTRYJOB检查了DONE、执行了循环读到结束，或已得到某个返回状态。"
+    },
+    {
+      "criterion_id": "F1-X3",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "调用方局部布局确认等于被调方ABI已完整验证。"
+    },
+    {
+      "criterion_id": "F1-X4",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "KEY或VIEW的业务/数据库作用已由当前材料明确，而材料并未定义。"
+    }
+  ],
+  "scope": "独立代理评审，不是人工签字或目标设备验收。按原冻结 gold 逐项及开放语义审查最终交付正文；不改首测、gold 或产品。",
+  "required_results": [
+    {
+      "criterion_id": "F1-R1",
+      "result": "PASS",
+      "evidence_quotes": [
+        "所以，从业务意图上说，可以理解为：**ENTRYJOB 请求 ROWSIO 执行“取下一条记录”这一类操作。**"
+      ],
+      "reason": "解释为按手册约定向外部程序请求下一条记录，同时区分请求和成功结果。"
+    },
+    {
+      "criterion_id": "F1-R2",
+      "result": "PASS",
+      "evidence_quotes": [
+        "`ROWS-PARAMS` 的布局由复制成员定义：操作字段、状态字段、键字段和视图字段依次排列 [ev_page_8b8c9ee23007f81cfdc2b305]。因此，ENTRYJOB 发出的是一个包含“操作码 + 状态 + 键 + 视图”的记录访问请求，而不是直接在程序内对文件或表执行 `READ/WRITE/REWRITE/DELETE`，也没有可见的 SQL。是否真正读取、定位、写入或推进记录，取决于未供应的 ROWSIO 实现。",
+        "按记录访问约定，调用 `XXXXIO USING XXXX-PARAMS` 时，具体操作由参数组中的 `XXXX-FUNCTION` 字段选择 [fw:76c91a6ff373c92f:5-5] [fw:76c91a6ff373c92f:7-7]。本程序的 `ROWS-FUNCTION` 正是该参数组的操作字段，且在调用前最后一次有效赋值是 `'ADVANCE'`，中间没有其他语句覆盖它；然后才发生 CALL [ev_page_1e6110cd9f21ac204ddb2182] [ev_page_8b8c9ee23007f81cfdc2b305]。"
+      ],
+      "reason": "正文先列出 ADVANCE、KEY、VIEW 三次赋值，随后结合 COPY 说明字段依次排列，并明确 ADVANCE 在调用前未被中间语句覆盖；后一句同时引用 entry 与 layout。这些相连说明覆盖独立布局使后写不覆盖功能值的要求。可更直接说“独立存储”，但通过不以特定关键词为条件；并非仅因输出正确操作名而通过。"
+    },
+    {
+      "criterion_id": "F1-R3",
+      "result": "PASS",
+      "evidence_quotes": [
+        "**结论：这次调用可以按“ADVANCE 操作请求”来理解，但不能按“已经成功取得下一条记录、推进了游标或完成了任何记录处理”来理解。** ENTRYJOB 本身没有读取、写入或修改任何记录；它只是把操作码设为 `ADVANCE`，连同两个固定字段值一起传给外部程序 ROWSIO。手册把 `ADVANCE` 定义为“请求下一条记录” [fw:76c91a6ff373c92f:13-13]，因此调用意图是明确的；但手册同时说明这只是“请求”，不保证返回一行 [fw:76c91a6ff373c92f:23-23]，而且运行时实现未提供，不能据此证明游标位置、锁、持久化或事务结果 [fw:76c91a6ff373c92f:27-28]。",
+        "第三，**ROWSIO 的实现和运行效果未知**。现有材料只能确认调用方设置了操作码、组织了参数并发起请求；被调程序是否执行读取、是否改变记录、是否移动游标、是否加锁或提交事务，都没有被供应的实现或运行证据支持 [fw:76c91a6ff373c92f:27-28]。因此，不能把这次调用写成“记录已经前进了一条”。"
+      ],
+      "reason": "明确请求不保证返回行，且缺少 ROWSIO 实现及运行证据，不能证明读取、游标、锁、持久化或事务结果。"
+    },
+    {
+      "criterion_id": "F1-R4",
+      "result": "PASS",
+      "evidence_quotes": [
+        "`ROWS-KEY` 和 `ROWS-VIEW` 在源码中被赋的是字面量 `'KEY'` 和 `'VIEW'`，不是从外部输入取得的实际键值或视图名 [ev_page_1e6110cd9f21ac204ddb2182]。字段名称和字面量本身不足以证明它们是主键、视图选择器或过滤条件；现有定义只说明它们在参数组中的位置和长度 [ev_page_8b8c9ee23007f81cfdc2b305]。",
+        "> ENTRYJOB 以固定的操作码 `ADVANCE`、固定的 `KEY` 字段值和固定的 `VIEW` 字段值，向 ROWSIO 发出一次记录访问请求；ROWSIO 如何使用后两个字段，现有材料无法确定。"
+      ],
+      "reason": "只确认固定字面量及布局，保留后两个字段的业务作用未知。正文“不是从外部输入取得”描述赋值来源；结合紧接的无法确定业务作用，不解读为断言 KEY/VIEW 绝非主键/视图。"
+    }
+  ],
+  "citation_review": {
+    "result": "PASS",
+    "all_references_resolve": true,
+    "used_reference_ids": [
+      "ev_page_1e6110cd9f21ac204ddb2182",
+      "ev_page_8b8c9ee23007f81cfdc2b305",
+      "fw:76c91a6ff373c92f:13-13",
+      "fw:76c91a6ff373c92f:23-23",
+      "fw:76c91a6ff373c92f:27-28",
+      "fw:76c91a6ff373c92f:5-5",
+      "fw:76c91a6ff373c92f:7-7"
+    ],
+    "reason": "核心结论可回到本轮实际供应的源码或手册；逐项支持范围另经正文审查。",
+    "used_reference_count": 7
+  },
+  "open_review_findings": [
+    {
+      "finding_id": "F1-OPEN-1",
+      "severity": "P2",
+      "result": "FAIL",
+      "category": "local_postprocessing_corrupts_supported_limitation",
+      "final_quote": "当前程序没有 `ON EXCEPTION` 或其他调用异常处理，也没有调用后的条件分支。源码能确定的是“赋值 → 调用 → 返回后直接结束”这一条直线路径 [ev_page_1e6110cd9f21ac204ddb2182]。如果调用在运行时发生异常，源码`entry.cbl` 的完整源码已提供[ev_page_1e6110cd9f21ac204ddb2182]本程序的处理规则，不能从现有材料推出异常后的业务结果；如果调用正常返回，程序同样不检查返回状态，直接 `GOBACK`。",
+      "original_quote": "当前程序没有 `ON EXCEPTION` 或其他调用异常处理，也没有调用后的条件分支。源码能确定的是“赋值 → 调用 → 返回后直接结束”这一条直线路径 [ev_page_1e6110cd9f21ac204ddb2182]。如果调用在运行时发生异常，源码没有提供本程序的处理规则，不能从现有材料推出异常后的业务结果；如果调用正常返回，程序同样不检查返回状态，直接 `GOBACK`。",
+      "reason": "完整源码供应与源码是否定义异常业务规则是不同事实。原句仅说明可见代码未定义异常处理规则，源码中确实没有 ON EXCEPTION 或异常分支。本地 source_availability 将“没有提供”误当源码未供应的否认，替换成完整源码已提供，导致病句并把未定义处理规则扭转成已提供规则。不能把这一最终正文问题归为模型原始错误。",
+      "source_basis": [
+        {
+          "path": "entry.cbl",
+          "start_line": 6,
+          "end_line": 12,
+          "reason": "只有三次 MOVE、CALL 与 GOBACK，无调用异常处理语句。"
+        }
+      ],
+      "trace_path": "/private/tmp/business-framework-live-20261020-phase4/run/F1/quality-traces/ac56500a9cd23c08274d449c.json",
+      "trace_sha256": "2227218f051af12d5e65b6d10ea7be7d02fa9ffd1dabc89473873b3ab04e8f66",
+      "repair_audit": {
+        "relative_path": "entry.cbl",
+        "assertion": "source_not_supplied",
+        "evidence_ids": [
+          "ev_page_1e6110cd9f21ac204ddb2182"
+        ],
+        "source_sha256": "f9171cb729da5f8a76d73cf48bdfd48ead48f23fbb27368b280cccb54e85939d",
+        "line_count": 12,
+        "supplied_ranges": [
+          {
+            "start_line": 1,
+            "end_line": 12
+          }
+        ],
+        "original_text": "没有提供",
+        "replacement_text": "`entry.cbl` 的完整源码已提供[ev_page_1e6110cd9f21ac204ddb2182]",
+        "start_offset": 2654,
+        "end_offset": 2658,
+        "reason_code": "SUPPLIED_SOURCE_DENIAL_CORRECTED"
+      },
+      "reconstructed_original_sha256": "e1a1bcc3e9f91701410da62a464d85c0a24d17ca125618d97827a470fea10786",
+      "matches_observed_first_complete_visible_body_sha256": true
+    }
+  ],
+  "required_pass_count": 4,
+  "required_total_count": 4,
+  "frozen_gold_result": "PASS",
+  "open_review_result": "FAIL",
+  "overall_result": "FAIL",
+  "summary": "原冻结四项必需结论、禁止结论检查与引用解析通过；最终正文被本地源码可用性修复误改异常边界句，因此交付质量仍失败。",
+  "runtime_observation": {
+    "real_provider_requests": 1,
+    "client_attempts": 1,
+    "final_seconds": 22.346771,
+    "first_browser_preview_receipt_seconds": 14.807761,
+    "browser_changed_previews": 35,
+    "stream_result": "PASS_NATIVE_AND_WAITER_INCREMENTAL",
+    "answer_status": "ANALYZED",
+    "stop_reason": "sufficient_material",
+    "product_status_is_not_review_score": true
+  }
+}

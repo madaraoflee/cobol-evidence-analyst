@@ -1,0 +1,6 @@
+/* Settlement export job: process approved orders. */
+PGM
+OVRDBF FILE(ORDERIN) TOFILE(APPDATA/ORDERS)
+CALL PGM(SETTLE)
+DLTOVR FILE(ORDERIN)
+ENDPGM

@@ -1,0 +1,224 @@
+{
+  "schema": "adaptive-retrieval-comparison/v1",
+  "date": "2026-10-20",
+  "baseline_commit": "ea341ba3084bf384288dfa3398903dc897ca59cb",
+  "comparison_scope": "repository_discovery module substitution; all other modules unchanged",
+  "probe_sha256": "70e52825842c394d7bc62c215aa19da9d322e0516bb99903839c0a3eabb5bfac",
+  "tests": {
+    "expanded": {
+      "modules": [
+        "test_adaptive_retrieval",
+        "test_auxiliary_search_scope",
+        "test_business_chat",
+        "test_business_chat_api_errors",
+        "test_business_chat_automatic_material",
+        "test_business_chat_continuation_join",
+        "test_business_chat_empty_length_recovery",
+        "test_business_chat_http_recovery",
+        "test_business_chat_latency",
+        "test_business_chat_pending_reads",
+        "test_business_chat_promised_investigation",
+        "test_business_chat_response_recovery",
+        "test_business_chat_source_refresh_recovery",
+        "test_business_chat_tail_actions",
+        "test_business_discovery_contract",
+        "test_business_discovery_recovery",
+        "test_evidence_context_performance",
+        "test_identity_consumer_scope",
+        "test_intake_performance",
+        "test_numeric_program_identity",
+        "test_question_boundary_scope",
+        "test_question_investigation",
+        "test_question_investigation_chat",
+        "test_question_investigation_detail",
+        "test_question_led_investigation",
+        "test_question_scope_regressions",
+        "test_repository_discovery",
+        "test_request_fit_latency",
+        "test_retrieval_evidence_regressions",
+        "test_retrieval_quality_eval",
+        "test_retrieval_raw_fallback",
+        "test_retrieval_relation_cache",
+        "test_retrieval_runtime",
+        "test_semantic_scope_performance",
+        "test_source_identity"
+      ],
+      "count": 434,
+      "failures": 0,
+      "errors": 0,
+      "seconds": 39.306,
+      "network_blocked": true,
+      "retrieval_module_unchanged": true
+    },
+    "final_dedicated_regressions": {
+      "count": 11,
+      "failures": 0,
+      "errors": 0,
+      "included_in_expanded_count": true
+    },
+    "manual_workflow_source_checks": {
+      "count": 8,
+      "failures": 0,
+      "errors": 0
+    }
+  },
+  "baseline": {
+    "schema": "adaptive-retrieval-probe/v1",
+    "scope": "authored synthetic retrieval regressions",
+    "production_retrieval_executed": true,
+    "final_answer_evaluated": false,
+    "retrieval_module_sha256": "54733d73a1625b980bb428932580bc292ba7568155747bdea50f9a2eff0c61e6",
+    "independent_review": false,
+    "model_calls": 0,
+    "max_pages": 1,
+    "max_chars": 12000,
+    "cases": [
+      {
+        "id": "long-question-new-english-clue",
+        "question_characters": 225,
+        "search_terms": [
+          "ORBITALALLOCATION"
+        ],
+        "question_only_terms": 484,
+        "target_sha256": "d2f43b3ab480610e3589c0de02c858f680d4c3fbf6da5c7127fc947a14b112cb",
+        "target_line": 4,
+        "raw_returned_recall_at_1": 1.0,
+        "non_orientation_recall_at_1": 0.0,
+        "first_returned_path": "z-target.cbl",
+        "orientation_only": true,
+        "context_matched_pages": 0,
+        "context_matched_files": 0,
+        "discovery_matched_files": 0,
+        "discovery_target_selected": false,
+        "omitted_search_terms": 356,
+        "target_clue_retained": false,
+        "orientation_consistent_with_returned_literal": false
+      },
+      {
+        "id": "verbose-first-clue-fair-budget",
+        "question_characters": 225,
+        "search_terms": [
+          "需要进一步检查请求进入后的记录匹配过程，核对状态标记以及返回结果在不同处理分支中的变化，特别关注最初读入的默认值、后续计算使用的调整参数、最终提交前的条件判断，还需要找到数据缺失时候的替代路径以及重复执行时避免再次修改的代码，不能仅凭名称判断业务含义，应当沿着调用链查看实际的赋值和判断表达式。",
+          "LANTERNCAPVALUE"
+        ],
+        "question_only_terms": 484,
+        "target_sha256": "0c6717bca24c039404c9d4a8194b269be5350662387fcf4507fd874cde95418b",
+        "target_line": 4,
+        "raw_returned_recall_at_1": 0.0,
+        "non_orientation_recall_at_1": 0.0,
+        "first_returned_path": "a-distractor-0.cbl",
+        "orientation_only": true,
+        "context_matched_pages": 0,
+        "context_matched_files": 0,
+        "discovery_matched_files": 0,
+        "discovery_target_selected": false,
+        "omitted_search_terms": 693,
+        "target_clue_retained": false,
+        "orientation_consistent_with_returned_literal": true
+      },
+      {
+        "id": "exact-identifier-against-split-distractors",
+        "question_characters": 11,
+        "search_terms": [
+          "SETTLEMENT-CUTOFF-CODE"
+        ],
+        "question_only_terms": 25,
+        "target_sha256": "129aafd335cc22163483f018e0123d4d96b6b814329c6e1888693cdda3ad9f53",
+        "target_line": 4,
+        "raw_returned_recall_at_1": 0.0,
+        "non_orientation_recall_at_1": 0.0,
+        "first_returned_path": "a-distractor-0.cbl",
+        "orientation_only": false,
+        "context_matched_pages": 4,
+        "context_matched_files": 4,
+        "discovery_matched_files": 4,
+        "discovery_target_selected": true,
+        "omitted_search_terms": 0,
+        "target_clue_retained": true,
+        "orientation_consistent_with_returned_literal": true
+      }
+    ]
+  },
+  "candidate": {
+    "schema": "adaptive-retrieval-probe/v1",
+    "scope": "authored synthetic retrieval regressions",
+    "production_retrieval_executed": true,
+    "final_answer_evaluated": false,
+    "retrieval_module_sha256": "8a0544071abd119c7aad7f31715780380b3b1d5b1946c25782d2ed7c9e23e963",
+    "independent_review": false,
+    "model_calls": 0,
+    "max_pages": 1,
+    "max_chars": 12000,
+    "cases": [
+      {
+        "id": "long-question-new-english-clue",
+        "question_characters": 225,
+        "search_terms": [
+          "ORBITALALLOCATION"
+        ],
+        "question_only_terms": 484,
+        "target_sha256": "d2f43b3ab480610e3589c0de02c858f680d4c3fbf6da5c7127fc947a14b112cb",
+        "target_line": 4,
+        "raw_returned_recall_at_1": 1.0,
+        "non_orientation_recall_at_1": 1.0,
+        "first_returned_path": "z-target.cbl",
+        "orientation_only": false,
+        "context_matched_pages": 1,
+        "context_matched_files": 1,
+        "discovery_matched_files": 1,
+        "discovery_target_selected": true,
+        "omitted_search_terms": 356,
+        "target_clue_retained": true,
+        "orientation_consistent_with_returned_literal": true
+      },
+      {
+        "id": "verbose-first-clue-fair-budget",
+        "question_characters": 225,
+        "search_terms": [
+          "需要进一步检查请求进入后的记录匹配过程，核对状态标记以及返回结果在不同处理分支中的变化，特别关注最初读入的默认值、后续计算使用的调整参数、最终提交前的条件判断，还需要找到数据缺失时候的替代路径以及重复执行时避免再次修改的代码，不能仅凭名称判断业务含义，应当沿着调用链查看实际的赋值和判断表达式。",
+          "LANTERNCAPVALUE"
+        ],
+        "question_only_terms": 484,
+        "target_sha256": "0c6717bca24c039404c9d4a8194b269be5350662387fcf4507fd874cde95418b",
+        "target_line": 4,
+        "raw_returned_recall_at_1": 1.0,
+        "non_orientation_recall_at_1": 1.0,
+        "first_returned_path": "z-target.cbl",
+        "orientation_only": false,
+        "context_matched_pages": 1,
+        "context_matched_files": 1,
+        "discovery_matched_files": 1,
+        "discovery_target_selected": true,
+        "omitted_search_terms": 693,
+        "target_clue_retained": true,
+        "orientation_consistent_with_returned_literal": true
+      },
+      {
+        "id": "exact-identifier-against-split-distractors",
+        "question_characters": 11,
+        "search_terms": [
+          "SETTLEMENT-CUTOFF-CODE"
+        ],
+        "question_only_terms": 25,
+        "target_sha256": "129aafd335cc22163483f018e0123d4d96b6b814329c6e1888693cdda3ad9f53",
+        "target_line": 4,
+        "raw_returned_recall_at_1": 1.0,
+        "non_orientation_recall_at_1": 1.0,
+        "first_returned_path": "z-target.cbl",
+        "orientation_only": false,
+        "context_matched_pages": 4,
+        "context_matched_files": 4,
+        "discovery_matched_files": 4,
+        "discovery_target_selected": true,
+        "omitted_search_terms": 0,
+        "target_clue_retained": true,
+        "orientation_consistent_with_returned_literal": true
+      }
+    ]
+  },
+  "limitations": [
+    "Authored synthetic development cases; not independently reviewed business gold.",
+    "No real model, final answer accuracy, office latency or executable acceptance measured.",
+    "No application, installer, acceptance executable, release or workflow build generated."
+  ]
+}
