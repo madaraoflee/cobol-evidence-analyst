@@ -11,8 +11,8 @@ import time
 from prior_source_memory import source_binding_sha256
 from run_store import RunStore
 
-PIPELINE_VERSION = "question-evidence-v40"
-PROMPT_VERSION = "business-chat-v36"
+PIPELINE_VERSION = "question-evidence-v48"
+PROMPT_VERSION = "business-chat-v42"
 
 def _digest(value):
     return hashlib.sha256(value).hexdigest()
@@ -114,6 +114,7 @@ class QualityTrace:
                       "characters": len(r.get("text", "")),
                       "text_truncated": bool(r.get("text_truncated"))} for r in framework],
                   "history_summary": {"count": len(messages) - 2,
+                      "assistant_count": sum(m.get("role") == "assistant" for m in messages[1:-1]),
                       "characters": sum(len(m["content"]) for m in messages[1:-1]),
                       "message_positions": list(range(1, len(messages) - 1))},
                   "trim_events": trims, "tool_results": [], "response": None,

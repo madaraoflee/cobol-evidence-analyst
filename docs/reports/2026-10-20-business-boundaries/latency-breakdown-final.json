@@ -1,0 +1,109 @@
+{
+  "schema_version": "observed-business-answer-latency/v1",
+  "measurement": "Observed end-to-end local harness wall clock plus application timing; not a controlled speed comparison.",
+  "cases": [
+    {
+      "case_id": "batch",
+      "historical_phase": "phase4",
+      "fresh_on_final_generation_policy": false,
+      "elapsed_seconds": 66.97149662500306,
+      "local_processing_seconds": 0.1856,
+      "provider_wait_seconds": 66.6544,
+      "physical_requests": 2,
+      "stored_prior_history_messages": 0,
+      "wire_history_messages": null,
+      "wire_history_characters": null,
+      "wire_history_assistant_messages": null,
+      "wire_history_projection_mode": null,
+      "source_characters": 1071,
+      "request_bytes": [
+        52004,
+        68746
+      ],
+      "request_source_characters": [
+        1071,
+        1071
+      ],
+      "answer_detail": "detailed",
+      "continuation_attempted": true,
+      "finish_reason": "stop",
+      "answer_truncated": false,
+      "reasoning_effort": "medium",
+      "maximum_output_tokens": 8192,
+      "metrics_total_seconds": 66.84,
+      "results_sha256": "077598fcd06435f623a7e0cfb9c8b48e311d489f8013fc71bbe0ed16e030a311",
+      "fresh_independent_paid_attempt": false
+    },
+    {
+      "case_id": "online",
+      "historical_phase": "phase4",
+      "fresh_on_final_generation_policy": false,
+      "elapsed_seconds": 20.985261374997208,
+      "local_processing_seconds": 0.1479,
+      "provider_wait_seconds": 20.7429,
+      "physical_requests": 1,
+      "stored_prior_history_messages": 2,
+      "wire_history_messages": null,
+      "wire_history_characters": null,
+      "wire_history_assistant_messages": null,
+      "wire_history_projection_mode": null,
+      "source_characters": 572,
+      "request_bytes": [
+        46007
+      ],
+      "request_source_characters": [
+        572
+      ],
+      "answer_detail": "detailed",
+      "continuation_attempted": false,
+      "finish_reason": "stop",
+      "answer_truncated": false,
+      "reasoning_effort": "medium",
+      "maximum_output_tokens": 8192,
+      "metrics_total_seconds": 20.8909,
+      "results_sha256": "56580c853c19766f268dc7b44d15a4c7da0909aba8c5d3569d48b41640e5acf9",
+      "fresh_independent_paid_attempt": false
+    },
+    {
+      "case_id": "boundary-followup",
+      "historical_phase": "phase10",
+      "fresh_on_final_generation_policy": false,
+      "elapsed_seconds": 14.298716375007643,
+      "local_processing_seconds": 0.1611,
+      "provider_wait_seconds": 14.0295,
+      "physical_requests": 1,
+      "stored_prior_history_messages": 0,
+      "wire_history_messages": 0,
+      "wire_history_characters": 0,
+      "wire_history_assistant_messages": 0,
+      "wire_history_projection_mode": "source_question",
+      "source_characters": 1643,
+      "request_bytes": [
+        30772
+      ],
+      "request_source_characters": [
+        1643
+      ],
+      "answer_detail": "brief",
+      "continuation_attempted": false,
+      "finish_reason": "stop",
+      "answer_truncated": false,
+      "reasoning_effort": "low",
+      "maximum_output_tokens": 3072,
+      "metrics_total_seconds": 14.1906,
+      "results_sha256": "07939b62b0867a63933d1cd99fb9ddf8e0b0051d288e32e151ec099f71a0b17d",
+      "fresh_independent_paid_attempt": true
+    }
+  ],
+  "limits": [
+    "Three small neutral sources only; no performance claim for large repositories.",
+    "Batch/online are historical pipeline39/prompt35 live answers; only boundary is new pipeline43/prompt38.",
+    "Final boundary is a fresh independent conversation with a source-file-only question prefix, low effort and brief detail; historical cases used medium/detailed. Timings do not establish causal improvement.",
+    "The previous 5.199-second TLS failure had no model answer and is excluded from successful model latency.",
+    "Application timing components are inclusive and must not be added together.",
+    "No fixed total-question deadline was configured. Per-request I/O timeout and finite request limits still apply.",
+    "All paid samples precede publication pipeline46. Later semantic-review, CL metadata and local time-gate fixes received offline verification only; these timings do not measure pipeline46 model performance."
+  ],
+  "publication_pipeline_version": "question-evidence-v46",
+  "last_paid_pipeline_version": "question-evidence-v43"
+}

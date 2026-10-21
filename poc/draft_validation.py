@@ -9,6 +9,7 @@ from business_synthesis import assess_business_answer
 from claim_ledger import review_answer_claims
 from source_availability import repair_source_availability_assertions
 from answer_reference_normalization import normalize_answer_references
+from semantic_risk_identity import risk_identities
 
 
 def validate_answer_draft(question, answer, investigation, source_pages, references=(), *,
@@ -34,7 +35,7 @@ def validate_answer_draft(question, answer, investigation, source_pages, referen
 
 
 def revision_regression(previous, candidate):
-    """Reject introduced, demonstrable errors independently of word coverage.
+    """Detect introduced checked errors or review concerns before word coverage.
 
     An unsupported free-form explanation is not automatically an error. Both
     drafts must be reviewed against the same version-bound material by callers.
@@ -47,11 +48,7 @@ def revision_regression(previous, candidate):
 
     if errors(candidate) - errors(previous):
         return "ANSWER_FACTS_REGRESSED"
-    def sql_risks(review):
-        return {(row["kind"], (row.get("answer_span") or {}).get("text", "").strip())
-                for row in review["assessment"].get("sql_boundary_review", {}).get("risks", [])}
-
-    if sql_risks(candidate) - sql_risks(previous):
+    if risk_identities(candidate["assessment"]) - risk_identities(previous["assessment"]):
         return "ANSWER_BOUNDARIES_REGRESSED"
     lost = set(candidate["assessment"]["missing_aspects"]) - set(previous["assessment"]["missing_aspects"])
     return "ANSWER_COVERAGE_REGRESSED" if lost else None

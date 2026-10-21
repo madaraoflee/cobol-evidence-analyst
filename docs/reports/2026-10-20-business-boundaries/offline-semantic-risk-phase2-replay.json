@@ -1,0 +1,133 @@
+{
+  "targeted_regression": {
+    "tests_run": 170,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsed_seconds": 16.81,
+    "new_and_extended_risk_module_count": 21,
+    "method": "local unittest; injected neutral transport responses; no live model calls"
+  },
+  "original_public_record_preserved": true,
+  "public_original_sha256": "22addf7b7accddfb9a250b81dcae849430358394b2d47610c307c229a81ce20c",
+  "scope": "Frozen real-model text and supplied source replayed locally; no new model response and no proof of arbitrary business semantics.",
+  "schema_version": "phase2-risk-offline-replay/v1",
+  "cases": [
+    {
+      "raw_text_unchanged": true,
+      "id": "batch-round-1",
+      "raw_answer_sha256": "f4d1c1b2e8215c4627d5b269849c2c4d75ed2726cf410a2aa9bfeda53903054b",
+      "semantic_verification": false,
+      "elapsed_seconds": 0.005811084003653377,
+      "candidate_count": 1,
+      "candidates": [
+        {
+          "feedback": "核对这句从静态 CALL 后续命令推出被调用程序发生任何问题后仍继续的保证。实际原文只显示调用与后续命令的位置；须区分控制流正常返回后的顺序，和调用异常时是否返回。按已供应的调用/异常处理约定限定本句，不能把未检查返回状态推导为异常不会改变流程。",
+          "binding_basis": "unique_answer_cited_boundary",
+          "status": "review_candidate",
+          "kind": "unconditional_post_call_continuation",
+          "semantic_verification": false,
+          "assertion": "所以即便 SETTLE 内部出问题，CL 层也不会因此改变流程",
+          "source_refs": [
+            {
+              "source_sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+              "supplied_reference_ids": [
+                "ev_page_b8c4a50484c207378485e3de"
+              ],
+              "relative_path": "nightjob.clle",
+              "end_line": 5,
+              "start_line": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "raw_text_unchanged": true,
+      "id": "online-round-1",
+      "raw_answer_sha256": "43af6c4f827144f458b851c2fcf386abef47c7d79a05d0d9330e57af09ef8b34",
+      "semantic_verification": false,
+      "elapsed_seconds": 0.006460249991505407,
+      "candidate_count": 2,
+      "candidates": [
+        {
+          "feedback": "核对这句/表格中的全异常或无条件返回保证。当前原文显示操作请求和后续状态分支，不能仅据此推出所有异常均能正常返回并到达赋值处。保留有据结论，在该句就地写明控制流前提；若实际来源已支持更强保证，请引用具体处理规则。",
+          "binding_basis": "unique_answer_cited_boundary",
+          "status": "review_candidate",
+          "kind": "unconditional_exception_result",
+          "semantic_verification": false,
+          "assertion": "BALANCEQ 是一个账务余额查询程序：调用方传入一个 8 位账号，程序到账务余额表里查出该账号的可用余额，回填给调用方，并送回一个两位的响应码——查询成功给 00，其余情况统一给 90",
+          "source_refs": [
+            {
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "supplied_reference_ids": [
+                "ev_page_41c62f686dca8a6b3a26a3e9"
+              ],
+              "relative_path": "balance.cbl",
+              "end_line": 16,
+              "start_line": 13
+            }
+          ]
+        },
+        {
+          "feedback": "核对这句/表格把非法、格式不符或零输入直接映射到失败结果的推断。没有输入校验不证明查询必失败，也不确定外部接口如何处理无效字节。按实际输入拒绝分支或已供应接口约定说明；否则把该输入结果保留为具体未知。",
+          "binding_basis": "unique_answer_cited_boundary",
+          "status": "review_candidate",
+          "kind": "unvalidated_input_outcome",
+          "semantic_verification": false,
+          "assertion": "| 传入了 00000000 之类的无效/占位账号 | 是 | 90 | 源码不校验账号有效性，靠“查不到”自然落到失败分支 |",
+          "source_refs": [
+            {
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "supplied_reference_ids": [
+                "ev_page_41c62f686dca8a6b3a26a3e9"
+              ],
+              "relative_path": "balance.cbl",
+              "end_line": 16,
+              "start_line": 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "raw_text_unchanged": true,
+      "id": "boundary-followup-round-1",
+      "raw_answer_sha256": "d89c9155afbee83230a619cd6ed696d444a193c5e80fbf3c98cee335564162b4",
+      "semantic_verification": false,
+      "elapsed_seconds": 0.0008375409961445257,
+      "candidate_count": 0,
+      "candidates": []
+    },
+    {
+      "raw_text_unchanged": true,
+      "id": "boundary-followup-round-2",
+      "raw_answer_sha256": "7d2dd631ec8ad1d25c05667ad35754c4d6f28c6477c4da8991036eb5c1baafb4",
+      "semantic_verification": false,
+      "elapsed_seconds": 0.0008487909944960847,
+      "candidate_count": 0,
+      "candidates": []
+    }
+  ],
+  "independent_review": {
+    "agent": "source_claims",
+    "production_sha256": "77677b41f926304767b9c787abe8e7edb5a0a618233fd45bab1045f83fff8475",
+    "blocking_findings": 0,
+    "pure_function_tests_run": 17,
+    "elapsed_seconds": 0.158,
+    "frozen_raw_candidate_counts": [
+      1,
+      2,
+      0,
+      0
+    ]
+  },
+  "production_sha256": {
+    "poc/business_synthesis.py": "77677b41f926304767b9c787abe8e7edb5a0a618233fd45bab1045f83fff8475",
+    "poc/business_chat.py": "b2a5b95dc2a56893face892270ed3e50fffadc4f8aa2ee991e3276459f81d3d9",
+    "poc/answer_markdown.py": "30e201447b20f13966b5f2c5e82ee8f35c3faa2acd63a1084cf5b9b6d321caa9",
+    "poc/quality_trace.py": "84af2ce48b0cb1200c3c2cbf41f2143988f3390b221da67e85e3317018fdb53e"
+  },
+  "real_model_requests": 0,
+  "fixture_sha256": "04ebc4755c23ed97afc000ca0965045e6dbab5ce9fca50585ef06ec4b225e199"
+}

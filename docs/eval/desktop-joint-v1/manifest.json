@@ -1150,14 +1150,16 @@
         "lifecycle_index_reused",
         "completeness_reviewed_ranges_supplied",
         "quality_cl_late_indexed_fact_bound",
-        "quality_cl_late_scope_unknown",
+        "quality_cl_late_control_source_supplied",
+        "quality_cl_late_runtime_unknown",
         "completeness_cl_no_repeated_read",
         "completeness_cl_single_request"
       ],
       "assertion_groups": {
         "quality": [
           "quality_cl_late_indexed_fact_bound",
-          "quality_cl_late_scope_unknown"
+          "quality_cl_late_control_source_supplied",
+          "quality_cl_late_runtime_unknown"
         ],
         "completeness": [
           "completeness_answer_recorded",
@@ -1265,16 +1267,20 @@
         "completeness_one_model_request",
         "evidence_raw_source_and_versions_match",
         "evidence_visible_answer_matches",
-        "lifecycle_default_has_no_fixed_total_deadline"
+        "lifecycle_default_has_no_fixed_total_deadline",
+        "completeness_static_batch_entry_and_file_input_bound",
+        "quality_runtime_limits_do_not_hide_source_answer"
       ],
       "assertion_groups": {
         "quality": [
           "quality_business_purpose_and_data_roles_preserved",
-          "quality_runtime_unknowns_remain_local"
+          "quality_runtime_unknowns_remain_local",
+          "quality_runtime_limits_do_not_hide_source_answer"
         ],
         "completeness": [
           "completeness_roles_supplied_before_answer",
-          "completeness_one_model_request"
+          "completeness_one_model_request",
+          "completeness_static_batch_entry_and_file_input_bound"
         ],
         "evidence": [
           "evidence_raw_source_and_versions_match",
@@ -1350,6 +1356,64 @@
         "hard_question_seconds": null,
         "max_answer_revisions": 0
       }
+    },
+    {
+      "id": "business_semantic_revision",
+      "owner": "runtime",
+      "kind": "answer",
+      "repeats": 3,
+      "assertions": [
+        "quality_qualified_business_answer_preserved",
+        "quality_risk_resolved_without_false_semantic_verification",
+        "quality_runtime_limits_remain_local",
+        "completeness_original_draft_supplied_for_revision",
+        "completeness_exactly_two_requests_and_full_answer",
+        "evidence_specific_risk_bound_to_original_source",
+        "evidence_full_query_source_retained",
+        "evidence_raw_source_and_versions_match",
+        "evidence_visible_answer_matches",
+        "lifecycle_explicit_revision_and_request_caps_preserved",
+        "lifecycle_both_received_requests_completed_once"
+      ],
+      "assertion_groups": {
+        "quality": [
+          "quality_qualified_business_answer_preserved",
+          "quality_risk_resolved_without_false_semantic_verification",
+          "quality_runtime_limits_remain_local"
+        ],
+        "completeness": [
+          "completeness_original_draft_supplied_for_revision",
+          "completeness_exactly_two_requests_and_full_answer"
+        ],
+        "evidence": [
+          "evidence_specific_risk_bound_to_original_source",
+          "evidence_full_query_source_retained",
+          "evidence_raw_source_and_versions_match",
+          "evidence_visible_answer_matches"
+        ],
+        "lifecycle": [
+          "lifecycle_explicit_revision_and_request_caps_preserved",
+          "lifecycle_both_received_requests_completed_once"
+        ]
+      },
+      "limits": {
+        "cold_index_seconds": 60,
+        "first_provider_seconds": 15,
+        "question_seconds": 30
+      },
+      "corpus": "runtime_business_onboarding",
+      "fixture_sha256": {
+        "nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+        "settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+        "balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5"
+      },
+      "policy": {
+        "max_model_requests": 2,
+        "max_question_seconds": null,
+        "hard_question_seconds": null,
+        "max_answer_revisions": 1
+      },
+      "measurement_scope": "Synthetic native HTTP mechanism: one source-bound semantic risk candidate triggers one revision within two total requests. This does not measure real-model answer accuracy."
     }
   ]
 }

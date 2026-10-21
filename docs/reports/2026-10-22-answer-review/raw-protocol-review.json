@@ -1,0 +1,14 @@
+{
+  "reviewer": "independent_agent_review",
+  "model_calls": 0,
+  "scope": "Raw review response parsing and durable replay",
+  "found_issue": "Generic business text extraction removed fences or unwrapped answer/content/text before strict review validation. The journal also persisted repaired text. A fenced review and a review string hidden in an answer object with extra action metadata reached model_reviewed.",
+  "resolution": "Review parsing and journaling now use original selected content text. API tool-call responses are rejected. Normal business answer extraction is unchanged.",
+  "production_regressions": [
+    "fenced review remains invalid",
+    "answer wrapper with extra action key remains invalid",
+    "received fenced review remains invalid after recovery without a resend",
+    "tool_calls and legacy function_call metadata cannot approve a review"
+  ],
+  "validation": "23 source-bound review tests and 56 related recovery, RunStore, short-answer and manual-delivery tests passed. Controlled offline responses do not establish real model review accuracy."
+}

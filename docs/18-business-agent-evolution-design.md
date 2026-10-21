@@ -149,7 +149,7 @@ flowchart LR
 
 可将 [`poc/agent-settings.example.json`](../poc/agent-settings.example.json) 复制到项目的 `.poc-data/agent-settings.json`，仅保留要覆盖的 `agent` 字段也可；`version` 保持 `1`。没有该默认文件时使用已有默认值。也可通过启动进程的 `AGENT_SETTINGS_PATH` 环境变量指定文件；当前这个变量不从项目 `.env` 自动读取，模型凭据仍按原有 `.env` 规则加载。
 
-当前交互默认将 `max_model_requests`、`max_question_seconds` 和 `hard_question_seconds` 设为 `null`，不再默认按 5 次模型请求或 120 秒整题目标收尾。有证据或回答完整性进展时继续，重复无进展时收敛，用户可取消。旧配置中显式保存的有限值仍生效；采用新默认须修改实际使用的策略文件，详见[多轮分析与配置迁移](./completion-driven-analysis.md)。当前策略作用于页面默认业务对话和命令行 `retrieval` 路径，旧逐页兼容路径保留自己的规则。
+当前交互默认共享 6 次模型请求，不设置固定整题截止。`max_initial_context_seconds` 与 `max_local_analysis_seconds` 默认也为 `null`，避免慢环境按首轮 3 秒／累计 15 秒跳过必要语义分析；本地文件、字节、扩展和证据组额度仍有限。有证据或回答完整性进展且额度允许时继续，重复无进展时收敛，用户可取消。旧配置中显式保存的有限值仍生效；采用新默认须修改实际使用的策略文件，详见[多轮分析与配置迁移](./completion-driven-analysis.md)。当前策略作用于页面默认业务对话和命令行 `retrieval` 路径，旧逐页兼容路径保留自己的规则。
 
 单次普通源码材料仍最多 36,000 字符，唯一明确根文件的全文另有 128,000 字符额度；历史上下文最多 18,000 字符，编码后的整个请求最多 230,000 字节，超限时仍会裁减材料。每个补查轮次最多 3 项源码搜索、3 处源码读取和 3 项本机框架查询。字符数与请求字节数不是 token 数，也不是费用金额。框架补查不单独调用模型；运行策略和接口凭据本身不构成真实材料发送或消费授权。
 

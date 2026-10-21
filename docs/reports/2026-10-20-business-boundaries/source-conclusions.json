@@ -1,0 +1,112 @@
+{
+  "schema_version": "source-business-conclusions/v1",
+  "scope": "Three frozen neutral sources; static behavior and runtime preconditions, not execution acceptance.",
+  "gold_sha256": "790fabb0d868a511de5e845e32958a8e372622174be68d85cb449111bf62248f",
+  "confirmed": [
+    {
+      "topic": "business_purpose",
+      "explanation": "源码注释说明为已批准订单生成结算记录；实际规则明确筛选状态A且金额>ZERO。A对应批准是注释与条件结合的解释。",
+      "locations": [
+        "settle.cbl:2-3",
+        "settle.cbl:29-32"
+      ]
+    },
+    {
+      "topic": "entry_and_handoff",
+      "explanation": "脚本声明将ORDERIN覆盖到APPDATA/ORDERS，发起CALL SETTLE，正常返回后执行DLTOVR。源码足以解释作业组织方式，不能证明已定时运行。",
+      "locations": [
+        "nightjob.clle:1-6"
+      ]
+    },
+    {
+      "topic": "input_origin",
+      "explanation": "ORDER-IN的SELECT/FD与READ共同确定ORDER-ID、ORDER-STATUS、ORDER-AMOUNT为读入订单记录字段；来源不是缺失。READ成功到NOT AT END分支时使用这些字段，实际值与有效性仍由数据决定。",
+      "locations": [
+        "settle.cbl:7-15",
+        "settle.cbl:26-31"
+      ]
+    },
+    {
+      "topic": "record_result",
+      "explanation": "通过筛选后把编号和金额复制到SETTLEMENT-REC并请求WRITE，不做汇总或金额运算；这不是实际写入成功的证明。",
+      "locations": [
+        "settle.cbl:16-19",
+        "settle.cbl:29-32"
+      ]
+    },
+    {
+      "topic": "empty_input",
+      "explanation": "正常OPEN并首次READ返回AT END时，置结束标志，不进入NOT AT END中的筛选/WRITE；正常CLOSE后才到GOBACK。不据此担保实际输出物理对象为空或清空成功。",
+      "locations": [
+        "settle.cbl:21-38"
+      ]
+    },
+    {
+      "topic": "skip_notice",
+      "explanation": "未满足筛选条件的分支发出固定ORDER SKIPPED提示，没有订单号、分原因或累计数。DISPLAY语句未指定目的地。",
+      "locations": [
+        "settle.cbl:29-34"
+      ]
+    },
+    {
+      "topic": "numeric_domain",
+      "explanation": "筛选仍为金额>ZERO；只在符合无符号PIC 9(7)V99声明的有效数据范围内等同非零，声明不证明输入字节有效。",
+      "locations": [
+        "settle.cbl:15",
+        "settle.cbl:29"
+      ]
+    },
+    {
+      "topic": "online_result",
+      "explanation": "正常返回并执行SQLCODE判断时，零设置业务参数00，非零设置90。未到达此判断的异常不保证该业务码；失败分支没有再次赋值CURRENT-BALANCE。",
+      "locations": [
+        "balance.cbl:13-21"
+      ]
+    },
+    {
+      "topic": "visible_relationship",
+      "explanation": "这三份源码中未见SETTLE与BALANCEQ互调或共同表文件绑定；不能推导系统全局无间接关联。",
+      "locations": [
+        "nightjob.clle:1-6",
+        "settle.cbl:1-38",
+        "balance.cbl:1-21"
+      ]
+    }
+  ],
+  "runtime_questions": [
+    {
+      "needed": "调度配置、启动方式/用户与运行记录",
+      "affects": "是否定时/何时实际启动，而非源码筛选规则或字段来源。"
+    },
+    {
+      "needed": "实际编译/部署对象、库列表/激活组和文件定义",
+      "affects": "覆盖是否生效、SETTLEOUT实际对象、约束和写入结果，而非源码已声明的覆盖/读写请求。"
+    },
+    {
+      "needed": "实际输入记录、文件状态/作业消息",
+      "affects": "数据是否有效、I/O是否正常以及处理数量。"
+    },
+    {
+      "needed": "已确认的初始化/再次激活条件",
+      "affects": "END-OF-ORDERS VALUE 0是初始化值，不能担保保留WORKING-STORAGE的每次调用都重置。"
+    }
+  ],
+  "official_reference_check": [
+    {
+      "title": "DISPLAY Statement Behavior (IBM i ILE COBOL)",
+      "url": "https://www.ibm.com/docs/sk/ssw_ibm_i_74/rzasb/dspf1be.htm",
+      "finding": "若适用IBM i ILE COBOL且以批作业启动，省略UPON的DISPLAY进入作业日志；交互启动则到工作站。这里没有这些运行事实，因此只能条件化说明。"
+    },
+    {
+      "title": "ILE COBOL Programmer Guide",
+      "url": "https://www.ibm.com/docs/en/ssw_ibm_i_75/pdf/sc092540.pdf",
+      "finding": "EOF与其它READ失败不同；不能把任何失败都当AT END分支。"
+    },
+    {
+      "title": "Enterprise COBOL numeric validity guidance (different platform, corroboration only)",
+      "url": "https://www.ibm.com/docs/en/SS6SG3_6.4.0/pdf/pgmvs.pdf",
+      "finding": "数值声明不负责证明供入的数据有效；不据此替代当前目标平台编译/运行验证。"
+    }
+  ],
+  "review_method": "Source comparison before paid test; output semantics will be independently reviewed against frozen gold."
+}

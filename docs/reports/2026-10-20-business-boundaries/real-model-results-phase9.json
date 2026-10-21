@@ -1,0 +1,534 @@
+{
+  "schema_version": "public-business-boundary-transport-failure/v1",
+  "phase": "phase9",
+  "paid_session_phase": 9,
+  "scope": "Transport failure before any captured model response; the exact displayed answer is local source facts, not a model answer or a successful business-quality result.",
+  "pipeline_version": "question-evidence-v43",
+  "prompt_version": "business-chat-v38",
+  "product_sha256": {
+    "poc/activation_evidence.py": "05d890d923dfcf16c0778197fc6d5d0cfdd4c8f2143ee7f65a0bbe9a8155593f",
+    "poc/agent_loop.py": "15a66a72e5d88be7fe0ce9f43e87e9115535faafa4fe855275c2bd4896239893",
+    "poc/agent_policy.py": "56141db74f987ba6f344d7df0630516ff26a79205c05cf47eb2fbb172c6f32d5",
+    "poc/analysis_continuation.py": "08913658d4c685186371bcdf924c0189e7a561c83f2ac98e12fc62741eeac763",
+    "poc/analyze_source.py": "d9ea72209e59420329a61896c030d0bb0cf15639a7f482362808764d0e777f0e",
+    "poc/answer_diagnostics.py": "35bec6e548bad70e1b6d4d1a144d1fee4ef5b58d6affe7aba3dcf109653df07b",
+    "poc/answer_fact_completion.py": "061293f3716c22162950e447c52aa691c301ea419552949bd5c71a7703da3ef1",
+    "poc/answer_grounding.py": "6cf1b8b202e8ac5c00d24ecc2b61dcb6d526afb0db279494ae9139e3ee751b7a",
+    "poc/answer_markdown.py": "1b04c357f2ea5a42037686d6b353ab51bd30043a66dc000f745c3cb459c8019e",
+    "poc/api_diagnostics.py": "5a98084fdfa9d6be8865ba947756598839e9c7737bccf5b77fec6ad0e87ce35a",
+    "poc/api_error_details.py": "ad145b08097dcd18426ea64581493e95a2b0a2b373c409bcbc8092eb24fc07c0",
+    "poc/app_paths.py": "5cd638fc7ebd36ec9a499d001cc0e49e9520a43bb9b5ebedc06204a4b0dfae92",
+    "poc/batch_context_evidence.py": "8b0e6b85c9f5d4b288caa145fe690402862d285d6de84d62932067f26ff99665",
+    "poc/benchmark_business_facts.py": "7d011ec111405144eb7e6fea01b73628b8de18fdb79fc5762dd9a3531986e09d",
+    "poc/benchmark_chat_latency.py": "8f8a1d40d81b68ba784d319126b883dcdb8e80af098e444b90acd7ee99ed3723",
+    "poc/benchmark_evidence_context.py": "e421f7b6d5dffdbdff502ec9f7405a987586879ef5e1515e6a83032b2c0dff7f",
+    "poc/benchmark_intake.py": "b33db5e7f80b67bf510a5dc2b1b1efe659be207e29eed1ae2103eb3d59894654",
+    "poc/benchmark_semantic_layout.py": "a962ac9238d1d9af980870ae60f0b992f6a99bd5438d5e8fcd2f68c261925881",
+    "poc/build_delivery.py": "74d771160c1b04a856fad3779bdef957527cece344ec2a2549e23992d47e4987",
+    "poc/business_acceptance.py": "02914ff693e8bdb384cab005c5f96ebf6d302984e0b0b542a73aa2ccbefb74cd",
+    "poc/business_analysis.py": "a33dcb8c4636b4bfc298c7a725c79c04ff77b47e15bb7de80353d306da45e2ef",
+    "poc/business_behavior.py": "88dfdbba7753697550d3b1330892796a2481920b7d749be6e47cae8ad9aa8dbb",
+    "poc/business_chat.py": "0992702e07b77ebf0a3af600ad0155563df66c1522e551215293d260cc01c17c",
+    "poc/business_index.py": "dac92753585105b6548682529986599bbccd6bfec9425265e817136787fbff33",
+    "poc/business_investigation.py": "1a38251f06593bc877f6c6f78b890b8aec05cd513ee2fe5b388aae24b21b5c4e",
+    "poc/business_map.py": "809afe980c241293cb1978f5d7e4ab438515cdf5fb5f9c8843d43048281b1078",
+    "poc/business_orientation.py": "605558aa5d7002151818e0fdc227565e042adf42a85b263eeb9ed19a2c4fded2",
+    "poc/business_synthesis.py": "a3e65e1f2c819cbb0be009187449dcd6cc3bffb7989bcff1a529587552827f4c",
+    "poc/call_bindings.py": "62771b40b82c9a27267cc3770d9ad4c6faa74853f78c6aaf8c95f16f13fc9633",
+    "poc/call_contexts.py": "d51def1c3578c1859b48f4438941281319edd08f4107869881e8f7e18bcc0ed7",
+    "poc/cl_context.py": "c4010174cf7570243c5868510e11e550d68e065ecf44f495ee609a8abc4fa01d",
+    "poc/claim_ledger.py": "4c2fb75dee4a8074b540fb725dfe2c40744d4e7760b7e9bc84da04aee05f6df7",
+    "poc/claim_support.py": "b8fb6cb0ad61bda30a683933af227b803d615f73b66efe2814c2d43951e62a8f",
+    "poc/company_api.py": "aa135a1c2a94e5287fac9bc824703655adfce71b9e05d79f9573c9ae11e1cb1c",
+    "poc/compilation_context.py": "aae237da6f4e9dd2ba6fce243ef88103d5420a5ae65b992a839744646f7e1387",
+    "poc/complete_working_set.py": "effd151978ff524a7c24c74d52aa3bc4f14ee52ac39ce691b4c376a40fec5de9",
+    "poc/complex_demo.py": "dbeed1c6dbbdc6a8fda193e56c9fb5dffd44c4412a025755d8e4660975deba31",
+    "poc/concept_search.py": "1d4dcaac7c180a6d58148f468b1c96db423c8150b0ea1b1459aefe1767f9dc30",
+    "poc/context_demo.py": "efaf01947808eb29ec9f338bc2dd1921585db3cc1f04770aeee47cc66a69a329",
+    "poc/context_paths.py": "6fc1468d45395ece3c3a3cf15b55dffd8d1e0545a15760323afd02be13a4d79f",
+    "poc/conversation_focus.py": "10fc2dc2e9f5a8b52e50b9be9a47d41d9f1f9e670f94b8a4e099b4b225cd404c",
+    "poc/conversation_store.py": "43153e7db495fc678adf99874f7e80be685b8a0b6c7b81f907613211e71c91b7",
+    "poc/copy_expansion.py": "ad25fe8da2cc3e5da4124bd0affd31bc371dfafba12e44b7f147b4d75b8c489b",
+    "poc/desktop_app.py": "7c96ed57b4635b5e45e44cb4c83ef6e58762de39b7420d0e3a4cafe8807e1fa1",
+    "poc/draft_validation.py": "d99b9782e8753670e605266a8d77675094ddcdb2e46829a0c2bf26c6365b1dc7",
+    "poc/effect_contract.py": "c3667f38b76aed2a2600f04e101bcd17a25310e8c07b88e46155b7e60b7b56dd",
+    "poc/error_paths.py": "393541ea524efae9d5e20dbd5be70a1de75941d6ddb5aefde3aa6ae5cc7eec03",
+    "poc/error_return_demo.py": "f439f565c333f8bf451f0acf942a5755a22d849005a3536c86e07fe10975c4b8",
+    "poc/evidence_answer.py": "d1f2f205dd6227f73bd5b1e43f1d77f29702cfdfa0277e31ffd12aa659e5f93d",
+    "poc/evidence_context.py": "68f1daf17e9908c4350ee81082ca4c18f25327e02a5fd0319bddde86c7f5dcfe",
+    "poc/exception_cfg.py": "177e3667e14867d9de222c625d843e3f02dc294e7fde6b19350d0165c6034c01",
+    "poc/exception_demo.py": "9f443b819d16811a7fc678594978db095c61cabde47a45e7a2a117b963a94491",
+    "poc/exception_paths.py": "b1daeb44e68c9b66b51620206fb5a08a2c3ac7fd50a7ef1dd0a4cb383ee71443",
+    "poc/field_origin.py": "4a7d77190059139adb7bfbd6e892cca169f5753d7800b3ee76ee4972237ac5a8",
+    "poc/file_impact.py": "e1e0276f63cd108264606a16f2f47414ca7649dc7b68ea4c6b866e60765f9d2f",
+    "poc/file_impact_evidence.py": "57c62e9917a55730ba32beae56b66d02449e7a9155731f99a23c09f4aa7af1ae",
+    "poc/framework_audit.py": "c3dc6c58a213d79d83d271490b3684e208fd4ee65d1aebcb1d3ee47d2963fbf5",
+    "poc/framework_binding.py": "663e548c9d964e64c087d0c96eb35526764dcacc8add74acb4f9ea2af38ba869",
+    "poc/framework_demo.py": "f4830d29ae67702fd426c7b547e27c7727a49068bf961ba2cc2eac4b37684090",
+    "poc/framework_io.py": "c11b1e34ca996a1b79ce776752cc2368a345934ca383bde628f6a6ca038a90f6",
+    "poc/framework_knowledge.py": "12982e207e46850bbf4a0d15575c16b6c57e69623f0927611ac4f6aefbea8312",
+    "poc/framework_layout.py": "5d4f935f20a07568dbf7396b17da48b7fc18cccd107c527c2c124192322949de",
+    "poc/framework_paths.py": "66f7382abb4d0f00f7eaff9dca69f9028be5c7f7db32c9507d2ab283ee95cc00",
+    "poc/framework_projection.py": "c423d614d64e19666f981eeca135e7c72f3a352fb27929f0344a0006257facd2",
+    "poc/framework_rules.py": "6aa879d9aaf3fde8fb7c5f31aa1ac82450ccebc02b3e7eaa61a98cd68a157a55",
+    "poc/framework_semantics.py": "7542b8d63fb8f86e944473ac6d78d05c18fa53e6d59484f08bfd9c88f6c07a76",
+    "poc/impact_results.py": "702d80e074333d61e22377822d6b36e938f4884085124c79b07050a66560df4b",
+    "poc/indexed_chat.py": "0cf332bcbef7df65b98800a5f69f59722aaf8ecec21123a196a1a22fbc2b6af5",
+    "poc/interprogram_paths.py": "39bde7c9982730d0a976017e9fc5ea03db5ffbf441e7a2ff648e5ba8027afa3f",
+    "poc/investigation_tools.py": "835674d2a4c680ca855886535ad96ef7f9205942cb3749b60cc3df24114a7510",
+    "poc/live_business_eval.py": "db7a3b31207c57f5a798c37fdc3876a031464eaa0385afa9cd45934c83adcff0",
+    "poc/model_profiles.py": "84463230029959fbf76b60d698a441fbb3443a829937304e0b0c58baf2f703a6",
+    "poc/numeric_semantics.py": "7375dfc386976a04c484bd96bf0881780a3bd7623f736d8bacdb13e914db203e",
+    "poc/parser_adapter.py": "b867485329ba5f91c84e051350c434c6ab49e1aa8e076865ceecca713baa0cc0",
+    "poc/prior_source_memory.py": "247bf96599ce123503cb3d64fd692fe53007b8134602aa6a4d0bd8333353f4f8",
+    "poc/procedure_expansion.py": "3bc972bb71499e595201777f5dd1e15dba3da982566f03f2f0680e4cdbf605f0",
+    "poc/prompt_projection.py": "2af16d6e34858ab1ce0b51e29e8c63b0d3227f20025601f64d378922af8e398c",
+    "poc/public_business_acceptance.py": "217ca271310a8ee60470f4980e983fb8a2f0d5eefef49daad0d89456d41a6fca",
+    "poc/quality_trace.py": "b467945aecd25aa1f00e51a885e90be0adf012b85c90cbdfa8ddd330edcb662a",
+    "poc/question_budget.py": "3b8f1bb209a9819eb163d42d9193e5ba21a29303eb1d9ced4aeaa28e43558782",
+    "poc/question_intent.py": "ba2374f2a5096eefc52c2fffeadc6bdc48e934a27fad4fa445b36d14aa77b51c",
+    "poc/question_investigation.py": "d497281350fb3ae7f72fc5a16bca5bf4c5bed66ab763770533d87c52bcc7e5d3",
+    "poc/question_planner.py": "9d04bd2fdf2e23a1d7e7f052c1830abc3b45a284196fc7a774648b2ab38e25ea",
+    "poc/release_acceptance.py": "6ac5801ece150e096cd98cd506c33e981a94c0cde7a0b6f5c01df45b827abf87",
+    "poc/repo_inventory.py": "f073014a52825368e3f30b9ffe51698f2ebe8c3cd4f8afcd4f667be6544a5919",
+    "poc/report_view.py": "7dbc7f26b7970fe2fc6ec3a772619db4b0fe715ddc8869846fd1b902824731ad",
+    "poc/repository_discovery.py": "4d123817896c6dd8bc912ed786d5eeec6557c2b69b08921a0c53e5d531ca0b03",
+    "poc/repository_identity.py": "0a2c28f5dd0a7870018f20b56bacedc5c731cf997523d540e23fc6bacbf3e9a5",
+    "poc/response_language.py": "9ab8f4c9119b86b1da738f0b878d9f66455560488b8970b9d4e02353be45987a",
+    "poc/retrieval_quality_eval.py": "fcc904a90db26746220bd835937d11017d25eb423d3557114990876d3dd8f8ee",
+    "poc/run_agent.py": "c6e7bfff97114ef410f9a37843bd93ad47855cc7e1e2658dcf2290c03578d095",
+    "poc/run_demo.py": "0f5a476f3457abdbfcc2e7de7e2b2270158617112d434cfbb435c3051cdeb0bc",
+    "poc/run_framework_paths.py": "d9cfdae20c63903771fe3b0be6c1df77b7722c05c986b21c0d5aaf4b8397921b",
+    "poc/run_project_poc.py": "9719c2f912b29b85aff8a25e514297516b24ce4b3e5b72c330a41813d58bd5c4",
+    "poc/run_store.py": "add192404d1eb527dd7daeb36193563b5a080d5a28d9473a68ac1649dbac3278",
+    "poc/runtime_settings.py": "81f12631a1fb20ac2588589e3269ea38ffe51accd119d9e8244766ef4ecd4458",
+    "poc/semantic_ir.py": "9c687f15823a0cba25fdad5b3f5ae2eaf65ea9327299b75c9a3efe0d8fe3f375",
+    "poc/semantic_scope.py": "3d405327fa42040ff097dc7dab4fd6cd10442627ab15d5dfe9310f16c4d4d526",
+    "poc/semantic_service.py": "9fc807d952b58044a69cec112531758f02efb282f04c9671a9d53de0741b9011",
+    "poc/source_availability.py": "60597f1adf4d07a9cd98c5040a0a47cf8c2066c47fa9eb5e4c398fd0d1410cd1",
+    "poc/source_catalog.py": "192bcf7c0489ff93632bde862b83ef9210db0772e9ce5a0aa4bf46fb76be70e3",
+    "poc/source_reading.py": "84d358211324f897d730101f75117894ae16a6babf1bf192a0b38bc65c105e7e",
+    "poc/source_session.py": "fd6351df9371d38fa030ed48e46c655555e6c05125f5fb44f2db6da3c55b6f92",
+    "poc/source_update.py": "38cf4669a6ed57d05ac52b43733d294176f795eee9a66be6798d73c4f994f870",
+    "poc/source_versions.py": "7d2a9b99edc7753dd8c2b9c85ce94c8bbd6f23768d0809c99732ad89651ee006",
+    "poc/statement_facts.py": "3a58039ef7ca5555a8809c397ddc7162d6ec973acb815d01aed2bb6f832ce473",
+    "poc/statement_parser.py": "e1d5751f81bdc467bfe690f2c28362508ea21e97020389f98d1cd8c5dedb5360",
+    "poc/structural_index.py": "830ddc9452179eecca05250f96ca6f05460c55404af0311427fe5559c742b6fd",
+    "poc/syntax_evidence.py": "800f82c0d51de2830d3ea818087aa600643beffaf22757206fdef1f77b5269c6",
+    "poc/web_app.py": "9d8a71e7d8ad2c00cbd273ae8e935102d19a240fd04b81b0873e441cecb6c2f6"
+  },
+  "product_unchanged_during_paid_session": true,
+  "current_product_matches_tested": true,
+  "files_changed_after_paid_session": [],
+  "gold_sha256": "790fabb0d868a511de5e845e32958a8e372622174be68d85cb449111bf62248f",
+  "fixture_sha256": {
+    "nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+    "settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+    "balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5"
+  },
+  "settings": {
+    "reasoning_effort": "medium",
+    "max_output_tokens": 8192,
+    "max_model_requests_per_question": 1,
+    "max_answer_revisions": 0,
+    "max_request_bytes": 75000
+  },
+  "conversation_id": "dcdf639d04312c9dc2b0e64004ab9848",
+  "stored_message_count_before": 10,
+  "stored_message_count_after": 12,
+  "paid_session_closed": true,
+  "worker_finished": true,
+  "physical_request_count": 1,
+  "cumulative_physical_request_count": 27,
+  "unknown_cost_request_count": 1,
+  "provider_usage_reconciliation_passed": false,
+  "conservative_budget_check_passed": true,
+  "known_reported_usage_micro_cny": 1707726,
+  "retained_unknown_reservations_micro_cny": 161638,
+  "cumulative_cost_upper_including_unknown_micro_cny": 1869364,
+  "cost_limit": "No provider usage was returned for this request. Its original full reservation remains charged to the conservative bound; reported usage and unknown reservation are separate, neither is an invoice.",
+  "audit_sha256": "45b7677bf6190baf38f439a86dcab7cb9d588d758b2d9e30de921a87f8478db2",
+  "ready_sha256": "cdb7e9df6a30da17432dd6b7f9cfd22a4acdcc359cd7cc354ed804054d362010",
+  "results_sha256": "65944752f2e89da346b768996aea03b744ba82316b68f1c5a10b12663294efc2",
+  "closed_sha256": "4b2fbb8a4f081d1005549fdd4b5eb99ac8b528efefd1598ad23b42c4322ed07a",
+  "snapshot_manifest_sha256": "e1acaf8864951e9e15330dbe4404a47f002136193884a691e5f4252339d6c4eb",
+  "cases": [
+    {
+      "id": "boundary-followup",
+      "question": "继续核对业务边界：这批处理遇到空输入会怎样？ORDER SKIPPED 到哪里、金额大于零能否直接等同非零？BALANCEQ 是否任何异常都能返回90？这两项业务能否确定完全无关？请先说明源码能确认的结论，再指出还需要哪些具体运行资料。",
+      "run_id": "86031a2f2d0d53226e863a71",
+      "job_status": "COMPLETED",
+      "elapsed_seconds": 5.199438291994738,
+      "elapsed_is_successful_answer_speed": false,
+      "status": "PARTIAL",
+      "stop_reason": "TRANSPORT_ERROR",
+      "answer_origin": "local_source_facts",
+      "model_answer_recorded": false,
+      "answer_available": true,
+      "model_raw_answer": null,
+      "raw_choices": [],
+      "answer": "模型说明尚未完成，已读取的源码仍可直接确认以下内容：\n\n- `IF SQLCODE = 0`（balance.cbl:17）[ev_page_41c62f686dca8a6b3a26a3e9]。\n\n- 在源码控制条件 `IF SQLCODE = 0` 下，`RESPONSE-CODE = '00'`（balance.cbl:18）[ev_page_41c62f686dca8a6b3a26a3e9]。\n\n- 在源码控制条件 `条件不成立：IF SQLCODE = 0` 下，`RESPONSE-CODE = '90'`（balance.cbl:19）[ev_page_41c62f686dca8a6b3a26a3e9]。\n\n以上说明仅覆盖已读取版本中的直接语句；这些语句本身不能证明实际执行路径，最终结果尚未确认。",
+      "answer_sha256": "8d9312bca836343b67143d38ec183c97be29fe185514526fe4f57c3dd17fbb50",
+      "answer_characters": 358,
+      "claims_semantically_verified": false,
+      "claim_ledger": {
+        "all_claims_supported": false,
+        "answer_sha256": "8d9312bca836343b67143d38ec183c97be29fe185514526fe4f57c3dd17fbb50",
+        "compilation_context_fingerprint": "dac0d9ef9a8295163ddffa961d96cf622febe3f7cb201aacd2ba40f1f0238fa7",
+        "counts": {
+          "contradicted": 0,
+          "supported": 3,
+          "unsupported": 5
+        },
+        "coverage": "extracted_structures_only",
+        "entries": [
+          {
+            "checker_version": null,
+            "claim_id": "claim-1",
+            "claim_type": "business_explanation",
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [],
+            "expression": null,
+            "invalid_evidence_ids": [],
+            "occurrence_ids": [],
+            "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+            "reviewed_evidence_ids": [],
+            "revised_claims": [],
+            "revision": null,
+            "source_versions": [],
+            "support_scope": null,
+            "support_status": "unsupported",
+            "target_entity": null,
+            "text": "模型说明尚未完成，已读取的源码仍可直接确认以下内容：",
+            "unresolved_requirements": [],
+            "verification_facts": []
+          },
+          {
+            "checker_version": "source-statement-support-v6",
+            "claim_id": "claim-2",
+            "claim_type": "condition_statement",
+            "condition": [
+              "SQLCODE",
+              "=",
+              "0"
+            ],
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_41c62f686dca8a6b3a26a3e9"
+            ],
+            "expression": null,
+            "invalid_evidence_ids": [],
+            "occurrence_ids": [
+              "unit_363cc2447fbd5d14d44bf55f"
+            ],
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "reviewed_evidence_ids": [],
+            "revised_claims": [],
+            "revision": null,
+            "source_versions": [
+              {
+                "end_line": 21,
+                "relative_path": "balance.cbl",
+                "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+                "start_line": 1
+              }
+            ],
+            "support_scope": "source_statement_syntax",
+            "support_status": "supported",
+            "target_entity": null,
+            "text": "- `IF SQLCODE = 0`（balance.cbl:17）。",
+            "unresolved_requirements": [],
+            "verification_facts": []
+          },
+          {
+            "checker_version": null,
+            "claim_id": "claim-3",
+            "claim_type": "business_state_value",
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_41c62f686dca8a6b3a26a3e9"
+            ],
+            "expression": [
+              "'00'"
+            ],
+            "invalid_evidence_ids": [],
+            "occurrence_ids": [],
+            "reason_code": "BUSINESS_STATE_VALUE_NOT_FORMALLY_VERIFIED",
+            "reviewed_evidence_ids": [],
+            "revised_claims": [],
+            "revision": null,
+            "source_versions": [
+              {
+                "end_line": 21,
+                "relative_path": "balance.cbl",
+                "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+                "start_line": 1
+              }
+            ],
+            "support_scope": "unverified_business_state_value",
+            "support_status": "unsupported",
+            "target_entity": "RESPONSE-CODE",
+            "text": "- 在源码控制条件 `IF SQLCODE = 0` 下，`RESPONSE-CODE = '00'`（balance.cbl:18）。",
+            "unresolved_requirements": [],
+            "verification_facts": []
+          },
+          {
+            "checker_version": "source-statement-support-v6",
+            "claim_id": "claim-4",
+            "claim_type": "condition_statement",
+            "condition": [
+              "SQLCODE",
+              "=",
+              "0"
+            ],
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_41c62f686dca8a6b3a26a3e9"
+            ],
+            "expression": null,
+            "invalid_evidence_ids": [],
+            "occurrence_ids": [
+              "unit_363cc2447fbd5d14d44bf55f"
+            ],
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "reviewed_evidence_ids": [],
+            "revised_claims": [],
+            "revision": null,
+            "source_versions": [
+              {
+                "end_line": 21,
+                "relative_path": "balance.cbl",
+                "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+                "start_line": 1
+              }
+            ],
+            "support_scope": "source_statement_syntax",
+            "support_status": "supported",
+            "target_entity": null,
+            "text": "- 在源码控制条件 `IF SQLCODE = 0` 下，`RESPONSE-CODE = '00'`（balance.cbl:18）。",
+            "unresolved_requirements": [],
+            "verification_facts": []
+          },
+          {
+            "checker_version": null,
+            "claim_id": "claim-5",
+            "claim_type": "business_state_value",
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_41c62f686dca8a6b3a26a3e9"
+            ],
+            "expression": [
+              "'90'"
+            ],
+            "invalid_evidence_ids": [],
+            "occurrence_ids": [],
+            "reason_code": "BUSINESS_STATE_VALUE_NOT_FORMALLY_VERIFIED",
+            "reviewed_evidence_ids": [],
+            "revised_claims": [],
+            "revision": null,
+            "source_versions": [
+              {
+                "end_line": 21,
+                "relative_path": "balance.cbl",
+                "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+                "start_line": 1
+              }
+            ],
+            "support_scope": "unverified_business_state_value",
+            "support_status": "unsupported",
+            "target_entity": "RESPONSE-CODE",
+            "text": "- 在源码控制条件 `条件不成立：IF SQLCODE = 0` 下，`RESPONSE-CODE = '90'`（balance.cbl:19）。",
+            "unresolved_requirements": [],
+            "verification_facts": []
+          },
+          {
+            "checker_version": "source-statement-support-v6",
+            "claim_id": "claim-6",
+            "claim_type": "condition_statement",
+            "condition": [
+              "SQLCODE",
+              "=",
+              "0"
+            ],
+            "effect": null,
+            "evidence_ids": [
+              "ev_page_41c62f686dca8a6b3a26a3e9"
+            ],
+            "expression": null,
+            "invalid_evidence_ids": [],
+            "occurrence_ids": [
+              "unit_363cc2447fbd5d14d44bf55f"
+            ],
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "reviewed_evidence_ids": [],
+            "revised_claims": [],
+            "revision": null,
+            "source_versions": [
+              {
+                "end_line": 21,
+                "relative_path": "balance.cbl",
+                "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+                "start_line": 1
+              }
+            ],
+            "support_scope": "source_statement_syntax",
+            "support_status": "supported",
+            "target_entity": null,
+            "text": "- 在源码控制条件 `条件不成立：IF SQLCODE = 0` 下，`RESPONSE-CODE = '90'`（balance.cbl:19）。",
+            "unresolved_requirements": [],
+            "verification_facts": []
+          },
+          {
+            "checker_version": null,
+            "claim_id": "claim-7",
+            "claim_type": "business_explanation",
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [],
+            "expression": null,
+            "invalid_evidence_ids": [],
+            "occurrence_ids": [],
+            "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+            "reviewed_evidence_ids": [],
+            "revised_claims": [],
+            "revision": null,
+            "source_versions": [],
+            "support_scope": null,
+            "support_status": "unsupported",
+            "target_entity": null,
+            "text": "以上说明仅覆盖已读取版本中的直接语句；",
+            "unresolved_requirements": [],
+            "verification_facts": []
+          },
+          {
+            "checker_version": null,
+            "claim_id": "claim-8",
+            "claim_type": "business_explanation",
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [],
+            "expression": null,
+            "invalid_evidence_ids": [],
+            "occurrence_ids": [],
+            "reason_code": "PROSE_SEMANTICS_NOT_SUPPORTED",
+            "reviewed_evidence_ids": [],
+            "revised_claims": [],
+            "revision": null,
+            "source_versions": [],
+            "support_scope": null,
+            "support_status": "unsupported",
+            "target_entity": null,
+            "text": "这些语句本身不能证明实际执行路径，最终结果尚未确认。",
+            "unresolved_requirements": [],
+            "verification_facts": []
+          }
+        ],
+        "ledger_version": "answer-claim-ledger-v12",
+        "original_answer_sha256": "8d9312bca836343b67143d38ec183c97be29fe185514526fe4f57c3dd17fbb50",
+        "prose_semantics_verified": false,
+        "revised_claim_count": 0,
+        "scope": "bounded_source_statement_syntax",
+        "source_fact_count": 3
+      },
+      "evidence_refs": [
+        {
+          "end_line": 21,
+          "start_line": 1,
+          "relative_path": "balance.cbl",
+          "kind": "source_page",
+          "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+          "evidence_id": "ev_page_41c62f686dca8a6b3a26a3e9"
+        }
+      ],
+      "runtime_limitations": [],
+      "physical_requests": [
+        {
+          "round_id": "round-1",
+          "request_sha256": "b6e0c70a47d889058c18a41a505f066b6c90c5906799057920214d02a29fba17",
+          "request_state": "started",
+          "physical_outcome": "transport_error",
+          "transport_reason": "tls_handshake_failed",
+          "http_status": null,
+          "captured_response_body_bytes": 0,
+          "usage": null,
+          "finish_reason": null,
+          "raw_choices": [],
+          "original_reserved_micro_cny": 161638,
+          "unknown_cost_reservation_retained": true,
+          "captured_request_source_refs": [
+            {
+              "excerpt_sha256": "759ece45e78016f57df33fd833c5c5de9414fc6d1f8ff15d8b8ca533768732b5",
+              "end_line": 21,
+              "semantic_roles": [
+                "condition",
+                "result"
+              ],
+              "group_id": null,
+              "characters": 572,
+              "start_line": 1,
+              "binding_sha256": "fce97de82cca7b4fc584c54497cdccd5ce50e5ba74b53525cfe086efe4c6cf8e",
+              "relative_path": "balance.cbl",
+              "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+              "evidence_id": "ev_page_41c62f686dca8a6b3a26a3e9"
+            },
+            {
+              "excerpt_sha256": "17a5a9383a388d75f437e9f5b16afd82840caf7f9852fbd052ba30014e9c6464",
+              "end_line": 38,
+              "semantic_roles": [],
+              "group_id": null,
+              "characters": 925,
+              "start_line": 1,
+              "binding_sha256": "90daa3e7600e66c60b79223694026cd4535e2d6b8152490d77a9ae5638ac7096",
+              "relative_path": "settle.cbl",
+              "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+              "evidence_id": "ev_page_0a5bd724415b32dba5d08161"
+            }
+          ],
+          "model_received_source_context_confirmed": false,
+          "captured_request_history": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "继续核对业务边界：这批处理遇到空输入会怎样？ORDER SKIPPED 到哪里、金额大于零能否直接等同非零？BALANCEQ 是否任何异常都能返回90？这两项业务能否确定完全无关？请先说明源码能确认的结论，再指出还需要哪些具体运行资料。"
+              },
+              {
+                "role": "user",
+                "content": "继续核对业务边界：这批处理遇到空输入会怎样？ORDER SKIPPED 到哪里、金额大于零能否直接等同非零？BALANCEQ 是否任何异常都能返回90？这两项业务能否确定完全无关？请先说明源码能确认的结论，再指出还需要哪些具体运行资料。"
+              },
+              {
+                "role": "user",
+                "content": "继续核对业务边界：这批处理遇到空输入会怎样？ORDER SKIPPED 到哪里、金额大于零能否直接等同非零？BALANCEQ 是否任何异常都能返回90？这两项业务能否确定完全无关？请先说明源码能确认的结论，再指出还需要哪些具体运行资料。"
+              }
+            ],
+            "summary": {
+              "count": 3,
+              "assistant_count": 0,
+              "characters": 354,
+              "message_positions": [
+                1,
+                2,
+                3
+              ]
+            },
+            "sha256": "36f2894b64eef5864e6a2df610c0c9fce11ea0f50933b2958de409f545429173",
+            "matches_frozen_projection": true
+          }
+        }
+      ],
+      "history_binding": {
+        "prior_prefix_preserved": true,
+        "history_before_sha256": "61468e238de904a8f14899d4c328865a202dbfa2f5ee0b4411dd43f2029146b4",
+        "transcript_sha256": "ca59cdb6f1aa925ca325959e1b274fb055ee033466b4b6300bfc8bf1eb72a353",
+        "stored_messages_after": 12
+      },
+      "trace_sha256": "d8288d9faf09121c2cbaec6aaf86d10b74d4f2bb34a3c574ddf71d889f9d82b6"
+    }
+  ],
+  "exact_local_answer_preserved": true,
+  "export_is_not_a_quality_pass": true,
+  "human_acceptance": false,
+  "new_model_requests_by_exporter": 0
+}

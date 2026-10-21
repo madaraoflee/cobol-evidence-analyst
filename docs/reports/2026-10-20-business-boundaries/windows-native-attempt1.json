@@ -1,0 +1,296 @@
+{
+  "schema_version": "public-native-attempt-failure/v1",
+  "attempt": {
+    "workflow_run_id": 39453762658,
+    "workflow_attempt": 1,
+    "workflow_url": "https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/39453762658",
+    "source_commit": "b666607398c9568c80dd2e718af3ced875d5dd55",
+    "source_dirty": false,
+    "execution_surface": "native_windows_http",
+    "runtime_platform": "Windows",
+    "status": "failed",
+    "case_count": 25,
+    "sample_count": 79,
+    "passed_samples": 76,
+    "failed_samples": 3,
+    "elapsed_seconds": 584.38821,
+    "only_failed_case": "cl_late_context",
+    "only_failed_assertion": "quality_cl_late_scope_unknown",
+    "runner_errors": [],
+    "compiled_report_sha256": "25c7dadb8c1a7868379796abe0137f006ad229013e9c2eb952785283fbb3518a",
+    "independent_failure_audit_sha256": "ba9cdae4ffcf2542b37d4466bb8931e211a93eb2ebbe426552c55f99ba2d8fd1",
+    "manifest_sha256": "0b5d80b32a48570224239366bdf2d355496653e76b9c454774eaec34e89e5ad3",
+    "reported_archive_sha256": "ee05f592962ae2e0b7c1dacf034fac1d9c241cf2d95d29c5c2dfaaf2f6182eaf",
+    "reported_binary_sha256": "f8315d48ef2233a030604f0e226490e9c4c6ce95cae2207657e6a91f2f7dccd8",
+    "archive_or_binary_independently_downloaded_and_rehashed_by_this_export": false
+  },
+  "finding": {
+    "kind": "stale_missing_source_acceptance_expectation",
+    "explanation": "The actual first request supplies the guard at physical line 3 and the CALL at line 304. The old test and synthetic answer still require the guard to be absent. Supplied static control syntax does not prove guard evaluation, runtime object binding, scheduler activation or execution.",
+    "guard_line": 3,
+    "call_line": 304,
+    "raw_range_hashes_match_neutral_fixture": true,
+    "control_scope_supplied": true,
+    "runtime_execution_verified": false,
+    "guard_outcome_evaluated": false,
+    "evidence_ranges": [
+      {
+        "relative_path": "batchpay.cbl",
+        "source_sha256": "0e5fda95ed6b330dc0fc5b3445879ff11acee60f14698386b843b6093bf4e410",
+        "start_line": 1,
+        "end_line": 22,
+        "excerpt_sha256": "cd5d922c3891e6462832b2542d86c2c16cd106773807c1b481e493a750bdaac3"
+      },
+      {
+        "relative_path": "late.clle",
+        "source_sha256": "52e9c85212c0eddc1678f166cfaacb9de5a74168faf7b40b659ecea97e8009b2",
+        "start_line": 294,
+        "end_line": 306,
+        "excerpt_sha256": "58bcb981443a8d12b3ca209c960989c7d2934515dfc3a448998cebdb5de67064"
+      },
+      {
+        "relative_path": "late.clle",
+        "source_sha256": "52e9c85212c0eddc1678f166cfaacb9de5a74168faf7b40b659ecea97e8009b2",
+        "start_line": 3,
+        "end_line": 3,
+        "excerpt_sha256": "127a064ea117d86d06ab35f4f6721e93c3e5ba03415bd13ad3c9d7d6bbb0279d"
+      }
+    ]
+  },
+  "failed_samples": [
+    {
+      "sample_index": 1,
+      "run_id": "1cca87a4fc7ec09163af0d4a",
+      "elapsed_seconds": 0.4895265999998628,
+      "model_requests": 1,
+      "failed_check": "quality_cl_late_scope_unknown",
+      "raw_source_ranges_hash_verified": true
+    },
+    {
+      "sample_index": 2,
+      "run_id": "581120cfc5722d92e578c1f7",
+      "elapsed_seconds": 0.3625033999999232,
+      "model_requests": 1,
+      "failed_check": "quality_cl_late_scope_unknown",
+      "raw_source_ranges_hash_verified": true
+    },
+    {
+      "sample_index": 3,
+      "run_id": "b5af4b7ef6dbd5b149540e43",
+      "elapsed_seconds": 0.3664463000000069,
+      "model_requests": 1,
+      "failed_check": "quality_cl_late_scope_unknown",
+      "raw_source_ranges_hash_verified": true
+    }
+  ],
+  "repair": {
+    "pipeline_version": "question-evidence-v45",
+    "prompt_version": "business-chat-v40",
+    "source_metadata": "When static control scope is supplied and known, scope_unknown_reason is null; missing-source and runtime-unknown states remain separate.",
+    "acceptance_contract": "Require every indexed guard ID, source hash, physical span and exact source text in the actual request. Separately require unevaluated guard outcome and unverified runtime execution/object/scheduler state. The synthetic answer describes the supplied conditional source fact. The source branch selector must be true for this fixture, while outcome_evaluated remains false; this selects the visible source arm, not its runtime truth.",
+    "other_24_manifest_cases_identical": true,
+    "late_case_speed_request_repeat_limits_unchanged": true,
+    "missing_guard_and_mismatched_source_negative_tests_retained": true,
+    "changed_files_sha256": {
+      "poc/activation_evidence.py": "466e65c581fb6e713f38f93577c22f7d2bffd11bec8f431dfb19e4a8432ef73d",
+      "poc/quality_trace.py": "ccca986ea078c0f212ff4b084f05cd54288b0954d15818e1637fd624a7d79ff8",
+      "tools/desktop_acceptance_cases.py": "7b27b78f8f86132399b58cb231e6d0733bcf1e77b11871603392b053fd6d63b6",
+      "docs/eval/desktop-joint-v1/manifest.json": "62cfd53caf3137c22b208b210b9ac63f2b27d16a6ea10807e364e10ad38315f9"
+    }
+  },
+  "source_http_replay": {
+    "execution_surface": "source_http",
+    "runtime_platform": "Darwin",
+    "transport": "loopback_https_fake",
+    "report_sha256": "e6d8455f5f02e846c573dc7e196c2550a87fccd9525af9f3821a59cb94059a64",
+    "sample_count": 3,
+    "passed_samples": 3,
+    "failed_samples": 0,
+    "samples": [
+      {
+        "sample_index": 1,
+        "run_id": "cc9729786dfd59d3820e635b",
+        "elapsed_seconds": 0.1693397500057472,
+        "model_requests": 1,
+        "status": "passed",
+        "answer_sha256": "0fcfd718a7590ea5374d03c79da8c8a07957b6aee66113595f3c494256d53280",
+        "checks": {
+          "completeness_answer_recorded": true,
+          "evidence_supplied_hashes_match": true,
+          "evidence_visible_answer_matches": true,
+          "evidence_answer_ledger_hash": true,
+          "lifecycle_index_reused": true,
+          "completeness_reviewed_ranges_supplied": true,
+          "quality_cl_late_indexed_fact_bound": true,
+          "quality_cl_late_control_source_supplied": true,
+          "quality_cl_late_runtime_unknown": true,
+          "completeness_cl_no_repeated_read": true,
+          "completeness_cl_single_request": true
+        }
+      },
+      {
+        "sample_index": 2,
+        "run_id": "90dc6fb5b352b1bedf88d826",
+        "elapsed_seconds": 0.11619008300476708,
+        "model_requests": 1,
+        "status": "passed",
+        "answer_sha256": "0fcfd718a7590ea5374d03c79da8c8a07957b6aee66113595f3c494256d53280",
+        "checks": {
+          "completeness_answer_recorded": true,
+          "evidence_supplied_hashes_match": true,
+          "evidence_visible_answer_matches": true,
+          "evidence_answer_ledger_hash": true,
+          "lifecycle_index_reused": true,
+          "completeness_reviewed_ranges_supplied": true,
+          "quality_cl_late_indexed_fact_bound": true,
+          "quality_cl_late_control_source_supplied": true,
+          "quality_cl_late_runtime_unknown": true,
+          "completeness_cl_no_repeated_read": true,
+          "completeness_cl_single_request": true
+        }
+      },
+      {
+        "sample_index": 3,
+        "run_id": "0e67fbe8f6427d12b219809e",
+        "elapsed_seconds": 0.11447162499825936,
+        "model_requests": 1,
+        "status": "passed",
+        "answer_sha256": "0fcfd718a7590ea5374d03c79da8c8a07957b6aee66113595f3c494256d53280",
+        "checks": {
+          "completeness_answer_recorded": true,
+          "evidence_supplied_hashes_match": true,
+          "evidence_visible_answer_matches": true,
+          "evidence_answer_ledger_hash": true,
+          "lifecycle_index_reused": true,
+          "completeness_reviewed_ranges_supplied": true,
+          "quality_cl_late_indexed_fact_bound": true,
+          "quality_cl_late_control_source_supplied": true,
+          "quality_cl_late_runtime_unknown": true,
+          "completeness_cl_no_repeated_read": true,
+          "completeness_cl_single_request": true
+        }
+      }
+    ],
+    "new_windows_executable_acceptance": false,
+    "real_model_generation": false,
+    "external_model_calls": 0,
+    "paid_model_calls": 0,
+    "limitation": "This replay exercises the source application and synthetic loopback HTTP interface. It does not establish a new Windows executable pass or real-model latency/accuracy.",
+    "tested_changed_files_sha256": {
+      "poc/activation_evidence.py": "466e65c581fb6e713f38f93577c22f7d2bffd11bec8f431dfb19e4a8432ef73d",
+      "poc/quality_trace.py": "ccca986ea078c0f212ff4b084f05cd54288b0954d15818e1637fd624a7d79ff8",
+      "tools/desktop_acceptance_cases.py": "7b27b78f8f86132399b58cb231e6d0733bcf1e77b11871603392b053fd6d63b6",
+      "docs/eval/desktop-joint-v1/manifest.json": "62cfd53caf3137c22b208b210b9ac63f2b27d16a6ea10807e364e10ad38315f9"
+    },
+    "validation_stage": "after_explicit_true_source_branch_guard_requirement"
+  },
+  "release": {
+    "candidate_tag": "v2026.10.20.5-rc.1",
+    "failed_attempt_published": false,
+    "new_source_commit_and_native_run_required": true,
+    "windows_79_samples_passed": false,
+    "formal_latest_replaced": false,
+    "target_device_acceptance_established": false
+  },
+  "fees": {
+    "additional_paid_requests": 0,
+    "known_usage_micro_cny": 1741230,
+    "retained_unknown_reservations_micro_cny": 161638,
+    "conservative_cumulative_micro_cny": 1902868
+  },
+  "limits": [
+    "The original failed CI report and independent audit remain unchanged.",
+    "A failed assertion was replaced with stricter actual-source and separate runtime checks, not removed or converted to an unconditional pass.",
+    "The real-model v43 answer and its failed overall semantic assessment remain unchanged.",
+    "This record does not assert completion of the v45 full source suite or the next native build."
+  ],
+  "prior_source_http_replays": [
+    {
+      "execution_surface": "source_http",
+      "runtime_platform": "Darwin",
+      "transport": "loopback_https_fake",
+      "report_sha256": "2fe7a0910361706b1becf9296fd7d050f0d6b05486ddddbf437e2965f2f54f97",
+      "sample_count": 3,
+      "passed_samples": 3,
+      "failed_samples": 0,
+      "samples": [
+        {
+          "sample_index": 1,
+          "run_id": "8e07954a0c1a0f3b847e3d8a",
+          "elapsed_seconds": 0.17297308299748693,
+          "model_requests": 1,
+          "status": "passed",
+          "answer_sha256": "0fcfd718a7590ea5374d03c79da8c8a07957b6aee66113595f3c494256d53280",
+          "checks": {
+            "completeness_answer_recorded": true,
+            "evidence_supplied_hashes_match": true,
+            "evidence_visible_answer_matches": true,
+            "evidence_answer_ledger_hash": true,
+            "lifecycle_index_reused": true,
+            "completeness_reviewed_ranges_supplied": true,
+            "quality_cl_late_indexed_fact_bound": true,
+            "quality_cl_late_control_source_supplied": true,
+            "quality_cl_late_runtime_unknown": true,
+            "completeness_cl_no_repeated_read": true,
+            "completeness_cl_single_request": true
+          }
+        },
+        {
+          "sample_index": 2,
+          "run_id": "c1b2b249cbca8a9937798f3d",
+          "elapsed_seconds": 0.11535379198903684,
+          "model_requests": 1,
+          "status": "passed",
+          "answer_sha256": "0fcfd718a7590ea5374d03c79da8c8a07957b6aee66113595f3c494256d53280",
+          "checks": {
+            "completeness_answer_recorded": true,
+            "evidence_supplied_hashes_match": true,
+            "evidence_visible_answer_matches": true,
+            "evidence_answer_ledger_hash": true,
+            "lifecycle_index_reused": true,
+            "completeness_reviewed_ranges_supplied": true,
+            "quality_cl_late_indexed_fact_bound": true,
+            "quality_cl_late_control_source_supplied": true,
+            "quality_cl_late_runtime_unknown": true,
+            "completeness_cl_no_repeated_read": true,
+            "completeness_cl_single_request": true
+          }
+        },
+        {
+          "sample_index": 3,
+          "run_id": "e964d07659356ed27ee95768",
+          "elapsed_seconds": 0.12343479201081209,
+          "model_requests": 1,
+          "status": "passed",
+          "answer_sha256": "0fcfd718a7590ea5374d03c79da8c8a07957b6aee66113595f3c494256d53280",
+          "checks": {
+            "completeness_answer_recorded": true,
+            "evidence_supplied_hashes_match": true,
+            "evidence_visible_answer_matches": true,
+            "evidence_answer_ledger_hash": true,
+            "lifecycle_index_reused": true,
+            "completeness_reviewed_ranges_supplied": true,
+            "quality_cl_late_indexed_fact_bound": true,
+            "quality_cl_late_control_source_supplied": true,
+            "quality_cl_late_runtime_unknown": true,
+            "completeness_cl_no_repeated_read": true,
+            "completeness_cl_single_request": true
+          }
+        }
+      ],
+      "new_windows_executable_acceptance": false,
+      "real_model_generation": false,
+      "external_model_calls": 0,
+      "paid_model_calls": 0,
+      "limitation": "This replay exercises the source application and synthetic loopback HTTP interface. It does not establish a new Windows executable pass or real-model latency/accuracy.",
+      "validation_stage": "before_explicit_true_source_branch_guard_requirement",
+      "tested_changed_files_sha256": {
+        "poc/activation_evidence.py": "466e65c581fb6e713f38f93577c22f7d2bffd11bec8f431dfb19e4a8432ef73d",
+        "poc/quality_trace.py": "ccca986ea078c0f212ff4b084f05cd54288b0954d15818e1637fd624a7d79ff8",
+        "tools/desktop_acceptance_cases.py": "8d33efb5396773d82c2d5d40d54b8848b69e8ac333e63fcec8cae8c1b92f92bd",
+        "docs/eval/desktop-joint-v1/manifest.json": "62cfd53caf3137c22b208b210b9ac63f2b27d16a6ea10807e364e10ad38315f9"
+      },
+      "superseded_by_qualified_source_http_replay": true
+    }
+  ]
+}

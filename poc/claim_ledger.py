@@ -195,9 +195,54 @@ def _condition_scenario(prefix, suffix):
         r"\b(?:(?:does?|will|would|is|are)\s+not|(?:is|are)\s+skipped|regardless)\b", first_clause, re.I))
 
 
+def _control_excerpts(text):
+    """Retain branch roles in quoted control code, not a regex-only prefix."""
+    from statement_parser import parse_statements
+
+    assertions = []
+
+    def excerpt(match):
+        body = match["body"]
+        if (not re.match(r"\s*IF\b", body, re.I)
+                or not re.search(r"\b(?:ELSE|END-IF)\b|\.{3}|…", body, re.I)):
+            return match[0]
+        parsed = parse_statements(body, source_format="free", max_tokens=4096) if len(body) <= 8192 else None
+        if (parsed is None or not parsed.complete or parsed.boundaries
+                or any(node.effects_unknown for node in parsed.statements)):
+            # Ellipses and incomplete control blocks cannot establish which
+            # branch owns a captured MOVE. Their visible IF header can still
+            # be checked independently; the omitted body stays unverified.
+            assertions.append({"predicate": "control_flow_excerpt"})
+            marker = re.match(r"\s*IF\s*", body, re.I)
+            tokens, _ = _read_condition(body, marker.end())
+            if tokens:
+                assertions.append({"predicate": "condition_statement", "condition": list(tokens), "outcome": True})
+        else:
+            for node in parsed.statements:
+                guards = []
+                for guard in node.guards:
+                    if guard.kind == "IF":
+                        condition = statement_tokens(guard.condition)
+                        if condition:
+                            guards.append({"condition": list(condition), "outcome": guard.outcome})
+                            assertions.append({"predicate": "condition_statement",
+                                               "condition": list(condition), "outcome": True})
+                for assertion in _assertions(node.text):
+                    if assertion["predicate"] in {"assignment_statement", "write_statement"}:
+                        assertion["source_guards"] = guards
+                    assertions.append(assertion)
+        # Preserve offsets for the other candidates; do not parse the same
+        # quoted assignments again without their branch context.
+        return " " * len(match[0])
+
+    masked = re.sub(r"(?P<ticks>`+)(?P<body>[^`\r\n]+)(?P=ticks)", excerpt, text)
+    return masked, assertions
+
+
 def _assertions(text, *, table_header=False, derived_context=False):
     """Translate a bounded answer notation, not source syntax, into candidates."""
-    text = _REFERENCE.sub("", text).replace("`", "")
+    text, control_assertions = _control_excerpts(_REFERENCE.sub("", text))
+    text = text.replace("`", "")
     # Strip paired Markdown strong delimiters, preserving the COBOL power
     # operator and literal contents. A spaced ** operator is not a delimiter.
     parts = re.split(r"('(?:[^']|'')*'|\"(?:[^\"]|\"\")*\")", text)
@@ -205,7 +250,7 @@ def _assertions(text, *, table_header=False, derived_context=False):
         parts[index] = re.sub(r"(?<!\w)\*\*(?=\S)(.+?)(?<=\S)\*\*(?!\w)", r"\1", parts[index])
     text = "".join(parts)
     local_derivation = _DERIVATION_CONTEXT.search(text)
-    assertions, occupied = [], []
+    assertions, occupied = control_assertions, []
     conditions, explicit_conditions = [], []
     # A compound IF is one assertion. Splitting it into its two comparisons
     # would falsely contradict the complete source condition and can replace a
@@ -465,6 +510,13 @@ def _related(assertion, facts):
     result = [fact for fact in facts if fact["predicate"] == predicate and (target is None or fact.get("target") == target)]
     if assertion.get("statement_kind"):
         result = [fact for fact in result if fact.get("statement_kind") == assertion["statement_kind"]]
+    if "source_guards" in assertion:
+        def guards(fact):
+            return [{"condition": list(statement_tokens(re.sub(r"^IF\s+", "", guard.get("condition", ""), flags=re.I)) or ()),
+                     "outcome": True if guard.get("outcome") in (True, "true") else
+                                False if guard.get("outcome") in (False, "false") else None}
+                    for guard in fact.get("guards", ()) if guard.get("kind") == "IF"]
+        result = [fact for fact in result if guards(fact) == assertion["source_guards"]]
     if predicate == "condition_statement":
         # Only compare conditions about the same first operand; another IF in
         # the excerpt is not a correction candidate for the current condition.
@@ -818,6 +870,12 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
             if assertion["predicate"] == "condition_scenario":
                 entry.reason_code = "BUSINESS_CONDITION_SCENARIO_NOT_FORMALLY_VERIFIED"
                 entry.support_scope = "unverified_control_flow_scenario"
+                if invalid:
+                    unresolved = True
+                continue
+            if assertion["predicate"] == "control_flow_excerpt":
+                entry.reason_code = "INCOMPLETE_CONTROL_EXCERPT_NOT_FORMALLY_VERIFIED"
+                entry.support_scope = "unverified_control_flow_excerpt"
                 if invalid:
                     unresolved = True
                 continue

@@ -1,0 +1,254 @@
+{
+  "schema": "independent-source-upgrade-audit/v1",
+  "client_date": "2026-10-22",
+  "reviewer": "quality_upgrade_audit",
+  "review_status": "passed_no_remaining_blockers_in_tested_scope",
+  "repository_head": "99d70d70f1ad0ed07d58c61a64952c3232879a0d",
+  "old_release_tag": "v2026.10.14.2",
+  "old_release_commit": "b8b63899080e2fe52f18c24159da21254b5f11c0",
+  "current_uncommitted_source_sha256": {
+    "poc/workspace_upgrade.py": "5be16f182981d8dd09a848eb5cb11c4fcf5460739f9d508f94cc253891bbd62a",
+    "poc/web_app.py": "5d42f7d33e1056db196e55a8dbf4661afdb875f084f3f88b7ec0797c89c9acfe",
+    "poc/analyze_source.py": "d150068c953660c28887e5323f1cb6eadc3907c600d29663fad019e896d5a9af"
+  },
+  "source_hashes_equal_before_and_after_audit": true,
+  "execution_surface": "mac_python_source",
+  "fixtures": "two neutral synthetic COBOL programs, one conversation with two retained messages, one local notes file",
+  "old_database_generation": "Actual Python source files exported by git archive v2026.10.14.2; old analyze_source generated the SQLite databases, reports and conversations. The scoped case used entry=AMOUNT-RULE,index_mode=catalog; other cases used whole-repository retrieval.",
+  "verification": "Ran plan_workspace_upgrade and two sequential WorkbenchState launches for each case. Compared retained conversation objects, notes bytes, indexed file membership and index file SHA256. The old source tree and case outputs were created in an isolated temporary directory and removed after successful execution.",
+  "failure_injection": {
+    "bad_json": "diagnosis.json replaced with invalid JSON",
+    "wrong_report_source": "diagnosis.source_root set to another neutral path",
+    "wrong_build_snapshot": "diagnosis.build_report.snapshot_id set to sha256 followed by 64 zeros",
+    "wrong_top_snapshot": "diagnosis.snapshot_id set to sha256 followed by 64 zeros",
+    "unknown_scope": "diagnosis.scope.mode set to unknown"
+  },
+  "cases": [
+    {
+      "case": "full",
+      "initial_plan_status": "ready",
+      "initial_reason_code": "SOURCE_INDEX_VERSION_UPGRADE",
+      "launches": [
+        {
+          "launch": 1,
+          "job_status": "COMPLETED",
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl",
+            "unrelated.cbl"
+          ],
+          "index_bytes_equal_to_original": false
+        },
+        {
+          "launch": 2,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl",
+            "unrelated.cbl"
+          ],
+          "index_bytes_equal_to_original": false
+        }
+      ],
+      "passed": true
+    },
+    {
+      "case": "scoped",
+      "initial_plan_status": "manual",
+      "initial_reason_code": "SOURCE_SCOPE_NOT_REPRODUCIBLE",
+      "launches": [
+        {
+          "launch": 1,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl"
+          ],
+          "index_bytes_equal_to_original": true
+        },
+        {
+          "launch": 2,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl"
+          ],
+          "index_bytes_equal_to_original": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "case": "bad_json",
+      "initial_plan_status": "manual",
+      "initial_reason_code": "SOURCE_INDEX_INVALID",
+      "launches": [
+        {
+          "launch": 1,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl",
+            "unrelated.cbl"
+          ],
+          "index_bytes_equal_to_original": true
+        },
+        {
+          "launch": 2,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl",
+            "unrelated.cbl"
+          ],
+          "index_bytes_equal_to_original": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "case": "wrong_report_source",
+      "initial_plan_status": "manual",
+      "initial_reason_code": "SOURCE_SCOPE_NOT_REPRODUCIBLE",
+      "launches": [
+        {
+          "launch": 1,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl",
+            "unrelated.cbl"
+          ],
+          "index_bytes_equal_to_original": true
+        },
+        {
+          "launch": 2,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl",
+            "unrelated.cbl"
+          ],
+          "index_bytes_equal_to_original": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "case": "wrong_build_snapshot",
+      "initial_plan_status": "manual",
+      "initial_reason_code": "SOURCE_SCOPE_NOT_REPRODUCIBLE",
+      "launches": [
+        {
+          "launch": 1,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl",
+            "unrelated.cbl"
+          ],
+          "index_bytes_equal_to_original": true
+        },
+        {
+          "launch": 2,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl",
+            "unrelated.cbl"
+          ],
+          "index_bytes_equal_to_original": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "case": "wrong_top_snapshot",
+      "initial_plan_status": "manual",
+      "initial_reason_code": "SOURCE_SCOPE_NOT_REPRODUCIBLE",
+      "launches": [
+        {
+          "launch": 1,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl",
+            "unrelated.cbl"
+          ],
+          "index_bytes_equal_to_original": true
+        },
+        {
+          "launch": 2,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl",
+            "unrelated.cbl"
+          ],
+          "index_bytes_equal_to_original": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "case": "unknown_scope",
+      "initial_plan_status": "manual",
+      "initial_reason_code": "SOURCE_SCOPE_NOT_REPRODUCIBLE",
+      "launches": [
+        {
+          "launch": 1,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl",
+            "unrelated.cbl"
+          ],
+          "index_bytes_equal_to_original": true
+        },
+        {
+          "launch": 2,
+          "job_status": null,
+          "history_equal_to_original": true,
+          "user_notes_bytes_equal_to_original": true,
+          "indexed_files": [
+            "amount.cbl",
+            "unrelated.cbl"
+          ],
+          "index_bytes_equal_to_original": true
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "case_count": 7,
+  "startup_count": 14,
+  "all_cases_passed": true,
+  "external_model_calls": 0,
+  "paid_model_calls": 0,
+  "model_guard": "Old intake used allow_network=False; current startup tests patched OpenAICompatibleChatClient.__init__ to raise if invoked.",
+  "previous_findings_resolved": [
+    "Automatic full import expanded a selected entry scope. The selected-scope case now retains exactly one indexed file and does not auto-import on either start.",
+    "Display snapshot repair could turn an originally mismatched scope record into automatic-upgrade authorization, including after restart. Both top-level and build snapshot mismatch cases now remain ineligible on both starts."
+  ],
+  "limitations": [
+    "This is source-level offline verification, not compiled Windows EXE acceptance.",
+    "The historical conversations are synthetic retained data; no new model-generated answer quality was scored.",
+    "These tests do not establish end-to-end answer latency or a broad performance improvement.",
+    "The exact trigger on the user Windows computer remains unconfirmed without that computer local state.",
+    "No shared repository source file was edited by this reviewer and no full regression suite was started."
+  ],
+  "public_summary_zh": "独立使用真实旧版源码生成资料库，验证7种情形、连续14次启动。已确认完整资料库只升级一次；选定入口范围、坏报告、来源不符、快照不符及未知范围均不自动重建。全部历史和用户笔记保持，负例索引字节不变。全程没有外部模型调用；这不是Windows安装包或回答质量验收。"
+}

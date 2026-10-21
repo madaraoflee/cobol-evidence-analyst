@@ -36,8 +36,10 @@ class AgentPolicy:
     max_semantic_source_bytes: int = 33554432
     max_semantic_expansions: int = 4
     max_evidence_groups: int = 12
-    max_initial_context_seconds: int = 3
-    max_local_analysis_seconds: int = 15
+    # File/byte/action limits bound local work unless a deployment opts into
+    # an additional elapsed-time cutoff.
+    max_initial_context_seconds: int | None = None
+    max_local_analysis_seconds: int | None = None
     # Keep the legacy 0/1 field separate from the new counted allowance.
     max_answer_revisions: int | None = None
     semantic_cache_bytes: int = 536870912
@@ -56,6 +58,8 @@ class AgentPolicy:
             "max_question_seconds": (1, 1800),
             "hard_question_seconds": (1, 1800),
             "delivery_target_seconds": (1, 1800),
+            "max_initial_context_seconds": (1, 120),
+            "max_local_analysis_seconds": (1, 300),
             "max_answer_revisions": (0, 1),
         }
         for name, (minimum, maximum) in optional_limits.items():
@@ -84,8 +88,6 @@ class AgentPolicy:
             "max_semantic_source_bytes": (1024, 536870912),
             "max_semantic_expansions": (0, 16),
             "max_evidence_groups": (0, 64),
-            "max_initial_context_seconds": (1, 120),
-            "max_local_analysis_seconds": (1, 300),
             "max_investigation_rounds": (0, 5),
             "max_no_evidence_revisions": (0, 2),
             "finalization_reserve_seconds": (0, 180),

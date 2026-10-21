@@ -214,7 +214,9 @@ function renderChrome(){
   $('connect-button').setAttribute('title',state.busy?t('目前工作完成後，可更新源碼'):sourceAction);
   if($('connect-label'))$('connect-label').textContent=sourceAction;
   const inlineFailure=conversationMode() && state.page==='workbench' && state.error;
-  const notice=(!inlineFailure && state.error?errorSummaryText():'') || (!demo && d?.runner_status==='BLOCKED'?(d.messages || []).join(' '):'');
+  const restoreNotice=!demo && !sourceUsable() && state.project?.restore_notice;
+  const recoveryText=restoreNotice==='SOURCE_PATH_UNAVAILABLE'?t('原源碼路徑暫時不可用。已有對話仍可查看；請恢復原路徑，或選回正確源碼與原分析結果資料夾，無需清空結果。'):restoreNotice?t('已有對話仍可查看。目前索引需要更新；請沿用原源碼與分析結果資料夾，無需清空結果或另建資料夾。'):'';
+  const notice=(!inlineFailure && state.error?errorSummaryText():'') || recoveryText || (!demo && d?.runner_status==='BLOCKED'?(d.messages || []).join(' '):'');
   $('notice').textContent=notice;$('notice').hidden=!notice;
 }
 
@@ -486,7 +488,7 @@ function diagnosticSummaryData(){
   const runtime=summary.runtime || {},configured=summary.configured || {},coverage=summary.source_coverage || {},output=summary.output || {};
   const requests=Array.isArray(summary.requests)?summary.requests.filter(item=>item && typeof item==='object').slice(0,64).map(item=>({
     round_id:Number.isSafeInteger(item.round_id) && item.round_id>=0?item.round_id:typeof item.round_id==='string' && /^round-[0-9]{1,6}$/.test(item.round_id)?item.round_id:null,
-    stage:enumeration(item.stage,['answer','discover','investigate','synthesis_review','continuation','unknown']),
+    stage:enumeration(item.stage,['answer','discover','investigate','synthesis_review','continuation','semantic_review','semantic_revise','unknown']),
     ...integers(item,['request_bytes','source_file_count','page_count','source_characters','source_line_count','trim_event_count','history_message_count','history_characters','raw_content_characters','parsed_answer_characters','choice_index']),
     finish_reason:finish(item.finish_reason),
     response_timing_seconds:Object.fromEntries(['headers_received','first_response_byte','response_complete','request_elapsed'].filter(key=>seconds(item.response_timing_seconds?.[key])!==null).map(key=>[key,seconds(item.response_timing_seconds[key])])),
@@ -620,6 +622,7 @@ function answerCompletionReason(answer){
     model_client_error:'模型請求或回應處理失敗，請查看 HTTP 狀態與 API 返回。',
     source_availability_contradiction:'回答對源碼供應的描述仍有矛盾，已保留正文供核對。',
     supplied_business_aspects_unexplained:'回答尚未涵蓋本題已定位的全部業務要點，已保留目前正文。',
+    semantic_review_incomplete:'這份回答的業務結論尚未完成核對，部分推斷或遺漏仍待確認；目前正文已保留。',
     investigation_promised_without_completion:'回答中提及的後續調查尚未完成，已保留目前取得的結論。',
     investigation_without_business_answer:'目前回答尚未充分解釋所問業務，仍需根據已讀證據補充。',
     answer_incomplete:'回答尚有未完成的業務要點，已保留目前正文。',
@@ -1043,7 +1046,7 @@ function apiErrorText(error){
   if(code==='RETRY_NOT_AVAILABLE' || code==='INVALID_RETRY')return t('這條問題已無法重試，請在對話末尾繼續提問。');
   if(code==='SOURCE_REQUIRED')return t('請先接入源碼，再開始對話。');
   if(code==='SOURCE_UPDATE_FAILED')return t('源碼更新未完成，原資料庫和對話已保留。請檢查匯入詳情後重試。');
-  if(code==='INVALID_PATH')return t('請使用完整絕對路徑：源碼目錄須存在；輸出須獨立且為空、新目錄或只含分析產物。兩者不可相互嵌套。');
+  if(code==='INVALID_PATH')return t('請選擇存在的源碼目錄和獨立的分析結果目錄。已有資料庫請沿用原結果目錄，無需清空；兩者不可相互嵌套，分析檔案不可使用符號連結。');
   if(code==='JOB_ACTIVE')return t('目前已有分析正在執行，請等候完成。');
   if(code==='INVALID_SESSION')return t('工作階段已失效，請重新整理頁面。');
   if(['INVALID_ENCODING','INVALID_SOURCE_FORMAT','INVALID_EXTENSIONS'].includes(code))return t('請檢查文字編碼、源碼格式與副檔名設定。');
@@ -1078,7 +1081,7 @@ async function initialize(){
     if(restoredProject){applyProject(restoredProject);rememberSourcePreferences(projectSourcePreferences(restoredProject));state.mode='real';if(restoredProject.diagnosis)state.history=[restoredProject];}
     rememberSourcePreferences(data.source_preferences);
     if(state.conversationSupported){state.mode='real';state.question='';state.entry='';state.readingStrategy='retrieval';if(restoredProject){applyConversation(data.conversation || restoredProject.conversation);restoreConversationFailure(data.job);}}
-    if(state.project?.restore_blocked){blockSourceRecovery(data.project);state.errorDiagnostic=data.job?.error?.code==='SOURCE_UPDATE_ROLLBACK_FAILED'?safeApiDiagnostic(data.job.error.diagnostic):null;state.error=apiErrorText({code:'SOURCE_UPDATE_ROLLBACK_FAILED',diagnostic:state.errorDiagnostic});}
+    if(state.project?.restore_blocked){blockSourceRecovery(data.project,{preserveHistory:true});state.errorDiagnostic=data.job?.error?.code==='SOURCE_UPDATE_ROLLBACK_FAILED'?safeApiDiagnostic(data.job.error.diagnostic):null;state.error=apiErrorText({code:'SOURCE_UPDATE_ROLLBACK_FAILED',diagnostic:state.errorDiagnostic});}
     const realJob=data.job && !syntheticSourceScope(data.job);
     if(realJob && data.job.kind==='index')rememberSourcePreferences({source:data.job.source,output:data.job.output});
     if(realJob && data.job.kind==='index' && data.job.status==='FAILED' && !data.active_job_id){state.errorDiagnostic=safeApiDiagnostic(data.job.error?.diagnostic);state.error=apiErrorText(data.job.error);if(data.job.error?.code==='SOURCE_UPDATE_ROLLBACK_FAILED')blockSourceRecovery(data.job);}
@@ -1175,12 +1178,14 @@ async function startJob(options){
 }
 function sourceJobState(){return {project:state.project,conversation:state.conversation,conversations:state.conversations,question:state.question,mode:state.mode,page:state.page,entry:state.entry,pendingMessage:state.pendingMessage,evidence:state.evidence,selectedEvidence:state.selectedEvidence,conversationEvidence:state.conversationEvidence};}
 function restoreSourceJob(){if(state.sourceJobBackup){Object.assign(state,state.sourceJobBackup);state.sourceJobBackup=null;}state.sourceJobTarget=null;}
-function blockSourceRecovery(scope={}){
+function blockSourceRecovery(scope={}, {preserveHistory=true}={}){
   const target=state.sourceJobTarget,project=state.project;
   state.project={source:scope.scope?.source || scope.source || target?.source || project?.source || '',
     output:scope.scope?.output || scope.output || target?.output || project?.output || '',snapshot_id:null,diagnosis:null,
     programs:[],agent:null,relations:{edges:[]},restore_blocked:true};
-  state.conversation=null;state.conversations=[];state.pendingMessage=null;state.conversationEvidence=null;state.impactPages={};
+  if(!preserveHistory || !sameSourceWorkspace(project,state.project)){state.conversation=null;state.conversations=[];}
+  if(preserveHistory && scope.restore_notice)state.project.restore_notice=scope.restore_notice;
+  state.pendingMessage=null;state.conversationEvidence=null;state.impactPages={};
   clearEvidence();state.entry='';state.sourcePage=0;state.entryFilter='';state.sourceJobBackup=null;state.sourceJobTarget=null;
 }
 function sameSourceWorkspace(left,right){

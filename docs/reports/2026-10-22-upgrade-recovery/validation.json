@@ -1,0 +1,57 @@
+{
+  "schema_version": "source-upgrade-validation/v1",
+  "date": "2026-10-22",
+  "base_commit": "99d70d70f1ad0ed07d58c61a64952c3232879a0d",
+  "tested_source_sha256": {
+    "poc/tests/test_desktop_upgrade.py": "3c0df90a9328a998666be8fcb6b9328a60392eead1e695afd2a9e00fa23da943",
+    "poc/tests/test_existing_output_reuse.py": "e26d381be777e42c8ad8cead1111a3919b693a2643338712544a68cec242df0b",
+    "poc/tests/test_workspace_upgrade.py": "96888fe586efe9dba1374e5f732563ec2af6680f34cd73f2bc658ea6ac820ddb",
+    "poc/workspace_upgrade.py": "5be16f182981d8dd09a848eb5cb11c4fcf5460739f9d508f94cc253891bbd62a",
+    "poc/analyze_source.py": "d150068c953660c28887e5323f1cb6eadc3907c600d29663fad019e896d5a9af",
+    "poc/tests/test_workspace_restart.py": "ec7b079eeb97b3fba08f6beb747e7a16fcef5ef14a863972c79a34517ba4bc45",
+    "poc/tests/web_source_updates.test.cjs": "924c648db029ec7e05216eb3aaca4e13ccca41656fb5bf95c9fed7e200baa414",
+    "poc/web/app.js": "882d8aadea199b477e4e9a918875b9505b65160d04b0272ec2a55a73b442f07b",
+    "poc/web/i18n.js": "ce6bd6e23dd88dd0cfdcd9e74930c86d77e5034d02beb847a9032b1d4644f7bc",
+    "poc/web_app.py": "5d42f7d33e1056db196e55a8dbf4661afdb875f084f3f88b7ec0797c89c9acfe"
+  },
+  "source_python": {
+    "status": "passed",
+    "tests_run": 3589,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsed_seconds": 195.833816,
+    "full_report_sha256": "325c110db434417cc7f3d6fdfc7016b738d7655a3d0c727ff81ed98e06815157",
+    "public_corpus_commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e"
+  },
+  "source_browser": {
+    "passed": 194,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_seconds": 5.002827584,
+    "log_sha256": "c5a259e551506d7b71b87c582d971bdd2418450d710f08f25fe91d4dc1d45024"
+  },
+  "python310_syntax": {
+    "files": 443,
+    "passed": true,
+    "manifest_sha256": "d6c444c1e13dd0f1357f5c3a4997bc49c67c4a2121d1a95a95b2e799bf90dee2"
+  },
+  "independent_legacy_source_audit": {
+    "cases": 7,
+    "startups": 14,
+    "passed": true,
+    "report_sha256": "bbdd43aa56a32edee9c59d5df83acc131f399b7d694317058a5256d058db025e"
+  },
+  "external_model_calls": 0,
+  "paid_model_calls": 0,
+  "incremental_estimated_cost_cny": 0,
+  "prior_conservative_estimated_cost_cny": 1.902868,
+  "new_real_model_quality_validation": false,
+  "user_windows_recovery_confirmed": false,
+  "native_windows_acceptance": "not_run_at_source_commit",
+  "limitations": [
+    "Source-entry validation on macOS does not verify the final Windows executable.",
+    "The last real-model answer review failed; this repair does not establish improved business answer quality.",
+    "Actual user-device trigger and on-device file recovery remain unconfirmed."
+  ]
+}

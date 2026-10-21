@@ -1,0 +1,208 @@
+{
+  "schema_version": "actual-wire-history-role-audit/v1",
+  "phase": 7,
+  "run_id": "c7c588754c6f8c2c69e9fea7",
+  "source_results_file": "real-model-results-phase7.json",
+  "source_results_sha256": "760897e47383c5398464c03afcb5a042aa770ab7c284dfebffb750bfcee5cf8e",
+  "trace_sha256": "a747bb4b16b5e2c61b57155416b5bf0e77caf2171ebf19b33f7df1c789337f17",
+  "request_sha256": "cc9a624fe4d68bec67f26e0feb6f6c2509a91ee26a692988af09fdf85f1a5bc6",
+  "history_before_sha256": "d8a6220fb68fbfbbbaf2e60cfc4d164e171086205c91a59250bd94455c6346dc",
+  "actual_wire_history_sha256": "5d5bbf2ae549fceacd41160b0bb6299fade5d385791c77225d3b503b3fd5a7f0",
+  "stored_history_messages_before": 8,
+  "actual_wire_history_messages": 7,
+  "actual_wire_history_characters": 18000,
+  "assistant_characters": 17709,
+  "user_characters": 291,
+  "assistant_share_of_history_characters": 0.9838333333333333,
+  "prior_nonpassing_boundary_answer_characters": 9264,
+  "current_raw_source_page_characters": 1497,
+  "current_raw_source_pages": [
+    {
+      "end_line": 21,
+      "evidence_id": "ev_page_41c62f686dca8a6b3a26a3e9",
+      "semantic_roles": [
+        "condition",
+        "result"
+      ],
+      "group_id": null,
+      "binding_sha256": "fce97de82cca7b4fc584c54497cdccd5ce50e5ba74b53525cfe086efe4c6cf8e",
+      "relative_path": "balance.cbl",
+      "characters": 572,
+      "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+      "start_line": 1,
+      "excerpt_sha256": "759ece45e78016f57df33fd833c5c5de9414fc6d1f8ff15d8b8ca533768732b5"
+    },
+    {
+      "end_line": 38,
+      "evidence_id": "ev_page_0a5bd724415b32dba5d08161",
+      "semantic_roles": [],
+      "group_id": null,
+      "binding_sha256": "90daa3e7600e66c60b79223694026cd4535e2d6b8152490d77a9ae5638ac7096",
+      "relative_path": "settle.cbl",
+      "characters": 925,
+      "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+      "start_line": 1,
+      "excerpt_sha256": "17a5a9383a388d75f437e9f5b16afd82840caf7f9852fbd052ba30014e9c6464"
+    }
+  ],
+  "prior_source_memory_block_count": 0,
+  "actual_wire_messages": [
+    {
+      "wire_position": 1,
+      "role": "assistant",
+      "characters": 4164,
+      "wire_content_sha256": "f033ee0917b68cfa07aa3f03dcb8bd50316734260f6943b8ec0d69775a78c19e",
+      "stored_matches": [
+        {
+          "message_id": "9eba13e26daa18fbfe2c59179df50983",
+          "position": 2,
+          "full_content_sha256": "edc54718015bc117fe18b85f7093af4dc6d16ad4d2ef24252a42735d1973c06d",
+          "full_characters": 4593,
+          "match": "prefix_truncated"
+        }
+      ],
+      "historical_answer": {
+        "phase": 4,
+        "case_id": "batch",
+        "run_id": "a6432670f848eb5ec97f818b",
+        "answer_sha256": "edc54718015bc117fe18b85f7093af4dc6d16ad4d2ef24252a42735d1973c06d",
+        "answer_characters": 4593,
+        "source_file": "real-model-results-phase4.json"
+      }
+    },
+    {
+      "wire_position": 2,
+      "role": "user",
+      "characters": 55,
+      "wire_content_sha256": "0cb2ebd152b647f25ca1b01307a6431ae89967aa3dc1bc7e4955c07d2b195552",
+      "stored_matches": [
+        {
+          "message_id": "13b8bf446b6eece6a43f228e69e2a287",
+          "position": 3,
+          "full_content_sha256": "0cb2ebd152b647f25ca1b01307a6431ae89967aa3dc1bc7e4955c07d2b195552",
+          "full_characters": 55,
+          "match": "exact"
+        }
+      ]
+    },
+    {
+      "wire_position": 3,
+      "role": "assistant",
+      "characters": 4281,
+      "wire_content_sha256": "74109c5e9651275dc07478e9c54063561feefc2ea4415729c4f8aa899317ec95",
+      "stored_matches": [
+        {
+          "message_id": "729b4781879cca0caf0e1e9c06a5649f",
+          "position": 4,
+          "full_content_sha256": "74109c5e9651275dc07478e9c54063561feefc2ea4415729c4f8aa899317ec95",
+          "full_characters": 4281,
+          "match": "exact"
+        }
+      ],
+      "historical_answer": {
+        "phase": 4,
+        "case_id": "online",
+        "run_id": "850853d2c8abbeff2419bb5d",
+        "answer_sha256": "74109c5e9651275dc07478e9c54063561feefc2ea4415729c4f8aa899317ec95",
+        "answer_characters": 4281,
+        "source_file": "real-model-results-phase4.json"
+      }
+    },
+    {
+      "wire_position": 4,
+      "role": "user",
+      "characters": 118,
+      "wire_content_sha256": "040be07e957007f7c08de97c3e02144281aedb3ae39c35ce832e2d810c9d61ea",
+      "stored_matches": [
+        {
+          "message_id": "8e1a1fbbac9fed42e481149c2478304a",
+          "position": 5,
+          "full_content_sha256": "040be07e957007f7c08de97c3e02144281aedb3ae39c35ce832e2d810c9d61ea",
+          "full_characters": 118,
+          "match": "exact"
+        },
+        {
+          "message_id": "c02bf81ff548d20b6b64e9cfd62046c3",
+          "position": 7,
+          "full_content_sha256": "040be07e957007f7c08de97c3e02144281aedb3ae39c35ce832e2d810c9d61ea",
+          "full_characters": 118,
+          "match": "exact"
+        }
+      ]
+    },
+    {
+      "wire_position": 5,
+      "role": "assistant",
+      "characters": 3548,
+      "wire_content_sha256": "e060b9f91293d253db19a61606333e9fb57c2b659765c7725fa72eda79202535",
+      "stored_matches": [
+        {
+          "message_id": "e995b5214261b5e70f445eae127f7e9a",
+          "position": 6,
+          "full_content_sha256": "e060b9f91293d253db19a61606333e9fb57c2b659765c7725fa72eda79202535",
+          "full_characters": 3548,
+          "match": "exact"
+        }
+      ],
+      "historical_answer": {
+        "phase": 4,
+        "case_id": "boundary-followup",
+        "run_id": "f7d684ae622b83bda07b8e91",
+        "answer_sha256": "e060b9f91293d253db19a61606333e9fb57c2b659765c7725fa72eda79202535",
+        "answer_characters": 3548,
+        "source_file": "real-model-results-phase4.json"
+      }
+    },
+    {
+      "wire_position": 6,
+      "role": "user",
+      "characters": 118,
+      "wire_content_sha256": "040be07e957007f7c08de97c3e02144281aedb3ae39c35ce832e2d810c9d61ea",
+      "stored_matches": [
+        {
+          "message_id": "8e1a1fbbac9fed42e481149c2478304a",
+          "position": 5,
+          "full_content_sha256": "040be07e957007f7c08de97c3e02144281aedb3ae39c35ce832e2d810c9d61ea",
+          "full_characters": 118,
+          "match": "exact"
+        },
+        {
+          "message_id": "c02bf81ff548d20b6b64e9cfd62046c3",
+          "position": 7,
+          "full_content_sha256": "040be07e957007f7c08de97c3e02144281aedb3ae39c35ce832e2d810c9d61ea",
+          "full_characters": 118,
+          "match": "exact"
+        }
+      ]
+    },
+    {
+      "wire_position": 7,
+      "role": "assistant",
+      "characters": 5716,
+      "wire_content_sha256": "785029104161c2d99d470c2afa988c9003cf47167c04df1be0201b19585d079f",
+      "stored_matches": [
+        {
+          "message_id": "5e5bc23e486f8c75bdf92f68de93e325",
+          "position": 8,
+          "full_content_sha256": "785029104161c2d99d470c2afa988c9003cf47167c04df1be0201b19585d079f",
+          "full_characters": 5716,
+          "match": "exact"
+        }
+      ],
+      "historical_answer": {
+        "phase": 5,
+        "case_id": "boundary-followup",
+        "run_id": "94fd0d248d00ee044474c4f6",
+        "answer_sha256": "785029104161c2d99d470c2afa988c9003cf47167c04df1be0201b19585d079f",
+        "answer_characters": 5716,
+        "source_file": "real-model-results-phase5.json"
+      }
+    }
+  ],
+  "answer_text_exported_in_this_audit": false,
+  "scope": "Observed character allocation in one actual request. The two prior boundary answers had nonpassing reviews; this does not mean every character was wrong. Citations and stored completion status do not verify prose semantics.",
+  "causal_conclusion_established": false,
+  "limitation": "Character counts are not token counts, attention weights or a causal demonstration that old answers caused the new error. Raw source page characters exclude the question, system guidance and other structural context.",
+  "new_model_requests": 0,
+  "source_records_modified": false
+}

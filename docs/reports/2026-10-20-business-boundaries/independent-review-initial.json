@@ -1,0 +1,656 @@
+{
+  "schema_version": "independent-business-boundary-review/v1",
+  "reviewer": {
+    "kind": "agent_source_review",
+    "agent": "source_claims",
+    "human_acceptance": false,
+    "method": "Read complete original and delivered answers; compare frozen required findings with exact supplied source bytes and branch structure; no additional model call."
+  },
+  "stage": "initial_live_before_local_else_repair",
+  "evidence": {
+    "results_file": "results.json",
+    "results_sha256": "b95d1f4bb47f95233d1551c7a2aa8ec75431742e4fffafe8851ab094addc5342",
+    "gold_file": "docs/eval/business-boundaries-v1/cases.json",
+    "gold_sha256": "790fabb0d868a511de5e845e32958a8e372622174be68d85cb449111bf62248f",
+    "source_conclusions_file": "docs/reports/2026-10-20-business-boundaries/source-conclusions.json",
+    "source_conclusions_sha256": "5c4c0e982a02c470a460ab8183c5bce53c7ed0b0142eba3496a3623081401c26",
+    "tested_product_hashes": {
+      "poc/activation_evidence.py": "05d890d923dfcf16c0778197fc6d5d0cfdd4c8f2143ee7f65a0bbe9a8155593f",
+      "poc/agent_loop.py": "15a66a72e5d88be7fe0ce9f43e87e9115535faafa4fe855275c2bd4896239893",
+      "poc/agent_policy.py": "56141db74f987ba6f344d7df0630516ff26a79205c05cf47eb2fbb172c6f32d5",
+      "poc/analysis_continuation.py": "08913658d4c685186371bcdf924c0189e7a561c83f2ac98e12fc62741eeac763",
+      "poc/analyze_source.py": "d9ea72209e59420329a61896c030d0bb0cf15639a7f482362808764d0e777f0e",
+      "poc/answer_diagnostics.py": "35bec6e548bad70e1b6d4d1a144d1fee4ef5b58d6affe7aba3dcf109653df07b",
+      "poc/answer_fact_completion.py": "061293f3716c22162950e447c52aa691c301ea419552949bd5c71a7703da3ef1",
+      "poc/answer_grounding.py": "6cf1b8b202e8ac5c00d24ecc2b61dcb6d526afb0db279494ae9139e3ee751b7a",
+      "poc/answer_markdown.py": "3eadc68dfbb7684c4a40688113632df80ee4891bd7c28bf4100273249bdda019",
+      "poc/api_diagnostics.py": "5a98084fdfa9d6be8865ba947756598839e9c7737bccf5b77fec6ad0e87ce35a",
+      "poc/api_error_details.py": "ad145b08097dcd18426ea64581493e95a2b0a2b373c409bcbc8092eb24fc07c0",
+      "poc/app_paths.py": "5cd638fc7ebd36ec9a499d001cc0e49e9520a43bb9b5ebedc06204a4b0dfae92",
+      "poc/batch_context_evidence.py": "8b0e6b85c9f5d4b288caa145fe690402862d285d6de84d62932067f26ff99665",
+      "poc/benchmark_business_facts.py": "7d011ec111405144eb7e6fea01b73628b8de18fdb79fc5762dd9a3531986e09d",
+      "poc/benchmark_chat_latency.py": "8f8a1d40d81b68ba784d319126b883dcdb8e80af098e444b90acd7ee99ed3723",
+      "poc/benchmark_evidence_context.py": "e421f7b6d5dffdbdff502ec9f7405a987586879ef5e1515e6a83032b2c0dff7f",
+      "poc/benchmark_intake.py": "b33db5e7f80b67bf510a5dc2b1b1efe659be207e29eed1ae2103eb3d59894654",
+      "poc/benchmark_semantic_layout.py": "a962ac9238d1d9af980870ae60f0b992f6a99bd5438d5e8fcd2f68c261925881",
+      "poc/build_delivery.py": "74d771160c1b04a856fad3779bdef957527cece344ec2a2549e23992d47e4987",
+      "poc/business_acceptance.py": "02914ff693e8bdb384cab005c5f96ebf6d302984e0b0b542a73aa2ccbefb74cd",
+      "poc/business_analysis.py": "a33dcb8c4636b4bfc298c7a725c79c04ff77b47e15bb7de80353d306da45e2ef",
+      "poc/business_behavior.py": "88dfdbba7753697550d3b1330892796a2481920b7d749be6e47cae8ad9aa8dbb",
+      "poc/business_chat.py": "80671de295eac7714066c04b92e6883c0ca4ef249b4a7e072d0005a69f334b0c",
+      "poc/business_index.py": "dac92753585105b6548682529986599bbccd6bfec9425265e817136787fbff33",
+      "poc/business_investigation.py": "1a38251f06593bc877f6c6f78b890b8aec05cd513ee2fe5b388aae24b21b5c4e",
+      "poc/business_map.py": "809afe980c241293cb1978f5d7e4ab438515cdf5fb5f9c8843d43048281b1078",
+      "poc/business_orientation.py": "605558aa5d7002151818e0fdc227565e042adf42a85b263eeb9ed19a2c4fded2",
+      "poc/business_synthesis.py": "975f7fae6d43f3a5beb3bbc6ce3a85f311717bc41aa6802effb12c324dbf3f11",
+      "poc/call_bindings.py": "62771b40b82c9a27267cc3770d9ad4c6faa74853f78c6aaf8c95f16f13fc9633",
+      "poc/call_contexts.py": "d51def1c3578c1859b48f4438941281319edd08f4107869881e8f7e18bcc0ed7",
+      "poc/cl_context.py": "c4010174cf7570243c5868510e11e550d68e065ecf44f495ee609a8abc4fa01d",
+      "poc/claim_ledger.py": "37a8d89f4d71efa3cc579fcc9b09a81dde51421c84544362da2f792269508b60",
+      "poc/claim_support.py": "a6c2b53015e49566f2bc386c3d62467c2f20fcb02c8bef90686e2fdfba9ed33c",
+      "poc/company_api.py": "aa135a1c2a94e5287fac9bc824703655adfce71b9e05d79f9573c9ae11e1cb1c",
+      "poc/compilation_context.py": "aae237da6f4e9dd2ba6fce243ef88103d5420a5ae65b992a839744646f7e1387",
+      "poc/complete_working_set.py": "effd151978ff524a7c24c74d52aa3bc4f14ee52ac39ce691b4c376a40fec5de9",
+      "poc/complex_demo.py": "dbeed1c6dbbdc6a8fda193e56c9fb5dffd44c4412a025755d8e4660975deba31",
+      "poc/concept_search.py": "1d4dcaac7c180a6d58148f468b1c96db423c8150b0ea1b1459aefe1767f9dc30",
+      "poc/context_demo.py": "efaf01947808eb29ec9f338bc2dd1921585db3cc1f04770aeee47cc66a69a329",
+      "poc/context_paths.py": "6fc1468d45395ece3c3a3cf15b55dffd8d1e0545a15760323afd02be13a4d79f",
+      "poc/conversation_focus.py": "10fc2dc2e9f5a8b52e50b9be9a47d41d9f1f9e670f94b8a4e099b4b225cd404c",
+      "poc/conversation_store.py": "43153e7db495fc678adf99874f7e80be685b8a0b6c7b81f907613211e71c91b7",
+      "poc/copy_expansion.py": "ad25fe8da2cc3e5da4124bd0affd31bc371dfafba12e44b7f147b4d75b8c489b",
+      "poc/desktop_app.py": "7c96ed57b4635b5e45e44cb4c83ef6e58762de39b7420d0e3a4cafe8807e1fa1",
+      "poc/draft_validation.py": "d99b9782e8753670e605266a8d77675094ddcdb2e46829a0c2bf26c6365b1dc7",
+      "poc/effect_contract.py": "c3667f38b76aed2a2600f04e101bcd17a25310e8c07b88e46155b7e60b7b56dd",
+      "poc/error_paths.py": "393541ea524efae9d5e20dbd5be70a1de75941d6ddb5aefde3aa6ae5cc7eec03",
+      "poc/error_return_demo.py": "f439f565c333f8bf451f0acf942a5755a22d849005a3536c86e07fe10975c4b8",
+      "poc/evidence_answer.py": "d1f2f205dd6227f73bd5b1e43f1d77f29702cfdfa0277e31ffd12aa659e5f93d",
+      "poc/evidence_context.py": "68f1daf17e9908c4350ee81082ca4c18f25327e02a5fd0319bddde86c7f5dcfe",
+      "poc/exception_cfg.py": "177e3667e14867d9de222c625d843e3f02dc294e7fde6b19350d0165c6034c01",
+      "poc/exception_demo.py": "9f443b819d16811a7fc678594978db095c61cabde47a45e7a2a117b963a94491",
+      "poc/exception_paths.py": "b1daeb44e68c9b66b51620206fb5a08a2c3ac7fd50a7ef1dd0a4cb383ee71443",
+      "poc/field_origin.py": "4a7d77190059139adb7bfbd6e892cca169f5753d7800b3ee76ee4972237ac5a8",
+      "poc/file_impact.py": "e1e0276f63cd108264606a16f2f47414ca7649dc7b68ea4c6b866e60765f9d2f",
+      "poc/file_impact_evidence.py": "57c62e9917a55730ba32beae56b66d02449e7a9155731f99a23c09f4aa7af1ae",
+      "poc/framework_audit.py": "c3dc6c58a213d79d83d271490b3684e208fd4ee65d1aebcb1d3ee47d2963fbf5",
+      "poc/framework_binding.py": "663e548c9d964e64c087d0c96eb35526764dcacc8add74acb4f9ea2af38ba869",
+      "poc/framework_demo.py": "f4830d29ae67702fd426c7b547e27c7727a49068bf961ba2cc2eac4b37684090",
+      "poc/framework_io.py": "c11b1e34ca996a1b79ce776752cc2368a345934ca383bde628f6a6ca038a90f6",
+      "poc/framework_knowledge.py": "12982e207e46850bbf4a0d15575c16b6c57e69623f0927611ac4f6aefbea8312",
+      "poc/framework_layout.py": "5d4f935f20a07568dbf7396b17da48b7fc18cccd107c527c2c124192322949de",
+      "poc/framework_paths.py": "66f7382abb4d0f00f7eaff9dca69f9028be5c7f7db32c9507d2ab283ee95cc00",
+      "poc/framework_projection.py": "c423d614d64e19666f981eeca135e7c72f3a352fb27929f0344a0006257facd2",
+      "poc/framework_rules.py": "6aa879d9aaf3fde8fb7c5f31aa1ac82450ccebc02b3e7eaa61a98cd68a157a55",
+      "poc/framework_semantics.py": "7542b8d63fb8f86e944473ac6d78d05c18fa53e6d59484f08bfd9c88f6c07a76",
+      "poc/impact_results.py": "702d80e074333d61e22377822d6b36e938f4884085124c79b07050a66560df4b",
+      "poc/indexed_chat.py": "0cf332bcbef7df65b98800a5f69f59722aaf8ecec21123a196a1a22fbc2b6af5",
+      "poc/interprogram_paths.py": "39bde7c9982730d0a976017e9fc5ea03db5ffbf441e7a2ff648e5ba8027afa3f",
+      "poc/investigation_tools.py": "835674d2a4c680ca855886535ad96ef7f9205942cb3749b60cc3df24114a7510",
+      "poc/live_business_eval.py": "db7a3b31207c57f5a798c37fdc3876a031464eaa0385afa9cd45934c83adcff0",
+      "poc/model_profiles.py": "84463230029959fbf76b60d698a441fbb3443a829937304e0b0c58baf2f703a6",
+      "poc/numeric_semantics.py": "7375dfc386976a04c484bd96bf0881780a3bd7623f736d8bacdb13e914db203e",
+      "poc/parser_adapter.py": "b867485329ba5f91c84e051350c434c6ab49e1aa8e076865ceecca713baa0cc0",
+      "poc/prior_source_memory.py": "247bf96599ce123503cb3d64fd692fe53007b8134602aa6a4d0bd8333353f4f8",
+      "poc/procedure_expansion.py": "3bc972bb71499e595201777f5dd1e15dba3da982566f03f2f0680e4cdbf605f0",
+      "poc/prompt_projection.py": "2af16d6e34858ab1ce0b51e29e8c63b0d3227f20025601f64d378922af8e398c",
+      "poc/public_business_acceptance.py": "217ca271310a8ee60470f4980e983fb8a2f0d5eefef49daad0d89456d41a6fca",
+      "poc/quality_trace.py": "f14c95b70711575e89901f20429c1a60ca6bef6adef004b5aa27aa43cc2dbebc",
+      "poc/question_budget.py": "3b8f1bb209a9819eb163d42d9193e5ba21a29303eb1d9ced4aeaa28e43558782",
+      "poc/question_intent.py": "ba2374f2a5096eefc52c2fffeadc6bdc48e934a27fad4fa445b36d14aa77b51c",
+      "poc/question_investigation.py": "d497281350fb3ae7f72fc5a16bca5bf4c5bed66ab763770533d87c52bcc7e5d3",
+      "poc/question_planner.py": "9d04bd2fdf2e23a1d7e7f052c1830abc3b45a284196fc7a774648b2ab38e25ea",
+      "poc/release_acceptance.py": "6ac5801ece150e096cd98cd506c33e981a94c0cde7a0b6f5c01df45b827abf87",
+      "poc/repo_inventory.py": "f073014a52825368e3f30b9ffe51698f2ebe8c3cd4f8afcd4f667be6544a5919",
+      "poc/report_view.py": "7dbc7f26b7970fe2fc6ec3a772619db4b0fe715ddc8869846fd1b902824731ad",
+      "poc/repository_discovery.py": "4d123817896c6dd8bc912ed786d5eeec6557c2b69b08921a0c53e5d531ca0b03",
+      "poc/repository_identity.py": "0a2c28f5dd0a7870018f20b56bacedc5c731cf997523d540e23fc6bacbf3e9a5",
+      "poc/response_language.py": "9ab8f4c9119b86b1da738f0b878d9f66455560488b8970b9d4e02353be45987a",
+      "poc/retrieval_quality_eval.py": "fcc904a90db26746220bd835937d11017d25eb423d3557114990876d3dd8f8ee",
+      "poc/run_agent.py": "c6e7bfff97114ef410f9a37843bd93ad47855cc7e1e2658dcf2290c03578d095",
+      "poc/run_demo.py": "0f5a476f3457abdbfcc2e7de7e2b2270158617112d434cfbb435c3051cdeb0bc",
+      "poc/run_framework_paths.py": "d9cfdae20c63903771fe3b0be6c1df77b7722c05c986b21c0d5aaf4b8397921b",
+      "poc/run_project_poc.py": "9719c2f912b29b85aff8a25e514297516b24ce4b3e5b72c330a41813d58bd5c4",
+      "poc/run_store.py": "add192404d1eb527dd7daeb36193563b5a080d5a28d9473a68ac1649dbac3278",
+      "poc/runtime_settings.py": "81f12631a1fb20ac2588589e3269ea38ffe51accd119d9e8244766ef4ecd4458",
+      "poc/semantic_ir.py": "9c687f15823a0cba25fdad5b3f5ae2eaf65ea9327299b75c9a3efe0d8fe3f375",
+      "poc/semantic_scope.py": "3d405327fa42040ff097dc7dab4fd6cd10442627ab15d5dfe9310f16c4d4d526",
+      "poc/semantic_service.py": "9fc807d952b58044a69cec112531758f02efb282f04c9671a9d53de0741b9011",
+      "poc/source_availability.py": "60597f1adf4d07a9cd98c5040a0a47cf8c2066c47fa9eb5e4c398fd0d1410cd1",
+      "poc/source_catalog.py": "192bcf7c0489ff93632bde862b83ef9210db0772e9ce5a0aa4bf46fb76be70e3",
+      "poc/source_reading.py": "84d358211324f897d730101f75117894ae16a6babf1bf192a0b38bc65c105e7e",
+      "poc/source_session.py": "fd6351df9371d38fa030ed48e46c655555e6c05125f5fb44f2db6da3c55b6f92",
+      "poc/source_update.py": "38cf4669a6ed57d05ac52b43733d294176f795eee9a66be6798d73c4f994f870",
+      "poc/source_versions.py": "7d2a9b99edc7753dd8c2b9c85ce94c8bbd6f23768d0809c99732ad89651ee006",
+      "poc/statement_facts.py": "3a58039ef7ca5555a8809c397ddc7162d6ec973acb815d01aed2bb6f832ce473",
+      "poc/statement_parser.py": "e1d5751f81bdc467bfe690f2c28362508ea21e97020389f98d1cd8c5dedb5360",
+      "poc/structural_index.py": "830ddc9452179eecca05250f96ca6f05460c55404af0311427fe5559c742b6fd",
+      "poc/syntax_evidence.py": "800f82c0d51de2830d3ea818087aa600643beffaf22757206fdef1f77b5269c6",
+      "poc/web_app.py": "9d8a71e7d8ad2c00cbd273ae8e935102d19a240fd04b81b0873e441cecb6c2f6"
+    },
+    "ready_sha256": "e508a3e78d7df68b79c64f4d639597f570c40708847bbe366a5ae68181c620a8",
+    "source_sha256": {
+      "nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+      "settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+      "balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5"
+    },
+    "actual_supplied_pages_match_frozen_source": true
+  },
+  "cases": [
+    {
+      "id": "batch",
+      "question": "我是新人，请从业务目的解释 SETTLE 的整体业务流程，包括 Batch job、programs、输入输出 files 和异常。",
+      "question_sha256": "420abef6c9fcefd078efd4d104d47a1f741d5c14ab99a09a1e3a97418dedeaad",
+      "run_id": "64f2941917c12cb960076640",
+      "elapsed_seconds": 17.837680207987432,
+      "model_requests": 1,
+      "recorded_status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "finish_reason": "stop",
+      "answer_truncated": false,
+      "pipeline_version": "question-evidence-v36",
+      "prompt_version": "business-chat-v32",
+      "raw_answer_sha256": "bd20e639977d18012913adb64cf4c3d78d5b8c16328c3f14f5cd8f76d422cf21",
+      "delivered_answer_sha256": "bd20e639977d18012913adb64cf4c3d78d5b8c16328c3f14f5cd8f76d422cf21",
+      "raw_equals_delivered": true,
+      "raw_to_delivered_diff": [],
+      "actual_supplied_sources": [
+        {
+          "evidence_id": "ev_page_0a5bd724415b32dba5d08161",
+          "path": "settle.cbl",
+          "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+          "start_line": 1,
+          "end_line": 38,
+          "excerpt_sha256": "17a5a9383a388d75f437e9f5b16afd82840caf7f9852fbd052ba30014e9c6464"
+        },
+        {
+          "evidence_id": "ev_page_b8c4a50484c207378485e3de",
+          "path": "nightjob.clle",
+          "source_sha256": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+          "start_line": 1,
+          "end_line": 6,
+          "excerpt_sha256": "d6f08ae0a954d499767fb50f61888509dcc2675237df93b96d98d18452c93c01"
+        }
+      ],
+      "usage": {
+        "available": true,
+        "completion_tokens": 2952,
+        "field_reported_requests": {
+          "completion_tokens": 1,
+          "prompt_tokens": 1,
+          "total_tokens": 1
+        },
+        "model_requests": 1,
+        "prompt_tokens": 13976,
+        "reported_requests": 1,
+        "status": "complete",
+        "total_tokens": 16928
+      },
+      "required_findings": [
+        {
+          "id": "batch-rule",
+          "grade": "met",
+          "explanation": "按用途注释解释结算记录生成，列出状态 A 且金额 >0，说明复制编号与金额后 WRITE；后文明确 I/O 成功不保证。",
+          "answer_quotes": [
+            "只有同时满足以下两个条件，才进入生成结算记录的分支：",
+            "程序把订单号原样复制为结算记录号，把订单金额原样复制为结算金额"
+          ],
+          "source_locations": [
+            "settle.cbl:3",
+            "settle.cbl:29-32"
+          ]
+        },
+        {
+          "id": "batch-entry",
+          "grade": "met",
+          "explanation": "说明 CL 覆盖、CALL、撤销顺序，并明确异常时撤销未知、调度与实际对象未验证。",
+          "answer_quotes": [
+            "先把 `ORDERIN` 覆盖到 `APPDATA/ORDERS`，再调用 `SETTLE`，调用后删除该覆盖。",
+            "若调用异常，后续覆盖删除是否执行、作业如何结束，不能仅凭这几行判断。"
+          ],
+          "source_locations": [
+            "nightjob.clle:1-6"
+          ]
+        },
+        {
+          "id": "batch-file-input",
+          "grade": "met",
+          "explanation": "明确输入文件/记录提供订单编号、状态、金额，未把 FD/READ 已知来源说成缺失。",
+          "answer_quotes": [
+            "每次正常读到一条订单时，使用该订单记录中的订单状态、订单号和订单金额进行判断。",
+            "`ORDER-IN` / 记录 `ORDER-REC`"
+          ],
+          "source_locations": [
+            "settle.cbl:7-15",
+            "settle.cbl:26-31"
+          ]
+        },
+        {
+          "id": "batch-limits",
+          "grade": "met",
+          "explanation": "解释跳过提示、未指定 DISPLAY 目的地、无 FILE STATUS 和显式错误恢复、输出对象与实际启动仍未知。",
+          "answer_quotes": [
+            "不能仅凭源码断定提示一定进入作业日志、终端或其他位置。",
+            "源码没有 `FILE STATUS` 检查，也没有针对打开失败、读取失败或写入失败的异常分支。"
+          ],
+          "source_locations": [
+            "settle.cbl:7-38",
+            "nightjob.clle:1-6"
+          ]
+        }
+      ],
+      "required_finding_counts": {
+        "met": 4,
+        "omitted": 0,
+        "incorrect": 0
+      }
+    },
+    {
+      "id": "online",
+      "question": "我是新人，请解释 BALANCEQ 这个在线查询功能的业务用途、输入输出和 tables，哪些条件会返回失败？",
+      "question_sha256": "0cb2ebd152b647f25ca1b01307a6431ae89967aa3dc1bc7e4955c07d2b195552",
+      "run_id": "a00956c7e0e98154759a7313",
+      "elapsed_seconds": 11.831565459011472,
+      "model_requests": 1,
+      "recorded_status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "finish_reason": "stop",
+      "answer_truncated": false,
+      "pipeline_version": "question-evidence-v36",
+      "prompt_version": "business-chat-v32",
+      "raw_answer_sha256": "838351673f975ad71c538f5a91928ef6b5c284b8cb3c8288a587efb79cc37e5f",
+      "delivered_answer_sha256": "838351673f975ad71c538f5a91928ef6b5c284b8cb3c8288a587efb79cc37e5f",
+      "raw_equals_delivered": true,
+      "raw_to_delivered_diff": [],
+      "actual_supplied_sources": [
+        {
+          "evidence_id": "ev_page_41c62f686dca8a6b3a26a3e9",
+          "path": "balance.cbl",
+          "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+          "start_line": 1,
+          "end_line": 21,
+          "excerpt_sha256": "759ece45e78016f57df33fd833c5c5de9414fc6d1f8ff15d8b8ca533768732b5"
+        }
+      ],
+      "usage": {
+        "available": true,
+        "completion_tokens": 2275,
+        "field_reported_requests": {
+          "completion_tokens": 1,
+          "prompt_tokens": 1,
+          "total_tokens": 1
+        },
+        "model_requests": 1,
+        "prompt_tokens": 10597,
+        "reported_requests": 1,
+        "status": "complete",
+        "total_tokens": 12872
+      },
+      "required_findings": [
+        {
+          "id": "online-purpose-and-data",
+          "grade": "met",
+          "explanation": "用途归于源码注释，参数顺序和表/字段角色正确，并区分设计意图与已验证部署；可见 SQL 为只读。",
+          "answer_quotes": [
+            "“在线查询入口”这个定位来自程序开头的注释说明，属于作者文档，不是已验证的部署方式",
+            "用 `ACCOUNT_ID` 等于调用方传入的账户号去 `ACCOUNT_BALANCES` 里取 `AVAILABLE_BALANCE`"
+          ],
+          "source_locations": [
+            "balance.cbl:3",
+            "balance.cbl:7-16"
+          ]
+        },
+        {
+          "id": "online-code-scope",
+          "grade": "incorrect",
+          "explanation": "例外段正确写出到达 IF 的前提，但开头、场景表和结尾仍作无条件失败归纳，前后不一致，不能算该项通过。",
+          "answer_quotes": [
+            "其他情况一律返回 `'90'`。",
+            "**异常路径不保证返回 `'90'`**：`'90'` 只在查询调用正常返回、控制流走到 `IF` 判断后才成立。"
+          ],
+          "source_locations": [
+            "balance.cbl:13-21"
+          ]
+        },
+        {
+          "id": "online-failed-balance",
+          "grade": "incorrect",
+          "explanation": "失败分支未清零/不保证保持原值解释正确，但同一答案把非法/格式不符账户直接判为90，输入结果边界仍错误。",
+          "answer_quotes": [
+            "源码不保证它为 0、为空白或保持原样",
+            "| 传入的账户号非法或格式不符 | 响应码 `'90'` | 程序不预先校验输入，交由数据库判断。 |"
+          ],
+          "source_locations": [
+            "balance.cbl:7-21"
+          ]
+        }
+      ],
+      "required_finding_counts": {
+        "met": 1,
+        "omitted": 0,
+        "incorrect": 2
+      }
+    },
+    {
+      "id": "boundary-followup",
+      "question": "继续核对业务边界：这批处理遇到空输入会怎样？ORDER SKIPPED 到哪里、金额大于零能否直接等同非零？BALANCEQ 是否任何异常都能返回90？这两项业务能否确定完全无关？请先说明源码能确认的结论，再指出还需要哪些具体运行资料。",
+      "question_sha256": "040be07e957007f7c08de97c3e02144281aedb3ae39c35ce832e2d810c9d61ea",
+      "run_id": "59a0a6cbdb7334d380fc3d7f",
+      "elapsed_seconds": 19.87673512499896,
+      "model_requests": 1,
+      "recorded_status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "finish_reason": "stop",
+      "answer_truncated": false,
+      "pipeline_version": "question-evidence-v36",
+      "prompt_version": "business-chat-v32",
+      "raw_answer_sha256": "c746d313baf6874390c493f164fb9bff53521c45139892e5e71dc25d6f4fb095",
+      "delivered_answer_sha256": "15d6a4f1305c3d6e2ea11d333adb98e85ee1aacd9c5f939207f7e8190ad302f8",
+      "raw_equals_delivered": false,
+      "raw_to_delivered_diff": [
+        "--- raw_model_answer\n",
+        "+++ delivered_answer\n",
+        "@@ -38,5 +38,5 @@\n",
+        " ## 四、BALANCEQ 是否任何异常都返回 `'90'`",
+        " ",
+        "-**不是。** 源码里的失败分支是 `IF SQLCODE = 0 ... ELSE MOVE '90' TO RESPONSE-CODE`，这是**查询语句正常执行返回之后**的控制流判断。[ev_page_41c62f686dca8a6b3a26a3e9]",
+        "+**不是。已供应源码可直接确认：在源码控制条件 `IF SQLCODE = 0` 下，`RESPONSE-CODE = '00'`（balance.cbl:18）[ev_page_41c62f686dca8a6b3a26a3e9]；`IF SQLCODE = 0`（balance.cbl:17）[ev_page_41c62f686dca8a6b3a26a3e9]。",
+        " ",
+        " 可以把能确定的和不能确定的分开："
+      ],
+      "actual_supplied_sources": [
+        {
+          "evidence_id": "ev_page_41c62f686dca8a6b3a26a3e9",
+          "path": "balance.cbl",
+          "source_sha256": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+          "start_line": 1,
+          "end_line": 21,
+          "excerpt_sha256": "759ece45e78016f57df33fd833c5c5de9414fc6d1f8ff15d8b8ca533768732b5"
+        },
+        {
+          "evidence_id": "ev_page_0a5bd724415b32dba5d08161",
+          "path": "settle.cbl",
+          "source_sha256": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+          "start_line": 1,
+          "end_line": 38,
+          "excerpt_sha256": "17a5a9383a388d75f437e9f5b16afd82840caf7f9852fbd052ba30014e9c6464"
+        }
+      ],
+      "usage": {
+        "available": true,
+        "completion_tokens": 3656,
+        "field_reported_requests": {
+          "completion_tokens": 1,
+          "prompt_tokens": 1,
+          "total_tokens": 1
+        },
+        "model_requests": 1,
+        "prompt_tokens": 10840,
+        "reported_requests": 1,
+        "status": "complete",
+        "total_tokens": 14496
+      },
+      "required_findings": [
+        {
+          "id": "empty-input",
+          "grade": "met",
+          "explanation": "详细正文限定正常 OPEN/READ 到 AT END，并明确不证明实际物理输出为空；开头仍有省略前提的简化，另列残留问题，不抵消正文已给出的核心静态路径。",
+          "answer_quotes": [
+            "这个结论有前提：两个文件都成功打开，读取正常结束。",
+            "**不能据此断言物理输出文件一定为空或已被清空**。"
+          ],
+          "source_locations": [
+            "settle.cbl:21-38"
+          ]
+        },
+        {
+          "id": "display-destination",
+          "grade": "met",
+          "explanation": "说明无 UPON、无适用手册，目的地未确认；给出需要的启动方式和环境约定，不硬断 joblog/屏幕。",
+          "answer_quotes": [
+            "**没有 `UPON` 之类指定输出设备的子句**，本轮也没有适用的手册约定资料。"
+          ],
+          "source_locations": [
+            "settle.cbl:33"
+          ]
+        },
+        {
+          "id": "valid-numeric-domain",
+          "grade": "met",
+          "explanation": "明确仅符合无符号 PIC 的有效数值域内 >0 等于非零，且声明不保证输入字节有效。",
+          "answer_quotes": [
+            "**在外部文件中的数据符合该字段声明的前提下**",
+            "**不保证外部文件里的字节一定有效**"
+          ],
+          "source_locations": [
+            "settle.cbl:15",
+            "settle.cbl:29"
+          ]
+        },
+        {
+          "id": "sql-control-return",
+          "grade": "incorrect",
+          "explanation": "原模型首段正常返回前提被本地核验错误删除；剩余表格虽保留不保证所有异常的区分，却又无条件保证账户不存在返回90。最终交付并未一致守住该边界。",
+          "answer_quotes": [
+            "**不是。已供应源码可直接确认：在源码控制条件 `IF SQLCODE = 0` 下，`RESPONSE-CODE = '00'`",
+            "| 账户不存在 | 是 | 会以非 0 结果码落入 `ELSE`。"
+          ],
+          "source_locations": [
+            "balance.cbl:13-21"
+          ]
+        },
+        {
+          "id": "visible-scope",
+          "grade": "met",
+          "explanation": "当前请求实际供应两份 COBOL；答案明确只论这两份可见原文，否定由此推出系统全局无关。没有把先前 CL 或全仓库当作当前已供事实。",
+          "answer_quotes": [
+            "**在这两份源码范围内未见关联，不能据此下“系统全局无关”的结论。**"
+          ],
+          "source_locations": [
+            "settle.cbl:1-38",
+            "balance.cbl:1-21"
+          ]
+        }
+      ],
+      "required_finding_counts": {
+        "met": 4,
+        "omitted": 0,
+        "incorrect": 1
+      }
+    }
+  ],
+  "findings": [
+    {
+      "id": "online-unconditional-failure-summary",
+      "case": "online",
+      "origin": "model",
+      "severity": "major",
+      "kind": "overclaim",
+      "quotes": [
+        "其他情况一律返回 `'90'`。",
+        "源码只写了一个判断：`SQLCODE = 0` 算成功，其余全部算失败（`'90'`）。"
+      ],
+      "source_locations": [
+        "balance.cbl:13-21"
+      ],
+      "reason": "源码只保证到达 IF 并完成赋值的分支行为。末尾正确例外段不能使这些无条件概括准确。",
+      "expected": "概要、场景表和结尾同样限定查询返回且执行 SQLCODE 判断；未到达判断不保证业务码。"
+    },
+    {
+      "id": "online-invalid-input-outcome",
+      "case": "online",
+      "origin": "model",
+      "severity": "major",
+      "kind": "unsupported_result",
+      "quotes": [
+        "| 传入的账户号非法或格式不符 | 响应码 `'90'` | 程序不预先校验输入，交由数据库判断。 |"
+      ],
+      "source_locations": [
+        "balance.cbl:8",
+        "balance.cbl:13-21"
+      ],
+      "reason": "无输入校验不证明某个输入的 SQLCODE；非法数据还可能在判断前失败。未给实际输入、数据行或接口行为，不能承诺90。",
+      "expected": "给定输入/数据库及 SQL 正常返回条件后才能讨论具体结果；当前只说明未见校验和分支规则。"
+    },
+    {
+      "id": "online-external-sql-contract",
+      "case": "online",
+      "origin": "model",
+      "severity": "medium",
+      "kind": "unverified_external_semantics",
+      "quotes": [
+        "即有且仅有一个账户匹配并成功取到余额",
+        "没有分别处理 `+100`（未找到）和其他负值错误码"
+      ],
+      "source_locations": [
+        "balance.cbl:13-20"
+      ],
+      "reason": "这些属于适用 SQL 接口约定而非本段源码已声明事实；本请求未供手册/表约束。不能用源码引用替代该约定。并非据此判定通常 SQL 语义错误。",
+      "expected": "将其标为适用接口约定下的条件化解释，或仅保持 SQLCODE 零/非零源码结论。"
+    },
+    {
+      "id": "boundary-local-else-false-contradiction",
+      "case": "boundary-followup",
+      "origin": "local_claim_rewriter",
+      "severity": "major",
+      "kind": "destructive_false_contradiction",
+      "raw_quote": "**不是。** 源码里的失败分支是 `IF SQLCODE = 0 ... ELSE MOVE '90' TO RESPONSE-CODE`，这是**查询语句正常执行返回之后**的控制流判断。",
+      "quotes": [
+        "**不是。已供应源码可直接确认：在源码控制条件 `IF SQLCODE = 0` 下，`RESPONSE-CODE = '00'`"
+      ],
+      "source_locations": [
+        "balance.cbl:17-20"
+      ],
+      "reason": "原摘录表达 ELSE 中赋90，当前 ledger 却把90绑定到 true guard，与 then 的00比较，误判矛盾并替换整个段落。丢失 ELSE 和正常返回前提，且破坏粗体闭合。",
+      "expected": "条件摘录必须保留分支角色；含省略号的不完整控制块不可按完整 true-branch赋值反证。明确错误的完整赋值/条件仍应核验。"
+    },
+    {
+      "id": "boundary-missing-account-guarantee",
+      "case": "boundary-followup",
+      "origin": "model",
+      "severity": "medium",
+      "kind": "overclaim",
+      "quotes": [
+        "| 账户不存在 | 是 | 会以非 0 结果码落入 `ELSE`。"
+      ],
+      "source_locations": [
+        "balance.cbl:13-21"
+      ],
+      "reason": "“必然”栏省略 SQL 正常返回和实际接口约定；同答后文又承认未供各 SQLCODE 含义手册。",
+      "expected": "若适用接口对未命中返回非零 SQLCODE 且控制流到达 IF，才置90。"
+    },
+    {
+      "id": "boundary-empty-input-summary-premise",
+      "case": "boundary-followup",
+      "origin": "model",
+      "severity": "minor",
+      "kind": "summary_qualification_omission",
+      "quotes": [
+        "空输入不写记录且不显示跳过提示",
+        "**空输入的订单文件会产生“零条结算记录”的结果，并且不会出现 `ORDER SKIPPED` 提示**"
+      ],
+      "source_locations": [
+        "settle.cbl:21-38"
+      ],
+      "reason": "详细正文已有正常 OPEN/READ 与不担保物理输出的限制，但这两句局部摘要未带此前提，容易被单独摘读为运行保证。",
+      "expected": "同句使用“正常打开且首次 READ 到 AT END 的路径不执行业务 WRITE/DISPLAY”。"
+    },
+    {
+      "id": "batch-order-id-not-filter",
+      "case": "batch",
+      "origin": "model",
+      "severity": "minor",
+      "kind": "imprecise_role",
+      "quotes": [
+        "使用该订单记录中的订单状态、订单号和订单金额进行判断。"
+      ],
+      "source_locations": [
+        "settle.cbl:29-31"
+      ],
+      "reason": "判断只读取状态和金额；订单号用于通过后的复制。后续详细条件正确，故不阻断核心规则评分。",
+      "expected": "用状态/金额判断，符合条件后复制订单号与金额。"
+    }
+  ],
+  "five_original_issues": [
+    {
+      "id": "empty-input-runtime-guarantee",
+      "outcome": "partially_resolved",
+      "explanation": "Batch and followup detailed explanation now preserve I/O and physical-output limits; followup summary still omits the normal-path premise locally.",
+      "finding_ids": [
+        "boundary-empty-input-summary-premise"
+      ]
+    },
+    {
+      "id": "display-destination",
+      "outcome": "resolved_in_observed_answers",
+      "explanation": "No guaranteed joblog/screen claim; actual destination and applicable manual remain runtime-specific."
+    },
+    {
+      "id": "unsigned-valid-numeric-domain",
+      "outcome": "resolved_in_observed_answers",
+      "explanation": "Followup explicitly requires valid data matching unsigned PIC and denies declaration-as-validity-proof."
+    },
+    {
+      "id": "all-errors-return-90",
+      "outcome": "unresolved",
+      "explanation": "Online summary/scenario table still overgeneralize; followup also suffers local ELSE rewrite.",
+      "finding_ids": [
+        "online-unconditional-failure-summary",
+        "online-invalid-input-outcome",
+        "boundary-local-else-false-contradiction",
+        "boundary-missing-account-guarantee"
+      ]
+    },
+    {
+      "id": "global-unrelated-business",
+      "outcome": "resolved_in_observed_answers",
+      "explanation": "Followup explicitly limits lack of visible relationship to the two supplied programs and does not claim global independence."
+    }
+  ],
+  "publication_conclusion": {
+    "all_required_findings_met": false,
+    "all_five_prior_issues_resolved": false,
+    "claim_of_complete_business_quality_pass_permitted": false,
+    "source_test_status_is_not_semantic_pass": true,
+    "blocking_quality_findings": [
+      "online-unconditional-failure-summary",
+      "online-invalid-input-outcome",
+      "boundary-local-else-false-contradiction"
+    ],
+    "candidate_release_decision": "Root release owner must assess these recorded failures; this review is not formal Windows/target-device acceptance."
+  },
+  "limitations": [
+    "Three neutral small-source questions in one conversation, each one request; no representative model accuracy estimate.",
+    "No IBM i compilation, actual database execution, target-device office acceptance or proof of production scheduling.",
+    "A valid citation, ANALYZED status, local checker support or absence of revisions is not a proof of free-form semantics.",
+    "Recorded wall times include this source/UI/API run; not a general latency guarantee."
+  ],
+  "public_copy_allowlist": {
+    "permitted": [
+      "schema_version",
+      "reviewer",
+      "stage",
+      "evidence relative paths and SHA256 manifests",
+      "cases questions/hashes/source refs/grades/quoted excerpts/usage and measured durations",
+      "findings",
+      "five_original_issues",
+      "publication_conclusion",
+      "limitations"
+    ],
+    "exclude": [
+      "endpoint",
+      "credentials",
+      "headers",
+      "body containing credentials",
+      "reasoning content",
+      "private profile/configuration",
+      "local absolute paths",
+      "raw SQLite/checkpoint payloads",
+      "conversation/job identifiers unless specifically needed"
+    ],
+    "note": "This review was constructed from an allowlist and uses neutral source names and relative references. Publish the real-answer artifact separately with exact original/final answers and hashes; do not rewrite failed answers."
+  },
+  "required_finding_totals": {
+    "met": 9,
+    "omitted": 0,
+    "incorrect": 3
+  }
+}

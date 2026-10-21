@@ -22,6 +22,7 @@ const UI_MESSAGES = `
 模型請求逾時，已保留此前取得的回答；本次補查尚未完成。|模型请求超时，已保留此前取得的回答；本次补查尚未完成。|A model request timed out. The earlier answer is retained; the follow-up investigation did not complete.
 回答對源碼供應的描述仍有矛盾，已保留正文供核對。|回答对源码供应的描述仍有矛盾，已保留正文供核对。|The answer still contains conflicting statements about the supplied source. Its text is retained for review.
 回答尚未涵蓋本題已定位的全部業務要點，已保留目前正文。|回答尚未涵盖本题已定位的全部业务要点，已保留目前正文。|The answer does not yet cover all identified business points for this question. The available text is retained.
+這份回答的業務結論尚未完成核對，部分推斷或遺漏仍待確認；目前正文已保留。|这份回答的业务结论尚未完成核对，部分推断或遗漏仍待确认；目前正文已保留。|The business conclusions have not finished review. Some inferences or omissions still need checking; the available answer is retained.
 回答中提及的後續調查尚未完成，已保留目前取得的結論。|回答中提及的后续调查尚未完成，已保留目前取得的结论。|The follow-up investigation mentioned in the answer has not completed. Available conclusions are retained.
 目前回答尚未充分解釋所問業務，仍需根據已讀證據補充。|目前回答尚未充分解释所问业务，仍需根据已读证据补充。|The answer still needs to explain the requested business behavior using the evidence already read.
 回答尚有未完成的業務要點，已保留目前正文。|回答尚有未完成的业务要点，已保留目前正文。|Some business points in the answer remain incomplete. The available text is retained.
@@ -682,7 +683,9 @@ API 請求記錄已遮蔽配置值，內容可能因大小限制而截斷。保�
 強制校驗全部檔案內容|强制校验全部文件内容|Verify all file contents
 一般更新會重用未變檔案。強制校驗會完整讀取全部源碼，首次大目錄接入無需勾選。|一般更新会复用未变文件。强制校验会完整读取全部源码，首次大目录接入无需勾选。|Normal updates reuse unchanged files. Forced verification reads all source contents; leave this off for normal intake.
 此步驟只在本機更新輕量目錄，不呼叫模型。|此步骤只在本机更新轻量目录，不调用模型。|This step updates a local source catalog without calling a model.
-請使用完整絕對路徑：源碼目錄須存在；輸出須獨立且為空、新目錄或只含分析產物。兩者不可相互嵌套。|请使用完整绝对路径：源码目录须存在；输出须独立且为空、新目录或只含分析产物。两者不可相互嵌套。|Use absolute paths. Source must exist; output must be separate and new, empty or contain analysis artifacts only. Neither folder may contain the other.
+請選擇存在的源碼目錄和獨立的分析結果目錄。已有資料庫請沿用原結果目錄，無需清空；兩者不可相互嵌套，分析檔案不可使用符號連結。|请选择存在的源码目录和独立的分析结果目录。已有资料库请沿用原结果目录，无需清空；两者不可相互嵌套，分析文件不可使用符号链接。|Choose an existing source folder and a separate analysis folder. Reuse the original output for an existing library; do not clear it. Neither folder may contain the other, and analysis files must not be symbolic links.
+原源碼路徑暫時不可用。已有對話仍可查看；請恢復原路徑，或選回正確源碼與原分析結果資料夾，無需清空結果。|原源码路径暂时不可用。已有对话仍可查看；请恢复原路径，或选回正确源码与原分析结果文件夹，无需清空结果。|The original source path is unavailable. Saved conversations remain accessible. Restore that path or select the correct source and original analysis folder; do not clear the output.
+已有對話仍可查看。目前索引需要更新；請沿用原源碼與分析結果資料夾，無需清空結果或另建資料夾。|已有对话仍可查看。目前索引需要更新；请沿用原源码与分析结果文件夹，无需清空结果或另建文件夹。|Saved conversations remain accessible. The index needs an update; keep the original source and analysis folders. Do not clear the output or create a replacement folder.
 目前已有分析正在執行，請等候完成。|当前已有分析正在执行，请等候完成。|An analysis is already running. Wait for it to finish.
 工作階段已失效，請重新整理頁面。|会话已失效，请刷新页面。|Your session has expired. Reload the page.
 請檢查文字編碼、源碼格式與副檔名設定。|请检查文本编码、源码格式与扩展名配置。|Check the encoding, source format and file extensions.

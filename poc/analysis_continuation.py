@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from response_language import localized_text
+from semantic_risk_identity import risk_identities
 
 
 _LABELS = {
@@ -111,10 +112,7 @@ class AnalysisContinuation:
                                  for item in assessment.get("source_availability_contradictions", [])})
         signature = _digest({"material": sorted(material_keys(pages, references)),
                              "gaps": gaps, "contradictions": contradictions,
-                             "sql_risks": [{"kind": row["kind"],
-                                 "claim": (row.get("answer_span") or {}).get("text"),
-                                 "source_refs": row.get("source_refs", [])}
-                                 for row in assessment.get("sql_boundary_review", {}).get("risks", [])],
+                             "risk_identities": sorted(risk_identities(assessment)),
                              "status": assessment.get("status")})
         self.draft = answer
         self.review = assessment

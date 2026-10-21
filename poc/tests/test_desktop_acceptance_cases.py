@@ -125,13 +125,13 @@ class DesktopAcceptanceEvidenceTests(unittest.TestCase):
 
     def test_scope_probes_remain_mandatory_without_replacing_original_samples_or_gold(self):
         manifest = json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8"))
-        self.assertEqual(len(manifest["cases"]), 24)
-        self.assertEqual(sum(case["repeats"] for case in manifest["cases"]), 76)
+        self.assertEqual(len(manifest["cases"]), 25)
+        self.assertEqual(sum(case["repeats"] for case in manifest["cases"]), 79)
         self.assertEqual(sum(case["repeats"] * len(case.get("scope_probes", []))
                              for case in manifest["cases"]), 14)
         self.assertEqual(sum(case["repeats"] for case in manifest["cases"]
                              if case["id"] not in {"soft_target_answer", "activation_trigger",
-                                 "cl_batch_context", "cl_late_context", "framework_page_chain", "business_batch_overview", "business_online_overview"}), 55)
+                                 "cl_batch_context", "cl_late_context", "framework_page_chain", "business_batch_overview", "business_online_overview", "business_semantic_revision"}), 55)
         cases = {case["id"]: case for case in manifest["cases"]}
         frontend = cases["frontend_semantics"]
         self.assertEqual(frontend["reviewed_files"], ["frontend.cbl"])
@@ -160,7 +160,8 @@ class DesktopAcceptanceEvidenceTests(unittest.TestCase):
             self.assertIn("completeness_cl_single_request", case["assertions"])
         late = (self.root / "cl_late_context/late.clle").read_text(encoding="utf-8").splitlines()
         self.assertGreater(next(index for index, line in enumerate(late, 1) if line.startswith("CALL ")), 300)
-        self.assertIn("quality_cl_late_scope_unknown", cases["cl_late_context"]["assertions"])
+        self.assertIn("quality_cl_late_control_source_supplied", cases["cl_late_context"]["assertions"])
+        self.assertIn("quality_cl_late_runtime_unknown", cases["cl_late_context"]["assertions"])
 
     def test_old_incomplete_repair_cannot_pass_new_source_completion_gate(self):
         case, agent, trace = self.monthly_fixture(repair=True)

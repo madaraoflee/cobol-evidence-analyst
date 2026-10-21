@@ -1,0 +1,475 @@
+{
+  "schema_version": "independent-paid-test-accounting/v10",
+  "audited_at_utc": "2026-10-20T15:45:45.074540+00:00",
+  "currency": "CNY",
+  "accounting_passed": false,
+  "semantic_review_status": "final_core_coverage_met_but_material_extra_source_error",
+  "release_status": "candidate_only_no_formal_quality_acceptance_established",
+  "accounting_does_not_establish_answer_quality": true,
+  "baseline_physical_requests": 8,
+  "baseline_usage_upper_micro_cny": 643144,
+  "cumulative_physical_requests": 28,
+  "cumulative_usage_upper_micro_cny": 1902868,
+  "remaining_under_user_limit_micro_cny": 97132,
+  "user_limit_micro_cny": 2000000,
+  "within_user_limit": true,
+  "unknown_cost_request_count": 1,
+  "retained_unknown_reservations_micro_cny": 161638,
+  "prior_original_reservations_micro_cny_unchanged": 5822744,
+  "latest_phase_reserved_micro_cny_unchanged": 120964,
+  "prior_usage_plus_latest_phase_reservations_micro_cny": 1990328,
+  "all_closed_evidence_unchanged": true,
+  "latest_guard_and_runner_match_frozen_manifest": true,
+  "latest_source_and_recorded_product_match_frozen_manifest": true,
+  "all_paid_sessions_closed": true,
+  "worker_finished": true,
+  "price_basis": {
+    "input_micro_cny_per_token": 2,
+    "output_micro_cny_per_token": 8,
+    "use_peak_rates_without_cache_or_time_discount": true,
+    "official_pricing_checked_at_utc": "2026-10-20T12:42:11.512624+00:00",
+    "new_network_requests_during_audit": 0
+  },
+  "phases": [
+    {
+      "phase": 1,
+      "phase_physical_requests": 3,
+      "phase_usage_upper_micro_cny": 141890,
+      "phase_reserved_micro_cny": 572536,
+      "semantic_review_status": "failed_independent_review_reported",
+      "cases": [
+        {
+          "case_id": "batch",
+          "physical_requests": 1,
+          "input_tokens": 13976,
+          "output_tokens": 2952,
+          "reasoning_tokens_included_in_output": 1450,
+          "usage_upper_micro_cny": 51568,
+          "reserved_micro_cny": 204506,
+          "elapsed_seconds": 17.83768,
+          "finish_reason": "stop",
+          "answer_truncated": false
+        },
+        {
+          "case_id": "online",
+          "physical_requests": 1,
+          "input_tokens": 10597,
+          "output_tokens": 2275,
+          "reasoning_tokens_included_in_output": 392,
+          "usage_upper_micro_cny": 39394,
+          "reserved_micro_cny": 183656,
+          "elapsed_seconds": 11.831565,
+          "finish_reason": "stop",
+          "answer_truncated": false
+        },
+        {
+          "case_id": "boundary-followup",
+          "physical_requests": 1,
+          "input_tokens": 10840,
+          "output_tokens": 3656,
+          "reasoning_tokens_included_in_output": 1631,
+          "usage_upper_micro_cny": 50928,
+          "reserved_micro_cny": 184374,
+          "elapsed_seconds": 19.876735,
+          "finish_reason": "stop",
+          "answer_truncated": false
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "phase_physical_requests": 4,
+      "phase_usage_upper_micro_cny": 207202,
+      "phase_reserved_micro_cny": 810230,
+      "semantic_review_status": "failed_independent_review_reported",
+      "semantic_failure_categories": [
+        "batch_unconditional_exception_guarantee",
+        "online_result_code_and_invalid_input_overclaim",
+        "boundary_valid_negation_flagged_for_review"
+      ],
+      "cases": [
+        {
+          "case_id": "batch",
+          "physical_requests": 1,
+          "recorded_product_status": "ANALYZED",
+          "independent_semantic_status": "failed_review_reported",
+          "elapsed_seconds": 16.011234,
+          "answer_truncated": false,
+          "input_tokens": 13976,
+          "output_tokens": 2642,
+          "reasoning_tokens_included_in_output": 463,
+          "usage_upper_micro_cny": 49088,
+          "reserved_micro_cny": 204506
+        },
+        {
+          "case_id": "online",
+          "physical_requests": 1,
+          "recorded_product_status": "ANALYZED",
+          "independent_semantic_status": "failed_review_reported",
+          "elapsed_seconds": 19.573232,
+          "answer_truncated": false,
+          "input_tokens": 11545,
+          "output_tokens": 2965,
+          "reasoning_tokens_included_in_output": 1084,
+          "usage_upper_micro_cny": 46810,
+          "reserved_micro_cny": 190760
+        },
+        {
+          "case_id": "boundary-followup",
+          "physical_requests": 2,
+          "recorded_product_status": "PARTIAL",
+          "independent_semantic_status": "failed_review_reported",
+          "elapsed_seconds": 41.439185,
+          "answer_truncated": false,
+          "input_tokens": 27784,
+          "output_tokens": 6967,
+          "reasoning_tokens_included_in_output": 1755,
+          "usage_upper_micro_cny": 111304,
+          "reserved_micro_cny": 414964
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "phase_physical_requests": 3,
+      "phase_usage_upper_micro_cny": 147754,
+      "phase_reserved_micro_cny": 582816,
+      "semantic_review_status": "failed_independent_review_reported",
+      "semantic_failure_categories": [
+        "empty_input_loop_entry_contradicts_read_inside_loop",
+        "output_code_else_assignment_omitted_or_contradicted"
+      ],
+      "cases": [
+        {
+          "case_id": "batch",
+          "physical_requests": 1,
+          "recorded_product_status": "ANALYZED",
+          "independent_semantic_status": "failed_review_reported",
+          "elapsed_seconds": 18.883842,
+          "answer_truncated": false,
+          "input_tokens": 13942,
+          "output_tokens": 3139,
+          "reasoning_tokens_included_in_output": 929,
+          "usage_upper_micro_cny": 52996,
+          "reserved_micro_cny": 204106
+        },
+        {
+          "case_id": "online",
+          "physical_requests": 1,
+          "recorded_product_status": "ANALYZED",
+          "independent_semantic_status": "failed_review_reported",
+          "elapsed_seconds": 13.692824,
+          "answer_truncated": false,
+          "input_tokens": 11542,
+          "output_tokens": 2336,
+          "reasoning_tokens_included_in_output": 619,
+          "usage_upper_micro_cny": 41772,
+          "reserved_micro_cny": 189546
+        },
+        {
+          "case_id": "boundary-followup",
+          "physical_requests": 1,
+          "recorded_product_status": "ANALYZED",
+          "independent_semantic_status": "failed_review_reported",
+          "elapsed_seconds": 24.03394,
+          "answer_truncated": false,
+          "input_tokens": 11365,
+          "output_tokens": 3782,
+          "reasoning_tokens_included_in_output": 1464,
+          "usage_upper_micro_cny": 52986,
+          "reserved_micro_cny": 189164
+        }
+      ]
+    },
+    {
+      "phase": 4,
+      "mode": "three_serial_independently_closed_questions",
+      "phase_physical_requests": 5,
+      "phase_usage_upper_micro_cny": 355704,
+      "phase_reserved_micro_cny_unchanged": 1027778,
+      "reasoning_effort": "medium",
+      "previous_effort": "low",
+      "semantic_review_status": "12_core_requirements_met_but_boundary_delivery_failed",
+      "minor_review_findings_retained": 3,
+      "delivery_failure_categories": [
+        "truncated_citation_prefix_joined_into_following_markdown"
+      ],
+      "cases": [
+        {
+          "case_id": "batch",
+          "physical_requests": 2,
+          "elapsed_seconds": 66.971497,
+          "input_tokens": 33888,
+          "output_tokens": 10786,
+          "reasoning_tokens_included_in_output": 8313,
+          "usage_upper_micro_cny": 154064,
+          "reserved_micro_cny_unchanged": 442260,
+          "recorded_product_status": "ANALYZED",
+          "core_requirements_met": 4,
+          "independent_review_status": "core_met_minor_caveats_retained",
+          "answer_truncated": false,
+          "physical_requests_with_length_finish": 1
+        },
+        {
+          "case_id": "online",
+          "physical_requests": 1,
+          "elapsed_seconds": 20.985261,
+          "input_tokens": 11828,
+          "output_tokens": 3799,
+          "reasoning_tokens_included_in_output": 1331,
+          "usage_upper_micro_cny": 54048,
+          "reserved_micro_cny_unchanged": 192394,
+          "recorded_product_status": "ANALYZED",
+          "core_requirements_met": 3,
+          "independent_review_status": "core_met_minor_caveats_retained",
+          "answer_truncated": false,
+          "physical_requests_with_length_finish": 0
+        },
+        {
+          "case_id": "boundary-followup",
+          "physical_requests": 2,
+          "elapsed_seconds": 69.41,
+          "input_tokens": 24904,
+          "output_tokens": 12223,
+          "reasoning_tokens_included_in_output": 10222,
+          "usage_upper_micro_cny": 147592,
+          "reserved_micro_cny_unchanged": 393124,
+          "recorded_product_status": "ANALYZED",
+          "core_requirements_met": 5,
+          "independent_review_status": "delivery_failed_broken_citation",
+          "answer_truncated": false,
+          "physical_requests_with_length_finish": 1
+        }
+      ]
+    },
+    {
+      "phase": 5,
+      "mode": "single_boundary_retest_after_postprocessing_fix",
+      "phase_physical_requests": 2,
+      "phase_usage_upper_micro_cny": 144250,
+      "phase_reserved_micro_cny_unchanged": 462618,
+      "reasoning_effort": "medium",
+      "semantic_review_status": "failed_independent_review_4_of_5_core_requirements_met",
+      "semantic_failure_categories": [
+        "empty_input_summary_missing_normal_open_and_read_precondition"
+      ],
+      "additional_findings_retained": [
+        "unsupported_display_disposal_claim",
+        "unqualified_next_record_continuation",
+        "minor_unfinished_and_repeated_list_item"
+      ],
+      "prior_broken_citation_repaired": true,
+      "same_version_three_question_live_test": false,
+      "pipeline_version": "question-evidence-v40",
+      "prompt_version": "business-chat-v35",
+      "cases": [
+        {
+          "case_id": "boundary-followup",
+          "physical_requests": 2,
+          "elapsed_seconds": 49.366162,
+          "input_tokens": 36017,
+          "output_tokens": 9027,
+          "reasoning_tokens_included_in_output": 5717,
+          "usage_upper_micro_cny": 144250,
+          "reserved_micro_cny_unchanged": 462618,
+          "recorded_product_status": "ANALYZED",
+          "core_requirements_met": 4,
+          "core_requirements_incorrect": 1,
+          "answer_truncated": false,
+          "physical_requests_with_length_finish": 1
+        }
+      ]
+    },
+    {
+      "phase": 7,
+      "mode": "single_request_boundary_retest_with_revised_generation_guidance",
+      "phase_physical_requests": 1,
+      "phase_usage_upper_micro_cny": 67782,
+      "phase_reserved_micro_cny_unchanged": 236172,
+      "reasoning_effort": "medium",
+      "semantic_review_status": "failed_independent_review_4_of_5_core_requirements_met",
+      "semantic_failure_categories": [
+        "empty_input_local_heading_missing_normal_operation_precondition"
+      ],
+      "additional_minor_findings_retained": [
+        "unsupported_display_disposal_claim",
+        "unqualified_subsequent_processing"
+      ],
+      "delivery_review_status": "passed_no_truncation_broken_citation_or_continuation_duplication",
+      "same_version_three_question_live_test": false,
+      "same_generation_policy_three_question_live_test": false,
+      "pipeline_version": "question-evidence-v41",
+      "prompt_version": "business-chat-v36",
+      "max_output_tokens": 8192,
+      "max_physical_requests": 1,
+      "max_answer_revisions": 0,
+      "cases": [
+        {
+          "case_id": "boundary-followup",
+          "physical_requests": 1,
+          "elapsed_seconds": 30.399913,
+          "input_tokens": 17543,
+          "output_tokens": 4087,
+          "reasoning_tokens_included_in_output": 1059,
+          "usage_upper_micro_cny": 67782,
+          "reserved_micro_cny_unchanged": 236172,
+          "recorded_product_status": "ANALYZED",
+          "core_requirements_met": 4,
+          "core_requirements_incorrect": 1,
+          "answer_truncated": false,
+          "finish_reason": "stop",
+          "physical_requests_with_length_finish": 0
+        }
+      ]
+    },
+    {
+      "phase": 9,
+      "mode": "single_transport_attempt_with_unknown_cost",
+      "phase_physical_requests": 1,
+      "phase_usage_upper_micro_cny": null,
+      "phase_retained_unknown_reservation_micro_cny": 161638,
+      "phase_reserved_micro_cny_unchanged": 161638,
+      "model_answer_recorded": false,
+      "answer_origin": "local_source_facts",
+      "http_status": null,
+      "response_bytes": 0,
+      "provider_usage": null,
+      "transport_error": "tls_handshake_failed",
+      "semantic_review_status": "no_model_answer_to_score",
+      "attempt_elapsed_seconds": 5.199438,
+      "attempt_elapsed_is_not_model_answer_latency": true,
+      "pipeline_version": "question-evidence-v43",
+      "prompt_version": "business-chat-v38",
+      "wire_history_messages": 3,
+      "wire_history_characters": 354,
+      "wire_history_assistant_messages": 0,
+      "stored_message_count_after": 12,
+      "prior_ten_messages_preserved": true
+    },
+    {
+      "phase": 10,
+      "mode": "fresh_independent_scope_variant_single_question",
+      "phase_physical_requests": 1,
+      "phase_usage_upper_micro_cny": 33504,
+      "phase_reserved_micro_cny_unchanged": 120964,
+      "reasoning_effort": "low",
+      "answer_detail": "brief",
+      "max_output_tokens": 3072,
+      "max_request_bytes": 32768,
+      "max_answer_revisions": 0,
+      "fresh_independent_conversation": true,
+      "stored_message_count_after": 2,
+      "old_twelve_message_conversation_preserved": true,
+      "scope_only_question_variant": true,
+      "original_question_preserved_in_full": true,
+      "original_gold_unchanged": true,
+      "same_question_same_conditions_comparison": false,
+      "pipeline_version": "question-evidence-v43",
+      "prompt_version": "business-chat-v38",
+      "semantic_review_status": "final_core_coverage_met_but_material_extra_source_error",
+      "additional_source_errors": [
+        "summary_denies_database_status_check_despite_observed_SQLCODE_branch"
+      ],
+      "five_core_requirement_score": {
+        "met": 5,
+        "omitted": 0,
+        "incorrect": 0
+      },
+      "cases": [
+        {
+          "case_id": "boundary-followup",
+          "physical_requests": 1,
+          "elapsed_seconds": 14.298716,
+          "input_tokens": 7692,
+          "output_tokens": 2265,
+          "reasoning_tokens_included_in_output": 721,
+          "usage_upper_micro_cny": 33504,
+          "recorded_product_status": "PARTIAL",
+          "stop_reason": "answer_incomplete",
+          "answer_truncated": false,
+          "finish_reason": "stop",
+          "wire_history_messages": 0,
+          "wire_history_assistant_messages": 0,
+          "core_requirements_met": 5,
+          "core_requirements_incorrect": 0,
+          "overall_semantic_quality_pass": false
+        }
+      ],
+      "overall_semantic_quality_pass": false,
+      "material_extra_fact_errors": 1,
+      "minor_clarity_or_editorial_findings": 5,
+      "independent_review_sha256": "6405db4008985a071e6b941ef539668a80a7dec868a7f23d1581d6c66d124723"
+    }
+  ],
+  "limitations": [
+    "Usage-based conservative estimate, not a provider invoice or account-balance verification.",
+    "Reasoning is a subset of output tokens and is counted once.",
+    "Old reservations remain unchanged as historical safety records; they are not added again to closed usage.",
+    "Reservation assumes the approved text-only pricing and the recorded input/output allowances.",
+    "Semantic review failed despite complete responses; this cost audit does not authorize release.",
+    "Repeated identical request hashes in different phases are distinct physical requests and are all charged.",
+    "A COMPLETED job and stop finish reason do not mean an independently correct answer; the phase2 boundary answer remained PARTIAL.",
+    "Complete responses still failed independent source-based review; no phase3 answer is presented as final acceptance.",
+    "Phase4 changed reasoning effort from low to medium, so it is not a code-only quality or latency comparison.",
+    "Two phase4 first responses ended at the output limit; both subsequent calls and all their output tokens are charged.",
+    "The phase4 boundary answer met its five core requirements but retained a broken citation in displayed Markdown, so it did not pass delivery acceptance.",
+    "The three phase4 questions were separately closed and audited before the next reserve; summed historical reservations are not simultaneous spending.",
+    "A final boundary-only retest may use a later postprocessor. It must not be represented as three real answers tested on one final code version.",
+    "Phase5 repaired the previously observed broken citation but did not pass independent business-meaning review.",
+    "At phase5, the selected historical and then-latest answers met 11 of 12 core requirements; that phase retained the missing empty-input normal-operation precondition.",
+    "Through phase5, all 25 known-usage requests, including unsuccessful earlier answers and output-limited responses, remain counted in the final cumulative accounting.",
+    "Phase6 failed configuration validation before a request or reservation; its frozen evidence is retained separately and adds zero charged calls.",
+    "Phase7 finished one request without truncation but failed independent review on one of five boundary requirements; completion and accounting do not establish final acceptance.",
+    "Phase7 used revised guidance; its earlier batch and online answers were historical, not three fresh answers under that phase generation guidance.",
+    "Through phase7, all 26 known-usage requests remain counted exactly once. The final accounting additionally retains phase9 unknown cost and phase10 reported usage.",
+    "Eight complete messages were stored before phase7; the actual request contained seven history entries under the recorded character limit.",
+    "Phase9 received no model response or usage. Its full 161638 micro-CNY reservation is retained as unknown cost, not refunded or reported as zero.",
+    "Phase9 elapsed time describes a failed connection attempt and local fallback, not real-model answer speed.",
+    "The cumulative upper amount includes known reported usage plus the retained unknown reservation; it is not a provider invoice.",
+    "Phase10 is an independent fresh conversation with a filename-only scope prefix, low reasoning, brief detail and a smaller output limit. It is not a same-conditions comparison.",
+    "Phase10 returned a complete provider response, but independent review found that its summary denies a database-status check despite an observed SQLCODE branch. It is not semantic acceptance.",
+    "All paid testing stops here. Remaining accounting headroom does not authorize another request.",
+    "Final independent review covers all twelve finite core findings across historical and fresh answers, but retains one material additional source error and five minor findings. Overall semantic quality did not pass; the product PARTIAL reason was a separate conservative false-positive candidate."
+  ],
+  "all_original_reservations_micro_cny_unchanged": 5943708,
+  "further_paid_requests_authorized": false,
+  "unbilled_initialization_attempts": [
+    {
+      "phase": 6,
+      "error": "MAX_OUTPUT_TOKENS_INVALID",
+      "physical_requests": 0,
+      "incremental_model_cost_micro_cny": 0,
+      "failure_before_request_and_guard": true,
+      "source_file": "phase6-initialization-failure.json",
+      "source_sha256": "ef2e718857e65cefda539423b6cd1c54792f830763b3046f33f2dde16fc5b0da"
+    },
+    {
+      "phase": 8,
+      "superseded_by_phase": 9,
+      "physical_requests": 0,
+      "incremental_model_cost_micro_cny": 0,
+      "ready_sha256": "b00c15bd22c1fa47374a573c99601c8097ac1c5fe9a3b6500fd1c64a883ceba1",
+      "reason": "Offline compatibility regressions were found before any runner start or budget ledger."
+    }
+  ],
+  "provider_usage_reconciliation_passed": false,
+  "conservative_budget_check_passed": true,
+  "known_usage_physical_requests": 27,
+  "known_reported_usage_micro_cny": 1741230,
+  "cumulative_cost_upper_including_unknown_micro_cny": 1902868,
+  "current_phase_usage_reconciliation_passed": true,
+  "paid_testing_permanently_stopped": true,
+  "final_independent_review": {
+    "file": "independent-review-final.json",
+    "sha256": "6405db4008985a071e6b941ef539668a80a7dec868a7f23d1581d6c66d124723",
+    "historical_core_findings_met": 7,
+    "fresh_scope_variant_core_findings_met": 5,
+    "combined_core_findings_met": 12,
+    "overall_semantic_quality_pass": false,
+    "material_extra_fact_errors": 1,
+    "minor_clarity_or_editorial_findings": 5,
+    "same_version_three_question_live_test": false,
+    "core_coverage_is_not_full_answer_correctness": true,
+    "automatic_partial_reason_detected_the_material_error": false
+  }
+}
