@@ -27,7 +27,7 @@ from typing import Callable, Sequence
 from urllib.parse import parse_qs, urlsplit
 import webbrowser
 
-from analyze_source import ARTIFACT_NAMES, AnalysisCancelled, _paths, analyze_source
+from analyze_source import ARTIFACT_NAMES, OUTPUT_DIRECTORY_NAMES, OUTPUT_FILE_NAMES, AnalysisCancelled, _paths, analyze_source
 from company_api import APIClientError, APIConfigurationError, CompanyAPIConfig, OpenAICompatibleChatClient, Transport
 from investigation_tools import InvestigationTools
 from repo_inventory import parse_extensions
@@ -53,7 +53,7 @@ MAX_REQUEST_BYTES = 32_768
 REJECTED_BODY_DRAIN_SECONDS = 0.25
 MAX_GRAPH_EDGES = 200
 SOURCE_UPDATE_PENDING = "source-update-pending.json"
-OUTPUT_NAMES = frozenset((*ARTIFACT_NAMES, SOURCE_UPDATE_PENDING, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm", "conversations.sqlite", "conversations.sqlite-wal", "conversations.sqlite-shm", "conversations.sqlite-journal", "quality-traces", "semantic-scopes", "impact-results", "versioned-evidence.sqlite", "versioned-evidence.sqlite-wal", "versioned-evidence.sqlite-shm", "source-versions.sqlite", "source-versions.sqlite-wal", "source-versions.sqlite-shm", "source-versions.sqlite-journal"))
+OUTPUT_NAMES = frozenset((*OUTPUT_FILE_NAMES, *OUTPUT_DIRECTORY_NAMES, SOURCE_UPDATE_PENDING))
 EVIDENCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}")
 LOGGER = logging.getLogger(__name__)
 
@@ -156,6 +156,51 @@ def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 102
     return value.strip()
 
 
+def _existing_source_output(source: Path, output: Path) -> bool:
+    """Recognize an existing library without treating its old index as current.
+
+    User exports and notes are left untouched. Source validity is checked by
+    the normal import/question path; this check only identifies folder ownership.
+    """
+    database = output / "structural-index.sqlite"
+    source_key = hashlib.sha256(str(source).encode()).hexdigest()
+    try:
+        if not database.is_file():
+            # A missing index can be rebuilt beside retained conversations.
+            # A present but contradictory index never falls back to history.
+            if database.exists() or database.is_symlink():
+                return False
+            history = output / "conversations.sqlite"
+            if history.is_symlink() or not history.is_file():
+                return False
+            with closing(sqlite3.connect(f"{history.as_uri()}?mode=ro", uri=True, timeout=0.1)) as connection:
+                tables = {row[0] for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('conversations','messages')")}
+                if tables != {"conversations", "messages"}:
+                    return False
+                required_columns = {
+                    "conversations": {"id", "source_key", "title", "snapshot_id", "created_at", "updated_at"},
+                    "messages": {"position", "id", "conversation_id", "role", "content", "status", "created_at", "run_id", "details"},
+                }
+                for table, required in required_columns.items():
+                    columns = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
+                    if not required.issubset(columns):
+                        return False
+                return connection.execute(
+                    "SELECT 1 FROM conversations WHERE source_key=? AND length(id)>0 LIMIT 1", (source_key,)).fetchone() is not None
+        with closing(sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=0.1)) as connection:
+            metadata = dict(connection.execute(
+                "SELECT key,value FROM metadata WHERE key IN ('snapshot_id','source_root_hash')"))
+            tables = {row[0] for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('source_files','symbols','code_units')")}
+        return (isinstance(metadata.get("snapshot_id"), str)
+                and metadata["snapshot_id"] not in {"", "unknown"}
+                and tables == {"source_files", "symbols", "code_units"}
+                and metadata.get("source_root_hash") == source_key)
+    except (OSError, ValueError, sqlite3.Error):
+        return False
+
+
 def _validate_options(payload: object) -> dict:
     fields = {"source", "output", "encoding", "source_format", "entry", "question", "locale", "allow_network", "extensions", "index_mode", "verify_content", "max_source_pages", "reading_strategy", "answer_detail", "conversation_id", "retry_message_id", "framework_reference_path", "capture_api_responses", "compilation_context_path"}
     if not isinstance(payload, dict) or set(payload) - fields:
@@ -168,9 +213,10 @@ def _validate_options(payload: object) -> dict:
         source, output = _paths(source_input, output_input)
         if not source.is_dir():
             raise ValueError("missing source")
-        # Only a dedicated analysis directory may be reused. This avoids
-        # overwriting unrelated documents with reserved report filenames.
-        if output.exists() and any(path.name not in OUTPUT_NAMES for path in output.iterdir()):
+        # A recognized library may also contain user exports or notes. They
+        # are never overwritten or removed by an index refresh.
+        if (output.exists() and any(path.name not in OUTPUT_NAMES for path in output.iterdir())
+                and not _existing_source_output(source, output)):
             raise ValueError("unrelated output contents")
         pending = output / SOURCE_UPDATE_PENDING
         if pending.is_symlink() or (pending.exists() and not pending.is_file()):
@@ -178,7 +224,7 @@ def _validate_options(payload: object) -> dict:
     except (OSError, ValueError):
         raise RequestError(
             "INVALID_PATH",
-            "请使用存在的源码目录和独立的输出目录。输出须为空、新目录或只含分析产物，且不能与源码相互嵌套或使用符号链接产物。",
+            "请使用存在的源码目录和独立的结果目录；可继续使用该源码原有的分析结果，无需清空。新位置请选新建或空目录，且不要与源码嵌套或使用符号链接产物。",
         ) from None
     encoding = _text(payload, "encoding", maximum=64) or "auto"
     if encoding != "auto":
@@ -480,9 +526,41 @@ class WorkbenchState:
         self.answer_detail = "detailed"
         self.source_preferences = None
         self._local_workspace = None
+        self._saved_workspace = None
+        self._index_upgrade_attempt = None
+        self._startup_upgrade_plan = None
         self.conversation = None
         self.conversation_store = None
         self._restore_workspace()
+        self._upgrade_restored_index()
+
+    def _upgrade_restored_index(self):
+        """Use the ordinary rollback-safe local update for known old versions."""
+        if self._local_workspace is None:
+            return
+        from workspace_upgrade import plan_workspace_upgrade
+
+        original = self._startup_upgrade_plan
+        if not original or original["status"] != "ready":
+            return
+        # Display repair must never promote an originally mismatched report
+        # into authority for an automatic source-scope change.
+        plan = plan_workspace_upgrade(self._saved_workspace, check_integrity=False)
+        if plan["status"] != "ready" or plan["attempt_key"] != original["attempt_key"]:
+            return
+        try:
+            # Record the attempt before starting. A failed or interrupted
+            # upgrade must not repeat on every launch against the same snapshot.
+            self._index_upgrade_attempt = plan["attempt_key"]
+            self._save_workspace()
+            self.start(plan["options"])
+            with self.lock:
+                if self.job:
+                    self.job["origin"] = "index_version_upgrade"
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            # A failed upgrade stays recoverable in the original workspace;
+            # it is not retried in a loop or converted into a model request.
+            _failure_diagnostic(exc, "SOURCE_UPDATE_FAILED")
 
     def _save_workspace(self, options=None):
         options = options or self.project
@@ -498,6 +576,8 @@ class WorkbenchState:
             self._local_workspace = copy.deepcopy(data)
         data.update(framework_reference_path=self.framework_reference_path, answer_detail=self.answer_detail,
                     source_preferences=copy.deepcopy(self.source_preferences))
+        if self._index_upgrade_attempt:
+            data["index_upgrade_attempt"] = self._index_upgrade_attempt
         if self.state_path is None:
             return
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
@@ -516,6 +596,10 @@ class WorkbenchState:
             saved = json.loads(self.state_path.read_text(encoding="utf-8"))
             if not isinstance(saved, dict):
                 return
+            self._saved_workspace = copy.deepcopy(saved)
+            attempt = saved.get("index_upgrade_attempt")
+            if isinstance(attempt, str) and re.fullmatch(r"[a-f0-9]{64}", attempt):
+                self._index_upgrade_attempt = attempt
             reference = saved.get("framework_reference_path")
             self.framework_reference_path = reference if isinstance(reference, str) else None
             self.answer_detail = "brief" if saved.get("answer_detail") == "brief" else "detailed"
@@ -535,11 +619,20 @@ class WorkbenchState:
             # Keep the inputs available even when an explicit index repair is
             # needed. A saved path alone never grants source authority.
             self.project = _project(str(source), str(output))
+            self.project["restore_notice"] = "INDEX_RECHECK_REQUIRED"
+            from workspace_upgrade import plan_workspace_upgrade
+            self._startup_upgrade_plan = plan_workspace_upgrade(saved)
+            # Historical answers belong to the selected source/output pair,
+            # independently of whether today's index can authorize a question.
+            self._restore_conversations(source, output, saved.get("conversation_id"))
             if saved.get("restore_blocked") is True or (output / SOURCE_UPDATE_PENDING).exists() or (output / SOURCE_UPDATE_PENDING).is_symlink():
                 self.project["restore_blocked"] = True
                 return
             database = output / "structural-index.sqlite"
-            if not source.is_dir() or not database.is_file():
+            if not source.is_dir():
+                self.project["restore_notice"] = "SOURCE_PATH_UNAVAILABLE"
+                return
+            if not database.is_file():
                 return
             report = _workspace_diagnosis(output / "diagnosis.json")
             if (not isinstance(report, dict) or report.get("source_manifest_verified") is not True
@@ -590,7 +683,13 @@ class WorkbenchState:
             source_options = source_options if isinstance(source_options, dict) else {}
             index_options = {key: database_options[key] for key in
                              ("extensions", "include_extensionless", "encoding", "source_format")}
-            repaired = (build_report.get("snapshot_id") != snapshot or programs_repaired
+            scope_snapshot_mismatch = (build_report.get("snapshot_id") != snapshot
+                                       or report.get("snapshot_id", snapshot) != snapshot)
+            if scope_snapshot_mismatch:
+                # Repair display metadata without converting mismatched scope
+                # provenance into automatic-upgrade permission on a later boot.
+                report["index_upgrade_scope_unverified"] = True
+            repaired = (scope_snapshot_mismatch or programs_repaired
                         or any(source_options.get(key) != value for key, value in index_options.items()))
             report.update(build_report={**build_report, "snapshot_id": snapshot}, snapshot_id=snapshot,
                           repository_search=overview, source_options={**source_options, **index_options})
@@ -646,15 +745,25 @@ class WorkbenchState:
                     project["agent"] = agent
             except (OSError, ValueError, TypeError, AttributeError):
                 pass
+        if self.conversation_store is None:
+            self._restore_conversations(source, output, saved.get("conversation_id"), create=True)
+
+    def _restore_conversations(self, source, output, identifier=None, *, create=False):
+        """Open only a retained transcript; an absent store stays absent."""
+        path = output / "conversations.sqlite"
+        if path.is_symlink() or (not create and not path.is_file()):
+            return
         try:
-            self.conversation_store = ConversationStore(output, source)
-            self.conversation_store.recover_interrupted()
-            self.conversation_store.list()
+            store = ConversationStore(output, source)
+            store.recover_interrupted()
+            store.list()
+            self.conversation_store = store
         except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):
             self.conversation_store = None
-        if self.conversation_store and saved.get("conversation_id"):
+            return
+        if identifier:
             try:
-                self.conversation = self.conversation_store.get(saved["conversation_id"])
+                self.conversation = store.get(identifier)
             except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                 self.conversation = None
 
@@ -1286,7 +1395,13 @@ class WorkbenchState:
             recovery_directory = backup.preserve() if backup else None
             self.project = _project(str(options["source"]), str(options["output"]))
             self.project["restore_blocked"] = True
-            self.conversation, self.conversation_store = None, None
+            update = options.get("_source_update") or {}
+            if update.get("same_project"):
+                # Transcript storage is not an index artifact and is not
+                # replaced by the update/rollback. Keep this source's history.
+                self.conversation, self.conversation_store = update.get("conversation"), update.get("store")
+            else:
+                self.conversation, self.conversation_store = None, None
             diagnostic = _failure_diagnostic(exc, "ANALYSIS_FAILED")
             try:
                 self._save_workspace()

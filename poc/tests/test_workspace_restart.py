@@ -472,6 +472,57 @@ class WorkspaceRestartTests(unittest.TestCase):
         self.assert_unavailable(app)
         self.assertFalse(self.output.exists())
 
+    def test_history_remains_accessible_when_index_or_source_cannot_be_restored(self):
+        store = ConversationStore(self.output, self.source)
+        identifier = self.conversation["id"]
+        store.append(identifier, "user", "Which requests are accepted?")
+        store.append(identifier, "assistant", "Only positive requests are accepted.",
+                     details={"snapshot_id": self.snapshot})
+        original = store.get(identifier)
+        report = (self.output / "diagnosis.json").read_bytes()
+        for failure in ("missing_report", "index_update_required", "search_stale", "pending_update", "source_missing"):
+            with self.subTest(failure=failure):
+                with ExitStack() as stack:
+                    if failure == "missing_report":
+                        (self.output / "diagnosis.json").unlink()
+                        stack.callback((self.output / "diagnosis.json").write_bytes, report)
+                    elif failure == "index_update_required":
+                        from indexed_chat import _write_index_update_required
+                        _write_index_update_required(self.source, self.output, question="Explain the flow", entry=None,
+                                                     reasons=["parser_version_changed"])
+                        stack.callback((self.output / "diagnosis.json").write_bytes, report)
+                    elif failure == "search_stale":
+                        from repository_discovery import SEARCH_VERSION
+                        with closing(sqlite3.connect(self.database)) as db, db:
+                            db.execute("UPDATE repo_metadata SET value='unsupported-search' WHERE key='version'")
+                        def restore_search():
+                            with closing(sqlite3.connect(self.database)) as db, db:
+                                db.execute("UPDATE repo_metadata SET value=? WHERE key='version'", (SEARCH_VERSION,))
+                        stack.callback(restore_search)
+                    elif failure == "pending_update":
+                        marker = self.output / "source-update-pending.json"
+                        marker.write_text("{}", encoding="utf-8")
+                        stack.callback(marker.unlink)
+                    else:
+                        moved = self.source.with_name("source-offline")
+                        self.source.rename(moved)
+                        stack.callback(moved.rename, self.source)
+                    app = self.restart()
+                    self.assert_unavailable(app)
+                    self.assertEqual(app.conversation, original)
+                    self.assertEqual(app.get_conversation(identifier)["conversation"], original)
+                    self.assertEqual([item["id"] for item in app.state()["conversations"]], [identifier])
+                    self.assertFalse(self.requests)
+                self.save_state()
+
+    def test_unavailable_index_does_not_create_an_absent_history_database(self):
+        self.database.unlink()
+        (self.output / "conversations.sqlite").unlink()
+        app = self.restart()
+        self.assert_unavailable(app)
+        self.assertIsNone(app.conversation_store)
+        self.assertFalse((self.output / "conversations.sqlite").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

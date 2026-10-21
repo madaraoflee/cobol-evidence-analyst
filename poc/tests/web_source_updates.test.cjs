@@ -37,6 +37,38 @@ function conversation(){return {id:'old-conversation',title:'Existing question',
 function setup(h){h.run(`state.connected=true;state.conversationSupported=true;state.mode='real';applyProject(${JSON.stringify(project())});applyConversation(${JSON.stringify(conversation())});state.question='Unsent follow-up';`);}
 function indexOptions(source='/local/source'){return {source,output:'/local/output',index_mode:'catalog',allow_network:false,verify_content:false};}
 
+test('restart keeps saved conversations readable while unavailable source evidence stays disabled',async()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    for(const blocked of [false,true]){
+      const h=harness(locale);
+      const unavailable={...project(),diagnosis:null,snapshot_id:null,programs:[],restore_notice:'INDEX_RECHECK_REQUIRED',restore_blocked:blocked};
+      h.respond(url=>url==='/api/state'?{session_token:'test',project:unavailable,conversation:conversation(),conversations:[conversation()]}:assert.fail(url));
+      await h.run('initialize()');
+      assert.equal(h.run('sourceUsable()'),false);
+      assert.equal(h.run('state.conversation.id'),'old-conversation');
+      assert.equal(h.run('state.conversations.length'),1);
+      assert.match(h.get('page-content').innerHTML,/Original answer/);
+      assert.match(h.get('page-content').innerHTML,/type="submit" disabled/);
+      assert.match(h.get('conversation-list').innerHTML,/old-conversation/);
+      if(!blocked)assert.match(h.get('notice').textContent,locale==='en'?/Saved conversations remain accessible/:locale==='zh-CN'?/已有对话仍可查看/:/已有對話仍可查看/);
+      const count=h.requests.length;
+      await h.events.submit({target:{id:'question-form'},preventDefault(){}});
+      assert.equal(h.requests.length,count,'reading history must not send a model request');
+      h.run('openSource()');
+      assert.equal(h.get('source-path').value,'/local/source');
+      assert.equal(h.get('output-path').value,'/local/output');
+    }
+  }
+});
+
+test('path validation tells users to keep their existing output',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);const text=h.run("apiErrorText({code:'INVALID_PATH'})");
+    assert.match(text,locale==='en'?/do not clear it/:locale==='zh-CN'?/无需清空/:/無需清空/);
+    assert.doesNotMatch(text,/must be.*empty|须.*为空|須.*為空/);
+  }
+});
+
 test('an existing source has explicit update and switch actions, and reopening preserves import settings',()=>{
   const h=harness();setup(h);const html=h.run('renderSources()');
   assert.match(html,/data-source-update[^>]*>Update local source/);assert.match(html,/data-source-switch[^>]*>Switch source folder/);

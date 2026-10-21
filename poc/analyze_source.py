@@ -35,6 +35,13 @@ ARTIFACT_NAMES = (
     "framework-context.json", "investigation-runs.sqlite",
     "agent-result-view.json", "programs-view.json", "diagnosis-view.json",
 )
+OUTPUT_DATABASE_NAMES = tuple(name for name in ARTIFACT_NAMES if name.endswith(".sqlite")) + (
+    "conversations.sqlite", "versioned-evidence.sqlite", "source-versions.sqlite",
+)
+OUTPUT_FILE_NAMES = frozenset((*ARTIFACT_NAMES, *(
+    name + suffix for name in OUTPUT_DATABASE_NAMES for suffix in ("", "-wal", "-shm", "-journal")
+)))
+OUTPUT_DIRECTORY_NAMES = ("quality-traces", "semantic-scopes", "impact-results")
 
 
 class AnalysisCancelled(RuntimeError):
@@ -72,19 +79,14 @@ def _paths(source_root: Path, output_root: Path) -> tuple[Path, Path]:
         raise ValueError("Source and output must be separate, non-nested directories.")
     if output.exists() and not output.is_dir():
         raise ValueError("Output must be a directory.")
-    for name in (*ARTIFACT_NAMES, "structural-index.sqlite-wal", "structural-index.sqlite-shm", "source-catalog.sqlite-wal", "source-catalog.sqlite-shm"):
+    for name in OUTPUT_FILE_NAMES:
         path = output / name
         if path.is_symlink() or (path.exists() and not path.is_file()):
             raise ValueError("A reserved output path is not a regular file.")
-    for name in ("quality-traces", "semantic-scopes", "impact-results"):
+    for name in OUTPUT_DIRECTORY_NAMES:
         path = output / name
         if path.is_symlink() or (path.exists() and not path.is_dir()):
             raise ValueError("A reserved output directory is invalid.")
-    for name in ("versioned-evidence.sqlite", "versioned-evidence.sqlite-wal", "versioned-evidence.sqlite-shm",
-                 "source-versions.sqlite", "source-versions.sqlite-wal", "source-versions.sqlite-shm", "source-versions.sqlite-journal"):
-        path = output / name
-        if path.is_symlink() or (path.exists() and not path.is_file()):
-            raise ValueError("A reserved output path is not a regular file.")
     return source, output
 
 

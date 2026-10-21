@@ -682,7 +682,9 @@ API 請求記錄已遮蔽配置值，內容可能因大小限制而截斷。保�
 強制校驗全部檔案內容|强制校验全部文件内容|Verify all file contents
 一般更新會重用未變檔案。強制校驗會完整讀取全部源碼，首次大目錄接入無需勾選。|一般更新会复用未变文件。强制校验会完整读取全部源码，首次大目录接入无需勾选。|Normal updates reuse unchanged files. Forced verification reads all source contents; leave this off for normal intake.
 此步驟只在本機更新輕量目錄，不呼叫模型。|此步骤只在本机更新轻量目录，不调用模型。|This step updates a local source catalog without calling a model.
-請使用完整絕對路徑：源碼目錄須存在；輸出須獨立且為空、新目錄或只含分析產物。兩者不可相互嵌套。|请使用完整绝对路径：源码目录须存在；输出须独立且为空、新目录或只含分析产物。两者不可相互嵌套。|Use absolute paths. Source must exist; output must be separate and new, empty or contain analysis artifacts only. Neither folder may contain the other.
+請選擇存在的源碼目錄和獨立的分析結果目錄。已有資料庫請沿用原結果目錄，無需清空；兩者不可相互嵌套，分析檔案不可使用符號連結。|请选择存在的源码目录和独立的分析结果目录。已有资料库请沿用原结果目录，无需清空；两者不可相互嵌套，分析文件不可使用符号链接。|Choose an existing source folder and a separate analysis folder. Reuse the original output for an existing library; do not clear it. Neither folder may contain the other, and analysis files must not be symbolic links.
+原源碼路徑暫時不可用。已有對話仍可查看；請恢復原路徑，或選回正確源碼與原分析結果資料夾，無需清空結果。|原源码路径暂时不可用。已有对话仍可查看；请恢复原路径，或选回正确源码与原分析结果文件夹，无需清空结果。|The original source path is unavailable. Saved conversations remain accessible. Restore that path or select the correct source and original analysis folder; do not clear the output.
+已有對話仍可查看。目前索引需要更新；請沿用原源碼與分析結果資料夾，無需清空結果或另建資料夾。|已有对话仍可查看。目前索引需要更新；请沿用原源码与分析结果文件夹，无需清空结果或另建文件夹。|Saved conversations remain accessible. The index needs an update; keep the original source and analysis folders. Do not clear the output or create a replacement folder.
 目前已有分析正在執行，請等候完成。|当前已有分析正在执行，请等候完成。|An analysis is already running. Wait for it to finish.
 工作階段已失效，請重新整理頁面。|会话已失效，请刷新页面。|Your session has expired. Reload the page.
 請檢查文字編碼、源碼格式與副檔名設定。|请检查文本编码、源码格式与扩展名配置。|Check the encoding, source format and file extensions.

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-22",
+  "execution_surface": "source_entry_on_macos",
+  "native_windows_acceptance": false,
+  "paid_model_calls": 0,
+  "external_model_calls": 0,
+  "legacy_tag": "v2026.10.14.2",
+  "legacy_commit": "b8b63899080e2fe52f18c24159da21254b5f11c0",
+  "original_experiment_sha256": "a5fc9c646e0687002159417553dc23d4d969f756a05dae29b73c4aa4a2f56489",
+  "old_parser": "business-sparse-v1.7",
+  "new_parser": "business-sparse-v1.9",
+  "local_upgrade_count": 1,
+  "upgrade_allow_network": false,
+  "job_status": "COMPLETED",
+  "history_unchanged": true,
+  "restart_history_unchanged": true,
+  "restart_started_job": false,
+  "user_notes_retained": true,
+  "passed": true
+}
