@@ -8,7 +8,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from business_orientation import build_business_orientation
+from business_orientation import build_business_orientation, project_business_orientation
 from business_synthesis import (answer_requirements, assess_business_answer, build_analysis_brief,
     needs_synthesis_review, project_analysis_brief)
 from answer_markdown import BUSINESS_ANSWER_POLICY, BUSINESS_RUNTIME_BOUNDARY_POLICY
@@ -208,9 +208,14 @@ class BusinessNarrativeQualityTests(unittest.TestCase):
         brief = build_analysis_brief(QUESTION, self.investigation, self.pages, [], 2048)
         self.assertEqual(brief["business_explanation_contract"]["mode"], "business_overview")
         self.assertFalse(brief["business_explanation_contract"]["semantic_verification"])
-        self.assertEqual(project_analysis_brief(brief)["business_orientation"], brief["business_orientation"])
-        self.assertEqual(project_analysis_brief(brief)["business_explanation_contract"],
-                         brief["business_explanation_contract"])
+        self.assertEqual(project_analysis_brief(brief)["business_orientation"],
+                         project_business_orientation(brief["business_orientation"]))
+        projected_contract = project_analysis_brief(brief)["business_explanation_contract"]
+        self.assertEqual({key: value for key, value in projected_contract.items() if key != "task"},
+                         {key: value for key, value in brief["business_explanation_contract"].items() if key != "task"})
+        self.assertLess(len(projected_contract["task"].encode()),
+                        len(brief["business_explanation_contract"]["task"].encode()))
+        self.assertIn(BUSINESS_RUNTIME_BOUNDARY_POLICY, brief["business_explanation_contract"]["task"])
         trimmed = build_analysis_brief(QUESTION, self.investigation, [self.pages[1]], [], 2048)
         self.assertNotIn("business_purpose", trimmed["business_orientation"]["available_facets"])
         self.assertNotIn("data_roles", trimmed["business_orientation"]["available_facets"])

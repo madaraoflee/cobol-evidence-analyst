@@ -15,11 +15,12 @@ from collections.abc import Mapping
 from api_diagnostics import APIResponseDiagnostics
 from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
 from agent_policy import resolve_agent_policy
-from answer_markdown import (ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, BUSINESS_RUNTIME_BOUNDARY_POLICY,
+from answer_markdown import (ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, BUSINESS_EXPLANATION_COMPACT_POLICY, BUSINESS_RUNTIME_BOUNDARY_POLICY,
                              join_answer_continuation, strip_incomplete_source_citation)
 from answer_diagnostics import build_answer_diagnostics, response_character_counts
 from analysis_continuation import AnalysisContinuation, progress_snapshot
 from business_map import build_business_map
+from business_explanation_cache import with_business_explanation_cache
 from business_synthesis import (assess_answer_completion, assess_business_answer, build_analysis_brief, link_answer_claims,
                                 needs_synthesis_review, wants_business_detail)
 from company_api import APIClientError, APIConfigurationError, OpenAICompatibleChatClient
@@ -621,13 +622,23 @@ def _prompt_payload(payload):
     if not discovery_only and explanation_contract.get("mode") == "business_overview":
         contract["business_explanation"] = {
             "audience": "A newcomer learning the business process.",
-            "order": ["business purpose and outcome", "batch job or online entry when evidenced",
-                      "program responsibilities and handoffs", "table and file input/output roles",
-                      "decisive business rules, exceptions and concrete limits"],
+            "order": ["business object, purpose and outcome", "evidenced entry and connected processing steps",
+                      "data passed between programs, tables and files", "decisive rules and exceptions"],
+            "reader_questions": ["What is this process for?", "Who starts it and who does each step?",
+                                 "Where does each input come from and where does each result go?",
+                                 "Which conditions change the result or prevent it?"],
             "grounding": "Use business_analysis_brief.business_orientation as source-bound navigation. "
-                "Explain what each operation accomplishes for the business; retain exact names for locating it. "
+                "Connect handoffs using their bound facts and explain the role of each named object once. "
+                "Separate declared external file names from verified LF/PF definitions; a table is not automatically a file. "
+                "Use one coherent explanation, not a source-file inventory or repeated summary/table/conclusion. "
                 "Name unknown business terminology as an interpretation, and qualify only affected claims. "
                 "Do not invent a schedule, online deployment, domain label or successful runtime outcome."}
+        if payload.get("budget_wire_compact"):
+            contract["business_explanation"] = {
+                "audience": "A newcomer learning the business process.",
+                "task": "Follow the system business explanation policy: purpose, evidenced responsibilities, "
+                    "program/data handoffs and decisive conditions. Verify business_orientation.handoffs "
+                    "against supplied source; they do not prove runtime behavior."}
     if discovery_only:
         contract = {"format": "Return one JSON object containing a nonempty search array.",
                     "content": "Choose likely source terms, synonyms or abbreviations for the current question. "
@@ -685,8 +696,8 @@ def _system_for_payload(payload):
     if payload.get("budget_wire_compact"):
         system = system.replace(BUSINESS_ANSWER_POLICY,
             "直接回答当前业务问题，说明决定结论的条件、输入、顺序、结果与异常，引用实际供应原文。"
-            "概览面向新人，按有依据的业务目的、批次或联机入口、程序职责、表文件角色串成过程；"
-            "名称清单与逐句代码翻译不能代替解释。简短追问只答所问。注释、源码、手册与推断区分，"
+            + BUSINESS_EXPLANATION_COMPACT_POLICY +
+            "注释、源码、手册与推断区分，"
             "不凭名称推定调度、在线部署、写入成功或提交结果。"
             + BUSINESS_RUNTIME_BOUNDARY_POLICY +
             "给定场景沿已选路径推导；优先分支命中后，后续分支是未执行，不补造其条件真假。"
@@ -3671,6 +3682,7 @@ def _answer_scope_gaps(question, investigation, *, answer_detail="detailed"):
     return material, limits
 
 
+@with_business_explanation_cache
 def run_business_chat(question, database_path, source_root, config, **kwargs):
     """Use one selected-source version across search, reads, and answer evidence."""
     from source_session import QuestionSourceSession

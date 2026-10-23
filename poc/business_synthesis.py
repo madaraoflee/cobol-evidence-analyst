@@ -7,6 +7,8 @@ import re
 from decimal import Decimal, InvalidOperation
 
 from business_behavior import build_behavior_guide
+from business_explanation_cache import cache_business_explanation
+from business_explanation_review import review_business_explanation
 from file_impact_evidence import is_file_impact_question
 from question_intent import calculation_intent
 from source_availability import source_availability_contradictions
@@ -182,6 +184,7 @@ _ANSWER_SIGNALS = {
         r"\b(?:VALUE|MOVE|LINKAGE|READ|USING|from|initialized?|initially|loaded?|received?|passed?)\b", re.I),
     "conditions": re.compile(
         r"大于|大於|小于|小於|(?:等于|等於).{0,24}(?:时|時|则|則)|"
+        r"(?:非零|零|[+-]?\d+(?:\.\d+)?)\s*分支|"
         r"(?:为|為)\s*(?:[+-]?\d+(?:\.\d+)?|零|[A-Z][A-Z0-9_-]*)\s*(?:时|時|则|則)|"
         r"超过|超過|超出|低于|低於|达到|達到|不足|正数|正數|正值|非正|[<>≤≥]|若|如果|当.{0,24}时|當.{0,24}時|"
         r"仅|僅|才|\b(?:if|when|unless|positive|negative|greater|less|exceeds?|insufficient)\b", re.I),
@@ -272,7 +275,31 @@ _TECHNICAL_SCAFFOLD = re.compile(
 def wants_business_overview(question, *, answer_detail="detailed"):
     """A broad explanation request, not every detailed or relationship reply."""
     topics = _BUSINESS_OVERVIEW.findall(str(question))
-    return (wants_business_detail(question, answer_detail=answer_detail) and bool(topics)
+    text = str(question)
+    # An explicit purpose-only request does not require every available
+    # program/data relationship merely because its subject says "purpose".
+    purpose_only = re.search(
+        r"(?:只|仅|僅)(?:需|要|想)?(?:说明|說明|解释|解釋|知道|了解).{0,32}"
+        r"(?:业务目的|業務目的|业务用途|業務用途|程序用途|程式用途)(?=$|[。？！?！；;，,])|"
+        r"\b(?:only|just)\s+(?:(?:explain|describe|tell\s+me)\s+)?(?:the\s+)?(?:business\s+)?"
+        r"purpose(?:\s+of\s+[^.!?;,\n]{1,64})?(?=$|[.!?;,])", text, re.I)
+    if purpose_only and not re.search(
+            r"(?:还|還|也|并|並|以及).{0,12}(?:流程|交接|职责|職責)|"
+            r"\b(?:also|and)\b.{0,24}\b(?:workflow|flow|handoffs?|roles?)\b", text, re.I):
+        return False
+    focused_relation = bool(re.search(
+        r"哪个|哪個|是否|\b(?:which|whether)\b|"
+        r"(?:只|仅|僅)(?:解释|解釋|说明|說明|关注|關注).{0,96}"
+        r"(?:输入|輸入|输出|輸出|返回|错误|錯誤|异常|異常|某个|某個)|"
+        r"\b(?:only|just)\b.{0,96}\b(?:input|output|return|error|failure|specific)\b", text, re.I))
+    cross_role_explanation = (bool(re.search(r"配合|串联|串聯|协作|協作|关系|關係|"
+                                            r"\b(?:fit together|interact\w*|relationships?)\b", text, re.I))
+        and not focused_relation
+        and bool(re.search(r"批处理|批次|在线|在線|联机|聯機|(?<![A-Za-z])(?:batch|online)(?![A-Za-z])", text, re.I))
+        and bool(re.search(r"程序|程式|\bprograms?\b", text, re.I))
+        and bool(re.search(r"(?:数据|資料|数据库|資料庫)表|表(?=的|中|里|裡|和|与|與|、|，|。|\s|$)|"
+                           r"文件|檔案|\b(?:tables?|files?)\b", text, re.I)))
+    return (wants_business_detail(question, answer_detail=answer_detail) and (bool(topics) or cross_role_explanation)
             and (calculation_intent(str(question)) != "rules"
                  or any(not re.search(r"逻辑|邏輯|\blogic\b", topic, re.I) for topic in topics)))
 
@@ -544,6 +571,7 @@ def _supplied_calculation_hints(question, investigation, source_pages):
             "coverage_hints": hints[:32]}
 
 
+@cache_business_explanation
 def answer_requirements(question, investigation, source_pages, *, answer_detail="detailed", behavior_guide=None,
                         business_orientation=None):
     """Nominate answer aspects only from question-relevant, supplied candidates.
@@ -1333,13 +1361,20 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
             if not any(re.search(r"(?<![A-Z0-9_$#@-])" + re.escape(name) + r"(?![A-Z0-9_$#@-])",
                                  explanation, re.I) for name in names):
                 missing.append(group)
-    completion.update(required_aspects=[item["kind"] for item in requirements], missing_aspects=missing)
     narrative = [item["kind"] for item in requirements if item["kind"] in _NARRATIVE_ASPECTS]
     if narrative:
+        from business_orientation import build_business_orientation
+        relation_review = review_business_explanation(answer,
+            build_business_orientation(question, investigation, source_pages))
+        aspect_names = {"business_purpose": "business_purpose", "program_handoffs": "program_roles",
+                        "data_flow": "data_roles"}
+        missing.extend(aspect_names[kind] for kind in relation_review["obvious_missing_aspects"]
+                       if aspect_names[kind] in narrative and aspect_names[kind] not in missing)
         completion["business_explanation_review"] = {
-            "method": "source_bound_obvious_inventory_only", "semantic_verification": False,
+            **relation_review,
             "technical_inventory_only": technical_inventory, "required_aspects": narrative,
             "missing_aspects": [kind for kind in missing if kind in _NARRATIVE_ASPECTS]}
+    completion.update(required_aspects=[item["kind"] for item in requirements], missing_aspects=missing)
     if missing and completion["status"] != "incomplete":
         completion.update(status="incomplete", reason="supplied_business_aspects_unexplained")
     risks = semantic_risk_candidates(answer, source_pages)
@@ -1411,7 +1446,7 @@ def project_analysis_brief(brief):
                                     isinstance(syntax, dict) and bool(syntax.get("facts")))
     if brief.get("task") != expected:
         return brief
-    return {**brief, "task": (
+    projected = {**brief, "task": (
         "按当前问题、场景、假设和时点解释结论，引用已供应原文。"
         "required_answer_aspects/behavior_guide 是候选导航，不证明执行。"
         "保留控制条件、输入、顺序、舍入、后续覆盖及各层实参传递。"
@@ -1421,6 +1456,18 @@ def project_analysis_brief(brief):
         "syntax_guide 的false为条件不成立，prior_branches_must_not_match为之前分支均未命中。"
         "源码顺序不等于执行路径，effects_unknown仍未知。"
         "补查可读缺口，未知只限定受影响结论，按系统和response_contract交付。") }
+    # The system message already carries this exact policy. Keep canonical
+    # reports intact and remove only known generic repetition from the wire.
+    contract = brief.get("business_explanation_contract")
+    expected_contract = _business_explanation_contract("业务目的", brief.get("business_orientation", {}))
+    if contract == expected_contract:
+        projected["business_explanation_contract"] = {**contract,
+            "task": "按系统的业务解释规则及 response_contract 串联已供应的职责和数据交接；"
+                    "business_orientation 的事实和 handoffs 均须对照实际来源，不能推定生产运行。"}
+    if "business_orientation" in projected:
+        from business_orientation import project_business_orientation
+        projected["business_orientation"] = project_business_orientation(projected["business_orientation"])
+    return projected
 
 
 def build_analysis_brief(question, investigation, source_pages, framework_references, max_output_tokens,

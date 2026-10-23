@@ -1,0 +1,20 @@
+{
+  "base_commit": "a82ac474e9708a18dab00acc2e078716aed61c07",
+  "owned_files": {
+    "poc/answer_markdown.py": "698b65355a4e32b1736aaa2ad6f45118c0cea85f7494844ca13760803dee602b",
+    "poc/business_chat.py": "1eb958c24676c7ff4e23f5219f4e4335d5d4cacb3ca2b091a05c27ad160be798",
+    "poc/business_orientation.py": "cac75440e0b367b7faee92d32864a0ddca781b603abf1697d5bb51d417b0049b",
+    "poc/business_synthesis.py": "2f18281aa048feb956951147d454954ec5fc374bc3c6421f89dd5e6423530030",
+    "poc/quality_trace.py": "06904514783b9e33b217721a4515b3682833824921dae5c4cc1e151812cb1fd8",
+    "poc/tests/test_business_narrative_quality.py": "824613a15083f3da024934a65cce9403949886f50b075e65285712d8bd2abb86",
+    "poc/business_explanation_cache.py": "313875c6bfeab6fc3867629ed5ee6dbe5da692b7f143e697851d586057a9cd36",
+    "poc/business_explanation_review.py": "b0d61b87b4c927be34f1b325e473c2d4e1ae6783f332374a8c0bb8c8b3501358",
+    "poc/business_handoffs.py": "4a8011c73453ffe64748f117e53fabae64c800015d3b654fffb758e7a3b2c3e2",
+    "poc/tests/test_business_explanation_cache.py": "f47634115fcaeed2298bd9155ecccbda9b4fa725d83da1a1a089148ebdcc5930",
+    "poc/tests/test_business_explanation_delivery.py": "7ac6a9259989b66a375b04d942e020e30e3e89c230d7cda9b6e6075bf8cac41e",
+    "poc/tests/test_business_explanation_review.py": "3bdf7de504c0f4f77dcc8428065e61d42a9a30dada8d06543db1e926b575796e",
+    "poc/tests/test_business_handoffs.py": "8107f0aadc1dbfe5e4ec5ac0b191a77e5a25a56df0308b4a865743354e78a5f0"
+  },
+  "snapshot": "/private/tmp/business-explanation-final-20261023/tree",
+  "excluded_parallel_task": "Unfinished branch-binding changes in shared working directory are excluded."
+}

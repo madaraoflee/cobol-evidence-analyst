@@ -1,0 +1,577 @@
+{
+  "schema_version": "independent-offline-business-explanation-review/v1",
+  "paid_model_calls": 0,
+  "external_model_calls": 0,
+  "method": "Read candidate code and replay the unchanged historical answer bytes against exact original source hashes and citation IDs; no answer generation.",
+  "historical_input_sha256": {
+    "docs/reports/2026-10-20-business-boundaries/real-model-results-final.json": "74202b4a004ff97a3ddf75c5416d5a8615392a39370cbd45ca66329c552da6f6",
+    "docs/reports/2026-10-20-business-boundaries/independent-review-final.json": "6405db4008985a071e6b941ef539668a80a7dec868a7f23d1581d6c66d124723"
+  },
+  "reviewed_file_sha256": {
+    "poc/answer_markdown.py": "698b65355a4e32b1736aaa2ad6f45118c0cea85f7494844ca13760803dee602b",
+    "poc/business_chat.py": "1eb958c24676c7ff4e23f5219f4e4335d5d4cacb3ca2b091a05c27ad160be798",
+    "poc/business_synthesis.py": "2f18281aa048feb956951147d454954ec5fc374bc3c6421f89dd5e6423530030",
+    "poc/business_explanation_review.py": "b0d61b87b4c927be34f1b325e473c2d4e1ae6783f332374a8c0bb8c8b3501358",
+    "poc/business_explanation_cache.py": "313875c6bfeab6fc3867629ed5ee6dbe5da692b7f143e697851d586057a9cd36",
+    "poc/business_orientation.py": "cac75440e0b367b7faee92d32864a0ddca781b603abf1697d5bb51d417b0049b",
+    "poc/business_handoffs.py": "4a8011c73453ffe64748f117e53fabae64c800015d3b654fffb758e7a3b2c3e2"
+  },
+  "historical_cases": [
+    {
+      "id": "batch",
+      "question": "我是新人，请从业务目的解释 SETTLE 的整体业务流程，包括 Batch job、programs、输入输出 files 和异常。",
+      "answer_sha256": "edc54718015bc117fe18b85f7093af4dc6d16ad4d2ef24252a42735d1973c06d",
+      "source_hashes_verified": true,
+      "original_citation_ids_retained": true,
+      "assessment_status": "not_assessed",
+      "assessment_reason": null,
+      "missing_aspects": [],
+      "semantic_risk_kinds": [],
+      "relationship_review": {
+        "method": "source_bound_relationship_mentions_v1",
+        "semantic_verification": false,
+        "aspects": {
+          "business_purpose": {
+            "status": "mentioned_unverified",
+            "items": [
+              {
+                "relation": "documented_purpose",
+                "left_names": [],
+                "right_names": [],
+                "supplied_reference_ids": [
+                  "ev_page_0a5bd724415b32dba5d08161"
+                ],
+                "status": "mentioned_unverified"
+              }
+            ]
+          },
+          "program_handoffs": {
+            "status": "mentioned_unverified",
+            "items": [
+              {
+                "relation": "requests_program_call",
+                "left_names": [
+                  "nightjob.clle"
+                ],
+                "right_names": [
+                  "SETTLE"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_0a5bd724415b32dba5d08161",
+                  "ev_page_b8c4a50484c207378485e3de"
+                ],
+                "handoff_id": "bh_2d3be5eae94bb50f59ded895",
+                "status": "mentioned_unverified"
+              }
+            ]
+          },
+          "data_flow": {
+            "status": "mentioned_unverified",
+            "items": [
+              {
+                "relation": "requests_file_override",
+                "left_names": [
+                  "ORDERIN"
+                ],
+                "right_names": [
+                  "APPDATA/ORDERS"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_b8c4a50484c207378485e3de"
+                ],
+                "handoff_id": "bh_32b0f31788624bebccfd81b3",
+                "status": "mentioned_unverified"
+              },
+              {
+                "relation": "reads_record_from",
+                "left_names": [
+                  "SETTLE",
+                  "settle.cbl"
+                ],
+                "right_names": [
+                  "ORDER-IN",
+                  "ORDERIN"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_0a5bd724415b32dba5d08161"
+                ],
+                "handoff_id": "bh_c5355b532aadaa3c650f6536",
+                "status": "mentioned_unverified"
+              },
+              {
+                "relation": "writes_record_to",
+                "left_names": [
+                  "SETTLE",
+                  "settle.cbl"
+                ],
+                "right_names": [
+                  "SETTLEMENT-OUT",
+                  "SETTLEOUT"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_0a5bd724415b32dba5d08161"
+                ],
+                "handoff_id": "bh_58df90f7c0780dc9035324b4",
+                "status": "mentioned_unverified"
+              }
+            ]
+          }
+        },
+        "obvious_missing_aspects": [],
+        "revision_recommended": false,
+        "recognized_purpose_only": false,
+        "recognized_names_only": false,
+        "answer_review_truncated": false,
+        "limitation": "Mention signals do not verify direction, conditions, correctness, completeness or readability."
+      }
+    },
+    {
+      "id": "online",
+      "question": "我是新人，请解释 BALANCEQ 这个在线查询功能的业务用途、输入输出和 tables，哪些条件会返回失败？",
+      "answer_sha256": "74109c5e9651275dc07478e9c54063561feefc2ea4415729c4f8aa899317ec95",
+      "source_hashes_verified": true,
+      "original_citation_ids_retained": true,
+      "assessment_status": "not_assessed",
+      "assessment_reason": null,
+      "missing_aspects": [],
+      "semantic_risk_kinds": [],
+      "relationship_review": {
+        "method": "source_bound_relationship_mentions_v1",
+        "semantic_verification": false,
+        "aspects": {
+          "business_purpose": {
+            "status": "not_assessable",
+            "items": [
+              {
+                "relation": "documented_purpose",
+                "left_names": [],
+                "right_names": [],
+                "supplied_reference_ids": [
+                  "ev_page_41c62f686dca8a6b3a26a3e9"
+                ],
+                "status": "not_assessable"
+              }
+            ]
+          },
+          "program_handoffs": {
+            "status": "mentioned_unverified",
+            "items": [
+              {
+                "relation": "parameter_boundary",
+                "left_names": [],
+                "right_names": [
+                  "BALANCEQ",
+                  "balance.cbl"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_41c62f686dca8a6b3a26a3e9"
+                ],
+                "status": "mentioned_unverified"
+              }
+            ]
+          },
+          "data_flow": {
+            "status": "mentioned_unverified",
+            "items": [
+              {
+                "relation": "reads_sql_table",
+                "left_names": [
+                  "BALANCEQ",
+                  "balance.cbl"
+                ],
+                "right_names": [
+                  "ACCOUNT_BALANCES"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_41c62f686dca8a6b3a26a3e9"
+                ],
+                "handoff_id": "bh_356243ed5c66ed451ce57114",
+                "status": "mentioned_unverified"
+              }
+            ]
+          }
+        },
+        "obvious_missing_aspects": [],
+        "revision_recommended": false,
+        "recognized_purpose_only": false,
+        "recognized_names_only": false,
+        "answer_review_truncated": false,
+        "limitation": "Mention signals do not verify direction, conditions, correctness, completeness or readability."
+      }
+    },
+    {
+      "id": "boundary-followup",
+      "question": "请基于 nightjob.clle、settle.cbl、balance.cbl。继续核对业务边界：这批处理遇到空输入会怎样？ORDER SKIPPED 到哪里、金额大于零能否直接等同非零？BALANCEQ 是否任何异常都能返回90？这两项业务能否确定完全无关？请先说明源码能确认的结论，再指出还需要哪些具体运行资料。",
+      "answer_sha256": "34ac90b7ff4e22bab73c53e22bb2722cb436934e9fdfc69538b639830edaf0d4",
+      "source_hashes_verified": true,
+      "original_citation_ids_retained": true,
+      "assessment_status": "incomplete",
+      "assessment_reason": "semantic_scope_review_needed",
+      "missing_aspects": [
+        "semantic_scope_database_status_check_denial"
+      ],
+      "semantic_risk_kinds": [
+        "database_status_check_denial"
+      ],
+      "relationship_review": {
+        "method": "source_bound_relationship_mentions_v1",
+        "semantic_verification": false,
+        "aspects": {
+          "business_purpose": {
+            "status": "mentioned_unverified",
+            "items": [
+              {
+                "relation": "documented_purpose",
+                "left_names": [],
+                "right_names": [],
+                "supplied_reference_ids": [
+                  "ev_page_0a5bd724415b32dba5d08161"
+                ],
+                "status": "mentioned_unverified"
+              },
+              {
+                "relation": "documented_purpose",
+                "left_names": [],
+                "right_names": [],
+                "supplied_reference_ids": [
+                  "ev_page_41c62f686dca8a6b3a26a3e9"
+                ],
+                "status": "mentioned_unverified"
+              }
+            ]
+          },
+          "program_handoffs": {
+            "status": "mentioned_unverified",
+            "items": [
+              {
+                "relation": "requests_program_call",
+                "left_names": [
+                  "nightjob.clle"
+                ],
+                "right_names": [
+                  "SETTLE"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_0a5bd724415b32dba5d08161",
+                  "ev_page_b8c4a50484c207378485e3de"
+                ],
+                "handoff_id": "bh_2d3be5eae94bb50f59ded895",
+                "status": "mentioned_unverified"
+              },
+              {
+                "relation": "parameter_boundary",
+                "left_names": [],
+                "right_names": [
+                  "BALANCEQ",
+                  "balance.cbl"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_41c62f686dca8a6b3a26a3e9"
+                ],
+                "status": "mentioned_unverified"
+              }
+            ]
+          },
+          "data_flow": {
+            "status": "mentioned_unverified",
+            "items": [
+              {
+                "relation": "reads_sql_table",
+                "left_names": [
+                  "BALANCEQ",
+                  "balance.cbl"
+                ],
+                "right_names": [
+                  "ACCOUNT_BALANCES"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_41c62f686dca8a6b3a26a3e9"
+                ],
+                "handoff_id": "bh_356243ed5c66ed451ce57114",
+                "status": "mentioned_unverified"
+              },
+              {
+                "relation": "requests_file_override",
+                "left_names": [
+                  "ORDERIN"
+                ],
+                "right_names": [
+                  "APPDATA/ORDERS"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_b8c4a50484c207378485e3de"
+                ],
+                "handoff_id": "bh_32b0f31788624bebccfd81b3",
+                "status": "mentioned_unverified"
+              },
+              {
+                "relation": "reads_record_from",
+                "left_names": [
+                  "SETTLE",
+                  "settle.cbl"
+                ],
+                "right_names": [
+                  "ORDER-IN",
+                  "ORDERIN"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_0a5bd724415b32dba5d08161"
+                ],
+                "handoff_id": "bh_c5355b532aadaa3c650f6536",
+                "status": "mentioned_unverified"
+              },
+              {
+                "relation": "writes_record_to",
+                "left_names": [
+                  "SETTLE",
+                  "settle.cbl"
+                ],
+                "right_names": [
+                  "SETTLEMENT-OUT",
+                  "SETTLEOUT"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_0a5bd724415b32dba5d08161"
+                ],
+                "handoff_id": "bh_58df90f7c0780dc9035324b4",
+                "status": "mentioned_unverified"
+              }
+            ]
+          }
+        },
+        "obvious_missing_aspects": [],
+        "revision_recommended": false,
+        "recognized_purpose_only": false,
+        "recognized_names_only": false,
+        "answer_review_truncated": false,
+        "limitation": "Mention signals do not verify direction, conditions, correctness, completeness or readability."
+      }
+    }
+  ],
+  "narrow_question_regression": {
+    "found": "The first candidate classified explain + batch/online + program + file as a broad overview, even for a one-file or error question.",
+    "current_state": "Fixed for the four reproduced narrow questions by requiring relationship/process-connection intent.",
+    "cases": [
+      {
+        "question": "请解释批处理程序从哪个文件读取订单。",
+        "expected": false,
+        "actual": false
+      },
+      {
+        "question": "请解释批处理程序读文件失败会怎样。",
+        "expected": false,
+        "actual": false
+      },
+      {
+        "question": "Explain which file this batch program reads.",
+        "expected": false,
+        "actual": false
+      },
+      {
+        "question": "Explain what happens when this online program reads an absent table.",
+        "expected": false,
+        "actual": false
+      },
+      {
+        "question": "请讲清 batch job、online programs、tables、files 的关系。",
+        "expected": true,
+        "actual": true
+      }
+    ]
+  },
+  "wrong_direction_adversarial_probe": {
+    "answer_origin": "reviewer-authored negative probe, not a product response",
+    "result": {
+      "method": "source_bound_relationship_mentions_v1",
+      "semantic_verification": false,
+      "aspects": {
+        "business_purpose": {
+          "status": "not_assessable",
+          "items": [
+            {
+              "relation": "documented_purpose",
+              "left_names": [],
+              "right_names": [],
+              "supplied_reference_ids": [
+                "ev_page_41c62f686dca8a6b3a26a3e9"
+              ],
+              "status": "not_assessable"
+            }
+          ]
+        },
+        "program_handoffs": {
+          "status": "mentioned_unverified",
+          "items": [
+            {
+              "relation": "parameter_boundary",
+              "left_names": [],
+              "right_names": [
+                "BALANCEQ",
+                "balance.cbl"
+              ],
+              "supplied_reference_ids": [
+                "ev_page_41c62f686dca8a6b3a26a3e9"
+              ],
+              "status": "mentioned_unverified"
+            }
+          ]
+        },
+        "data_flow": {
+          "status": "mentioned_unverified",
+          "items": [
+            {
+              "relation": "reads_sql_table",
+              "left_names": [
+                "BALANCEQ",
+                "balance.cbl"
+              ],
+              "right_names": [
+                "ACCOUNT_BALANCES"
+              ],
+              "supplied_reference_ids": [
+                "ev_page_41c62f686dca8a6b3a26a3e9"
+              ],
+              "handoff_id": "bh_356243ed5c66ed451ce57114",
+              "status": "mentioned_unverified"
+            }
+          ]
+        }
+      },
+      "obvious_missing_aspects": [],
+      "revision_recommended": false,
+      "recognized_purpose_only": false,
+      "recognized_names_only": false,
+      "answer_review_truncated": false,
+      "limitation": "Mention signals do not verify direction, conditions, correctness, completeness or readability."
+    },
+    "conclusion": "Mentioned_unverified is not a correctness pass; the known wrong direction remains semantically unverified."
+  },
+  "tests": {
+    "command": "PYTHONPATH=poc:poc/tests python3 -m unittest test_business_handoffs test_prompt_projection test_business_explanation_cache test_business_explanation_review test_business_explanation_delivery -v",
+    "tests_run": 64,
+    "passed": 64,
+    "elapsed_seconds": 1.884,
+    "log_sha256": "00abe77b625c9a16664ed7f4c618b017896a7fb4ae42bf62e2d04e5a9c33c183",
+    "snapshot_base_commit": "a82ac474e9708a18dab00acc2e078716aed61c07",
+    "external_model_calls": 0
+  },
+  "conclusion": {
+    "new_review_forces_revision_on_historical_batch_online": false,
+    "historical_material_error_still_detected": true,
+    "fresh_model_quality_demonstrated": false,
+    "historical_semantic_quality_pass": false,
+    "model_latency_improvement_demonstrated": false
+  },
+  "limitations": [
+    "No paid or external model was called.",
+    "Manually scripted answers exercise delivery/references/budgets and cannot establish new-model readability, semantic correctness, or model latency.",
+    "No omission hint is not a quality pass. Wrong-direction prose can mention every role and still be wrong.",
+    "This replay preserves the last real-model failure; it does not retroactively correct the historical answers or prove all five minor issues fixed.",
+    "No import/history modules changed in the reviewed business-explanation scope; this review does not substitute for the separate upgrade regression suite.",
+    "Real-model latency and natural-language quality remain unmeasured under the user prohibition; local milliseconds are not end-to-end response time."
+  ],
+  "validation_snapshot": {
+    "base_commit": "a82ac474e9708a18dab00acc2e078716aed61c07",
+    "owned_file_sha256": {
+      "poc/answer_markdown.py": "698b65355a4e32b1736aaa2ad6f45118c0cea85f7494844ca13760803dee602b",
+      "poc/business_chat.py": "1eb958c24676c7ff4e23f5219f4e4335d5d4cacb3ca2b091a05c27ad160be798",
+      "poc/business_orientation.py": "cac75440e0b367b7faee92d32864a0ddca781b603abf1697d5bb51d417b0049b",
+      "poc/business_synthesis.py": "2f18281aa048feb956951147d454954ec5fc374bc3c6421f89dd5e6423530030",
+      "poc/quality_trace.py": "06904514783b9e33b217721a4515b3682833824921dae5c4cc1e151812cb1fd8",
+      "poc/tests/test_business_narrative_quality.py": "824613a15083f3da024934a65cce9403949886f50b075e65285712d8bd2abb86",
+      "poc/business_explanation_cache.py": "313875c6bfeab6fc3867629ed5ee6dbe5da692b7f143e697851d586057a9cd36",
+      "poc/business_explanation_review.py": "b0d61b87b4c927be34f1b325e473c2d4e1ae6783f332374a8c0bb8c8b3501358",
+      "poc/business_handoffs.py": "4a8011c73453ffe64748f117e53fabae64c800015d3b654fffb758e7a3b2c3e2",
+      "poc/tests/test_business_explanation_cache.py": "f47634115fcaeed2298bd9155ecccbda9b4fa725d83da1a1a089148ebdcc5930",
+      "poc/tests/test_business_explanation_delivery.py": "7ac6a9259989b66a375b04d942e020e30e3e89c230d7cda9b6e6075bf8cac41e",
+      "poc/tests/test_business_explanation_review.py": "3bdf7de504c0f4f77dcc8428065e61d42a9a30dada8d06543db1e926b575796e",
+      "poc/tests/test_business_handoffs.py": "8107f0aadc1dbfe5e4ec5ac0b191a77e5a25a56df0308b4a865743354e78a5f0"
+    },
+    "identity_file_sha256": "666073a19662e48f751723ea769aa16e1759bf6d636be830578a488097b94838",
+    "scope": "Frozen baseline plus only the 13 enumerated business explanation files; unfinished parallel branch-binding changes excluded."
+  },
+  "wire_projection_review": {
+    "method": "Actual _prompt_payload then independent generic inheritance/reference expansion, then exact source_versions binding re-expansion; compare complete canonical orientation and raw pages.",
+    "paid_calls": 0,
+    "cases": [
+      {
+        "id": "batch_online_dds",
+        "shared_version_projection_applied": true,
+        "generic_projection_applied": true,
+        "canonical_restored_exactly": true,
+        "raw_source_pages_unchanged": true,
+        "canonical_not_mutated": true,
+        "facts": 18,
+        "handoffs": 8,
+        "guarded_facts": 3,
+        "compilation_guarded_facts": 0,
+        "wire_bytes": 24607
+      },
+      {
+        "id": "compile_conditional_write",
+        "shared_version_projection_applied": true,
+        "generic_projection_applied": true,
+        "canonical_restored_exactly": true,
+        "raw_source_pages_unchanged": true,
+        "canonical_not_mutated": true,
+        "facts": 14,
+        "handoffs": 4,
+        "guarded_facts": 1,
+        "compilation_guarded_facts": 1,
+        "wire_bytes": 18699
+      },
+      {
+        "id": "compile_conditional_declaration",
+        "shared_version_projection_applied": true,
+        "generic_projection_applied": true,
+        "canonical_restored_exactly": true,
+        "raw_source_pages_unchanged": true,
+        "canonical_not_mutated": true,
+        "facts": 14,
+        "handoffs": 4,
+        "guarded_facts": 2,
+        "compilation_guarded_facts": 2,
+        "wire_bytes": 19070
+      },
+      {
+        "id": "cl_condition",
+        "shared_version_projection_applied": true,
+        "generic_projection_applied": true,
+        "canonical_restored_exactly": true,
+        "raw_source_pages_unchanged": true,
+        "canonical_not_mutated": true,
+        "facts": 11,
+        "handoffs": 4,
+        "guarded_facts": 3,
+        "compilation_guarded_facts": 0,
+        "wire_bytes": 17205
+      }
+    ],
+    "documentation_review": {
+      "path": "docs/reports/2026-10-23-business-explanation/README.md",
+      "material_unsupported_business_claims_found": 0,
+      "basis": "Compared the two human-authored explanation examples against frozen source-conclusions.json and tools/business_onboarding_fixture.py source bytes. Batch filtering, field copying, static call cleanup condition, read-only balance lookup and SQLCODE branch boundary agree. No production execution or deployment guarantee is claimed.",
+      "limitation": "The examples are human-authored source explanations, not model-generated answers or a new semantic acceptance result.",
+      "sha256": "4235fd19ae2de8971e55ae38490b9eec8119f739fb30842a5fd1751d11221bd5",
+      "draft_sha256": "b609637e66a56bc92758b713b198ad8742fdac667cb2f51263e58e2338d3799c",
+      "final_documentation_review": {
+        "test_counts_and_elapsed_verified": true,
+        "request_sizes_and_source_page_counts_verified": true,
+        "performance_medians_recomputed_from_raw_samples": true,
+        "performance_limitation_preserved": "Current local analysis is 0.79-1.53 ms slower than old HEAD; cached current is 18-29% faster than uncached current, with no model/end-to-end speed claim.",
+        "scope_note": "Long-question check has one source page; README says source retained and does not claim the three-source fixture also survives that case.",
+        "artifact_sha256": {
+          "README.md": "4235fd19ae2de8971e55ae38490b9eec8119f739fb30842a5fd1751d11221bd5",
+          "python-regressions.json": "7c10affb1f06a117ab56a4abd8d43df24e11fe2fd2a5793977644f2c2e012dff",
+          "browser-regressions.txt": "62fa70cd0f1e0aa0da49c68c11d9adace7c2437cf42faca8e6699c68b3272b37",
+          "request-budget.json": "e0a5eadb60e82d5e473e62d1d18eb30da3e11731286e0e5b006dad551ec9bf07",
+          "tested-source.json": "666073a19662e48f751723ea769aa16e1759bf6d636be830578a488097b94838",
+          "performance/summary.json": "84459047343963fa0aa126746871ebf0061feea39b94e1ebbbd37eefb43d8dea",
+          "performance/head-results.json": "252728e0c24ff040d6f2cdc719edf068455529efa48a2259c90497d00ffe810d",
+          "performance/current-cached-results.json": "e6c305c1a4abd8fbbdd1f90b48c990c4c25aba8473c24997b68f2d123fcbd815",
+          "performance/current-uncached-results.json": "11fb3f8af1f8879818391f2ac810ea5c8e2725c82c0007a943cf608070316e66"
+        }
+      }
+    }
+  }
+}

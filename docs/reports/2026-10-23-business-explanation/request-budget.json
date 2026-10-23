@@ -1,0 +1,34 @@
+{
+  "schema_version": "business-explanation-request-budget/v1",
+  "external_model_calls": 0,
+  "checks": [
+    {
+      "case": "three_source_business_explanation",
+      "initial_compact": false,
+      "request_bytes": 32551,
+      "request_byte_limit": 32768,
+      "source_pages": 3,
+      "business_brief_retained": true
+    },
+    {
+      "case": "three_source_business_explanation",
+      "initial_compact": true,
+      "request_bytes": 32526,
+      "request_byte_limit": 32768,
+      "source_pages": 3,
+      "business_brief_retained": true
+    },
+    {
+      "case": "6000_character_question",
+      "request_bytes": 32748,
+      "request_byte_limit": 32768,
+      "source_pages": 1,
+      "business_brief_retained": false
+    }
+  ],
+  "test_sources": [
+    "test_business_boundary_contract.py",
+    "test_business_synthesis_limits.py"
+  ],
+  "note": "Raw source retained; optional business brief is omitted only in the extreme long-question case. No limit was increased."
+}

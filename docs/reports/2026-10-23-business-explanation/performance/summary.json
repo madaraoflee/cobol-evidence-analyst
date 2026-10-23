@@ -1,0 +1,53 @@
+{
+  "scope": "Offline local brief + 3 answer-review passes only. Not model or end-to-end performance. Existing orientation LRU retained, cold/warm measured separately. Current performs additional relationship review absent in HEAD.",
+  "paid_model_calls": 0,
+  "review_hashes_same_with_or_without_cache": true,
+  "measurements": [
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "n_per_variant": 25,
+      "head_median_ms": 8.814833,
+      "current_cached_median_ms": 10.272042,
+      "current_uncached_median_ms": 14.054833,
+      "cached_vs_uncached_reduction_percent": 26.914521147280794,
+      "current_vs_head_delta_ms": 1.4572090000000006
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "n_per_variant": 25,
+      "head_median_ms": 7.196875,
+      "current_cached_median_ms": 8.722666,
+      "current_uncached_median_ms": 12.362334,
+      "cached_vs_uncached_reduction_percent": 29.441592501868985,
+      "current_vs_head_delta_ms": 1.525791
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "n_per_variant": 25,
+      "head_median_ms": 5.723917,
+      "current_cached_median_ms": 6.512375,
+      "current_uncached_median_ms": 7.9525,
+      "cached_vs_uncached_reduction_percent": 18.10908519333543,
+      "current_vs_head_delta_ms": 0.7884579999999994
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "n_per_variant": 25,
+      "head_median_ms": 4.878167,
+      "current_cached_median_ms": 5.862208,
+      "current_uncached_median_ms": 7.205333,
+      "cached_vs_uncached_reduction_percent": 18.640706820906132,
+      "current_vs_head_delta_ms": 0.9840409999999995
+    }
+  ],
+  "raw_files": [
+    "head-results.json",
+    "current-cached-results.json",
+    "current-uncached-results.json"
+  ],
+  "source_identity": "identity.json"
+}

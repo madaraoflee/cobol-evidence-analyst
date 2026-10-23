@@ -1,0 +1,1447 @@
+{
+  "mode": "current_cached",
+  "python": "3.14.4 (main, Apr  7 2026, 13:13:20) [Clang 21.0.0 (clang-2100.0.123.102)]",
+  "scope": "one brief plus three existing-answer reviews per sample; source-only; no model",
+  "paid_model_calls": 0,
+  "original_orientation_parse_lru": "retained in every variant, cleared only for cold samples",
+  "samples": [
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 0,
+      "elapsed_ms": 10.544666,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 1,
+      "elapsed_ms": 10.413458,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 2,
+      "elapsed_ms": 10.407625,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 3,
+      "elapsed_ms": 10.194083,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 4,
+      "elapsed_ms": 10.108333,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 5,
+      "elapsed_ms": 10.291583,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 6,
+      "elapsed_ms": 10.229417,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 7,
+      "elapsed_ms": 10.092166,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 8,
+      "elapsed_ms": 10.478792,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 9,
+      "elapsed_ms": 10.19025,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 10,
+      "elapsed_ms": 10.218584,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 11,
+      "elapsed_ms": 10.407875,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 12,
+      "elapsed_ms": 10.11125,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 13,
+      "elapsed_ms": 10.434583,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 14,
+      "elapsed_ms": 10.272042,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 15,
+      "elapsed_ms": 10.319375,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 16,
+      "elapsed_ms": 10.294125,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 17,
+      "elapsed_ms": 10.255625,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 18,
+      "elapsed_ms": 10.224709,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 19,
+      "elapsed_ms": 10.237875,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 20,
+      "elapsed_ms": 10.23725,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 21,
+      "elapsed_ms": 10.172541,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 22,
+      "elapsed_ms": 10.4705,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 23,
+      "elapsed_ms": 10.55625,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "repetition": 24,
+      "elapsed_ms": 10.516792,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 0,
+      "elapsed_ms": 8.720792,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 1,
+      "elapsed_ms": 8.722666,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 2,
+      "elapsed_ms": 8.6775,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 3,
+      "elapsed_ms": 8.784375,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 4,
+      "elapsed_ms": 8.634334,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 5,
+      "elapsed_ms": 8.760792,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 6,
+      "elapsed_ms": 8.584042,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 7,
+      "elapsed_ms": 8.632667,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 8,
+      "elapsed_ms": 8.620792,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 9,
+      "elapsed_ms": 9.009167,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 10,
+      "elapsed_ms": 8.666916,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 11,
+      "elapsed_ms": 8.581958,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 12,
+      "elapsed_ms": 8.565958,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 13,
+      "elapsed_ms": 8.662333,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 14,
+      "elapsed_ms": 8.5775,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 15,
+      "elapsed_ms": 9.074417,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 16,
+      "elapsed_ms": 9.006416,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 17,
+      "elapsed_ms": 9.08475,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 18,
+      "elapsed_ms": 9.079167,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 19,
+      "elapsed_ms": 9.27025,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 20,
+      "elapsed_ms": 8.995458,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 21,
+      "elapsed_ms": 8.644084,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 22,
+      "elapsed_ms": 8.795459,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 23,
+      "elapsed_ms": 8.735791,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "repetition": 24,
+      "elapsed_ms": 8.904333,
+      "review_hash": "eafe8b56d77e4536deaa642fe800bec51ac4ae03176c102015eb63d79f1dbf40",
+      "cache": {
+        "entries": 4,
+        "bytes": 54699,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 0,
+      "elapsed_ms": 6.61,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 1,
+      "elapsed_ms": 6.471,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 2,
+      "elapsed_ms": 6.524625,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 3,
+      "elapsed_ms": 7.728833,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 4,
+      "elapsed_ms": 6.458583,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 5,
+      "elapsed_ms": 6.562625,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 6,
+      "elapsed_ms": 6.466791,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 7,
+      "elapsed_ms": 6.664292,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 8,
+      "elapsed_ms": 6.454,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 9,
+      "elapsed_ms": 6.424167,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 10,
+      "elapsed_ms": 6.512375,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 11,
+      "elapsed_ms": 6.406542,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 12,
+      "elapsed_ms": 6.62125,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 13,
+      "elapsed_ms": 6.450667,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 14,
+      "elapsed_ms": 6.391209,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 15,
+      "elapsed_ms": 6.589917,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 16,
+      "elapsed_ms": 6.485667,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 17,
+      "elapsed_ms": 6.454584,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 18,
+      "elapsed_ms": 6.643708,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 19,
+      "elapsed_ms": 6.40475,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 20,
+      "elapsed_ms": 6.498125,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 21,
+      "elapsed_ms": 7.035667,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 22,
+      "elapsed_ms": 6.863458,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 23,
+      "elapsed_ms": 6.922167,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "repetition": 24,
+      "elapsed_ms": 6.760458,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 0,
+      "elapsed_ms": 6.084791,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 1,
+      "elapsed_ms": 5.782791,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 2,
+      "elapsed_ms": 5.663791,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 3,
+      "elapsed_ms": 5.919625,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 4,
+      "elapsed_ms": 5.679,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 5,
+      "elapsed_ms": 5.672292,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 6,
+      "elapsed_ms": 5.936417,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 7,
+      "elapsed_ms": 5.684083,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 8,
+      "elapsed_ms": 5.687709,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 9,
+      "elapsed_ms": 5.861458,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 10,
+      "elapsed_ms": 5.651959,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 11,
+      "elapsed_ms": 5.670375,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 12,
+      "elapsed_ms": 5.854375,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 13,
+      "elapsed_ms": 6.028209,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 14,
+      "elapsed_ms": 6.593041,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 15,
+      "elapsed_ms": 6.061333,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 16,
+      "elapsed_ms": 6.048208,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 17,
+      "elapsed_ms": 6.45275,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 18,
+      "elapsed_ms": 5.862208,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 19,
+      "elapsed_ms": 5.898417,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 20,
+      "elapsed_ms": 5.974208,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 21,
+      "elapsed_ms": 5.66475,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 22,
+      "elapsed_ms": 5.720042,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 23,
+      "elapsed_ms": 6.285,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "repetition": 24,
+      "elapsed_ms": 6.172917,
+      "review_hash": "bea8ce0ce63ac0ac6a01fbb1b68335e8b24e18386ea5035ff95f3aaea0d79c0b",
+      "cache": {
+        "entries": 4,
+        "bytes": 24600,
+        "hits": 5,
+        "misses": 4,
+        "bypasses": 0
+      }
+    }
+  ],
+  "summaries": [
+    {
+      "scenario": "batch",
+      "temperature": "cold_parse_lru",
+      "n": 25,
+      "median_ms": 10.272042,
+      "min_ms": 10.092166,
+      "max_ms": 10.55625,
+      "p95_ms": 10.516792
+    },
+    {
+      "scenario": "batch",
+      "temperature": "warm_parse_lru",
+      "n": 25,
+      "median_ms": 8.722666,
+      "min_ms": 8.565958,
+      "max_ms": 9.27025,
+      "p95_ms": 9.079167
+    },
+    {
+      "scenario": "online",
+      "temperature": "cold_parse_lru",
+      "n": 25,
+      "median_ms": 6.512375,
+      "min_ms": 6.391209,
+      "max_ms": 7.728833,
+      "p95_ms": 6.922167
+    },
+    {
+      "scenario": "online",
+      "temperature": "warm_parse_lru",
+      "n": 25,
+      "median_ms": 5.862208,
+      "min_ms": 5.651959,
+      "max_ms": 6.593041,
+      "p95_ms": 6.285
+    }
+  ]
+}

@@ -13,17 +13,60 @@ from pathlib import PurePosixPath
 import re
 
 from claim_support import supplied_statement_facts
+from business_handoffs import build_business_handoffs, orientation_fact_id, retained_handoffs
+from business_explanation_cache import cache_business_explanation
 from cl_context import collect_cl_context, is_cl_path
 from file_impact import collect_file_impact
 from framework_semantics import visible_framework_facts
 from structural_index import SourceDocument, normalize_cobol_lines, parse_document
 
 
-ORIENTATION_VERSION = "business-orientation/v1"
-_GROUPS = ("purpose_candidates", "entries", "programs", "relationships", "data_roles", "visible_rules")
+ORIENTATION_VERSION = "business-orientation/v2"
+_GROUPS = ("purpose_candidates", "entries", "programs", "relationships", "data_roles", "visible_rules", "handoffs")
 _SHA = re.compile(r"[0-9a-fA-F]{64}\Z")
 _PURPOSE = re.compile(r"^(?:purpose|function|business\s+(?:purpose|function)|description)\b"
                       r"|^(?:业务目的|業務目的|业务说明|業務說明|功能说明|功能說明|功能[:：])", re.I)
+
+
+def project_business_orientation(orientation):
+    """Share repeated version bindings in the wire representation only.
+
+    Facts, conditions, references and source ranges remain intact. Every source
+    location still binds to its exact version through ``source_versions[path]``;
+    expanding that map reconstructs the canonical locations without a lookup.
+    Unknown/custom representations are passed through unchanged.
+    """
+    if (not isinstance(orientation, dict) or orientation.get("version") != ORIENTATION_VERSION
+            or "source_versions" in orientation or "source_location_version_binding" in orientation):
+        return orientation
+    versions, locations = {}, []
+    for group in _GROUPS[:-1]:
+        rows = orientation.get(group)
+        if not isinstance(rows, list):
+            return orientation
+        for row in rows:
+            if not isinstance(row, dict) or not isinstance(row.get("source_locations"), list):
+                return orientation
+            for location in row["source_locations"]:
+                if not isinstance(location, dict):
+                    return orientation
+                path, sha = location.get("relative_path"), location.get("source_sha256")
+                if (not isinstance(path, str) or not path or not isinstance(sha, str)
+                        or not _SHA.fullmatch(sha) or versions.get(path, sha) != sha):
+                    return orientation
+                versions[path] = sha
+                locations.append(location)
+    if not locations:
+        return orientation
+    projected = deepcopy(orientation)
+    projected["source_versions"] = versions
+    projected["source_location_version_binding"] = "Every source_locations item binds to source_versions[relative_path]."
+    for group in _GROUPS[:-1]:
+        for row in projected[group]:
+            for location in row["source_locations"]:
+                del location["source_sha256"]
+    # Tiny inputs do not benefit from the shared map. Never grow their wire.
+    return projected if len(json.dumps(projected, ensure_ascii=False)) < len(json.dumps(orientation, ensure_ascii=False)) else orientation
 
 
 def _parse_run(path, sha, first, last, source_format, text):
@@ -44,6 +87,7 @@ def _parse_run(path, sha, first, last, source_format, text):
 _cached_parse_run = lru_cache(maxsize=8)(_parse_run)
 
 
+@cache_business_explanation
 def build_business_orientation(question, investigation, source_pages, *, business_map=None,
                                framework_facts=(), framework_references=(), max_items=32,
                                max_source_chars=262144, max_metadata_bytes=24000):
@@ -197,6 +241,7 @@ def build_business_orientation(question, investigation, source_pages, *, busines
             return
         item = {**deepcopy(row), "basis": basis, "interpretation_level": level, **refs}
         item["supplied_reference_ids"] = sorted({*refs["evidence_ids"], *references})
+        item["orientation_id"] = orientation_fact_id(item)
         if item in result[group]:
             return
         if len(result[group]) >= max_items:
@@ -205,6 +250,7 @@ def build_business_orientation(question, investigation, source_pages, *, busines
             return
         result[group].append(item)
 
+    statement_contexts, compilation_contexts = defaultdict(list), {}
     for run in runs:
         path, first = run["relative_path"], run["start_line"]
         if is_cl_path(path) or PurePosixPath(path).suffix.lower() in {".dds", ".lf", ".pf"}:
@@ -218,6 +264,46 @@ def build_business_orientation(question, investigation, source_pages, *, busines
         def unit_location(unit):
             return [{"relative_path": path, "start_line": first + unit.start_line - 1,
                      "end_line": first + unit.end_line - 1}]
+
+        controls, compilation, units_by_evidence = defaultdict(list), defaultdict(list), defaultdict(list)
+        for unit in parsed.code_units:
+            units_by_evidence[unit.evidence_id].append(unit.unit_id)
+        for relation in parsed.relations:
+            condition = units.get(relation.target_entity_id)
+            if relation.relation_type == "CONTROL_DEPENDS_ON" and condition:
+                controls[relation.from_entity_id].append((relation, condition))
+            if relation.metadata.get("compilation_status") == "candidate":
+                for identifier in (relation.from_entity_id, relation.target_entity_id,
+                                   *units_by_evidence[relation.evidence_id]):
+                    for guard in relation.metadata.get("compilation_guards", []):
+                        if guard not in compilation[identifier]:
+                            compilation[identifier].append(guard)
+
+        def statement_context(unit):
+            guards, locations = [], unit_location(unit)
+            for relation, condition in controls[unit.unit_id]:
+                span = unit_location(condition)[0]
+                locations.append(span)
+                guards.append({"kind": condition.name, "condition": condition.normalized_text,
+                               "outcome": relation.metadata.get("outcome"), "status": relation.status,
+                               "start_line": span["start_line"], "end_line": span["end_line"]})
+            context = {"guards": guards, "control_context": "supplied_syntax_not_execution_path"}
+            if compilation[unit.unit_id]:
+                context.update(compilation_status="candidate", compilation_guards=[])
+                for guard in compilation[unit.unit_id]:
+                    number = first + guard["source_line"] - 1
+                    context["compilation_guards"].append({**guard, "source_line": number})
+                    locations.append({"relative_path": path, "start_line": number, "end_line": number})
+            return context, locations
+
+        for unit in parsed.code_units:
+            if unit.parse_status == "candidate" and compilation[unit.unit_id]:
+                context, locations = statement_context(unit)
+                compilation_contexts[(path, first + unit.start_line - 1)] = (context, locations)
+            if unit.unit_type == "Statement" and (unit.parse_status == "complete"
+                    or (unit.parse_status == "candidate" and compilation[unit.unit_id])):
+                context, locations = statement_context(unit)
+                statement_contexts[(path, first + unit.start_line - 1, unit.name)].append((context, locations))
 
         for number, raw in enumerate(document.raw_lines, first):
             comment = (raw[7:].strip() if hint == "fixed" and len(raw) > 6 and raw[6] == "*"
@@ -243,19 +329,20 @@ def build_business_orientation(question, investigation, source_pages, *, busines
                 continue
             common = {"program_name": unit.program_name, "relative_path": path,
                       "statement": unit.normalized_text}
+            context, locations = statement_context(unit)
             if relation.relation_type in {"CALLS", "CALL_TARGET_FROM"}:
-                add("relationships", {**common, "kind": "program_call",
+                add("relationships", {**common, **context, "kind": "program_call",
                     "target_name": relation.target_name, "relation_type": relation.relation_type,
                     "target_binding": "literal_request" if relation.relation_type == "CALLS" else "dynamic_unresolved",
-                    "execution_verified": False}, unit_location(unit))
+                    "execution_verified": False}, locations)
             elif relation.relation_type in {"SELECTS_FROM", "UPDATES"} and unit.name == "EXEC_SQL":
                 # DELETE FROM's target is a write, not a separate SELECT input.
                 if relation.relation_type == "SELECTS_FROM" and re.match(
                         r"EXEC\s+SQL\s+DELETE\s+FROM\b", unit.normalized_text, re.I):
                     continue
-                add("data_roles", {**common, "kind": "sql_table_access", "table_name": relation.target_name,
+                add("data_roles", {**common, **context, "kind": "sql_table_access", "table_name": relation.target_name,
                     "access_role": "read" if relation.relation_type == "SELECTS_FROM" else "write_request",
-                    "database_identity_verified": False, "update_success_verified": False}, unit_location(unit))
+                    "database_identity_verified": False, "update_success_verified": False}, locations)
         for fact in statement_facts:
             if fact.get("predicate") not in {"assignment_statement", "condition_statement"}:
                 continue
@@ -292,7 +379,7 @@ def build_business_orientation(question, investigation, source_pages, *, busines
         if command not in {"SBMJOB", "CALL", "OVRDBF", "DLTOVR"}:
             continue
         add(group, {key: fact[key] for key in ("kind", "command", "relative_path", "statement", "target_name",
-            "target", "job_name", "parameters", "command_context", "guards", "arguments", "file", "tofile",
+            "target", "job_name", "parameters", "command_context", "parent_command", "guards", "arguments", "file", "tofile",
             "member", "declared_override_scope", "runtime_execution_verified", "effective_override_verified",
             "initial_library_list_origin", "inherited_overrides_verified") if key in fact}, locations)
     if cl_rows:
@@ -304,16 +391,41 @@ def build_business_orientation(question, investigation, source_pages, *, busines
             continue
         if fact["kind"] not in {"file_declaration", "io_operation", "dds_pfile"}:
             continue
-        add("data_roles", {key: fact[key] for key in ("kind", "relative_path", "program_name", "file_name",
+        projected = {key: fact[key] for key in ("kind", "relative_path", "program_name", "file_name",
             "assigned_name", "dynamic_assignment_symbol", "assignment_modifier", "operation", "operand",
-            "operand_kind", "access_role", "file_binding_status", "record_name", "physical_file_names",
-            "identity_basis", "external_identity_verified") if key in fact}, fact["source_locations"])
+            "operand_kind", "access_role", "file_binding_status", "record_name", "record_names", "physical_file_names",
+            "identity_basis", "external_identity_verified") if key in fact}
+        locations = fact["source_locations"]
+        if fact["kind"] == "io_operation":
+            contexts = statement_contexts.get((fact["relative_path"], locations[0]["start_line"], fact["operation"]), [])
+            if len(contexts) == 1:
+                projected.update(contexts[0][0])
+                locations = [*locations, *contexts[0][1]]
+            else:
+                projected["control_context"] = "statement_control_context_not_bound"
+        compilation_guards, compilation_locations = [], []
+        for location in locations:
+            conditional = compilation_contexts.get((location["relative_path"], location["start_line"]))
+            if conditional:
+                for guard in conditional[0].get("compilation_guards", []):
+                    if guard not in compilation_guards:
+                        compilation_guards.append(guard)
+                compilation_locations.extend(conditional[1])
+        if compilation_guards:
+            projected.update(compilation_status="candidate", compilation_guards=compilation_guards)
+            locations = [*locations, *compilation_locations]
+        add("data_roles", projected, locations)
     for fact in visible_framework_facts(framework_facts, pages, framework_references)[:max_items]:
         locations = [{**span, "relative_path": span.get("relative_path", fact.get("relative_path")),
                       "source_sha256": span.get("source_sha256", fact.get("source_sha256"))}
                      for span in fact.get("source_ranges", [])]
-        add("visible_rules", {key: fact[key] for key in ("fact_id", "target_name", "operation", "arguments",
-            "branches", "runtime_verified", "dependency_covered", "target_source_available") if key in fact},
+        projected = {key: fact[key] for key in ("fact_id", "kind", "relative_path", "program_name", "target_name",
+            "operation", "arguments", "argument", "function_field", "branches", "runtime_verified",
+            "dependency_covered", "target_source_available") if key in fact}
+        projected["callsite_locations"] = [{key: location[key] for key in
+            ("relative_path", "source_sha256", "start_line", "end_line")} for location in locations
+            if location.get("role") == "callsite"]
+        add("visible_rules", projected,
             locations, level="framework_convention", basis="source_bound_supplied_framework_convention",
             references=fact.get("reference_ids", []))
 
@@ -328,18 +440,27 @@ def build_business_orientation(question, investigation, source_pages, *, busines
     for collector in (cl, files):
         for item in collector.get("boundaries", [])[:8]:
             boundary(item["reason"], **{key: item[key] for key in ("relative_path",) if key in item})
+    handoffs = build_business_handoffs(result, max_items=max_items + 1)
+    result["handoffs"] = handoffs[:max_items]
+    if len(handoffs) > max_items:
+        result["truncated"] = True
+        boundary("orientation_observation_budget", group="handoffs")
     # Drop entire observations, never references/conditions from a retained one.
     while len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > max_metadata_bytes - 256:
         candidates = [key for key in _GROUPS if result[key]]
         if not candidates:
             break
-        result[max(candidates, key=lambda key: len(result[key]))].pop()
+        # Relationships summarize these facts. Their duplicated guidance must
+        # not evict the source observations that were available before them.
+        group = "handoffs" if result["handoffs"] else max(candidates, key=lambda key: len(result[key]))
+        result[group].pop()
+        result["handoffs"] = retained_handoffs(result)
         result["truncated"] = True
     if result["truncated"]:
         boundary("orientation_is_bounded_not_a_complete_business_inventory")
     result["available_facets"] = [name for name, groups in (
         ("business_purpose", ("purpose_candidates",)), ("program_roles", ("entries", "programs", "relationships")),
-        ("data_roles", ("data_roles",)), ("visible_rules", ("visible_rules",)))
+        ("data_roles", ("data_roles",)), ("visible_rules", ("visible_rules",)), ("handoffs", ("handoffs",)))
         if any(result[group] for group in groups)]
     while len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > max_metadata_bytes and result["unknowns"]:
         result["unknowns"].pop(0)
