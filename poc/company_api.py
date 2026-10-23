@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import codecs
 import errno
+import http.client
 import json
 import math
 import os
@@ -212,10 +213,14 @@ def _transport_failure(
             reason = "network_unreachable"
         elif error_numbers & {11001, 11002, 11003, 11004}:
             reason = "dns_resolution_failed"
-    return APIClientError(
+    failure = APIClientError(
         "REQUEST_TIMEOUT" if reason == "timeout" else "TRANSPORT_ERROR",
         transport_reason=reason,
     )
+    if opening_connection and reason in {"dns_resolution_failed", "connection_refused",
+                                         "tls_certificate_invalid"}:
+        failure.request_outcome = "not_sent"
+    return failure
 
 
 @dataclass(frozen=True, repr=False)
@@ -621,12 +626,18 @@ class UrllibTransport:
         A timed-out exchange is never repeated and a late result is discarded;
         a provider may still complete or charge for the original request.
         """
-        if check_cancel:
-            check_cancel()
+        try:
+            if check_cancel:
+                check_cancel()
+        except BaseException as error:
+            error.request_outcome = "not_sent"
+            raise
         deadline = time.monotonic() + request.timeout_seconds
         slots = _NATIVE_REQUEST_SLOTS
         if not slots.acquire(blocking=False):
-            raise APIClientError("TRANSPORT_BUSY")
+            error = APIClientError("TRANSPORT_BUSY")
+            error.request_outcome = "not_sent"
+            raise error
         done, abandoned = threading.Event(), threading.Event()
         exchange: dict[str, object] = {"request_timing": {"timing_seconds": {}, "response_bytes": 0}}
         # Only the waiting caller invokes application callbacks. An abandoned
@@ -690,8 +701,9 @@ class UrllibTransport:
         try:
             worker = threading.Thread(target=send, name="model-http-request", daemon=True)
             worker.start()
-        except BaseException:
+        except BaseException as error:
             slots.release()
+            error.request_outcome = "not_sent"
             raise
         try:
             while not done.is_set():
@@ -716,6 +728,12 @@ class UrllibTransport:
         except BaseException as error:
             abandoned.set()
             self._abort_socket(exchange.get("response"))
+            # Only this attempt's worker can establish a pre-send failure.
+            # A caller may reuse its cancellation exception across attempts.
+            worker_outcome = (getattr(error, "request_outcome", None)
+                              if error is exchange.get("error") else None)
+            error.request_outcome = ("response_received" if exchange.get("request_outcome") == "response_received"
+                                     else "not_sent" if worker_outcome == "not_sent" else "unknown")
             if isinstance(error, APIClientError):
                 error.request_timing = _safe_request_timing(exchange["request_timing"])
             raise
@@ -772,10 +790,19 @@ class UrllibTransport:
                         min(65_536, response_limit + 1 - body_size)
                     )
                     observe_chunk(chunk)
+                    body_complete = (chunk == b"" and (not isinstance(response, http.client.HTTPResponse)
+                                     or response.length in (None, 0)))
+                    if body_complete and (not 200 <= int(response.status) < 300
+                            or not _is_event_stream_headers(dict(response.headers.items()))):
+                        # EOF establishes a full ordinary HTTP response before
+                        # any simultaneous local deadline/cancellation wins.
+                        # SSE EOF alone does not establish provider completion.
+                        exchange["request_outcome"] = "response_received"
                     if time.monotonic() >= exchange.get("stream_deadline", deadline):
                         raise APIClientError("REQUEST_TIMEOUT", transport_reason="timeout")
                     if not chunk:
-                        mark("response_complete")
+                        if body_complete:
+                            mark("response_complete")
                         break
                     body_size += len(chunk)
                     if stream_chunks is None:
@@ -803,6 +830,9 @@ class UrllibTransport:
                     response_bytes=observations["response_bytes"],
                 )
         except urllib.error.HTTPError as exc:
+            # A definitive HTTP error is a received response even if collecting
+            # its optional diagnostic body is interrupted later.
+            exchange["request_outcome"] = "response_received"
             # Bounded private input for classification; the capture path always
             # omits error bodies and no upstream text enters a safe diagnostic.
             mark("headers_received")
@@ -1077,6 +1107,7 @@ class _ChatCompletionStream:
         choices = event.get("choices", [])
         if not isinstance(choices, list):
             raise APIClientError("INVALID_RESPONSE_SHAPE")
+        visible_parts = []
         for choice in choices:
             if not isinstance(choice, dict):
                 raise APIClientError("INVALID_RESPONSE_SHAPE")
@@ -1109,7 +1140,7 @@ class _ChatCompletionStream:
                     if part.strip():
                         self.progress_count += 1
                     if name == "content" and index == 0:
-                        self.emitter.emit(part)
+                        visible_parts.append(part)
             if delta.get("tool_calls") is not None:
                 calls = delta["tool_calls"]
                 if not isinstance(calls, list):
@@ -1144,6 +1175,13 @@ class _ChatCompletionStream:
                 if finish and finish != state["finish_reason"]:
                     self.progress_count += 1
                 state["finish_reason"] = finish
+        # A terminal choice in the same event must be recorded before local
+        # preview code runs. Preview failures cannot erase a completed reply.
+        if visible_parts and self.provider_completed():
+            self.emitter.completed("".join(visible_parts))
+        else:
+            for part in visible_parts:
+                self.emitter.emit(part)
         # Process the entire event first so visible text in the same event is
         # retained. A provider terminal event is known completion, not a locally
         # abandoned request, even if its final hidden delta crosses the limit.
@@ -1229,6 +1267,7 @@ class OpenAICompatibleChatClient:
         # Numeric observations for the last attempted exchange, including
         # failures. These are response bytes, not generated-token timings.
         self.last_request_timing: dict[str, object] = {}
+        self.last_request_outcome = "not_sent"
         self.transport_mode = (
             "INJECTED"
             if transport is not None
@@ -1317,6 +1356,7 @@ class OpenAICompatibleChatClient:
         on_text_delta=None,
     ) -> tuple[dict[str, object], int]:
         self.last_request_timing = {}
+        self.last_request_outcome = "not_sent"
         if self._transport is None:
             raise APIClientError("NETWORK_DISABLED")
         try:
@@ -1384,6 +1424,7 @@ class OpenAICompatibleChatClient:
                   if on_text_delta is not None else None)
         try:
             try:
+                self.last_request_outcome = "unknown"
                 if isinstance(self._transport, _NATIVE_TRANSPORT_CLASS):
                     transport_options = {"check_cancel": cancel if check_cancel else None}
                     if stream is not None:
@@ -1391,6 +1432,16 @@ class OpenAICompatibleChatClient:
                     response = self._transport(request, **transport_options)
                 else:
                     response = self._transport(request)
+                if (isinstance(response, TransportResponse)
+                        and type(response.status_code) is int and 100 <= response.status_code < 600
+                        and not (200 <= response.status_code < 300 and _is_event_stream_headers(response.headers))
+                        and (not isinstance(self._transport, _NATIVE_TRANSPORT_CLASS)
+                             or not 200 <= response.status_code < 300
+                             or isinstance(response.timing_seconds, Mapping)
+                             and "response_complete" in response.timing_seconds)):
+                    # A late injected response still establishes its remote
+                    # outcome even when the existing timeout rejects delivery.
+                    self.last_request_outcome = "response_received"
                 # A completed response must reach the caller's durable journal
                 # before it observes cancellation. Waiting is interruptible in
                 # the native transport; post-response cancellation belongs to
@@ -1462,6 +1513,9 @@ class OpenAICompatibleChatClient:
                     stream.emitter.completed(content)
             return validated
         except APIClientError as exc:
+            observed = getattr(exc, "request_outcome", None)
+            if observed in {"not_sent", "response_received"}:
+                self.last_request_outcome = observed
             if (exc.code == "MODEL_REASONING_LIMIT_EXCEEDED" and stream is not None
                     and stream.reasoning_characters > stream.reasoning_character_limit):
                 exc.partial_response = stream.visible_partial_response((self.config.base_url,
@@ -1489,6 +1543,14 @@ class OpenAICompatibleChatClient:
                     if exc.transport_reason is not None:
                         exchange["transport_reason"] = exc.transport_reason
             raise
+        except BaseException as exc:
+            observed = getattr(exc, "request_outcome", None)
+            if observed in {"not_sent", "response_received"}:
+                self.last_request_outcome = observed
+            raise
+        finally:
+            if stream is not None and stream.provider_completed():
+                self.last_request_outcome = "response_received"
 
     def _capture_response(
         self, response: object, endpoint: str, started: float, outcome_code: str

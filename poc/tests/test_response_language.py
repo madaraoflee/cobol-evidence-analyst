@@ -34,6 +34,19 @@ class LanguageSelectionTests(unittest.TestCase):
             self.assertEqual(resolve_answer_language(question, locale="en"), "zh-CN", question)
         self.assertEqual(resolve_answer_language("請解釋這個程序的處理條件。", locale="en"), "zh-HK")
 
+    def test_chinese_explanation_requests_keep_business_terms_without_switching_language(self):
+        for prefix, expected in (("解释一下", "zh-CN"), ("说明", "zh-CN"), ("分析", "zh-CN"),
+                                 ("讲解", "zh-CN"), ("解釋一下", "zh-HK"), ("說明", "zh-HK"),
+                                 ("講解", "zh-HK")):
+            question = prefix + " premium refund 以及 inforce illustration"
+            for locale in ("zh-CN", "zh-HK", "en"):
+                with self.subTest(question=question, locale=locale):
+                    self.assertEqual(resolve_answer_language(question, locale=locale), expected)
+        self.assertEqual(resolve_answer_language(
+            "解释一下 premium refund 以及 inforce illustration。请用英文回答。"), "en")
+        self.assertEqual(resolve_answer_language(
+            "Explain premium refund and 保单说明 in this program.", locale="zh-CN"), "en")
+
     def test_explicit_language_requests_override_question_language(self):
         for question, expected in (("请用英文", "en"), ("请用英文回答：这里的逻辑是什么？", "en"),
             ("Explain this. Reply in Traditional Chinese.", "zh-HK"),
@@ -141,6 +154,16 @@ class ChatLanguageTests(unittest.TestCase):
         self.assertEqual(result["answer_origin"], "diagnostic")
         self.assertIn("401", result["answer"])
         self.assertNotRegex(result["answer"], r"[\u3400-\u9fff]")
+
+    def test_mixed_business_question_keeps_chinese_in_prompt_and_local_diagnostic(self):
+        result = self.ask("解释一下 premium refund 以及 inforce illustration", lambda payload, count:
+            TransportResponse(401, json.dumps({"error": {"code": "invalid_api_key"}})), locale="zh-CN")
+        self.assertTrue(self.requests)
+        self.assertTrue(all(payload["answer_language"] == "zh-CN" for payload in self.requests))
+        self.assertEqual(result["answer_language"], "zh-CN")
+        self.assertEqual(result["answer_origin"], "diagnostic")
+        self.assertRegex(result["answer"], r"[\u3400-\u9fff]")
+        self.assertNotIn("No model answer", result["answer"])
 
 
 if __name__ == "__main__":

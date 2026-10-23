@@ -350,8 +350,40 @@ test('an unknown remote retry preserves the prior source answer and explains no 
   assert.match(html,/READY-FLAG must equal 1/);
   assert.match(html,/原远程请求的结果尚未确认/);
   assert.match(html,/不会自动重复请求/);
+  assert.match(html,/点击原问题的“重试这个问题”可开始新调查/);
+  assert.equal((html.match(/class="narrative-notes answer-incomplete"/g)||[]).length,1);
+  assert.doesNotMatch(html,/本次回答仍有待核对项/);
   assert.match(html,/data-turn-evidence="ev-1"/);
   assert.equal(h.requests.length,0);
+});
+
+test('unknown requests without an answer show one localized actionable status and preserve old history',async()=>{
+  for(const locale of ['zh-CN','zh-HK','en']){
+    const h=harness(locale);const question='解释一下 premium refund 以及 inforce illustration';
+    const old='This investigation has been saved, but the previous remote model request has an unknown outcome.';
+    const diagnostic={schema_version:'safe-api-error/v1',category:'timeout',evidence_source:'local',request_id:'local-'+'a'.repeat(32)};
+    setup(h,[{id:'unknown-user',role:'user',content:question,status:'failed'},
+      {id:'unknown-answer',role:'assistant',content:old,status:'failed',analysis_status:'PARTIAL',
+        answer_available:false,model_answer_recorded:false,retry_blocked_reason:'REMOTE_REQUEST_OUTCOME_UNKNOWN',diagnostic}]);
+    const html=h.run('conversationWorkbench()');
+    assert.doesNotMatch(html,/This investigation has been saved|request-failure/);
+    assert.equal((html.match(/class="narrative-notes answer-incomplete"/g)||[]).length,1);
+    assert.match(html,locale==='en'?/Request status/:locale==='zh-HK'?/請求狀態/:/请求状态/);
+    assert.match(html,locale==='en'?/start a new investigation/:locale==='zh-HK'?/可開始新調查/:/可开始新调查/);
+    assert.doesNotMatch(html,/Interpretation · Review against evidence|業務解讀 · 請結合證據覆核|业务解读 · 请结合证据复核/);
+    assert.equal(h.run('state.conversation.messages[1].content'),old);
+    h.run('delete state.conversation.messages[1].diagnostic');
+    const withoutApiDiagnostic=h.run('conversationWorkbench()');
+    assert.doesNotMatch(withoutApiDiagnostic,/This investigation has been saved/);
+    assert.equal((withoutApiDiagnostic.match(/class="narrative-notes answer-incomplete"/g)||[]).length,1);
+    assert.equal(h.requests.length,0);
+    h.respond(url=>url==='/api/analyze'?{job_id:'unknown-retry-job'}:{status:'COMPLETED',result:{...project(),conversation:conversation(firstMessages)}});
+    await h.run("retryConversationMessage('unknown-user')");
+    const submissions=h.requests.filter(item=>item.url==='/api/analyze');
+    assert.equal(submissions.length,1);
+    const body=JSON.parse(submissions[0].options.body);
+    assert.equal(body.retry_message_id,'unknown-user');assert.equal(body.question,question);assert.equal(body.locale,locale);
+  }
 });
 
 test('delete confirmation removes only the chosen conversation and keeps the source index',async()=>{

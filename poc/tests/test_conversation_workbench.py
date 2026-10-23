@@ -698,7 +698,7 @@ class ConversationWorkbenchTests(unittest.TestCase):
                              for message in self.calls[0]["messages"][1:-1]))
         self.assertEqual(len(self.app.conversation_store.get(original["id"])["messages"]), 2)
 
-    def test_unknown_request_is_not_repeated_but_does_not_block_another_conversation(self):
+    def _assert_user_retry_after_unknown_request(self, *, retry_button):
         self.run_job()
         question = "How is CAPACITY checked?"
         working_transport = self.transport
@@ -717,35 +717,42 @@ class ConversationWorkbenchTests(unittest.TestCase):
         self.assertEqual(original["answer_origin"], "local_source_facts")
         self.app = self.workers.track(WorkbenchState(
             analyzer=self.analyzer, config_provider=lambda: self.config, state_path=self.state_path))
-        repeated = self.run_job(question=question, allow_network=True, conversation_id=conversation["id"])
-        self.assertEqual(repeated["agent"]["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
-        self.assertEqual(repeated["agent"]["agent_result"]["run_id"], original_run)
-        self.assertEqual([message["id"] for message in repeated["conversation"]["messages"]],
-                         [message["id"] for message in conversation["messages"]])
+        # Opening history after a restart is read-only, even with an unknown request.
+        self.assertEqual(self.app.conversation_store.get(conversation["id"])["messages"][-1]["content"],
+                         original["content"])
         self.assertEqual(len(attempts), 1)
-        retry = self.run_job(question=question, allow_network=True,
-            conversation_id=conversation["id"], retry_message_id=conversation["messages"][0]["id"])
-        self.assertEqual(retry["agent"]["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
-        self.assertEqual(retry["agent"]["agent_result"]["run_id"], original_run)
-        self.assertEqual(len(attempts), 1)
-        retained = retry["conversation"]["messages"][-1]
-        self.assertEqual(retained["id"], original["id"])
-        self.assertEqual(retained["content"], original["content"])
-        self.assertEqual(retained["evidence_refs"], original["evidence_refs"])
-        self.assertEqual(retained["analysis_status"], "PARTIAL")
-        self.assertEqual(retained["retry_blocked_reason"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
-        self.assertTrue(retained["answer_available"])
-        self.assertFalse(retained["model_answer_recorded"])
-
-        fresh = self.app.new_conversation({})["conversation"]
         self.transport = working_transport
+        retry_options = {"retry_message_id": conversation["messages"][0]["id"]} if retry_button else {}
+        retry = self.run_job(question=question, allow_network=True,
+            conversation_id=conversation["id"], **retry_options)
+        self.assertNotEqual(retry["agent"]["agent_result"]["run_id"], original_run)
+        self.assertTrue(retry["agent"]["agent_result"]["model_answer_recorded"])
+        self.assertEqual(len(attempts), 1)
+        self.assertEqual(len(self.calls), 1)
+        retained = retry["conversation"]["messages"][-1]
+        self.assertEqual([message["id"] for message in retry["conversation"]["messages"]],
+                         [message["id"] for message in conversation["messages"]])
+        self.assertEqual(retained["id"], original["id"])
+        self.assertIn("超过容量", retained["content"])
+        self.assertNotIn("retry_blocked_reason", retained)
+        self.assertTrue(retained["answer_available"])
+        self.assertTrue(retained["model_answer_recorded"])
+        saved = RunStore(self.output / "investigation-runs.sqlite").load(original_run)
+        self.assertEqual(saved["state"], "superseded")
+        self.assertEqual(len(saved["uncertain_requests"]), 1)
+        self.assertEqual(saved["checkpoint"]["result"]["agent_result"]["answer"], original["content"])
+        self.assertEqual(saved["checkpoint"]["replacement_run_id"], retry["agent"]["agent_result"]["run_id"])
+        # Another conversation retains its own independent question history.
+        fresh = self.app.new_conversation({})["conversation"]
         second = self.run_job(question=question, allow_network=True, conversation_id=fresh["id"])
         self.assertNotEqual(second["agent"]["agent_result"]["run_id"], original_run)
-        self.assertTrue(second["agent"]["agent_result"]["model_answer_recorded"])
-        self.assertEqual(len(self.calls), 1)
-        saved = RunStore(self.output / "investigation-runs.sqlite").load(original_run)
-        self.assertEqual(saved["state"], "attention")
-        self.assertEqual(len(saved["uncertain_requests"]), 1)
+        self.assertEqual(len(self.calls), 2)
+
+    def test_explicit_retry_recovers_unknown_request_after_restart(self):
+        self._assert_user_retry_after_unknown_request(retry_button=True)
+
+    def test_user_resubmission_recovers_unknown_request_after_restart(self):
+        self._assert_user_retry_after_unknown_request(retry_button=False)
 
     def _assert_budget_retry_reuses_frontier(self, *, import_first):
         if import_first:

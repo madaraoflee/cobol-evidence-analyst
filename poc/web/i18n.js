@@ -66,6 +66,10 @@ COBOL 業務分析|COBOL 业务分析|COBOL Workbench
 正在根據已讀取源碼生成回答。|正在根据已读取源码生成回答。|Generating an answer from the supplied source.
 正在整理與本題相關的證據。|正在整理与本题相关的证据。|Organizing evidence relevant to this question.
 原遠程請求的結果尚未確認，已保留原有解讀和證據，不會自動重複請求。|原远程请求的结果尚未确认，已保留原有解读和证据，不会自动重复请求。|The original remote request is still unconfirmed. The existing explanation and evidence are retained; the request will not be sent again automatically.
+原遠程請求的結果尚未確認；已有回答和來源仍保留，系統不會自動重複請求。|原远程请求的结果尚未确认；已有回答和来源仍保留，系统不会自动重复请求。|The original remote request is still unconfirmed. The existing answer and sources are retained; the system will not resend automatically.
+上次遠程請求的結果尚未確認，本次尚未取得業務回答。源碼和對話仍保留，系統不會自動重複請求。|上次远程请求的结果尚未确认，本次尚未取得业务回答。源码和对话仍保留，系统不会自动重复请求。|The previous remote request is still unconfirmed, and no business answer is available. The source and conversation are retained; the system will not resend automatically.
+點擊原問題的「重試這個問題」可開始新調查。|点击原问题的“重试这个问题”可开始新调查。|Select “Retry this question” on the original question to start a new investigation.
+請求狀態|请求状态|Request status
 查看已保存的證據和待查事項；遠端請求結果未知時，先確認請求狀態，再決定是否重試。|查看已保存的证据和待查事项；远程请求结果未知时，先确认请求状态，再决定是否重试。|Review the saved evidence and pending work. If a remote request has an unknown outcome, confirm its status before deciding whether to retry.
 已有索引與目前解析器或編譯設定不相容。|已有索引与当前解析器或编译配置不兼容。|The existing index is incompatible with the current parser or compilation settings.
 使用「更新源碼」完成索引更新後再提問。|使用“更新源码”完成索引更新后再提问。|Use Update source to update the index before asking another question.

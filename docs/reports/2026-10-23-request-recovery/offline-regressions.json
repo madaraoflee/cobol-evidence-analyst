@@ -1,0 +1,402 @@
+{
+  "schema_version": 1,
+  "source_commit": "4cea6f09de8cd671f2b7ada94e1e89c55be22bc5",
+  "source_dirty": true,
+  "runtime_platform": "Darwin",
+  "status": "passed",
+  "selected_count": 3666,
+  "tests_run": 3666,
+  "failures": [],
+  "errors": [],
+  "skipped": [],
+  "unexpected_successes": [],
+  "expected_failures": [],
+  "discovery_errors": [],
+  "runner_errors": [],
+  "diagnostic_errors": [],
+  "elapsed_seconds": 237.546223,
+  "discovery": {
+    "count": 3666,
+    "ids_sha256": "40d6ccf0095aecb8856e74d5991286cb9996c6f031988ef4af552a7aecb1a597",
+    "test_sources_sha256": "86e01018b239961d8711e859ec540ab7d7d7abd33c12fac6c9ea4db06178814a"
+  },
+  "test_results": [
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_all_database_sidecars_reject_redirected_or_directory_paths",
+      "seconds": 0.017689,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_existing_database_sidecars_do_not_require_an_empty_output",
+      "seconds": 0.012377,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_existing_index_can_be_repaired_when_display_report_is_missing",
+      "seconds": 0.021077,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_history_does_not_override_a_present_conflicting_or_corrupt_index",
+      "seconds": 0.025605,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_history_filename_and_partial_schema_do_not_authorize_an_unrelated_folder",
+      "seconds": 0.0027,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_live_investigation_journal_is_accepted_without_deleting_it",
+      "seconds": 0.004015,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_mismatched_or_unrecognized_directory_remains_protected",
+      "seconds": 0.022251,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_missing_index_can_be_rebuilt_beside_history_and_exports",
+      "seconds": 0.045218,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_recognized_library_with_exports_can_refresh_and_keep_history",
+      "seconds": 0.05314,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_retained_history_requires_matching_source_and_does_not_create_missing_stores",
+      "seconds": 0.008114,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_unrecognized_directory_is_not_authorized_by_report_name_alone",
+      "seconds": 0.001263,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_all_matching_pending_languages_retire_without_touching_another_conversation",
+      "seconds": 0.251035,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_explicit_retry_from_another_conversation_is_rejected",
+      "seconds": 0.221689,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_new_source_is_reread_and_old_evidence_remains_immutable",
+      "seconds": 1.284913,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_old_pipeline_and_language_require_explicit_retry_then_use_fresh_run",
+      "seconds": 0.158779,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_repeated_interruptions_never_trigger_automatic_resubmission",
+      "seconds": 0.229229,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_retry_using_a_superseded_original_id_can_start_a_new_explicit_run",
+      "seconds": 0.21056,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_cancellation_after_observation_before_native_send_is_not_sent",
+      "seconds": 0.012143,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_error_name_alone_cannot_close_a_request",
+      "seconds": 0.00503,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_full_http_error_is_received_even_when_no_business_text_exists",
+      "seconds": 0.011085,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_full_json_parse_failure_is_a_known_response_not_unknown_delivery",
+      "seconds": 0.011308,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_generic_tls_error_while_opening_can_follow_a_sent_request",
+      "seconds": 0.010398,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_incomplete_or_malformed_stream_remains_unknown",
+      "seconds": 0.017456,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_inflight_cancellation_does_not_reuse_a_prior_not_sent_annotation",
+      "seconds": 0.010234,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_late_complete_json_response_keeps_existing_timeout_but_is_not_unknown",
+      "seconds": 0.004771,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_native_json_eof_before_timeout_classification_is_a_known_response",
+      "seconds": 0.010595,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_native_premature_http_eof_does_not_imply_complete_response",
+      "seconds": 0.00955,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_native_response_size_cutoff_does_not_imply_complete_response",
+      "seconds": 0.010349,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_nonterminal_reasoning_limit_still_has_unknown_outcome",
+      "seconds": 0.009887,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_preview_failure_before_terminal_event_is_unknown",
+      "seconds": 0.010059,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_preview_failure_in_a_terminal_event_preserves_the_received_answer",
+      "seconds": 0.011142,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_terminal_event_combines_fragments_before_redacting_preview",
+      "seconds": 0.010831,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_terminal_reasoning_delta_and_content_are_retained",
+      "seconds": 0.011267,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_typed_native_preconnection_failures_are_not_remote_unknown",
+      "seconds": 0.018796,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_untrusted_injected_transport_failure_is_not_assumed_unsent",
+      "seconds": 0.004578,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.ChatLanguageTests.test_english_followup_and_continuation_ignore_previous_chinese_answers",
+      "seconds": 0.080145,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.ChatLanguageTests.test_english_local_fallback_retains_evidence_and_english_caveats",
+      "seconds": 0.094446,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.ChatLanguageTests.test_english_no_evidence_failure_has_english_diagnostic",
+      "seconds": 0.048711,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.ChatLanguageTests.test_mixed_business_question_keeps_chinese_in_prompt_and_local_diagnostic",
+      "seconds": 0.0509,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.LanguageSelectionTests.test_ambiguous_identifiers_use_locale_then_prior_user",
+      "seconds": 0.000174,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.LanguageSelectionTests.test_chinese_explanation_requests_keep_business_terms_without_switching_language",
+      "seconds": 0.00062,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.LanguageSelectionTests.test_chinese_questions_with_english_identifiers_and_business_terms",
+      "seconds": 6.2e-05,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.LanguageSelectionTests.test_compacted_discovery_contract_keeps_language",
+      "seconds": 0.000161,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.LanguageSelectionTests.test_current_question_wins_over_interface_and_chinese_history",
+      "seconds": 0.000126,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.LanguageSelectionTests.test_explicit_language_requests_override_question_language",
+      "seconds": 4.6e-05,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.LanguageSelectionTests.test_language_mentions_are_not_answer_instructions",
+      "seconds": 4.3e-05,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.LanguageSelectionTests.test_progress_summary_and_gap_labels_follow_answer_language",
+      "seconds": 3.9e-05,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_response_language.LanguageSelectionTests.test_quoted_instructions_and_source_do_not_set_answer_language",
+      "seconds": 3.8e-05,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_current_index_does_not_start_an_import",
+      "seconds": 0.015183,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_custom_compilation_conditions_require_exact_reproducible_context",
+      "seconds": 0.020885,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_different_source_owner_is_never_rebuilt",
+      "seconds": 0.015956,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_display_repair_marker_cannot_be_used_as_original_scope_proof",
+      "seconds": 0.015527,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_entry_scoped_library_is_not_expanded_during_automatic_upgrade",
+      "seconds": 0.031493,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_failed_startup_upgrade_restores_reports_and_history_without_automatic_retry",
+      "seconds": 0.053288,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_failed_upgrade_attempt_is_bound_to_the_snapshot_and_known_compatible_target",
+      "seconds": 0.029775,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_final_integrity_check_rejects_metadata_changed_since_planning",
+      "seconds": 0.017443,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_finished_local_upgrade_is_not_repeated_on_the_next_start",
+      "seconds": 0.025131,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_future_or_unknown_versions_do_not_trigger_a_downgrade",
+      "seconds": 0.0208,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_known_old_parser_plans_offline_update_without_mutating_existing_data",
+      "seconds": 0.016551,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_malformed_large_report_projection_cannot_crash_startup_planning",
+      "seconds": 0.017126,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_missing_and_corrupt_indexes_are_not_created_or_repaired_by_planning",
+      "seconds": 0.015048,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_pending_or_failed_rollback_is_never_retried_automatically",
+      "seconds": 0.015051,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_previous_attempt_skips_integrity_and_source_table_scan_on_restart",
+      "seconds": 0.016475,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_previous_release_internal_frontend_can_upgrade_without_changing_compiler_inputs",
+      "seconds": 0.019836,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_recorded_frontend_or_framework_context_is_not_replaced_by_defaults",
+      "seconds": 0.015288,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_repaired_display_snapshot_cannot_authorize_upgrade_on_any_restart",
+      "seconds": 0.037489,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_revalidation_preserves_scope_checks_without_repeating_integrity_scan",
+      "seconds": 0.01879,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_startup_checks_integrity_once_before_restoring_and_revalidating",
+      "seconds": 0.051598,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_startup_upgrade_keeps_history_and_exports_and_does_not_repeat",
+      "seconds": 0.056147,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_unknown_or_future_schema_is_not_assumed_to_be_compatible",
+      "seconds": 0.02009,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_unknown_scope_or_report_for_another_snapshot_cannot_authorize_full_import",
+      "seconds": 0.019228,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_unknown_search_version_and_incomplete_search_require_explicit_recovery",
+      "seconds": 0.016978,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_unrepresentable_extensionless_scope_requires_manual_recovery",
+      "seconds": 0.017427,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_user_source_setting_changes_are_not_silently_applied",
+      "seconds": 0.020099,
+      "outcome": "passed"
+    }
+  ],
+  "raw_report_sha256": "49180b68b2ec98798f3b88602b94ad0fddaab7becbfb10db372faf403d055b8a",
+  "browser": {
+    "tests": 195,
+    "passed": 195,
+    "failed": 0,
+    "log_sha256": "6ea6d7929c28407743245b6b4c4076820f009861863b006596410659884583fd"
+  }
+}

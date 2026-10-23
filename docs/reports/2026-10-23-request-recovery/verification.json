@@ -1,0 +1,37 @@
+{
+  "scope": "请求中断后的主动重试、远程请求状态记录与混合语言展示修复",
+  "base_commit": "4cea6f09de8cd671f2b7ada94e1e89c55be22bc5",
+  "root_causes": [
+    "start_new_investigation被uncertain_requests挡住，用户主动重试仍返回同一未知状态；原测试误把此行为当作正确结果。",
+    "请求账本依据异常名称推测是否完成，无法区分未发送、收到完整响应、本地显示失败和传输中断。",
+    "中文解释指令未参与语言优先判断，长英文业务术语把答案语言推成英语；无答案诊断又叠加两个通用提示。"
+  ],
+  "behavior": [
+    "主动点击原问题重试或重新提交失败原问题，建立新调查并读取当前源码；旧请求、证据和响应不删除或虚标成功。",
+    "打开历史、自动恢复和普通resume不会重发未知请求；新调查仍使用现有请求次数与收敛规则。",
+    "根据实际传输状态记录未发送、已接收或未知；完整回复不因界面预览失败而变成未知。",
+    "混合中文业务问题保持中文；无业务答案的旧英文诊断不再当成业务正文，只显示一条有重试操作的状态。"
+  ],
+  "preserved": [
+    "导入和output复用逻辑",
+    "工作区位置与历史数据库",
+    "既有源码引用与原始请求记录",
+    "模型请求及修订上限",
+    "既有UI布局"
+  ],
+  "verification_kind": "离线传输夹具和完整代码回归；不代表真实模型业务内容或服务响应速度验收",
+  "real_model_calls": 0,
+  "new_model_cost_cny": 0,
+  "release_built": false,
+  "initial_customer_failure": "照片无法确定首次中断发生于超时、断网还是关闭程序；永久阻塞重试与语言展示缺陷均已从源码复现。",
+  "tests": {
+    "status": "passed",
+    "python": 3666,
+    "browser": 195,
+    "real_model_calls": 0,
+    "summary": "offline-regressions.json",
+    "source_manifest": "tested-source.json"
+  },
+  "scope_isolation": "基于4cea6f0叠加14个本轮源码/测试文件，排除同目录其他任务尚未完成的框架、分支核验与版本常量修改。",
+  "independent_review": "6项主动重试回归及请求生命周期独立审查；识别并修正终态预览失败、提前EOF及响应截断三条状态边界。"
+}

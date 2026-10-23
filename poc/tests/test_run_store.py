@@ -165,7 +165,12 @@ class RunStoreTests(unittest.TestCase):
         calls = []
         def transport(request):
             calls.append(request)
-            raise KeyboardInterrupt("process_lost_during_request")
+            if len(calls) == 1:
+                raise KeyboardInterrupt("process_lost_during_request")
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            evidence = next(page for page in payload["source_context"][0]["pages"] if "IN-AMOUNT * 2" in page["source_text"])
+            return TransportResponse(200, json.dumps({"choices": [{"message": {"content":
+                f"OUT-AMOUNT = IN-AMOUNT * 2。[{evidence['evidence_id']}]"}, "finish_reason": "stop"}]}))
         question = "ENTRYPOINT OUT-AMOUNT 怎么计算？"
         with self.assertRaises(KeyboardInterrupt):
             run_business_chat(question, self.database, self.source, self.config, transport=transport)
@@ -174,8 +179,8 @@ class RunStoreTests(unittest.TestCase):
             explicit = run_business_chat(question, self.database, self.source, self.config,
                 transport=transport, start_new_investigation=True)
         self.assertEqual(result["reason_code"], "RESUME_PIPELINE_VERSION_CHANGED")
-        self.assertEqual(explicit["reason_code"], "RESUME_PIPELINE_VERSION_CHANGED")
-        self.assertEqual(len(calls), 1)
+        self.assertTrue(explicit["agent_result"]["model_answer_recorded"])
+        self.assertEqual(len(calls), 2)
 
     def test_unchanged_source_hash_with_changed_compilation_context_cannot_resume(self):
         from compilation_context import CompilationContext
@@ -183,7 +188,12 @@ class RunStoreTests(unittest.TestCase):
         calls = []
         def transport(request):
             calls.append(request)
-            raise KeyboardInterrupt("process_lost_during_request")
+            if len(calls) == 1:
+                raise KeyboardInterrupt("process_lost_during_request")
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            evidence = next(page for page in payload["source_context"][0]["pages"] if "IN-AMOUNT * 2" in page["source_text"])
+            return TransportResponse(200, json.dumps({"choices": [{"message": {"content":
+                f"OUT-AMOUNT = IN-AMOUNT * 2。[{evidence['evidence_id']}]"}, "finish_reason": "stop"}]}))
         question = "ENTRYPOINT OUT-AMOUNT 怎么计算？"
         with self.assertRaises(KeyboardInterrupt):
             run_business_chat(question, self.database, self.source, self.config, transport=transport)
@@ -195,16 +205,19 @@ class RunStoreTests(unittest.TestCase):
         build_business_index(self.source, self.database, source_format="free", verify_content=True,
             compilation_context=CompilationContext(source_format="free", framework_version="R2.0",
                 compile_conditions=(("FEATURE", True),)))
+        ensure_repository_search(self.database, self.source)
         self.assertEqual(hashlib.sha256((self.source / "entry.cbl").read_bytes()).hexdigest(), original_hash)
         result = run_business_chat(question, self.database, self.source, self.config, transport=transport,
                                    resume_run_id=prior["run_id"])
         self.assertEqual(result["reason_code"], "RESUME_COMPILATION_CONTEXT_CHANGED")
         explicit = run_business_chat(question, self.database, self.source, self.config, transport=transport,
             resume_run_id=prior["run_id"], start_new_investigation=True)
-        self.assertEqual(explicit["reason_code"], "RESUME_COMPILATION_CONTEXT_CHANGED")
-        self.assertEqual(len(calls), 1)
+        self.assertTrue(explicit["agent_result"]["model_answer_recorded"])
+        self.assertNotEqual(explicit["agent_result"]["run_id"], prior["run_id"])
+        self.assertEqual(len(calls), 2)
         retained = journal.load(prior["run_id"])
-        self.assertEqual(retained["checkpoint"], original_checkpoint)
+        self.assertEqual(retained["state"], "superseded")
+        self.assertEqual({key: retained["checkpoint"][key] for key in original_checkpoint}, original_checkpoint)
         self.assertEqual(len(retained["uncertain_requests"]), 1)
 
     def test_completed_archive_keeps_original_context_and_does_not_rerun(self):

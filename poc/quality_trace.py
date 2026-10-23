@@ -160,10 +160,27 @@ class QualityTrace:
                            "raw_content_characters": raw_content_characters,
                            "parsed_answer_characters": parsed_answer_characters,
                            "choice_index": choice_index}
-        if error not in {"REQUEST_TIMEOUT", "TRANSPORT_ERROR", "TRANSPORT_RESPONSE_INVALID",
-                         "QUESTION_TIME_BUDGET_EXHAUSTED", "MODEL_REASONING_LIMIT_EXCEEDED"}:
-            self.run_store.finish_request(self.data["run_id"], row["round_id"], row["response"])
+        # Parsing/preview error names do not establish whether a request was
+        # sent or completed. The client reports its observed transport outcome;
+        # received usable content is saved independently below.
         self._pending = None
+
+    def record_request_outcome(self, outcome):
+        """Close only a request known not sent or known to have a response.
+
+        This does not certify an answer. The store's conditional update retains
+        any response content already journaled by record_remote_response.
+        """
+        if outcome not in {"not_sent", "response_received", "unknown"}:
+            return
+        row = self.response_round()
+        if row is None or self._pending_replayed:
+            return
+        row["request_outcome"] = outcome
+        if outcome != "unknown":
+            self.run_store.finish_request(self.data["run_id"], row["round_id"], {
+                "request_outcome": outcome, "response_received": outcome == "response_received",
+                "business_text_unavailable": True})
 
     def record_remote_response(self, response):
         if self.data["rounds"]:

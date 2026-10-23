@@ -39,7 +39,8 @@ def _prose_language(text):
                    lambda match: match[0].lower() if match[0].lower() in english_words else " ", prose)
     han = re.findall(r"[\u3400-\u9fff]", prose)
     latin = re.findall(r"[A-Za-z]+", prose)
-    chinese_question = bool(re.search(r"怎样|怎樣|如何|怎么|怎麼|为什么|為什麼|请|請|是否|吗|嗎|哪些|什么|什麼", prose))
+    chinese_question = bool(re.search(r"怎样|怎樣|如何|怎么|怎麼|为什么|為什麼|请|請|是否|吗|嗎|哪些|什么|什麼|"
+                                      r"解释|解釋|说明|說明|分析|讲解|講解|讲讲|講講", prose))
     english_question = bool(re.match(r"\s*(?:please\s+)?(?:what|how|why|when|where|which|does|do|is|are|can|could|"
                                      r"explain|show|describe|list|summarize|tell)\b", prose, re.I))
     if english_question and not chinese_question:
@@ -49,7 +50,7 @@ def _prose_language(text):
     if latin and sum(map(len, latin)) > len(han) * 2:
         return "en"
     if han:
-        return "zh-HK" if re.search(r"[這請問為麼體復邏輯觸發條處輸數據說與後從應該會讓]", prose) else "zh-CN"
+        return "zh-HK" if re.search(r"[這請問為麼體復邏輯觸發條處輸數據說與後從應該會讓釋講]", prose) else "zh-CN"
     if re.search(r"[。；，：！？]", prose):
         return "zh-CN"
     return None

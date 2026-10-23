@@ -126,6 +126,33 @@ class RunStore:
                        (run_id, key, tool, json.dumps(arguments, sort_keys=True), _now()))
         return key
 
+    def supersede_uncertain(self, question_id, model_fingerprint, analysis_identities, replacement_run_id):
+        """Retire blocked recovery only after the user starts a replacement run.
+
+        Request outcomes remain unknown in the original ledger. Superseding a
+        local investigation neither cancels nor confirms the provider request.
+        """
+        identities = set(analysis_identities)
+        retired = []
+        with self.connect() as db:
+            rows = db.execute("SELECT run_id,metadata_json,checkpoint_json FROM investigation_runs r "
+                "WHERE state IN ('running','attention') AND run_id<>? AND EXISTS "
+                "(SELECT 1 FROM investigation_requests q WHERE q.run_id=r.run_id AND q.state='started')",
+                (replacement_run_id,)).fetchall()
+            for row in rows:
+                metadata = json.loads(row["metadata_json"])
+                if (metadata.get("question_id") != question_id
+                        or metadata.get("configuration", {}).get("model_fingerprint") != model_fingerprint
+                        or metadata.get("analysis_identity") not in identities):
+                    continue
+                checkpoint = json.loads(row["checkpoint_json"])
+                checkpoint.update(superseded_by_explicit_retry=True,
+                                  replacement_run_id=replacement_run_id)
+                db.execute("UPDATE investigation_runs SET state='superseded',checkpoint_json=?,updated_at=? "
+                           "WHERE run_id=?", (json.dumps(checkpoint, ensure_ascii=False), _now(), row["run_id"]))
+                retired.append(row["run_id"])
+        return retired
+
     def finish_step(self, run_id, step_key, result):
         with self.connect() as db:
             db.execute("UPDATE investigation_steps SET state='completed',result_json=?,completed_at=? "

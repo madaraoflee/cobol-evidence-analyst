@@ -439,8 +439,16 @@ function errorSummaryText(){
   if(state.project?.restore_blocked)return apiErrorText({code:'SOURCE_UPDATE_ROLLBACK_FAILED',diagnostic:state.errorDiagnostic});
   return state.errorDiagnostic?failureSummaryText(state.errorDiagnostic):state.error;
 }
+function unknownRemoteOutcome(answer){
+  return answer?.retry_blocked_reason==='REMOTE_REQUEST_OUTCOME_UNKNOWN'
+    || answer?.reason_code==='REMOTE_REQUEST_OUTCOME_UNKNOWN'
+    || answer && answer===result() && state.project?.agent?.reason_code==='REMOTE_REQUEST_OUTCOME_UNKNOWN';
+}
 function diagnosticOnlyAnswer(subject,failures=safeFailureDiagnostics(subject)){
   if(!subject || ['model','local_source_facts'].includes(subject.answer_origin) || subject.model_answer_recorded===true)return false;
+  // Old saved UNKNOWN messages can contain an English status template without
+  // API diagnostics. Render the localized status, preserving the saved bytes.
+  if(unknownRemoteOutcome(subject) && (subject.answer_available===false || subject.answer_origin==='diagnostic'))return true;
   if(!failures.length)return false;
   if(subject.answer_origin==='diagnostic')return true;
   const content=typeof subject.content==='string'?subject.content:typeof subject.answer==='string'?subject.answer:'';
@@ -634,7 +642,13 @@ function answerCompletionReason(answer){
 }
 function answerCompletionNotice(answer,projection=null){
   const displayOmission=Array.isArray(projection?.omitted) && projection.omitted.some(item=>['agent_result.answer','agent_result.narrative.text'].includes(item?.path) && Number(item.total_characters)>Number(item.retained_characters));
-  const displayNotice=(answer?.answer_display_truncated===true || displayOmission?ui`<div class="narrative-notes answer-incomplete" role="status"><p>已達頁面展示字數上限，這裡僅呈現部分正文。完整模型正文仍保存在本機結果檔。</p></div>`:'')+(answer?.retry_blocked_reason==='REMOTE_REQUEST_OUTCOME_UNKNOWN'?ui`<div class="narrative-notes answer-incomplete" role="status"><p>原遠程請求的結果尚未確認，已保留原有解讀和證據，不會自動重複請求。</p></div>`:'');
+  const displayTruncated=answer?.answer_display_truncated===true || displayOmission;
+  if(unknownRemoteOutcome(answer)){
+    const retained=answer?.answer_available===true || ['model','local_source_facts'].includes(answer?.answer_origin) || answer?.model_answer_recorded===true;
+    const summary=retained?t('原遠程請求的結果尚未確認；已有回答和來源仍保留，系統不會自動重複請求。'):t('上次遠程請求的結果尚未確認，本次尚未取得業務回答。源碼和對話仍保留，系統不會自動重複請求。');
+    return ui`<div class="narrative-notes answer-incomplete" role="status"><p>${summary}</p><p>點擊原問題的「重試這個問題」可開始新調查。</p>${displayTruncated?ui`<p>已達頁面展示字數上限，這裡僅呈現部分正文。完整模型正文仍保存在本機結果檔。</p>`:''}</div>`;
+  }
+  const displayNotice=displayTruncated?ui`<div class="narrative-notes answer-incomplete" role="status"><p>已達頁面展示字數上限，這裡僅呈現部分正文。完整模型正文仍保存在本機結果檔。</p></div>`:'';
   if(answer?.finish_reason==='length' || answer?.stop_reason==='output_truncated')return displayNotice+ui`<div class="narrative-notes answer-incomplete" role="status"><p>回答未完整輸出：模型達到輸出長度限制（finish_reason=length）。已保留收到的完整正文，可繼續追問尚未說明的部分。</p></div>`;
   if(answer?.answer_truncated===true || answer?.stop_reason==='MODEL_OUTPUT_TRUNCATED')return displayNotice+ui`<div class="narrative-notes answer-incomplete" role="status"><p>部分模型回應尚未完整輸出，已保留可用的解讀內容。</p></div>`;
   if(answer?.status==='PARTIAL' || answer?.analysis_status==='PARTIAL')return displayNotice+`<div class="narrative-notes answer-incomplete" role="status"><p>${escapeHTML(answerCompletionReason(answer))}</p></div>`;
@@ -660,7 +674,7 @@ function narrativeAnswer(answer){
   const boundaries=(answer.boundaries || []).filter(item=>!['framework_reference_boundary','snapshot_coverage'].includes(item?.type));
   return ui`<article class="narrative-answer"><div class="answer-state-row"><span class="badge neutral">業務解讀</span><small>${answer.status==='PARTIAL'?t('仍有待核對項'):''}</small></div>${answerCompletionNotice(answer,state.project?.agent?.display_projection)}<div class="narrative-body">${narrativeMarkup(narrativeText(answer),refs,frameworkRefs)}</div><footer class="narrative-provenance">${investigationView(answer)}${programSummariesView(answer,refs,frameworkRefs)}<details class="answer-support"><summary>依據與補充說明</summary>${notes.length?`<div class="narrative-notes">${notes.map(note=>`<p>${escapeHTML(note)}</p>`).join('')}</div>`:''}${reportDisplayNotice()}${coverageText?ui`<div class="reading-coverage"><strong>閱讀覆蓋</strong><p>${escapeHTML(coverageText)}</p><small>${coverage.complete?t('本次源碼範圍已讀完；閱讀完整不等於業務結論已驗證。'):t('閱讀覆蓋描述本次讀取範圍，不代表已驗證所有業務路徑。')}</small></div>`:''}${chainText?ui`<details class="narrative-boundaries call-chain-coverage"><summary>${escapeHTML(chainText)}</summary><p>${escapeHTML(callChainCoverageNote())}</p></details>`:''}${refs.length?ui`<details class="narrative-sources"><summary>閱讀來源 · ${refs.length} 頁</summary><div>${refs.map((ref,index)=>cite(ref.evidence_id,`${index+1} · ${ref.relative_path || ref.path || t('源碼引用')} · L${Number(ref.start_line)}–${Number(ref.end_line)}`)).join('')}</div></details>`:''}${boundaries.length?ui`<details class="narrative-boundaries"><summary>補充上下文</summary>${boundaries.map(item=>`<p>${escapeHTML(boundaryText(item))}</p>`).join('')}</details>`:''}</details></footer></article>`;
 }
-function actualAnswer(){return failureDiagnosticsView(null,{retainedAnswer:Boolean(narrativeText(result()))})+actualAnswerBody();}
+function actualAnswer(){return (unknownRemoteOutcome(result())?'':failureDiagnosticsView(null,{retainedAnswer:Boolean(narrativeText(result()))}))+actualAnswerBody();}
 function actualAnswerBody(){
   const answer=result();const d=diagnosis();const status=answer?.status || d?.question_status;
   if(syntheticProject() && sourceUsable() && state.project?.agent?.runner_status==='NETWORK_DISABLED'){
@@ -670,6 +684,7 @@ function actualAnswerBody(){
   if(draftChanged())return ui`<div class="answer-empty">${icon('spark')}<h2>準備分析新的問題</h2><p>問題、調查起點或閱讀方式已更改。發起分析後，這裡會呈現新問題的結果。<br>上一題摘要保留在分析記錄中。</p></div>`;
   if(unacceptedResponse())return ui`<div class="answer-empty">${icon('info')}<h2>本次業務結果未獲接受</h2><p>源碼或結果核對未通過，已保留收到的模型文字供診斷。</p><button class="button secondary" data-tab="api">查看 API 返回 ${icon('arrow')}</button></div>`;
   if(narrativeText(answer))return narrativeAnswer(answer);
+  if(unknownRemoteOutcome(answer))return answerCompletionNotice(answer,state.project?.agent?.display_projection);
   const stopped=investigationStop();
   if(stopped)return ui`<div class="answer-empty">${icon('alert')}<h2>分析流程中斷</h2><p>${escapeHTML(stopExplanation(stopped.reason))}</p><p class="stop-detail"><code>${escapeHTML(stopped.code)}</code></p><button class="button secondary" data-tab="api">查看 API 返回 ${icon('arrow')}</button></div>${apiSummary()}${renderBoundaries(answer?.boundaries || d?.messages || [])}`;
   if(!answer || !answer.claims?.length){
@@ -912,7 +927,7 @@ function conversationMessage(message){
   const priorSnapshot=!user && message.snapshot_id && state.project?.snapshot_id && message.snapshot_id!==state.project.snapshot_id;
   const versionMarkup=priorSnapshot?ui`<small class="message-source-version">此回答依據較早的本機版本 <code>${escapeHTML(shortSourceVersion(message.snapshot_id))}</code>；原引用仍可查看。新提問會使用目前源碼。</small>`:'';
   const reading=user?{content:markup,outline:''}:answerReadingView(markup,id);
-  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}" data-message="${escapeHTML(id)}">${reading.outline}<div class="answer-main"><div class="message-author">${user?t('你'):t('馨弦')}<span>${user?'':t('業務解讀 · 請結合證據覆核')}</span></div>${versionMarkup}${user?'':answerCompletionNotice(message)+failureDiagnosticsView(message,{retainedAnswer:Boolean(answer.trim())&&!diagnosticOnly})}<div class="message-content narrative-body">${reading.content || (failed&&!diagnosticOnly?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${relatedMarkup}${impactMarkup}${referenceMarkup}${retryMarkup}</div></article>`;
+  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}" data-message="${escapeHTML(id)}">${reading.outline}<div class="answer-main"><div class="message-author">${user?t('你'):t('馨弦')}<span>${user?'':t(diagnosticOnly?'請求狀態':'業務解讀 · 請結合證據覆核')}</span></div>${versionMarkup}${user?'':answerCompletionNotice(message)+(unknownRemoteOutcome(message)?'':failureDiagnosticsView(message,{retainedAnswer:Boolean(answer.trim())&&!diagnosticOnly}))}<div class="message-content narrative-body">${reading.content || (failed&&!diagnosticOnly?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${relatedMarkup}${impactMarkup}${referenceMarkup}${retryMarkup}</div></article>`;
 }
 function conversationProgress(){
   const v=progressViewModel();

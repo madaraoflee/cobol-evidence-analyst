@@ -1,0 +1,62 @@
+{
+  "base_commit": "4cea6f09de8cd671f2b7ada94e1e89c55be22bc5",
+  "files": [
+    {
+      "path": "poc/business_chat.py",
+      "sha256": "4072dda3e20b27cab9e193af893da45064289f5ba9b8f1ebc497e29976deeaaf"
+    },
+    {
+      "path": "poc/company_api.py",
+      "sha256": "6197480bf395eba56fbf189f4c46c1e3cba656dffc0ab18e8d52f29c3680a5d2"
+    },
+    {
+      "path": "poc/quality_trace.py",
+      "sha256": "b2d76770543c5feefd6dae00573a4d22e51455bd6f4939a64722bb4ac44c0db8"
+    },
+    {
+      "path": "poc/run_store.py",
+      "sha256": "4827ccedc0dd47ff7f8ddf1e6f919e891139b6cfd35eb13f4b6aa820eb2c41fa"
+    },
+    {
+      "path": "poc/response_language.py",
+      "sha256": "2e6b2d05dfe0a97599def86e7f8e122d7cf345695e46240909cd9a6ba6031762"
+    },
+    {
+      "path": "poc/web/app.js",
+      "sha256": "e84119177cc40a2b997c307171dd55b9d1829db85d87aee4b5d00241ab6486d7"
+    },
+    {
+      "path": "poc/web/i18n.js",
+      "sha256": "90e78048db0d25ba9d0146fd1c230ecf821dd0ce37f366f40af9dd84a435d3a9"
+    },
+    {
+      "path": "poc/tests/test_run_store.py",
+      "sha256": "23f136677167883a633c956dd248fbb8e5d7ad81df2fb6b943f4230379f36e3e"
+    },
+    {
+      "path": "poc/tests/test_conversation_workbench.py",
+      "sha256": "598db9e2578c0d45651a2f0d64503cac69bc6309b0d799628e01f550b4088c21"
+    },
+    {
+      "path": "poc/tests/test_question_deadline_recovery_audit.py",
+      "sha256": "6a930ba4f7bd7b4a7c2089752e3d5bf1a131ae9ff9a9d464021f86308dfac353"
+    },
+    {
+      "path": "poc/tests/test_response_language.py",
+      "sha256": "587eaf31f6584dcec0101e29ec1f581a0e8a6612061b047cdf5198714585bbad"
+    },
+    {
+      "path": "poc/tests/web_conversation.test.cjs",
+      "sha256": "e9cd89050079ca55d7f28d7bcd179994d8edf5ccd29aafcbea23d8d27582660a"
+    },
+    {
+      "path": "poc/tests/test_explicit_retry_recovery.py",
+      "sha256": "ebe19b2fc131409ed7383b28754868910127a4b6192347ba4981f9119465e7e1"
+    },
+    {
+      "path": "poc/tests/test_remote_request_lifecycle.py",
+      "sha256": "1618a2fc051cdcb853e86dbceb84a898bee0e54b613fb347860e7d9838be88e8"
+    }
+  ],
+  "real_model_calls": 0
+}

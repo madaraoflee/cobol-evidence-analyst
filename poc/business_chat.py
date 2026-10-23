@@ -1195,6 +1195,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                            analysis_identity=analysis_identity)
     if unused.get("continued_from_run_id"):
         quality.data["continued_from_run_id"] = unused["continued_from_run_id"]
+    if unused.get("retry_unknown_scope"):
+        quality.data["replaces_uncertain_runs"] = quality.run_store.supersede_uncertain(
+            **unused["retry_unknown_scope"], replacement_run_id=quality.data["run_id"])
     def save_budget_stop():
         checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
         checkpoint.update(quality=quality.data, source_pages=list(evidence.pages.values()),
@@ -2048,6 +2051,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 quality.record_remote_response({"response_received": True, "business_text_unavailable": True})
             return raw
         finally:
+            quality.record_request_outcome(getattr(client, "last_request_outcome", None))
             # prepare() can precede a deadline/configuration failure. Only the
             # request observer (or the replay above) establishes supplied input.
             if quality.response_round() is not None:
@@ -3729,6 +3733,23 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
         "base_url": config.base_url, "model": config.chat_model,
         "timeout_seconds": config.timeout_seconds, "max_output_tokens": config.max_output_tokens,
         "api_style": config.api_style, **config.generation_parameters()}, sort_keys=True).encode()).hexdigest()
+    if explicit_retry:
+        identities = prior_language_identities | {analysis_identity}
+        metadata = (resume or {}).get("metadata", {})
+        matching_resume = (metadata.get("question_id") == question_id
+            and metadata.get("analysis_identity") in identities
+            and metadata.get("configuration", {}).get("model_fingerprint") == model_fingerprint)
+        # A user's Retry is a new submission, not an automatic replay. Keep
+        # the unresolved request in its original ledger and read current source
+        # afresh; old drafts, pipeline versions and source pages are not reused.
+        if not resume_id or matching_resume:
+            pending = (resume if matching_resume and resume.get("uncertain_requests") else
+                       store.uncertain(question_id, model_fingerprint, identities))
+            if pending:
+                kwargs["continued_from_run_id"] = pending["run_id"]
+                kwargs["retry_unknown_scope"] = {"question_id": question_id,
+                    "model_fingerprint": model_fingerprint, "analysis_identities": sorted(identities)}
+                resume = None
     def unknown_remote_result(saved, *, retain_answer=True):
         retained = saved["checkpoint"].get("result")
         if retain_answer and isinstance(retained, dict) and (retained.get("agent_result") or {}).get("answer_available"):
@@ -3744,7 +3765,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
         return {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
             "runner_status": "NOT_READY", "reason_code": "REMOTE_REQUEST_OUTCOME_UNKNOWN",
             "agent_result": {"status": "PARTIAL", "run_id": saved["run_id"], "answer":
-                local("这次调查已保存，但上一次远程模型请求的结果未知。已完成的源码读取和待查位置仍可恢复；需要先确认该请求状态，再决定是否重试。", "This investigation has been saved, but the previous remote model request has an unknown outcome. Completed source reads and pending locations can be recovered. Confirm the request status before deciding whether to retry."),
+                local("上次请求中断，尚未收到完整回答。对话和源码已保留。点击原问题的“重试这个问题”可重新分析，无需重新导入；系统不会自动重发请求。", "The previous request was interrupted before a complete answer was received. Your conversation and source are preserved. Select “Retry this question” to start a new analysis without reimporting. The system will not resend automatically."),
                 "answer_origin": "diagnostic", "answer_available": False, "model_answer_recorded": False,
                 "answer_language": answer_language,
                 "resume_state": {"completed_steps": len(saved["completed_steps"]),
@@ -3820,7 +3841,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
         return resume["checkpoint"]["result"]
     # A language change or upgrade cannot establish that an earlier charged
     # request failed. Block resending, but never replay another language's draft.
-    if not (resume and resume.get("uncertain_requests")):
+    if not kwargs.get("retry_unknown_scope") and not (resume and resume.get("uncertain_requests")):
         pending = store.uncertain(question_id, model_fingerprint, prior_language_identities | {analysis_identity})
         if pending:
             return unknown_remote_result(pending,

@@ -346,7 +346,7 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
         self.assertEqual(result["agent_result"]["run_id"], run_id)
         self.assertEqual(self.calls, 1)
 
-    def test_unknown_outcome_is_never_resent_across_default_and_pipeline_gates(self):
+    def test_unknown_outcome_across_defaults_requires_user_retry(self):
         def lost(request):
             self.calls += 1
             raise APIClientError("REQUEST_TIMEOUT")
@@ -354,21 +354,21 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
         run_id = first["agent_result"]["run_id"]
         before = self.store.load(run_id)
         self.remove_current_default_deadline()
-        for options in ({}, {"start_new_investigation": True}):
-            with self.subTest(options=options):
-                result = self.ask(transport=lost, **options)
-                self.assertEqual(result["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
-                self.assertEqual(result["agent_result"]["run_id"], run_id)
-                self.assertEqual(self.calls, 1)
-                self.assertEqual(self.store.load(run_id)["requests"], before["requests"])
+        result = self.ask(transport=lost)
+        self.assertEqual(result["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
+        self.assertEqual(result["agent_result"]["run_id"], run_id)
+        self.assertEqual(self.calls, 1)
+        self.assertEqual(self.store.load(run_id)["requests"], before["requests"])
         self.legacy_policy_metadata(run_id, previous_pipeline=True)
-        for options in ({}, {"start_new_investigation": True}):
-            with self.subTest(pipeline_changed=True, options=options):
-                result = self.ask(transport=lost, **options)
-                self.assertEqual(result["reason_code"], "RESUME_PIPELINE_VERSION_CHANGED")
-                self.assertEqual(result["agent_result"]["run_id"], run_id)
-                self.assertEqual(self.calls, 1)
-                self.assertEqual(self.store.load(run_id)["requests"], before["requests"])
+        result = self.ask(transport=lost)
+        self.assertEqual(result["reason_code"], "RESUME_PIPELINE_VERSION_CHANGED")
+        self.assertEqual(result["agent_result"]["run_id"], run_id)
+        self.assertEqual(self.calls, 1)
+        retried = self.ask(transport=lost, start_new_investigation=True)
+        self.assertEqual(retried["reason_code"], "REQUEST_TIMEOUT")
+        self.assertNotEqual(retried["agent_result"]["run_id"], run_id)
+        self.assertEqual(self.calls, 2)
+        self.assertEqual(self.store.load(run_id)["requests"], before["requests"])
 
     def test_deadline_while_revalidating_saved_sources_preserves_the_same_run(self):
         original_record = QualityTrace.record_remote_response
@@ -472,15 +472,22 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
         self.assertNotEqual(third["agent_result"]["run_id"], run_id)
         self.assertIn("OUT-AMOUNT = IN-AMOUNT * 2", third["agent_result"]["answer"])
 
-    def test_explicit_retry_never_repeats_an_uncertain_remote_request(self):
+    def test_explicit_retry_replaces_unknown_request_without_automatic_resend(self):
         def lost(request):
             self.calls += 1
             raise APIClientError("REQUEST_TIMEOUT")
-        self.ask(transport=lost)
+        first = self.ask(transport=lost)
         self.clock_value = 130.0
-        second = self.ask(start_new_investigation=True)
+        automatic = self.ask()
+        self.assertEqual(automatic["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
         self.assertEqual(self.calls, 1)
-        self.assertEqual(second["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
+        second = self.ask(start_new_investigation=True)
+        self.assertEqual(self.calls, 2)
+        self.assertTrue(second["agent_result"]["model_answer_recorded"])
+        self.assertNotEqual(second["agent_result"]["run_id"], first["agent_result"]["run_id"])
+        prior = self.store.load(first["agent_result"]["run_id"])
+        self.assertEqual(prior["state"], "superseded")
+        self.assertEqual(len(prior["uncertain_requests"]), 1)
 
     def test_explicit_retry_checks_saved_source_before_reusing_frontier(self):
         original = QualityTrace.record_remote_response
