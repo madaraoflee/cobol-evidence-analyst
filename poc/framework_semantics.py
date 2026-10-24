@@ -15,7 +15,7 @@ import sqlite3
 import time
 
 
-SEMANTICS_VERSION = "framework-semantics/v1.5"
+SEMANTICS_VERSION = "framework-semantics/v1.6"
 MAX_FILE_FACTS = 2048
 MAX_REQUEST_FACTS = 32
 

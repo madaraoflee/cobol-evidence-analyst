@@ -148,6 +148,45 @@ def build_business_handoffs(orientation, *, max_items=32):
                          "not_propagated_to_programs_or_submitted_jobs_by_name"),
                  declared_scope=role.get("declared_override_scope"), member_operand=role.get("member"))
 
+    stages = [row for row in orientation["visible_rules"]
+              if row.get("interpretation_level") == "framework_convention"
+              and row.get("kind") == "framework_section" and row.get("operation")
+              and row.get("reason") == "documented_section_observed"
+              and row.get("section_locations")]
+
+    def same_scope(left, right):
+        return (left.get("relative_path") == right.get("relative_path")
+                and left.get("program_name") and left.get("program_name") == right.get("program_name"))
+
+    for perform in orientation["relationships"]:
+        if (perform.get("kind") != "procedure_perform"
+                or perform.get("perform_scope") != "named_target_request"
+                or perform.get("framework_control_context") != "complete_supplied_syntax"):
+            continue
+        definitions = perform.get("source_target_definitions", [])
+        if (len(definitions) != 1 or definitions[0].get("kind") != "Section"
+                or definitions[0].get("parse_status") != "complete"):
+            continue
+        definition = definitions[0]
+        matches = [stage for stage in stages if same_scope(perform, stage)
+                   and stage.get("target_name") == perform.get("target_name")
+                   and any(span["start_line"] == definition["start_line"]
+                           and span["end_line"] == definition["end_line"]
+                           for span in stage["section_locations"])]
+        if len(matches) != 1:
+            continue
+        stage = matches[0]
+        emit("requests_documented_framework_stage", endpoint("perform_site", perform["target_name"],
+             source_path=perform["relative_path"], program_name=perform["program_name"],
+             start_line=perform["source_locations"][0]["start_line"]),
+             endpoint("documented_stage", stage["target_name"], source_path=stage["relative_path"],
+                      program_name=stage["program_name"]), [perform, stage],
+             limits=("request_site_not_runtime_execution_or_complete_execution_order",
+                     "stage_number_and_declaration_order_do_not_establish_execution_order",
+                     "target_is_unique_only_in_supplied_source"),
+             basis="source_bound_supplied_framework_convention",
+             stage_role=deepcopy(stage["operation"]), perform_statement=perform["statement"])
+
     for convention in orientation["visible_rules"]:
         if (convention.get("interpretation_level") != "framework_convention"
                 or not convention.get("dependency_covered") or convention.get("target_source_available")
@@ -165,5 +204,24 @@ def build_business_handoffs(orientation, *, max_items=32):
              source_path=call["relative_path"]), endpoint("documented_operation", convention["operation"]["value"]),
              [call, convention], limits=("closed_implementation_internal_effects_and_call_result_not_established",),
              basis="source_bound_supplied_framework_convention", operation=deepcopy(convention["operation"]),
+             argument=convention.get("argument"), function_field=convention.get("function_field"))
+        enclosing = call.get("enclosing_section") or {}
+        if call.get("framework_control_context") != "complete_supplied_syntax":
+            continue
+        matches = [stage for stage in stages if same_scope(call, stage)
+                   and stage.get("target_name") == enclosing.get("name")
+                   and any(span["start_line"] == enclosing.get("start_line")
+                           and span["end_line"] == enclosing.get("end_line")
+                           for span in stage["section_locations"])]
+        if len(matches) != 1:
+            continue
+        stage = matches[0]
+        emit("framework_stage_contains_operation_request", endpoint("documented_stage", stage["target_name"],
+             source_path=stage["relative_path"], program_name=stage["program_name"]),
+             endpoint("documented_operation", convention["operation"]["value"]), [stage, call, convention],
+             limits=("lexical_containment_not_unconditional_stage_effect",
+                     "closed_implementation_internal_effects_and_call_result_not_established"),
+             basis="source_bound_supplied_framework_convention",
+             stage_role=deepcopy(stage["operation"]), operation=deepcopy(convention["operation"]),
              argument=convention.get("argument"), function_field=convention.get("function_field"))
     return result

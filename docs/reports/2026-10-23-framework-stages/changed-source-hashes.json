@@ -1,0 +1,38 @@
+{
+  "poc/business_orientation.py": {
+    "before_sha256": "cac75440e0b367b7faee92d32864a0ddca781b603abf1697d5bb51d417b0049b",
+    "after_sha256": "5b291ef4d263f6109cf8c2c1c3917092276dde870938ef9155d5a1bee96c58c0"
+  },
+  "poc/business_handoffs.py": {
+    "before_sha256": "4a8011c73453ffe64748f117e53fabae64c800015d3b654fffb758e7a3b2c3e2",
+    "after_sha256": "0b23dba0f48f994b656deefd9f29f678f597f6164c38d97230ee6727b2cce574"
+  },
+  "poc/business_synthesis.py": {
+    "before_sha256": "2f18281aa048feb956951147d454954ec5fc374bc3c6421f89dd5e6423530030",
+    "after_sha256": "da1fc7395136a9cf78cb2bb35c81508a50dade7b1e363d13c777b7735d6b2cad"
+  },
+  "poc/business_chat.py": {
+    "before_sha256": "1eb958c24676c7ff4e23f5219f4e4335d5d4cacb3ca2b091a05c27ad160be798",
+    "after_sha256": "88cffcf042c26f20d2284a74ea1280d71653392c0dcc92bd2588b309d4f661fb"
+  },
+  "poc/quality_trace.py": {
+    "before_sha256": "06904514783b9e33b217721a4515b3682833824921dae5c4cc1e151812cb1fd8",
+    "after_sha256": "bcde755be5a8c70b313f1de54b6927b550df6ae1409d40978e41bff9230b059a"
+  },
+  "poc/syntax_evidence.py": {
+    "before_sha256": "800f82c0d51de2830d3ea818087aa600643beffaf22757206fdef1f77b5269c6",
+    "after_sha256": "e58a6cd42cf8928608c8b4c9b18ea2536cc9421d3b0ae2463ae2247aa16aa69f"
+  },
+  "poc/repository_discovery.py": {
+    "before_sha256": "4d123817896c6dd8bc912ed786d5eeec6557c2b69b08921a0c53e5d531ca0b03",
+    "after_sha256": "8012cd394b201770eb90ef164b55c98be6c3ff9fb169f70264b9975f7a70ff00"
+  },
+  "poc/framework_binding.py": {
+    "before_sha256": "663e548c9d964e64c087d0c96eb35526764dcacc8add74acb4f9ea2af38ba869",
+    "after_sha256": "15ed4b54c3cee41316c88f5310f4046f7f3489b84ef157f50721c03d869c5fd5"
+  },
+  "poc/framework_semantics.py": {
+    "before_sha256": "7542b8d63fb8f86e944473ac6d78d05c18fa53e6d59484f08bfd9c88f6c07a76",
+    "after_sha256": "f1a7ef301c9d7d60776a0dd97e23423eac2846408a8cad99135285deba2167db"
+  }
+}

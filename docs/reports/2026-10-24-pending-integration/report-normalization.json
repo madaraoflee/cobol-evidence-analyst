@@ -1,0 +1,32 @@
+[
+  {
+    "path": "docs/reports/2026-10-23-branch-binding/README.md",
+    "original_sha256": "86c598d5fe3b4509e79fd10b42ad49d043c91ac2a7752e0cbe7d7f2469e443e9",
+    "normalized_sha256": "9ea1e11926864e803d0a45d8c7bd1d3a2d4d4795b637ab05b088983d239cc0fb"
+  },
+  {
+    "path": "docs/reports/2026-10-23-branch-binding/branch-regression-before.txt",
+    "original_sha256": "a7796f146c435191ed9be31b86dddc395bd678efc28e7cbc60760af4469d2d00",
+    "normalized_sha256": "3e2b765a55d72f7f3252d6338f806e0a9d7bd652e2c7ae97328be65475704a44"
+  },
+  {
+    "path": "docs/reports/2026-10-23-framework-stages/README.md",
+    "original_sha256": "4c0cfde2874fa7f95b1ac65f5bb9276362358e4f2d09b851c835393ab9ee85fa",
+    "normalized_sha256": "f623958fbe0bcaedf6b2349409bae132242633963b857f50962620cd1cfe0806"
+  },
+  {
+    "path": "docs/reports/2026-10-23-framework-stages/stage-business-after.json",
+    "original_sha256": "a8695db4d6a79af47e93b8fc906cb4704078b2e92a4cddbba9546564e8aa1308",
+    "normalized_sha256": "19f13c07180a92ce28091cb2a31055f4216807d68738e273016844041786fc64"
+  },
+  {
+    "path": "docs/reports/2026-10-23-framework-stages/stage-business-before.json",
+    "original_sha256": "c4134fbb1292a672f9b9bb746484f2db6123a91ce9e0ad7fd5a2aea80ad10f47",
+    "normalized_sha256": "a61ac4af5db89f28731873470b0fc4eba11a0daa2151f1e19db121f6559cdbc5"
+  },
+  {
+    "path": "docs/reports/2026-10-23-framework-stages/stage-business-before-tests.log",
+    "original_sha256": "b0d5cd7bf8a9970f73466a9335ed0e0a2a297ff6256f73853e92b58d4fb93a2c",
+    "normalized_sha256": "79b09cfb0d72ea0bc9de2f343ae5873b1fcf9a7575987f6e94cd7961ee9528f6"
+  }
+]

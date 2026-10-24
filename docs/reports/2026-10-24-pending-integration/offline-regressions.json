@@ -1,0 +1,851 @@
+{
+  "schema_version": 1,
+  "source_commit": "5d1be71ba51c8ac2643a04efa0452266b0dec481",
+  "source_dirty": true,
+  "runtime_platform": "Darwin",
+  "status": "passed",
+  "selected_count": 3768,
+  "tests_run": 3768,
+  "failures": [],
+  "errors": [],
+  "skipped": [],
+  "unexpected_successes": [],
+  "expected_failures": [],
+  "discovery_errors": [],
+  "runner_errors": [],
+  "diagnostic_errors": [],
+  "elapsed_seconds": 84.85913,
+  "discovery": {
+    "count": 3768,
+    "ids_sha256": "6d492ad78425a82de72878b95ac8272255178f0c7673f9fbaf5333602dca253b",
+    "test_sources_sha256": "7054391e150377b121bc890f65134bf79681abcf6df62483127082657925d95c"
+  },
+  "test_results": [
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_adjacent_pages_keep_binding_but_missing_declaration_and_version_do_not",
+      "seconds": 0.005678,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_batch_program_record_and_dds_handoffs_have_scoped_meaning",
+      "seconds": 0.001646,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_compile_conditional_call_does_not_promote_candidate_to_known_call",
+      "seconds": 0.000637,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_compile_conditional_io_and_declaration_keep_their_directive",
+      "seconds": 0.024002,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_conditional_call_keeps_the_branch_with_its_edge",
+      "seconds": 0.0016,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_copy_record_binding_requires_one_supplied_member_and_keeps_its_source",
+      "seconds": 0.004254,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_derived_handoffs_do_not_evict_original_facts_to_make_room",
+      "seconds": 0.040915,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_different_or_duplicate_program_names_do_not_become_resolved_targets",
+      "seconds": 0.020866,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_dynamic_calls_overrides_and_sql_do_not_guess_objects",
+      "seconds": 0.003129,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_exclusive_physical_scope_does_not_keep_a_removed_program_binding",
+      "seconds": 0.001362,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_framework_handoff_requires_the_exact_call_and_current_manual",
+      "seconds": 0.018616,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_handoffs_are_bounded_deterministic_and_need_no_io_or_model",
+      "seconds": 0.005897,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_metadata_trimming_removes_every_edge_with_a_removed_origin",
+      "seconds": 0.261609,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_repeated_record_names_in_one_file_remain_with_their_program",
+      "seconds": 0.004998,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_shared_copy_and_same_names_do_not_create_a_cross_program_dataflow",
+      "seconds": 0.005204,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_sql_handoff_keeps_query_inputs_and_results_in_the_origin",
+      "seconds": 0.000402,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_sql_update_has_write_request_direction_not_success",
+      "seconds": 0.000946,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_wire_projection_preserves_ambiguous_or_custom_bindings_verbatim",
+      "seconds": 0.001834,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_handoffs.BusinessHandoffTests.test_wire_projection_shares_only_repeated_source_versions_losslessly",
+      "seconds": 0.00387,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_history_projection.BusinessHistoryProjectionTests.test_actual_wire_keeps_ambiguous_deictic_followups_and_explicit_rewrite",
+      "seconds": 1.203315,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_history_projection.BusinessHistoryProjectionTests.test_actual_wire_omits_poison_but_preserves_prior_source_navigation",
+      "seconds": 0.091514,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_history_projection.BusinessHistoryProjectionTests.test_ambiguous_followups_unknown_language_and_legacy_keep_context",
+      "seconds": 0.00047,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_history_projection.BusinessHistoryProjectionTests.test_explicit_prior_answer_requests_preserve_wrong_and_negated_originals",
+      "seconds": 0.000189,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_history_projection.BusinessHistoryProjectionTests.test_ordinary_source_projection_retains_real_user_text_within_budget",
+      "seconds": 4.6e-05,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_history_projection.BusinessHistoryProjectionTests.test_standalone_source_questions_omit_even_analyzed_assistant_prose",
+      "seconds": 0.000353,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_orientation.BusinessOrientationTests.test_adjacent_pages_preserve_sql_span_but_missing_middle_line_cannot",
+      "seconds": 0.002119,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_orientation.BusinessOrientationTests.test_batch_program_file_chain_retains_physical_evidence_and_limits",
+      "seconds": 0.003555,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_orientation.BusinessOrientationTests.test_clipping_rebuild_drops_removed_purpose_entry_and_call_evidence",
+      "seconds": 0.002792,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_orientation.BusinessOrientationTests.test_documented_query_entry_has_sql_read_role_without_online_deployment_claim",
+      "seconds": 0.00039,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_orientation.BusinessOrientationTests.test_exclusive_scope_does_not_restore_outside_material_or_wrong_version",
+      "seconds": 0.000446,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_orientation.BusinessOrientationTests.test_framework_convention_requires_visible_source_and_manual_together",
+      "seconds": 0.020834,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_orientation.BusinessOrientationTests.test_generic_comments_and_names_do_not_invent_business_purpose",
+      "seconds": 0.000988,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_orientation.BusinessOrientationTests.test_indexed_cl_context_requires_same_captured_statement_and_current_guard",
+      "seconds": 0.02585,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_orientation.BusinessOrientationTests.test_parse_cache_is_bounded_and_matches_content_version_path_range_and_format",
+      "seconds": 0.061383,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_orientation.BusinessOrientationTests.test_projection_is_bounded_and_does_not_scan_files_or_open_network",
+      "seconds": 0.044113,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_orientation.BusinessOrientationTests.test_static_sql_update_delete_and_dynamic_sql_are_distinguished",
+      "seconds": 0.003162,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_orientation.BusinessOrientationTests.test_version_conflict_changed_version_and_incomplete_pages_supply_no_facts",
+      "seconds": 0.000349,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingIntegrationTests.test_single_offline_request_repairs_both_branches_before_final_delivery",
+      "seconds": 0.114091,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_chinese_and_english_explicit_conditions_bind_the_same_source_branch",
+      "seconds": 0.013518,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_correct_branches_remain_verbatim_and_checked_against_their_own_occurrences",
+      "seconds": 0.002205,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims",
+      "seconds": 0.019153,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_different_program_or_version_cannot_lend_a_branch",
+      "seconds": 0.006514,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_else_does_not_inherit_a_different_citation_scope",
+      "seconds": 0.003069,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_else_does_not_inherit_across_independent_sentences_lines_or_titles",
+      "seconds": 0.011013,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_general_explanation_and_quoted_control_excerpt_keep_existing_behavior",
+      "seconds": 0.004568,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_later_assignment_prevents_branch_formula_becoming_a_final_value_proof",
+      "seconds": 0.002201,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_local_formula_repair_preserves_the_business_explanation_in_its_clause",
+      "seconds": 0.005474,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_missing_outer_guard_is_uncertain_not_a_wrong_formula",
+      "seconds": 0.001991,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_repeated_branch_clauses_reuse_one_supplied_block_parse",
+      "seconds": 0.020877,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_repeated_condition_occurrences_do_not_establish_one_branch_binding",
+      "seconds": 0.002329,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_reversed_natural_branches_are_repaired_with_true_and_false_source_guards",
+      "seconds": 0.002592,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_several_writes_in_one_branch_do_not_erase_a_business_explanation",
+      "seconds": 0.002044,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_truncated_or_uncited_branch_stays_unverified_without_rewriting",
+      "seconds": 0.001977,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_unclosed_source_block_does_not_prove_branch_ownership",
+      "seconds": 0.001994,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_desktop_upgrade.DesktopUpgradeTests.test_new_application_folder_preserves_profile_source_index_and_history",
+      "seconds": 1.060239,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_desktop_upgrade.DesktopUpgradeTests.test_upgrade_with_missing_index_retains_history_without_reimport",
+      "seconds": 1.093068,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_desktop_upgrade.DesktopUpgradeTests.test_upgrade_with_unavailable_source_retains_existing_history",
+      "seconds": 1.449925,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_all_database_sidecars_reject_redirected_or_directory_paths",
+      "seconds": 0.033832,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_existing_database_sidecars_do_not_require_an_empty_output",
+      "seconds": 0.022139,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_existing_index_can_be_repaired_when_display_report_is_missing",
+      "seconds": 0.028505,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_history_does_not_override_a_present_conflicting_or_corrupt_index",
+      "seconds": 0.048235,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_history_filename_and_partial_schema_do_not_authorize_an_unrelated_folder",
+      "seconds": 0.004046,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_live_investigation_journal_is_accepted_without_deleting_it",
+      "seconds": 0.007831,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_mismatched_or_unrecognized_directory_remains_protected",
+      "seconds": 0.034954,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_missing_index_can_be_rebuilt_beside_history_and_exports",
+      "seconds": 0.180339,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_recognized_library_with_exports_can_refresh_and_keep_history",
+      "seconds": 0.078417,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_retained_history_requires_matching_source_and_does_not_create_missing_stores",
+      "seconds": 0.007151,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_unrecognized_directory_is_not_authorized_by_report_name_alone",
+      "seconds": 0.001611,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_all_matching_pending_languages_retire_without_touching_another_conversation",
+      "seconds": 0.186162,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_changed_source_after_received_response_starts_fresh_only_on_explicit_retry",
+      "seconds": 0.534507,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_explicit_retry_from_another_conversation_is_rejected",
+      "seconds": 0.122755,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_new_source_is_reread_and_old_evidence_remains_immutable",
+      "seconds": 0.356154,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_old_pipeline_and_language_require_explicit_retry_then_use_fresh_run",
+      "seconds": 0.197521,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_repeated_interruptions_never_trigger_automatic_resubmission",
+      "seconds": 0.178361,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_retry_using_a_superseded_original_id_can_start_a_new_explicit_run",
+      "seconds": 0.231073,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_business.FrameworkStageBusinessTests.test_actual_request_fit_rebuilds_after_stage_evidence_is_removed",
+      "seconds": 0.131334,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_business.FrameworkStageBusinessTests.test_changed_manual_requires_current_role_and_reference_evidence",
+      "seconds": 0.030167,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_business.FrameworkStageBusinessTests.test_changed_source_does_not_reuse_old_stage_binding",
+      "seconds": 0.032703,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_business.FrameworkStageBusinessTests.test_default_chat_receives_business_stage_chain_from_actual_source_and_manual",
+      "seconds": 0.118373,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_business.FrameworkStageBusinessTests.test_evaluate_stage_request_keeps_subject_and_selected_when_condition",
+      "seconds": 0.028725,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_business.FrameworkStageBusinessTests.test_missing_or_trimmed_manual_or_source_withdraws_documented_stage_edges",
+      "seconds": 0.019493,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_business.FrameworkStageBusinessTests.test_natural_business_flow_questions_keep_focused_questions_narrow",
+      "seconds": 0.014829,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_business.FrameworkStageBusinessTests.test_real_index_binds_stage_role_to_perform_and_contained_operation",
+      "seconds": 0.017204,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_business.FrameworkStageBusinessTests.test_related_followup_keeps_current_stage_conditions_and_operation_caveat",
+      "seconds": 0.196961,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.FrameworkStageOrientationTests.test_ambiguous_program_scope_never_creates_new_stage_relationships",
+      "seconds": 0.00439,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.FrameworkStageOrientationTests.test_copy_instances_cannot_acquire_new_stage_relationships",
+      "seconds": 0.001083,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.FrameworkStageOrientationTests.test_duplicate_section_or_paragraph_stays_visible_as_ambiguous_definitions",
+      "seconds": 0.003644,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.FrameworkStageOrientationTests.test_gap_between_section_and_call_withdraws_ownership",
+      "seconds": 8.9e-05,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.FrameworkStageOrientationTests.test_missing_or_truncated_manual_does_not_expand_ordinary_requests",
+      "seconds": 0.000941,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.FrameworkStageOrientationTests.test_named_requests_keep_source_guards_and_exact_target_declarations",
+      "seconds": 0.001036,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.FrameworkStageOrientationTests.test_nested_evaluate_retains_selector_and_first_match_conditions",
+      "seconds": 0.002244,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.FrameworkStageOrientationTests.test_old_source_version_cannot_reuse_stage_bindings",
+      "seconds": 0.000794,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.FrameworkStageOrientationTests.test_range_is_one_request_without_expanding_or_implying_execution",
+      "seconds": 0.001954,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.FrameworkStageOrientationTests.test_stage_call_ownership_covers_header_through_call",
+      "seconds": 0.001059,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.FrameworkStageOrientationTests.test_unexpanded_stage_scope_retains_an_explicit_boundary",
+      "seconds": 0.000585,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.FrameworkStageOrientationTests.test_unsupported_control_body_keeps_request_without_a_bound_stage_path",
+      "seconds": 0.001777,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.OrientationPreparationCostTests.test_dense_call_inventory_bounds_projection_work_and_keeps_fitting_facts",
+      "seconds": 0.376808,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.SuppliedSyntaxFormatTests.test_conflicting_format_on_same_evidence_id_is_not_last_writer_wins",
+      "seconds": 5.2e-05,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.SuppliedSyntaxFormatTests.test_explicit_directive_must_agree_with_supplied_format",
+      "seconds": 0.00038,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.SuppliedSyntaxFormatTests.test_explicit_fixed_format_retains_physical_statement_location",
+      "seconds": 0.000109,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.SuppliedSyntaxFormatTests.test_explicit_free_format_preserves_eight_space_indented_perform",
+      "seconds": 0.000374,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_orientation.SuppliedSyntaxFormatTests.test_mixed_page_configuration_does_not_upgrade_unknown_format",
+      "seconds": 0.00019,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_scope.FrameworkStageScopeTests.test_comment_literal_embedded_text_and_source_format_do_not_create_boundary",
+      "seconds": 0.002811,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_scope.FrameworkStageScopeTests.test_data_copy_preserves_existing_local_operation_binding_and_stage_observation",
+      "seconds": 0.001334,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_scope.FrameworkStageScopeTests.test_focus_does_not_hide_an_outside_preprocessing_boundary",
+      "seconds": 0.001175,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_scope.FrameworkStageScopeTests.test_indexed_boundary_survives_request_trimming_and_cache_reuse",
+      "seconds": 0.042168,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_scope.FrameworkStageScopeTests.test_procedure_copy_invalidates_stage_before_or_after_observation",
+      "seconds": 0.001964,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_scope.FrameworkStageScopeTests.test_replacement_and_compile_directives_are_persistent_stage_boundaries",
+      "seconds": 0.006461,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_framework_stage_scope.FrameworkStageScopeTests.test_v15_cache_is_rebound_even_when_source_and_manual_are_unchanged",
+      "seconds": 0.022348,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_run_store.RunStoreTests.test_changed_entry_uses_its_own_run_and_older_entry_can_resume",
+      "seconds": 0.350629,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_run_store.RunStoreTests.test_completed_archive_keeps_original_context_and_does_not_rerun",
+      "seconds": 0.129828,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_run_store.RunStoreTests.test_explicit_resume_rejects_changed_conversation_or_framework_target",
+      "seconds": 0.092687,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_run_store.RunStoreTests.test_interrupted_remote_request_does_not_blindly_repeat",
+      "seconds": 0.096693,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_run_store.RunStoreTests.test_pending_run_does_not_replay_under_changed_pipeline_version",
+      "seconds": 0.169627,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_run_store.RunStoreTests.test_process_interruption_after_response_resumes_without_another_remote_request",
+      "seconds": 0.268565,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_run_store.RunStoreTests.test_remote_request_start_is_uncertain_until_completion",
+      "seconds": 0.005241,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_run_store.RunStoreTests.test_summary_change_invalidates_callers_transitively",
+      "seconds": 0.00589,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_run_store.RunStoreTests.test_unchanged_source_hash_with_changed_compilation_context_cannot_resume",
+      "seconds": 0.18941,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_run_store.RunStoreTests.test_unfinished_lookup_keeps_older_matching_context",
+      "seconds": 0.040878,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_search_cache_repair.SearchCacheRepairTests.test_direct_read_recovers_internal_gap_before_refresh",
+      "seconds": 0.086405,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_search_cache_repair.SearchCacheRepairTests.test_direct_read_recovers_missing_tail_before_refresh",
+      "seconds": 0.088331,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_search_cache_repair.SearchCacheRepairTests.test_refresh_repairs_missing_search_entry_and_only_rebuilds_affected_file",
+      "seconds": 0.100294,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_search_cache_repair.SearchCacheRepairTests.test_refresh_repairs_missing_source_page_without_reimport",
+      "seconds": 0.1002,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_source_range_integrity.SourceRangeIntegrityTests.test_cancellation_during_stream_verification_never_persists_staged_pages",
+      "seconds": 0.06027,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_source_range_integrity.SourceRangeIntegrityTests.test_changed_long_source_is_not_relabelled_with_the_indexed_hash",
+      "seconds": 0.044687,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_source_range_integrity.SourceRangeIntegrityTests.test_direct_range_read_does_not_use_the_small_file_search_limit_or_scan_other_paths",
+      "seconds": 0.035164,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_source_range_integrity.SourceRangeIntegrityTests.test_long_index_truncated_condition_is_recovered_within_explicit_read_budget",
+      "seconds": 0.039872,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_source_range_integrity.SourceRangeIntegrityTests.test_missing_middle_index_page_is_recovered_without_skipping_unread_lines",
+      "seconds": 0.024719,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_source_range_integrity.SourceRangeIntegrityTests.test_question_cache_distinguishes_read_budgets_and_keeps_the_captured_version",
+      "seconds": 0.050852,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_source_range_integrity.SourceRangeIntegrityTests.test_unread_long_condition_cannot_be_hidden_by_a_supplied_tail",
+      "seconds": 0.03462,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_source_versions.SourceVersionTests.test_returning_to_previous_content_records_a_new_chronological_revision",
+      "seconds": 0.005785,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_source_versions.SourceVersionTests.test_two_source_directories_have_independent_histories_in_one_output",
+      "seconds": 0.004328,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_current_index_does_not_start_an_import",
+      "seconds": 0.025533,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_custom_compilation_conditions_require_exact_reproducible_context",
+      "seconds": 0.032073,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_different_source_owner_is_never_rebuilt",
+      "seconds": 0.026389,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_display_repair_marker_cannot_be_used_as_original_scope_proof",
+      "seconds": 0.026539,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_entry_scoped_library_is_not_expanded_during_automatic_upgrade",
+      "seconds": 0.049525,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_failed_startup_upgrade_restores_reports_and_history_without_automatic_retry",
+      "seconds": 0.059509,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_failed_upgrade_attempt_is_bound_to_the_snapshot_and_known_compatible_target",
+      "seconds": 0.047756,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_final_integrity_check_rejects_metadata_changed_since_planning",
+      "seconds": 0.041116,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_finished_local_upgrade_is_not_repeated_on_the_next_start",
+      "seconds": 0.051439,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_future_or_unknown_versions_do_not_trigger_a_downgrade",
+      "seconds": 0.031141,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_known_old_parser_plans_offline_update_without_mutating_existing_data",
+      "seconds": 0.023465,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_malformed_large_report_projection_cannot_crash_startup_planning",
+      "seconds": 0.024641,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_missing_and_corrupt_indexes_are_not_created_or_repaired_by_planning",
+      "seconds": 0.02179,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_pending_or_failed_rollback_is_never_retried_automatically",
+      "seconds": 0.023736,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_previous_attempt_skips_integrity_and_source_table_scan_on_restart",
+      "seconds": 0.024782,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_previous_release_internal_frontend_can_upgrade_without_changing_compiler_inputs",
+      "seconds": 0.027074,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_recorded_frontend_or_framework_context_is_not_replaced_by_defaults",
+      "seconds": 0.025136,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_repaired_display_snapshot_cannot_authorize_upgrade_on_any_restart",
+      "seconds": 0.045573,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_revalidation_preserves_scope_checks_without_repeating_integrity_scan",
+      "seconds": 0.029321,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_startup_checks_integrity_once_before_restoring_and_revalidating",
+      "seconds": 0.062329,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_startup_upgrade_keeps_history_and_exports_and_does_not_repeat",
+      "seconds": 0.065583,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_unknown_or_future_schema_is_not_assumed_to_be_compatible",
+      "seconds": 0.030176,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_unknown_scope_or_report_for_another_snapshot_cannot_authorize_full_import",
+      "seconds": 0.028591,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_unknown_search_version_and_incomplete_search_require_explicit_recovery",
+      "seconds": 0.025214,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_unrepresentable_extensionless_scope_requires_manual_recovery",
+      "seconds": 0.024554,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_user_source_setting_changes_are_not_silently_applied",
+      "seconds": 0.02554,
+      "outcome": "passed"
+    }
+  ],
+  "test_results_scope": "Affected source/claim/framework/recovery modules; totals and report hash cover the full suite.",
+  "raw_report_sha256": "98fa4111f42a105bc91f06a7807ad156b7abe5e823c3c4055ac8fd38d1a04e8d",
+  "shards": [
+    {
+      "index": 0,
+      "tests": 942,
+      "seconds": 52.053352,
+      "report_sha256": "3bdfe4886b1d8abe6614850ae1500e4e97a4aee406fa6b5be54c70d710896bbd"
+    },
+    {
+      "index": 1,
+      "tests": 942,
+      "seconds": 67.603331,
+      "report_sha256": "e214628d7b4bdb9a5363826283fcad041b96e114f5fcd4f1022a771d2c7ba195"
+    },
+    {
+      "index": 2,
+      "tests": 942,
+      "seconds": 84.85913,
+      "report_sha256": "8ee4c784928493ef4fbf4646d9159573b79d6bd7b82bcaee40ee96f3dd261084"
+    },
+    {
+      "index": 3,
+      "tests": 942,
+      "seconds": 67.193572,
+      "report_sha256": "5f3edfe2f18514408082654408bde80ece77b761fcb5e0517b545315d56ac59a"
+    }
+  ],
+  "elapsed_seconds_scope": "Longest concurrent shard; excludes orchestration",
+  "browser": {
+    "tests": 195,
+    "passed": 195,
+    "failed": 0,
+    "skipped": 0,
+    "log_sha256": "07ca32d4c098a8337f1aa1a82568a030d34e78771c62bd05b0ea59e378878b6c"
+  }
+}

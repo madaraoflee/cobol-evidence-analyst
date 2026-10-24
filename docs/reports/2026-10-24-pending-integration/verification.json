@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-24",
+  "base_commit": "5d1be71ba51c8ac2643a04efa0452266b0dec481",
+  "scope": "整合全部剩余框架阶段、业务分支和历史调查改动，修复明确重试及搜索缓存缺页",
+  "changes": [
+    "框架手册阶段职责与实际PERFORM、条件和内部I/O请求相连；不依据编号推断次序，COPY/REPLACE未展开时保留可见业务含义和独立操作。",
+    "条件/公式倒置只在源码唯一绑定时就地修正公式，保留业务正文与引用；歧义、否定和假设不强行改写。",
+    "缓存同一引用条件的解析，优化元数据裁剪的重复投影，保持事实、守卫与引用完整。",
+    "源码更新后的明确重试建立新调查并读取新版本；旧调查记录、响应和证据保留，自动恢复不擅自重发。",
+    "更新时重建缺页或缺FTS记录的受影响文件；直接读区间也可从已导入原文件补齐缺口，无需重新导入或清空output。",
+    "旧离线报告作为历史证据整合，标明基线/回滚适用范围并规范化本机路径；当前结论以本报告为准。"
+  ],
+  "preserved": [
+    "界面布局和导入工作流",
+    "既有output与工作区位置",
+    "会话历史数据库、旧请求与已收到的响应",
+    "模型次数预算与防循环规则"
+  ],
+  "real_model_calls": 0,
+  "new_model_cost_cny": 0,
+  "app_or_installer_built": false,
+  "release_created": false,
+  "tests": {
+    "status": "passed",
+    "python": 3768,
+    "browser": 195,
+    "skipped": 0,
+    "details": "offline-regressions.json",
+    "source_hashes": "tested-source.json"
+  },
+  "performance": "framework-performance.json，128条调用本地材料准备；不含模型生成时间",
+  "verification_limit": "合成材料、断网传输与源码/浏览器回归，不代表自然模型业务质量或最终Windows制品验收。",
+  "historical_source_retry": "明确重试由两次RESUME_SOURCE_VERSION_CHANGED变为两次使用新源码完成回答，旧run保留且归档。",
+  "historical_search_gap": "尾部FTS缺失及中间页缺失均已实际重放；修复后返回90规则可检索、读取区间完整。"
+}

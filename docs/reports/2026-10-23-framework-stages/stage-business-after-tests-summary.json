@@ -1,0 +1,21 @@
+{
+  "modules": [
+    "test_framework_chat_semantics",
+    "test_framework_semantics",
+    "test_effect_contract",
+    "test_framework_acceptance",
+    "test_business_handoffs",
+    "test_framework_stage_business",
+    "test_framework_stage_orientation",
+    "test_framework_stage_scope",
+    "test_syntax_evidence",
+    "test_framework_binding"
+  ],
+  "tests": 190,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "seconds": 5.896,
+  "network": "blocked",
+  "source": "controlled-after-source"
+}

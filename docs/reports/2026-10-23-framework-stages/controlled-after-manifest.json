@@ -1,0 +1,14 @@
+{
+  "poc/business_orientation.py": "5b291ef4d263f6109cf8c2c1c3917092276dde870938ef9155d5a1bee96c58c0",
+  "poc/business_handoffs.py": "0b23dba0f48f994b656deefd9f29f678f597f6164c38d97230ee6727b2cce574",
+  "poc/business_synthesis.py": "da1fc7395136a9cf78cb2bb35c81508a50dade7b1e363d13c777b7735d6b2cad",
+  "poc/quality_trace.py": "bcde755be5a8c70b313f1de54b6927b550df6ae1409d40978e41bff9230b059a",
+  "poc/tests/test_framework_stage_orientation.py": "f60737c945ad68bc22a5dbd72b489a8ee3106f2ed2dba15de496d577e43320c9",
+  "poc/tests/test_framework_stage_business.py": "ce66283e25794641daf65eb77ac1f5afec61affe2ffb7c53ec0067058e2058df",
+  "poc/business_chat.py": "88cffcf042c26f20d2284a74ea1280d71653392c0dcc92bd2588b309d4f661fb",
+  "poc/syntax_evidence.py": "e58a6cd42cf8928608c8b4c9b18ea2536cc9421d3b0ae2463ae2247aa16aa69f",
+  "poc/repository_discovery.py": "8012cd394b201770eb90ef164b55c98be6c3ff9fb169f70264b9975f7a70ff00",
+  "poc/framework_binding.py": "15ed4b54c3cee41316c88f5310f4046f7f3489b84ef157f50721c03d869c5fd5",
+  "poc/framework_semantics.py": "f1a7ef301c9d7d60776a0dd97e23423eac2846408a8cad99135285deba2167db",
+  "poc/tests/test_framework_stage_scope.py": "55318057a402fd244d3c127236f7986924b1edc55c552a809efc87791ffde712"
+}

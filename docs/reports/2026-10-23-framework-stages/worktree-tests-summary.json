@@ -1,0 +1,23 @@
+{
+  "tests": 147,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "seconds": 4.1,
+  "modules": [
+    "test_framework_stage_business",
+    "test_framework_stage_orientation",
+    "test_framework_stage_scope",
+    "test_framework_chat_semantics",
+    "test_framework_semantics",
+    "test_business_handoffs",
+    "test_business_orientation",
+    "test_business_explanation_delivery",
+    "test_business_explanation_review",
+    "test_business_boundary_contract",
+    "test_business_synthesis_controls"
+  ],
+  "network_blocked": true,
+  "head": "49014b56f884253318ec6d6550030f1c6426f72e",
+  "python_sources_unchanged_during_validation": true
+}

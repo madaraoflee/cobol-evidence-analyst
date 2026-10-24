@@ -73,7 +73,7 @@ class SourceRangeIntegrityTests(unittest.TestCase):
         self.assertFalse(result["end_of_file"])
         self.assert_exact_pages(result, 512)
 
-    def test_missing_middle_index_page_keeps_cursor_at_the_first_unread_line(self):
+    def test_missing_middle_index_page_is_recovered_without_skipping_unread_lines(self):
         self.build(["*> " + "X" * 7000 for _ in range(4)])
         with closing(sqlite3.connect(self.database)) as db, db:
             rows = db.execute("SELECT page_id,start_line,end_line FROM repo_pages ORDER BY start_line").fetchall()
@@ -82,10 +82,16 @@ class SourceRangeIntegrityTests(unittest.TestCase):
             db.execute("DELETE FROM repo_pages WHERE page_id=?", (missing[0],))
         result = self.read(max_chars=32000)
         self.assertTrue(any(page["end_line"] == len(self.lines) for page in result["pages"]))
-        self.assertFalse(result["range_complete"])
-        self.assertEqual(result["next_start_line"], missing[1])
-        self.assertFalse(result["end_of_file"])
+        self.assertTrue(result["range_complete"])
+        self.assertIsNone(result["next_start_line"])
+        self.assertTrue(result["end_of_file"])
+        self.assertFalse(result["raw_fallback"]["source_directory_scanned"])
         self.assert_exact_pages(result, 32000)
+        limited = self.read(max_chars=512)
+        self.assertFalse(limited["range_complete"])
+        self.assertEqual(limited["next_start_line"], 4)
+        self.assertFalse(limited["end_of_file"])
+        self.assert_exact_pages(limited, 512)
 
     def test_direct_range_read_does_not_use_the_small_file_search_limit_or_scan_other_paths(self):
         self.build([self.long_condition(), "END-IF."])

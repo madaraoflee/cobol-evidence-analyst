@@ -1,0 +1,189 @@
+{
+  "question": "BRANCH-RULE 的 OUT-AMOUNT 如何计算？",
+  "synthetic_only": true,
+  "external_model_requests": 0,
+  "paid_cost": 0,
+  "scripted_transport_calls": 1,
+  "local_elapsed_seconds": 0.11286512500009849,
+  "timing_scope": "local source mechanism plus scripted transport; not model latency",
+  "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+  "requests": [
+    {
+      "source_pages": [
+        {
+          "relative_path": "rule.cbl",
+          "start_line": 1,
+          "end_line": 14,
+          "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+          "source_text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. BRANCH-RULE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 IN-AMOUNT PIC S99.\n01 OUT-AMOUNT PIC S999.\nPROCEDURE DIVISION.\nMAIN.\nIF IN-AMOUNT > ZERO\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 2\nELSE\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 3\nEND-IF.\nGOBACK.",
+          "span_truncated": false,
+          "evidence_id": "ev_page_30a76d5dee7307a67175af1a",
+          "source_characters": 272,
+          "selection_reasons": [
+            "question_match",
+            "complete_working_set"
+          ],
+          "source_verification": "content_hash",
+          "group_ids": [
+            "group_b212d5001a6c9938"
+          ],
+          "semantic_roles": [
+            "condition",
+            "result",
+            "flow_context",
+            "related_statement",
+            "declaration"
+          ],
+          "source_statement_role_scope": "indexed_statement_syntax_candidate",
+          "flow_execution_verified": false
+        }
+      ],
+      "fixed_response": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；否则 OUT-AMOUNT = IN-AMOUNT * 2。[ev_page_30a76d5dee7307a67175af1a]",
+      "request_bytes": 34127
+    }
+  ],
+  "answer": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；否则 OUT-AMOUNT = IN-AMOUNT * 2。[ev_page_30a76d5dee7307a67175af1a]",
+  "status": "PARTIAL",
+  "stop_reason": "request_budget",
+  "evidence_refs": [
+    {
+      "evidence_id": "ev_page_30a76d5dee7307a67175af1a",
+      "relative_path": "rule.cbl",
+      "start_line": 1,
+      "end_line": 14,
+      "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+      "kind": "source_page"
+    }
+  ],
+  "claim_ledger": {
+    "ledger_version": "answer-claim-ledger-v12",
+    "scope": "bounded_source_statement_syntax",
+    "coverage": "extracted_structures_only",
+    "prose_semantics_verified": false,
+    "entries": [
+      {
+        "claim_id": "claim-1",
+        "claim_type": "assignment_statement",
+        "text": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；",
+        "target_entity": "OUT-AMOUNT",
+        "expression": [
+          "IN-AMOUNT",
+          "*",
+          "3"
+        ],
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_30a76d5dee7307a67175af1a"
+        ],
+        "reviewed_evidence_ids": [],
+        "source_versions": [
+          {
+            "relative_path": "rule.cbl",
+            "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+            "start_line": 1,
+            "end_line": 14
+          }
+        ],
+        "support_status": "supported",
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "checker_version": "source-statement-support-v6",
+        "support_scope": "source_statement_syntax",
+        "occurrence_ids": [
+          "unit_95442ef4d023fb4c55c9b4e1"
+        ],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      },
+      {
+        "claim_id": "claim-2",
+        "claim_type": "condition_statement",
+        "text": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；",
+        "target_entity": null,
+        "expression": null,
+        "condition": [
+          "IN-AMOUNT",
+          ">",
+          "ZERO"
+        ],
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_30a76d5dee7307a67175af1a"
+        ],
+        "reviewed_evidence_ids": [],
+        "source_versions": [
+          {
+            "relative_path": "rule.cbl",
+            "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+            "start_line": 1,
+            "end_line": 14
+          }
+        ],
+        "support_status": "supported",
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "checker_version": "source-statement-support-v6",
+        "support_scope": "source_statement_syntax",
+        "occurrence_ids": [
+          "unit_5ee19d466f5e6b0c8ce010f4"
+        ],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      },
+      {
+        "claim_id": "claim-3",
+        "claim_type": "assignment_statement",
+        "text": "否则 OUT-AMOUNT = IN-AMOUNT * 2。",
+        "target_entity": "OUT-AMOUNT",
+        "expression": [
+          "IN-AMOUNT",
+          "*",
+          "2"
+        ],
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [
+          "ev_page_30a76d5dee7307a67175af1a"
+        ],
+        "reviewed_evidence_ids": [],
+        "source_versions": [
+          {
+            "relative_path": "rule.cbl",
+            "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+            "start_line": 1,
+            "end_line": 14
+          }
+        ],
+        "support_status": "supported",
+        "reason_code": "SOURCE_STATEMENT_MATCH",
+        "checker_version": "source-statement-support-v6",
+        "support_scope": "source_statement_syntax",
+        "occurrence_ids": [
+          "unit_cbedfc29f25ff2a09b2e0a54"
+        ],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      }
+    ],
+    "counts": {
+      "supported": 3,
+      "contradicted": 0,
+      "unsupported": 0
+    },
+    "source_fact_count": 3,
+    "compilation_context_fingerprint": "e755be87b1a2385d06e83eb50e1873605d6c21af46580b0a56768a359a3c99bd",
+    "revised_claim_count": 0,
+    "answer_sha256": "485e0867dedabe07c03762d5da70470f4771a0ad75e9c2b5f3454b9205414d4a",
+    "original_answer_sha256": "485e0867dedabe07c03762d5da70470f4771a0ad75e9c2b5f3454b9205414d4a",
+    "all_claims_supported": true
+  },
+  "claims_semantically_verified": false
+}

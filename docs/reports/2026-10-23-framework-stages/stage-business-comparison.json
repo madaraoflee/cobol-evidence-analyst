@@ -1,0 +1,82 @@
+{
+  "same_question": true,
+  "same_source_text": true,
+  "same_manual_text": true,
+  "source_sha256": "c0189073ae79cd912d4b292ae5ee053aeed0bb01b83de761ff90363da6701f1e",
+  "manual_sha256": "7df304fd53d5982b42d7893f295f5bb774e850f886dc9a4595fa7cbbc866afa0",
+  "same_source_and_reference_ids": true,
+  "identifiers": {
+    "source_ids": [
+      "ev_page_d351c5701b778b94ff2ced10"
+    ],
+    "source_hashes": [
+      "c0189073ae79cd912d4b292ae5ee053aeed0bb01b83de761ff90363da6701f1e"
+    ],
+    "framework_ids": [
+      "fw:7df304fd53d5982b:12-12",
+      "fw:7df304fd53d5982b:14-14",
+      "fw:7df304fd53d5982b:20-20",
+      "fw:7df304fd53d5982b:21-21",
+      "fw:7df304fd53d5982b:7-7",
+      "fw:7df304fd53d5982b:8-8"
+    ]
+  },
+  "answer_origin": "scripted_transport_not_model",
+  "before": {
+    "status": "ANALYZED",
+    "answer": "先进入 3000-READ 请求下一条待处理记录；APPROVED 为 Y 时才进入 2000-WRITE 请求更新。STORE 只是更新请求，不能据此确认已持久化；实际结果仍需检查返回状态及提交证据。[ev_page_d351c5701b778b94ff2ced10][fw:7df304fd53d5982b:7-7][fw:7df304fd53d5982b:12-12][fw:7df304fd53d5982b:14-14][fw:7df304fd53d5982b:20-20][fw:7df304fd53d5982b:8-8][fw:7df304fd53d5982b:21-21]",
+    "checks": {
+      "request_handoff_counts": [
+        {
+          "requests_documented_framework_stage": 0,
+          "framework_stage_contains_operation_request": 0
+        },
+        {
+          "requests_documented_framework_stage": 0,
+          "framework_stage_contains_operation_request": 0
+        }
+      ],
+      "direct_stage_edges": 0
+    },
+    "metrics": {
+      "wall_seconds_for_scripted_first_question": 0.097722,
+      "request_bytes": [
+        49280
+      ],
+      "scripted_requests": 1,
+      "source_characters": 484,
+      "paid_model_calls": 0,
+      "tokens": "not measured",
+      "runtime_verified": false
+    }
+  },
+  "after": {
+    "status": "ANALYZED",
+    "answer": "先进入 3000-READ 请求下一条待处理记录；APPROVED 为 Y 时才进入 2000-WRITE 请求更新。STORE 只是更新请求，不能据此确认已持久化；实际结果仍需检查返回状态及提交证据。[ev_page_d351c5701b778b94ff2ced10][fw:7df304fd53d5982b:7-7][fw:7df304fd53d5982b:12-12][fw:7df304fd53d5982b:14-14][fw:7df304fd53d5982b:20-20][fw:7df304fd53d5982b:8-8][fw:7df304fd53d5982b:21-21]",
+    "checks": {
+      "request_handoff_counts": [
+        {
+          "requests_documented_framework_stage": 2,
+          "framework_stage_contains_operation_request": 2
+        },
+        {
+          "requests_documented_framework_stage": 2,
+          "framework_stage_contains_operation_request": 2
+        }
+      ],
+      "direct_stage_edges": 2
+    },
+    "metrics": {
+      "wall_seconds_for_scripted_first_question": 0.106603,
+      "request_bytes": [
+        69438
+      ],
+      "scripted_requests": 1,
+      "source_characters": 484,
+      "paid_model_calls": 0,
+      "tokens": "not measured",
+      "runtime_verified": false
+    }
+  },
+  "scripted_answers_identical": true
+}

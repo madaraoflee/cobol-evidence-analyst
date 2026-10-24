@@ -1,0 +1,13 @@
+{
+  "branch": "main",
+  "runtime_version": "not_verified_process_read_denied",
+  "source_only": true,
+  "real_model_calls": 0,
+  "builds": 0,
+  "releases": 0,
+  "preexisting_changes_preserved": true,
+  "concurrent_changes_preserved": true,
+  "validation": "isolated_snapshot_plus_current_worktree_recheck",
+  "baseline_head": "4cea6f09de8cd671f2b7ada94e1e89c55be22bc5",
+  "final_head": "49014b56f884253318ec6d6550030f1c6426f72e"
+}

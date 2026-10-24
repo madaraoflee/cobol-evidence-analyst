@@ -18,7 +18,7 @@ from response_language import localized_text, resolve_answer_language
 from source_availability import supplied_source_availability
 
 
-LEDGER_VERSION = "answer-claim-ledger-v12"
+LEDGER_VERSION = "answer-claim-ledger-v13"
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _NAME = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?:\s+(?:OF|IN)\s+[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)*"
 _ATOM = rf"(?:{_NAME}|[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|[()])"
@@ -465,6 +465,137 @@ def _same_program_version(fact, matched):
              or fact["program_name"] == source["program_name"]) for source in matched)
 
 
+def _prose_formula_span(segment, assertion):
+    """Locate only the formula text; surrounding business prose stays intact."""
+    positions = [index for index, char in enumerate(segment) if char != "`"]
+    text = "".join(segment[index] for index in positions)
+    found = []
+    for pattern in (_MULTIPLE, _MOVE, _FORMULA):
+        for match in pattern.finditer(text):
+            if match["target"].upper() != assertion.get("target"):
+                continue
+            if pattern is _MULTIPLE:
+                tokens, end = ([match["input"].upper(), "*", _NUMBERS.get(match["number"], match["number"])], match.end())
+            elif pattern is _MOVE:
+                tokens, end = (_tokens(match["expression"]), match.end())
+            else:
+                tokens, end, complete = _read_expression(text, match.end())
+                if not complete:
+                    continue
+            if list(tokens or ()) != assertion.get("expression"):
+                continue
+            first, last = positions[match.start()], positions[end - 1] + 1
+            # Include balanced code markers around the formula or its operands.
+            # A code span containing additional prose cannot be safely replaced.
+            for code in re.finditer(r"(`+)([^`\r\n]*)\1", segment):
+                if code.start() < last and code.end() > first:
+                    if segment[code.start(2):first].strip(" `") or segment[last:code.end(2)].strip(" `"):
+                        return None
+                    first, last = min(first, code.start()), max(last, code.end())
+            found.append((first, last))
+    return found[0] if len(set(found)) == 1 else None
+
+
+def _prose_branch_context(segment, assertions, identifiers, previous):
+    """Bind a small affirmative prose form, without interpreting general prose.
+
+    An ELSE may inherit only the immediately preceding semicolon clause on
+    the same physical line and with exactly the same citation scope.
+    None means no recognized prose branch; an empty mapping means unresolved.
+    """
+    effects = [item for item in assertions if item["predicate"] == "assignment_statement"]
+    if not effects or any("source_guards" in item for item in effects):
+        return None, None
+    text = _REFERENCE.sub("", segment).replace("`", "").strip()
+    # Separate quoted IF headers and formulas retain their existing syntax
+    # review. This recognizer concerns the explicit natural-language form.
+    if re.match(r"^在\s*IF\b", text, re.I):
+        return None, None
+    otherwise = re.match(r"^(?:否则|否則|otherwise\b|else\b)", text, re.I)
+    opening = re.match(r"^(?:在\s*|若\s*|如果\s*|(?:if|when)\s+)", text, re.I)
+    if not otherwise and not opening:
+        return None, None
+    if (len(effects) != 1 or "\n" in segment or "\r" in segment
+            or _prose_formula_span(segment, effects[0]) is None):
+        return {}, None
+    if otherwise:
+        tail = text[otherwise.end():]
+        if _qualified_prose_branch(tail):
+            return {}, None
+        if previous and previous["identifiers"] == identifiers:
+            return {"condition": previous["condition"], "outcome": False}, None
+        return {}, None
+    tokens, end = _read_condition(text, opening.end())
+    suffix = text[end:]
+    delimiter = (r"\s*的?\s*(?:条件|條件)下\s*[，,]" if opening[0].lstrip().startswith("在")
+                 else r"\s*(?:时|時|then\b)?\s*[，,]")
+    conditions = [item for item in assertions if item["predicate"] == "condition_statement"]
+    boundary = re.match(delimiter, suffix, re.I)
+    if (not tokens or not boundary or len(conditions) != 1
+            or conditions[0]["condition"] != list(tokens)
+            or re.search(r"否则|否則|\b(?:otherwise|else)\b", suffix, re.I)
+            or _qualified_prose_branch(suffix[boundary.end():])):
+        return {}, None
+    context = {"condition": list(tokens), "outcome": True}
+    pending = ({**context, "identifiers": identifiers}
+               if text.endswith((";", "；")) else None)
+    return context, pending
+
+
+def _qualified_prose_branch(text):
+    """A condition prefix does not turn a denial or a hypothesis into a claim."""
+    return bool(re.search(
+        r"不能|不可|无法|無法|未必|不一定|不是|并非|並非|不代表|不等于|不等於|"
+        r"尚|待核|未知|不确定|不確定|没有|沒有|不成立|错误|錯誤|假设|假設|假如|例如|示例|可能|"
+        r"(?<![\w-])(?:not|never|cannot|can't|could|might|may|uncertain|unknown|"
+        r"incorrect|wrong|false|hypothetical(?:ly)?|suppose|assuming|assumption|"
+        r"unverified|unconfirmed)(?![\w-])", text, re.I))
+
+
+def _prose_branch_facts(context, facts, pages, source_format):
+    """Locate one complete, unnested IF occurrence in one supplied program.
+
+    The condition and formula merely existing somewhere in the cited excerpts
+    is insufficient. Missing outer scope, split/incomplete blocks, duplicate
+    conditions and mixed source identities stay unverified.
+    """
+    from statement_parser import parse_statements
+
+    if not context:
+        return []
+    anchors = [fact for fact in facts if fact["predicate"] == "condition_statement"
+               and fact.get("condition") == context["condition"]]
+    identities = {(fact["relative_path"], fact["source_sha256"], fact.get("program_name"),
+                   fact["start_line"], fact["end_line"]) for fact in anchors}
+    if (len(identities) != 1 or not anchors[0].get("program_name")
+            or any(fact.get("guards") or fact.get("compilation_status") == "candidate" for fact in anchors)):
+        return []
+    anchor = anchors[0]
+    completed = False
+    for alternative in anchors:
+        page = pages[alternative["evidence_id"]]
+        if page.get("span_truncated") or page.get("include_chain"):
+            continue
+        body = "\n".join(page["source_text"].splitlines()[anchor["start_line"] - page["start_line"]:])
+        if len(body) > 16000:
+            continue
+        parsed = parse_statements(body, start_line=anchor["start_line"],
+            source_format=page.get("format_hint", source_format), max_tokens=4096)
+        if (parsed.nodes and parsed.nodes[0].kind == "IF"
+                and parsed.nodes[0].span.start_line == anchor["start_line"]):
+            completed = True
+            break
+    if not completed:
+        return []
+    return [fact for fact in facts
+            if (fact["relative_path"], fact["source_sha256"], fact.get("program_name")) ==
+               (anchor["relative_path"], anchor["source_sha256"], anchor["program_name"])
+            and len(fact.get("guards", [])) == 1
+            and fact["guards"][0].get("kind") == "IF"
+            and (fact["guards"][0].get("start_line"), fact["guards"][0].get("end_line")) ==
+                (anchor["start_line"], anchor["end_line"])]
+
+
 def _render_fact(fact, answer_language="zh-CN"):
     def local(zh_cn, en, zh_hk=None):
         return localized_text(answer_language, zh_cn, en, zh_hk)
@@ -745,16 +876,26 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                           "relative_path": page.get("relative_path"), "source_sha256": page["source_sha256"]})
     ledger = ClaimLedger(original_answer_sha256=hashlib.sha256(answer.encode()).hexdigest(),
                          source_fact_count=len(facts), compilation_context_fingerprint=context.fingerprint)
-    reviewed = []
+    reviewed, previous_prose_branch = [], None
+    prose_fact_cache = {}
     for segment, inherited, table_header, derived_context in _segments(answer):
         text = _REFERENCE.sub("", segment).strip()
         if not text or re.fullmatch(r"[-|: ]+", text):
+            previous_prose_branch = None
             reviewed.append(segment)
             continue
         ids = list(dict.fromkeys(_REFERENCE.findall(segment) or inherited))
         invalid = [identifier for identifier in ids if identifier not in allowed]
         valid = [identifier for identifier in ids if identifier in allowed]
         assertions = _assertions(segment, table_header=table_header, derived_context=derived_context)
+        prose_branch, previous_prose_branch = _prose_branch_context(
+            segment, assertions, tuple(sorted(valid)), previous_prose_branch)
+        prose_key = (tuple(prose_branch["condition"]), tuple(sorted(valid)), bool(ids)) if prose_branch else None
+        if prose_key is not None and prose_key not in prose_fact_cache:
+            prose_fact_cache[prose_key] = _prose_branch_facts(prose_branch,
+                [fact for fact in facts if fact["evidence_id"] in valid] if ids else facts,
+                pages, source_format)
+        prose_facts = prose_fact_cache.get(prose_key, [])
         replacements, retained_supported, unresolved, final_requirements = [], [], False, []
         citation_additions = []
         for fact in facts:
@@ -791,6 +932,11 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                 if invalid:
                     entry.reason_code = "INVALID_CITATION_REQUIRES_REVIEW"
                     unresolved = True
+                continue
+            if (prose_branch is not None and (not prose_facts or invalid)
+                    and assertion["predicate"] in {"assignment_statement", "condition_statement"}):
+                entry.reason_code = "PROSE_BRANCH_BINDING_UNRESOLVED"
+                entry.support_scope = "unverified_control_flow_scenario"
                 continue
             if assertion["predicate"] == "derived_numeric_result":
                 entry.reason_code = "DERIVED_RESULT_NOT_FORMALLY_VERIFIED"
@@ -898,6 +1044,9 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                         unresolved = True
                     continue
             cited_facts = [fact for fact in facts if fact["evidence_id"] in valid] if ids else facts
+            if assertion["predicate"] == "assignment_statement" and prose_branch is not None:
+                assertion = {**assertion, "source_guards": [prose_branch]}
+                cited_facts = prose_facts
             candidates = _related(assertion, cited_facts)
             if (assertion.get("literal_notation") == "unquoted_prose" and not invalid
                     and any(fact.get("expression") in ([f"'{assertion['expression'][0]}'"],
@@ -956,7 +1105,11 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                             "evidence_id": final_fact["evidence_id"], "occurrence_id": final_fact["occurrence_id"]}]
                         continue
                     scope = [fact for fact in facts if _same_program_version(fact, matched)]
-                    same_target = _related(assertion, scope)
+                    # Binding one prose clause to a branch must not hide later
+                    # unguarded writes from the existing final-value review.
+                    final_assertion = ({key: value for key, value in assertion.items() if key != "source_guards"}
+                                       if prose_branch is not None else assertion)
+                    same_target = _related(final_assertion, scope)
                     review_facts = [*same_target, *(fact for fact in scope
                         if fact["predicate"] == "condition_statement")]
                     entry.support_status = "unsupported"
@@ -987,6 +1140,14 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     entry.reviewed_evidence_ids = entry.evidence_ids
                     entry.revised_claims = _revised_claims([fact for fact, _ in supported], pages)
                     citation_additions.extend(identifier for identifier in entry.evidence_ids if identifier not in valid)
+                continue
+            if prose_branch is not None and len({
+                    (fact["target"], tuple(fact["expression"]), fact["rounded"])
+                    for fact in candidates if fact["predicate"] == "assignment_statement"}) > 1:
+                # Several writes in the same branch do not identify which step
+                # this prose describes. Keep its business context intact.
+                entry.reason_code = "PROSE_BRANCH_ASSIGNMENT_AMBIGUOUS"
+                entry.support_scope = "unverified_control_flow_scenario"
                 continue
             # A missing or mismatching citation is not repaired by deleting its
             # marker. Search the supplied facts for the named local entity and
@@ -1045,6 +1206,18 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                 if key not in seen:
                     seen.add(key)
                     distinct.append(fact)
+            if prose_branch:
+                effect = next(item for item in assertions if item["predicate"] == "assignment_statement")
+                first, last = _prose_formula_span(segment, effect)
+                corrections = [fact for fact in distinct if fact["predicate"] == "assignment_statement"]
+                if len(corrections) == 1:
+                    fact = corrections[0]
+                    rounded = " ROUNDED" if fact["rounded"] else ""
+                    formula = f"{fact['target']}{rounded} = {' '.join(fact['expression'])}"
+                    if "`" in segment[first:last]:
+                        formula = f"`{formula}`"
+                    reviewed.append(segment[:first] + formula + segment[last:])
+                    continue
             trailing = "\n" if segment.endswith("\n") else ""
             qualification = _final_value_qualification(final_requirements, answer_language) if final_requirements else ""
             reviewed.append(local("已供应源码可直接确认：", "The supplied source directly confirms: ", "已提供源碼可直接確認：")

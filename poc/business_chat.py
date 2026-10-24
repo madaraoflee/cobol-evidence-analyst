@@ -639,6 +639,9 @@ def _prompt_payload(payload):
                 "A missing external implementation limits that step, not the explanation of the visible process.",
             "grounding": "Use business_analysis_brief.business_orientation as source-bound navigation. "
                 "Connect handoffs using their bound facts and explain the role of each named object once. "
+                "For documented framework stages, connect the stage responsibility, actual PERFORM request "
+                "and contained operation requests. Preserve the PERFORM guards and operation caveats; "
+                "stage numbers, declaration order and lexical containment do not establish execution order or success. "
                 "Separate declared external file names from verified LF/PF definitions; a table is not automatically a file. "
                 "Use one coherent explanation, not a source-file inventory or repeated summary/table/conclusion. "
                 "Name unknown business terminology as an interpretation, and qualify only affected claims. "
@@ -1202,6 +1205,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                            analysis_identity=analysis_identity)
     if unused.get("continued_from_run_id"):
         quality.data["continued_from_run_id"] = unused["continued_from_run_id"]
+    if unused.get("replaces_changed_source_run"):
+        prior = unused["replaces_changed_source_run"]
+        if prior["state"] in {"running", "attention"}:
+            quality.run_store.checkpoint(prior["run_id"], {**prior["checkpoint"],
+                "superseded_by_explicit_retry": True,
+                "replacement_run_id": quality.data["run_id"]}, status="superseded")
     if unused.get("retry_unknown_scope"):
         quality.data["replaces_uncertain_runs"] = quality.run_store.supersede_uncertain(
             **unused["retry_unknown_scope"], replacement_run_id=quality.data["run_id"])
@@ -3928,6 +3937,21 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                         if isinstance(origin, dict) and origin.get("relative_path") and origin.get("source_hash"):
                             changed = changed or session.capture(origin["relative_path"]).sha256 != origin["source_hash"]
                     if changed:
+                        if explicit_retry:
+                            # A user retry can start from current source without
+                            # replaying the saved response or copying stale work.
+                            # Retire the old run only after its replacement exists.
+                            kwargs["continued_from_run_id"] = validation_state["run_id"]
+                            kwargs["replaces_changed_source_run"] = validation_state
+                            resume = retry_seed = None
+                            budget = QuestionBudget(selected_policy.effective_delivery_target_seconds,
+                                hard_seconds=selected_policy.hard_question_seconds,
+                                finalization_reserve_seconds=selected_policy.finalization_reserve_seconds,
+                                clock=lambda: time.monotonic(), check_cancel=budget.cancel)
+                            kwargs["question_budget"], kwargs["check_cancel"] = budget, budget.check
+                            kwargs["policy"] = selected_policy
+                            session.check_cancel = budget.check
+                            break
                         return {"runner_status": "NOT_READY", "reason_code": "RESUME_SOURCE_VERSION_CHANGED",
                             "agent_result": {"status": "PARTIAL", "run_id": validation_state["run_id"],
                                 "answer": local("调查读取的源码版本已经变化。原调查和证据已保留，需要基于新版本开始调查。", "The source version has changed. The previous investigation and evidence are preserved. Start a new investigation using the new version.")}}

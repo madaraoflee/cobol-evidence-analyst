@@ -13,7 +13,7 @@ from pathlib import PurePosixPath
 import re
 
 from claim_support import supplied_statement_facts
-from business_handoffs import build_business_handoffs, orientation_fact_id, retained_handoffs
+from business_handoffs import build_business_handoffs, orientation_fact_id
 from business_explanation_cache import cache_business_explanation
 from cl_context import collect_cl_context, is_cl_path
 from file_impact import collect_file_impact
@@ -21,7 +21,7 @@ from framework_semantics import visible_framework_facts
 from structural_index import SourceDocument, normalize_cobol_lines, parse_document
 
 
-ORIENTATION_VERSION = "business-orientation/v2"
+ORIENTATION_VERSION = "business-orientation/v3"
 _GROUPS = ("purpose_candidates", "entries", "programs", "relationships", "data_roles", "visible_rules", "handoffs")
 _SHA = re.compile(r"[0-9a-fA-F]{64}\Z")
 _PURPOSE = re.compile(r"^(?:purpose|function|business\s+(?:purpose|function)|description)\b"
@@ -69,6 +69,73 @@ def project_business_orientation(orientation):
     return projected if len(json.dumps(projected, ensure_ascii=False)) < len(json.dumps(orientation, ensure_ascii=False)) else orientation
 
 
+def _metadata_bytes(orientation, limit):
+    """Budget the existing lossless wire form before removing observations.
+
+    Canonical rows keep their complete source bindings for local consumers.
+    A provider request already shares repeated versions and navigation fields;
+    counting those repetitions first would discard useful handoffs even when
+    every original fact fits. Include the projection protocol in this allowance.
+    Small orientations avoid the extra projection altogether.
+    """
+    size = len(json.dumps(orientation, ensure_ascii=False).encode("utf-8"))
+    if size <= limit:
+        return size
+    from prompt_projection import project_prompt_payload
+    projected = project_prompt_payload({"business_analysis_brief": {
+        "business_orientation": project_business_orientation(orientation)}})
+    return min(size, len(json.dumps(projected, ensure_ascii=False).encode("utf-8")))
+
+
+def _trim_observations(orientation, limit):
+    """Keep whole facts while bounding repeated provider projection work."""
+    if _metadata_bytes(orientation, limit) <= limit:
+        return
+    original = {group: orientation[group] for group in _GROUPS}
+    counts = {group: len(rows) for group, rows in original.items()}
+    prefixes, transitions = [counts.copy()], set()
+    while any(counts.values()):
+        group = ("handoffs" if counts["handoffs"] else
+                 max((key for key in _GROUPS if counts[key]), key=lambda key: counts[key]))
+        counts[group] -= 1
+        prefixes.append(counts.copy())
+        # Wire tables and common-field sharing have small-list thresholds.
+        # Inspect both sides rather than assuming byte size is monotone there.
+        if counts[group] in {0, 1, 2, 3, 4}:
+            transitions.update((len(prefixes) - 2, len(prefixes) - 1))
+
+    measured = {}
+
+    def fits(removed):
+        if removed not in measured:
+            candidate = {**orientation, "truncated": True,
+                         **{group: original[group][:prefixes[removed][group]] for group in _GROUPS}}
+            measured[removed] = _metadata_bytes(candidate, limit) <= limit
+        return measured[removed]
+
+    def first_fit(low, high):
+        while low + 1 < high:
+            middle = (low + high) // 2
+            if fits(middle):
+                high = middle
+            else:
+                low = middle
+        return high
+
+    removed_count = len(prefixes) - 1
+    if fits(removed_count):
+        removed_count = first_fit(0, removed_count)
+        for transition in sorted(index for index in transitions if 0 < index < removed_count):
+            if fits(transition):
+                removed_count = first_fit(0, transition)
+                break
+    for group in _GROUPS:
+        orientation[group] = original[group][:prefixes[removed_count][group]]
+    # The schedule removes derived edges before any source observation, so a
+    # retained edge always still has every original fact and condition.
+    orientation["truncated"] = True
+
+
 def _parse_run(path, sha, first, last, source_format, text):
     lines, hint = normalize_cobol_lines(text, source_format)
     document = SourceDocument(path, sha, "utf-8", False, hint, "COBOL", tuple(text.splitlines()), lines)
@@ -95,7 +162,9 @@ def build_business_orientation(question, investigation, source_pages, *, busines
 
     ``investigation`` supplies the existing plan, exclusive physical scopes and
     optionally bound CL facts. The map supplies current file versions, never
-    semantic evidence. Limits bound this projection, not source retrieval.
+    semantic evidence. The metadata limit applies to the lossless provider
+    projection; canonical facts retain their full bindings. These allowances
+    do not limit source retrieval.
     """
     if (type(max_items) is not int or not 1 <= max_items <= 128
             or type(max_source_chars) is not int or max_source_chars < 1
@@ -210,6 +279,25 @@ def build_business_orientation(question, investigation, source_pages, *, busines
                 pages.append({**page, "start_line": chunk[0], "end_line": chunk[-1],
                               "source_text": "\n".join(rows[number][0] for number in chunk)})
 
+    visible_framework = visible_framework_facts(framework_facts, pages, framework_references)
+    for fact in visible_framework:
+        if fact.get("kind") == "framework_section" and fact.get("reason") != "documented_section_observed":
+            boundary("framework_stage_control_scope_not_established", relative_path=fact.get("relative_path"),
+                     target_name=fact.get("target_name"), framework_reason=fact.get("reason"))
+    included_paths = {page["relative_path"] for page in pages if page.get("include_chain")}
+    framework_stage_targets = {(fact.get("relative_path"), fact.get("program_name"), fact.get("target_name"))
+        for fact in visible_framework if fact.get("kind") == "framework_section"
+        and fact.get("reason") == "documented_section_observed"
+        and fact.get("program_name") and fact.get("relative_path") not in included_paths}
+    framework_stage_programs = {(path, program) for path, program, _ in framework_stage_targets}
+    framework_syntax = defaultdict(list)
+    if framework_stage_targets:
+        from syntax_evidence import build_syntax_guide
+        for fact in build_syntax_guide(pages)["facts"]:
+            if fact.get("kind") in {"CALL", "PERFORM"} and not fact.get("include_chain"):
+                framework_syntax[(fact["relative_path"], fact["source_sha256"],
+                    fact["start_line"], fact["end_line"], fact["kind"])].append(fact)
+
     def provenance(locations):
         identifiers, supplied = set(), []
         for original in locations:
@@ -260,10 +348,59 @@ def build_business_orientation(question, investigation, source_pages, *, busines
                                        run["format_hint"], run["source_text"])
         document, hint = parsed.document, parsed.document.format_hint
         units = {unit.unit_id: unit for unit in parsed.code_units}
+        section_definitions = defaultdict(list)
+        procedure_definitions = defaultdict(list)
+        program_definitions = defaultdict(list)
+        for unit in parsed.code_units:
+            if unit.unit_type == "Program":
+                program_definitions[unit.program_name].append(unit)
+            if unit.unit_type == "Section":
+                section_definitions[(unit.program_name, unit.name)].append(unit)
+            if unit.unit_type in {"Section", "Paragraph"}:
+                procedure_definitions[(unit.program_name, unit.name)].append(unit)
 
         def unit_location(unit):
             return [{"relative_path": path, "start_line": first + unit.start_line - 1,
                      "end_line": first + unit.end_line - 1}]
+
+        def enclosing_section(unit):
+            """Bind containment only through an unbroken supplied source run."""
+            if ((path, unit.program_name) not in framework_stage_programs
+                    or len(program_definitions[unit.program_name]) != 1):
+                return None
+            visited, parent = set(), units.get(unit.parent_unit_id)
+            while parent is not None and parent.unit_id not in visited:
+                visited.add(parent.unit_id)
+                if parent.program_name != unit.program_name:
+                    return None
+                if parent.unit_type == "Section":
+                    if (parent.parse_status != "complete"
+                            or len(section_definitions[(parent.program_name, parent.name)]) != 1
+                            or parent.end_line > unit.start_line):
+                        return None
+                    header = unit_location(parent)[0]
+                    return ({"name": parent.name, "start_line": header["start_line"],
+                             "end_line": header["end_line"]},
+                            {"relative_path": path, "start_line": header["start_line"],
+                             "end_line": first + unit.end_line - 1})
+                parent = units.get(parent.parent_unit_id)
+            return None
+
+        def framework_statement_context(unit):
+            matching = framework_syntax.get((path, run["source_sha256"],
+                first + unit.start_line - 1, first + unit.end_line - 1, unit.name), [])
+            if len(matching) != 1:
+                return {"framework_control_context": "not_bound"}, []
+            fact = matching[0]
+            identifiers = set(fact["supplied_reference_ids"])
+            locations = [{key: page[key] for key in
+                ("relative_path", "source_sha256", "start_line", "end_line")}
+                for page in pages if page.get("evidence_id") in identifiers
+                and page["relative_path"] == path and page["source_sha256"] == run["source_sha256"]
+                and not page.get("include_chain")]
+            return {"framework_control_context": "complete_supplied_syntax",
+                    "guards": deepcopy(fact["guards"]), "unit": fact["unit"],
+                    "syntax_order_in_unit": fact["syntax_order_in_unit"]}, locations
 
         controls, compilation, units_by_evidence = defaultdict(list), defaultdict(list), defaultdict(list)
         for unit in parsed.code_units:
@@ -331,10 +468,33 @@ def build_business_orientation(question, investigation, source_pages, *, busines
                       "statement": unit.normalized_text}
             context, locations = statement_context(unit)
             if relation.relation_type in {"CALLS", "CALL_TARGET_FROM"}:
+                enclosing = enclosing_section(unit)
+                if enclosing:
+                    context["enclosing_section"] = enclosing[0]
+                    syntax_context, syntax_locations = framework_statement_context(unit)
+                    context.update(syntax_context)
+                    locations = [*locations, enclosing[1], *syntax_locations]
                 add("relationships", {**common, **context, "kind": "program_call",
                     "target_name": relation.target_name, "relation_type": relation.relation_type,
                     "target_binding": "literal_request" if relation.relation_type == "CALLS" else "dynamic_unresolved",
                     "execution_verified": False}, locations)
+            elif (relation.relation_type in {"PERFORMS", "PERFORMS_THRU"}
+                  and (path, unit.program_name, relation.target_name) in framework_stage_targets
+                  and len(program_definitions[unit.program_name]) == 1):
+                definitions = procedure_definitions[(unit.program_name, relation.target_name)]
+                definition_locations = [unit_location(target)[0] for target in definitions]
+                syntax_context, syntax_locations = framework_statement_context(unit)
+                context.update(syntax_context)
+                add("relationships", {**common, **context, "kind": "procedure_perform",
+                    "target_name": relation.target_name, "relation_type": relation.relation_type,
+                    "source_target_definitions": [{**location, "source_sha256": run["source_sha256"],
+                        "kind": target.unit_type, "name": target.name, "parse_status": target.parse_status}
+                        for target, location in zip(definitions, definition_locations)],
+                    "perform_scope": ("range_request" if relation.relation_type == "PERFORMS_THRU"
+                                      else "named_target_request"),
+                    **({"target_range_end": relation.metadata["range_end"]}
+                       if relation.metadata.get("range_end") else {}),
+                    "execution_verified": False}, [*locations, *definition_locations, *syntax_locations])
             elif relation.relation_type in {"SELECTS_FROM", "UPDATES"} and unit.name == "EXEC_SQL":
                 # DELETE FROM's target is a write, not a separate SELECT input.
                 if relation.relation_type == "SELECTS_FROM" and re.match(
@@ -415,16 +575,20 @@ def build_business_orientation(question, investigation, source_pages, *, busines
             projected.update(compilation_status="candidate", compilation_guards=compilation_guards)
             locations = [*locations, *compilation_locations]
         add("data_roles", projected, locations)
-    for fact in visible_framework_facts(framework_facts, pages, framework_references)[:max_items]:
+    for fact in visible_framework[:max_items]:
         locations = [{**span, "relative_path": span.get("relative_path", fact.get("relative_path")),
                       "source_sha256": span.get("source_sha256", fact.get("source_sha256"))}
                      for span in fact.get("source_ranges", [])]
         projected = {key: fact[key] for key in ("fact_id", "kind", "relative_path", "program_name", "target_name",
             "operation", "arguments", "argument", "function_field", "branches", "runtime_verified",
-            "dependency_covered", "target_source_available") if key in fact}
+            "dependency_covered", "target_source_available", "reason") if key in fact}
         projected["callsite_locations"] = [{key: location[key] for key in
             ("relative_path", "source_sha256", "start_line", "end_line")} for location in locations
             if location.get("role") == "callsite"]
+        if fact.get("kind") == "framework_section":
+            projected["section_locations"] = [{key: location[key] for key in
+                ("relative_path", "source_sha256", "start_line", "end_line")} for location in locations
+                if location.get("role") == "section"]
         add("visible_rules", projected,
             locations, level="framework_convention", basis="source_bound_supplied_framework_convention",
             references=fact.get("reference_ids", []))
@@ -446,23 +610,14 @@ def build_business_orientation(question, investigation, source_pages, *, busines
         result["truncated"] = True
         boundary("orientation_observation_budget", group="handoffs")
     # Drop entire observations, never references/conditions from a retained one.
-    while len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > max_metadata_bytes - 256:
-        candidates = [key for key in _GROUPS if result[key]]
-        if not candidates:
-            break
-        # Relationships summarize these facts. Their duplicated guidance must
-        # not evict the source observations that were available before them.
-        group = "handoffs" if result["handoffs"] else max(candidates, key=lambda key: len(result[key]))
-        result[group].pop()
-        result["handoffs"] = retained_handoffs(result)
-        result["truncated"] = True
+    _trim_observations(result, max_metadata_bytes - 256)
     if result["truncated"]:
         boundary("orientation_is_bounded_not_a_complete_business_inventory")
     result["available_facets"] = [name for name, groups in (
         ("business_purpose", ("purpose_candidates",)), ("program_roles", ("entries", "programs", "relationships")),
         ("data_roles", ("data_roles",)), ("visible_rules", ("visible_rules",)), ("handoffs", ("handoffs",)))
         if any(result[group] for group in groups)]
-    while len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > max_metadata_bytes and result["unknowns"]:
+    while _metadata_bytes(result, max_metadata_bytes) > max_metadata_bytes and result["unknowns"]:
         result["unknowns"].pop(0)
         result["truncated"] = True
     return result

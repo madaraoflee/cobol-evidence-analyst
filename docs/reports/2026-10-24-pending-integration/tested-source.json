@@ -1,0 +1,106 @@
+[
+  {
+    "path": "docs/reports/2026-10-23-branch-binding/independent_guard_probe.py",
+    "sha256": "ca826a7310b8dafd1c08bf6ebb92a5ac3115897ce529bfde56bd621c4c8c645a"
+  },
+  {
+    "path": "docs/reports/2026-10-23-branch-binding/reproduce_answer_path.py",
+    "sha256": "79014966428af1c70e4ff6cd79c6ce9a8ec2343dea593e3881a79f2a9925f673"
+  },
+  {
+    "path": "docs/reports/2026-10-23-branch-binding/reproduce_branch_binding.py",
+    "sha256": "3fe8882e404597f02c2e59d9f0c64e5d27b326c389560a307d78d386dc96c321"
+  },
+  {
+    "path": "docs/reports/2026-10-23-branch-binding/reproduce_search_gap.py",
+    "sha256": "1183848af603dba326008ab23e8a1b2421233c86fef72a0365455b0d29ff71ca"
+  },
+  {
+    "path": "docs/reports/2026-10-23-branch-binding/reproduce_source_retry.py",
+    "sha256": "e97c32b53d607c4db0a3fc6ce6b39b26badb03a15907d23b85677fefea7102ce"
+  },
+  {
+    "path": "docs/reports/2026-10-23-framework-stages/entry.cbl",
+    "sha256": "c0189073ae79cd912d4b292ae5ee053aeed0bb01b83de761ff90363da6701f1e"
+  },
+  {
+    "path": "docs/reports/2026-10-23-framework-stages/reproduce.py",
+    "sha256": "6ae82e3da95fbcb88e0002c9b679f8c5bc8d3947e64e459d66259c710d660038"
+  },
+  {
+    "path": "poc/business_chat.py",
+    "sha256": "ad0170462c49c536fa69c7dce4affebf2394120d15e665dd355648e223ffd2eb"
+  },
+  {
+    "path": "poc/business_handoffs.py",
+    "sha256": "0b23dba0f48f994b656deefd9f29f678f597f6164c38d97230ee6727b2cce574"
+  },
+  {
+    "path": "poc/business_orientation.py",
+    "sha256": "13fd2a42146f110d96dd2b97ffc26871bd3b88b16130a406b7729bdc36b70291"
+  },
+  {
+    "path": "poc/business_synthesis.py",
+    "sha256": "d1b70660753494a2648211c1f3050ca73c8d3edd75c0455fa5cb20178157b6e4"
+  },
+  {
+    "path": "poc/claim_ledger.py",
+    "sha256": "0cc7c3325c62f510fe445947c810f2f00150d3ca82cc0c2584e044be0f37d194"
+  },
+  {
+    "path": "poc/framework_binding.py",
+    "sha256": "15ed4b54c3cee41316c88f5310f4046f7f3489b84ef157f50721c03d869c5fd5"
+  },
+  {
+    "path": "poc/framework_semantics.py",
+    "sha256": "f1a7ef301c9d7d60776a0dd97e23423eac2846408a8cad99135285deba2167db"
+  },
+  {
+    "path": "poc/quality_trace.py",
+    "sha256": "5e420670bc76b15c22dc9671aa5be57df8f49c3ec4a12d7dacac0134609e7362"
+  },
+  {
+    "path": "poc/repository_discovery.py",
+    "sha256": "3a3e350acf1d8b181a15ded478940e4e57ba8d3062012bb36d7c89620890357c"
+  },
+  {
+    "path": "poc/syntax_evidence.py",
+    "sha256": "e58a6cd42cf8928608c8b4c9b18ea2536cc9421d3b0ae2463ae2247aa16aa69f"
+  },
+  {
+    "path": "poc/tests/test_business_handoffs.py",
+    "sha256": "47558e6bd510157234f71c01ac8aded4048e164c080342579da4fdc0cfef2ac9"
+  },
+  {
+    "path": "poc/tests/test_claim_prose_branch_binding.py",
+    "sha256": "c19e439b579b797eca0fd2ccad3386b0d7372624df1a3cdf806bf74d1061d3b2"
+  },
+  {
+    "path": "poc/tests/test_explicit_retry_recovery.py",
+    "sha256": "e83c030fe5b73913e428906a34d00106c307a57daec350354587081c0b4131be"
+  },
+  {
+    "path": "poc/tests/test_framework_stage_business.py",
+    "sha256": "289c7a40b7a3cbca8e97846ea8f0fa2fe81982f27d84a060c2c1ed78c3011033"
+  },
+  {
+    "path": "poc/tests/test_framework_stage_orientation.py",
+    "sha256": "ec425bdba02edf5f4b43857eee845bd2bf4d2854d5a0664026266534c3bde70c"
+  },
+  {
+    "path": "poc/tests/test_framework_stage_scope.py",
+    "sha256": "55318057a402fd244d3c127236f7986924b1edc55c552a809efc87791ffde712"
+  },
+  {
+    "path": "poc/tests/test_question_deadline_recovery_audit.py",
+    "sha256": "f05c5168ff91d819e75ecb33f6ed7b82e8b83e816b76e5e0c739b9729955801d"
+  },
+  {
+    "path": "poc/tests/test_search_cache_repair.py",
+    "sha256": "1147ee6e450a9d1ff42d181cb596511a78f1ab5f18417aaeb67b3b3ce0176837"
+  },
+  {
+    "path": "poc/tests/test_source_range_integrity.py",
+    "sha256": "7c315366f7c4c44460db429677b0cd676b2da82b2195f02fbcf9f2b9ad70d943"
+  }
+]

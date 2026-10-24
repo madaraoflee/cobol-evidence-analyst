@@ -1,0 +1,451 @@
+{
+  "source": "IDENTIFICATION DIVISION.\nPROGRAM-ID. BRANCH-RULE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 IN-AMOUNT PIC S99.\n01 OUT-AMOUNT PIC S999.\nPROCEDURE DIVISION.\nMAIN.\nIF IN-AMOUNT > ZERO\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 2\nELSE\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 3\nEND-IF.\nGOBACK.\n",
+  "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+  "facts": [
+    {
+      "start_line": 9,
+      "end_line": 9,
+      "program_name": "BRANCH-RULE",
+      "occurrence_id": "unit_5ee19d466f5e6b0c8ce010f4",
+      "statement_kind": "IF",
+      "guards": [],
+      "source_text": "IF IN-AMOUNT > ZERO",
+      "predicate": "condition_statement",
+      "target": null,
+      "condition": [
+        "IN-AMOUNT",
+        ">",
+        "ZERO"
+      ],
+      "outcome": true
+    },
+    {
+      "start_line": 10,
+      "end_line": 10,
+      "program_name": "BRANCH-RULE",
+      "occurrence_id": "unit_cbedfc29f25ff2a09b2e0a54",
+      "statement_kind": "COMPUTE",
+      "guards": [
+        {
+          "kind": "IF",
+          "condition": "IF IN-AMOUNT > ZERO",
+          "outcome": "true",
+          "start_line": 9,
+          "end_line": 9
+        }
+      ],
+      "source_text": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 2",
+      "predicate": "assignment_statement",
+      "target": "OUT-AMOUNT",
+      "expression": [
+        "IN-AMOUNT",
+        "*",
+        "2"
+      ],
+      "rounded": false,
+      "normal_result_condition": null,
+      "exception_effects_unverified": false
+    },
+    {
+      "start_line": 12,
+      "end_line": 12,
+      "program_name": "BRANCH-RULE",
+      "occurrence_id": "unit_95442ef4d023fb4c55c9b4e1",
+      "statement_kind": "COMPUTE",
+      "guards": [
+        {
+          "kind": "IF",
+          "condition": "IF IN-AMOUNT > ZERO",
+          "outcome": "false",
+          "start_line": 9,
+          "end_line": 9
+        }
+      ],
+      "source_text": "COMPUTE OUT-AMOUNT = IN-AMOUNT * 3",
+      "predicate": "assignment_statement",
+      "target": "OUT-AMOUNT",
+      "expression": [
+        "IN-AMOUNT",
+        "*",
+        "3"
+      ],
+      "rounded": false,
+      "normal_result_condition": null,
+      "exception_effects_unverified": false
+    }
+  ],
+  "cases": [
+    {
+      "case": "correct_branches",
+      "question": "OUT-AMOUNT 如何计算？",
+      "expected_answer": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 2；否则 OUT-AMOUNT = IN-AMOUNT * 3。[ev_rule]",
+      "input_answer": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 2；否则 OUT-AMOUNT = IN-AMOUNT * 3。[ev_rule]",
+      "output_answer": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 2；否则 OUT-AMOUNT = IN-AMOUNT * 3。[ev_rule]",
+      "ledger": {
+        "ledger_version": "answer-claim-ledger-v13",
+        "scope": "bounded_source_statement_syntax",
+        "coverage": "extracted_structures_only",
+        "prose_semantics_verified": false,
+        "entries": [
+          {
+            "claim_id": "claim-1",
+            "claim_type": "assignment_statement",
+            "text": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 2；",
+            "target_entity": "OUT-AMOUNT",
+            "expression": [
+              "IN-AMOUNT",
+              "*",
+              "2"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_rule"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "rule.cbl",
+                "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+                "start_line": 1,
+                "end_line": 14
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v6",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_cbedfc29f25ff2a09b2e0a54"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": [],
+            "verification_facts": [],
+            "unresolved_requirements": []
+          },
+          {
+            "claim_id": "claim-2",
+            "claim_type": "condition_statement",
+            "text": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 2；",
+            "target_entity": null,
+            "expression": null,
+            "condition": [
+              "IN-AMOUNT",
+              ">",
+              "ZERO"
+            ],
+            "effect": null,
+            "evidence_ids": [
+              "ev_rule"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "rule.cbl",
+                "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+                "start_line": 1,
+                "end_line": 14
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v6",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_5ee19d466f5e6b0c8ce010f4"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": [],
+            "verification_facts": [],
+            "unresolved_requirements": []
+          },
+          {
+            "claim_id": "claim-3",
+            "claim_type": "assignment_statement",
+            "text": "否则 OUT-AMOUNT = IN-AMOUNT * 3。",
+            "target_entity": "OUT-AMOUNT",
+            "expression": [
+              "IN-AMOUNT",
+              "*",
+              "3"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_rule"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "rule.cbl",
+                "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+                "start_line": 1,
+                "end_line": 14
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v6",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_95442ef4d023fb4c55c9b4e1"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": [],
+            "verification_facts": [],
+            "unresolved_requirements": []
+          }
+        ],
+        "counts": {
+          "supported": 3,
+          "contradicted": 0,
+          "unsupported": 0
+        },
+        "source_fact_count": 3,
+        "compilation_context_fingerprint": "e755be87b1a2385d06e83eb50e1873605d6c21af46580b0a56768a359a3c99bd",
+        "revised_claim_count": 0,
+        "answer_sha256": "fdd671f546bf2b96ebdf3d06e09b1e50254af2e0a7ed8fdb2185679bf7822a36",
+        "original_answer_sha256": "fdd671f546bf2b96ebdf3d06e09b1e50254af2e0a7ed8fdb2185679bf7822a36",
+        "all_claims_supported": true
+      },
+      "assessment": {
+        "status": "not_assessed",
+        "reason": null,
+        "pending_investigation": false,
+        "limitation_detected": false,
+        "source_selection_limitation_detected": false,
+        "method": "bounded_text_and_coverage_signals",
+        "semantic_verification": "unverified",
+        "source_availability_contradiction": false,
+        "source_availability_contradictions": [],
+        "required_aspects": [
+          "formula",
+          "conditions",
+          "result_adjustments"
+        ],
+        "missing_aspects": [],
+        "semantic_risk_candidates": []
+      }
+    },
+    {
+      "case": "reversed_branches",
+      "question": "OUT-AMOUNT 如何计算？",
+      "expected_answer": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 2；否则 OUT-AMOUNT = IN-AMOUNT * 3。[ev_rule]",
+      "input_answer": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；否则 OUT-AMOUNT = IN-AMOUNT * 2。[ev_rule]",
+      "output_answer": "已供应源码可直接确认：在源码控制条件 `IF IN-AMOUNT > ZERO` 下，`OUT-AMOUNT = IN-AMOUNT * 2`（rule.cbl:10）[ev_rule]；`IF IN-AMOUNT > ZERO`（rule.cbl:9）[ev_rule]。已供应源码可直接确认：在源码控制条件 `条件不成立：IF IN-AMOUNT > ZERO` 下，`OUT-AMOUNT = IN-AMOUNT * 3`（rule.cbl:12）[ev_rule]。",
+      "ledger": {
+        "ledger_version": "answer-claim-ledger-v13",
+        "scope": "bounded_source_statement_syntax",
+        "coverage": "extracted_structures_only",
+        "prose_semantics_verified": false,
+        "entries": [
+          {
+            "claim_id": "claim-1",
+            "claim_type": "assignment_statement",
+            "text": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；",
+            "target_entity": "OUT-AMOUNT",
+            "expression": [
+              "IN-AMOUNT",
+              "*",
+              "3"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_rule"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "rule.cbl",
+                "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+                "start_line": 10,
+                "end_line": 10
+              }
+            ],
+            "support_status": "contradicted",
+            "reason_code": "SOURCE_STATEMENT_MISMATCH",
+            "checker_version": "source-statement-support-v6",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_cbedfc29f25ff2a09b2e0a54"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": "rendered_from_supplied_source_statements",
+            "revised_claims": [
+              {
+                "assertion": {
+                  "predicate": "assignment_statement",
+                  "target": "OUT-AMOUNT",
+                  "expression": [
+                    "IN-AMOUNT",
+                    "*",
+                    "2"
+                  ],
+                  "rounded": false
+                },
+                "source_guards": [
+                  {
+                    "kind": "IF",
+                    "condition": "IF IN-AMOUNT > ZERO",
+                    "outcome": "true",
+                    "start_line": 9,
+                    "end_line": 9
+                  }
+                ],
+                "compilation_status": "effective_source",
+                "compilation_guards": [],
+                "evidence_id": "ev_rule",
+                "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+                "occurrence_id": "unit_cbedfc29f25ff2a09b2e0a54",
+                "support_status": "supported",
+                "reason_code": "SOURCE_STATEMENT_MATCH",
+                "checker_version": "source-statement-support-v6",
+                "support_scope": "source_statement_syntax"
+              }
+            ],
+            "verification_facts": [],
+            "unresolved_requirements": []
+          },
+          {
+            "claim_id": "claim-2",
+            "claim_type": "condition_statement",
+            "text": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；",
+            "target_entity": null,
+            "expression": null,
+            "condition": [
+              "IN-AMOUNT",
+              ">",
+              "ZERO"
+            ],
+            "effect": null,
+            "evidence_ids": [
+              "ev_rule"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "rule.cbl",
+                "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+                "start_line": 1,
+                "end_line": 14
+              }
+            ],
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v6",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_5ee19d466f5e6b0c8ce010f4"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": null,
+            "revised_claims": [],
+            "verification_facts": [],
+            "unresolved_requirements": []
+          },
+          {
+            "claim_id": "claim-3",
+            "claim_type": "assignment_statement",
+            "text": "否则 OUT-AMOUNT = IN-AMOUNT * 2。",
+            "target_entity": "OUT-AMOUNT",
+            "expression": [
+              "IN-AMOUNT",
+              "*",
+              "2"
+            ],
+            "condition": null,
+            "effect": null,
+            "evidence_ids": [
+              "ev_rule"
+            ],
+            "reviewed_evidence_ids": [],
+            "source_versions": [
+              {
+                "relative_path": "rule.cbl",
+                "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+                "start_line": 12,
+                "end_line": 12
+              }
+            ],
+            "support_status": "contradicted",
+            "reason_code": "SOURCE_STATEMENT_MISMATCH",
+            "checker_version": "source-statement-support-v6",
+            "support_scope": "source_statement_syntax",
+            "occurrence_ids": [
+              "unit_95442ef4d023fb4c55c9b4e1"
+            ],
+            "invalid_evidence_ids": [],
+            "revision": "rendered_from_supplied_source_statements",
+            "revised_claims": [
+              {
+                "assertion": {
+                  "predicate": "assignment_statement",
+                  "target": "OUT-AMOUNT",
+                  "expression": [
+                    "IN-AMOUNT",
+                    "*",
+                    "3"
+                  ],
+                  "rounded": false
+                },
+                "source_guards": [
+                  {
+                    "kind": "IF",
+                    "condition": "IF IN-AMOUNT > ZERO",
+                    "outcome": "false",
+                    "start_line": 9,
+                    "end_line": 9
+                  }
+                ],
+                "compilation_status": "effective_source",
+                "compilation_guards": [],
+                "evidence_id": "ev_rule",
+                "source_sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+                "occurrence_id": "unit_95442ef4d023fb4c55c9b4e1",
+                "support_status": "supported",
+                "reason_code": "SOURCE_STATEMENT_MATCH",
+                "checker_version": "source-statement-support-v6",
+                "support_scope": "source_statement_syntax"
+              }
+            ],
+            "verification_facts": [],
+            "unresolved_requirements": []
+          }
+        ],
+        "counts": {
+          "supported": 1,
+          "contradicted": 2,
+          "unsupported": 0
+        },
+        "source_fact_count": 3,
+        "compilation_context_fingerprint": "e755be87b1a2385d06e83eb50e1873605d6c21af46580b0a56768a359a3c99bd",
+        "revised_claim_count": 2,
+        "answer_sha256": "0068c24637cb3610450fc36aa444ba1a56fd646a597e2ca4303769dba1803d04",
+        "original_answer_sha256": "f60bab8a734e8943176e22b9ed43b901d2e97f73cd90316cead06941c411c5ad",
+        "all_claims_supported": false
+      },
+      "assessment": {
+        "status": "not_assessed",
+        "reason": null,
+        "pending_investigation": false,
+        "limitation_detected": false,
+        "source_selection_limitation_detected": false,
+        "method": "bounded_text_and_coverage_signals",
+        "semantic_verification": "unverified",
+        "source_availability_contradiction": false,
+        "source_availability_contradictions": [],
+        "required_aspects": [
+          "formula",
+          "conditions",
+          "result_adjustments"
+        ],
+        "missing_aspects": [],
+        "semantic_risk_candidates": []
+      }
+    }
+  ]
+}

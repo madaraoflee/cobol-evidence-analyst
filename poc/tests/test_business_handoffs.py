@@ -14,6 +14,7 @@ from business_handoffs import FACT_GROUPS, retained_handoffs
 from business_orientation import build_business_orientation, project_business_orientation
 from business_index import build_business_index
 from framework_semantics import build_framework_facts
+from prompt_projection import project_prompt_payload
 from test_business_orientation import BATCH, QUERY, SETTLEMENT, page
 
 
@@ -21,6 +22,12 @@ DDS = "     A          R ORDERREC                  PFILE(ORDERPF)\n"
 
 
 class BusinessHandoffTests(unittest.TestCase):
+    @staticmethod
+    def provider_bytes(orientation):
+        payload = project_prompt_payload({"business_analysis_brief": {
+            "business_orientation": project_business_orientation(orientation)}})
+        return len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+
     def project(self, pages, investigation=None, **kwargs):
         return build_business_orientation("从业务角度说明入口、程序交接和输入输出", investigation or {}, pages, **kwargs)
 
@@ -160,7 +167,7 @@ class BusinessHandoffTests(unittest.TestCase):
         for budget in (2000, 3000, 6000, 12000, 24000):
             with self.subTest(budget=budget):
                 result = self.project(pages, max_metadata_bytes=budget)
-                self.assertLessEqual(len(json.dumps(result, ensure_ascii=False).encode()), budget)
+                self.assertLessEqual(self.provider_bytes(result), budget)
                 self.assert_grounded(result)
                 self.assertEqual(retained_handoffs(result), result["handoffs"])
         original = self.project(pages)
@@ -183,7 +190,7 @@ class BusinessHandoffTests(unittest.TestCase):
         self.assertLess(len(compact["handoffs"]), len(full["handoffs"]))
         for group in FACT_GROUPS:
             self.assertEqual(compact[group], full[group])
-        self.assertLessEqual(len(json.dumps(compact, ensure_ascii=False).encode()), budget)
+        self.assertLessEqual(self.provider_bytes(compact), budget)
 
     def test_shared_copy_and_same_names_do_not_create_a_cross_program_dataflow(self):
         first = SETTLEMENT.replace("CALL 'RECORD-SERVICE' USING SETTLE-REC.", "")

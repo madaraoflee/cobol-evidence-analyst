@@ -1,0 +1,307 @@
+FFFFFFF.FFFFFFFFFFFFFF..FFFFF
+======================================================================
+FAIL: test_single_offline_request_repairs_both_branches_before_final_delivery (test_claim_prose_branch_binding.ProseBranchBindingIntegrationTests.test_single_offline_request_repairs_both_branches_before_final_delivery)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 230, in test_single_offline_request_repairs_both_branches_before_final_delivery
+    self.assertNotEqual(result["answer"], raw_answers[0])
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；否则 OUT-AMOUNT = IN-AMOUNT * 2。[ev_page_eef05e7cd2fd4ba0a92b1224]' == '在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；否则 OUT-AMOUNT = IN-AMOUNT * 2。[ev_page_eef05e7cd2fd4ba0a92b1224]'
+
+======================================================================
+FAIL: test_chinese_and_english_explicit_conditions_bind_the_same_source_branch (test_claim_prose_branch_binding.ProseBranchBindingTests.test_chinese_and_english_explicit_conditions_bind_the_same_source_branch) (prefix='若 IN-AMOUNT > ZERO，')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 91, in test_chinese_and_english_explicit_conditions_bind_the_same_source_branch
+    self.assertEqual(self.assignments(ledger)[0]["support_status"], "contradicted")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'supported' != 'contradicted'
+- supported
++ contradicted
+
+
+======================================================================
+FAIL: test_chinese_and_english_explicit_conditions_bind_the_same_source_branch (test_claim_prose_branch_binding.ProseBranchBindingTests.test_chinese_and_english_explicit_conditions_bind_the_same_source_branch) (prefix='如果 IN-AMOUNT > ZERO，')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 91, in test_chinese_and_english_explicit_conditions_bind_the_same_source_branch
+    self.assertEqual(self.assignments(ledger)[0]["support_status"], "contradicted")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'supported' != 'contradicted'
+- supported
++ contradicted
+
+
+======================================================================
+FAIL: test_chinese_and_english_explicit_conditions_bind_the_same_source_branch (test_claim_prose_branch_binding.ProseBranchBindingTests.test_chinese_and_english_explicit_conditions_bind_the_same_source_branch) (prefix='在 IN-AMOUNT > ZERO 的條件下，')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 91, in test_chinese_and_english_explicit_conditions_bind_the_same_source_branch
+    self.assertEqual(self.assignments(ledger)[0]["support_status"], "contradicted")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'supported' != 'contradicted'
+- supported
++ contradicted
+
+
+======================================================================
+FAIL: test_chinese_and_english_explicit_conditions_bind_the_same_source_branch (test_claim_prose_branch_binding.ProseBranchBindingTests.test_chinese_and_english_explicit_conditions_bind_the_same_source_branch) (prefix='If IN-AMOUNT > ZERO, ')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 91, in test_chinese_and_english_explicit_conditions_bind_the_same_source_branch
+    self.assertEqual(self.assignments(ledger)[0]["support_status"], "contradicted")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'supported' != 'contradicted'
+- supported
++ contradicted
+
+
+======================================================================
+FAIL: test_chinese_and_english_explicit_conditions_bind_the_same_source_branch (test_claim_prose_branch_binding.ProseBranchBindingTests.test_chinese_and_english_explicit_conditions_bind_the_same_source_branch) (prefix='When IN-AMOUNT > ZERO, ')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 91, in test_chinese_and_english_explicit_conditions_bind_the_same_source_branch
+    self.assertEqual(self.assignments(ledger)[0]["support_status"], "contradicted")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'supported' != 'contradicted'
+- supported
++ contradicted
+
+
+======================================================================
+FAIL: test_chinese_and_english_explicit_conditions_bind_the_same_source_branch (test_claim_prose_branch_binding.ProseBranchBindingTests.test_chinese_and_english_explicit_conditions_bind_the_same_source_branch)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 95, in test_chinese_and_english_explicit_conditions_bind_the_same_source_branch
+    self.assertEqual([entry["support_status"] for entry in self.assignments(ledger)],
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ["contradicted", "contradicted"])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: ['supported', 'supported'] != ['contradicted', 'contradicted']
+
+First differing element 0:
+'supported'
+'contradicted'
+
+- ['supported', 'supported']
++ ['contradicted', 'contradicted']
+
+======================================================================
+FAIL: test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims (test_claim_prose_branch_binding.ProseBranchBindingTests.test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims) (text='若 IN-AMOUNT > ZERO，不能断言 OUT-AMOUNT = IN-AMOUNT * 3。[ev_rule]')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 184, in test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims
+    self.assertFalse(ledger["all_claims_supported"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims (test_claim_prose_branch_binding.ProseBranchBindingTests.test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims) (text='在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3 是错误的说法。[ev_rule]')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 184, in test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims
+    self.assertFalse(ledger["all_claims_supported"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims (test_claim_prose_branch_binding.ProseBranchBindingTests.test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims) (text='在 IN-AMOUNT > ZERO 的条件下，尚不能确定 OUT-AMOUNT = IN-AMOUNT * 3。[ev_rule]')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 184, in test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims
+    self.assertFalse(ledger["all_claims_supported"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims (test_claim_prose_branch_binding.ProseBranchBindingTests.test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims) (text='若 IN-AMOUNT > ZERO，OUT-AMOUNT = IN-AMOUNT * 3 仅是假设。[ev_rule]')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 184, in test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims
+    self.assertFalse(ledger["all_claims_supported"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims (test_claim_prose_branch_binding.ProseBranchBindingTests.test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims) (text='When IN-AMOUNT > ZERO, it is not true that OUT-AMOUNT = IN-AMOUNT * 3.[ev_rule]')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 186, in test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims
+    self.assertEqual(self.assignments(ledger)[-1]["support_status"], "unsupported")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'supported' != 'unsupported'
+- supported
++ unsupported
+? ++
+
+
+======================================================================
+FAIL: test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims (test_claim_prose_branch_binding.ProseBranchBindingTests.test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims) (text='在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 2；否则不能断言 OUT-AMOUNT = IN-AMOUNT * 2。[ev_rule]')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 184, in test_denied_uncertain_and_hypothetical_branch_formulas_are_not_positive_claims
+    self.assertFalse(ledger["all_claims_supported"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_different_program_or_version_cannot_lend_a_branch (test_claim_prose_branch_binding.ProseBranchBindingTests.test_different_program_or_version_cannot_lend_a_branch) (path='other.cbl')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 123, in test_different_program_or_version_cannot_lend_a_branch
+    self.assertTrue(all(entry["support_status"] == "unsupported" for entry in self.assignments(ledger)))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_different_program_or_version_cannot_lend_a_branch (test_claim_prose_branch_binding.ProseBranchBindingTests.test_different_program_or_version_cannot_lend_a_branch) (path='rule.cbl')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 123, in test_different_program_or_version_cannot_lend_a_branch
+    self.assertTrue(all(entry["support_status"] == "unsupported" for entry in self.assignments(ledger)))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_else_does_not_inherit_a_different_citation_scope (test_claim_prose_branch_binding.ProseBranchBindingTests.test_else_does_not_inherit_a_different_citation_scope)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 138, in test_else_does_not_inherit_a_different_citation_scope
+    self.assertEqual(self.assignments(ledger)[-1]["support_status"], "unsupported")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'supported' != 'unsupported'
+- supported
++ unsupported
+? ++
+
+
+======================================================================
+FAIL: test_else_does_not_inherit_across_independent_sentences_lines_or_titles (test_claim_prose_branch_binding.ProseBranchBindingTests.test_else_does_not_inherit_across_independent_sentences_lines_or_titles) (separator='。')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 131, in test_else_does_not_inherit_across_independent_sentences_lines_or_titles
+    self.assertEqual(self.assignments(ledger)[-1]["support_status"], "unsupported")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'supported' != 'unsupported'
+- supported
++ unsupported
+? ++
+
+
+======================================================================
+FAIL: test_else_does_not_inherit_across_independent_sentences_lines_or_titles (test_claim_prose_branch_binding.ProseBranchBindingTests.test_else_does_not_inherit_across_independent_sentences_lines_or_titles) (separator='. ')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 131, in test_else_does_not_inherit_across_independent_sentences_lines_or_titles
+    self.assertEqual(self.assignments(ledger)[-1]["support_status"], "unsupported")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'supported' != 'unsupported'
+- supported
++ unsupported
+? ++
+
+
+======================================================================
+FAIL: test_else_does_not_inherit_across_independent_sentences_lines_or_titles (test_claim_prose_branch_binding.ProseBranchBindingTests.test_else_does_not_inherit_across_independent_sentences_lines_or_titles) (separator='；\n')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 131, in test_else_does_not_inherit_across_independent_sentences_lines_or_titles
+    self.assertEqual(self.assignments(ledger)[-1]["support_status"], "unsupported")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'supported' != 'unsupported'
+- supported
++ unsupported
+? ++
+
+
+======================================================================
+FAIL: test_else_does_not_inherit_across_independent_sentences_lines_or_titles (test_claim_prose_branch_binding.ProseBranchBindingTests.test_else_does_not_inherit_across_independent_sentences_lines_or_titles) (separator='；\n\n## 另一个情况\n')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 131, in test_else_does_not_inherit_across_independent_sentences_lines_or_titles
+    self.assertEqual(self.assignments(ledger)[-1]["support_status"], "unsupported")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'supported' != 'unsupported'
+- supported
++ unsupported
+? ++
+
+
+======================================================================
+FAIL: test_else_does_not_inherit_across_independent_sentences_lines_or_titles (test_claim_prose_branch_binding.ProseBranchBindingTests.test_else_does_not_inherit_across_independent_sentences_lines_or_titles) (separator='；\n|结果|\n|---|\n')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 131, in test_else_does_not_inherit_across_independent_sentences_lines_or_titles
+    self.assertEqual(self.assignments(ledger)[-1]["support_status"], "unsupported")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'supported' != 'unsupported'
+- supported
++ unsupported
+? ++
+
+
+======================================================================
+FAIL: test_missing_outer_guard_is_uncertain_not_a_wrong_formula (test_claim_prose_branch_binding.ProseBranchBindingTests.test_missing_outer_guard_is_uncertain_not_a_wrong_formula)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 104, in test_missing_outer_guard_is_uncertain_not_a_wrong_formula
+    self.assertEqual([entry["support_status"] for entry in self.assignments(ledger)],
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ["unsupported", "unsupported"])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: ['supported', 'supported'] != ['unsupported', 'unsupported']
+
+First differing element 0:
+'supported'
+'unsupported'
+
+- ['supported', 'supported']
++ ['unsupported', 'unsupported']
+?   ++             ++
+
+
+======================================================================
+FAIL: test_repeated_condition_occurrences_do_not_establish_one_branch_binding (test_claim_prose_branch_binding.ProseBranchBindingTests.test_repeated_condition_occurrences_do_not_establish_one_branch_binding)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 113, in test_repeated_condition_occurrences_do_not_establish_one_branch_binding
+    self.assertTrue(all(entry["support_status"] == "unsupported" for entry in self.assignments(ledger)))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_reversed_natural_branches_are_repaired_with_true_and_false_source_guards (test_claim_prose_branch_binding.ProseBranchBindingTests.test_reversed_natural_branches_are_repaired_with_true_and_false_source_guards)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 65, in test_reversed_natural_branches_are_repaired_with_true_and_false_source_guards
+    self.assertNotEqual(rendered, BAD)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: '在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；否则 OUT-AMOUNT = IN-AMOUNT * 2。[ev_rule]' == '在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；否则 OUT-AMOUNT = IN-AMOUNT * 2。[ev_rule]'
+
+======================================================================
+FAIL: test_truncated_or_uncited_branch_stays_unverified_without_rewriting (test_claim_prose_branch_binding.ProseBranchBindingTests.test_truncated_or_uncited_branch_stays_unverified_without_rewriting) (page={'evidence_id': 'ev_rule', 'relative_path': 'rule.cbl', 'source_text': 'COMPUTE OUT-AMOUNT = IN-AMOUNT * 3.\n', 'source_sha256': 'b17fa3e1f8c32ee05405833560bd162c6410c803e456ba2f8486c8ae74af71a0', 'start_line': 13, 'end_line': 13})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 145, in test_truncated_or_uncited_branch_stays_unverified_without_rewriting
+    self.assertEqual(rendered, BAD)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: '在 IN[42 chars] * 3；已供应源码可直接确认：`OUT-AMOUNT = IN-AMOUNT * 3`（r[17 chars]le]。' != '在 IN[42 chars] * 3；否则 OUT-AMOUNT = IN-AMOUNT * 2。[ev_rule]'
+- 在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；已供应源码可直接确认：`OUT-AMOUNT = IN-AMOUNT * 3`（rule.cbl:13）[ev_rule]。
+?                                                    ^^^^^^^^^^^^                         ^^^^^^^^^^^^^^^         -
++ 在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；否则 OUT-AMOUNT = IN-AMOUNT * 2。[ev_rule]
+?                                                    ^^^                         ^^
+
+
+======================================================================
+FAIL: test_unclosed_source_block_does_not_prove_branch_ownership (test_claim_prose_branch_binding.ProseBranchBindingTests.test_unclosed_source_block_does_not_prove_branch_ownership)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/xin-xian-quality-20261023/frozen-source/poc/tests/test_claim_prose_branch_binding.py", line 193, in test_unclosed_source_block_does_not_prove_branch_ownership
+    self.assertTrue(all(entry["support_status"] == "unsupported" for entry in self.assignments(ledger)))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.178s
+
+FAILED (failures=26)

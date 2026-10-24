@@ -157,6 +157,67 @@ class ExplicitRetryRecoveryTests(unittest.TestCase):
         self.assertFalse(any('IN-AMOUNT * 2' in page['source_text'] for page in pages))
         self.assertEqual(len(self.calls), 2)
 
+    def test_changed_source_after_received_response_starts_fresh_only_on_explicit_retry(self):
+        for allowance in (1, 2):
+            with self.subTest(request_allowance=allowance):
+                self.policy = AgentPolicy(max_model_requests=allowance)
+                self.question = f'ENTRYPOINT OUT-AMOUNT，调查 {allowance}'
+                self.source_file.write_text(self.source_file.read_text(encoding='utf-8')
+                    .replace('IN-AMOUNT * 3', 'IN-AMOUNT * 2'), encoding='utf-8')
+                self.rebuild()
+                received = False
+
+                def transport(request):
+                    nonlocal received
+                    response = self.success(request)
+                    received = True
+                    return response
+
+                def interrupt_after_response():
+                    if received:
+                        raise RuntimeError('interrupted after saved response')
+
+                with self.assertRaisesRegex(RuntimeError, 'interrupted after saved response'):
+                    self.invoke(transport=transport, check_cancel=interrupt_after_response)
+                prior = self.store.unfinished('sha256:' + hashlib.sha256(self.question.encode()).hexdigest(),
+                    hashlib.sha256(self.config.chat_model.encode()).hexdigest())
+                self.assertIsNotNone(prior)
+                self.assertEqual(len(prior['requests']), 1)
+                self.assertEqual(prior['requests'][0]['state'], 'completed')
+                self.assertFalse(prior['uncertain_requests'])
+                self.source_file.write_text(self.source_file.read_text(encoding='utf-8')
+                    .replace('IN-AMOUNT * 2', 'IN-AMOUNT * 3'), encoding='utf-8')
+                self.rebuild()
+                before_calls = len(self.calls)
+                blocked = self.invoke()
+                self.assertEqual(blocked['reason_code'], 'RESUME_SOURCE_VERSION_CHANGED')
+                self.assertEqual(len(self.calls), before_calls)
+                self.assertEqual(self.store.load(prior['run_id']), prior)
+
+                retired = None
+                for explicit_id in (None, prior['run_id']):
+                    result = self.invoke(start_new_investigation=True,
+                        **({'resume_run_id': explicit_id} if explicit_id else {}))
+                    self.assertTrue(result['agent_result']['model_answer_recorded'])
+                    self.assertIn('IN-AMOUNT * 3', result['agent_result']['answer'])
+                    self.assertNotEqual(result['agent_result']['run_id'], prior['run_id'])
+                    pages = [page for bundle in self.calls[-1]['source_context'] for page in bundle['pages']]
+                    self.assertFalse(any('IN-AMOUNT * 2' in page['source_text'] for page in pages))
+                    after = self.store.load(prior['run_id'])
+                    self.assertEqual(after['state'], 'superseded')
+                    for field in ('metadata', 'requests', 'completed_steps', 'uncertain_requests'):
+                        self.assertEqual(after[field], prior[field])
+                    self.assertEqual({key: after['checkpoint'][key] for key in prior['checkpoint']}, prior['checkpoint'])
+                    self.assertTrue(after['checkpoint']['superseded_by_explicit_retry'])
+                    if retired is None:
+                        retired = after
+                    else:
+                        self.assertEqual(after, retired)
+                    pending = self.store.unfinished(prior['metadata']['question_id'],
+                        prior['metadata']['configuration']['model_fingerprint'])
+                    self.assertTrue(pending is None or pending['run_id'] != prior['run_id'])
+                self.assertEqual(len(self.calls), before_calls + 2)
+
     def test_retry_using_a_superseded_original_id_can_start_a_new_explicit_run(self):
         original = self.interrupt_run()
         first_answer = self.invoke(start_new_investigation=True)

@@ -1,0 +1,45 @@
+{
+  "scope": "Neutral synthetic evidence contracts; no real-model or installed-application acceptance",
+  "cases": [
+    {
+      "id": "stage-business-flow",
+      "question": "ENTRYJOB 的业务处理流程是什么？为什么编号 3000 的阶段先于 2000？",
+      "required": ["MAIN 中实际 PERFORM 请求先指向取记录阶段", "更新阶段受 APPROVED = 'Y' 条件约束", "阶段职责来自当前手册且绑定当前源码声明", "取记录阶段的 ADVANCE 与更新阶段的 STORE 保留各自含义和注意事项"],
+      "evidence": ["entry.cbl:11-14", "entry.cbl:16-21", "manual.md:5-8", "manual.md:18-21"],
+      "forbidden": ["按阶段编号排序执行", "阶段声明次序就是运行顺序", "已运行或已成功提交", "把读取请求等同于业务批准"],
+      "implementation_test": "test_framework_stage_business.py"
+    },
+    {
+      "id": "stage-update-followup",
+      "question": "那更新阶段是不是一定会保存成功？",
+      "required": ["复用当前版本的阶段和调用证据", "保留批准条件", "STORE 是更新请求，缺少返回结果与提交证据时不能确认已持久化"],
+      "evidence": ["entry.cbl:12-14", "entry.cbl:19-21", "manual.md:21"],
+      "forbidden": ["无条件更新", "请求等于成功", "把脚本固定答案称为模型正确理解"],
+      "implementation_test": "test_framework_stage_business.py"
+    },
+    {
+      "id": "nested-stage-guard",
+      "question": "未命中前面的 EVALUATE 分支时，是否会进入更新阶段？",
+      "required": ["保留 EVALUATE 选择字段", "保留 WHEN OTHER 排除之前分支的条件", "同时保留外层 IF", "只说明当前源码中的条件请求"],
+      "evidence": ["test_framework_stage_orientation.py 中 nested_evaluate 合成变体的完整过程体"],
+      "forbidden": ["只引用 WHEN OTHER 而遗漏选择字段", "遗漏外层条件", "把局部请求称为最终执行路径"],
+      "implementation_test": "test_framework_stage_orientation.py"
+    },
+    {
+      "id": "scope-expansion-gap",
+      "question": "控制 COPY 或 REPLACE 存在时，能确认这个调用属于哪个框架阶段吗？",
+      "required": ["保留已读到的阶段职责", "明确当前阶段归属尚需展开和核对", "裁掉指令页后仍保留完整源码生成的范围边界", "旧语义缓存失效重绑"],
+      "evidence": ["test_framework_stage_scope.py 的 procedure COPY、REPLACE 与缓存裁剪变体"],
+      "forbidden": ["把尚未展开说成用户未导入", "跨 COPY 推定词法阶段归属", "新段落或 MOVE 自动解除结构边界"],
+      "implementation_test": "test_framework_stage_scope.py"
+    },
+    {
+      "id": "returned-status-path",
+      "status": "reproduced_deferred",
+      "question": "框架什么时候处理记录，什么时候结束，什么时候返回 90？",
+      "required": ["框架 I/O 状态与程序 RETURN-CODE 分开", "核对状态字段明确角色、调用后覆盖和完整分支", "WHEN OTHER 是排除已列条件，不仅是某个已命名失败码"],
+      "forbidden": ["根据字段后缀猜返回通道", "操作词典存在就代表完整结果路径已核验"],
+      "gap": "当前接口只绑定操作请求；返回字段及状态到后续动作的连接仍未完成"
+    }
+  ]
+}

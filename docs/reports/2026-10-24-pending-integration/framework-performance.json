@@ -1,0 +1,84 @@
+{
+  "fixture": "Neutral 128 literal CALL statements; supplied source only",
+  "source_bytes": 1744,
+  "source_lines": 133,
+  "model_calls": 0,
+  "network_calls": 0,
+  "scope": "Local orientation preparation, excluding indexing and model generation",
+  "results": [
+    {
+      "metadata_budget": 24000,
+      "measurements": [
+        {
+          "implementation": "previous",
+          "elapsed_seconds": 2.808401,
+          "metadata_measurements": 179,
+          "retained_facts": {
+            "purpose_candidates": 0,
+            "entries": 1,
+            "programs": 1,
+            "relationships": 79,
+            "data_roles": 0,
+            "visible_rules": 0,
+            "handoffs": 0
+          },
+          "provider_navigation_bytes": 23609,
+          "answer_calls": 0
+        },
+        {
+          "implementation": "optimized",
+          "elapsed_seconds": 0.189638,
+          "metadata_measurements": 17,
+          "retained_facts": {
+            "purpose_candidates": 0,
+            "entries": 1,
+            "programs": 1,
+            "relationships": 79,
+            "data_roles": 0,
+            "visible_rules": 0,
+            "handoffs": 0
+          },
+          "provider_navigation_bytes": 23609,
+          "answer_calls": 0
+        }
+      ]
+    },
+    {
+      "metadata_budget": 2400,
+      "measurements": [
+        {
+          "implementation": "previous",
+          "elapsed_seconds": 3.234058,
+          "metadata_measurements": 260,
+          "retained_facts": {
+            "purpose_candidates": 0,
+            "entries": 0,
+            "programs": 0,
+            "relationships": 0,
+            "data_roles": 0,
+            "visible_rules": 0,
+            "handoffs": 0
+          },
+          "provider_navigation_bytes": 1804,
+          "answer_calls": 0
+        },
+        {
+          "implementation": "optimized",
+          "elapsed_seconds": 0.138699,
+          "metadata_measurements": 21,
+          "retained_facts": {
+            "purpose_candidates": 0,
+            "entries": 0,
+            "programs": 0,
+            "relationships": 0,
+            "data_roles": 0,
+            "visible_rules": 0,
+            "handoffs": 0
+          },
+          "provider_navigation_bytes": 1804,
+          "answer_calls": 0
+        }
+      ]
+    }
+  ]
+}

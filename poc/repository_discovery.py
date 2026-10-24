@@ -173,8 +173,19 @@ def ensure_repository_search(database_path, source_root, check_cancel=None, prog
             # A structural rebuild may remove old evidence even for unchanged
             # text. Recreate that file rather than returning dangling citations.
             if reusable:
-                missing = connection.execute("SELECT COUNT(*) FROM repo_pages p LEFT JOIN evidence_spans e ON e.evidence_id=p.evidence_id WHERE p.relative_path=? AND p.span_truncated=0 AND e.evidence_id IS NULL", (relative,)).fetchone()[0]
-                reusable = not missing
+                coverage = connection.execute(
+                    "SELECT COUNT(*) AS pages,COUNT(f.rowid) AS searchable,"
+                    "MIN(p.start_line) AS first_line,MAX(p.end_line) AS last_line,"
+                    "SUM(CASE WHEN p.span_truncated=0 AND e.evidence_id IS NULL THEN 1 ELSE 0 END) AS missing,"
+                    "SUM(CASE WHEN p.source_sha256<>? THEN 1 ELSE 0 END) AS stale "
+                    "FROM repo_pages p LEFT JOIN evidence_spans e ON e.evidence_id=p.evidence_id "
+                    "LEFT JOIN repo_fts f ON f.rowid=p.page_id WHERE p.relative_path=?",
+                    (item["sha256"], relative)).fetchone()
+                reusable = (coverage["pages"] == previous.get("page_count")
+                    and coverage["searchable"] == coverage["pages"]
+                    and not coverage["missing"] and not coverage["stale"]
+                    and (not item["line_count"] or (coverage["first_line"] == 1
+                         and coverage["last_line"] == item["line_count"])))
             if reusable:
                 state = states.get(relative, {})
                 if (not verify_content and state.get("sha256") == item["sha256"]
@@ -963,6 +974,10 @@ def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=N
     page = {"relative_path": row["relative_path"], "start_line": row["start_line"] + first,
             "end_line": row["start_line"] + last - 1, "source_sha256": row["source_sha256"],
             "source_text": "\n".join(lines[first:last]), "span_truncated": False}
+    source = connection.execute("SELECT format_hint FROM source_files WHERE relative_path=? AND sha256=?",
+                                (page["relative_path"], page["source_sha256"])).fetchone()
+    if source and source["format_hint"] in {"free", "fixed"}:
+        page["format_hint"] = source["format_hint"]
     page["evidence_id"] = _identify_page(page)
     page["source_characters"] = len(page["source_text"])
     _persist_page(connection, page)
@@ -1454,8 +1469,17 @@ def read_repository_context(database_path, source_root, *, relative_path=None, s
         rows = [dict(row, selection_reason="agent_requested_read") for row in connection.execute("SELECT * FROM repo_pages WHERE relative_path=? AND end_line>=? AND start_line<=? ORDER BY start_line LIMIT 33", (relative_path, start_line, end_line))]
         file_row = connection.execute("SELECT line_count FROM source_files WHERE relative_path=?", (relative_path,)).fetchone()
         total_lines = file_row[0] if file_row else 0
+        cursor, indexed_gap = start_line, False
+        for row in rows:
+            if row["start_line"] > cursor:
+                indexed_gap = True
+                break
+            cursor = max(cursor, row["end_line"] + 1)
+        # A partial cache is not a partial source file. Recover only this
+        # requested span; a full 33-page prefix still resumes normally.
+        indexed_gap = indexed_gap or (len(rows) < 33 and cursor <= min(end_line, total_lines))
         raw_fallback = None
-        if (not rows or any(row["span_truncated"] for row in rows)) and total_lines >= start_line:
+        if (not rows or indexed_gap or any(row["span_truncated"] for row in rows)) and total_lines >= start_line:
             rows, raw_fallback = _raw_text_fallback(connection, root, [],
                 {"status": "resolved", "direct_paths": [relative_path], "hard_constraint": True},
                 max_pages=32, check_cancel=check_cancel, source_session=source_session,

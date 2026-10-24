@@ -505,10 +505,14 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
         source.write_text(source.read_text().replace("IN-AMOUNT * 2", "IN-AMOUNT * 3"))
         self.clock_value = 130.0
         second = self.ask(start_new_investigation=True)
-        self.assertEqual(second["reason_code"], "RESUME_SOURCE_VERSION_CHANGED")
-        self.assertEqual(second["agent_result"]["run_id"], saved_ids[0])
-        self.assertEqual(self.calls, 1)
-        self.assertFalse(self.store.load(saved_ids[0])["checkpoint"].get("superseded_by_explicit_retry"))
+        self.assertEqual(second["reason_code"], "BUSINESS_CHAT_COMPLETED")
+        self.assertNotEqual(second["agent_result"]["run_id"], saved_ids[0])
+        self.assertIn("OUT-AMOUNT = IN-AMOUNT * 3", second["agent_result"]["answer"])
+        self.assertEqual(self.calls, 2)
+        prior = self.store.load(saved_ids[0])
+        self.assertEqual(prior["state"], "superseded")
+        self.assertTrue(prior["checkpoint"]["superseded_by_explicit_retry"])
+        self.assertEqual(len(prior["requests"]), 1)
 
     def test_long_provider_timeout_does_not_disable_initial_source_discovery(self):
         def discover(request):

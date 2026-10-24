@@ -1,0 +1,108 @@
+{
+  "schema_version": "business-quality-regression/v1",
+  "scope": "Public synthetic, independently specified source expectations; no model self-grading.",
+  "source": {
+    "relative_path": "rule.cbl",
+    "sha256": "6dec0b58c5f1175a7a762447722a16e11fb0cba9b83d21d4d5038d43d5bc436c",
+    "text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. BRANCH-RULE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 IN-AMOUNT PIC S99.\n01 OUT-AMOUNT PIC S999.\nPROCEDURE DIVISION.\nMAIN.\nIF IN-AMOUNT > ZERO\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 2\nELSE\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * 3\nEND-IF.\nGOBACK.\n"
+  },
+  "cases": [
+    {
+      "id": "branch-order",
+      "question": "OUT-AMOUNT 如何计算？",
+      "necessary_conclusions": [
+        "IN-AMOUNT > ZERO 时执行乘以 2 的赋值。",
+        "该条件不成立时执行乘以 3 的赋值。"
+      ],
+      "necessary_conditions_and_exceptions": [
+        "说明的是源码分支中的赋值；不证明真实运行、输入数值有效性或外部业务含义。",
+        "若谈具体数值，限定有效数值、运算及接收字段转换无错误或精度损失。"
+      ],
+      "required_evidence": [
+        {
+          "start_line": 5,
+          "end_line": 6,
+          "role": "字段声明"
+        },
+        {
+          "start_line": 9,
+          "end_line": 10,
+          "role": "条件及真分支赋值"
+        },
+        {
+          "start_line": 11,
+          "end_line": 13,
+          "role": "ELSE及假分支赋值"
+        }
+      ],
+      "forbidden_assertions": [
+        "正值走乘以 3；否则乘以 2。",
+        "两个公式分别出现过，所以条件和公式的组合已验证。",
+        "这些语句证明全部业务语义或真实运行结果正确。"
+      ],
+      "distinguishing_examples": [
+        {
+          "input": 4,
+          "expected_on_normal_numeric_path": 8,
+          "reversed_branch_answer": 12
+        },
+        {
+          "input": -4,
+          "expected_on_normal_numeric_path": -12,
+          "reversed_branch_answer": -8
+        },
+        {
+          "input": 0,
+          "expected_on_normal_numeric_path": 0,
+          "note": "单测零值不能发现本例倒置。"
+        }
+      ],
+      "response_cases": [
+        {
+          "id": "correct_branches",
+          "input_answer": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 2；否则 OUT-AMOUNT = IN-AMOUNT * 3。[ev_rule]",
+          "expected": "preserve"
+        },
+        {
+          "id": "reversed_branches",
+          "input_answer": "在 IN-AMOUNT > ZERO 的条件下，OUT-AMOUNT = IN-AMOUNT * 3；否则 OUT-AMOUNT = IN-AMOUNT * 2。[ev_rule]",
+          "expected": "repair_false_condition_assignment_pair"
+        }
+      ]
+    },
+    {
+      "id": "updated-source-retry",
+      "question": "ENTRYPOINT OUT-AMOUNT 怎么计算？",
+      "necessary_conclusions": [
+        "更新为乘以 3 后，明确重试可开展新版本的有限调查。"
+      ],
+      "required_evidence": [
+        "entry.cbl:9 的新哈希与新公式",
+        "旧请求已记录结果，uncertain_requests 为 0"
+      ],
+      "forbidden_assertions": [
+        "复用旧乘以 2 的答案",
+        "反复提示开始新调查而永远选回旧调查",
+        "未知远程请求可自动重发"
+      ],
+      "status": "reproduced_not_fixed_this_round"
+    },
+    {
+      "id": "missing-search-cache",
+      "question": "返回 90 的规则是什么（唯一合成标记 LATEBUSINESSRULE）？",
+      "necessary_conclusions": [
+        "显式更新识别缺失搜索页或 FTS 行并修复该文件缓存。"
+      ],
+      "required_evidence": [
+        "entry.cbl:8508 MOVE 90 TO RESULT-CODE.",
+        "原文件仍已导入且哈希核对成功",
+        "缓存页数和 FTS 行完整性"
+      ],
+      "forbidden_assertions": [
+        "检索缺页说明用户没提供源码",
+        "缺页缓存被标为全文完整"
+      ],
+      "status": "synthetic_fault_injection_reproduced_not_fixed_this_round"
+    }
+  ]
+}

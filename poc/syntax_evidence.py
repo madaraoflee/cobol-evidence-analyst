@@ -91,7 +91,7 @@ def _navigation_lines(text, source_format):
         yield "".join(result)
 
 
-def _bodies(text, first_line):
+def _bodies(text, first_line, supplied_format=None):
     """Discover paragraph boundaries only; the token parser owns all semantics."""
     from structural_index import normalize_cobol_lines
 
@@ -99,14 +99,16 @@ def _bodies(text, first_line):
     # vote. Format changes, tabs, and fragments remain outside this adapter.
     if "\t" in text:
         return [], "tabs_require_source_mapping"
-    directives = {match[1].lower() for line in _navigation_lines(text, "free")
+    directives = {match[1].lower() for line in _navigation_lines(text, supplied_format or "free")
                   if (match := _DIRECTIVE.match(line))}
     if len(directives) > 1:
         return [], "mixed_source_formats"
+    if supplied_format and directives and supplied_format not in directives:
+        return [], "source_format_configuration_conflict"
     _, hint = normalize_cobol_lines(text)
-    source_format = next(iter(directives), "fixed" if hint == "fixed" else "free")
+    source_format = supplied_format or next(iter(directives), "fixed" if hint == "fixed" else "free")
     raw = text.splitlines()
-    if not directives:
+    if not directives and not supplied_format:
         # The repository detector uses majority voting and needs six fixed rows.
         # Excerpts can be shorter: never parse an identification-area suffix as
         # another MOVE target, or silently truncate ambiguous free-format code.
@@ -188,7 +190,8 @@ def build_syntax_guide(source_pages):
         key, ref = source_key(page), page["evidence_id"]
         group = page_groups.setdefault(key, {})
         previous = group.get(ref)
-        if previous and any(previous[field] != page[field] for field in ("start_line", "end_line", "source_text")):
+        if previous and (any(previous[field] != page[field] for field in ("start_line", "end_line", "source_text"))
+                         or previous.get("format_hint", "auto") != page.get("format_hint", "auto")):
             conflicts.add((key, ref))
         group[ref] = page
     eligible = [p for p in eligible if (source_key(p), p["evidence_id"]) not in conflicts]
@@ -206,8 +209,15 @@ def build_syntax_guide(source_pages):
             result["source_scan_truncated"] = True
             break
         scanned += len(text)
-        units, problem = _bodies(text, min(supplied["lines"]))
         path, digest = supplied["key"][:2]
+        formats = {pages[ref].get("format_hint") or "auto" for ref in supplied["supplied_reference_ids"]}
+        if len(formats) != 1:
+            units, problem = [], "source_format_configuration_conflict"
+        elif not formats <= {"auto", "free", "fixed"}:
+            units, problem = [], "mixed_or_ambiguous_source_format"
+        else:
+            units, problem = _bodies(text, min(supplied["lines"]),
+                                    next(iter(formats)) if formats <= {"free", "fixed"} else None)
         if problem:
             if len(result["boundaries"]) < 8:
                 result["boundaries"].append({"relative_path": path, "reason": problem})

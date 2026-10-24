@@ -1,0 +1,12 @@
+[
+  {
+    "path": "docs/reports/2026-10-23-branch-binding/branch-binding.patch",
+    "original_sha256": "dd14dc63ab4678bd3e57f74048420723b97ba149fe8b143b32f9e6dfe9339ece",
+    "disposition": "Historical diagnostic patch archived outside the source repository; current Git diff is the authoritative change set."
+  },
+  {
+    "path": "docs/reports/2026-10-23-framework-stages/rollback.patch",
+    "original_sha256": "5b220b73f8efe97c8ad8facd0b71edc60a8febd92c2ea7c222d94ae708e9820c",
+    "disposition": "Historical diagnostic patch archived outside the source repository; current Git diff is the authoritative change set."
+  }
+]

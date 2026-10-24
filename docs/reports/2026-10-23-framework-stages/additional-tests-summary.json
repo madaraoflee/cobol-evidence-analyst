@@ -1,0 +1,25 @@
+{
+  "tests": 196,
+  "failures": 0,
+  "errors": 1,
+  "skipped": 0,
+  "seconds": 7.921,
+  "modules": [
+    "test_business_orientation",
+    "test_business_explanation_delivery",
+    "test_business_explanation_review",
+    "test_business_explanation_cache",
+    "test_business_boundary_contract",
+    "test_business_synthesis_controls",
+    "test_repository_discovery",
+    "test_source_reading",
+    "test_source_versions",
+    "test_source_answer_replay",
+    "test_question_budget_delivery",
+    "test_conversation_evidence_closure",
+    "test_claim_prose_branch_binding",
+    "test_semantic_risk_review",
+    "test_numeric_semantics"
+  ],
+  "network_blocked": true
+}

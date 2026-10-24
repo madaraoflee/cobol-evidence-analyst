@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-23",
+  "repository": "cobol-evidence-analyst",
+  "branch": "main",
+  "commit": "a82ac474e9708a18dab00acc2e078716aed61c07",
+  "working_tree_pipeline_version": "question-evidence-v47",
+  "working_tree_prompt_version": "business-chat-v41",
+  "python_version": "Python 3.14.4",
+  "preexisting_changed_file_sha256": {
+    "poc/answer_markdown.py": "a11ad429ed773b0998e599e05af9394be35ba8a8a1cf4c7e0b45f9126defd9f1",
+    "poc/business_chat.py": "1eb958c24676c7ff4e23f5219f4e4335d5d4cacb3ca2b091a05c27ad160be798",
+    "poc/business_orientation.py": "323a775499233f6c3db045d6ae326632650194aef148be161605f6b4dfa5d25a",
+    "poc/business_synthesis.py": "9b6cbbbafeaa80e833ca2b28c97e908b3680906bacf3dfb1ea97466ec95a24ea",
+    "poc/quality_trace.py": "06904514783b9e33b217721a4515b3682833824921dae5c4cc1e151812cb1fd8",
+    "poc/tests/test_business_narrative_quality.py": "9d517187e52180398c270bb9df575cdb9b89454491a6d15bbbc55717be5d660e",
+    "docs/reports/2026-10-23-business-explanation/README.md": "b609637e66a56bc92758b713b198ad8742fdac667cb2f51263e58e2338d3799c",
+    "poc/business_explanation_cache.py": "313875c6bfeab6fc3867629ed5ee6dbe5da692b7f143e697851d586057a9cd36",
+    "poc/business_explanation_review.py": "4de53149e07bcf1190e50e82e236a35fc1ca0817ef766c3c127d31d9e55b5c98",
+    "poc/business_handoffs.py": "4a8011c73453ffe64748f117e53fabae64c800015d3b654fffb758e7a3b2c3e2",
+    "poc/tests/test_business_explanation_cache.py": "f47634115fcaeed2298bd9155ecccbda9b4fa725d83da1a1a089148ebdcc5930",
+    "poc/tests/test_business_explanation_delivery.py": "7ac6a9259989b66a375b04d942e020e30e3e89c230d7cda9b6e6075bf8cac41e",
+    "poc/tests/test_business_explanation_review.py": "ea46d91d897b5d4ae90d1a0bcd4d5927fecbf0d3ed0c7a4b7721ea33d8ab10c8",
+    "poc/tests/test_business_handoffs.py": "2c8ee1a6b2c8e86aba426d4bb94ff5374b48bd865f6af4a82e6b6d2da6a5b44c"
+  },
+  "baseline_claim_ledger_sha256": "4c2fb75dee4a8074b540fb725dfe2c40744d4e7760b7e9bc84da04aee05f6df7",
+  "runtime_verification": {
+    "process_listing": "blocked_by_host_permissions",
+    "listening_ports": "No workbench listener observed via lsof; not proof of installed version.",
+    "windows_installer_version_and_hash": null
+  },
+  "authorization": {
+    "external_model_requests": 0,
+    "company_source_used": false,
+    "builds": 0,
+    "releases": 0
+  },
+  "unchanged_policy": {
+    "max_model_requests": 6,
+    "max_investigation_rounds": 5,
+    "max_no_evidence_revisions": 2,
+    "max_question_seconds": null,
+    "hard_question_seconds": null,
+    "max_initial_context_seconds": null,
+    "max_local_analysis_seconds": null
+  },
+  "final_claim_ledger_version": "answer-claim-ledger-v13",
+  "final_owned_file_sha256": {
+    "poc/claim_ledger.py": "ddbbab1ede71aa411e2d5569cc6effafbda504143b245e89543b9567a1ee3fb9",
+    "poc/tests/test_claim_prose_branch_binding.py": "9734387caf674bd746ff06878867134e1829000df1b4bb3598434c95bd4885a3"
+  },
+  "preexisting_files_changed_by_concurrent_work": [
+    "poc/answer_markdown.py",
+    "poc/business_orientation.py",
+    "poc/business_synthesis.py",
+    "poc/tests/test_business_narrative_quality.py",
+    "docs/reports/2026-10-23-business-explanation/README.md",
+    "poc/business_explanation_review.py",
+    "poc/tests/test_business_explanation_review.py",
+    "poc/tests/test_business_handoffs.py"
+  ],
+  "owned_production_files_changed": [
+    "poc/claim_ledger.py"
+  ],
+  "preexisting_changed_files_edited_by_this_task": []
+}

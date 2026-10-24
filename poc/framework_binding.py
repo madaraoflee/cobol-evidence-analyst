@@ -118,6 +118,11 @@ def bind_framework_source(
     controls: list[str] = []
     embedded = False
     replacement_active = False
+    # A procedure COPY may introduce sections or program boundaries, and
+    # preprocessing may rename them. Later local assignments cannot restore
+    # that structural proof. Keep the boundary for the complete physical unit,
+    # including facts emitted before the directive and focused request ranges.
+    stage_scope_requires_expansion = False
     source_incomplete = False
     last_move: dict | None = None
     declarations: Counter = Counter()
@@ -315,6 +320,12 @@ def bind_framework_source(
             flush(discard=True)
             last_move = None
             continue
+        if not embedded and (re.match(r"^REPLACE\b", upper)
+                or re.match(r"^(?:>>|\$SET(?:\s|$)|(?:CBL|PROCESS)\s)", upper)):
+            # Source-format directives are handled by _clean. Other compile
+            # directives are not evaluated by this binder, even if a later
+            # paragraph or REPLACE OFF makes its local syntax inspectable.
+            stage_scope_requires_expansion = True
         if pending_program:
             upper = "PROGRAM-ID. " + upper
             code = "PROGRAM-ID. " + code
@@ -424,6 +435,8 @@ def bind_framework_source(
                 last_move = None
                 embedded = True
                 continue
+            if keyword in {"COPY", "REPLACE"}:
+                stage_scope_requires_expansion = True
             if keyword in _STARTS:
                 if keyword == "END-CALL" and pending and pending[0][0].upper() == "CALL":
                     pending.append((value, number))
@@ -448,4 +461,7 @@ def bind_framework_source(
         elif program_occurrences[fact["program_name"]] > 1:
             fact["dependency_covered"] = False
             fact["reason"] = "program_scope_ambiguous"
+        elif fact["kind"] == "framework_section" and stage_scope_requires_expansion:
+            fact["dependency_covered"] = False
+            fact["reason"] = "framework_stage_scope_requires_expansion"
     return facts

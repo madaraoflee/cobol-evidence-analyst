@@ -1,0 +1,66 @@
+{
+  "case": "missing_fts_after_explicit_update",
+  "question": "返回 90 的规则是什么（唯一合成标记 LATEBUSINESSRULE）？",
+  "source_lines": 8510,
+  "built_pages": 142,
+  "removed_fts_page": [
+    142,
+    8467,
+    8510
+  ],
+  "baseline_matched": 1,
+  "baseline_rule_visible": true,
+  "update": {
+    "updated_files": 0,
+    "cached_files": 1,
+    "content_hash_verified": 1,
+    "full_text_complete": true
+  },
+  "actual_matched": 0,
+  "actual_rule_visible": false,
+  "raw_fallback": {
+    "method": "bounded_original_text",
+    "scope": "current_imported_snapshot",
+    "checked_pages": 43,
+    "checked_characters": 515894,
+    "page_budget": 128,
+    "character_budget": 524288,
+    "matched_pages": 0,
+    "exhausted": true,
+    "status": "budget_exhausted",
+    "source_directory_scanned": false,
+    "failures": [],
+    "failure_count": 0,
+    "omitted_failures": 0,
+    "cache_reused": false
+  },
+  "actual_page_ranges": [
+    [
+      1,
+      36
+    ]
+  ]
+}
+{
+  "case": "partly_missing_page_read",
+  "removed_page": [
+    2,
+    67,
+    126
+  ],
+  "update": {
+    "updated_files": 0,
+    "cached_files": 1,
+    "full_text_complete": true
+  },
+  "range_complete": false,
+  "next_start_line": 67,
+  "raw_fallback": null,
+  "page_ranges": [
+    [
+      127,
+      136
+    ]
+  ],
+  "boundaries": []
+}

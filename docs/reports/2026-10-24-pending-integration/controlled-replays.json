@@ -1,0 +1,208 @@
+{
+  "source_retry": {
+    "before": [
+      {
+        "before": {
+          "state": "running",
+          "saved_response_count": 1,
+          "uncertain_requests": 0,
+          "source_factor": 2
+        }
+      },
+      {
+        "retry_attempt": 1,
+        "reason": "RESUME_SOURCE_VERSION_CHANGED",
+        "answer": "调查读取的源码版本已经变化。原调查和证据已保留，需要基于新版本开始调查。",
+        "same_run": true,
+        "old_run_state": "running",
+        "requests_total": 1
+      },
+      {
+        "retry_attempt": 2,
+        "reason": "RESUME_SOURCE_VERSION_CHANGED",
+        "answer": "调查读取的源码版本已经变化。原调查和证据已保留，需要基于新版本开始调查。",
+        "same_run": true,
+        "old_run_state": "running",
+        "requests_total": 1
+      },
+      {
+        "new_conversation": {
+          "answer": "OUT-AMOUNT = IN-AMOUNT * 3。[ev_page_e8defe986a382569516a40d2]",
+          "new_run": true,
+          "requests_total": 2,
+          "factor_per_request": [
+            2,
+            3
+          ]
+        }
+      }
+    ],
+    "after": [
+      {
+        "before": {
+          "state": "running",
+          "saved_response_count": 1,
+          "uncertain_requests": 0,
+          "source_factor": 2
+        }
+      },
+      {
+        "retry_attempt": 1,
+        "reason": "BUSINESS_CHAT_COMPLETED",
+        "answer": "OUT-AMOUNT = IN-AMOUNT * 3。[ev_page_e8defe986a382569516a40d2]",
+        "same_run": false,
+        "old_run_state": "superseded",
+        "requests_total": 2
+      },
+      {
+        "retry_attempt": 2,
+        "reason": "BUSINESS_CHAT_COMPLETED",
+        "answer": "OUT-AMOUNT = IN-AMOUNT * 3。[ev_page_e8defe986a382569516a40d2]",
+        "same_run": false,
+        "old_run_state": "superseded",
+        "requests_total": 3
+      },
+      {
+        "new_conversation": {
+          "answer": "OUT-AMOUNT = IN-AMOUNT * 3。[ev_page_e8defe986a382569516a40d2]",
+          "new_run": true,
+          "requests_total": 4,
+          "factor_per_request": [
+            2,
+            3,
+            3,
+            3
+          ]
+        }
+      }
+    ]
+  },
+  "search_cache": {
+    "before": [
+      {
+        "case": "missing_fts_after_explicit_update",
+        "question": "返回 90 的规则是什么（唯一合成标记 LATEBUSINESSRULE）？",
+        "source_lines": 8510,
+        "built_pages": 142,
+        "removed_fts_page": [
+          142,
+          8467,
+          8510
+        ],
+        "baseline_matched": 1,
+        "baseline_rule_visible": true,
+        "update": {
+          "updated_files": 0,
+          "cached_files": 1,
+          "content_hash_verified": 1,
+          "full_text_complete": true
+        },
+        "actual_matched": 0,
+        "actual_rule_visible": false,
+        "raw_fallback": {
+          "method": "bounded_original_text",
+          "scope": "current_imported_snapshot",
+          "checked_pages": 43,
+          "checked_characters": 515894,
+          "page_budget": 128,
+          "character_budget": 524288,
+          "matched_pages": 0,
+          "exhausted": true,
+          "status": "budget_exhausted",
+          "source_directory_scanned": false,
+          "failures": [],
+          "failure_count": 0,
+          "omitted_failures": 0,
+          "cache_reused": false
+        },
+        "actual_page_ranges": [
+          [
+            1,
+            36
+          ]
+        ]
+      },
+      {
+        "case": "partly_missing_page_read",
+        "removed_page": [
+          2,
+          67,
+          126
+        ],
+        "update": {
+          "updated_files": 0,
+          "cached_files": 1,
+          "full_text_complete": true
+        },
+        "range_complete": false,
+        "next_start_line": 67,
+        "raw_fallback": null,
+        "page_ranges": [
+          [
+            127,
+            136
+          ]
+        ],
+        "boundaries": []
+      }
+    ],
+    "after": [
+      {
+        "case": "missing_fts_after_explicit_update",
+        "question": "返回 90 的规则是什么（唯一合成标记 LATEBUSINESSRULE）？",
+        "source_lines": 8510,
+        "built_pages": 142,
+        "removed_fts_page": [
+          142,
+          8467,
+          8510
+        ],
+        "baseline_matched": 1,
+        "baseline_rule_visible": true,
+        "update": {
+          "updated_files": 1,
+          "cached_files": 0,
+          "content_hash_verified": 1,
+          "full_text_complete": true
+        },
+        "actual_matched": 1,
+        "actual_rule_visible": true,
+        "raw_fallback": null,
+        "actual_page_ranges": [
+          [
+            8479,
+            8510
+          ]
+        ]
+      },
+      {
+        "case": "partly_missing_page_read",
+        "removed_page": [
+          2,
+          67,
+          126
+        ],
+        "update": {
+          "updated_files": 1,
+          "cached_files": 0,
+          "full_text_complete": true
+        },
+        "range_complete": true,
+        "next_start_line": null,
+        "raw_fallback": null,
+        "page_ranges": [
+          [
+            67,
+            126
+          ],
+          [
+            127,
+            136
+          ]
+        ],
+        "boundaries": []
+      }
+    ]
+  },
+  "scope": "Actual source pipeline with scripted offline transport; not natural model accuracy or remote service latency."
+}

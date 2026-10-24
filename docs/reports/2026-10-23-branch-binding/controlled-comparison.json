@@ -1,0 +1,8 @@
+{
+  "question_equal": true,
+  "source_identity_and_text_equal": true,
+  "fixed_response_equal": true,
+  "request_bytes_equal": true,
+  "navigation_group_ids_differ": true,
+  "note": "Separate temporary workspaces generate different navigation group IDs. Physical evidence IDs, text, source hash, file ranges and fixed responses match. Raw request bodies are not claimed byte-identical."
+}

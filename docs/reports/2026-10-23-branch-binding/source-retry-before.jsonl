@@ -1,0 +1,4 @@
+{"before": {"state": "running", "saved_response_count": 1, "uncertain_requests": 0, "source_factor": 2}}
+{"retry_attempt": 1, "reason": "RESUME_SOURCE_VERSION_CHANGED", "answer": "调查读取的源码版本已经变化。原调查和证据已保留，需要基于新版本开始调查。", "same_run": true, "old_run_state": "running", "requests_total": 1}
+{"retry_attempt": 2, "reason": "RESUME_SOURCE_VERSION_CHANGED", "answer": "调查读取的源码版本已经变化。原调查和证据已保留，需要基于新版本开始调查。", "same_run": true, "old_run_state": "running", "requests_total": 1}
+{"new_conversation": {"answer": "OUT-AMOUNT = IN-AMOUNT * 3。[ev_page_e8defe986a382569516a40d2]", "new_run": true, "requests_total": 2, "factor_per_request": [2, 3]}}
