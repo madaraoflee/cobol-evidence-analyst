@@ -1401,9 +1401,103 @@ def _entry_context_reads(activation, question, database_path, source_scopes):
     return {**activation, "planned_actions": actions}
 
 
+def _business_source_reads(database_path, business_map, working_set, source_pages, source_scopes,
+                           completed_actions, *, max_files, max_actions, cache=None):
+    """Continue a bounded source walk when whole-file delivery did not fit.
+
+    These are reading tasks, not proof of a business claim. The working set's
+    accepted graph keeps unrelated callers, ambiguous targets and file-budget
+    omissions out of this fallback. Only current visible source closes a read.
+    """
+    if (not working_set or working_set.get("snapshot_id") != business_map.get("snapshot_id")
+            or not database_path):
+        return [], []
+    paths = list(dict.fromkeys(working_set.get("candidate_paths", ())))[:max_files]
+    identity = business_map.get("source_identity", {})
+    if identity.get("exclusive_source_scope"):
+        roots = set(identity.get("direct_paths") or business_map.get("direct_paths", ()))
+        paths = [path for path in paths if path in roots]
+    exclusive = [scope for scope in source_scopes if scope.get("exclusive") is not False]
+    if exclusive:
+        paths = [path for path in paths if any(scope["relative_path"] == path for scope in exclusive)]
+    key = (str(database_path), working_set.get("snapshot_id"), tuple(paths),
+           tuple((scope["relative_path"], scope["start_line"], scope["end_line"]) for scope in exclusive))
+    cached = cache.get("business_source_navigation") if isinstance(cache, dict) else None
+    if cached and cached[0] == key:
+        candidates = cached[1]
+    else:
+        candidates = []
+        with closing(sqlite3.connect(Path(database_path).resolve().as_uri() + "?mode=ro", uri=True)) as db:
+            db.row_factory = sqlite3.Row
+            has_units = db.execute("SELECT 1 FROM sqlite_master WHERE name='code_units'").fetchone()
+            for path in paths:
+                source = db.execute("SELECT sha256,line_count FROM source_files WHERE relative_path=?", (path,)).fetchone()
+                if not source or not source["line_count"]:
+                    continue
+                scopes = [scope for scope in exclusive if scope["relative_path"] == path]
+                if scopes:
+                    anchors = [(scope["start_line"], min(scope["end_line"], scope["start_line"] + 95)) for scope in scopes]
+                else:
+                    signature = db.execute("SELECT MIN(start_line) FROM code_units WHERE relative_path=? "
+                        "AND unit_type='ProcedureSignature'", (path,)).fetchone() if has_units else None
+                    units = db.execute("SELECT unit_type,start_line,end_line FROM code_units WHERE relative_path=? "
+                        "AND (unit_type='SqlRule' OR "
+                        "name IN ('OPEN','CLOSE','READ','START','WRITE','REWRITE','DELETE','EXEC_SQL')) "
+                        "ORDER BY start_line,unit_id LIMIT 65", (path,)).fetchall() if has_units else []
+                    handoffs = db.execute("SELECT e.start_line,e.end_line FROM relations r "
+                        "JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
+                        "WHERE r.relative_path=? AND r.relation_type IN "
+                        "('CALLS','CALL_TARGET_FROM','PERFORMS','PERFORMS_THRU') "
+                        "ORDER BY e.start_line,r.relation_id LIMIT 65", (path,)).fetchall()
+                    entry = signature[0] if signature and signature[0] else 1
+                    anchors = [(entry, min(source["line_count"], entry + 95))]
+                    anchors.extend((max(1, unit["start_line"] - 4),
+                                    min(source["line_count"], max(unit["end_line"], unit["start_line"] + 8), unit["start_line"] + 91))
+                                   for unit in sorted([*units, *handoffs], key=lambda row: row["start_line"])[:64])
+                # Merge overlapping windows before planning local reads. A
+                # tight control flow should cost one read, not one per CALL.
+                merged = []
+                for first, last in sorted(set(anchors)):
+                    if merged and first <= merged[-1][1] + 1 and last - merged[-1][0] < 96:
+                        merged[-1] = (merged[-1][0], max(merged[-1][1], last))
+                    elif not merged or last > merged[-1][1]:
+                        merged.append((first, last))
+                candidates.extend({"relative_path": path, "start_line": first, "end_line": last,
+                                   "source_sha256": source["sha256"]} for first, last in merged)
+        if isinstance(cache, dict):
+            cache["business_source_navigation"] = (key, candidates)
+    seen = {(args.get("relative_path"), args.get("start_line")) for action in completed_actions
+            for args in [action.get("read")] if isinstance(args, Mapping)}
+    actions, missing = [], []
+    by_path = {}
+    for page in source_pages:
+        if page.get("evidence_id") and not page.get("span_truncated") and page.get("source_text"):
+            by_path.setdefault(page.get("relative_path"), []).append(page)
+    for row in candidates:
+        cursor = row["start_line"]
+        gap_end = row["end_line"]
+        for page in sorted(by_path.get(row["relative_path"], ()), key=lambda page: page.get("start_line", 0)):
+            if page.get("source_sha256") != row["source_sha256"] or page.get("end_line", 0) < cursor:
+                continue
+            if page.get("start_line", 0) > cursor:
+                gap_end = min(gap_end, page["start_line"] - 1)
+                break
+            cursor = max(cursor, page["end_line"] + 1)
+        if cursor > row["end_line"]:
+            continue
+        missing.append(row)
+        if len(actions) >= max_actions or (row["relative_path"], cursor) in seen:
+            continue
+        actions.append({"tool": "read", "arguments": {"relative_path": row["relative_path"],
+                        "start_line": cursor, "end_line": gap_end},
+                        "reason": "available_business_source_not_supplied"})
+    return actions, missing
+
+
 def build_question_investigation(question, business_map, *, database_path=None,
                                 source_pages=(), evidence_groups=(), completed_actions=(), max_actions=4,
-                                candidate_cache=None, framework_facts=(), history=()):
+                                candidate_cache=None, framework_facts=(), history=(),
+                                working_set=None, max_semantic_files=32):
     """Return material obligations and bounded actions for a located calculation."""
     identity = business_map.get("source_identity", {})
     paths = list(dict.fromkeys(business_map.get("selected_paths", [])))
@@ -1456,6 +1550,8 @@ def build_question_investigation(question, business_map, *, database_path=None,
         return {**base, **_call_relationship_evidence(plan, business_map, source_pages, database_path, max_actions)}
     batch = None
     from business_synthesis import wants_business_overview
+    overview_requested = wants_business_overview(question, field_entities=plan.entities)
+    batch_cache = candidate_cache if isinstance(candidate_cache, dict) else {}
     exclusive_paths = ({path for path in identity.get("direct_paths", [])}
                        if identity.get("exclusive_source_scope") else set())
     exclusive_ranges = [scope for scope in source_scopes if scope.get("exclusive") is not False]
@@ -1463,12 +1559,12 @@ def build_question_investigation(question, business_map, *, database_path=None,
         {".cl", ".clle", ".clp"} for path in exclusive_paths)) or
         (bool(exclusive_ranges) and not any(Path(scope.get("relative_path", "")).suffix.lower() in
         {".cl", ".clle", ".clp"} for scope in exclusive_ranges)))
-    if database_path and not batch_outside_scope and (wants_business_overview(question)
+    if database_path and not batch_outside_scope and (overview_requested
             or set(plan.intents) & {"activation", "file_mapping", "impact"}
             or any(Path(path).suffix.lower() in {".cl", ".clle", ".clp"} for path in paths)):
         from batch_context_evidence import investigate_batch_context
         batch = investigate_batch_context(business_map, source_pages, database_path=database_path,
-            max_actions=max_actions, candidate_cache=candidate_cache)
+            max_actions=max_actions, candidate_cache=batch_cache)
 
     def include_batch(result):
         context = batch.get("cl_context", {}) if batch else {}
@@ -1481,14 +1577,23 @@ def build_question_investigation(question, business_map, *, database_path=None,
             "state": "needs_evidence" if actions else result.get("state", "located")}
 
     activation = None
-    if "activation" in plan.intents:
+    # A discovered batch CALL is part of a business explanation even when the
+    # user did not ask about a scheduler. Reuse source-bound caller/guard reads;
+    # do not turn the noun "batch" into a runtime activation question.
+    static_batch_entry = bool(overview_requested and batch and (any(
+        fact.get("command") in {"CALL", "SBMJOB"}
+        for candidate in batch_cache.get("batch_context_candidates", ([], [], {}))[0]
+        for fact in candidate.get("source_facts", ())) or any(
+            Path(page.get("relative_path", "")).suffix.lower() in {".cl", ".clle", ".clp"}
+            for page in source_pages)))
+    if "activation" in plan.intents or static_batch_entry:
         from activation_evidence import investigate_activation
         activation = investigate_activation(business_map, source_pages, database_path=database_path,
             max_actions=max_actions, candidate_cache=candidate_cache,
             cl_context=batch.get("cl_context") if batch else None)
         if database_path is not None:
             activation = _entry_context_reads(activation, question, database_path, source_scopes)
-        if not set(plan.intents) & {"calculation", "accumulation", "origin", "overwrite", "impact", "exception", "file_mapping"}:
+        if "activation" in plan.intents and not set(plan.intents) & {"calculation", "accumulation", "origin", "overwrite", "impact", "exception", "file_mapping"}:
             return include_batch({**base, **activation})
 
     def include_activation(result):
@@ -1513,12 +1618,14 @@ def build_question_investigation(question, business_map, *, database_path=None,
                                  r"(?![A-Za-z0-9_$#@-])", " ", intent_question, flags=re.I)
     calculation_kind = calculation_intent(intent_question)
     calculation = calculation_kind == "rules"
+    business_overview = "business_overview" in plan.intents
     file_impact = is_file_impact_question(question)
     file_mapping = bool(file_entities or file_frontier)
     file_only = bool(file_entities) and not file_impact and set(plan.intents) == {"file_mapping"}
     business_steps = not calculation and (calculation_kind == "execution" or bool(_BUSINESS_DETAIL.search(question))
         or wants_behavior_explanation(question) or file_impact or file_mapping or
-        bool(set(plan.intents) & {"origin", "overwrite", "impact", "condition", "exception", "accumulation"}) or bool(source_scopes))
+        bool(set(plan.intents) & {"origin", "overwrite", "impact", "condition", "exception", "accumulation",
+                                  "business_overview"}) or bool(source_scopes))
     if not calculation and not business_steps:
         supplied = [page.get("evidence_id") for page in source_pages if page.get("evidence_id")
                     and page.get("relative_path") in paths and page.get("source_text")]
@@ -1583,8 +1690,20 @@ def build_question_investigation(question, business_map, *, database_path=None,
                 if any(row["kind"] == "business_steps" for row in steps):
                     business_steps = True
                     candidates, frontier, hashes = steps, step_frontier, step_hashes
-            if file_impact:
+            if file_impact or business_overview:
                 impact_candidates, impact_frontier, impact_hashes = nominate_file_impact_evidence(database_path, paths)
+                if business_overview and not file_impact:
+                    # A business explanation needs the actual SELECT/FD/I/O
+                    # definitions. A mere textual reference to the same file
+                    # elsewhere is not another business entry to investigate.
+                    path_scope = set(paths)
+                    impact_candidates = [row for row in impact_candidates if row["relative_path"] in path_scope]
+                    io_paths = {row["relative_path"] for row in impact_candidates if row["kind"] == "file_io"}
+                    impact_frontier = [gap for gap in impact_frontier
+                        if gap.get("relative_path") in path_scope
+                        and (gap.get("reason") != "file_definitions_not_located"
+                             or gap.get("relative_path") in io_paths)]
+                    impact_hashes = {path: value for path, value in impact_hashes.items() if path in path_scope}
                 candidates.extend(impact_candidates)
                 frontier.extend(impact_frontier)
                 hashes.update(impact_hashes)
@@ -1653,7 +1772,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
         kinds.append("accumulation_step")
     if business_steps:
         kinds.insert(0, "business_steps")
-    if file_impact:
+    if file_impact or business_overview:
         kinds.extend(("file_io", "file_definitions", "dds_definitions"))
     if file_mapping:
         kinds.extend(kind for kind in ("file_definitions", "file_layout", "copy_layout", "file_io") if kind not in kinds)
@@ -1848,6 +1967,31 @@ def build_question_investigation(question, business_map, *, database_path=None,
                 continue
             plans.append({"tool": "read", "arguments": {key: row[key] for key in
                 ("relative_path", "start_line", "end_line")}, "reason": "located_copy_source_not_supplied"})
+    pending_business_sources = []
+    if business_overview:
+        source_actions, pending_business_sources = _business_source_reads(
+            database_path, business_map, working_set, source_pages, source_scopes, completed_actions,
+            max_files=max(0, int(max_semantic_files)), max_actions=max(0, min(int(max_actions), 4)),
+            cache=candidate_cache)
+        if pending_business_sources:
+            base["source_reading"] = {"available_unread_paths": list(dict.fromkeys(
+                row["relative_path"] for row in pending_business_sources)),
+                "pending_window_count": len(pending_business_sources),
+                "scope": "accepted_business_dependency_candidates"}
+        if source_actions:
+            # Entry and handoff windows give the explanation its control-flow
+            # context. Keep existing field-detail tasks after those local reads.
+            combined = list(source_actions)
+            for action in plans:
+                args = action["arguments"]
+                first = args.get("line", args.get("start_line", 0))
+                last = args.get("end_line", first)
+                if any(row["tool"] == "read" and row["arguments"]["relative_path"] == args.get("relative_path")
+                       and row["arguments"]["start_line"] <= first <= last <= row["arguments"]["end_line"]
+                       for row in combined):
+                    continue
+                combined.append(action)
+            plans = combined[:max(0, min(int(max_actions), 4))]
     if max_actions <= 0:
         plans = []
     external = next((item for item in items if item["kind"] == "dependencies"
@@ -1860,6 +2004,9 @@ def build_question_investigation(question, business_map, *, database_path=None,
             for item in items if item["status"] in {"OPEN", "PARTIAL", "UNRESOLVED"}]
     gaps.extend(impact_frontier[:8])
     gaps.extend(frontier[:8])
+    if pending_business_sources:
+        gaps.append({"kind": "business_source", "reason": "available_business_source_not_supplied",
+                     "source_available": True, "relative_paths": base["source_reading"]["available_unread_paths"]})
     input_coverage = next(item for item in items if item["kind"] == "inputs")
     for group in evidence_groups:
         for gap in _get(group, "open_frontier", ()):

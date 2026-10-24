@@ -11,6 +11,7 @@ from business_explanation_cache import cache_business_explanation
 from business_explanation_review import review_business_explanation
 from file_impact_evidence import is_file_impact_question
 from question_intent import calculation_intent
+from question_planner import business_concept_requested
 from source_availability import source_availability_contradictions
 
 
@@ -52,7 +53,7 @@ _LIMITATION = re.compile(
 _INVESTIGATION_STATEMENT = re.compile(
     r"^(?:我们|我們|我)?\s*(?:目前|当前|當前|现在|現在)?\s*(?:还|還|仍|尚)?\s*"
     r"(?:需要|需|必须|必須|有待|待|先|要|已经|已經|已)\s*(?:先|进一步|進一步)?\s*"
-    r"(?:查找|补读|補讀|补查|補查|读取|讀取|核对|核對|确认|確認|检查|檢查|分析)|"
+    r"(?:查看|查找|补读|補讀|补查|補查|读取|讀取|核对|核對|确认|確認|检查|檢查|分析)|"
     r"^(?:(?:I|we)\s+)?(?:(?:still |first |already )?(?:need to|must|have to|have|had)|first)\s+"
     r"(?:find|search|read|locate|inspect|check|verify|review|checked|reviewed)\b", re.I)
 _REPORTED_BEHAVIOR = re.compile(
@@ -89,9 +90,83 @@ _PENDING_INVESTIGATION = re.compile(
     r"(?:continue\s+(?:to\s+)?)?"
     r"(?:check(?:ing)?|read(?:ing)?|inspect(?:ing)?|investigate|investigating|"
     r"review(?:ing)?|verify|verifying|search(?:ing)?|trace|tracing)\b)", re.I | re.M)
+_SOURCE_READING_NEED = re.compile(
+    r"(?:^|[，,])\s*(?:(?:若|如果)?(?:要|想|进一步|進一步)?"
+    r"(?:说明|說明|解释|解釋|讲清|講清|分析).{0,160}?[，,]\s*)?"
+    r"(?:还|還|仍|尚)?(?:需要|需|必须|必須|有待)\s*(?:先|继续|繼續|进一步|進一步)?"
+    r"(?:查看|查阅|查閱|阅读|閱讀|读取|讀取|检查|檢查|核对|核對|分析)|"
+    r"^(?:(?:to|in order to)\s+(?:explain|describe|understand)\b.{0,160}?[, ]+)"
+    r"(?:(?:I|we)\s+)?(?:(?:still|first)\s+)?(?:need\s+to|must|have\s+to)\s+"
+    r"(?:read|inspect|review|check|examine|trace)\b|"
+    r"^(?:(?:I|we)\s+)?(?:still\s+)?(?:need\s+to|must|have\s+to)\s+"
+    r"(?:read|inspect|review|check|examine|trace)\b", re.I)
+_SOURCE_READING_OBJECT = re.compile(
+    r"源码|源碼|源代码|源代碼|主流程|主程序|子程序|子程式|实现|實現|调用链|調用鏈|"
+    r"\b(?:source(?:\s+code)?|implementation|main\s+(?:flow|program|procedure)|"
+    r"subprogram|callee|call\s+chain)\b", re.I)
+_OPTIONAL_OR_RUNTIME_READING = re.compile(
+    r"如需|(?:如果|若)(?:你|您)|(?:如果|若)需要(?:更多|更详细|更詳細|进一步|進一步)|需要的话|需要的話|"
+    r"日志|日誌|运行记录|運行記錄|生产配置|生產配置|实测|實測|"
+    r"无需|無需|不用|不必|不需要|"
+    r"\b(?:if\s+(?:you|needed)|logs?|runtime\s+(?:records?|configuration)|"
+    r"production\s+configuration|no\s+need|(?:do\s+not|don't)\s+need)\b", re.I)
 
 
-def assess_answer_completion(answer):
+def _unavailable_external_reading(sentence, source_pages, working_set):
+    """Bind a local source limit to unavailable dependencies, not unread code."""
+    from source_availability import _ABSENCE, _CALLEE, supplied_source_availability
+
+    targets = {str(row.get("target_name", "")).upper() for row in (working_set or {}).get("frontier", ())
+               if row.get("reason") == "external_implementation_unavailable" and row.get("target_name")}
+    if not targets or not _ABSENCE.search(sentence) or not _CALLEE.search(sentence):
+        return False
+    if re.search(r"主流程|主程序|主程式|\bmain\s+(?:flow|program|procedure)\b", sentence, re.I):
+        return False
+    available = supplied_source_availability(source_pages, working_set)
+    names = {name for path in available for name in (path, path.rsplit("/", 1)[-1],
+                                                   path.rsplit("/", 1)[-1].rsplit(".", 1)[0])}
+    for page in source_pages:
+        if page.get("relative_path") in available:
+            names.update(re.findall(r"\bPROGRAM-ID\s*\.\s*([A-Z0-9_$#@-]+)",
+                                    str(page.get("source_text", "")), re.I))
+    def mentions(name):
+        return re.search(r"(?<![A-Za-z0-9_$#@./-])" + re.escape(name)
+                         + r"(?![A-Za-z0-9_$#@./-])", sentence, re.I)
+    if any(mentions(name) for name in names if name):
+        return False
+    # A named dependency must match the actual missing edge. Generic external
+    # source wording can describe that edge but cannot rebind another identifier.
+    named = {name.upper() for name in re.findall(
+        r"(?<![A-Z0-9_$#@-])[A-Z][A-Z0-9_$#@]*[-_][A-Z0-9_$#@-]+", sentence, re.I)}
+    return not named or named <= targets
+
+
+def _source_explanation_deferred(text, source_pages=(), working_set=None):
+    """Nominate unfinished source reading, not optional offers or runtime facts."""
+    remaining, local_limits = [], []
+    for sentence in re.split(r"[\n。！？；;]+|(?<=[.!?])\s+", text):
+        sentence = re.sub(r"^[\s*#>\-:：]+", "", sentence)
+        if _OPTIONAL_OR_RUNTIME_READING.search(sentence) or _REPORTED_BEHAVIOR.search(sentence):
+            remaining.append(sentence)
+            continue
+        need = _SOURCE_READING_NEED.search(sentence)
+        if need and _SOURCE_READING_OBJECT.search(sentence[need.end():]):
+            if _unavailable_external_reading(sentence, source_pages, working_set):
+                local_limits.append(sentence)
+                continue
+            return True
+        remaining.append(sentence)
+    if local_limits:
+        # A local boundary qualifies an explanation; it cannot itself be the
+        # explanation. Reuse the existing completion check on the remaining
+        # prose, excluding those boundaries so their "if..." cannot count as
+        # a business condition. No boundary sentences remain for recursion.
+        explanation = "\n".join(remaining).strip()
+        return not explanation or assess_answer_completion(explanation)["status"] == "incomplete"
+    return False
+
+
+def assess_answer_completion(answer, *, source_pages=(), working_set=None):
     """Detect a reply made only of investigation or limitation statements.
 
     This is a conservative text check, not semantic verification. A concrete
@@ -106,10 +181,14 @@ def assess_answer_completion(answer):
     # Quoted examples and code are data, not commitments by the analyst.
     commitment_text = re.sub(r"```[^\n]*\n.*?(?:```|\Z)|~~~[^\n]*\n.*?(?:~~~|\Z)",
                              "", text, flags=re.S)
-    commitment_text = re.sub(r"(?m)^\s*>.*$|`[^`\n]*`", "", commitment_text)
+    commitment_text = re.sub(r"(?m)^\s*>.*$", "", commitment_text)
+    commitment_text = re.sub(r"`([^`\n]*)`", lambda match: match[1] if re.fullmatch(
+        r"[A-Za-z0-9_$#@./-]+", match[1]) else "", commitment_text)
     commitment_text = re.sub(r'''“[^”]*”|「[^」]*」|『[^』]*』|‘[^’]*’|"[^"\n]*"|(?<!\w)'[^'\n]*' ''',
-                             "", commitment_text, flags=re.X)
-    pending_investigation = bool(_PENDING_INVESTIGATION.search(commitment_text))
+        lambda match: match[0][1:-1] if re.fullmatch(r"[A-Za-z0-9_$#@./-]+", match[0][1:-1]) else "",
+        commitment_text, flags=re.X)
+    pending_source_explanation = _source_explanation_deferred(commitment_text, source_pages, working_set)
+    pending_investigation = bool(_PENDING_INVESTIGATION.search(commitment_text)) or pending_source_explanation
     selection_statements = set()
     for clause in re.split(r"[\n。！？；;，,:：]+|(?<=[.!?])\s+", commitment_text):
         clause = re.sub(r"^[\s*#>\-:：]+|[\s*。.!?]+$", "", clause)
@@ -144,9 +223,11 @@ def assess_answer_completion(answer):
             substantive = True
     incomplete = pending_investigation or deferred and not substantive
     return {"status": "incomplete" if incomplete else "not_assessed",
-            "reason": "investigation_promised_without_completion" if pending_investigation else
+            "reason": "source_explanation_deferred" if pending_source_explanation else
+                      "investigation_promised_without_completion" if pending_investigation else
                       "investigation_without_business_answer" if incomplete else None,
             "pending_investigation": pending_investigation,
+            "pending_source_explanation": pending_source_explanation,
             "limitation_detected": limitation,
             "source_selection_limitation_detected": selection_limitation,
             "method": "bounded_text_check", "semantic_verification": "unverified"}
@@ -272,7 +353,7 @@ _TECHNICAL_SCAFFOLD = re.compile(
     r"source|code|list(?:s|ed)?|name[s]?|follow(?:s|ing)?|then)(?![A-Za-z])", re.I)
 
 
-def wants_business_overview(question, *, answer_detail="detailed"):
+def wants_business_overview(question, *, answer_detail="detailed", field_entities=(), source_scopes=()):
     """A broad explanation request, not every detailed or relationship reply."""
     topics = _BUSINESS_OVERVIEW.findall(str(question))
     text = str(question)
@@ -299,7 +380,9 @@ def wants_business_overview(question, *, answer_detail="detailed"):
         and bool(re.search(r"程序|程式|\bprograms?\b", text, re.I))
         and bool(re.search(r"(?:数据|資料|数据库|資料庫)表|表(?=的|中|里|裡|和|与|與|、|，|。|\s|$)|"
                            r"文件|檔案|\b(?:tables?|files?)\b", text, re.I)))
-    return (wants_business_detail(question, answer_detail=answer_detail) and (bool(topics) or cross_role_explanation)
+    return (wants_business_detail(question, answer_detail=answer_detail)
+            and (bool(topics) or cross_role_explanation
+                 or business_concept_requested(question, field_entities=field_entities, source_scopes=source_scopes))
             and (calculation_intent(str(question)) != "rules"
                  or any(not re.search(r"逻辑|邏輯|\blogic\b", topic, re.I) for topic in topics)))
 
@@ -324,9 +407,11 @@ def _technical_inventory_only(answer):
     return not re.search(r"[^\W\d_]", text, re.UNICODE)
 
 
-def _business_narrative_requirements(question, orientation, source_pages, *, answer_detail="detailed"):
+def _business_narrative_requirements(question, orientation, source_pages, *, answer_detail="detailed",
+                                   field_entities=(), source_scopes=()):
     """Only supplied orientation facets can nominate a business explanation."""
-    if not wants_business_overview(question, answer_detail=answer_detail):
+    if not wants_business_overview(question, answer_detail=answer_detail, field_entities=field_entities,
+                                   source_scopes=source_scopes):
         return []
     visible = {page.get("evidence_id") for page in source_pages if page.get("source_text")}
     available = set(orientation.get("available_facets", ()))
@@ -347,15 +432,20 @@ def _business_narrative_requirements(question, orientation, source_pages, *, ans
     return requirements
 
 
-def _business_explanation_contract(question, orientation, *, answer_detail="detailed"):
+def _business_explanation_contract(question, orientation, *, answer_detail="detailed", field_entities=(), source_scopes=()):
     from answer_markdown import BUSINESS_RUNTIME_BOUNDARY_POLICY
 
-    overview = wants_business_overview(question, answer_detail=answer_detail)
+    overview = wants_business_overview(question, answer_detail=answer_detail, field_entities=field_entities,
+                                      source_scopes=source_scopes)
     return {"mode": "business_overview" if overview else "direct_answer",
         "available_facets": orientation.get("available_facets", []),
         "semantic_verification": False,
         "task": ("面向不熟悉代码的读者，把有依据的业务目的、批处理作业或联机功能、程序职责、表文件角色、"
-                 "业务规则与输入输出/异常串成连贯解释；没有依据的环节不补造。程序/文件名用于追溯，不代替用途说明。"
+                 "业务规则与输入输出/异常串成连贯解释。先回答处理对象和用途，再按实际顺序说明入口与输入、"
+                 "条件与处理、结果及交付；结合已供应的子程序实现和参数衔接，把每层处理对业务结果的作用讲清楚。"
+                 "仅在来源支持时说明批处理和在线功能如何交接，表和文件怎样提供输入或承接输出。"
+                 "某个外部实现缺失时，仍解释调用方已见的请求、传入值、返回检查与后续用途，把未知限定在该步骤内部。"
+                 "没有依据的环节不补造。程序/文件名用于追溯，不代替用途说明；已供应的实现应在本次解释中使用。"
                  if overview else
                  "直接解释当前所问关系、规则或结果；不为补齐业务概览而扩展无关章节。")
                 + "source_documentation 是原文说明，source_syntax 是可见语句，framework_convention 是适用约定；"
@@ -634,13 +724,16 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
         guide = (build_behavior_guide(question, investigation, source_pages)
                  if behavior_guide is None else behavior_guide)
         requirements.extend(_behavior_requirements(guide))
-    if (wants_business_overview(question, answer_detail=answer_detail)
+    plan = investigation.get("analysis_plan") or {}
+    field_entities, source_scopes = plan.get("entities", ()), plan.get("source_scopes", ())
+    if (wants_business_overview(question, answer_detail=answer_detail, field_entities=field_entities,
+                               source_scopes=source_scopes)
             and investigation.get("state") not in {"unresolved", "ambiguous"}):
         if business_orientation is None:
             from business_orientation import build_business_orientation
             business_orientation = build_business_orientation(question, investigation, source_pages)
         requirements.extend(_business_narrative_requirements(question, business_orientation, source_pages,
-                                                             answer_detail=answer_detail))
+            answer_detail=answer_detail, field_entities=field_entities, source_scopes=source_scopes))
     return requirements
 
 
@@ -1312,7 +1405,7 @@ def semantic_risk_candidates(answer, source_pages):
 
 def assess_business_answer(question, answer, investigation, source_pages, *, answer_detail="detailed", working_set=None):
     """Detect obvious omissions without treating source supply as answer quality."""
-    completion = assess_answer_completion(answer)
+    completion = assess_answer_completion(answer, source_pages=source_pages, working_set=working_set)
     # Only the excerpts actually sent to this answer can contradict a global
     # source-selection denial. Navigation, an unresolved identity, and a local
     # missing callee implementation cannot establish that contradiction.
@@ -1490,7 +1583,10 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
         for target in item.get("targets", [])))
     behavior_guide = build_behavior_guide(question, investigation, source_pages)
     orientation = {}
-    if wants_business_overview(question, answer_detail=answer_detail):
+    plan = investigation.get("analysis_plan") or {}
+    field_entities, source_scopes = plan.get("entities", ()), plan.get("source_scopes", ())
+    if wants_business_overview(question, answer_detail=answer_detail, field_entities=field_entities,
+                               source_scopes=source_scopes):
         from business_orientation import build_business_orientation
         orientation = build_business_orientation(question, investigation, source_pages, business_map=business_map,
             framework_references=framework_references, framework_facts=framework_facts)
@@ -1507,7 +1603,8 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
                 answer_detail=answer_detail, behavior_guide=behavior_guide, business_orientation=orientation),
             **({"business_orientation": orientation} if orientation.get("available_facets") else {}),
             "business_explanation_contract": _business_explanation_contract(
-                question, orientation, answer_detail=answer_detail),
+                question, orientation, answer_detail=answer_detail, field_entities=field_entities,
+                source_scopes=source_scopes),
             **({"behavior_guide": behavior_guide} if behavior_guide.get("observations") else {}),
             **({"syntax_guide": syntax_guide} if syntax_guide.get("facts") else {}),
             **({"call_effect_boundaries": call_boundaries} if call_boundaries["required"] else {}),

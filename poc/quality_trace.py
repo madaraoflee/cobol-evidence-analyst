@@ -11,8 +11,8 @@ import time
 from prior_source_memory import source_binding_sha256
 from run_store import RunStore
 
-PIPELINE_VERSION = "question-evidence-v47"
-PROMPT_VERSION = "business-chat-v41"
+PIPELINE_VERSION = "question-evidence-v49"
+PROMPT_VERSION = "business-chat-v43"
 
 def _digest(value):
     return hashlib.sha256(value).hexdigest()

@@ -1,0 +1,799 @@
+{
+  "schema_version": 1,
+  "source_commit": "49014b56f884253318ec6d6550030f1c6426f72e",
+  "source_dirty": true,
+  "runtime_platform": "Darwin",
+  "status": "passed",
+  "selected_count": 3712,
+  "tests_run": 3712,
+  "failures": [],
+  "errors": [],
+  "skipped": [],
+  "unexpected_successes": [],
+  "expected_failures": [],
+  "discovery_errors": [],
+  "runner_errors": [],
+  "diagnostic_errors": [],
+  "elapsed_seconds": 216.289465,
+  "discovery": {
+    "count": 3712,
+    "ids_sha256": "3368f263e3cddff28a41acc40e7143d12573f90c3c00ff5a8dc06b08151850be",
+    "test_sources_sha256": "b0cfd89f150451fc841e9457e4793c70f45bceefebdbc255f88c1dae8da5ecff"
+  },
+  "test_results": [
+    {
+      "id": "test_activation_question_scope.ActivationQuestionScopeTests.test_batch_noun_in_local_boundary_or_calculation_question_adds_no_launch_obligations",
+      "seconds": 0.00126,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_activation_question_scope.ActivationQuestionScopeTests.test_business_overview_does_not_require_runtime_scheduling",
+      "seconds": 0.00021,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_activation_question_scope.ActivationQuestionScopeTests.test_explicit_activation_survives_combined_local_questions",
+      "seconds": 0.000669,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_activation_question_scope.ActivationQuestionScopeTests.test_explicit_entry_still_requests_static_activation_evidence",
+      "seconds": 0.000181,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_activation_question_scope.ActivationQuestionScopeTests.test_explicit_initiator_question_is_shared_with_delivery_scope",
+      "seconds": 0.000226,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_activation_question_scope.ActivationQuestionScopeTests.test_rule_local_trigger_and_incoming_program_relation_keep_existing_scope",
+      "seconds": 7.9e-05,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_exact_separate_guard_page_clears_only_static_scope_unknown_reason",
+      "seconds": 0.011841,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_missing_or_invalid_guard_keeps_unknown_reason_and_runtime_unverified",
+      "seconds": 0.016677,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_overview_keeps_source_batch_entry_and_local_scheduler_limitation",
+      "seconds": 0.014796,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_supplied_guard_without_environment_predecessor_cannot_claim_known_scope",
+      "seconds": 0.01172,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_delivery.BusinessConceptDeliveryTests.test_completed_explanation_is_saved_and_replayed_without_changing_prior_history",
+      "seconds": 0.135679,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_delivery.BusinessConceptDeliveryTests.test_external_boundary_alone_still_requests_visible_business_explanation",
+      "seconds": 0.155152,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_delivery.BusinessConceptDeliveryTests.test_minimum_request_budget_keeps_business_task_through_actual_delivery",
+      "seconds": 0.16228,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_delivery.BusinessConceptDeliveryTests.test_missing_external_algorithm_does_not_restart_complete_visible_explanation",
+      "seconds": 0.114546,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_delivery.BusinessConceptDeliveryTests.test_repeated_deferral_retains_received_body_in_saved_result",
+      "seconds": 0.145293,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_pipeline.BusinessConceptPipelineTests.test_business_concept_reads_batch_entry_online_function_and_data_roles",
+      "seconds": 0.153881,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_pipeline.BusinessConceptPipelineTests.test_business_task_survives_optional_navigation_trimming",
+      "seconds": 0.013578,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_pipeline.BusinessConceptPipelineTests.test_concept_supplies_implementations_and_business_task_before_first_answer",
+      "seconds": 0.09298,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_pipeline.BusinessConceptPipelineTests.test_deferred_implementation_explanation_gets_one_useful_synthesis",
+      "seconds": 0.123641,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_pipeline.BusinessConceptPipelineTests.test_repeated_deferral_does_not_loop_or_discard_received_text",
+      "seconds": 0.114032,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_questions.BusinessConceptQuestionTests.test_bound_procedure_stays_focused_while_nonexclusive_scope_can_explain_program",
+      "seconds": 0.002814,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_questions.BusinessConceptQuestionTests.test_concept_brief_only_adds_supplied_relationships",
+      "seconds": 0.003554,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_questions.BusinessConceptQuestionTests.test_manual_definition_does_not_require_program_implementation",
+      "seconds": 0.000549,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_questions.BusinessConceptQuestionTests.test_narrow_questions_do_not_expand_to_business_overviews",
+      "seconds": 0.001845,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_questions.BusinessConceptQuestionTests.test_natural_concepts_select_business_investigation_without_domain_dictionary",
+      "seconds": 0.000812,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_questions.BusinessConceptQuestionTests.test_program_kind_does_not_require_actual_scheduler",
+      "seconds": 0.000244,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_questions.BusinessConceptQuestionTests.test_program_name_is_explained_but_bound_field_stays_narrow",
+      "seconds": 0.001906,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_questions.DeferredSourceExplanationTests.test_actual_external_boundary_does_not_hide_other_unfinished_source_work",
+      "seconds": 0.001376,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_questions.DeferredSourceExplanationTests.test_external_limit_alone_still_requires_explanation_of_supplied_source",
+      "seconds": 0.000284,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_questions.DeferredSourceExplanationTests.test_located_comment_followed_by_required_reading_is_unfinished",
+      "seconds": 9.7e-05,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_questions.DeferredSourceExplanationTests.test_optional_offers_runtime_boundaries_and_program_behavior_do_not_request_retry",
+      "seconds": 0.000405,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_concept_questions.DeferredSourceExplanationTests.test_source_work_is_recognized_across_supported_languages",
+      "seconds": 0.000225,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_first_delivery.BusinessFirstDeliveryTests.test_business_onboarding_rehearses_actual_desktop_http_for_batch_and_query",
+      "seconds": 1.734177,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_first_delivery.BusinessFirstDeliveryTests.test_default_answer_can_arrive_after_previous_total_deadline",
+      "seconds": 0.096125,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_first_delivery.BusinessFirstDeliveryTests.test_hidden_output_limit_preserves_visible_text_and_prevents_unknown_resend",
+      "seconds": 0.10015,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_first_delivery.BusinessFirstDeliveryTests.test_repeated_read_without_new_evidence_converges_before_call_limit",
+      "seconds": 0.144562,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_history_projection.BusinessHistoryProjectionTests.test_actual_wire_keeps_ambiguous_deictic_followups_and_explicit_rewrite",
+      "seconds": 0.676356,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_history_projection.BusinessHistoryProjectionTests.test_actual_wire_omits_poison_but_preserves_prior_source_navigation",
+      "seconds": 0.07023,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_history_projection.BusinessHistoryProjectionTests.test_ambiguous_followups_unknown_language_and_legacy_keep_context",
+      "seconds": 0.000684,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_history_projection.BusinessHistoryProjectionTests.test_explicit_prior_answer_requests_preserve_wrong_and_negated_originals",
+      "seconds": 0.000187,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_history_projection.BusinessHistoryProjectionTests.test_ordinary_source_projection_retains_real_user_text_within_budget",
+      "seconds": 7.6e-05,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_history_projection.BusinessHistoryProjectionTests.test_standalone_source_questions_omit_even_analyzed_assistant_prose",
+      "seconds": 0.000495,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_synthesis_limits.BusinessSynthesisLimitTests.test_last_turn_continuation_and_preliminary_read_share_the_actual_cap",
+      "seconds": 0.121996,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_synthesis_limits.BusinessSynthesisLimitTests.test_optional_brief_does_not_break_valid_question_at_minimum_request_budget",
+      "seconds": 1.090416,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_business_synthesis_limits.BusinessSynthesisLimitTests.test_revision_review_rebinds_after_the_formula_page_is_trimmed",
+      "seconds": 0.641241,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_actual_request_contains_every_outgoing_file_line_with_rounding_and_overwrites",
+      "seconds": 0.08896,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_ambiguous_or_missing_identity_never_supplies_a_substitute_whole_file",
+      "seconds": 0.072873,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_business_overview_follows_complete_chain_within_file_budget",
+      "seconds": 0.097125,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_changing_whole_file_priority_preserves_prior_request_pages",
+      "seconds": 0.000746,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_complete_set_only_advances_an_open_read_when_it_covers_the_cursor",
+      "seconds": 0.000592,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_covering_excerpt_rebinding_requires_identical_hash_chain_and_text",
+      "seconds": 0.00059,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_dependency_budget_keeps_root_and_smaller_complete_dependencies",
+      "seconds": 0.143872,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_dependency_byte_budget_keeps_verified_root_without_widening_budget",
+      "seconds": 0.073944,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_dependency_file_budget_keeps_root_and_reports_unavailable_closure",
+      "seconds": 0.068573,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_encoded_request_trimming_recomputes_actual_complete_status",
+      "seconds": 1.174513,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_external_dependency_keeps_physical_and_closure_completeness_distinct",
+      "seconds": 0.071236,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_final_metadata_is_bound_to_the_actual_answer_request",
+      "seconds": 0.068265,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_over_source_budget_uses_bounded_fallback_without_a_complete_flag",
+      "seconds": 0.089927,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_partial_working_set_metadata_still_reports_request_byte_trimming",
+      "seconds": 1.292436,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_search_resolution_supplies_complete_files_and_reuses_changed_identity",
+      "seconds": 0.210254,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_complete_working_set.CompleteWorkingSetTests.test_whole_file_includes_a_thirteen_thousand_character_physical_line",
+      "seconds": 0.070376,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_actual_first_request_includes_child_implementation_after_long_concept_header",
+      "seconds": 0.088234,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_business_overview_follows_deep_chain_until_existing_file_budget",
+      "seconds": 0.036493,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_business_read_fallback_preserves_file_budget_scope_and_completed_reads",
+      "seconds": 0.019963,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_business_read_navigation_cache_rechecks_current_source_visibility",
+      "seconds": 0.015911,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_changed_physical_source_requires_refresh_without_trusting_old_graph",
+      "seconds": 0.013907,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_concept_and_program_name_both_supply_multihop_original_source",
+      "seconds": 0.028239,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_concept_mode_requires_overview_and_does_not_override_ambiguous_identity",
+      "seconds": 0.012857,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_cycles_repeated_calls_and_copy_paths_are_read_once",
+      "seconds": 0.018825,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_deep_available_source_outside_navigation_preview_still_gets_read",
+      "seconds": 0.038958,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_dependency_depth_budget_preserves_available_pending_target",
+      "seconds": 0.023112,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_explicit_file_object_and_pfile_nominate_exact_definitions_only",
+      "seconds": 0.020027,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_explicit_source_scope_blocks_all_dependency_expansion",
+      "seconds": 0.021256,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_file_definition_cycle_and_repeated_objects_do_not_repeat_reads",
+      "seconds": 0.017574,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_late_handoff_gets_its_own_window_instead_of_rereading_header",
+      "seconds": 0.019536,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_missing_external_and_duplicate_local_implementations_are_distinguished",
+      "seconds": 0.017741,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_multiple_business_entries_share_budget_without_unrelated_programs",
+      "seconds": 0.019566,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_multiroot_total_never_uses_single_root_bonus",
+      "seconds": 0.01589,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_only_indexed_program_definitions_can_be_concept_roots",
+      "seconds": 0.015005,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_oversized_root_does_not_hide_small_confirmed_implementation",
+      "seconds": 0.016979,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_oversized_root_plans_implementation_window_beyond_header",
+      "seconds": 0.029814,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_pfile_words_in_literal_and_comment_do_not_nominate_sources",
+      "seconds": 0.016924,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_concept_working_set.ConceptWorkingSetTests.test_root_fanout_is_bounded_and_records_unsupplied_available_programs",
+      "seconds": 0.018625,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_append_checks_ownership_without_reading_history",
+      "seconds": 0.003676,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_delete_removes_only_the_owned_conversation_and_its_messages",
+      "seconds": 0.004485,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_first_question_time_uses_message_position_and_empty_creation_time",
+      "seconds": 0.004356,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_history_clips_oversized_message_in_sql_without_changing_saved_text",
+      "seconds": 0.003868,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_history_keeps_recent_turns_in_order_with_source_references",
+      "seconds": 0.019473,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_history_respects_source_ownership",
+      "seconds": 0.002423,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_large_display_details_are_not_loaded_into_provider_memory",
+      "seconds": 0.004396,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_large_latest_answer_keeps_the_question_and_honors_larger_policy_budget",
+      "seconds": 0.004149,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_list_orders_by_first_question_time_and_keeps_sources_separate",
+      "seconds": 0.006725,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_matching_start_times_have_a_stable_tie_order",
+      "seconds": 0.003992,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_metadata_does_not_decode_messages",
+      "seconds": 0.002468,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_open_follow_up_and_retry_do_not_reorder_conversations",
+      "seconds": 0.009247,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_retry_rejects_other_sources_and_nonfailed_messages",
+      "seconds": 0.003587,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_retry_reuses_failed_turn_positions_and_only_completed_prior_history",
+      "seconds": 0.008079,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_conversation_store.ConversationStoreTests.test_retry_without_failed_assistant_appends_one_answer",
+      "seconds": 0.008798,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_all_database_sidecars_reject_redirected_or_directory_paths",
+      "seconds": 0.015735,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_existing_database_sidecars_do_not_require_an_empty_output",
+      "seconds": 0.011991,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_existing_index_can_be_repaired_when_display_report_is_missing",
+      "seconds": 0.01891,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_history_does_not_override_a_present_conflicting_or_corrupt_index",
+      "seconds": 0.024712,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_history_filename_and_partial_schema_do_not_authorize_an_unrelated_folder",
+      "seconds": 0.0023,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_live_investigation_journal_is_accepted_without_deleting_it",
+      "seconds": 0.003696,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_mismatched_or_unrecognized_directory_remains_protected",
+      "seconds": 0.017462,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_missing_index_can_be_rebuilt_beside_history_and_exports",
+      "seconds": 0.044125,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_recognized_library_with_exports_can_refresh_and_keep_history",
+      "seconds": 0.043866,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_retained_history_requires_matching_source_and_does_not_create_missing_stores",
+      "seconds": 0.006041,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_existing_output_reuse.ExistingOutputReuseTests.test_unrecognized_directory_is_not_authorized_by_report_name_alone",
+      "seconds": 0.001502,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_all_matching_pending_languages_retire_without_touching_another_conversation",
+      "seconds": 0.156965,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_explicit_retry_from_another_conversation_is_rejected",
+      "seconds": 0.06788,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_new_source_is_reread_and_old_evidence_remains_immutable",
+      "seconds": 0.154465,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_old_pipeline_and_language_require_explicit_retry_then_use_fresh_run",
+      "seconds": 0.143129,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_repeated_interruptions_never_trigger_automatic_resubmission",
+      "seconds": 0.231935,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_retry_using_a_superseded_original_id_can_start_a_new_explicit_run",
+      "seconds": 0.208648,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_static_business_sufficiency.StaticBusinessSufficiencyTests.test_captured_cl_context_is_rechecked_after_request_pages_are_trimmed",
+      "seconds": 0.02788,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_static_business_sufficiency.StaticBusinessSufficiencyTests.test_dynamic_cl_target_does_not_become_a_confirmed_static_caller",
+      "seconds": 0.032099,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_static_business_sufficiency.StaticBusinessSufficiencyTests.test_explicit_runtime_questions_do_not_hide_scheduler_gap",
+      "seconds": 0.026312,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_static_business_sufficiency.StaticBusinessSufficiencyTests.test_guarded_cl_requires_actual_guard_in_current_supplied_pages",
+      "seconds": 0.037098,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_static_business_sufficiency.StaticBusinessSufficiencyTests.test_live_pipeline_with_offline_transport_delivers_static_answer_and_runtime_limit",
+      "seconds": 0.128084,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_static_business_sufficiency.StaticBusinessSufficiencyTests.test_local_io_followup_does_not_ask_for_unmentioned_online_program_launch",
+      "seconds": 0.026894,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_static_business_sufficiency.StaticBusinessSufficiencyTests.test_missing_cl_page_still_requires_a_bounded_original_source_read",
+      "seconds": 0.025749,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_static_business_sufficiency.StaticBusinessSufficiencyTests.test_overview_with_explicit_initiator_keeps_runtime_gap_material",
+      "seconds": 0.026578,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_static_business_sufficiency.StaticBusinessSufficiencyTests.test_same_named_programs_prevent_cl_name_from_resolving_a_unique_source",
+      "seconds": 0.029226,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_static_business_sufficiency.StaticBusinessSufficiencyTests.test_supplied_cl_call_and_file_input_satisfy_static_source_not_runtime",
+      "seconds": 0.024922,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_static_business_sufficiency.StaticBusinessSufficiencyTests.test_unknown_source_and_new_runtime_gap_kinds_remain_material",
+      "seconds": 0.026312,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_static_business_sufficiency.StaticBusinessSufficiencyTests.test_wrong_version_changed_text_and_truncated_cl_never_bind",
+      "seconds": 0.039757,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_current_index_does_not_start_an_import",
+      "seconds": 0.017617,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_custom_compilation_conditions_require_exact_reproducible_context",
+      "seconds": 0.021548,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_different_source_owner_is_never_rebuilt",
+      "seconds": 0.017353,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_display_repair_marker_cannot_be_used_as_original_scope_proof",
+      "seconds": 0.017269,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_entry_scoped_library_is_not_expanded_during_automatic_upgrade",
+      "seconds": 0.030582,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_failed_startup_upgrade_restores_reports_and_history_without_automatic_retry",
+      "seconds": 0.052484,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_failed_upgrade_attempt_is_bound_to_the_snapshot_and_known_compatible_target",
+      "seconds": 0.028878,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_final_integrity_check_rejects_metadata_changed_since_planning",
+      "seconds": 0.016629,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_finished_local_upgrade_is_not_repeated_on_the_next_start",
+      "seconds": 0.026017,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_future_or_unknown_versions_do_not_trigger_a_downgrade",
+      "seconds": 0.019349,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_known_old_parser_plans_offline_update_without_mutating_existing_data",
+      "seconds": 0.016584,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_malformed_large_report_projection_cannot_crash_startup_planning",
+      "seconds": 0.017809,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_missing_and_corrupt_indexes_are_not_created_or_repaired_by_planning",
+      "seconds": 0.014917,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_pending_or_failed_rollback_is_never_retried_automatically",
+      "seconds": 0.015876,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_previous_attempt_skips_integrity_and_source_table_scan_on_restart",
+      "seconds": 0.018279,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_previous_release_internal_frontend_can_upgrade_without_changing_compiler_inputs",
+      "seconds": 0.020208,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_recorded_frontend_or_framework_context_is_not_replaced_by_defaults",
+      "seconds": 0.017057,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_repaired_display_snapshot_cannot_authorize_upgrade_on_any_restart",
+      "seconds": 0.037526,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_revalidation_preserves_scope_checks_without_repeating_integrity_scan",
+      "seconds": 0.020334,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_startup_checks_integrity_once_before_restoring_and_revalidating",
+      "seconds": 0.058354,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_startup_upgrade_keeps_history_and_exports_and_does_not_repeat",
+      "seconds": 0.047797,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_unknown_or_future_schema_is_not_assumed_to_be_compatible",
+      "seconds": 0.019483,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_unknown_scope_or_report_for_another_snapshot_cannot_authorize_full_import",
+      "seconds": 0.019238,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_unknown_search_version_and_incomplete_search_require_explicit_recovery",
+      "seconds": 0.017469,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_unrepresentable_extensionless_scope_requires_manual_recovery",
+      "seconds": 0.017805,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_workspace_upgrade.WorkspaceUpgradeTests.test_user_source_setting_changes_are_not_silently_applied",
+      "seconds": 0.01858,
+      "outcome": "passed"
+    }
+  ],
+  "test_results_scope": "Selected affected and persistence modules; counts and raw-report hash cover the full suite.",
+  "raw_report_sha256": "a6a29851da45fd808359438982244dc0525ccb5c36b2c603e1981943578b13a9",
+  "browser": {
+    "tests": 195,
+    "passed": 195,
+    "failed": 0,
+    "skipped": 0,
+    "log_sha256": "de57df3275adcfaa550fb53010a010bd2f02e49295cd392cb6933110bb9ba02a"
+  }
+}

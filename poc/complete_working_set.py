@@ -2,6 +2,8 @@
 
 from collections import deque
 from contextlib import closing
+from pathlib import Path
+import re
 import sqlite3
 
 from agent_policy import resolve_agent_policy
@@ -14,14 +16,66 @@ _FRONTIER_LIMIT = 32
 _ROOT_KINDS = {"program", "relative_path", "basename", "stem"}
 
 
+def _file_definition_candidates(db, relative):
+    """Follow explicit object spellings, keeping filename binding provisional.
+
+    Search text nominates reads only. Full source pages below are independently
+    captured and verified; neither this helper nor DDS filenames prove runtime
+    library selection or overrides.
+    """
+    from file_impact import _mask_literals
+    from file_impact_evidence import _definitions, _exact_dds_paths, _lines, _NAME
+
+    tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master "
+                                         "WHERE type IN ('table','view')")}
+    item = db.execute("SELECT sha256,artifact_kind FROM source_files WHERE relative_path=?",
+                      (relative,)).fetchone()
+    if item is None or "repo_pages" not in tables:
+        return [], []
+    gaps = []
+    lines = _lines(db, relative, item["sha256"], tables, gaps)
+    names = []
+    if Path(relative).suffix.lower() in {".dds", ".lf", ".pf"}:
+        for raw in lines.values():
+            raw = re.sub(r"^\d{5}A", "A", raw.upper())
+            if not re.match(r"^A\s", raw):
+                continue
+            code, complete = _mask_literals(raw)
+            if not complete:
+                continue
+            for match in re.finditer(r"\bPFILE\s*\(\s*([A-Z0-9_$#@/ -]+)\s*\)", code):
+                names.extend(match.group(1).split())
+    else:
+        _, names = _definitions(relative, lines, item["sha256"],
+            item["artifact_kind"] in {"copybook", "cobol_fragment_or_copybook"}, gaps)
+    names = list(dict.fromkeys(names))
+    if len(names) > 16:
+        gaps.append({"reason": "file_definition_name_budget"})
+    paths = []
+    for name in names[:16]:
+        if not re.fullmatch(_NAME, name):
+            gaps.append({"reason": "file_definition_identity_unresolved", "object_name": name})
+            continue
+        candidates = _exact_dds_paths(db, name, gaps)
+        if candidates:
+            paths.extend(candidates)
+            gaps.append({"reason": "file_definition_binding_unresolved", "object_name": name,
+                         "candidate_paths": candidates, "source_available": True})
+    # Reading limits in the nomination helper do not imply absent source.
+    normalized = [{key: value for key, value in gap.items() if key != "relative_path"}
+                  for gap in gaps]
+    return list(dict.fromkeys(paths)), normalized
+
+
 def build_complete_working_set(database_path, source_session, business_map, policy,
-                              *, check_cancel=None):
+                              *, check_cancel=None, business_overview=False):
     """Prefer the complete root, then dependencies under the ordinary allowance.
 
     Physical completeness describes only candidate_paths. Static dependencies
     and original text do not prove execution, parameter binding or value flow.
     """
     policy = resolve_agent_policy(policy)
+    depth_limit = policy.max_semantic_files if business_overview else _DEPTH_LIMIT
     identity = business_map.get("source_identity", {})
     roots = list(dict.fromkeys(identity.get("direct_paths", [])
                               or business_map.get("direct_paths", [])))
@@ -35,11 +89,12 @@ def build_complete_working_set(database_path, source_session, business_map, poli
         "max_complete_source_characters": policy.max_complete_source_characters,
         "complete_root_budget_applied": False, "root_source_characters": 0,
         "non_root_source_characters": 0,
-        "depth_limit": _DEPTH_LIMIT, "reason": "source_identity_not_eligible"}
+        "depth_limit": depth_limit, "reason": "source_identity_not_eligible"}
     result = {"pages": [], "metadata": metadata, "needs_refresh": False, "boundaries": []}
-    if (source_session is None
-            or identity.get("status") != "resolved" or identity.get("kind") not in _ROOT_KINDS
-            or len(roots) != 1):
+    explicit_root = (identity.get("status") == "resolved"
+                     and identity.get("kind") in _ROOT_KINDS and len(roots) == 1)
+    concept_roots = bool(business_overview and identity.get("status") == "none" and roots)
+    if source_session is None or not (explicit_root or concept_roots):
         return result
     metadata.update(status="fallback", reason="source_set_unavailable", closure_complete=True)
     fatal = False
@@ -99,7 +154,46 @@ def build_complete_working_set(database_path, source_session, business_map, poli
             if business_map.get("snapshot_id") != snapshot:
                 frontier("snapshot_changed", blocking=True, reason_code="SNAPSHOT_CHANGED")
                 return result
-            pending, queued = deque([(roots[0], 0)]), {roots[0]}
+            if concept_roots:
+                # A concept match nominates a reading root, never an exact
+                # program identity. Verify each nomination against this index.
+                root_slots = min(policy.max_semantic_files, policy.initial_pages)
+                accepted = []
+                for relative in roots:
+                    current = db.execute("SELECT 1 FROM source_files f JOIN symbols s "
+                        "ON s.relative_path=f.relative_path WHERE f.relative_path=? "
+                        "AND s.symbol_type='Program' LIMIT 1", (relative,)).fetchone()
+                    if not current:
+                        frontier("concept_root_not_program", relative)
+                    elif len(accepted) < root_slots:
+                        accepted.append(relative)
+                    else:
+                        budget_frontier("concept_root_budget", relative)
+                roots = accepted
+                metadata.update(root_paths=roots, root_selection="business_concept_candidates",
+                                source_identity_resolved=False)
+                if not roots:
+                    metadata.update(status="not_applicable", reason="concept_program_roots_not_located")
+                    return result
+            pending, queued = deque((path, 0) for path in roots), set(roots)
+            root_set = set(roots)
+            # Multiple concept entries share the ordinary allowance. The
+            # extended allowance is meaningful only for one physical root.
+            if len(roots) > 1:
+                root_limit = min(root_limit, policy.max_source_characters)
+            metadata["available_unsupplied_paths"] = []
+
+            def enqueue(target, depth):
+                if target in queued:
+                    return
+                if depth >= depth_limit:
+                    budget_frontier("dependency_depth_budget", target)
+                elif len(queued) >= policy.max_semantic_files:
+                    budget_frontier("dependency_file_budget", target)
+                else:
+                    queued.add(target)
+                    pending.append((target, depth + 1))
+
             while pending:
                 cancel()
                 relative, depth = pending.popleft()
@@ -117,16 +211,7 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                     "AND r.relation_type IN ('CALLS','INCLUDES_COPY') AND r.status='confirmed' "
                     "ORDER BY s.relative_path LIMIT ?", (relative, policy.max_semantic_files + 1)).fetchall()
                 for target_row in targets:
-                    target = target_row[0]
-                    if target in queued:
-                        continue
-                    if depth >= _DEPTH_LIMIT:
-                        budget_frontier("dependency_depth_budget", target)
-                    elif len(queued) >= policy.max_semantic_files:
-                        budget_frontier("dependency_file_budget", target)
-                    else:
-                        queued.add(target)
-                        pending.append((target, depth + 1))
+                    enqueue(target_row[0], depth)
                 unresolved = db.execute("SELECT DISTINCT r.relation_id,r.relation_type,r.target_name,r.status "
                     "FROM relations r LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
                     "WHERE r.relative_path=? AND (r.relation_type='CALL_TARGET_FROM' OR "
@@ -138,12 +223,36 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                     if target and db.execute("SELECT 1 FROM source_files WHERE relative_path=?", (target,)).fetchone():
                         frontier("copy_binding_unresolved", relative, target_name=edge["target_name"],
                                  relation_type=edge["relation_type"], target_path=target, source_available=True)
+                        if business_overview:
+                            enqueue(target, depth)
+                        continue
+                    candidates = []
+                    if edge["relation_type"] in {"CALLS", "INCLUDES_COPY"}:
+                        symbol_type = "Program" if edge["relation_type"] == "CALLS" else "Copybook"
+                        candidates = [row[0] for row in db.execute("SELECT DISTINCT s.relative_path "
+                            "FROM symbols s JOIN source_files f ON f.relative_path=s.relative_path "
+                            "WHERE s.symbol_type=? AND UPPER(s.name)=UPPER(?) "
+                            "ORDER BY s.relative_path LIMIT ?",
+                            (symbol_type, edge["target_name"], _FRONTIER_LIMIT + 1))]
+                    if candidates:
+                        frontier("dependency_binding_unresolved", relative,
+                            target_name=edge["target_name"], relation_type=edge["relation_type"],
+                            candidate_paths=candidates[:_FRONTIER_LIMIT], source_available=True,
+                            candidate_paths_limited=len(candidates) > _FRONTIER_LIMIT)
+                        # Do not choose an implementation from duplicate or
+                        # conditionally active definitions on the model's behalf.
                         continue
                     frontier("runtime_target_unresolved" if edge["relation_type"] == "CALL_TARGET_FROM"
                              else "external_implementation_unavailable", relative,
                              target_name=edge["target_name"], relation_type=edge["relation_type"])
                 if len(unresolved) > _FRONTIER_LIMIT:
                     frontier("unresolved_targets_limited", relative, minimum_omitted_count=1)
+                if business_overview:
+                    definitions, definition_gaps = _file_definition_candidates(db, relative)
+                    for gap in definition_gaps:
+                        frontier(gap.pop("reason"), relative, **gap)
+                    for target in definitions:
+                        enqueue(target, depth)
             if fatal:
                 return result
 
@@ -151,12 +260,13 @@ def build_complete_working_set(database_path, source_session, business_map, poli
         captured_paths = {item["relative_path"] for item in source_session.source_manifest()}
         # The root stays first. Previously inspected dependencies receive the
         # next slots, while an oversized file cannot displace smaller sources.
-        records = records[:1] + sorted(records[1:],
+        records = [item for item in records if item["relative_path"] in root_set] + sorted(
+            (item for item in records if item["relative_path"] not in root_set),
             key=lambda item: item["relative_path"] not in captured_paths)
         for item in records:
             cancel()
             relative = item["relative_path"]
-            is_root = relative == roots[0]
+            is_root = relative in root_set
             character_limit = root_limit if is_root else policy.max_source_characters
             character_reason = "complete_source_characters" if is_root else "source_characters"
             physical_root = (source_session.mirror_root if relative in captured_paths
@@ -164,15 +274,11 @@ def build_complete_working_set(database_path, source_session, business_map, poli
             size = _safe_file(physical_root, relative).stat().st_size
             if total_bytes + size > byte_limit:
                 budget_frontier("source_byte_budget", relative, byte_limit=byte_limit)
-                if relative == roots[0]:
-                    return result
                 continue
             captured = source_session.capture(relative)
             total_bytes += captured.size
             if total_bytes > byte_limit:
                 budget_frontier("source_byte_budget", relative, byte_limit=byte_limit)
-                if relative == roots[0]:
-                    return result
                 continue
             if captured.sha256 != item["sha256"]:
                 frontier("source_hash_mismatch", relative, blocking=True,
@@ -185,20 +291,17 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                 {**item, "encoding": captured.encoding}, check_cancel, character_limit))
             if any(truncated for _, truncated in verified):
                 budget_frontier(character_reason, relative)
-                if relative == roots[0]:
-                    return result
                 continue
             lines = [text for text, _ in verified]
             text = "\n".join(lines)
-            if len(text) > character_limit or (not is_root and
+            if len(text) > character_limit or ((not is_root or len(roots) > 1) and
                     ordinary_chars + len(text) > policy.max_source_characters):
                 budget_frontier(character_reason, relative)
-                if relative == roots[0]:
-                    return result
                 continue
             if is_root:
-                metadata["root_source_characters"] = len(text)
-                metadata["complete_root_budget_applied"] = len(text) > policy.max_source_characters
+                metadata["root_source_characters"] += len(text)
+                metadata["complete_root_budget_applied"] = (len(roots) == 1
+                    and len(text) > policy.max_source_characters)
             else:
                 metadata["non_root_source_characters"] += len(text)
             if not is_root or not metadata["complete_root_budget_applied"]:
@@ -235,7 +338,15 @@ def build_complete_working_set(database_path, source_session, business_map, poli
             for page in staged:
                 _persist_page(db, page)
             db.commit()
-        metadata.update(status="partial" if budget_limited else "supplied",
+        supplied_paths = {item["relative_path"] for item in metadata["source_manifest"]}
+        metadata["available_unsupplied_paths"] = list(dict.fromkeys([
+            *(path for path in metadata["candidate_paths"] if path not in supplied_paths),
+            *metadata["omitted_candidate_paths"],
+            *(path for gap in metadata["frontier"] if gap.get("source_available")
+              for path in [*gap.get("candidate_paths", ()),
+                           *([gap["target_path"]] if gap.get("target_path") else [])]
+              if path not in supplied_paths)]))[:_FRONTIER_LIMIT]
+        metadata.update(status=("partial" if staged else "fallback") if budget_limited else "supplied",
                         physical_complete=not budget_limited,
                         reason=metadata["reason"] if budget_limited else "candidate_source_set_supplied",
                         snapshot_id=snapshot)

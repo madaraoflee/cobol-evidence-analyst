@@ -1,0 +1,151 @@
+[
+  {
+    "scope": "offline_navigation_and_request_preparation_not_model_quality",
+    "indexed_files": 1009,
+    "unrelated_files": 1000,
+    "related_chain_files": 9,
+    "index_build_seconds_excluded_from_request_timing": 1.162563666999631,
+    "business_map_seconds": 0.012962249999873166,
+    "source_walk_seconds": 0.008182583000234445,
+    "source_walk_file_count": 9,
+    "source_walk_physical_captures": [
+      "step0.cbl",
+      "step1.cbl",
+      "step2.cbl",
+      "step3.cbl",
+      "step4.cbl",
+      "step5.cbl",
+      "step6.cbl",
+      "step7.cbl",
+      "step8.cbl"
+    ],
+    "source_walk_duplicate_physical_captures": 0,
+    "source_walk_cache_hits": 0,
+    "first_request": {
+      "elapsed_seconds": 0.09579908300020179,
+      "paths": [
+        "step0.cbl",
+        "step1.cbl",
+        "step2.cbl",
+        "step3.cbl",
+        "step4.cbl",
+        "step5.cbl",
+        "step6.cbl",
+        "step7.cbl",
+        "step8.cbl"
+      ],
+      "body_bytes": 66217
+    },
+    "local_transport_captures": 1,
+    "request_physical_captures": [
+      "step0.cbl",
+      "step1.cbl",
+      "step8.cbl",
+      "step7.cbl",
+      "step2.cbl",
+      "step3.cbl",
+      "step4.cbl",
+      "step5.cbl",
+      "step6.cbl"
+    ],
+    "request_duplicate_physical_captures": 0,
+    "request_capture_cache_hits": 4,
+    "timing": {
+      "selected_source_hash_seconds": 0.003,
+      "business_map_seconds": 0.012,
+      "retrieval_seconds": 0.006,
+      "read_seconds": 0.0,
+      "initial_context_seconds": 0.0185,
+      "semantic_evidence_seconds": 0.0,
+      "semantic_scope_seconds": 0.0,
+      "context_assembly_seconds": 0.0391,
+      "provider_wait_seconds": 0.0034,
+      "question_investigation_seconds": 0.0129,
+      "complete_working_set_seconds": 0.0071,
+      "answer_fact_completion_seconds": 0.0,
+      "answer_verification_seconds": 0.0054,
+      "first_model_request_seconds": 0.0754,
+      "local_processing_seconds": 0.0847,
+      "total_seconds": 0.0881
+    },
+    "network_attempts": 0,
+    "real_model_calls": 0
+  },
+  {
+    "scope": "offline_navigation_and_request_preparation_not_model_quality",
+    "indexed_files": 1009,
+    "unrelated_files": 1000,
+    "related_chain_files": 9,
+    "index_build_seconds_excluded_from_request_timing": 1.1693785420002314,
+    "business_map_seconds": 0.013011833000746265,
+    "source_walk_seconds": 0.011206709000362025,
+    "source_walk_file_count": 8,
+    "source_walk_physical_captures": [
+      "step1.cbl",
+      "step2.cbl",
+      "step3.cbl",
+      "step4.cbl",
+      "step5.cbl",
+      "step6.cbl",
+      "step7.cbl",
+      "step8.cbl"
+    ],
+    "source_walk_duplicate_physical_captures": 0,
+    "source_walk_cache_hits": 0,
+    "first_request": {
+      "main_call_supplied": true,
+      "leaf_calculation_supplied": true,
+      "elapsed_seconds": 0.11719587500010675,
+      "paths": [
+        "step0.cbl",
+        "step1.cbl",
+        "step2.cbl",
+        "step3.cbl",
+        "step4.cbl",
+        "step5.cbl",
+        "step6.cbl",
+        "step7.cbl",
+        "step8.cbl"
+      ],
+      "body_bytes": 86068
+    },
+    "local_transport_captures": 1,
+    "request_physical_captures": [
+      "step0.cbl",
+      "step1.cbl",
+      "step8.cbl",
+      "step7.cbl",
+      "step2.cbl",
+      "step3.cbl",
+      "step4.cbl",
+      "step5.cbl",
+      "step6.cbl"
+    ],
+    "request_duplicate_physical_captures": 0,
+    "request_capture_cache_hits": 6,
+    "timing": {
+      "selected_source_hash_seconds": 0.0093,
+      "business_map_seconds": 0.0124,
+      "retrieval_seconds": 0.0158,
+      "read_seconds": 0.0034,
+      "initial_context_seconds": 0.0318,
+      "semantic_evidence_seconds": 0.0,
+      "semantic_scope_seconds": 0.0,
+      "context_assembly_seconds": 0.0493,
+      "provider_wait_seconds": 0.0029,
+      "question_investigation_seconds": 0.018,
+      "complete_working_set_seconds": 0.0106,
+      "answer_fact_completion_seconds": 0.0,
+      "answer_verification_seconds": 0.006,
+      "first_model_request_seconds": 0.0995,
+      "local_processing_seconds": 0.1096,
+      "total_seconds": 0.1125
+    },
+    "network_attempts": 0,
+    "real_model_calls": 0,
+    "oversized_main_bytes": 1062695,
+    "working_set_available_unsupplied_paths": [
+      "step0.cbl"
+    ]
+  }
+]

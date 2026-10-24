@@ -309,7 +309,7 @@ class CompleteWorkingSetTests(unittest.TestCase):
         self.assertIn({"reason": "source_byte_budget", "relative_path": "leaf.cbl", "byte_limit": 1024},
                       metadata["frontier"])
 
-    def test_depth_limit_keeps_bounded_complete_files_without_claiming_closure(self):
+    def test_business_overview_follows_complete_chain_within_file_budget(self):
         files = {f"level-{index}.cbl": program(f"LEVEL-{index}",
             (f"CALL 'LEVEL-{index + 1}'.\n" if index < 5 else "") +
             f"MOVE {index} TO RESULT-AMOUNT.") for index in range(6)}
@@ -318,14 +318,14 @@ class CompleteWorkingSetTests(unittest.TestCase):
         metadata = payload["source_context"][0]["working_set"]
         pages = [page for page in source_pages(payload)
                  if "complete_working_set" in page.get("selection_reasons", [])]
-        self.assertEqual({page["relative_path"] for page in pages}, {f"level-{i}.cbl" for i in range(5)})
+        self.assertEqual({page["relative_path"] for page in pages}, {f"level-{i}.cbl" for i in range(6)})
         for page in pages:
             self.assertEqual(page["source_text"], self.files[page["relative_path"]].rstrip("\n"))
-        self.assertEqual(metadata["status"], "partial")
-        self.assertFalse(metadata["physical_complete"])
-        self.assertFalse(metadata["closure_complete"])
-        self.assertEqual(metadata["omitted_candidate_paths"], ["level-5.cbl"])
-        self.assertIn("dependency_depth_budget", {gap["reason"] for gap in metadata["frontier"]})
+        self.assertEqual(metadata["status"], "supplied")
+        self.assertTrue(metadata["physical_complete"])
+        self.assertTrue(metadata["closure_complete"])
+        self.assertEqual(metadata["omitted_candidate_paths"], [])
+        self.assertNotIn("dependency_depth_budget", {gap["reason"] for gap in metadata["frontier"]})
 
     def test_partial_working_set_metadata_still_reports_request_byte_trimming(self):
         self.build({

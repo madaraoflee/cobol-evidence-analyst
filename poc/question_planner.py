@@ -7,7 +7,7 @@ import re
 from statement_facts import data_references
 
 
-PLAN_VERSION = "business-analysis-plan/v9"
+PLAN_VERSION = "business-analysis-plan/v10"
 _ACCUMULATION = re.compile(
     r"累加|累[计計积積]|加总|加總|"
     r"(?<![A-Za-z0-9_$#@-])(?:accumulat(?:e[ds]?|ing|ion)|running\s+totals?)(?![A-Za-z0-9_$#@-])|"
@@ -56,6 +56,54 @@ _RUNTIME_ACTIVATION = re.compile(
     r"(?<![A-Za-z0-9_-])(?:schedul\w*|cron|launch\w*)(?![A-Za-z0-9_-])|"
     r"\b(?:when|who|what\s+time|how\s+often)\s+.{0,80}\b(?:run|start|launch|execut|trigger|initiat)\w*\b|"
     r"\bruntime\s+(?:execution|scheduling|launch)\b", re.I)
+_CONCEPT_QUESTION = re.compile(
+    r"^(?:(?:请问|請問|请|請|帮我|幫我|麻烦|麻煩)\s*)*"
+    r"(?:(?:什么|什麼|甚麼)是\s*\S|"
+    r"(?:解释|解釋|说明|說明|介绍|介紹|讲解|講解)(?:一下)?\s*\S)|"
+    r"^[^\n。？！?！；;]{1,120}(?:是什么|是什麼|是甚麼)(?:意思)?[\s。？！?！]*$|"
+    r"^(?:please\s+)?(?:what\s+(?:is|are)\s+\S|explain\s+(?:to\s+me\s+)?\S|"
+    r"tell\s+me\s+about\s+\S)", re.I)
+_NARROW_CONCEPT = re.compile(
+    r"翻译|翻譯|译成|譯成|中文怎么说|中文怎麼說|"
+    r"字段|欄位|栏位|变量|變量|参数|參數|返回值|返回码|返回碼|错误码|錯誤碼|"
+    r"这(?:一)?(?:行|句)|這(?:一)?(?:行|句)|语句|語句|语法|語法|段落|"
+    r"异常|異常|失败|失敗|初值|初始值|默认值|默認值|类型|類型|长度|長度|"
+    r"规则|規則|公式|算式|"
+    r"(?:哪个|哪個|哪些|哪裡|哪里|是否|为何|為何|为什么|為什麼|如何|怎么|怎麼|怎样|怎樣)|"
+    r"(?:只|仅|僅)(?:需|要|想)?(?:解释|解釋|说明|說明|知道|了解)|"
+    r"(?:的|之)(?:输入|輸入|输出|輸出|值|数值|數值|定义|定義|声明|聲明|逻辑|邏輯|规则|規則|公式|条件|條件)|"
+    r"\b(?:translat\w*|fields?|variables?|parameters?|return\s+(?:values?|codes?)|"
+    r"error\s+codes?|exceptions?|rules?|formulas?|statements?|syntax|paragraphs?|this\s+line|"
+    r"data\s+types?|type\s+of|length|initial\s+value|value\s+of|"
+    r"default\s+value|which|whether|where|why|how|when|only|just|"
+    r"input\s+(?:of|to)|output\s+(?:of|from))\b", re.I)
+_TECHNICAL_CONCEPT = re.compile(
+    r"(?<![A-Za-z0-9_$#@-])(?:PIC(?:TURE)?|COMP(?:-[1-5])?|REDEFINES|OCCURS|"
+    r"MOVE|COMPUTE|PERFORM|GOBACK|GO\s+TO|STOP\s+RUN|COPY|SQLCODE|"
+    r"CALL|READ|WRITE|REWRITE|OPEN|CLOSE|DISPLAY|IF|EVALUATE|EXEC\s+SQL)"
+    r"[\s。？！?！]*$", re.I)
+_MANUAL_DEFINITION = re.compile(
+    r"(?:手册|手冊|文档|文檔).{0,100}(?:含义|含義|意思|定义|定義|是什么|是什麼)|"
+    r"(?:含义|含義|意思|定义|定義).{0,100}(?:手册|手冊|文档|文檔)|"
+    r"\b(?:manual|documentation|guide)\b.{0,100}\b(?:meaning|definition)\b|"
+    r"\b(?:meaning|definition)\b.{0,100}\b(?:manual|documentation|guide)\b|"
+    r"\b(?:in|according\s+to)\s+(?:the\s+)?(?:framework\s+)?"
+    r"(?:manual|documentation|guide)\s*[.!?]*$", re.I)
+
+
+def business_concept_requested(question, *, field_entities=(), source_scopes=()):
+    """Recognize a request to understand a subject, without naming domains.
+
+    A bound data reference or exclusive procedure retains its focused investigation. Otherwise
+    plain concept questions nominate a source-based explanation, not a claim
+    that the subject is implemented or that all program roles are applicable.
+    """
+    text = str(question).strip()
+    exclusive_scope = any(scope.get("exclusive") is not False for scope in source_scopes)
+    return bool(not field_entities and not exclusive_scope and _CONCEPT_QUESTION.search(text)
+                and not _NARROW_CONCEPT.search(text)
+                and not _TECHNICAL_CONCEPT.search(text)
+                and not _MANUAL_DEFINITION.search(text))
 
 
 def runtime_activation_requested(question):
@@ -173,6 +221,7 @@ _TOOLS = {
     "calculation": ("explain_assignment", "backward_slice"),
     "accumulation": ("explain_assignment", "backward_slice"),
     "flow": ("backward_slice", "trace_parameter", "explain_external_effect"),
+    "business_overview": ("inspect_business_context", "trace_parameter", "explain_external_effect"),
     "explanation": ("explain_assignment",),
     "declaration": ("inspect_business_context",),
     "activation": ("inspect_business_context", "trace_parameter", "explain_external_effect"),
@@ -245,6 +294,9 @@ class QuestionPlanner:
                 intent_question = re.sub(r"(?<![A-Za-z0-9_$#@-])" + re.escape(name) +
                                          r"(?![A-Za-z0-9_$#@-])", " ", intent_question, flags=re.I)
         intents = [name for name, pattern in _HINTS.items() if re.search(pattern, intent_question, re.I)]
+        concept = business_concept_requested(question, field_entities=entities, source_scopes=source_scopes)
+        if concept:
+            intents.append("business_overview")
         explicit_activation = runtime_activation_requested(intent_question)
         if explicit_activation and "activation" not in intents:
             intents.append("activation")
@@ -256,13 +308,12 @@ class QuestionPlanner:
         if "activation" in intents and _BATCH_NOUN.search(intent_question):
             without_batch = _BATCH_NOUN.sub(" ", intent_question)
             if not re.search(_HINTS["activation"], without_batch, re.I):
-                from business_synthesis import wants_business_overview
                 entry_requested = (explicit_activation or _UPSTREAM_ACTIVATION.search(without_batch)
                                    or re.search(r"\bentry\b", without_batch, re.I))
                 # A batch noun identifies the kind of program, not a request
-                # to discover who launches it. Local I/O and exception followups
-                # retain their own obligations without an unrelated scheduler.
-                if not entry_requested and not wants_business_overview(intent_question):
+                # for runtime scheduling. Business overviews still collect
+                # related CL source through the separate batch-context reader.
+                if not entry_requested:
                     intents.remove("activation")
         # A rule's trigger condition belongs to its local IF/control analysis.
         # Upstream launch or batch wording asks the separate caller/scheduler
@@ -312,6 +363,7 @@ class QuestionPlanner:
                 "calculation": ("assignment_expression", "input_definitions", "numeric_layout"),
                 "accumulation": ("accumulation_step", "input_definitions"),
                 "flow": ("control_conditions", "calls", "external_effects"),
+                "business_overview": ("control_conditions", "calls", "external_effects"),
                 "activation": ("entry_point", "caller_invocation", "activation_conditions", "scheduler_binding"),
                 "call_relationships": ("calls",),
                 "declaration": ("declaration_layout",)}.get(intent, ()))

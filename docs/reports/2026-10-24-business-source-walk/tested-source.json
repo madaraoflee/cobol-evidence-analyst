@@ -1,0 +1,50 @@
+[
+  {
+    "path": "poc/business_chat.py",
+    "sha256": "a16d21bb9abcf61e35de836f7f018ce062d04678dca716a48723a45c1ccf2dc7"
+  },
+  {
+    "path": "poc/business_synthesis.py",
+    "sha256": "52fa3cdf03ef927b2f30a60a557e2b550206fc10f12d27efddf788530e628eee"
+  },
+  {
+    "path": "poc/question_planner.py",
+    "sha256": "042bfa15096796d020781bc0553de6e7f60cd05b61ffddbb8f64323281ffe24c"
+  },
+  {
+    "path": "poc/question_investigation.py",
+    "sha256": "0c4bd96776d806aa62091c866a1c20b0d75e36d408908f7f95cab3692765bf29"
+  },
+  {
+    "path": "poc/complete_working_set.py",
+    "sha256": "3c0e187d4640993147cff81ae4fc425bfcd03eee0639ae28269a00792568e161"
+  },
+  {
+    "path": "poc/quality_trace.py",
+    "sha256": "9d5b6e54a856deda60a335e130bf720581f88005450f4569aa3dc9d15585a71c"
+  },
+  {
+    "path": "poc/tests/test_activation_question_scope.py",
+    "sha256": "ce2cd8aca7d34b017310cf83f5659994fc6da3d9ab4abac94737da2901cd535e"
+  },
+  {
+    "path": "poc/tests/test_complete_working_set.py",
+    "sha256": "b5a04914fd40188087d6f5a5388748cfa0fed8672c529e10f4a29d0152d9f612"
+  },
+  {
+    "path": "poc/tests/test_business_concept_pipeline.py",
+    "sha256": "15aaef2827ef8c104495271cf69ed68e097a7e0badc362b0df68777ecf93725c"
+  },
+  {
+    "path": "poc/tests/test_business_concept_questions.py",
+    "sha256": "aae25bc95875bf93a619a0f8b7559279ce82a268e8cf076d1921f1925b34a9b8"
+  },
+  {
+    "path": "poc/tests/test_concept_working_set.py",
+    "sha256": "439056032aa006bc0b8dd63feefd1d4102813ebf12a3292ec9bdbeb96256e5da"
+  },
+  {
+    "path": "poc/tests/test_business_concept_delivery.py",
+    "sha256": "f759b61e52768c32b6e53730070031933a37cc46442656ad4e46a73bc49c8b78"
+  }
+]

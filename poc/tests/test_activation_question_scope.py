@@ -10,6 +10,7 @@ from activation_evidence import investigate_activation
 from batch_context_evidence import investigate_batch_context
 from business_index import build_business_index
 from question_planner import QuestionPlanner, runtime_activation_requested
+from question_investigation import build_question_investigation
 
 
 class ActivationQuestionScopeTests(unittest.TestCase):
@@ -36,10 +37,18 @@ class ActivationQuestionScopeTests(unittest.TestCase):
                 self.assertFalse({"entry_point", "caller_invocation", "activation_conditions",
                                   "scheduler_binding"}.intersection(plan.required_obligations))
 
-    def test_overview_and_explicit_entry_still_request_static_activation_evidence(self):
+    def test_business_overview_does_not_require_runtime_scheduling(self):
         for question in (
             "请从业务目的解释 SERVICE 的整体流程，包括 Batch job、输入输出和异常。",
             "Explain the business purpose and workflow of this batch.",
+        ):
+            with self.subTest(question=question):
+                plan = self.plan(question)
+                self.assertNotIn("activation", plan.intents)
+                self.assertNotIn("scheduler_binding", plan.required_obligations)
+
+    def test_explicit_entry_still_requests_static_activation_evidence(self):
+        for question in (
             "批处理入口和 OUTPUT-AMOUNT 公式是什么？",
             "Explain the batch entry and OUTPUT-AMOUNT formula.",
             "批处理入口 COPY 的完整计算公式是什么？",
@@ -152,6 +161,21 @@ class SuppliedCLScopeReasonTests(unittest.TestCase):
         statuses = {item["kind"]: item["status"] for item in result["required_items"]}
         self.assertEqual(statuses["activation_conditions"], "SATISFIED")
         self.assertEqual(statuses["scheduler_binding"], "OPEN")
+
+    def test_overview_keeps_source_batch_entry_and_local_scheduler_limitation(self):
+        self.fixture(environment=True)
+        mapping = {"direct_paths": ["service.cbl"], "selected_paths": ["service.cbl"],
+                   "programs": [{"relative_path": "service.cbl", "program_names": ["SERVICE"]}]}
+        result = build_question_investigation("解释一下 SERVICE 这项批处理的业务用途", mapping,
+            source_pages=[self.page("service.cbl"), self.page("launch.clle")],
+            database_path=self.database)
+        self.assertNotIn("activation", result["analysis_plan"]["intents"])
+        self.assertGreater(result["cl_context"]["candidate_count"], 0)
+        from business_chat import _answer_scope_gaps
+        material, limitations = _answer_scope_gaps("解释一下 SERVICE 这项批处理的业务用途", result)
+        self.assertNotIn("scheduler_binding", {item["kind"] for item in material})
+        self.assertIn("scheduler_binding", {item["kind"] for item in limitations})
+        self.assertTrue(all(item["blocks_static_source_explanation"] is False for item in limitations))
 
     def test_missing_or_invalid_guard_keeps_unknown_reason_and_runtime_unverified(self):
         guard_line, call_line = self.fixture()

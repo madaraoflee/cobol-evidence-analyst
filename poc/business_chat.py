@@ -22,7 +22,7 @@ from analysis_continuation import AnalysisContinuation, progress_snapshot
 from business_map import build_business_map
 from business_explanation_cache import with_business_explanation_cache
 from business_synthesis import (assess_answer_completion, assess_business_answer, build_analysis_brief, link_answer_claims,
-                                needs_synthesis_review, wants_business_detail)
+                                needs_synthesis_review, wants_business_detail, wants_business_overview)
 from company_api import APIClientError, APIConfigurationError, OpenAICompatibleChatClient
 from claim_ledger import review_answer_claims
 from evidence_context import EvidenceContext, page_priority
@@ -619,7 +619,11 @@ def _prompt_payload(payload):
                     "content": "Lead with the conclusion; qualify only affected claims.",
                     "time_scope": "Keep call inputs, returned values and later outcomes distinct; retain each scenario's assumptions."}
     explanation_contract = projected.get("business_analysis_brief", {}).get("business_explanation_contract", {})
-    if not discovery_only and explanation_contract.get("mode") == "business_overview":
+    if not discovery_only and (explanation_contract.get("mode") == "business_overview"
+            or wants_business_overview(payload.get("question", ""),
+                answer_detail=payload.get("answer_detail", "detailed"),
+                field_entities=payload.get("question_investigation", {}).get("analysis_plan", {}).get("entities", ()),
+                source_scopes=payload.get("question_investigation", {}).get("analysis_plan", {}).get("source_scopes", ()))):
         contract["business_explanation"] = {
             "audience": "A newcomer learning the business process.",
             "order": ["business object, purpose and outcome", "evidenced entry and connected processing steps",
@@ -627,6 +631,12 @@ def _prompt_payload(payload):
             "reader_questions": ["What is this process for?", "Who starts it and who does each step?",
                                  "Where does each input come from and where does each result go?",
                                  "Which conditions change the result or prevent it?"],
+            "source_walk": "Start from the located business entry and follow its actual control flow, "
+                "local procedures, called implementations and parameter handoffs. Connect table/file reads "
+                "to the processing that uses them, then explain outputs and their consumers when evidenced. "
+                "Use already supplied implementations now. For a relevant implementation located in the "
+                "repository but not supplied, request its source rather than ending with a suggestion to inspect it. "
+                "A missing external implementation limits that step, not the explanation of the visible process.",
             "grounding": "Use business_analysis_brief.business_orientation as source-bound navigation. "
                 "Connect handoffs using their bound facts and explain the role of each named object once. "
                 "Separate declared external file names from verified LF/PF definitions; a table is not automatically a file. "
@@ -635,10 +645,8 @@ def _prompt_payload(payload):
                 "Do not invent a schedule, online deployment, domain label or successful runtime outcome."}
         if payload.get("budget_wire_compact"):
             contract["business_explanation"] = {
-                "audience": "A newcomer learning the business process.",
-                "task": "Follow the system business explanation policy: purpose, evidenced responsibilities, "
-                    "program/data handoffs and decisive conditions. Verify business_orientation.handoffs "
-                    "against supplied source; they do not prove runtime behavior."}
+                "task": "Explain purpose and source-backed program/data flow for a newcomer. "
+                    "Use supplied code; read relevant located implementations as needed."}
     if discovery_only:
         contract = {"format": "Return one JSON object containing a nonempty search array.",
                     "content": "Choose likely source terms, synonyms or abbreviations for the current question. "
@@ -990,6 +998,11 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         elif payload.get("prior_source_memory", {}).get("blocks"):
             removed = payload["prior_source_memory"]["blocks"].pop(0)
             record(removed.get("memory_id"), "prior_source_memory_request_bytes", len(removed.get("text", "")))
+        elif payload.get("question_investigation") and not minimal_investigation:
+            # Preserve the last source excerpt before optional plan metadata.
+            # The complete plan remains in the canonical local payload.
+            minimal_investigation = True
+            record(None, "investigation_navigation_request_bytes")
         elif bundle["pages"]:
             if source_fallback_attempted and source_fallback_builder is not None:
                 old = bundle["pages"][0]
@@ -1005,12 +1018,6 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
             # budget may leave only navigation and an explanation of the gap.
             removed = bundle["pages"].pop()
             record(removed.get("evidence_id"), "request_bytes", len(removed.get("source_text", "")), role="source")
-        elif payload.get("question_investigation") and not minimal_investigation:
-            # Keep question obligations and truthful source visibility even
-            # when a long question leaves almost no room for navigation.
-            # The complete plan remains in the canonical local payload.
-            minimal_investigation = True
-            record(None, "investigation_navigation_request_bytes")
         else:
             raise ValueError("BUSINESS_CONTEXT_TOO_LARGE")
 
@@ -1336,6 +1343,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     answer_source_fact_cache = {}
     draft_reviews = {}
     reviewed_answers = {}
+
+    def source_completion(text, payload):
+        supplied = (source_memory.effective_pages(payload) if source_memory else
+                    [page for bundle in payload["source_context"] for page in bundle.get("pages", [])])
+        return assess_answer_completion(text, source_pages=supplied,
+            working_set=payload["source_context"][0].get("working_set"))
 
     def review_draft(text, payload, investigation, *, audit=True):
         supplied = (source_memory.effective_pages(payload, verify_archive=True) if source_memory else
@@ -1920,14 +1933,20 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         # capture, bounded by the question's existing file allowance.
         for _ in range(policy.max_semantic_files + 1):
             identity = business_map.get("source_identity", {})
+            overview_requested = wants_business_overview(question, answer_detail=answer_detail,
+                field_entities=business_map.get("session_subject", {}).get("focus_entities", ()),
+                source_scopes=business_map.get("navigation_scope", {}).get("source_scopes", ()))
             key = (business_map.get("snapshot_id"), identity.get("status"), identity.get("kind"),
-                   tuple(identity.get("direct_paths", [])), bool(identity.get("exclusive_source_scope")))
+                   tuple(identity.get("direct_paths", [])), bool(identity.get("exclusive_source_scope")),
+                   tuple(business_map.get("direct_paths", [])),
+                   overview_requested)
             if key == active_complete_key:
                 return
             if key not in complete_contexts:
                 complete_started = time.monotonic()
                 complete_contexts[key] = build_complete_working_set(
-                    database_path, source_session, business_map, policy, check_cancel=check_cancel)
+                    database_path, source_session, business_map, policy, check_cancel=check_cancel,
+                    business_overview=overview_requested)
                 timing["complete_working_set_seconds"] += time.monotonic() - complete_started
             context = complete_contexts[key]
             if refresh_if_needed(context):
@@ -2090,6 +2109,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 database_path=database_path, source_pages=selected, evidence_groups=evidence_groups,
                 completed_actions=completed_actions, candidate_cache=investigation_cache,
                 framework_facts=framework_facts, history=history or (),
+                working_set=evidence.working_set,
+                max_semantic_files=policy.max_semantic_files,
                 max_actions=policy.max_reads_per_turn + policy.max_business_context_actions_per_turn)
             if result.get("candidate_cache", {}).get("hit") is False:
                 investigation_queries += 1
@@ -2378,7 +2399,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     evidence_groups=evidence_groups, priority_targets=priority_targets,
                     max_complete_source_characters=policy.max_complete_source_characters)
                 prepared_investigation = question_investigation(selected_pages)
-                if (local_evidence_allowed and (detail_requested or is_file_impact_question(question) or automatic_followup_material is not None
+                if (local_evidence_allowed and (detail_requested
+                        or "business_overview" in (prepared_investigation.get("analysis_plan") or {}).get("intents", [])
+                        or is_file_impact_question(question) or automatic_followup_material is not None
                         or "activation" in (prepared_investigation.get("analysis_plan") or {}).get("intents", [])
                         or prepared_investigation.get("cl_context", {}).get("candidate_count"))):
                     # One local read can reveal another deterministic dependency.
@@ -2723,7 +2746,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         failure = "RETRIEVAL_UNRESOLVED"
                         break
                     deferred = _investigation_deferral(reply.text)
-                    promised = assess_answer_completion(reply.text).get("pending_investigation", False)
+                    completion = source_completion(reply.text, payload)
+                    promised = completion.get("pending_investigation", False)
                     if answer and (promised or (reply.truncated and not truncated)):
                         retained = review_draft(answer, payload, current_investigation)
                         answer = retained["answer"]
@@ -2779,12 +2803,19 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                 remember_source_draft(payload)
                                 answer_investigation = current_investigation
                                 if (not promised and not truncated and finish_reason == "stop"
-                                        and assess_answer_completion(answer)["status"] != "incomplete"):
+                                        and source_completion(answer, payload)["status"] != "incomplete"):
                                     automatic_followup_material = _supplied_answer_material(payload)
                             continue
                         if (deferred or promised) and not investigation_reprompted:
                             investigation_reprompted = True
-                            recovery_reason = "回复承诺继续调查，但尚未执行补查" if promised else "回复只提出调查需要"
+                            if completion.get("pending_source_explanation") and review_pages:
+                                # The original source is already here. Use the
+                                # existing follow-up to explain it, without a
+                                # separate judging call or duplicate source read.
+                                synthesis_review_attempted = True
+                                recovery_reason = "请使用已有原文，沿主流程、参数和数据读写完成业务解释；仅对确实缺少的实现说明局部边界"
+                            else:
+                                recovery_reason = "回复承诺继续调查，但尚未执行补查" if promised else "回复只提出调查需要"
                             if not deferred:
                                 answer, truncated = reply.text, reply.truncated
                                 answer_round = f"round-{turns}"
@@ -3007,7 +3038,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 if (continued_reply.refused or continued_reply.filtered or continued_action
                         or _action_reply_invalid(continued_reply.text, continued_action)
                         or _investigation_deferral(continued_reply.text)
-                        or (assess_answer_completion(continued_reply.text)["status"] == "incomplete"
+                        or (source_completion(continued_reply.text, continuation_payload)["status"] == "incomplete"
                             and not (adaptive and continued_reply.truncated))):
                     failure = ("MODEL_REFUSED" if continued_reply.refused else
                         "MODEL_CONTENT_FILTERED" if continued_reply.filtered else
@@ -3198,13 +3229,13 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                 working_set=revised_payload["source_context"][0].get("working_set"))
                             lost_aspects = sorted(set(revised_completion["missing_aspects"])
                                 - set(draft_in_revision_context["missing_aspects"]))
-                            revised_answer_completion = assess_answer_completion(revised_reply.text)
+                            revised_answer_completion = source_completion(revised_reply.text, revised_payload)
                             if (regression and not previous["ledger"]["counts"]["contradicted"]
                                     and (regression == "ANSWER_COVERAGE_REGRESSED" or previous["ledger"]["counts"]["supported"])):
                                 boundaries.append({"reason": "usable_draft_retained", "revision_error": regression})
                             elif (revised_answer_completion.get("pending_investigation")
                                     or revised_answer_completion["status"] == "incomplete"
-                                    and assess_answer_completion(answer)["status"] != "incomplete"
+                                    and source_completion(answer, revised_payload)["status"] != "incomplete"
                                     or revised_completion["status"] == "incomplete"
                                     and draft_in_revision_context["status"] != "incomplete"):
                                 boundaries.append({"reason": "usable_draft_retained",
