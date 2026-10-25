@@ -287,23 +287,64 @@ def _unknown(command, root, case, sample_index):
             workbench.stop()
             restored = workbench.start()
             restore_ok = restored["conversation"]["id"] == conversation_id
-            guarded = workbench.analyze(source, output, QUESTION, conversation_id=conversation_id, timeout=30)
+            request_counts = {"before_restart": len(journal["requests"]),
+                              "after_restart": len(provider.requests)}
+            # Opening the restored history is passive. POSTing the original
+            # question would instead be an explicit user retry in the workbench.
+            guarded = workbench.request("GET", "/api/conversations/" + conversation_id)
+            guarded_state = workbench.request("GET", "/api/state")
             guarded_requests = read_journal(output)["requests"]
-            guarded_ok = (guarded["result"].get("reason_code") == "REMOTE_REQUEST_OUTCOME_UNKNOWN"
-                and len(provider.requests) == 1 and guarded_requests == journal["requests"])
+            request_counts["after_history_open"] = len(provider.requests)
+            original_conversation = guarded["conversation"]
+            original_user = next(message for message in reversed(original_conversation["messages"])
+                if message["role"] == "user" and message["content"] == QUESTION)
+            guarded_ok = (guarded_state.get("active_job_id") is None
+                and original_conversation["id"] == conversation_id
+                and request_counts["after_restart"] == request_counts["after_history_open"] == 1
+                and guarded_requests == journal["requests"])
             # A new explicit conversation may ask independently. It must not
             # inherit or clear the first conversation's uncertain request.
             independent = workbench.analyze(source, output, QUESTION, timeout=30)
             independent_agent = _checked_answer(independent, provider)
             all_requests = read_journal(output)["requests"]
+            request_counts["after_independent_question"] = len(provider.requests)
+            original_after_independent = workbench.request("GET", "/api/conversations/" + conversation_id)["conversation"]
             isolated = (len(provider.requests) == 2 and independent_agent["metrics"]["model_requests"] == 1
                 and any(row == before for row in all_requests) and len(all_requests) == 2
-                and independent["state"]["conversation"]["id"] != conversation_id)
+                and independent["state"]["conversation"]["id"] != conversation_id
+                and original_after_independent["messages"] == original_conversation["messages"])
+            # A deliberate Retry is a separate submission and should obtain an
+            # answer once, while the old uncertain request remains untouched.
+            retried = workbench.analyze(source, output, QUESTION, conversation_id=conversation_id,
+                retry_message_id=original_user["id"], timeout=30)
+            retry_agent = _checked_answer(retried, provider)
+            after_retry = read_journal(output)
+            request_counts["after_explicit_retry"] = len(provider.requests)
+            retry_run_id = retry_agent["run_id"]
+            retry_requests = [row for row in after_retry["requests"] if row["run_id"] == retry_run_id]
+            independent_after_retry = workbench.request("GET", "/api/conversations/"
+                + independent["state"]["conversation"]["id"])["conversation"]
+            retry_checks = {
+                "one_new_request": len(provider.requests) == 3 and len(after_retry["requests"]) == 3
+                    and len(retry_requests) == 1 and retry_requests[0]["state"] == "completed",
+                "received_answer_in_new_run": retry_agent["model_answer_recorded"] is True
+                    and retry_run_id != before["run_id"] and retry_run_id != independent_agent["run_id"],
+                "unknown_request_preserved": any(row == before for row in after_retry["requests"]),
+                "old_run_retired_after_replacement": any(row["run_id"] == before["run_id"]
+                    and row["state"] == "superseded" for row in after_retry["runs"]),
+                "original_user_turn_preserved": retried["state"]["conversation"]["id"] == conversation_id
+                    and [message["id"] for message in retried["state"]["conversation"]["messages"]
+                         if message["role"] == "user"] == [original_user["id"]],
+                "independent_conversation_preserved": independent_after_retry["messages"]
+                    == independent["state"]["conversation"]["messages"],
+                "source_index_preserved": _index_stamp(output) == index_before,
+            }
             cancellation_seconds = finished - cancelled if cancelled else None
             checks = {"lifecycle_remote_unknown_preserved": unknown,
                 "lifecycle_no_automatic_resend": guarded_ok,
                 "lifecycle_restart_restored": restore_ok,
-                "lifecycle_unknown_isolated_between_conversations": isolated}
+                "lifecycle_unknown_isolated_between_conversations": isolated,
+                "lifecycle_explicit_retry_once_preserves_unknown": all(retry_checks.values())}
             if cancelled:
                 checks["lifecycle_cancel_prompt"] = (job["status"] == "CANCELLED"
                     and cancellation_seconds <= case.get("limits", {}).get("cancel_seconds", 2))
@@ -320,7 +361,12 @@ def _unknown(command, root, case, sample_index):
                 "question_index_reused": question_index_reused,
                 "agent_status": None, "real_model_accuracy": None, "business_answer_correctness": None,
                 "remote_request_state": "started", "remote_outcome": "unknown",
-                "explicit_independent_conversation_requests": 1}]
+                "request_counts": request_counts, "explicit_retry_checks": retry_checks,
+                "explicit_retry_run_id": retry_run_id,
+                "explicit_independent_conversation_requests": request_counts["after_independent_question"]
+                    - request_counts["after_history_open"],
+                "explicit_retry_requests": request_counts["after_explicit_retry"]
+                    - request_counts["after_independent_question"]}]
 
 
 def _dense(command, root, case):

@@ -297,6 +297,102 @@ EXIT.
         self.assertIn("RESULT-CODE = 101", answer)
         self.assertNotIn("写入成功", answer)
 
+    def test_repeated_completion_reuses_full_cited_io_fact_in_each_language(self):
+        source = self.replace_body("READ INPUT-FILE\nINVALID KEY\nMOVE 101 TO RESULT-CODE\n"
+                                   "NOT INVALID KEY\nMOVE 102 TO RESULT-CODE\nEND-READ.")
+        state = investigation(source, intents=("exception", "overwrite"))
+        for language in ("zh-CN", "zh-HK", "en"):
+            with self.subTest(language=language):
+                answer, first = complete_supplied_answer("失败原因", "RESULT-CODE = 102。", state,
+                    [page(source)], source_format="free", answer_language=language)
+                repeated, second = complete_supplied_answer("失败原因", answer, state,
+                    [page(source)], source_format="free", answer_language=language)
+                self.assertEqual(answer.count("RESULT-CODE = 101"), 1)
+                self.assertEqual(repeated, answer)
+                self.assertTrue(first["added_facts"])
+                self.assertEqual(second["added_facts"], [])
+
+    def test_same_assignment_in_other_if_branch_is_still_added(self):
+        source = self.replace_body("IF RATE = 1\nMOVE 101 TO RESULT-CODE\nELSE\n"
+                                   "MOVE 101 TO RESULT-CODE\nEND-IF.")
+        state = investigation(source, intents=("condition", "overwrite"))
+        original = "在 `IF RATE = 1` 成立时，`RESULT-CODE = 101`。[ev_test_source]"
+        answer, report = complete_supplied_answer("失败原因", original, state, [page(source)], source_format="free")
+        self.assertTrue(answer.startswith(original))
+        self.assertEqual(answer.count("RESULT-CODE = 101"), 2)
+        self.assertIn("`IF RATE = 1` 不成立时", answer)
+        self.assertEqual(len(report["added_facts"]), 1)
+        repeated, second = complete_supplied_answer("失败原因", answer, state, [page(source)], source_format="free")
+        self.assertEqual(repeated, answer)
+        self.assertEqual(second["added_facts"], [])
+
+    def test_known_arithmetic_formula_does_not_hide_its_other_branch(self):
+        source = self.replace_body("IF RATE = 1\nCOMPUTE OUT-AMOUNT = RAW-AMOUNT * 2\nELSE\n"
+                                   "COMPUTE OUT-AMOUNT = RAW-AMOUNT * 2\nEND-IF.")
+        original = "在 `IF RATE = 1` 成立时，`OUT-AMOUNT = RAW-AMOUNT * 2`。[ev_test_source]"
+        answer, report = complete_supplied_answer("计算规则", original, investigation(source),
+            [page(source)], source_format="free")
+        self.assertEqual(answer.count("OUT-AMOUNT = RAW-AMOUNT * 2"), 2)
+        self.assertIn("`IF RATE = 1` 不成立时", answer)
+        self.assertEqual(sum(fact["kind"] == "assignment" for fact in report["added_facts"]), 1)
+        repeated, second = complete_supplied_answer("计算规则", answer, investigation(source),
+            [page(source)], source_format="free")
+        self.assertEqual(repeated, answer)
+        self.assertEqual(second["added_facts"], [])
+
+    def test_matching_rendering_from_other_source_version_does_not_cover_current_fact(self):
+        source = self.replace_body("READ INPUT-FILE\nINVALID KEY\nMOVE 101 TO RESULT-CODE\nEND-READ.")
+        old_page = page(source, "ev_old_version")
+        answer, _ = complete_supplied_answer("失败原因", "RESULT-CODE 的失败原因。",
+            investigation(source, intents=("exception",)), [old_page], source_format="free")
+        current = source + "*> Updated source version.\n"
+        current_page = page(current, "ev_current_version")
+        updated, report = complete_supplied_answer("失败原因", answer,
+            investigation(current, intents=("exception",)), [old_page, current_page], source_format="free")
+        self.assertEqual(updated.count("RESULT-CODE = 101"), 2)
+        self.assertIn("[ev_old_version]", updated)
+        self.assertIn("[ev_current_version]", updated)
+        self.assertEqual([fact["source_sha256"] for fact in report["added_facts"]], [current_page["source_sha256"]])
+
+    def test_prior_rendering_covers_one_occurrence_and_reuses_same_version_page(self):
+        operation = "READ INPUT-FILE\nINVALID KEY\nMOVE 101 TO RESULT-CODE\nEND-READ"
+        source = self.replace_body(operation + "\n" + operation + ".")
+        state = investigation(source, intents=("exception",))
+        original = "在 `READ INPUT-FILE` 的 INVALID KEY 分支时，`RESULT-CODE = 101`。[ev_test_source]"
+        pages = [page(source), page(source, "ev_same_version")]
+        answer, report = complete_supplied_answer("失败原因", original, state, pages, source_format="free")
+        self.assertEqual(answer.count("RESULT-CODE = 101"), 2)
+        self.assertEqual(len(report["added_facts"]), 1)
+        repeated, second = complete_supplied_answer("失败原因", answer, state, pages, source_format="free")
+        self.assertEqual(repeated, answer)
+        self.assertEqual(second["added_facts"], [])
+
+    def test_default_draft_and_final_completion_add_io_failure_only_once(self):
+        source = self.replace_body("READ INPUT-FILE\nINVALID KEY\nMOVE 101 TO RESULT-CODE\n"
+                                   "NOT INVALID KEY\nMOVE 102 TO RESULT-CODE\nEND-READ.")
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "flow.cbl").write_text(source)
+            database = root / "index.sqlite"
+            build_business_index(root, database, source_format="free")
+            ensure_repository_search(database, root)
+            calls = []
+            def transport(request):
+                payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+                calls.append(payload)
+                supplied = [entry for bundle in payload["source_context"] for entry in bundle.get("pages", ())
+                            if entry.get("relative_path") == "flow.cbl"]
+                evidence = max(supplied, key=lambda entry: entry["end_line"] - entry["start_line"])
+                text = "正常读取分支执行 MOVE 102 TO RESULT-CODE。[" + evidence["evidence_id"] + "]"
+                return TransportResponse(200, json.dumps({"choices": [{"message": {"content": text}, "finish_reason": "stop"}]}))
+            result = run_business_chat("CALCFLOW 的 CALCULATE-AMOUNT 失败时 RESULT-CODE 为什么改变？", database, root,
+                CompanyAPIConfig("https://gateway.example.invalid/v1", "offline-test-model", api_key="local-test-only"),
+                framework_reference_path="", transport=transport,
+                policy=AgentPolicy(max_model_requests=1, max_answer_revisions=0))["agent_result"]
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(result["answer"].count("RESULT-CODE = 101"), 1)
+            self.assertIn("正常读取分支", result["answer"])
+
     def test_default_chain_repairs_wrong_formula_and_keeps_downstream_facts_with_one_request(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

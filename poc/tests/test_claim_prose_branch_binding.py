@@ -125,6 +125,74 @@ class ProseBranchBindingTests(unittest.TestCase):
         self.assertEqual(branch_facts.call_count, 1)
         self.assertEqual(len(self.assignments(ledger)), 40)
 
+    def test_same_sentence_continue_else_binds_only_the_false_source_branch(self):
+        source = SOURCE.replace("COMPUTE OUT-AMOUNT = IN-AMOUNT * 2", "CONTINUE")
+        for prefix in ("若 IN-AMOUNT > ZERO 则继续，否则 ",
+                       "如果 IN-AMOUNT > ZERO 則繼續，否則 ",
+                       "If IN-AMOUNT > ZERO then continue, otherwise "):
+            with self.subTest(prefix=prefix):
+                good = prefix + "OUT-AMOUNT = IN-AMOUNT * 3。[ev_rule]"
+                rendered, ledger = self.review(good, [page(source)])
+                self.assertEqual(rendered, good)
+                self.assertTrue(ledger["all_claims_supported"])
+                bad = prefix + "OUT-AMOUNT = IN-AMOUNT * 2，供后续报表使用。[ev_rule]"
+                rendered, ledger = self.review(bad, [page(source)])
+                self.assertIn(prefix, rendered)
+                self.assertIn("OUT-AMOUNT = IN-AMOUNT * 3", rendered)
+                self.assertIn("供后续报表使用", rendered)
+                entry, = self.assignments(ledger)
+                self.assertEqual(entry["support_status"], "contradicted")
+                self.assertEqual(entry["revised_claims"][0]["source_guards"][0]["outcome"], "false")
+
+    def test_same_sentence_else_move_survives_large_fixed_format_source_tail(self):
+        source = SOURCE.replace("COMPUTE OUT-AMOUNT = IN-AMOUNT * 2", "CONTINUE").replace(
+            "COMPUTE OUT-AMOUNT = IN-AMOUNT * 3", "MOVE 102 TO OUT-AMOUNT")
+        source += "\n".join("MOVE 0 TO REVIEW-FLAG." for _ in range(500))
+        source = "\n".join("       " + line.ljust(65) for line in source.splitlines())
+        self.assertGreater(len(source), 16000)
+        text = "若 IN-AMOUNT > ZERO 则继续，否则 MOVE 102 TO OUT-AMOUNT。[ev_rule]"
+        rendered, ledger = self.review(text, [page(source, format_hint="fixed")])
+        self.assertEqual(rendered, text)
+        self.assertTrue(ledger["all_claims_supported"])
+        self.assertEqual(self.assignments(ledger)[0]["expression"], ["102"])
+
+    def test_continue_else_does_not_claim_a_nonempty_true_branch_is_a_noop(self):
+        text = "若 IN-AMOUNT > ZERO 则继续，否则 OUT-AMOUNT = IN-AMOUNT * 3。[ev_rule]"
+        # The ordinary first clause can be bound; its cached facts must not
+        # bypass the extra CONTINUE proof requested by the second sentence.
+        text = "若 IN-AMOUNT > ZERO，OUT-AMOUNT = IN-AMOUNT * 2。[ev_rule]\n" + text
+        rendered, ledger = self.review(text)
+        self.assertEqual(rendered, text)
+        self.assertEqual([entry["support_status"] for entry in self.assignments(ledger)],
+                         ["supported", "unsupported"])
+
+    def test_continue_else_does_not_borrow_an_unrelated_or_incomplete_branch(self):
+        source = SOURCE.replace("COMPUTE OUT-AMOUNT = IN-AMOUNT * 2", "CONTINUE")
+        variants = (
+            source.replace("IF IN-AMOUNT > ZERO", "IF IN-AMOUNT < ZERO"),
+            source.replace("IF IN-AMOUNT", "IF REVIEW-FLAG = 1\nIF IN-AMOUNT").replace(
+                "END-IF.", "END-IF\nEND-IF."),
+            source.replace("GOBACK.", source.partition("MAIN.\n")[2]),
+            source.partition("END-IF.")[0],
+            source.replace("END-IF.", "\n".join(["CONTINUE"] * 2000) + "\nEND-IF."),
+        )
+        text = "若 IN-AMOUNT > ZERO 则继续，否则 OUT-AMOUNT = IN-AMOUNT * 3。[ev_rule]"
+        for candidate in variants:
+            with self.subTest(length=len(candidate)):
+                rendered, ledger = self.review(text, [page(candidate)])
+                self.assertEqual(rendered, text)
+                self.assertTrue(all(entry["support_status"] == "unsupported"
+                                    for entry in self.assignments(ledger)))
+                self.assertEqual(ledger["counts"]["contradicted"], 0)
+
+    def test_continue_else_does_not_promote_a_hypothetical_assignment(self):
+        source = SOURCE.replace("COMPUTE OUT-AMOUNT = IN-AMOUNT * 2", "CONTINUE")
+        for tail in ("不能断言 OUT-AMOUNT = IN-AMOUNT * 3", "OUT-AMOUNT = IN-AMOUNT * 3 仅是假设"):
+            text = "若 IN-AMOUNT > ZERO 则继续，否则 " + tail + "。[ev_rule]"
+            rendered, ledger = self.review(text, [page(source)])
+            self.assertEqual(rendered, text)
+            self.assertEqual(self.assignments(ledger)[0]["support_status"], "unsupported")
+
     def test_missing_outer_guard_is_uncertain_not_a_wrong_formula(self):
         nested = SOURCE.replace("IF IN-AMOUNT", "IF REVIEW-FLAG = 1\nIF IN-AMOUNT").replace(
             "END-IF.", "END-IF\nEND-IF.")

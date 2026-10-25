@@ -202,7 +202,8 @@
         "lifecycle_remote_unknown_preserved",
         "lifecycle_no_automatic_resend",
         "lifecycle_restart_restored",
-        "lifecycle_unknown_isolated_between_conversations"
+        "lifecycle_unknown_isolated_between_conversations",
+        "lifecycle_explicit_retry_once_preserves_unknown"
       ],
       "assertion_groups": {
         "quality": [],
@@ -213,7 +214,8 @@
           "lifecycle_remote_unknown_preserved",
           "lifecycle_no_automatic_resend",
           "lifecycle_restart_restored",
-          "lifecycle_unknown_isolated_between_conversations"
+          "lifecycle_unknown_isolated_between_conversations",
+          "lifecycle_explicit_retry_once_preserves_unknown"
         ]
       },
       "limits": {
@@ -234,7 +236,8 @@
         "lifecycle_remote_unknown_preserved",
         "lifecycle_no_automatic_resend",
         "lifecycle_restart_restored",
-        "lifecycle_unknown_isolated_between_conversations"
+        "lifecycle_unknown_isolated_between_conversations",
+        "lifecycle_explicit_retry_once_preserves_unknown"
       ],
       "assertion_groups": {
         "quality": [],
@@ -245,7 +248,8 @@
           "lifecycle_remote_unknown_preserved",
           "lifecycle_no_automatic_resend",
           "lifecycle_restart_restored",
-          "lifecycle_unknown_isolated_between_conversations"
+          "lifecycle_unknown_isolated_between_conversations",
+          "lifecycle_explicit_retry_once_preserves_unknown"
         ]
       },
       "limits": {

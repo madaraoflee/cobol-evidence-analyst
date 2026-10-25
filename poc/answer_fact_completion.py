@@ -15,7 +15,7 @@ from claim_support import supplied_statement_facts
 from response_language import localized_text, resolve_answer_language
 from statement_facts import CobolLexError, data_references, io_clause_guards, lex_cobol
 
-VERSION = "source-fact-completion/v2"
+VERSION = "source-fact-completion/v3"
 _MAX_ADDITIONS = 8
 _MAX_SCAN = 160000
 
@@ -25,6 +25,26 @@ def _covered(assertion, answer):
     for actual in _assertions(answer):
         if all(actual.get(key) == value for key, value in assertion.items()
                if key in {"predicate", "target", "expression", "condition", "effect"}):
+            return True
+    return False
+
+
+def _rendered_fact_covered(rendered, answer, page, first, last, cited_pages, used_spans):
+    """Reuse a prior local rendering only in its complete source-version scope.
+
+    The full rendering includes the branch and normal-result conditions. One
+    existing sentence covers one occurrence, so repeated writes in distinct
+    source locations are not collapsed merely because their notation matches.
+    """
+    for match in re.finditer(re.escape(rendered) + r"\[((?:ev[_:-])[^\]\r\n]{1,160})\]", answer):
+        if match.span() in used_spans:
+            continue
+        references = cited_pages.get(match[1], ())
+        if (references and all(reference.get("relative_path") == page["relative_path"]
+                and reference.get("source_sha256") == page["source_sha256"] for reference in references)
+                and any(reference.get("start_line", 0) <= first <= last <= reference.get("end_line", 0)
+                        for reference in references)):
+            used_spans.add(match.span())
             return True
     return False
 
@@ -138,6 +158,9 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
     context = resolve_compilation_context(compilation_context, source_options={"source_format": source_format})
     candidates, seen = [], set()
     pages = sorted(source_pages, key=lambda page: (page.get("relative_path", ""), page.get("start_line", 0)))
+    cited_pages = {}
+    for page in pages:
+        cited_pages.setdefault(page.get("evidence_id"), []).append(page)
     for page in pages:
         limits = [scope for scope in scopes if scope.get("relative_path") == page.get("relative_path")
                   and scope["source_sha256"] == page.get("source_sha256")
@@ -188,19 +211,22 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
                 report["omitted_candidate_count"] += 1
                 continue
             assertion = {key: fact[key] for key in ("predicate", "target", "expression", "rounded")}
-            if _covered(assertion, answer):
+            conditions = _condition_descriptions(guards, io_guards, fact["start_line"] - base,
+                                                  answer_language=answer_language)
+            guarded = bool(conditions or fact.get("normal_result_condition") == "no_size_error")
+            # A formula alone does not cover every branch that writes it.
+            # Guarded additions are matched below as complete cited renderings.
+            if not guarded and _covered(assertion, answer):
                 continue
             # The claim ledger will locally repair a wrong explicit formula.
             # Supply its missing downstream facts without duplicating the fix.
-            if (fact["statement_kind"] == "COMPUTE"
+            if (not guarded and fact["statement_kind"] == "COMPUTE"
                     and sum(row["target"] == fact["target"] for row in arithmetic) == 1
                     and any(row.get("predicate") == "assignment_statement" and row.get("target") == fact["target"]
                             for row in _assertions(answer))):
                 continue
             formula = fact["target"] + " = " + " ".join(fact["expression"])
             prefix = localized_text(answer_language, "原文还给出 ", "The source also gives ", "原文還給出 ")
-            conditions = _condition_descriptions(guards, io_guards, fact["start_line"] - base,
-                                                  answer_language=answer_language)
             if conditions:
                 prefix = localized_text(answer_language, "在 " + " 且 ".join(conditions) + "时，",
                     "When " + " and ".join(conditions) + ", ", "在 " + " 且 ".join(conditions) + "時，")
@@ -288,17 +314,20 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
                             f"`{unit.name}` 声明为 `PIC {picture[1]}`{scale}，{rounding}；存储尺度与溢出处理须按目标编译环境解释",
                             f"`{unit.name}` has declaration `PIC {picture[1]}`{scale}; {rounding}; storage scale and overflow handling depend on the target compilation environment",
                             f"`{unit.name}` 宣告為 `PIC {picture[1]}`{scale}，{rounding}；儲存尺度與溢位處理須按目標編譯環境解釋")))
-    additions = []
+    additions, used_renderings = [], set()
     for page, first, last, kind, statement, text in candidates:
         key = (page["relative_path"], page["source_sha256"], first, last, kind, statement)
         if key in seen:
             continue
         seen.add(key)
+        rendered = text + localized_text(answer_language, "。", ". ")
+        if _rendered_fact_covered(rendered, answer, page, first, last, cited_pages, used_renderings):
+            continue
         if len(additions) >= _MAX_ADDITIONS:
             report["omitted_candidate_count"] += 1
             continue
         identifier = page["evidence_id"]
-        additions.append(text + localized_text(answer_language, "。", ". ") + f"[{identifier}]")
+        additions.append(rendered + f"[{identifier}]")
         report["added_facts"].append({"kind": kind, "statement": statement, "evidence_id": identifier,
             "relative_path": page["relative_path"], "source_sha256": page["source_sha256"],
             "start_line": first, "end_line": last, "support_scope": "supplied_source_syntax"})

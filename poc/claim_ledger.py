@@ -18,7 +18,7 @@ from response_language import localized_text, resolve_answer_language
 from source_availability import supplied_source_availability
 
 
-LEDGER_VERSION = "answer-claim-ledger-v13"
+LEDGER_VERSION = "answer-claim-ledger-v14"
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _NAME = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?:\s+(?:OF|IN)\s+[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)*"
 _ATOM = rf"(?:{_NAME}|[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|[()])"
@@ -527,9 +527,22 @@ def _prose_branch_context(segment, assertions, identifiers, previous):
         return {}, None
     tokens, end = _read_condition(text, opening.end())
     suffix = text[end:]
+    conditions = [item for item in assertions if item["predicate"] == "condition_statement"]
+    # A common explanation keeps the no-op true branch and the assignment in
+    # one sentence. Bind its ELSE explicitly, rather than treating its formula
+    # as a true-branch assignment or discarding the visible source statement.
+    no_op_else = re.match(r"\s*(?:则|則|then\b)\s*(?:继续|繼續|continue\b)"
+                         r"\s*[，,]\s*(?:否则|否則|otherwise\b|else\b)\s*", suffix, re.I)
+    if no_op_else:
+        formula = _prose_formula_span(text, effects[0])
+        tail = suffix[no_op_else.end():]
+        if (not tokens or len(conditions) != 1 or conditions[0]["condition"] != list(tokens)
+                or formula is None or formula[0] != end + no_op_else.end()
+                or _qualified_prose_branch(tail)):
+            return {}, None
+        return {"condition": list(tokens), "outcome": False, "true_branch_continue": True}, None
     delimiter = (r"\s*的?\s*(?:条件|條件)下\s*[，,]" if opening[0].lstrip().startswith("在")
                  else r"\s*(?:时|時|then\b)?\s*[，,]")
-    conditions = [item for item in assertions if item["predicate"] == "condition_statement"]
     boundary = re.match(delimiter, suffix, re.I)
     if (not tokens or not boundary or len(conditions) != 1
             or conditions[0]["condition"] != list(tokens)
@@ -578,11 +591,18 @@ def _prose_branch_facts(context, facts, pages, source_format):
             continue
         body = "\n".join(page["source_text"].splitlines()[anchor["start_line"] - page["start_line"]:])
         if len(body) > 16000:
-            continue
+            # A complete IF near the beginning remains usable when unrelated
+            # trailing source is large. Never cut a physical line; an IF that
+            # does not close within this prefix still yields no parsed node.
+            prefix = body[:16000]
+            body = prefix.rsplit("\n", 1)[0] if "\n" in prefix else ""
         parsed = parse_statements(body, start_line=anchor["start_line"],
             source_format=page.get("format_hint", source_format), max_tokens=4096)
         if (parsed.nodes and parsed.nodes[0].kind == "IF"
                 and parsed.nodes[0].span.start_line == anchor["start_line"]):
+            if context.get("true_branch_continue") and (not parsed.nodes[0].children
+                    or any(node.kind != "CONTINUE" for node in parsed.nodes[0].children)):
+                continue
             completed = True
             break
     if not completed:
@@ -890,7 +910,8 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
         assertions = _assertions(segment, table_header=table_header, derived_context=derived_context)
         prose_branch, previous_prose_branch = _prose_branch_context(
             segment, assertions, tuple(sorted(valid)), previous_prose_branch)
-        prose_key = (tuple(prose_branch["condition"]), tuple(sorted(valid)), bool(ids)) if prose_branch else None
+        prose_key = (tuple(prose_branch["condition"]), tuple(sorted(valid)), bool(ids),
+                     prose_branch.get("true_branch_continue", False)) if prose_branch else None
         if prose_key is not None and prose_key not in prose_fact_cache:
             prose_fact_cache[prose_key] = _prose_branch_facts(prose_branch,
                 [fact for fact in facts if fact["evidence_id"] in valid] if ids else facts,
@@ -1045,7 +1066,8 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                     continue
             cited_facts = [fact for fact in facts if fact["evidence_id"] in valid] if ids else facts
             if assertion["predicate"] == "assignment_statement" and prose_branch is not None:
-                assertion = {**assertion, "source_guards": [prose_branch]}
+                assertion = {**assertion, "source_guards": [{key: prose_branch[key]
+                    for key in ("condition", "outcome")}]}
                 cited_facts = prose_facts
             candidates = _related(assertion, cited_facts)
             if (assertion.get("literal_notation") == "unquoted_prose" and not invalid
