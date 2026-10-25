@@ -51,7 +51,7 @@ class ConceptWorkingSetTests(unittest.TestCase):
         for relative, text in files.items():
             path = self.source / relative
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text, encoding="utf-8")
+            path.write_bytes(text.encode("utf-8"))
         build_business_index(self.source, self.database, source_format="free",
                              quiet=True, verify_content=True)
         ensure_repository_search(self.database, self.source)
@@ -74,7 +74,8 @@ class ConceptWorkingSetTests(unittest.TestCase):
         self.assertEqual(len(pages), len(expected), "cycles and duplicate references must not reread")
         for page in pages:
             path = page["relative_path"]
-            raw = self.files[path].encode("utf-8")
+            raw = (self.source / path).read_bytes()
+            self.assertEqual(raw, self.files[path].encode("utf-8"))
             lines = self.files[path].splitlines()
             self.assertEqual(page["source_text"], "\n".join(lines))
             self.assertEqual(page["source_sha256"], hashlib.sha256(raw).hexdigest())
@@ -82,23 +83,26 @@ class ConceptWorkingSetTests(unittest.TestCase):
             self.assertFalse(page["span_truncated"])
 
     def test_concept_and_program_name_both_supply_multihop_original_source(self):
-        self.build({
+        files = {
             "entry.cbl": program("ENTRY-RULE", 'CALL "CHILD-RULE" USING TOTAL.',
                 purpose="renewal projection", data="COPY shared-values.\n01 TOTAL PIC 9(7)V99."),
             "child.cbl": program("CHILD-RULE", 'CALL "FINAL-RULE" USING TOTAL.'),
             "final.cbl": program("FINAL-RULE", "COMPUTE TOTAL = TOTAL * 1.25."),
             "shared-values.cpy": "01 FACTOR PIC 9V99 VALUE 1.25.\n",
             "unrelated.cbl": program("UNRELATED", "MOVE 1 TO TOTAL."),
-        })
-        concept = self.mapping()
-        self.assertEqual(concept["source_identity"]["status"], "none")
-        self.assertEqual(concept["direct_paths"], ["entry.cbl"])
+        }
         expected = {"entry.cbl", "child.cbl", "final.cbl", "shared-values.cpy"}
-        result = self.collect(concept)
-        self.assert_sources(result, expected)
-        self.assertTrue(result["metadata"]["physical_complete"])
-        self.assertFalse(result["metadata"]["source_identity_resolved"])
-        self.assert_sources(self.collect(self.mapping("ENTRY-RULE 是什么")), expected)
+        for newline in ("\n", "\r\n"):
+            with self.subTest(newline=repr(newline)):
+                self.build({path: text.replace("\n", newline) for path, text in files.items()})
+                concept = self.mapping()
+                self.assertEqual(concept["source_identity"]["status"], "none")
+                self.assertEqual(concept["direct_paths"], ["entry.cbl"])
+                result = self.collect(concept)
+                self.assert_sources(result, expected)
+                self.assertTrue(result["metadata"]["physical_complete"])
+                self.assertFalse(result["metadata"]["source_identity_resolved"])
+                self.assert_sources(self.collect(self.mapping("ENTRY-RULE 是什么")), expected)
 
     def test_concept_mode_requires_overview_and_does_not_override_ambiguous_identity(self):
         self.build({"entry.cbl": program("ENTRY-RULE", purpose="renewal projection")})
