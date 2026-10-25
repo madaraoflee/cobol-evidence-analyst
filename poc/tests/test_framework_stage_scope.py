@@ -1,5 +1,6 @@
 """Persist uncertain preprocessing before projecting documented stage meaning."""
 
+from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
@@ -151,7 +152,7 @@ END-EXEC.
                 with self.subTest(directive=directive, newline=repr(newline)):
                     source = SOURCE.replace("MAIN.", directive + "\nMAIN.").replace("\n", newline)
                     self.build(source)
-                    with sqlite3.connect(self.database) as db:
+                    with closing(sqlite3.connect(self.database)) as db, db:
                         version, stored = db.execute("SELECT version,bindings_json FROM framework_file_semantics").fetchone()
                     self.assertEqual(version, SEMANTICS_VERSION)
                     self.assertEqual(self.stage(json.loads(stored))["reason"], BOUNDARY)
@@ -168,7 +169,7 @@ END-EXEC.
     def test_v15_cache_is_rebound_even_when_source_and_manual_are_unchanged(self):
         source = SOURCE.replace("READ-PARA.", "COPY CONTROL-FRAGMENT.\nREAD-PARA.")
         self.build(source)
-        with sqlite3.connect(self.database) as db:
+        with closing(sqlite3.connect(self.database)) as db, db:
             stored = json.loads(db.execute("SELECT bindings_json FROM framework_file_semantics").fetchone()[0])
             self.stage(stored)["reason"] = "documented_section_observed"
             db.execute("UPDATE framework_file_semantics SET version=?,bindings_json=?,facts_json=?",
