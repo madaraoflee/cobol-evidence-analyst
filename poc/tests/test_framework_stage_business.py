@@ -72,9 +72,10 @@ MAIN.
 """
 
 
-def source_page(text=SOURCE):
+def source_page(source_bytes):
+    text = source_bytes.decode("utf-8")
     return {"relative_path": "entry.cbl", "program_name": "ENTRYJOB",
-            "source_sha256": hashlib.sha256(text.encode()).hexdigest(),
+            "source_sha256": hashlib.sha256(source_bytes).hexdigest(),
             "evidence_id": "ev-stage-source", "start_line": 1,
             "end_line": len(text.splitlines()), "source_text": text, "format_hint": "free"}
 
@@ -122,7 +123,7 @@ class FrameworkStageBusinessTests(unittest.TestCase):
         return report
 
     def material(self):
-        pages = [source_page(self.path.read_text(encoding="utf-8"))]
+        pages = [source_page(self.path.read_bytes())]
         framework = build_framework_facts(self.database, pages, reference_path=self.manual)
         return pages, framework
 
@@ -201,7 +202,13 @@ class FrameworkStageBusinessTests(unittest.TestCase):
             policy=AgentPolicy(max_model_requests=1))["agent_result"]
 
     def test_real_index_binds_stage_role_to_perform_and_contained_operation(self):
-        self.assert_stage_business_evidence(self.project())
+        for newline in ("\n", "\r\n"):
+            with self.subTest(newline=repr(newline)):
+                self.path.write_bytes(SOURCE.replace("\n", newline).encode("utf-8"))
+                self.build()
+                pages, framework = self.material()
+                self.assertEqual(pages[0]["source_sha256"], hashlib.sha256(self.path.read_bytes()).hexdigest())
+                self.assert_stage_business_evidence(self.project(pages, framework))
 
     def test_natural_business_flow_questions_keep_focused_questions_narrow(self):
         for question in (QUESTION, "ENTRYJOB 的業務處理流程是甚麼？", "请从业务角度说明 ENTRYJOB 流程"):

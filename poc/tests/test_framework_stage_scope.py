@@ -82,7 +82,8 @@ class FrameworkStageScopeTests(unittest.TestCase):
         return stages[0]
 
     def build(self, source):
-        self.path.write_text(source, encoding="utf-8")
+        # Keep the fixture bytes identical to the source identity supplied below.
+        self.path.write_bytes(source.encode("utf-8"))
         return build_business_index(self.source, self.database, source_format="free", quiet=True,
                                     framework_reference_path=self.manual)
 
@@ -146,21 +147,23 @@ END-EXEC.
     def test_indexed_boundary_survives_request_trimming_and_cache_reuse(self):
         for directive in ("COPY CONTROL-FRAGMENT.", "REPLACE ==MAIN== BY ==OTHER-MAIN==.\nREPLACE OFF.",
                           ">>IF BUILD-MODE\n>>END-IF"):
-            with self.subTest(directive=directive):
-                source = SOURCE.replace("MAIN.", directive + "\nMAIN.")
-                self.build(source)
-                with sqlite3.connect(self.database) as db:
-                    version, stored = db.execute("SELECT version,bindings_json FROM framework_file_semantics").fetchone()
-                self.assertEqual(version, SEMANTICS_VERSION)
-                self.assertEqual(self.stage(json.loads(stored))["reason"], BOUNDARY)
-                first = source.splitlines().index("3000-READ SECTION.") + 1
-                page = self.page(source, first)
-                self.assertNotIn(directive, page["source_text"])
-                with patch("framework_binding.bind_framework_source", side_effect=AssertionError("Unexpected rebind")):
-                    result = build_framework_facts(self.database, [page], reference_path=self.manual)
-                stage = self.stage(result["facts"])
-                self.assertEqual(stage["reason"], BOUNDARY)
-                self.assertEqual(stage["source_evidence_ids"], ["ev-stage"])
+            for newline in ("\n", "\r\n"):
+                with self.subTest(directive=directive, newline=repr(newline)):
+                    source = SOURCE.replace("MAIN.", directive + "\nMAIN.").replace("\n", newline)
+                    self.build(source)
+                    with sqlite3.connect(self.database) as db:
+                        version, stored = db.execute("SELECT version,bindings_json FROM framework_file_semantics").fetchone()
+                    self.assertEqual(version, SEMANTICS_VERSION)
+                    self.assertEqual(self.stage(json.loads(stored))["reason"], BOUNDARY)
+                    first = source.splitlines().index("3000-READ SECTION.") + 1
+                    page = self.page(source, first)
+                    self.assertEqual(page["source_sha256"], hashlib.sha256(self.path.read_bytes()).hexdigest())
+                    self.assertNotIn(directive, page["source_text"])
+                    with patch("framework_binding.bind_framework_source", side_effect=AssertionError("Unexpected rebind")):
+                        result = build_framework_facts(self.database, [page], reference_path=self.manual)
+                    stage = self.stage(result["facts"])
+                    self.assertEqual(stage["reason"], BOUNDARY)
+                    self.assertEqual(stage["source_evidence_ids"], ["ev-stage"])
 
     def test_v15_cache_is_rebound_even_when_source_and_manual_are_unchanged(self):
         source = SOURCE.replace("READ-PARA.", "COPY CONTROL-FRAGMENT.\nREAD-PARA.")
