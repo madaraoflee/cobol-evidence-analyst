@@ -227,13 +227,20 @@ class ProseBranchBindingTests(unittest.TestCase):
 
 class ProseBranchBindingIntegrationTests(unittest.TestCase):
     def test_single_offline_request_repairs_both_branches_before_final_delivery(self):
+        for newline in ("\n", "\r\n"):
+            with self.subTest(newline=repr(newline)):
+                self.check_single_offline_request(SOURCE.replace("\n", newline).encode("utf-8"))
+
+    def check_single_offline_request(self, source_bytes):
         requests, raw_answers = [], []
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "source"
             source.mkdir()
             path = source / "rule.cbl"
-            path.write_text(SOURCE, encoding="utf-8")
+            # Source identity binds the imported bytes, including their line endings.
+            path.write_bytes(source_bytes)
+            source_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
             database = root / "index.sqlite"
             build_business_index(source, database, source_format="free", verify_content=True)
             ensure_repository_search(database, source)
@@ -262,8 +269,9 @@ class ProseBranchBindingIntegrationTests(unittest.TestCase):
         self.assertEqual(result["claim_ledger"]["counts"]["contradicted"], 2)
         self.assertIn("否则 OUT-AMOUNT = IN-AMOUNT * 3", result["answer"])
         self.assertFalse(result["claims_semantically_verified"])
+        self.assertTrue(result["narrative"]["citations"])
         for citation in result["narrative"]["citations"]:
-            self.assertEqual(citation["source_sha256"], page()["source_sha256"])
+            self.assertEqual(citation["source_sha256"], source_sha256)
 
 
 if __name__ == "__main__":
