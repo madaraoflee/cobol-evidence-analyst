@@ -2487,7 +2487,13 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 framework_versions.update(p["document_sha256"]
                     for p in saved_draft.get("framework_references", []) if p.get("document_sha256"))
                 accept({"pages": saved_draft.get("source_pages", [])}, "resumed_draft_evidence")
-            pending_model_actions.extend(resume_checkpoint.get("frontier", []))
+            saved_frontier = resume_checkpoint.get("frontier", [])
+            if (resume_response is not None
+                    and resume_checkpoint.get("frontier_response_round") == turns):
+                # The received response is replayed below. Its new actions must
+                # not also run as saved work before that replay.
+                saved_frontier = resume_checkpoint.get("frontier_before_response", [])
+            pending_model_actions.extend(saved_frontier)
             for task in resume_checkpoint.get("read_tasks", []):
                 if task.get("state") == "open" and task.get("next_start_line"):
                     pending_model_actions.append({"tool": "read", "arguments": {
@@ -2877,13 +2883,26 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                     reason="contradicted_finding")
                         sent_pages.update(source_memory.pages)
                     checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
+                    received_action = _actions(reply.text, policy) or {}
+                    frontier = list(pending_model_actions)
+                    frontier_keys = {json.dumps({"tool": row["tool"], "arguments": row["arguments"]},
+                        sort_keys=True) for row in frontier}
+                    for tool, values in received_action.items():
+                        if not values:
+                            continue
+                        for arguments in (values if tool in {"read", "inspect_business_context", *_SEMANTIC_TOOLS}
+                                          else [values]):
+                            planned = {"tool": tool, "arguments": arguments}
+                            key = json.dumps(planned, sort_keys=True)
+                            if key not in frontier_keys:
+                                frontier.append(planned)
+                                frontier_keys.add(key)
                     quality.run_store.checkpoint(quality.data["run_id"], {**checkpoint,
                         **({"prior_source_memory": source_memory.checkpoint() if source_memory else None,
                    "question_budget": question_budget.checkpoint() if question_budget else None} if source_memory else {}),
-                        "frontier": [{"tool": tool, "arguments": arguments}
-                            for tool, values in action.items() if values
-                            for arguments in (values if tool in {"read", "inspect_business_context", *_SEMANTIC_TOOLS}
-                                              else [values])]})
+                        "frontier": frontier,
+                        "frontier_before_response": list(pending_model_actions),
+                        "frontier_response_round": turns})
                 if question_budget and question_budget.should_stop_local_investigation():
                     force_answer = True
                     if action:

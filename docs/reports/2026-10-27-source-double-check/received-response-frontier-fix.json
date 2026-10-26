@@ -1,0 +1,86 @@
+{
+  "schema": "received-response-frontier-fix/v1",
+  "date": "2026-10-27",
+  "base_commit": "845143c20f0115072659b9f2d25c2c57d32b907e",
+  "pipeline_version": "question-evidence-v55",
+  "problem": "A received action checkpoint replaced older deferred source work. Interruption before local execution then lost the older dependency on explicit retry. Saving all received actions without distinguishing replay would execute the new action twice on same-run recovery.",
+  "fix": "Save older deferred work and the complete legal received plan together, deduplicated in order. Mark the pre-response frontier and response round so same-run replay executes newly received work once. Explicit retry carries the combined frontier.",
+  "new_regressions": [
+    "explicit retry retains older focus and new navigation",
+    "received response replay executes navigation once",
+    "search clipped by remaining allowance survives checkpoint"
+  ],
+  "real_model_calls": 0,
+  "new_runtime_validation_gates": 0,
+  "import_history_or_time_policy_changed": false,
+  "regression": {
+    "python_passed": 3851,
+    "failed": 0,
+    "skipped": 0,
+    "discovery_ids_sha256": "3e408d9df51967d4d0b4985cda00a38119c397a457801be24266fd02df3f3cb4",
+    "test_sources_sha256": "099bb74b4c852121bf9cb647bd5144f5eaa2cdd81c2cef17bc3e417f7d6a0d24",
+    "exact_discovery_coverage": true,
+    "shards": [
+      {
+        "index": 0,
+        "passed": 963,
+        "seconds": 79.091318,
+        "sha256": "27ab671a0c2787c7be0c0985f6fb5646dbef646b781efe7584570c8edb70b32e"
+      },
+      {
+        "index": 1,
+        "passed": 963,
+        "seconds": 53.151473,
+        "sha256": "f749f21eaf2217ed72cc467a62290790f29e5c98e261ae6168540c80f56aa773"
+      },
+      {
+        "index": 2,
+        "passed": 963,
+        "seconds": 57.412518,
+        "sha256": "7d53134e343353310da0da55bf5307e7f41c23a5ce49c51eae437f9516c76c64"
+      },
+      {
+        "index": 3,
+        "passed": 962,
+        "seconds": 78.91534,
+        "sha256": "99d487262040ef55383b37b49edbf1f30e88d566400e76e50b5550c46549e7d2"
+      }
+    ]
+  },
+  "independent_portability_review": {
+    "real_model_calls": 0,
+    "platform": "macOS offline portability probe; native Windows verification remains separate",
+    "cases": [
+      {
+        "encoding": "utf-8-sig",
+        "line_endings": "CRLF",
+        "unicode_space_hash_path": true,
+        "missing_reference_recovery": true,
+        "no_cache_nested_replacement": true,
+        "source_hash_preserved": true
+      },
+      {
+        "encoding": "utf-16",
+        "line_endings": "CRLF",
+        "unicode_space_hash_path": true,
+        "missing_reference_recovery": true,
+        "no_cache_nested_replacement": true,
+        "source_hash_preserved": true
+      },
+      {
+        "encoding": "cp1252",
+        "line_endings": "CRLF",
+        "unicode_space_hash_path": true,
+        "missing_reference_recovery": true,
+        "no_cache_nested_replacement": true,
+        "source_hash_preserved": true
+      }
+    ]
+  },
+  "changed_source_sha256": {
+    "poc/business_chat.py": "cdf9b4f38c42b46b467bf3ae2b717542519581fa8ed8d3ac5c5241c0460762aa",
+    "poc/quality_trace.py": "b1e3c34fd802a9930e43f05486db62b868f418665ba569f68861e69bdd6ab574",
+    "poc/tests/test_pending_frontier_response_checkpoint.py": "9adfc4da694709559269c320ef9be23447e067d93e32c841412a5105d4fa7d04"
+  },
+  "scope": "Local offline source verification only. Windows build, native executable tests and candidate upload are separate subsequent steps."
+}
