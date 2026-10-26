@@ -231,15 +231,79 @@ class PriorSourceMemory:
         self.declared_blocks[block["memory_id"]] = deepcopy(block)
         return block["memory_id"]
 
-    def _remember_source_reference(self, evidence_id):
+    def _source_reference(self, evidence_id, *, include_source=False):
         page, origin = self.pages[evidence_id], self.origins[evidence_id]
-        body = {"text": f"原文位置：{page['relative_path']}:{page['start_line']}-{page['end_line']}。",
+        text = f"原文位置：{page['relative_path']}:{page['start_line']}-{page['end_line']}。"
+        original = text + "\n已供给的完整引用原文：\n" + page["source_text"]
+        if (include_source and len(original) <= 4000
+                and not (set(_REFERENCE.findall(original)) - {evidence_id})):
+            text = original
+        body = {"text": text,
                 "evidence_ids": [evidence_id], "origins": [deepcopy(origin)],
                 "kind": "source", "round_id": origin["round_id"]}
         block = {"memory_id": "memory_" + _digest(body), **body,
                  "verification": "unverified", "content_kind": "source_reference"}
+        return block
+
+    def _remember_source_reference(self, evidence_id):
+        block = self._source_reference(evidence_id)
         self.blocks[block["memory_id"]] = block
         self.declared_blocks[block["memory_id"]] = deepcopy(block)
+
+    def compact_for_request(self, payload):
+        """Shorten candidate prose before byte fitting discards actual source.
+
+        Compact only this request. The full candidates remain in the local
+        checkpoint. Prefer complete original excerpts over verbose candidates;
+        large excerpts retain all distinct candidate sentences and exact origins.
+        Each successful call strictly reduces bytes and cannot queue rereads.
+        """
+        memory = payload.get("prior_source_memory") or {}
+        blocks = memory.get("blocks", [])
+
+        def wire_bytes(value):
+            encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+            return len(json.dumps(encoded, ensure_ascii=False).encode()) - 2
+
+        best = None
+        for index, block in enumerate(blocks):
+            if (block.get("kind") == "source"
+                    or block != self.declared_blocks.get(block.get("memory_id"))):
+                continue
+            elsewhere = {other["memory_id"] for other in blocks if other is not block
+                         and other == self.declared_blocks.get(other.get("memory_id"))}
+            references, needs_candidate = [], False
+            for identifier in block["evidence_ids"]:
+                reference = self._source_reference(identifier, include_source=True)
+                needs_candidate = needs_candidate or reference["text"] == self._source_reference(identifier)["text"]
+                if reference["memory_id"] not in elsewhere:
+                    references.append(reference)
+            if needs_candidate:
+                # Keep complete original sentences, not a new inferred summary
+                # or a cut formula/condition. Repeated sentences add no meaning.
+                sentences = list(dict.fromkeys(part for part in re.findall(
+                    r".*?(?:[。！？!?]|\n+|$)", block["text"], re.DOTALL) if part.strip()))
+                if not sentences:
+                    continue
+                body = {key: deepcopy(block[key]) for key in ("evidence_ids", "origins", "kind", "round_id")}
+                body["text"] = "".join(sentences)
+                candidate = {"memory_id": "memory_" + _digest(body), **body,
+                    "verification": "unverified", "content_kind": "model_candidate"}
+                if candidate["memory_id"] in self.retracted_blocks:
+                    continue
+                if candidate["memory_id"] not in elsewhere:
+                    references.append(candidate)
+            saved = wire_bytes(block) - sum(wire_bytes(item) for item in references) - max(0, len(references) - 1)
+            if saved > 0 and (best is None or saved > best[0]):
+                best = (saved, index, references)
+        if best is None:
+            return None
+        _, index, references = best
+        removed = blocks[index]
+        for block in references:
+            self.declared_blocks[block["memory_id"]] = deepcopy(block)
+        blocks[index:index + 1] = references
+        return removed
 
     def revoke_candidates(self, *, evidence_ids=(), memory_ids=(), reason="contradicted_claim"):
         """Retract interpretations, retaining the independent source provenance.

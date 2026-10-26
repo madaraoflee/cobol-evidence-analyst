@@ -160,17 +160,17 @@ class FrameworkLayoutTests(unittest.TestCase):
                   path="row-layout.cpy", program="ROW-LAYOUT", parent=None)
         self.assertTrue(self.result()["dependency_covered"])
 
-    def test_missing_ambiguous_replacing_and_nested_copy_stay_unresolved(self):
+    def test_missing_ambiguous_replacing_and_missing_nested_copy_stay_unresolved(self):
         self.copy(status="unresolved")
         self.assertEqual(self.result()["reason"], "framework_layout_copy_unresolved")
         self.db.execute("UPDATE relations SET status='candidate'")
         self.assertEqual(self.result()["reason"], "framework_layout_copy_unresolved")
         self.db.execute("UPDATE code_units SET normalized_text='COPY ROW-LAYOUT REPLACING ==A== BY ==B==.' WHERE unit_id='copy'")
-        self.assertEqual(self.result()["reason"], "framework_layout_copy_form_not_supported")
+        self.assertEqual(self.result()["reason"], "framework_layout_copy_unresolved")
         self.db.execute("UPDATE code_units SET normalized_text='COPY ROW-LAYOUT.' WHERE unit_id='copy'")
         self.db.execute("UPDATE relations SET status='confirmed',target_entity_id='copy-symbol'")
         self.db.execute("INSERT INTO relations VALUES('nested','row-layout.cpy','nested','INCLUDES_COPY','INNER',NULL,'unresolved','{}')")
-        self.assertEqual(self.result()["reason"], "framework_layout_nested_copy_not_supported")
+        self.assertEqual(self.result()["reason"], "framework_layout_copy_unresolved")
 
     def test_duplicate_copy_inclusion_is_ambiguous(self):
         self.copy()
@@ -219,7 +219,7 @@ class FrameworkLayoutTests(unittest.TestCase):
         self.assertEqual(result["reason"], "framework_copy_preprocessing_not_resolved")
         self.db.execute("DELETE FROM code_units WHERE unit_type='PreprocessorDirective'")
         self.db.execute("INSERT INTO relations VALUES('nested','row-layout.cpy','nested','INCLUDES_COPY','INNER',NULL,'unresolved','{}')")
-        self.assertEqual(self.result()["reason"], "framework_layout_nested_copy_not_supported")
+        self.assertEqual(self.result()["reason"], "framework_layout_copy_unresolved")
 
     def test_copy_before_program_header_cannot_hide_preprocessing(self):
         self.declarations()

@@ -959,6 +959,9 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         elif payload.get("framework_facts"):
             removed = payload["framework_facts"].pop()
             record(removed.get("fact_id"), "framework_fact_request_bytes")
+        elif source_memory is not None and (removed := source_memory.compact_for_request(payload)):
+            record(removed.get("memory_id"), "prior_source_memory_compacted",
+                   len(removed.get("text", "")))
         elif (source_fallback_builder is not None and not source_fallback_attempted and
               any("complete_working_set" in page.get("selection_reasons", ()) for page in bundle["pages"])):
             source_fallback_attempted = True
@@ -1548,16 +1551,15 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     # The reader resolves a citation before relative_path. Check
                     # that actual target using index metadata before capturing
                     # source or refreshing files outside the explicit scope.
-                    from repository_discovery import _connect
+                    from repository_discovery import _connect, _source_range_for_reference
                     identifier = arguments["evidence_id"]
                     if not isinstance(identifier, str):
                         raise ValueError("EVIDENCE_ID_INVALID")
                     with closing(_connect(database_path)) as db:
-                        target = db.execute("SELECT relative_path FROM evidence_spans WHERE evidence_id=?",
-                                            (identifier,)).fetchone()
+                        target = _source_range_for_reference(db, identifier)
                     if target is None:
                         raise ValueError("EVIDENCE_NOT_FOUND")
-                    requested_path = target[0]
+                    requested_path = target["relative_path"]
                 if requested_path and requested_path not in identity.get("direct_paths", []):
                     raise ValueError("SOURCE_OUTSIDE_REQUESTED_SCOPE")
             context = timed_retrieval(read_repository_context, **arguments)
@@ -1565,9 +1567,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 context = timed_retrieval(read_repository_context, **arguments)
             if (context.get("range_complete") is False
                     and arguments.get("max_chars", policy.read_source_characters) < policy.max_source_characters
-                    and any(item.get("reason") == "source_line_exceeds_search_page_budget"
+                    and ((context.get("read_obstruction") or {}).get("required_characters", float("inf")) <= policy.max_source_characters
+                         or any(item.get("reason") == "source_line_exceeds_search_page_budget"
                             and item.get("start_line") == context.get("next_start_line")
-                            for item in (context.get("raw_fallback") or {}).get("failures", []))):
+                            for item in (context.get("raw_fallback") or {}).get("failures", [])))):
                 # A physical source line cannot be split into trustworthy
                 # citations. Retry once within the existing total source
                 # allowance so a long condition does not strand the read cursor.
@@ -2128,7 +2131,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         elif check_cancel:
             check_cancel()
     seen_actions = set()
-    automatic_turn_usage = {"read": 0, "inspect_business_context": 0}
+    automatic_turn_usage = {"read": 0, "inspect_business_context": 0, "search": 0, "framework_search": 0}
 
     def question_investigation(selected, *, framework_facts=()):
         nonlocal investigation_calls, investigation_queries
@@ -2254,6 +2257,80 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 for ref in observation.source_refs})
         return selected
 
+    def apply_navigation_actions(action):
+        """Use the same navigation path for received and saved tool plans."""
+        nonlocal discovery_attempted, business_map, source_match_observed, question_match_observed
+        nonlocal discovery_pending, impact_result, concept_candidates, recent_framework_ids
+        nonlocal searched_framework, tool_problem
+        if action["search"] or action.get("focus"):
+            automatic_turn_usage["search"] += max(1, len(action["search"]))
+            discovery_attempted = True
+            tool_calls["search"] += 1
+            focus_paths = action.get("focus")
+            search_terms = action["search"] or focus_paths
+            context = checked_retrieve(search_terms, max_pages=policy.search_pages,
+                max_chars=min(policy.search_source_characters, policy.max_source_characters),
+                focus_paths=focus_paths)
+            added = accept(context, "search")
+            business_map = current_map(search_terms, focus_paths=focus_paths)
+            if focus_paths:
+                completed_actions.append({"focus": focus_paths,
+                    "outcome": "rejected" if business_map.get("source_identity", {}).get("focus_rejected")
+                               else "confirmed",
+                    "selected_paths": business_map.get("direct_paths", [])})
+            add_rule_spotlights(business_map)
+            update_complete_context()
+            expand_map_evidence(business_map)
+            annotate_indexed_source_roles(business_map)
+            source_match_observed = source_match_observed or bool(context.get("matched_file_count", 0) or
+                business_map.get("source_identity", {}).get("status") == "resolved")
+            question_match_observed = question_match_observed or bool(context.get("matched_file_count", 0) or
+                business_map.get("source_identity", {}).get("status") == "resolved")
+            if source_match_observed:
+                discovery_pending = False
+            completed_actions.append({"search": search_terms, "added_pages": added})
+            searches.append({"query": " / ".join(search_terms),
+                             "matched_files": context.get("matched_file_count", 0),
+                             "matched_pages": context.get("matched_page_count", 0)})
+        if action.get("list_impact"):
+            try:
+                impact_result = list_impact(database_path, action["list_impact"], page_size=20)
+                quality.add_tool_result(action="list_impact",
+                    actual_result_ids=[impact_result["handle"]])
+                completed_actions.append({"list_impact": action["list_impact"],
+                    "handle": impact_result["handle"], "total": impact_result["total"]})
+            except (ValueError, sqlite3.Error):
+                tool_problem = True
+                completed_actions.append({"list_impact": action["list_impact"], "outcome": "unavailable"})
+        if action.get("search_concepts"):
+            concept_candidates = search_concepts(database_path, action["search_concepts"],
+                framework_reference_path=framework_reference_path)
+            quality.add_tool_result(action="search_concepts",
+                actual_result_ids=[item.get("id") for item in concept_candidates if item.get("id")])
+            completed_actions.append({"search_concepts": action["search_concepts"],
+                                      "candidates": len(concept_candidates)})
+        if action.get("framework_search"):
+            recent_framework_ids = []
+        for query in action.get("framework_search", []):
+            automatic_turn_usage["framework_search"] += 1
+            tool_calls["framework_search"] += 1
+            found = search_framework_context(query, reference_path=framework_reference_path,
+                max_references=policy.max_framework_references,
+                max_chars=max(policy.max_framework_characters, MAX_SECTION_CHARS))
+            # The latest targeted lookup has priority; older references
+            # remain citation-eligible after they were actually supplied.
+            searched_framework = {item["reference_id"]: item for item in found["references"]} | searched_framework
+            recent_framework_ids.extend(item["reference_id"] for item in found["references"])
+            for reference in found["references"]:
+                reference_versions[reference["reference_id"]] = (found.get("document") or {}).get("sha256")
+            quality.add_tool_result(action="framework_search",
+                actual_result_ids=[item["reference_id"] for item in found["references"]],
+                status=found.get("status", "completed"))
+            completed_actions.append({"framework_search": query, "references": len(found["references"]),
+                                      "status": found["status"]})
+            trace.append({"tool": "framework_search", "query": query,
+                          "references": len(found["references"]), "network_requests": 0})
+
     def advance_question(investigation, *, model_requested=False):
         """Spend only the existing per-turn tool allowance on concrete gaps."""
         nonlocal tool_problem, priority_targets
@@ -2284,10 +2361,53 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 {"kind": "transmission", "reason": "retrieved_source_not_visible"}]
             completed_actions.append({"automatic": True, "outcome": "bounded_partial",
                 "reason": "retrieved_source_not_visible", "omitted_actions": omitted})
-        for candidate in candidates:
+        deferred = []
+        paired_focus = None
+        for candidate_index, candidate in enumerate(candidates):
             tool, arguments = candidate.get("tool"), candidate.get("arguments", {})
+            if model_requested and tool in {"search", "focus", "framework_search", "list_impact", "search_concepts"}:
+                if tool == "focus" and arguments == paired_focus:
+                    paired_focus = None
+                    continue
+                allowance = "search" if tool == "focus" else tool
+                if allowance in {"search", "framework_search"}:
+                    limit = (policy.max_searches_per_turn if allowance == "search"
+                             else policy.max_framework_searches_per_turn)
+                    if automatic_turn_usage[allowance] >= limit:
+                        if limit:
+                            deferred.append(candidate)
+                        else:
+                            completed_actions.append({tool: arguments, "outcome": "disabled_by_policy"})
+                        continue
+                navigation_policy = replace(policy,
+                    max_searches_per_turn=max(0, policy.max_searches_per_turn - automatic_turn_usage["search"]),
+                    max_framework_searches_per_turn=max(0, policy.max_framework_searches_per_turn - automatic_turn_usage["framework_search"]))
+                requested_navigation = {tool: arguments}
+                if tool == "search":
+                    focus = next((item.get("arguments") for item in candidates[candidate_index + 1:]
+                                  if item.get("tool") == "focus"), None)
+                    if focus:
+                        requested_navigation["focus"] = focus
+                action = _actions(json.dumps(requested_navigation), navigation_policy)
+                if action and action.get(tool):
+                    apply_navigation_actions(action)
+                    if tool == "search" and action.get("focus"):
+                        paired_focus = action["focus"]
+                    if isinstance(arguments, list) and tool != "focus":
+                        remaining = arguments[len(action[tool]):]
+                        if remaining:
+                            deferred.append({**candidate, "arguments": remaining})
+                elif action is not None:
+                    deferred.append(candidate)
+                continue
             if (tool in {"inspect_business_context", *_SEMANTIC_TOOLS} and
                     automatic_turn_usage["inspect_business_context"] >= policy.max_business_context_actions_per_turn):
+                if model_requested and not candidate.get("read_fallback"):
+                    if policy.max_business_context_actions_per_turn:
+                        deferred.append(candidate)
+                    else:
+                        completed_actions.append({tool: arguments, "outcome": "disabled_by_policy"})
+                    continue
                 tool, arguments = "read", candidate.get("read_fallback", {})
             if tool not in {"read", "inspect_business_context", *_SEMANTIC_TOOLS} or not isinstance(arguments, dict) or not arguments:
                 continue
@@ -2297,9 +2417,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             if tool == "read" and automatic_turn_usage["read"] >= policy.max_reads_per_turn:
                 # Keep a concrete, unattempted source action for the next turn.
                 # A read fallback can also wait for a fresh inspection allowance.
-                deferred_for_budget = deferred_for_budget or bool(policy.max_reads_per_turn or
-                    candidate.get("tool") == "inspect_business_context" and
+                can_defer = bool(policy.max_reads_per_turn or
+                    candidate.get("tool") in {"inspect_business_context", *_SEMANTIC_TOOLS} and
                     policy.max_business_context_actions_per_turn)
+                deferred_for_budget = deferred_for_budget or can_defer
+                if model_requested and can_defer:
+                    deferred.append(candidate)
                 continue
             if tool in {"inspect_business_context", *_SEMANTIC_TOOLS} and automatic_turn_usage["inspect_business_context"] >= policy.max_business_context_actions_per_turn:
                 continue
@@ -2340,7 +2463,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     completed_actions.append({tool: arguments, "outcome": "unavailable",
                         "automatic": True, "reason": candidate.get("reason")})
             progressed = progressed or len(evidence.pages) > before_pages
-        return progressed, deferred_for_budget
+        if model_requested:
+            investigation["planned_actions"] = deferred
+        return progressed, deferred_for_budget or bool(deferred)
 
     try:
         config.validate()
@@ -2384,7 +2509,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             while (policy.can_request(turns) or resume_response is not None) and not resume_continuation:
                 turn = turns
                 remember_draft(processed=resume_response is None)
-                automatic_turn_usage = {"read": 0, "inspect_business_context": 0}
+                automatic_turn_usage = {"read": 0, "inspect_business_context": 0, "search": 0, "framework_search": 0}
                 emit("answering")
                 assembly_started = time.monotonic()
                 investigation_rounds = sum(row.get("stage") in {"investigate", "discover"}
@@ -2398,8 +2523,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 if investigation_rounds >= policy.max_investigation_rounds:
                     continuation.stop_reason = continuation.stop_reason or "investigation_round_budget"
                 if pending_model_actions and local_evidence_allowed:
-                    advance_question({"planned_actions": pending_model_actions}, model_requested=True)
-                    pending_model_actions = []
+                    pending_plan = {"planned_actions": pending_model_actions}
+                    advance_question(pending_plan, model_requested=True)
+                    pending_model_actions = pending_plan["planned_actions"]
                 if (adaptive and local_evidence_allowed and (answer or policy.is_last_request(turn))):
                     for task in list(evidence.tasks.values()):
                         if (task.state != "open" or task.next_start_line is None
@@ -2457,11 +2583,6 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     "prior_source_memory": prior_memory}) if source_memory else selected_pages)
                 current_investigation = question_investigation(review_pages, framework_facts=framework_facts)
                 if adaptive:
-                    continuation.observe(selected_pages, references, current_investigation)
-                    if continuation.stop_reason == "no_evidence_progress":
-                        protocol_answer_pending = True
-                        boundaries.append({"reason": "no_evidence_progress", "round": turns,
-                                           "pending_actions_preserved": True})
                     emit_analysis(current_investigation,
                         summary=local("补查未获得新的有效证据，正在整理已确认的结论与具体未知条件。", "Further lookup found no new usable evidence. Organizing supported conclusions and specific unknown conditions.")
                         if protocol_answer_pending else None)
@@ -2541,11 +2662,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                 "history_candidates_available": bool(restored or prior_paths),
                                 "source_absence_proven": False},
                            "investigation_budget": {"remaining_model_requests": 1 if force_answer else policy.remaining_model_requests(turn),
-                                "searches_per_turn": 0 if force_answer else policy.max_searches_per_turn,
+                                "searches_per_turn": 0 if force_answer else max(0, policy.max_searches_per_turn - automatic_turn_usage["search"]),
                                 "reads_per_turn": 0 if force_answer else max(0, policy.max_reads_per_turn - automatic_turn_usage["read"]),
                                 "business_context_actions_per_turn": 0 if force_answer else max(0,
                                     policy.max_business_context_actions_per_turn - automatic_turn_usage["inspect_business_context"]),
-                                "framework_searches_per_turn": 0 if force_answer else policy.max_framework_searches_per_turn},
+                                "framework_searches_per_turn": 0 if force_answer else max(0, policy.max_framework_searches_per_turn - automatic_turn_usage["framework_search"])},
                            "task": "当前仅定位到与问题相关的框架手册。解释手册明确规定的行为；尚未定位到相关源码，"
                                    "不能把手册约定写成程序已实现或执行的事实。" if framework_only else
                                    "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。" if force_answer else
@@ -2610,6 +2731,21 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     payload = resume_checkpoint["request_payload"]
                     messages = [{"role": "system", "content": _system_for_payload(payload)}, *history_context,
                                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
+                if adaptive:
+                    continuation.observe([page for bundle in payload.get("source_context", [])
+                        for page in bundle.get("pages", [])], payload.get("framework_references", []),
+                        payload["question_investigation"], semantic_groups=payload.get("evidence_groups", []))
+                    if continuation.stop_reason == "no_evidence_progress" and not protocol_answer_pending:
+                        protocol_answer_pending = force_answer = True
+                        boundaries.append({"reason": "no_evidence_progress", "round": turns,
+                                           "pending_actions_preserved": True})
+                        payload["investigation_budget"] = {key: 1 if key == "remaining_model_requests" else 0
+                            for key in payload["investigation_budget"]}
+                        payload["task"] = ("补查未获得新的有效证据。现在根据已供应原文和分析结果回答原问题，"
+                            "保留业务细节与引用；只说明具体未知事项，不再请求补查。")
+                        messages, request_size = _fit_request(config, payload, history_context, policy,
+                            trim_events=trim_events, investigation_builder=question_investigation,
+                            source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
                 visible = _request_manifest(payload, source_memory)
                 current_investigation = payload["question_investigation"]
                 last_investigation = current_investigation
@@ -2710,6 +2846,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     failure = "MODEL_REFUSED" if reply.refused else "MODEL_CONTENT_FILTERED"
                     break
                 action_policy = replace(policy,
+                    max_searches_per_turn=max(0, policy.max_searches_per_turn - automatic_turn_usage["search"]),
+                    max_framework_searches_per_turn=max(0, policy.max_framework_searches_per_turn - automatic_turn_usage["framework_search"]),
                     max_reads_per_turn=max(0, policy.max_reads_per_turn - automatic_turn_usage["read"]),
                     max_business_context_actions_per_turn=max(0, policy.max_business_context_actions_per_turn - automatic_turn_usage["inspect_business_context"]))
                 action = _actions(reply.text, action_policy)
@@ -2911,6 +3049,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     pending_model_actions.extend({"tool": tool, "arguments": arguments,
                         "reason": "model_action_deferred_for_budget"}
                         for arguments in requested_action.get(tool, [])[len(action.get(tool, [])):])
+                for tool in ("search", "framework_search"):
+                    waiting = requested_action.get(tool, [])[len(action.get(tool, [])):]
+                    if waiting:
+                        pending_model_actions.append({"tool": tool, "arguments": waiting,
+                            "reason": "model_action_deferred_for_budget"})
+                if requested_action.get("focus") and not action.get("focus"):
+                    pending_model_actions.append({"tool": "focus", "arguments": requested_action["focus"],
+                        "reason": "model_action_deferred_for_budget"})
                 if pending_model_actions:
                     boundaries.append({"reason": "model_action_deferred_for_budget",
                                        "count": len(pending_model_actions)})
@@ -2929,35 +3075,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 if adaptive:
                     continuation.awaiting_tools = True
                 emit("retrieving")
-                if action["search"] or action.get("focus"):
-                    discovery_attempted = True
-                    tool_calls["search"] += 1
-                    focus_paths = action.get("focus")
-                    search_terms = action["search"] or focus_paths
-                    context = checked_retrieve(search_terms, max_pages=policy.search_pages,
-                        max_chars=min(policy.search_source_characters, policy.max_source_characters),
-                        focus_paths=focus_paths)
-                    added = accept(context, "search")
-                    business_map = current_map(search_terms, focus_paths=focus_paths)
-                    if focus_paths:
-                        completed_actions.append({"focus": focus_paths,
-                            "outcome": "rejected" if business_map.get("source_identity", {}).get("focus_rejected")
-                                       else "confirmed",
-                            "selected_paths": business_map.get("direct_paths", [])})
-                    add_rule_spotlights(business_map)
-                    update_complete_context()
-                    expand_map_evidence(business_map)
-                    annotate_indexed_source_roles(business_map)
-                    source_match_observed = source_match_observed or bool(context.get("matched_file_count", 0) or
-                        business_map.get("source_identity", {}).get("status") == "resolved")
-                    question_match_observed = question_match_observed or bool(context.get("matched_file_count", 0) or
-                        business_map.get("source_identity", {}).get("status") == "resolved")
-                    if source_match_observed:
-                        discovery_pending = False
-                    completed_actions.append({"search": search_terms, "added_pages": added})
-                    searches.append({"query": " / ".join(search_terms),
-                                     "matched_files": context.get("matched_file_count", 0),
-                                     "matched_pages": context.get("matched_page_count", 0)})
+                apply_navigation_actions(action)
                 for item in action["read"]:
                     tool_calls["read"] += 1
                     try:
@@ -2978,8 +3096,6 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         completed_actions.append({"read": {key: item.get(key) for key in ("relative_path", "start_line", "end_line")}, "outcome": "unavailable"})
                         contexts.append({"read_unavailable": {"relative_path": str(item.get("relative_path", ""))[:300],
                                                              "reason": "Requested source location is not available."}})
-                if action.get("framework_search"):
-                    recent_framework_ids = []
                 for tool in ("inspect_business_context", *_SEMANTIC_TOOLS):
                     for item in action.get(tool, []):
                         if force_answer:
@@ -2991,41 +3107,6 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             discovery_pending = False
                         completed_actions.append({tool: {"relative_path": item.get("relative_path"),
                             "line": item.get("line"), "fields": item.get("fields", [])}, "added_pages": added})
-                if action.get("list_impact"):
-                    try:
-                        impact_result = list_impact(database_path, action["list_impact"], page_size=20)
-                        quality.add_tool_result(action="list_impact",
-                            actual_result_ids=[impact_result["handle"]])
-                        completed_actions.append({"list_impact": action["list_impact"],
-                            "handle": impact_result["handle"], "total": impact_result["total"]})
-                    except (ValueError, sqlite3.Error):
-                        tool_problem = True
-                        completed_actions.append({"list_impact": action["list_impact"], "outcome": "unavailable"})
-                if action.get("search_concepts"):
-                    concept_candidates = search_concepts(database_path, action["search_concepts"],
-                        framework_reference_path=framework_reference_path)
-                    quality.add_tool_result(action="search_concepts",
-                        actual_result_ids=[item.get("id") for item in concept_candidates if item.get("id")])
-                    completed_actions.append({"search_concepts": action["search_concepts"],
-                                              "candidates": len(concept_candidates)})
-                for query in action.get("framework_search", []):
-                    tool_calls["framework_search"] += 1
-                    found = search_framework_context(query, reference_path=framework_reference_path,
-                        max_references=policy.max_framework_references,
-                        max_chars=max(policy.max_framework_characters, MAX_SECTION_CHARS))
-                    # The latest targeted lookup has priority; older references
-                    # remain citation-eligible after they were actually supplied.
-                    searched_framework = {item["reference_id"]: item for item in found["references"]} | searched_framework
-                    recent_framework_ids.extend(item["reference_id"] for item in found["references"])
-                    for reference in found["references"]:
-                        reference_versions[reference["reference_id"]] = (found.get("document") or {}).get("sha256")
-                    quality.add_tool_result(action="framework_search",
-                        actual_result_ids=[item["reference_id"] for item in found["references"]],
-                        status=found.get("status", "completed"))
-                    completed_actions.append({"framework_search": query, "references": len(found["references"]),
-                                              "status": found["status"]})
-                    trace.append({"tool": "framework_search", "query": query,
-                                  "references": len(found["references"]), "network_requests": 0})
             while (answer and truncated and answer_finish_reason == "length" and not empty_length_recovery_attempted
                     and policy.can_request(turns) and (adaptive or not continuation_attempted)):
                 remember_draft(processed=resume_response is None)

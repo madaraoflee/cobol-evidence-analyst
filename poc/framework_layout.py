@@ -2,7 +2,7 @@
 
 This is a narrow caller-layout check, not verification of a generated callee's
 ABI. Unknown storage never upgrades a candidate. Direct data declarations and
-one plain, resolved COPY level are supported; other layouts remain explicit.
+resolved COPY nesting and single-token replacement are supported; other layouts remain explicit.
 """
 
 from __future__ import annotations
@@ -50,9 +50,12 @@ def _storage(unit, units):
 
 
 def _reference(unit, role):
-    return {"relative_path": unit["relative_path"], "source_sha256": unit.get("source_sha256"),
+    result = {"relative_path": unit["relative_path"], "source_sha256": unit.get("source_sha256"),
             "start_line": unit["start_line"], "end_line": unit["end_line"],
             "evidence_id": unit["evidence_id"], "role": role}
+    if unit.get("layout_replacement_trace"):
+        result["replacement_trace"] = deepcopy(unit["layout_replacement_trace"])
+    return result
 
 
 def _preprocessing(db, path):
@@ -63,56 +66,156 @@ def _preprocessing(db, path):
                  "AND u.unit_type='PreprocessorDirective' ORDER BY u.start_line", (path,))
 
 
-def _context(db, path, program):
+def _copy_spec(text):
+    """Use the shared COPY grammar, including indexed explicit member paths."""
+    from procedure_expansion import _parse_copy
+    quoted = re.match(r"\s*COPY\s+(['\"])([^'\"]+)\1", text, re.I)
+    if quoted and "/" in quoted[2]:
+        name = quoted[2]
+        if name.startswith("/") or ".." in name.split("/") or "\\" in name:
+            return None
+        parsed = _parse_copy(text[:quoted.start(2)] + "LAYOUT-MEMBER" + text[quoted.end(2):])
+        return (name.upper(), parsed[1], parsed[2]) if parsed else None
+    return _parse_copy(text)
+
+
+def _copy_target_paths(db, relation, parsed, catalog):
+    if relation["status"] == "confirmed" and relation["target_entity_id"]:
+        return [item["relative_path"] for item in _rows(db,
+            "SELECT relative_path FROM symbols WHERE symbol_id=? AND symbol_type='Copybook'",
+            (relation["target_entity_id"],))]
+    if parsed is None or parsed[1] or not parsed[2]:
+        return []
+    try:
+        metadata = json.loads(relation["metadata_json"])
+    except (TypeError, ValueError):
+        return []
+    if (metadata.get("boundary") != "copy_replacing_or_library_not_expanded"
+            or metadata.get("compilation_status") == "candidate"):
+        return []
+    if not catalog:
+        from pathlib import PurePosixPath
+        for item in _rows(db, "SELECT relative_path FROM symbols WHERE symbol_type='Copybook'"):
+            member = PurePosixPath(item["relative_path"])
+            for alias in {member.name.upper(), member.stem.upper(), member.as_posix().upper()}:
+                catalog.setdefault(alias, set()).add(item["relative_path"])
+    return sorted(catalog.get(parsed[0], ()))
+
+
+def _context(db, path, program, *, replacement_audit=None):
+    from procedure_expansion import _replace_tokens
+    from statement_facts import CobolLexError, lex_cobol
+
     rows = _units(db, path, program)
     units = {item["unit_id"]: item for item in rows}
-    events = [(item["start_line"], 0, item, _storage(item, units), []) for item in rows if item["unit_type"] == "DataItem"]
-    issues = []
-    directives = _preprocessing(db, path)
+    events, issues, catalog, cached = [], [], {}, {}
+    inclusion_count = 0
+
+    def contents(relative):
+        if relative not in cached:
+            declarations = _units(db, relative)
+            edges = _rows(db, "SELECT * FROM relations WHERE relative_path=? AND relation_type='INCLUDES_COPY'", (relative,))
+            actions = [(item["start_line"], "declaration", item) for item in declarations if item["unit_type"] == "DataItem"]
+            for relation in edges:
+                found = _rows(db, "SELECT u.*,e.source_sha256 FROM code_units u LEFT JOIN evidence_spans e "
+                    "ON e.evidence_id=u.evidence_id WHERE u.unit_id=?", (relation["from_entity_id"],))
+                if len(found) != 1:
+                    actions.append((0, "missing", relation))
+                else:
+                    actions.append((found[0]["start_line"], "include", (relation, found[0])))
+            cached[relative] = (sorted(actions, key=lambda action: action[0]), _preprocessing(db, relative), declarations)
+        return cached[relative]
+
+    # Stack traversal keeps lexical inclusion order, including subordinate
+    # members inserted between a containing group and later siblings.
+    root_actions = [(item["start_line"], "declaration", item) for item in rows if item["unit_type"] == "DataItem"]
+    root_actions += [item for item in contents(path)[0] if item[1] != "declaration"]
+    work = [(action, None, [], (), (path,)) for action in reversed(sorted(root_actions, key=lambda item: item[0]))]
+    directives = contents(path)[1]
     if directives:
         issues.append(("framework_preprocessing_not_resolved", directives))
-    for relation in _rows(db, "SELECT * FROM relations WHERE relative_path=? AND relation_type='INCLUDES_COPY'", (path,)):
-        candidates = _rows(db, "SELECT u.*,e.source_sha256 FROM code_units u LEFT JOIN evidence_spans e "
-                           "ON e.evidence_id=u.evidence_id WHERE u.unit_id=?", (relation["from_entity_id"],))
-        if len(candidates) != 1:
+    while work:
+        (line, kind, value), inherited_storage, chain, replacements, ancestors = work.pop()
+        if kind == "missing":
+            issues.append(("framework_layout_copy_unresolved", list(chain)))
             continue
-        inclusion = candidates[0]
-        storage = _storage(inclusion, units) if inclusion.get("program_name") == program else None
+        if kind == "declaration":
+            unit = value
+            storage = inherited_storage if chain else _storage(unit, units)
+            if storage is None:
+                continue
+            text = unit["normalized_text"]
+            traces = []
+            for pairs, site in replacements:
+                text, changes, issue = _replace_tokens(text, pairs, site)
+                traces.extend(changes)
+                if issue:
+                    issues.append(("framework_layout_copy_form_not_supported", [unit, *chain]))
+            if traces:
+                unit = {**unit, "normalized_text": text, "layout_replacement_trace": traces}
+            events.append((unit, storage, list(chain)))
+            if len(events) > _MAX_LAYOUT_ITEMS:
+                return [], [("framework_layout_item_limit", list(chain))]
+            continue
+        relation, inclusion = value
+        inclusion_count += 1
+        if inclusion_count > _MAX_LAYOUT_ITEMS:
+            return [], [("framework_layout_item_limit", [inclusion, *chain])]
+        storage = inherited_storage if chain else (_storage(inclusion, units) if inclusion.get("program_name") == program else None)
         try:
             metadata = json.loads(relation["metadata_json"])
         except (TypeError, ValueError):
             metadata = {"boundary": "invalid_metadata"}
-        if metadata.get("boundary") or inclusion.get("parse_status") != "complete" or not _COPY.fullmatch(inclusion["normalized_text"].strip()):
-            issues.append(("framework_layout_copy_form_not_supported", [inclusion]))
+        parsed = _copy_spec(inclusion["normalized_text"].strip())
+        if (inclusion.get("parse_status") != "complete" or parsed is None or parsed[1]
+                or metadata.get("compilation_status") == "candidate"
+                or metadata.get("boundary") not in {None, "copy_replacing_or_library_not_expanded"}):
+            issues.append(("framework_layout_copy_form_not_supported", [inclusion, *chain]))
             continue
-        if relation["status"] != "confirmed" or not relation["target_entity_id"]:
-            issues.append(("framework_layout_copy_unresolved", [inclusion]))
+        replacing = parsed[2]
+        try:
+            simple = all(len(lex_cobol(before)) == 1 and len(lex_cobol(after)) == 1 for before, after in replacing)
+        except CobolLexError:
+            simple = False
+        # Match the shared preprocessor's conservative nested replacement
+        # boundary. Plain nesting and a replacement on the leaf are determinate.
+        if not simple or replacements:
+            issues.append(("framework_layout_copy_form_not_supported", [inclusion, *chain]))
             continue
-        targets = _rows(db, "SELECT relative_path FROM symbols WHERE symbol_id=? AND symbol_type='Copybook'", (relation["target_entity_id"],))
+        targets = _copy_target_paths(db, relation, parsed, catalog)
         if len(targets) != 1:
-            issues.append(("framework_layout_copy_unresolved", [inclusion]))
+            issues.append(("framework_layout_copy_unresolved", [inclusion, *chain]))
             continue
-        copy_path = targets[0]["relative_path"]
-        directives = _preprocessing(db, copy_path)
+        target = targets[0]
+        if target in ancestors:
+            issues.append(("framework_layout_copy_cycle", [inclusion, *chain]))
+            continue
+        if len(ancestors) >= 65:
+            issues.append(("framework_layout_copy_depth_limit", [inclusion, *chain]))
+            continue
+        if replacing:
+            issue = (replacement_audit(target, replacing) if replacement_audit else
+                     "framework_replacement_source_not_fully_checked")
+            if issue:
+                issues.append((issue, [inclusion, *chain]))
+                continue
+        actions, directives, declarations = contents(target)
         if directives:
-            issues.append(("framework_copy_preprocessing_not_resolved", [inclusion] + directives))
+            issues.append(("framework_copy_preprocessing_not_resolved", [*chain, inclusion, *directives]))
             continue
-        if db.execute("SELECT 1 FROM relations WHERE relative_path=? AND relation_type='INCLUDES_COPY' LIMIT 1", (copy_path,)).fetchone():
-            issues.append(("framework_layout_nested_copy_not_supported", [inclusion]))
+        if any(unit["unit_type"] == "Program" for unit in declarations):
+            issues.append(("framework_layout_copy_form_not_supported", [inclusion, *chain]))
             continue
-        # Procedure COPY can change subsequent token interpretation, so it is
-        # checked above even though it supplies no parameter declarations.
-        if storage is None:
+        if storage is not None and not actions:
+            issues.append(("framework_layout_copy_unresolved", [inclusion, *chain]))
             continue
-        copied = [item for item in _units(db, copy_path) if item["unit_type"] == "DataItem"]
-        if not copied:
-            issues.append(("framework_layout_copy_unresolved", [inclusion]))
-            continue
-        events.extend((inclusion["start_line"], index + 1, item, storage, [inclusion]) for index, item in enumerate(copied))
-    if len(events) > _MAX_LAYOUT_ITEMS:
-        return [], [("framework_layout_item_limit", [])]
+        next_chain = [*chain, inclusion]
+        site = {"relative_path": inclusion["relative_path"], "source_hash": inclusion.get("source_sha256"),
+                "line": inclusion["start_line"], "end_line": inclusion["end_line"], "copy_name": parsed[0]}
+        next_replacements = (*replacements, (replacing, site)) if replacing else replacements
+        work.extend((action, storage, next_chain, next_replacements, (*ancestors, target)) for action in reversed(actions))
     nodes, stack, current_storage = [], [], None
-    for _, _, unit, storage, inclusions in sorted(events, key=lambda item: (item[0], item[1])):
+    for unit, storage, inclusions in events:
         if storage != current_storage:
             stack = []
             current_storage = storage
@@ -185,7 +288,7 @@ def _check(nodes, issues, fact):
     return None, length, evidence
 
 
-def validate_framework_layouts(db, facts: list[dict]) -> list[dict]:
+def validate_framework_layouts(db, facts: list[dict], *, replacement_audit=None) -> list[dict]:
     """Return copies of facts; withdraw coverage when caller storage is unknown."""
     contexts = {}
     result = []
@@ -196,7 +299,7 @@ def validate_framework_layouts(db, facts: list[dict]) -> list[dict]:
             continue
         key = fact.get("relative_path"), fact.get("program_name")
         if key not in contexts:
-            contexts[key] = _context(db, *key)
+            contexts[key] = _context(db, *key, replacement_audit=replacement_audit)
         reason, length, evidence = _check(*contexts[key], fact)
         refs = []
         for unit, role in evidence:

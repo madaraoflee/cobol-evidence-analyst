@@ -969,7 +969,8 @@ def _restore_missing_search_pages(connection, root, relative, check_cancel, sour
         raise
 
 
-def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=None):
+def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=None,
+                  read_obstructions=None):
     """Crop on physical line boundaries and persist a citation for the crop."""
     if row["span_truncated"] or not row["evidence_id"]:
         return None
@@ -1009,6 +1010,10 @@ def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=N
         while last < upper and used + len(lines[last]) + bool(last > first) <= budget:
             used += len(lines[last]) + bool(last > first)
             last += 1
+        if last < upper and read_obstructions is not None:
+            read_obstructions.append({"reason": "source_line_exceeds_read_budget",
+                "relative_path": row["relative_path"], "source_sha256": row["source_sha256"],
+                "start_line": row["start_line"] + last, "required_characters": len(lines[last])})
     if first >= last or used > budget:
         return None
     page = {"relative_path": row["relative_path"], "start_line": row["start_line"] + first,
@@ -1165,6 +1170,7 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
     _state_schema(connection)
     cache = {"states": {}, "checked_files": 0, "reused_files": 0, "content_verified_files": 0}
     pages, boundaries, used, seen = [], [], 0, set()
+    read_obstructions = [] if requested_span else None
     per_page = max(512, min(6000, max_chars // max(1, min(max_pages, len(rows)))))
     for row in rows:
         if len(pages) >= max_pages or used >= max_chars:
@@ -1176,13 +1182,13 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
         kwargs = requested_span or {}
         budget = max_chars - used if requested_span else min(per_page, max_chars - used)
         try:
-            page = _bounded_page(connection, row, terms, budget, **kwargs)
+            page = _bounded_page(connection, row, terms, budget, read_obstructions=read_obstructions, **kwargs)
         except ValueError as exc:
             if (str(exc) != "REPOSITORY_SEARCH_STALE" or not row["evidence_id"] or connection.execute(
                     "SELECT 1 FROM evidence_spans WHERE evidence_id=?", (row["evidence_id"],)).fetchone()):
                 raise
             _restore_missing_search_pages(connection, root, row["relative_path"], check_cancel, source_session)
-            page = _bounded_page(connection, row, terms, budget, **kwargs)
+            page = _bounded_page(connection, row, terms, budget, read_obstructions=read_obstructions, **kwargs)
         if page and page["evidence_id"] not in seen:
             page["selection_reasons"] = [row.get("selection_reason", "question_match")]
             page["source_verification"] = state["verification"]
@@ -1217,6 +1223,7 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
     cache_report = {key: value for key, value in cache.items() if key not in {"states", "legacy_stats"}}
     cache_report.update(index_reused=True, source_directory_scanned=False, source_files_reparsed=0)
     return {"snapshot_id": overview["snapshot_id"], "pages": pages,
+            **({"_read_obstructions": read_obstructions} if requested_span else {}),
             "evidence_refs": [{key: value for key, value in page.items() if key != "source_text"} for page in pages],
             "selected_paths": selected, "outline": outline, "boundaries": boundaries,
             "call_chain": {"scope": "retrieved_sources_and_immediate_neighbours", "links": usable,
@@ -1489,6 +1496,20 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
         connection.close()
 
 
+def _source_range_for_reference(connection, evidence_id):
+    """Locate a citation, including an absent derived page in the current cache."""
+    row = connection.execute("SELECT relative_path,start_line,end_line FROM evidence_spans WHERE evidence_id=?",
+                             (evidence_id,)).fetchone()
+    if row is None:
+        # Retain the exact known location after a cached excerpt is lost. Only
+        # current imported bytes may restore that citation; no name guessing.
+        row = connection.execute(
+            "SELECT p.relative_path,p.start_line,p.end_line FROM repo_pages p "
+            "JOIN source_files f ON f.relative_path=p.relative_path AND f.sha256=p.source_sha256 "
+            "WHERE p.evidence_id=? AND p.span_truncated=0 LIMIT 1", (evidence_id,)).fetchone()
+    return dict(row) if row is not None else None
+
+
 def read_repository_context(database_path, source_root, *, relative_path=None, start_line=1,
                             end_line=None, evidence_id=None, max_chars=12000, check_cancel=None,
                             source_session=None):
@@ -1503,10 +1524,10 @@ def read_repository_context(database_path, source_root, *, relative_path=None, s
         if evidence_id is not None:
             if not isinstance(evidence_id, str):
                 raise ValueError("EVIDENCE_ID_INVALID")
-            evidence = connection.execute("SELECT relative_path,start_line,end_line FROM evidence_spans WHERE evidence_id=?", (evidence_id,)).fetchone()
+            evidence = _source_range_for_reference(connection, evidence_id)
             if evidence is None:
                 raise ValueError("EVIDENCE_NOT_FOUND")
-            relative_path, start_line, end_line = tuple(evidence)
+            relative_path, start_line, end_line = (evidence[key] for key in ("relative_path", "start_line", "end_line"))
         if not isinstance(relative_path, str):
             raise ValueError("SOURCE_PATH_INVALID")
         _relative_path(relative_path)
@@ -1543,6 +1564,11 @@ def read_repository_context(database_path, source_root, *, relative_path=None, s
                 break
             cursor = max(cursor, page["end_line"] + 1)
         last_line = cursor - 1
+        obstructions = result.pop("_read_obstructions", [])
+        blocked = next((item for item in obstructions if item["start_line"] == cursor
+                        and item["required_characters"] > max_chars), None)
+        if blocked is not None:
+            result["read_obstruction"] = blocked
         if raw_fallback is not None:
             result["raw_fallback"] = raw_fallback
             if raw_fallback["exhausted"] or raw_fallback["failures"]:

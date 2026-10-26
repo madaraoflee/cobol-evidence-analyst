@@ -138,7 +138,7 @@ class PriorSourceMemoryTests(unittest.TestCase):
         self.assertEqual(self.memory.accept_draft(note["text"], payload=payload, round_record=self.record), 0)
         self.assertEqual(self.memory.prompt()["blocks"], [])
 
-    def test_actual_request_fitting_removes_whole_blocks_and_recomputes_visibility(self):
+    def test_actual_request_fitting_compacts_candidates_without_losing_sources(self):
         pages = [self.page, self.make_page(relative_path="other.cbl")]
         for number, page in enumerate(pages, 1):
             self.assertEqual(self.accept(self.note(page, text="文" * 3900),
@@ -158,16 +158,18 @@ class PriorSourceMemoryTests(unittest.TestCase):
         self.assertLessEqual(size, 32768)
         wire = json.loads(messages[-1]["content"])
         retained = wire.get("prior_source_memory", {}).get("blocks", [])
-        self.assertLess(len(retained), len(original_blocks))
+        self.assertEqual(len(retained), len(original_blocks))
         self.assertTrue(retained)
-        self.assertTrue(all(block in original_blocks for block in retained))
+        self.assertTrue(any(block["kind"] == "source" for block in retained))
+        self.assertEqual(self.memory.prompt()["blocks"], original_blocks)
         retained_ids = {identifier for block in retained for identifier in block["evidence_ids"]}
+        self.assertEqual(retained_ids, {page["evidence_id"] for page in pages})
         self.assertEqual(wire["response_mode"], "business_analysis")
         self.assertEqual(wire["source_selection"]["prior_memory_page_count"], len(retained_ids))
         self.assertEqual(set(_request_manifest(payload, self.memory)["memory_source_ids"]), retained_ids)
         self.assertEqual({page["evidence_id"] for page in self.memory.effective_pages(payload)}, retained_ids)
         self.assertEqual(len(self.memory.checkpoint()["pages"]), 2)
-        self.assertTrue(any(item["reason"] == "prior_source_memory_request_bytes" for item in trims))
+        self.assertTrue(any(item["reason"] == "prior_source_memory_compacted" for item in trims))
 
     def test_restore_rejects_other_question_run_context_and_changed_round_proof(self):
         self.assertEqual(self.accept(), 1)
@@ -245,6 +247,31 @@ class PriorSourceMemoryTests(unittest.TestCase):
         restored = self.new_memory()
         restored.restore(self.memory.checkpoint(), records)
         self.assertEqual(restored.prompt(), original)
+
+    def test_large_source_compaction_keeps_all_distinct_conditions_and_candidate_status(self):
+        source = self.page["source_text"] + "\n" + "*> neutral source padding\n" * 200
+        page = self.make_page(source_text=source, end_line=len(source.splitlines()),
+                              source_sha256=hashlib.sha256(source.encode()).hexdigest())
+        record = self.round_record([page])
+        text = "金额按输入乘以二计算。" + "继续核对相关业务。" * 300 + "但仅在输入为正数时才执行。"
+        self.assertEqual(self.accept(self.note(page, text=text),
+            payload={"source_context": [{"pages": [page]}]}, round_record=record), 1)
+        payload = self.inherited_payload()
+        original = self.memory.prompt()
+        before = len(json.dumps(payload, ensure_ascii=False).encode())
+        self.assertIsNotNone(self.memory.compact_for_request(payload))
+        self.assertLess(len(json.dumps(payload, ensure_ascii=False).encode()), before)
+        blocks = payload["prior_source_memory"]["blocks"]
+        candidate = next(block for block in blocks if block["content_kind"] == "model_candidate")
+        self.assertIn("金额按输入乘以二计算。", candidate["text"])
+        self.assertIn("但仅在输入为正数时才执行。", candidate["text"])
+        self.assertEqual(candidate["text"].count("继续核对相关业务。"), 1)
+        self.assertEqual(candidate["verification"], "unverified")
+        self.assertEqual(self.memory.prompt(), original)
+        self.assertFalse(self.memory.reread_pages())
+        restored = self.new_memory()
+        restored.restore(self.memory.checkpoint(), [record])
+        self.assertEqual(restored.effective_pages(payload, verify_archive=True), [page])
 
     def test_replacing_draft_keeps_source_location_without_old_interpretation(self):
         original_text = self.note(text="输入金额须大于零，随后计算结果金额。")["text"]

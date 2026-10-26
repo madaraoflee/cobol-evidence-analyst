@@ -15,7 +15,7 @@ import sqlite3
 import time
 
 
-SEMANTICS_VERSION = "framework-semantics/v1.7"
+SEMANTICS_VERSION = "framework-semantics/v1.8"
 MAX_FILE_FACTS = 2048
 MAX_REQUEST_FACTS = 32
 
@@ -40,19 +40,136 @@ def _schema(db):
 
 
 def _copy_layout_digest(db, relative):
-    rows = db.execute("SELECT r.target_name,r.target_entity_id,r.status,r.metadata_json,s.relative_path,f.sha256 "
-        "FROM relations r LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
-        "LEFT JOIN source_files f ON f.relative_path=s.relative_path "
-        "WHERE r.relative_path=? AND r.relation_type='INCLUDES_COPY' ORDER BY r.relation_id", (relative,)).fetchall()
-    return hashlib.sha256(json.dumps([tuple(row) for row in rows], ensure_ascii=False).encode()).hexdigest()
+    from framework_layout import _copy_spec, _copy_target_paths, _rows, _MAX_LAYOUT_ITEMS
+    pending, seen, rows, catalog = [relative], set(), [], {}
+    while pending and len(seen) <= _MAX_LAYOUT_ITEMS:
+        path = pending.pop()
+        if path in seen:
+            continue
+        seen.add(path)
+        for edge in _rows(db, "SELECT r.*,u.normalized_text FROM relations r LEFT JOIN code_units u "
+                "ON u.unit_id=r.from_entity_id WHERE r.relative_path=? AND r.relation_type='INCLUDES_COPY' "
+                "ORDER BY r.relation_id", (path,)):
+            parsed = _copy_spec(edge.get("normalized_text") or "")
+            targets = _copy_target_paths(db, edge, parsed, catalog)
+            versions = []
+            for target in targets:
+                record = db.execute("SELECT sha256 FROM source_files WHERE relative_path=?", (target,)).fetchone()
+                versions.append((target, record[0] if record else None))
+                if target not in seen:
+                    pending.append(target)
+            rows.append((path, edge["target_name"], edge["status"], edge["metadata_json"],
+                         edge.get("normalized_text"), versions))
+    return hashlib.sha256(json.dumps([rows, sorted(pending)], ensure_ascii=False).encode()).hexdigest()
 
 
-def _copy_layout_resolver(db, relative, sha):
+def _copy_replacement_auditor(db, *, root=None, source_session=None, source_pages=(), check_cancel=None):
+    """Check complete member text before trusting declaration-only replacement.
+
+    Sparse data units omit arbitrary text. A replacement outside those units
+    may create a persistent REPLACE/COPY/directive, so it needs full preprocessing.
+    The call-local cache is shared by binding and layout checks.
+    """
+    from source_reading import _verified_lines
+    from statement_facts import CobolLexError, clean_cobol_line, lex_cobol
+    from framework_binding import _ELEMENTARY
+    from framework_layout import _DECL
+    from procedure_expansion import _replace_tokens
+    cache, supplied, missing_sources = {}, None, {}
+
+    def audit(relative, pairs):
+        nonlocal supplied
+        if relative not in cache:
+            metadata = db.execute("SELECT * FROM source_files WHERE relative_path=?", (relative,)).fetchone()
+            outside, issue = set(), None
+            if metadata is None:
+                return "framework_replacement_source_not_fully_checked"
+            metadata = dict(metadata)
+            spans = db.execute("SELECT start_line,end_line,normalized_text FROM code_units WHERE relative_path=? "
+                "AND unit_type='DataItem' AND parse_status='complete' ORDER BY start_line,end_line", (relative,)).fetchall()
+            try:
+                if source_session is not None:
+                    captured = source_session.capture(relative)
+                    if captured.sha256 != metadata["sha256"]:
+                        raise ValueError("SOURCE_VERSION_CHANGED")
+                    lines = _verified_lines(source_session.mirror_root, metadata, check_cancel, 65536)
+                elif root is not None:
+                    lines = _verified_lines(root, metadata, check_cancel, 65536)
+                else:
+                    if supplied is None:
+                        supplied = _source_evidence_lines(source_pages)
+                    rows = supplied.get((relative, metadata["sha256"]), {})
+                    if any(rows.get(number) is None for number in range(1, metadata["line_count"] + 1)):
+                        missing_sources[relative] = {"relative_path": relative,
+                            "source_sha256": metadata["sha256"], "start_line": 1,
+                            "end_line": metadata["line_count"]}
+                        raise ValueError("COMPLETE_MEMBER_SOURCE_REQUIRED")
+                    lines = ((rows[number][0], False) for number in range(1, metadata["line_count"] + 1))
+                offset, active_format = 0, metadata["format_hint"]
+                for number, (raw, truncated) in enumerate(lines, 1):
+                    if check_cancel:
+                        check_cancel()
+                    while offset < len(spans) and spans[offset][1] < number:
+                        offset += 1
+                    covered = offset < len(spans) and spans[offset][0] <= number <= spans[offset][1]
+                    code, active_format, _ = clean_cobol_line(raw, active_format)
+                    if truncated:
+                        issue = "framework_replacement_source_not_fully_checked"
+                    elif code:
+                        try:
+                            tokens = lex_cobol(code)
+                            if covered:
+                                # One indexed DataItem can share a physical
+                                # line with unindexed text after its period.
+                                end = next((index for index, token in enumerate(tokens)
+                                            if token.kind == "symbol" and token.value == "."), None)
+                                tokens = tokens[end + 1:] if end is not None else []
+                            outside.update((token.kind, token.value) for token in tokens)
+                        except CobolLexError:
+                            issue = "framework_replacement_source_not_fully_checked"
+            except (OSError, ValueError):
+                issue = "framework_replacement_source_not_fully_checked"
+            cache[relative] = outside, issue, [span[2] for span in spans]
+        outside, issue, declarations = cache[relative]
+        if issue:
+            return issue
+        for before, after in pairs:
+            try:
+                old, new = lex_cobol(before), lex_cobol(after)
+            except CobolLexError:
+                return "framework_layout_copy_form_not_supported"
+            if len(old) != 1 or len(new) != 1:
+                return "framework_layout_copy_form_not_supported"
+            if old[0].kind == "symbol" or new[0].kind == "symbol":
+                return "framework_layout_copy_form_not_supported"
+            key = old[0].kind, old[0].value
+            if key != (new[0].kind, new[0].value) and key in outside:
+                return "framework_replacement_outside_data_declarations"
+            if (key != (new[0].kind, new[0].value) and new[0].kind == "word"
+                    and new[0].value in {"COPY", "REPLACE", "CBL", "PROCESS", "PROGRAM-ID"}):
+                return "framework_replacement_changes_preprocessing"
+        for declaration in declarations:
+            transformed, changes, problem = _replace_tokens(declaration, pairs, {})
+            if problem:
+                return "framework_layout_copy_form_not_supported"
+            if not changes:
+                continue
+            match = _DECL.fullmatch(transformed.strip())
+            tail = match[3].strip().rstrip(".").strip() if match else None
+            if (match is None or not 1 <= int(match[1]) <= 49
+                    or tail and not _ELEMENTARY.fullmatch(tail)):
+                return "framework_replacement_declaration_not_fully_parsed"
+        return None
+    audit.missing_sources = missing_sources
+    return audit
+
+
+def _copy_layout_resolver(db, relative, sha, *, replacement_audit=None):
     """Reuse the existing proven COPY layout, retaining each physical origin."""
     from framework_layout import _context, _reference
 
     def resolve(program):
-        nodes, issues = _context(db, relative, program)
+        nodes, issues = _context(db, relative, program, replacement_audit=replacement_audit)
         if issues or not any(node["inclusions"] for node in nodes):
             return None
         grouped, uncertain = defaultdict(list), set()
@@ -161,6 +278,7 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
                "runtime_verified": False}
     paths = _candidate_paths(db, knowledge)
     root = Path(source_root).resolve()
+    replacement_audit = _copy_replacement_auditor(db, root=root, check_cancel=check_cancel)
     with db:
         db.execute("INSERT OR REPLACE INTO framework_knowledge_cache VALUES (1,?,?)",
                    (digest, json.dumps(knowledge, ensure_ascii=False)))
@@ -200,7 +318,8 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
                 try:
                     facts = bind_framework_source(lines(), knowledge, relative_path=relative,
                         source_sha256=item["sha256"], source_format=item["format_hint"],
-                        layout_resolver=_copy_layout_resolver(db, relative, item["sha256"]))
+                        layout_resolver=_copy_layout_resolver(db, relative, item["sha256"],
+                            replacement_audit=replacement_audit))
                 except (ValueError, OSError) as error:
                     summary["boundaries"].append({"relative_path": relative,
                         "reason": "framework_source_unavailable", "reason_code": str(error)[:160]})
@@ -216,7 +335,8 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
                     "reason": "framework_file_fact_limit", "complete": False})
             summary["fact_count"] += len(facts)
             summary["matched_files"] += bool(facts)
-            interpreted = validate_framework_layouts(db, _source_precedence(db, facts))
+            interpreted = validate_framework_layouts(db, _source_precedence(db, facts),
+                replacement_audit=replacement_audit)
             from effect_contract import attach_effect_contracts
             interpreted = attach_effect_contracts(interpreted, knowledge,
                 compilation_context=_selected_compilation_context(db))
@@ -278,6 +398,8 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
     facts, cached, file_metadata = {}, set(), {}
     with closing(sqlite3.connect(f"{Path(database_path).resolve().as_uri()}?mode=ro", uri=True)) as db:
         db.row_factory = sqlite3.Row
+        replacement_audit = _copy_replacement_auditor(db, source_session=source_session,
+            source_pages=source_pages, check_cancel=check_cancel)
         has_cache = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
                                "AND name='framework_file_semantics'").fetchone()
         cache_column = ("bindings_json" if has_cache and "bindings_json" in
@@ -325,7 +447,7 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
                         yield number, None if truncated else line
                 bound = bind_framework_source(complete_lines(), knowledge, relative_path=key[0],
                     source_sha256=key[1], source_format=capture.source_format, focus_ranges=ranges,
-                    layout_resolver=_copy_layout_resolver(db, key[0], key[1]))
+                    layout_resolver=_copy_layout_resolver(db, key[0], key[1], replacement_audit=replacement_audit))
                 for fact in bound:
                     facts[fact["fact_id"]] = fact
         for (relative, sha), format_hint, lines in _page_runs(source_pages):
@@ -343,7 +465,7 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
                 initial_program = owners[0]["program_name"]
             for fact in bind_framework_source(lines, knowledge, relative_path=relative,
                     source_sha256=sha, source_format=format_hint, initial_program=initial_program,
-                    layout_resolver=_copy_layout_resolver(db, relative, sha)):
+                    layout_resolver=_copy_layout_resolver(db, relative, sha, replacement_audit=replacement_audit)):
                 complete = lines[0][0] == 1 and lines[-1][0] == file_metadata[(relative, sha)]["line_count"]
                 if not complete:
                     fact.update(dependency_covered=False, reason="complete_source_required_for_rebinding")
@@ -361,14 +483,14 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
         from framework_layout import validate_framework_layouts
         candidates = visible_framework_facts(list(facts.values()), source_pages, knowledge.get("references", []))
         checked = _source_precedence(db, candidates)
-        checked = validate_framework_layouts(db, checked)
+        checked = validate_framework_layouts(db, checked, replacement_audit=replacement_audit)
         from effect_contract import attach_effect_contracts
         checked = attach_effect_contracts(checked, knowledge,
             compilation_context=_selected_compilation_context(db, compilation_context))
         # A selected call can be far from its parameter declarations. Expose
         # bounded missing spans so the caller may read them within its existing
         # budget; the fact still cannot survive until that source is supplied.
-        requests = {}
+        requests = {tuple(item.values()): item for item in replacement_audit.missing_sources.values()}
         supplied_lines = _source_evidence_lines(source_pages)
         for fact in checked[:MAX_REQUEST_FACTS]:
             if not fact.get("dependency_covered"):

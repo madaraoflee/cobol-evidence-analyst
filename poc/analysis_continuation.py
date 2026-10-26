@@ -48,6 +48,61 @@ def material_keys(pages, references=()):
     return {_digest(value) for value in values}
 
 
+def semantic_material_keys(pages, groups):
+    """Stable source-bound nodes and connections, excluding tool/temporary IDs.
+
+    Call after request fitting: omitted local analysis cannot count as supplied
+    progress. Narrative findings, diagnostics and candidate prose are ignored.
+    """
+    def source_binding(ref):
+        if (not ref.get("source_sha256") or type(ref.get("start_line")) is not int
+                or type(ref.get("end_line")) is not int):
+            return None
+        if not any(page.get("source_text") and not page.get("span_truncated")
+                and all(page.get(key) == ref.get(key) for key in ("relative_path", "source_sha256"))
+                and (page.get("include_chain") or []) == (ref.get("include_chain") or [])
+                and (page.get("replacement_trace") or []) == (ref.get("replacement_trace") or [])
+                and page["start_line"] <= ref["start_line"] <= ref["end_line"] <= page["end_line"]
+                for page in pages):
+            return None
+        return {key: ref.get(key) for key in ("relative_path", "source_sha256", "start_line", "end_line",
+            "start_column", "end_column", "include_chain", "replacement_trace", "copy_instance")}
+
+    keys = set()
+    for group in groups:
+        analysis = group.get("semantic_analysis") or {}
+        nodes = {}
+        for node in analysis.get("slice_statements", []):
+            refs = [source_binding(ref) for ref in node.get("source_refs", [])]
+            if not refs or any(ref is None for ref in refs):
+                continue
+            key = _digest({"source": refs, **{name: node.get(name) for name in
+                ("kind", "statement", "reads", "writes", "expressions")}})
+            nodes[node.get("occurrence_id")] = key
+            keys.add("semantic-node:" + key)
+        for result in analysis.get("tool_results", []):
+            anchor = nodes.get(result.get("occurrence_id"))
+            if not anchor:
+                continue
+            for field in ("occurrences", "later_reads", "later_writes"):
+                for identifier in result.get(field, []):
+                    target = nodes.get(identifier) if isinstance(identifier, str) else None
+                    if target and target != anchor:
+                        # Connectivity is independent of whether the same
+                        # relation was returned by a forward/backward tool.
+                        keys.add("semantic-link:" + _digest(sorted((anchor, target))))
+        for assignment in analysis.get("assignments", []):
+            reader = nodes.get(assignment.get("statement", {}).get("occurrence_id"))
+            if not reader:
+                continue
+            for field, definitions in assignment.get("reaching_definitions", {}).items():
+                for identifier in definitions:
+                    writer = nodes.get(identifier)
+                    if writer:
+                        keys.add("semantic-definition:" + _digest((writer, reader, field)))
+    return keys
+
+
 def progress_snapshot(round_number, investigation, evidence_count, *, summary=None, assessment=None,
                       answer_language="zh-CN"):
     items = [item for item in investigation.get("required_items", [])
@@ -74,6 +129,7 @@ class AnalysisContinuation:
         saved = saved or {}
         self.question = question
         self.known_material = set(saved.get("known_material", []))
+        self.known_semantic = set(saved.get("known_semantic", []))
         self.known_obligations = set(saved.get("known_obligations", []))
         self.reviewed_gaps = set(saved.get("reviewed_gaps", []))
         self.idle_tool_rounds = int(saved.get("idle_tool_rounds", 0))
@@ -83,19 +139,22 @@ class AnalysisContinuation:
         self.draft = saved.get("draft", "")
         self.revision_requests = int(saved.get("revision_requests", 0))
 
-    def observe(self, pages, references, investigation):
+    def observe(self, pages, references, investigation, *, semantic_groups=()):
         material = material_keys(pages, references)
+        semantic = semantic_material_keys(pages, semantic_groups)
         # Evidence identities and their order may change while the underlying
         # supplied source remains identical. Material changes are tracked above;
         # only newly satisfied obligation identities count separately here.
         obligations = {_digest({key: item.get(key) for key in ("id", "kind")})
                        for item in investigation.get("required_items", [])
                        if item.get("status") == "SATISFIED"}
-        progressed = bool(material - self.known_material or obligations - self.known_obligations)
+        progressed = bool(material - self.known_material or obligations - self.known_obligations
+                          or semantic - self.known_semantic)
         if self.awaiting_tools:
             self.idle_tool_rounds = 0 if progressed else self.idle_tool_rounds + 1
         self.awaiting_tools = False
         self.known_material.update(material)
+        self.known_semantic.update(semantic)
         self.known_obligations.update(obligations)
         # A second different lookup may recover a naming mismatch. Repeated
         # empty searches must not produce an unbounded loop of paid requests.
@@ -134,6 +193,7 @@ class AnalysisContinuation:
 
     def checkpoint(self):
         return {"known_material": sorted(self.known_material),
+                "known_semantic": sorted(self.known_semantic),
                 "known_obligations": sorted(self.known_obligations),
                 "reviewed_gaps": sorted(self.reviewed_gaps), "idle_tool_rounds": self.idle_tool_rounds,
                 "awaiting_tools": self.awaiting_tools, "stop_reason": self.stop_reason,
