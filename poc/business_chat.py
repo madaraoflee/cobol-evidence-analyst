@@ -1205,8 +1205,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                            analysis_identity=analysis_identity)
     if unused.get("continued_from_run_id"):
         quality.data["continued_from_run_id"] = unused["continued_from_run_id"]
-    if unused.get("replaces_changed_source_run"):
-        prior = unused["replaces_changed_source_run"]
+    if unused.get("replaces_changed_run"):
+        prior = unused["replaces_changed_run"]
         if prior["state"] in {"running", "attention"}:
             quality.run_store.checkpoint(prior["run_id"], {**prior["checkpoint"],
                 "superseded_by_explicit_retry": True,
@@ -3790,6 +3790,15 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 kwargs["retry_unknown_scope"] = {"question_id": question_id,
                     "model_fingerprint": model_fingerprint, "analysis_identities": sorted(identities)}
                 resume = None
+            elif (matching_resume and metadata.get("analysis_identity") == analysis_identity
+                  and (metadata.get("pipeline_version") != PIPELINE_VERSION
+                       or metadata.get("prompt_version") != PROMPT_VERSION)):
+                # An explicit retry after an upgrade starts with current source
+                # and policy. Retain the old response and evidence unchanged;
+                # retire that run only after its replacement has been created.
+                kwargs["continued_from_run_id"] = resume["run_id"]
+                kwargs["replaces_changed_run"] = resume
+                resume = None
     def unknown_remote_result(saved, *, retain_answer=True):
         retained = saved["checkpoint"].get("result")
         if retain_answer and isinstance(retained, dict) and (retained.get("agent_result") or {}).get("answer_available"):
@@ -3942,7 +3951,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                             # replaying the saved response or copying stale work.
                             # Retire the old run only after its replacement exists.
                             kwargs["continued_from_run_id"] = validation_state["run_id"]
-                            kwargs["replaces_changed_source_run"] = validation_state
+                            kwargs["replaces_changed_run"] = validation_state
                             resume = retry_seed = None
                             budget = QuestionBudget(selected_policy.effective_delivery_target_seconds,
                                 hard_seconds=selected_policy.hard_question_seconds,

@@ -3,6 +3,7 @@ import hashlib
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from business_synthesis import build_analysis_brief, _supplied_source_spans
@@ -130,6 +131,33 @@ class SyntaxEvidenceTests(unittest.TestCase):
         result = build_syntax_guide([page(text)])
         self.assertLessEqual(len(result["facts"]), 24)
         self.assertGreater(result["omitted_facts"], 0)
+
+    def test_oversized_program_keeps_later_supplied_subprogram_facts(self):
+        large = page("MAIN.\n" + "*> unrelated source context\n" * 4000 +
+                     "MOVE 1 TO RESULT-VALUE.", "ev:large")
+        later = {**page("CALCULATE.\nIF FLAG = 'Y' MOVE 2 TO RESULT-VALUE END-IF.",
+                        "ev:later"), "relative_path": "subprogram.cbl"}
+        result = build_syntax_guide([large, later])
+        self.assertTrue(result["source_scan_truncated"])
+        fact, = result["facts"]
+        self.assertEqual(fact["relative_path"], "subprogram.cbl")
+        self.assertEqual(fact["statement"], "MOVE 2 TO RESULT-VALUE")
+        self.assertEqual(fact["guards"][0]["condition"], "FLAG = 'Y'")
+        self.assertEqual(fact["supplied_reference_ids"], ["ev:later"])
+        # Omitting the subprogram during request fitting must still withdraw it.
+        self.assertEqual(build_syntax_guide([large])["facts"], [])
+
+    def test_skipping_one_span_preserves_the_total_scan_budget(self):
+        texts = ("MAIN.\nMOVE 1 TO RESULT-VALUE.",
+                 "MAIN.\n*>" + "padding" * 8 + "\nMOVE 2 TO RESULT-VALUE.",
+                 "MAIN.\nMOVE 3 TO RESULT-VALUE.")
+        pages = [{**page(text, f"ev:source-{index}"), "relative_path": f"source-{index}.cbl"}
+                 for index, text in enumerate(texts)]
+        with patch("syntax_evidence._MAX_SCAN", len(texts[0]) + len(texts[2])):
+            result = build_syntax_guide(pages)
+        self.assertTrue(result["source_scan_truncated"])
+        self.assertEqual([fact["statement"] for fact in result["facts"]],
+                         ["MOVE 1 TO RESULT-VALUE", "MOVE 3 TO RESULT-VALUE"])
 
 
     def test_short_numbered_fixed_excerpt_ignores_identification_area(self):

@@ -207,7 +207,9 @@ def build_syntax_guide(source_pages):
         text = supplied["source_text"]
         if scanned + len(text) > _MAX_SCAN:
             result["source_scan_truncated"] = True
-            break
+            # One oversized program must not hide later, complete subprograms
+            # already supplied to the answer. Keep the same total scan budget.
+            continue
         scanned += len(text)
         path, digest = supplied["key"][:2]
         formats = {pages[ref].get("format_hint") or "auto" for ref in supplied["supplied_reference_ids"]}

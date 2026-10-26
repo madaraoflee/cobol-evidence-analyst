@@ -200,7 +200,7 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
                 self.ask()
         return run_ids[0]
 
-    def test_auto_discovered_old_policy_missing_new_field_still_hits_upgrade_gate(self):
+    def test_auto_discovered_old_policy_requires_explicit_upgrade_retry(self):
         run_id = self.interrupted_received_response()
         before = self.legacy_policy_metadata(run_id, previous_pipeline=True)
         self.assertEqual(before["state"], "running")
@@ -208,7 +208,7 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
         self.assertEqual([row["state"] for row in before["requests"]], ["completed"])
         self.assertIsNotNone(before["checkpoint"]["question_budget"])
         self.clock_value = 130
-        for options in ({}, {"resume_run_id": run_id}, {"start_new_investigation": True}):
+        for options in ({}, {"resume_run_id": run_id}):
             with self.subTest(options=options):
                 result = self.ask(**options)
                 self.assertEqual(result["reason_code"], "RESUME_PIPELINE_VERSION_CHANGED")
@@ -217,6 +217,15 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
                 self.assertEqual(self.store.load(run_id), before)
                 with self.store.connect() as database:
                     self.assertEqual(database.execute("SELECT COUNT(*) FROM investigation_runs").fetchone()[0], 1)
+        result = self.ask(start_new_investigation=True)
+        self.assertTrue(result["agent_result"]["model_answer_recorded"])
+        self.assertNotEqual(result["agent_result"]["run_id"], run_id)
+        self.assertEqual(self.calls, 2)
+        retired = self.store.load(run_id)
+        self.assertEqual(retired["state"], "superseded")
+        self.assertEqual(retired["metadata"], before["metadata"])
+        self.assertEqual(retired["requests"], before["requests"])
+        self.assertEqual({key: retired["checkpoint"][key] for key in before["checkpoint"]}, before["checkpoint"])
 
     def test_invalid_saved_policy_does_not_become_default_compatible_policy(self):
         run_id = self.interrupted_received_response()
@@ -306,18 +315,28 @@ class QuestionDeadlineRecoveryAuditTests(unittest.TestCase):
         self.assertEqual(result["metrics"]["policy"]["hard_question_seconds"], 120)
         self.assertIn("OUT-AMOUNT = IN-AMOUNT * 2", result["answer"])
 
-    def test_default_change_and_configuration_change_cannot_bypass_old_pipeline_gate(self):
+    def test_default_and_configuration_changes_require_explicit_upgrade_retry(self):
         run_id = self.interrupted_received_response()
         before = self.legacy_policy_metadata(run_id, previous_pipeline=True)
         self.remove_current_default_deadline()
         self.config = replace(self.config, timeout_seconds=60)
-        for options in ({}, {"resume_run_id": run_id}, {"start_new_investigation": True}):
+        for options in ({}, {"resume_run_id": run_id}):
             with self.subTest(options=options):
                 result = self.ask(**options)
                 self.assertEqual(result["reason_code"], "RESUME_PIPELINE_VERSION_CHANGED")
                 self.assertEqual(result["agent_result"]["run_id"], run_id)
                 self.assertEqual(self.calls, 1)
                 self.assertEqual(self.store.load(run_id), before)
+        result = self.ask(start_new_investigation=True)
+        self.assertTrue(result["agent_result"]["model_answer_recorded"])
+        self.assertNotEqual(result["agent_result"]["run_id"], run_id)
+        self.assertIsNone(result["agent_result"]["metrics"]["policy"]["hard_question_seconds"])
+        self.assertEqual(self.calls, 2)
+        retired = self.store.load(run_id)
+        self.assertEqual(retired["state"], "superseded")
+        self.assertEqual(retired["metadata"], before["metadata"])
+        self.assertEqual(retired["requests"], before["requests"])
+        self.assertEqual({key: retired["checkpoint"][key] for key in before["checkpoint"]}, before["checkpoint"])
 
     def test_removed_deadline_does_not_silently_reset_other_incompatible_configuration(self):
         run_id = self.interrupted_received_response()
