@@ -83,6 +83,7 @@ def bind_framework_source(
     lines: Iterable[tuple[int, str | None]], knowledge: dict, *,
     relative_path: str, source_sha256: str, source_format: str = "auto",
     initial_program: str | None = None, focus_ranges: list[tuple[int, int] | dict] | None = None,
+    layout_resolver=None,
 ) -> list[dict]:
     """Attach documented meanings only where source and rule evidence agree.
 
@@ -127,6 +128,7 @@ def bind_framework_source(
     last_move: dict | None = None
     declarations: Counter = Counter()
     layout_nodes: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    resolved_layouts = {}
     uncertain_layout: set[tuple[str, str]] = set()
     declaration_stack: list[dict] = []
     storage_section: str | None = None
@@ -167,13 +169,21 @@ def bind_framework_source(
             return False
         interface, stem = matches[0]
         argument = _instantiate(interface.get("argument_template", ""), stem)
-        if not argument or any(len(layout_nodes[(program, name)]) != 1
+        nodes = layout_nodes
+        uncertain = uncertain_layout
+        if layout_resolver is not None:
+            if program not in resolved_layouts:
+                resolved_layouts[program] = layout_resolver(program)
+            resolved = resolved_layouts[program]
+            if resolved is not None:
+                nodes, uncertain = resolved
+        if not argument or any(len(nodes[(program, name)]) != 1
                                for name in (function, destination, argument)):
             return False
         function_node, destination_node, argument_node = (
-            layout_nodes[(program, name)][0] for name in (function, destination, argument))
+            nodes[(program, name)][0] for name in (function, destination, argument))
         storage = function_node["storage"]
-        if (storage not in _STORAGE or (program, storage) in uncertain_layout
+        if (storage not in _STORAGE or (program, storage) in uncertain
                 or destination_node["storage"] != storage
                 or argument_node not in function_node["ancestors"]
                 or argument_node not in destination_node["ancestors"]
@@ -184,17 +194,18 @@ def bind_framework_source(
         ancestors = list({id(node): node for node in
                           function_node["ancestors"] + destination_node["ancestors"]}.values())
         if any(not 1 <= node["level"] < 50 or node["tail"]
-               or len(layout_nodes[(program, node["name"])]) != 1 for node in ancestors):
+               or len(nodes[(program, node["name"])]) != 1 for node in ancestors):
             return False
         spans = last_move.setdefault("preserved_source_ranges", [])
         spans.append({"start_line": start, "end_line": end, "role": "disjoint_field_assignment"})
         refs = last_move.setdefault("binding_evidence_refs", [])
         for node in [function_node, destination_node, *ancestors]:
-            ref = {"relative_path": relative_path, "source_sha256": source_sha256,
-                   "start_line": node["line"], "end_line": node["line"],
-                   "role": "binding_declaration"}
-            if ref not in refs:
-                refs.append(ref)
+            origins = node.get("binding_refs") or [{"relative_path": relative_path,
+                "source_sha256": source_sha256, "start_line": node["line"],
+                "end_line": node["line"], "role": "binding_declaration"}]
+            for ref in origins:
+                if ref not in refs:
+                    refs.append(ref)
         return True
 
     def emit_call(text: str, start: int, end: int) -> None:

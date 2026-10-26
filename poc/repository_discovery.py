@@ -776,10 +776,14 @@ def discover_repository(database_path, question, *, search_terms=None, focus_pat
                 pages = preview_queue.popleft()
                 row = pages.popleft()
                 evidence = connection.execute("SELECT text FROM evidence_spans WHERE evidence_id=?", (row["evidence_id"],)).fetchone()
-                if not row["span_truncated"] and evidence is None:
-                    raise ValueError("REPOSITORY_SEARCH_STALE")
                 snippet, offset = _snippet(evidence[0] if evidence else row["fallback_text"], terms)
-                matches.append({key: row[key] for key in ("evidence_id", "relative_path", "start_line", "end_line", "source_sha256", "span_truncated", "score")} | {"snippet": snippet, "snippet_char_offset": offset})
+                preview = {key: row[key] for key in ("evidence_id", "relative_path", "start_line", "end_line", "source_sha256", "span_truncated", "score")}
+                if not row["span_truncated"] and evidence is None:
+                    # Search hits still locate the imported file. A missing
+                    # derived excerpt must not stop navigation or become a
+                    # dangling citation; reading will restore its original text.
+                    preview.update(evidence_id=None, cached_excerpt_missing=True)
+                matches.append(preview | {"snippet": snippet, "snippet_char_offset": offset})
                 if pages:
                     preview_queue.append(pages)
         if not blocked and identity["direct_paths"] and not matches:
@@ -788,8 +792,10 @@ def discover_repository(database_path, question, *, search_terms=None, focus_pat
                 if row:
                     evidence = connection.execute("SELECT text FROM evidence_spans WHERE evidence_id=?", (row["evidence_id"],)).fetchone()
                     snippet, offset = _snippet(evidence[0] if evidence else row["fallback_text"], terms)
-                    matches.append({key: row[key] for key in ("evidence_id", "relative_path", "start_line", "end_line", "source_sha256", "span_truncated")} |
-                                   {"score": 0, "snippet": snippet, "snippet_char_offset": offset})
+                    preview = {key: row[key] for key in ("evidence_id", "relative_path", "start_line", "end_line", "source_sha256", "span_truncated")}
+                    if not row["span_truncated"] and evidence is None:
+                        preview.update(evidence_id=None, cached_excerpt_missing=True)
+                    matches.append(preview | {"score": 0, "snippet": snippet, "snippet_char_offset": offset})
         fallback = not seeds and not blocked and fallback_to_repository
         rooted = _rooted_navigation(connection, scopes, all_paths, check_cancel) if scopes else None
         if rooted:
@@ -927,6 +933,40 @@ def _current_selected_source(connection, root, relative, cache, check_cancel, so
         state["reason_code"] = str(exc)
     cache["states"][relative] = state
     return state
+
+
+def _restore_missing_search_pages(connection, root, relative, check_cancel, source_session):
+    """Recover absent derived excerpts from one verified original file."""
+    item = connection.execute("SELECT relative_path,sha256,encoding,line_count FROM source_files WHERE relative_path=?",
+                              (relative,)).fetchone()
+    if item is None:
+        return
+    missing = {row[0] for row in connection.execute(
+        "SELECT p.evidence_id FROM repo_pages p LEFT JOIN evidence_spans e ON e.evidence_id=p.evidence_id "
+        "WHERE p.relative_path=? AND p.source_sha256=? AND p.span_truncated=0 AND e.evidence_id IS NULL",
+        (relative, item["sha256"]))}
+    if not missing:
+        return
+    read_root = root
+    if source_session is not None:
+        capture = source_session.capture(relative)
+        if capture.sha256 != item["sha256"]:
+            raise ValueError("SOURCE_HASH_MISMATCH")
+        read_root = source_session.mirror_root
+    # Stage inside the read transaction instead of retaining the whole file
+    # in memory. Publish only after complete hash/line verification; recovering
+    # all missing pages together avoids one full-file scan per later read.
+    connection.execute("SAVEPOINT recovered_search_excerpts")
+    try:
+        for page in _verified_pages(read_root, dict(item), check_cancel, set(), PAGE_CHARS):
+            page["evidence_id"] = _identify_page(page)
+            if page["evidence_id"] in missing and not page["span_truncated"]:
+                _persist_page(connection, page)
+        connection.execute("RELEASE recovered_search_excerpts")
+    except BaseException:
+        connection.execute("ROLLBACK TO recovered_search_excerpts")
+        connection.execute("RELEASE recovered_search_excerpts")
+        raise
 
 
 def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=None):
@@ -1135,7 +1175,14 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
             continue
         kwargs = requested_span or {}
         budget = max_chars - used if requested_span else min(per_page, max_chars - used)
-        page = _bounded_page(connection, row, terms, budget, **kwargs)
+        try:
+            page = _bounded_page(connection, row, terms, budget, **kwargs)
+        except ValueError as exc:
+            if (str(exc) != "REPOSITORY_SEARCH_STALE" or not row["evidence_id"] or connection.execute(
+                    "SELECT 1 FROM evidence_spans WHERE evidence_id=?", (row["evidence_id"],)).fetchone()):
+                raise
+            _restore_missing_search_pages(connection, root, row["relative_path"], check_cancel, source_session)
+            page = _bounded_page(connection, row, terms, budget, **kwargs)
         if page and page["evidence_id"] not in seen:
             page["selection_reasons"] = [row.get("selection_reason", "question_match")]
             page["source_verification"] = state["verification"]

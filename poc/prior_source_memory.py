@@ -209,6 +209,12 @@ class PriorSourceMemory:
                 page, origin = self._archived_page(identifier), self.origins[identifier]
             accepted_pages[identifier] = deepcopy(page)
             accepted_origins[identifier] = deepcopy(self.origins.get(identifier, origin))
+        for identifier, block in self.blocks.items():
+            if (block["kind"] == kind and block["text"] == text
+                    and set(block["evidence_ids"]) == set(identifiers)):
+                # Repeating the same interpretation in another round adds no
+                # knowledge. Keep its first supplying origin and wire identity.
+                return identifier
         archive_evidence(self.database_path, accepted_pages.values())
         self.pages.update(accepted_pages)
         self.origins.update(accepted_origins)
@@ -224,6 +230,16 @@ class PriorSourceMemory:
         self.blocks[block["memory_id"]] = block
         self.declared_blocks[block["memory_id"]] = deepcopy(block)
         return block["memory_id"]
+
+    def _remember_source_reference(self, evidence_id):
+        page, origin = self.pages[evidence_id], self.origins[evidence_id]
+        body = {"text": f"原文位置：{page['relative_path']}:{page['start_line']}-{page['end_line']}。",
+                "evidence_ids": [evidence_id], "origins": [deepcopy(origin)],
+                "kind": "source", "round_id": origin["round_id"]}
+        block = {"memory_id": "memory_" + _digest(body), **body,
+                 "verification": "unverified", "content_kind": "source_reference"}
+        self.blocks[block["memory_id"]] = block
+        self.declared_blocks[block["memory_id"]] = deepcopy(block)
 
     def revoke_candidates(self, *, evidence_ids=(), memory_ids=(), reason="contradicted_claim"):
         """Retract interpretations, retaining the independent source provenance.
@@ -245,14 +261,7 @@ class PriorSourceMemory:
             self.blocks.pop(identifier)
             for evidence_id in block["evidence_ids"]:
                 self.pending_reread_ids.add(evidence_id)
-                page, origin = self.pages[evidence_id], self.origins[evidence_id]
-                body = {"text": f"原文位置：{page['relative_path']}:{page['start_line']}-{page['end_line']}。",
-                        "evidence_ids": [evidence_id], "origins": [deepcopy(origin)],
-                        "kind": "source", "round_id": origin["round_id"]}
-                source_block = {"memory_id": "memory_" + _digest(body), **body,
-                                "verification": "unverified", "content_kind": "source_reference"}
-                self.blocks[source_block["memory_id"]] = source_block
-                self.declared_blocks[source_block["memory_id"]] = deepcopy(source_block)
+                self._remember_source_reference(evidence_id)
         return revoked
 
     def reread_pages(self, evidence_ids=None):
@@ -276,6 +285,14 @@ class PriorSourceMemory:
                  for part in re.split(r"\n\s*\n", text) if part.strip()]
         previous = {key for key, block in self.blocks.items() if block["kind"] == "draft"}
         accepted = {self._accept(row, payload=payload, round_record=round_record, kind="draft") for row in notes}
+        discarded_sources = set()
         for key in previous - accepted:
-            self.blocks.pop(key, None)
+            discarded_sources.update(self.blocks.pop(key)["evidence_ids"])
+        retained_sources = {identifier for block in self.blocks.values() for identifier in block["evidence_ids"]}
+        for identifier in sorted(discarded_sources - retained_sources):
+            # Replacing candidate prose must not erase the original source.
+            # Re-supply a lost excerpt once on the next existing turn, without
+            # keeping a superseded interpretation or opening another request.
+            self._remember_source_reference(identifier)
+            self.pending_reread_ids.add(identifier)
         return len(accepted - {False, None})

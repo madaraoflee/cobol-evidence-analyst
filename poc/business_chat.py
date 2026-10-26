@@ -172,6 +172,16 @@ def _actions(text, policy=None):
         item = json.loads(value)
     except (ValueError, RecursionError):
         return None
+    def unique(values):
+        # Duplicate suggestions share one tool slot. Preserve order and full
+        # arguments so distinct ranges or semantic operations remain separate.
+        result, seen = [], set()
+        for value in values:
+            key = json.dumps(value, sort_keys=True, ensure_ascii=False)
+            if key not in seen:
+                seen.add(key)
+                result.append(value)
+        return result
     permitted = {"search", "read", "framework_search", "inspect_business_context", "list_impact", "search_concepts", "reason", "focus", *_SEMANTIC_TOOLS}
     if policy.source_memory_enabled:
         permitted.add("findings")
@@ -196,13 +206,13 @@ def _actions(text, policy=None):
             return None
     focus = focus if isinstance(focus, list) and policy.max_searches_per_turn else []
     requested = bool(focus) or any(key in item for key in ("search", "read", "framework_search", "inspect_business_context", "list_impact", "search_concepts", *_SEMANTIC_TOOLS))
-    searches = [s[:500] for s in searches if isinstance(s, str) and s.strip()][:policy.max_searches_per_turn] if isinstance(searches, list) else []
-    reads = [r for r in reads if isinstance(r, dict)][:policy.max_reads_per_turn] if isinstance(reads, list) else []
-    framework_searches = [s[:500] for s in framework_searches if isinstance(s, str) and s.strip()][:policy.max_framework_searches_per_turn] if isinstance(framework_searches, list) else []
+    searches = unique([s[:500] for s in searches if isinstance(s, str) and s.strip()])[:policy.max_searches_per_turn] if isinstance(searches, list) else []
+    reads = unique([r for r in reads if isinstance(r, dict)])[:policy.max_reads_per_turn] if isinstance(reads, list) else []
+    framework_searches = unique([s[:500] for s in framework_searches if isinstance(s, str) and s.strip()])[:policy.max_framework_searches_per_turn] if isinstance(framework_searches, list) else []
     inspections = item.get("inspect_business_context", [])
     if isinstance(inspections, dict):
         inspections = [inspections]
-    inspections = [value for value in inspections if isinstance(value, dict)][:policy.max_business_context_actions_per_turn] if isinstance(inspections, list) else []
+    inspections = unique([value for value in inspections if isinstance(value, dict)])[:policy.max_business_context_actions_per_turn] if isinstance(inspections, list) else []
     if not requested:
         return None
     action = {"search": searches, "read": reads}
@@ -217,7 +227,7 @@ def _actions(text, policy=None):
         arguments = item[tool]
         if isinstance(arguments, dict):
             arguments = [arguments]
-        executable = [value for value in arguments if isinstance(value, dict)][:remaining_semantic] if isinstance(arguments, list) else []
+        executable = unique([value for value in arguments if isinstance(value, dict)])[:remaining_semantic] if isinstance(arguments, list) else []
         action[tool] = executable
         remaining_semantic -= len(executable)
     if "framework_search" in item:
@@ -1553,6 +1563,17 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             context = timed_retrieval(read_repository_context, **arguments)
             if refresh_if_needed(context):
                 context = timed_retrieval(read_repository_context, **arguments)
+            if (context.get("range_complete") is False
+                    and arguments.get("max_chars", policy.read_source_characters) < policy.max_source_characters
+                    and any(item.get("reason") == "source_line_exceeds_search_page_budget"
+                            and item.get("start_line") == context.get("next_start_line")
+                            for item in (context.get("raw_fallback") or {}).get("failures", []))):
+                # A physical source line cannot be split into trustworthy
+                # citations. Retry once within the existing total source
+                # allowance so a long condition does not strand the read cursor.
+                # Larger lines remain explicit gaps; never loop or raise policy.
+                context = timed_retrieval(read_repository_context,
+                    **{**arguments, "max_chars": policy.max_source_characters})
             if identity.get("exclusive_source_scope"):
                 permitted = set(identity.get("direct_paths", []))
                 if any(page.get("relative_path") not in permitted for page in context.get("pages", [])):
@@ -3773,6 +3794,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
         "base_url": config.base_url, "model": config.chat_model,
         "timeout_seconds": config.timeout_seconds, "max_output_tokens": config.max_output_tokens,
         "api_style": config.api_style, **config.generation_parameters()}, sort_keys=True).encode()).hexdigest()
+    fresh_retry_seed = None
     if explicit_retry:
         identities = prior_language_identities | {analysis_identity}
         metadata = (resume or {}).get("metadata", {})
@@ -3790,14 +3812,19 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 kwargs["retry_unknown_scope"] = {"question_id": question_id,
                     "model_fingerprint": model_fingerprint, "analysis_identities": sorted(identities)}
                 resume = None
-            elif (matching_resume and metadata.get("analysis_identity") == analysis_identity
-                  and (metadata.get("pipeline_version") != PIPELINE_VERSION
-                       or metadata.get("prompt_version") != PROMPT_VERSION)):
-                # An explicit retry after an upgrade starts with current source
-                # and policy. Retain the old response and evidence unchanged;
-                # retire that run only after its replacement has been created.
+            elif matching_resume:
+                # A deliberate Retry starts from current source, compilation
+                # settings and policy. Saved-response replay belongs to ordinary
+                # reconnects; it must not return the old answer or require old
+                # source paths after the user explicitly starts a new analysis.
+                # Retire unfinished work only after its replacement exists.
                 kwargs["continued_from_run_id"] = resume["run_id"]
                 kwargs["replaces_changed_run"] = resume
+                if (resume.get("state") != "completed"
+                        and metadata.get("analysis_identity") == analysis_identity
+                        and metadata.get("pipeline_version") == PIPELINE_VERSION
+                        and metadata.get("prompt_version") == PROMPT_VERSION):
+                    fresh_retry_seed = resume
                 resume = None
     def unknown_remote_result(saved, *, retain_answer=True):
         retained = saved["checkpoint"].get("result")
@@ -3923,6 +3950,34 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
             return resume["checkpoint"]["result"]
     with QuestionSourceSession(database_path, source_root, check_cancel=kwargs.get("check_cancel")) as session:
         try:
+            if fresh_retry_seed:
+                checkpoint = fresh_retry_seed["checkpoint"]
+                reusable = (fingerprint(checkpoint.get("compilation_context"))
+                            == fingerprint(session.options.get("compilation_context")))
+                if reusable:
+                    try:
+                        for page in checkpoint.get("source_pages", []):
+                            capture = session.capture(page["relative_path"])
+                            if (capture.sha256 != page["source_sha256"]
+                                    or page.get("format_hint", "auto") != capture.source_format):
+                                reusable = False
+                                break
+                            for origin in page.get("include_chain", []):
+                                if (isinstance(origin, dict) and origin.get("relative_path") and origin.get("source_hash")
+                                        and session.capture(origin["relative_path"]).sha256 != origin["source_hash"]):
+                                    reusable = False
+                                    break
+                            if not reusable:
+                                break
+                    except (ValueError, OSError):
+                        # A moved or replaced file invalidates this optional
+                        # shortcut, not the user's new investigation.
+                        reusable = False
+                if reusable:
+                    # Preserve completed source work and pending locations,
+                    # never replay prior prose or provider request accounting.
+                    kwargs["investigation_seed"] = {key: checkpoint.get(key, [])
+                        for key in ("source_pages", "frontier", "read_tasks")}
             validation_state = resume or retry_seed
             if validation_state:
                 from run_store import fingerprint

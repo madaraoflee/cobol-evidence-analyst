@@ -232,6 +232,54 @@ class PriorSourceMemoryTests(unittest.TestCase):
             payload=updated, round_record=self.round_record([], number=4)), 1)
         self.assertEqual(self.memory.visible_ids(self.inherited_payload()), {self.page["evidence_id"]})
 
+    def test_repeated_identical_findings_do_not_grow_or_displace_memory(self):
+        note = self.note(text="文" * 3000)
+        self.assertEqual(self.accept(note), 1)
+        original = self.memory.prompt()
+        records = [self.record]
+        for number in range(2, 7):
+            record = self.round_record([self.page], number)
+            records.append(record)
+            self.assertEqual(self.accept(note, round_record=record), 1)
+            self.assertEqual(self.memory.prompt(), original)
+        restored = self.new_memory()
+        restored.restore(self.memory.checkpoint(), records)
+        self.assertEqual(restored.prompt(), original)
+
+    def test_replacing_draft_keeps_source_location_without_old_interpretation(self):
+        original_text = self.note(text="输入金额须大于零，随后计算结果金额。")["text"]
+        self.assertEqual(self.memory.accept_draft(original_text,
+            payload=self.payload, round_record=self.record), 1)
+        later_record = self.round_record([], number=2)
+        self.assertEqual(self.memory.accept_draft("继续检查输出文件。",
+            payload=self.inherited_payload(), round_record=later_record), 0)
+        prompt = self.memory.prompt()
+        block, = prompt["blocks"]
+        self.assertEqual(block["kind"], "source")
+        self.assertEqual(block["content_kind"], "source_reference")
+        self.assertNotIn(original_text, json.dumps(prompt, ensure_ascii=False))
+        self.assertEqual(self.memory.effective_pages(self.inherited_payload(), verify_archive=True), [self.page])
+        self.assertEqual(self.memory.reread_pages(), [self.page])
+        restored = self.new_memory()
+        restored.restore(self.memory.checkpoint(), [self.record, later_record])
+        self.assertEqual(restored.prompt(), prompt)
+        self.memory.mark_reread([self.page["evidence_id"]])
+        self.memory.accept_draft("继续检查输出文件。", payload=self.inherited_payload(),
+                                 round_record=self.round_record([], number=3))
+        self.assertEqual(self.memory.reread_pages(), [])
+        self.assertEqual(len(self.memory.prompt()["blocks"]), 1)
+
+    def test_rephrased_draft_retains_only_current_candidate_without_extra_source_block(self):
+        first = self.note(text="正数输入参与计算。")["text"]
+        second = self.note(text="输入必须为正数。")["text"]
+        self.memory.accept_draft(first, payload=self.payload, round_record=self.record)
+        self.memory.accept_draft(second, payload=self.inherited_payload(),
+                                 round_record=self.round_record([], number=2))
+        block, = self.memory.prompt()["blocks"]
+        self.assertEqual(block["kind"], "draft")
+        self.assertEqual(block["text"], second)
+        self.assertEqual(self.memory.reread_pages(), [])
+
     def test_rephrased_memory_does_not_reset_evidence_no_progress(self):
         tracker = AnalysisContinuation(self.question)
         self.assertTrue(tracker.observe([self.page], [], {}))

@@ -15,7 +15,7 @@ import sqlite3
 import time
 
 
-SEMANTICS_VERSION = "framework-semantics/v1.6"
+SEMANTICS_VERSION = "framework-semantics/v1.7"
 MAX_FILE_FACTS = 2048
 MAX_REQUEST_FACTS = 32
 
@@ -37,6 +37,39 @@ def _schema(db):
                "bindings_json TEXT NOT NULL DEFAULT '[]')")
     if "bindings_json" not in {row[1] for row in db.execute("PRAGMA table_info(framework_file_semantics)")}:
         db.execute("ALTER TABLE framework_file_semantics ADD COLUMN bindings_json TEXT NOT NULL DEFAULT '[]'")
+
+
+def _copy_layout_digest(db, relative):
+    rows = db.execute("SELECT r.target_name,r.target_entity_id,r.status,r.metadata_json,s.relative_path,f.sha256 "
+        "FROM relations r LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
+        "LEFT JOIN source_files f ON f.relative_path=s.relative_path "
+        "WHERE r.relative_path=? AND r.relation_type='INCLUDES_COPY' ORDER BY r.relation_id", (relative,)).fetchall()
+    return hashlib.sha256(json.dumps([tuple(row) for row in rows], ensure_ascii=False).encode()).hexdigest()
+
+
+def _copy_layout_resolver(db, relative, sha):
+    """Reuse the existing proven COPY layout, retaining each physical origin."""
+    from framework_layout import _context, _reference
+
+    def resolve(program):
+        nodes, issues = _context(db, relative, program)
+        if issues or not any(node["inclusions"] for node in nodes):
+            return None
+        grouped, uncertain = defaultdict(list), set()
+        for node in nodes:
+            unit = node["unit"]
+            origins = [unit, *node["inclusions"]]
+            if any(item.get("parse_status") != "complete" or not item.get("source_sha256")
+                   or (item["relative_path"] == relative and item["source_sha256"] != sha)
+                   for item in origins):
+                return None
+            node["binding_refs"] = [_reference(unit, "binding_declaration")]
+            node["binding_refs"].extend(_reference(item, "copy_inclusion") for item in node["inclusions"])
+            grouped[(program, node["name"])].append(node)
+            if node["level"] == 66 or re.search(r"\b(?:REDEFINES|RENAMES|OCCURS)\b", node["tail"], re.I):
+                uncertain.add((program, node["storage"]))
+        return grouped, uncertain
+    return resolve
 
 
 def _selected_compilation_context(db, supplied=None):
@@ -151,8 +184,11 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
                 continue
             previous = db.execute("SELECT source_sha256,knowledge_digest,version,bindings_json "
                                   "FROM framework_file_semantics WHERE relative_path=?", (relative,)).fetchone()
-            if previous and tuple(previous[:3]) == (item["sha256"], digest, SEMANTICS_VERSION):
-                facts = json.loads(previous[3])
+            layout_digest = _copy_layout_digest(db, relative)
+            previous_facts = json.loads(previous[3]) if previous else []
+            if (previous and tuple(previous[:3]) == (item["sha256"], digest, SEMANTICS_VERSION)
+                    and all(fact.get("layout_dependency_digest", layout_digest) == layout_digest for fact in previous_facts)):
+                facts = previous_facts
                 summary["files_reused"] += 1
             else:
                 def lines():
@@ -163,13 +199,17 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
                         yield number, None if truncated else line
                 try:
                     facts = bind_framework_source(lines(), knowledge, relative_path=relative,
-                        source_sha256=item["sha256"], source_format=item["format_hint"])
+                        source_sha256=item["sha256"], source_format=item["format_hint"],
+                        layout_resolver=_copy_layout_resolver(db, relative, item["sha256"]))
                 except (ValueError, OSError) as error:
                     summary["boundaries"].append({"relative_path": relative,
                         "reason": "framework_source_unavailable", "reason_code": str(error)[:160]})
                     db.execute("DELETE FROM framework_file_semantics WHERE relative_path=?", (relative,))
                     continue
                 facts = facts[:MAX_FILE_FACTS]
+                for fact in facts:
+                    if fact.get("reason") == "function_value_not_bound" or fact.get("binding_evidence_refs"):
+                        fact["layout_dependency_digest"] = layout_digest
                 summary["files_rebuilt"] += 1
             if len(facts) >= MAX_FILE_FACTS:
                 summary["boundaries"].append({"relative_path": relative,
@@ -257,10 +297,13 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
                 (*key, digest, SEMANTICS_VERSION)).fetchone() if has_cache else None
             if stored:
                 stored_facts = json.loads(stored[0])
-                for fact in stored_facts:
-                    facts[fact["fact_id"]] = fact
-                if len(stored_facts) < MAX_FILE_FACTS:
-                    cached.add(key)
+                layout_digest = _copy_layout_digest(db, key[0])
+                if all(fact.get("layout_dependency_digest", layout_digest) == layout_digest
+                       for fact in stored_facts):
+                    for fact in stored_facts:
+                        facts[fact["fact_id"]] = fact
+                    if len(stored_facts) < MAX_FILE_FACTS:
+                        cached.add(key)
         # A partial excerpt cannot reveal persistent preprocessing directives,
         # duplicate fields or program boundaries elsewhere in the same file.
         # Capture a complete immutable file when request infrastructure exists.
@@ -281,7 +324,8 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
                             source_session.mirror_root, metadata, check_cancel, 65536), 1):
                         yield number, None if truncated else line
                 bound = bind_framework_source(complete_lines(), knowledge, relative_path=key[0],
-                    source_sha256=key[1], source_format=capture.source_format, focus_ranges=ranges)
+                    source_sha256=key[1], source_format=capture.source_format, focus_ranges=ranges,
+                    layout_resolver=_copy_layout_resolver(db, key[0], key[1]))
                 for fact in bound:
                     facts[fact["fact_id"]] = fact
         for (relative, sha), format_hint, lines in _page_runs(source_pages):
@@ -298,7 +342,8 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
                     (relative, owners[0]["program_name"], lines[0][0])).fetchone():
                 initial_program = owners[0]["program_name"]
             for fact in bind_framework_source(lines, knowledge, relative_path=relative,
-                    source_sha256=sha, source_format=format_hint, initial_program=initial_program):
+                    source_sha256=sha, source_format=format_hint, initial_program=initial_program,
+                    layout_resolver=_copy_layout_resolver(db, relative, sha)):
                 complete = lines[0][0] == 1 and lines[-1][0] == file_metadata[(relative, sha)]["line_count"]
                 if not complete:
                     fact.update(dependency_covered=False, reason="complete_source_required_for_rebinding")

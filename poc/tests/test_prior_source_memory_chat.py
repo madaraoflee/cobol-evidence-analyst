@@ -126,6 +126,37 @@ class PriorSourceMemoryEvictionChatTests(unittest.TestCase):
         checkpoint = RunStore(self.fixture.root / "investigation-runs.sqlite").load(result["run_id"])["checkpoint"]
         self.assertTrue(any(item["kind"] == "finding" for item in checkpoint["prior_source_memory"]["blocks"]))
 
+    def test_rewritten_draft_recovers_evicted_source_on_the_next_existing_turn(self):
+        def respond(payload, number):
+            self.capture(payload)
+            if number == 1:
+                return self.fixture.read_helper(1)
+            if number == 2:
+                return (self.fixture.cited_answer(payload, "金额按基础金额乘以二得到。")
+                        + "\n\n" + self.helper_claim(1))
+            if number == 3:
+                return self.fixture.read_helper(2)
+            if number == 4:
+                # A revised paragraph omits the earlier helper interpretation.
+                return (self.fixture.cited_answer(payload, "金额按基础金额乘以二得到。")
+                        + "\n\n" + self.helper_claim(2))
+            return self.final_answer(payload)
+
+        result = self.fixture.ask(respond, policy=self.policy, request_guard=5)
+        self.assertEqual(len(self.fixture.requests), 5)
+        self.assertEqual({page["relative_path"] for page in self.fixture.pages(self.fixture.requests[3])},
+                         {"root.cbl", "helper-2.cbl"})
+        final_payload = self.fixture.requests[-1]
+        self.assertIn("helper-1.cbl", {page["relative_path"] for page in self.fixture.pages(final_payload)})
+        old_id = self.identifiers["helper-1.cbl"]
+        self.assertTrue(any(block["kind"] == "source" and old_id in block["evidence_ids"]
+                            for block in final_payload["prior_source_memory"]["blocks"]))
+        self.assertNotIn(self.helper_claim(1), final_payload["draft_answer"])
+        for number in (1, 2):
+            self.assertIn(self.helper_claim(number), result["answer"])
+        checkpoint = RunStore(self.fixture.root / "investigation-runs.sqlite").load(result["run_id"])["checkpoint"]
+        self.assertNotIn(old_id, checkpoint["prior_source_memory"]["pending_reread_ids"])
+
     def test_seen_source_without_findings_is_not_implicitly_authorized(self):
         def respond(payload, number):
             self.capture(payload)
