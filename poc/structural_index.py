@@ -476,8 +476,8 @@ def _span_text(document: SourceDocument, start_line: int, end_line: int) -> str:
     return "\n".join(document.raw_lines[start_line - 1 : end_line])
 
 
-def _unique_identifiers(fragment: str) -> list[str]:
-    return [reference.identity for reference in data_references(fragment)]
+def _unique_identifiers(fragment: str, *, tokens=None) -> list[str]:
+    return [reference.identity for reference in data_references(fragment, tokens=tokens)]
 
 
 _STATEMENT_KINDS = frozenset({
@@ -526,8 +526,8 @@ def _statement_kind(text: str) -> str:
     return normalized if normalized in _STATEMENT_KINDS else "OTHER"
 
 
-def _extract_data_access(text: str) -> tuple[list[str], list[str], dict[str, object]]:
-    facts = assignment_facts(text)
+def _extract_data_access(text: str, *, tokens=None) -> tuple[list[str], list[str], dict[str, object]]:
+    facts = assignment_facts(text, tokens=tokens)
     if facts is None:
         return [], [], {}
     expression = facts.expressions[0][1] if facts.expressions else ""

@@ -11,6 +11,7 @@ import re
 
 
 FRONTEND_VERSION = "cobol-facts-v6"
+_PROGRAM_HEADER_MARKER = re.compile(r"PROGRAM-ID", re.I)
 
 
 def compile_condition_value(expression, context):
@@ -338,6 +339,10 @@ def program_identifiers(text: str, *, source_format: str = "free") -> tuple[tupl
     """
     if source_format not in {"free", "fixed", "auto"}:
         raise ValueError("source format must be free, fixed or auto")
+    # Line cleaning only masks/removes text; it cannot create a header marker.
+    # Most callers inspect ordinary statements, which need no header scan.
+    if not _PROGRAM_HEADER_MARKER.search(text):
+        return ()
     normalized, active = [], source_format
     for raw in text.splitlines(keepends=True):
         line, ending = raw.rstrip("\r\n"), raw[len(raw.rstrip("\r\n")):]
@@ -474,9 +479,9 @@ def references_from_tokens(tokens: tuple[CobolToken, ...]) -> tuple[DataRef, ...
     return tuple(result)
 
 
-def data_references(text: str) -> tuple[DataRef, ...]:
+def data_references(text: str, *, tokens: tuple[CobolToken, ...] | None = None) -> tuple[DataRef, ...]:
     try:
-        return references_from_tokens(lex_cobol(text))
+        return references_from_tokens(lex_cobol(text) if tokens is None else tokens)
     except CobolLexError:
         return ()
 
@@ -492,14 +497,15 @@ class AssignmentFacts:
     effects_unknown: bool = False
 
 
-def assignment_facts(text: str) -> AssignmentFacts | None:
+def assignment_facts(text: str, *, tokens: tuple[CobolToken, ...] | None = None) -> AssignmentFacts | None:
     """Parse a bounded assignment header, shared by both indexes and the AST.
 
     Arithmetic operands and receivers have different roles. Exception clauses
     retain a diagnostic and never publish an unconditional write fact.
     """
     try:
-        tokens = lex_cobol(text)
+        if tokens is None:
+            tokens = lex_cobol(text)
     except CobolLexError:
         return None
     if not tokens or tokens[0].value not in {"MOVE", "COMPUTE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"}:
@@ -608,6 +614,10 @@ def assignment_facts(text: str) -> AssignmentFacts | None:
     writes = tuple(dict.fromkeys(name for name, _ in outputs if name))
     index_reads = []
     for name in (*reads, *writes):
+        # Only subscripts and reference modification can add index reads.
+        # Plain and qualified names already carry their complete identity.
+        if "(" not in name:
+            continue
         for reference in data_references(name):
             for expression in (*reference.subscripts, *(reference.reference_modification or ())):
                 index_reads.extend(item.identity for item in data_references(expression))

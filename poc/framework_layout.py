@@ -288,9 +288,10 @@ def _check(nodes, issues, fact):
     return None, length, evidence
 
 
-def validate_framework_layouts(db, facts: list[dict], *, replacement_audit=None) -> list[dict]:
-    """Return copies of facts; withdraw coverage when caller storage is unknown."""
-    contexts = {}
+def validate_framework_layouts(db, facts: list[dict], *, replacement_audit=None,
+                               contexts=None) -> list[dict]:
+    """Check every fact, optionally sharing layouts within this unchanged DB read."""
+    contexts = {} if contexts is None else contexts
     result = []
     for original in facts:
         fact = deepcopy(original)

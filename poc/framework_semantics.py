@@ -164,12 +164,16 @@ def _copy_replacement_auditor(db, *, root=None, source_session=None, source_page
     return audit
 
 
-def _copy_layout_resolver(db, relative, sha, *, replacement_audit=None):
-    """Reuse the existing proven COPY layout, retaining each physical origin."""
+def _copy_layout_resolver(db, relative, sha, *, replacement_audit=None, contexts=None):
+    """Share this DB read's COPY layout while retaining each physical origin."""
     from framework_layout import _context, _reference
+    contexts = {} if contexts is None else contexts
 
     def resolve(program):
-        nodes, issues = _context(db, relative, program, replacement_audit=replacement_audit)
+        key = relative, program
+        if key not in contexts:
+            contexts[key] = _context(db, *key, replacement_audit=replacement_audit)
+        nodes, issues = contexts[key]
         if issues or not any(node["inclusions"] for node in nodes):
             return None
         grouped, uncertain = defaultdict(list), set()
@@ -302,9 +306,14 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
                 continue
             previous = db.execute("SELECT source_sha256,knowledge_digest,version,bindings_json "
                                   "FROM framework_file_semantics WHERE relative_path=?", (relative,)).fetchone()
-            layout_digest = _copy_layout_digest(db, relative)
             previous_facts = json.loads(previous[3]) if previous else []
-            if (previous and tuple(previous[:3]) == (item["sha256"], digest, SEMANTICS_VERSION)
+            reusable = previous and tuple(previous[:3]) == (item["sha256"], digest, SEMANTICS_VERSION)
+            layout_digest = (_copy_layout_digest(db, relative) if reusable and any(
+                "layout_dependency_digest" in fact for fact in previous_facts) else None)
+            # Binding and validation inspect the same unchanged database here.
+            # Keep this per-file cache local so large imports do not retain all layouts.
+            contexts = {}
+            if (reusable
                     and all(fact.get("layout_dependency_digest", layout_digest) == layout_digest for fact in previous_facts)):
                 facts = previous_facts
                 summary["files_reused"] += 1
@@ -319,7 +328,7 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
                     facts = bind_framework_source(lines(), knowledge, relative_path=relative,
                         source_sha256=item["sha256"], source_format=item["format_hint"],
                         layout_resolver=_copy_layout_resolver(db, relative, item["sha256"],
-                            replacement_audit=replacement_audit))
+                            replacement_audit=replacement_audit, contexts=contexts))
                 except (ValueError, OSError) as error:
                     summary["boundaries"].append({"relative_path": relative,
                         "reason": "framework_source_unavailable", "reason_code": str(error)[:160]})
@@ -328,6 +337,8 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
                 facts = facts[:MAX_FILE_FACTS]
                 for fact in facts:
                     if fact.get("reason") == "function_value_not_bound" or fact.get("binding_evidence_refs"):
+                        if layout_digest is None:
+                            layout_digest = _copy_layout_digest(db, relative)
                         fact["layout_dependency_digest"] = layout_digest
                 summary["files_rebuilt"] += 1
             if len(facts) >= MAX_FILE_FACTS:
@@ -336,7 +347,7 @@ def refresh_framework_index(db, source_root, *, reference_path=None, check_cance
             summary["fact_count"] += len(facts)
             summary["matched_files"] += bool(facts)
             interpreted = validate_framework_layouts(db, _source_precedence(db, facts),
-                replacement_audit=replacement_audit)
+                replacement_audit=replacement_audit, contexts=contexts)
             from effect_contract import attach_effect_contracts
             interpreted = attach_effect_contracts(interpreted, knowledge,
                 compilation_context=_selected_compilation_context(db))
@@ -398,6 +409,7 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
     facts, cached, file_metadata = {}, set(), {}
     with closing(sqlite3.connect(f"{Path(database_path).resolve().as_uri()}?mode=ro", uri=True)) as db:
         db.row_factory = sqlite3.Row
+        contexts = {}
         replacement_audit = _copy_replacement_auditor(db, source_session=source_session,
             source_pages=source_pages, check_cancel=check_cancel)
         has_cache = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
@@ -419,7 +431,8 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
                 (*key, digest, SEMANTICS_VERSION)).fetchone() if has_cache else None
             if stored:
                 stored_facts = json.loads(stored[0])
-                layout_digest = _copy_layout_digest(db, key[0])
+                layout_digest = (_copy_layout_digest(db, key[0]) if any(
+                    "layout_dependency_digest" in fact for fact in stored_facts) else None)
                 if all(fact.get("layout_dependency_digest", layout_digest) == layout_digest
                        for fact in stored_facts):
                     for fact in stored_facts:
@@ -447,7 +460,8 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
                         yield number, None if truncated else line
                 bound = bind_framework_source(complete_lines(), knowledge, relative_path=key[0],
                     source_sha256=key[1], source_format=capture.source_format, focus_ranges=ranges,
-                    layout_resolver=_copy_layout_resolver(db, key[0], key[1], replacement_audit=replacement_audit))
+                    layout_resolver=_copy_layout_resolver(db, key[0], key[1],
+                        replacement_audit=replacement_audit, contexts=contexts))
                 for fact in bound:
                     facts[fact["fact_id"]] = fact
         for (relative, sha), format_hint, lines in _page_runs(source_pages):
@@ -465,7 +479,8 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
                 initial_program = owners[0]["program_name"]
             for fact in bind_framework_source(lines, knowledge, relative_path=relative,
                     source_sha256=sha, source_format=format_hint, initial_program=initial_program,
-                    layout_resolver=_copy_layout_resolver(db, relative, sha, replacement_audit=replacement_audit)):
+                    layout_resolver=_copy_layout_resolver(db, relative, sha,
+                        replacement_audit=replacement_audit, contexts=contexts)):
                 complete = lines[0][0] == 1 and lines[-1][0] == file_metadata[(relative, sha)]["line_count"]
                 if not complete:
                     fact.update(dependency_covered=False, reason="complete_source_required_for_rebinding")
@@ -483,7 +498,8 @@ def build_framework_facts(database_path, source_pages, *, reference_path=None, c
         from framework_layout import validate_framework_layouts
         candidates = visible_framework_facts(list(facts.values()), source_pages, knowledge.get("references", []))
         checked = _source_precedence(db, candidates)
-        checked = validate_framework_layouts(db, checked, replacement_audit=replacement_audit)
+        checked = validate_framework_layouts(db, checked, replacement_audit=replacement_audit,
+            contexts=contexts)
         from effect_contract import attach_effect_contracts
         checked = attach_effect_contracts(checked, knowledge,
             compilation_context=_selected_compilation_context(db, compilation_context))

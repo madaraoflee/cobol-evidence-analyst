@@ -2,6 +2,12 @@ name: Windows desktop x64
 
 on:
   workflow_dispatch:
+    inputs:
+      compare_previous_candidates:
+        description: Compare two pinned older Windows packages on the same runner
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -274,6 +280,41 @@ jobs:
                      'and target office-device acceptance. No release is published by this workflow.\n')
           with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as handle:
               handle.write(summary)
+
+      - name: Compare pinned previous candidates on this same Windows runner
+        if: ${{ inputs.compare_previous_candidates }}
+        timeout-minutes: 45
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          temporary = Path(os.environ['RUNNER_TEMP'])
+          subprocess.run([sys.executable, 'tools/compare_native_release_performance.py',
+              '--repository', os.environ['GITHUB_REPOSITORY'],
+              '--current-archive', 'windows-delivery/COBOLWorkbench-windows-x64.zip',
+              '--current-report', str(temporary / 'compiled-joint-acceptance/COMPILED-ACCEPTANCE.json'),
+              '--source-commit', os.environ['GITHUB_SHA'],
+              '--manifest', 'docs/eval/desktop-joint-v1/manifest.json',
+              '--public-source', os.environ['PUBLIC_BUSINESS_SOURCE_ROOT'],
+              '--output', str(temporary / 'native-release-performance')], check=True)
+
+      - name: Preserve same-runner performance reports separately
+        if: ${{ always() && inputs.compare_previous_candidates }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-release-performance-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/native-release-performance/NATIVE-PERFORMANCE.json
+            ${{ runner.temp }}/native-release-performance/OPTIMIZED-ACCEPTANCE.json
+            ${{ runner.temp }}/native-release-performance/previous/acceptance/COMPILED-ACCEPTANCE.json
+            ${{ runner.temp }}/native-release-performance/current/acceptance/COMPILED-ACCEPTANCE.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload only the accepted candidate and its bound reports
         uses: actions/upload-artifact@v7

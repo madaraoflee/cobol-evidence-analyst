@@ -18,7 +18,7 @@ import sqlite3
 
 from call_bindings import parse_call, parse_signature
 from statement_parser import parse_statements, SourceSpan
-from statement_facts import data_references, CompilationGuardState, program_identifier, program_identifiers, lex_cobol, CobolLexError
+from statement_facts import data_references, CompilationGuardState, program_identifiers, lex_cobol, CobolLexError
 from numeric_semantics import receiving_contract, store_decimal
 from parser_adapter import BuiltinParserAdapter
 from semantic_ir import bind_reference, compilation_ir_from_dict, unbounded_region_ids
@@ -175,8 +175,9 @@ class FactStore:
         identity_lines = [line for line in source.lines if all(
             physical_status.get(number) is True for number in range(line.start_line, line.end_line+1))]
         identity_source = "\n".join(line.text for line in identity_lines)
-        name = program_identifier(identity_source)
-        if len(program_identifiers(identity_source)) > 1:
+        identities = program_identifiers(identity_source)
+        name = identities[0][0] if identities else None
+        if len(identities) > 1:
             diagnostics.append("multiple_programs_not_supported")
         parsed = {}
         for block, normalized in blocks.items():
@@ -247,7 +248,6 @@ class FactStore:
         self._programs[path] = result
         result["identity_source_refs"] = []
         result["initial_program"] = False
-        identities = program_identifiers(identity_source)
         if len(identities) == 1:
             _, start, end = identities[0]
             clause_end = identity_source.find(".", end)

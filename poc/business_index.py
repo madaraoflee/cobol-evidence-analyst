@@ -24,7 +24,7 @@ from statement_facts import (clean_cobol_line, dependency_facts, io_clause_prefi
 from statement_parser import parse_statements
 from structural_index import (
     SCHEMA_VERSION, PROGRAM_ID_RE, SECTION_RE, PARAGRAPH_RE, PARAGRAPH_EXCLUSIONS,
-    DATA_ITEM_RE, PERFORM_TARGET_RE, PERFORM_NON_TARGETS, _statement_kind,
+    DATA_ITEM_RE, PERFORM_TARGET_RE, PERFORM_NON_TARGETS, _statement_kind, _STATEMENT_KINDS,
     _extract_data_access, _unique_identifiers,
     _stable_id, _content_hash, _connect, _ensure_schema, _delete_file_facts,
     _resolve_relations, _database_counts,
@@ -310,7 +310,7 @@ class _Facts:
             if kind == "Paragraph":
                 self.paragraph_name = None
 
-    def _business_rule(self, kind, code, start, end, *, occurrence=None):
+    def _business_rule(self, kind, code, start, end, *, occurrence=None, tokens=None):
         rule_kind = "EXEC_SQL" if kind == "SqlRule" else _statement_kind(code)
         key = _stable_id("rule", self.relative, self.program, self.paragraph_name or self.section_name,
                          rule_kind, code, *(self.compilation.guards if self.compilation.status is None else ()))
@@ -324,10 +324,10 @@ class _Facts:
             row[6] = max(row[6], end)
             row[7] += 1
         else:
-            reads, writes, _ = _extract_data_access(code)
+            reads, writes, _ = _extract_data_access(code, tokens=tokens)
             if kind == "SqlRule":
                 reads, writes, _ = sql_host_access(code)
-            conditions = _unique_identifiers(code) if rule_kind in {"IF", "EVALUATE", "WHEN"} else []
+            conditions = _unique_identifiers(code, tokens=tokens) if rule_kind in {"IF", "EVALUATE", "WHEN"} else []
             self.rule_batch[key] = [key, self.relative, self.program, self.paragraph_name or self.section_name,
                                     rule_kind, start, end, 1, code,
                                     json.dumps(reads), json.dumps(writes), json.dumps(conditions)]
@@ -491,7 +491,10 @@ class _Facts:
             tokens = lex_cobol(code)
         except CobolLexError:
             tokens = ()
-        verbs = sum(token.kind == "word" and _statement_kind(token.value) != "OTHER" for token in tokens)
+        # Tokens already have canonical word spelling. Reuse this lexical pass
+        # for the single statement's fields instead of tokenizing it again.
+        verbs = sum(token.kind == "word" and token.value.replace("-", "_") in _STATEMENT_KINDS
+                    for token in tokens)
         if complete and verbs > 1:
             first = raw.splitlines()[0] if raw else ""
             source_format = "fixed" if (self.active_format == "fixed" or len(first) >= 7 and first[:6].isdigit()) else "free"
@@ -527,7 +530,7 @@ class _Facts:
                         occurrence={"start_column": node.span.start_column, "end_column": node.span.end_column,
                                     "order": order, "guards": guards, "parse_status": "complete"})
                 return
-        self._business_rule("BusinessRule", code, start, end,
+        self._business_rule("BusinessRule", code, start, end, tokens=tokens,
             occurrence={"start_column": 1, "end_column": len(code) + 1, "order": 0,
                         "guards": [], "parse_status": "complete" if complete else "partial"})
 

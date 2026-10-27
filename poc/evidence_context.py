@@ -144,6 +144,30 @@ class EvidenceContext:
                 return page["evidence_id"]
         return identifier
 
+    def _minimal_page_union(self, values, rank, source_instance, *, previous=()):
+        """Retain the same ordered exact coverage while reusing a minimal prefix.
+
+        Previously selected pages have already been compared to each other in
+        this order. Only newly accepted pages can make one of them redundant.
+        Every new page still undergoes the ordinary physical coverage check.
+        """
+        previous_ids = {page["evidence_id"] for page in previous}
+        retained, retained_ids, by_instance, new_by_instance = [], set(), {}, {}
+        for page in sorted(values, key=lambda value: (-len(value.get("source_text", "")), rank(value))):
+            identifier = page["evidence_id"]
+            if identifier in retained_ids:
+                continue
+            instance = source_instance(page)
+            covering = (new_by_instance if identifier in previous_ids else by_instance).get(instance, ())
+            if covering and self.covering_id(identifier, covering) != identifier:
+                continue
+            retained.append(page)
+            retained_ids.add(identifier)
+            by_instance.setdefault(instance, []).append(page)
+            if identifier not in previous_ids:
+                new_by_instance.setdefault(instance, []).append(page)
+        return retained
+
     def accept(self, context, operation):
         self._accept_sequence += 1
         if operation == "complete_working_set":
@@ -260,10 +284,14 @@ class EvidenceContext:
                         ref.evidence_id for ref in observation.source_refs if ref.evidence_id in self.pages)
         core_identifiers = {identifier for members in core_by_group.values() for identifier in members}
 
+        instance_keys = {}
         def source_instance(page):
-            return (page.get("relative_path"), page.get("source_sha256"),
+            identifier = page["evidence_id"]
+            if identifier not in instance_keys:
+                instance_keys[identifier] = (page.get("relative_path"), page.get("source_sha256"),
                 json.dumps(page.get("include_chain") or [], sort_keys=True),
                 json.dumps(page.get("replacement_trace") or [], sort_keys=True))
+            return instance_keys[identifier]
 
         supplied_by_instance = {}
         for identifier in self.sent_any_round_ids if self._pending_continuation_ids else ():
@@ -334,7 +362,11 @@ class EvidenceContext:
                     return index
             return len(priority_targets)
 
+        ranks = {}
         def rank(page):
+            identifier = page["evidence_id"]
+            if identifier in ranks:
+                return ranks[identifier]
             sequence, position, operation = self._page_order.get(page["evidence_id"], (0, 0, ""))
             # Protect located prerequisites before cursor progress. A real
             # pending read can displace generic search text, while unrelated
@@ -349,8 +381,10 @@ class EvidenceContext:
             # ordering of explicit search targets and earlier semantic groups.
             tier = (0 if not pending_candidates and not continuation else
                     0 if protected else 1 if pending else 3 if continuation else 2)
-            return (tier, target_rank(page), 0 if recent_request or core else page_priority(page),
-                    -sequence, position)
+            value = (tier, target_rank(page), 0 if recent_request or core else page_priority(page),
+                     -sequence, position)
+            ranks[identifier] = value
+            return value
 
         pages = sorted(candidates.values(), key=rank)
         units, grouped = [], {page["evidence_id"] for page in complete}
@@ -367,29 +401,10 @@ class EvidenceContext:
         units.sort(key=lambda unit: min(rank(page) for page in unit))
         if complete:
             units.insert(0, complete)
-        def minimal_pages(values):
-            # A read can cover declarations already supplied as tiny semantic
-            # pages, and a condition span can contain the result statement.
-            # Charge exact nested coverage once while keeping every atomic
-            # group's required text. Versions and expansion instances remain
-            # distinct even when their line ranges or printed text coincide.
-            retained, by_instance = [], {}
-            for page in sorted(values, key=lambda value: (-len(value.get("source_text", "")), rank(value))):
-                instance = (page.get("relative_path"), page.get("source_sha256"),
-                    json.dumps(page.get("include_chain") or [], sort_keys=True),
-                    json.dumps(page.get("replacement_trace") or [], sort_keys=True))
-                covering = by_instance.setdefault(instance, [])
-                if self.covering_id(page["evidence_id"], covering) != page["evidence_id"]:
-                    continue
-                if any(item["evidence_id"] == page["evidence_id"] for item in covering):
-                    continue
-                retained.append(page)
-                covering.append(page)
-            return retained
-
         selected = []
         for unit in units:
-            combined = minimal_pages([*selected, *unit])
+            combined = self._minimal_page_union([*selected, *unit], rank, source_instance,
+                                                previous=selected)
             if sum(len(page.get("source_text", "")) for page in combined) <= maximum:
                 selected = combined
             else:

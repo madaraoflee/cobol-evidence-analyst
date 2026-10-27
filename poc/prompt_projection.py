@@ -68,10 +68,14 @@ def _project_navigation(value):
         if (key in _AUTHORITY_FIELDS or not isinstance(rows, list) or len(rows) < 2 or shared_key in projected
                 or any(not isinstance(row, dict) or "_values" in row for row in rows)):
             continue
-        shared = {field: item for field, item in rows[0].items()
-                  if field not in _IDENTIFIERS and not field.endswith(_SUFFIX)
-                  and field not in _AUTHORITY_FIELDS and not _contains_authority(item)
-                  and all(field in row and _encoded(row[field]) == _encoded(item) for row in rows[1:])}
+        shared = {}
+        for field, item in rows[0].items():
+            if (field in _IDENTIFIERS or field.endswith(_SUFFIX)
+                    or field in _AUTHORITY_FIELDS or _contains_authority(item)):
+                continue
+            encoded = _encoded(item)
+            if all(field in row and _encoded(row[field]) == encoded for row in rows[1:]):
+                shared[field] = item
         if not shared:
             continue
         inherited = [{field: item for field, item in row.items() if field not in shared} for row in rows]
@@ -158,10 +162,11 @@ def _share_navigation_records(payload):
             eligible = [index for index in indices if _REFERENCE not in rows[index]]
             if len(eligible) < 2:
                 continue
-            reference = references.get(_encoded(fields), "nav-" + str(len(facts) + 1))
+            encoded_fields = _encoded(fields)
+            reference = references.get(encoded_fields, "nav-" + str(len(facts) + 1))
             replacements = [{_REFERENCE: reference, **{key: item for key, item in rows[index].items()
                              if key not in fields}} for index in eligible]
-            overhead = 0 if _encoded(fields) in references else _size({reference: fields})
+            overhead = 0 if encoded_fields in references else _size({reference: fields})
             saving = sum(_size(rows[index]) for index in eligible) - sum(map(_size, replacements)) - overhead
             if saving < 96:
                 continue

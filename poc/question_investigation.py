@@ -882,20 +882,33 @@ def _visible_input_declarations(pages, candidates):
 def _flow_input_origins(candidates, pages, evidence_groups):
     """Close only actual reads with complete, versioned source-flow witnesses."""
     import hashlib
+    from functools import cache
     from statement_facts import data_references
 
-    def tokens(text):
+    # The same fields and statements recur across candidate/proof comparisons.
+    # Cache only their lexical form for this call; provenance checks still run
+    # against the actual supplied pages and every occurrence below.
+    @cache
+    def normalized_tokens(text):
         try:
-            values = [(token.kind, token.value) for token in lex_cobol(str(text))]
+            values = [(token.kind, token.value) for token in lex_cobol(text)]
         except CobolLexError:
             return ()
         while values and values[-1][1] == ".":
             values.pop()
         return tuple(values)
 
+    def tokens(text):
+        return normalized_tokens(str(text))
+
+    @cache
+    def single_field_identity(text):
+        references = data_references(text)
+        return references[0].identity if len(references) == 1 else None
+
     def field_identity(text):
-        references = data_references(str(text))
-        return references[0].identity if len(references) == 1 else text
+        identity = single_field_identity(str(text))
+        return identity if identity is not None else text
 
     ref_cache = {}
     def supplied(ref):

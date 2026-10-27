@@ -1,0 +1,769 @@
+{
+  "schema_version": "offline-performance-fix/v1",
+  "status": "local_verification_complete",
+  "real_model_calls": 0,
+  "scope": "Same Mac, same Python, serial rotation, generated source only; request timings stop before model. Not Windows EXE timing or real answer accuracy.",
+  "baseline_commits": {
+    "previous": "56050b8ac60b581c9e39968c16fb8da01bd73966",
+    "current": "3628a055d3578a98a7455c655aa62177eb38cc10"
+  },
+  "environment": {
+    "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "python": "3.14.4 (main, Apr  7 2026, 13:13:20) [Clang 21.0.0 (clang-2100.0.123.102)]",
+    "executable": "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "sqlite": "3.53.2"
+  },
+  "small_corpus": {
+    "sha256": "d63678b7bc154c9d2770b0852fe003e88244be3c1d4d3eb4d461b2656c421b96",
+    "files": 324,
+    "bytes": 2216908,
+    "programs": 300,
+    "lines_per_program": 250,
+    "longest_program_lines": 25000
+  },
+  "small_summary": {
+    "previous": {
+      "sample_count": 3,
+      "median_seconds": {
+        "cold_import_seconds": 4.631536166998558,
+        "warm_import_seconds": 0.20421720900048967,
+        "incremental_import_seconds": 0.2750044160056859
+      },
+      "questions": [
+        {
+          "question": "BILL-AMOUNT 怎么计算？有哪些触发条件？",
+          "median_first_request_seconds": 4.538827625001431
+        },
+        {
+          "question": "MEMBER-00299 的 RULE-000 第一条 IF 如何计算 BILL-AMOUNT，输入在哪里声明，紧接下一条 IF 怎样覆盖？",
+          "median_first_request_seconds": 10.635332917008782
+        }
+      ]
+    },
+    "current": {
+      "sample_count": 3,
+      "median_seconds": {
+        "cold_import_seconds": 4.610981167003047,
+        "warm_import_seconds": 0.20503875000576954,
+        "incremental_import_seconds": 0.2725308329972904
+      },
+      "questions": [
+        {
+          "question": "BILL-AMOUNT 怎么计算？有哪些触发条件？",
+          "median_first_request_seconds": 4.5111371249950025
+        },
+        {
+          "question": "MEMBER-00299 的 RULE-000 第一条 IF 如何计算 BILL-AMOUNT，输入在哪里声明，紧接下一条 IF 怎样覆盖？",
+          "median_first_request_seconds": 10.840273333000368
+        }
+      ]
+    },
+    "optimized": {
+      "sample_count": 3,
+      "median_seconds": {
+        "cold_import_seconds": 3.8680467090016464,
+        "warm_import_seconds": 0.20435737501247786,
+        "incremental_import_seconds": 0.2762472079921281
+      },
+      "questions": [
+        {
+          "question": "BILL-AMOUNT 怎么计算？有哪些触发条件？",
+          "median_first_request_seconds": 3.48766220799007
+        },
+        {
+          "question": "MEMBER-00299 的 RULE-000 第一条 IF 如何计算 BILL-AMOUNT，输入在哪里声明，紧接下一条 IF 怎样覆盖？",
+          "median_first_request_seconds": 9.753077249988564
+        }
+      ]
+    }
+  },
+  "small_equivalence": {
+    "corpus": true,
+    "cold_facts": true,
+    "incremental_facts": true,
+    "request_source_content": true
+  },
+  "source_identities": {
+    "previous": {
+      "production_python_files": 114,
+      "sha256": "4b4030371f8d3e998c85a3545b82b9e25c7d72f5a1db9d3ded755c534733a4b2"
+    },
+    "current": {
+      "production_python_files": 114,
+      "sha256": "e340223ca616d7b2890b656c940c92994acf94f1700413469400b64de1fda917"
+    },
+    "optimized": {
+      "production_python_files": 114,
+      "sha256": "2d1b551beb766c365c17fa11694b3acd660eb0e26b2e39439b92ce279c17f895"
+    }
+  },
+  "small_runs": [
+    {
+      "variant": "previous",
+      "round": 1,
+      "timings": {
+        "cold_import_seconds": 4.631536166998558,
+        "warm_import_seconds": 0.19997158399200998,
+        "incremental_import_seconds": 0.26951266700052656
+      },
+      "question_seconds": [
+        4.645911999992677,
+        10.635332917008782
+      ]
+    },
+    {
+      "variant": "current",
+      "round": 1,
+      "timings": {
+        "cold_import_seconds": 4.511836207995657,
+        "warm_import_seconds": 0.20114449999528006,
+        "incremental_import_seconds": 0.2725308329972904
+      },
+      "question_seconds": [
+        4.729391916000168,
+        11.528450458004954
+      ]
+    },
+    {
+      "variant": "optimized",
+      "round": 1,
+      "timings": {
+        "cold_import_seconds": 4.163800499998615,
+        "warm_import_seconds": 0.21735404100036249,
+        "incremental_import_seconds": 0.28976112499367446
+      },
+      "question_seconds": [
+        3.7461120410007425,
+        10.650486000013188
+      ]
+    },
+    {
+      "variant": "current",
+      "round": 2,
+      "timings": {
+        "cold_import_seconds": 4.76552079099929,
+        "warm_import_seconds": 0.20503875000576954,
+        "incremental_import_seconds": 0.2703670839982806
+      },
+      "question_seconds": [
+        4.498921416001394,
+        10.840273333000368
+      ]
+    },
+    {
+      "variant": "optimized",
+      "round": 2,
+      "timings": {
+        "cold_import_seconds": 3.8179201250022743,
+        "warm_import_seconds": 0.2043346249993192,
+        "incremental_import_seconds": 0.2739276670035906
+      },
+      "question_seconds": [
+        3.48766220799007,
+        9.689490000004298
+      ]
+    },
+    {
+      "variant": "previous",
+      "round": 2,
+      "timings": {
+        "cold_import_seconds": 4.634804875007831,
+        "warm_import_seconds": 0.2050705830042716,
+        "incremental_import_seconds": 0.2755196250072913
+      },
+      "question_seconds": [
+        4.538827625001431,
+        10.454967666999437
+      ]
+    },
+    {
+      "variant": "optimized",
+      "round": 3,
+      "timings": {
+        "cold_import_seconds": 3.8680467090016464,
+        "warm_import_seconds": 0.20435737501247786,
+        "incremental_import_seconds": 0.2762472079921281
+      },
+      "question_seconds": [
+        3.380005666986108,
+        9.753077249988564
+      ]
+    },
+    {
+      "variant": "previous",
+      "round": 3,
+      "timings": {
+        "cold_import_seconds": 4.526999542009435,
+        "warm_import_seconds": 0.20421720900048967,
+        "incremental_import_seconds": 0.2750044160056859
+      },
+      "question_seconds": [
+        4.526638499999535,
+        10.737231540988432
+      ]
+    },
+    {
+      "variant": "current",
+      "round": 3,
+      "timings": {
+        "cold_import_seconds": 4.610981167003047,
+        "warm_import_seconds": 0.2158620829868596,
+        "incremental_import_seconds": 0.2758057920000283
+      },
+      "question_seconds": [
+        4.5111371249950025,
+        10.725854875010555
+      ]
+    }
+  ],
+  "root_causes": [
+    "Repeated lexical analysis of the same statement and plain field identifiers",
+    "Program header scans performed on ordinary statements without a header",
+    "Repeated old-to-old page coverage comparisons during evidence selection",
+    "Repeated lexical normalization across source-flow proofs",
+    "Duplicate COPY layout construction within one unchanged database read",
+    "Repeated encoding of identical comparison values in prompt projection"
+  ],
+  "quality_contract": {
+    "framework_scenarios": 7,
+    "framework_contract_sha256": "de02db5c3db00a2ca9003bd1d100aa4da3178f3e002ea02836fe39a8b063869d",
+    "unchanged": [
+      "source selection limits",
+      "model request limits",
+      "validation thresholds",
+      "import paths",
+      "history storage",
+      "database schema"
+    ]
+  },
+  "historical_packages_same_runtime": {
+    "python": "3.13.17",
+    "compiler": "Nuitka 4.2.2",
+    "dependency_lists_equal": true,
+    "interpretation": "Same runtime metadata does not establish equal runner resources."
+  },
+  "large_corpus": {
+    "sha256": "cce25b39d8b9cc54313e79e4bbdeb81e08bdaa91f2187a5ec6a8bbb2d210ddef",
+    "files": 12024,
+    "bytes": 66239308,
+    "programs": 12000,
+    "lines_per_program": 250,
+    "longest_program_lines": 25000
+  },
+  "large_summary": {
+    "current": {
+      "sample_count": 1,
+      "median_seconds": {
+        "cold_import_seconds": 325.18382270800066,
+        "warm_import_seconds": 8.701232167004491,
+        "incremental_import_seconds": 9.68943104200298
+      },
+      "questions": [
+        {
+          "question": "BILL-AMOUNT 怎么计算？有哪些触发条件？",
+          "median_first_request_seconds": 15.752662792001502
+        },
+        {
+          "question": "MEMBER-11999 的 RULE-000 第一条 IF 如何计算 BILL-AMOUNT，输入在哪里声明，紧接下一条 IF 怎样覆盖？",
+          "median_first_request_seconds": 13.671486499995808
+        }
+      ]
+    },
+    "optimized": {
+      "sample_count": 1,
+      "median_seconds": {
+        "cold_import_seconds": 251.19801333399664,
+        "warm_import_seconds": 11.983701333010686,
+        "incremental_import_seconds": 29.38737295899773
+      },
+      "questions": [
+        {
+          "question": "BILL-AMOUNT 怎么计算？有哪些触发条件？",
+          "median_first_request_seconds": 8.343661207996774
+        },
+        {
+          "question": "MEMBER-11999 的 RULE-000 第一条 IF 如何计算 BILL-AMOUNT，输入在哪里声明，紧接下一条 IF 怎样覆盖？",
+          "median_first_request_seconds": 13.141965832997812
+        }
+      ]
+    }
+  },
+  "large_equivalence": {
+    "corpus": true,
+    "cold_facts": true,
+    "incremental_facts": true,
+    "request_source_content": true
+  },
+  "large_cold_facts": {
+    "business_rule_fields": {
+      "columns": [
+        "rule_id",
+        "field_name",
+        "field_role"
+      ],
+      "rows": 2934849,
+      "sha256": "df94d4f5bd4989dd33297e53fd046b31c6749e7de99e1d498bcae6019e29f65e"
+    },
+    "business_rule_occurrences": {
+      "columns": [
+        "occurrence_id",
+        "rule_id",
+        "relative_path",
+        "program_name",
+        "procedure_name",
+        "start_line",
+        "end_line",
+        "start_column",
+        "end_column",
+        "statement_order",
+        "scope_json",
+        "source_sha256",
+        "parse_status"
+      ],
+      "rows": 1878562,
+      "sha256": "b05c39922c012a1246ba1c0a33bebe33379b69d22c4ad6cdfe6041b3d3b77223"
+    },
+    "business_rules": {
+      "columns": [
+        "rule_id",
+        "relative_path",
+        "program_name",
+        "paragraph_name",
+        "rule_kind",
+        "first_line",
+        "last_line",
+        "occurrence_count",
+        "normalized_text",
+        "reads_json",
+        "writes_json",
+        "condition_json"
+      ],
+      "rows": 1860519,
+      "sha256": "14422ccdfc84e40239b80a678732f4a3d6993c4023f0a4799c6a34de2de8fb06"
+    },
+    "call_bindings": {
+      "columns": [
+        "binding_id",
+        "callsite_id",
+        "caller_program",
+        "callee_program",
+        "parameter_position",
+        "group_member_index",
+        "passing_mode",
+        "caller_symbol_id",
+        "callee_symbol_id",
+        "status",
+        "reason",
+        "evidence_id",
+        "supporting_evidence_ids_json"
+      ],
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "cl_command_facts": {
+      "columns": [
+        "occurrence_id",
+        "relative_path",
+        "source_sha256",
+        "start_line",
+        "end_line",
+        "command",
+        "target_name",
+        "statement",
+        "facts_json"
+      ],
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "code_units": {
+      "columns": [
+        "unit_id",
+        "relative_path",
+        "unit_type",
+        "name",
+        "program_name",
+        "parent_unit_id",
+        "start_line",
+        "end_line",
+        "normalized_text",
+        "content_hash",
+        "evidence_id",
+        "parse_status"
+      ],
+      "rows": 612240,
+      "sha256": "5b386df6709a12153c0d497c354f09ea7135397445ff77ed277033be569165de"
+    },
+    "copy_expansions": {
+      "columns": [
+        "symbol_id",
+        "unit_id",
+        "source_symbol_id",
+        "program_symbol_id",
+        "inclusion_relation_ids_json"
+      ],
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "copy_scope_boundaries": {
+      "columns": [
+        "program_name",
+        "relative_path",
+        "reason",
+        "evidence_id"
+      ],
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "evidence_spans": {
+      "columns": [
+        "evidence_id",
+        "relative_path",
+        "start_line",
+        "end_line",
+        "source_sha256",
+        "text"
+      ],
+      "rows": 624287,
+      "sha256": "cff3d5171dbce172e1406b8d2bf80acd6b9321038eff462ec41310d42364a6f2"
+    },
+    "framework_file_semantics": {
+      "columns": [
+        "relative_path",
+        "source_sha256",
+        "knowledge_digest",
+        "version",
+        "facts_json",
+        "bindings_json"
+      ],
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "relations": {
+      "columns": [
+        "relation_id",
+        "relative_path",
+        "from_entity_id",
+        "relation_type",
+        "target_name",
+        "target_scope",
+        "target_entity_id",
+        "status",
+        "evidence_id",
+        "metadata_json"
+      ],
+      "rows": 156000,
+      "sha256": "5cd57e66592aadcf587e0d8e0efb5051547eb2554001365733e43a63ffd0f175"
+    },
+    "source_files": {
+      "columns": [
+        "relative_path",
+        "sha256",
+        "encoding",
+        "used_fallback_encoding",
+        "format_hint",
+        "artifact_kind",
+        "line_count"
+      ],
+      "rows": 12024,
+      "sha256": "077cf880dde7c0ebf92381f49bb0f81bd4f70ce1481b76e569630aeaf102477d"
+    },
+    "symbols": {
+      "columns": [
+        "symbol_id",
+        "relative_path",
+        "symbol_type",
+        "name",
+        "program_name",
+        "qualified_name",
+        "definition_unit_id",
+        "evidence_id"
+      ],
+      "rows": 444240,
+      "sha256": "b858c240b1aef8b9d565f35bdf02e218feaf0203f58e241fd8987ca61ffb24a3"
+    }
+  },
+  "refresh_recheck": {
+    "method": "Three serial alternating rounds on the same large indexes after baseline/fix cold runs; phase instrumentation present, source content fully rehashed.",
+    "reason": "Single optimized incremental observation was 29.387s versus baseline9.689s; repeated to distinguish computation from waiting.",
+    "runs": [
+      {
+        "variant": "current",
+        "round": 1,
+        "stages": {
+          "warm": {
+            "wall": 16.023515458000475,
+            "cpu": 8.665741,
+            "files": {
+              "candidate": 12024,
+              "decoded": 12024,
+              "unreadable_or_binary": 0,
+              "indexed_or_updated": 0,
+              "skipped_unchanged": 12024,
+              "removed": 0,
+              "metadata_cache_reused": 0,
+              "content_hash_verified": 12024
+            },
+            "full_text_complete": true
+          },
+          "incremental": {
+            "wall": 13.46303841599729,
+            "cpu": 9.617939,
+            "files": {
+              "candidate": 12024,
+              "decoded": 12024,
+              "unreadable_or_binary": 0,
+              "indexed_or_updated": 1,
+              "skipped_unchanged": 12023,
+              "removed": 0,
+              "metadata_cache_reused": 0,
+              "content_hash_verified": 12024
+            },
+            "full_text_complete": true
+          }
+        }
+      },
+      {
+        "variant": "optimized",
+        "round": 1,
+        "stages": {
+          "warm": {
+            "wall": 14.04598337499192,
+            "cpu": 8.286138999999999,
+            "files": {
+              "candidate": 12024,
+              "decoded": 12024,
+              "unreadable_or_binary": 0,
+              "indexed_or_updated": 0,
+              "skipped_unchanged": 12024,
+              "removed": 0,
+              "metadata_cache_reused": 0,
+              "content_hash_verified": 12024
+            },
+            "full_text_complete": true
+          },
+          "incremental": {
+            "wall": 16.45896050000738,
+            "cpu": 10.013945999999999,
+            "files": {
+              "candidate": 12024,
+              "decoded": 12024,
+              "unreadable_or_binary": 0,
+              "indexed_or_updated": 1,
+              "skipped_unchanged": 12023,
+              "removed": 0,
+              "metadata_cache_reused": 0,
+              "content_hash_verified": 12024
+            },
+            "full_text_complete": true
+          }
+        }
+      },
+      {
+        "variant": "optimized",
+        "round": 2,
+        "stages": {
+          "warm": {
+            "wall": 11.878420084001846,
+            "cpu": 7.8886449999999995,
+            "files": {
+              "candidate": 12024,
+              "decoded": 12024,
+              "unreadable_or_binary": 0,
+              "indexed_or_updated": 0,
+              "skipped_unchanged": 12024,
+              "removed": 0,
+              "metadata_cache_reused": 0,
+              "content_hash_verified": 12024
+            },
+            "full_text_complete": true
+          },
+          "incremental": {
+            "wall": 12.894075874995906,
+            "cpu": 9.656803,
+            "files": {
+              "candidate": 12024,
+              "decoded": 12024,
+              "unreadable_or_binary": 0,
+              "indexed_or_updated": 1,
+              "skipped_unchanged": 12023,
+              "removed": 0,
+              "metadata_cache_reused": 0,
+              "content_hash_verified": 12024
+            },
+            "full_text_complete": true
+          }
+        }
+      },
+      {
+        "variant": "current",
+        "round": 2,
+        "stages": {
+          "warm": {
+            "wall": 14.69466883399582,
+            "cpu": 8.380801,
+            "files": {
+              "candidate": 12024,
+              "decoded": 12024,
+              "unreadable_or_binary": 0,
+              "indexed_or_updated": 0,
+              "skipped_unchanged": 12024,
+              "removed": 0,
+              "metadata_cache_reused": 0,
+              "content_hash_verified": 12024
+            },
+            "full_text_complete": true
+          },
+          "incremental": {
+            "wall": 16.60139983300178,
+            "cpu": 10.028269,
+            "files": {
+              "candidate": 12024,
+              "decoded": 12024,
+              "unreadable_or_binary": 0,
+              "indexed_or_updated": 1,
+              "skipped_unchanged": 12023,
+              "removed": 0,
+              "metadata_cache_reused": 0,
+              "content_hash_verified": 12024
+            },
+            "full_text_complete": true
+          }
+        }
+      },
+      {
+        "variant": "current",
+        "round": 3,
+        "stages": {
+          "warm": {
+            "wall": 11.477419082992128,
+            "cpu": 7.86449,
+            "files": {
+              "candidate": 12024,
+              "decoded": 12024,
+              "unreadable_or_binary": 0,
+              "indexed_or_updated": 0,
+              "skipped_unchanged": 12024,
+              "removed": 0,
+              "metadata_cache_reused": 0,
+              "content_hash_verified": 12024
+            },
+            "full_text_complete": true
+          },
+          "incremental": {
+            "wall": 16.65113562499755,
+            "cpu": 10.031274,
+            "files": {
+              "candidate": 12024,
+              "decoded": 12024,
+              "unreadable_or_binary": 0,
+              "indexed_or_updated": 1,
+              "skipped_unchanged": 12023,
+              "removed": 0,
+              "metadata_cache_reused": 0,
+              "content_hash_verified": 12024
+            },
+            "full_text_complete": true
+          }
+        }
+      },
+      {
+        "variant": "optimized",
+        "round": 3,
+        "stages": {
+          "warm": {
+            "wall": 17.431846584004234,
+            "cpu": 8.507084,
+            "files": {
+              "candidate": 12024,
+              "decoded": 12024,
+              "unreadable_or_binary": 0,
+              "indexed_or_updated": 0,
+              "skipped_unchanged": 12024,
+              "removed": 0,
+              "metadata_cache_reused": 0,
+              "content_hash_verified": 12024
+            },
+            "full_text_complete": true
+          },
+          "incremental": {
+            "wall": 25.09703649999574,
+            "cpu": 11.259632,
+            "files": {
+              "candidate": 12024,
+              "decoded": 12024,
+              "unreadable_or_binary": 0,
+              "indexed_or_updated": 1,
+              "skipped_unchanged": 12023,
+              "removed": 0,
+              "metadata_cache_reused": 0,
+              "content_hash_verified": 12024
+            },
+            "full_text_complete": true
+          }
+        }
+      }
+    ],
+    "summary": {
+      "current": {
+        "warm": {
+          "wall": 14.69466883399582,
+          "cpu": 8.380801
+        },
+        "incremental": {
+          "wall": 16.60139983300178,
+          "cpu": 10.028269
+        }
+      },
+      "optimized": {
+        "warm": {
+          "wall": 14.04598337499192,
+          "cpu": 8.286138999999999
+        },
+        "incremental": {
+          "wall": 16.45896050000738,
+          "cpu": 10.013945999999999
+        }
+      }
+    },
+    "interpretation": "Threefold increase did not repeat. Both versions fluctuate in wall time with similar CPU work; repeated medians are effectively unchanged. Exact I/O or scheduling cause of the first outlier is not established."
+  },
+  "python_regressions": {
+    "tests": 3880,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "complete_discovery_verified": true,
+    "source_unchanged_after_testing": true,
+    "external_socket_connections_blocked": true,
+    "shards": [
+      {
+        "tests": 970,
+        "seconds": 76.116777
+      },
+      {
+        "tests": 970,
+        "seconds": 55.855734
+      },
+      {
+        "tests": 970,
+        "seconds": 63.452118
+      },
+      {
+        "tests": 970,
+        "seconds": 79.21884
+      }
+    ]
+  },
+  "browser_regressions": {
+    "tests": 195,
+    "passed": 195,
+    "failed": 0
+  },
+  "native_exe_verification": "Run from the frozen commit in the manual Windows build; results bound to final release artifacts.",
+  "excluded_attempt": {
+    "reason": "restricted local environment prohibited loopback socket.bind",
+    "affected_tests": 40,
+    "resolution": "complete suite rerun with loopback permitted and external network guard retained"
+  }
+}
