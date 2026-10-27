@@ -1,4 +1,5 @@
 """Integrity checks for the offline, same-machine measurement harness."""
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -36,7 +37,7 @@ class ReleasePerformanceBenchmarkTests(unittest.TestCase):
     def test_fingerprints_ignore_only_timestamps_and_detect_late_source_facts(self):
         with tempfile.TemporaryDirectory() as temporary:
             database = Path(temporary) / "index.sqlite"
-            with sqlite3.connect(database) as db:
+            with closing(sqlite3.connect(database)) as db, db:
                 db.execute("CREATE TABLE source_files(relative_path TEXT,sha256 TEXT,indexed_at_utc TEXT)")
                 db.execute("INSERT INTO source_files VALUES('main.cbl','source-version','first')")
                 db.execute("CREATE TABLE business_rule_occurrences(occurrence_id TEXT,statement_order INTEGER)")
@@ -44,10 +45,10 @@ class ReleasePerformanceBenchmarkTests(unittest.TestCase):
                 db.execute("CREATE TABLE call_bindings(binding_id TEXT,target TEXT)")
                 db.execute("INSERT INTO call_bindings VALUES('call','HELPER')")
             original = facts_fingerprint(database)
-            with sqlite3.connect(database) as db:
+            with closing(sqlite3.connect(database)) as db, db:
                 db.execute("UPDATE source_files SET indexed_at_utc='second'")
             self.assertEqual(original, facts_fingerprint(database))
-            with sqlite3.connect(database) as db:
+            with closing(sqlite3.connect(database)) as db, db:
                 db.execute("DELETE FROM business_rule_occurrences WHERE occurrence_id='tail'")
             changed = facts_fingerprint(database)
             self.assertNotEqual(original["business_rule_occurrences"], changed["business_rule_occurrences"])

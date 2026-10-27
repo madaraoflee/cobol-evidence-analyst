@@ -734,7 +734,6 @@
     "errors": 0,
     "skipped": 0,
     "complete_discovery_verified": true,
-    "source_unchanged_after_testing": true,
     "external_socket_connections_blocked": true,
     "shards": [
       {
@@ -753,7 +752,8 @@
         "tests": 970,
         "seconds": 79.21884
       }
-    ]
+    ],
+    "production_source_unchanged_after_full_testing": true
   },
   "browser_regressions": {
     "tests": 195,
@@ -765,5 +765,13 @@
     "reason": "restricted local environment prohibited loopback socket.bind",
     "affected_tests": 40,
     "resolution": "complete suite rerun with loopback permitted and external network guard retained"
+  },
+  "windows_test_fixture_followup": {
+    "first_run": 40527909895,
+    "issue": "Windows rejects temporary database deletion while a test connection is left open",
+    "fix": "Three test-only SQLite connections now close explicitly after transaction completion",
+    "production_changes": false,
+    "targeted_tests_passed": 13,
+    "final_windows_run": "Full suite and native package checks rerun from the subsequent commit"
   }
 }
