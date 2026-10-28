@@ -16,6 +16,8 @@
 
 另外实际复现并修复了 Windows 时间戳边界：WAL 更新后完成 checkpoint、还原 mtime，而创建时间和数据库头不变时，旧的文件签名可能误认为没有更新。Windows 现在从已经打开的文件句柄读取系统 [FILE_BASIC_INFO.ChangeTime](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_basic_info)，不把创建时间当修改时间；元数据不可用时只关闭缓存复用，继续原查询，不阻止回答。
 
+首轮 Windows 回归还发现 Python 的平台差异：`os.stat(path).st_ctime_ns` 与 `os.fstat(fd).st_ctime_ns` 在当前 Windows Python 中分别是创建时间和变更时间，不能直接比较。这与 [CPython 已记录的问题](https://github.com/python/cpython/issues/157671) 及 3.13.17 实现一致。该轮被测试阻断，没有生成或发布包。修正后，Windows 路径与句柄共同身份使用 `st_birthtime_ns`，另外保留独立的 ChangeTime 前后校验；POSIX 的判断不变。该现有测试已前移到 Windows 回归的首项，方便尽早发现平台问题。
+
 投影只在本次函数调用的不可变阶段复用编码和保护字段遍历结果；发生记录替换后重建局部缓存。调用路径筛选改为一次建立集合，再按原路径顺序输出。完整源码页、业务事实、引用编号、压缩阈值、模型请求限额和答案检查保持不变。解析器和问答协议版本不变，避免为等价的性能调整强制重导入或使历史调查失效。
 
 广域程序定义查询现在一次扫描原有的 program/type 索引，先排除非 Program 单元，再读取真正需要的定义；小范围仍沿用路径查询。选择条件是超过 400 个文件且至少覆盖半个资料库，旧快照缺少该索引时退回原查询。无需添加数据库索引或更改导入。完整对照包含重复与嵌套定义、没有 Program symbol 的定义和来源版本；有序输出必须相同。

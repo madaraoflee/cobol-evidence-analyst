@@ -1529,5 +1529,45 @@
         "seconds": 71.897053
       }
     ]
+  },
+  "windows_source_followup": {
+    "failed_run": 40612012346,
+    "failed_head": "ec5db387c84aa27d5ed0a34eb96f5b79e0ecd09a",
+    "windows_tests_failed": 4,
+    "package_built": false,
+    "cause": "Windows stat(path).ctime is creation time while fstat(fd).ctime is ChangeTime in Python 3.13.17; comparing them disabled preview reuse.",
+    "fix": "Compare shared birthtime on Windows; keep independent handle ChangeTime, identity, header and snapshot checks. POSIX uses the unchanged ctime comparison.",
+    "targeted_tests_passed": 28,
+    "full_python_regressions": {
+      "tests": 3919,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "complete_discovery_verified": true,
+      "external_connections_blocked_in_test_runner": true,
+      "shards": [
+        {
+          "tests": 980,
+          "seconds": 64.388225
+        },
+        {
+          "tests": 980,
+          "seconds": 70.913183
+        },
+        {
+          "tests": 980,
+          "seconds": 50.990659
+        },
+        {
+          "tests": 979,
+          "seconds": 65.293599
+        }
+      ]
+    },
+    "production_identity_after_platform_fix": {
+      "production_python_files": 114,
+      "sha256": "a39872c94a6f6631b5ecb4f666bb41318fe1939460c6447656f74cf28a6e8570"
+    },
+    "mac_timing_not_rerun": "Only Windows selects a different identity time field; original Mac measurement and slow first sample retained unchanged."
   }
 }

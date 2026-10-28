@@ -105,12 +105,14 @@ class WorkspaceGraphCacheTests(unittest.TestCase):
         self.assertNotEqual(after, before)
         self.assertEqual(after, self.expected())
 
-    def test_ctime_change_invalidates_with_identical_header_and_mtime(self):
+    def test_identity_time_change_invalidates_with_identical_header_and_mtime(self):
         before = self.preview()
         original_stat = self.database.stat()
         changed_stat = SimpleNamespace(**{key: getattr(original_stat, key) for key in
-            ("st_mode", "st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")})
-        changed_stat.st_ctime_ns += 1
+            ("st_mode", "st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns", "st_birthtime_ns")
+            if hasattr(original_stat, key)})
+        identity_time = "st_birthtime_ns" if sys.platform == "win32" else "st_ctime_ns"
+        setattr(changed_stat, identity_time, getattr(changed_stat, identity_time) + 1)
         path_stat = Path.stat
 
         def stat(path, *args, **kwargs):
@@ -120,6 +122,47 @@ class WorkspaceGraphCacheTests(unittest.TestCase):
                 mock.patch.object(web_app, "_relationships", wraps=web_app._relationships) as query:
             self.assertEqual(self.preview(), before)
             self.assertEqual(query.call_count, 1)
+
+    def test_windows_path_and_descriptor_compare_birthtime_despite_different_ctime(self):
+        observed = self.database.stat()
+        identity = {key: getattr(observed, key) for key in
+            ("st_mode", "st_dev", "st_ino", "st_size", "st_mtime_ns")}
+        birthtime = getattr(observed, "st_birthtime_ns", observed.st_ctime_ns)
+        by_path = SimpleNamespace(**identity, st_birthtime_ns=birthtime, st_ctime_ns=birthtime)
+        by_descriptor = SimpleNamespace(**identity, st_birthtime_ns=birthtime, st_ctime_ns=birthtime + 100)
+        path_stat = Path.stat
+
+        def stat(path, *args, **kwargs):
+            return by_path if path == self.database else path_stat(path, *args, **kwargs)
+
+        with mock.patch.object(web_app.sys, "platform", "win32"), \
+                mock.patch.object(Path, "stat", stat), \
+                mock.patch.object(web_app.os, "fstat", return_value=by_descriptor), \
+                mock.patch.object(web_app, "_graph_file_change_time", return_value=birthtime + 100), \
+                mock.patch.object(web_app, "_relationships", wraps=web_app._relationships) as query:
+            first = self.preview()
+            self.assertIsNotNone(self.state._graph_preview_cache)
+            self.assertEqual(self.preview(), first)
+            self.assertEqual(query.call_count, 1)
+            by_descriptor.st_birthtime_ns += 1
+            self.assertEqual(self.preview(), first)
+            self.assertEqual(query.call_count, 2)
+            self.assertIsNone(self.state._graph_preview_cache)
+
+    def test_windows_missing_birthtime_does_not_fall_back_to_incompatible_ctime(self):
+        observed = self.database.stat()
+        without_birthtime = SimpleNamespace(**{key: getattr(observed, key) for key in
+            ("st_mode", "st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")})
+        path_stat = Path.stat
+
+        def stat(path, *args, **kwargs):
+            return without_birthtime if path == self.database else path_stat(path, *args, **kwargs)
+
+        with mock.patch.object(web_app.sys, "platform", "win32"), \
+                mock.patch.object(Path, "stat", stat), \
+                mock.patch.object(web_app.os, "fstat", return_value=without_birthtime), \
+                mock.patch.object(web_app, "_graph_file_change_time", return_value=1):
+            self.assertIsNone(web_app._graph_database_signature(self.database))
 
     def test_nonempty_wal_reads_committed_changes_without_caching(self):
         before = self.preview()
@@ -148,7 +191,8 @@ class WorkspaceGraphCacheTests(unittest.TestCase):
 
         def creation_stat(value):
             return SimpleNamespace(**{key: creation_time if key == "st_ctime_ns" else getattr(value, key)
-                for key in ("st_mode", "st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")})
+                for key in ("st_mode", "st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns", "st_birthtime_ns")
+                if hasattr(value, key)})
 
         def stat(path, *args, **kwargs):
             value = path_stat(path, *args, **kwargs)

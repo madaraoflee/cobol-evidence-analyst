@@ -449,8 +449,12 @@ def _graph_database_signature(database: Path):
     use the original query; source analysis and its evidence are never cached.
     """
     def identity(value):
+        # On Windows, stat(path).ctime is creation time while fstat(fd).ctime
+        # can be change time. Compare their shared birthtime; the separate
+        # handle-based ChangeTime check below still detects metadata changes.
+        identity_time = "st_birthtime_ns" if sys.platform == "win32" else "st_ctime_ns"
         fields = tuple(getattr(value, key, None) for key in
-            ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"))
+            ("st_dev", "st_ino", "st_size", "st_mtime_ns", identity_time))
         if (not stat.S_ISREG(value.st_mode) or any(type(item) is not int for item in fields)
                 or fields[0] < 0 or fields[1] <= 0 or fields[2] < 100
                 or fields[3] <= 0 or fields[4] <= 0):
