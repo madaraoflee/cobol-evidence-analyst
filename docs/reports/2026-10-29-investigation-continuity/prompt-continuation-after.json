@@ -1,0 +1,9 @@
+{
+  "first_truncated": true,
+  "requests": 2,
+  "new_request_contains_old": false,
+  "new_request_contains_new": true,
+  "continued_payload_is_draft_continuation": true,
+  "new_trace_instructions_sha256": "a8305b0866b11268984c5f6c2f496b9d8bbf2d785633ac386e194477ad2a5816",
+  "expected_new_sha256": "a8305b0866b11268984c5f6c2f496b9d8bbf2d785633ac386e194477ad2a5816"
+}

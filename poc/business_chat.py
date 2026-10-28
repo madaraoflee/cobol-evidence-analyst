@@ -528,7 +528,8 @@ def _prompt_payload(payload):
     # Saved writing instructions belong to the trusted system message, not
     # the source/navigation JSON. Keep them once and outside evidence trimming.
     projected = _compact_prompt_payload(project_prompt_payload(bind_prompt_source_references(
-        {key: value for key, value in payload.items() if key != "answer_instructions"})))
+        {key: value for key, value in payload.items()
+         if key not in {"answer_instructions", "source_fact_suggestions"}})))
     if isinstance(payload.get("session_subject"), dict):
         projected = dict(projected)
         # Identity is navigation, never semantic support. Keep the small local
@@ -796,6 +797,10 @@ def _system_for_payload(payload):
         system += ("\nanswer_review.semantic_risk_candidates 是需要结合原文复核的候选风险，不是业务事实。"
                    "核对完整控制条件，让首段、表格、正文和结尾采用相同范围；保留正确业务内容，"
                    "不能用文末限制抵消前面的无条件保证。")
+    if (payload.get("answer_review") or {}).get("source_fact_suggestions"):
+        system += ("\nanswer_review.source_fact_suggestions 是本题已供应源码中的语句候选，"
+                   "只把与当前问题相关且正文确实遗漏的内容按用户保存的语言和格式整合。"
+                   "结合原文保留控制条件；它们不证明实际运行，也不要求逐项抄写或另加技术附录。")
     if "prior_source_memory" in payload:
         system = system.replace("事实依据取自本轮原文。", "事实依据取自实际供应原文，包括 prior_source_memory 明确绑定的本题早先原文；其中候选解释仍须核对。", 1)
     language = payload.get("answer_language") or resolve_answer_language(payload.get("question"))
@@ -941,6 +946,26 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
             payload["answer_review"] = assess_business_answer(payload.get("question", ""),
                 payload.get("draft_answer", ""), payload.get("question_investigation", {}), review_pages,
                 answer_detail=payload.get("answer_detail", "detailed"), working_set=bundle.get("working_set"))
+        if "answer_review" in payload:
+            suggestions = []
+            for fact in payload.get("source_fact_suggestions", []):
+                context_range = fact.get("source_context_range") or fact
+                page = next((page for page in review_pages if not page.get("span_truncated")
+                    and page.get("source_text") and page.get("evidence_id")
+                    and page.get("relative_path") == fact.get("relative_path")
+                    and page.get("source_sha256") == fact.get("source_sha256")
+                    and page.get("start_line", 0) <= fact["start_line"] <= fact["end_line"] <= page.get("end_line", 0)
+                    and page.get("start_line", 0) <= context_range["start_line"]
+                    and page.get("end_line", 0) >= context_range["end_line"]
+                    and all((page.get(key) or []) == (fact.get(key) or [])
+                            for key in ("include_chain", "replacement_trace"))
+                    and page.get("copy_instance") == fact.get("copy_instance")), None)
+                if page is not None:
+                    suggestions.append({**fact, "evidence_id": page["evidence_id"]})
+            if suggestions:
+                payload["answer_review"]["source_fact_suggestions"] = suggestions
+            else:
+                payload["answer_review"].pop("source_fact_suggestions", None)
         if not payload.get("business_analysis_brief_omitted") and material_changed:
             payload["business_analysis_brief"] = build_analysis_brief(payload.get("question", ""),
                 payload.get("question_investigation", {}), review_pages,
@@ -976,6 +1001,9 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         elif payload.get("analysis_memory", {}).get("instruction"):
             payload["analysis_memory"].pop("instruction")
             record(None, "analysis_memory_instruction_bytes")
+        elif payload.get("source_fact_suggestions"):
+            removed = payload.pop("source_fact_suggestions")
+            record(None, "source_fact_suggestion_bytes", len(json.dumps(removed, ensure_ascii=False)))
         elif payload.get("prior_source_memory") and not payload["prior_source_memory"].get("blocks"):
             payload.pop("prior_source_memory")
             record(None, "empty_source_memory_protocol_bytes")
@@ -1224,6 +1252,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     from complete_working_set import build_complete_working_set
     from file_impact_evidence import is_file_impact_question
     answer_language = answer_language or resolve_answer_language(question, locale=locale, history=history)
+    has_answer_instructions = isinstance(answer_instructions, str) and bool(answer_instructions.strip())
     def local(zh_cn, en):
         return localized_text(answer_language, zh_cn, en)
 
@@ -1479,7 +1508,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 working_set=working_set,
                 source_format=source_session.options.get("source_format", "auto") if source_session else "auto",
                 compilation_context=source_session.options.get("compilation_context") if source_session else None,
-                answer_detail=answer_detail, answer_language=answer_language, source_fact_cache=answer_source_fact_cache)
+                answer_detail=answer_detail, answer_language=answer_language, source_fact_cache=answer_source_fact_cache,
+                append_source_facts=not has_answer_instructions)
             draft_reviews[key] = review
         reviewed_answers[hashlib.sha256(review["answer"].encode()).hexdigest()] = review
         if audit:
@@ -2623,6 +2653,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                    and answer_finish_reason == "length")
         if resume_continuation:
             payload = resume_checkpoint["request_payload"]
+            if continuation_requested:
+                # A user-started continuation keeps the source envelope, but
+                # uses the writing requirements saved for this new request.
+                payload = {**payload, "answer_instructions": answer_instructions}
         verification_state = resume_checkpoint.get("ready_for_verification") or {}
         resume_verification = bool(adaptive and answer and verification_state)
         if resume_verification:
@@ -2819,6 +2853,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         payload["answer_review"] = assess_business_answer(question, answer, current_investigation,
                             selected_pages, answer_detail=answer_detail,
                             working_set=evidence.bundle(selected_pages)[0].get("working_set"))
+                        if has_answer_instructions:
+                            payload["source_fact_suggestions"] = review_draft(answer, payload,
+                                current_investigation, audit=False)["fact_completion"]["suggested_facts"]
                         if not force_answer and not discovery_pending:
                             payload["task"] = ("继续完成同一个原问题。核对 draft_answer 和 answer_review，保留正确内容，"
                                 "结合本轮实际源码补充遗漏的条件、顺序和结果。需要补充资料时返回具体补查动作；"
@@ -3438,6 +3475,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         "输出完整、可直接给用户的业务答案：先给结论，再说明必要条件、顺序和结果，关键判断引用来源。"
                         "未知事项只限定受影响的结论，答完所问业务点就结束。"
                         "不要输出复核过程、审稿意见、初稿评价或修改说明。使用普通 Markdown，不请求工具。"}
+                if has_answer_instructions:
+                    revised_payload["source_fact_suggestions"] = review_draft(answer, revised_payload,
+                        revised_payload["question_investigation"], audit=False)["fact_completion"]["suggested_facts"]
                 if draft_completion.get("source_availability_contradiction"):
                     revised_payload["task"] += (" 若 answer_review.source_availability_contradiction 为 true，"
                         "逐项对照 source_availability_contradictions 的文件、版本和行范围，修正与实际供应矛盾的缺失断言。"
@@ -3689,7 +3729,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         answer_investigation or {}, [sent_pages[identifier] for identifier in final_source_ids],
         source_format=source_session.options.get("source_format", "auto") if source_session else "auto",
         compilation_context=source_session.options.get("compilation_context") if source_session else None,
-        answer_detail=answer_detail, source_fact_cache=answer_source_fact_cache, answer_language=answer_language)
+        answer_detail=answer_detail, source_fact_cache=answer_source_fact_cache, answer_language=answer_language,
+        append_source_facts=not has_answer_instructions)
     timing["answer_fact_completion_seconds"] = time.monotonic() - source_completion_started
     answer, claim_ledger = review_answer_claims(redactor._sanitize(answer),
         [sent_pages[identifier] for identifier in final_source_ids], allowed,

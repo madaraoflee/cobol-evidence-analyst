@@ -18,7 +18,7 @@ from response_language import localized_text, resolve_answer_language
 from source_availability import supplied_source_availability
 
 
-LEDGER_VERSION = "answer-claim-ledger-v15"
+LEDGER_VERSION = "answer-claim-ledger-v16"
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _NAME = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?:\s+(?:OF|IN)\s+[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)*"
 _ATOM = rf"(?:{_NAME}|[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|[()])"
@@ -161,6 +161,35 @@ def _read_condition(text, start):
 
 def _clause_prefix(text, start, limit=48):
     return re.split(r"[，,;；。!?\n（(）)]|\.(?!\d)|(?<!\d)\.", text[max(0, start - limit):start])[-1]
+
+
+def _asserts_procedure_effect(text, target):
+    """Require a direct subject before correcting a no-op procedure claim.
+
+    Mentioning a performed routine beside its caller's calculation does not
+    attribute that calculation to the routine. Unclear prose stays unverified.
+    """
+    name = re.compile(r"(?<![A-Za-z0-9_-])" + re.escape(target) + r"(?![A-Za-z0-9_-])", re.I)
+    effect = re.compile(
+        r"^[\s`*\"']*(?:(?:段落|程序|程式)\s*)?"
+        r"(?:(?:负责|負責|用于|用於|直接|会|會|将|將)\s*)?"
+        r"(?:(?:按|根据|根據)[^，,;；。!?\n]{1,32})?"
+        r"(?:计算|計算|乘以|写入|寫入|更新)|"
+        r"^[\s`*\"']*(?:(?:directly|always)\s+)?"
+        r"(?:calculates?|computes?|multiplies|writes?|updates?)\b", re.I)
+    for clause in re.split(r"[，,;；。!?\n]|\.(?!\d)|(?<!\d)\.", text):
+        for match in name.finditer(clause):
+            prefix = clause[:match.start()].strip(" `*|>\t\"'")
+            if not re.fullmatch(r"(?:(?:the\s+)?(?:procedure|paragraph|routine)|段落|程序|程式)?",
+                                prefix, re.I):
+                continue
+            tail = clause[match.end():]
+            if effect.match(tail) is None:
+                continue
+            if not re.search(r"未实现|未實現|没有|沒有|未计算|未計算|不计算|不計算|不写|不寫|不能|尚未|"
+                             r"\b(?:not|no|unimplemented|empty)\b", tail, re.I):
+                return True
+    return False
 
 
 def _declaration_list_context(text, start):
@@ -932,11 +961,20 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
         replacements, retained_supported, unresolved, final_requirements = [], [], False, []
         citation_additions = []
         for fact in facts:
-            if fact["predicate"] != "noop_procedure" or not re.search(r"(?<![\w-])" + re.escape(fact["target"]) + r"(?![\w-])", text, re.I):
+            if (fact["predicate"] != "noop_procedure"
+                    or ids and fact["evidence_id"] not in valid):
                 continue
-            remaining = re.sub(re.escape(fact["target"]), "", text, flags=re.I)
-            if (re.search(r"计算|計算|乘以|写入|寫入|更新|\b(?:calculates?|computes?|multiplies|writes?|updates?)\b", remaining, re.I)
-                    and not re.search(r"未实现|未實現|没有|沒有|未计算|未計算|不计算|不計算|不写|不寫|不能|尚未|\b(?:not|no|unimplemented|empty)\b", remaining, re.I)):
+            if _asserts_procedure_effect(text, fact["target"]):
+                # A shared routine name cannot bind prose to whichever body
+                # happens to be empty. Explicit citations narrow this scope.
+                definition = re.compile(r"^\s*(?:[0-9]{6}\s+)?" + re.escape(fact["target"])
+                                        + r"\.(?=\s|$)", re.I)
+                origins = {(page["relative_path"], page["source_sha256"], page["start_line"] + index)
+                    for identifier, page in pages.items() if not ids or identifier in valid
+                    for index, line in enumerate(page.get("source_text", "").splitlines())
+                    if definition.match(line)}
+                if len(origins) != 1:
+                    continue
                 version = {key: fact[key] for key in ("relative_path", "source_sha256", "start_line", "end_line")}
                 ledger.entries.append(ClaimEntry(f"claim-{len(ledger.entries) + 1}", "procedure_behavior", text,
                     target_entity=fact["target"], evidence_ids=[fact["evidence_id"]], source_versions=[version],

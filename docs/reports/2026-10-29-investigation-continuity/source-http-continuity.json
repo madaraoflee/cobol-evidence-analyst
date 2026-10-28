@@ -1,0 +1,63 @@
+{
+  "schema_version": "investigation-continuity-check/v1",
+  "report_execution_id": "5a2050be4906506fc959ff4026a57a92",
+  "created_at_utc": "2026-10-28T17:50:04.536116+00:00",
+  "transport_kind": "synthetic",
+  "external_model_calls": 0,
+  "paid_model_calls": 0,
+  "real_model_accuracy": null,
+  "formal_acceptance": false,
+  "checks": {
+    "default_policy_has_no_soft_target": true,
+    "slow_first_answer_is_automatically_completed": true,
+    "custom_single_paragraph_has_no_local_appendix": true,
+    "partial_latest_prompt_and_existing_draft_supplied": true,
+    "partial_prior_answer_preserved_as_revision": true,
+    "partial_continuation_completes_without_discarding_text": true,
+    "partial_revision_and_citation_survive_restart": true,
+    "truncated_latest_prompt_and_existing_draft_supplied": true,
+    "truncated_prior_answer_preserved_as_revision": true,
+    "truncated_continuation_completes_without_discarding_text": true,
+    "truncated_revision_and_citation_survive_restart": true,
+    "requests_recorded_once_without_provider_errors": true
+  },
+  "errors": [],
+  "status": "passed",
+  "source_commit": "e4083532db05aaf034fee5298b538571bf30df74",
+  "source_dirty": true,
+  "execution_surface": "source_python_http",
+  "runtime_platform": "Darwin",
+  "archive_sha256": null,
+  "binary_path": null,
+  "binary_sha256": null,
+  "application_sha256": "51c635025bb4ca93f9840db4266edd751c7c9a49c84d4be61d453bfaaf22a8b7",
+  "observations": [
+    {
+      "phase": "default",
+      "run_id": "03fb04becc0d5d4881263488",
+      "model_requests": 2,
+      "elapsed_seconds": 20.280481707995932,
+      "answer_sha256": "9813d3abf287c58affbb298008867187fb788b4cbf2001938f7a928649b5a34a"
+    },
+    {
+      "phase": "partial",
+      "previous_run_id": "358dfc14b4297e35a7f131a3",
+      "run_id": "4160aafa04341775e1fd2e15",
+      "revision_id": "32c8126e06a831d1cd239598467d7acf",
+      "answer_sha256": "b412ee884cabcba3db099a3b1eff87106a78b17af9ea9d27e3966ee575b7cfb6"
+    },
+    {
+      "phase": "truncated",
+      "previous_run_id": "4bc5ed77329e7e8331bfd413",
+      "run_id": "ce000f071ef7f384ae52f030",
+      "revision_id": "26826f797ee60cc18510f929669a5bb1",
+      "answer_sha256": "a037185f87271720ed27330c69647b58eba71c9b1bee4a4cec6ba7a6c8178a9a"
+    }
+  ],
+  "synthetic_model_requests": 6,
+  "fixture_sha256": {
+    "root.cbl": "9ad0ce218830b863c606ac814154756e41e4e6f97040c04d899325f6c9d6746f"
+  },
+  "injected_wait_seconds": 20,
+  "timing_interpretation": "Injected loopback wait tests control flow, not real-model speed."
+}

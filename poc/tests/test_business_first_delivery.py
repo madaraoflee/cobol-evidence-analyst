@@ -16,14 +16,14 @@ from tools.desktop_acceptance_scenarios import run_scenarios
 
 
 class BusinessFirstDeliveryTests(unittest.TestCase):
-    def test_policy_probe_honors_explicit_six_calls_with_eight_call_defaults_and_soft_target(self):
+    def test_policy_probe_honors_explicit_six_calls_without_a_default_soft_target(self):
         defaults = AgentPolicy().to_dict()
         configured = {"max_model_requests": 6, "max_question_seconds": None,
                       "hard_question_seconds": None, "max_answer_revisions": 0}
         runtime = AgentPolicy(**configured).to_dict()
         self.assertEqual(defaults["max_model_requests"], 8)
         self.assertEqual(runtime["max_model_requests"], 6)
-        self.assertEqual(runtime["delivery_target_seconds"], 60)
+        self.assertIsNone(runtime["delivery_target_seconds"])
         self.assertIsNone(runtime["hard_question_seconds"])
         self.assertTrue(business_policy_matches(runtime, configured))
         self.assertTrue(business_policy_matches(defaults, {}))

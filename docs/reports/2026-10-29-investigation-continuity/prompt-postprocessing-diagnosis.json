@@ -1,0 +1,13 @@
+{
+  "raw": [
+    {
+      "system_has_custom": true,
+      "raw_answer": "The calculation derives the output amount from the raw amount and rate: OUT-AMOUNT = RAW-AMOUNT * RATE / 1200. [ev_page_74739a9c7cc55438070e3ec8]"
+    }
+  ],
+  "final_answer": "The calculation derives the output amount from the raw amount and rate: OUT-AMOUNT = RAW-AMOUNT * RATE / 1200. [ev_page_74739a9c7cc55438070e3ec8]",
+  "added_paragraph": false,
+  "added_chinese": false,
+  "model_calls": 1,
+  "status": "PARTIAL"
+}

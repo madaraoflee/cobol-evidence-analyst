@@ -15,7 +15,7 @@ from claim_support import supplied_statement_facts
 from response_language import localized_text, resolve_answer_language
 from statement_facts import CobolLexError, data_references, io_clause_guards, lex_cobol
 
-VERSION = "source-fact-completion/v3"
+VERSION = "source-fact-completion/v4"
 _MAX_ADDITIONS = 8
 _MAX_SCAN = 160000
 
@@ -128,7 +128,7 @@ def _io_conditions_complete(io_facts, line, end_line=None):
 
 def complete_supplied_answer(question, answer, investigation, source_pages, *, source_format="auto",
                              compilation_context=None, answer_detail="detailed", source_fact_cache=None,
-                             answer_language=None):
+                             answer_language=None, append_source_facts=True):
     """Return the preserved answer plus narrowly selected omitted source facts.
 
     Selection requires locally bound procedure/occurrence scopes. Whole-program
@@ -136,7 +136,7 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
     """
     answer_language = answer_language or resolve_answer_language(question)
     report = {"version": VERSION, "mode": "non_blocking_local_source_rendering",
-              "model_requests": 0, "answer_preserved": True, "added_facts": [],
+              "model_requests": 0, "answer_preserved": True, "added_facts": [], "suggested_facts": [],
               "preservation_scope": "source_completion_before_claim_review",
               "input_answer_sha256": hashlib.sha256(str(answer).encode()).hexdigest(),
               "scanned_characters": 0, "omitted_candidate_count": 0,
@@ -330,9 +330,20 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
         additions.append(rendered + f"[{identifier}]")
         report["added_facts"].append({"kind": kind, "statement": statement, "evidence_id": identifier,
             "relative_path": page["relative_path"], "source_sha256": page["source_sha256"],
-            "start_line": first, "end_line": last, "support_scope": "supplied_source_syntax"})
+            "start_line": first, "end_line": last, "support_scope": "supplied_source_syntax",
+            **{key: page[key] for key in ("include_chain", "replacement_trace", "copy_instance") if key in page},
+            **({"source_rendering": text, "source_context_range": {
+                "start_line": page["start_line"], "end_line": page["end_line"]}}
+               if not append_source_facts else {})})
     if additions:
-        answer = answer.rstrip() + "\n\n" + " ".join(additions)
-        report["status"] = "source_facts_added"
+        if append_source_facts:
+            answer = answer.rstrip() + "\n\n" + " ".join(additions)
+            report["status"] = "source_facts_added"
+        else:
+            # Saved writing requirements belong to the model's composition.
+            # Keep source-bound candidates for its existing review without
+            # adding a fixed paragraph in a different format or language.
+            report["suggested_facts"], report["added_facts"] = report["added_facts"], []
+            report["status"] = "source_facts_deferred_to_model"
     report["rendered_answer_sha256"] = hashlib.sha256(answer.encode()).hexdigest()
     return answer, report

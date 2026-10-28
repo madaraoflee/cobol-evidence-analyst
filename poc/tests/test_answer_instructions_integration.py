@@ -168,6 +168,33 @@ class AnswerInstructionsIntegrationTests(unittest.TestCase):
         self.assertIn("业务结果为29", self.app.conversation["messages"][-1]["content"])
         self.assertEqual(len(self.requests), 3)
 
+    def test_continue_after_restart_uses_new_and_then_cleared_global_requirements(self):
+        self.truncate_first = True
+        local = self.ask()
+        conversation = local["conversation"]["id"]
+        original_user, original_answer = local["conversation"]["messages"]
+        self.assertEqual(original_answer["status"], "partial")
+        changed = "用「补充业务结果」说明新发现并保留引用。"
+        self.app.configure_answer_instructions({"answer_instructions": changed})
+        self.app = self.new_app()
+        self.open(self.local_workspace, conversation)
+        self.ask(question="", conversation_id=conversation, continue_message_id=original_user["id"])
+        payload = self.assert_request(1, 11, changed)
+        self.assertTrue(payload["draft_continuation"])
+        self.assertEqual(payload["draft_answer"], original_answer["content"])
+        self.assertNotIn(self.instructions, self.requests[1]["messages"][0]["content"])
+
+        self.app.configure_answer_instructions({"answer_instructions": ""})
+        self.app = self.new_app()
+        self.open(self.local_workspace, conversation)
+        self.ask(question="", conversation_id=conversation, continue_message_id=original_user["id"])
+        system = self.requests[2]["messages"][0]["content"]
+        self.assertNotIn(changed, system)
+        self.assertNotIn(self.instructions, system)
+        self.assertNotIn("用户在系统配置中保存的回答要求（原文）", system)
+        self.assertIn("业务概览默认按以下方式组织", system)
+        self.assertEqual(len(self.requests), 3)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -12,14 +12,16 @@ from source_availability import repair_source_availability_assertions
 
 def validate_answer_draft(question, answer, investigation, source_pages, references=(), *,
                           working_set=None, source_format="auto", compilation_context=None,
-                          answer_detail="detailed", answer_language="zh-CN", source_fact_cache=None):
+                          answer_detail="detailed", answer_language="zh-CN", source_fact_cache=None,
+                          append_source_facts=True):
     allowed = {page["evidence_id"]: {**page, "kind": "source_page"} for page in source_pages}
     allowed.update({row["reference_id"]: {**row, "kind": "framework_reference"} for row in references})
     answer, repairs = repair_source_availability_assertions(
         answer, source_pages, working_set, answer_language=answer_language)
     answer, additions = complete_supplied_answer(question, answer, investigation, source_pages,
         source_format=source_format, compilation_context=compilation_context,
-        answer_detail=answer_detail, answer_language=answer_language, source_fact_cache=source_fact_cache)
+        answer_detail=answer_detail, answer_language=answer_language, source_fact_cache=source_fact_cache,
+        append_source_facts=append_source_facts)
     answer, ledger = review_answer_claims(answer, source_pages, allowed,
         source_format=source_format, compilation_context=compilation_context,
         answer_language=answer_language, source_fact_cache=source_fact_cache, working_set=working_set)

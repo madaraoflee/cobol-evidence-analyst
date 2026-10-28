@@ -17,8 +17,8 @@ class AgentPolicyTests(unittest.TestCase):
         self.assertEqual(policy.max_model_requests, 8)
         self.assertIsNone(policy.max_question_seconds)
         self.assertIsNone(policy.hard_question_seconds)
-        self.assertEqual(policy.delivery_target_seconds, 60)
-        self.assertEqual(policy.effective_delivery_target_seconds, 60)
+        self.assertIsNone(policy.delivery_target_seconds)
+        self.assertIsNone(policy.effective_delivery_target_seconds)
         self.assertIsNone(policy.max_initial_context_seconds)
         self.assertIsNone(policy.max_local_analysis_seconds)
         self.assertEqual((policy.max_semantic_files, policy.max_semantic_source_bytes,
@@ -105,7 +105,7 @@ class AgentPolicyTests(unittest.TestCase):
             with self.subTest(options=options):
                 policy = resolve_agent_policy(options)
                 self.assertEqual((policy.max_question_seconds, policy.hard_question_seconds), (expected, expected))
-                self.assertEqual(policy.effective_delivery_target_seconds, min(60, expected))
+                self.assertEqual(policy.effective_delivery_target_seconds, expected)
                 self.assertEqual(resolve_agent_policy(policy.to_dict()), policy)
 
     def test_standalone_delivery_target_does_not_create_a_hard_deadline(self):

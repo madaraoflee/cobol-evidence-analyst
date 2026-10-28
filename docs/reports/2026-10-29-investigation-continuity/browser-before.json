@@ -1,0 +1,474 @@
+{
+  "scope": "Real frozen HTTP/backend/storage/frontend with real source indexing; only analysis output is controlled. No model or external repository calls.",
+  "source_commit": "e4083532db05aaf034fee5298b538571bf30df74",
+  "checks": [
+    {
+      "name": "rewrite_old_answer_before",
+      "passed": true
+    },
+    {
+      "name": "rewrite_old_answer_during",
+      "passed": true
+    },
+    {
+      "name": "rewrite_same_main_ids",
+      "passed": true
+    },
+    {
+      "name": "rewrite_overwrites_visible_old_answer",
+      "passed": true
+    },
+    {
+      "name": "rewrite_overwrite_survives_reload",
+      "passed": true
+    },
+    {
+      "name": "history_has_only_latest_text",
+      "passed": true
+    },
+    {
+      "name": "unavailable_old_answer_before",
+      "passed": true
+    },
+    {
+      "name": "unavailable_old_answer_during",
+      "passed": true
+    },
+    {
+      "name": "unavailable_same_main_ids",
+      "passed": true
+    },
+    {
+      "name": "unavailable_retains_previous_content",
+      "passed": true
+    },
+    {
+      "name": "unavailable_retains_after_reload",
+      "passed": true
+    },
+    {
+      "name": "failure_old_answer_before",
+      "passed": true
+    },
+    {
+      "name": "failure_old_answer_during",
+      "passed": true
+    },
+    {
+      "name": "failure_same_main_ids",
+      "passed": true
+    },
+    {
+      "name": "failure_retains_previous_content",
+      "passed": true
+    },
+    {
+      "name": "failure_retains_after_reload",
+      "passed": true
+    },
+    {
+      "name": "cancelled_old_answer_before",
+      "passed": true
+    },
+    {
+      "name": "cancelled_old_answer_during",
+      "passed": true
+    },
+    {
+      "name": "cancelled_same_main_ids",
+      "passed": true
+    },
+    {
+      "name": "cancelled_retains_previous_content",
+      "passed": true
+    },
+    {
+      "name": "cancelled_retains_after_reload",
+      "passed": true
+    },
+    {
+      "name": "no_page_errors",
+      "passed": true
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "rewrite",
+      "before": {
+        "busy": false,
+        "messages": [
+          {
+            "id": "ca8f0223354eb8c4de08556e1002f2c2",
+            "role": "user",
+            "content": "rewrite: 请继续说明订单结算业务。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000001"
+          },
+          {
+            "id": "2f3ea83181eb2338966c860edd3aad2b",
+            "role": "assistant",
+            "content": "原已支持结论：订单数量为零时不进入结算；有效订单逐条累计金额。\n\n批处理入口负责启动，处理程序计算结果，输入文件提供订单记录，输出文件保存结算结果。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000001",
+            "investigation_run_id": "aaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "oldInDOM": true,
+        "newInDOM": false
+      },
+      "during": {
+        "busy": true,
+        "messages": [
+          {
+            "id": "ca8f0223354eb8c4de08556e1002f2c2",
+            "role": "user",
+            "content": "rewrite: 请继续说明订单结算业务。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000001"
+          },
+          {
+            "id": "2f3ea83181eb2338966c860edd3aad2b",
+            "role": "assistant",
+            "content": "原已支持结论：订单数量为零时不进入结算；有效订单逐条累计金额。\n\n批处理入口负责启动，处理程序计算结果，输入文件提供订单记录，输出文件保存结算结果。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000001",
+            "investigation_run_id": "aaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "oldInDOM": true,
+        "newInDOM": false
+      },
+      "after": {
+        "busy": false,
+        "messages": [
+          {
+            "id": "ca8f0223354eb8c4de08556e1002f2c2",
+            "role": "user",
+            "content": "rewrite: 请继续说明订单结算业务。",
+            "status": "partial",
+            "run_id": "87ff7291e93b192b02b0689b1f026cd7"
+          },
+          {
+            "id": "2f3ea83181eb2338966c860edd3aad2b",
+            "role": "assistant",
+            "content": "更正上一条：这里只确认订单金额需要计算，完整处理顺序仍需要查看完整处理段落。",
+            "status": "partial",
+            "run_id": "87ff7291e93b192b02b0689b1f026cd7",
+            "investigation_run_id": "bbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "oldInDOM": false,
+        "newInDOM": true
+      },
+      "refreshed": {
+        "busy": false,
+        "messages": [
+          {
+            "id": "ca8f0223354eb8c4de08556e1002f2c2",
+            "role": "user",
+            "content": "rewrite: 请继续说明订单结算业务。",
+            "status": "partial",
+            "run_id": "87ff7291e93b192b02b0689b1f026cd7"
+          },
+          {
+            "id": "2f3ea83181eb2338966c860edd3aad2b",
+            "role": "assistant",
+            "content": "更正上一条：这里只确认订单金额需要计算，完整处理顺序仍需要查看完整处理段落。",
+            "status": "partial",
+            "run_id": "87ff7291e93b192b02b0689b1f026cd7",
+            "investigation_run_id": "bbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "oldInDOM": false,
+        "newInDOM": true
+      }
+    },
+    {
+      "name": "unavailable",
+      "before": {
+        "busy": false,
+        "messages": [
+          {
+            "id": "527d37b3092ceec8a0766f87c1f4ebe5",
+            "role": "user",
+            "content": "unavailable: 请继续说明订单结算业务。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000002"
+          },
+          {
+            "id": "0491a2ff028b259e99b9f0dd7d345efb",
+            "role": "assistant",
+            "content": "原已支持结论：订单数量为零时不进入结算；有效订单逐条累计金额。\n\n批处理入口负责启动，处理程序计算结果，输入文件提供订单记录，输出文件保存结算结果。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000002",
+            "investigation_run_id": "aaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "oldInDOM": true,
+        "newInDOM": false
+      },
+      "during": {
+        "busy": true,
+        "messages": [
+          {
+            "id": "527d37b3092ceec8a0766f87c1f4ebe5",
+            "role": "user",
+            "content": "unavailable: 请继续说明订单结算业务。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000002"
+          },
+          {
+            "id": "0491a2ff028b259e99b9f0dd7d345efb",
+            "role": "assistant",
+            "content": "原已支持结论：订单数量为零时不进入结算；有效订单逐条累计金额。\n\n批处理入口负责启动，处理程序计算结果，输入文件提供订单记录，输出文件保存结算结果。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000002",
+            "investigation_run_id": "aaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "oldInDOM": true,
+        "newInDOM": false
+      },
+      "after": {
+        "busy": false,
+        "messages": [
+          {
+            "id": "527d37b3092ceec8a0766f87c1f4ebe5",
+            "role": "user",
+            "content": "unavailable: 请继续说明订单结算业务。",
+            "status": "partial",
+            "run_id": "d4df6e39df4eb3dfaa9707a77ac62c5f"
+          },
+          {
+            "id": "0491a2ff028b259e99b9f0dd7d345efb",
+            "role": "assistant",
+            "content": "原已支持结论：订单数量为零时不进入结算；有效订单逐条累计金额。\n\n批处理入口负责启动，处理程序计算结果，输入文件提供订单记录，输出文件保存结算结果。",
+            "status": "partial",
+            "run_id": "d4df6e39df4eb3dfaa9707a77ac62c5f",
+            "investigation_run_id": "aaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "oldInDOM": true,
+        "newInDOM": false
+      }
+    },
+    {
+      "name": "failure",
+      "before": {
+        "busy": false,
+        "messages": [
+          {
+            "id": "1be2270d82b64f8e6806394b97a16f10",
+            "role": "user",
+            "content": "failure: 请继续说明订单结算业务。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000003"
+          },
+          {
+            "id": "0ffcbc37a83263647e92791a2860acd5",
+            "role": "assistant",
+            "content": "原已支持结论：订单数量为零时不进入结算；有效订单逐条累计金额。\n\n批处理入口负责启动，处理程序计算结果，输入文件提供订单记录，输出文件保存结算结果。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000003",
+            "investigation_run_id": "aaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "oldInDOM": true,
+        "newInDOM": false
+      },
+      "during": {
+        "busy": true,
+        "messages": [
+          {
+            "id": "1be2270d82b64f8e6806394b97a16f10",
+            "role": "user",
+            "content": "failure: 请继续说明订单结算业务。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000003"
+          },
+          {
+            "id": "0ffcbc37a83263647e92791a2860acd5",
+            "role": "assistant",
+            "content": "原已支持结论：订单数量为零时不进入结算；有效订单逐条累计金额。\n\n批处理入口负责启动，处理程序计算结果，输入文件提供订单记录，输出文件保存结算结果。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000003",
+            "investigation_run_id": "aaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "oldInDOM": true,
+        "newInDOM": false
+      },
+      "after": {
+        "busy": false,
+        "messages": [
+          {
+            "id": "1be2270d82b64f8e6806394b97a16f10",
+            "role": "user",
+            "content": "failure: 请继续说明订单结算业务。",
+            "status": "failed",
+            "run_id": "f4fd25535baaa7f0854ed000e135b8d5"
+          },
+          {
+            "id": "0ffcbc37a83263647e92791a2860acd5",
+            "role": "assistant",
+            "content": "原已支持结论：订单数量为零时不进入结算；有效订单逐条累计金额。\n\n批处理入口负责启动，处理程序计算结果，输入文件提供订单记录，输出文件保存结算结果。",
+            "status": "partial",
+            "run_id": "f4fd25535baaa7f0854ed000e135b8d5",
+            "investigation_run_id": "aaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "oldInDOM": true,
+        "newInDOM": false
+      }
+    },
+    {
+      "name": "cancelled",
+      "before": {
+        "busy": false,
+        "messages": [
+          {
+            "id": "816b8da285a03c6a2a5c5047e3387a10",
+            "role": "user",
+            "content": "cancelled: 请继续说明订单结算业务。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000004"
+          },
+          {
+            "id": "aec430bad156efc189112575a9262ca7",
+            "role": "assistant",
+            "content": "原已支持结论：订单数量为零时不进入结算；有效订单逐条累计金额。\n\n批处理入口负责启动，处理程序计算结果，输入文件提供订单记录，输出文件保存结算结果。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000004",
+            "investigation_run_id": "aaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "oldInDOM": true,
+        "newInDOM": false
+      },
+      "during": {
+        "busy": true,
+        "messages": [
+          {
+            "id": "816b8da285a03c6a2a5c5047e3387a10",
+            "role": "user",
+            "content": "cancelled: 请继续说明订单结算业务。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000004"
+          },
+          {
+            "id": "aec430bad156efc189112575a9262ca7",
+            "role": "assistant",
+            "content": "原已支持结论：订单数量为零时不进入结算；有效订单逐条累计金额。\n\n批处理入口负责启动，处理程序计算结果，输入文件提供订单记录，输出文件保存结算结果。",
+            "status": "partial",
+            "run_id": "00000000000000000000000000000004",
+            "investigation_run_id": "aaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "oldInDOM": true,
+        "newInDOM": false
+      },
+      "after": {
+        "busy": false,
+        "messages": [
+          {
+            "id": "816b8da285a03c6a2a5c5047e3387a10",
+            "role": "user",
+            "content": "cancelled: 请继续说明订单结算业务。",
+            "status": "cancelled",
+            "run_id": "be4126757e67abf61e59ea1b1a1ebaf9"
+          },
+          {
+            "id": "aec430bad156efc189112575a9262ca7",
+            "role": "assistant",
+            "content": "原已支持结论：订单数量为零时不进入结算；有效订单逐条累计金额。\n\n批处理入口负责启动，处理程序计算结果，输入文件提供订单记录，输出文件保存结算结果。",
+            "status": "partial",
+            "run_id": "be4126757e67abf61e59ea1b1a1ebaf9",
+            "investigation_run_id": "aaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "oldInDOM": true,
+        "newInDOM": false
+      }
+    }
+  ],
+  "page_errors": [],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/open"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analyze"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/87ff7291e93b192b02b0689b1f026cd7/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/cb653b561e2ae829ae655aa9cfd44f8e"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/open"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analyze"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/d4df6e39df4eb3dfaa9707a77ac62c5f/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/open"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analyze"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/f4fd25535baaa7f0854ed000e135b8d5/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/open"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analyze"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/be4126757e67abf61e59ea1b1a1ebaf9/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/jobs/be4126757e67abf61e59ea1b1a1ebaf9/cancel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state"
+    }
+  ],
+  "passed": true
+}

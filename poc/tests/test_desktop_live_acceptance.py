@@ -283,7 +283,8 @@ class NativeLiveAcceptanceTests(unittest.TestCase):
                 self.assertEqual(wait["watchdog_seconds"],
                                  policy.max_model_requests * native.WORKBENCH_TIMEOUT_SECONDS + 135 + 45)
                 self.assertTrue(math.isfinite(wait["watchdog_seconds"]))
-                self.assertGreater(wait["watchdog_seconds"], policy.delivery_target_seconds)
+                if policy.delivery_target_seconds is not None:
+                    self.assertGreater(wait["watchdog_seconds"], policy.delivery_target_seconds)
                 self.assertIsNone(policy.max_local_analysis_seconds)
                 self.assertIsNone(policy.hard_question_seconds)
                 self.assertIsNone(wait["hard_question_seconds"])

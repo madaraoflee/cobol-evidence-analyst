@@ -4,7 +4,7 @@
     "max_model_requests": 8,
     "max_question_seconds": null,
     "hard_question_seconds": null,
-    "delivery_target_seconds": 60,
+    "delivery_target_seconds": null,
     "investigation_mode": "adaptive",
     "source_memory_enabled": true,
     "max_investigation_rounds": 6,

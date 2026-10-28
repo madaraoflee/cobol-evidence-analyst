@@ -1,0 +1,201 @@
+[
+  {
+    "version": "before",
+    "input_answer": "When RATE is nonzero, the program calculates OUT-AMOUNT = RAW-AMOUNT * RATE / 1200, then accumulates TOTAL-AMOUNT = OUT-AMOUNT + TOTAL-AMOUNT and requests PERFORM WRITE-RESULT.[ev_test_source]",
+    "output_answer": "The cited source directly confirms: The `WRITE-RESULT` paragraph contains only CONTINUE; its calculation or write logic is not implemented (flow.cbl:21)[ev_test_source]. ",
+    "retained": false,
+    "ledger": {
+      "ledger_version": "answer-claim-ledger-v15",
+      "scope": "bounded_source_statement_syntax",
+      "coverage": "extracted_structures_only",
+      "prose_semantics_verified": false,
+      "entries": [
+        {
+          "claim_id": "claim-1",
+          "claim_type": "procedure_behavior",
+          "text": "When RATE is nonzero, the program calculates OUT-AMOUNT = RAW-AMOUNT * RATE / 1200, then accumulates TOTAL-AMOUNT = OUT-AMOUNT + TOTAL-AMOUNT and requests PERFORM WRITE-RESULT.",
+          "target_entity": "WRITE-RESULT",
+          "expression": null,
+          "condition": null,
+          "effect": null,
+          "evidence_ids": [
+            "ev_test_source"
+          ],
+          "reviewed_evidence_ids": [],
+          "source_versions": [
+            {
+              "relative_path": "flow.cbl",
+              "source_sha256": "59a181a6ea604e8b801869bc27899761fbf12d662b589c532c0451268a771e8a",
+              "start_line": 21,
+              "end_line": 22
+            }
+          ],
+          "support_status": "contradicted",
+          "reason_code": "COMPLETE_PROCEDURE_HAS_ONLY_NOOP_STATEMENTS",
+          "checker_version": "answer-claim-ledger-v15",
+          "support_scope": "complete_local_procedure_body_no_data_or_io_statements",
+          "occurrence_ids": [
+            "unit_ff9fee48398dca222288828f"
+          ],
+          "invalid_evidence_ids": [],
+          "revision": "rendered_complete_noop_procedure",
+          "revised_claims": [
+            {
+              "assertion": {
+                "predicate": "noop_procedure",
+                "target": "WRITE-RESULT"
+              },
+              "support_status": "supported",
+              "support_scope": "complete_local_procedure_body_no_data_or_io_statements",
+              "evidence_id": "ev_test_source",
+              "source_sha256": "59a181a6ea604e8b801869bc27899761fbf12d662b589c532c0451268a771e8a"
+            }
+          ],
+          "verification_facts": [],
+          "unresolved_requirements": []
+        }
+      ],
+      "counts": {
+        "supported": 0,
+        "contradicted": 1,
+        "unsupported": 0
+      },
+      "source_fact_count": 5,
+      "compilation_context_fingerprint": "e755be87b1a2385d06e83eb50e1873605d6c21af46580b0a56768a359a3c99bd",
+      "revised_claim_count": 1,
+      "answer_sha256": "ac281fd7d72cb1e999ebe1f9f98d9d555905475cf4f954dd9b6c287410bac7f1",
+      "original_answer_sha256": "982611e50a4b797b8aa2946e6b49bd46d684ae76da6360d05bdcf4d14101ae84",
+      "all_claims_supported": false
+    }
+  },
+  {
+    "version": "after",
+    "input_answer": "When RATE is nonzero, the program calculates OUT-AMOUNT = RAW-AMOUNT * RATE / 1200, then accumulates TOTAL-AMOUNT = OUT-AMOUNT + TOTAL-AMOUNT and requests PERFORM WRITE-RESULT.[ev_test_source]",
+    "output_answer": "When RATE is nonzero, the program calculates OUT-AMOUNT = RAW-AMOUNT * RATE / 1200, then accumulates TOTAL-AMOUNT = OUT-AMOUNT + TOTAL-AMOUNT and requests PERFORM WRITE-RESULT.[ev_test_source]",
+    "retained": true,
+    "ledger": {
+      "ledger_version": "answer-claim-ledger-v16",
+      "scope": "bounded_source_statement_syntax",
+      "coverage": "extracted_structures_only",
+      "prose_semantics_verified": false,
+      "entries": [
+        {
+          "claim_id": "claim-1",
+          "claim_type": "assignment_statement",
+          "text": "When RATE is nonzero, the program calculates OUT-AMOUNT = RAW-AMOUNT * RATE / 1200, then accumulates TOTAL-AMOUNT = OUT-AMOUNT + TOTAL-AMOUNT and requests PERFORM WRITE-RESULT.",
+          "target_entity": "RATE",
+          "expression": [
+            "NONZERO"
+          ],
+          "condition": null,
+          "effect": null,
+          "evidence_ids": [
+            "ev_test_source"
+          ],
+          "reviewed_evidence_ids": [],
+          "source_versions": [
+            {
+              "relative_path": "flow.cbl",
+              "source_sha256": "59a181a6ea604e8b801869bc27899761fbf12d662b589c532c0451268a771e8a",
+              "start_line": 1,
+              "end_line": 24
+            }
+          ],
+          "support_status": "unsupported",
+          "reason_code": "PROSE_BRANCH_BINDING_UNRESOLVED",
+          "checker_version": null,
+          "support_scope": "unverified_control_flow_scenario",
+          "occurrence_ids": [],
+          "invalid_evidence_ids": [],
+          "revision": null,
+          "revised_claims": [],
+          "verification_facts": [],
+          "unresolved_requirements": []
+        },
+        {
+          "claim_id": "claim-2",
+          "claim_type": "assignment_statement",
+          "text": "When RATE is nonzero, the program calculates OUT-AMOUNT = RAW-AMOUNT * RATE / 1200, then accumulates TOTAL-AMOUNT = OUT-AMOUNT + TOTAL-AMOUNT and requests PERFORM WRITE-RESULT.",
+          "target_entity": "OUT-AMOUNT",
+          "expression": [
+            "RAW-AMOUNT",
+            "*",
+            "RATE",
+            "/",
+            "1200"
+          ],
+          "condition": null,
+          "effect": null,
+          "evidence_ids": [
+            "ev_test_source"
+          ],
+          "reviewed_evidence_ids": [],
+          "source_versions": [
+            {
+              "relative_path": "flow.cbl",
+              "source_sha256": "59a181a6ea604e8b801869bc27899761fbf12d662b589c532c0451268a771e8a",
+              "start_line": 1,
+              "end_line": 24
+            }
+          ],
+          "support_status": "unsupported",
+          "reason_code": "PROSE_BRANCH_BINDING_UNRESOLVED",
+          "checker_version": null,
+          "support_scope": "unverified_control_flow_scenario",
+          "occurrence_ids": [],
+          "invalid_evidence_ids": [],
+          "revision": null,
+          "revised_claims": [],
+          "verification_facts": [],
+          "unresolved_requirements": []
+        },
+        {
+          "claim_id": "claim-3",
+          "claim_type": "mathematical_expression",
+          "text": "When RATE is nonzero, the program calculates OUT-AMOUNT = RAW-AMOUNT * RATE / 1200, then accumulates TOTAL-AMOUNT = OUT-AMOUNT + TOTAL-AMOUNT and requests PERFORM WRITE-RESULT.",
+          "target_entity": "TOTAL-AMOUNT",
+          "expression": [
+            "OUT-AMOUNT",
+            "+",
+            "TOTAL-AMOUNT"
+          ],
+          "condition": null,
+          "effect": null,
+          "evidence_ids": [
+            "ev_test_source"
+          ],
+          "reviewed_evidence_ids": [],
+          "source_versions": [
+            {
+              "relative_path": "flow.cbl",
+              "source_sha256": "59a181a6ea604e8b801869bc27899761fbf12d662b589c532c0451268a771e8a",
+              "start_line": 1,
+              "end_line": 24
+            }
+          ],
+          "support_status": "unsupported",
+          "reason_code": "MATHEMATICAL_EXPRESSION_NOT_SOURCE_STATEMENT",
+          "checker_version": null,
+          "support_scope": "unverified_mathematical_derivation",
+          "occurrence_ids": [],
+          "invalid_evidence_ids": [],
+          "revision": null,
+          "revised_claims": [],
+          "verification_facts": [],
+          "unresolved_requirements": []
+        }
+      ],
+      "counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "unsupported": 3
+      },
+      "source_fact_count": 5,
+      "compilation_context_fingerprint": "e755be87b1a2385d06e83eb50e1873605d6c21af46580b0a56768a359a3c99bd",
+      "revised_claim_count": 0,
+      "answer_sha256": "982611e50a4b797b8aa2946e6b49bd46d684ae76da6360d05bdcf4d14101ae84",
+      "original_answer_sha256": "982611e50a4b797b8aa2946e6b49bd46d684ae76da6360d05bdcf4d14101ae84",
+      "all_claims_supported": false
+    }
+  }
+]

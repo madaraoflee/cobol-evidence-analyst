@@ -809,3 +809,11 @@ summary { cursor: pointer; }
 .source-job-feedback h2 { font-size: 18px; margin-bottom: 10px; }
 .source-job-feedback p { line-height: 1.7; margin: 8px 0; overflow-wrap: anywhere; }
 .source-feedback-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+.answer-revisions { margin-top: 24px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); }
+.answer-revisions > summary, .answer-revision > summary { cursor: pointer; font-weight: 600; overflow-wrap: anywhere; }
+.answer-revisions > p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.answer-revision { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.answer-revision .prior-answer { display: block; margin: 16px 0 0; padding: 0; }
+.answer-revision .answer-main { min-width: 0; }
+.revision-investigation { margin-top: 12px; color: var(--muted); font-size: 12px; }
+.revision-investigation pre { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }

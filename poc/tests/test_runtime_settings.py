@@ -53,7 +53,7 @@ class RuntimeSettingsTests(unittest.TestCase):
                 self.assertIsNone(policy.hard_question_seconds)
                 self.assertIsNone(policy.max_initial_context_seconds)
                 self.assertIsNone(policy.max_local_analysis_seconds)
-                self.assertEqual(policy.effective_delivery_target_seconds, 60)
+                self.assertIsNone(policy.effective_delivery_target_seconds)
                 self.assertEqual(self.path.read_bytes(), original)
 
     def test_explicit_null_delivery_target_disables_the_soft_default(self):
@@ -90,11 +90,15 @@ class RuntimeSettingsTests(unittest.TestCase):
                 self.assertEqual(policy.hard_question_seconds, expected)
                 self.assertEqual(policy.max_question_seconds, expected)
 
-    def test_soft_target_alone_does_not_migrate_into_a_hard_deadline(self):
-        self.write({"version": 1, "agent": {"delivery_target_seconds": 120}})
-        policy = load_agent_policy(self.path)
-        self.assertEqual(policy.effective_delivery_target_seconds, 120)
-        self.assertIsNone(policy.hard_question_seconds)
+    def test_explicit_soft_targets_including_previous_default_are_not_rewritten(self):
+        for target in (60, 120):
+            with self.subTest(target=target):
+                self.write({"version": 1, "agent": {"delivery_target_seconds": target}})
+                original = self.path.read_bytes()
+                policy = load_agent_policy(self.path)
+                self.assertEqual(policy.effective_delivery_target_seconds, target)
+                self.assertIsNone(policy.hard_question_seconds)
+                self.assertEqual(self.path.read_bytes(), original)
 
     def test_invalid_settings_errors_do_not_echo_supplied_values(self):
         for value in ({"version": True, "agent": {}}, {"version": 2, "agent": {}},

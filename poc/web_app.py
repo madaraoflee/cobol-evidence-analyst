@@ -1448,7 +1448,11 @@ class WorkbenchState:
         if options.get("retry_message_id"):
             self.conversation_store.replace_assistant(
                 identifier, options.get("retry_assistant_id"), content,
-                status=status, run_id=job_id, details=details)
+                status=status, run_id=job_id, details=details,
+                preserve_previous=bool(options.get("continue_message_id") and available
+                    and previous is not None and _has_business_answer(previous)),
+                previous_run_id=options.get("_continuation_previous_run_id"),
+                previous_metadata=options.get("_continuation_previous_metadata"))
         else:
             self.conversation_store.append(identifier, "assistant", content,
                                            status=status, run_id=job_id, details=details)
@@ -1751,6 +1755,10 @@ class WorkbenchState:
                         if type(original.get("history_max_characters")) is int:
                             options["_conversation_history_max_characters"] = original["history_max_characters"]
                         options.update(continue_investigation=True, resume_run_id=investigation_run_id)
+                        options["_continuation_previous_run_id"] = previous.get("run_id")
+                        options["_continuation_previous_metadata"] = {
+                            key: copy.deepcopy(previous[key]) for key in ("investigation_run_id", "analysis_options")
+                            if key in previous}
                     else:
                         options["start_new_investigation"] = True
                     options["conversation_history"] = self.conversation_store.model_history(
@@ -1971,7 +1979,7 @@ class WorkbenchState:
                 if backup:
                     backup.prepare_rebuild()
             arguments = {key: value for key, value in options.items()
-                         if key not in {"source", "output", "retry_message_id", "continue_message_id", "retry_assistant_id", "_conversation_history_max_characters", "_source_update", "_remote_source"}}
+                         if key not in {"source", "output", "retry_message_id", "continue_message_id", "retry_assistant_id", "_continuation_previous_run_id", "_continuation_previous_metadata", "_conversation_history_max_characters", "_source_update", "_remote_source"}}
             if arguments.get("framework_reference_path") is None:
                 arguments.pop("framework_reference_path", None)
             if options["allow_network"] and options["question"]:
@@ -2163,15 +2171,20 @@ class WorkbenchState:
                 raise RequestError("JOB_NOT_FOUND", "任务不存在或已由新的源码分析替换。", 404)
             return self._job_snapshot()
 
-    def evidence(self, evidence_id: str, conversation_id=None, message_id=None) -> dict:
+    def evidence(self, evidence_id: str, conversation_id=None, message_id=None, revision_id=None) -> dict:
         if EVIDENCE_ID.fullmatch(evidence_id) is None:
             raise RequestError("INVALID_EVIDENCE_ID", "证据标识无效。")
+        if revision_id and (not conversation_id or not message_id):
+            raise RequestError("EVIDENCE_NOT_FOUND", "引用不属于这条对话消息。", 404)
         with self.lock:
             archived = None
             if conversation_id:
                 try:
-                    conversation = self.conversation_store.get(conversation_id)
-                    message = next(m for m in conversation["messages"] if m["id"] == message_id)
+                    if revision_id:
+                        message = self.conversation_store.get_revision(conversation_id, message_id, revision_id)
+                    else:
+                        conversation = self.conversation_store.get(conversation_id)
+                        message = next(m for m in conversation["messages"] if m["id"] == message_id)
                     if evidence_id not in {r.get("evidence_id") for r in message.get("evidence_refs", [])}:
                         raise ValueError("missing reference")
                     from source_session import read_archived_evidence
@@ -2216,7 +2229,7 @@ class WorkbenchState:
                 raise RequestError("EVIDENCE_NOT_FOUND", "证据不属于当前源码索引。", 404)
             if result["status"] == "INTEGRITY_ERROR":
                 raise RequestError("EVIDENCE_INTEGRITY_ERROR", "证据完整性检查失败，请重新分析。", 409)
-            return {**result, "run_id": self.project["run_id"]}
+            return {**result, "run_id": message.get("run_id") if revision_id else self.project["run_id"]}
 
     def impact(self, handle, conversation_id, message_id, *, cursor=0, export=False):
         from impact_results import impact_page, impact_jsonl
@@ -2412,9 +2425,10 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._json(200, self.server.app.get_conversation(path.rsplit("/", 1)[1]))
             elif path == "/api/evidence":
                 query = parse_qs(route.query, keep_blank_values=True)
-                if "id" not in query or set(query) - {"id", "conversation_id", "message_id"} or any(len(v) != 1 for v in query.values()):
+                if "id" not in query or set(query) - {"id", "conversation_id", "message_id", "revision_id"} or any(len(v) != 1 for v in query.values()):
                     raise RequestError("INVALID_QUERY", "请提供一个有效证据标识。")
-                self._json(200, self.server.app.evidence(query["id"][0], query.get("conversation_id", [None])[0], query.get("message_id", [None])[0]))
+                self._json(200, self.server.app.evidence(query["id"][0], query.get("conversation_id", [None])[0],
+                    query.get("message_id", [None])[0], query.get("revision_id", [None])[0]))
             elif path == "/api/impact":
                 query = parse_qs(route.query, keep_blank_values=True)
                 if set(query) - {"handle", "conversation_id", "message_id", "cursor", "export"} or any(len(v) != 1 for v in query.values()):

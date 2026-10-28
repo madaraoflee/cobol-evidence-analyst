@@ -1,0 +1,152 @@
+[
+  {
+    "case": "default_slow_first_answer",
+    "requests": 1,
+    "status": "PARTIAL",
+    "stop_reason": "answer_incomplete",
+    "missing_aspects": [
+      "inputs"
+    ],
+    "wire_budgets": [
+      {
+        "remaining_model_requests": 8,
+        "searches_per_turn": 3,
+        "reads_per_turn": 3,
+        "business_context_actions_per_turn": 2,
+        "framework_searches_per_turn": 3
+      }
+    ],
+    "stages": [
+      "investigate"
+    ],
+    "answer": "金额按基础金额乘以二得到。[ev_page_882b7ecd68220a3c7f524b49]",
+    "delivery_target": {
+      "seconds": 60,
+      "reached": false,
+      "inflight_request_cancelled_by_target": false,
+      "hard_limit_seconds": null
+    }
+  },
+  {
+    "case": "no_target_slow_first_answer",
+    "requests": 2,
+    "status": "ANALYZED",
+    "stop_reason": "sufficient_material",
+    "missing_aspects": [],
+    "wire_budgets": [
+      {
+        "remaining_model_requests": 8,
+        "searches_per_turn": 3,
+        "reads_per_turn": 3,
+        "business_context_actions_per_turn": 2,
+        "framework_searches_per_turn": 3
+      },
+      {
+        "remaining_model_requests": 7,
+        "searches_per_turn": 3,
+        "reads_per_turn": 3,
+        "business_context_actions_per_turn": 2,
+        "framework_searches_per_turn": 3
+      }
+    ],
+    "stages": [
+      "investigate",
+      "investigate"
+    ],
+    "answer": "基础金额初值为10，金额按基础金额乘以二得到20。[ev_page_882b7ecd68220a3c7f524b49]",
+    "delivery_target": {
+      "seconds": null,
+      "reached": false,
+      "inflight_request_cancelled_by_target": false,
+      "hard_limit_seconds": null
+    }
+  },
+  {
+    "case": "default_slow_initial_context",
+    "requests": 1,
+    "status": "PARTIAL",
+    "stop_reason": "answer_incomplete",
+    "missing_aspects": [
+      "inputs"
+    ],
+    "wire_budgets": [
+      {
+        "remaining_model_requests": 1,
+        "searches_per_turn": 0,
+        "reads_per_turn": 0,
+        "business_context_actions_per_turn": 0,
+        "framework_searches_per_turn": 0
+      }
+    ],
+    "stages": [
+      "answer"
+    ],
+    "answer": "金额按基础金额乘以二得到。[ev_page_882b7ecd68220a3c7f524b49]",
+    "delivery_target": {
+      "seconds": 60,
+      "reached": false,
+      "inflight_request_cancelled_by_target": false,
+      "hard_limit_seconds": null
+    }
+  },
+  {
+    "case": "no_target_slow_initial_context",
+    "requests": 2,
+    "status": "ANALYZED",
+    "stop_reason": "sufficient_material",
+    "missing_aspects": [],
+    "wire_budgets": [
+      {
+        "remaining_model_requests": 8,
+        "searches_per_turn": 3,
+        "reads_per_turn": 3,
+        "business_context_actions_per_turn": 2,
+        "framework_searches_per_turn": 3
+      },
+      {
+        "remaining_model_requests": 7,
+        "searches_per_turn": 3,
+        "reads_per_turn": 3,
+        "business_context_actions_per_turn": 2,
+        "framework_searches_per_turn": 3
+      }
+    ],
+    "stages": [
+      "investigate",
+      "investigate"
+    ],
+    "answer": "基础金额初值为10，金额按基础金额乘以二得到20。[ev_page_882b7ecd68220a3c7f524b49]",
+    "delivery_target": {
+      "seconds": null,
+      "reached": false,
+      "inflight_request_cancelled_by_target": false,
+      "hard_limit_seconds": null
+    }
+  },
+  {
+    "case": "simple_complete_default",
+    "requests": 1,
+    "status": "ANALYZED",
+    "stop_reason": "sufficient_material",
+    "missing_aspects": [],
+    "wire_budgets": [
+      {
+        "remaining_model_requests": 8,
+        "searches_per_turn": 3,
+        "reads_per_turn": 3,
+        "business_context_actions_per_turn": 2,
+        "framework_searches_per_turn": 3
+      }
+    ],
+    "stages": [
+      "investigate"
+    ],
+    "answer": "基础金额初值为10，金额按基础金额乘以二得到20。[ev_page_882b7ecd68220a3c7f524b49]",
+    "delivery_target": {
+      "seconds": 60,
+      "reached": false,
+      "inflight_request_cancelled_by_target": false,
+      "hard_limit_seconds": null
+    }
+  }
+]

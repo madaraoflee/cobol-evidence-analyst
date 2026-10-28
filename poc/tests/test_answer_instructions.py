@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from copy import deepcopy
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -224,6 +225,54 @@ class AnswerInstructionsTests(unittest.TestCase):
         self.assert_saved_system()
         self.assertTrue(result["agent_result"]["answer_available"])
         self.assertNotEqual(result["agent_result"]["run_id"], saved_id)
+
+    def test_explicit_continuation_uses_changed_or_cleared_saved_requirements(self):
+        original = self.instructions
+        changed = "只用「本次业务结果」一个栏目，简短说明并保留来源。"
+        source_file = self.source / "decision.cbl"
+        source_file.write_text(source_file.read_text(encoding="utf-8")
+            + "".join(f"*> Business result context note {index}.\n" for index in range(400)), encoding="utf-8")
+        build_business_index(self.source, self.database, source_format="free", verify_content=True)
+        ensure_repository_search(self.database, self.source)
+        for finish in ("stop", "length"):
+            for instructions in (changed, ""):
+                for request_bytes in (230000, 32768):
+                    with self.subTest(finish=finish, instructions=instructions, request_bytes=request_bytes):
+                        self.requests.clear()
+                        self.sent.clear()
+                        policy = AgentPolicy(max_model_requests=1, max_answer_revisions=0,
+                                             max_request_bytes=request_bytes)
+                        options = dict(framework_reference_path="", policy=policy,
+                            conversation_id=f"saved-requirements-{finish}-{bool(instructions)}-{request_bytes}")
+                        prior = business_chat.run_business_chat("DECISION 返回什么？", self.database,
+                            self.source, self.config, answer_instructions=original,
+                            transport=self.transport(lambda payload, _: self.reply(self.answer(payload), finish)),
+                            **options)
+                        old_id = prior["agent_result"]["run_id"]
+                        journal = RunStore(self.root / "investigation-runs.sqlite")
+                        saved = deepcopy(journal.load(old_id))
+                        continued = business_chat.run_business_chat("DECISION 返回什么？", self.database,
+                            self.source, self.config, answer_instructions=instructions,
+                            continue_investigation=True, resume_run_id=old_id,
+                            transport=self.transport(lambda payload, _: self.reply(self.answer(payload))), **options)
+                        self.assertEqual(len(self.requests), 2)
+                        system = self.requests[-1]["messages"][0]["content"]
+                        self.assertNotIn(original, system)
+                        if instructions:
+                            self.assertEqual(system.count(instructions), 1)
+                            self.assertNotIn(DEFAULT_ANSWER_INSTRUCTIONS, system)
+                            contract = self.sent[-1]["response_contract"]
+                            self.assertIn("saved system instructions", contract["organization"])
+                        else:
+                            self.assertNotIn("用户在系统配置中保存的回答要求（原文）", system)
+                            self.assertNotIn("saved system instructions",
+                                             self.sent[-1]["response_contract"].get("organization", ""))
+                        if request_bytes == 32768:
+                            self.assertIn("inspect_business_context, backward_slice", system)
+                        self.assertEqual(bool(self.sent[-1].get("draft_continuation")), finish == "length")
+                        self.assertTrue(continued["agent_result"]["answer_available"])
+                        self.assertIn(prior["agent_result"]["answer"], self.sent[-1]["draft_answer"])
+                        self.assertEqual(journal.load(old_id), saved)
 
     def test_default_template_classifies_objects_without_inventing_business_context(self):
         for label in ("Batch job", "Online function / Programs", "Tables", "Files"):

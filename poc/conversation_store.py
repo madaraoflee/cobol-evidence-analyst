@@ -93,6 +93,12 @@ class ConversationStore:
                   status TEXT NOT NULL, created_at TEXT NOT NULL, run_id TEXT, details TEXT NOT NULL);
                 CREATE INDEX IF NOT EXISTS conversation_messages ON messages(conversation_id,position);
                 CREATE INDEX IF NOT EXISTS conversation_run_status ON messages(conversation_id,run_id,role,status);
+                CREATE TABLE IF NOT EXISTS answer_revisions (
+                  position INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE NOT NULL,
+                  conversation_id TEXT NOT NULL, message_id TEXT NOT NULL,
+                  saved_at TEXT NOT NULL, message_json TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS message_answer_revisions
+                  ON answer_revisions(conversation_id,message_id,position);
             """)
 
     def create(self, snapshot_id=None):
@@ -113,12 +119,30 @@ class ConversationStore:
             result = dict(row)
             result["title"] = projected_conversation_title(db, identifier, result["title"])
             result["messages"] = []
+            revisions = {}
+            for item in db.execute("SELECT * FROM answer_revisions WHERE conversation_id=? ORDER BY position", (identifier,)):
+                revisions.setdefault(item["message_id"], []).append({
+                    **json.loads(item["message_json"]), "revision_id": item["id"], "saved_at": item["saved_at"]})
             for item in db.execute("SELECT * FROM messages WHERE conversation_id=? ORDER BY position", (identifier,)):
                 message = {key: item[key] for key in ("id", "role", "content", "status", "created_at", "run_id")}
                 details = json.loads(item["details"])
                 message.update(details)
+                if item["id"] in revisions:
+                    message["answer_revisions"] = revisions[item["id"]]
                 result["messages"].append(message)
             return result
+
+    def get_revision(self, conversation_id, message_id, revision_id):
+        """Read a prior answer only within its owning conversation and message."""
+        with closing(sqlite3.connect(self.path)) as db:
+            row = db.execute(
+                "SELECT r.message_json,r.saved_at FROM answer_revisions AS r "
+                "JOIN conversations AS c ON c.id=r.conversation_id "
+                "WHERE r.id=? AND r.conversation_id=? AND r.message_id=? AND c.source_key=?",
+                (revision_id, conversation_id, message_id, self.source_key)).fetchone()
+            if row is None:
+                raise ValueError("ANSWER_REVISION_NOT_FOUND")
+            return {**json.loads(row[0]), "revision_id": revision_id, "saved_at": row[1]}
 
     def get_metadata(self, identifier):
         """Look up a conversation without materializing its transcript."""
@@ -232,6 +256,7 @@ class ConversationStore:
                           (identifier, self.source_key)).fetchone() is None:
                 raise ValueError("CONVERSATION_NOT_FOUND")
             db.execute("DELETE FROM messages WHERE conversation_id=?", (identifier,))
+            db.execute("DELETE FROM answer_revisions WHERE conversation_id=?", (identifier,))
             db.execute("DELETE FROM conversations WHERE id=? AND source_key=?",
                        (identifier, self.source_key))
 
@@ -296,15 +321,45 @@ class ConversationStore:
                        (_now(), conversation_id, self.source_key))
 
     def replace_assistant(self, conversation_id, assistant_message_id, content, *,
-                          status="completed", run_id=None, details=None):
+                          status="completed", run_id=None, details=None,
+                          preserve_previous=False, previous_run_id=None, previous_metadata=None):
         if assistant_message_id is None:
             return self.append(conversation_id, "assistant", content, status=status,
                                run_id=run_id, details=details)
         now = _now()
         with closing(sqlite3.connect(self.path)) as db, db:
+            db.row_factory = sqlite3.Row
             if db.execute("SELECT 1 FROM conversations WHERE id=? AND source_key=?",
                           (conversation_id, self.source_key)).fetchone() is None:
                 raise ValueError("CONVERSATION_NOT_FOUND")
+            if preserve_previous:
+                previous = db.execute("SELECT * FROM messages WHERE id=? AND conversation_id=? "
+                    "AND role='assistant' AND status IN ('partial','failed')",
+                    (assistant_message_id, conversation_id)).fetchone()
+                if previous is None:
+                    raise ValueError("RETRY_NOT_AVAILABLE")
+                old_details = json.loads(previous["details"])
+                new_details = details or {}
+                answer_changed = content != previous["content"] or any(
+                    old_details.get(key) != new_details.get(key) for key in ("snapshot_id", "source_version")) or any(
+                    old_details.get(key, []) != new_details.get(key, []) for key in
+                    ("evidence_refs", "cited_evidence_ids", "framework_references", "related_sources"))
+                snapshot = {key: previous[key] for key in ("id", "role", "content", "status", "created_at", "run_id")}
+                snapshot.update(old_details)
+                # Legacy answers may have their investigation linkage recovered
+                # on opening the conversation without rewriting the old row.
+                for key in ("investigation_run_id", "analysis_options"):
+                    if key in (previous_metadata or {}):
+                        snapshot[key] = previous_metadata[key]
+                # Revisions stay independent, even if an older client supplied
+                # presentation details containing earlier revisions.
+                snapshot.pop("answer_revisions", None)
+                if previous_run_id is not None:
+                    snapshot["run_id"] = previous_run_id
+                if answer_changed:
+                    db.execute("INSERT INTO answer_revisions(id,conversation_id,message_id,saved_at,message_json) VALUES(?,?,?,?,?)",
+                        (secrets.token_hex(16), conversation_id, assistant_message_id, now,
+                         json.dumps(snapshot, ensure_ascii=False)))
             changed = db.execute(
                 "UPDATE messages SET content=?,status=?,run_id=?,details=? WHERE id=? "
                 "AND conversation_id=? AND role='assistant' AND status IN ('partial','failed')",

@@ -816,6 +816,44 @@ class ConversationWorkbenchTests(unittest.TestCase):
         self.assertEqual(len(self.calls), 2)
         self.assertEqual(len(store.load(old_id)["requests"]), 1)
         self.assertEqual(len(store.load(new_id)["requests"]), 1)
+        revision = answer["answer_revisions"][0]
+        self.assertEqual(revision["content"], assistant["content"])
+        self.assertEqual(revision["run_id"], assistant["run_id"])
+        self.assertEqual(revision["investigation_run_id"], old_id)
+        self.assertEqual(revision["evidence_refs"], assistant["evidence_refs"])
+        reloaded = WorkbenchState(analyzer=self.analyzer, config_provider=lambda: self.config, state_path=self.state_path)
+        self.assertEqual(reloaded.state()["conversation"]["messages"][-1]["answer_revisions"], [revision])
+        ref = revision["evidence_refs"][0]
+        archived = reloaded.evidence(ref["evidence_id"], conversation["id"], assistant["id"], revision["revision_id"])
+        self.assertEqual(archived["spans"][0]["integrity"], "VALID")
+        self.assertEqual(archived["run_id"], assistant["run_id"])
+        for cid, mid, rid in ((conversation["id"], user["id"], revision["revision_id"]),
+                ("f" * 32, assistant["id"], revision["revision_id"]),
+                (conversation["id"], assistant["id"], "f" * 32)):
+            with self.assertRaises(RequestError) as error:
+                reloaded.evidence(ref["evidence_id"], cid, mid, rid)
+            self.assertEqual(error.exception.status, 404)
+
+    def test_revision_evidence_remains_accessible_when_latest_answer_drops_the_reference(self):
+        from repository_discovery import read_repository_context
+
+        self.run_job()
+        page = read_repository_context(self.output / "structural-index.sqlite", self.source,
+            relative_path="quota.cbl", start_line=1, end_line=9, max_chars=5000)["pages"][0]
+        ref = {key: page[key] for key in ("evidence_id", "relative_path", "start_line", "end_line", "source_sha256")}
+        conversation = self.app.new_conversation({})["conversation"]
+        identifier = conversation["id"]
+        assistant = self.app.conversation_store.append(identifier, "assistant", "Original supported rule.",
+            status="partial", run_id="old-job", details={"snapshot_id": self.app.project["snapshot_id"], "evidence_refs": [ref]})
+        self.app.conversation_store.replace_assistant(identifier, assistant, "Updated supported rule.",
+            details={"snapshot_id": self.app.project["snapshot_id"], "evidence_refs": []}, preserve_previous=True)
+        revision = self.app.conversation_store.get(identifier)["messages"][0]["answer_revisions"][0]
+        with self.assertRaises(RequestError) as error:
+            self.app.evidence(ref["evidence_id"], identifier, assistant)
+        self.assertEqual(error.exception.status, 404)
+        old_source = self.app.evidence(ref["evidence_id"], identifier, assistant, revision["revision_id"])
+        self.assertEqual(old_source["spans"][0]["source_text"], page["source_text"])
+        self.assertEqual(old_source["run_id"], "old-job")
 
     def _assert_budget_retry_reuses_frontier(self, *, import_first):
         if import_first:

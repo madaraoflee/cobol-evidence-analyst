@@ -22,6 +22,65 @@ class ConversationStoreTests(unittest.TestCase):
         self.store = ConversationStore(self.root / "output", self.root / "source")
         self.identifier = self.store.create()["id"]
 
+    def test_continuation_revisions_persist_without_repeating_in_model_history(self):
+        user = self.store.append(self.identifier, "user", "Explain order settlement.", status="partial", run_id="original-job")
+        original = {"evidence_refs": [{"evidence_id": "ev_original"}], "investigation_run_id": "a" * 24,
+                    "snapshot_id": "original-snapshot", "metrics": {"model_requests": 1}}
+        assistant = self.store.append(self.identifier, "assistant", "Original business conclusion.",
+            status="partial", run_id="original-job", details=original)
+        for before, after in (("original-job", "second-job"), ("second-job", "third-job")):
+            self.store.claim_retry(self.identifier, user, after)
+            self.store.complete_user(after, "partial")
+            self.store.replace_assistant(self.identifier, assistant, after + " business conclusion.",
+                status="partial", run_id=after, details={"evidence_refs": [{"evidence_id": "ev_" + after}],
+                    "answer_available": True, "answer_origin": "model"},
+                preserve_previous=True, previous_run_id=before)
+        restored = ConversationStore(self.root / "output", self.root / "source")
+        messages = restored.get(self.identifier)["messages"]
+        self.assertEqual([item["id"] for item in messages], [user, assistant])
+        revisions = messages[1]["answer_revisions"]
+        self.assertEqual([item["run_id"] for item in revisions], ["original-job", "second-job"])
+        self.assertEqual(revisions[0]["content"], "Original business conclusion.")
+        for key, value in original.items():
+            self.assertEqual(revisions[0][key], value)
+        self.assertTrue(all("answer_revisions" not in item for item in revisions))
+        self.assertEqual(restored.get_revision(self.identifier, assistant, revisions[0]["revision_id"]), revisions[0])
+        history = restored.model_history(self.identifier)
+        self.assertEqual([item["content"] for item in history], ["Explain order settlement.", "third-job business conclusion."])
+        self.assertNotIn("answer_revisions", history[1])
+        with closing(sqlite3.connect(restored.path)) as db:
+            self.assertNotIn("answer_revisions", db.execute("SELECT details FROM messages WHERE id=?", (assistant,)).fetchone()[0])
+
+    def test_answer_revisions_are_owned_deleted_and_never_created_for_ordinary_retry(self):
+        assistant = self.store.append(self.identifier, "assistant", "Before", status="partial")
+        self.store.replace_assistant(self.identifier, assistant, "Retry", status="partial")
+        self.assertNotIn("answer_revisions", self.store.get(self.identifier)["messages"][0])
+        self.store.replace_assistant(self.identifier, assistant, "Continued", preserve_previous=True)
+        revision = self.store.get(self.identifier)["messages"][0]["answer_revisions"][0]
+        other_conversation = self.store.create()["id"]
+        other_store = ConversationStore(self.root / "output", self.root / "other-source")
+        for store, conversation, message in ((self.store, other_conversation, assistant),
+                (self.store, self.identifier, "another-message"), (other_store, self.identifier, assistant)):
+            with self.assertRaisesRegex(ValueError, "ANSWER_REVISION_NOT_FOUND"):
+                store.get_revision(conversation, message, revision["revision_id"])
+        with self.assertRaisesRegex(ValueError, "RETRY_NOT_AVAILABLE"):
+            self.store.replace_assistant(self.identifier, assistant, "Cannot revise completed turn", preserve_previous=True)
+        self.assertEqual(len(self.store.get(self.identifier)["messages"][0]["answer_revisions"]), 1)
+        self.store.delete(self.identifier)
+        with closing(sqlite3.connect(self.store.path)) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM answer_revisions").fetchone()[0], 0)
+
+    def test_retained_answer_does_not_create_an_identical_revision_but_changed_evidence_does(self):
+        details = {"evidence_refs": [{"evidence_id": "ev_original"}], "snapshot_id": "snapshot-one"}
+        assistant = self.store.append(self.identifier, "assistant", "Supported conclusion.", status="partial", details=details)
+        self.store.replace_assistant(self.identifier, assistant, "Supported conclusion.", status="partial",
+            details={**details, "metrics": {"model_requests": 2}}, preserve_previous=True)
+        self.assertNotIn("answer_revisions", self.store.get(self.identifier)["messages"][0])
+        self.store.replace_assistant(self.identifier, assistant, "Supported conclusion.", status="partial",
+            details={**details, "evidence_refs": [{"evidence_id": "ev_new"}]}, preserve_previous=True)
+        revision = self.store.get(self.identifier)["messages"][0]["answer_revisions"][0]
+        self.assertEqual(revision["evidence_refs"], details["evidence_refs"])
+
     def test_append_checks_ownership_without_reading_history(self):
         with patch.object(self.store, "get", side_effect=AssertionError("transcript loaded")):
             self.store.append(self.identifier, "user", "Explain the adjustment.")

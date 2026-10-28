@@ -3,6 +3,10 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+補查前的回答|补查前的回答|Answers before further investigation
+補查前版本|补查前版本|Previous answer
+當時的調查記錄|当时的调查记录|Investigation record for this answer
+目前顯示最新回答；以下保留每次補查前的原文、引用與調查記錄。|当前显示最新回答；以下保留每次补查前的原文、引用与调查记录。|The latest answer is shown above. Earlier answers, citations and investigation records are preserved below.
 如需重試，請重新選擇「從 Bitbucket 接入」，或在源碼資料庫選擇「檢查並更新」。|如需重试，请重新选择“从 Bitbucket 接入”，或在源码资料库选择“检查并更新”。|To retry, choose Connect from Bitbucket again, or choose Check and update in the source library.
 找不到指定的倉庫、版本或目錄，或尚未取得讀取權限。請核對連結；私有倉庫也需要有效授權。|找不到指定的仓库、版本或目录，或尚未取得读取权限。请核对链接；私有仓库也需要有效授权。|The repository, revision or directory was not found, or read access has not been granted. Check the link; private repositories also require valid authorization.
 源碼接入結果尚未確認|源码接入结果尚未确认|Source connection outcome is not confirmed

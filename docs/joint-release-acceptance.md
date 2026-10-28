@@ -12,6 +12,8 @@
 
 `windows-desktop.yml` 仅通过 `workflow_dispatch` 手动运行，push 和 PR 不触发构建：固定版本 actionlint 校验 Actions 表达式 → 固定公开语料校验 → Python/浏览器回归 → MSVC 编译 → 启动最终 EXE 联合回归 → 候选门禁 → 上传白名单产物。失败会阻断候选上传；合成模型不能授权正式发布。候选产物含 ZIP、校验和、BUILD-INFO、逐样本原生报告、合同、候选策略与门禁结果。工作流语义检查使用 [actionlint 官方用法](https://github.com/rhysd/actionlint/blob/v1.7.7/docs/usage.md)，只在维护/CI 环境运行，不进入用户应用。
 
+同一最终 ZIP 还通过 `tools/check_investigation_continuity.py` 检查慢首答自动补查、当前自定义要求、截断续写和历史答案引用保留。独立的 `INVESTIGATION-CONTINUITY.json` 绑定 ZIP、EXE 与提交散列，随候选保存；不改动原79样本合同或正式评分门槛。其本地模拟接口及受控20秒延迟只验证修复机制，不能代替真实模型或工作设备验收。
+
 真实验收只在获准设备上执行，报告保留本地。维护者先准备已经审阅的案例 JSON，使用现有 `live-business-eval/v3` 案例结构；每项关键结论须包含 `gold.required_findings[].supporting_ranges`，记录路径、行段与源码 SHA。`reviewed_context.source_ranges` 提供相同版本的冻结源码范围。正式题集至少含一个三轮 `turns` 场景、一项 `split=holdout` 留出题和一项 `split=regression` 或 `public-development` 回归题；后两轮必须实际供应前序 user/assistant 历史。不能用单个容易的单轮题代替联合质量验收。这些要求在任何模型请求之前检查。
 
 先冻结正式策略，不能在看到结果后修改速度目标。策略继承候选的 `source_commit` 与 `manifest_sha256`，并增加 `live_cases_sha256`、`live_limits`（`question_seconds`、`p95_question_seconds`、`min_evidence_recall`）和 `office_required_checks`。办公设备六项最低检查固定为 `desktop_start`、`source_import`、`conversation_recovery`、`cancellation_recovery`、`historical_evidence`、`company_api_ca`，策略只能增加，不能删减；模板自动带入全部六项且初始均未评分。阈值应基于实际模型基线确定；未测基线时不能宣称精度提升。真实大库规模与企业目标方言还须在实际验收记录中明确，单凭题集标签不能证明其成立。

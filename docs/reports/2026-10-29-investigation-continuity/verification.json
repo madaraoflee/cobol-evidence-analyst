@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "base_commit": "e4083532db05aaf034fee5298b538571bf30df74",
+  "code_changes_uncommitted_during_source_tests": true,
+  "pipeline_version": "question-evidence-v59",
+  "prompt_version": "business-chat-v50",
+  "python": {
+    "passed": 4156,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_seconds": 251.045574
+  },
+  "frontend": {
+    "passed": 258,
+    "failed": 0,
+    "skipped": 0
+  },
+  "real_chrome": {
+    "passed": 41,
+    "failed": 0
+  },
+  "source_http": {
+    "passed": 12,
+    "failed": 0,
+    "synthetic_model_requests": 6,
+    "injected_wait_seconds": 20
+  },
+  "external_model_calls": 0,
+  "tested_source_manifest_sha256": "9c1526bca6dc312c82dada569f3f7f5a599787438e10ad059383c0db19672ef8",
+  "native_windows_status": "pending_new_commit_build",
+  "formal_publication": false
+}

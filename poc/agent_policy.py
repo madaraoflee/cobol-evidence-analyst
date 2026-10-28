@@ -46,8 +46,9 @@ class AgentPolicy:
     max_answer_revisions: int | None = None
     semantic_cache_bytes: int = 536870912
     hard_question_seconds: int | None = None
-    # First-answer target; never creates or extends a hard deadline.
-    delivery_target_seconds: int | None = 60
+    # Optional deployment target; ordinary investigations follow evidence
+    # progress and request limits instead of stopping after a slow first reply.
+    delivery_target_seconds: int | None = None
     investigation_mode: str = "adaptive"
     source_memory_enabled: bool = True
     max_investigation_rounds: int | None = 6

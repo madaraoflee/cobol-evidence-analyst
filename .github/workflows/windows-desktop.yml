@@ -282,6 +282,23 @@ jobs:
           with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as handle:
               handle.write(summary)
 
+      - name: Verify investigation continuity in the same final EXE
+        timeout-minutes: 8
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          import shutil
+          import subprocess
+          import sys
+
+          output = Path(os.environ['RUNNER_TEMP']) / 'compiled-investigation-continuity'
+          subprocess.run([sys.executable, 'tools/check_investigation_continuity.py',
+              '--archive', 'windows-delivery/COBOLWorkbench-windows-x64.zip',
+              '--source-commit', os.environ['GITHUB_SHA'], '--output', str(output)], check=True)
+          shutil.copy2(output / 'INVESTIGATION-CONTINUITY.json',
+              'windows-delivery/INVESTIGATION-CONTINUITY.json')
+
       - name: Compare pinned previous candidates on this same Windows runner
         if: ${{ inputs.compare_previous_candidates }}
         timeout-minutes: 45
@@ -329,6 +346,7 @@ jobs:
             windows-delivery/CANDIDATE-GATE.json
             windows-delivery/ACCEPTANCE-MANIFEST.json
             windows-delivery/CANDIDATE-POLICY.json
+            windows-delivery/INVESTIGATION-CONTINUITY.json
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
@@ -339,6 +357,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: failed-native-acceptance-${{ github.sha }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/compiled-joint-acceptance/COMPILED-ACCEPTANCE.json
+          path: |
+            ${{ runner.temp }}/compiled-joint-acceptance/COMPILED-ACCEPTANCE.json
+            ${{ runner.temp }}/compiled-investigation-continuity/INVESTIGATION-CONTINUITY.json
           if-no-files-found: ignore
           retention-days: 14

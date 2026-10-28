@@ -17,8 +17,8 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
     def budget(self, seconds=120, **options):
         return QuestionBudget(seconds, clock=lambda: self.now, **options)
 
-    def test_standard_default_reserves_first_delivery_without_cancelling_active_requests(self):
-        policy = AgentPolicy()
+    def test_explicit_delivery_target_reserves_answer_without_cancelling_active_requests(self):
+        policy = AgentPolicy(delivery_target_seconds=60)
         budget = self.budget(policy.effective_delivery_target_seconds, hard_seconds=policy.hard_question_seconds)
         self.assertEqual(budget.limit, 60)
         self.now += 14
@@ -37,8 +37,8 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
             self.assertEqual(budget.request_timeout(7), 7)
         self.assertTrue(policy.can_request(6))
 
-    def test_explicit_null_soft_target_keeps_progress_driven_investigation(self):
-        policy = AgentPolicy(delivery_target_seconds=None)
+    def test_default_keeps_progress_driven_investigation_after_a_slow_response(self):
+        policy = AgentPolicy()
         budget = self.budget(policy.effective_delivery_target_seconds, hard_seconds=policy.hard_question_seconds)
         self.now += 600
         budget.observe_request(60)

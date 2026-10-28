@@ -906,3 +906,20 @@ test('partial answers explain the actual completion boundary without asserting s
   const complete=h.run("answerCompletionNotice({status:'ANALYZED',stop_reason:'sufficient_material'})");
   assert.equal(complete,'');
 });
+
+test('manual continuation revisions show original answers and references without duplicate retry controls',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale),old={...firstMessages[1],content:'Original supported conclusion. [ev-old]',revision_id:'revision-1',saved_at:'2026-10-29T01:00:00Z',status:'partial',analysis_status:'PARTIAL',investigation_run_id:'a'.repeat(24),evidence_refs:[{evidence_id:'ev-old',relative_path:'original.cbl',start_line:1,end_line:4}]};
+    setup(h,[{...firstMessages[0],status:'partial',run_id:'run-1'},{...firstMessages[1],content:'Latest expanded conclusion.',status:'partial',investigation_run_id:'b'.repeat(24),answer_revisions:[old]}]);
+    const html=h.run('conversationWorkbench()');assert.match(html,/Latest expanded conclusion/);assert.match(html,/Original supported conclusion/);assert.match(html,/class="answer-revisions"/);assert.match(html,/data-revision-id="revision-1" data-turn-evidence="ev-old"/);assert.match(html,/original\.cbl/);assert.equal((html.match(/data-continue-message=/g)||[]).length,1);
+    assert.match(h.run('markdownSummary()'),/Original supported conclusion/);assert.match(h.run('markdownSummary()'),/original\.cbl:1–4/);assert.equal(h.run('exportData().conversation.messages[1].answer_revisions[0].content'),old.content);
+    if(locale==='zh-CN')assert.match(html,/补查前的回答/);
+  }
+});
+
+test('a prior answer citation requests the exact revision and cannot fall back to latest answer references',async()=>{
+  const h=harness();setup(h,[{...firstMessages[1],answer_revisions:[{...firstMessages[1],revision_id:'revision-1',evidence_refs:[{evidence_id:'ev-old',relative_path:'original.cbl',start_line:1,end_line:4}]}]}]);
+  h.respond(url=>{assert.match(url,/id=ev-old&conversation_id=conversation-1&message_id=assistant-1&revision_id=revision-1$/);return {spans:[{evidence_id:'ev-old',integrity:'VALID',source_text:'ORIGINAL SOURCE',start_line:1,end_line:4}]};});
+  await h.run("loadConversationEvidence('assistant-1','ev-old','revision-1')");assert.equal(h.run('state.conversationEvidence.revisionId'),'revision-1');assert.equal(h.run('state.conversationEvidence.span.source_text'),'ORIGINAL SOURCE');
+  await h.run("loadConversationEvidence('assistant-1','ev-1','revision-1')");await h.run("loadConversationEvidence('assistant-1','ev-old','wrong-revision')");assert.equal(h.requests.length,1);
+});

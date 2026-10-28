@@ -1,0 +1,317 @@
+{
+  "scope": "Real current HTTP/backend/SQLite/frontend snapshot with real source indexing; only analysis output is controlled. No model or external repository calls.",
+  "base_commit": "e4083532db05aaf034fee5298b538571bf30df74",
+  "code_at_start": {
+    "poc/conversation_store.py": "305a5c19c2cb241e67acf134410785abe19a342bc91ed68690d451db98a69312",
+    "poc/web_app.py": "c01c924ecf1fd158dbf6fdd0756ab99a9efa7bbe09e64eb24c03af26406688bd",
+    "poc/web/app.js": "bf1d2f1e45721927d0238b3d688f07eb71233db6c0b178964a9736dadc6aa7ce",
+    "poc/web/i18n.js": "fa63f82d084a411abc7039755bee36b269c20c7ef6c78f791869dd6da47f9175",
+    "poc/web/appearance.css": "93d13a755c3612bad4c333900cb638dab356a2d494fc80ed746e96b2b94347de"
+  },
+  "checks": [
+    {
+      "name": "rewrite_old_answer_visible_before",
+      "passed": true
+    },
+    {
+      "name": "rewrite_old_answer_visible_while_running",
+      "passed": true
+    },
+    {
+      "name": "rewrite_same_main_message_ids",
+      "passed": true
+    },
+    {
+      "name": "new_answer_is_primary",
+      "passed": true
+    },
+    {
+      "name": "old_answer_persisted",
+      "passed": true
+    },
+    {
+      "name": "old_original_job_link",
+      "passed": true
+    },
+    {
+      "name": "old_investigation_link",
+      "passed": true
+    },
+    {
+      "name": "old_references_preserved",
+      "passed": true
+    },
+    {
+      "name": "only_one_continue_control",
+      "passed": true
+    },
+    {
+      "name": "old_answer_can_be_expanded",
+      "passed": true
+    },
+    {
+      "name": "original_evidence_loaded",
+      "passed": true
+    },
+    {
+      "name": "evidence_uses_revision_id",
+      "passed": true
+    },
+    {
+      "name": "expanded_revision_survives_reference_dialog",
+      "passed": true
+    },
+    {
+      "name": "citation_focus_returns_to_old_answer",
+      "passed": true
+    },
+    {
+      "name": "old_evidence_rejects_wrong_message",
+      "passed": true
+    },
+    {
+      "name": "json_export_keeps_old_answer",
+      "passed": true
+    },
+    {
+      "name": "markdown_export_keeps_old_answer",
+      "passed": true
+    },
+    {
+      "name": "reload_retains_revision",
+      "passed": true
+    },
+    {
+      "name": "reload_can_expand_old_text",
+      "passed": true
+    },
+    {
+      "name": "history_reopens_original_revision",
+      "passed": true
+    },
+    {
+      "name": "unchanged_answer_does_not_duplicate_revision",
+      "passed": true
+    },
+    {
+      "name": "narrow_screen_no_horizontal_overflow",
+      "passed": true
+    },
+    {
+      "name": "unavailable_old_answer_visible_before",
+      "passed": true
+    },
+    {
+      "name": "unavailable_old_answer_visible_while_running",
+      "passed": true
+    },
+    {
+      "name": "unavailable_same_main_message_ids",
+      "passed": true
+    },
+    {
+      "name": "unavailable_retains_original",
+      "passed": true
+    },
+    {
+      "name": "unavailable_no_empty_revision",
+      "passed": true
+    },
+    {
+      "name": "unavailable_reload_retains_original",
+      "passed": true
+    },
+    {
+      "name": "failure_old_answer_visible_before",
+      "passed": true
+    },
+    {
+      "name": "failure_old_answer_visible_while_running",
+      "passed": true
+    },
+    {
+      "name": "failure_same_main_message_ids",
+      "passed": true
+    },
+    {
+      "name": "failure_retains_original",
+      "passed": true
+    },
+    {
+      "name": "failure_no_empty_revision",
+      "passed": true
+    },
+    {
+      "name": "failure_reload_retains_original",
+      "passed": true
+    },
+    {
+      "name": "cancelled_old_answer_visible_before",
+      "passed": true
+    },
+    {
+      "name": "cancelled_old_answer_visible_while_running",
+      "passed": true
+    },
+    {
+      "name": "cancelled_same_main_message_ids",
+      "passed": true
+    },
+    {
+      "name": "cancelled_retains_original",
+      "passed": true
+    },
+    {
+      "name": "cancelled_no_empty_revision",
+      "passed": true
+    },
+    {
+      "name": "cancelled_reload_retains_original",
+      "passed": true
+    },
+    {
+      "name": "no_page_errors",
+      "passed": true
+    }
+  ],
+  "page_errors": [],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/state",
+      "query": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/open",
+      "query": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/analyze",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/4723f52f35a81504013a064149c81dec/events",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/evidence",
+      "query": "?id=ev_page_b965844894544aa3558908fe&conversation_id=bee4a3a0c0e67a23763b89d7084dd47a&message_id=b0162363e78acdce8ae2a9224f342b78&revision_id=fdaf2a9b1f2726d3cb277c8d7a7ccea2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/evidence",
+      "query": "?id=ev_page_b965844894544aa3558908fe&conversation_id=bee4a3a0c0e67a23763b89d7084dd47a&message_id=5541845e5dd163574d000111f592c04b&revision_id=fdaf2a9b1f2726d3cb277c8d7a7ccea2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/bee4a3a0c0e67a23763b89d7084dd47a",
+      "query": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/analyze",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/3e12b1fb0445b0416b087206011504be/events",
+      "query": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/open",
+      "query": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/analyze",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/647927eec399309e59086dde5d2cee22/events",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/state",
+      "query": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/open",
+      "query": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/analyze",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/7295f2a7427388be87c01f9a860021ab/events",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/state",
+      "query": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/open",
+      "query": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/analyze",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/be5c722361f134d9062affc16d988e38/events",
+      "query": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/jobs/be5c722361f134d9062affc16d988e38/cancel",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/state",
+      "query": ""
+    }
+  ],
+  "screenshots": [
+    "01-original-visible-while-running.png",
+    "02-old-and-latest-visible-light.png",
+    "03-original-citation.png",
+    "04-revisions-english-dark.png",
+    "05-revisions-mobile.png"
+  ],
+  "passed": true,
+  "code_at_end": {
+    "poc/conversation_store.py": "305a5c19c2cb241e67acf134410785abe19a342bc91ed68690d451db98a69312",
+    "poc/web_app.py": "c01c924ecf1fd158dbf6fdd0756ab99a9efa7bbe09e64eb24c03af26406688bd",
+    "poc/web/app.js": "bf1d2f1e45721927d0238b3d688f07eb71233db6c0b178964a9736dadc6aa7ce",
+    "poc/web/i18n.js": "fa63f82d084a411abc7039755bee36b269c20c7ef6c78f791869dd6da47f9175",
+    "poc/web/appearance.css": "93d13a755c3612bad4c333900cb638dab356a2d494fc80ed746e96b2b94347de"
+  },
+  "hashes_unchanged": true,
+  "server_closed": true,
+  "related_regressions": {
+    "conversation_store": 18,
+    "conversation_workbench": 36,
+    "frontend_total": 258
+  }
+}

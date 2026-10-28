@@ -205,7 +205,7 @@ class WindowsAcceptanceWorkflowTests(unittest.TestCase):
         self.assertEqual(gate_body.count("check=True"), 2)
         expected_assets = {"COBOLWorkbench-windows-x64.zip", "COBOLWorkbench-windows-x64.zip.sha256",
             "BUILD-INFO.json", "COMPILED-ACCEPTANCE.json", "CANDIDATE-GATE.json",
-            "ACCEPTANCE-MANIFEST.json", "CANDIDATE-POLICY.json"}
+            "ACCEPTANCE-MANIFEST.json", "CANDIDATE-POLICY.json", "INVESTIGATION-CONTINUITY.json"}
         self.assertEqual(set(re.findall(r"(?m)^            windows-delivery/(\S+)$", artifact_body)), expected_assets)
         self.assertIn("if-no-files-found: error", artifact_body)
 

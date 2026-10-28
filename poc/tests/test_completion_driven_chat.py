@@ -208,7 +208,7 @@ class CompletionDrivenChatTests(unittest.TestCase):
         self.assertEqual(len(self.requests), 3)
         self.assertEqual(continued["answer"], prior["answer"])
 
-    def test_actions_ignoring_answer_only_instruction_stop_at_default_request_limit(self):
+    def test_actions_ignoring_explicit_answer_target_stop_at_default_request_limit(self):
         now = [0.0]
 
         def budget(*args, **kwargs):
@@ -222,7 +222,7 @@ class CompletionDrivenChatTests(unittest.TestCase):
             return self.read_helper(1)
 
         with patch("business_chat.QuestionBudget", side_effect=budget):
-            result = self.ask(respond, request_guard=8)
+            result = self.ask(respond, policy=AgentPolicy(delivery_target_seconds=60), request_guard=8)
         self.assertEqual(len(self.requests), 8)
         self.assertEqual(result["metrics"]["model_requests"], 8)
         saved = RunStore(self.root / "investigation-runs.sqlite").load(result["run_id"])
@@ -273,7 +273,7 @@ class CompletionDrivenChatTests(unittest.TestCase):
             return self.cited_answer(payload)
 
         with patch("business_chat.QuestionBudget", side_effect=budget):
-            result = self.ask(respond, request_guard=3)
+            result = self.ask(respond, policy=AgentPolicy(delivery_target_seconds=60), request_guard=3)
         self.assertEqual(len(self.requests), 3)
         self.assertIn("金额按基础金额乘以二得到20", result["answer"])
         self.assertTrue(result["model_answer_recorded"])
