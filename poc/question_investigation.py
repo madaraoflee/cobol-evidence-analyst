@@ -832,6 +832,42 @@ def _visible_pages(source_pages, paths, hashes):
     return [page for identifier, page in pages.items() if identifier not in conflicts]
 
 
+def _supplied_parser_limitation(gap, candidates, pages):
+    """Separate an unsupported parser verb from absent original source.
+
+    A matching complete indexed statement must be present verbatim in the
+    current validated pages. This proves availability, never SQL/runtime
+    effects or the completeness of the separate input/dependency obligations.
+    """
+    reason = str(gap.get("reason", ""))
+    if not reason.startswith("statement_not_supported:"):
+        return None
+    verb = reason.partition(":")[2]
+    for candidate in candidates:
+        if (candidate.get("relative_path") != gap.get("relative_path")
+                or candidate.get("start_line") != gap.get("start_line")
+                or candidate.get("occurrence_count", 1) != 1
+                or any(row.get("parse_status") != "complete" for row in candidate.get("occurrences", ()))
+                or not re.match(r"^" + re.escape(verb) + r"(?:\s|$)", candidate.get("statement", ""), re.I)):
+            continue
+        if verb == "EXEC":
+            from statement_facts import sql_code_only
+            code, closed = sql_code_only(candidate["statement"])
+            # Older indexes can label an unterminated embedded statement as
+            # complete. Its own closing token must exist outside literals and
+            # comments before this source can be called fully supplied.
+            if (not closed or len(re.findall(r"\bEND-EXEC\b", code)) != 1
+                    or not re.fullmatch(r"\s*EXEC\s+[A-Z][A-Z0-9-]*\s+.+\bEND-EXEC\s*\.?\s*", code, re.S)):
+                continue
+        identifiers = _visible_ids(candidate, pages)
+        if identifiers:
+            return {**gap, "end_line": candidate["end_line"],
+                    "source_sha256": candidate.get("source_sha256"), "evidence_ids": identifiers,
+                    "scope": "parser_capability_only", "source_supplied": True,
+                    "semantic_execution_verified": False}
+    return None
+
+
 def _check_occurrence_scopes(scopes, pages):
     """A positional limit cannot assert a closed IF after cutting its body."""
     checked, gaps = [], []
@@ -1601,9 +1637,37 @@ def build_question_investigation(question, business_map, *, database_path=None,
             for page in source_pages)))
     if "activation" in plan.intents or static_batch_entry:
         from activation_evidence import investigate_activation
-        activation = investigate_activation(business_map, source_pages, database_path=database_path,
+        activation_map = business_map
+        if static_batch_entry and "activation" not in plan.intents:
+            # A repository overview needs the supplied batch handoff, not
+            # an upstream caller for every unrelated online program. Keep
+            # ambiguous same-name paths for the existing binding checks.
+            targets = {row.get("target_name") for row in batch.get("cl_context", {}).get("observations", ())
+                       if row.get("command") == "CALL" and row.get("target_name")}
+            supplied_paths = list(dict.fromkeys(page.get("relative_path") for page in source_pages
+                if page.get("relative_path") and page.get("source_text") and page.get("evidence_id")
+                and not page.get("span_truncated")))
+            handoff_paths = []
+            if targets and supplied_paths:
+                # A later read may supply the called program without changing
+                # the original search roots. Its indexed name nominates the
+                # supplied path; activation still checks original entry text
+                # and whole-index name uniqueness before accepting a caller.
+                with closing(sqlite3.connect(Path(database_path).resolve().as_uri() + "?mode=ro", uri=True)) as db:
+                    handoff_paths = [row[0] for row in db.execute(
+                        "SELECT DISTINCT relative_path FROM symbols WHERE symbol_type='Program' AND name IN ("
+                        + ",".join("?" for _ in targets) + ") AND relative_path IN ("
+                        + ",".join("?" for _ in supplied_paths) + ") ORDER BY relative_path",
+                        (*targets, *supplied_paths))]
+            if handoff_paths:
+                activation_map = {**business_map, "direct_paths": handoff_paths}
+        activation = investigate_activation(activation_map, source_pages, database_path=database_path,
             max_actions=max_actions, candidate_cache=candidate_cache,
-            cl_context=batch.get("cl_context") if batch else None)
+            cl_context=batch.get("cl_context") if batch else None,
+            static_handoff_scope=activation_map is not business_map)
+        if activation_map is not business_map:
+            activation["activation_evidence"]["source_scope"] = {
+                "reason": "supplied_batch_handoff_targets", "paths": activation_map["direct_paths"]}
         if database_path is not None:
             activation = _entry_context_reads(activation, question, database_path, source_scopes)
         if "activation" in plan.intents and not set(plan.intents) & {"calculation", "accumulation", "origin", "overwrite", "impact", "exception", "file_mapping"}:
@@ -2035,7 +2099,11 @@ def build_question_investigation(question, business_map, *, database_path=None,
                     and input_coverage["status"] in {"SATISFIED", "NOT_APPLICABLE"}):
                 continue
             if gap.get("relative_path") in paths:
-                gaps.append({"kind": "semantic_candidates", "reason": gap.get("reason")})
+                limitation = _supplied_parser_limitation(gap, candidates, pages)
+                if limitation is not None:
+                    base.setdefault("analysis_limitations", []).append(limitation)
+                    continue
+                gaps.append({"kind": "semantic_candidates", **dict(gap)})
                 if len(gaps) >= 16:
                     break
         if len(gaps) >= 16:

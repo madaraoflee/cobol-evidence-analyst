@@ -71,4 +71,6 @@ html[lang="en"] .brand small{font-size:7px}html[lang="en"] .entry-choice{flex-wr
 
 .conversation-progress>div{min-width:0}.conversation-progress button,.conversation-progress .working-dot{flex-shrink:0}.conversation-progress #conversation-activity,.conversation-progress #conversation-budget{display:block;margin:5px 0 0;line-height:1.6}
 
+.remote-source-provenance code{overflow-wrap:anywhere;word-break:break-word}
+
 #settings-dialog{width:640px}.answer-instructions-form{padding:0 0 22px;margin-bottom:22px;border-bottom:1px solid var(--border)}.answer-instructions-form>label{font-weight:600;margin-top:0}.answer-instructions-form textarea{display:block;width:100%;min-height:190px;max-height:55vh;resize:vertical;margin:12px 0;padding:12px 14px;border:1px solid var(--border);border-radius:6px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:12px;line-height:1.8}.answer-instructions-form .field-hint{color:var(--muted);font-size:11px}.answer-instructions-actions{display:flex;flex-wrap:wrap;gap:8px}.answer-instructions-actions .button{font-size:11px;padding:9px 12px}.answer-instructions-form :disabled{opacity:.6;cursor:wait}

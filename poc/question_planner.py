@@ -294,7 +294,11 @@ class QuestionPlanner:
                 intent_question = re.sub(r"(?<![A-Za-z0-9_$#@-])" + re.escape(name) +
                                          r"(?![A-Za-z0-9_$#@-])", " ", intent_question, flags=re.I)
         intents = [name for name, pattern in _HINTS.items() if re.search(pattern, intent_question, re.I)]
-        concept = business_concept_requested(question, field_entities=entities, source_scopes=source_scopes)
+        # Share the delivery layer's broad purpose/workflow recognition. A
+        # multi-part onboarding request can include rules without becoming
+        # only a field/rule question.
+        from business_synthesis import wants_business_overview
+        concept = wants_business_overview(question, field_entities=entities, source_scopes=source_scopes)
         if concept:
             intents.append("business_overview")
         explicit_activation = runtime_activation_requested(intent_question)

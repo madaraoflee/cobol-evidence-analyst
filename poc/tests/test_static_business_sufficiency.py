@@ -22,6 +22,9 @@ from tools.business_onboarding_fixture import BATCH_QUESTION, scripted_answer, s
 
 
 class StaticBusinessSufficiencyTests(unittest.TestCase):
+    overview_question = ("我是新人，请解释这份源码实现的业务流程，先讲业务目的、规则和结果，再按 "
+                         "Batch job、Online function / Programs、Tables、Files 说明各自职责和关系。")
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -80,6 +83,81 @@ class StaticBusinessSufficiencyTests(unittest.TestCase):
         # The original obligation stays unknown; delivery classification does
         # not change it into a runtime fact.
         self.assertEqual(result["open_gaps"][0]["status"], "OPEN")
+
+    def broad_investigation(self, *, question=None, pages=None, mapping=None):
+        mapping = mapping or build_business_map(self.database, self.source, "ORDERIN BALANCEQ SETTLE")
+        return build_question_investigation(question or self.overview_question, mapping,
+            database_path=self.database,
+            source_pages=pages if pages is not None else [self.page(path) for path in self.contents])
+
+    def test_repository_overview_scopes_batch_handoff_without_inventing_online_caller(self):
+        result = self.broad_investigation()
+        self.assertIn("business_overview", result["analysis_plan"]["intents"])
+        self.assertNotIn("activation", result["analysis_plan"]["intents"])
+        self.assertEqual(_answer_scope_gaps(self.overview_question, result)[0], [])
+        activation = result["activation_evidence"]
+        self.assertEqual(activation["source_scope"]["paths"], ["settle.cbl"])
+        self.assertEqual([row["target_path"] for row in activation["callers"]], ["settle.cbl"])
+        self.assertEqual([row["relative_path"] for row in activation["entries"]], ["settle.cbl"])
+        self.assertFalse(activation["scheduler_binding_verified"])
+        self.assertFalse(activation["execution_verified"])
+        self.assertFalse(result["planned_actions"])
+
+    def test_later_read_handoff_source_need_not_be_an_initial_search_root(self):
+        mapping = build_business_map(self.database, self.source, "BALANCEQ")
+        mapping.update(direct_paths=["balance.cbl", "nightjob.clle"],
+                       selected_paths=["balance.cbl", "nightjob.clle"])
+        self.assertNotIn("settle.cbl", mapping["direct_paths"])
+        result = self.broad_investigation(mapping=mapping)
+        self.assertEqual(_answer_scope_gaps(self.overview_question, result)[0], [])
+        self.assertEqual(result["activation_evidence"]["source_scope"]["paths"], ["settle.cbl"])
+        self.assertEqual([row["target_path"] for row in result["activation_evidence"]["callers"]], ["settle.cbl"])
+
+    def test_two_unique_supplied_batch_handoffs_are_independently_bound(self):
+        self.contents["export.cbl"] = self.contents["settle.cbl"].replace("PROGRAM-ID. SETTLE.", "PROGRAM-ID. EXPORT2.")
+        self.contents["nightjob.clle"] = self.contents["nightjob.clle"].replace(
+            "CALL PGM(SETTLE)", "CALL PGM(SETTLE)\nCALL PGM(EXPORT2)")
+        self.build()
+        result = self.broad_investigation()
+        self.assertEqual(_answer_scope_gaps(self.overview_question, result)[0], [])
+        self.assertEqual(result["activation_evidence"]["source_scope"]["paths"], ["export.cbl", "settle.cbl"])
+        self.assertEqual({row["target_path"] for row in result["activation_evidence"]["callers"]},
+                         {"export.cbl", "settle.cbl"})
+        self.assertFalse(result["activation_evidence"]["scheduler_binding_verified"])
+        # The same name elsewhere cannot be masked by the other valid CALL.
+        self.contents["duplicate.cbl"] = self.contents["export.cbl"]
+        self.build()
+        ambiguous = self.broad_investigation()
+        self.assertTrue(_answer_scope_gaps(self.overview_question, ambiguous)[0])
+        self.assertNotEqual(self.item(ambiguous, "caller_invocation")["status"], "SATISFIED")
+
+    def test_broad_overview_preserves_scheduler_unknown_when_explicitly_requested(self):
+        question = self.overview_question + "请确认实际调度时间，以及谁启动 BALANCEQ。"
+        result = self.broad_investigation(question=question)
+        self.assertIn("activation", result["analysis_plan"]["intents"])
+        material, limits = _answer_scope_gaps(question, result)
+        self.assertFalse(limits)
+        self.assertTrue(any(row["kind"] == "scheduler_binding" for row in material))
+        self.assertFalse(result["activation_evidence"]["scheduler_binding_verified"])
+
+    def test_broad_overview_keeps_same_name_ambiguity_and_missing_guard_source(self):
+        self.contents["alternative.cbl"] = self.contents["settle.cbl"]
+        self.build()
+        ambiguous = self.broad_investigation()
+        self.assertFalse(ambiguous["activation_evidence"]["callers"])
+        self.assertTrue(_answer_scope_gaps(self.overview_question, ambiguous)[0])
+        del self.contents["alternative.cbl"]
+        (self.source / "alternative.cbl").unlink()
+        self.contents["nightjob.clle"] = (
+            "PGM\nDCL VAR(&READY) TYPE(*CHAR) LEN(1)\n"
+            "IF COND(&READY *EQ 'Y') THEN(DO)\nCALL PGM(SETTLE)\nENDDO\nENDPGM\n")
+        self.build()
+        pages = [self.page("settle.cbl"), self.page("balance.cbl"), self.page("nightjob.clle", 4, 4)]
+        partial = self.broad_investigation(pages=pages)
+        self.assertNotEqual(self.item(partial, "activation_conditions")["status"], "SATISFIED")
+        self.assertTrue(_answer_scope_gaps(self.overview_question, partial)[0])
+        self.assertTrue(any(action["arguments"]["relative_path"] == "nightjob.clle"
+                            for action in partial["planned_actions"]))
 
     def test_missing_cl_page_still_requires_a_bounded_original_source_read(self):
         result = self.investigate([self.page("settle.cbl")])

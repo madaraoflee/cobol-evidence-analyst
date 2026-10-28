@@ -18,6 +18,7 @@ from answer_markdown import BUSINESS_RUNTIME_BOUNDARY_POLICY
 from business_chat import _fit_request
 from company_api import CompanyAPIConfig
 from tools.business_onboarding_fixture import BATCH_QUESTION, sources
+from tools.desktop_acceptance_runtime import decoded_navigation
 
 
 class BusinessBoundaryContractTests(unittest.TestCase):
@@ -36,22 +37,35 @@ class BusinessBoundaryContractTests(unittest.TestCase):
                                            "open_gaps": [], "can_answer": True}}
 
     def test_full_and_compact_requests_preserve_preconditions_and_all_source(self):
+        self.assert_business_request_contract(AgentPolicy(), allow_omitted=False)
+
+    def test_minimum_budget_preserves_source_and_limits_when_optional_navigation_is_omitted(self):
+        self.assert_business_request_contract(AgentPolicy(max_request_bytes=32768), allow_omitted=True)
+
+    def assert_business_request_contract(self, policy, *, allow_omitted):
         config = CompanyAPIConfig("https://neutral.example.invalid/v1", "offline-view",
                                   api_key="unused", max_output_tokens=8192)
         for compact in (False, True):
             with self.subTest(compact=compact):
                 payload = self.payload(compact)
                 original = deepcopy(payload["source_context"][0]["pages"])
-                messages, size = _fit_request(config, payload, [],
-                    AgentPolicy(max_request_bytes=32768))
-                self.assertLessEqual(size, 32768)
+                messages, size = _fit_request(config, payload, [], policy)
+                self.assertLessEqual(size, policy.max_request_bytes)
                 self.assertIn(BUSINESS_RUNTIME_BOUNDARY_POLICY, messages[0]["content"])
-                wire = json.loads(messages[-1]["content"])
+                wire = decoded_navigation(json.loads(messages[-1]["content"]))
                 actual = wire["source_context"][0]["pages"]
                 self.assertEqual(actual, original)
                 self.assertEqual(payload["source_context"][0]["pages"], original)
                 self.assertTrue(wire["source_selection"]["source_supplied"])
+                # The established minimum-budget fitter may remove optional
+                # navigation as a whole before cutting original source pages.
+                # Its explicit omission marker cannot replace source or the
+                # generation limits asserted above.
+                if allow_omitted and "business_analysis_brief" not in wire:
+                    self.assertIs(wire["business_analysis_brief_omitted"], True)
+                    continue
                 # Navigation is never an assertion of runtime execution.
+                self.assertFalse(wire.get("business_analysis_brief_omitted", False))
                 brief = wire["business_analysis_brief"]
                 self.assertFalse(brief["business_explanation_contract"]["semantic_verification"])
                 self.assertFalse(brief["business_orientation"]["scope"]["semantic_execution_verified"])

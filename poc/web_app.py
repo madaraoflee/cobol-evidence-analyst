@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import shutil
 import sqlite3
 import stat
 import subprocess
@@ -34,12 +35,13 @@ from investigation_tools import InvestigationTools
 from repo_inventory import parse_extensions
 from framework_knowledge import framework_status, _resolve_reference
 from report_view import DIRECT_REPORT_BYTES, VIEW_REPORT_BYTES, project_report, report_sha256
-from conversation_store import ConversationStore
+from conversation_store import ConversationStore, projected_conversation_title
 from runtime_settings import load_agent_policy
 from agent_policy import resolve_agent_policy
 from api_error_details import build_diagnostic, build_local_diagnostic, format_diagnostic, sanitize_diagnostic
 from source_versions import record_version, versions
 from source_update import SourceUpdateBackup
+from remote_source import RemoteSourceError, fetch_remote_source, parse_remote_source, validate_remote_token
 from app_paths import RESOURCE_ROOT, state_root
 from response_language import localized_text, resolve_answer_language
 from answer_markdown import DEFAULT_ANSWER_INSTRUCTIONS
@@ -54,6 +56,8 @@ STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.
 MAX_REQUEST_BYTES = 32_768
 REJECTED_BODY_DRAIN_SECONDS = 0.25
 MAX_GRAPH_EDGES = 200
+MAX_SOURCE_WORKSPACES = 100
+MAX_RECENT_CONVERSATIONS = 200
 SOURCE_UPDATE_PENDING = "source-update-pending.json"
 OUTPUT_NAMES = frozenset((*OUTPUT_FILE_NAMES, *OUTPUT_DIRECTORY_NAMES, SOURCE_UPDATE_PENDING))
 EVIDENCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}")
@@ -109,11 +113,17 @@ def _log_safe_failure(value):
     return diagnostic
 
 
+def _workspace_key(source, output):
+    return hashlib.sha256(json.dumps([str(Path(source).resolve()), str(Path(output).resolve())],
+                                    ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
 def _project(source: str | None = None, output: str | None = None, run_id: str | None = None) -> dict:
     synthetic = bool(source and Path(source).resolve() == FRAMEWORK_DEMO_SOURCE.resolve())
     return {
         "run_id": run_id, "source": source, "output": output,
         "source_origin": "synthetic_framework" if synthetic else "local_source",
+        **({"workspace_id": _workspace_key(source, output)} if source and output and not synthetic else {}),
         "diagnosis": None, "programs": [], "agent": None, "snapshot_id": None,
         "relations": {"edges": [], "truncated": False}, "catalog_snapshot_id": None,
     }
@@ -147,6 +157,20 @@ def _source_preferences(value):
             "framework_reference_path": reference if isinstance(reference, str) and len(reference) <= 4096 else None,
             **({"compilation_context_path": value["compilation_context_path"]}
                if isinstance(value.get("compilation_context_path"), str) and len(value["compilation_context_path"]) <= 4096 else {})}
+
+
+def _remote_metadata(value):
+    """Recover only public provenance, never credentials or fetch instructions."""
+    if not isinstance(value, dict) or value.get("provider") != "bitbucket":
+        return None
+    commit = value.get("commit")
+    if not isinstance(commit, str) or re.fullmatch(r"[a-fA-F0-9]{40,64}", commit) is None:
+        return None
+    try:
+        spec = parse_remote_source(value.get("url"), ref=value.get("ref"), subdirectory=value.get("subdirectory"))
+    except (RemoteSourceError, TypeError, ValueError):
+        return None
+    return {**spec.public_metadata(), "commit": commit}
 
 
 def _text(payload: dict, key: str, *, required: bool = False, maximum: int = 1024) -> str | None:
@@ -595,6 +619,7 @@ class WorkbenchState:
 
     def __init__(self, *, analyzer: Callable = analyze_source, config_provider: Callable = _environment_config,
                  demo_output_root: Path | None = None, state_path: Path | None = None,
+                 remote_source_root: Path | None = None,
                  model_check_transport: Transport | None = None,
                  policy_provider: Callable = load_agent_policy,
                  folder_picker: Callable[[Path], str | None] = _pick_local_folder) -> None:
@@ -611,10 +636,14 @@ class WorkbenchState:
         self.phase_start_completed = 0.0
         self.demo_output_root = demo_output_root if demo_output_root is not None else FRAMEWORK_DEMO_OUTPUT
         self.state_path = state_path
+        self.remote_source_root = (remote_source_root if remote_source_root is not None else
+                                   (state_path.parent if state_path else state_root()) / "remote-sources")
         self.framework_reference_path = None
         self.answer_detail = "detailed"
         self.answer_instructions = ""
         self.source_preferences = None
+        self.source_workspaces = {}
+        self._history_truncated = False
         self._local_workspace = None
         self._saved_workspace = None
         self._index_upgrade_attempt = None
@@ -680,21 +709,184 @@ class WorkbenchState:
             # it is not retried in a loop or converted into a model request.
             _failure_diagnostic(exc, "SOURCE_UPDATE_FAILED")
 
+    @staticmethod
+    def _workspace_record(value):
+        if not isinstance(value, dict):
+            return None
+        source, output = value.get("source"), value.get("output")
+        if not all(isinstance(item, str) and item and len(item) <= 4096 and "\x00" not in item
+                   and Path(item).is_absolute() for item in (source, output)):
+            return None
+        try:
+            source, output = _paths(Path(source), Path(output))
+            if source == FRAMEWORK_DEMO_SOURCE.resolve():
+                return None
+            remote = _remote_metadata(value.get("remote_source") or value.get("_remote_source"))
+            record = {"workspace_id": _workspace_key(source, output), "source": str(source), "output": str(output),
+                      "restore_blocked": value.get("restore_blocked") is True,
+                      "source_origin": "remote_repository" if remote else "local_source"}
+            if remote:
+                record["remote_source"] = remote
+            reference = value.get("framework_reference_path")
+            record["framework_reference_path"] = reference if isinstance(reference, str) and len(reference) <= 4096 else None
+            return record
+        except (OSError, ValueError):
+            return None
+
+    def _remember_workspace(self, workspace):
+        self.source_workspaces.pop(workspace["workspace_id"], None)
+        self.source_workspaces[workspace["workspace_id"]] = workspace
+        while len(self.source_workspaces) > MAX_SOURCE_WORKSPACES:
+            self.source_workspaces.pop(next(iter(self.source_workspaces)))
+            self._history_truncated = True
+
+    @staticmethod
+    def _history_database(workspace):
+        path = Path(workspace["output"]) / "conversations.sqlite"
+        if not path.is_file() or any(Path(str(path) + suffix).is_symlink() for suffix in ("", "-wal", "-shm")):
+            raise ValueError("CONVERSATION_NOT_FOUND")
+        return path
+
+    def _workspace_has_history(self, workspace):
+        try:
+            path = self._history_database(workspace)
+            source_key = hashlib.sha256(workspace["source"].encode()).hexdigest()
+            with closing(sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True, timeout=0.1)) as db:
+                return db.execute("SELECT 1 FROM conversations WHERE source_key=? LIMIT 1", (source_key,)).fetchone() is not None
+        except (OSError, ValueError, sqlite3.Error):
+            return False
+
+    def _conversation_view(self):
+        value = copy.deepcopy(self.conversation)
+        if value is not None and self.project.get("workspace_id"):
+            value["workspace_id"] = self.project["workspace_id"]
+        return value
+
+    def recent_conversations(self):
+        """Read only registered transcript metadata; never discover or create stores."""
+        rows = []
+        for workspace in self.source_workspaces.values():
+            try:
+                path = self._history_database(workspace)
+                source_key = hashlib.sha256(workspace["source"].encode()).hexdigest()
+                remote = workspace.get("remote_source")
+                label = Path(workspace["source"]).name or workspace["source"]
+                if remote:
+                    spec = parse_remote_source(remote["url"])
+                    label = spec.repository + (" / " + spec.subdirectory if spec.subdirectory else "")
+                with closing(sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True, timeout=0.1)) as db:
+                    db.row_factory = sqlite3.Row
+                    items = db.execute(
+                        "SELECT c.id,substr(c.title,1,256) AS title,c.snapshot_id,c.created_at,c.updated_at,"
+                        "COALESCE((SELECT m.created_at FROM messages m WHERE m.conversation_id=c.id "
+                        "AND m.role='user' ORDER BY m.position LIMIT 1),c.created_at) AS first_question_at,"
+                        "(SELECT count(*) FROM messages m WHERE m.conversation_id=c.id) AS message_count "
+                        "FROM conversations c WHERE c.source_key=? "
+                        "ORDER BY first_question_at DESC,c.created_at DESC,c.id DESC LIMIT 100", (source_key,)).fetchall()
+                    for item in items:
+                        row = dict(item)
+                        if (not isinstance(row["id"], str) or re.fullmatch(r"[a-f0-9]{32}", row["id"]) is None
+                                or not all(isinstance(row[key], str) and len(row[key]) <= 128
+                                           for key in ("first_question_at", "created_at", "updated_at"))):
+                            continue
+                        row["title"] = projected_conversation_title(db, row["id"], row["title"])
+                        rows.append({**row, "workspace_id": workspace["workspace_id"],
+                                     "source_origin": workspace["source_origin"], "source_label": label})
+            except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+                continue
+        rows.sort(key=lambda row: (row["first_question_at"], row["created_at"], row["id"], row["workspace_id"]), reverse=True)
+        return rows[:MAX_RECENT_CONVERSATIONS]
+
+    def _workspace_response(self):
+        return {"project": copy.deepcopy(self.project), "conversation": self._conversation_view(),
+                "conversations": self.conversation_store.list() if self.conversation_store else [],
+                "recent_conversations": self.recent_conversations(),
+                "source_preferences": copy.deepcopy(self.source_preferences), "framework_knowledge": self.framework()}
+
+    def open_source_conversation(self, payload):
+        if (not isinstance(payload, dict) or set(payload) != {"workspace_id", "conversation_id"}
+                or not isinstance(payload["workspace_id"], str) or re.fullmatch(r"[a-f0-9]{64}", payload["workspace_id"]) is None
+                or not isinstance(payload["conversation_id"], str) or re.fullmatch(r"[a-f0-9]{32}", payload["conversation_id"]) is None):
+            raise RequestError("INVALID_OPTIONS", "请指定对话所属的源码资料库。")
+        with self.lock:
+            if self.job and self.job["status"] == "RUNNING":
+                raise RequestError("JOB_ACTIVE", "当前工作完成后可以切换对话。", 409)
+            workspace = self.source_workspaces.get(payload["workspace_id"])
+            if workspace is None:
+                raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话所属的资料库。", 404)
+            try:
+                self._history_database(workspace)
+            except (OSError, ValueError):
+                raise RequestError("CONVERSATION_NOT_FOUND", "对话文件暂时不可用，请恢复原分析结果目录。", 404) from None
+            candidate = WorkbenchState(analyzer=self.analyzer, config_provider=self.config_provider,
+                                       demo_output_root=self.demo_output_root, policy_provider=self.policy_provider)
+            candidate._restore_workspace({**workspace, "conversation_id": payload["conversation_id"],
+                "source_preferences": copy.deepcopy(self.source_preferences), "answer_detail": self.answer_detail,
+                "answer_instructions": self.answer_instructions})
+            if candidate.conversation is None or candidate.conversation_store is None:
+                raise RequestError("CONVERSATION_NOT_FOUND", "对话文件暂时不可用，请恢复原分析结果目录。", 404)
+            fields = ("project", "conversation", "conversation_store", "framework_reference_path", "_graph_preview_cache",
+                      "_local_workspace", "_saved_workspace", "_index_upgrade_attempt", "_startup_upgrade_plan")
+            original = {key: getattr(self, key) for key in fields}
+            registry = copy.deepcopy(self.source_workspaces)
+            truncated = self._history_truncated
+            try:
+                for key in fields:
+                    setattr(self, key, getattr(candidate, key))
+                self._save_workspace()
+            except (OSError, ValueError, sqlite3.Error):
+                for key, value in original.items():
+                    setattr(self, key, value)
+                self.source_workspaces, self._history_truncated = registry, truncated
+                raise RequestError("WORKSPACE_SWITCH_FAILED", "对话切换未能保存，原资料库仍保留。", 500) from None
+            self.job = None
+            return self._workspace_response()
+
+    def delete_source_conversation(self, workspace_id, identifier):
+        with self.lock:
+            if self.job and self.job["status"] == "RUNNING":
+                raise RequestError("JOB_ACTIVE", "当前工作完成后可以删除对话。", 409)
+            workspace = self.source_workspaces.get(workspace_id)
+            if workspace is None:
+                raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话。", 404)
+            if workspace_id == self.project.get("workspace_id"):
+                return self.delete_conversation(identifier)
+            try:
+                self._history_database(workspace)
+                store = ConversationStore(Path(workspace["output"]), Path(workspace["source"]))
+                store.delete(identifier)
+            except (OSError, ValueError, sqlite3.Error):
+                raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话。", 404) from None
+            return {"conversation": self._conversation_view(),
+                    "conversations": self.conversation_store.list() if self.conversation_store else [],
+                    "recent_conversations": self.recent_conversations()}
+
     def _save_workspace(self, options=None):
         options = options or self.project
         data = {"source": str(options.get("source") or ""), "output": str(options.get("output") or ""),
                 "restore_blocked": self.project.get("restore_blocked") is True,
                 "conversation_id": (self.conversation or {}).get("id")}
-        if data["source"] and Path(data["source"]).resolve() == FRAMEWORK_DEMO_SOURCE.resolve():
+        remote = _remote_metadata(options.get("_remote_source") or options.get("remote_source"))
+        if remote:
+            data["remote_source"] = remote
+        synthetic = bool(data["source"] and Path(data["source"]).resolve() == FRAMEWORK_DEMO_SOURCE.resolve())
+        if synthetic:
             # An explicitly opened example stays in this session. It must not
             # replace the user's real workspace on the next service restart.
             data = copy.deepcopy(self._local_workspace) or {"source": "", "output": "",
                     "restore_blocked": False, "conversation_id": None}
         else:
             self._local_workspace = copy.deepcopy(data)
+        workspace = self._workspace_record({**data, "framework_reference_path": self.framework_reference_path})
+        if (not synthetic and workspace and (workspace["workspace_id"] in self.source_workspaces
+                           or self.project.get("snapshot_id") and self.project.get("source") == data["source"]
+                           and self.project.get("output") == data["output"])):
+            self._remember_workspace(workspace)
         data.update(framework_reference_path=self.framework_reference_path, answer_detail=self.answer_detail,
                     answer_instructions=self.answer_instructions,
-                    source_preferences=copy.deepcopy(self.source_preferences))
+                    source_preferences=copy.deepcopy(self.source_preferences),
+                    source_workspaces=copy.deepcopy(list(self.source_workspaces.values())),
+                    recent_conversations_truncated=self._history_truncated)
         if self._index_upgrade_attempt:
             data["index_upgrade_attempt"] = self._index_upgrade_attempt
         if self.state_path is None:
@@ -708,14 +900,27 @@ class WorkbenchState:
         temporary.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         temporary.replace(self.state_path)
 
-    def _restore_workspace(self):
+    def _restore_workspace(self, saved_data=None):
         self._graph_preview_cache = None
-        if self.state_path is None or not self.state_path.is_file() or self.state_path.is_symlink():
+        if saved_data is None and (self.state_path is None or not self.state_path.is_file() or self.state_path.is_symlink()):
             return
         try:
-            saved = json.loads(self.state_path.read_text(encoding="utf-8"))
+            saved = saved_data if saved_data is not None else json.loads(self.state_path.read_text(encoding="utf-8"))
             if not isinstance(saved, dict):
                 return
+            entries = saved.get("source_workspaces")
+            if isinstance(entries, list):
+                for entry in entries[-MAX_SOURCE_WORKSPACES:]:
+                    workspace = self._workspace_record(entry)
+                    if workspace:
+                        self._remember_workspace(workspace)
+                self._history_truncated = len(entries) > MAX_SOURCE_WORKSPACES or saved.get("recent_conversations_truncated") is True
+            for entry in (saved.get("source_preferences"), saved):
+                workspace = self._workspace_record(entry)
+                if workspace and self._workspace_has_history(workspace):
+                    # A retained preference is only a migration hint. A matching
+                    # owned transcript must exist before it joins recent history.
+                    self._remember_workspace(workspace)
             self._saved_workspace = copy.deepcopy(saved)
             attempt = saved.get("index_upgrade_attempt")
             if isinstance(attempt, str) and re.fullmatch(r"[a-f0-9]{64}", attempt):
@@ -735,12 +940,15 @@ class WorkbenchState:
                 return
             source, output = _paths(source_input, output_input)
             self._local_workspace = {key: saved.get(key) for key in
-                                     ("source", "output", "restore_blocked", "conversation_id")}
-            if self.source_preferences is None:
+                                     ("source", "output", "restore_blocked", "conversation_id", "remote_source")}
+            remote = _remote_metadata(saved.get("remote_source"))
+            if self.source_preferences is None and remote is None:
                 self.source_preferences = _source_preferences({"source": str(source), "output": str(output)})
             # Keep the inputs available even when an explicit index repair is
             # needed. A saved path alone never grants source authority.
             self.project = _project(str(source), str(output))
+            if remote:
+                self.project.update(source_origin="remote_repository", remote_source=remote)
             self.project["restore_notice"] = "INDEX_RECHECK_REQUIRED"
             from workspace_upgrade import plan_workspace_upgrade
             self._startup_upgrade_plan = plan_workspace_upgrade(saved)
@@ -815,13 +1023,15 @@ class WorkbenchState:
                         or any(source_options.get(key) != value for key, value in index_options.items()))
             report.update(build_report={**build_report, "snapshot_id": snapshot}, snapshot_id=snapshot,
                           repository_search=overview, source_options={**source_options, **index_options})
-            if not saved.get("source_preferences"):
+            if not saved.get("source_preferences") and remote is None:
                 self.source_preferences = _source_preferences({"source": str(source), "output": str(output),
                     **index_options, "framework_reference_path": self.framework_reference_path})
             if repaired:
                 report["report_repaired_from_index"] = True
                 report["program_count"] = len(programs["programs"])
             project = _project(str(source), str(output))
+            if remote:
+                project.update(source_origin="remote_repository", remote_source=remote)
             project.update(diagnosis=report, programs=programs.get("programs", []),
                            snapshot_id=snapshot, catalog_snapshot_id=report.get("catalog_snapshot_id"),
                            relations=self._relationship_preview(database, snapshot))
@@ -999,7 +1209,7 @@ class WorkbenchState:
             except (ValueError, AttributeError):
                 raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话。", 404) from None
             self._save_workspace()
-            return {"conversation": copy.deepcopy(self.conversation)}
+            return {"conversation": copy.deepcopy(self.conversation), "recent_conversations": self.recent_conversations()}
 
     def new_conversation(self, payload):
         if payload != {}:
@@ -1011,7 +1221,7 @@ class WorkbenchState:
                 raise RequestError("SOURCE_REQUIRED", "先接入源码，再开始对话。", 409)
             self.conversation = self.conversation_store.create(self.project.get("snapshot_id"))
             self._save_workspace()
-            return {"conversation": copy.deepcopy(self.conversation)}
+            return {"conversation": self._conversation_view(), "recent_conversations": self.recent_conversations()}
 
     def delete_conversation(self, identifier):
         with self.lock:
@@ -1033,8 +1243,8 @@ class WorkbenchState:
                 self.conversation = None
                 self.project["agent"] = None
                 self._save_workspace()
-            return {"conversation": copy.deepcopy(self.conversation),
-                    "conversations": self.conversation_store.list()}
+            return {"conversation": self._conversation_view(),
+                    "conversations": self.conversation_store.list(), "recent_conversations": self.recent_conversations()}
 
     def _record_answer(self, options, job_id, project):
         identifier = options.get("conversation_id")
@@ -1196,14 +1406,53 @@ class WorkbenchState:
                 "answer_instructions": self.answer_instructions,
                 "default_answer_instructions": DEFAULT_ANSWER_INSTRUCTIONS,
                 "source_preferences": copy.deepcopy(self.source_preferences),
-                "conversation": copy.deepcopy(self.conversation),
+                "conversation": self._conversation_view(),
                 "conversations": self.conversation_store.list() if self.conversation_store else [],
+                "recent_conversations": self.recent_conversations(),
+                "recent_conversations_truncated": self._history_truncated,
                 "active_job_id": self.job["job_id"] if self.job and self.job["status"] == "RUNNING" else None,
                 "project": copy.deepcopy(self.project),
                 "job": self._job_snapshot() if self.job else None,
             }
 
-    def start(self, payload: object) -> dict:
+    def start_remote(self, payload: object) -> dict:
+        reading_fields = {"encoding", "source_format", "extensions", "answer_detail", "max_source_pages",
+                          "reading_strategy", "compilation_context_path", "framework_reference_path"}
+        fields = {"url", "ref", "subdirectory", "token"} | reading_fields
+        if not isinstance(payload, dict) or set(payload) - fields:
+            raise RequestError("INVALID_OPTIONS", "请求包含未知设置。")
+        try:
+            spec = parse_remote_source(payload.get("url"), ref=payload.get("ref"),
+                                       subdirectory=payload.get("subdirectory"))
+            token = validate_remote_token(payload.get("token"))
+        except RemoteSourceError as exc:
+            raise RequestError(exc.code, exc.message) from None
+        with self.lock:
+            if self.job and self.job["status"] == "RUNNING":
+                raise RequestError("JOB_ACTIVE", "当前分析尚未结束，请等待完成。", 409)
+            # Each explicit fetch owns a new workspace. Existing local source,
+            # indexes and transcripts are never used as download destinations.
+            root = self.remote_source_root
+            if root.is_symlink():
+                raise RequestError("INVALID_PATH", "远程源码缓存位置不能使用符号链接。")
+            root.mkdir(parents=True, exist_ok=True, mode=0o700)
+            workspace = root.resolve() / secrets.token_hex(16)
+            workspace.mkdir(mode=0o700)
+            source, output = workspace / "source", workspace / "analysis"
+            try:
+                source.mkdir()
+                options = {key: value for key, value in payload.items()
+                           if key in reading_fields}
+                options.update(source=str(source), output=str(output), allow_network=False,
+                               index_mode="catalog", verify_content=True)
+                response = self.start(options, _remote_import=(spec, token, workspace))
+                return {**response, "source": str(source), "output": str(output),
+                        "source_origin": "remote_repository"}
+            except Exception:
+                shutil.rmtree(workspace)
+                raise
+
+    def start(self, payload: object, *, _remote_import=None) -> dict:
         with self.lock:
             if self.job and self.job["status"] == "RUNNING":
                 raise RequestError("JOB_ACTIVE", "当前分析尚未结束，请等待完成。", 409)
@@ -1213,6 +1462,10 @@ class WorkbenchState:
                 raise RequestError("JOB_ACTIVE", "当前分析尚未结束，请等待完成。", 409)
             job_id = secrets.token_hex(16)
             same_project = self.project.get("source") == str(options["source"]) and self.project.get("output") == str(options["output"])
+            if _remote_import is not None:
+                options["_remote_import"] = _remote_import
+            elif same_project and self.project.get("remote_source"):
+                options["_remote_source"] = copy.deepcopy(self.project["remote_source"])
             if options["question"] and ((same_project and self.project.get("restore_blocked") is True)
                                        or (options["output"] / SOURCE_UPDATE_PENDING).exists()):
                 raise RequestError("SOURCE_UPDATE_ROLLBACK_FAILED", "源码更新与恢复均未完成，请保留原结果目录并先恢复资料库。", 409)
@@ -1227,10 +1480,11 @@ class WorkbenchState:
                 options["_source_update"] = {"project": self.project, "conversation": self.conversation,
                     "store": self.conversation_store, "framework_reference_path": self.framework_reference_path,
                     "answer_detail": self.answer_detail, "same_project": same_project,
+                    "source_workspaces": copy.deepcopy(self.source_workspaces), "history_truncated": self._history_truncated,
                     "pending_before": (options["output"] / SOURCE_UPDATE_PENDING).exists()}
                 preferences = _source_preferences({**options, "source": str(options["source"]),
                     "output": str(options["output"]), "framework_reference_path": options.get("framework_reference_path") or self.framework_reference_path})
-                if preferences:
+                if preferences and _remote_import is None and not options.get("_remote_source"):
                     self.source_preferences = preferences
                     # Keep retry inputs even if this import later fails and
                     # restores an older workspace. They remain form hints.
@@ -1299,11 +1553,15 @@ class WorkbenchState:
                         "cancel_requested": False, "progress": {"phase": "preparing", "completed": 0,
                         "total": None, "unit": "files", "current_file": None,
                         "bytes_completed": 0, "bytes_total": None}}
+            if _remote_import is not None or options.get("_remote_source"):
+                self.job["source_origin"] = "remote_repository"
             threading.Thread(target=self._run, args=(job_id, options), daemon=True).start()
             return {"job_id": job_id, "status": "RUNNING", "source_preferences": copy.deepcopy(self.source_preferences)}
 
     def _job_snapshot(self) -> dict:
         result = copy.deepcopy(self.job)
+        if result["status"] != "RUNNING":
+            result["recent_conversations"] = self.recent_conversations()
         now = time.monotonic()
         progress = result["progress"]
         progress["elapsed_seconds"] = round((now if result["status"] == "RUNNING" else self.updated_at) - self.started_at, 2)
@@ -1383,8 +1641,35 @@ class WorkbenchState:
 
     def _run(self, job_id: str, options: dict) -> None:
         backup = None
+        remote_import = options.pop("_remote_import", None)
+        remote_workspace = remote_import[2] if remote_import else None
+        remote_retained = False
+
+        def discard_remote_workspace():
+            nonlocal remote_workspace
+            if remote_workspace is not None and not remote_retained:
+                try:
+                    shutil.rmtree(remote_workspace)
+                    remote_workspace = None
+                except OSError as exc:
+                    _failure_diagnostic(exc, "ANALYSIS_FAILED")
+
         try:
             source, output = options["source"], options["output"]
+            if remote_import is not None:
+                spec, token, _ = remote_import
+                remote_import = None
+                self._check_cancel()
+                source.rmdir()
+                try:
+                    metadata = fetch_remote_source(spec, source, token=token,
+                        progress=lambda event: self._progress(job_id, event), check_cancel=self._check_cancel)
+                finally:
+                    token = None
+                options["_remote_source"] = _remote_metadata(metadata)
+                if options["_remote_source"] is None:
+                    raise ValueError("invalid remote source provenance")
+                self._check_cancel()
             if options.get("_source_update") and (output / "structural-index.sqlite").is_file():
                 backup = SourceUpdateBackup(output, (*ARTIFACT_NAMES, "source-versions.sqlite"),
                     progress=lambda event: self._progress(job_id, event), check_cancel=self._check_cancel)
@@ -1403,7 +1688,7 @@ class WorkbenchState:
                         stream.flush()
                         os.fsync(stream.fileno())
             arguments = {key: value for key, value in options.items()
-                         if key not in {"source", "output", "retry_message_id", "retry_assistant_id", "_source_update"}}
+                         if key not in {"source", "output", "retry_message_id", "retry_assistant_id", "_source_update", "_remote_source"}}
             if arguments.get("framework_reference_path") is None:
                 arguments.pop("framework_reference_path", None)
             if options["allow_network"] and options["question"]:
@@ -1417,6 +1702,8 @@ class WorkbenchState:
             report = self.analyzer(source, output, **arguments)
             self._check_cancel()
             project = _project(str(source), str(output), job_id)
+            if options.get("_remote_source"):
+                project.update(source_origin="remote_repository", remote_source=copy.deepcopy(options["_remote_source"]))
             project["diagnosis"] = report
             project["catalog_snapshot_id"] = report.get("catalog_snapshot_id")
             program_report = _read_json(output / "programs.json")
@@ -1477,6 +1764,8 @@ class WorkbenchState:
                         failed_report = project.get("diagnosis") or {}
                         diagnostic = sanitize_diagnostic(failed_report.get("diagnostic")) or build_diagnostic("ANALYSIS_FAILED")
                         rollback_error = self._restore_after_failure(options)
+                        remote_retained = bool(rollback_error)
+                        discard_remote_workspace()
                         self.updated_at = time.monotonic()
                         self.job.update(status="FAILED", result=None, conversation=copy.deepcopy(self.conversation),
                             error=rollback_error or {"code": "SOURCE_UPDATE_FAILED", "message": format_diagnostic(diagnostic),
@@ -1493,18 +1782,22 @@ class WorkbenchState:
                     # retains only the bounded presentation of large reports.
                     if browser_diagnosis is not None:
                         project["diagnosis"] = browser_diagnosis
-                    project["conversation"] = copy.deepcopy(self.conversation)
+                    project["conversation"] = self._conversation_view()
                     self._save_workspace(options)
                     if update:
                         (output / SOURCE_UPDATE_PENDING).unlink()
                     self.updated_at = time.monotonic()
+                    project["recent_conversations"] = self.recent_conversations()
                     self.job["progress"].pop("answer_preview", None)
                     self.job.update(status="COMPLETED", result=copy.deepcopy(project))
+                    remote_retained = True
         except AnalysisCancelled:
             with self.lock:
                 if self.job and self.job["job_id"] == job_id:
                     self.updated_at = time.monotonic()
                     rollback_error = self._restore_after_failure(options)
+                    remote_retained = bool(rollback_error)
+                    discard_remote_workspace()
                     self._record_failure(options, job_id, "failed" if rollback_error else "cancelled")
                     self.job.update(status="FAILED" if rollback_error else "CANCELLED", result=None,
                                     error=rollback_error, conversation=copy.deepcopy(self.conversation))
@@ -1515,12 +1808,20 @@ class WorkbenchState:
                 if self.job and self.job["job_id"] == job_id:
                     self.updated_at = time.monotonic()
                     rollback_error = self._restore_after_failure(options)
+                    remote_retained = bool(rollback_error)
+                    discard_remote_workspace()
                     self._record_failure(options, job_id, "failed")
                     self.job["conversation"] = copy.deepcopy(self.conversation)
-                    diagnostic = _failure_diagnostic(exc, "ANALYSIS_FAILED")
-                    self.job.update(status="FAILED", result=None, error=rollback_error or {"code": "ANALYSIS_FAILED",
-                        "message": format_diagnostic(diagnostic), "diagnostic": diagnostic})
+                    if isinstance(exc, RemoteSourceError):
+                        error = {"code": exc.code, "message": exc.message}
+                    else:
+                        diagnostic = _failure_diagnostic(exc, "ANALYSIS_FAILED")
+                        error = {"code": "ANALYSIS_FAILED", "message": format_diagnostic(diagnostic), "diagnostic": diagnostic}
+                    self.job.update(status="FAILED", result=None, error=rollback_error or error)
         finally:
+            # Retention belongs to this run, even if a new job has already
+            # switched the active project. Failed rollback retains recovery data.
+            discard_remote_workspace()
             if backup:
                 try:
                     backup.close()
@@ -1564,6 +1865,8 @@ class WorkbenchState:
                 update["artifacts"].restore()
             self.project, self.conversation = update["project"], update["conversation"]
             self.conversation_store = update["store"]
+            self.source_workspaces = copy.deepcopy(update.get("source_workspaces", self.source_workspaces))
+            self._history_truncated = update.get("history_truncated", self._history_truncated)
             self.framework_reference_path, self.answer_detail = update["framework_reference_path"], update["answer_detail"]
             self._save_workspace()
             if not update.get("pending_before"):
@@ -1786,9 +2089,11 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             self._guard(token=True)
             route = urlsplit(self.path)
-            if route.query or route.fragment or re.fullmatch(r"/api/conversations/[a-f0-9]{32}", route.path) is None:
+            source_match = re.fullmatch(r"/api/recent-conversations/([a-f0-9]{64})/([a-f0-9]{32})", route.path)
+            if route.query or route.fragment or (re.fullmatch(r"/api/conversations/[a-f0-9]{32}", route.path) is None and source_match is None):
                 raise RequestError("NOT_FOUND", "请求的操作不存在。", 404)
-            self._json(200, self.server.app.delete_conversation(route.path.rsplit("/", 1)[1]))
+            self._json(200, self.server.app.delete_source_conversation(*source_match.groups()) if source_match else
+                       self.server.app.delete_conversation(route.path.rsplit("/", 1)[1]))
         except RequestError as exc:
             self._error(exc)
         except Exception as exc:
@@ -1800,7 +2105,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             self._guard(token=True)
             cancel_match = re.fullmatch(r"/api/jobs/([a-f0-9]{32})/cancel", self.path)
-            if self.path not in {"/api/analyze", "/api/framework-demo/prepare", "/api/framework", "/api/answer-instructions", "/api/conversations", "/api/model-check", "/api/pick-folder"} and cancel_match is None:
+            if self.path not in {"/api/analyze", "/api/source/remote", "/api/framework-demo/prepare", "/api/framework", "/api/answer-instructions", "/api/conversations", "/api/conversations/open", "/api/model-check", "/api/pick-folder"} and cancel_match is None:
                 raise RequestError("NOT_FOUND", "请求的操作不存在。", 404)
             if self.headers.get_content_type() != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise RequestError("INVALID_CONTENT_TYPE", "只接受 JSON 请求。", 415)
@@ -1832,6 +2137,10 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._json(200, self.server.app.pick_folder(payload))
             elif self.path == "/api/conversations":
                 self._json(201, self.server.app.new_conversation(payload))
+            elif self.path == "/api/conversations/open":
+                self._json(200, self.server.app.open_source_conversation(payload))
+            elif self.path == "/api/source/remote":
+                self._json(202, self.server.app.start_remote(payload))
             else:
                 self._json(202, self.server.app.start(payload))
         except RequestError as exc:

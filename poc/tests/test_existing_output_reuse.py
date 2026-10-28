@@ -90,7 +90,9 @@ class ExistingOutputReuseTests(unittest.TestCase):
                                          "conversation_id": conversation["id"]}), encoding="utf-8")
         config = CompanyAPIConfig(base_url="https://gateway.example.invalid/v1", api_key="test", chat_model="test")
         app = WorkbenchState(state_path=state_path, config_provider=lambda: config)
-        self.assertEqual(app.state()["conversation"], before)
+        workspace_id = app.state()["project"]["workspace_id"]
+        self.assertRegex(workspace_id, r"^[a-f0-9]{64}$")
+        self.assert_saved_conversation(app, before, workspace_id)
         if index_missing:
             self.assertIsNone(app.state()["project"]["snapshot_id"])
             self.assertFalse((self.output / "structural-index.sqlite").exists())
@@ -113,12 +115,21 @@ class ExistingOutputReuseTests(unittest.TestCase):
                 app.cancel(job_id)
                 threads[0].join(timeout=15)
         self.assertEqual(store.get(conversation["id"]), before)
-        self.assertEqual(app.state()["conversation"], before)
+        self.assert_saved_conversation(app, before, workspace_id)
         for path, digest in extra_hashes.items():
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), digest)
         restarted = WorkbenchState(state_path=state_path, config_provider=lambda: config)
-        self.assertEqual(restarted.state()["conversation"], before)
+        self.assert_saved_conversation(restarted, before, workspace_id)
         self.assertEqual(restarted.state()["project"]["snapshot_id"], app.state()["project"]["snapshot_id"])
+
+    def assert_saved_conversation(self, app, before, workspace_id):
+        state = app.state()
+        self.assertEqual(state["project"]["source"], str(self.source))
+        self.assertEqual(state["project"]["output"], str(self.output))
+        self.assertEqual(state["project"]["workspace_id"], workspace_id)
+        # The browser adds source ownership; every saved conversation field
+        # must remain identical through refresh and restart.
+        self.assertEqual(state["conversation"], {**before, "workspace_id": workspace_id})
 
     def test_retained_history_requires_matching_source_and_does_not_create_missing_stores(self):
         self.output.mkdir()

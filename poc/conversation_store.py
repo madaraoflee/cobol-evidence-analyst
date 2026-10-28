@@ -10,6 +10,8 @@ from pathlib import Path
 import secrets
 import sqlite3
 
+from conversation_titles import TITLE_INPUT_HEAD, TITLE_INPUT_TAIL, fallback_title, summarize_question
+
 
 MODEL_HISTORY_MESSAGES = 64
 MODEL_HISTORY_CHARACTERS = 24_000
@@ -27,6 +29,38 @@ _CONVERSATION_METADATA_COLUMNS = (
 
 def _now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def projected_conversation_title(db, identifier, current_title, *, latest_question=None):
+    """Summarize legacy automatic titles without writing during a read.
+
+    Only bounded user-question excerpts are read. Custom titles, timestamps,
+    messages and model diagnostic records are never changed by projection.
+    """
+    query = ("SELECT substr(content,1,?),CASE WHEN length(content)>? THEN substr(content,-?) ELSE '' END "
+             "FROM messages WHERE conversation_id=? AND role='user' ORDER BY position LIMIT ?")
+    parameters = (TITLE_INPUT_HEAD, TITLE_INPUT_HEAD, TITLE_INPUT_TAIL, identifier)
+    first = db.execute(query, (*parameters, 1)).fetchone()
+    if first is None:
+        return current_title
+    first_question = first[0] + ("\n" + first[1] if first[1] else "")
+    fallback = fallback_title(first_question)
+    automatic = {"新对话", "新的對話", "New conversation", first[0][:80], fallback}
+    if current_title not in automatic:
+        return current_title
+    title = summarize_question(first_question)
+    if title is not None:
+        return title
+    # A greeting or contextless first turn must not hide the first actual topic.
+    # Later ordinary follow-ups never replace an established summary.
+    for row in db.execute(query, (*parameters, 8)):
+        question = row[0] + ("\n" + row[1] if row[1] else "")
+        title = summarize_question(question)
+        if title is not None:
+            return title
+    # A new substantive question can arrive after the bounded legacy scan.
+    # Appends already have its text, so do not reread an unbounded transcript.
+    return summarize_question(latest_question) or fallback
 
 
 def _history_subject(db, position):
@@ -77,6 +111,7 @@ class ConversationStore:
             if row is None:
                 raise ValueError("CONVERSATION_NOT_FOUND")
             result = dict(row)
+            result["title"] = projected_conversation_title(db, identifier, result["title"])
             result["messages"] = []
             for item in db.execute("SELECT * FROM messages WHERE conversation_id=? ORDER BY position", (identifier,)):
                 message = {key: item[key] for key in ("id", "role", "content", "status", "created_at", "run_id")}
@@ -94,7 +129,9 @@ class ConversationStore:
                 "WHERE c.id=? AND c.source_key=?", (identifier, self.source_key)).fetchone()
             if row is None:
                 raise ValueError("CONVERSATION_NOT_FOUND")
-            return dict(row)
+            result = dict(row)
+            result["title"] = projected_conversation_title(db, identifier, result["title"])
+            return result
 
     def model_history(self, identifier, *, max_messages=MODEL_HISTORY_MESSAGES,
                       max_characters=MODEL_HISTORY_CHARACTERS, before_position=None):
@@ -180,11 +217,14 @@ class ConversationStore:
     def list(self):
         with closing(sqlite3.connect(self.path)) as db:
             db.row_factory = sqlite3.Row
-            return [dict(row) for row in db.execute(
+            result = [dict(row) for row in db.execute(
                 "SELECT " + _CONVERSATION_METADATA_COLUMNS + " FROM conversations AS c "
                 "WHERE c.source_key=? "
                 "ORDER BY first_question_at DESC,c.created_at DESC,c.id DESC LIMIT 100",
                 (self.source_key,))]
+            for item in result:
+                item["title"] = projected_conversation_title(db, item["id"], item["title"])
+            return result
 
     def delete(self, identifier):
         with closing(sqlite3.connect(self.path)) as db, db:
@@ -279,14 +319,17 @@ class ConversationStore:
     def append(self, identifier, role, content, *, status="completed", run_id=None, details=None):
         message_id, now = secrets.token_hex(16), _now()
         with closing(sqlite3.connect(self.path)) as db, db:
-            if db.execute("SELECT 1 FROM conversations WHERE id=? AND source_key=?",
-                          (identifier, self.source_key)).fetchone() is None:
+            row = db.execute("SELECT title FROM conversations WHERE id=? AND source_key=?",
+                             (identifier, self.source_key)).fetchone()
+            if row is None:
                 raise ValueError("CONVERSATION_NOT_FOUND")
             db.execute("INSERT INTO messages(id,conversation_id,role,content,status,created_at,run_id,details) VALUES(?,?,?,?,?,?,?,?)",
                        (message_id, identifier, role, content, status, now, run_id, json.dumps(details or {}, ensure_ascii=False)))
             db.execute("UPDATE conversations SET updated_at=? WHERE id=?", (now, identifier))
             if role == "user":
-                db.execute("UPDATE conversations SET title=? WHERE id=? AND title='新对话'", (content[:80], identifier))
+                title = projected_conversation_title(db, identifier, row[0], latest_question=content)
+                if title != row[0]:
+                    db.execute("UPDATE conversations SET title=? WHERE id=?", (title, identifier))
         return message_id
 
     def complete_user(self, run_id, status):

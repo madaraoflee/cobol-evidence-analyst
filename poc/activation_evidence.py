@@ -206,13 +206,21 @@ def _candidates(database_path, business_map):
     return entries, callers, gaps
 
 
-def _bound_cl_callers(database_path, business_map, context):
+def _bound_cl_callers(database_path, business_map, context, *, static_handoff_scope=False):
     """Reuse supplied CL syntax without claiming a resolved runtime object."""
     if (not database_path or not context or context.get("frontier")
             or context.get("unread_candidate_count") != 0):
         return []
     roots = list(dict.fromkeys(business_map.get("direct_paths", ())))
     if len(roots) != 1:
+        if static_handoff_scope and 1 < len(roots) <= _MAX_PATHS:
+            # Each observed handoff still passes the original single-target,
+            # whole-index uniqueness and supplied-guard checks independently.
+            groups = [_bound_cl_callers(database_path, {**business_map, "direct_paths": [root]}, context)
+                      for root in roots]
+            # One resolved target cannot hide another ambiguous/unbound
+            # handoff within this static scope.
+            return [caller for group in groups for caller in group] if all(groups) else []
         return []
     observations = [row for row in context.get("observations", ()) if row.get("command") == "CALL"]
     if len(observations) > _MAX_CALLS:
@@ -273,7 +281,7 @@ def _bound_cl_callers(database_path, business_map, context):
 
 
 def investigate_activation(business_map, pages, *, database_path=None, max_actions=4, candidate_cache=None,
-                           cl_context=None):
+                           cl_context=None, static_handoff_scope=False):
     cache = candidate_cache if isinstance(candidate_cache, dict) else {}
     key = (str(database_path), business_map.get("snapshot_id"), tuple(business_map.get("direct_paths", ())))
     if cache.get("activation_key") != key:
@@ -282,7 +290,8 @@ def investigate_activation(business_map, pages, *, database_path=None, max_actio
     entries, callers, frontier = cache["activation_candidates"]
     # The CL context was rebuilt against this request's actual pages. Do not
     # cache its visibility with the stable index candidates above.
-    callers = [*callers, *_bound_cl_callers(database_path, business_map, cl_context)]
+    callers = [*callers, *_bound_cl_callers(database_path, business_map, cl_context,
+                                          static_handoff_scope=static_handoff_scope)]
 
     def covered(ref):
         expected = ref["expected_lines"]

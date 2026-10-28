@@ -16,6 +16,53 @@ AI 回答要求（System prompt）|AI 回答要求（System prompt）|AI answer 
 已恢復內建業務解釋格式，之後的分析與追問生效。|已恢复内置业务解释格式，之后的分析与追问生效。|The built-in business explanation format will apply to future analyses and follow-up questions.
 業務模板已填入；可自由修改，儲存後生效。|业务模板已填入；可自由修改，保存后生效。|Business template inserted. Edit it freely, then save to apply it.
 請先連接本機服務，再儲存回答要求。|请先连接本机服务，再保存回答要求。|Connect to the local service before saving answer instructions.
+停止後可再次接入，重新下載指定版本的源碼。|停止后可再次接入，重新下载指定版本的源码。|After stopping, import again to download the selected source version.
+已取消遠端源碼接入，原資料庫和對話已保留。|已取消远程源码接入，原资料库和对话已保留。|Repository import was cancelled. Your library and conversations were retained.
+從 Bitbucket 接入|从 Bitbucket 接入|Connect from Bitbucket
+本地源碼|本地源码|Local source
+其他來源|其他来源|Other sources
+Bitbucket · 本次工作階段|Bitbucket · 本次工作阶段|Bitbucket · This session
+無法切換至這段對話的源碼資料庫，請重試。|无法切换至这段对话的源码资料库，请重试。|The source library for this conversation could not be opened. Try again.
+接入後使用相同的分析、對話和引用流程。|接入后使用相同的分析、对话和引用流程。|Use the same analysis, conversation and citation workflow after import.
+重新取得 Bitbucket 快照|重新获取 Bitbucket 快照|Fetch a new Bitbucket snapshot
+貼上 Bitbucket Server / Data Center 的 HTTPS 倉庫或目錄連結。每次接入會另存源碼快照和分析結果；原本的本機資料庫仍保留。|粘贴 Bitbucket Server / Data Center 的 HTTPS 仓库或目录链接。每次接入会另存源码快照和分析结果；原来的本地资料库仍保留。|Paste an HTTPS repository or folder link from Bitbucket Server / Data Center. Each import saves a separate source snapshot and analysis workspace, keeping your original local library.
+倉庫或目錄連結|仓库或目录链接|Repository or folder link
+分支、標籤或提交（選填）|分支、标签或提交（选填）|Branch, tag or commit (optional)
+倉庫內目錄（選填）|仓库内目录（选填）|Repository folder (optional)
+留空時沿用連結中的分支和目錄；連結未指定時使用預設分支和整個倉庫。填寫後會覆蓋連結中的設定。|留空时沿用链接中的分支和目录；链接未指定时使用默认分支和整个仓库。填写后会覆盖链接中的设置。|Leave blank to use the branch and folder in the link, or the default branch and entire repository if omitted. Entered values override the link.
+存取權杖（選填）|访问令牌（选填）|Access token (optional)
+私有倉庫請使用具備讀取權限的 HTTP 存取權杖。權杖只用於這次下載，提交或關閉後清除，不會儲存到設定。|私有仓库请使用具备读取权限的 HTTP 访问令牌。令牌只用于这次下载，提交或关闭后清除，不会保存到设置。|For private repositories, use an HTTP access token with read permission. It is used only for this download, cleared on submit or close, and never saved in settings.
+下載後在本機建立索引，不呼叫模型，也不會自動同步。需要新版本時再次接入；無需安裝 Git。|下载后在本地建立索引，不调用模型，也不会自动同步。需要新版本时再次接入；无需安装 Git。|Source is indexed locally without calling a model or syncing automatically. Import again for a new version. Git is not required.
+下載並建立索引|下载并建立索引|Download and index
+確認遠端源碼版本|确认远程源码版本|Resolving repository version
+下載遠端源碼|下载远程源码|Downloading repository source
+展開遠端源碼|解压远程源码|Extracting repository source
+正在取得指定版本的源碼。下載與索引完成前，原資料庫及對話仍保留。|正在获取指定版本的源码。下载与索引完成前，原资料库及对话仍保留。|Fetching the selected source version. Your current library and conversations remain available until download and indexing finish.
+Bitbucket 源碼快照|Bitbucket 源码快照|Bitbucket source snapshot
+倉庫連結|仓库链接|Repository link
+分支或標籤|分支或标签|Branch or tag
+倉庫內目錄|仓库内目录|Repository folder
+預設分支|默认分支|Default branch
+整個倉庫|整个仓库|Entire repository
+提交版本|提交版本|Commit
+目前使用下載時的固定快照，不會自動同步。再次接入會建立新的資料庫；原本的本機資料庫和這份快照仍保留。|目前使用下载时的固定快照，不会自动同步。再次接入会建立新的资料库；原来的本地资料库和这份快照仍保留。|This is a fixed snapshot from the download and does not sync automatically. Importing again creates a new library while retaining the original local library and this snapshot.
+請提供 Bitbucket Server / Data Center 的 HTTPS 倉庫或目錄連結，不要在連結內包含帳號或密碼。|请提供 Bitbucket Server / Data Center 的 HTTPS 仓库或目录链接，不要在链接内包含账号或密码。|Enter an HTTPS repository or folder link from Bitbucket Server / Data Center, without credentials in the URL.
+目前支援 Bitbucket Server / Data Center，尚未支援 Bitbucket Cloud。|目前支持 Bitbucket Server / Data Center，尚未支持 Bitbucket Cloud。|Bitbucket Server / Data Center is supported. Bitbucket Cloud is not supported yet.
+分支、標籤或提交格式無效，請核對後重試。|分支、标签或提交格式无效，请核对后重试。|The branch, tag or commit is invalid. Check the value and retry.
+請填寫倉庫內的相對目錄，不要使用本機絕對路徑或上層目錄。|请填写仓库内的相对目录，不要使用本机绝对路径或上层目录。|Enter a relative folder within the repository, without an absolute path or parent-directory segments.
+存取權杖格式無效，請重新輸入。|访问令牌格式无效，请重新输入。|The access token format is invalid. Enter it again.
+倉庫驗證未通過。請核對 HTTP 存取權杖及倉庫讀取權限。|仓库验证未通过。请核对 HTTP 访问令牌及仓库读取权限。|Repository authentication failed. Check the HTTP access token and repository read permission.
+找不到指定的倉庫、版本或目錄。請核對連結與選填設定。|找不到指定的仓库、版本或目录。请核对链接与选填设置。|The repository, version or folder was not found. Check the link and optional settings.
+倉庫要求跳轉或登入。請使用直接連結及 HTTP 存取權杖；瀏覽器登入狀態不會用於下載。|仓库要求跳转或登录。请使用直接链接及 HTTP 访问令牌；浏览器登录状态不会用于下载。|The repository requested a redirect or sign-in. Use a direct link and HTTP access token; browser login is not used for downloads.
+無法驗證倉庫的 HTTPS 憑證。請檢查本機信任的企業憑證設定。|无法验证仓库的 HTTPS 证书。请检查本机信任的企业证书设置。|The repository HTTPS certificate could not be verified. Check your trusted enterprise certificate configuration.
+無法連線至倉庫。請檢查網路、VPN 及伺服器位址後重試。|无法连接至仓库。请检查网络、VPN 及服务器地址后重试。|The repository could not be reached. Check the network, VPN and server address before retrying.
+取得遠端源碼逾時，請重試或選擇較小的倉庫目錄。|获取远程源码超时，请重试或选择较小的仓库目录。|Fetching repository source timed out. Retry or select a smaller repository folder.
+遠端源碼超出本次匯入限制，請指定較小的倉庫目錄。|远程源码超出本次导入限制，请指定较小的仓库目录。|Repository source exceeds the import limits. Select a smaller repository folder.
+倉庫傳回的壓縮檔無法安全讀取，本次匯入已停止。|仓库返回的压缩包无法安全读取，本次导入已停止。|The repository archive could not be safely read. The import was stopped.
+指定範圍沒有可匯入的源碼。請核對倉庫內目錄。|指定范围没有可导入的源码。请核对仓库内目录。|The selected scope has no source to import. Check the repository folder.
+倉庫傳回非預期內容。請核對伺服器類型及下載權限。|仓库返回非预期内容。请核对服务器类型及下载权限。|The repository returned unexpected content. Check the server type and download permission.
+下載位置已被使用，原有資料未變更。請重新接入以建立新位置。|下载位置已被使用，原有资料未更改。请重新接入以建立新位置。|The download destination is already in use. Existing data is unchanged. Start another import to create a new destination.
+遠端源碼接入未完成，原資料庫和對話已保留。請檢查連結、權限及磁碟空間後重試。|远程源码接入未完成，原资料库和对话已保留。请检查链接、权限及磁盘空间后重试。|Repository import did not finish. Your library and conversations were retained. Check the link, permissions and disk space before retrying.
 已保留回答 · 仍有待核對項|已保留回答 · 仍有待核对项|Answer retained · checks remain
 仍有待核對項|仍有待核对项|Checks remain
 本次請求未完成 · 已保留回答|本次请求未完成 · 已保留回答|Request incomplete · answer retained
@@ -639,7 +686,7 @@ API 請求記錄已遮蔽配置值，內容可能因大小限制而截斷。保�
 可選入口|可选入口|Available entries
 先建立目錄，提問時解析相關源碼|先建立目录，提问时解析相关源码|Catalog first; parse related source when asked
 本次重用快取|本次复用缓存|Cached files reused
-個檔案已更新|个文件已更新|files updated
+ 個檔案已更新| 个文件已更新| files updated
 已取消。再次接入會重用已完成的目錄快取。|已取消。再次接入会复用已完成的目录缓存。|Cancelled. Reconnect to reuse completed catalog work.
 進度連線中斷，正在重試；後台工作可能仍在繼續。|进度连接中断，正在重试；后台工作可能仍在继续。|Progress connection lost. Retrying; work may still be running.
 等待開始|等待开始|Waiting to start
