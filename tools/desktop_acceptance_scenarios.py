@@ -128,13 +128,20 @@ def _formula_response(source_hash, *, wrong=True):
     return respond
 
 
-def _checked_answer(observation, provider):
+def _checked_answer(observation, provider, *, stage="question"):
     require(observation["job"]["status"] == "COMPLETED", "Question did not complete")
     require(not provider.errors, "Synthetic provider failed: " + str(provider.errors))
     result = observation["result"]
     require(result and result.get("agent_result"), "No business answer was returned")
     agent = result["agent_result"]
-    require(agent.get("model_answer_recorded") is True, "No received model answer was recorded")
+    metrics = agent.get("metrics") or {}
+    timing = metrics.get("timing_seconds") or {}
+    diagnostics = {"stage": stage, "status": agent.get("status"), "stop_reason": agent.get("stop_reason"),
+        "model_requests": metrics.get("model_requests"), "elapsed_seconds": observation.get("elapsed_seconds"),
+        "timing_seconds": {key: timing[key] for key in ("first_model_request_seconds", "local_processing_seconds",
+            "provider_wait_seconds", "total_seconds") if key in timing}}
+    require(agent.get("model_answer_recorded") is True,
+            "No received model answer was recorded: " + json.dumps(diagnostics, ensure_ascii=False, sort_keys=True))
     require(agent["metrics"]["model_requests"] == 1, "Unexpected additional model request")
     return agent
 
@@ -305,7 +312,7 @@ def _unknown(command, root, case, sample_index):
             # A new explicit conversation may ask independently. It must not
             # inherit or clear the first conversation's uncertain request.
             independent = workbench.analyze(source, output, QUESTION, timeout=30)
-            independent_agent = _checked_answer(independent, provider)
+            independent_agent = _checked_answer(independent, provider, stage="independent_question_after_restart")
             all_requests = read_journal(output)["requests"]
             request_counts["after_independent_question"] = len(provider.requests)
             original_after_independent = workbench.request("GET", "/api/conversations/" + conversation_id)["conversation"]
@@ -317,7 +324,7 @@ def _unknown(command, root, case, sample_index):
             # answer once, while the old uncertain request remains untouched.
             retried = workbench.analyze(source, output, QUESTION, conversation_id=conversation_id,
                 retry_message_id=original_user["id"], timeout=30)
-            retry_agent = _checked_answer(retried, provider)
+            retry_agent = _checked_answer(retried, provider, stage="explicit_retry_after_unknown")
             after_retry = read_journal(output)
             request_counts["after_explicit_retry"] = len(provider.requests)
             retry_run_id = retry_agent["run_id"]

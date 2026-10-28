@@ -3,17 +3,33 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from tools.desktop_acceptance_scenarios import run_scenarios
+from tools.desktop_acceptance_scenarios import _checked_answer, run_scenarios
 
 
 class UnknownRequestAcceptanceTests(unittest.TestCase):
     def manifest(self):
         return json.loads((ROOT / "docs/eval/desktop-joint-v1/manifest.json").read_text(encoding="utf-8"))
+
+    def test_missing_model_answer_reports_recovery_stage_and_stop_reason_without_source(self):
+        observation = {"job": {"status": "COMPLETED"}, "elapsed_seconds": 3.1,
+            "result": {"agent_result": {"model_answer_recorded": False, "status": "PARTIAL",
+                "stop_reason": "QUESTION_TIME_BUDGET_EXHAUSTED", "answer": "fixture answer omitted",
+                "metrics": {"model_requests": 1, "timing_seconds": {"total_seconds": 3.0,
+                    "provider_wait_seconds": 2.0}}}}}
+        with self.assertRaises(AssertionError) as raised:
+            _checked_answer(observation, SimpleNamespace(errors=[]), stage="explicit_retry_after_unknown")
+        diagnostic = json.loads(str(raised.exception).split(": ", 1)[1])
+        self.assertEqual(diagnostic["stage"], "explicit_retry_after_unknown")
+        self.assertEqual(diagnostic["stop_reason"], "QUESTION_TIME_BUDGET_EXHAUSTED")
+        self.assertEqual(diagnostic["model_requests"], 1)
+        self.assertEqual(diagnostic["timing_seconds"]["provider_wait_seconds"], 2.0)
+        self.assertNotIn("fixture answer omitted", str(raised.exception))
 
     def test_contract_retains_original_lifecycle_checks_samples_and_limits(self):
         manifest = self.manifest()

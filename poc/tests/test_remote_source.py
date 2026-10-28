@@ -30,6 +30,13 @@ def archive_bytes(entries):
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, contents in entries:
+            if isinstance(name, str):
+                entry = zipfile.ZipInfo(name)
+                # The writer normalizes Windows separators. Malformed names
+                # must reach the reader unchanged to exercise its rejection.
+                entry.filename = entry.orig_filename = name
+                entry.compress_type = zipfile.ZIP_DEFLATED
+                name = entry
             archive.writestr(name, contents)
     return output.getvalue()
 
@@ -171,11 +178,16 @@ class RemoteSourceTests(unittest.TestCase):
         for name in ["../escape.cbl", "/escape.cbl", "source/sit/../../escape.cbl", "source/sit/C:/escape.cbl",
                      "source/sit/dir\\escape.cbl", "source/sit/NUL.txt", "source/sit/CON", "source/sit/dir./a.cbl",
                      "source/sit/file.cbl:stream", "source/other/private.cbl", "source/sit//entry.cbl"]:
-            with self.subTest(name=name), self.assertRaises(RemoteSourceError) as raised:
-                fetch_remote_source(self.spec, self.destination, opener=self.opener([("source/sit/good.cbl", "good"), (name, "bad")]))
-            self.assertEqual(raised.exception.code, "REMOTE_SOURCE_INVALID_ARCHIVE")
-            self.assertFalse(self.destination.exists())
-            self.assertEqual(list(self.root.iterdir()), [])
+            with self.subTest(name=name):
+                opener = self.opener([("source/sit/good.cbl", "good"), (name, "bad")])
+                self.assertIn(name.encode("utf-8"), opener.archive)
+                with zipfile.ZipFile(io.BytesIO(opener.archive)) as archive:
+                    self.assertEqual(archive.infolist()[-1].orig_filename, name)
+                with self.assertRaises(RemoteSourceError) as raised:
+                    fetch_remote_source(self.spec, self.destination, opener=opener)
+                self.assertEqual(raised.exception.code, "REMOTE_SOURCE_INVALID_ARCHIVE")
+                self.assertFalse(self.destination.exists())
+                self.assertEqual(list(self.root.iterdir()), [])
 
     def test_symlink_archive_is_rejected(self):
         entry = zipfile.ZipInfo("source/sit/linked.cbl")
