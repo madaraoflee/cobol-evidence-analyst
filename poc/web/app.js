@@ -31,9 +31,9 @@ const formatNumber = value => Number(value || 0).toLocaleString('en');
 const preview = {catalog:null,selectedCase:null};
 
 const state = {mode:'real',page:'workbench',tab:'answer',connected:false,token:null,apiConfigured:false,apiConfigurationError:null,frameworkKnowledge:null,captureApiResponses:false,answerInstructions:'',defaultAnswerInstructions:'',answerInstructionsSaving:false,
-  conversationSupported:false,conversation:null,conversations:[],recentConversations:null,pendingMessage:null,conversationEvidence:null,conversationLoading:false,impactPages:{},
-  project:null,question:'',entry:'',readingStrategy:'focused',answerDetail:'detailed',maxSourcePages:4,selectedEvidence:null,
-  evidence:null,demoLoading:false,demoError:'',demoRestore:null,realWorkspace:null,sourcePreferences:null,sourceJobBackup:null,sourceJobTarget:null,sourceIntent:'connect',remoteSourceJob:false,busy:false,jobId:null,jobKind:null,error:'',errorDiagnostic:null,history:[],filter:'',sourcePage:0,entryFilter:'',progress:null,progressReceived:0,progressTimer:null,pollError:'',cancelRequested:false,evidenceTicket:0,modelChecking:false,modelCheckStatus:null,modelCheckFeedback:'',folderPicking:false,deletingConversationId:null,deletingConversationWorkspaceId:null};
+  conversationSupported:false,conversation:null,conversations:[],recentConversations:null,conversationFilter:'',conversationVisible:8,conversationCollapsed:{},pendingMessage:null,conversationEvidence:null,conversationLoading:false,impactPages:{},
+  sourceWorkspaces:[],sourceNotice:'',remoteSourceIntent:'connect',remoteSourceWorkspaceId:null,project:null,question:'',entry:'',readingStrategy:'focused',answerDetail:'detailed',maxSourcePages:4,selectedEvidence:null,
+  evidence:null,demoLoading:false,demoError:'',demoRestore:null,realWorkspace:null,sourcePreferences:null,sourceJobBackup:null,sourceJobTarget:null,sourceIntent:'connect',remoteSourceJob:false,sourceJobReusing:false,busy:false,jobId:null,jobKind:null,error:'',errorDiagnostic:null,history:[],filter:'',sourcePage:0,entryFilter:'',progress:null,progressReceived:0,progressTimer:null,pollError:'',cancelRequested:false,evidenceTicket:0,modelChecking:false,modelCheckStatus:null,modelCheckFeedback:'',folderPicking:false,deletingConversationId:null,deletingConversationWorkspaceId:null};
 
 function demoText(value){return frameworkDemoText(value ?? '');}
 function demoCase(){return preview.catalog?.cases?.find(item=>item.id===preview.selectedCase) || null;}
@@ -130,17 +130,38 @@ function activeConversationItem(item){
   return item.id===state.conversation?.id && (!item.workspace_id || item.workspace_id===state.project?.workspace_id);
 }
 function recentConversationGroups(){
-  const rows=recentConversationRows();
+  return ui`<div class="conversation-search"><label class="sr-only" for="conversation-search">搜尋對話標題或來源</label><input id="conversation-search" type="search" maxlength="200" placeholder="搜尋標題或來源" value="${escapeHTML(state.conversationFilter)}" aria-controls="conversation-history-results" autocomplete="off"><button type="button" data-clear-conversation-search aria-label="清除搜尋" ${state.conversationFilter?'':'hidden'}>${icon('close')}</button></div><div id="conversation-history-results">${recentConversationResults()}</div>`;
+}
+function recentConversationResults(){
+  const allRows=recentConversationRows(),query=state.conversationFilter.trim().normalize('NFKC').toLocaleLowerCase();
+  const terms=query.split(/\s+/).filter(Boolean);
+  const rows=terms.length?allRows.filter(item=>{
+    const text=[conversationTitle(item.title),item.source_label].filter(value=>typeof value==='string').join(' ').normalize('NFKC').toLocaleLowerCase();
+    return terms.every(term=>text.includes(term));
+  }):allRows;
+  const limit=Math.max(8,state.conversationVisible),shown=rows.slice(0,limit);
+  const active=rows.find(activeConversationItem);
+  if(!query && active && !shown.includes(active))shown.push(active);
   const definitions=[['local_source',t('本地源碼')],['remote_repository','Bitbucket']];
   if(rows.some(item=>!['local_source','remote_repository'].includes(item.source_origin)))definitions.push(['other',t('其他來源')]);
-  return definitions.map(([origin,label])=>{
+  const groups=definitions.map(([origin,label])=>{
     const items=rows.filter(item=>origin==='other'?!['local_source','remote_repository'].includes(item.source_origin):item.source_origin===origin);
-    return `<section class="conversation-source-group" data-source-origin="${origin}" aria-label="${escapeHTML(label)}"><h3>${escapeHTML(label)}<span>${formatNumber(items.length)}</span></h3>${items.length?items.map(item=>{
+    if(query && !items.length)return '';
+    const collapsed=state.conversationCollapsed[origin]===true,visible=shown.filter(item=>items.includes(item));
+    return `<section class="conversation-source-group" data-source-origin="${origin}" aria-label="${escapeHTML(label)}"><h3><button type="button" id="conversation-group-toggle-${origin}" class="conversation-group-toggle" data-conversation-group="${origin}" aria-expanded="${!collapsed}" aria-controls="conversation-group-${origin}"><span class="conversation-group-chevron" aria-hidden="true">${icon('chevron')}</span><strong>${escapeHTML(label)}</strong><span>${formatNumber(items.length)}</span></button></h3><div id="conversation-group-${origin}"${collapsed?' hidden':''}>${items.length?visible.map(item=>{
       const active=activeConversationItem(item),workspace=item.workspace_id?` data-workspace="${escapeHTML(item.workspace_id)}"`:'';
       const title=escapeHTML(conversationTitle(item.title)),disabled=state.busy || state.conversationLoading?'disabled':'';
       return `<div class="conversation-row"><button class="conversation-link ${active?'active':''}" ${active?'aria-current="true"':''} title="${title}" data-conversation="${escapeHTML(item.id)}"${workspace} ${disabled}><span>${title}</span>${item.source_label?`<small class="conversation-source-label">${escapeHTML(item.source_label)}</small>`:''}</button><button class="conversation-delete" type="button" data-delete-conversation="${escapeHTML(item.id)}"${workspace} aria-label="${escapeHTML(t('刪除對話'))}：${title}" title="${escapeHTML(t('刪除對話'))}" ${disabled}>${icon('trash')}</button></div>`;
-    }).join(''):ui`<p class="conversation-empty">尚無對話，提出問題後會顯示在這裡。</p>`}</section>`;
+    }).join('') || ui`<p class="conversation-empty">展開更多以查看較早對話。</p>`:ui`<p class="conversation-empty">尚無對話，提出問題後會顯示在這裡。</p>`}</div></section>`;
   }).join('');
+  const remaining=Math.max(0,rows.length-shown.length);
+  return (query?ui`<p class="conversation-search-count" role="status">符合的對話： ${formatNumber(rows.length)}</p>`:'')+
+    (query && !rows.length?ui`<p class="conversation-empty">沒有符合的對話，試試其他標題或來源名稱。</p>`:groups)+
+    ui`<div class="conversation-history-actions">${remaining?ui`<button type="button" id="conversation-show-more" data-more-conversations aria-expanded="${limit>8}" aria-controls="conversation-history-results">展開更多 · ${formatNumber(remaining)}</button>`:''}${limit>8?ui`<button type="button" id="conversation-show-less" data-less-conversations aria-expanded="true" aria-controls="conversation-history-results">收起較早對話</button>`:''}</div>`;
+}
+function updateRecentConversationResults(){
+  const region=$('conversation-history-results');if(region)region.innerHTML=recentConversationResults();
+  const clear=document.querySelector('[data-clear-conversation-search]');if(clear)clear.hidden=!state.conversationFilter;
 }
 function applyConversation(conversation){
   if(!conversation || typeof conversation.id!=='string' || !Array.isArray(conversation.messages))return;
@@ -241,7 +262,7 @@ function renderChrome(){
   $('export-button').disabled=state.busy || demo || !d;
   $('connect-button').disabled=state.busy || state.conversationLoading;
   $('connect-remote-button').disabled=state.busy || state.conversationLoading || !state.connected;
-  $('connect-remote-label').textContent=t(state.project?.source_origin==='remote_repository'?'重新取得 Bitbucket 快照':'從 Bitbucket 接入');
+  $('connect-remote-label').textContent=t('從 Bitbucket 接入');
   const sourceAction=state.project?.source && !syntheticProject()?t('更新本機源碼'):t('接入本機源碼');
   $('connect-button').setAttribute('aria-label',sourceAction);
   $('connect-button').setAttribute('title',state.busy?t('目前工作完成後，可更新源碼'):sourceAction);
@@ -653,8 +674,9 @@ function answerCompletionReason(answer){
     evidence_read_incomplete:'相關源碼已定位，但本次尚未讀完所需範圍。',
     working_set_transmission_incomplete:'部分已定位源碼未能納入本次模型上下文，相關範圍尚未解讀。',
     tool_unavailable:'本次有補查工具未能完成，相關證據仍待核對。',
-    request_budget:'本次調查已達執行限制，仍有待查項；已保留目前回答。',
-    model_request_budget_exhausted:'本次調查已達執行限制，仍有待查項；已保留目前回答。',
+    request_budget:'本輪調查已結束，已保留目前回答與待查事項；需要時可點擊「繼續補查並完善回答」。',
+    model_request_budget_exhausted:'本輪調查已結束，已保留目前回答與待查事項；需要時可點擊「繼續補查並完善回答」。',
+    investigation_round_budget:'本輪調查已結束，已保留目前回答與待查事項；需要時可點擊「繼續補查並完善回答」。',
     question_time_budget_exhausted:'本次調查已達時間限制，已保留目前回答與待查事項。',
     usable_draft_retained:'後續補查或修訂未完成，這裡保留較早的可用回答。',
     no_evidence_progress:'連續補查未取得新的相關證據，已停止重複調查並保留目前回答。',
@@ -864,7 +886,9 @@ function liveAnalysisView(progress=state.progress){
   const open=Array.isArray(update?.open_items)?update.open_items:[];
   if(typeof update?.open_items==='number')counts.push(ui`待核對 ${formatNumber(update.open_items)} 項`);
   const stage=['revision','revise','revising'].includes(preview?.stage)?t('修訂中'):preview?.stage==='verifying'?t('核對中'):t('撰寫中');
-  return (update?ui`<section class="analysis-live-update" aria-label="調查進展"><div class="analysis-live-counts">${escapeHTML(counts.join(' · '))}</div>${update.summary?`<p role="status" aria-live="polite">${escapeHTML(update.summary)}</p>`:''}${open.length?ui`<details class="analysis-open-items"><summary>待核對事項 · ${formatNumber(open.length)}</summary><ul>${open.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul></details>`:''}</section>`:'')+(preview?ui`<section class="answer-live-preview" aria-label="回答草稿"><div class="answer-preview-heading"><strong>${stage}</strong>${preview.round>0?`<span>${escapeHTML(ui`調查輪次 ${formatNumber(preview.round)}`)}</span>`:''}</div><p class="answer-preview-notice">內容可能修訂，請以完成後的回答為準。</p><div class="narrative-body" tabindex="0">${answerMarkdown.render(preview.text)}</div></section>`:'');
+  const history=Array.isArray(progress?._activityHistory)?progress._activityHistory:[];
+  const activity=history.length?ui`<details class="analysis-activity-history"><summary>查看處理進展 · ${formatNumber(history.length)}</summary><ol>${history.map(item=>`<li>${item.phase?`<strong>${escapeHTML(phaseLabel(item.phase))}</strong>`:''}${item.summary?`<span>${escapeHTML(item.summary)}</span>`:''}</li>`).join('')}</ol></details>`:'';
+  return activity+(update?ui`<section class="analysis-live-update" aria-label="調查進展"><div class="analysis-live-counts">${escapeHTML(counts.join(' · '))}</div>${update.summary?`<p role="status" aria-live="polite">${escapeHTML(update.summary)}</p>`:''}${open.length?ui`<details class="analysis-open-items"><summary>待核對事項 · ${formatNumber(open.length)}</summary><ul>${open.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul></details>`:''}</section>`:'')+(preview?ui`<section class="answer-live-preview" aria-label="回答草稿"><div class="answer-preview-heading"><strong>${stage}</strong>${preview.round>0?`<span>${escapeHTML(ui`調查輪次 ${formatNumber(preview.round)}`)}</span>`:''}</div><p class="answer-preview-notice">內容可能修訂，請以完成後的回答為準。</p><div class="narrative-body" tabindex="0">${answerMarkdown.render(preview.text)}</div></section>`:'');
 }
 function rememberProgress(progress){
   if(!progress || typeof progress!=='object')return;
@@ -874,6 +898,12 @@ function rememberProgress(progress){
     const value=Object.hasOwn(progress,key)?normalize(progress[key]):previous[key];
     if(value)state.progress[key]=value;else delete state.progress[key];
   }
+  const history=[...(previous._activityHistory || [])];
+  const phase=['using_index','retrieving','answering','locating_sources','reading_relevant_sources','supplementing_evidence','waiting_for_model','verifying_answer','writing_answer','reviewing_answer','reading_sources','analyzing_pages','synthesizing','framework','framework_reference','framework_semantics','source_version','discovering_business','searching_repository','planning_search','model','investigation','investigating','finalizing'].includes(progress.phase)?progress.phase:null;
+  const summary=analysisUpdate(progress.analysis_update)?.summary;
+  const changedSummary=summary && summary!==previous.analysis_update?.summary;
+  if(phase && phase!==previous.phase || changedSummary)history.push({phase,summary:changedSummary?summary:''});
+  state.progress._activityHistory=history.slice(-8);
   state.progressReceived=Date.now();
 }
 function updateLiveAnalysis(){
@@ -882,10 +912,14 @@ function updateLiveAnalysis(){
   const markup=liveAnalysisView();
   if(region.innerHTML!==markup){
     const detailsOpen=region.querySelector?.('.analysis-open-items')?.open;
-    const scrollTop=region.querySelector?.('.answer-live-preview .narrative-body')?.scrollTop;
+    const historyOpen=region.querySelector?.('.analysis-activity-history')?.open;
+    const previousBody=region.querySelector?.('.answer-live-preview .narrative-body');
+    const scrollTop=previousBody?.scrollTop;
+    const followTail=previousBody && previousBody.scrollHeight-previousBody.clientHeight-previousBody.scrollTop<=32;
     region.innerHTML=markup;
     const details=region.querySelector?.('.analysis-open-items');if(details && detailsOpen)details.open=true;
-    const body=region.querySelector?.('.answer-live-preview .narrative-body');if(body && Number.isFinite(scrollTop))body.scrollTop=scrollTop;
+    const history=region.querySelector?.('.analysis-activity-history');if(history && historyOpen)history.open=true;
+    const body=region.querySelector?.('.answer-live-preview .narrative-body');if(body && Number.isFinite(scrollTop))body.scrollTop=followTail?body.scrollHeight:scrollTop;
   }
 }
 function updateProgressPanel(){
@@ -907,7 +941,7 @@ function updateProgressPanel(){
   $('cancel-job').disabled=state.cancelRequested || !state.jobId;$('cancel-job').textContent=state.cancelRequested?t('正在停止，等待目前步驟結束'):t('停止本次工作');
 }
 function startProgressClock(){if(!state.progressTimer)state.progressTimer=setInterval(updateProgressPanel,1000);}
-function stopProgressClock(){if(state.progressTimer)clearInterval(state.progressTimer);state.progressTimer=null;}
+function stopProgressClock(){if(state.progressTimer)clearInterval(state.progressTimer);state.progressTimer=null;closeJobStream();}
 async function cancelJob(){if(!state.jobId || state.cancelRequested)return;const jobId=state.jobId;state.cancelRequested=true;updateProgressPanel();try{await api(`/api/jobs/${encodeURIComponent(jobId)}/cancel`,{method:'POST',body:'{}'});}catch(error){if(state.jobId===jobId){state.cancelRequested=false;toast(error.message);updateProgressPanel();}}}
 function scopeNotice(){
   const d=diagnosis();if(!d || !d.catalog_ready)return '';
@@ -939,6 +973,13 @@ function answerReadingView(markup,messageId){
   const outline=sections.length>=3?ui`<details class="answer-outline"><summary>本頁內容</summary><nav aria-label="回答目錄">${sections.map(section=>`<button data-answer-section="${escapeHTML(section.id)}">${section.label}</button>`).join('')}</nav></details>`:'';
   return {content,outline};
 }
+function unfinishedQuestionFor(message){
+  if(!message?.run_id)return null;
+  return state.conversation?.messages.find(item=>item.role==='user' && item.run_id===message.run_id && ['partial','failed','cancelled','interrupted'].includes(String(item.status).toLowerCase())) || null;
+}
+function canContinueInvestigation(message){
+  return Boolean(message && /^[a-f0-9]{24}$/.test(message.investigation_run_id || '') && !unknownRemoteOutcome(message));
+}
 function conversationMessage(message){
   const user=message.role==='user';
   const id=String(message.id || '');
@@ -959,10 +1000,12 @@ function conversationMessage(message){
   const relatedMarkup=!user && related.length>1?`<details class="message-related"><summary>${escapeHTML(t('查看相關源碼'))} · ${related.length}</summary><ul>${related.map(item=>`<li>${escapeHTML((item.program_names || []).join('、') || item.relative_path)} <small>${escapeHTML(item.relative_path)}</small></li>`).join('')}</ul></details>`:'';
   const referenceMarkup=!user && (refs.length || framework.length)?`<details class="message-references"><summary>${escapeHTML(t('查看回答依據'))} · ${refs.length+framework.length}</summary>${refs.map((ref,index)=>`<button class="citation" data-message-id="${escapeHTML(id)}" data-turn-evidence="${escapeHTML(ref.evidence_id)}">${index+1} · ${escapeHTML(ref.relative_path || ref.path || '')} · L${Number(ref.start_line)}–${Number(ref.end_line)}</button>`).join('')}${framework.map(ref=>`<details id="turn-${escapeHTML(id)}-framework-${escapeHTML(encodeURIComponent(ref.reference_id))}" class="message-framework"><summary>${escapeHTML(ref.heading || ref.reference_id)}</summary><pre>${escapeHTML(ref.text || '')}</pre></details>`).join('')}</details>`:'';
   const retryMarkup=user && (failed || status==='PARTIAL')?`<button class="message-retry" data-retry-message="${escapeHTML(id)}" ${state.busy || state.conversationLoading?'disabled':''}>${escapeHTML(t('重試這個問題'))}</button>`:'';
+  const originalQuestion=!user && (failed || status==='PARTIAL' || message.analysis_status==='PARTIAL')?unfinishedQuestionFor(message):null;
+  const continueMarkup=originalQuestion?`<button class="message-retry" ${canContinueInvestigation(message)?`data-continue-message="${escapeHTML(originalQuestion.id)}"`:`data-retry-message="${escapeHTML(originalQuestion.id)}"`} ${state.busy || state.conversationLoading?'disabled':''}>${escapeHTML(t(canContinueInvestigation(message)?'繼續補查並完善回答':'重試這個問題'))}</button>`:'';
   const priorSnapshot=!user && message.snapshot_id && state.project?.snapshot_id && message.snapshot_id!==state.project.snapshot_id;
   const versionMarkup=priorSnapshot?ui`<small class="message-source-version">此回答依據較早的本機版本 <code>${escapeHTML(shortSourceVersion(message.snapshot_id))}</code>；原引用仍可查看。新提問會使用目前源碼。</small>`:'';
   const reading=user?{content:markup,outline:''}:answerReadingView(markup,id);
-  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}" data-message="${escapeHTML(id)}">${reading.outline}<div class="answer-main"><div class="message-author">${user?t('你'):t('馨弦')}<span>${user?'':t(diagnosticOnly?'請求狀態':'業務解讀 · 請結合證據覆核')}</span></div>${versionMarkup}${user?'':answerCompletionNotice(message)+(unknownRemoteOutcome(message)?'':failureDiagnosticsView(message,{retainedAnswer:Boolean(answer.trim())&&!diagnosticOnly}))}<div class="message-content narrative-body">${reading.content || (failed&&!diagnosticOnly?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${relatedMarkup}${impactMarkup}${referenceMarkup}${retryMarkup}</div></article>`;
+  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}" data-message="${escapeHTML(id)}">${reading.outline}<div class="answer-main"><div class="message-author">${user?t('你'):t('馨弦')}<span>${user?'':t(diagnosticOnly?'請求狀態':'業務解讀 · 請結合證據覆核')}</span></div>${versionMarkup}${user?'':answerCompletionNotice(message)+(unknownRemoteOutcome(message)?'':failureDiagnosticsView(message,{retainedAnswer:Boolean(answer.trim())&&!diagnosticOnly}))}<div class="message-content narrative-body">${reading.content || (failed&&!diagnosticOnly?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${continueMarkup}${relatedMarkup}${impactMarkup}${referenceMarkup}${retryMarkup}</div></article>`;
 }
 function conversationProgress(){
   const v=progressViewModel();
@@ -1019,22 +1062,35 @@ function sourceInputCoverageView(){
   const reasons={SOURCE_ENCODING_INVALID:t('非文字文件，或無法按目前編碼讀取。'),SOURCE_READ_FAILED:t('文件無法讀取。')};
   return ui`<section class="data-card source-input-coverage"><div class="data-card-heading"><h2>本次源碼接入</h2><span class="badge warning">部分候選文件未讀入</span></div><p>已讀入 ${formatNumber(decoded)} 個檔案 · 跳過 ${formatNumber(skipped)} 個候選檔案</p><p>已讀入的源碼已建立索引，可繼續提問。跳過的文件未納入本次業務分析範圍。</p>${skips.length?ui`<details><summary>查看跳過的文件</summary><ul>${skips.slice(0,200).map(item=>`<li><code>${escapeHTML(item.relative_path)}</code><small>${escapeHTML(Object.hasOwn(reasons,item.reason_code)?reasons[item.reason_code]:t('此文件未讀入，原因未確認。'))}</small></li>`).join('')}</ul>${skips.length>200?ui`<p>目前顯示前 200 個跳過的文件；完整清單保留在匯出 JSON。</p>`:''}</details>`:''}</section>`;
 }
+function applySourceWorkspaces(data){
+  if(Array.isArray(data?.source_workspaces))state.sourceWorkspaces=data.source_workspaces;
+}
+function savedSourceWorkspacesView(){
+  const rows=state.sourceWorkspaces.filter(item=>item && typeof item.workspace_id==='string' && item.source_origin!=='synthetic_framework');
+  if(!rows.length)return '';
+  return ui`<section class="data-card saved-source-workspaces"><div class="data-card-heading"><h2>已儲存的源碼資料庫</h2><span class="badge neutral">${rows.length}</span></div><p>源碼和索引已保存在這台電腦。開啟本機副本不會下載，也不會呼叫模型。</p><div class="saved-source-list">${rows.map(item=>{
+    const active=item.workspace_id===state.project?.workspace_id && !syntheticProject(),available=item.available!==false;
+    const source=item.remote_source,detail=source?`${source.ref || t('預設分支')} · ${source.subdirectory || t('整個倉庫')} · ${String(source.commit || '').slice(0,12)}`:t('本地源碼');
+    return `<div class="saved-source-row"><div><strong>${escapeHTML(item.source_label || t('源碼資料庫'))}</strong><small>${escapeHTML(detail)}</small></div><button class="button secondary" data-open-source-workspace="${escapeHTML(item.workspace_id)}" ${active || !available || state.busy || state.conversationLoading?'disabled':''}>${escapeHTML(t(active?'目前使用中':available?'開啟本機副本':'本機副本不可用'))}</button></div>`;
+  }).join('')}</div></section>`;
+}
+function sourceUpdateNotice(){return state.sourceNotice?`<p class="source-cache-notice" role="status">${escapeHTML(t(state.sourceNotice))}</p>`:'';}
 function sourceVersionView(){
   const current=state.project?.source_version;
   const history=(Array.isArray(state.project?.source_versions)?state.project.source_versions:[])
     .filter(version=>!current?.source_key || version.source_key===current.source_key).slice(0,20);
   if(!current && !history.length)return '';
-  return ui`<section class="data-card source-version-card"><div class="data-card-heading"><h2>本機源碼版本</h2>${current?`<strong title="${escapeHTML(current.version_id)}">${escapeHTML(shortSourceVersion(current.version_id))}</strong>`:''}</div>${current?ui`<p>最近檢查：${escapeHTML(sourceVersionTime(current.checked_at || current.created_at))}</p>`:''}<p>更新會校驗檔案內容，識別新增、修改和刪除。版本記錄保留檔案指紋，舊回答保留當時引用。</p><details><summary>查看版本記錄 · ${history.length}</summary>${history.map(v=>`<div class="history-card"><div><strong title="${escapeHTML(v.version_id)}">${escapeHTML(shortSourceVersion(v.version_id))}</strong><p>${escapeHTML(sourceVersionTime(v.created_at))} · ${formatNumber(v.file_count)} ${escapeHTML(t('個檔案'))}</p><small>${escapeHTML(t('新增'))} ${formatNumber(v.changes?.added)} · ${escapeHTML(t('修改'))} ${formatNumber(v.changes?.modified)} · ${escapeHTML(t('刪除'))} ${formatNumber(v.changes?.removed)}</small></div></div>`).join('')}</details></section>`;
+  return ui`<section class="data-card source-version-card"><div class="data-card-heading"><h2>${state.project?.source_origin==='remote_repository'?t('本機快取版本'):t('本機源碼版本')}</h2>${current?`<strong title="${escapeHTML(current.version_id)}">${escapeHTML(shortSourceVersion(current.version_id))}</strong>`:''}</div>${current?ui`<p>最近檢查：${escapeHTML(sourceVersionTime(current.checked_at || current.created_at))}</p>`:''}<p>更新會校驗檔案內容，識別新增、修改和刪除。版本記錄保留檔案指紋，舊回答保留當時引用。</p><details><summary>查看版本記錄 · ${history.length}</summary>${history.map(v=>`<div class="history-card"><div><strong title="${escapeHTML(v.version_id)}">${escapeHTML(shortSourceVersion(v.version_id))}</strong><p>${escapeHTML(sourceVersionTime(v.created_at))} · ${formatNumber(v.file_count)} ${escapeHTML(t('個檔案'))}</p><small>${escapeHTML(t('新增'))} ${formatNumber(v.changes?.added)} · ${escapeHTML(t('修改'))} ${formatNumber(v.changes?.modified)} · ${escapeHTML(t('刪除'))} ${formatNumber(v.changes?.removed)}</small></div></div>`).join('')}</details></section>`;
 }
 function remoteSourceView(){
   const source=state.project?.remote_source;if(state.project?.source_origin!=='remote_repository' || !source)return '';
-  return ui`<section class="data-card source-version-card remote-source-provenance"><div class="data-card-heading"><h2>Bitbucket 源碼快照</h2></div><p><strong>倉庫連結</strong><br><code>${escapeHTML(source.url)}</code></p><p><strong>分支或標籤</strong>：${escapeHTML(source.ref || t('預設分支'))}<br><strong>倉庫內目錄</strong>：${escapeHTML(source.subdirectory || t('整個倉庫'))}<br><strong>提交版本</strong>：<code>${escapeHTML(source.commit)}</code></p><p>目前使用下載時的固定快照，不會自動同步。再次接入會建立新的資料庫；原本的本機資料庫和這份快照仍保留。</p></section>`;
+  return ui`<section class="data-card source-version-card remote-source-provenance"><div class="data-card-heading"><h2>Bitbucket 源碼快照</h2></div><p><strong>倉庫連結</strong><br><code>${escapeHTML(source.url)}</code></p><p><strong>更新目標</strong>：${escapeHTML(source.ref || t('預設分支'))}<br><strong>倉庫內目錄</strong>：${escapeHTML(source.subdirectory || t('整個倉庫'))}<br><strong>提交版本</strong>：<code>${escapeHTML(source.commit)}</code></p><p>源碼已保存在本機，重新開啟無需下載。按「檢查並更新」才會連線；提交版本未變時，直接沿用現有索引。有新版本時另存快照，舊對話仍使用原版本。</p>${/^[0-9a-f]{40,64}$/i.test(source.ref || '')?ui`<p class="field-hint">目前固定在指定提交，不會跟隨新提交。要接收後續更新，可在「檢查並更新」中改用分支或跟隨預設分支。</p>`:''}</section>`;
 }
 function renderSources(){
   if(state.mode==='real' && state.busy && state.jobKind==='index')return progressPanel()+supportingContext();
-  if(state.mode==='real'&&!diagnosis() || state.mode==='demo'&&!demoCase())return renderWorkbench();
+  if(state.mode==='real'&&!diagnosis() || state.mode==='demo'&&!demoCase())return (state.mode==='real'?savedSourceWorkspacesView():'')+renderWorkbench();
   const demo=state.mode==='demo';const d=diagnosis();const files=sourceFiles();const programs=currentPrograms();
-  return ui`${scopeNotice()}${reportDisplayNotice()}${!demo?ui`<div class="source-actions">${state.project?.source_origin!=='remote_repository'?ui`<button class="button primary" data-source-update ${state.busy?'disabled':''}>更新本機源碼</button>`:ui`<button class="button primary" data-connect-remote ${state.busy?'disabled':''}>重新取得 Bitbucket 快照</button>`}<button class="button secondary" data-source-switch ${state.busy?'disabled':''}>切換源碼目錄</button></div>${remoteSourceView()}${sourceVersionView()}${sourceInputCoverageView()}`:''}<div class="source-stats"><div class="source-stat"><span>目錄檔案</span><strong>${demo?formatNumber(preview.catalog?.file_count):formatNumber(files?.candidate || files?.decoded)}</strong><small>${demo?t('由合成文件實際讀取'):ui`${formatNumber(files?.candidate)} 個候選檔案`}</small></div><div class="source-stat"><span>${repositoryIndexReady()?t('程式'):t('可選入口')}</span><strong>${formatNumber(programs.length)}</strong><small>${repositoryIndexReady()?t('已建立索引，可直接提出業務問題'):t('先建立目錄，提問時解析相關源碼')}</small></div><div class="source-stat"><span>本次重用快取</span><strong>${demo?'—':formatNumber(files?.cached || files?.skipped_unchanged)}</strong><small>${demo?t('由合成文件實際讀取'):ui`${formatNumber(files?.indexed_or_updated)} 個檔案已更新`}</small></div></div><section class="data-card"><div class="data-card-heading"><h2>程式目錄</h2><input id="program-filter" aria-label="搜尋程式名稱或路徑" placeholder="搜尋程式名稱或路徑" value="${escapeHTML(state.filter)}"></div><div class="table-wrapper"><table><thead><tr><th>PROGRAM-ID</th><th>來源路徑</th><th>定義行</th><th>識別狀態</th><th></th></tr></thead><tbody id="program-rows">${sourceRows()}</tbody></table></div><div class="table-count source-pagination" id="source-pagination">${sourcePagination()}</div></section>${frameworkKnowledgeCard()}${!demo?ui`<div class="source-note"><strong>源碼位置</strong><br>${escapeHTML(state.project.source)}<br><strong>本次快照</strong><br>${escapeHTML(state.project.snapshot_id || state.project.catalog_snapshot_id || t('未建立有效快照'))}</div>${renderBoundaries(d?.messages || [])}`:''}`;
+  return ui`${!demo?savedSourceWorkspacesView()+sourceUpdateNotice():''}${scopeNotice()}${reportDisplayNotice()}${!demo?ui`<div class="source-actions">${state.project?.source_origin!=='remote_repository'?ui`<button class="button primary" data-source-update ${state.busy?'disabled':''}>更新本機源碼</button>`:ui`<button class="button primary" data-update-remote ${state.busy || state.conversationLoading?'disabled':''}>檢查並更新</button>`}<button class="button secondary" data-source-switch ${state.busy?'disabled':''}>切換源碼目錄</button></div>${remoteSourceView()}${sourceVersionView()}${sourceInputCoverageView()}`:''}<div class="source-stats"><div class="source-stat"><span>目錄檔案</span><strong>${demo?formatNumber(preview.catalog?.file_count):formatNumber(files?.candidate || files?.decoded)}</strong><small>${demo?t('由合成文件實際讀取'):ui`${formatNumber(files?.candidate)} 個候選檔案`}</small></div><div class="source-stat"><span>${repositoryIndexReady()?t('程式'):t('可選入口')}</span><strong>${formatNumber(programs.length)}</strong><small>${repositoryIndexReady()?t('已建立索引，可直接提出業務問題'):t('先建立目錄，提問時解析相關源碼')}</small></div><div class="source-stat"><span>本次重用快取</span><strong>${demo?'—':formatNumber(files?.cached || files?.skipped_unchanged)}</strong><small>${demo?t('由合成文件實際讀取'):ui`${formatNumber(files?.indexed_or_updated)} 個檔案已更新`}</small></div></div><section class="data-card"><div class="data-card-heading"><h2>程式目錄</h2><input id="program-filter" aria-label="搜尋程式名稱或路徑" placeholder="搜尋程式名稱或路徑" value="${escapeHTML(state.filter)}"></div><div class="table-wrapper"><table><thead><tr><th>PROGRAM-ID</th><th>來源路徑</th><th>定義行</th><th>識別狀態</th><th></th></tr></thead><tbody id="program-rows">${sourceRows()}</tbody></table></div><div class="table-count source-pagination" id="source-pagination">${sourcePagination()}</div></section>${frameworkKnowledgeCard()}${!demo?ui`<div class="source-note"><strong>源碼位置</strong><br>${escapeHTML(state.project.source)}<br><strong>本次快照</strong><br>${escapeHTML(state.project.snapshot_id || state.project.catalog_snapshot_id || t('未建立有效快照'))}</div>${renderBoundaries(d?.messages || [])}`:''}`;
 }
 function renderHistory(){
   if(conversationMode())return ui`<section class="data-card"><div class="data-card-heading"><h2>業務對話</h2><span class="badge neutral">${state.conversations.length} 項</span></div>${state.conversations.map(item=>`<div class="history-card">${icon('document')}<div><h3>${escapeHTML(conversationTitle(item.title))}</h3></div><button data-conversation="${escapeHTML(item.id)}" ${state.busy || state.conversationLoading?'disabled':''}>${escapeHTML(t('繼續對話'))}</button><button class="history-delete" data-delete-conversation="${escapeHTML(item.id)}" ${state.busy || state.conversationLoading?'disabled':''}>${escapeHTML(t('刪除對話'))}</button></div>`).join('')}</section>`;
@@ -1090,12 +1146,13 @@ function restorePageRoute(){
 }
 
 const REMOTE_SOURCE_ERROR_MESSAGES={
-  REMOTE_SOURCE_INVALID_URL:'請提供 Bitbucket Server / Data Center 的 HTTPS 倉庫或目錄連結，不要在連結內包含帳號或密碼。',
-  REMOTE_SOURCE_UNSUPPORTED:'目前支援 Bitbucket Server / Data Center，尚未支援 Bitbucket Cloud。',
+  REMOTE_SOURCE_INVALID_URL:'請提供 Bitbucket Cloud 或 Server / Data Center 的 HTTPS 倉庫或目錄連結，不要在連結內包含帳號或密碼。',
+  REMOTE_SOURCE_UNSUPPORTED:'無法識別這個倉庫連結，請使用 Bitbucket Cloud 或 Server / Data Center 的 HTTPS 倉庫或目錄連結。',
   REMOTE_SOURCE_INVALID_REF:'分支、標籤或提交格式無效，請核對後重試。',
   REMOTE_SOURCE_INVALID_PATH:'請填寫倉庫內的相對目錄，不要使用本機絕對路徑或上層目錄。',
   REMOTE_SOURCE_INVALID_TOKEN:'存取權杖格式無效，請重新輸入。',
-  REMOTE_SOURCE_AUTH_FAILED:'倉庫驗證未通過。請核對 HTTP 存取權杖及倉庫讀取權限。',
+  REMOTE_SOURCE_INVALID_USERNAME:'Cloud 帳號郵箱格式無效，請重新輸入。',
+  REMOTE_SOURCE_AUTH_FAILED:'倉庫驗證未通過。Cloud 請核對帳號郵箱、API token 及讀取權限；Server / Data Center 請核對存取權杖。',
   REMOTE_SOURCE_NOT_FOUND:'找不到指定的倉庫、版本或目錄。請核對連結與選填設定。',
   REMOTE_SOURCE_REDIRECT:'倉庫要求跳轉或登入。請使用直接連結及 HTTP 存取權杖；瀏覽器登入狀態不會用於下載。',
   REMOTE_SOURCE_TLS_FAILED:'無法驗證倉庫的 HTTPS 憑證。請檢查本機信任的企業憑證設定。',
@@ -1121,6 +1178,7 @@ function apiErrorText(error){
   if(code==='SOURCE_UPDATE_FAILED')return t('源碼更新未完成，原資料庫和對話已保留。請檢查匯入詳情後重試。');
   if(code==='INVALID_PATH')return t('請選擇存在的源碼目錄和獨立的分析結果目錄。已有資料庫請沿用原結果目錄，無需清空；兩者不可相互嵌套，分析檔案不可使用符號連結。');
   if(code==='JOB_ACTIVE')return t('目前已有分析正在執行，請等候完成。');
+  if(code==='CONTINUATION_NOT_AVAILABLE')return t('原調查記錄無法繼續，請使用「重試這個問題」重新分析。');
   if(code==='INVALID_SESSION')return t('工作階段已失效，請重新整理頁面。');
   if(['INVALID_ENCODING','INVALID_SOURCE_FORMAT','INVALID_EXTENSIONS'].includes(code))return t('請檢查文字編碼、源碼格式與副檔名設定。');
   if(['INDEX_CHANGED','EVIDENCE_INTEGRITY_ERROR'].includes(code))return t('源碼或索引已更新，舊引用暫時不可用。請重新分析目前源碼。');
@@ -1138,7 +1196,7 @@ async function api(path,options={}){
   return value;
 }
 function clearEvidence(){state.selectedEvidence=null;state.evidence=null;state.evidenceTicket++;}
-function applyProject(project){state.project=project;clearEvidence();state.sourcePage=0;state.entryFilter='';const d=project?.diagnosis;state.maxSourcePages=Number(d?.source_options?.max_source_pages || 4);state.readingStrategy=projectReadingStrategy(project);if(['brief','detailed'].includes(d?.source_options?.answer_detail))state.answerDetail=d.source_options.answer_detail;state.entry=selectedEntryValue(d);state.question=d?.question || '';}
+function applyProject(project){state.sourceNotice='';state.project=project;clearEvidence();state.sourcePage=0;state.entryFilter='';const d=project?.diagnosis;state.maxSourcePages=Number(d?.source_options?.max_source_pages || 4);state.readingStrategy=projectReadingStrategy(project);if(['brief','detailed'].includes(d?.source_options?.answer_detail))state.answerDetail=d.source_options.answer_detail;state.entry=selectedEntryValue(d);state.question=d?.question || '';}
 function restoreConversationFailure(job){
   if(!job || !state.conversation?.id || job.conversation?.id!==state.conversation.id)return;
   const status=String(job.status).toUpperCase();
@@ -1152,14 +1210,14 @@ async function initialize(){
     state.conversationSupported=Array.isArray(data.conversations) || Object.hasOwn(data,'conversation');state.conversations=restoredProject?sortConversations(Array.isArray(data.conversations)?data.conversations:[]):[];
     state.answerDetail=data.answer_detail==='brief'?'brief':'detailed';
     if(restoredProject){applyProject(restoredProject);rememberSourcePreferences(projectSourcePreferences(restoredProject));state.mode='real';if(restoredProject.diagnosis)state.history=[restoredProject];}
-    rememberSourcePreferences(data.source_preferences);applyRecentConversations(data);
+    rememberSourcePreferences(data.source_preferences);applyRecentConversations(data);applySourceWorkspaces(data);
     if(state.conversationSupported){state.mode='real';state.question='';state.entry='';state.readingStrategy='retrieval';if(restoredProject){applyConversation(data.conversation || restoredProject.conversation);restoreConversationFailure(data.job);}}
     if(state.project?.restore_blocked){blockSourceRecovery(data.project,{preserveHistory:true});state.errorDiagnostic=data.job?.error?.code==='SOURCE_UPDATE_ROLLBACK_FAILED'?safeApiDiagnostic(data.job.error.diagnostic):null;state.error=apiErrorText({code:'SOURCE_UPDATE_ROLLBACK_FAILED',diagnostic:state.errorDiagnostic});}
     const realJob=data.job && !syntheticSourceScope(data.job);
     state.remoteSourceJob=Boolean(realJob && data.job.kind==='index' && data.job.source_origin==='remote_repository');
     if(realJob && data.job.kind==='index' && data.job.source_origin!=='remote_repository')rememberSourcePreferences({source:data.job.source,output:data.job.output});
     if(realJob && data.job.kind==='index' && data.job.status==='FAILED' && !data.active_job_id){state.errorDiagnostic=safeApiDiagnostic(data.job.error?.diagnostic);state.error=apiErrorText(data.job.error);if(data.job.error?.code==='SOURCE_UPDATE_ROLLBACK_FAILED')blockSourceRecovery(data.job);}
-    if(data.active_job_id && realJob){state.mode='real';state.page='workbench';state.busy=true;state.jobId=data.active_job_id;state.jobKind=data.job?.kind==='question'?'question':'index';if(state.jobKind==='index'){state.sourceJobBackup=sourceJobState();state.sourceJobTarget={source:data.job?.source || state.project?.source,output:data.job?.output || state.project?.output};}state.cancelRequested=Boolean(data.job?.cancel_requested);rememberProgress(data.job?.progress);startProgressClock();await pollJob(data.active_job_id);}
+    if(data.active_job_id && realJob){state.mode='real';state.page='workbench';state.busy=true;state.jobId=data.active_job_id;state.jobKind=data.job?.kind==='question'?'question':'index';if(state.jobKind==='index'){state.sourceJobBackup=sourceJobState();state.sourceJobTarget={source:data.job?.source || state.project?.source,output:data.job?.output || state.project?.output};}state.cancelRequested=Boolean(data.job?.cancel_requested);rememberProgress(data.job?.progress);startProgressClock();render();await pollJob(data.active_job_id);}
   }catch{state.connected=false;state.demoLoading=false;}
   render();if(state.mode==='real' && !conversationMode())loadFirstEvidence();
 }
@@ -1179,10 +1237,17 @@ async function setMode(mode){
   else{state.readingStrategy=state.conversationSupported?'retrieval':projectReadingStrategy();state.maxSourcePages=Number(state.project?.diagnosis?.source_options?.max_source_pages || 4);if(state.project?.restore_blocked)state.error=apiErrorText({code:'SOURCE_UPDATE_ROLLBACK_FAILED',diagnostic:state.errorDiagnostic});}
   render();if(mode==='real')loadFirstEvidence();
 }
-function openRemoteSource(){
+function openRemoteSource(intent='connect'){
   if(state.busy || state.conversationLoading)return;
   closeNavigation();closeActivity();if($('source-dialog').open)$('source-dialog').close();
   const project=realSourceProject(),remote=project?.remote_source;
+  const updating=intent==='update' && remote && project.workspace_id;
+  state.remoteSourceIntent=updating?'update':'connect';state.remoteSourceWorkspaceId=updating?project.workspace_id:null;
+  $('remote-source-title').textContent=t(updating?'檢查並更新 Bitbucket 源碼':'從 Bitbucket 接入');
+  $('remote-source-submit').textContent=t(updating?'檢查並更新':'接入或使用已存副本');
+  $('remote-source-url').readOnly=Boolean(updating);$('remote-source-subdirectory').readOnly=Boolean(updating);
+  $('remote-source-reading-options').hidden=Boolean(updating);
+  $('remote-source-username').value='';$('remote-source-follow-default').checked=Boolean(updating && !remote.ref);
   const opts=project?.diagnosis?.source_options || {};
   $('remote-source-encoding').value=opts.encoding || 'auto';$('remote-source-format').value=opts.source_format || 'auto';
   $('remote-source-extensions').value=Array.isArray(opts.extensions)?opts.extensions.join(','):opts.extensions || '';
@@ -1194,15 +1259,24 @@ function openRemoteSource(){
   $('remote-source-submit').disabled=!state.connected;
   $('remote-source-dialog').showModal();
 }
-async function startRemoteSource(options){
-  if(!state.connected || state.busy || state.conversationLoading){delete options.token;return;}
-  activateRealWorkspace();state.remoteSourceJob=true;state.sourceJobBackup=sourceJobState();state.sourceJobTarget=null;
+async function startRemoteSource(options,route='/api/source/remote'){
+  if(!state.connected || state.busy || state.conversationLoading){delete options.token;delete options.username;return;}
+  activateRealWorkspace();state.sourceNotice='';state.remoteSourceJob=true;state.sourceJobReusing=false;state.sourceJobBackup=sourceJobState();state.sourceJobTarget=null;
   state.error='';state.errorDiagnostic=null;state.pollError='';state.cancelRequested=false;state.progress=null;state.jobId=null;
   state.progressReceived=Date.now();state.page='workbench';state.busy=true;state.jobKind='index';state.tab='answer';state.pendingMessage=null;
   clearEvidence();startProgressClock();render();
   try{
-    let request;try{request=api('/api/source/remote',{method:'POST',body:JSON.stringify(options)});}finally{delete options.token;}
-    const response=await request;state.jobId=response.job_id;
+    let request;try{request=api(route,{method:'POST',body:JSON.stringify(options)});}finally{delete options.token;delete options.username;}
+    const response=await request;
+    state.sourceJobReusing=response.source_reused===true;
+    if(!response.job_id && response.source_reused && response.project){
+      const backup=state.sourceJobBackup,sameScope=Boolean(backup?.project?.workspace_id && backup.project.workspace_id===response.project.workspace_id) || sameSourceWorkspace(backup?.project,response.project);
+      if(sameScope && backup){state.conversation=backup.conversation;state.question=backup.question;state.pendingMessage=backup.pendingMessage;}
+      applySourceWorkspaceResponse(response,{preserveCurrent:sameScope});
+      state.sourceNotice='已開啟本機副本，沒有重新下載源碼。';state.busy=false;state.jobId=null;stopProgressClock();
+      state.sourceJobBackup=null;state.sourceJobTarget=null;render();return;
+    }
+    state.jobId=response.job_id;
     if(options.framework_reference_path)state.frameworkKnowledge={...state.frameworkKnowledge,configured_path:options.framework_reference_path};
     if(response.source && response.output)state.sourceJobTarget={source:response.source,output:response.output};
     rememberProgress(response.progress);render();await pollJob(response.job_id);
@@ -1269,10 +1343,11 @@ async function checkModelConnection(){
 }
 async function startJob(options){
   if(state.conversationLoading)return;
+  closeJobStream();
   state.remoteSourceJob=false;
   if(options.question && options.allow_network){options.capture_api_responses=state.captureApiResponses;state.captureApiResponses=false;if($('capture-api-response'))$('capture-api-response').checked=false;}
   if(!options.question)activateRealWorkspace();
-  const chat=state.conversationSupported;const retry=Boolean(options.retry_message_id);const draft=state.question;
+  const chat=state.conversationSupported;const retry=Boolean(options.retry_message_id || options.continue_message_id);const draft=state.question;
   if(!options.question){rememberSourcePreferences(options);options.verify_content=true;state.sourceJobTarget={source:options.source,output:options.output};state.sourceJobBackup=sourceJobState();}
   state.error='';state.errorDiagnostic=null;state.pollError='';state.cancelRequested=false;state.progress=null;state.jobId=null;state.progressReceived=Date.now();state.mode='real';state.page='workbench';state.busy=true;startProgressClock();state.jobKind=options.question?'question':'index';state.tab='answer';clearEvidence();
   if(chat && options.question){options.conversation_id=state.conversation?.id || null;if(!retry){state.pendingMessage={id:'pending-'+Date.now(),role:'user',content:options.question,status:'PENDING'};state.question='';}else state.pendingMessage=null;}
@@ -1282,7 +1357,7 @@ async function startJob(options){
   try{const response=await api('/api/analyze',{method:'POST',body:JSON.stringify(options)});if(!options.question)rememberSourcePreferences(response.source_preferences);state.jobId=response.job_id;if(options.framework_reference_path)state.frameworkKnowledge={...state.frameworkKnowledge,configured_path:options.framework_reference_path};if(response.conversation){applyConversation(response.conversation);state.pendingMessage=null;}rememberProgress(response.progress);if(chat)render();await pollJob(response.job_id);}
   catch(error){state.busy=false;stopProgressClock();if(error.code==='SOURCE_UPDATE_ROLLBACK_FAILED')blockSourceRecovery(options);else restoreSourceJob();state.error=error.message;state.errorDiagnostic=safeApiDiagnostic(error.diagnostic);if(chat && !state.question)state.question=draft;render();}
 }
-function sourceJobState(){return {project:state.project,conversation:state.conversation,conversations:state.conversations,recentConversations:state.recentConversations,question:state.question,mode:state.mode,page:state.page,entry:state.entry,pendingMessage:state.pendingMessage,evidence:state.evidence,selectedEvidence:state.selectedEvidence,conversationEvidence:state.conversationEvidence,frameworkKnowledge:state.frameworkKnowledge,impactPages:state.impactPages};}
+function sourceJobState(){return {project:state.project,conversation:state.conversation,conversations:state.conversations,recentConversations:state.recentConversations,question:state.question,mode:state.mode,page:state.page,entry:state.entry,pendingMessage:state.pendingMessage,evidence:state.evidence,selectedEvidence:state.selectedEvidence,conversationEvidence:state.conversationEvidence,frameworkKnowledge:state.frameworkKnowledge,impactPages:state.impactPages,sourceWorkspaces:state.sourceWorkspaces,sourceNotice:state.sourceNotice};}
 function restoreSourceJob(){if(state.sourceJobBackup){Object.assign(state,state.sourceJobBackup);state.sourceJobBackup=null;}state.sourceJobTarget=null;}
 function blockSourceRecovery(scope={}, {preserveHistory=true}={}){
   const target=state.sourceJobTarget,project=state.project;
@@ -1305,10 +1380,11 @@ function analysisOptions(question,extra={}){
   const p=state.project;const opts=p.diagnosis.source_options || {};
   return {source:p.source,output:p.output,encoding:opts.encoding || 'auto',source_format:opts.source_format || 'auto',...(opts.compilation_context_path?{compilation_context_path:opts.compilation_context_path}:{}),extensions:opts.extensions?.join(',') || null,entry:state.entry || null,question,locale:currentLocale,max_source_pages:state.maxSourcePages,reading_strategy:conversationMode()?'retrieval':state.readingStrategy,answer_detail:state.answerDetail,allow_network:true,index_mode:opts.index_mode || 'catalog',...(conversationMode()?{conversation_id:state.conversation?.id || null}:{}),...extra};
 }
-async function pollJob(jobId){
-  try{const job=await api(`/api/jobs/${encodeURIComponent(jobId)}`);if(state.jobId!==jobId)return;
+function applyJobSnapshot(jobId,job){
+    if(state.jobId!==jobId)return true;
+    if(!job || !['RUNNING','COMPLETED','FAILED','CANCELLED'].includes(job.status) || job.job_id && job.job_id!==jobId)throw Error('INVALID_JOB_RESPONSE');
     const demoPreparation=state.jobKind==='demo';const demoDraft=demoPreparation?state.question:null;
-    rememberProgress(job.progress);state.pollError='';state.cancelRequested=Boolean(job.cancel_requested || state.cancelRequested);if(job.status==='RUNNING'){updateProgressPanel();setTimeout(()=>pollJob(jobId),1000);return;}
+    rememberProgress(job.progress);state.pollError='';state.cancelRequested=Boolean(job.cancel_requested || state.cancelRequested);if(job.status==='RUNNING'){updateProgressPanel();return false;}
     state.busy=false;state.jobId=null;stopProgressClock();if(job.status==='COMPLETED' && state.progress)delete state.progress.answer_preview;
     const sourceBackup=state.sourceJobBackup;
     const failedSource=state.jobKind==='index' && job.status!=='COMPLETED';
@@ -1326,17 +1402,96 @@ async function pollJob(jobId){
       state.question=sameScope?sourceBackup?.question || '':'';
       state.sourceJobBackup=null;state.sourceJobTarget=null;state.entry='';
     }
-    applyRecentConversations(job.result);applyRecentConversations(job);
+    applyRecentConversations(job.result);applyRecentConversations(job);applySourceWorkspaces(job.result);applySourceWorkspaces(job);
+    if(state.jobKind==='index' && job.status==='COMPLETED' && state.remoteSourceJob){
+      const update=job.result?.remote_update;
+      state.sourceNotice=update?.status==='up_to_date'?(update.index_rebuilt?'遠端版本沒有變更，已重建本機索引，沒有重新下載源碼。':'遠端版本沒有變更，已沿用本機源碼和索引，沒有重新下載。'):
+        update?.status==='updated'?'已取得新版本。舊對話仍保留原版本與引用；新問題使用這份新快照。':
+        state.sourceJobReusing?'已重用本機源碼並更新索引，沒有重新下載。':'';
+    }
     if(demoPreparation){state.question=demoDraft;if(job.status==='COMPLETED'){state.entry='';state.readingStrategy='retrieval';if(!job.result?.conversation && !job.conversation)state.conversation=null;}else{state.mode='demo';state.project=state.demoRestore?.project || null;state.conversation=state.demoRestore?.conversation || null;}state.demoRestore=null;}
-    if(state.mode==='real' && state.jobKind==='index' && sourceUsable())state.page=state.conversationSupported?'workbench':'sources';
+    if(state.mode==='real' && state.jobKind==='index' && sourceUsable())state.page=state.sourceNotice?'sources':state.conversationSupported?'workbench':'sources';
     render();if(demoPreparation && job.status==='COMPLETED')promptDemoQuestion();if(state.mode==='real' && !conversationMode())loadFirstEvidence();
-  }catch(error){if(state.jobId!==jobId)return;if(error.status===404 || error.status===403){state.busy=false;state.jobId=null;stopProgressClock();restoreSourceJob();state.error=error.message;if(state.jobKind==='demo'){state.mode='demo';state.project=state.demoRestore?.project || null;state.conversation=state.demoRestore?.conversation || null;state.demoRestore=null;}render();return;}state.pollError=t('進度連線中斷，正在重試；後台工作可能仍在繼續。');updateProgressPanel();setTimeout(()=>pollJob(jobId),2500);}
+    return true;
+}
+let jobStream=null;
+function closeJobStream(){
+  const current=jobStream;jobStream=null;
+  if(!current)return;
+  clearTimeout(current.watchdog);
+  current.controller.abort();
+  if(current.reader)try{Promise.resolve(current.reader.cancel()).catch(()=>{});}catch{}
+}
+async function streamJob(jobId){
+  closeJobStream();
+  const current={jobId,controller:new AbortController(),reader:null,watchdog:null};jobStream=current;
+  const keepAlive=()=>{clearTimeout(current.watchdog);current.watchdog=setTimeout(()=>current.controller.abort(),15000);};
+  try{
+    keepAlive();
+    const response=await fetch(`/api/jobs/${encodeURIComponent(jobId)}/events`,{headers:{Accept:'text/event-stream',...(state.token?{'X-Session-Token':state.token}:{})},cache:'no-store',signal:current.controller.signal});
+    if(!response.ok || !/^text\/event-stream(?:\s*;|\s*$)/i.test(response.headers?.get?.('Content-Type') || '') || !response.body?.getReader)return false;
+    keepAlive();
+    current.reader=response.body.getReader();
+    const decoder=new TextDecoder('utf-8',{fatal:true});let buffer='',eventName='',data=[],frameSize=0;
+    const line=value=>{
+      frameSize+=value.length;if(frameSize>32*1024*1024)throw Error('JOB_EVENT_TOO_LARGE');
+      if(!value){
+        const name=eventName,payload=data.join('\n');eventName='';data=[];frameSize=0;
+        if(name==='job' && payload)return applyJobSnapshot(jobId,JSON.parse(payload));
+      }else if(!value.startsWith(':')){
+        const colon=value.indexOf(':'),field=colon<0?value:value.slice(0,colon);let content=colon<0?'':value.slice(colon+1);if(content.startsWith(' '))content=content.slice(1);
+        if(field==='event')eventName=content;else if(field==='data')data.push(content);
+      }
+      return false;
+    };
+    while(state.jobId===jobId && jobStream===current){
+      const chunk=await current.reader.read();
+      if(state.jobId!==jobId || jobStream!==current)return true;
+      if(chunk.value?.length)keepAlive();
+      buffer+=decoder.decode(chunk.value || new Uint8Array(),{stream:!chunk.done});
+      if(buffer.length+frameSize>32*1024*1024)throw Error('JOB_EVENT_TOO_LARGE');
+      let match;
+      while((match=/\r\n|\n|\r(?!$)/.exec(buffer))){const value=buffer.slice(0,match.index);buffer=buffer.slice(match.index+match[0].length);if(line(value))return true;}
+      if(chunk.done)return false;
+    }
+    return true;
+  }catch{return state.jobId!==jobId || jobStream!==current;}
+  finally{if(jobStream===current)closeJobStream();}
+}
+async function pollJob(jobId, polling=false){
+  if(state.jobId!==jobId)return;
+  if(!polling && state.jobKind==='question' && typeof ReadableStream!=='undefined' && typeof TextDecoder!=='undefined' && typeof AbortController!=='undefined'){
+    if(await streamJob(jobId) || state.jobId!==jobId)return;
+  }
+  try{const job=await api(`/api/jobs/${encodeURIComponent(jobId)}`);if(state.jobId!==jobId)return;
+    if(!applyJobSnapshot(jobId,job))setTimeout(()=>pollJob(jobId,true),1000);
+  }catch(error){if(state.jobId!==jobId)return;if(error.status===404 || error.status===403){state.busy=false;state.jobId=null;stopProgressClock();restoreSourceJob();state.error=error.message;if(state.jobKind==='demo'){state.mode='demo';state.project=state.demoRestore?.project || null;state.conversation=state.demoRestore?.conversation || null;state.demoRestore=null;}render();return;}state.pollError=t('進度連線中斷，正在重試；後台工作可能仍在繼續。');updateProgressPanel();setTimeout(()=>pollJob(jobId,true),2500);}
 }
 async function loadFirstEvidence(){const first=currentRefs()[0];if(first&&!state.evidence&&!state.busy)await loadEvidence(first.evidence_id);}
 async function newConversation(){
   if(state.busy || state.conversationLoading)return;state.conversationLoading=true;render();
   try{const data=await api('/api/conversations',{method:'POST',body:'{}'});if(Array.isArray(data.conversations))state.conversations=sortConversations(data.conversations);applyConversation(data.conversation);applyRecentConversations(data);state.pendingMessage=null;state.question='';state.error='';state.mode='real';state.page='workbench';state.entry='';state.readingStrategy='retrieval';}
   catch(error){state.error=error.message;}finally{state.conversationLoading=false;render();$('question-input')?.focus?.();}
+}
+function applySourceWorkspaceResponse(data,{preserveCurrent=false}={}){
+  const conversation=state.conversation,question=state.question,pending=state.pendingMessage;
+  applyProject(data.project);state.history=data.project.diagnosis?[data.project]:[];state.impactPages={};
+  if(Array.isArray(data.conversations))state.conversations=sortConversations(data.conversations);
+  const selected=preserveCurrent?conversation:data.conversation || data.project.conversation || null;
+  state.conversation=null;state.conversationEvidence=null;applyConversation(selected);
+  applyRecentConversations(data);applySourceWorkspaces(data);rememberSourcePreferences(data.source_preferences);
+  if(data.framework_knowledge)state.frameworkKnowledge=data.framework_knowledge;
+  state.pendingMessage=preserveCurrent?pending:null;state.question=preserveCurrent?question:'';state.error='';state.errorDiagnostic=null;
+  state.mode='real';state.page='sources';state.entry='';state.readingStrategy='retrieval';state.sourceJobTarget=null;
+}
+async function openSourceWorkspace(workspaceId){
+  if(!state.connected || state.busy || state.conversationLoading || workspaceId===state.project?.workspace_id)return;
+  state.conversationLoading=true;render();
+  try{
+    const data=await api('/api/source/open',{method:'POST',body:JSON.stringify({workspace_id:workspaceId})});
+    if(!data.project?.source || data.project.workspace_id!==workspaceId)throw new Error(t('無法開啟已儲存的源碼資料庫，原資料庫仍保留。'));
+    applySourceWorkspaceResponse(data);state.sourceJobBackup=null;state.sourceNotice='已開啟本機副本，沒有重新下載源碼。';
+  }catch(error){state.error=error.message;}finally{state.conversationLoading=false;render();}
 }
 async function openConversation(id,workspaceId=null){
   if(state.busy || state.conversationLoading)return;state.conversationLoading=true;render();
@@ -1345,7 +1500,7 @@ async function openConversation(id,workspaceId=null){
     if(workspaceId && (!data.project?.source || data.project.workspace_id!==workspaceId))throw new Error(t('無法切換至這段對話的源碼資料庫，請重試。'));
     if(data.project){applyProject(data.project);state.history=data.project.diagnosis?[data.project]:[];state.impactPages={};state.sourceJobBackup=null;state.sourceJobTarget=null;}
     if(Array.isArray(data.conversations))state.conversations=sortConversations(data.conversations);
-    applyConversation(data.conversation);applyRecentConversations(data);rememberSourcePreferences(data.source_preferences);
+    applyConversation(data.conversation);applyRecentConversations(data);applySourceWorkspaces(data);rememberSourcePreferences(data.source_preferences);
     if(data.framework_knowledge)state.frameworkKnowledge=data.framework_knowledge;
     state.pendingMessage=null;state.question='';state.error='';state.errorDiagnostic=null;state.mode='real';state.page='workbench';state.entry='';state.readingStrategy='retrieval';
   }catch(error){state.error=error.message;}finally{state.conversationLoading=false;render();}
@@ -1404,6 +1559,19 @@ async function retryConversationMessage(id){
   if(!state.apiConfigured){showSettings();return;}
   await startJob(analysisOptions(question.content,{retry_message_id:id}));
 }
+async function continueConversationMessage(id){
+  if(state.busy || state.conversationLoading || !sourceUsable())return;
+  const question=state.conversation?.messages.find(item=>item.id===id && item.role==='user' && ['partial','failed','cancelled','interrupted'].includes(String(item.status).toLowerCase()));
+  const answer=question && state.conversation.messages.find(item=>item.role==='assistant' && item.run_id===question.run_id);
+  if(!question || !canContinueInvestigation(answer))return;
+  if(!state.apiConfigured){showSettings();return;}
+  const original=answer.analysis_options || {};
+  const options=analysisOptions(question.content,{continue_message_id:id,entry:original.entry || null,
+    answer_detail:original.answer_detail || answer.answer_detail || state.answerDetail});
+  const locale=Object.hasOwn(original,'locale')?original.locale:answer.locale;
+  if(locale)options.locale=locale;else delete options.locale;
+  await startJob(options);
+}
 async function loadEvidence(id){
   state.selectedEvidence=id;const ticket=++state.evidenceTicket;const runId=state.project?.run_id;
   if(state.mode==='demo'){state.evidence=currentRefs().find(s=>s.evidence_id===id) || null;render();return;}
@@ -1455,6 +1623,10 @@ function exportData(){
 
 document.addEventListener('click',event=>{
   const target=event.target.closest('button,a');if(!target)return;
+  if(target.hasAttribute('data-clear-conversation-search')){state.conversationFilter='';state.conversationVisible=8;$('conversation-search').value='';updateRecentConversationResults();$('conversation-search').focus();return;}
+  if(target.hasAttribute('data-more-conversations')){state.conversationVisible+=8;updateRecentConversationResults();($('conversation-show-more') || $('conversation-show-less'))?.focus();return;}
+  if(target.hasAttribute('data-less-conversations')){state.conversationVisible=8;updateRecentConversationResults();($('conversation-show-more') || $('conversation-search'))?.focus();return;}
+  if(['local_source','remote_repository','other'].includes(target.dataset?.conversationGroup)){const group=target.dataset.conversationGroup;state.conversationCollapsed[group]=!state.conversationCollapsed[group];updateRecentConversationResults();$('conversation-group-toggle-'+group)?.focus();return;}
   if(target.classList?.contains('brand')){event.preventDefault();closeNavigation();state.page='workbench';render();return;}
   if(target.hasAttribute('data-copy-safe-diagnostics')){copyDiagnosticSummary();return;}
   if(target.hasAttribute('data-export-safe-diagnostics')){const summary=diagnosticSummaryData();if(summary)download(JSON.stringify(summary,null,2),'application/json;charset=utf-8','business-answer-diagnostics.json');return;}
@@ -1465,6 +1637,7 @@ document.addEventListener('click',event=>{
   if(target.dataset.turnFramework){event.preventDefault();const ref=$('turn-'+target.dataset.messageId+'-framework-'+encodeURIComponent(target.dataset.turnFramework));if(ref){ref.open=true;const list=ref.closest('.message-references');if(list)list.open=true;ref.scrollIntoView({block:'nearest'});}}
   if(target.hasAttribute('data-close-conversation-evidence'))closeConversationEvidence();
   if(target.dataset.retryMessage)retryConversationMessage(target.dataset.retryMessage);
+  if(target.dataset.continueMessage)continueConversationMessage(target.dataset.continueMessage);
   if(target.dataset.impactMore)loadImpactPage(target.dataset.impactMore);
   if(target.dataset.impactExport)exportImpact(target.dataset.impactExport);
   if(target.hasAttribute('data-retry-pending') && state.pendingMessage){state.question=state.pendingMessage.content;state.pendingMessage=null;render();$('question-input')?.focus?.();}
@@ -1486,19 +1659,21 @@ document.addEventListener('click',event=>{
   if(target.dataset.sourcePage){state.sourcePage+=target.dataset.sourcePage==='next'?1:-1;render();}
   if(target.hasAttribute('data-connect'))openSource();
   if(target.hasAttribute('data-connect-remote'))openRemoteSource();
+  if(target.hasAttribute('data-update-remote'))openRemoteSource('update');
+  if(target.dataset.openSourceWorkspace)openSourceWorkspace(target.dataset.openSourceWorkspace);
   if(target.hasAttribute('data-source-update'))openSource('update');
   if(target.hasAttribute('data-source-switch'))openSource('switch');
   if(target.dataset.pickFolder)pickFolder(target.dataset.pickFolder);
   if(target.hasAttribute('data-demo')){state.page='workbench';setMode('demo');}
   if(target.hasAttribute('data-demo-result')){state.page='workbench';state.tab='answer';render();}
   if(target.hasAttribute('data-history')){const item=state.history[Number(target.dataset.history)];download(markdownSummary(item),'text/markdown;charset=utf-8','source-analysis-history.md');toast(t('已匯出該次摘要；目前源碼範圍保持不變。'));}
-  if(target.classList.contains('close-dialog')){const dialog=target.closest('dialog');if(dialog.id==='remote-source-dialog')$('remote-source-token').value='';dialog.close();}
+  if(target.classList.contains('close-dialog')){const dialog=target.closest('dialog');if(dialog.id==='remote-source-dialog')clearRemoteCredentials();dialog.close();}
 });
-document.addEventListener('cancel',event=>{if(event.target.id==='remote-source-dialog')$('remote-source-token').value='';if(event.target.id==='conversation-evidence-dialog'){event.preventDefault();closeConversationEvidence();}},true);
+document.addEventListener('cancel',event=>{if(event.target.id==='remote-source-dialog')clearRemoteCredentials();if(event.target.id==='conversation-evidence-dialog'){event.preventDefault();closeConversationEvidence();}},true);
 document.addEventListener('keydown',event=>{
   const dialog=document.querySelector('#conversation-evidence-dialog[open], #navigation-dialog[open], #activity-dialog[open]');
   if(event.key==='Tab' && dialog){
-    const controls=Array.from(dialog.querySelectorAll('button:not([disabled]), a[href], [tabindex="0"]')).filter(el=>el.getClientRects().length);
+    const controls=Array.from(dialog.querySelectorAll('button:not([disabled]), input:not([disabled]), a[href], [tabindex="0"]')).filter(el=>el.getClientRects().length);
     const first=controls[0],last=controls.at(-1);
     if(event.shiftKey && document.activeElement===first){event.preventDefault();last?.focus();}
     else if(!event.shiftKey && document.activeElement===last){event.preventDefault();first?.focus();}
@@ -1522,6 +1697,7 @@ $('delete-conversation-confirm').addEventListener('click',deleteConversation);
 $('delete-conversation-cancel').addEventListener('click',()=> $('delete-conversation-dialog').close());
 $('delete-conversation-dialog').addEventListener('close',()=>{if(!state.conversationLoading){state.deletingConversationId=null;state.deletingConversationWorkspaceId=null;}});
 document.addEventListener('input',event=>{
+  if(event.target.id==='conversation-search'){state.conversationFilter=event.target.value.slice(0,200);state.conversationVisible=8;state.conversationCollapsed={};updateRecentConversationResults();return;}
   if(event.target.id==='demo-question-input'){state.question=event.target.value;return;}
   if(event.target.id==='question-input' && conversationMode()){state.question=event.target.value;resizeComposer();return;}
   if(event.target.id==='question-input'){state.question=event.target.value;if(state.mode==='real'){const count=document.querySelector('.tab-count');if(count)count.textContent=draftChanged()?0:result()?.tool_trace?.length || 0;if(state.tab!=='relations'){const content=document.querySelector('.answer-content');if(content)content.innerHTML=state.tab==='trace'?traceView():state.tab==='api'?apiResponseView():actualAnswer();const panel=document.querySelector('.evidence-panel');if(panel)panel.outerHTML=evidencePanel();const framework=document.querySelector('.framework-card');if(framework)framework.outerHTML=frameworkKnowledgeCard();}}}
@@ -1546,7 +1722,8 @@ document.addEventListener('submit',async event=>{
   }
 });
 function pastedPath(value){const text=value.trim();return text.startsWith('"')&&text.endsWith('"')?text.slice(1,-1):text;}
-$('remote-source-dialog').addEventListener('close',()=>{$('remote-source-token').value='';});
+function clearRemoteCredentials(){$('remote-source-token').value='';$('remote-source-username').value='';}
+$('remote-source-dialog').addEventListener('close',clearRemoteCredentials);
 $('remote-source-form').addEventListener('submit',async event=>{
   event.preventDefault();if(!state.connected || state.busy || state.conversationLoading)return;
   const options={url:$('remote-source-url').value.trim(),ref:$('remote-source-ref').value.trim() || null,
@@ -1555,7 +1732,11 @@ $('remote-source-form').addEventListener('submit',async event=>{
     reading_strategy:state.readingStrategy,answer_detail:state.answerDetail,max_source_pages:state.maxSourcePages};
   if($('remote-source-compilation-context').value.trim())options.compilation_context_path=pastedPath($('remote-source-compilation-context').value);
   if(state.conversationSupported && $('remote-source-framework-path').value.trim())options.framework_reference_path=pastedPath($('remote-source-framework-path').value);
-  $('remote-source-token').value='';$('remote-source-dialog').close();await startRemoteSource(options);
+  const username=$('remote-source-username').value.trim();if(username)options.username=username;
+  if($('remote-source-follow-default').checked)options.follow_default_branch=true;
+  const update=state.remoteSourceIntent==='update' && state.remoteSourceWorkspaceId;
+  const payload=update?{workspace_id:state.remoteSourceWorkspaceId,token:options.token,...(username?{username}:{}),ref:options.ref,follow_default_branch:Boolean(options.follow_default_branch)}:options;
+  clearRemoteCredentials();$('remote-source-dialog').close();await startRemoteSource(payload,update?'/api/source/remote/update':'/api/source/remote');
 });
 $('source-form').addEventListener('submit',async event=>{event.preventDefault();if(!state.connected || state.busy || state.conversationLoading)return;const options={source:pastedPath($('source-path').value),output:pastedPath($('output-path').value),encoding:$('source-encoding').value,source_format:$('source-format').value,extensions:$('source-extensions').value.trim() || null,index_mode:'catalog',verify_content:$('verify-content').checked,reading_strategy:state.readingStrategy,answer_detail:state.answerDetail,max_source_pages:state.maxSourcePages,allow_network:false};if($('source-compilation-context')?.value.trim())options.compilation_context_path=pastedPath($('source-compilation-context').value);if(state.conversationSupported && $('source-framework-path')?.value.trim())options.framework_reference_path=pastedPath($('source-framework-path').value);$('source-dialog').close();await startJob(options);});
 $('connect-button').addEventListener('click',openSource);

@@ -510,7 +510,11 @@ class WorkspaceRestartTests(unittest.TestCase):
                     app = self.restart()
                     self.assert_unavailable(app)
                     self.assertEqual(app.conversation, original)
-                    self.assertEqual(app.get_conversation(identifier)["conversation"], original)
+                    opened = app.get_conversation(identifier)["conversation"]
+                    self.assertRegex(app.project["workspace_id"], r"^[a-f0-9]{64}$")
+                    self.assertEqual(opened, {**original, "workspace_id": app.project["workspace_id"]})
+                    self.assertEqual(app.conversation, original)
+                    self.assertEqual(store.get(identifier), original)
                     self.assertEqual([item["id"] for item in app.state()["conversations"]], [identifier])
                     self.assertFalse(self.requests)
                 self.save_state()

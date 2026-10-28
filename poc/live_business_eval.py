@@ -436,15 +436,20 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
     evaluation_default_policy = policy is None
     policy = resolve_agent_policy(policy) if policy is not None else load_agent_policy()
     # Keep the existing batch allowance when interactive defaults change.
-    # Explicit supplied policies remain exact; a stricter local deployment
+    # Explicit numeric limits remain exact; a stricter local deployment
     # allowance is never widened by the evaluation profile.
     evaluation_defaults_applied = False
     if evaluation_default_policy:
-        bounded = replace(policy, max_model_requests=min(5, policy.max_model_requests),
+        bounded = replace(policy, max_model_requests=min(5, policy.max_model_requests or 5),
                           max_question_seconds=min(120, policy.max_question_seconds or 120),
                           hard_question_seconds=min(120, policy.hard_question_seconds or 120))
         evaluation_defaults_applied = bounded != policy
         policy = bounded
+    elif policy.max_model_requests is None:
+        # An interactive policy with no call cap still needs a finite batch
+        # spending plan. Explicit numeric request/time overrides stay exact.
+        policy = replace(policy, max_model_requests=5)
+        evaluation_defaults_applied = True
     config = config or model_config(profile, timeout_seconds=timeout_seconds,
                                     max_output_tokens=max_output_tokens)
     turns = sum(len(_turns(item)) for item in items)

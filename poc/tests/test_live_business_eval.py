@@ -460,7 +460,7 @@ class LiveBusinessEvalTests(unittest.TestCase):
                     mock.patch("live_business_eval.OpenAICompatibleChatClient",
                                side_effect=AssertionError("network must stay disabled")):
                 report = evaluate(source, root / "evaluation", cases, config=config, plan=True)
-            self.assertEqual(adaptive.max_model_requests, 6)
+            self.assertEqual(adaptive.max_model_requests, 8)
             self.assertIsNone(adaptive.max_question_seconds)
             self.assertTrue(report["plan"]["bounded_evaluation_defaults_applied"])
             self.assertEqual(report["plan"]["max_model_requests"], 6)
@@ -486,6 +486,22 @@ class LiveBusinessEvalTests(unittest.TestCase):
             report = evaluate(source, root / "evaluation", cases, config=config, plan=True, policy=explicit)
             self.assertEqual(report["plan"]["policy"], explicit.to_dict())
             self.assertFalse(report["plan"]["bounded_evaluation_defaults_applied"])
+
+    def test_explicit_interactive_policy_still_gets_a_finite_batch_spending_plan(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "source"
+            source.mkdir()
+            cases = root / "cases.json"
+            cases.write_text(json.dumps({"cases": [{"id": "one", "question": "Explain the flow"}]}))
+            config = CompanyAPIConfig("https://example.invalid/v1", "test-model", api_key="test-key")
+            interactive = AgentPolicy(max_question_seconds=180, max_model_requests=None)
+            report = evaluate(source, root / "evaluation", cases, config=config, plan=True, policy=interactive)
+            self.assertIsNone(interactive.max_model_requests)
+            self.assertEqual(report["plan"]["policy"]["max_model_requests"], 5)
+            self.assertEqual(report["plan"]["max_model_requests"], 6)
+            self.assertEqual(report["plan"]["policy"]["hard_question_seconds"], 180)
+            self.assertTrue(report["plan"]["bounded_evaluation_defaults_applied"])
 
 
 if __name__ == "__main__":

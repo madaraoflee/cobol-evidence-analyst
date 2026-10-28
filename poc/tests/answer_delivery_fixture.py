@@ -95,7 +95,10 @@ def run_scenario(root):
                 patch.object(repository_discovery, "read_repository_context", side_effect=read):
             return analyze_source(source, output, transport=transport,
                                   **{**options, "framework_reference_path": "",
-                                     "agent_policy": AgentPolicy(max_question_seconds=180)})
+                                     # Exercise the hard-timeout recovery path,
+                                     # without the earlier soft delivery target.
+                                     "agent_policy": AgentPolicy(max_question_seconds=180,
+                                                                 delivery_target_seconds=None)})
 
     state_path = root / "state.json"
     app = WorkbenchState(analyzer=analyzer, config_provider=lambda: config,

@@ -282,7 +282,7 @@ def check_claim_support(
     return result
 
 
-STATEMENT_CHECKER_VERSION = "source-statement-support-v6"
+STATEMENT_CHECKER_VERSION = "source-statement-support-v7"
 
 
 def statement_tokens(text: str) -> tuple[str, ...] | None:
@@ -551,6 +551,20 @@ def check_statement_support(assertion: Mapping[str, Any], fact: Mapping[str, Any
                     return Decimal(left) == Decimal(right)
         return claimed == supplied
     matched = all(same_field(field) for field in fields)
+    if not matched and predicate == "condition_statement" and same_field("outcome"):
+        # ZERO is a figurative constant, while 0 is numeric notation. Their
+        # spelling alone does not establish a semantic contradiction. This
+        # syntax-only checker does not infer the operand's category or prove
+        # equivalence; preserve the explanation as unverified instead of
+        # replacing its true/false branch context. Quoted literals stay exact.
+        def zero_notation(tokens):
+            return ["0" if token in {"ZERO", "ZEROS", "ZEROES"}
+                    or re.fullmatch(r"0+(?:\.0+)?", token) else token for token in tokens]
+        left, right = assertion.get("condition"), fact.get("condition")
+        if (isinstance(left, list) and isinstance(right, list)
+                and all(isinstance(token, str) for token in [*left, *right])
+                and zero_notation(left) == zero_notation(right)):
+            return {**result, "reason_code": "CONDITION_LITERAL_NOTATION_NOT_FORMALLY_VERIFIED"}
     result.update(support_status="supported" if matched else "contradicted",
                   reason_code="SOURCE_STATEMENT_MATCH" if matched else "SOURCE_STATEMENT_MISMATCH")
     return result

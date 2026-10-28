@@ -1,0 +1,306 @@
+{
+  "source_files": 12202,
+  "indexed_files": 12202,
+  "index_seconds": 9.884,
+  "transport": "local_synthetic_no_network",
+  "runs": [
+    {
+      "case": "known_path_read",
+      "version": "baseline",
+      "seconds": 0.088,
+      "requests": [
+        {
+          "retrieval": {
+            "state": "needs_discovery",
+            "query_expansion_attempted": false,
+            "current_question_match_observed": false,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [],
+          "action_read_completed": false,
+          "source_chars": 0,
+          "request_bytes": 23086,
+          "task": "当前问题尚未命中源码。这一轮只做检索规划，返回 JSON search 数组，把用户业务描述转换为可能出现在源码中的英文术语、同义词或常见缩写；保留有区分度的业务词，避免仅搜索通用计算动词。词项只是待验证候选，不要猜具体程序名，不要回答业务结论或声称公司、程序、资料不存在。遵守 searches_per_turn 的数量限制，已查无结果时换用其他候选。"
+        },
+        {
+          "retrieval": {
+            "state": "needs_discovery",
+            "query_expansion_attempted": false,
+            "current_question_match_observed": false,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [],
+          "action_read_completed": true,
+          "source_chars": 0,
+          "request_bytes": 25616,
+          "task": "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。"
+        }
+      ],
+      "status": "ABSTAINED",
+      "stop_reason": "RETRIEVAL_UNRESOLVED",
+      "model_answer_recorded": false,
+      "answer": "本次尚未定位到能回答这个业务问题的相关源码，因此还不能给出可靠的业务结论。这不表示程序或资料不存在；需要继续核对业务用语与源码词项的对应关系。\n\n诊断：RETRIEVAL_UNRESOLVED；阶段：response_validation。"
+    },
+    {
+      "case": "known_path_read",
+      "version": "fixed",
+      "seconds": 0.083,
+      "requests": [
+        {
+          "retrieval": {
+            "state": "needs_discovery",
+            "query_expansion_attempted": false,
+            "current_question_match_observed": false,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [],
+          "action_read_completed": false,
+          "source_chars": 0,
+          "request_bytes": 23221,
+          "task": "当前问题尚未命中源码。这一轮只做检索规划：已知路径用 JSON read 动作，否则返回 JSON search 数组，把用户业务描述转换为可能出现在源码中的英文术语、同义词或常见缩写；保留有区分度的业务词，避免仅搜索通用计算动词。词项只是待验证候选，不要猜具体程序名，不要回答业务结论或声称公司、程序、资料不存在。遵守 searches_per_turn 的数量限制，已查无结果时换用其他候选。"
+        },
+        {
+          "retrieval": {
+            "state": "source_candidates",
+            "query_expansion_attempted": false,
+            "current_question_match_observed": false,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [
+            "a-policy.cbl"
+          ],
+          "action_read_completed": true,
+          "source_chars": 278,
+          "request_bytes": 40051,
+          "task": "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。"
+        }
+      ],
+      "status": "PARTIAL",
+      "stop_reason": "request_budget",
+      "model_answer_recorded": true,
+      "answer": "金额大于零时设置结果码00，否则设置90。[ev_page_9e3ca6caec3e19f0cbe61a36]"
+    },
+    {
+      "case": "formula_read_gap",
+      "version": "baseline",
+      "seconds": 0.064,
+      "requests": [
+        {
+          "retrieval": {
+            "state": "needs_discovery",
+            "query_expansion_attempted": false,
+            "current_question_match_observed": false,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [],
+          "action_read_completed": false,
+          "source_chars": 0,
+          "request_bytes": 23114,
+          "task": "当前问题尚未命中源码。这一轮只做检索规划，返回 JSON search 数组，把用户业务描述转换为可能出现在源码中的英文术语、同义词或常见缩写；保留有区分度的业务词，避免仅搜索通用计算动词。词项只是待验证候选，不要猜具体程序名，不要回答业务结论或声称公司、程序、资料不存在。遵守 searches_per_turn 的数量限制，已查无结果时换用其他候选。"
+        },
+        {
+          "retrieval": {
+            "state": "needs_discovery",
+            "query_expansion_attempted": false,
+            "current_question_match_observed": false,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [],
+          "action_read_completed": true,
+          "source_chars": 0,
+          "request_bytes": 23192,
+          "task": "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。"
+        }
+      ],
+      "status": "ABSTAINED",
+      "stop_reason": "RETRIEVAL_UNRESOLVED",
+      "model_answer_recorded": false,
+      "answer": "本次尚未定位到能回答这个业务问题的相关源码，因此还不能给出可靠的业务结论。这不表示程序或资料不存在；需要继续核对业务用语与源码词项的对应关系。\n\n诊断：RETRIEVAL_UNRESOLVED；阶段：response_validation。"
+    },
+    {
+      "case": "formula_read_gap",
+      "version": "fixed",
+      "seconds": 0.069,
+      "requests": [
+        {
+          "retrieval": {
+            "state": "needs_discovery",
+            "query_expansion_attempted": false,
+            "current_question_match_observed": false,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [],
+          "action_read_completed": false,
+          "source_chars": 0,
+          "request_bytes": 23249,
+          "task": "当前问题尚未命中源码。这一轮只做检索规划：已知路径用 JSON read 动作，否则返回 JSON search 数组，把用户业务描述转换为可能出现在源码中的英文术语、同义词或常见缩写；保留有区分度的业务词，避免仅搜索通用计算动词。词项只是待验证候选，不要猜具体程序名，不要回答业务结论或声称公司、程序、资料不存在。遵守 searches_per_turn 的数量限制，已查无结果时换用其他候选。"
+        },
+        {
+          "retrieval": {
+            "state": "source_candidates",
+            "query_expansion_attempted": false,
+            "current_question_match_observed": false,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [
+            "a-policy.cbl"
+          ],
+          "action_read_completed": true,
+          "source_chars": 278,
+          "request_bytes": 33866,
+          "task": "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。"
+        }
+      ],
+      "status": "PARTIAL",
+      "stop_reason": "request_budget",
+      "model_answer_recorded": true,
+      "answer": "金额大于零时设置结果码00，否则设置90。[ev_page_9e3ca6caec3e19f0cbe61a36]"
+    },
+    {
+      "case": "cross_language_search",
+      "version": "baseline",
+      "seconds": 0.183,
+      "requests": [
+        {
+          "retrieval": {
+            "state": "needs_discovery",
+            "query_expansion_attempted": false,
+            "current_question_match_observed": false,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [],
+          "action_read_completed": false,
+          "source_chars": 0,
+          "request_bytes": 23090,
+          "task": "当前问题尚未命中源码。这一轮只做检索规划，返回 JSON search 数组，把用户业务描述转换为可能出现在源码中的英文术语、同义词或常见缩写；保留有区分度的业务词，避免仅搜索通用计算动词。词项只是待验证候选，不要猜具体程序名，不要回答业务结论或声称公司、程序、资料不存在。遵守 searches_per_turn 的数量限制，已查无结果时换用其他候选。"
+        },
+        {
+          "retrieval": {
+            "state": "source_candidates",
+            "query_expansion_attempted": true,
+            "current_question_match_observed": true,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [
+            "z-policy.cbl"
+          ],
+          "action_read_completed": false,
+          "source_chars": 219,
+          "request_bytes": 36746,
+          "task": "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。"
+        }
+      ],
+      "status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "model_answer_recorded": true,
+      "answer": "最终金额按基础金额的三倍计算。[ev_page_3fc7b5ced052e66135de9b59]"
+    },
+    {
+      "case": "cross_language_search",
+      "version": "fixed",
+      "seconds": 0.167,
+      "requests": [
+        {
+          "retrieval": {
+            "state": "needs_discovery",
+            "query_expansion_attempted": false,
+            "current_question_match_observed": false,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [],
+          "action_read_completed": false,
+          "source_chars": 0,
+          "request_bytes": 23225,
+          "task": "当前问题尚未命中源码。这一轮只做检索规划：已知路径用 JSON read 动作，否则返回 JSON search 数组，把用户业务描述转换为可能出现在源码中的英文术语、同义词或常见缩写；保留有区分度的业务词，避免仅搜索通用计算动词。词项只是待验证候选，不要猜具体程序名，不要回答业务结论或声称公司、程序、资料不存在。遵守 searches_per_turn 的数量限制，已查无结果时换用其他候选。"
+        },
+        {
+          "retrieval": {
+            "state": "source_candidates",
+            "query_expansion_attempted": true,
+            "current_question_match_observed": true,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [
+            "z-policy.cbl"
+          ],
+          "action_read_completed": false,
+          "source_chars": 219,
+          "request_bytes": 36746,
+          "task": "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。"
+        }
+      ],
+      "status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "model_answer_recorded": true,
+      "answer": "最终金额按基础金额的三倍计算。[ev_page_3fc7b5ced052e66135de9b59]"
+    },
+    {
+      "case": "exact_last_file",
+      "version": "baseline",
+      "seconds": 0.152,
+      "requests": [
+        {
+          "retrieval": {
+            "state": "source_candidates",
+            "query_expansion_attempted": false,
+            "current_question_match_observed": true,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [
+            "z-policy.cbl"
+          ],
+          "action_read_completed": false,
+          "source_chars": 219,
+          "request_bytes": 38958,
+          "task": "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。"
+        }
+      ],
+      "status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "model_answer_recorded": true,
+      "answer": "最终金额按基础金额的三倍计算。[ev_page_3fc7b5ced052e66135de9b59]"
+    },
+    {
+      "case": "exact_last_file",
+      "version": "fixed",
+      "seconds": 0.143,
+      "requests": [
+        {
+          "retrieval": {
+            "state": "source_candidates",
+            "query_expansion_attempted": false,
+            "current_question_match_observed": true,
+            "history_candidates_available": false,
+            "source_absence_proven": false
+          },
+          "paths": [
+            "z-policy.cbl"
+          ],
+          "action_read_completed": false,
+          "source_chars": 219,
+          "request_bytes": 38958,
+          "task": "现在用已有资料回答；有具体未知事项简短说明。不要再请求检索。"
+        }
+      ],
+      "status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "model_answer_recorded": true,
+      "answer": "最终金额按基础金额的三倍计算。[ev_page_3fc7b5ced052e66135de9b59]"
+    }
+  ],
+  "baseline_commit": "4cdbab4665df4d2b6fcbf70b9dccf3f7a286474c",
+  "comparison_scope": "Old business_chat module with current shared dependencies versus current business_chat; both use identical explicit request/round limits."
+}

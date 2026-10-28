@@ -109,6 +109,8 @@ def run_investigation(
     conversation_id: str | None = None,
     agent_policy=None,
     start_new_investigation: bool = False,
+    continue_investigation: bool = False,
+    resume_run_id: str | None = None,
     progress: Callable | None = None,
     check_cancel: Callable | None = None,
 ) -> dict[str, object]:
@@ -131,7 +133,8 @@ def run_investigation(
                 allow_network=allow_network, capture_api_responses=capture_api_responses,
                 progress=progress, check_cancel=check_cancel, policy=agent_policy, answer_detail=answer_detail,
                 answer_instructions=answer_instructions, locale=locale,
-                start_new_investigation=start_new_investigation)
+                start_new_investigation=start_new_investigation,
+                continue_investigation=continue_investigation, resume_run_id=resume_run_id)
         from business_analysis import run_business_analysis
         return run_business_analysis(
             question, database_path, source_root, config,

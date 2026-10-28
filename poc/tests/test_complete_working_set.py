@@ -337,6 +337,8 @@ class CompleteWorkingSetTests(unittest.TestCase):
         prefix = "请详细解释 root.cbl 的业务流程与结果。"
         question = prefix + ("业务" * 3000)[:6000 - len(prefix)]
         payload, _, size = self.capture(question, policy=AgentPolicy(max_request_bytes=32768))
+        self.assertTrue(any(page["relative_path"] == "root.cbl"
+            and "MOVE 7 TO RESULT-AMOUNT." in page["source_text"] for page in source_pages(payload)))
         metadata = payload["source_context"][0]["working_set"]
         self.assertLessEqual(size, 32768)
         self.assertEqual(metadata["status"], "partial")
@@ -376,6 +378,8 @@ class CompleteWorkingSetTests(unittest.TestCase):
         question = prefix + ("业务" * 3000)[:6000 - len(prefix)]
         policy = AgentPolicy(max_request_bytes=32768)
         payload, _, size = self.capture(question, policy=policy)
+        self.assertTrue(any(page["relative_path"] == "rule.cbl"
+            and "MOVE 7 TO RESULT-AMOUNT." in page["source_text"] for page in source_pages(payload)))
         metadata = payload["source_context"][0]["working_set"]
         self.assertLessEqual(size, policy.max_request_bytes)
         self.assertEqual(payload["question"], question)

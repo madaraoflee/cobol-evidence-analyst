@@ -5,8 +5,9 @@ Changing these values is a deployment choice, never an automatic response to a
 difficult question.
 
 Investigation mode and source memory are independent of resource limits.
-Request, investigation and revision counts remain finite by default. Total
-question time is optional; an explicit deployment deadline remains binding.
+Each interactive batch allows six investigation rounds and reserves requests
+for answer delivery. Explicit deployment overrides and deadlines remain binding,
+and repeated unproductive work still stops before the allowance is consumed.
 """
 
 from collections.abc import Mapping
@@ -15,7 +16,8 @@ from dataclasses import asdict, dataclass, fields
 
 @dataclass(frozen=True)
 class AgentPolicy:
-    max_model_requests: int | None = 6
+    # Six investigation rounds plus answer delivery and one output continuation.
+    max_model_requests: int | None = 8
     max_question_seconds: int | None = None
     max_source_characters: int = 36000
     max_complete_source_characters: int = 128000
@@ -44,11 +46,11 @@ class AgentPolicy:
     max_answer_revisions: int | None = None
     semantic_cache_bytes: int = 536870912
     hard_question_seconds: int | None = None
-    # Optional synthesis target; never creates or extends a hard deadline.
-    delivery_target_seconds: int | None = None
+    # First-answer target; never creates or extends a hard deadline.
+    delivery_target_seconds: int | None = 60
     investigation_mode: str = "adaptive"
     source_memory_enabled: bool = True
-    max_investigation_rounds: int = 5
+    max_investigation_rounds: int | None = 6
     max_no_evidence_revisions: int = 2
     finalization_reserve_seconds: int = 45
 
@@ -61,6 +63,7 @@ class AgentPolicy:
             "max_initial_context_seconds": (1, 120),
             "max_local_analysis_seconds": (1, 300),
             "max_answer_revisions": (0, 1),
+            "max_investigation_rounds": (0, 32),
         }
         for name, (minimum, maximum) in optional_limits.items():
             value = getattr(self, name)
@@ -88,7 +91,6 @@ class AgentPolicy:
             "max_semantic_source_bytes": (1024, 536870912),
             "max_semantic_expansions": (0, 16),
             "max_evidence_groups": (0, 64),
-            "max_investigation_rounds": (0, 5),
             "max_no_evidence_revisions": (0, 2),
             "finalization_reserve_seconds": (0, 180),
             "semantic_cache_bytes": (1048576, 4294967296),
@@ -101,10 +103,8 @@ class AgentPolicy:
             raise ValueError("Agent policy investigation_mode must be adaptive or single_pass.")
         if type(self.source_memory_enabled) is not bool:
             raise ValueError("Agent policy source_memory_enabled must be a boolean.")
-        # A missing request limit still uses the finite interactive allowance.
-        # A missing time limit leaves progress and call counts in control.
+        # Explicit null count limits leave source-bound progress in control.
         # Explicit legacy targets retain their existing hard-deadline meaning.
-        object.__setattr__(self, "max_model_requests", self.max_model_requests or 6)
         deadlines = [value for value in (self.max_question_seconds, self.hard_question_seconds)
                      if value is not None]
         hard = min(*deadlines, 300) if deadlines else None
@@ -129,6 +129,8 @@ class AgentPolicy:
 
     def remaining_model_requests(self, used):
         """Count every provider attempt against the same question allowance."""
+        if self.max_model_requests is None:
+            return None
         return max(0, self.max_model_requests - used)
 
     def can_request(self, used):

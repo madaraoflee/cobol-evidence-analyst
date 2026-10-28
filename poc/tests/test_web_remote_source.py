@@ -15,10 +15,10 @@ from unittest import mock
 POC_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(POC_ROOT))
 
-from analyze_source import analyze_source
+from analyze_source import AnalysisCancelled, analyze_source
 from company_api import CompanyAPIConfig
 from remote_source import RemoteSourceError
-from web_app import RequestError, WorkbenchState, create_server
+from web_app import RequestError, SOURCE_UPDATE_PENDING, WorkbenchState, create_server
 
 
 REMOTE_URL = "https://code.example.invalid/projects/DEMO/repos/business-source/browse/stage?at=refs%2Fheads%2Fmain"
@@ -310,12 +310,16 @@ class RemoteSourceIntegrationTests(unittest.TestCase):
             fetch.assert_not_called()
         self.assert_no_token_saved()
 
-    def test_each_remote_import_is_a_separate_snapshot_and_local_can_be_reopened(self):
-        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+    def test_repeated_remote_connect_reuses_cached_snapshot_and_local_can_be_reopened(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source) as fetch:
             first = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
-            second = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
-        self.assertNotEqual(first["source"], second["source"])
-        self.assertNotEqual(first["output"], second["output"])
+            reopened_cache = self.app.start_remote(self.payload())
+        self.assertTrue(reopened_cache["source_reused"])
+        self.assertNotIn("job_id", reopened_cache)
+        self.assertEqual(first["source"], reopened_cache["project"]["source"])
+        self.assertEqual(first["snapshot_id"], reopened_cache["project"]["snapshot_id"])
+        self.assertEqual(fetch.call_count, 1)
+        self.assertEqual(first["output"], reopened_cache["project"]["output"])
         self.assertTrue(Path(first["source"]).is_dir())
         self.assertTrue(Path(first["output"]).is_dir())
         reopened = self.finish(self.app.start({
@@ -325,6 +329,306 @@ class RemoteSourceIntegrationTests(unittest.TestCase):
         self.assertEqual(reopened["result"]["source_origin"], "local_source")
         self.assertNotIn("remote_source", reopened["result"])
         self.assertEqual(self.app.conversation_store.get(self.original_conversation["id"]), self.original_conversation)
+
+    def test_cached_source_without_questions_can_be_opened_after_switch_and_restart_without_network(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
+        self.app.open_source_workspace({"workspace_id": self.original_project["workspace_id"]})
+        with mock.patch("web_app.fetch_remote_source") as fetch, mock.patch("web_app.resolve_remote_source") as resolve:
+            restored = self.new_app()
+            saved = next(item for item in restored.state()["source_workspaces"]
+                         if item["workspace_id"] == remote["workspace_id"])
+            self.assertTrue(saved["available"])
+            self.assertFalse(saved["active"])
+            opened = restored.open_source_workspace({"workspace_id": remote["workspace_id"]})
+            self.assertEqual(opened["project"]["snapshot_id"], remote["snapshot_id"])
+            self.assertEqual(opened["project"]["source_origin"], "remote_repository")
+            self.assertIsNone(opened["conversation"])
+            self.assertEqual(opened["conversations"], [])
+            again = restored.start_remote(self.payload())
+            self.assertTrue(again["source_reused"])
+            fetch.assert_not_called()
+            resolve.assert_not_called()
+
+    def test_update_with_unchanged_commit_preserves_index_conversation_and_source_bytes(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
+        conversation = self.app.new_conversation({})["conversation"]
+        self.app.conversation_store.append(conversation["id"], "user", "A retained business question.", status="completed")
+        self.app.get_conversation(conversation["id"])
+        before_conversation = copy.deepcopy(self.app.conversation)
+        before_files = self.file_contents(Path(remote["source"]), Path(remote["output"]))
+        analyzer = mock.Mock(wraps=self.app.analyzer)
+        self.app.analyzer = analyzer
+        with mock.patch("web_app.resolve_remote_source", return_value=REMOTE_METADATA) as resolve, \
+                mock.patch("web_app.fetch_remote_source") as fetch:
+            result = self.finish(self.app.update_remote({"workspace_id": remote["workspace_id"],
+                                "token": ACCESS_TOKEN})["job_id"])
+        self.assertEqual(result["status"], "COMPLETED", result)
+        self.assertEqual(result["result"]["remote_update"]["status"], "up_to_date")
+        self.assertEqual(result["result"]["workspace_id"], remote["workspace_id"])
+        self.assertEqual(result["source"], remote["source"])
+        self.assertEqual(result["output"], remote["output"])
+        self.assertEqual(self.app.conversation, before_conversation)
+        self.assertEqual(self.file_contents(Path(remote["source"]), Path(remote["output"])), before_files)
+        self.assertEqual(resolve.call_count, 1)
+        fetch.assert_not_called()
+        analyzer.assert_not_called()
+        self.assertEqual(len(list(self.remote_root.iterdir())), 1)
+        self.assertEqual(self.new_app().project["snapshot_id"], remote["snapshot_id"])
+        self.assert_no_token_saved()
+
+    def test_changed_reading_options_reindex_cached_files_without_downloading(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
+        with mock.patch("web_app.fetch_remote_source") as fetch, mock.patch("web_app.resolve_remote_source") as resolve:
+            response = self.app.start_remote(self.payload(source_format="auto", extensions=".cbl"))
+            self.assertTrue(response["source_reused"])
+            result = self.finish(response["job_id"])
+        self.assertEqual(result["status"], "COMPLETED", result)
+        self.assertEqual(result["result"]["workspace_id"], remote["workspace_id"])
+        self.assertEqual(result["result"]["remote_source"], REMOTE_METADATA)
+        self.assertEqual(result["result"]["diagnosis"]["source_options"]["source_format"], "auto")
+        self.assertEqual(result["result"]["diagnosis"]["source_options"]["extensions"], [".cbl"])
+        fetch.assert_not_called()
+        resolve.assert_not_called()
+        self.assertEqual(len(list(self.remote_root.iterdir())), 1)
+
+    def test_unchanged_commit_rebuilds_missing_index_from_local_copy(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
+        conversation = self.app.new_conversation({})["conversation"]
+        self.app.conversation_store.append(conversation["id"], "user", "Retain this question during local repair.", status="completed")
+        self.app.get_conversation(conversation["id"])
+        before = copy.deepcopy(self.app.conversation)
+        index = Path(remote["output"]) / "structural-index.sqlite"
+        index.unlink()
+        with mock.patch("web_app.resolve_remote_source", return_value=REMOTE_METADATA), \
+                mock.patch("web_app.fetch_remote_source") as fetch:
+            result = self.finish(self.app.update_remote({"workspace_id": remote["workspace_id"],
+                                "token": ACCESS_TOKEN})["job_id"])
+        self.assertEqual(result["status"], "COMPLETED", result)
+        self.assertTrue(index.is_file())
+        self.assertTrue(result["result"]["snapshot_id"])
+        self.assertEqual(result["result"]["workspace_id"], remote["workspace_id"])
+        self.assertTrue(result["result"]["remote_update"]["index_rebuilt"])
+        self.assertEqual(result["result"]["remote_update"]["status"], "up_to_date")
+        self.assertEqual(self.app.conversation, before)
+        self.assertEqual(len(list(self.remote_root.iterdir())), 1)
+        fetch.assert_not_called()
+
+    def test_unchanged_commit_save_failure_rolls_back_metadata_and_registry(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
+        before_project, before_registry = copy.deepcopy(self.app.project), copy.deepcopy(self.app.source_workspaces)
+        save = self.app._save_workspace
+        saves = 0
+
+        def fail_once(*args, **kwargs):
+            nonlocal saves
+            saves += 1
+            if saves == 1:
+                raise OSError("test workspace save failure")
+            return save(*args, **kwargs)
+
+        with mock.patch("web_app.resolve_remote_source", return_value=REMOTE_METADATA), \
+                mock.patch("web_app.fetch_remote_source") as fetch, \
+                mock.patch.object(self.app, "_save_workspace", side_effect=fail_once):
+            result = self.finish(self.app.update_remote({"workspace_id": remote["workspace_id"],
+                                "token": ACCESS_TOKEN})["job_id"])
+        self.assertEqual(result["status"], "FAILED", result)
+        self.assertEqual(self.app.project, before_project)
+        self.assertEqual(self.app.source_workspaces, before_registry)
+        self.assertEqual(len(list(self.remote_root.iterdir())), 1)
+        fetch.assert_not_called()
+
+    def test_unchanged_commit_rebuilds_corrupt_index_locally_and_retains_conversation(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
+        conversation = self.app.new_conversation({})["conversation"]
+        self.app.conversation_store.append(conversation["id"], "user", "Keep the original business discussion.", status="completed")
+        self.app.get_conversation(conversation["id"])
+        before = copy.deepcopy(self.app.conversation)
+        index = Path(remote["output"]) / "structural-index.sqlite"
+        for corruption in ("header", "schema"):
+            with self.subTest(corruption=corruption):
+                damaged = bytearray(index.read_bytes())
+                if corruption == "header":
+                    damaged = b"damaged local index"
+                else:
+                    damaged[100] = 255
+                index.write_bytes(damaged)
+                with mock.patch("web_app.resolve_remote_source", return_value=REMOTE_METADATA), \
+                        mock.patch("web_app.fetch_remote_source") as fetch:
+                    result = self.finish(self.app.update_remote({"workspace_id": remote["workspace_id"],
+                                        "token": ACCESS_TOKEN})["job_id"])
+                self.assertEqual(result["status"], "COMPLETED", result)
+                self.assertTrue(result["result"]["remote_update"]["index_rebuilt"])
+                self.assertEqual(result["result"]["workspace_id"], remote["workspace_id"])
+                self.assertEqual(self.app.conversation, before)
+                self.assertEqual(self.new_app().project["snapshot_id"], result["result"]["snapshot_id"])
+                self.assertEqual(len(list(self.remote_root.iterdir())), 1)
+                fetch.assert_not_called()
+
+    def test_failed_or_cancelled_local_repair_restores_missing_or_corrupt_index_and_reports(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
+        conversation = self.app.new_conversation({})["conversation"]
+        self.app.conversation_store.append(conversation["id"], "user", "Retain discussion through failed repair.", status="completed")
+        self.app.get_conversation(conversation["id"])
+        before_project = copy.deepcopy(self.app.project)
+        before_registry = copy.deepcopy(self.app.source_workspaces)
+        before_conversation = copy.deepcopy(self.app.conversation)
+        source, output = Path(remote["source"]), Path(remote["output"])
+        before_source = self.file_contents(source)
+        reports = {path: path.read_bytes() for path in output.iterdir() if path.suffix in {".json", ".md"}}
+        index = output / "structural-index.sqlite"
+        original_analyzer = self.app.analyzer
+        for condition in ("missing", "corrupt"):
+            for cancelled in (False, True):
+                with self.subTest(condition=condition, cancelled=cancelled):
+                    for suffix in ("", "-wal", "-shm", "-journal"):
+                        Path(str(index) + suffix).unlink(missing_ok=True)
+                    if condition == "corrupt":
+                        index.write_bytes(b"damaged local index")
+
+                    def fail_after_rebuild(source, target, **options):
+                        original_analyzer(source, target, **options)
+                        if cancelled:
+                            raise AnalysisCancelled("test cancelled repair")
+                        raise OSError("test failed repair")
+
+                    self.app.analyzer = fail_after_rebuild
+                    with mock.patch("web_app.resolve_remote_source", return_value=REMOTE_METADATA), \
+                            mock.patch("web_app.fetch_remote_source") as fetch:
+                        result = self.finish(self.app.update_remote({"workspace_id": remote["workspace_id"],
+                                            "token": ACCESS_TOKEN})["job_id"])
+                    self.assertEqual(result["status"], "CANCELLED" if cancelled else "FAILED", result)
+                    self.assertEqual(self.app.project, before_project)
+                    self.assertEqual(self.app.source_workspaces, before_registry)
+                    self.assertEqual(self.app.conversation, before_conversation)
+                    self.assertEqual(self.file_contents(source), before_source)
+                    self.assertEqual({path: path.read_bytes() for path in reports}, reports)
+                    self.assertEqual(index.read_bytes() if index.exists() else None,
+                                     b"damaged local index" if condition == "corrupt" else None)
+                    for suffix in ("-wal", "-shm", "-journal"):
+                        self.assertFalse(Path(str(index) + suffix).exists())
+                    self.assertEqual(len(list(self.remote_root.iterdir())), 1)
+                    self.assertFalse((output / SOURCE_UPDATE_PENDING).exists())
+                    fetch.assert_not_called()
+
+    def test_reconnect_missing_cached_index_rebuilds_locally(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
+        (Path(remote["output"]) / "structural-index.sqlite").unlink()
+        with mock.patch("web_app.fetch_remote_source") as fetch, mock.patch("web_app.resolve_remote_source") as resolve:
+            response = self.app.start_remote(self.payload())
+            self.assertTrue(response["source_reused"])
+            result = self.finish(response["job_id"])
+        self.assertEqual(result["status"], "COMPLETED", result)
+        self.assertTrue(result["result"]["snapshot_id"])
+        self.assertEqual(result["result"]["workspace_id"], remote["workspace_id"])
+        fetch.assert_not_called()
+        resolve.assert_not_called()
+
+    def test_reconnect_corrupt_cached_index_rebuilds_without_network(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
+        (Path(remote["output"]) / "structural-index.sqlite").write_bytes(b"damaged local index")
+        with mock.patch("web_app.fetch_remote_source") as fetch, mock.patch("web_app.resolve_remote_source") as resolve:
+            response = self.app.start_remote(self.payload())
+            self.assertTrue(response["source_reused"])
+            result = self.finish(response["job_id"])
+        self.assertEqual(result["status"], "COMPLETED", result)
+        self.assertTrue(result["result"]["snapshot_id"])
+        self.assertEqual(result["result"]["workspace_id"], remote["workspace_id"])
+        fetch.assert_not_called()
+        resolve.assert_not_called()
+
+    def test_new_remote_commit_indexes_new_snapshot_and_old_history_remains_available(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
+        conversation = self.app.new_conversation({})["conversation"]
+        self.app.conversation_store.append(conversation["id"], "user", "Explain the previous source.", status="completed")
+        self.app.get_conversation(conversation["id"])
+        before_files = self.file_contents(Path(remote["source"]), Path(remote["output"]))
+        newer = {**REMOTE_METADATA, "commit": "b" * 40}
+
+        def download(spec, destination, *, resolved=None, **kwargs):
+            self.assertEqual(resolved, newer)
+            metadata = self.fetched_source(spec, destination, **kwargs)
+            self.write_source(destination, "UPDATED-REQUEST")
+            return {**metadata, "commit": newer["commit"]}
+
+        with mock.patch("web_app.resolve_remote_source", return_value=newer), \
+                mock.patch("web_app.fetch_remote_source", side_effect=download) as fetch:
+            result = self.finish(self.app.update_remote({"workspace_id": remote["workspace_id"],
+                                "token": ACCESS_TOKEN})["job_id"])
+        self.assertEqual(result["status"], "COMPLETED", result)
+        current = result["result"]
+        self.assertEqual(current["remote_update"]["status"], "updated")
+        self.assertEqual(current["remote_source"]["commit"], newer["commit"])
+        self.assertNotEqual(current["workspace_id"], remote["workspace_id"])
+        self.assertEqual(current["programs"][0]["program_name"], "UPDATED-REQUEST")
+        self.assertIsNone(self.app.conversation)
+        self.assertEqual(self.file_contents(Path(remote["source"]), Path(remote["output"])), before_files)
+        self.assertEqual(fetch.call_count, 1)
+        old = self.app.open_source_conversation({"workspace_id": remote["workspace_id"],
+                                                "conversation_id": conversation["id"]})
+        self.assertEqual(old["project"]["snapshot_id"], remote["snapshot_id"])
+        self.assertEqual(old["conversation"]["messages"][0]["content"], "Explain the previous source.")
+        self.assert_no_token_saved()
+
+    def test_update_auth_failure_and_cancel_leave_existing_cache_and_registry_unchanged(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
+        before_project, before_registry = copy.deepcopy(self.app.project), copy.deepcopy(self.app.source_workspaces)
+        before_files = self.file_contents(Path(remote["source"]), Path(remote["output"]))
+        for cancel in (False, True):
+            with self.subTest(cancel=cancel):
+                def check(*args, check_cancel=None, **kwargs):
+                    if cancel:
+                        self.app.cancel_event.set()
+                        check_cancel()
+                    raise RemoteSourceError("REMOTE_SOURCE_AUTH_FAILED", "Repository authentication failed.")
+                with mock.patch("web_app.resolve_remote_source", side_effect=check), mock.patch("web_app.fetch_remote_source") as fetch:
+                    result = self.finish(self.app.update_remote({"workspace_id": remote["workspace_id"],
+                                        "token": ACCESS_TOKEN})["job_id"])
+                self.assertEqual(result["status"], "CANCELLED" if cancel else "FAILED")
+                self.assertEqual(self.app.project, before_project)
+                self.assertEqual(self.app.source_workspaces, before_registry)
+                self.assertEqual(self.file_contents(Path(remote["source"]), Path(remote["output"])), before_files)
+                self.assertEqual(len(list(self.remote_root.iterdir())), 1)
+                fetch.assert_not_called()
+        self.assert_no_token_saved()
+
+    def test_cloud_pinned_link_only_follows_default_branch_when_explicitly_selected(self):
+        url = "https://bitbucket.org/example-workspace/business-source/src/" + "a" * 40 + "/stage/"
+        username = "test-reader@example.invalid"
+        captured = []
+
+        def download(spec, destination, *, username=None, **kwargs):
+            captured.append(spec)
+            self.assertEqual(username, "test-reader@example.invalid")
+            self.fetched_source(spec, destination, **kwargs)
+            return {**spec.public_metadata(), "commit": "a" * 40,
+                    **({"default_branch": "main"} if spec.ref is None else {})}
+
+        with mock.patch("web_app.fetch_remote_source", side_effect=download):
+            first = self.finish(self.app.start_remote(self.payload(url=url, ref=None, username=username))["job_id"])
+            followed = self.finish(self.app.start_remote(self.payload(url=url, ref=None, username=username,
+                                        follow_default_branch=True))["job_id"])
+        self.assertEqual(first["status"], "COMPLETED", first)
+        self.assertEqual(followed["status"], "COMPLETED", followed)
+        self.assertEqual(captured[0].ref, "a" * 40)
+        self.assertIsNone(captured[1].ref)
+        metadata = followed["result"]["remote_source"]
+        self.assertEqual(metadata["provider"], "bitbucket_cloud")
+        self.assertEqual(metadata["default_branch"], "main")
+        self.assertEqual(self.new_app().project["remote_source"], metadata)
+        self.assertNotIn(username, json.dumps(self.app.state()))
+        self.assertNotIn(username, self.state_path.read_text())
+        self.assert_no_token_saved()
 
     def test_completed_remote_snapshot_survives_immediate_local_switch_before_worker_exit(self):
         published, release = threading.Event(), threading.Event()

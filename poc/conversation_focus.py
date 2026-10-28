@@ -18,6 +18,7 @@ import sqlite3
 from threading import RLock
 
 from statement_facts import data_references
+from repository_identity import mask_source_references
 
 
 SUBJECT_VERSION = "conversation-subject/v1"
@@ -76,7 +77,7 @@ def _metadata(connection):
 
 def _mentions(question):
     result = []
-    for match in _MENTION.finditer(str(question)):
+    for match in _MENTION.finditer(mask_source_references(question)):
         references = data_references(match[0])
         if len(references) == 1:
             result.append((references[0], match.start(), match.end()))

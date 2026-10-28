@@ -80,6 +80,22 @@ const answerMarkdown = (() => {
           },
         },
         extensions: [{
+          name: 'cjkStrong',
+          level: 'inline',
+          start(source) { return source.indexOf('**'); },
+          tokenizer(source) {
+            // CJK prose does not separate punctuation-delimited emphasis with
+            // spaces. Accept paired bold markers at those boundaries only;
+            // escapes, code spans and ordinary emphasis keep parser semantics.
+            const match = source.match(/^\*\*((?:\\.|[^*\\\n]|\*(?!\*))+?)\*\*(?!\*)/);
+            if (!match) return;
+            const content = match[1];
+            if (/^\s|\s$/.test(content) || !/[\u3400-\u9fff]/.test(content)
+                || !/^[\p{P}\p{S}]|[\p{P}\p{S}]$/u.test(content)) return;
+            return {type: 'cjkStrong', raw: match[0], tokens: this.lexer.inlineTokens(content)};
+          },
+          renderer(token) { return `<strong>${this.parser.parseInline(token.tokens)}</strong>`; },
+        }, {
           name: 'answerReference',
           level: 'inline',
           start(source) { return source.indexOf('['); },

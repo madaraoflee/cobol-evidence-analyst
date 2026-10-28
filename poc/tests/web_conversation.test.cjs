@@ -6,17 +6,17 @@ const path=require('node:path');
 const vm=require('node:vm');
 const web=path.join(__dirname,'../web');
 
-function harness(locale='en'){
-  const events={},elements=new Map(),requests=[];let responder=()=>{throw Error('Unexpected request');};
+function harness(locale='en',streaming=false){
+  const events={},elements=new Map(),requests=[],timeouts=[];let responder=()=>{throw Error('Unexpected request');};
   const move=(parent,child,prepend)=>{if(child.parentElement)child.parentElement.children=child.parentElement.children.filter(item=>item!==child);child.parentElement=parent;parent.children[prepend?'unshift':'push'](child);};
   const get=id=>{if(!elements.has(id))elements.set(id,{id,value:'',open:false,hidden:false,innerHTML:'',textContent:'',disabled:false,attributes:new Map(),children:[],parentElement:null,classList:{toggle:()=>{},contains:()=>false},setAttribute(name,value){this.attributes.set(name,String(value));},getAttribute(name){return this.attributes.get(name)??null;},addEventListener:(event,handler)=>events[id+':'+event]=handler,append(child){move(this,child,false);},prepend(child){move(this,child,true);},showModal(){this.open=true;},close(){if(!this.open)return;this.open=false;events[id+':close']?.();},getClientRects(){return this.hidden?[]:[{}];},focus(){document.activeElement=this;}});return elements.get(id);};
   const document={documentElement:{classList:{toggle:()=>{}}},activeElement:null,createTreeWalker:()=>({nextNode:()=>false}),querySelectorAll:()=>[],querySelector:selector=>selector==='.app-shell'?get('app-shell'):null,getElementById:get,addEventListener:(event,handler)=>events[event]=handler};
   get('app-shell').append(get('workspace-sidebar'));get('app-shell').append(get('app-body'));get('app-shell').append(get('activity-sidebar'));
-  const context=vm.createContext({document,NodeFilter:{SHOW_TEXT:4},localStorage:{getItem:()=>locale,setItem:()=>{}},fetch:async(url,options)=>{requests.push({url,options});const data=await responder(url,options);const status=data?.__status || (data?.error && !data?.status?409:200);return {ok:status>=200 && status<300,status,json:async()=>data};},setTimeout:()=>1,clearTimeout:()=>{},setInterval:()=>1,clearInterval:()=>{}});
+  const context=vm.createContext({document,NodeFilter:{SHOW_TEXT:4},localStorage:{getItem:()=>locale,setItem:()=>{}},fetch:async(url,options)=>{requests.push({url,options});const data=await responder(url,options);if(data?.__response)return data.__response;const status=data?.__status || (data?.error && !data?.status?409:200);return {ok:status>=200 && status<300,status,json:async()=>data};},setTimeout:(callback,delay)=>{timeouts.push({callback,delay});return timeouts.length;},clearTimeout:()=>{},setInterval:()=>1,clearInterval:()=>{},...(streaming?{ReadableStream,TextDecoder,AbortController,Uint8Array}:{})});
   vm.runInContext(fs.readFileSync(path.join(web,'i18n.js'),'utf8'),context);vm.runInContext(fs.readFileSync(path.join(web,'marked.umd.js'),'utf8'),context);
   vm.runInContext(fs.readFileSync(path.join(web,'markdown.js'),'utf8'),context);
   vm.runInContext(fs.readFileSync(path.join(web,'app.js'),'utf8').replace(/render\(\);initialize\(\);\s*$/,''),context);
-  return {run:code=>vm.runInContext(code,context),get,events,requests,respond:fn=>responder=fn};
+  return {run:code=>vm.runInContext(code,context),get,events,requests,timeouts,respond:fn=>responder=fn};
 }
 function project(){return {source:'local-source',output:'local-output',snapshot_id:'sha256:source',run_id:'run-1',programs:[{program_name:'REQUEST',relative_path:'request.cbl'}],diagnosis:{catalog_ready:true,source_manifest_verified:true,runner_status:'INDEX_READY',scope:{mode:'repository_index'},repository_search:{full_text_complete:true},build_report:{files:{candidate:1}},source_options:{reading_strategy:'retrieval'}},agent:null,relations:{edges:[]}};}
 function conversation(messages=[]){return {id:'conversation-1',title:'Request processing',snapshot_id:'sha256:source',messages};}
@@ -165,18 +165,26 @@ test('new conversations and restored conversations preserve the local index and 
   await h.run("openConversation('conversation-1')");assert.equal(h.run('state.conversation.messages.length'),2);assert.match(h.run('renderWorkbench()'),/A valid request is accepted/);assert.deepEqual(h.requests.map(item=>item.url),['/api/conversations','/api/conversations/conversation-1']);
 });
 
-test('recent conversations retain every populated conversation beyond the first twelve',()=>{
+test('recent conversations show eight initially and keep all older populated conversations reachable',()=>{
   const h=harness();setup(h,firstMessages);
   const conversations=Array.from({length:18},(_,index)=>({id:'conversation-'+(index+1),title:'Request question '+(index+1),message_count:2}));
   conversations.splice(3,0,{id:'empty-conversation',title:'Empty conversation',message_count:0});
   h.run(`state.conversations=${JSON.stringify(conversations)};renderChrome()`);
-  const html=h.get('conversation-list').innerHTML;
+  const initial=h.get('conversation-list').innerHTML;
+  assert.equal((initial.match(/data-conversation=/g)||[]).length,8);
+  assert.match(initial,/data-more-conversations aria-expanded="false"/);
+  assert.match(initial,/aria-current="true"/);
+  const expand=()=>h.events.click({target:{closest:()=>({dataset:{},hasAttribute:name=>name==='data-more-conversations'})}});
+  expand();assert.equal((h.get('conversation-history-results').innerHTML.match(/data-conversation=/g)||[]).length,16);
+  expand();const html=h.get('conversation-history-results').innerHTML;
   assert.equal((html.match(/data-conversation=/g)||[]).length,18);
   for(const item of conversations.filter(item=>item.message_count)){
     assert.ok(html.includes(`data-conversation="${item.id}"`),item.id+' must remain available');
     assert.ok(html.includes(`data-delete-conversation="${item.id}"`));
   }
   assert.match(html,/aria-current="true"/);assert.doesNotMatch(html,/empty-conversation/);
+  assert.equal(h.run('state.conversations.length'),19);
+  assert.equal(h.run('recentConversationRows().length'),18);
   assert.equal(h.requests.length,0);
 });
 
@@ -355,6 +363,111 @@ test('an unknown remote retry preserves the prior source answer and explains no 
   assert.doesNotMatch(html,/本次回答仍有待核对项/);
   assert.match(html,/data-turn-evidence="ev-1"/);
   assert.equal(h.requests.length,0);
+});
+
+function continuableMessages(){return [
+  {id:'c'.repeat(32),role:'user',content:'Which condition permits the request?',status:'partial',run_id:'prior-job'},
+  {id:'d'.repeat(32),role:'assistant',content:'A ready request can proceed.',status:'partial',analysis_status:'PARTIAL',
+    run_id:'prior-job',investigation_run_id:'a'.repeat(24),answer_available:true,answer_origin:'model',
+    model_answer_recorded:true,stop_reason:'request_budget',analysis_options:{entry:'request.cbl',answer_detail:'brief',locale:'en'}}];}
+
+test('partial answers offer an explicit localized continuation directly below their preserved text',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);setup(h,continuableMessages());const markup=h.run('conversationWorkbench()');
+    assert.match(markup,new RegExp('data-continue-message="'+'c'.repeat(32)+'"'));
+    assert.match(markup,locale==='en'?/Continue investigating and complete the answer/:locale==='zh-CN'?/继续补查并完善回答/:/繼續補查並完善回答/);
+    assert.ok(markup.indexOf('A ready request can proceed.')<markup.indexOf('data-continue-message'));
+    assert.equal(h.requests.length,0);
+  }
+});
+
+test('a completed investigation allowance explains that the run ended and offers manual continuation',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    for(const stop_reason of ['request_budget','MODEL_REQUEST_BUDGET_EXHAUSTED','investigation_round_budget']){
+      const h=harness(locale),messages=continuableMessages();messages[1].stop_reason=stop_reason;
+      setup(h,messages);const markup=h.run('conversationWorkbench()');
+      assert.match(markup,locale==='en'?/This investigation has ended/:locale==='zh-CN'?/本轮调查已结束/:/本輪調查已結束/);
+      assert.match(markup,locale==='en'?/when you want to investigate further/:locale==='zh-CN'?/需要时可点击/:/需要時可點擊/);
+      assert.match(markup,/A ready request can proceed\./);
+      assert.match(markup,/data-continue-message/);
+      assert.doesNotMatch(markup,/execution limit|已達執行限制|已达执行限制/);
+      assert.equal(h.requests.length,0);
+    }
+  }
+});
+
+test('another partial continuation remains stopped until another button action without adding a user turn',async()=>{
+  const h=harness(),messages=continuableMessages();setup(h,messages);
+  let round=0;
+  h.respond(url=>{
+    assert.equal(h.run('state.conversation.messages.length'),2);
+    assert.equal(h.run('state.pendingMessage'),null);
+    assert.equal(h.run('state.question'),'');
+    if(url==='/api/analyze'){
+      round++;
+      assert.match(h.run('conversationWorkbench()'),/A ready request can proceed\./);
+      assert.match(h.run('conversationWorkbench()'),/data-continue-message="[a-f0-9]+" disabled/);
+      return {job_id:'manual-continuation-'+round};
+    }
+    if(url==='/api/jobs/manual-continuation-'+round)return {status:'COMPLETED',result:{...project(),conversation:conversation([
+      {...messages[0],run_id:'manual-continuation-'+round},
+      {...messages[1],run_id:'manual-continuation-'+round,content:'A ready request can proceed. Supplement '+round,
+        investigation_run_id:String(round).repeat(24)},
+    ])}};
+    assert.fail(url);
+  });
+  for(let action=1;action<=2;action++){
+    await h.run(`continueConversationMessage('${messages[0].id}')`);
+    const submissions=h.requests.filter(item=>item.url==='/api/analyze');
+    assert.equal(submissions.length,action);
+    const body=JSON.parse(submissions[action-1].options.body);
+    assert.equal(body.continue_message_id,messages[0].id);
+    assert.equal(body.question,messages[0].content);
+    assert.equal(h.run('state.conversation.messages.length'),2);
+    assert.equal(h.run('state.conversation.messages.filter(item=>item.role==="user").length'),1);
+    assert.equal(h.run('state.busy'),false);
+    assert.match(h.run('conversationWorkbench()'),new RegExp('Supplement '+action));
+    assert.match(h.run('conversationWorkbench()'),/data-continue-message/);
+    assert.equal(h.timeouts.length,0);
+  }
+});
+
+test('continuing submits the original question and scope once while retaining answer and composer draft',async()=>{
+  const h=harness();const messages=continuableMessages();setup(h,messages);
+  h.run("state.entry='different.cbl';state.answerDetail='detailed';state.question='My next question draft';");
+  h.respond(url=>{
+    assert.match(h.run('conversationWorkbench()'),/A ready request can proceed\./);
+    assert.equal(h.run('state.question'),'My next question draft');
+    if(url==='/api/analyze')return {job_id:'continue-job'};
+    if(url==='/api/jobs/continue-job')return {status:'COMPLETED',result:{...project(),conversation:conversation([
+      {...messages[0],status:'completed'},
+      {...messages[1],status:'completed',analysis_status:'ANALYZED',content:'A ready request can proceed. The result is saved.',investigation_run_id:'b'.repeat(24)},
+    ])}};
+    assert.fail(url);
+  });
+  await h.run(`continueConversationMessage('${messages[0].id}')`);
+  const request=h.requests.find(item=>item.url==='/api/analyze');const body=JSON.parse(request.options.body);
+  assert.equal(body.continue_message_id,messages[0].id);assert.equal(body.question,messages[0].content);
+  assert.equal(body.entry,'request.cbl');assert.equal(body.answer_detail,'brief');assert.equal(body.locale,'en');
+  assert.equal(body.source,'local-source');assert.equal(body.output,'local-output');
+  assert.equal(body.retry_message_id,undefined);assert.equal(body.resume_run_id,undefined);assert.equal(body.continue_investigation,undefined);
+  assert.equal(h.requests.filter(item=>item.url==='/api/analyze').length,1);
+  assert.equal(h.run('state.question'),'My next question draft');assert.equal(h.run('state.conversation.messages.length'),2);
+  assert.match(h.run('conversationWorkbench()'),/The result is saved/);
+  assert.doesNotMatch(h.run('conversationWorkbench()'),/data-continue-message/);
+});
+
+test('legacy and unknown-outcome messages retain ordinary retry without claiming resumable work',async()=>{
+  for(const mode of ['legacy','unknown','invalid-id']){
+    const h=harness();const messages=continuableMessages();
+    if(mode==='legacy')delete messages[1].investigation_run_id;
+    if(mode==='unknown')messages[1].retry_blocked_reason='REMOTE_REQUEST_OUTCOME_UNKNOWN';
+    if(mode==='invalid-id')messages[1].investigation_run_id='../unrelated-run';
+    setup(h,messages);const markup=h.run('conversationWorkbench()');
+    assert.doesNotMatch(markup,/data-continue-message/);assert.match(markup,/Retry this question/);
+    await h.run(`continueConversationMessage('${messages[0].id}')`);
+    assert.equal(h.requests.length,0);
+  }
 });
 
 test('unknown requests without an answer show one localized actionable status and preserve old history',async()=>{
@@ -605,7 +718,8 @@ test('phase-only polling retains the latest draft and updates content without a 
   assert.match(h.get('conversation-analysis-live').innerHTML,/Revised <strong>result<\/strong>/);
   assert.doesNotMatch(h.get('conversation-analysis-live').innerHTML,/First draft\./);
   h.run("state.progress=null;rememberProgress({phase:'retrieving'});updateProgressPanel();");
-  assert.equal(h.get('conversation-analysis-live').innerHTML,'');
+  assert.match(h.get('conversation-analysis-live').innerHTML,/Finding relevant evidence/);
+  assert.doesNotMatch(h.get('conversation-analysis-live').innerHTML,/Caller read|First draft|Revised|answer-live-preview/);
 });
 
 test('findings-only and malformed findings objects cannot enter live answer previews',()=>{
@@ -664,6 +778,109 @@ test('question progress uses the same live view outside conversation mode withou
   assert.match(h.run('progressPanel()'),/Current draft\./);
   assert.doesNotMatch(h.run('progressPanel()'),/2 \/ 5|job-progress|40\.0%/);
   assert.match(h.get('conversation-analysis-live').innerHTML,/Current draft\./);
+});
+
+function streamResponse(reader,type='text/event-stream; charset=utf-8'){
+  return {__response:{ok:true,status:200,headers:{get:name=>name.toLowerCase()==='content-type'?type:null},body:{getReader:()=>reader}}};
+}
+function jobEvent(job){return 'event: job\r\ndata: '+JSON.stringify(job)+'\r\n\r\n';}
+function liveJob(h,id='live-job'){setup(h);h.run(`state.busy=true;state.jobId='${id}';state.jobKind='question';state.token='test-session';`);}
+
+test('authenticated job events render fragmented Unicode previews before the final answer arrives',async()=>{
+  const h=harness('en',true);liveJob(h);
+  const first=Buffer.from(': heartbeat\r\n\r\n'+jobEvent({status:'RUNNING',progress:{phase:'writing_answer',answer_preview:{text:'第一段',round:1,stage:'draft'}}}));
+  const split=first.indexOf(Buffer.from('第'))+1;
+  const chunks=[first.subarray(0,split),first.subarray(split,split+1),first.subarray(split+1),
+    Buffer.from(jobEvent({status:'RUNNING',progress:{phase:'writing_answer',answer_preview:{text:'Revised answer.',round:2,stage:'revision'}}})),
+    Buffer.from(jobEvent({status:'COMPLETED',progress:{phase:'completed'},result:{...project(),conversation:conversation(firstMessages)}}))];
+  let index=0,cancelled=0;const observations=[];
+  const reader={read:async()=>{observations.push(h.get('conversation-analysis-live').innerHTML);return index<chunks.length?{value:chunks[index++],done:false}:{done:true};},cancel:async()=>{cancelled++;}};
+  h.respond(url=>url==='/api/jobs/live-job/events'?streamResponse(reader):assert.fail(url));
+  await h.run("pollJob('live-job')");
+  assert.ok(observations.some(value=>value.includes('第一段')));
+  assert.ok(observations.some(value=>value.includes('Revised answer.')));
+  assert.match(h.run('conversationWorkbench()'),/A valid request is accepted/);
+  assert.doesNotMatch(h.run('conversationWorkbench()'),/第一段|Revised answer\.|answer-live-preview/);
+  assert.equal(h.run('state.jobId'),null);assert.equal(h.run('state.busy'),false);assert.equal(cancelled,1);
+  assert.equal(h.requests.length,1);assert.equal(h.requests[0].options.headers['X-Session-Token'],'test-session');
+  assert.equal(h.requests[0].options.headers.Accept,'text/event-stream');assert.doesNotMatch(h.requests[0].url,/test-session/);
+});
+
+test('unsupported or disconnected event streams resume polling the same job without resubmitting',async()=>{
+  for(const failure of ['content-type','reader-error','unfinished','malformed']){
+    const h=harness('en',true);liveJob(h);let reads=0,cancelled=0;
+    const reader={read:async()=>{reads++;if(failure==='reader-error')throw Error('connection lost');if(reads===1)return {value:Buffer.from(failure==='malformed'?'event: job\ndata: {bad json}\n\n':jobEvent({status:'RUNNING',progress:{phase:'writing_answer',answer_preview:{text:'Temporary answer.',round:1,stage:'draft'}}})),done:false};return {done:true};},cancel:async()=>{cancelled++;}};
+    h.respond(url=>url.endsWith('/events')?streamResponse(reader,failure==='content-type'?'application/json':'text/event-stream'):
+      url==='/api/jobs/live-job'?{status:'COMPLETED',result:{...project(),conversation:conversation(firstMessages)}}:assert.fail(url));
+    await h.run("pollJob('live-job')");
+    assert.deepEqual(h.requests.map(item=>item.url),['/api/jobs/live-job/events','/api/jobs/live-job']);
+    assert.match(h.run('conversationWorkbench()'),/A valid request is accepted/);
+    assert.equal(h.run('state.error'),'');assert.equal(h.run('state.pollError'),'');
+    assert.equal(cancelled,failure==='content-type'?0:1);
+  }
+});
+
+test('a stale job event cannot replace the current question or start another poll',async()=>{
+  const h=harness('en',true);liveJob(h);let deliver,cancelled=0;
+  const reader={read:()=>new Promise(resolve=>{deliver=resolve;}),cancel:async()=>{cancelled++;}};
+  h.respond(url=>url==='/api/jobs/live-job/events'?streamResponse(reader):assert.fail(url));
+  const watching=h.run("pollJob('live-job')");
+  for(let count=0;!deliver && count<10;count++)await Promise.resolve();
+  assert.equal(typeof deliver,'function');
+  h.run("state.jobId='next-job';state.progress={phase:'retrieving'};closeJobStream();");
+  deliver({value:Buffer.from(jobEvent({status:'COMPLETED',result:{...project(),conversation:conversation(firstMessages)}})),done:false});
+  await watching;
+  assert.equal(h.run('state.jobId'),'next-job');assert.equal(h.run('state.progress.phase'),'retrieving');
+  assert.equal(h.run('state.conversation.messages.length'),0);assert.equal(h.requests.length,1);assert.equal(cancelled,1);
+});
+
+test('streamed cancellation retains the conversation and closes its reader',async()=>{
+  const h=harness('en',true);liveJob(h);let sent=false,cancelled=0;
+  const reader={read:async()=>{if(sent)return {done:true};sent=true;return {value:Buffer.from(jobEvent({status:'CANCELLED',conversation:conversation(firstMessages),progress:{phase:'cancelled'}})),done:false};},cancel:async()=>{cancelled++;}};
+  h.respond(url=>url==='/api/jobs/live-job/events'?streamResponse(reader):assert.fail(url));
+  await h.run("pollJob('live-job')");
+  assert.equal(h.run('state.busy'),false);assert.equal(h.run('state.jobId'),null);assert.equal(cancelled,1);
+  assert.match(h.run('conversationWorkbench()'),/A valid request is accepted/);assert.match(h.run('state.error'),/work stopped/i);
+});
+
+test('live answer follows the tail only while the reader remains near the bottom',()=>{
+  for(const [position,expected] of [[390,900],[120,120]]){
+    const h=harness();liveJob(h);const region=h.get('conversation-analysis-live');
+    const previous={scrollTop:position,scrollHeight:600,clientHeight:200};const next={scrollTop:0,scrollHeight:900,clientHeight:200};let queries=0;
+    region.querySelector=selector=>selector.includes('narrative-body')?(queries++?next:previous):null;
+    h.run("rememberProgress({phase:'writing_answer',answer_preview:{text:'Growing answer.',round:1,stage:'draft'}});updateLiveAnalysis();");
+    assert.equal(next.scrollTop,expected);
+  }
+});
+
+test('missing event heartbeats abort only the viewer and fall back to the existing job',async()=>{
+  const h=harness('en',true);liveJob(h);let pending,cancelled=0;
+  h.respond((url,options)=>{
+    if(url.endsWith('/events'))return streamResponse({read:()=>new Promise((resolve,reject)=>{pending=true;options.signal.addEventListener('abort',()=>reject(Error('viewer idle')),{once:true});}),cancel:async()=>{cancelled++;}});
+    if(url==='/api/jobs/live-job')return {status:'COMPLETED',result:{...project(),conversation:conversation(firstMessages)}};
+    assert.fail(url);
+  });
+  const watching=h.run("pollJob('live-job')");
+  for(let count=0;!pending && count<10;count++)await Promise.resolve();
+  assert.equal(pending,true);h.timeouts.filter(item=>item.delay===15000).at(-1).callback();
+  await watching;
+  assert.deepEqual(h.requests.map(item=>item.url),['/api/jobs/live-job/events','/api/jobs/live-job']);
+  assert.equal(cancelled,1);assert.match(h.run('conversationWorkbench()'),/A valid request is accepted/);
+});
+
+test('work history retains eight meaningful updates without token duplicates and resets with the question',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);liveJob(h);
+    h.run("rememberProgress({phase:'retrieving'});rememberProgress({phase:'writing_answer',analysis_update:{summary:'Read <script>source</script>.'},answer_preview:{text:'First',round:1,stage:'draft'}});rememberProgress({phase:'writing_answer',answer_preview:{text:'First answer.',round:1,stage:'draft'}});");
+    assert.equal(h.run('state.progress._activityHistory.length'),2);
+    assert.match(h.run('liveAnalysisView()'),/Read &lt;script&gt;source&lt;\/script&gt;/);assert.doesNotMatch(h.run('liveAnalysisView()'),/<script>/);
+    assert.match(h.run('liveAnalysisView()'),locale==='en'?/View work updates/:locale==='zh-CN'?/查看处理进展/:/查看處理進展/);
+    h.run("for(let index=0;index<12;index++)rememberProgress({phase:'reading_relevant_sources',analysis_update:{summary:'Read evidence '+index}});");
+    assert.equal(h.run('state.progress._activityHistory.length'),8);
+    assert.equal(h.run('state.progress._activityHistory[0].summary'),'Read evidence 4');
+    h.run("state.progress=null;rememberProgress({phase:'retrieving'});");
+    assert.equal(h.run('state.progress._activityHistory.length'),1);assert.doesNotMatch(h.run('liveAnalysisView()'),/Read evidence|source/);
+  }
 });
 
 test('partial answers explain the actual completion boundary without asserting source absence',()=>{

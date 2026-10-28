@@ -11,6 +11,11 @@ from repo_inventory import DEFAULT_EXTENSIONS
 _PATH = re.compile(r"[^\s`\"<>,，;；?？:：。！!“”‘’]+(?:[/\\][^\s`\"<>,，;；?？:：。！!“”‘’]+)+")
 _FILENAME = re.compile(r"[^\s`\"<>,，;；?？:：。！!“”‘’/\\]+")
 _ASCII_PATH = re.compile(r"[A-Za-z0-9_$#@.%+'-]+(?:[/\\][A-Za-z0-9_$#@.%+'-]+)+")
+_SOURCE_REFERENCE = re.compile(
+    r"(?:[A-Za-z]:[/\\])?[A-Za-z0-9_$#@.%+'-]+"
+    r"(?:[/\\][^\s`\"<>,，;；?？:：。！!“”‘’/\\]+)*\.(?:" +
+    "|".join(re.escape(extension[1:]) for extension in sorted(DEFAULT_EXTENSIONS)) +
+    r")(?![A-Za-z0-9_$#@.-])", re.I)
 _PATH_REQUEST = re.compile(r"(?:请|請)?(?:说明|說明|解释|解釋|分析|查看|检查|檢查|阅读|閱讀|读|讀|显示|顯示)")
 _QUOTED = re.compile(r"[`\"'“”‘’]([^`\"'“”‘’]+)[`\"'“”‘’]")
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_$#@-]*(?:\.[A-Za-z0-9]+)?")
@@ -53,6 +58,21 @@ def _unquoted_identifier(value):
     while value and value[0] in _WRAPPERS and value.endswith(_WRAPPERS[value[0]]):
         value = value[1:-1].rstrip(".")
     return value
+
+
+def mask_source_references(question):
+    """Exclude source spellings from data-reference parsing, preserving offsets.
+
+    A hyphenated basename or directory is not a COBOL field. Mask complete
+    references before parsing so ``FINAL-AMOUNT in rule-file.cbl`` cannot
+    acquire a bogus field qualifier. Source identity resolution still uses
+    the original question and independently reports missing/ambiguous files.
+    """
+    text = str(question)
+    for match in reversed(list(_QUOTED.finditer(text))):
+        if PurePosixPath(match[1].replace("\\", "/")).suffix.casefold() in DEFAULT_EXTENSIONS:
+            text = text[:match.start()] + " " * len(match[0]) + text[match.end():]
+    return _SOURCE_REFERENCE.sub(lambda match: " " * len(match[0]), text)
 
 
 def _exclusive_source_scope(question, identity):
@@ -194,6 +214,19 @@ def _resolve_input(connection, text):
 
 
 def _resolve_identifiers(connection, text):
+    # A framework document path is reference material, not a missing source
+    # constraint. Preserve Markdown deliberately included in the source index.
+    # Mask before choosing quoted paths so an accompanying unquoted source
+    # path keeps its normal identity semantics.
+    for pattern in (_QUOTED, _PATH):
+        for match in reversed(list(pattern.finditer(text))):
+            value = match[1] if pattern is _QUOTED else _unquoted_identifier(match[0])
+            canonical = value.replace("\\", "/").removeprefix("./").rstrip(".")
+            if ("/" in canonical and PurePosixPath(canonical).suffix.casefold() in {".md", ".markdown"}
+                    and not connection.execute(
+                        "SELECT 1 FROM source_files WHERE relative_path=? COLLATE NOCASE LIMIT 1",
+                        (canonical,)).fetchone()):
+                text = text[:match.start()] + " " * len(match[0]) + text[match.end():]
     # Paths with directories take precedence over words derived from filenames.
     paths = []
     quoted_paths = [match[1] for match in _QUOTED.finditer(text)

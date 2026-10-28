@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from contextlib import closing
 import json
 from pathlib import Path
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -140,6 +142,86 @@ class BusinessDiscoveryRecoveryTests(unittest.TestCase):
             "finish_reason": "stop"}]})))
         self.assertEqual(len(self.requests), 1)
         self.assertEqual(output["reason_code"], "MODEL_REFUSED")
+
+    def test_first_question_direct_read_survives_into_the_next_actual_request(self):
+        def respond(payload):
+            if len(self.requests) == 1:
+                self.assertEqual(payload["retrieval_status"]["state"], "needs_discovery")
+                self.assertEqual(payload["source_context"][0]["pages"], [])
+                self.assertIn("entry-000.cbl", [item["relative_path"]
+                    for item in payload["repository"]["program_samples"]])
+                return json.dumps({"read": [{"relative_path": "entry-000.cbl",
+                    "start_line": 1, "end_line": 12}]})
+            self.assertEqual(payload["retrieval_status"]["state"], "source_candidates")
+            page = next(page for bundle in payload["source_context"] for page in bundle["pages"]
+                        if page["relative_path"] == "entry-000.cbl")
+            self.assertIn("DISPLAY 'UNRELATED'", page["source_text"])
+            self.assertTrue(any(action.get("read", {}).get("relative_path") == "entry-000.cbl"
+                                and action.get("range_complete") for action in payload["completed_actions"]))
+            return f"这段程序请求显示 UNRELATED，然后返回；其他业务仍需定位。[{page['evidence_id']}]"
+
+        output = self.ask(respond, question="请解释这份源码实现的业务用途。",
+            policy=AgentPolicy(max_model_requests=2, max_answer_revisions=0))
+        result = output["agent_result"]
+        self.assertEqual(len(self.requests), 2)
+        self.assertTrue(result["model_answer_recorded"])
+        self.assertNotEqual(result["stop_reason"], "RETRIEVAL_UNRESOLVED")
+        self.assertIn("UNRELATED", result["answer"])
+        self.assertTrue(result["narrative"]["citations"])
+
+    def test_original_text_fallback_is_retained_on_first_question_and_followup_search(self):
+        with closing(sqlite3.connect(self.database)) as connection, connection:
+            connection.execute("DELETE FROM repo_fts")
+        for question, search_first in (("请说明 premium 处理。", False), ("保费的处理规则是什么？", True)):
+            with self.subTest(search_first=search_first):
+                self.requests.clear()
+                def respond(payload):
+                    if search_first and len(self.requests) == 1:
+                        self.assertEqual(payload["retrieval_status"]["state"], "needs_discovery")
+                        return '{"search":["PREMIUM"]}'
+                    self.assertEqual(payload["retrieval_status"]["state"], "source_candidates")
+                    page = next(page for bundle in payload["source_context"] for page in bundle["pages"]
+                                if "COMPUTE FINAL-PREMIUM" in page["source_text"])
+                    self.assertTrue(payload["retrieval_status"]["current_question_match_observed"])
+                    return f"基础金额大于零时，保费按基础金额乘费率计算，否则置零。[{page['evidence_id']}]"
+                output = self.ask(respond, question=question,
+                    policy=AgentPolicy(max_model_requests=2 if search_first else 1, max_answer_revisions=0))
+                self.assertEqual(len(self.requests), 2 if search_first else 1)
+                self.assertTrue(output["agent_result"]["model_answer_recorded"])
+                self.assertNotEqual(output["agent_result"]["stop_reason"], "RETRIEVAL_UNRESOLVED")
+
+    def test_formula_gap_does_not_discard_a_successfully_requested_source_read(self):
+        def respond(payload):
+            if len(self.requests) == 1:
+                self.assertEqual(payload["retrieval_status"]["state"], "needs_discovery")
+                self.assertIn("read array", payload["response_contract"]["format"])
+                return '{"read":[{"relative_path":"entry-000.cbl","start_line":1,"end_line":12}]}'
+            self.assertEqual(payload["retrieval_status"]["state"], "source_candidates")
+            page = next(page for bundle in payload["source_context"] for page in bundle["pages"]
+                        if page["relative_path"] == "entry-000.cbl")
+            self.assertTrue(any(item.get("reason") == "formula_not_located"
+                for item in payload["question_investigation"]["required_items"]))
+            return f"已读程序显示 UNRELATED 后返回；这段原文尚未体现所问的金额计算规则。[{page['evidence_id']}]"
+
+        result = self.ask(respond, question="请解释业务金额怎样计算。",
+            policy=AgentPolicy(max_model_requests=2, max_answer_revisions=0))["agent_result"]
+        self.assertEqual(len(self.requests), 2)
+        self.assertTrue(result["model_answer_recorded"])
+        self.assertTrue(result["evidence_refs"])
+        self.assertNotEqual(result["stop_reason"], "RETRIEVAL_UNRESOLVED")
+
+    def test_failed_direct_read_does_not_claim_source_was_supplied(self):
+        def respond(payload):
+            self.assertEqual(payload["source_context"][0]["pages"], [])
+            self.assertEqual(payload["retrieval_status"]["state"], "needs_discovery")
+            if len(self.requests) == 1:
+                return '{"read":[{"relative_path":"not-imported.cbl","start_line":1,"end_line":12}]}'
+            return "尚未取得相关原文。"
+        result = self.ask(respond, question="请解释这份源码实现的业务用途。",
+            policy=AgentPolicy(max_model_requests=3, max_answer_revisions=0))["agent_result"]
+        self.assertEqual(result["stop_reason"], "RETRIEVAL_UNRESOLVED")
+        self.assertFalse(result["model_answer_recorded"])
+        self.assertFalse(result["narrative"]["citations"])
 
     def test_ambiguous_or_business_json_is_not_executed_as_search(self):
         self.assertIsNone(_actions('Explanation.\n```json\n{"rate":2}\n```'))

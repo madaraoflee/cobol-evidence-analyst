@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import base64
 from http.client import HTTPException
 import json
 from pathlib import Path
@@ -62,6 +63,16 @@ def _safe_parts(value: str) -> tuple[str, ...]:
     return parts
 
 
+def _archive_parts(value: str) -> tuple[str, ...]:
+    """Check archive structure before selecting which entries will be written."""
+    if not value or len(value) > 4096 or value.startswith("/") or "\\" in value or _has_controls(value):
+        raise ValueError("invalid archive path")
+    parts = tuple(value.split("/"))
+    if any(not part or part in {".", ".."} for part in parts):
+        raise ValueError("invalid archive path")
+    return parts
+
+
 def _reference(value: str | None) -> str | None:
     if value is None or value == "":
         return None
@@ -92,13 +103,26 @@ class RemoteSourceSpec:
     repository: str
     ref: str | None = None
     subdirectory: str = ""
+    provider: str = "bitbucket"
 
     @property
     def api_url(self) -> str:
+        if self.provider == "bitbucket_cloud":
+            return ("https://api.bitbucket.org/2.0/repositories/" + quote(self.project, safe="")
+                    + "/" + quote(self.repository, safe=""))
         return (f"{self.base_url}/rest/api/1.0/projects/{quote(self.project, safe='')}/repos/"
                 f"{quote(self.repository, safe='')}")
 
     def public_metadata(self) -> dict:
+        if self.provider == "bitbucket_cloud":
+            url = ("https://bitbucket.org/" + quote(self.project, safe="") + "/"
+                   + quote(self.repository, safe=""))
+            if self.ref:
+                url += "/src/" + quote(self.ref, safe="")
+                if self.subdirectory:
+                    url += "/" + quote(self.subdirectory, safe="/")
+            return {"provider": self.provider, "url": url, "ref": self.ref,
+                    "subdirectory": self.subdirectory}
         url = (f"{self.base_url}/projects/{quote(self.project, safe='')}/repos/"
                f"{quote(self.repository, safe='')}/browse")
         if self.subdirectory:
@@ -111,7 +135,7 @@ class RemoteSourceSpec:
 
 def parse_remote_source(url: str, *, ref: str | None = None,
                         subdirectory: str | None = None) -> RemoteSourceSpec:
-    """Accept Data Center browser and HTTPS clone links, including a context path."""
+    """Accept Cloud and Data Center browser or HTTPS clone links."""
     if (not isinstance(url, str) or not url or len(url) > 8192 or url != url.strip()
             or _has_controls(url) or "\\" in url):
         raise _invalid_url()
@@ -121,8 +145,6 @@ def parse_remote_source(url: str, *, ref: str | None = None,
         host = parts.hostname
         if parts.scheme != "https" or not host or parts.username is not None or parts.password is not None or parts.fragment:
             raise ValueError("invalid URL")
-        if host.lower().rstrip(".") in {"bitbucket.org", "www.bitbucket.org", "api.bitbucket.org"}:
-            raise RemoteSourceError("REMOTE_SOURCE_UNSUPPORTED", "当前入口支持 Bitbucket Data Center / Server，暂不支持 Bitbucket Cloud 链接。")
         if any(char.isspace() for char in host) or "%" in host:
             raise ValueError("invalid host")
         host = host.encode("idna").decode("ascii").lower()
@@ -132,6 +154,34 @@ def parse_remote_source(url: str, *, ref: str | None = None,
         # Decode per component so an encoded slash cannot change route structure.
         encoded_parts = parts.path.strip("/").split("/")
         route = tuple(unquote(part, encoding="utf-8", errors="strict") for part in encoded_parts)
+        if host in {"bitbucket.org", "www.bitbucket.org"}:
+            if port not in (None, 443) or len(route) < 2:
+                raise ValueError("invalid cloud repository")
+            project, repository = route[:2]
+            if len(route) == 2 and repository.endswith(".git"):
+                repository = repository[:-4]
+            if (re.fullmatch(r"[A-Za-z0-9_.-]+", project) is None
+                    or re.fullmatch(r"[A-Za-z0-9_.-]+", repository) is None):
+                raise ValueError("invalid repository identity")
+            _safe_parts(project + "/" + repository)
+            tail = route[2:]
+            if tail and (tail[0] != "src" or len(tail) < 2):
+                raise ValueError("unsupported cloud route")
+            query = parse_qs(parts.query, keep_blank_values=True, strict_parsing=True, max_num_fields=8)
+            if set(query) - {"at"} or any(len(values) != 1 for values in query.values()):
+                raise ValueError("unsupported query")
+            chosen_ref = _reference(ref if ref not in (None, "") else
+                                    query.get("at", [tail[1] if tail else None])[0])
+            if tail:
+                _reference(tail[1])
+                _subdirectory("/".join(tail[2:]))
+            if any("/" in part for part in (*route[:3], *route[4:])):
+                raise ValueError("encoded path separator")
+            chosen_path = _subdirectory(subdirectory if subdirectory not in (None, "") else "/".join(tail[2:]))
+            return RemoteSourceSpec("https://bitbucket.org", project, repository, chosen_ref,
+                                    chosen_path, "bitbucket_cloud")
+        if host == "api.bitbucket.org":
+            raise ValueError("use the cloud browser URL")
         if any("/" in part for part in route):
             raise ValueError("encoded path separator")
         _safe_parts("/".join(route))
@@ -176,6 +226,15 @@ def validate_remote_token(token: str | None) -> str | None:
     return token
 
 
+def validate_remote_username(username: str | None) -> str | None:
+    if username is None or username == "":
+        return None
+    if (not isinstance(username, str) or len(username) > 1024 or username != username.strip()
+            or _has_controls(username) or ":" in username):
+        raise RemoteSourceError("REMOTE_SOURCE_INVALID_USERNAME", "请提供有效的账号邮箱或用户名。")
+    return username
+
+
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, response, code, message, headers, new_url):
         if response is not None:
@@ -183,10 +242,11 @@ class _NoRedirect(HTTPRedirectHandler):
         raise RemoteSourceError("REMOTE_SOURCE_REDIRECT", "仓库服务返回登录或跳转页面。请使用仓库的最终 HTTPS 地址和只读访问令牌。")
 
 
-def _request(opener, url, token, accept):
+def _request(opener, url, token, accept, username=None):
     headers = {"Accept": accept, "Accept-Encoding": "identity", "User-Agent": "SourceWorkbench/1.0"}
     if token:
-        headers["Authorization"] = "Bearer " + token
+        headers["Authorization"] = ("Basic " + base64.b64encode((username + ":" + token).encode("utf-8")).decode("ascii")
+                                    if username else "Bearer " + token)
     request = Request(url, headers=headers, method="GET")
     try:
         response = opener.open(request, timeout=REQUEST_TIMEOUT_SECONDS)
@@ -270,6 +330,7 @@ def _check_zip_directory(archive, tick):
 def _extract_archive(archive, destination, specification, tick, emit):
     _check_zip_directory(archive, tick)
     expected_prefix = ("source",) + tuple(filter(None, specification.subdirectory.split("/")))
+    cloud_root = None
     with zipfile.ZipFile(archive) as contents:
         entries = contents.infolist()
         if len(entries) > MAX_FILES:
@@ -279,7 +340,23 @@ def _extract_archive(archive, destination, specification, tick, emit):
             tick()
             raw_name = entry.orig_filename
             is_directory = raw_name.endswith("/")
-            parts = _safe_parts(raw_name[:-1] if is_directory else raw_name)
+            name = raw_name[:-1] if is_directory else raw_name
+            parts = _archive_parts(name) if specification.provider == "bitbucket_cloud" else _safe_parts(name)
+            if specification.provider == "bitbucket_cloud":
+                # Cloud archives have one generated top-level folder and
+                # contain the whole repository. Only publish the chosen tree.
+                if cloud_root is None:
+                    cloud_root = parts[0]
+                    _safe_parts(cloud_root)
+                    expected_prefix = (cloud_root,) + tuple(filter(None, specification.subdirectory.split("/")))
+                if parts[0] != cloud_root:
+                    raise ValueError("multiple archive roots")
+                ancestor_directory = is_directory and parts == expected_prefix[:len(parts)]
+                if parts[:len(expected_prefix)] != expected_prefix and not ancestor_directory:
+                    continue
+                # A sibling Linux-only filename is never materialized locally;
+                # selected files must still have portable Windows names.
+                _safe_parts(name)
             mode = (entry.external_attr >> 16) & 0xFFFF
             kind = stat.S_IFMT(mode)
             if kind not in {0, stat.S_IFREG, stat.S_IFDIR} or (kind == stat.S_IFDIR and not is_directory):
@@ -332,7 +409,107 @@ def _extract_archive(archive, destination, specification, tick, emit):
         return len(files)
 
 
+def _canonical_spec(spec):
+    canonical = spec.public_metadata()
+    if parse_remote_source(canonical["url"], ref=canonical["ref"], subdirectory=canonical["subdirectory"]) != spec:
+        raise _invalid_url()
+    return canonical
+
+
+def _read_metadata(opener, url, token, username, tick):
+    with _request(opener, url, token, "application/json", username) as response:
+        metadata = bytearray()
+        while True:
+            tick()
+            chunk = getattr(response, "read1", response.read)(min(CHUNK_BYTES, MAX_METADATA_BYTES + 1 - len(metadata)))
+            if not chunk:
+                break
+            metadata.extend(chunk)
+            if len(metadata) > MAX_METADATA_BYTES:
+                raise RemoteSourceError("REMOTE_SOURCE_INVALID_RESPONSE", "仓库返回的提交信息无效。")
+    try:
+        value = json.loads(metadata)
+        if not isinstance(value, dict):
+            raise ValueError("invalid metadata")
+        return value
+    except (TypeError, ValueError):
+        raise RemoteSourceError("REMOTE_SOURCE_INVALID_RESPONSE", "仓库返回的提交信息无效。") from None
+
+
+def _commit(value):
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", value) is None:
+        raise RemoteSourceError("REMOTE_SOURCE_INVALID_RESPONSE", "仓库返回的提交信息无效。")
+    return value.lower()
+
+
+def _resolve_remote_source(spec, token, username, opener, tick):
+    canonical = _canonical_spec(spec)
+    default_branch = None
+    try:
+        if spec.provider == "bitbucket_cloud":
+            revision = spec.ref
+            if revision is None:
+                repository = _read_metadata(opener, spec.api_url, token, username, tick)
+                default_branch = _reference(repository["mainbranch"]["name"])
+                if default_branch is None:
+                    raise ValueError("missing default branch")
+                revision = default_branch
+            response = _read_metadata(opener, spec.api_url + "/commits/" + quote(revision, safe="")
+                                      + "?pagelen=1", token, username, tick)
+            key = "hash"
+        else:
+            query = {"limit": "1"}
+            if spec.ref:
+                query["until"] = spec.ref
+            response = _read_metadata(opener, spec.api_url + "/commits?" + urlencode(query), token, username, tick)
+            key = "id"
+        values = response["values"]
+        if not isinstance(values, list):
+            raise ValueError("invalid commits")
+        if not values:
+            raise RemoteSourceError("REMOTE_SOURCE_NOT_FOUND", "所选仓库或分支没有可下载的提交。")
+        commit = _commit(values[0][key])
+        if spec.ref and re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", spec.ref) and commit != spec.ref.lower():
+            raise ValueError("different pinned commit")
+    except RemoteSourceError as exc:
+        if exc.code == "REMOTE_SOURCE_INVALID_REF":
+            raise RemoteSourceError("REMOTE_SOURCE_INVALID_RESPONSE", "仓库返回的提交信息无效。") from None
+        raise
+    except (KeyError, IndexError, TypeError, ValueError):
+        raise RemoteSourceError("REMOTE_SOURCE_INVALID_RESPONSE", "仓库返回的提交信息无效。") from None
+    return {**canonical, "commit": commit, **({"default_branch": default_branch} if default_branch else {})}
+
+
+def resolve_remote_source(spec: RemoteSourceSpec, *, token: str | None = None, username: str | None = None,
+                          progress=None, check_cancel=None, opener=None) -> dict:
+    """Read only revision metadata, so callers can reuse an unchanged local snapshot."""
+    token, username = validate_remote_token(token), validate_remote_username(username)
+    _canonical_spec(spec)
+    started = time.monotonic()
+
+    def tick():
+        if check_cancel:
+            check_cancel()
+        if time.monotonic() - started > TRANSFER_TIMEOUT_SECONDS:
+            raise RemoteSourceError("REMOTE_SOURCE_TIMEOUT", "仓库版本检查超时，请稍后重试。")
+
+    def emit(completed):
+        tick()
+        if progress:
+            progress({"phase": "remote_resolving", "completed": completed, "total": 1, "unit": "files",
+                      "bytes_completed": 0, "bytes_total": None})
+
+    try:
+        emit(0)
+        result = _resolve_remote_source(spec, token, username, opener if opener is not None else build_opener(_NoRedirect()), tick)
+        emit(1)
+        return result
+    except (URLError, TimeoutError, ssl.SSLError, ConnectionError, HTTPException) as exc:
+        raise _network_error(exc) from None
+
+
 def fetch_remote_source(spec: RemoteSourceSpec, destination: Path, *, token: str | None = None,
+                        username: str | None = None, resolved: dict | None = None,
                         progress=None, check_cancel=None, opener=None) -> dict:
     """Download a pinned commit, preserving no credentials or repository executable hooks.
 
@@ -340,14 +517,12 @@ def fetch_remote_source(spec: RemoteSourceSpec, destination: Path, *, token: str
     reused, overwritten or removed. Only a directory created by this call is
     cleaned up if download, extraction or cancellation fails.
     """
-    token = validate_remote_token(token)
+    token, username = validate_remote_token(token), validate_remote_username(username)
     destination = Path(destination)
     if destination.exists() or destination.is_symlink():
         raise RemoteSourceError("REMOTE_SOURCE_DESTINATION_EXISTS", "下载位置已存在，请使用新的独立源码目录。")
     # Revalidate even when a caller constructs the dataclass itself.
-    canonical = spec.public_metadata()
-    if parse_remote_source(canonical["url"]) != spec:
-        raise _invalid_url()
+    canonical = _canonical_spec(spec)
     started = time.monotonic()
 
     def tick():
@@ -368,38 +543,25 @@ def fetch_remote_source(spec: RemoteSourceSpec, destination: Path, *, token: str
         created = True
         opener = opener if opener is not None else build_opener(_NoRedirect())
         emit("remote_resolving", 0, 1)
-        query = {"limit": "1"}
-        if spec.ref:
-            query["until"] = spec.ref
-        with _request(opener, spec.api_url + "/commits?" + urlencode(query), token, "application/json") as response:
-            metadata = bytearray()
-            while True:
-                tick()
-                chunk = getattr(response, "read1", response.read)(min(CHUNK_BYTES, MAX_METADATA_BYTES + 1 - len(metadata)))
-                if not chunk:
-                    break
-                metadata.extend(chunk)
-                if len(metadata) > MAX_METADATA_BYTES:
-                    raise RemoteSourceError("REMOTE_SOURCE_INVALID_RESPONSE", "仓库返回的提交信息无效。")
-        try:
-            values = json.loads(metadata)["values"]
-            if not isinstance(values, list):
-                raise ValueError("invalid commits")
-            if not values:
-                raise RemoteSourceError("REMOTE_SOURCE_NOT_FOUND", "所选仓库或分支没有可下载的提交。")
-            commit = values[0]["id"]
-            if not isinstance(commit, str) or re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", commit) is None:
-                raise ValueError("invalid commit")
-        except (KeyError, IndexError, TypeError, ValueError) as exc:
-            if isinstance(exc, RemoteSourceError):
-                raise
-            raise RemoteSourceError("REMOTE_SOURCE_INVALID_RESPONSE", "仓库返回的提交信息无效。") from None
+        if resolved is None:
+            resolved = _resolve_remote_source(spec, token, username, opener, tick)
+        if (not isinstance(resolved, dict)
+                or any(resolved.get(key) != value for key, value in canonical.items())):
+            raise RemoteSourceError("REMOTE_SOURCE_INVALID_RESPONSE", "仓库版本与所选来源不一致，请重新检查版本。")
+        commit = _commit(resolved.get("commit"))
+        if spec.ref and re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", spec.ref) and commit != spec.ref.lower():
+            raise RemoteSourceError("REMOTE_SOURCE_INVALID_RESPONSE", "仓库版本与所选来源不一致，请重新检查版本。")
         emit("remote_resolving", 1, 1)
-        query = {"at": commit, "format": "zip", "prefix": "source/"}
-        if spec.subdirectory:
-            query["path"] = spec.subdirectory
+        if spec.provider == "bitbucket_cloud":
+            archive_url = ("https://bitbucket.org/" + quote(spec.project, safe="") + "/"
+                           + quote(spec.repository, safe="") + "/get/" + commit + ".zip")
+        else:
+            query = {"at": commit, "format": "zip", "prefix": "source/"}
+            if spec.subdirectory:
+                query["path"] = spec.subdirectory
+            archive_url = spec.api_url + "/archive?" + urlencode(query)
         with tempfile.TemporaryFile(mode="w+b", dir=destination.parent) as archive:
-            with _request(opener, spec.api_url + "/archive?" + urlencode(query), token, "application/octet-stream") as response:
+            with _request(opener, archive_url, token, "application/octet-stream", username) as response:
                 length = response.headers.get("Content-Length")
                 total = int(length) if length and length.isdecimal() else None
                 if total is not None and total > MAX_ARCHIVE_BYTES:
@@ -427,7 +589,9 @@ def fetch_remote_source(spec: RemoteSourceSpec, destination: Path, *, token: str
                     FileExistsError, NotADirectoryError):
                 raise RemoteSourceError("REMOTE_SOURCE_INVALID_ARCHIVE", "仓库未返回有效的源码 ZIP，或其中包含无法安全读取的文件。") from None
         tick()
-        return {**canonical, "commit": commit.lower(), "file_count": file_count}
+        default_branch = _reference(resolved.get("default_branch"))
+        return {**canonical, "commit": commit, "file_count": file_count,
+                **({"default_branch": default_branch} if default_branch else {})}
     except (URLError, TimeoutError, ssl.SSLError, ConnectionError, HTTPException) as exc:
         raise _network_error(exc) from None
     finally:

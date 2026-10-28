@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from response_language import SUPPORTED_LANGUAGES, answer_language_instruction
+
 
 BUSINESS_RUNTIME_BOUNDARY_POLICY = (
     "直接解释源码确定的输入、规则和输出；缺调度、数据或绑定仅限制相关运行结论。"
@@ -12,8 +14,10 @@ BUSINESS_RUNTIME_BOUNDARY_POLICY = (
     "SQL摘要和表格均限定‘查询返回且执行到状态判断时’的零/非零分支；抛错或未返回不等于非零，不说失败都返回业务码。"
     "每个独立摘要、表格或结语的空输入结论，就地写明‘按所示初始状态且 OPEN/READ 正常、首次 READ 到 AT END 时’；"
     "VALUE 仅初始化，不代表每次调用重置。按分支说明处理、写入或提示；正常关闭才说正常结束，不保证物理输出为空。"
+    "未见VALUE、INITIALIZE或已知赋值且未确认适用初始化约定时，初值未知，不能凭WORKING-STORAGE/PIC推断为零；仍按进入判断时的值解释各分支。"
     "DISPLAY只说明输出请求；目的地须有手册及启动依据，未知时不罗列丢弃、重定向等无证可能性。"
     "PIC不保证外部字节有效；无符号且符合声明时，大于零才等同非零。"
+    "区分数学运算结果与接收字段可存储的结果；合法输入不保证乘积或合计不会超出PIC范围，不把所有合法输入都写成可原样存入。"
     "未见调用或共享数据只说明材料内未见关联，不证明系统全局无关；night/daily文件名不证明调度频率。"
     "摘要和表格保留控制前提，文末限制不能修正前文保证；区分输出参数与返回码。"
     "同一结论及影响当前问题的缺项只说明一次，不重复清单或扩写未问的空文件、重复调用、假设异常；位置用引用，不编行号。")
@@ -63,9 +67,17 @@ def with_answer_instructions(system: str, instructions: str | None = None) -> st
         return system
     system = system.replace("\n业务概览默认按以下方式组织，用户自定义回答要求可以调整格式：\n"
                             + DEFAULT_ANSWER_INSTRUCTIONS, "", 1)
+    # Request compaction uses a different default template. Remove its writing
+    # structure too, while retaining the source-relationship boundary.
+    system = system.replace(BUSINESS_EXPLANATION_COMPACT_POLICY,
+                            "handoffs是导航，同名/COPY不证关联，窄问只答所问。", 1)
+    for language in SUPPORTED_LANGUAGES:
+        for compact in (False, True):
+            system = system.replace(answer_language_instruction(language, compact=compact),
+                                    answer_language_instruction(language, saved_requirements=True), 1)
     return (system + "\n\n用户在系统配置中保存的回答要求（原文）：\n" + instructions
             + "\n\n以上是用户的回答要求，应实际用于本次回答及后续补充、续写和修订。"
-              "其受众、结构、栏目、措辞与详略要求优先于内置默认写作格式；当前问题的明确要求优先。"
+              "其语言、受众、结构、栏目、措辞与详略要求优先于内置默认写作格式；当前问题的明确要求优先。"
               "补查轮仍使用所需的检索动作格式，最终答案再按用户要求组织。"
               "来源事实、引用与未知范围仍以实际材料为准，不能为了填满模板编造内容。")
 

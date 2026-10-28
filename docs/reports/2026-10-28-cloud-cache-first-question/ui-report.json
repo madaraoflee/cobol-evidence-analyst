@@ -1,0 +1,265 @@
+{
+  "scope": "Real local Workbench HTTP, actual source indexing and persistence; only remote fetch/resolve are controlled fixtures. No real model or enterprise repository calls.",
+  "checks": [
+    {
+      "name": "startup_restores_remote_without_download",
+      "passed": true
+    },
+    {
+      "name": "two_saved_libraries_visible",
+      "passed": true
+    },
+    {
+      "name": "fixed_commit_scope_explained",
+      "passed": true
+    },
+    {
+      "name": "simplified_chinese_layout",
+      "passed": true
+    },
+    {
+      "name": "source_page_has_no_horizontal_overflow",
+      "passed": true
+    },
+    {
+      "name": "saved_local_source_opened_over_real_http",
+      "passed": true
+    },
+    {
+      "name": "saved_cloud_source_opened_over_real_http",
+      "passed": true
+    },
+    {
+      "name": "cached_switches_do_not_fetch_or_resolve",
+      "passed": true
+    },
+    {
+      "name": "same_url_returns_synchronous_source_reused",
+      "passed": true
+    },
+    {
+      "name": "cached_reconnect_preserves_draft",
+      "passed": true
+    },
+    {
+      "name": "cached_reconnect_preserves_conversation",
+      "passed": true
+    },
+    {
+      "name": "cache_reconnect_clears_credentials",
+      "passed": true
+    },
+    {
+      "name": "cache_reconnect_makes_no_remote_calls",
+      "passed": true
+    },
+    {
+      "name": "fixed_commit_not_silently_changed_to_default",
+      "passed": true
+    },
+    {
+      "name": "update_keeps_repository_and_folder_readonly",
+      "passed": true
+    },
+    {
+      "name": "same_commit_only_resolves_remote",
+      "passed": true
+    },
+    {
+      "name": "same_commit_retains_draft",
+      "passed": true
+    },
+    {
+      "name": "same_commit_retains_conversation",
+      "passed": true
+    },
+    {
+      "name": "unchanged_notice_visible",
+      "passed": true
+    },
+    {
+      "name": "unchanged_draft_visible_in_composer",
+      "passed": true
+    },
+    {
+      "name": "default_branch_tracking_explicitly_reaches_resolver",
+      "passed": true
+    },
+    {
+      "name": "same_commit_default_branch_change_needs_no_download",
+      "passed": true
+    },
+    {
+      "name": "default_branch_choice_persisted",
+      "passed": true
+    },
+    {
+      "name": "browser_reload_has_no_remote_io",
+      "passed": true
+    },
+    {
+      "name": "browser_reload_restores_source_and_history",
+      "passed": true
+    },
+    {
+      "name": "dark_source_page_has_no_horizontal_overflow",
+      "passed": true
+    },
+    {
+      "name": "default_branch_choice_restored_to_form",
+      "passed": true
+    },
+    {
+      "name": "closing_update_clears_credentials",
+      "passed": true
+    },
+    {
+      "name": "no_credentials_in_frontend_state_or_localstorage",
+      "passed": true
+    },
+    {
+      "name": "no_question_or_model_check_sent",
+      "passed": true
+    },
+    {
+      "name": "all_browser_requests_stay_local",
+      "passed": true
+    },
+    {
+      "name": "no_page_errors",
+      "passed": true
+    }
+  ],
+  "api_requests": [
+    {
+      "path": "/api/state",
+      "method": "GET"
+    },
+    {
+      "path": "/api/source/open",
+      "method": "POST",
+      "fields": [
+        "workspace_id"
+      ]
+    },
+    {
+      "path": "/api/source/open",
+      "method": "POST",
+      "fields": [
+        "workspace_id"
+      ]
+    },
+    {
+      "path": "/api/source/remote",
+      "method": "POST",
+      "fields": [
+        "url",
+        "ref",
+        "subdirectory",
+        "token",
+        "encoding",
+        "source_format",
+        "extensions",
+        "reading_strategy",
+        "answer_detail",
+        "max_source_pages",
+        "framework_reference_path",
+        "username"
+      ]
+    },
+    {
+      "path": "/api/source/remote/update",
+      "method": "POST",
+      "fields": [
+        "workspace_id",
+        "token",
+        "username",
+        "ref",
+        "follow_default_branch"
+      ],
+      "follow_default_branch": false
+    },
+    {
+      "path": "/api/jobs/c1ba0df32a0e44fbfe9d580080863124",
+      "method": "GET"
+    },
+    {
+      "path": "/api/jobs/c1ba0df32a0e44fbfe9d580080863124",
+      "method": "GET"
+    },
+    {
+      "path": "/api/source/remote/update",
+      "method": "POST",
+      "fields": [
+        "workspace_id",
+        "token",
+        "username",
+        "ref",
+        "follow_default_branch"
+      ],
+      "follow_default_branch": true
+    },
+    {
+      "path": "/api/jobs/6a2672ea2b7b4a1b7d8294dafd0a24dd",
+      "method": "GET"
+    },
+    {
+      "path": "/api/state",
+      "method": "GET"
+    }
+  ],
+  "page_errors": [],
+  "external_requests_blocked": [],
+  "screenshots": [
+    "01-saved-source-light.png",
+    "02-cloud-update-fixed-commit.png",
+    "03-cloud-follow-default-explicit.png",
+    "04-saved-source-dark.png",
+    "05-cloud-update-dark.png"
+  ],
+  "remote_calls": {
+    "fetch": [
+      {
+        "provider": "bitbucket_cloud",
+        "ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "subdirectory": "stage",
+        "credentials_present": true
+      }
+    ],
+    "resolve": [
+      {
+        "provider": "bitbucket_cloud",
+        "ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "subdirectory": "stage",
+        "credentials_present": true
+      },
+      {
+        "provider": "bitbucket_cloud",
+        "ref": null,
+        "subdirectory": "stage",
+        "credentials_present": true
+      }
+    ]
+  },
+  "passed": true,
+  "credential_scan": {
+    "scope": "Generated fixture workspace, index, state, history and result files before copying test harnesses.",
+    "persisted_test_credentials": false
+  },
+  "visual_review": {
+    "all_five_screenshots_reviewed": true,
+    "saved_card_padding": "Body and rows align with the heading.",
+    "dark_buttons": "Theme transition completed before capture; secondary controls correctly use dark surfaces.",
+    "layout": "No visible overlap or horizontal overflow at 1440x1000. Update form, fixed-commit explanation, follow-default option, index repair note and footer actions remain readable.",
+    "fixture_note": "The source-only fixture deliberately uses an absent framework path; its unavailable notice is expected."
+  },
+  "server_closed": true,
+  "server_pid": 69244,
+  "code_identity": {
+    "started_at": "2026-10-28T15:16:13Z",
+    "ended_at": "2026-10-28T15:16:42Z",
+    "file_count": 11,
+    "changed_files": [],
+    "all_key_files_unchanged": true
+  }
+}

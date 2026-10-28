@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import time
 from collections.abc import Callable, Mapping
 from collections import defaultdict
 from dataclasses import dataclass, replace
@@ -373,11 +374,11 @@ def run_business_analysis(
     planning_fatal: str | None = None
     planning_failure: dict[str, object] | None = None
 
-    def emit(phase: str, completed: int, total: int | None) -> None:
+    def emit(phase: str, completed: int, total: int | None, **details) -> None:
         if check_cancel:
             check_cancel()
         if progress:
-            progress({"phase": phase, "completed": completed, "total": total, "unit": "pages"})
+            progress({"phase": phase, "completed": completed, "total": total, "unit": "pages", **details})
 
     def finish(output: dict[str, object]) -> dict[str, object]:
         output["schema_version"] = SCHEMA_VERSION
@@ -679,14 +680,51 @@ def run_business_analysis(
         if check_cancel:
             check_cancel()
         model_turns += 1
+        streamed_text, preview_at = "", float("-inf")
+        # Page and reduction summaries are internal context, not reader answers.
+        stream_answer = progress is not None and stage in {"direct", "synthesis"}
+        protected_preview_values = tuple(redactor._protected_values)
+
+        def preview(text: str, *, terminal: bool = False) -> None:
+            nonlocal preview_at
+            candidate = text.lstrip()
+            if candidate.startswith(("{", "[", "```json")):
+                return
+            holdback = 0
+            if not terminal:
+                # A token may be split across deltas. Do not expose even a
+                # partial credential, endpoint or model identifier.
+                for protected in protected_preview_values:
+                    for size in range(min(len(protected) - 1, len(text)), holdback, -1):
+                        if text.endswith(protected[:size]):
+                            holdback = size
+                            break
+            visible = text[:-holdback] if holdback else text
+            visible = re.split(r"\{|```json", visible, maxsplit=1)[0].rstrip()
+            now = time.monotonic()
+            if visible and (terminal or now - preview_at >= 0.15):
+                preview_at = now
+                emit("writing_answer", len(summarized_pages), len(pages),
+                    model_requests=model_turns, answer_preview={
+                        "text": redactor._sanitize(visible)[:24000],
+                        "round": model_turns, "stage": "answer"})
+
+        def on_text_delta(delta: str) -> None:
+            nonlocal streamed_text
+            streamed_text += delta
+            preview(streamed_text)
+
         try:
-            response = client.complete(messages=messages)
+            response = client.complete(messages=messages, check_cancel=check_cancel,
+                **({"on_text_delta": on_text_delta} if stream_answer else {}))
             reply = _extract_text(response)
             if reply.choice_index:
                 warnings.append({"code": "MODEL_NONEMPTY_CHOICE_SELECTED", "stage": stage,
                                  "choice_index": reply.choice_index})
             if reply.structured:
                 warnings.append({"code": "MODEL_STRUCTURED_TEXT_PRESERVED", "stage": stage})
+            if stream_answer and reply.has_content and not reply.structured:
+                preview(reply.text, terminal=True)
             return replace(reply, text=redactor._sanitize(reply.text))
         except _TextResponseError as exc:
             if diagnostics is not None:

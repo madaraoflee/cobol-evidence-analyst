@@ -1,0 +1,47 @@
+{
+  "scope": "actual configured model via local source HTTP workbench; 12202 neutral generated files; no private repository",
+  "model_request_limit": 6,
+  "cases": [
+    {
+      "case": "first-question",
+      "question": "这份源码里订单金额是怎样检查并决定结果的？请面向业务新人解释。",
+      "job_status": "COMPLETED",
+      "status": "ABSTAINED",
+      "stop_reason": "TRANSPORT_ERROR",
+      "model_answer_recorded": false,
+      "answer_truncated": false,
+      "model_requests": 1,
+      "answer": "无法建立安全连接，请联系管理员。 检查网络、接口地址和服务连通性。 本地关联编号：local-c2c8db19d2ea4db682812ee63d270c76。\n\n对话和源码索引已保留。\n\n诊断：TRANSPORT_ERROR；阶段：provider_request。",
+      "evidence_refs": [],
+      "sse_events": 7,
+      "running_preview_events": 0,
+      "custom_in_actual_system": null
+    },
+    {
+      "case": "custom-after-restart",
+      "question": "请解释 z-policy.cbl 中最终金额的计算规则。",
+      "job_status": "COMPLETED",
+      "status": "PARTIAL",
+      "stop_reason": "question_evidence_incomplete",
+      "model_answer_recorded": true,
+      "answer_truncated": false,
+      "model_requests": 1,
+      "answer": "## Purpose\n\n`SETTLEMENTCASE` in `z-policy.cbl` calculates a final amount from a base amount. `BASE-AMOUNT` is a five-digit numeric field declared with an initial value of `2`; `FINAL-AMOUNT` is the five-digit numeric result field [ev_page_3fc7b5ced052e66135de9b59].\n\n## Rule\n\nThe program performs one calculation: `COMPUTE FINAL-AMOUNT = BASE-AMOUNT * 3`. It multiplies the base amount by three and places the product in `FINAL-AMOUNT`. The supplied program contains no condition, alternative branch, rounding clause, or later adjustment. `VALUE 2` is the declared initial value of `BASE-AMOUNT`; it does not establish that the field is reset on every invocation [ev_page_3fc7b5ced052e66135de9b59].\n\n## Result\n\nWith the shown initial value, `2 × 3 = 6`, so `FINAL-AMOUNT` receives `6` when this calculation executes, after which the program returns via `GOBACK`. This is the source-visible calculation rule, not a verified runtime execution [ev_page_3fc7b5ced052e66135de9b59].",
+      "evidence_refs": [
+        {
+          "end_line": 9,
+          "evidence_id": "ev_page_3fc7b5ced052e66135de9b59",
+          "kind": "source_page",
+          "relative_path": "z-policy.cbl",
+          "source_sha256": "0ecd35d74fb0e68bd13be4c0eddb017404fe08189687e1c1f0afb5634d2ebf1a",
+          "start_line": 1
+        }
+      ],
+      "sse_events": 14,
+      "running_preview_events": 8,
+      "custom_in_actual_system": true
+    }
+  ],
+  "model_requests": 2,
+  "review_scope": "Request delivery, source retrieval, saved instructions and streaming; this status does not prove business correctness."
+}

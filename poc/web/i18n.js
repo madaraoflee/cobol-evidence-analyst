@@ -3,6 +3,47 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+繼續補查並完善回答|继续补查并完善回答|Continue investigating and complete the answer
+原調查記錄無法繼續，請使用「重試這個問題」重新分析。|原调查记录无法继续，请使用“重试这个问题”重新分析。|The original investigation cannot be continued. Select Retry this question to start a new analysis.
+遠端版本沒有變更，已重建本機索引，沒有重新下載源碼。|远端版本没有变更，已重建本地索引，没有重新下载源码。|The repository version is unchanged. The local index was rebuilt without downloading source again.
+已重用本機源碼並更新索引，沒有重新下載。|已复用本地源码并更新索引，没有重新下载。|Local source was reused and the index was updated without downloading.
+目前固定在指定提交，不會跟隨新提交。要接收後續更新，可在「檢查並更新」中改用分支或跟隨預設分支。|目前固定在指定提交，不会跟随新提交。要接收后续更新，可在“检查并更新”中改用分支或跟随默认分支。|This source is pinned to a commit and does not follow new commits. To receive later versions, choose a branch or follow the default branch in Check and update.
+查看處理進展 ·|查看处理进展 ·|View work updates ·
+搜尋對話標題或來源|搜索对话标题或来源|Search conversation titles or sources
+搜尋標題或來源|搜索标题或来源|Search titles or sources
+清除搜尋|清除搜索|Clear search
+展開更多以查看較早對話。|展开更多以查看较早对话。|Show more to see earlier conversations.
+沒有符合的對話，試試其他標題或來源名稱。|没有符合的对话，试试其他标题或来源名称。|No matching conversations. Try another title or source name.
+符合的對話：|符合的对话：|Matching conversations:
+展開更多 ·|展开更多 ·|Show more ·
+收起較早對話|收起较早对话|Show fewer conversations
+已儲存的源碼資料庫|已保存的源码资料库|Saved source libraries
+源碼和索引已保存在這台電腦。開啟本機副本不會下載，也不會呼叫模型。|源码和索引已保存在这台电脑。打开本地副本不会下载，也不会调用模型。|Source and indexes are saved on this computer. Opening a local copy does not download source or call a model.
+目前使用中|当前使用中|Currently open
+開啟本機副本|打开本地副本|Open local copy
+本機副本不可用|本地副本不可用|Local copy unavailable
+本機快取版本|本地缓存版本|Local cached version
+更新目標|更新目标|Update target
+檢查並更新|检查并更新|Check and update
+檢查並更新 Bitbucket 源碼|检查并更新 Bitbucket 源码|Check and update Bitbucket source
+接入或使用已存副本|接入或使用已存副本|Connect or use saved copy
+源碼已保存在本機，重新開啟無需下載。按「檢查並更新」才會連線；提交版本未變時，直接沿用現有索引。有新版本時另存快照，舊對話仍使用原版本。|源码已保存在本地，重新打开无需下载。点击“检查并更新”才会联网；提交版本未变时，直接沿用现有索引。有新版本时另存快照，旧对话仍使用原版本。|Source is saved locally and opens without downloading. Only Check and update connects to the repository; unchanged commits reuse the index. New versions get a separate snapshot, while existing conversations keep their original version.
+已開啟本機副本，沒有重新下載源碼。|已打开本地副本，没有重新下载源码。|Opened the local copy without downloading source again.
+遠端版本沒有變更，已沿用本機源碼和索引，沒有重新下載。|远端版本没有变更，已沿用本地源码和索引，没有重新下载。|The repository version is unchanged. Local source and indexes were reused without downloading.
+已取得新版本。舊對話仍保留原版本與引用；新問題使用這份新快照。|已获取新版本。旧对话仍保留原版本与引用；新问题使用这份新快照。|A new version is ready. Earlier conversations retain their original version and citations; new questions use this snapshot.
+無法開啟已儲存的源碼資料庫，原資料庫仍保留。|无法打开已保存的源码资料库，原资料库仍保留。|The saved source library could not be opened. Your current library is unchanged.
+首次接入後保存在本機，日後可直接開啟或檢查更新。|首次接入后保存在本地，日后可直接打开或检查更新。|Saved locally after the first import. Open it later or check for updates.
+貼上 Bitbucket Cloud 或 Server / Data Center 的 HTTPS 倉庫或目錄連結。已取得的源碼會保存在本機，重新開啟時直接使用，無需再次下載。|粘贴 Bitbucket Cloud 或 Server / Data Center 的 HTTPS 仓库或目录链接。已获取的源码会保存在本地，重新打开时直接使用，无需再次下载。|Paste an HTTPS repository or folder link from Bitbucket Cloud or Server / Data Center. Downloaded source is saved locally and reused when you reopen it.
+留空時沿用連結中的分支和目錄；填寫後會覆蓋連結中的設定。固定提交連結不會跟隨後續更新；要追蹤更新，請填分支名稱或選擇跟隨預設分支。|留空时沿用链接中的分支和目录；填写后会覆盖链接中的设置。固定提交链接不会跟随后续更新；要跟踪更新，请填分支名称或选择跟随默认分支。|Leave blank to use the branch and folder in the link; entered values override the link. Fixed commits do not follow updates. Enter a branch name or follow the default branch to track changes.
+跟隨倉庫預設分支|跟随仓库默认分支|Follow the repository default branch
+勾選後，接入或檢查更新時使用預設分支的最新提交，忽略連結和欄位中的固定版本。不會在啟動時自動連線。|勾选后，接入或检查更新时使用默认分支的最新提交，忽略链接和字段中的固定版本。不会在启动时自动联网。|When selected, import and update use the latest commit on the default branch, ignoring the revision in the link and field. Startup does not connect automatically.
+Cloud 帳號郵箱（使用 API token 時填寫）|Cloud 账号邮箱（使用 API token 时填写）|Cloud account email (for API tokens)
+Cloud 使用帳號郵箱與具有倉庫讀取權限的 API token；Server / Data Center 使用只讀存取權杖，郵箱留空。憑證只用於本次接入或更新，提交或關閉後清除，不會儲存。|Cloud 使用账号邮箱与具有仓库读取权限的 API token；Server / Data Center 使用只读访问令牌，邮箱留空。凭据只用于本次接入或更新，提交或关闭后清除，不会保存。|For Cloud, use your account email and an API token with repository read permission. For Server / Data Center, leave email blank and use a read-only access token. Credentials are used only for this import or update, cleared on submit or close, and never saved.
+首次取得後保存在本機。檢查更新先比較提交；沒有變更且本機索引可用時，不下載、不重建索引。索引不可用時會從本機源碼重建，無需重新下載。此操作不呼叫模型，無需安裝 Git。|首次获取后保存在本地。检查更新先比较提交；没有变更且本地索引可用时，不下载、不重建索引。索引不可用时会从本地源码重建，无需重新下载。此操作不调用模型，无需安装 Git。|Saved locally after the first download. Update checks compare commits first. Unchanged versions with a usable local index need no download or indexing. An unusable index is rebuilt from local source without downloading again. This operation does not call a model or require Git.
+請提供 Bitbucket Cloud 或 Server / Data Center 的 HTTPS 倉庫或目錄連結，不要在連結內包含帳號或密碼。|请提供 Bitbucket Cloud 或 Server / Data Center 的 HTTPS 仓库或目录链接，不要在链接内包含账号或密码。|Enter an HTTPS repository or folder link from Bitbucket Cloud or Server / Data Center, without credentials in the URL.
+無法識別這個倉庫連結，請使用 Bitbucket Cloud 或 Server / Data Center 的 HTTPS 倉庫或目錄連結。|无法识别这个仓库链接，请使用 Bitbucket Cloud 或 Server / Data Center 的 HTTPS 仓库或目录链接。|This repository link was not recognized. Use an HTTPS repository or folder link from Bitbucket Cloud or Server / Data Center.
+Cloud 帳號郵箱格式無效，請重新輸入。|Cloud 账号邮箱格式无效，请重新输入。|The Cloud account email is invalid. Enter it again.
+倉庫驗證未通過。Cloud 請核對帳號郵箱、API token 及讀取權限；Server / Data Center 請核對存取權杖。|仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。|Repository authentication failed. For Cloud, check your account email, API token and read permission; for Server / Data Center, check the access token.
 系統設定|系统配置|System settings
 查看系統設定|查看系统配置|View system settings
 AI 回答要求（System prompt）|AI 回答要求（System prompt）|AI answer instructions (System prompt)
@@ -74,7 +115,7 @@ Bitbucket 源碼快照|Bitbucket 源码快照|Bitbucket source snapshot
 相關源碼已定位，但本次尚未讀完所需範圍。|相关源码已定位，但本次尚未读完所需范围。|The relevant source was located, but the required range has not yet been fully read.
 部分已定位源碼未能納入本次模型上下文，相關範圍尚未解讀。|部分已定位源码未能纳入本次模型上下文，相关范围尚未解读。|Some located source did not fit into this model request. That scope remains unexplained.
 本次有補查工具未能完成，相關證據仍待核對。|本次有补查工具未能完成，相关证据仍待核对。|An investigation tool could not complete. The affected evidence still needs checking.
-本次調查已達執行限制，仍有待查項；已保留目前回答。|本次调查已达执行限制，仍有待查项；已保留目前回答。|The investigation reached its execution limit with checks still pending. The available answer is retained.
+本輪調查已結束，已保留目前回答與待查事項；需要時可點擊「繼續補查並完善回答」。|本轮调查已结束，已保留目前回答与待查事项；需要时可点击“继续补查并完善回答”。|This investigation has ended. Your answer and pending checks are saved. Select “Continue investigating and complete the answer” when you want to investigate further.
 本次調查已達時間限制，已保留目前回答與待查事項。|本次调查已达时间限制，已保留目前回答与待查事项。|The investigation reached its time limit. The available answer and pending checks are retained.
 後續補查或修訂未完成，這裡保留較早的可用回答。|后续补查或修订未完成，这里保留较早的可用回答。|A later investigation or revision did not complete. The earlier usable answer is retained here.
 連續補查未取得新的相關證據，已停止重複調查並保留目前回答。|连续补查未取得新的相关证据，已停止重复调查并保留目前回答。|Repeated checks found no new relevant evidence. Investigation has stopped and the available answer is retained.

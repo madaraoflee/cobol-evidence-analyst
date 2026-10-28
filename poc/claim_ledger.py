@@ -18,7 +18,7 @@ from response_language import localized_text, resolve_answer_language
 from source_availability import supplied_source_availability
 
 
-LEDGER_VERSION = "answer-claim-ledger-v14"
+LEDGER_VERSION = "answer-claim-ledger-v15"
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _NAME = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?:\s+(?:OF|IN)\s+[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)*"
 _ATOM = rf"(?:{_NAME}|[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|[()])"
@@ -494,6 +494,18 @@ def _prose_formula_span(segment, assertion):
                     first, last = min(first, code.start()), max(last, code.end())
             found.append((first, last))
     return found[0] if len(set(found)) == 1 else None
+
+
+def _prose_condition_span(segment, assertion):
+    """Find the condition alone; preserve Markdown and its branch description."""
+    positions = [index for index, char in enumerate(segment) if char != "`"]
+    text = "".join(segment[index] for index in positions)
+    spans = []
+    for match in _CONDITION.finditer(text):
+        tokens, end = _read_condition(text, match.start())
+        if list(tokens or ()) == assertion.get("condition"):
+            spans.append((positions[match.start()], positions[end - 1] + 1))
+    return spans[0] if len(set(spans)) == 1 else None
 
 
 def _prose_branch_context(segment, assertions, identifiers, previous):
@@ -1228,6 +1240,15 @@ def review_answer_claims(answer: str, source_pages, allowed, *, source_format="a
                 if key not in seen:
                     seen.add(key)
                     distinct.append(fact)
+            if (len(assertions) == 1 and assertions[0]["predicate"] == "condition_statement"
+                    and len(distinct) == 1 and distinct[0]["predicate"] == "condition_statement"
+                    and not invalid):
+                span = _prose_condition_span(segment, assertions[0])
+                if span:
+                    first, last = span
+                    if re.match(r"\s*`*\s*(?:不?成立|(?:is\s+)?(?:true|false)\b)", segment[last:], re.I):
+                        reviewed.append(segment[:first] + " ".join(distinct[0]["condition"]) + segment[last:])
+                        continue
             if prose_branch:
                 effect = next(item for item in assertions if item["predicate"] == "assignment_statement")
                 first, last = _prose_formula_span(segment, effect)

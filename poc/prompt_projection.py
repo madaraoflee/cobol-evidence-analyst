@@ -10,6 +10,7 @@ from __future__ import annotations
 from copy import deepcopy
 from collections import Counter
 import json
+import hashlib
 
 
 _VERSION = "shared-navigation/v1"
@@ -36,6 +37,58 @@ _INSTRUCTION = (
     "merge them into that row before reading it. "
     "Neither inheritance nor references establish execution or new bindings."
 )
+
+
+def bind_prompt_source_references(payload):
+    """Point semantic navigation at a physically supplied covering source page.
+
+    A complete page can replace an earlier retrieved excerpt. Keep the
+    canonical investigation untouched; only the outgoing reference ID changes,
+    and only within the same version and preprocessing instance.
+    """
+    pages = {}
+    for bundle in payload.get("source_context", []):
+        for page in bundle.get("pages", []):
+            first, last = page.get("start_line"), page.get("end_line")
+            text, digest = page.get("source_text"), page.get("source_sha256")
+            if (page.get("span_truncated") or not page.get("evidence_id")
+                    or not isinstance(digest, str) or not digest.strip()
+                    or not isinstance(text, str) or not text.strip()
+                    or type(first) is not int or type(last) is not int or first < 1 or last < first
+                    or len(text.split("\n")) < last - first + 1):
+                continue
+            pages.setdefault((page.get("relative_path"), digest), []).append(page)
+
+    def bind(value):
+        if isinstance(value, list):
+            children = [bind(item) for item in value]
+            return children if any(a is not b for a, b in zip(children, value)) else value
+        if not isinstance(value, dict):
+            return value
+        updated = {key: bind(item) for key, item in value.items()}
+        first, last = value.get("start_line"), value.get("end_line")
+        if (value.get("evidence_id") and not value.get("span_truncated")
+                and type(first) is int and type(last) is int and 1 <= first <= last):
+            key = (value.get("relative_path", value.get("original_relative_path")), value.get("source_sha256"))
+            for page in pages.get(key, []):
+                if (page["start_line"] > first or page["end_line"] < last
+                        or any(tuple(page.get(field) or ()) != tuple(value.get(field) or ())
+                               for field in ("include_chain", "replacement_trace"))
+                        or page.get("copy_instance") != value.get("copy_instance")):
+                    continue
+                if value.get("excerpt_sha256"):
+                    excerpt = "\n".join(page["source_text"].split("\n")[
+                        first - page["start_line"]:last - page["start_line"] + 1])
+                    if hashlib.sha256(excerpt.encode()).hexdigest() != value["excerpt_sha256"]:
+                        continue
+                updated["evidence_id"] = page["evidence_id"]
+                break
+        return updated if any(updated[key] is not item for key, item in value.items()) else value
+
+    groups = payload.get("evidence_groups", [])
+    rebound = [{**group, "semantic_analysis": bind(group["semantic_analysis"])}
+               if group.get("semantic_analysis") else group for group in groups]
+    return {**payload, "evidence_groups": rebound} if groups else payload
 
 
 def _encoded(value):

@@ -33,6 +33,30 @@ test('whole-answer Markdown wrappers and known saved answer envelopes are readab
   assert.match(example,/markdown-code-language">json/);assert.match(example,/&quot;amount&quot;: 125/);
 });
 
+test('Chinese punctuation inside paired bold markers renders without requiring spaces in prose',()=>{
+  const h=harness();
+  for(const [text,bold] of [['**业务目的：**说明','业务目的：'],['这项**规则（条件）**说明','规则（条件）'],
+    ['**“业务”**说明','“业务”'],['这是**「处理结果」**说明。','「处理结果」']]){
+    const html=h.render(text);
+    assert.ok(html.includes(`<strong>${bold}</strong>`),html);assert.doesNotMatch(html,/\*\*/);
+  }
+  const table=h.render('| 说明 |\n| --- |\n| **结果：**返回 |');
+  assert.match(table,/<strong>结果：<\/strong>返回/);
+  const citation=h.run("answerMarkdown.render('**规则：[known]**说明',id=>id==='known'?'<button data-evidence=\"known\">1</button>':null)");
+  assert.match(citation,/<strong>规则：<button data-evidence="known">1<\/button><\/strong>说明/);
+});
+
+test('CJK emphasis handling preserves escaped markers, code, incomplete text and inert HTML',()=>{
+  const h=harness();
+  for(const text of ['`**业务：**`说明','```text\n**业务：**\n```','\\*\\*业务：\\*\\*说明',
+    '**尚未完成：','** RESULT **字段','A **result:**next']){
+    const html=h.render(text);assert.doesNotMatch(html,/<strong>/,text);assert.match(html,/\*\*/);
+  }
+  assert.match(h.render('**「业务 `<img>`」**说明'),/<strong>「业务 <code>&lt;img&gt;<\/code>」<\/strong>/);
+  const unsafe=h.render('**业务：<img src=x onerror=alert(1)>**说明');
+  assert.doesNotMatch(unsafe,/<img|onerror="/);assert.match(unsafe,/&lt;img/);
+});
+
 test('separate Markdown examples and explicit JSON answer examples keep their original code boundaries',()=>{
   const h=harness();
   for(const marker of ['```','~~~~']){

@@ -256,6 +256,66 @@ class SourceUpdateBackupTests(unittest.TestCase):
             self.assertEqual(database.read_bytes(), b"invalid database contents")
             self.assertEqual(set(root.iterdir()), {output})
 
+    def test_rebuildable_corrupt_database_preserves_raw_bytes_and_sidecars_until_commit(self):
+        with tempfile.TemporaryDirectory(prefix="source-update-") as folder:
+            output = Path(folder) / "output"
+            output.mkdir()
+            name = "structural-index.sqlite"
+            original = {name: b"damaged index", name + "-wal": b"retained journal",
+                        name + "-shm": b"retained shared memory", name + "-journal": b"retained rollback"}
+            for filename, contents in original.items():
+                (output / filename).write_bytes(contents)
+            backup = SourceUpdateBackup(output, [name], rebuildable_databases=[name])
+            try:
+                self.assertEqual(backup.corrupt_databases, {name})
+                self.assertEqual({path.name: path.read_bytes() for path in output.iterdir()}, original)
+                backup.prepare_rebuild()
+                self.assertEqual(list(output.iterdir()), [])
+                self.create_database(output / name, rows=1)
+                (output / (name + "-wal")).write_bytes(b"new journal")
+                backup.restore()
+                self.assertEqual({path.name: path.read_bytes() for path in output.iterdir()}, original)
+            finally:
+                backup.close()
+
+    def test_missing_database_backup_removes_rebuilt_database_and_sidecars_on_restore(self):
+        with tempfile.TemporaryDirectory(prefix="source-update-") as folder:
+            output = Path(folder) / "output"
+            output.mkdir()
+            database = output / "structural-index.sqlite"
+            report = output / "diagnosis.json"
+            report.write_bytes(b"retained report")
+            backup = SourceUpdateBackup(output, [database.name, report.name])
+            try:
+                self.create_database(database, rows=1)
+                for suffix in ("-wal", "-shm", "-journal"):
+                    Path(str(database) + suffix).write_bytes(b"new sidecar")
+                report.write_bytes(b"new report")
+                backup.restore()
+                self.assertEqual(set(output.iterdir()), {report})
+                self.assertEqual(report.read_bytes(), b"retained report")
+            finally:
+                backup.close()
+
+    def test_sqlite_header_with_malformed_schema_is_also_rebuildable(self):
+        with tempfile.TemporaryDirectory(prefix="source-update-") as folder:
+            output = Path(folder) / "output"
+            output.mkdir()
+            database = output / "structural-index.sqlite"
+            self.create_database(database, rows=1)
+            damaged = bytearray(database.read_bytes())
+            damaged[100] = 255
+            database.write_bytes(damaged)
+            backup = SourceUpdateBackup(output, [database.name], rebuildable_databases=[database.name])
+            try:
+                self.assertEqual(backup.corrupt_databases, {database.name})
+                backup.prepare_rebuild()
+                self.create_database(database, rows=1)
+                backup.restore()
+                self.assertEqual(database.read_bytes(), damaged)
+            finally:
+                backup.close()
+
     def test_failed_restore_copy_does_not_replace_existing_artifact_with_partial_data(self):
         with tempfile.TemporaryDirectory(prefix="source-update-") as folder:
             output = Path(folder) / "output"

@@ -9,13 +9,14 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from agent_policy import AgentPolicy
-from answer_markdown import DEFAULT_ANSWER_INSTRUCTIONS
+from answer_markdown import DEFAULT_ANSWER_INSTRUCTIONS, with_answer_instructions
 import business_chat
 from business_analysis import run_business_analysis
 from business_index import build_business_index
 from company_api import CompanyAPIConfig, TransportResponse
 from repository_discovery import ensure_repository_search
 from run_store import RunStore
+from response_language import answer_language_instruction
 
 
 class AnswerInstructionsTests(unittest.TestCase):
@@ -113,8 +114,63 @@ class AnswerInstructionsTests(unittest.TestCase):
         messages, _ = business_chat._fit_request(self.config, payload, [], AgentPolicy())
         self.assertEqual(messages[0]["content"].count(self.instructions), 1)
         for label in ("Batch job", "Online function / Programs", "Tables", "Files"):
-            self.assertIn(label, messages[0]["content"])
+            self.assertNotIn(label, messages[0]["content"])
+        self.assertIn("handoffs是导航，同名/COPY不证关联", messages[0]["content"])
         self.assertNotIn("answer_instructions", json.loads(messages[-1]["content"]))
+
+    def test_saved_structure_overrides_generated_overview_and_default_depth(self):
+        for compact in (False, True):
+            with self.subTest(compact=compact):
+                payload = {"question": "解释这项业务的用途和处理流程", "answer_detail": "detailed",
+                    "answer_instructions": "只用两个简短段落：业务目的、处理结果。不要分类栏目。",
+                    "budget_wire_compact": compact,
+                    "business_analysis_brief": {"business_explanation_contract": {
+                        "mode": "business_overview", "available_facets": ["input", "output"],
+                        "semantic_verification": False, "task": "先按默认栏目写完整概览"}},
+                    "source_context": [{"pages": []}], "framework_references": [], "business_map": {}}
+                messages, _ = business_chat._fit_request(self.config, payload, [], AgentPolicy())
+                wire = json.loads(messages[-1]["content"])
+                contract = wire["response_contract"]
+                self.assertIn("saved answer instructions", contract["detail"])
+                self.assertIn("saved system instructions", contract["organization"])
+                self.assertNotIn("audience", contract["business_explanation"])
+                self.assertNotIn("order", contract["business_explanation"])
+                self.assertNotIn("Batch job", json.dumps(contract))
+                self.assertIn("distinguish database tables", contract["business_explanation"]["distinctions"])
+                self.assertIn("Distinguish" if not compact else "distinct", contract["time_scope"])
+                brief = wire["business_analysis_brief"]["business_explanation_contract"]
+                self.assertIn("保存的受众、结构与详略要求", brief["task"])
+                self.assertIn("不证明实际运行", brief["task"])
+                self.assertFalse(brief["semantic_verification"])
+                self.assertNotIn("保存的受众、结构与详略要求",
+                                 payload["business_analysis_brief"]["business_explanation_contract"]["task"])
+
+    def test_saved_structure_does_not_replace_discovery_action_format(self):
+        payload = {"question": "解释这项业务的用途和处理流程", "answer_instructions": self.instructions,
+            "source_context": [{"pages": []}], "retrieval_status": {"state": "needs_discovery"},
+            "investigation_budget": {"searches_per_turn": 1}, "business_map": {}}
+        contract = business_chat._prompt_payload(payload)["response_contract"]
+        self.assertIn("JSON object", contract["format"])
+        self.assertIn("Do not write a business answer", contract["scope"])
+
+    def test_explicit_saved_language_is_not_overridden_by_inferred_question_language(self):
+        instructions = "请始终用英文回答。"
+        for compact in (False, True):
+            payload = {"question": "解释这项业务的用途", "answer_language": "zh-CN",
+                "answer_instructions": instructions, "budget_wire_compact": compact,
+                "source_context": [{"pages": []}], "business_map": {}}
+            system = business_chat._system_for_payload(payload)
+            self.assertIn("Fallback answer language for this turn: Simplified Chinese", system)
+            self.assertIn("current question first, then an explicit language", system)
+            self.assertEqual(system.count(instructions), 1)
+            self.assertNotIn(answer_language_instruction("zh-CN", compact=compact), system)
+            contract = business_chat._prompt_payload(payload)["response_contract"]
+            self.assertNotIn("answer_language", contract)
+            self.assertEqual(contract["fallback_answer_language"], "zh-CN")
+            self.assertIn("explicit language request", contract["language_priority"])
+        legacy = with_answer_instructions("Evidence policy.\n" + answer_language_instruction("zh-HK"), instructions)
+        self.assertIn("Fallback answer language", legacy)
+        self.assertNotIn("Write all user-facing prose", legacy)
 
     def test_saved_requirements_reach_actual_answer_revision(self):
         (self.source / "lookup.cbl").write_text(

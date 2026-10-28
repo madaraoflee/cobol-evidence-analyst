@@ -273,6 +273,7 @@ class BusinessChatLatencyTests(unittest.TestCase):
         with mock.patch.object(semantic_scope, "build_business_evidence", side_effect=inspected):
             result = self.ask(respond=respond, policy=AgentPolicy(max_model_requests=2,
                 max_question_seconds=300, hard_question_seconds=300,
+                delivery_target_seconds=None,
                 max_initial_context_seconds=3, max_local_analysis_seconds=15))
         self.assertEqual(len(self.requests), 2)
         self.assertTrue(followup_inspections)

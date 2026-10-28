@@ -1,6 +1,7 @@
 """Repository imports use pinned commits and never write outside their new snapshot."""
 
 import io
+import base64
 import json
 from pathlib import Path
 import socket
@@ -19,7 +20,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from analyze_source import AnalysisCancelled
 import remote_source
-from remote_source import RemoteSourceError, fetch_remote_source, parse_remote_source, validate_remote_token
+from remote_source import (RemoteSourceError, fetch_remote_source, parse_remote_source,
+                           resolve_remote_source, validate_remote_token, validate_remote_username)
 
 
 COMMIT = "a1" * 20
@@ -60,6 +62,17 @@ class Opener:
         if len(self.requests) == 1:
             return Response(json.dumps(self.commits).encode())
         return Response(self.archive, self.headers)
+
+
+class SequenceOpener:
+    def __init__(self, *bodies):
+        self.bodies = iter(bodies)
+        self.requests = []
+
+    def open(self, request, timeout):
+        self.requests.append((request, timeout))
+        body = next(self.bodies)
+        return Response(json.dumps(body).encode() if isinstance(body, dict) else body)
 
 
 class RemoteSourceTests(unittest.TestCase):
@@ -113,10 +126,157 @@ class RemoteSourceTests(unittest.TestCase):
             self.assertEqual(raised.exception.code, "REMOTE_SOURCE_INVALID_URL")
             self.assertNotIn("secret", str(raised.exception))
 
-    def test_cloud_requires_a_separate_supported_adapter(self):
-        with self.assertRaises(RemoteSourceError) as raised:
-            parse_remote_source("https://bitbucket.org/workspace/business-source/src/main")
-        self.assertEqual(raised.exception.code, "REMOTE_SOURCE_UNSUPPORTED")
+    def test_cloud_browser_commit_and_encoded_branch_links_preserve_scope(self):
+        for ref in [COMMIT, "main", "release/next"]:
+            with self.subTest(ref=ref):
+                url_ref = ref.replace("/", "%2F")
+                spec = parse_remote_source("https://bitbucket.org/sample-workspace/business-source/src/" + url_ref + "/sit/programs/")
+                self.assertEqual(spec.provider, "bitbucket_cloud")
+                self.assertEqual(spec.api_url, "https://api.bitbucket.org/2.0/repositories/sample-workspace/business-source")
+                self.assertEqual(spec.ref, ref)
+                self.assertEqual(spec.subdirectory, "sit/programs")
+                self.assertEqual(parse_remote_source(spec.public_metadata()["url"]), spec)
+
+    def test_cloud_root_clone_and_explicit_scope(self):
+        for ending in ["", "/", ".git"]:
+            spec = parse_remote_source("https://bitbucket.org/sample-workspace/business-source" + ending,
+                                       subdirectory="sit", ref="release/next")
+            self.assertEqual(spec.repository, "business-source")
+            self.assertEqual(spec.ref, "release/next")
+            self.assertEqual(spec.subdirectory, "sit")
+        spec = parse_remote_source("https://bitbucket.org/sample-workspace/business-source", subdirectory="sit")
+        public = spec.public_metadata()
+        self.assertIsNone(public["ref"])
+        self.assertEqual(parse_remote_source(public["url"], subdirectory=public["subdirectory"]), spec)
+
+    def test_cloud_unsafe_routes_do_not_change_the_download_host_or_path(self):
+        for url in ["https://bitbucket.org:8443/sample-workspace/business-source",
+                    "https://api.bitbucket.org/2.0/repositories/sample-workspace/business-source",
+                    "https://bitbucket.org/sample-workspace/business-source/src/main/sit%2Fother",
+                    "https://bitbucket.org/sample-workspace/business-source/src/main/../other",
+                    "https://bitbucket.org/sample-workspace/business-source/pull-requests/1",
+                    "https://bitbucket.org/sample-workspace/business-source/src/main?token=private-value"]:
+            with self.subTest(url=url), self.assertRaises(RemoteSourceError):
+                parse_remote_source(url)
+
+    def test_revision_check_reads_metadata_without_downloading_or_writing_source(self):
+        opener = self.opener()
+        metadata = resolve_remote_source(self.spec, opener=opener)
+        self.assertEqual(metadata["commit"], COMMIT)
+        self.assertEqual(len(opener.requests), 1)
+        self.assertEqual(list(self.root.iterdir()), [])
+
+    def test_cloud_default_branch_is_resolved_before_commits_not_all_branches(self):
+        spec = parse_remote_source("https://bitbucket.org/sample-workspace/business-source", subdirectory="sit")
+        opener = SequenceOpener({"mainbranch": {"name": "release/next"}}, {"values": [{"hash": COMMIT}]})
+        metadata = resolve_remote_source(spec, opener=opener, username="reader@example.test", token="api-token")
+        self.assertEqual(metadata["default_branch"], "release/next")
+        self.assertIsNone(metadata["ref"])
+        self.assertEqual(metadata["commit"], COMMIT)
+        self.assertEqual([r.full_url for r, _ in opener.requests], [spec.api_url,
+            spec.api_url + "/commits/release%2Fnext?pagelen=1"])
+        expected = "Basic " + base64.b64encode(b"reader@example.test:api-token").decode()
+        self.assertTrue(all(r.get_header("Authorization") == expected for r, _ in opener.requests))
+        self.assertNotIn("reader@example.test", json.dumps(metadata))
+        self.assertNotIn("api-token", json.dumps(metadata))
+
+    def test_cloud_archive_pins_commit_filters_tree_and_reuses_resolved_metadata(self):
+        spec = parse_remote_source("https://bitbucket.org/sample-workspace/business-source/src/main/sit")
+        generated = "sample-workspace-business-source-" + COMMIT[:12]
+        raw = archive_bytes([(generated + "/README.txt", "outside"),
+                             (generated + "/sit/entry.cbl", "PROGRAM-ID. ENTRY."),
+                             (generated + "/sit/copy/fields.cpy", "01 FLAG PIC X."),
+                             (generated + "/other/unrelated.cbl", "outside")])
+        resolved = {**spec.public_metadata(), "commit": COMMIT}
+        opener = SequenceOpener(raw)
+        metadata = fetch_remote_source(spec, self.destination, opener=opener, resolved=resolved,
+                                       username="reader@example.test", token="api-token")
+        self.assertEqual(metadata["file_count"], 2)
+        self.assertEqual({p.relative_to(self.destination).as_posix() for p in self.destination.rglob("*") if p.is_file()},
+                         {"entry.cbl", "copy/fields.cpy"})
+        self.assertEqual(len(opener.requests), 1)
+        request = opener.requests[0][0]
+        self.assertEqual(request.full_url, "https://bitbucket.org/sample-workspace/business-source/get/" + COMMIT + ".zip")
+        self.assertTrue(request.get_header("Authorization").startswith("Basic "))
+        self.assertNotIn("api-token", json.dumps(metadata))
+
+    def test_cloud_access_token_and_pinned_reference_do_not_request_default_branch(self):
+        spec = parse_remote_source("https://bitbucket.org/sample-workspace/business-source/src/" + COMMIT)
+        opener = SequenceOpener({"values": [{"hash": COMMIT}]}, archive_bytes([("snapshot/entry.cbl", "entry")]))
+        metadata = fetch_remote_source(spec, self.destination, opener=opener, token="access-token")
+        self.assertEqual(metadata["ref"], COMMIT)
+        self.assertNotIn("default_branch", metadata)
+        self.assertEqual(len(opener.requests), 2)
+        self.assertTrue(all(r.get_header("Authorization") == "Bearer access-token" for r, _ in opener.requests))
+
+    def test_cloud_resolver_rejects_mismatched_pinned_commit_and_malformed_metadata(self):
+        spec = parse_remote_source("https://bitbucket.org/sample-workspace/business-source/src/" + COMMIT)
+        for metadata in [{"values": [{"hash": "b2" * 20}]}, {"values": [{"hash": "short"}]}, {"values": "wrong"}]:
+            opener = SequenceOpener(metadata)
+            with self.subTest(metadata=metadata), self.assertRaises(RemoteSourceError) as raised:
+                fetch_remote_source(spec, self.destination, opener=opener)
+            self.assertEqual(raised.exception.code, "REMOTE_SOURCE_INVALID_RESPONSE")
+            self.assertFalse(self.destination.exists())
+            self.assertEqual(len(opener.requests), 1)
+
+    def test_resolved_commit_cannot_cross_sources_or_override_a_fixed_commit(self):
+        for resolved in [{**self.spec.public_metadata(), "url": "https://other.example.test", "commit": COMMIT},
+                         {**self.spec.public_metadata(), "commit": "../../outside"}]:
+            with self.subTest(resolved=resolved), self.assertRaises(RemoteSourceError):
+                fetch_remote_source(self.spec, self.destination, resolved=resolved, opener=SequenceOpener())
+            self.assertFalse(self.destination.exists())
+
+    def test_cloud_archive_rejects_unsafe_selected_entries_or_multiple_roots(self):
+        spec = parse_remote_source("https://bitbucket.org/sample-workspace/business-source/src/main/sit")
+        for entries in [[("snapshot/sit/../escape.cbl", "bad")],
+                        [("snapshot/sit/a.cbl", "1"), ("snapshot/sit/A.cbl", "2")],
+                        [("snapshot/sit/a.cbl", "1"), ("other/sit/b.cbl", "2")],
+                        [("snapshot/sit/A/x.cbl", "1"), ("snapshot/sit/a/y.cbl", "2")]]:
+            with self.subTest(entries=entries), self.assertRaises(RemoteSourceError) as raised:
+                fetch_remote_source(spec, self.destination, opener=SequenceOpener(
+                    {"values": [{"hash": COMMIT}]}, archive_bytes(entries)))
+            self.assertEqual(raised.exception.code, "REMOTE_SOURCE_INVALID_ARCHIVE")
+            self.assertFalse(self.destination.exists())
+
+    def test_cloud_unselected_linux_names_do_not_block_portable_selected_tree(self):
+        spec = parse_remote_source("https://bitbucket.org/sample-workspace/business-source/src/main/sit")
+        raw = archive_bytes([("snapshot/sit/entry.cbl", "entry"), ("snapshot/tools/NUL.txt", "outside"),
+                             ("snapshot/tools/aux", "outside"), ("snapshot/tools/task:debug", "outside"),
+                             ("snapshot/tools/name.", "outside"), ("snapshot/tools/name ", "outside")])
+        result = fetch_remote_source(spec, self.destination, opener=SequenceOpener(
+            {"values": [{"hash": COMMIT}]}, raw))
+        self.assertEqual(result["file_count"], 1)
+        self.assertEqual([p.name for p in self.destination.iterdir()], ["entry.cbl"])
+
+    def test_cloud_selected_windows_names_and_unselected_structural_escapes_remain_rejected(self):
+        spec = parse_remote_source("https://bitbucket.org/sample-workspace/business-source/src/main/sit")
+        for name in ["snapshot/sit/NUL.txt", "snapshot/sit/task:debug", "snapshot/sit/name.",
+                     "snapshot/tools/../escape", "snapshot/tools/dir\\escape", "snapshot/tools//escape",
+                     "/snapshot/tools/escape", "../tools/escape", "C:/tools/escape"]:
+            with self.subTest(name=name), self.assertRaises(RemoteSourceError) as raised:
+                fetch_remote_source(spec, self.destination, opener=SequenceOpener(
+                    {"values": [{"hash": COMMIT}]}, archive_bytes([("snapshot/sit/entry.cbl", "entry"), (name, "bad")])))
+            self.assertEqual(raised.exception.code, "REMOTE_SOURCE_INVALID_ARCHIVE")
+            self.assertFalse(self.destination.exists())
+
+    def test_cloud_selected_symlinks_and_symlink_ancestors_are_rejected(self):
+        spec = parse_remote_source("https://bitbucket.org/sample-workspace/business-source/src/main/sit")
+        for name in ["snapshot/", "snapshot/sit/", "snapshot/sit/linked.cbl"]:
+            entry = zipfile.ZipInfo(name)
+            entry.create_system = 3
+            entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+            with self.subTest(name=name), self.assertRaises(RemoteSourceError) as raised:
+                fetch_remote_source(spec, self.destination, opener=SequenceOpener(
+                    {"values": [{"hash": COMMIT}]}, archive_bytes([(entry, "../../outside"),
+                        ("snapshot/sit/entry.cbl", "entry")])))
+            self.assertEqual(raised.exception.code, "REMOTE_SOURCE_INVALID_ARCHIVE")
+            self.assertFalse(self.destination.exists())
+
+    def test_account_names_reject_header_controls_without_echoing_credentials(self):
+        for name in ["private-name:secret", "private-name\nInjected", " private-name", 3]:
+            with self.subTest(name=name), self.assertRaises(RemoteSourceError) as raised:
+                validate_remote_username(name)
+            self.assertNotIn("private-name", str(raised.exception))
 
     def test_invalid_refs_paths_and_tokens_have_safe_errors(self):
         for value in ["main\n", "../main", "main~1", "main..other", "-main", "refs//heads/main", 4]:

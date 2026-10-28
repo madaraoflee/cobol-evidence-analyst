@@ -17,19 +17,37 @@ class QuestionBudgetDeliveryTests(unittest.TestCase):
     def budget(self, seconds=120, **options):
         return QuestionBudget(seconds, clock=lambda: self.now, **options)
 
-    def test_standard_default_does_not_cancel_or_force_synthesis_at_180_seconds(self):
+    def test_standard_default_reserves_first_delivery_without_cancelling_active_requests(self):
         policy = AgentPolicy()
         budget = self.budget(policy.effective_delivery_target_seconds, hard_seconds=policy.hard_question_seconds)
+        self.assertEqual(budget.limit, 60)
+        self.now += 14
+        self.assertFalse(budget.should_answer(300))
+        self.now += 1
+        self.assertTrue(budget.should_answer(300))
+        self.assertTrue(budget.should_stop_local_investigation())
         for elapsed in (135, 180, 600):
             self.now = budget.started + elapsed
             budget.observe_request(60)
             budget.check()
-            self.assertFalse(budget.should_answer(300))
-            self.assertFalse(budget.should_stop_local_investigation())
-            self.assertFalse(budget.target_reached())
+            self.assertTrue(budget.should_answer(300))
+            self.assertTrue(budget.should_stop_local_investigation())
+            self.assertTrue(budget.target_reached())
             self.assertIsNone(budget.hard_remaining())
             self.assertEqual(budget.request_timeout(7), 7)
-        self.assertFalse(policy.can_request(6))
+        self.assertTrue(policy.can_request(6))
+
+    def test_explicit_null_soft_target_keeps_progress_driven_investigation(self):
+        policy = AgentPolicy(delivery_target_seconds=None)
+        budget = self.budget(policy.effective_delivery_target_seconds, hard_seconds=policy.hard_question_seconds)
+        self.now += 600
+        budget.observe_request(60)
+        budget.check()
+        self.assertFalse(budget.should_answer(300))
+        self.assertFalse(budget.should_stop_local_investigation())
+        self.assertFalse(budget.target_reached())
+        self.assertIsNone(budget.hard_remaining())
+        self.assertEqual(budget.request_timeout(7), 7)
 
     def test_progress_default_checkpoint_preserves_elapsed_without_inventing_deadline(self):
         wall = [1000.0]

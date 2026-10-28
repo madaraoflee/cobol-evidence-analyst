@@ -39,20 +39,31 @@ class RuntimeSettingsTests(unittest.TestCase):
         self.assertEqual(explicit.max_history_characters, 3000)
         self.assertEqual(environment["UNRELATED"], "unchanged")
 
-    def test_missing_and_null_timers_use_progress_defaults_with_finite_calls(self):
+    def test_missing_count_limits_are_bounded_and_explicit_null_is_preserved(self):
         for settings in ({}, {"max_model_requests": None, "max_question_seconds": None,
                               "hard_question_seconds": None, "max_initial_context_seconds": None,
-                              "max_local_analysis_seconds": None}):
+                              "max_local_analysis_seconds": None, "max_investigation_rounds": None}):
             with self.subTest(settings=settings):
                 self.write({"version": 1, "agent": settings})
                 original = self.path.read_bytes()
                 policy = load_agent_policy(self.path)
-                self.assertEqual(policy.max_model_requests, 6)
+                self.assertEqual(policy.max_model_requests, settings.get("max_model_requests", 8))
+                self.assertEqual(policy.max_investigation_rounds, settings.get("max_investigation_rounds", 6))
                 self.assertIsNone(policy.max_question_seconds)
                 self.assertIsNone(policy.hard_question_seconds)
                 self.assertIsNone(policy.max_initial_context_seconds)
                 self.assertIsNone(policy.max_local_analysis_seconds)
+                self.assertEqual(policy.effective_delivery_target_seconds, 60)
                 self.assertEqual(self.path.read_bytes(), original)
+
+    def test_explicit_null_delivery_target_disables_the_soft_default(self):
+        self.write({"version": 1, "agent": {"delivery_target_seconds": None}})
+        original = self.path.read_bytes()
+        policy = load_agent_policy(self.path)
+        self.assertIsNone(policy.delivery_target_seconds)
+        self.assertIsNone(policy.effective_delivery_target_seconds)
+        self.assertIsNone(policy.hard_question_seconds)
+        self.assertEqual(self.path.read_bytes(), original)
 
     def test_explicit_local_timers_are_not_guessed_or_rewritten(self):
         for initial, local in ((3, 15), (2, 8), (None, 15), (3, None)):
@@ -65,7 +76,7 @@ class RuntimeSettingsTests(unittest.TestCase):
                                   policy.max_local_analysis_seconds), (initial, local))
                 self.assertEqual(self.path.read_bytes(), original)
 
-    def test_example_uses_progress_defaults_without_adding_time_cutoffs(self):
+    def test_example_uses_bounded_defaults_without_adding_time_cutoffs(self):
         policy = load_agent_policy(Path(__file__).resolve().parents[1] / "agent-settings.example.json")
         self.assertEqual(policy, AgentPolicy())
 

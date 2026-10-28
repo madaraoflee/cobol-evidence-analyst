@@ -1,0 +1,27 @@
+{
+  "model_calls": 0,
+  "source": "captured neutral fixture",
+  "raw_answer_sha256": "fb4dfbe4045f805b2930f9c076f5a11301d9f22d8c0cf5b4af4e6c646cb9b1eb",
+  "draft_answer_sha256": "fb4dfbe4045f805b2930f9c076f5a11301d9f22d8c0cf5b4af4e6c646cb9b1eb",
+  "final_answer_sha256": "fb4dfbe4045f805b2930f9c076f5a11301d9f22d8c0cf5b4af4e6c646cb9b1eb",
+  "raw_equals_draft": true,
+  "raw_equals_final": true,
+  "source_page_count": 2,
+  "ledger_version": "answer-claim-ledger-v15",
+  "statement_checker_version": "source-statement-support-v7",
+  "draft_revised_claim_count": 0,
+  "final_revised_claim_count": 0,
+  "final_claim_counts": {
+    "supported": 0,
+    "contradicted": 0,
+    "unsupported": 44
+  },
+  "table_rows": [
+    "| 判断时的金额 | 写入的结果码 | 能确认的业务含义 |",
+    "|---|---|---|",
+    "| `ORDER-AMOUNT > 0` 成立 | `'00'` | 金额处于正数分支 |",
+    "| `ORDER-AMOUNT > 0` 不成立 | `'90'` | 金额未通过“大于零”这一条件 |",
+    "| 判断前金额值未知 | 无法确定 | 源码既没有赋初值，也没有输入来源 |"
+  ],
+  "prose_semantics_verified": false
+}

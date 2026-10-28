@@ -1,0 +1,74 @@
+{
+  "passed": true,
+  "tests": 3,
+  "requests": [
+    {
+      "test": "test_complete_working_set.CompleteWorkingSetTests.test_partial_working_set_metadata_still_reports_request_byte_trimming",
+      "request_bytes": 32468,
+      "request_limit_bytes": 32768,
+      "remaining_bytes": 300,
+      "system_bytes": 7695,
+      "question_bytes": 17980,
+      "source_page_count": 1,
+      "source_text_bytes": 24,
+      "source_pages": [
+        {
+          "relative_path": "root.cbl",
+          "start_line": 9,
+          "end_line": 9,
+          "source_bytes": 24,
+          "source_sha256": "130fc907e5154e6d0e0b40a6dcf929ac8d32476a3ecd064d0d49bfa7e862d4b6"
+        }
+      ],
+      "business_chat_sha256": "afe2b91225b4cd6b0ddb3cee662fa84c5b8ca45fed6fd42591c3e990988e0b1c"
+    },
+    {
+      "test": "test_complete_working_set.CompleteWorkingSetTests.test_encoded_request_trimming_recomputes_actual_complete_status",
+      "request_bytes": 32622,
+      "request_limit_bytes": 32768,
+      "remaining_bytes": 146,
+      "system_bytes": 7695,
+      "question_bytes": 17980,
+      "source_page_count": 1,
+      "source_text_bytes": 428,
+      "source_pages": [
+        {
+          "relative_path": "rule.cbl",
+          "start_line": 1,
+          "end_line": 15,
+          "source_bytes": 428,
+          "source_sha256": "84b2535964a8b9c25c88ce0acc38db29728088e76bd38631974ae82ff1b8a20a"
+        }
+      ],
+      "business_chat_sha256": "afe2b91225b4cd6b0ddb3cee662fa84c5b8ca45fed6fd42591c3e990988e0b1c"
+    },
+    {
+      "test": "test_request_fit_completed_reads.CompletedReadRequestFitTests.test_local_context_timeout_does_not_overflow_request_with_completed_read_history",
+      "request_bytes": 32606,
+      "request_limit_bytes": 32768,
+      "remaining_bytes": 162,
+      "system_bytes": 7695,
+      "question_bytes": 17980,
+      "source_page_count": 2,
+      "source_text_bytes": 48,
+      "source_pages": [
+        {
+          "relative_path": "root.cbl",
+          "start_line": 9,
+          "end_line": 9,
+          "source_bytes": 24,
+          "source_sha256": "130fc907e5154e6d0e0b40a6dcf929ac8d32476a3ecd064d0d49bfa7e862d4b6"
+        },
+        {
+          "relative_path": "large.cbl",
+          "start_line": 2004,
+          "end_line": 2004,
+          "source_bytes": 24,
+          "source_sha256": "538d9de0aecf8d4fc5b5a88d4415774e7a4a422135160f68840efebb8ea1772b"
+        }
+      ],
+      "business_chat_sha256": "afe2b91225b4cd6b0ddb3cee662fa84c5b8ca45fed6fd42591c3e990988e0b1c"
+    }
+  ],
+  "transport": "Offline transport only; test fixtures block sockets and capture actual request.body before raising OFFLINE_CAPTURE_ONLY."
+}

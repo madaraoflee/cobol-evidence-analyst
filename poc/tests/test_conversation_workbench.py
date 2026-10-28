@@ -449,7 +449,10 @@ class ConversationWorkbenchTests(unittest.TestCase):
                 release.wait(5)
 
         self.app._progress = pause_preparation
-        with patch("web_app.SourceUpdateBackup", side_effect=AssertionError("new output needs no backup")):
+        with patch("source_update.SourceUpdateBackup._backup_file",
+                   side_effect=AssertionError("new output has no files to copy")), \
+             patch("source_update.SourceUpdateBackup._backup_database",
+                   side_effect=AssertionError("new output has no databases to copy")):
             job_id = self.app.start({"source": str(source), "output": str(output),
                                      "source_format": "free"})["job_id"]
             try:
@@ -753,6 +756,66 @@ class ConversationWorkbenchTests(unittest.TestCase):
 
     def test_user_resubmission_recovers_unknown_request_after_restart(self):
         self._assert_user_retry_after_unknown_request(retry_button=False)
+
+    def test_legacy_completed_partial_answer_continues_same_web_turn_with_earlier_pipeline_record(self):
+        self.run_job()
+        self.app.policy_provider = lambda: AgentPolicy(max_model_requests=1, max_answer_revisions=0)
+        text = "The request reports capacity exceeded when RESERVED-COUNT > CAPACITY."
+
+        def first_answer(request):
+            body = json.loads(request.body)
+            self.calls.append(body)
+            refs = re.findall(r"ev_page_[a-f0-9]+", json.dumps(body))
+            return TransportResponse(200, json.dumps({"choices": [{"message": {"content":
+                text + (f"[{refs[0]}]" if refs else "")}, "finish_reason": "length"}]}))
+
+        self.transport = first_answer
+        question = "How is CAPACITY checked?"
+        first = self.run_job(question=question, allow_network=True, answer_detail="brief", locale="en")
+        conversation = first["conversation"]
+        user, assistant = conversation["messages"]
+        old_id = first["agent"]["agent_result"]["run_id"]
+        self.assertEqual(assistant["status"], "partial")
+        self.assertEqual(assistant["investigation_run_id"], old_id)
+        store = RunStore(self.output / "investigation-runs.sqlite")
+        old = store.load(old_id)
+        self.assertEqual(old["state"], "completed")
+        metadata = {**old["metadata"], "pipeline_version": "earlier-analysis-version", "prompt_version": "earlier-prompt-version"}
+        with store.connect() as db:
+            db.execute("UPDATE investigation_runs SET metadata_json=? WHERE run_id=?", (json.dumps(metadata), old_id))
+        details = {key: value for key, value in assistant.items() if key not in {
+            "id", "role", "content", "status", "run_id", "investigation_run_id", "analysis_options"}}
+        self.app.conversation_store.replace_assistant(conversation["id"], assistant["id"], assistant["content"],
+            status="partial", run_id=assistant["run_id"], details=details)
+        restored = self.app.get_conversation(conversation["id"])["conversation"]
+        self.assertEqual(restored["messages"][-1]["investigation_run_id"], old_id)
+
+        def complete_answer(request):
+            body = json.loads(request.body)
+            self.calls.append(body)
+            payload = json.loads(body["messages"][-1]["content"])
+            self.assertEqual(payload["draft_answer"], assistant["content"])
+            refs = re.findall(r"ev_page_[a-f0-9]+", json.dumps(payload))
+            return TransportResponse(200, json.dumps({"choices": [{"message": {"content":
+                text + " It then returns to the caller." + (f"[{refs[0]}]" if refs else "")}, "finish_reason": "stop"}]}))
+
+        self.transport = complete_answer
+        with patch("analyze_source.build_business_index", side_effect=AssertionError("must reuse the source index")):
+            continued = self.run_job(question=question, allow_network=True, conversation_id=conversation["id"],
+                continue_message_id=user["id"], entry="different.cbl", answer_detail="detailed", locale="zh-HK")
+        answer = continued["conversation"]["messages"][-1]
+        new_id = continued["agent"]["agent_result"]["run_id"]
+        self.assertNotEqual(new_id, old_id)
+        self.assertEqual(answer["investigation_run_id"], new_id)
+        self.assertEqual([item["id"] for item in continued["conversation"]["messages"]], [user["id"], assistant["id"]])
+        self.assertIn("It then returns to the caller", answer["content"])
+        self.assertEqual(answer["analysis_options"]["entry"], None)
+        self.assertEqual(answer["analysis_options"]["answer_detail"], "brief")
+        self.assertEqual(answer["analysis_options"]["locale"], "en")
+        self.assertEqual(continued["snapshot_id"], first["snapshot_id"])
+        self.assertEqual(len(self.calls), 2)
+        self.assertEqual(len(store.load(old_id)["requests"]), 1)
+        self.assertEqual(len(store.load(new_id)["requests"]), 1)
 
     def _assert_budget_retry_reuses_frontier(self, *, import_first):
         if import_first:

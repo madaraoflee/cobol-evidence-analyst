@@ -235,6 +235,8 @@ def analyze_source(
     conversation_id: str | None = None,
     agent_policy=None,
     start_new_investigation: bool = False,
+    continue_investigation: bool = False,
+    resume_run_id: str | None = None,
     compilation_context_path=None,
 ) -> dict:
     source, output = _paths(source_root, output_root)
@@ -277,7 +279,8 @@ def analyze_source(
             progress=progress, check_cancel=check_cancel,
             policy=agent_policy, answer_detail=answer_detail, answer_instructions=answer_instructions,
             locale=locale, compilation_context=compilation_context,
-            start_new_investigation=start_new_investigation)
+            start_new_investigation=start_new_investigation,
+            continue_investigation=continue_investigation, resume_run_id=resume_run_id)
         if cached is not None:
             return cached
     repository_mode = analysis_mode == "business" and entry is None
@@ -487,7 +490,8 @@ def analyze_source(
                                           answer_detail=answer_detail, answer_instructions=answer_instructions, locale=locale,
                                           progress=progress, check_cancel=check_cancel,
                                           conversation_history=conversation_history, conversation_id=conversation_id,
-                                          agent_policy=agent_policy, start_new_investigation=start_new_investigation)
+                                          agent_policy=agent_policy, start_new_investigation=start_new_investigation,
+                                          continue_investigation=continue_investigation, resume_run_id=resume_run_id)
             except APIConfigurationError as exc:
                 agent = {"runner_status": "NOT_READY", "reason_code": exc.code, "agent_result": None}
                 diagnostic = sanitize_diagnostic(getattr(exc, "diagnostic", None))

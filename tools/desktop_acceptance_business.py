@@ -7,6 +7,16 @@ from tools.desktop_acceptance_runtime import (LoopbackProvider, NativeWorkbench,
     decoded_navigation, read_journal, require, supplied_pages, write_profile)
 
 
+def business_policy_matches(runtime_policy, configured_policy):
+    """Check observed caps without importing the product into the HTTP harness."""
+    fields = ("max_model_requests", "max_investigation_rounds", "max_answer_revisions")
+    return (isinstance(runtime_policy, dict) and isinstance(configured_policy, dict)
+        and "hard_question_seconds" in runtime_policy
+        and runtime_policy["hard_question_seconds"] is None
+        and all(key in runtime_policy and runtime_policy[key] == configured_policy[key]
+                for key in fields if key in configured_policy))
+
+
 def run_business_overview(command, root, case, sample_index):
     from tools.desktop_acceptance_scenarios import _checked_answer, _index, _row
     source, output = root / "source", root / "workspace"
@@ -46,6 +56,7 @@ def run_business_overview(command, root, case, sample_index):
                     page["start_line"] - 1:page["end_line"]]) and not page.get("span_truncated") for page in pages)
             visible = observation["state"]["conversation"]["messages"][-1]["content"]
             answer = agent["answer"]
+            configured_policy = case["policy"]
             batch_checks = {}
             if batch:
                 requirements = {item["kind"]: item for item in
@@ -66,8 +77,8 @@ def run_business_overview(command, root, case, sample_index):
                 "completeness_one_model_request": len(provider.requests) == 1,
                 "evidence_raw_source_and_versions_match": raw_ok,
                 "evidence_visible_answer_matches": visible == answer and bool(agent.get("evidence_refs")),
-                "lifecycle_default_has_no_fixed_total_deadline": agent["metrics"]["policy"]["hard_question_seconds"] is None
-                    and agent["metrics"]["policy"]["max_model_requests"] == 6})]
+                "lifecycle_default_has_no_fixed_total_deadline": business_policy_matches(
+                    agent["metrics"]["policy"], configured_policy)})]
 
 
 def semantic_revision_supply_checks(payload, draft, original_pages):

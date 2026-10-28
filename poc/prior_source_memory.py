@@ -72,7 +72,8 @@ class PriorSourceMemory:
 
     @staticmethod
     def _origin_matches(page, origin, records):
-        record = next((row for row in records if row.get("round_id") == origin.get("round_id")), None)
+        record = next((row for row in records if row.get("round_id") == origin.get("round_id")
+                       and row.get("request_body_sha256") == origin.get("request_body_sha256")), None)
         if (record is None or record.get("request_body_sha256") != origin.get("request_body_sha256")
                 or re.fullmatch(r"round-[1-9][0-9]*", str(origin.get("round_id", ""))) is None
                 or re.fullmatch(r"[0-9a-f]{64}", str(origin.get("request_body_sha256", ""))) is None

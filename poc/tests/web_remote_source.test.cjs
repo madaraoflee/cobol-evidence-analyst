@@ -86,7 +86,7 @@ test('remote source provenance and progress are translated, escaped and identify
   for(const locale of ['en','zh-CN','zh-HK']){
     const h=harness(locale);setup(h);h.run(`applyProject(${JSON.stringify({...remote,remote_source:{...remote.remote_source,subdirectory:'<script>unsafe</script>'}})})`);
     const html=h.run('renderSources()');assert.match(html,/&lt;script&gt;unsafe&lt;\/script&gt;/);assert.doesNotMatch(html,/<script>/);
-    assert.match(html,/a{40}/);assert.match(html,/data-connect-remote/);assert.doesNotMatch(html,/data-source-update/);
+    assert.match(html,/a{40}/);assert.match(html,/data-update-remote/);assert.doesNotMatch(html,/data-source-update/);
     if(locale==='en')assert.doesNotMatch(html,/[\u3400-\u9fff]/);
     for(const phase of ['remote_resolving','remote_downloading','remote_extracting']){
       h.run(`state.busy=true;state.jobKind='index';rememberProgress({phase:'${phase}',completed:1,total:null,unit:'bytes'})`);
@@ -167,4 +167,130 @@ test('failed or cancelled imports restore framework settings without rolling bac
     assert.equal(h.run('state.answerInstructions'),'New writing requirements');assert.equal(h.get('answer-instructions').value,'New writing requirements');
     assert.equal(h.run('state.busy'),false);
   }
+});
+
+const localId='1'.repeat(64),remoteId='2'.repeat(64),newId='3'.repeat(64);
+const savedLocal={...local,workspace_id:localId};
+const savedRemote={...remote,workspace_id:remoteId};
+const cloudRemote={...savedRemote,remote_source:{...savedRemote.remote_source,provider:'bitbucket_cloud',
+  url:'https://bitbucket.org/demo-workspace/source/src/'+ 'a'.repeat(40)+'/sit',ref:'a'.repeat(40)}};
+function savedWorkspace(project,label){return {workspace_id:project.workspace_id,source_label:label,source_origin:project.source_origin,
+  remote_source:project.remote_source,available:true};}
+const savedRows=[savedWorkspace(savedLocal,'Local billing'),savedWorkspace(cloudRemote,'Remote billing')];
+function currentRemote(h,project=cloudRemote){setup(h);h.run(`applyProject(${JSON.stringify(project)});state.conversation={id:'current',title:'Current business',messages:[{id:'answer',role:'assistant',content:'Keep this answer',status:'completed'}]};state.question='A draft about this source';applySourceWorkspaces({source_workspaces:${JSON.stringify(savedRows)}});`);}
+
+test('restart restores the remote library and saved empty libraries without any download request',async()=>{
+  const h=harness();h.respond(url=>{
+    assert.equal(url,'/api/state');return {session_token:'test',project:cloudRemote,conversations:[],source_workspaces:savedRows,source_preferences:preferences};
+  });
+  await h.run('initialize()');
+  assert.equal(h.requests.length,1);assert.equal(h.run('state.project.workspace_id'),remoteId);
+  const html=h.run('savedSourceWorkspacesView()');assert.match(html,/Local billing/);assert.match(html,/Remote billing/);
+  assert.match(html,/Open local copy/);assert.match(html,/Currently open/);
+  assert.equal(h.run('state.sourceWorkspaces.length'),2);
+});
+
+test('a saved library with no conversation can be opened locally and failed opens preserve current scope',async()=>{
+  const h=harness();setup(h);h.run(`applyProject(${JSON.stringify(savedLocal)});state.question='Unsent local question'`);
+  h.respond((url,options)=>{
+    assert.equal(url,'/api/source/open');assert.deepEqual(JSON.parse(options.body),{workspace_id:remoteId});
+    return {project:cloudRemote,conversation:null,conversations:[],source_workspaces:savedRows,source_preferences:preferences};
+  });
+  await h.run(`openSourceWorkspace('${remoteId}')`);
+  assert.equal(h.run('state.project.workspace_id'),remoteId);assert.equal(h.run('state.question'),'');assert.equal(h.run('state.conversation'),null);
+  assert.match(h.run('sourceUpdateNotice()'),/without downloading/);assert.equal(h.requests.length,1);
+  h.run("state.question='Keep the remote draft'");h.respond(()=>({project:cloudRemote,source_workspaces:[]}));
+  await h.run(`openSourceWorkspace('${localId}')`);
+  assert.equal(h.run('state.project.workspace_id'),remoteId);assert.equal(h.run('state.question'),'Keep the remote draft');
+  assert.equal(h.run('state.sourceWorkspaces.length'),2);assert.equal(h.run('state.conversationLoading'),false);
+});
+
+test('reconnecting an existing source consumes the cached response without polling or clearing the current draft',async()=>{
+  const h=harness();currentRemote(h);h.run("state.pendingMessage={role:'user',content:'Retained pending message'};openRemoteSource()");
+  h.get('remote-source-username').value='reader@example.com';h.get('remote-source-token').value='ephemeral-token';
+  h.respond((url,options)=>{
+    assert.equal(url,'/api/source/remote');assert.equal(JSON.parse(options.body).username,'reader@example.com');
+    assert.equal(h.get('remote-source-token').value,'');assert.equal(h.get('remote-source-username').value,'');
+    return {source_reused:true,project:cloudRemote,conversation:null,conversations:[],source_workspaces:savedRows};
+  });
+  await h.events['remote-source-form:submit']({preventDefault(){}});
+  assert.equal(h.requests.length,1);assert.equal(h.run('state.question'),'A draft about this source');
+  assert.equal(h.run('state.conversation.id'),'current');assert.equal(h.run('state.pendingMessage.content'),'Retained pending message');
+  assert.equal(h.run('state.busy'),false);assert.equal(h.run('state.jobId'),null);
+  assert.match(h.run('sourceUpdateNotice()'),/without downloading/);
+  assert.doesNotMatch(h.run('JSON.stringify(state)'),/ephemeral-token|reader@example.com/);
+});
+
+test('unchanged repository update posts only update credentials and preserves the current question and conversation',async()=>{
+  const h=harness();currentRemote(h);h.run("openRemoteSource('update')");
+  assert.equal(h.get('remote-source-url').readOnly,true);assert.equal(h.get('remote-source-subdirectory').readOnly,true);
+  assert.equal(h.get('remote-source-reading-options').hidden,true);assert.equal(h.get('remote-source-follow-default').checked,false);
+  h.get('remote-source-username').value='reader@example.com';h.get('remote-source-token').value='ephemeral-token';
+  h.respond((url,options)=>{
+    if(url==='/api/source/remote/update'){
+      assert.deepEqual(JSON.parse(options.body),{workspace_id:remoteId,username:'reader@example.com',token:'ephemeral-token',ref:'a'.repeat(40),follow_default_branch:false});
+      assert.equal(h.get('remote-source-username').value,'');assert.equal(h.get('remote-source-token').value,'');
+      return {job_id:'update',source:cloudRemote.source,output:cloudRemote.output};
+    }
+    assert.equal(url,'/api/jobs/update');return {status:'COMPLETED',kind:'index',result:{...cloudRemote,
+      remote_update:{status:'up_to_date',commit:'a'.repeat(40),previous_commit:'a'.repeat(40)},source_workspaces:savedRows}};
+  });
+  await h.events['remote-source-form:submit']({preventDefault(){}});
+  assert.equal(h.requests.length,2);assert.equal(h.run('state.question'),'A draft about this source');
+  assert.equal(h.run('state.conversation.id'),'current');assert.equal(h.run('state.project.workspace_id'),remoteId);
+  assert.match(h.run('sourceUpdateNotice()'),/unchanged/);assert.equal(h.run('state.page'),'sources');
+  assert.doesNotMatch(h.run('JSON.stringify(state)'),/ephemeral-token|reader@example.com/);
+});
+
+test('following the default branch is explicit and a new version does not inherit the previous source draft',async()=>{
+  const h=harness();currentRemote(h);h.run("openRemoteSource('update')");
+  assert.equal(h.get('remote-source-follow-default').checked,false);assert.match(h.run('remoteSourceView()'),/pinned to a commit/);h.get('remote-source-follow-default').checked=true;
+  const changed={...cloudRemote,workspace_id:newId,source:'/cache/next/source',output:'/cache/next/analysis',snapshot_id:'sha256:next',
+    remote_source:{...cloudRemote.remote_source,ref:null,commit:'b'.repeat(40)},remote_update:{status:'updated',previous_commit:'a'.repeat(40),commit:'b'.repeat(40)}};
+  h.respond((url,options)=>{
+    if(url==='/api/source/remote/update'){assert.equal(JSON.parse(options.body).follow_default_branch,true);return {job_id:'update'};}
+    return {status:'COMPLETED',kind:'index',result:{...changed,conversations:[],source_workspaces:[...savedRows,savedWorkspace(changed,'New remote version')]}};
+  });
+  await h.events['remote-source-form:submit']({preventDefault(){}});
+  assert.equal(h.run('state.project.workspace_id'),newId);assert.equal(h.run('state.question'),'');assert.equal(h.run('state.conversation'),null);
+  assert.equal(h.run('state.sourceWorkspaces.length'),3);assert.match(h.run('sourceUpdateNotice()'),/Earlier conversations retain their original version/);
+  h.run('openRemoteSource()');assert.equal(h.get('remote-source-url').readOnly,false);assert.equal(h.get('remote-source-reading-options').hidden,false);
+});
+
+test('saved source controls and new update messages remain translated and escape repository details',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);currentRemote(h);h.run(`applySourceWorkspaces({source_workspaces:${JSON.stringify([
+      {...savedWorkspace(cloudRemote,'<img src=x>'),remote_source:{...cloudRemote.remote_source,ref:'<script>ref</script>'}},
+      {...savedWorkspace(savedLocal,'Unavailable local'),available:false}])}})`);
+    const html=h.run('savedSourceWorkspacesView()');assert.match(html,/&lt;img src=x&gt;/);assert.match(html,/&lt;script&gt;ref&lt;\/script&gt;/);assert.doesNotMatch(html,/<script>|<img src/);
+    assert.match(html,new RegExp('data-open-source-workspace="'+localId+'" disabled'));
+    if(locale==='en')assert.doesNotMatch(html,/[\u3400-\u9fff]/);
+  }
+});
+
+test('closing a remote update clears both temporary credentials without making a request',()=>{
+  const h=harness();currentRemote(h);h.run("openRemoteSource('update')");
+  h.get('remote-source-username').value='reader@example.com';h.get('remote-source-token').value='ephemeral-token';
+  h.events.cancel({target:{id:'remote-source-dialog'}});
+  assert.equal(h.get('remote-source-username').value,'');assert.equal(h.get('remote-source-token').value,'');assert.equal(h.requests.length,0);
+});
+
+test('cached source reindex jobs take precedence over the synchronous cache response',async()=>{
+  const h=harness();currentRemote(h);
+  h.respond(url=>url==='/api/source/remote'?{source_reused:true,project:cloudRemote,job_id:'reindex'}:
+    {status:'COMPLETED',kind:'index',result:{...cloudRemote,diagnosis:{...cloudRemote.diagnosis,source_options:{source_format:'free'}}}});
+  await h.run(`startRemoteSource({url:${JSON.stringify(cloudRemote.remote_source.url)},source_format:'free'})`);
+  assert.equal(h.requests.length,2);assert.equal(h.requests[1].url,'/api/jobs/reindex');
+  assert.equal(h.run('state.project.diagnosis.source_options.source_format'),'free');
+  assert.equal(h.run('state.question'),'A draft about this source');assert.equal(h.run('state.conversation.id'),'current');
+  assert.match(h.run('sourceUpdateNotice()'),/index was updated without downloading/);
+});
+
+test('an unchanged remote commit reports a repaired index rather than falsely saying the old index was reused',async()=>{
+  const h=harness();currentRemote(h);
+  h.respond(url=>url==='/api/source/remote/update'?{job_id:'repair'}:
+    {status:'COMPLETED',kind:'index',result:{...cloudRemote,remote_update:{status:'up_to_date',index_rebuilt:true}}});
+  await h.run(`startRemoteSource({workspace_id:'${remoteId}'},'/api/source/remote/update')`);
+  const message=h.run('sourceUpdateNotice()');assert.match(message,/local index was rebuilt/);assert.doesNotMatch(message,/indexes were reused/);
+  assert.equal(h.run('state.question'),'A draft about this source');assert.equal(h.run('state.conversation.id'),'current');
 });

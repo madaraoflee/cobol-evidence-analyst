@@ -1,0 +1,35 @@
+{
+  "scope": "Manual review of actual model responses against neutral fixture source; final deterministic postprocessing replay uses the same recorded response without a new model call.",
+  "model_request_attempts": 9,
+  "received_model_responses": 7,
+  "tls_handshake_failures": 2,
+  "private_source_sent": false,
+  "first_question": {
+    "initial_history_messages": 0,
+    "repository_files": 12202,
+    "retrieval_and_answer_requests": 2,
+    "checks": {
+      "requested_source_preserved": true,
+      "conditional_result_codes_match_source": true,
+      "unknown_initial_value_not_invented_as_zero": true,
+      "numeric_comparison_not_claimed_as_data_validation": true,
+      "source_citations_match_delivered_pages": true,
+      "table_condition_labels_preserved_after_local_replay": true
+    },
+    "limitation": "This neutral example does not establish correctness for an enterprise business domain or every possible generated answer."
+  },
+  "custom_after_restart": {
+    "model_requests": 1,
+    "saved_instruction_in_system_once": true,
+    "title_order": [
+      "Purpose",
+      "Rule",
+      "Result"
+    ],
+    "language": "English",
+    "result_example": "2 * 3 = 6 within five digits",
+    "source_citations_valid": true
+  },
+  "no_new_answer_blocking_validation": true,
+  "initialization_reference": "https://www.ibm.com/docs/en/cobol-zos/6.4.0?topic=data-comparison-working-storage-local-storage"
+}

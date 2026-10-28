@@ -21,7 +21,7 @@ _SQLITE_DONE = getattr(sqlite3, "SQLITE_DONE", 101)
 
 class SourceUpdateBackup:
     def __init__(self, output, names, *, progress=None, check_cancel=None,
-                 busy_timeout_seconds=5.0):
+                 busy_timeout_seconds=5.0, rebuildable_databases=()):
         self.output, self.names = Path(output), tuple(names)
         self.progress, self.check_cancel = progress, check_cancel
         self.busy_timeout_seconds = float(busy_timeout_seconds)
@@ -35,6 +35,8 @@ class SourceUpdateBackup:
             self.root = Path(tempfile.mkdtemp(prefix="source-update-"))
         self.keep_for_recovery = False
         self.existing = set()
+        self.corrupt_databases = set()
+        self.rebuildable_databases = frozenset(rebuildable_databases)
         self.file_sizes = {}
         self.completed_bytes = 0
         self.last_progress_at = None
@@ -56,7 +58,35 @@ class SourceUpdateBackup:
                 path = self.output / name
                 self._emit(name, force=True)
                 if name.endswith(".sqlite"):
-                    self._backup_database(path, name)
+                    corrupt = False
+                    if name in self.rebuildable_databases and self.file_sizes[name]:
+                        with path.open("rb") as stream:
+                            corrupt = stream.read(16) != b"SQLite format 3\x00"
+                    if not corrupt:
+                        try:
+                            self._backup_database(path, name)
+                        except sqlite3.DatabaseError as error:
+                            code = getattr(error, "sqlite_errorcode", None)
+                            primary = code & 255 if type(code) is int else None
+                            corrupt = primary in (sqlite3.SQLITE_CORRUPT, sqlite3.SQLITE_NOTADB)
+                            if name not in self.rebuildable_databases or not corrupt:
+                                raise
+                    if corrupt:
+                        # Derived indexes can be rebuilt, but their damaged
+                        # bytes must remain recoverable if that rebuild fails.
+                        self._backup_file(path, name)
+                        self.corrupt_databases.add(name)
+                        for suffix in ("-wal", "-shm", "-journal"):
+                            sidecar_name = name + suffix
+                            sidecar = self.output / sidecar_name
+                            if sidecar.is_symlink() or (sidecar.exists() and not sidecar.is_file()):
+                                raise ValueError("SOURCE_UPDATE_PATH_INVALID")
+                            if sidecar.is_file():
+                                self.existing.add(sidecar_name)
+                                self.file_sizes[sidecar_name] = sidecar.stat().st_size
+                                self._backup_file(sidecar, sidecar_name)
+                                self.completed_bytes += self.file_sizes[sidecar_name]
+                                self.names += (sidecar_name,)
                 else:
                     self._backup_file(path, name)
                 self.completed_bytes += self.file_sizes[name]
@@ -105,6 +135,9 @@ class SourceUpdateBackup:
                 self._check_cancel()
                 try:
                     page_size = source.execute("PRAGMA page_size").fetchone()[0]
+                    # SQLite's backup API can copy a malformed schema without
+                    # reading it. Establish that the source can actually open.
+                    source.execute("SELECT name FROM sqlite_master LIMIT 1").fetchone()
                     break
                 except sqlite3.OperationalError as error:
                     code = getattr(error, "sqlite_errorcode", None)
@@ -143,6 +176,13 @@ class SourceUpdateBackup:
                 copied += len(chunk)
                 self._emit(name, copied)
         self.file_sizes[name] = copied
+
+    def prepare_rebuild(self):
+        """Remove only damaged derived indexes after rollback owns the backup."""
+        for name in self.corrupt_databases:
+            self._check_cancel()
+            for suffix in ("", "-wal", "-shm", "-journal"):
+                (self.output / (name + suffix)).unlink(missing_ok=True)
 
     def restore(self):
         # Rollback must finish even when the update's cancellation flag is set.

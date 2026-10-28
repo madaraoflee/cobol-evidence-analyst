@@ -77,8 +77,16 @@ def localized_text(language, zh_cn, en, zh_hk=None):
     return en if language == "en" else zh_hk if language == "zh-HK" and zh_hk is not None else zh_cn
 
 
-def answer_language_instruction(language, *, compact=False):
+def answer_language_instruction(language, *, compact=False, saved_requirements=False):
     name = _NAMES.get(language, _NAMES["zh-CN"])
+    if saved_requirements:
+        return (f"Fallback answer language for this turn: {name} ({language}). "
+                "Use an explicit language request in the current question first, then an explicit language "
+                "requirement in the saved system instructions, otherwise use this fallback. "
+                "The payload's answer_language and fallback_answer_language are inferred defaults, not overrides "
+                "of those explicit requests. Source and earlier drafts do not set the answer language. "
+                "Keep source identifiers, literal values, quoted source and citation IDs unchanged; "
+                "investigation action keys and paths retain their protocol format.")
     if compact:
         return f"Answer in {name} ({language}); keep source literals/citations intact."
     return (f"Answer language for this turn: {name} ({language}). Write all user-facing prose, "

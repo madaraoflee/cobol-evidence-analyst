@@ -1,0 +1,48 @@
+{
+  "scope": "Merged source changes on macOS; no app build or GitHub Actions dispatch.",
+  "baseline_commit": "4cdbab4665df4d2b6fcbf70b9dccf3f7a286474c",
+  "source_manifest": "tested-source.json",
+  "source_unchanged_during_final_regression": true,
+  "python": {
+    "status": "passed",
+    "tests": 4129,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 249.924267,
+    "public_corpus": "Pinned and hash-verified manifest files; PUBLIC_BUSINESS_SOURCE_ROOT configured."
+  },
+  "frontend": {
+    "tests": 250,
+    "failures": 0,
+    "skipped": 0
+  },
+  "browser": {
+    "checks": 32,
+    "model_requests": 0,
+    "remote_source_transport": "controlled",
+    "frozen_files": 11
+  },
+  "live_model": {
+    "attempts": 9,
+    "responses_received": 7,
+    "tls_failures": 2,
+    "private_source_sent": false,
+    "review": "content-review.json",
+    "final_table_repair": "same recorded response replayed locally; no new model request"
+  },
+  "request_boundary": {
+    "maximum_bytes": 32768,
+    "results": "request-boundary-results.json",
+    "retained_source_pages": [
+      1,
+      1,
+      2
+    ]
+  },
+  "release": {
+    "built": false,
+    "published": false,
+    "reason": "Current AGENTS.md bug-fix phase; source fixes and GitHub submission only."
+  }
+}

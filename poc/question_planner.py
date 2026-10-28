@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import re
 from statement_facts import data_references
+from repository_identity import mask_source_references
 
 
 PLAN_VERSION = "business-analysis-plan/v10"
@@ -133,7 +134,7 @@ def question_references(question):
     symbol lookup do that. Qualification, subscripts and reference modification
     remain one reference rather than extra input fields.
     """
-    return tuple(dict.fromkeys(reference.identity for text in _IDENTIFIER.findall(str(question))
+    return tuple(dict.fromkeys(reference.identity for text in _IDENTIFIER.findall(mask_source_references(question))
                                for reference in data_references(text)))
 
 

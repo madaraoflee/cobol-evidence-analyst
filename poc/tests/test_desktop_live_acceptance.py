@@ -4,6 +4,7 @@ import copy
 from contextlib import contextmanager, ExitStack
 import hashlib
 import json
+import math
 from pathlib import Path
 import sys
 import tempfile
@@ -273,12 +274,21 @@ class NativeLiveAcceptanceTests(unittest.TestCase):
 
     def test_external_watchdog_stays_finite_without_product_local_timer(self):
         from agent_policy import AgentPolicy
-        policy = AgentPolicy()
-        wait = native.execution_wait_policy(policy)
-        self.assertEqual(wait["local_processing_reserve_seconds"], 135)
-        self.assertEqual(wait["watchdog_seconds"], 6 * native.WORKBENCH_TIMEOUT_SECONDS + 135 + 45)
-        self.assertIsNone(policy.max_local_analysis_seconds)
-        self.assertIsNone(wait["hard_question_seconds"])
+        for policy in (AgentPolicy(), AgentPolicy(max_model_requests=6, delivery_target_seconds=1)):
+            with self.subTest(policy=policy.to_dict()):
+                wait = native.execution_wait_policy(policy)
+                self.assertEqual(wait["maximum_model_requests"], policy.max_model_requests)
+                self.assertEqual(wait["local_processing_reserve_seconds"], 135)
+                self.assertEqual(wait["verification_cleanup_reserve_seconds"], 45)
+                self.assertEqual(wait["watchdog_seconds"],
+                                 policy.max_model_requests * native.WORKBENCH_TIMEOUT_SECONDS + 135 + 45)
+                self.assertTrue(math.isfinite(wait["watchdog_seconds"]))
+                self.assertGreater(wait["watchdog_seconds"], policy.delivery_target_seconds)
+                self.assertIsNone(policy.max_local_analysis_seconds)
+                self.assertIsNone(policy.hard_question_seconds)
+                self.assertIsNone(wait["hard_question_seconds"])
+                self.assertIs(wait["application_hard_deadline_expected"], False)
+                self.assertIs(wait["performance_target_interrupts_answer"], False)
         explicit = native.execution_wait_policy(AgentPolicy(max_local_analysis_seconds=7))
         self.assertEqual(explicit["local_processing_reserve_seconds"], 127)
 

@@ -1,0 +1,24 @@
+{
+  "scope": "actual configured model via local source HTTP workbench; 12202 neutral generated files; no private repository",
+  "model_request_limit": 6,
+  "previous_requests": 2,
+  "cases": [
+    {
+      "case": "first-question",
+      "question": "这份源码里订单金额是怎样检查并决定结果的？请面向业务新人解释。",
+      "job_status": "COMPLETED",
+      "status": "ABSTAINED",
+      "stop_reason": "TRANSPORT_ERROR",
+      "model_answer_recorded": false,
+      "answer_truncated": false,
+      "model_requests": 1,
+      "answer": "无法建立安全连接，请联系管理员。 检查网络、接口地址和服务连通性。 本地关联编号：local-ffcf854b8a2d41cb9a138f2810dc0d9d。\n\n对话和源码索引已保留。\n\n诊断：TRANSPORT_ERROR；阶段：provider_request。",
+      "evidence_refs": [],
+      "sse_events": 6,
+      "running_preview_events": 0,
+      "custom_in_actual_system": null
+    }
+  ],
+  "model_requests": 3,
+  "review_scope": "Request delivery, source retrieval, saved instructions and streaming; this status does not prove business correctness."
+}

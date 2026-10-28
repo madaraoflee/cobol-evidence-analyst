@@ -11,10 +11,37 @@ from company_api import APIClientError
 from run_store import RunStore
 import test_business_chat_latency as latency_fixtures
 from tools.business_onboarding_fixture import fixture_identity
+from tools.desktop_acceptance_business import business_policy_matches
 from tools.desktop_acceptance_scenarios import run_scenarios
 
 
 class BusinessFirstDeliveryTests(unittest.TestCase):
+    def test_policy_probe_honors_explicit_six_calls_with_eight_call_defaults_and_soft_target(self):
+        defaults = AgentPolicy().to_dict()
+        configured = {"max_model_requests": 6, "max_question_seconds": None,
+                      "hard_question_seconds": None, "max_answer_revisions": 0}
+        runtime = AgentPolicy(**configured).to_dict()
+        self.assertEqual(defaults["max_model_requests"], 8)
+        self.assertEqual(runtime["max_model_requests"], 6)
+        self.assertEqual(runtime["delivery_target_seconds"], 60)
+        self.assertIsNone(runtime["hard_question_seconds"])
+        self.assertTrue(business_policy_matches(runtime, configured))
+        self.assertTrue(business_policy_matches(defaults, {}))
+
+    def test_policy_probe_rejects_hard_deadline_and_mismatched_or_missing_explicit_caps(self):
+        configured = {"max_model_requests": 6, "max_investigation_rounds": 2,
+                      "max_answer_revisions": 0}
+        runtime = AgentPolicy(**configured).to_dict()
+        self.assertTrue(business_policy_matches(runtime, configured))
+        for change in ({"hard_question_seconds": 60}, {"max_model_requests": 8},
+                       {"max_investigation_rounds": 6}, {"max_answer_revisions": 1}):
+            with self.subTest(change=change):
+                self.assertFalse(business_policy_matches({**runtime, **change}, configured))
+        for field in ("hard_question_seconds", *configured):
+            with self.subTest(missing=field):
+                self.assertFalse(business_policy_matches({key: value for key, value in runtime.items()
+                                                         if key != field}, configured))
+
     def test_default_answer_can_arrive_after_previous_total_deadline(self):
         fixture = latency_fixtures.BusinessChatLatencyTests()
         fixture.setUp()
@@ -74,6 +101,8 @@ class BusinessFirstDeliveryTests(unittest.TestCase):
         for case in cases:
             self.assertEqual(case["fixture_sha256"], fixture_identity())
             self.assertEqual(case["repeats"], 3)
+            self.assertEqual(case["policy"]["max_model_requests"], 6)
+            self.assertIsNone(case["policy"]["hard_question_seconds"])
         with tempfile.TemporaryDirectory() as temporary:
             rows = run_scenarios([sys.executable, str(root / "poc/desktop_app.py")], temporary,
                 {**manifest, "cases": [{**case, "repeats": 1} for case in cases]})

@@ -416,6 +416,62 @@ def framework_status(reference_path: Path | str | None = None) -> dict:
         return _summary(None, code=error.code)
 
 
+def _document_label(value: str) -> str:
+    return re.sub(r"[\W_]+", " ", value.casefold()).strip()
+
+
+def _document_filename_query(query: str) -> bool:
+    return bool(re.search(r"\.(?:md|markdown|txt)(?![\w.-])", query[:4000], flags=re.I | re.ASCII))
+
+
+def _document_query_matches(document: _Document, query: str) -> dict[str, set[str]]:
+    """Resolve document names before looking for the same words in their body."""
+    query = query[:4000].casefold().replace("\\", "/")
+    normalized = " " + _document_label(query) + " "
+    named, descriptive = {}, {}
+    path_matches = set()
+
+    def mentioned(value):
+        return bool(value and re.search(r"(?<![\w./-])" + re.escape(value.casefold())
+                                        + r"(?![\w./-])", query, flags=re.ASCII))
+
+    def absolute_mentioned(value):
+        # Collection names are relative. Accept their suffix only when the
+        # user supplies an absolute drive/POSIX path, not another relative name.
+        return bool(value and re.search(
+            r"(?<![\w.:/])(?:[a-z]:/|/)(?:[^\r\n<>\"'`/]+/)*"
+            + re.escape(value.casefold()) + r"(?![\w./-])", query, flags=re.ASCII))
+
+    for item in document.documents:
+        name = item["name"]
+        path = name.replace("\\", "/")
+        basename = path.rsplit("/", 1)[-1]
+        path_hit = "/" in path and (mentioned(path) or absolute_mentioned(path))
+        if path_hit or mentioned(basename) or ("/" not in path and absolute_mentioned(path)):
+            named[name] = {name}
+            if path_hit:
+                path_matches.add(name)
+        stem = basename.rsplit(".", 1)[0]
+        for alias in (stem, item["title"]):
+            label = _document_label(alias)
+            # A short generic title such as "Guide" cannot select a document.
+            if len(label.split()) >= 2 or any(len(phrase) >= 4 for phrase in _CJK.findall(label)):
+                if " " + label + " " in normalized:
+                    descriptive.setdefault(name, set()).add(alias)
+    if named:
+        # An explicit relative path disambiguates duplicate basenames.
+        precise_basenames = {name.rsplit("/", 1)[-1].casefold() for name in path_matches}
+        return {name: hits for name, hits in named.items()
+                if name in path_matches or name.rsplit("/", 1)[-1].casefold() not in precise_basenames}
+    if _document_filename_query(query):
+        return {}
+    return descriptive
+
+
+def _section_document_name(document: _Document, section: _Section) -> str:
+    return section.document_name or document.documents[0]["name"]
+
+
 def search_framework_context(query: str, *, reference_path=None, max_references=10, max_chars=8000) -> dict:
     """Search the configured manuals independently of retrieved source markers.
 
@@ -431,10 +487,20 @@ def search_framework_context(query: str, *, reference_path=None, max_references=
     if document is None:
         return result
     terms = _question_terms(query)
+    document_matches = _document_query_matches(document, query)
+    result["coverage"]["document_lookup"] = sorted(document_matches)
+    if _document_filename_query(query) and not document_matches:
+        result["coverage"].update(matched_sections=0, references_selected=0, references_truncated=False)
+        return result
     ranked = []
     for position, section in enumerate(document.sections):
-        text = (section.heading + "\n" + section.text).casefold()
+        name = _section_document_name(document, section)
+        if document_matches and name not in document_matches:
+            continue
+        text = (name + "\n" + _document_label(name) + "\n"
+                + section.heading + "\n" + section.text).casefold()
         hits = {term for term in terms if term in text}
+        hits.update(document_matches.get(name, ()))
         if hits:
             heading_hits = sum(term in section.heading.casefold() for term in hits)
             ranked.append((len(hits) + heading_hits * 2, position, hits))
@@ -453,7 +519,7 @@ def search_framework_context(query: str, *, reference_path=None, max_references=
             "reference_id": f"fw:{digest[:16]}:{name_key}{section.start_line}-{section.end_line}",
             "heading": section.heading, "page": section.page,
             "start_line": section.start_line, "end_line": section.end_line, "text": section.text,
-            "document_name": section.document_name or document.documents[0]["name"],
+            "document_name": _section_document_name(document, section),
             "document_sha256": digest, "matched_terms": sorted(hits),
             "selection_reason": "framework_search",
         })
@@ -898,21 +964,33 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
                                                                    result["coverage"], source_root, check_cancel,
                                                                    source_paths)
     query_terms = _question_terms(question)
+    document_matches = _document_query_matches(document, question)
+    result["coverage"]["document_lookup"] = sorted(document_matches)
     technical_query_terms = {term.upper() for term in query_terms} & document.terms
     other_query_terms = query_terms - {term.casefold() for term in technical_query_terms}
     rankings = []
+    question_candidates = []
     for index, section in enumerate(document.sections):
         source_hits = section.terms & source_terms
-        search_text = (section.heading + "\n" + section.text).casefold()
+        name = _section_document_name(document, section)
+        search_text = (name + "\n" + _document_label(name) + "\n"
+                       + section.heading + "\n" + section.text).casefold()
         technical_body_hits = technical_query_terms & section.terms
         technical_heading_hits = technical_query_terms & _technical_terms(section.heading)
         query_hits = {term for term in other_query_terms if term in search_text}
         query_hits.update(term.casefold() for term in technical_body_hits | technical_heading_hits)
+        query_hits.update(document_matches.get(name, ()))
+        name_text = (name + "\n" + _document_label(name)).casefold()
+        name_hits = {term for term in query_terms if term in name_text}
+        heading_hits = {term for term in query_terms if term in section.heading.casefold()}
+        if query_hits and name_hits:
+            question_candidates.append((len(name_hits) * 4 + len(heading_hits) * 2 + len(query_hits), index))
         if source_hits or query_hits:
             # Specific table rows and short explanations take priority over a
             # large glossary that happens to repeat many vocabulary items.
             density = len(source_hits) / max(1, len(section.terms))
-            score = ((100 if source_hits else 0) + min(4, len(source_hits)) * 8 + density * 12
+            score = ((5000 if name in document_matches else 0)
+                     + (100 if source_hits else 0) + min(4, len(source_hits)) * 8 + density * 12
                      + min(4, len(technical_body_hits)) * 80
                      + min(3, len(technical_heading_hits - technical_body_hits)) * 12
                      + min(8, len(query_hits)) * .25)
@@ -925,9 +1003,13 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
     reference_budget = min(MAX_REFERENCE_CHARS, 8000) if source_pages is not None else MAX_REFERENCE_CHARS
     background_indices = _background_sections(document, reference_budget)
     ranked_indices = {item[1] for item in rankings}
+    # A business topic named in a document filename is a direct navigation cue.
+    # Retain its best passage when many common source markers match other manuals.
+    question_index = max(question_candidates, key=lambda item: (item[0], -item[1]))[1] if question_candidates else None
     # Weak question-word overlap must not replace the framework's basic model.
     # All source matches still require independently observed source markers.
-    rankings = [(score + (1000 if index in background_indices else 0), index, source_hits, query_hits)
+    rankings = [(score + (1000 if index in background_indices else 0)
+                 + (900 if index == question_index else 0), index, source_hits, query_hits)
                 for score, index, source_hits, query_hits in rankings]
     rankings.extend((1000, index, set(), set()) for index in sorted(background_indices - ranked_indices))
     remaining = reference_budget
@@ -955,6 +1037,7 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
         ))
         _, index, source_hits, query_hits = rankings.pop(best)
         section = document.sections[index]
+        name = _section_document_name(document, section)
         if len(section.text) > remaining:
             omitted_sections += 1
             continue
@@ -969,10 +1052,11 @@ def build_framework_context(database_path: Path | None = None, *, entry_program:
             "reference_id": f"fw:{reference_digest[:16]}:{name_key}{section.start_line}-{section.end_line}",
             "heading": section.heading, "page": section.page,
             "start_line": section.start_line, "end_line": section.end_line, "text": section.text,
-            "document_name": section.document_name or document.documents[0]["name"],
+            "document_name": name,
             "document_sha256": reference_digest,
             "matched_terms": sorted(source_hits) if source_hits else sorted(query_hits),
-            "selection_reason": ("source_marker" if source_hits else "document_overview"
+            "selection_reason": ("source_marker" if source_hits else "question_only"
+                                 if name in document_matches or index == question_index else "document_overview"
                                  if overview_selection or index in background_indices else "question_only"),
         })
     seen_evidence: set[str] = set()

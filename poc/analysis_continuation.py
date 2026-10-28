@@ -138,6 +138,7 @@ class AnalysisContinuation:
         self.review = saved.get("review", {})
         self.draft = saved.get("draft", "")
         self.revision_requests = int(saved.get("revision_requests", 0))
+        self.total_revision_requests = int(saved.get("total_revision_requests", self.revision_requests))
 
     def observe(self, pages, references, investigation, *, semantic_groups=()):
         material = material_keys(pages, references)
@@ -150,6 +151,8 @@ class AnalysisContinuation:
                        if item.get("status") == "SATISFIED"}
         progressed = bool(material - self.known_material or obligations - self.known_obligations
                           or semantic - self.known_semantic)
+        if progressed:
+            self.revision_requests = 0
         if self.awaiting_tools:
             self.idle_tool_rounds = 0 if progressed else self.idle_tool_rounds + 1
         self.awaiting_tools = False
@@ -162,13 +165,16 @@ class AnalysisContinuation:
             self.stop_reason = "no_evidence_progress"
         return progressed
 
-    def needs_followup(self, answer, assessment, pages, references=(), *, max_revisions=2):
+    def needs_followup(self, answer, assessment, pages, references=(), *, max_revisions=2,
+                       max_total_revisions=None):
         gaps = sorted(set(assessment.get("missing_aspects", [])))
         # Reordering or repeating the same denial does not create a new gap.
         contradictions = sorted({(str(item.get("relative_path") or ""),
                                   str(item.get("assertion") or ""))
                                  for item in assessment.get("source_availability_contradictions", [])})
         signature = _digest({"material": sorted(material_keys(pages, references)),
+                             "semantic": sorted(self.known_semantic),
+                             "obligations": sorted(self.known_obligations),
                              "gaps": gaps, "contradictions": contradictions,
                              "status": assessment.get("status")})
         self.draft = answer
@@ -176,11 +182,13 @@ class AnalysisContinuation:
         if signature in self.reviewed_gaps:
             self.stop_reason = "answer_review_no_progress"
             return False
-        if self.revision_requests >= max_revisions:
+        if (self.revision_requests >= max_revisions
+                or (max_total_revisions is not None and self.total_revision_requests >= max_total_revisions)):
             self.stop_reason = "answer_revision_budget"
             return False
         self.reviewed_gaps.add(signature)
         self.revision_requests += 1
+        self.total_revision_requests += 1
         return True
 
     def prompt_memory(self):
@@ -198,4 +206,5 @@ class AnalysisContinuation:
                 "reviewed_gaps": sorted(self.reviewed_gaps), "idle_tool_rounds": self.idle_tool_rounds,
                 "awaiting_tools": self.awaiting_tools, "stop_reason": self.stop_reason,
                 "draft": self.draft, "review": self.review,
-                "revision_requests": self.revision_requests}
+                "revision_requests": self.revision_requests,
+                "total_revision_requests": self.total_revision_requests}

@@ -32,7 +32,7 @@ class ChatContinuationJoinTests(unittest.TestCase):
         self.config = CompanyAPIConfig("https://neutral.example.invalid/v1", "neutral-model",
                                        api_key="offline-neutral-credential")
 
-    def ask(self, *, second_finish="stop"):
+    def ask(self, *, second_finish="stop", progress=None):
         self.responses = []
         self.requests = []
         self.prefix = "结果来自入口赋值。\n\n1. 已说明的条件保留。\n\n"
@@ -52,8 +52,20 @@ class ChatContinuationJoinTests(unittest.TestCase):
                 "role": "assistant", "content": text}, "finish_reason": finish}]}, ensure_ascii=False))
 
         return run_business_chat("DECISION 返回什么？", self.database, self.source, self.config,
-            transport=transport, framework_reference_path="",
+            transport=transport, framework_reference_path="", progress=progress,
             policy=AgentPolicy(max_model_requests=3, max_answer_revisions=0))["agent_result"]
+
+    def test_continuation_previews_keep_earlier_paragraphs_and_join_the_restarted_tail_once(self):
+        events = []
+        result = self.ask(progress=events.append)
+        previews = [event["answer_preview"]["text"] for event in events
+                    if event.get("answer_preview", {}).get("stage") == "continuation"]
+        self.assertGreaterEqual(len(previews), 1)
+        for text in previews:
+            self.assertTrue(text.startswith(self.prefix))
+            self.assertEqual(text.count("2. 返回的状态字段是"), 1)
+        self.assertEqual(previews[-1], result["answer"])
+        self.assertEqual(len(self.requests), 2)
 
     def test_restarted_item_is_joined_once_and_accounting_keeps_both_requests(self):
         result = self.ask()

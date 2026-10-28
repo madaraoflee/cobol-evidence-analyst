@@ -27,7 +27,7 @@ class ReceivedAnswerDeadlineTests(unittest.TestCase):
         self.addCleanup(self.fixture.doCleanups)
 
     def ask(self, **kwargs):
-        kwargs.setdefault("policy", AgentPolicy(max_question_seconds=180))
+        kwargs.setdefault("policy", AgentPolicy(max_question_seconds=180, delivery_target_seconds=None))
         return self.fixture.ask(**kwargs)
 
     def test_received_answer_is_saved_before_optional_read_reaches_deadline(self):

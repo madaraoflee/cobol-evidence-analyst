@@ -642,6 +642,17 @@ summary { cursor: pointer; }
 .answer-preview-heading strong { color: var(--ink); font-weight: 600; }
 .answer-preview-notice { color: var(--muted); margin: 7px 0 14px; line-height: 1.7; }
 .answer-live-preview .narrative-body { max-height: 60vh; overflow: auto; overflow-wrap: anywhere; }
+.conversation-progress { padding: 0 4px; border: 0; background: transparent; }
+.conversation-progress-status { padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-soft); }
+.answer-live-preview { padding: 0; border: 0; background: transparent; }
+.answer-preview-notice { font-size: 11px; }
+.analysis-activity-history { margin-top: 12px; color: var(--muted); font-size: 11px; line-height: 1.8; }
+.analysis-activity-history summary { cursor: pointer; }
+.analysis-activity-history ol { margin: 12px 0 0 7px; padding-left: 18px; border-left: 1px solid var(--border); list-style: none; }
+.analysis-activity-history li { position: relative; margin: 0 0 12px; overflow-wrap: anywhere; }
+.analysis-activity-history li::before { position: absolute; top: 7px; left: -22px; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); content: ''; }
+.analysis-activity-history li strong, .analysis-activity-history li span { display: block; }
+.analysis-activity-history li strong { color: var(--ink-soft); font-weight: 500; }
 .conversation-evidence { margin: 0 0 0 auto; top: 12px; right: 12px; bottom: 12px; height: calc(100dvh - 24px); max-height: none; width: min(620px, calc(100% - 24px)); max-width: none; padding: 22px; border-radius: 14px; color: var(--ink); }
 .conversation-evidence:not([open]) { display: none; }
 .conversation-evidence[open] { display: block; animation: panel-enter .2s ease-out; }
@@ -770,3 +781,24 @@ summary { cursor: pointer; }
 
 .source-actions{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}.message-source-version{display:block;margin-bottom:12px;color:var(--muted);overflow-wrap:anywhere}
 .source-version-card>p{margin:12px 20px;line-height:1.7}.source-version-card>details{padding:0 20px 18px}
+
+.conversation-search { display: flex; align-items: center; gap: 4px; margin: 0 3px 18px; padding: 0 6px 0 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.conversation-search:focus-within { border-color: var(--accent); outline: 1px solid var(--accent); }
+.conversation-search input { min-width: 0; width: 100%; padding: 10px 0; color: var(--ink); border: 0; outline: 0; background: transparent; font: inherit; font-size: 12px; }
+.conversation-search input::placeholder { color: var(--muted); }
+.conversation-search button { display: flex; padding: 5px; color: var(--muted); }
+.conversation-search button[hidden] { display: none; }
+.conversation-search button svg { width: 14px; height: 14px; }
+.conversation-source-group h3 { margin-left: 2px; margin-right: 2px; }
+.conversation-group-toggle { display: flex; align-items: center; gap: 7px; width: 100%; padding: 7px 5px; text-align: left; color: inherit; border-radius: 5px; }
+.conversation-group-toggle:hover { background: var(--surface-soft); }
+.conversation-group-toggle strong { flex: 1; font-size: 11px; font-weight: 600; }
+.conversation-group-chevron { display: flex; }
+.conversation-group-chevron svg { width: 12px; height: 12px; }
+.conversation-group-toggle[aria-expanded="true"] .conversation-group-chevron { transform: rotate(90deg); }
+.conversation-search-count { margin: 0 10px 12px; color: var(--muted); font-size: 11px; }
+.conversation-history-actions { display: flex; flex-direction: column; gap: 5px; margin: 12px 3px 0; }
+.conversation-history-actions:empty { display: none; }
+.conversation-history-actions button { padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; color: var(--ink-soft); font-size: 11px; text-align: left; }
+.conversation-history-actions button:hover { background: var(--surface-soft); }
+.conversation-group-toggle:focus-visible, .conversation-history-actions button:focus-visible, .conversation-search button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

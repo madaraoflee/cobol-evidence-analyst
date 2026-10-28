@@ -143,6 +143,16 @@ class WorkbenchScopeRecoveryTests(unittest.TestCase):
         self.assertEqual(stats["indexed_or_updated"], 3)
         self.assertEqual(len(resumed["result"]["programs"]), 5)
 
+    def test_first_build_cancellation_in_precreated_output_keeps_structural_checkpoint(self) -> None:
+        self.output.mkdir()
+        self.cancel_after_second_file("repository_search")
+        index = self.output / "structural-index.sqlite"
+        with closing(sqlite3.connect(f"{index.as_uri()}?mode=ro", uri=True)) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM source_files").fetchone()[0], 5)
+        resumed = self.finish(self.start())
+        self.assertEqual(resumed["status"], "COMPLETED")
+        self.assertEqual(resumed["result"]["diagnosis"]["build_report"]["files"]["skipped_unchanged"], 5)
+
     def test_duplicate_program_keeps_unique_selection_key_after_detail_and_repeat(self) -> None:
         self.write("first/main.cbl", program("MAIN"))
         self.write("second/main.cbl", program("MAIN"))
