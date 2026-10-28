@@ -429,6 +429,41 @@ def _related_program_rules(connection, selected, direct, distance, existing, che
     return existing
 
 
+def _program_definition_rows(connection, selected_paths, repository_size, check_cancel):
+    """Read the same definitions without visiting every statement's body.
+
+    Small selections use the path index. For a broad selection, the existing
+    program/type index can filter out non-program units before reading their
+    table pages; scanning that compact index once avoids repeated body reads.
+    Older snapshots without this index keep the original path lookup.
+    """
+    if not selected_paths:
+        return
+    _cancel(check_cancel)
+    broad = len(selected_paths) > 400 and len(selected_paths) * 2 >= repository_size
+    if broad and connection.execute("SELECT 1 FROM sqlite_master WHERE type='index' "
+            "AND tbl_name='code_units' AND name='idx_units_program'").fetchone():
+        selected = set(selected_paths)
+        rows = connection.execute("SELECT u.relative_path,u.name,f.sha256 "
+            "FROM code_units u INDEXED BY idx_units_program "
+            "CROSS JOIN source_files f ON f.relative_path=u.relative_path "
+            "WHERE u.unit_type='Program' ORDER BY u.relative_path,u.start_line,u.rowid")
+        for index, row in enumerate(rows):
+            if index % 400 == 0:
+                _cancel(check_cancel)
+            if row["relative_path"] in selected:
+                yield row
+        return
+    for start in range(0, len(selected_paths), 400):
+        _cancel(check_cancel)
+        batch = selected_paths[start:start + 400]
+        slots = ",".join("?" for _ in batch)
+        yield from connection.execute("SELECT u.relative_path,u.name,f.sha256 FROM code_units u "
+            "JOIN source_files f ON f.relative_path=u.relative_path "
+            f"WHERE u.relative_path IN ({slots}) AND u.unit_type='Program' "
+            "ORDER BY u.relative_path,u.start_line", batch)
+
+
 def build_business_map(database_path, source_root, question, *, search_terms=None, focus_paths=None, prior_paths=None,
                        check_cancel=None, entry_program=None, history=()):
     """Map direct matches, transitive static callers and nearby rule operations.
@@ -507,19 +542,9 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         program_names = defaultdict(list)
         source_versions = {}
         selected_paths = sorted(selected)
-        # Keep definition lookup proportional to the nominated sources. The
-        # path index already exists in older snapshots; no catalog rebuild or
-        # new repository-sized index is needed for an interactive question.
-        for start in range(0, len(selected_paths), 400):
-            _cancel(check_cancel)
-            batch = selected_paths[start:start + 400]
-            slots = ",".join("?" for _ in batch)
-            for row in connection.execute("SELECT u.relative_path,u.name,f.sha256 FROM code_units u "
-                    "JOIN source_files f ON f.relative_path=u.relative_path "
-                    f"WHERE u.relative_path IN ({slots}) AND u.unit_type='Program' "
-                    "ORDER BY u.relative_path,u.start_line", batch):
-                program_names[row["relative_path"]].append(row["name"])
-                source_versions[row["relative_path"]] = row["sha256"]
+        for row in _program_definition_rows(connection, selected_paths, overview["indexed_files"], check_cancel):
+            program_names[row["relative_path"]].append(row["name"])
+            source_versions[row["relative_path"]] = row["sha256"]
         ordered = sorted(selected, key=lambda path: (distance.get(path, 0), path))
         programs = [{"relative_path": path, "program_names": program_names[path] or [Path(path).stem.upper()],
                      "distance": distance.get(path, 0), "direct_source_match": path in query_direct}

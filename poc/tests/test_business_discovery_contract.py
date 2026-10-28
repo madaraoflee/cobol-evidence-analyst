@@ -80,6 +80,21 @@ class BusinessDiscoveryContractTests(unittest.TestCase):
                 payload["business_map"]["source_identity"].update(status=status, selection_basis=basis)
                 self.assertNotIn("call_analysis", _prompt_payload(payload)["response_contract"])
 
+    def test_caller_selection_keeps_source_order_and_excludes_copy_only_members(self):
+        payload = self.payload()
+        payload["retrieval_status"]["state"] = "source_candidates"
+        payload["business_map"].update(
+            direct_paths=["second.cbl", "copy-only.cbl", "first.cbl", "second.cbl"],
+            relations=[{"caller_path": "first.cbl", "relation_type": "CALLS"},
+                       {"caller_path": "copy-only.cbl", "relation_type": "INCLUDES_COPY"},
+                       {"caller_path": "second.cbl", "relation_type": "CALLS"},
+                       {"caller_path": "outside.cbl", "relation_type": "CALLS"}])
+        before = deepcopy(payload)
+        wire = _prompt_payload(payload)
+        self.assertEqual(wire["response_contract"]["call_analysis"]["primary_caller_paths"],
+                         ["second.cbl", "first.cbl", "second.cbl"])
+        self.assertEqual(payload, before)
+
     def test_unresolved_identity_is_explicit_without_becoming_lexical_discovery(self):
         for identity in ("ambiguous", "not_found"):
             with self.subTest(identity=identity):

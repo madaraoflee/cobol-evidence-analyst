@@ -22,12 +22,12 @@ from tools.desktop_acceptance import digest, inspect_package, sample_failures
 
 
 BASELINES = (
-    {"label": "previous", "tag": "v2026.10.26.1-rc.1",
-     "source_commit": "56050b8ac60b581c9e39968c16fb8da01bd73966",
-     "archive_sha256": "c56bfbb6aec2441bd78fe8a4d8de262f1e38190b31271440a86af71e18464c55"},
-    {"label": "current", "tag": "v2026.10.27.1-rc.1",
+    {"label": "previous", "tag": "v2026.10.27.1-rc.1",
      "source_commit": "3628a055d3578a98a7455c655aa62177eb38cc10",
      "archive_sha256": "da2185629ae5a003f860f5690ac14689f758faade375ca3bef90cdcc71387d24"},
+    {"label": "current", "tag": "v2026.10.27.2-rc.1",
+     "source_commit": "b636fbdd96ac4483b342c2a9dbce2e00a3e17caf",
+     "archive_sha256": "bd0000862f1f5c5ffb9b958e9b563c4a242125bf0ec30af280c0ecb293fc6845"},
 )
 FROZEN_MANIFEST_SHA256 = "ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06"
 ARCHIVE_NAME = "COBOLWorkbench-windows-x64.zip"
@@ -90,6 +90,9 @@ def summarize_report(report):
         "first_question_seconds": rows[0]["timings"]["question_seconds"],
         "median_question_seconds": statistics.median(row["timings"]["question_seconds"] for row in rows),
         "median_warm_question_seconds": statistics.median(row["timings"]["question_seconds"] for row in rows[1:]),
+        "median_primary_question_seconds": statistics.median(row["timings"]["primary_question_seconds"] for row in rows),
+        "median_warm_primary_question_seconds": statistics.median(row["timings"]["primary_question_seconds"] for row in rows[1:]),
+        "median_warm_scope_probe_seconds": statistics.median(row["timings"]["scope_probe_seconds"] for row in rows[1:]),
         "median_first_provider_seconds": statistics.median(row["timings"]["first_provider_seconds"] for row in rows),
         "samples": [{"sample_index": row["sample_index"], "run_id": row["run_id"],
             "timings": row["timings"], "checks": row["checks"],
@@ -105,7 +108,9 @@ def compare_summaries(variants):
     corpora = [row["corpus"] for row in variants.values()]
     require(all(corpus == corpora[0] for corpus in corpora), "COMPARISON_CORPUS_MISMATCH")
     result = {}
-    fields = ("cold_import_seconds", "median_question_seconds", "median_warm_question_seconds", "median_first_provider_seconds")
+    fields = ("cold_import_seconds", "median_question_seconds", "median_warm_question_seconds",
+              "median_primary_question_seconds", "median_warm_primary_question_seconds",
+              "median_warm_scope_probe_seconds", "median_first_provider_seconds")
     for before, after in (("previous", "current"), ("current", "optimized"), ("previous", "optimized")):
         result[f"{after}_over_{before}"] = {name: variants[after][name] / variants[before][name]
             if variants[before][name] > 0 else None for name in fields}

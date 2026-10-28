@@ -1,0 +1,1533 @@
+{
+  "schema_version": "question-latency-equivalence/v1",
+  "status": "local_offline_passed_native_package_pending",
+  "baseline_commit": "b636fbdd96ac4483b342c2a9dbce2e00a3e17caf",
+  "real_model_calls": 0,
+  "measurement_surface": "workbench_start_to_terminal_snapshot",
+  "corpus": {
+    "files": 12024,
+    "lines": 2712992,
+    "source_bytes": 59039908,
+    "source_fingerprint": "f84c540ea17f72ec93e7a1137ed891418f03e516c2eaff21aeeba893ce936204"
+  },
+  "configuration": {
+    "api_style": "openai_compatible",
+    "base_url_configured": true,
+    "chat_model_configured": true,
+    "embedding_model_configured": false,
+    "api_key_source": "ENVIRONMENT",
+    "timeout_seconds": 60.0,
+    "max_output_tokens": 8192,
+    "reasoning_effort": null,
+    "profile_name": "workbench",
+    "output_limit_source": "profile",
+    "allow_insecure_localhost": false
+  },
+  "environment": {
+    "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+    "python": "3.14.4"
+  },
+  "measurement_order": [
+    "baseline",
+    "preview_and_projection_only",
+    "final"
+  ],
+  "order_rotated": false,
+  "variants": {
+    "baseline": {
+      "source_identity": {
+        "production_python_files": 114,
+        "sha256": "2d1b551beb766c365c17fa11694b3acd660eb0e26b2e39439b92ce279c17f895"
+      },
+      "harness_sha256": "da83f5d0e6e36f65f03d57705905e02c2a55da77854d6c1834afad711b110edd",
+      "summary": {
+        "timed_samples": 4,
+        "warm_samples": 3,
+        "median_seconds": {
+          "total_seconds": 12.6238642295001,
+          "business_chat_seconds": 8.259424457999899,
+          "first_provider_seconds": 6.769450354500009,
+          "after_provider_seconds": 4.761032041500016,
+          "outside_business_chat_seconds": 4.366009459000111
+        },
+        "warm_median_seconds": {
+          "total_seconds": 12.852122167000061,
+          "business_chat_seconds": 8.352317874999926,
+          "first_provider_seconds": 6.8086403750000954,
+          "after_provider_seconds": 4.938627125000039,
+          "outside_business_chat_seconds": 4.68559112600019
+        },
+        "source_content_identical": true,
+        "answer_identical": true,
+        "claim_ledger_identical": true
+      },
+      "history_recovered_after_restart": true,
+      "samples": [
+        {
+          "sample_index": 1,
+          "timings": {
+            "total_seconds": 10.861425042000064,
+            "business_chat_seconds": 6.814997250000033,
+            "first_provider_seconds": 5.123246042000119,
+            "after_provider_seconds": 4.583436957999993,
+            "outside_business_chat_seconds": 4.046427792000031,
+            "synthetic_transport_seconds": 0.0064668339998661395
+          },
+          "measured_calls": {
+            "save_workspace": {
+              "calls": 2,
+              "seconds": 0.0009267090001685574
+            },
+            "run_store_load": {
+              "calls": 29,
+              "seconds": 0.10178675499923884
+            },
+            "run_store_checkpoint": {
+              "calls": 28,
+              "seconds": 0.4157077900008517
+            },
+            "web_read_json": {
+              "calls": 2,
+              "seconds": 0.07064804200012986
+            },
+            "relationships": {
+              "calls": 1,
+              "seconds": 2.691692125000145
+            },
+            "record_answer": {
+              "calls": 1,
+              "seconds": 0.021945125000002008
+            }
+          },
+          "source_payload": {
+            "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+            "pages": 65,
+            "files": 11,
+            "characters": 35505
+          },
+          "checks": {
+            "quality_formula_and_condition_supported": true,
+            "quality_unknown_not_verified": true,
+            "completeness_formula_control_supplied": true,
+            "source_versions_match": true,
+            "answer_recorded": true,
+            "answer_ledger_hash_matches": true,
+            "index_reused": true,
+            "visible_answer_matches": true,
+            "persisted_history_matches": true
+          },
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "claim_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+          "synthetic_requests": 2
+        },
+        {
+          "sample_index": 2,
+          "timings": {
+            "total_seconds": 12.852122167000061,
+            "business_chat_seconds": 8.166531040999871,
+            "first_provider_seconds": 6.730260333999922,
+            "after_provider_seconds": 4.938627125000039,
+            "outside_business_chat_seconds": 4.68559112600019,
+            "synthetic_transport_seconds": 0.006279416000097626
+          },
+          "measured_calls": {
+            "save_workspace": {
+              "calls": 2,
+              "seconds": 0.0009523749999971187
+            },
+            "run_store_load": {
+              "calls": 29,
+              "seconds": 0.13842745699980696
+            },
+            "run_store_checkpoint": {
+              "calls": 28,
+              "seconds": 0.437269835000734
+            },
+            "web_read_json": {
+              "calls": 2,
+              "seconds": 0.07486258300014015
+            },
+            "relationships": {
+              "calls": 1,
+              "seconds": 2.9003326669999296
+            },
+            "record_answer": {
+              "calls": 1,
+              "seconds": 0.024955874999932348
+            }
+          },
+          "source_payload": {
+            "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+            "pages": 65,
+            "files": 11,
+            "characters": 35505
+          },
+          "checks": {
+            "quality_formula_and_condition_supported": true,
+            "quality_unknown_not_verified": true,
+            "completeness_formula_control_supplied": true,
+            "source_versions_match": true,
+            "answer_recorded": true,
+            "answer_ledger_hash_matches": true,
+            "index_reused": true,
+            "visible_answer_matches": true,
+            "persisted_history_matches": true
+          },
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "claim_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+          "synthetic_requests": 2
+        },
+        {
+          "sample_index": 3,
+          "timings": {
+            "total_seconds": 16.742549749999853,
+            "business_chat_seconds": 9.667417915999977,
+            "first_provider_seconds": 8.230942916999993,
+            "after_provider_seconds": 7.314061666999805,
+            "outside_business_chat_seconds": 7.075131833999876,
+            "synthetic_transport_seconds": 0.006428666000147132
+          },
+          "measured_calls": {
+            "save_workspace": {
+              "calls": 2,
+              "seconds": 0.0009496249999756401
+            },
+            "run_store_load": {
+              "calls": 29,
+              "seconds": 0.10584558200048377
+            },
+            "run_store_checkpoint": {
+              "calls": 28,
+              "seconds": 0.46322378999957436
+            },
+            "web_read_json": {
+              "calls": 2,
+              "seconds": 0.07569766699998581
+            },
+            "relationships": {
+              "calls": 1,
+              "seconds": 5.305330291000018
+            },
+            "record_answer": {
+              "calls": 1,
+              "seconds": 0.023885916999915935
+            }
+          },
+          "source_payload": {
+            "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+            "pages": 65,
+            "files": 11,
+            "characters": 35505
+          },
+          "checks": {
+            "quality_formula_and_condition_supported": true,
+            "quality_unknown_not_verified": true,
+            "completeness_formula_control_supplied": true,
+            "source_versions_match": true,
+            "answer_recorded": true,
+            "answer_ledger_hash_matches": true,
+            "index_reused": true,
+            "visible_answer_matches": true,
+            "persisted_history_matches": true
+          },
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "claim_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+          "synthetic_requests": 2
+        },
+        {
+          "sample_index": 4,
+          "timings": {
+            "total_seconds": 12.395606292000139,
+            "business_chat_seconds": 8.352317874999926,
+            "first_provider_seconds": 6.8086403750000954,
+            "after_provider_seconds": 4.368885542000044,
+            "outside_business_chat_seconds": 4.043288417000213,
+            "synthetic_transport_seconds": 0.043283499999915875
+          },
+          "measured_calls": {
+            "save_workspace": {
+              "calls": 2,
+              "seconds": 0.000888207999878432
+            },
+            "run_store_load": {
+              "calls": 29,
+              "seconds": 0.10630183400144233
+            },
+            "run_store_checkpoint": {
+              "calls": 28,
+              "seconds": 0.4704350840004281
+            },
+            "web_read_json": {
+              "calls": 2,
+              "seconds": 0.07392754200009222
+            },
+            "relationships": {
+              "calls": 1,
+              "seconds": 2.3611257909999495
+            },
+            "record_answer": {
+              "calls": 1,
+              "seconds": 0.0221977500000321
+            }
+          },
+          "source_payload": {
+            "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+            "pages": 65,
+            "files": 11,
+            "characters": 35505
+          },
+          "checks": {
+            "quality_formula_and_condition_supported": true,
+            "quality_unknown_not_verified": true,
+            "completeness_formula_control_supplied": true,
+            "source_versions_match": true,
+            "answer_recorded": true,
+            "answer_ledger_hash_matches": true,
+            "index_reused": true,
+            "visible_answer_matches": true,
+            "persisted_history_matches": true
+          },
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "claim_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+          "synthetic_requests": 2
+        }
+      ]
+    },
+    "preview_and_projection_only": {
+      "source_identity": {
+        "production_python_files": 114,
+        "sha256": "9af55cac9ba5a5622b9d6e8c7dec5f163c7b4d5692db18ff14906d1a15d18b0b"
+      },
+      "harness_sha256": "da83f5d0e6e36f65f03d57705905e02c2a55da77854d6c1834afad711b110edd",
+      "summary": {
+        "timed_samples": 4,
+        "warm_samples": 3,
+        "median_seconds": {
+          "total_seconds": 10.194939895500056,
+          "business_chat_seconds": 7.783629354000027,
+          "first_provider_seconds": 6.499079708500062,
+          "after_provider_seconds": 2.0301323125000863,
+          "outside_business_chat_seconds": 1.7897683964999942
+        },
+        "warm_median_seconds": {
+          "total_seconds": 9.817281416000014,
+          "business_chat_seconds": 8.06042087500009,
+          "first_provider_seconds": 6.7163724580000235,
+          "after_provider_seconds": 2.0280412920001254,
+          "outside_business_chat_seconds": 1.7750766670001212
+        },
+        "source_content_identical": true,
+        "answer_identical": true,
+        "claim_ledger_identical": true
+      },
+      "history_recovered_after_restart": true,
+      "samples": [
+        {
+          "sample_index": 1,
+          "timings": {
+            "total_seconds": 10.572598375000098,
+            "business_chat_seconds": 6.554738165999879,
+            "first_provider_seconds": 4.964006624999911,
+            "after_provider_seconds": 4.550005333000172,
+            "outside_business_chat_seconds": 4.017860209000219,
+            "synthetic_transport_seconds": 0.006438708999894516
+          },
+          "measured_calls": {
+            "save_workspace": {
+              "calls": 2,
+              "seconds": 0.0009982920000766171
+            },
+            "run_store_load": {
+              "calls": 29,
+              "seconds": 0.12226542099983817
+            },
+            "run_store_checkpoint": {
+              "calls": 28,
+              "seconds": 0.4146669989995644
+            },
+            "web_read_json": {
+              "calls": 2,
+              "seconds": 0.07406125000011343
+            },
+            "relationships": {
+              "calls": 1,
+              "seconds": 2.641181084000209
+            },
+            "record_answer": {
+              "calls": 1,
+              "seconds": 0.021903667000060523
+            }
+          },
+          "source_payload": {
+            "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+            "pages": 65,
+            "files": 11,
+            "characters": 35505
+          },
+          "checks": {
+            "quality_formula_and_condition_supported": true,
+            "quality_unknown_not_verified": true,
+            "completeness_formula_control_supplied": true,
+            "source_versions_match": true,
+            "answer_recorded": true,
+            "answer_ledger_hash_matches": true,
+            "index_reused": true,
+            "visible_answer_matches": true,
+            "persisted_history_matches": true
+          },
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "claim_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+          "synthetic_requests": 2
+        },
+        {
+          "sample_index": 2,
+          "timings": {
+            "total_seconds": 9.817281416000014,
+            "business_chat_seconds": 8.06042087500009,
+            "first_provider_seconds": 6.7163724580000235,
+            "after_provider_seconds": 2.032223333000047,
+            "outside_business_chat_seconds": 1.7568605409999236,
+            "synthetic_transport_seconds": 0.006447749999779262
+          },
+          "measured_calls": {
+            "save_workspace": {
+              "calls": 2,
+              "seconds": 0.0010194589999628079
+            },
+            "run_store_load": {
+              "calls": 29,
+              "seconds": 0.10736633399983475
+            },
+            "run_store_checkpoint": {
+              "calls": 28,
+              "seconds": 0.4356517909998274
+            },
+            "web_read_json": {
+              "calls": 2,
+              "seconds": 0.08166316699998788
+            },
+            "record_answer": {
+              "calls": 1,
+              "seconds": 0.02739566700006435
+            }
+          },
+          "source_payload": {
+            "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+            "pages": 65,
+            "files": 11,
+            "characters": 35505
+          },
+          "checks": {
+            "quality_formula_and_condition_supported": true,
+            "quality_unknown_not_verified": true,
+            "completeness_formula_control_supplied": true,
+            "source_versions_match": true,
+            "answer_recorded": true,
+            "answer_ledger_hash_matches": true,
+            "index_reused": true,
+            "visible_answer_matches": true,
+            "persisted_history_matches": true
+          },
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "claim_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+          "synthetic_requests": 2
+        },
+        {
+          "sample_index": 3,
+          "timings": {
+            "total_seconds": 17.12054441700002,
+            "business_chat_seconds": 15.316084291000152,
+            "first_provider_seconds": 14.072193250000055,
+            "after_provider_seconds": 2.0280412920001254,
+            "outside_business_chat_seconds": 1.8044601259998672,
+            "synthetic_transport_seconds": 0.006440165999720193
+          },
+          "measured_calls": {
+            "save_workspace": {
+              "calls": 2,
+              "seconds": 0.0008488760001910123
+            },
+            "run_store_load": {
+              "calls": 29,
+              "seconds": 0.10143537400062996
+            },
+            "run_store_checkpoint": {
+              "calls": 28,
+              "seconds": 0.44056141900045986
+            },
+            "web_read_json": {
+              "calls": 2,
+              "seconds": 0.08632037500001388
+            },
+            "record_answer": {
+              "calls": 1,
+              "seconds": 0.02348091600015323
+            }
+          },
+          "source_payload": {
+            "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+            "pages": 65,
+            "files": 11,
+            "characters": 35505
+          },
+          "checks": {
+            "quality_formula_and_condition_supported": true,
+            "quality_unknown_not_verified": true,
+            "completeness_formula_control_supplied": true,
+            "source_versions_match": true,
+            "answer_recorded": true,
+            "answer_ledger_hash_matches": true,
+            "index_reused": true,
+            "visible_answer_matches": true,
+            "persisted_history_matches": true
+          },
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "claim_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+          "synthetic_requests": 2
+        },
+        {
+          "sample_index": 4,
+          "timings": {
+            "total_seconds": 9.281914500000084,
+            "business_chat_seconds": 7.506837832999963,
+            "first_provider_seconds": 6.281786959000101,
+            "after_provider_seconds": 1.9771250000001146,
+            "outside_business_chat_seconds": 1.7750766670001212,
+            "synthetic_transport_seconds": 0.006174873999725605
+          },
+          "measured_calls": {
+            "save_workspace": {
+              "calls": 2,
+              "seconds": 0.0008179160001873242
+            },
+            "run_store_load": {
+              "calls": 29,
+              "seconds": 0.10092583300001934
+            },
+            "run_store_checkpoint": {
+              "calls": 28,
+              "seconds": 0.40642825300005825
+            },
+            "web_read_json": {
+              "calls": 2,
+              "seconds": 0.07588541699988127
+            },
+            "record_answer": {
+              "calls": 1,
+              "seconds": 0.02277183299997887
+            }
+          },
+          "source_payload": {
+            "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+            "pages": 65,
+            "files": 11,
+            "characters": 35505
+          },
+          "checks": {
+            "quality_formula_and_condition_supported": true,
+            "quality_unknown_not_verified": true,
+            "completeness_formula_control_supplied": true,
+            "source_versions_match": true,
+            "answer_recorded": true,
+            "answer_ledger_hash_matches": true,
+            "index_reused": true,
+            "visible_answer_matches": true,
+            "persisted_history_matches": true
+          },
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "claim_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+          "synthetic_requests": 2
+        }
+      ]
+    },
+    "final": {
+      "source_identity": {
+        "production_python_files": 114,
+        "sha256": "a771613d80e884b7fc473c76f80aea87fe1fb5f20ea0d691a31527db70be80ce"
+      },
+      "harness_sha256": "da83f5d0e6e36f65f03d57705905e02c2a55da77854d6c1834afad711b110edd",
+      "summary": {
+        "timed_samples": 4,
+        "warm_samples": 3,
+        "median_seconds": {
+          "total_seconds": 9.427299875000017,
+          "business_chat_seconds": 7.242412562000027,
+          "first_provider_seconds": 5.73536333349989,
+          "after_provider_seconds": 2.070353624999825,
+          "outside_business_chat_seconds": 1.832894584000087
+        },
+        "warm_median_seconds": {
+          "total_seconds": 8.991062832999887,
+          "business_chat_seconds": 7.205979082999875,
+          "first_provider_seconds": 5.881050208000033,
+          "after_provider_seconds": 2.043834374999733,
+          "outside_business_chat_seconds": 1.8119599170004221
+        },
+        "source_content_identical": true,
+        "answer_identical": true,
+        "claim_ledger_identical": true
+      },
+      "history_recovered_after_restart": true,
+      "samples": [
+        {
+          "sample_index": 1,
+          "timings": {
+            "total_seconds": 19.14216099999976,
+            "business_chat_seconds": 7.278846041000179,
+            "first_provider_seconds": 5.589676458999747,
+            "after_provider_seconds": 12.492778124999859,
+            "outside_business_chat_seconds": 11.863314958999581,
+            "synthetic_transport_seconds": 0.006732499000008829
+          },
+          "measured_calls": {
+            "save_workspace": {
+              "calls": 2,
+              "seconds": 0.0007579170001008606
+            },
+            "run_store_load": {
+              "calls": 29,
+              "seconds": 0.1257851239993215
+            },
+            "run_store_checkpoint": {
+              "calls": 28,
+              "seconds": 0.42375249999940934
+            },
+            "web_read_json": {
+              "calls": 2,
+              "seconds": 0.0693984160002401
+            },
+            "relationships": {
+              "calls": 1,
+              "seconds": 10.500071542000114
+            },
+            "record_answer": {
+              "calls": 1,
+              "seconds": 0.022179791999860754
+            }
+          },
+          "source_payload": {
+            "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+            "pages": 65,
+            "files": 11,
+            "characters": 35505
+          },
+          "checks": {
+            "quality_formula_and_condition_supported": true,
+            "quality_unknown_not_verified": true,
+            "completeness_formula_control_supplied": true,
+            "source_versions_match": true,
+            "answer_recorded": true,
+            "answer_ledger_hash_matches": true,
+            "index_reused": true,
+            "visible_answer_matches": true,
+            "persisted_history_matches": true
+          },
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "claim_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+          "synthetic_requests": 2
+        },
+        {
+          "sample_index": 2,
+          "timings": {
+            "total_seconds": 9.863536917000147,
+            "business_chat_seconds": 8.051576999999725,
+            "first_provider_seconds": 6.795204292000108,
+            "after_provider_seconds": 2.036630624999816,
+            "outside_business_chat_seconds": 1.8119599170004221,
+            "synthetic_transport_seconds": 0.00629300000036892
+          },
+          "measured_calls": {
+            "save_workspace": {
+              "calls": 2,
+              "seconds": 0.0008370420005121559
+            },
+            "run_store_load": {
+              "calls": 29,
+              "seconds": 0.10180787499757571
+            },
+            "run_store_checkpoint": {
+              "calls": 28,
+              "seconds": 0.45220658400012326
+            },
+            "web_read_json": {
+              "calls": 2,
+              "seconds": 0.07688074999941819
+            },
+            "record_answer": {
+              "calls": 1,
+              "seconds": 0.022573958999601018
+            }
+          },
+          "source_payload": {
+            "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+            "pages": 65,
+            "files": 11,
+            "characters": 35505
+          },
+          "checks": {
+            "quality_formula_and_condition_supported": true,
+            "quality_unknown_not_verified": true,
+            "completeness_formula_control_supplied": true,
+            "source_versions_match": true,
+            "answer_recorded": true,
+            "answer_ledger_hash_matches": true,
+            "index_reused": true,
+            "visible_answer_matches": true,
+            "persisted_history_matches": true
+          },
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "claim_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+          "synthetic_requests": 2
+        },
+        {
+          "sample_index": 3,
+          "timings": {
+            "total_seconds": 8.991062832999887,
+            "business_chat_seconds": 7.205979082999875,
+            "first_provider_seconds": 5.881050208000033,
+            "after_provider_seconds": 2.043834374999733,
+            "outside_business_chat_seconds": 1.7850837500000125,
+            "synthetic_transport_seconds": 0.006372834000103467
+          },
+          "measured_calls": {
+            "save_workspace": {
+              "calls": 2,
+              "seconds": 0.0009596249997230188
+            },
+            "run_store_load": {
+              "calls": 29,
+              "seconds": 0.13683624899977076
+            },
+            "run_store_checkpoint": {
+              "calls": 28,
+              "seconds": 0.4502638759981892
+            },
+            "web_read_json": {
+              "calls": 2,
+              "seconds": 0.09923870900047405
+            },
+            "record_answer": {
+              "calls": 1,
+              "seconds": 0.02602208400003292
+            }
+          },
+          "source_payload": {
+            "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+            "pages": 65,
+            "files": 11,
+            "characters": 35505
+          },
+          "checks": {
+            "quality_formula_and_condition_supported": true,
+            "quality_unknown_not_verified": true,
+            "completeness_formula_control_supplied": true,
+            "source_versions_match": true,
+            "answer_recorded": true,
+            "answer_ledger_hash_matches": true,
+            "index_reused": true,
+            "visible_answer_matches": true,
+            "persisted_history_matches": true
+          },
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "claim_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+          "synthetic_requests": 2
+        },
+        {
+          "sample_index": 4,
+          "timings": {
+            "total_seconds": 8.187738333999732,
+            "business_chat_seconds": 6.3339090829999805,
+            "first_provider_seconds": 5.068410166999911,
+            "after_provider_seconds": 2.0968728749999173,
+            "outside_business_chat_seconds": 1.8538292509997518,
+            "synthetic_transport_seconds": 0.0061720419998891884
+          },
+          "measured_calls": {
+            "save_workspace": {
+              "calls": 2,
+              "seconds": 0.0008620839998911833
+            },
+            "run_store_load": {
+              "calls": 29,
+              "seconds": 0.10308854299910308
+            },
+            "run_store_checkpoint": {
+              "calls": 28,
+              "seconds": 0.43967204199952903
+            },
+            "web_read_json": {
+              "calls": 2,
+              "seconds": 0.07340183299993441
+            },
+            "record_answer": {
+              "calls": 1,
+              "seconds": 0.02536879199988107
+            }
+          },
+          "source_payload": {
+            "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+            "pages": 65,
+            "files": 11,
+            "characters": 35505
+          },
+          "checks": {
+            "quality_formula_and_condition_supported": true,
+            "quality_unknown_not_verified": true,
+            "completeness_formula_control_supplied": true,
+            "source_versions_match": true,
+            "answer_recorded": true,
+            "answer_ledger_hash_matches": true,
+            "index_reused": true,
+            "visible_answer_matches": true,
+            "persisted_history_matches": true
+          },
+          "answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+          "claim_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+          "synthetic_requests": 2
+        }
+      ]
+    }
+  },
+  "exact_comparison": {
+    "comparison": "full_workbench_before_after_v1",
+    "fields_removed_before_comparison": [],
+    "same_corpus": true,
+    "same_model_configuration": true,
+    "before_summary": {
+      "timed_samples": 4,
+      "warm_samples": 3,
+      "median_seconds": {
+        "total_seconds": 12.6238642295001,
+        "business_chat_seconds": 8.259424457999899,
+        "first_provider_seconds": 6.769450354500009,
+        "after_provider_seconds": 4.761032041500016,
+        "outside_business_chat_seconds": 4.366009459000111
+      },
+      "warm_median_seconds": {
+        "total_seconds": 12.852122167000061,
+        "business_chat_seconds": 8.352317874999926,
+        "first_provider_seconds": 6.8086403750000954,
+        "after_provider_seconds": 4.938627125000039,
+        "outside_business_chat_seconds": 4.68559112600019
+      },
+      "source_content_identical": true,
+      "answer_identical": true,
+      "claim_ledger_identical": true
+    },
+    "after_summary": {
+      "timed_samples": 4,
+      "warm_samples": 3,
+      "median_seconds": {
+        "total_seconds": 9.427299875000017,
+        "business_chat_seconds": 7.242412562000027,
+        "first_provider_seconds": 5.73536333349989,
+        "after_provider_seconds": 2.070353624999825,
+        "outside_business_chat_seconds": 1.832894584000087
+      },
+      "warm_median_seconds": {
+        "total_seconds": 8.991062832999887,
+        "business_chat_seconds": 7.205979082999875,
+        "first_provider_seconds": 5.881050208000033,
+        "after_provider_seconds": 2.043834374999733,
+        "outside_business_chat_seconds": 1.8119599170004221
+      },
+      "source_content_identical": true,
+      "answer_identical": true,
+      "claim_ledger_identical": true
+    },
+    "before_source_identity": {
+      "production_python_files": 114,
+      "sha256": "2d1b551beb766c365c17fa11694b3acd660eb0e26b2e39439b92ce279c17f895"
+    },
+    "after_source_identity": {
+      "production_python_files": 114,
+      "sha256": "a771613d80e884b7fc473c76f80aea87fe1fb5f20ea0d691a31527db70be80ce"
+    },
+    "before_harness_sha256": "da83f5d0e6e36f65f03d57705905e02c2a55da77854d6c1834afad711b110edd",
+    "after_harness_sha256": "da83f5d0e6e36f65f03d57705905e02c2a55da77854d6c1834afad711b110edd",
+    "history_recovered_before_after": [
+      true,
+      true
+    ],
+    "real_model_calls": 0,
+    "samples": [
+      {
+        "sample": 1,
+        "before_timings": {
+          "total_seconds": 10.861425042000064,
+          "business_chat_seconds": 6.814997250000033,
+          "first_provider_seconds": 5.123246042000119,
+          "after_provider_seconds": 4.583436957999993,
+          "outside_business_chat_seconds": 4.046427792000031,
+          "synthetic_transport_seconds": 0.0064668339998661395
+        },
+        "after_timings": {
+          "total_seconds": 19.14216099999976,
+          "business_chat_seconds": 7.278846041000179,
+          "first_provider_seconds": 5.589676458999747,
+          "after_provider_seconds": 12.492778124999859,
+          "outside_business_chat_seconds": 11.863314958999581,
+          "synthetic_transport_seconds": 0.006732499000008829
+        },
+        "before_calls": {
+          "save_workspace": {
+            "calls": 2,
+            "seconds": 0.0009267090001685574
+          },
+          "run_store_load": {
+            "calls": 29,
+            "seconds": 0.10178675499923884
+          },
+          "run_store_checkpoint": {
+            "calls": 28,
+            "seconds": 0.4157077900008517
+          },
+          "web_read_json": {
+            "calls": 2,
+            "seconds": 0.07064804200012986
+          },
+          "relationships": {
+            "calls": 1,
+            "seconds": 2.691692125000145
+          },
+          "record_answer": {
+            "calls": 1,
+            "seconds": 0.021945125000002008
+          }
+        },
+        "after_calls": {
+          "save_workspace": {
+            "calls": 2,
+            "seconds": 0.0007579170001008606
+          },
+          "run_store_load": {
+            "calls": 29,
+            "seconds": 0.1257851239993215
+          },
+          "run_store_checkpoint": {
+            "calls": 28,
+            "seconds": 0.42375249999940934
+          },
+          "web_read_json": {
+            "calls": 2,
+            "seconds": 0.0693984160002401
+          },
+          "relationships": {
+            "calls": 1,
+            "seconds": 10.500071542000114
+          },
+          "record_answer": {
+            "calls": 1,
+            "seconds": 0.022179791999860754
+          }
+        },
+        "requests": [
+          {
+            "request_number": 1,
+            "canonical_payload_equal": true,
+            "before_sha256": "5100e553e8222d64cb23bfb4d02de03a9bcb0f062c352d8582f32bf0c80b44a9",
+            "after_sha256": "5100e553e8222d64cb23bfb4d02de03a9bcb0f062c352d8582f32bf0c80b44a9",
+            "differences": [],
+            "full_wire_body_sha256_equal": true,
+            "before_wire_sha256": "0120f703487e29d7649ffad99b5484cc838ba0ab668df257ba824c3d84d6577f",
+            "after_wire_sha256": "0120f703487e29d7649ffad99b5484cc838ba0ab668df257ba824c3d84d6577f",
+            "system_prompt_sha256_equal": true
+          },
+          {
+            "request_number": 2,
+            "canonical_payload_equal": true,
+            "before_sha256": "b0bdbcc59aceaa29de1d73ed8fe9e4be8d6175ac75c811e0a76655141a80ad02",
+            "after_sha256": "b0bdbcc59aceaa29de1d73ed8fe9e4be8d6175ac75c811e0a76655141a80ad02",
+            "differences": [],
+            "full_wire_body_sha256_equal": true,
+            "before_wire_sha256": "2cec03574eeeb8433897f676adb11c9e9feb5724ff466b2dc95fb1a964897e7e",
+            "after_wire_sha256": "2cec03574eeeb8433897f676adb11c9e9feb5724ff466b2dc95fb1a964897e7e",
+            "system_prompt_sha256_equal": true
+          }
+        ],
+        "source_equal": true,
+        "before_source_payload": {
+          "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+          "pages": 65,
+          "files": 11,
+          "characters": 35505
+        },
+        "after_source_payload": {
+          "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+          "pages": 65,
+          "files": 11,
+          "characters": 35505
+        },
+        "answer_equal": true,
+        "before_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "after_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "ledger_equal": true,
+        "before_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+        "after_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+        "all_checks_pass": true,
+        "before_checks": {
+          "quality_formula_and_condition_supported": true,
+          "quality_unknown_not_verified": true,
+          "completeness_formula_control_supplied": true,
+          "source_versions_match": true,
+          "answer_recorded": true,
+          "answer_ledger_hash_matches": true,
+          "index_reused": true,
+          "visible_answer_matches": true,
+          "persisted_history_matches": true
+        },
+        "after_checks": {
+          "quality_formula_and_condition_supported": true,
+          "quality_unknown_not_verified": true,
+          "completeness_formula_control_supplied": true,
+          "source_versions_match": true,
+          "answer_recorded": true,
+          "answer_ledger_hash_matches": true,
+          "index_reused": true,
+          "visible_answer_matches": true,
+          "persisted_history_matches": true
+        },
+        "synthetic_requests_equal": true,
+        "before_synthetic_requests": 2,
+        "after_synthetic_requests": 2
+      },
+      {
+        "sample": 2,
+        "before_timings": {
+          "total_seconds": 12.852122167000061,
+          "business_chat_seconds": 8.166531040999871,
+          "first_provider_seconds": 6.730260333999922,
+          "after_provider_seconds": 4.938627125000039,
+          "outside_business_chat_seconds": 4.68559112600019,
+          "synthetic_transport_seconds": 0.006279416000097626
+        },
+        "after_timings": {
+          "total_seconds": 9.863536917000147,
+          "business_chat_seconds": 8.051576999999725,
+          "first_provider_seconds": 6.795204292000108,
+          "after_provider_seconds": 2.036630624999816,
+          "outside_business_chat_seconds": 1.8119599170004221,
+          "synthetic_transport_seconds": 0.00629300000036892
+        },
+        "before_calls": {
+          "save_workspace": {
+            "calls": 2,
+            "seconds": 0.0009523749999971187
+          },
+          "run_store_load": {
+            "calls": 29,
+            "seconds": 0.13842745699980696
+          },
+          "run_store_checkpoint": {
+            "calls": 28,
+            "seconds": 0.437269835000734
+          },
+          "web_read_json": {
+            "calls": 2,
+            "seconds": 0.07486258300014015
+          },
+          "relationships": {
+            "calls": 1,
+            "seconds": 2.9003326669999296
+          },
+          "record_answer": {
+            "calls": 1,
+            "seconds": 0.024955874999932348
+          }
+        },
+        "after_calls": {
+          "save_workspace": {
+            "calls": 2,
+            "seconds": 0.0008370420005121559
+          },
+          "run_store_load": {
+            "calls": 29,
+            "seconds": 0.10180787499757571
+          },
+          "run_store_checkpoint": {
+            "calls": 28,
+            "seconds": 0.45220658400012326
+          },
+          "web_read_json": {
+            "calls": 2,
+            "seconds": 0.07688074999941819
+          },
+          "record_answer": {
+            "calls": 1,
+            "seconds": 0.022573958999601018
+          }
+        },
+        "requests": [
+          {
+            "request_number": 1,
+            "canonical_payload_equal": true,
+            "before_sha256": "5100e553e8222d64cb23bfb4d02de03a9bcb0f062c352d8582f32bf0c80b44a9",
+            "after_sha256": "5100e553e8222d64cb23bfb4d02de03a9bcb0f062c352d8582f32bf0c80b44a9",
+            "differences": [],
+            "full_wire_body_sha256_equal": true,
+            "before_wire_sha256": "0120f703487e29d7649ffad99b5484cc838ba0ab668df257ba824c3d84d6577f",
+            "after_wire_sha256": "0120f703487e29d7649ffad99b5484cc838ba0ab668df257ba824c3d84d6577f",
+            "system_prompt_sha256_equal": true
+          },
+          {
+            "request_number": 2,
+            "canonical_payload_equal": true,
+            "before_sha256": "b0bdbcc59aceaa29de1d73ed8fe9e4be8d6175ac75c811e0a76655141a80ad02",
+            "after_sha256": "b0bdbcc59aceaa29de1d73ed8fe9e4be8d6175ac75c811e0a76655141a80ad02",
+            "differences": [],
+            "full_wire_body_sha256_equal": true,
+            "before_wire_sha256": "2cec03574eeeb8433897f676adb11c9e9feb5724ff466b2dc95fb1a964897e7e",
+            "after_wire_sha256": "2cec03574eeeb8433897f676adb11c9e9feb5724ff466b2dc95fb1a964897e7e",
+            "system_prompt_sha256_equal": true
+          }
+        ],
+        "source_equal": true,
+        "before_source_payload": {
+          "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+          "pages": 65,
+          "files": 11,
+          "characters": 35505
+        },
+        "after_source_payload": {
+          "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+          "pages": 65,
+          "files": 11,
+          "characters": 35505
+        },
+        "answer_equal": true,
+        "before_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "after_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "ledger_equal": true,
+        "before_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+        "after_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+        "all_checks_pass": true,
+        "before_checks": {
+          "quality_formula_and_condition_supported": true,
+          "quality_unknown_not_verified": true,
+          "completeness_formula_control_supplied": true,
+          "source_versions_match": true,
+          "answer_recorded": true,
+          "answer_ledger_hash_matches": true,
+          "index_reused": true,
+          "visible_answer_matches": true,
+          "persisted_history_matches": true
+        },
+        "after_checks": {
+          "quality_formula_and_condition_supported": true,
+          "quality_unknown_not_verified": true,
+          "completeness_formula_control_supplied": true,
+          "source_versions_match": true,
+          "answer_recorded": true,
+          "answer_ledger_hash_matches": true,
+          "index_reused": true,
+          "visible_answer_matches": true,
+          "persisted_history_matches": true
+        },
+        "synthetic_requests_equal": true,
+        "before_synthetic_requests": 2,
+        "after_synthetic_requests": 2
+      },
+      {
+        "sample": 3,
+        "before_timings": {
+          "total_seconds": 16.742549749999853,
+          "business_chat_seconds": 9.667417915999977,
+          "first_provider_seconds": 8.230942916999993,
+          "after_provider_seconds": 7.314061666999805,
+          "outside_business_chat_seconds": 7.075131833999876,
+          "synthetic_transport_seconds": 0.006428666000147132
+        },
+        "after_timings": {
+          "total_seconds": 8.991062832999887,
+          "business_chat_seconds": 7.205979082999875,
+          "first_provider_seconds": 5.881050208000033,
+          "after_provider_seconds": 2.043834374999733,
+          "outside_business_chat_seconds": 1.7850837500000125,
+          "synthetic_transport_seconds": 0.006372834000103467
+        },
+        "before_calls": {
+          "save_workspace": {
+            "calls": 2,
+            "seconds": 0.0009496249999756401
+          },
+          "run_store_load": {
+            "calls": 29,
+            "seconds": 0.10584558200048377
+          },
+          "run_store_checkpoint": {
+            "calls": 28,
+            "seconds": 0.46322378999957436
+          },
+          "web_read_json": {
+            "calls": 2,
+            "seconds": 0.07569766699998581
+          },
+          "relationships": {
+            "calls": 1,
+            "seconds": 5.305330291000018
+          },
+          "record_answer": {
+            "calls": 1,
+            "seconds": 0.023885916999915935
+          }
+        },
+        "after_calls": {
+          "save_workspace": {
+            "calls": 2,
+            "seconds": 0.0009596249997230188
+          },
+          "run_store_load": {
+            "calls": 29,
+            "seconds": 0.13683624899977076
+          },
+          "run_store_checkpoint": {
+            "calls": 28,
+            "seconds": 0.4502638759981892
+          },
+          "web_read_json": {
+            "calls": 2,
+            "seconds": 0.09923870900047405
+          },
+          "record_answer": {
+            "calls": 1,
+            "seconds": 0.02602208400003292
+          }
+        },
+        "requests": [
+          {
+            "request_number": 1,
+            "canonical_payload_equal": true,
+            "before_sha256": "5100e553e8222d64cb23bfb4d02de03a9bcb0f062c352d8582f32bf0c80b44a9",
+            "after_sha256": "5100e553e8222d64cb23bfb4d02de03a9bcb0f062c352d8582f32bf0c80b44a9",
+            "differences": [],
+            "full_wire_body_sha256_equal": true,
+            "before_wire_sha256": "0120f703487e29d7649ffad99b5484cc838ba0ab668df257ba824c3d84d6577f",
+            "after_wire_sha256": "0120f703487e29d7649ffad99b5484cc838ba0ab668df257ba824c3d84d6577f",
+            "system_prompt_sha256_equal": true
+          },
+          {
+            "request_number": 2,
+            "canonical_payload_equal": true,
+            "before_sha256": "b0bdbcc59aceaa29de1d73ed8fe9e4be8d6175ac75c811e0a76655141a80ad02",
+            "after_sha256": "b0bdbcc59aceaa29de1d73ed8fe9e4be8d6175ac75c811e0a76655141a80ad02",
+            "differences": [],
+            "full_wire_body_sha256_equal": true,
+            "before_wire_sha256": "2cec03574eeeb8433897f676adb11c9e9feb5724ff466b2dc95fb1a964897e7e",
+            "after_wire_sha256": "2cec03574eeeb8433897f676adb11c9e9feb5724ff466b2dc95fb1a964897e7e",
+            "system_prompt_sha256_equal": true
+          }
+        ],
+        "source_equal": true,
+        "before_source_payload": {
+          "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+          "pages": 65,
+          "files": 11,
+          "characters": 35505
+        },
+        "after_source_payload": {
+          "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+          "pages": 65,
+          "files": 11,
+          "characters": 35505
+        },
+        "answer_equal": true,
+        "before_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "after_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "ledger_equal": true,
+        "before_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+        "after_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+        "all_checks_pass": true,
+        "before_checks": {
+          "quality_formula_and_condition_supported": true,
+          "quality_unknown_not_verified": true,
+          "completeness_formula_control_supplied": true,
+          "source_versions_match": true,
+          "answer_recorded": true,
+          "answer_ledger_hash_matches": true,
+          "index_reused": true,
+          "visible_answer_matches": true,
+          "persisted_history_matches": true
+        },
+        "after_checks": {
+          "quality_formula_and_condition_supported": true,
+          "quality_unknown_not_verified": true,
+          "completeness_formula_control_supplied": true,
+          "source_versions_match": true,
+          "answer_recorded": true,
+          "answer_ledger_hash_matches": true,
+          "index_reused": true,
+          "visible_answer_matches": true,
+          "persisted_history_matches": true
+        },
+        "synthetic_requests_equal": true,
+        "before_synthetic_requests": 2,
+        "after_synthetic_requests": 2
+      },
+      {
+        "sample": 4,
+        "before_timings": {
+          "total_seconds": 12.395606292000139,
+          "business_chat_seconds": 8.352317874999926,
+          "first_provider_seconds": 6.8086403750000954,
+          "after_provider_seconds": 4.368885542000044,
+          "outside_business_chat_seconds": 4.043288417000213,
+          "synthetic_transport_seconds": 0.043283499999915875
+        },
+        "after_timings": {
+          "total_seconds": 8.187738333999732,
+          "business_chat_seconds": 6.3339090829999805,
+          "first_provider_seconds": 5.068410166999911,
+          "after_provider_seconds": 2.0968728749999173,
+          "outside_business_chat_seconds": 1.8538292509997518,
+          "synthetic_transport_seconds": 0.0061720419998891884
+        },
+        "before_calls": {
+          "save_workspace": {
+            "calls": 2,
+            "seconds": 0.000888207999878432
+          },
+          "run_store_load": {
+            "calls": 29,
+            "seconds": 0.10630183400144233
+          },
+          "run_store_checkpoint": {
+            "calls": 28,
+            "seconds": 0.4704350840004281
+          },
+          "web_read_json": {
+            "calls": 2,
+            "seconds": 0.07392754200009222
+          },
+          "relationships": {
+            "calls": 1,
+            "seconds": 2.3611257909999495
+          },
+          "record_answer": {
+            "calls": 1,
+            "seconds": 0.0221977500000321
+          }
+        },
+        "after_calls": {
+          "save_workspace": {
+            "calls": 2,
+            "seconds": 0.0008620839998911833
+          },
+          "run_store_load": {
+            "calls": 29,
+            "seconds": 0.10308854299910308
+          },
+          "run_store_checkpoint": {
+            "calls": 28,
+            "seconds": 0.43967204199952903
+          },
+          "web_read_json": {
+            "calls": 2,
+            "seconds": 0.07340183299993441
+          },
+          "record_answer": {
+            "calls": 1,
+            "seconds": 0.02536879199988107
+          }
+        },
+        "requests": [
+          {
+            "request_number": 1,
+            "canonical_payload_equal": true,
+            "before_sha256": "5100e553e8222d64cb23bfb4d02de03a9bcb0f062c352d8582f32bf0c80b44a9",
+            "after_sha256": "5100e553e8222d64cb23bfb4d02de03a9bcb0f062c352d8582f32bf0c80b44a9",
+            "differences": [],
+            "full_wire_body_sha256_equal": true,
+            "before_wire_sha256": "0120f703487e29d7649ffad99b5484cc838ba0ab668df257ba824c3d84d6577f",
+            "after_wire_sha256": "0120f703487e29d7649ffad99b5484cc838ba0ab668df257ba824c3d84d6577f",
+            "system_prompt_sha256_equal": true
+          },
+          {
+            "request_number": 2,
+            "canonical_payload_equal": true,
+            "before_sha256": "b0bdbcc59aceaa29de1d73ed8fe9e4be8d6175ac75c811e0a76655141a80ad02",
+            "after_sha256": "b0bdbcc59aceaa29de1d73ed8fe9e4be8d6175ac75c811e0a76655141a80ad02",
+            "differences": [],
+            "full_wire_body_sha256_equal": true,
+            "before_wire_sha256": "2cec03574eeeb8433897f676adb11c9e9feb5724ff466b2dc95fb1a964897e7e",
+            "after_wire_sha256": "2cec03574eeeb8433897f676adb11c9e9feb5724ff466b2dc95fb1a964897e7e",
+            "system_prompt_sha256_equal": true
+          }
+        ],
+        "source_equal": true,
+        "before_source_payload": {
+          "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+          "pages": 65,
+          "files": 11,
+          "characters": 35505
+        },
+        "after_source_payload": {
+          "sha256": "8b54d6b47787016a8da30bbb83f50d17101c790079e3c5d0a473269c24e2b302",
+          "pages": 65,
+          "files": 11,
+          "characters": 35505
+        },
+        "answer_equal": true,
+        "before_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "after_answer_sha256": "553f91ff9cf3130aee3f6eb92532ced8b78fdcd76a3a779bcdd09845b1f55b8d",
+        "ledger_equal": true,
+        "before_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+        "after_ledger_sha256": "073f6a4040732352c86039a59d450dc74070d20194ddf959d67386b3ef3d6365",
+        "all_checks_pass": true,
+        "before_checks": {
+          "quality_formula_and_condition_supported": true,
+          "quality_unknown_not_verified": true,
+          "completeness_formula_control_supplied": true,
+          "source_versions_match": true,
+          "answer_recorded": true,
+          "answer_ledger_hash_matches": true,
+          "index_reused": true,
+          "visible_answer_matches": true,
+          "persisted_history_matches": true
+        },
+        "after_checks": {
+          "quality_formula_and_condition_supported": true,
+          "quality_unknown_not_verified": true,
+          "completeness_formula_control_supplied": true,
+          "source_versions_match": true,
+          "answer_recorded": true,
+          "answer_ledger_hash_matches": true,
+          "index_reused": true,
+          "visible_answer_matches": true,
+          "persisted_history_matches": true
+        },
+        "synthetic_requests_equal": true,
+        "before_synthetic_requests": 2,
+        "after_synthetic_requests": 2
+      }
+    ]
+  },
+  "microbenchmarks": {
+    "program-definition-lookup-microbenchmark.json": {
+      "path_count": 12024,
+      "samples": [
+        {
+          "variant": "old",
+          "wall_seconds": 3.2493193330001304,
+          "cpu_seconds": 0.316388,
+          "rows": 12000,
+          "ordered_rows_sha256": "4d6004d6d88c902bc4eee259053096f5e947f9de9df1fd4680d8cd1da52569ed"
+        },
+        {
+          "variant": "new",
+          "wall_seconds": 0.1163778749996709,
+          "cpu_seconds": 0.06357400000000002,
+          "rows": 12000,
+          "ordered_rows_sha256": "4d6004d6d88c902bc4eee259053096f5e947f9de9df1fd4680d8cd1da52569ed"
+        },
+        {
+          "variant": "new",
+          "wall_seconds": 0.04925700000012512,
+          "cpu_seconds": 0.049202000000000023,
+          "rows": 12000,
+          "ordered_rows_sha256": "4d6004d6d88c902bc4eee259053096f5e947f9de9df1fd4680d8cd1da52569ed"
+        },
+        {
+          "variant": "old",
+          "wall_seconds": 0.09296633299982204,
+          "cpu_seconds": 0.09236600000000006,
+          "rows": 12000,
+          "ordered_rows_sha256": "4d6004d6d88c902bc4eee259053096f5e947f9de9df1fd4680d8cd1da52569ed"
+        }
+      ],
+      "real_model_calls": 0,
+      "identical_ordered_rows": true
+    },
+    "prompt-projection-microbenchmark.json": {
+      "baseline_commit": "b636fbdd96ac4483b342c2a9dbce2e00a3e17caf",
+      "real_model_calls": 0,
+      "ordered_json_differential_cases": 60,
+      "method": "Same process, alternating baseline/optimized order across ten rounds; CPU process_time; projection only; outside whole-question timing.",
+      "samples": {
+        "fit-1.json": {
+          "input_sha256": "14e4e0e89cf0d3440fb749b38532f1ced52bc052877ef6ff4ad8dd822a51908f",
+          "json_equal": true,
+          "cpu_median_seconds": {
+            "baseline": 0.06559050000000011,
+            "optimized": 0.05785700000000005
+          },
+          "counts": {
+            "baseline": {
+              "json_encode_calls": 15065,
+              "authority_calls": 43144
+            },
+            "optimized": {
+              "json_encode_calls": 6786,
+              "authority_calls": 30334
+            }
+          }
+        },
+        "fit-2.json": {
+          "input_sha256": "72b016ef18ee958a26c9f3c93556e1a4e9ee0a95a801d042ed68056ba871b226",
+          "json_equal": true,
+          "cpu_median_seconds": {
+            "baseline": 0.06883350000000021,
+            "optimized": 0.060755000000000337
+          },
+          "counts": {
+            "baseline": {
+              "json_encode_calls": 16049,
+              "authority_calls": 44390
+            },
+            "optimized": {
+              "json_encode_calls": 7127,
+              "authority_calls": 31739
+            }
+          }
+        }
+      }
+    }
+  },
+  "quality_scope": "Synthetic mechanism and full request equivalence; no real-model quality score",
+  "first_sample_caution": "Final first question took 19.142 seconds, including 10.500 seconds in the unchanged graph query. Preserved in full; warm median improvement does not prove cold I/O or every question is faster.",
+  "changes": [
+    "Reuse one graph preview only while database generation is unchanged, including real Windows metadata ChangeTime",
+    "Read broad Program definitions from the existing compact index, retaining complete ordered rows",
+    "Reuse immutable JSON projection values within one invocation and remove nested caller-path scans"
+  ],
+  "unchanged": [
+    "source reading range",
+    "source pages and references",
+    "request budgets and answer checks",
+    "database schema and parser version",
+    "history format and import protocol",
+    "formal release acceptance requirements"
+  ],
+  "browser_regressions": {
+    "tests": 195,
+    "passed": 195,
+    "failed": 0
+  },
+  "python_regressions": {
+    "tests": 3917,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "complete_discovery_verified": true,
+    "external_connections_blocked_in_test_runner": true,
+    "source_dirty_during_local_tests": true,
+    "production_source_unchanged_after_tests": true,
+    "shards": [
+      {
+        "tests": 980,
+        "seconds": 47.866532
+      },
+      {
+        "tests": 979,
+        "seconds": 59.702664
+      },
+      {
+        "tests": 979,
+        "seconds": 64.254144
+      },
+      {
+        "tests": 979,
+        "seconds": 71.897053
+      }
+    ]
+  }
+}

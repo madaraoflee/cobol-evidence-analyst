@@ -19,6 +19,7 @@ from pathlib import Path
 import re
 import secrets
 import sqlite3
+import stat
 import subprocess
 import sys
 import threading
@@ -414,6 +415,88 @@ def _relationships(database: Path, snapshot_id: str) -> dict:
     return {"edges": rows[:MAX_GRAPH_EDGES], "truncated": len(rows) > MAX_GRAPH_EDGES, "snapshot_id": snapshot_id}
 
 
+def _graph_file_change_time(descriptor):
+    """Read metadata change time from the already-open file, never creation time."""
+    try:
+        if sys.platform != "win32":
+            return os.fstat(descriptor).st_ctime_ns
+        import ctypes
+        import msvcrt
+
+        class FileBasicInfo(ctypes.Structure):
+            _fields_ = [(name, ctypes.c_longlong) for name in
+                ("CreationTime", "LastAccessTime", "LastWriteTime", "ChangeTime")] + [
+                    ("FileAttributes", ctypes.c_uint32)]
+
+        observe = ctypes.windll.kernel32.GetFileInformationByHandleEx
+        observe.argtypes = (ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32)
+        observe.restype = ctypes.c_int
+        information = FileBasicInfo()
+        # get_osfhandle borrows the stream's handle; its context manager closes it.
+        handle = msvcrt.get_osfhandle(descriptor)
+        if handle == -1 or not observe(handle, 0, ctypes.byref(information), ctypes.sizeof(information)):
+            return None
+        return information.ChangeTime if information.ChangeTime > 0 else None
+    except Exception:
+        # Unsupported filesystems or unavailable metadata only disable reuse.
+        return None
+
+
+def _graph_database_signature(database: Path):
+    """Identify an unchanged, checkpointed file without keeping it open.
+
+    This only controls reuse of the small graph preview. Uncertain files still
+    use the original query; source analysis and its evidence are never cached.
+    """
+    def identity(value):
+        fields = tuple(getattr(value, key, None) for key in
+            ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"))
+        if (not stat.S_ISREG(value.st_mode) or any(type(item) is not int for item in fields)
+                or fields[0] < 0 or fields[1] <= 0 or fields[2] < 100
+                or fields[3] <= 0 or fields[4] <= 0):
+            return None
+        return fields
+
+    def checkpointed():
+        for suffix in ("-wal", "-journal"):
+            sidecar = Path(str(database) + suffix)
+            if sidecar.is_symlink():
+                return False
+            try:
+                observed = sidecar.stat()
+            except FileNotFoundError:
+                continue
+            if not stat.S_ISREG(observed.st_mode) or observed.st_size:
+                return False
+        return True
+
+    try:
+        if database.is_symlink() or not checkpointed():
+            return None
+        before = identity(database.stat())
+        if before is None:
+            return None
+        with database.open("rb") as stream:
+            change_before = _graph_file_change_time(stream.fileno())
+            header = stream.read(100)
+            opened = identity(os.fstat(stream.fileno()))
+            change_after = _graph_file_change_time(stream.fileno())
+        if type(change_before) is not int or change_before <= 0 or change_before != change_after:
+            return None
+        if before != opened or before != identity(database.stat()) or not checkpointed():
+            return None
+        if len(header) != 100 or header[:16] != b"SQLite format 3\x00" or header[18:20] not in (b"\x01\x01", b"\x02\x02"):
+            return None
+        page_size = int.from_bytes(header[16:18], "big")
+        page_size = 65536 if page_size == 1 else page_size
+        if (page_size < 512 or page_size > 65536 or page_size & (page_size - 1)
+                or before[2] % page_size or header[24:28] != header[92:96]):
+            return None
+        return (str(database.resolve()), *before, change_after, header)
+    except (OSError, ValueError):
+        return None
+
+
 def _environment_config() -> CompanyAPIConfig:
     from model_profiles import model_config
     return model_config("workbench")
@@ -515,6 +598,7 @@ class WorkbenchState:
         self.policy_provider = policy_provider
         self.model_check_transport, self.folder_picker = model_check_transport, folder_picker
         self.lock = threading.RLock()
+        self._graph_preview_cache = None
         self.project = _project()
         self.job: dict | None = None
         self.cancel_event = threading.Event()
@@ -533,6 +617,34 @@ class WorkbenchState:
         self.conversation_store = None
         self._restore_workspace()
         self._upgrade_restored_index()
+
+    def _relationship_preview(self, database: Path, snapshot_id: str) -> dict:
+        """Reuse one unchanged graph preview, with a fresh snapshot check.
+
+        No connection survives this call, so workspace updates can still move
+        or replace the database on Windows. A failed check discards the entry.
+        """
+        signature = _graph_database_signature(database)
+        cached = self._graph_preview_cache
+        self._graph_preview_cache = None
+        if (signature is not None and cached is not None
+                and cached["signature"] == signature
+                and cached["snapshot_id"] == snapshot_id and cached["limit"] == MAX_GRAPH_EDGES):
+            with closing(sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True)) as connection:
+                connection.execute("BEGIN")
+                observed = connection.execute("SELECT value FROM metadata WHERE key='snapshot_id'").fetchone()
+                if observed is None or observed[0] != snapshot_id:
+                    raise ValueError("relationship snapshot mismatch")
+                if _graph_database_signature(database) == signature:
+                    result = copy.deepcopy(cached["result"])
+                    self._graph_preview_cache = cached
+                    return result
+                signature = None
+        result = _relationships(database, snapshot_id)
+        if signature is not None and _graph_database_signature(database) == signature:
+            self._graph_preview_cache = {"signature": signature, "snapshot_id": snapshot_id,
+                "limit": MAX_GRAPH_EDGES, "result": copy.deepcopy(result)}
+        return result
 
     def _upgrade_restored_index(self):
         """Use the ordinary rollback-safe local update for known old versions."""
@@ -590,6 +702,7 @@ class WorkbenchState:
         temporary.replace(self.state_path)
 
     def _restore_workspace(self):
+        self._graph_preview_cache = None
         if self.state_path is None or not self.state_path.is_file() or self.state_path.is_symlink():
             return
         try:
@@ -702,7 +815,7 @@ class WorkbenchState:
             project = _project(str(source), str(output))
             project.update(diagnosis=report, programs=programs.get("programs", []),
                            snapshot_id=snapshot, catalog_snapshot_id=report.get("catalog_snapshot_id"),
-                           relations=_relationships(database, snapshot))
+                           relations=self._relationship_preview(database, snapshot))
             if programs.get("display_projection"):
                 project["display_projection"] = programs["display_projection"]
             self.project = project
@@ -1079,6 +1192,8 @@ class WorkbenchState:
                                        or (options["output"] / SOURCE_UPDATE_PENDING).exists()):
                 raise RequestError("SOURCE_UPDATE_ROLLBACK_FAILED", "源码更新与恢复均未完成，请保留原结果目录并先恢复资料库。", 409)
             source_update = not options["question"] and not options["allow_network"] and not options.get("entry")
+            if source_update or not same_project:
+                self._graph_preview_cache = None
             if source_update:
                 # An explicit import checks all content, including equal-size
                 # edits with preserved timestamps, and discovers added/deleted files.
@@ -1288,7 +1403,7 @@ class WorkbenchState:
                 try:
                     if program_report.get("snapshot_id") != snapshot:
                         raise ValueError("snapshot report mismatch")
-                    relations = _relationships(output / "structural-index.sqlite", snapshot)
+                    relations = self._relationship_preview(output / "structural-index.sqlite", snapshot)
                 except (OSError, ValueError, sqlite3.Error):
                     project["diagnosis"] = {**report, "runner_status": "BLOCKED", "question_status": "NOT_READY",
                                             "source_manifest_verified": False, "catalog_ready": False,
@@ -1386,6 +1501,7 @@ class WorkbenchState:
                     _failure_diagnostic(exc, "ANALYSIS_FAILED")
 
     def _restore_after_failure(self, options):
+        self._graph_preview_cache = None
         try:
             self._restore_source_update(options)
         except Exception as exc:

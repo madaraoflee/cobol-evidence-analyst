@@ -32,7 +32,8 @@ class NativeReleasePerformanceTests(unittest.TestCase):
                 "index_reused": number > 1, "question_index_reused": True,
                 "checks": {name: True for name in self.case["assertions"]},
                 "timings": {"cold_index_seconds": 100 if number == 1 else None,
-                    "question_seconds": 10 + number, "first_provider_seconds": 2 + number},
+                    "question_seconds": 10 + number, "first_provider_seconds": 2 + number,
+                    "primary_question_seconds": 7 + number, "scope_probe_seconds": 3},
                 "corpus": {"source_fingerprint": "d" * 64, "files": 12024, "lines": 2712992},
             } for number in range(1, 6)]}
 
@@ -49,6 +50,9 @@ class NativeReleasePerformanceTests(unittest.TestCase):
         self.assertEqual(summary["cold_import_seconds"], 100)
         self.assertEqual(summary["median_question_seconds"], 13)
         self.assertEqual(summary["median_warm_question_seconds"], 13.5)
+        self.assertEqual(summary["median_primary_question_seconds"], 10)
+        self.assertEqual(summary["median_warm_primary_question_seconds"], 10.5)
+        self.assertEqual(summary["median_warm_scope_probe_seconds"], 3)
         self.assertEqual(len(summary["samples"]), 5)
 
     def test_source_preview_wrong_package_and_paid_calls_cannot_enter_comparison(self):
@@ -85,6 +89,7 @@ class NativeReleasePerformanceTests(unittest.TestCase):
         ratios = comparison.compare_summaries(self.summaries())
         self.assertEqual(ratios["current_over_previous"]["median_question_seconds"], 1.5)
         self.assertEqual(ratios["optimized_over_current"]["cold_import_seconds"], .5)
+        self.assertEqual(ratios["optimized_over_current"]["median_warm_primary_question_seconds"], .5)
 
     def test_reused_execution_and_different_corpus_are_rejected(self):
         values = self.summaries()

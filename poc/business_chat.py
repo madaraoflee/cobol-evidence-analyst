@@ -668,9 +668,9 @@ def _prompt_payload(payload):
     contract["answer_language"] = payload.get("answer_language") or resolve_answer_language(payload.get("question"))
     navigation = payload.get("business_map", {})
     direct_paths = navigation.get("direct_paths", [])
-    caller_paths = [path for path in direct_paths if any(
-        edge.get("caller_path") == path and edge.get("relation_type") == "CALLS"
-        for edge in navigation.get("relations", []))]
+    callers = {edge.get("caller_path") for edge in navigation.get("relations", [])
+               if edge.get("relation_type") == "CALLS"}
+    caller_paths = [path for path in direct_paths if path in callers]
     if (not discovery_only and not identity_blocks_analysis(identity)
             and (caller_paths or identity.get("selection_basis") == "explicit_analysis_subject_before_call")):
         contract["call_analysis"] = {

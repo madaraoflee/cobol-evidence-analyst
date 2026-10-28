@@ -46,20 +46,65 @@ def _size(value):
     return len(_encoded(value).encode("utf-8"))
 
 
-def _contains_authority(value):
-    if isinstance(value, list):
-        return any(_contains_authority(item) for item in value)
-    return isinstance(value, dict) and any(key in _AUTHORITY_FIELDS or _contains_authority(item)
-                                         for key, item in value.items())
+class _StableValues:
+    """Memoize values only while one projection phase leaves them unchanged.
+
+    Keep each object alive with its result: a temporary record's id must never
+    be reused for a different record. Identity also distinguishes JSON values
+    such as false, zero and negative zero without relying on Python equality.
+    Nothing is retained between projections or after a mutation phase.
+    """
+
+    def __init__(self):
+        self.encodings = {}
+        self.scalars = {}
+        self.sizes = {}
+        self.authorities = {}
+
+    def encoded(self, value):
+        kind = type(value)
+        if kind in (str, int, bool, type(None)):
+            # These exact immutable types can share by value, including when
+            # JSON decoding created distinct strings. Keep type in the key so
+            # false and zero never collide. Floats use identity below because
+            # Python equality conflates 0.0 and -0.0 but JSON does not.
+            key = (kind, value)
+            result = self.scalars.get(key)
+            if result is None:
+                result = self.scalars[key] = _encoded(value)
+            return result
+        key = id(value)
+        saved = self.encodings.get(key)
+        if saved is None:
+            saved = self.encodings[key] = (value, _encoded(value))
+        return saved[1]
+
+    def size(self, value):
+        key = id(value)
+        if key not in self.sizes:
+            self.sizes[key] = (value, len(self.encoded(value).encode("utf-8")))
+        return self.sizes[key][1]
+
+    def contains_authority(self, value):
+        if not isinstance(value, (dict, list)):
+            return False
+        key = id(value)
+        if key not in self.authorities:
+            result = (any(self.contains_authority(item) for item in value) if isinstance(value, list)
+                else any(field in _AUTHORITY_FIELDS or self.contains_authority(item)
+                         for field, item in value.items()))
+            self.authorities[key] = (value, result)
+        return self.authorities[key][1]
 
 
-def _project_navigation(value):
+def _project_navigation(value, values=None):
     """Factor equal VALUES as well as keys; never merge different occurrences."""
+    values = values if values is not None else _StableValues()
     if isinstance(value, list):
-        return [_project_navigation(item) for item in value]
+        return [_project_navigation(item, values) for item in value]
     if not isinstance(value, dict):
         return value
-    projected = {key: deepcopy(item) if key in _AUTHORITY_FIELDS else _project_navigation(item)
+    projected = {key: deepcopy(item) if key in _AUTHORITY_FIELDS else _project_navigation(item, values)
                  for key, item in value.items()}
     for key, rows in list(projected.items()):
         shared_key = key + _SUFFIX
@@ -71,16 +116,16 @@ def _project_navigation(value):
         shared = {}
         for field, item in rows[0].items():
             if (field in _IDENTIFIERS or field.endswith(_SUFFIX)
-                    or field in _AUTHORITY_FIELDS or _contains_authority(item)):
+                    or field in _AUTHORITY_FIELDS or values.contains_authority(item)):
                 continue
-            encoded = _encoded(item)
-            if all(field in row and _encoded(row[field]) == encoded for row in rows[1:]):
+            encoded = values.encoded(item)
+            if all(field in row and values.encoded(row[field]) == encoded for row in rows[1:]):
                 shared[field] = item
         if not shared:
             continue
         inherited = [{field: item for field, item in row.items() if field not in shared} for row in rows]
-        before = _size({key: rows})
-        after = _size({shared_key: shared, key: inherited})
+        before = values.size({key: rows})
+        after = values.size({shared_key: shared, key: inherited})
         if before - after < 96:
             continue
         projected[key] = inherited
@@ -116,9 +161,10 @@ def _share_navigation_records(payload):
     """Share exact records and equal row field sets, including provenance."""
     counts = Counter()
     facts, references = {}, {}
+    values = _StableValues()
 
     def reference_for(value):
-        encoded = _encoded(value)
+        encoded = values.encoded(value)
         reference = references.get(encoded)
         if reference is None:
             reference = "nav-" + str(len(facts) + 1)
@@ -147,9 +193,9 @@ def _share_navigation_records(payload):
         for index, row in enumerate(rows):
             for field, item in row.items():
                 if (field in _IDENTIFIERS or field in _AUTHORITY_FIELDS or field == _REFERENCE
-                        or field.endswith(_SUFFIX) or _contains_authority(item)):
+                        or field.endswith(_SUFFIX) or values.contains_authority(item)):
                     continue
-                equal_fields.setdefault((field, _encoded(item)), []).append(index)
+                equal_fields.setdefault((field, values.encoded(item)), []).append(index)
         groups = {}
         for (field, _), indices in equal_fields.items():
             if len(indices) > 1:
@@ -157,17 +203,18 @@ def _share_navigation_records(payload):
         # One existing reference per row is sufficient. Prefer the largest
         # saving, then recompute it against rows not used by another subset.
         candidates = sorted(groups.items(), key=lambda item: (
-            -(len(item[0]) - 1) * _size(item[1]), item[0], _encoded(item[1])))
+            -(len(item[0]) - 1) * values.size(item[1]), item[0], values.encoded(item[1])))
         for indices, fields in candidates:
             eligible = [index for index in indices if _REFERENCE not in rows[index]]
             if len(eligible) < 2:
                 continue
-            encoded_fields = _encoded(fields)
+            encoded_fields = values.encoded(fields)
             reference = references.get(encoded_fields, "nav-" + str(len(facts) + 1))
             replacements = [{_REFERENCE: reference, **{key: item for key, item in rows[index].items()
                              if key not in fields}} for index in eligible]
-            overhead = 0 if encoded_fields in references else _size({reference: fields})
-            saving = sum(_size(rows[index]) for index in eligible) - sum(map(_size, replacements)) - overhead
+            overhead = 0 if encoded_fields in references else values.size({reference: fields})
+            saving = (sum(values.size(rows[index]) for index in eligible)
+                      - sum(values.size(row) for row in replacements) - overhead)
             if saving < 96:
                 continue
             reference_for(fields)
@@ -180,9 +227,12 @@ def _share_navigation_records(payload):
             for item in value:
                 collect(item)
         elif isinstance(value, dict):
-            encoded = _encoded(value)
-            if len(encoded) >= 256 and not _contains_authority(value):
-                counts[encoded] += 1
+            # Protected records cannot be shared. Their potentially large
+            # source bodies need no JSON encoding for this candidate count.
+            if not values.contains_authority(value):
+                encoded = values.encoded(value)
+                if len(encoded) >= 256:
+                    counts[encoded] += 1
             for key, item in value.items():
                 if key not in _AUTHORITY_FIELDS:
                     collect(item)
@@ -190,6 +240,9 @@ def _share_navigation_records(payload):
     sections = list(_navigation_sections(payload))
     for owner, key in sections:
         owner[key] = share_fields(owner[key])
+    # Field sharing above replaces records. Collection and replacement below
+    # only read those finished records, so their encodings can be reused.
+    values = _StableValues()
     for owner, key in sections:
         collect(owner[key])
 
@@ -198,8 +251,8 @@ def _share_navigation_records(payload):
             return [replace(item) for item in value]
         if not isinstance(value, dict):
             return value
-        encoded = _encoded(value)
-        if counts[encoded] > 1 and len(encoded) >= 256:
+        encoded = None if values.contains_authority(value) else values.encoded(value)
+        if encoded is not None and counts[encoded] > 1 and len(encoded) >= 256:
             reference = reference_for(value)
             return {_REFERENCE: reference, **{key: item for key, item in value.items()
                     if key in _IDENTIFIERS or key in {"argument", "kind", "relative_path", "start_line", "end_line"}}}
