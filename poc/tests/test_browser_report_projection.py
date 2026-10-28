@@ -8,7 +8,7 @@ import re
 import sqlite3
 import sys
 import tempfile
-import time
+import threading
 import unittest
 from unittest import mock
 
@@ -64,21 +64,39 @@ class BrowserReportProjectionTests(unittest.TestCase):
         self.analyzer = analyzer
         self.app = WorkbenchState(analyzer=analyzer, state_path=self.root / "workspace.json",
                                   config_provider=lambda: self.config)
+        self.worker_finished = threading.Event()
+        run = self.app._run
+
+        def tracked_run(*args, **kwargs):
+            try:
+                run(*args, **kwargs)
+            finally:
+                self.worker_finished.set()
+
+        self.app._run = tracked_run
 
     def fingerprint(self, path):
         return path.stat().st_mtime_ns, hashlib.sha256(path.read_bytes()).hexdigest()
 
     def run_job(self, **options):
+        self.worker_finished.clear()
         started = self.app.start({"source": str(self.source), "output": str(self.output),
             "encoding": "utf-8", "source_format": "free", **options})
-        deadline = time.monotonic() + 8
-        while time.monotonic() < deadline:
-            job = self.app.get_job(started["job_id"])
-            if job["status"] != "RUNNING":
-                self.assertEqual(job["status"], "COMPLETED", job.get("error"))
-                return job["result"]
-            time.sleep(.005)
-        self.fail("A large report must finish publishing its browser result.")
+        self.addCleanup(self.stop_pending_job, started["job_id"])
+        # This fixture writes and hashes a large report. Its functional wait is
+        # a hang guard; final-EXE acceptance measures performance separately.
+        self.assertTrue(self.worker_finished.wait(60),
+                        "A large report must finish publishing its browser result.")
+        job = self.app.get_job(started["job_id"])
+        self.assertEqual(job["status"], "COMPLETED", job.get("error"))
+        return job["result"]
+
+    def stop_pending_job(self, job_id):
+        if not self.worker_finished.is_set():
+            self.app.cancel(job_id)
+            # Run before TemporaryDirectory.cleanup, outside the app lock.
+            self.assertTrue(self.worker_finished.wait(60),
+                            "The report worker must stop before removing its workspace.")
 
     def assert_bounded_browser_state(self, result):
         path = self.output / "diagnosis.json"
