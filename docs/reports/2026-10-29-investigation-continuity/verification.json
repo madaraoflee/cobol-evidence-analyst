@@ -27,7 +27,17 @@
   },
   "external_model_calls": 0,
   "tested_source_manifest_sha256": "9c1526bca6dc312c82dada569f3f7f5a599787438e10ad059383c0db19672ef8",
-  "native_windows_status": "pending_new_commit_build",
+  "native_windows_status": "passed",
   "formal_publication": false,
-  "followup": "windows-newline-followup.json"
+  "followup": "windows-newline-followup.json",
+  "release_tag": "v2026.10.29.1-rc.1",
+  "source_commit": "b1c7a39a8a645658113c8fb1014ec72dbed93c5b",
+  "native_windows": {
+    "compiled_samples_passed": 79,
+    "continuity_checks_passed": 12,
+    "windows_python_passed": 4154,
+    "windows_posix_only_skipped": 2,
+    "workflow_run_id": 40742765996
+  },
+  "release_receipt": "release.json"
 }

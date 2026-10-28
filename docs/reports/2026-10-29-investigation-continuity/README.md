@@ -20,6 +20,20 @@
 
 `source-http-continuity.json` 使用真实桌面HTTP入口与本机TLS模拟接口，共6次模拟请求、12项检查：默认策略下真实等待20秒后自动补查；普通补查和截断续写分别修改提示词并重启；新旧答案主消息编号、版本、引用原文和原调查编号均核对。报告明确标为源码预览，不冒充最终EXE验收。
 
-最终全量源码/前端结果及冻结文件散列见本目录的 `verification.json`、`python-regressions.json`、`frontend-regressions.log` 和 `tested-source.json`。发布前还须对同一最终Windows ZIP运行原79样本及独立 `INVESTIGATION-CONTINUITY.json` 检查；独立报告不改变正式验收合同。
+最终全量源码/前端结果及冻结文件散列见本目录的 `verification.json`、`python-regressions.json`、`frontend-regressions.log` 和 `tested-source.json`。同一最终Windows ZIP已通过原79样本及独立 `INVESTIGATION-CONTINUITY.json` 的12项检查；独立报告不改变正式验收合同。
 
 本轮没有调用外部模型或读取企业源码。用户截图所涉私有程序的正确业务结论，仍需在工作电脑用实际源码和获准模型核对。候选版本不替代同包真实模型、人工与办公设备验收，也不自动替换现有正式版本。
+
+## 已发布整合候选
+
+[`v2026.10.29.1-rc.1`](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.10.29.1-rc.1) 已于 2026-10-28 19:02 UTC（北京时间 2026-10-29 03:02）发布，应用提交为 `b1c7a39a8a645658113c8fb1014ec72dbed93c5b`。[Windows 工作流 40742765996](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/40742765996) 成功完成四组全量回归、MSVC 编译和最终 EXE 验收。
+
+Windows 全量结果为4,154项通过、2项POSIX权限专用测试按既有平台规则跳过；这两项在本机4,156项测试中通过。旧构建发现新增测试夹具的LF/CRLF散列不一致，修正后两种换行均通过，并完整重跑Windows回归；没有因此改动应用代码或放宽源码校验，详见 `windows-newline-followup.json`。Windows汇总见 `windows-regressions.json`。
+
+最终 EXE 的79个原生离线样本和12项补充检查全部通过。后者实际等待20秒，再由默认策略完成第二次模型请求，并核对普通补查、截断续写、自定义要求、历史版本和原引用重启恢复；使用6次本地合成接口请求，不表示真实模型答案质量。原生报告见 `native-windows-continuity.json`，完整79样本报告随Release保存。
+
+本版同时包含[Bitbucket接入反馈修复](../2026-10-29-remote-intake-feedback/README.md)、[Cloud缓存与首问供证修复](../2026-10-28-cloud-cache-first-question/README.md)和[此前跨对话整合](../2026-10-28-combined-candidate/README.md)。固定提交链接不会自动跟随每周更新，需明确选择分支或跟随默认分支；日常打开继续复用本地副本。
+
+ZIP SHA-256：`6eaef250e9a300226fcb4683545f1f14984a87cee4afcc165bb272ee0eaade16`；EXE SHA-256：`4ccab235db0c534af5133a6201ad06b302c59f7303b46db5afaf23ca77b1bad2`。下载后重新计算候选门禁通过，标签提交及全部8个远端资产的大小与哈希已核对，见[发布回执](./release.json)。后续文档提交只更新回执与下载指引，不改变该应用包。
+
+正式版仍为 `v2026.10.14.2`。这次交付是供工作电脑测试的候选，企业源码、私有仓库认证和真实模型业务结论仍需在获准环境验证。

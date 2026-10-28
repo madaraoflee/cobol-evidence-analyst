@@ -1,0 +1,63 @@
+{
+  "schema_version": "investigation-continuity-check/v1",
+  "report_execution_id": "10ec92ff5d192e837fd56528749cefe2",
+  "created_at_utc": "2026-10-28T19:00:14.084781+00:00",
+  "transport_kind": "synthetic",
+  "external_model_calls": 0,
+  "paid_model_calls": 0,
+  "real_model_accuracy": null,
+  "formal_acceptance": false,
+  "checks": {
+    "default_policy_has_no_soft_target": true,
+    "slow_first_answer_is_automatically_completed": true,
+    "custom_single_paragraph_has_no_local_appendix": true,
+    "partial_latest_prompt_and_existing_draft_supplied": true,
+    "partial_prior_answer_preserved_as_revision": true,
+    "partial_continuation_completes_without_discarding_text": true,
+    "partial_revision_and_citation_survive_restart": true,
+    "truncated_latest_prompt_and_existing_draft_supplied": true,
+    "truncated_prior_answer_preserved_as_revision": true,
+    "truncated_continuation_completes_without_discarding_text": true,
+    "truncated_revision_and_citation_survive_restart": true,
+    "requests_recorded_once_without_provider_errors": true
+  },
+  "errors": [],
+  "status": "passed",
+  "archive_sha256": "6eaef250e9a300226fcb4683545f1f14984a87cee4afcc165bb272ee0eaade16",
+  "binary_path": "COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe",
+  "binary_sha256": "4ccab235db0c534af5133a6201ad06b302c59f7303b46db5afaf23ca77b1bad2",
+  "application_sha256": "46c5e5ae03a02c69395f49d8eddf8497fb24b476b145c748f1990a6c730df833",
+  "source_commit": "b1c7a39a8a645658113c8fb1014ec72dbed93c5b",
+  "source_dirty": false,
+  "execution_surface": "native_windows_http",
+  "runtime_platform": "Windows",
+  "observations": [
+    {
+      "phase": "default",
+      "run_id": "07fe6f1b5358175b56b908c2",
+      "model_requests": 2,
+      "elapsed_seconds": 20.686445999999933,
+      "answer_sha256": "887effef5caad23e4f502d2658c2e84be5cc51bade9e3be46b9981a09146ad6b"
+    },
+    {
+      "phase": "partial",
+      "previous_run_id": "8fb6dba5028b2622576b5406",
+      "run_id": "8d092ed13f6c0407eab833e0",
+      "revision_id": "60e915601b921a6d7f0de68f9c217086",
+      "answer_sha256": "f22c8a852de7bc428e8810aeb1cb92647bb5b78fdfebbcd7d0c2b7eeac02940e"
+    },
+    {
+      "phase": "truncated",
+      "previous_run_id": "c797b97139a93e644c4af55d",
+      "run_id": "714ef2e3382dc1469eaba435",
+      "revision_id": "9edebd52d47f66d54222bbe3f1786030",
+      "answer_sha256": "739da8b8032719abd8fa5d1e8abf7aa1b54fb56b7ce0002a6e129b097d742b99"
+    }
+  ],
+  "synthetic_model_requests": 6,
+  "fixture_sha256": {
+    "root.cbl": "5e6476f7df56a4dc323f7aebdd2d156b30465fd5e2bfb1fa63df4162683a3ad0"
+  },
+  "injected_wait_seconds": 20,
+  "timing_interpretation": "Injected loopback wait tests control flow, not real-model speed."
+}
