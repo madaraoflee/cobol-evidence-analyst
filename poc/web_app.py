@@ -42,6 +42,7 @@ from source_versions import record_version, versions
 from source_update import SourceUpdateBackup
 from app_paths import RESOURCE_ROOT, state_root
 from response_language import localized_text, resolve_answer_language
+from answer_markdown import DEFAULT_ANSWER_INSTRUCTIONS
 
 
 WEB_ROOT = RESOURCE_ROOT / "web"
@@ -612,6 +613,7 @@ class WorkbenchState:
         self.state_path = state_path
         self.framework_reference_path = None
         self.answer_detail = "detailed"
+        self.answer_instructions = ""
         self.source_preferences = None
         self._local_workspace = None
         self._saved_workspace = None
@@ -691,6 +693,7 @@ class WorkbenchState:
         else:
             self._local_workspace = copy.deepcopy(data)
         data.update(framework_reference_path=self.framework_reference_path, answer_detail=self.answer_detail,
+                    answer_instructions=self.answer_instructions,
                     source_preferences=copy.deepcopy(self.source_preferences))
         if self._index_upgrade_attempt:
             data["index_upgrade_attempt"] = self._index_upgrade_attempt
@@ -720,6 +723,8 @@ class WorkbenchState:
             reference = saved.get("framework_reference_path")
             self.framework_reference_path = reference if isinstance(reference, str) else None
             self.answer_detail = "brief" if saved.get("answer_detail") == "brief" else "detailed"
+            instructions = saved.get("answer_instructions")
+            self.answer_instructions = instructions if isinstance(instructions, str) else ""
             self.source_preferences = _source_preferences(saved.get("source_preferences"))
             if not all(isinstance(saved.get(key), str) and saved[key] for key in ("source", "output")):
                 return
@@ -903,6 +908,20 @@ class WorkbenchState:
             status = self.framework()
             self._save_workspace()
             return {"framework_knowledge": status}
+
+    def configure_answer_instructions(self, payload: object) -> dict:
+        if (not isinstance(payload, dict) or set(payload) != {"answer_instructions"}
+                or not isinstance(payload["answer_instructions"], str)):
+            raise RequestError("INVALID_OPTIONS", "请提供文字形式的 AI 回答要求。")
+        with self.lock:
+            previous = self.answer_instructions
+            self.answer_instructions = payload["answer_instructions"]
+            try:
+                self._save_workspace()
+            except (OSError, ValueError):
+                self.answer_instructions = previous
+                raise RequestError("REQUEST_FAILED", "回答要求未能保存，请重试。", 500) from None
+            return {"answer_instructions": self.answer_instructions}
 
     def check_model(self, payload: object) -> dict:
         if payload != {}:
@@ -1174,6 +1193,8 @@ class WorkbenchState:
                 "api_configuration_error": configuration_error,
                 "framework_knowledge": self.framework(),
                 "answer_detail": self.answer_detail,
+                "answer_instructions": self.answer_instructions,
+                "default_answer_instructions": DEFAULT_ANSWER_INSTRUCTIONS,
                 "source_preferences": copy.deepcopy(self.source_preferences),
                 "conversation": copy.deepcopy(self.conversation),
                 "conversations": self.conversation_store.list() if self.conversation_store else [],
@@ -1223,6 +1244,8 @@ class WorkbenchState:
             if not source_update:
                 self.conversation_store = ConversationStore(options["output"], options["source"])
             self.answer_detail = options["answer_detail"]
+            # Freeze the saved requirements for this job; edits apply to later questions.
+            options["answer_instructions"] = self.answer_instructions
             options["framework_reference_path"] = options.get("framework_reference_path") or self.framework_reference_path
             self.framework_reference_path = options["framework_reference_path"]
             if (options["question"] or retry_message_id) and options["allow_network"]:
@@ -1777,7 +1800,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             self._guard(token=True)
             cancel_match = re.fullmatch(r"/api/jobs/([a-f0-9]{32})/cancel", self.path)
-            if self.path not in {"/api/analyze", "/api/framework-demo/prepare", "/api/framework", "/api/conversations", "/api/model-check", "/api/pick-folder"} and cancel_match is None:
+            if self.path not in {"/api/analyze", "/api/framework-demo/prepare", "/api/framework", "/api/answer-instructions", "/api/conversations", "/api/model-check", "/api/pick-folder"} and cancel_match is None:
                 raise RequestError("NOT_FOUND", "请求的操作不存在。", 404)
             if self.headers.get_content_type() != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise RequestError("INVALID_CONTENT_TYPE", "只接受 JSON 请求。", 415)
@@ -1801,6 +1824,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._json(202, self.server.app.prepare_framework_demo(payload))
             elif self.path == "/api/framework":
                 self._json(200, self.server.app.configure_framework(payload))
+            elif self.path == "/api/answer-instructions":
+                self._json(200, self.server.app.configure_answer_instructions(payload))
             elif self.path == "/api/model-check":
                 self._json(200, self.server.app.check_model(payload))
             elif self.path == "/api/pick-folder":

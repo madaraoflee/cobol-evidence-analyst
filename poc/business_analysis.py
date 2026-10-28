@@ -17,7 +17,7 @@ from typing import Any
 
 from api_diagnostics import APIResponseDiagnostics
 from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
-from answer_markdown import ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, normalize_answer_markdown
+from answer_markdown import ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, normalize_answer_markdown, with_answer_instructions
 from company_api import APIClientError, APIConfigurationError, CompanyAPIConfig, OpenAICompatibleChatClient, Transport
 from framework_knowledge import build_framework_context
 from response_language import answer_language_instruction, localized_text, resolve_answer_language
@@ -345,6 +345,7 @@ def run_business_analysis(
     reading_strategy: str = "focused",
     answer_detail: str = "detailed",
     locale: str | None = None,
+    answer_instructions: str = "",
 ) -> dict[str, object]:
     """Read source pages, explain them, and retain useful partial responses."""
 
@@ -440,7 +441,7 @@ def run_business_analysis(
             nonlocal planning_turns, planning_fatal, planning_failure
             if check_cancel:
                 check_cancel()
-            messages = [{"role": "system", "content": system},
+            messages = [{"role": "system", "content": with_answer_instructions(system, answer_instructions)},
                         {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
             if _prompt_size(config, messages) > MAX_PROMPT_BYTES:
                 payload = dict(payload, repository={key: value for key, value in payload["repository"].items()
@@ -652,7 +653,8 @@ def run_business_analysis(
                     original = str(item["text"])
                     item["text"] = original[:MAX_SUMMARY_CHARACTERS]
                     item["summary_truncated"] = len(original) > MAX_SUMMARY_CHARACTERS or bool(item.get("summary_truncated"))
-        messages = [{"role": "system", "content": _SYSTEM + "\n" + answer_language_instruction(answer_language)},
+        messages = [{"role": "system", "content": with_answer_instructions(
+                        _SYSTEM + "\n" + answer_language_instruction(answer_language), answer_instructions)},
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
         # JSON escaping and multibyte text can expand substantially. Check the
         # actual request representation, keeping supplied source pages intact.

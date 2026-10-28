@@ -196,6 +196,63 @@ class AnalyzeSourceTests(unittest.TestCase):
         self.assertEqual(second["source_options"]["answer_detail"], "brief")
         self.assertTrue(second["index_reused"])
 
+    def test_answer_instructions_reach_fresh_reused_and_cleared_business_requests(self) -> None:
+        self.write_program(filename="rule.cbl")
+        from agent_policy import AgentPolicy
+        from answer_markdown import DEFAULT_ANSWER_INSTRUCTIONS
+        envelopes = []
+        def transport(request):
+            envelope = json.loads(request.body)
+            envelopes.append(envelope)
+            payload = json.loads(envelope["messages"][-1]["content"])
+            page = payload["source_context"][0]["pages"][0]
+            return TransportResponse(200, json.dumps({"choices": [{"message": {"role": "assistant",
+                "content": f"输出数量按输入数量的两倍计算。[{page['evidence_id']}]"}, "finish_reason": "stop"}]}))
+        options = dict(question="BATCHENTRY OUTPUT-COUNT 怎么计算？", analysis_mode="business",
+            reading_strategy="retrieval", allow_network=True, framework_reference_path="", source_format="free",
+            config=CompanyAPIConfig("https://neutral.example.invalid/v1", "neutral-model", api_key="offline-only"),
+            transport=transport, agent_policy=AgentPolicy(max_model_requests=1, max_answer_revisions=0))
+        first_text = "请按业务意义、输入和结果说明。\n保留我的换行。"
+        second_text = "请用一段话说明业务，不列源码步骤。"
+        first = analyze_source(self.source, self.output, answer_instructions=first_text, **options)
+        second = analyze_source(self.source, self.output, answer_instructions=second_text, **options)
+        cleared = analyze_source(self.source, self.output, answer_instructions="", **options)
+        self.assertEqual(len(envelopes), 3)
+        self.assertFalse(first.get("index_reused", False))
+        self.assertTrue(second["index_reused"])
+        self.assertTrue(cleared["index_reused"])
+        self.assertEqual(envelopes[0]["messages"][0]["content"].count(first_text), 1)
+        self.assertEqual(envelopes[1]["messages"][0]["content"].count(second_text), 1)
+        self.assertNotIn(first_text, envelopes[1]["messages"][0]["content"])
+        self.assertNotIn(second_text, envelopes[2]["messages"][0]["content"])
+        self.assertIn(DEFAULT_ANSWER_INSTRUCTIONS, envelopes[2]["messages"][0]["content"])
+        for envelope in envelopes:
+            self.assertEqual(envelope["messages"][0]["role"], "system")
+            self.assertNotIn("answer_instructions", json.loads(envelope["messages"][-1]["content"]))
+
+    def test_answer_instructions_reach_focused_and_full_chain_analysis(self) -> None:
+        self.write_program(filename="rule.cbl")
+        instructions = "用业务对象、处理规则、业务结果三部分回答，并给新人解释术语。"
+        config = CompanyAPIConfig("https://neutral.example.invalid/v1", "neutral-model", api_key="offline-only")
+        for strategy in ("focused", "full_chain"):
+            with self.subTest(strategy=strategy):
+                envelopes = []
+                def transport(request):
+                    envelope = json.loads(request.body)
+                    envelopes.append(envelope)
+                    payload = json.loads(envelope["messages"][-1]["content"])
+                    page = payload["source_pages"][0]
+                    return TransportResponse(200, json.dumps({"choices": [{"message": {"role": "assistant",
+                        "content": f"输出数量按输入数量的两倍计算。[{page['evidence_id']}]"}, "finish_reason": "stop"}]}))
+                analyze_source(self.source, self.root / strategy, entry="BATCHENTRY",
+                    question="BATCHENTRY OUTPUT-COUNT 怎么计算？", analysis_mode="business",
+                    reading_strategy=strategy, allow_network=True, framework_reference_path="", source_format="free",
+                    answer_instructions=instructions, config=config, transport=transport)
+                self.assertTrue(envelopes)
+                for envelope in envelopes:
+                    self.assertEqual(envelope["messages"][0]["content"].count(instructions), 1)
+                    self.assertNotIn("answer_instructions", json.loads(envelope["messages"][-1]["content"]))
+
     def test_custom_extension_and_explicit_encoding(self) -> None:
         (self.source / "module.member").write_bytes((program("CUSTOMENTRY") + "*> 中文说明\n").encode("gb18030"))
         result = analyze_source(self.source, self.output, extensions=frozenset({".member"}), encoding="gb18030", source_format="free")

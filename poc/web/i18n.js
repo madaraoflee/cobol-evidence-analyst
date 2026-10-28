@@ -3,6 +3,19 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+系統設定|系统配置|System settings
+查看系統設定|查看系统配置|View system settings
+AI 回答要求（System prompt）|AI 回答要求（System prompt）|AI answer instructions (System prompt)
+可自訂回答格式、閱讀對象、業務重點及詳略。儲存後會隨之後每次分析與追問傳給模型，無需重新啟動。留空使用內建的業務解釋格式。|可自定义回答格式、阅读对象、业务重点及详略。保存后会随之后每次分析与追问传给模型，无需重启。留空使用内置的业务解释格式。|Customize the format, audience, business focus and level of detail. Once saved, these instructions are sent to the model with future analyses and follow-up questions. No restart is needed. Leave blank for the built-in business explanation format.
+例如：把我當作剛加入的業務分析員，先說清楚業務目的和流程，再按 Batch job、Online function / Programs、Tables、Files 分類解釋。|例如：把我当作刚加入的业务分析员，先说清楚业务目的和流程，再按 Batch job、Online function / Programs、Tables、Files 分类解释。|For example: explain this to a new business analyst. Start with the business purpose and flow, then group details under Batch job, Online function / Programs, Tables and Files.
+儲存回答要求|保存回答要求|Save answer instructions
+填入業務模板|填入业务模板|Insert business template
+清空並使用預設|清空并使用默认|Clear and use default
+正在儲存回答要求…|正在保存回答要求…|Saving answer instructions…
+已儲存，之後的分析與追問將使用這份回答要求。|已保存，之后的分析与追问将使用这份回答要求。|Saved. Future analyses and follow-up questions will use these instructions.
+已恢復內建業務解釋格式，之後的分析與追問生效。|已恢复内置业务解释格式，之后的分析与追问生效。|The built-in business explanation format will apply to future analyses and follow-up questions.
+業務模板已填入；可自由修改，儲存後生效。|业务模板已填入；可自由修改，保存后生效。|Business template inserted. Edit it freely, then save to apply it.
+請先連接本機服務，再儲存回答要求。|请先连接本机服务，再保存回答要求。|Connect to the local service before saving answer instructions.
 已保留回答 · 仍有待核對項|已保留回答 · 仍有待核对项|Answer retained · checks remain
 仍有待核對項|仍有待核对项|Checks remain
 本次請求未完成 · 已保留回答|本次请求未完成 · 已保留回答|Request incomplete · answer retained

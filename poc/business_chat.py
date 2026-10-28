@@ -16,7 +16,7 @@ from api_diagnostics import APIResponseDiagnostics
 from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
 from agent_policy import resolve_agent_policy
 from answer_markdown import (ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, BUSINESS_EXPLANATION_COMPACT_POLICY, BUSINESS_RUNTIME_BOUNDARY_POLICY,
-                             join_answer_continuation, strip_incomplete_source_citation)
+                             join_answer_continuation, strip_incomplete_source_citation, with_answer_instructions)
 from answer_diagnostics import build_answer_diagnostics, response_character_counts
 from analysis_continuation import AnalysisContinuation, progress_snapshot
 from business_map import build_business_map
@@ -517,7 +517,10 @@ def _prompt_payload(payload):
     # Keep the requested explanation depth and evidence coverage aligned;
     # navigation compression only changes the wire representation.
     from prompt_projection import project_prompt_payload
-    projected = _compact_prompt_payload(project_prompt_payload(payload))
+    # Saved writing instructions belong to the trusted system message, not
+    # the source/navigation JSON. Keep them once and outside evidence trimming.
+    projected = _compact_prompt_payload(project_prompt_payload(
+        {key: value for key, value in payload.items() if key != "answer_instructions"}))
     if isinstance(payload.get("session_subject"), dict):
         projected = dict(projected)
         # Identity is navigation, never semantic support. Keep the small local
@@ -637,7 +640,13 @@ def _prompt_payload(payload):
         contract["business_explanation"] = {
             "audience": "A newcomer learning the business process.",
             "order": ["business object, purpose and outcome", "evidenced entry and connected processing steps",
-                      "data passed between programs, tables and files", "decisive rules and exceptions"],
+                      "decisive business rules and exceptions", "Batch job", "Online function / Programs", "Tables", "Files"],
+            "categories": "After the business explanation, clearly separate the relevant Batch job, "
+                "Online function / Programs, Tables and Files sections. Explain each object's business role, "
+                "inputs, outputs and source-backed handoffs. Distinguish a program from a confirmed online "
+                "entry, database tables from internal tables, and data files from source/COPY definitions. "
+                "Briefly identify categories not confirmed in the supplied material; do not invent objects. "
+                "Follow saved answer instructions when the user specifies a different structure.",
             "reader_questions": ["What is this process for?", "Who starts it and who does each step?",
                                  "Where does each input come from and where does each result go?",
                                  "Which conditions change the result or prevent it?"],
@@ -658,7 +667,8 @@ def _prompt_payload(payload):
                 "Do not invent a schedule, online deployment, domain label or successful runtime outcome."}
         if payload.get("budget_wire_compact"):
             contract["business_explanation"] = {
-                "task": "Explain purpose and source-backed program/data flow for a newcomer. "
+                "task": "Explain the business first for a newcomer, then separate relevant Batch job, "
+                    "Online function / Programs, Tables and Files roles and data flow. "
                     "Use supplied code; read relevant located implementations as needed."}
     if discovery_only:
         contract = {"format": "Return one JSON object containing a nonempty search array.",
@@ -733,7 +743,9 @@ def _system_for_payload(payload):
     if "prior_source_memory" in payload:
         system = system.replace("事实依据取自本轮原文。", "事实依据取自实际供应原文，包括 prior_source_memory 明确绑定的本题早先原文；其中候选解释仍须核对。", 1)
     language = payload.get("answer_language") or resolve_answer_language(payload.get("question"))
-    return system + "\n" + answer_language_instruction(language, compact=bool(payload.get("budget_wire_compact")))
+    return with_answer_instructions(
+        system + "\n" + answer_language_instruction(language, compact=bool(payload.get("budget_wire_compact"))),
+        payload.get("answer_instructions"))
 
 
 def _fit_request(config, payload, history, policy=None, *, trim_events=None, investigation_builder=None,
@@ -1123,7 +1135,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                       allow_network=False, capture_api_responses=False, progress=None,
                       check_cancel=None, policy=None, capture_context=False,
                       source_session=None, answer_detail="detailed", resume_state=None, analysis_identity=None,
-                      question_budget=None, answer_language=None, locale=None, **unused):
+                      question_budget=None, answer_language=None, locale=None, answer_instructions="", **unused):
     from business_analysis import _extract_text as extract_business_text, _content_text, _TextResponseError, _framework_for_prompt
 
     def _extract_text(response):
@@ -1215,7 +1227,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     quality = QualityTrace(database_path, question=question, config=config, policy=policy,
                            capture_context=(capture_context or os.environ.get("WORKBENCH_ACCEPTANCE_CAPTURE_CONTEXT") == "1"),
                            resume_state=resume_state,
-                           analysis_identity=analysis_identity)
+                           analysis_identity=analysis_identity, answer_instructions=answer_instructions)
     if unused.get("continued_from_run_id"):
         quality.data["continued_from_run_id"] = unused["continued_from_run_id"]
     if unused.get("replaces_changed_run"):
@@ -2635,6 +2647,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     "omitted_rules_per_path": dict(list(coverage.get("omitted_rules_per_path", {}).items())[:8]),
                     "omitted_rule_path_count": max(0, len(coverage.get("omitted_rules_per_path", {})) - 8)}
                 payload = {"question": question, "answer_detail": answer_detail, "answer_language": answer_language,
+                           "answer_instructions": answer_instructions,
                            "session_subject": business_map.get("session_subject", {}),
                            "repository": {key: overview.get(key) for key in
                            ("snapshot_id", "indexed_files", "indexed_pages", "program_samples")},
@@ -3894,6 +3907,9 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
         "base_url": config.base_url, "model": config.chat_model,
         "timeout_seconds": config.timeout_seconds, "max_output_tokens": config.max_output_tokens,
         "api_style": config.api_style, **config.generation_parameters()}, sort_keys=True).encode()).hexdigest()
+    instructions = kwargs.get("answer_instructions", "")
+    expected_instructions = (hashlib.sha256(instructions.encode()).hexdigest()
+                             if isinstance(instructions, str) and instructions.strip() else "")
     fresh_retry_seed = None
     if explicit_retry:
         identities = prior_language_identities | {analysis_identity}
@@ -3991,6 +4007,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
         # saved request ledger or granting the same question a fresh deadline.
         compatible = same_question and (bool(resume.get("uncertain_requests")) or (
             metadata.get("configuration", {}).get("configuration_fingerprint") == expected_configuration
+            and metadata.get("configuration", {}).get("answer_instructions_sha256", "") == expected_instructions
             and policy_compatible))
         if not compatible:
             if (resume.get("uncertain_requests") and metadata.get("question_id") == question_id

@@ -12,7 +12,7 @@ from prior_source_memory import source_binding_sha256
 from run_store import RunStore
 
 PIPELINE_VERSION = "question-evidence-v56"
-PROMPT_VERSION = "business-chat-v44"
+PROMPT_VERSION = "business-chat-v45"
 
 def _digest(value):
     return hashlib.sha256(value).hexdigest()
@@ -46,7 +46,8 @@ class QualityTrace:
     schema_version = "business-quality-trace/v1"
 
     def __init__(self, database_path, *, question, config, policy, capture_context=False,
-                 question_id=None, conversation_id=None, resume_state=None, analysis_identity=None):
+                 question_id=None, conversation_id=None, resume_state=None, analysis_identity=None,
+                 answer_instructions=""):
         run_id = resume_state["run_id"] if resume_state else secrets.token_hex(12)
         self.path = Path(database_path).resolve().parent / "quality-traces" / (run_id + ".json")
         self.capture_context = bool(capture_context)
@@ -66,6 +67,8 @@ class QualityTrace:
                          "max_output_tokens": config.max_output_tokens,
                          **config.generation_parameters(), "sampling": "provider_default", "policy": policy.to_dict()},
                      "rounds": [], "final": {}}
+        if isinstance(answer_instructions, str) and answer_instructions.strip():
+            self.data["configuration"]["answer_instructions_sha256"] = _digest(answer_instructions.encode())
         self._pending = None
         self._pending_round_id = None
         self._pending_replayed = False

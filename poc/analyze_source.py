@@ -229,6 +229,7 @@ def analyze_source(
     max_source_pages: int = 12,
     reading_strategy: str = "focused",
     answer_detail: str = "detailed",
+    answer_instructions: str = "",
     locale: str | None = None,
     conversation_history: list[dict] | None = None,
     conversation_id: str | None = None,
@@ -274,7 +275,8 @@ def analyze_source(
             framework_reference_path=framework_reference_path, capture_api_responses=capture_api_responses,
             history=conversation_history, conversation_id=conversation_id,
             progress=progress, check_cancel=check_cancel,
-            policy=agent_policy, answer_detail=answer_detail, locale=locale, compilation_context=compilation_context,
+            policy=agent_policy, answer_detail=answer_detail, answer_instructions=answer_instructions,
+            locale=locale, compilation_context=compilation_context,
             start_new_investigation=start_new_investigation)
         if cached is not None:
             return cached
@@ -482,7 +484,7 @@ def analyze_source(
                                           capture_api_responses=capture_api_responses,
                                           analysis_mode=analysis_mode, source_root=source,
                                           max_source_pages=max_source_pages, reading_strategy=reading_strategy,
-                                          answer_detail=answer_detail, locale=locale,
+                                          answer_detail=answer_detail, answer_instructions=answer_instructions, locale=locale,
                                           progress=progress, check_cancel=check_cancel,
                                           conversation_history=conversation_history, conversation_id=conversation_id,
                                           agent_policy=agent_policy, start_new_investigation=start_new_investigation)
