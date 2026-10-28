@@ -1,0 +1,14 @@
+{
+  "failed_workflow_run": 40740342610,
+  "source_commit": "ff3388c87bc39854d17e85b57123f3fc31564b2d",
+  "job_id": 123000170396,
+  "test": "test_supply_check_rejects_wrong_version_and_invented_lines",
+  "error": "Source version mismatch",
+  "cause": "The test wrote platform-native CRLF bytes but calculated the expected hash from the LF string.",
+  "fix": "Generate explicit LF and CRLF fixture bytes and hash those exact bytes. Both still reject the wrong version and invented source lines.",
+  "production_code_changed": false,
+  "targeted_test_count": 2,
+  "targeted_status": "passed",
+  "file": "poc/tests/test_investigation_continuity_check.py",
+  "sha256": "cc6020b65e1689976fa0cccc5662a9eec358e3aeba1b7d9edd5bf0e569a3e5bf"
+}

@@ -28,5 +28,6 @@
   "external_model_calls": 0,
   "tested_source_manifest_sha256": "9c1526bca6dc312c82dada569f3f7f5a599787438e10ad059383c0db19672ef8",
   "native_windows_status": "pending_new_commit_build",
-  "formal_publication": false
+  "formal_publication": false,
+  "followup": "windows-newline-followup.json"
 }

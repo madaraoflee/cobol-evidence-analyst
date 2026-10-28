@@ -1,0 +1,7 @@
+test_loopback_provider_emits_real_length_boundary_and_records_request (test_investigation_continuity_check.InvestigationContinuityCheckTests.test_loopback_provider_emits_real_length_boundary_and_records_request) ... ok
+test_supply_check_rejects_wrong_version_and_invented_lines (test_investigation_continuity_check.InvestigationContinuityCheckTests.test_supply_check_rejects_wrong_version_and_invented_lines) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.527s
+
+OK

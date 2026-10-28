@@ -19,14 +19,17 @@ class InvestigationContinuityCheckTests(unittest.TestCase):
     def test_supply_check_rejects_wrong_version_and_invented_lines(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory)
-            (source / "root.cbl").write_text(SOURCE, encoding="utf-8")
-            page = {"relative_path": "root.cbl", "source_sha256": hashlib.sha256(SOURCE.encode()).hexdigest(),
-                "start_line": 1, "end_line": len(SOURCE.splitlines()), "source_text": SOURCE}
-            payload = {"source_context": [{"pages": [page]}]}
-            self.assertEqual(verify_pages(source, payload), page)
-            for changed in ({"source_sha256": "0" * 64}, {"source_text": SOURCE.replace("* 2", "* 3")}):
-                with self.subTest(changed=list(changed)), self.assertRaises(AssertionError):
-                    verify_pages(source, {"source_context": [{"pages": [{**page, **changed}]}]})
+            for newline in ("\n", "\r\n"):
+                with self.subTest(newline=repr(newline)):
+                    raw = SOURCE.replace("\n", newline).encode("utf-8")
+                    (source / "root.cbl").write_bytes(raw)
+                    page = {"relative_path": "root.cbl", "source_sha256": hashlib.sha256(raw).hexdigest(),
+                        "start_line": 1, "end_line": len(SOURCE.splitlines()), "source_text": SOURCE}
+                    payload = {"source_context": [{"pages": [page]}]}
+                    self.assertEqual(verify_pages(source, payload), page)
+                    for changed in ({"source_sha256": "0" * 64}, {"source_text": SOURCE.replace("* 2", "* 3")}):
+                        with self.subTest(changed=list(changed)), self.assertRaises(AssertionError):
+                            verify_pages(source, {"source_context": [{"pages": [{**page, **changed}]}]})
 
     def test_loopback_provider_emits_real_length_boundary_and_records_request(self):
         with tempfile.TemporaryDirectory() as directory:
