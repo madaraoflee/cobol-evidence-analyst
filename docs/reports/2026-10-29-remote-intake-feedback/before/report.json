@@ -1,0 +1,409 @@
+{
+  "scope": "Actual Chrome and local HTTP WorkbenchState with real indexing, persistence and asynchronous jobs. Remote fetch only is a controlled neutral fixture; no external repository/model calls. Auth failure is not a diagnosis of the user repository.",
+  "baseline_commit": "8870217fbc6363e7fcb8cc360f342d98b537a2ec",
+  "server": "http://127.0.0.1:59856",
+  "checks": [
+    {
+      "name": "real_backend_restored_24_long_messages",
+      "passed": true
+    },
+    {
+      "name": "auth_workbench_async_job_created",
+      "passed": true
+    },
+    {
+      "name": "auth_workbench_failure_is_below_viewport",
+      "passed": true
+    },
+    {
+      "name": "auth_sources_async_job_created",
+      "passed": true
+    },
+    {
+      "name": "auth_sources_failure_is_below_viewport",
+      "passed": true
+    },
+    {
+      "name": "auth_history_async_job_created",
+      "passed": true
+    },
+    {
+      "name": "auth_history_failure_is_below_viewport",
+      "passed": true
+    },
+    {
+      "name": "submitted_credentials_are_cleared",
+      "passed": true
+    },
+    {
+      "name": "credentials_absent_frontend_state_and_storage",
+      "passed": true
+    },
+    {
+      "name": "success_async_job_created",
+      "passed": true
+    },
+    {
+      "name": "success_changes_to_remote_source",
+      "passed": true
+    },
+    {
+      "name": "sync_cache_reused_without_job",
+      "passed": true
+    },
+    {
+      "name": "no_browser_errors",
+      "passed": true
+    },
+    {
+      "name": "no_external_browser_requests",
+      "passed": true
+    },
+    {
+      "name": "no_model_requests",
+      "passed": true
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "async_auth_failure_from_workbench",
+      "submitted": {
+        "job_id": "38d91d4cd25106c040a200c2591d213f"
+      },
+      "during": {
+        "page": "workbench",
+        "busy": true,
+        "jobId": "38d91d4cd25106c040a200c2591d213f",
+        "error": "",
+        "source": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/remote-feedback-ui-qa-2kg4udj4/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": null,
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      },
+      "after": {
+        "page": "workbench",
+        "busy": false,
+        "jobId": null,
+        "error": "仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。",
+        "source": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/remote-feedback-ui-qa-2kg4udj4/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 11292,
+          "bottom": 11373.984375,
+          "height": 81.984375
+        },
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "async_auth_failure_from_sources",
+      "submitted": {
+        "job_id": "de5872b4792af800b8b57fa4be576c76"
+      },
+      "during": {
+        "page": "workbench",
+        "busy": true,
+        "jobId": "de5872b4792af800b8b57fa4be576c76",
+        "error": "",
+        "source": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/remote-feedback-ui-qa-2kg4udj4/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": null,
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      },
+      "after": {
+        "page": "workbench",
+        "busy": false,
+        "jobId": null,
+        "error": "仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。",
+        "source": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/remote-feedback-ui-qa-2kg4udj4/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 11292,
+          "bottom": 11373.984375,
+          "height": 81.984375
+        },
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "async_auth_failure_from_history",
+      "submitted": {
+        "job_id": "c49e0c13660c46eee83e2c8af397356f"
+      },
+      "during": {
+        "page": "workbench",
+        "busy": true,
+        "jobId": "c49e0c13660c46eee83e2c8af397356f",
+        "error": "",
+        "source": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/remote-feedback-ui-qa-2kg4udj4/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": null,
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      },
+      "after": {
+        "page": "workbench",
+        "busy": false,
+        "jobId": null,
+        "error": "仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。",
+        "source": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/remote-feedback-ui-qa-2kg4udj4/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 11292,
+          "bottom": 11373.984375,
+          "height": 81.984375
+        },
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "cancel_import",
+      "after": {
+        "page": "workbench",
+        "busy": false,
+        "jobId": null,
+        "error": "已取消远程源码接入，原资料库和对话已保留。",
+        "source": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/remote-feedback-ui-qa-2kg4udj4/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 11292,
+          "bottom": 11373.984375,
+          "height": 81.984375
+        },
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "post_direct_rejection",
+      "code": "REMOTE_SOURCE_INVALID_URL",
+      "after": {
+        "page": "workbench",
+        "busy": false,
+        "jobId": null,
+        "error": "请提供 Bitbucket Cloud 或 Server / Data Center 的 HTTPS 仓库或目录链接，不要在链接内包含账号或密码。",
+        "source": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/remote-feedback-ui-qa-2kg4udj4/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 11292,
+          "bottom": 11373.984375,
+          "height": 81.984375
+        },
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "first_success",
+      "after": {
+        "page": "workbench",
+        "busy": false,
+        "jobId": null,
+        "error": "",
+        "source": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/remote-feedback-ui-qa-2kg4udj4/remote-sources/238a9b01ba719cb63147b1d856371d55/source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": null,
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "synchronous_cache",
+      "response": {
+        "source_reused": true
+      },
+      "after": {
+        "page": "sources",
+        "busy": false,
+        "jobId": null,
+        "error": "",
+        "source": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/remote-feedback-ui-qa-2kg4udj4/remote-sources/238a9b01ba719cb63147b1d856371d55/source",
+        "sourceNotice": "已開啟本機副本，沒有重新下載源碼。",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": null,
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      }
+    }
+  ],
+  "page_errors": [],
+  "external_requests": [],
+  "api_requests": [
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/38d91d4cd25106c040a200c2591d213f"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/38d91d4cd25106c040a200c2591d213f"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/38d91d4cd25106c040a200c2591d213f"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/de5872b4792af800b8b57fa4be576c76"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/de5872b4792af800b8b57fa4be576c76"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/de5872b4792af800b8b57fa4be576c76"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/c49e0c13660c46eee83e2c8af397356f"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/c49e0c13660c46eee83e2c8af397356f"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/c49e0c13660c46eee83e2c8af397356f"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/68dc89ec2a1a3d7bfa72a8d6dd094a93"
+    },
+    {
+      "method": "POST",
+      "path": "/api/jobs/68dc89ec2a1a3d7bfa72a8d6dd094a93/cancel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/68dc89ec2a1a3d7bfa72a8d6dd094a93"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/5b1e32ee2c2a7b68d59e3dc0cef48f76"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/5b1e32ee2c2a7b68d59e3dc0cef48f76"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/5b1e32ee2c2a7b68d59e3dc0cef48f76"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    }
+  ],
+  "screenshots": [
+    "before-workbench-progress.png",
+    "before-workbench-failed-viewport.png",
+    "before-sources-progress.png",
+    "before-sources-failed-viewport.png",
+    "before-history-progress.png",
+    "before-history-failed-viewport.png",
+    "before-error-found-after-scrolling.png"
+  ],
+  "passed": true
+}

@@ -1,0 +1,12 @@
+{
+  "baseline_commit": "8870217fbc6363e7fcb8cc360f342d98b537a2ec",
+  "python_passed": 4135,
+  "frontend_passed": 256,
+  "browser_main_checks": 49,
+  "browser_final_retry_checks": 20,
+  "browser_baseline_reproduction_checks": 15,
+  "application_files_unchanged_during_final_source_regression": 690,
+  "real_enterprise_repository_calls": 0,
+  "model_calls": 0,
+  "scope": "Source and actual Chrome/local HTTP verification; Windows candidate acceptance is recorded separately after the build."
+}

@@ -1,0 +1,15 @@
+{
+  "result": "passed",
+  "checks": 49,
+  "screenshots": 19,
+  "scope": "Actual Chrome and local HTTP WorkbenchState with real indexing, persistence and asynchronous jobs. Remote fetch only is a controlled neutral fixture; no external repository/model calls. Auth failure is not a diagnosis of the user repository.",
+  "fixed_resource_hashes_unchanged": true,
+  "controlled_remote_fetches": 12,
+  "external_browser_requests": 0,
+  "page_errors": 0,
+  "model_requests": 0,
+  "owned_server_closed": true,
+  "baseline_report": "/tmp/remote-feedback-browser-before/report.json",
+  "final_report": "/tmp/remote-feedback-browser-frozen/report.json",
+  "credentials_at_rest": "/tmp/remote-feedback-browser-frozen/credentials-at-rest.json"
+}

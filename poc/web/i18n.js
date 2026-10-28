@@ -3,6 +3,18 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+如需重試，請重新選擇「從 Bitbucket 接入」，或在源碼資料庫選擇「檢查並更新」。|如需重试，请重新选择“从 Bitbucket 接入”，或在源码资料库选择“检查并更新”。|To retry, choose Connect from Bitbucket again, or choose Check and update in the source library.
+找不到指定的倉庫、版本或目錄，或尚未取得讀取權限。請核對連結；私有倉庫也需要有效授權。|找不到指定的仓库、版本或目录，或尚未取得读取权限。请核对链接；私有仓库也需要有效授权。|The repository, revision or directory was not found, or read access has not been granted. Check the link; private repositories also require valid authorization.
+源碼接入結果尚未確認|源码接入结果尚未确认|Source connection outcome is not confirmed
+進度連線已中斷，後台工作可能仍在繼續。請重新整理頁面查看狀態。|进度连接已中断，后台工作可能仍在继续。请刷新页面查看状态。|The progress connection was lost and work may still be running. Reload the page to check its status.
+源碼接入未完成|源码接入未完成|Source connection did not complete
+已停止源碼接入|已停止源码接入|Source connection stopped
+源碼接入完成|源码接入完成|Source connection complete
+目前仍使用原資料庫，原對話已保留。|当前仍使用原资料库，原对话已保留。|The previous source library remains in use and its conversations are preserved.
+查看接入設定並重試|查看接入设置并重试|Review connection settings and retry
+關閉這則結果|关闭这条结果|Dismiss this result
+已下載源碼並完成本機索引，可以開始提出業務問題。|已下载源码并完成本地索引，可以开始提出业务问题。|Source was downloaded and locally indexed. You can now ask business questions.
+公開倉庫可只填連結。私有 Cloud 倉庫請填寫帳號郵箱和具備倉庫讀取權限的 API token；瀏覽器已登入不代表應用已獲授權。授權只在首次下載或檢查更新時需要，開啟已儲存的本機副本不需重新登入。|公开仓库可以只填链接。私有 Cloud 仓库请填写账号邮箱和具有仓库读取权限的 API token；浏览器已登录不代表应用已获授权。授权只在首次下载或检查更新时需要，打开已保存的本地副本无需重新登录。|Public repositories only need a link. For private Cloud repositories, enter your account email and an API token with repository read permission; browser login does not authorize this app. Authorization is needed for the first download or update checks, not for opening an existing local copy.
 繼續補查並完善回答|继续补查并完善回答|Continue investigating and complete the answer
 原調查記錄無法繼續，請使用「重試這個問題」重新分析。|原调查记录无法继续，请使用“重试这个问题”重新分析。|The original investigation cannot be continued. Select Retry this question to start a new analysis.
 遠端版本沒有變更，已重建本機索引，沒有重新下載源碼。|远端版本没有变更，已重建本地索引，没有重新下载源码。|The repository version is unchanged. The local index was rebuilt without downloading source again.

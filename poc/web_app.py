@@ -1608,6 +1608,10 @@ class WorkbenchState:
                                                    "output": cached["output"], "allow_network": False})
                             return {**response, "source_reused": True, "source": cached["source"],
                                     "output": cached["output"], "source_origin": "remote_repository"}
+                        # Reopening a usable copy supersedes a previous failed
+                        # or cancelled import, without dismissing question jobs.
+                        if self.job and self.job.get("kind") == "index" and self.job["status"] in {"FAILED", "CANCELLED"}:
+                            self.job = None
                         return {**opened, "source_reused": True}
             # Download only a first/new revision, keeping earlier source and
             # transcript snapshots intact until the new revision is accepted.

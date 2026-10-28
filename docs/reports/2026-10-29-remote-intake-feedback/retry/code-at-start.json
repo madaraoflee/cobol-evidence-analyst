@@ -1,0 +1,16 @@
+{
+  "scope": "10 frontend resources served by this isolated HTTP verification.",
+  "timestamp_utc": "2026-10-28T17:10:33.235791+00:00",
+  "sha256": {
+    "poc/web/layout.js": "a249ccbbf68d7bc22fa54245893183f61d9ffede535a69c9dff1a312e772ce78",
+    "poc/web/index.html": "1c017892c5c1543fde6562801d6f455cb0baddb3347616001aad761796d09ddc",
+    "poc/web/styles.css": "097073bd28e86aef5a7e277a13e2734db4e388d797bc25a19a1e48fda074ab21",
+    "poc/web/theme.js": "c8fc1639aa35e48c9ddfdb3550c03b4df54e077b4564250b8e36906a4eeb0a9c",
+    "poc/web/appearance.css": "5d1734d01a42b467cea5f136b2db18ba1697a5cf68317f76482008089284241f",
+    "poc/web/marked.LICENSE.md": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c",
+    "poc/web/i18n.js": "c74783fc22c4972a2571b69671d661149a7a2efad4e97f001d77ef5f7df7497c",
+    "poc/web/marked.umd.js": "0db7abc826b5ac76f6ed11951ae34074ba50438ce6ea8d52889203779e5cbbad",
+    "poc/web/app.js": "89ce0d6e25104915213906155a140e4c2ad66877a17cdef9d188054808d22653",
+    "poc/web/markdown.js": "a8594d3af83600344c9ea108341eacb43382acb8382838fa5a2b2b8aeb95e64e"
+  }
+}

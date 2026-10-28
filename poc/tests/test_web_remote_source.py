@@ -350,6 +350,77 @@ class RemoteSourceIntegrationTests(unittest.TestCase):
             fetch.assert_not_called()
             resolve.assert_not_called()
 
+    def test_reusing_current_cache_clears_failed_or_cancelled_index_and_preserves_conversation(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            accepted = self.app.start_remote(self.payload())
+            completed = self.finish(accepted["job_id"])
+        remote = completed["result"]
+        self.assertEqual(self.app.state()["job"]["status"], "COMPLETED")
+        self.assertEqual(self.app.get_job(accepted["job_id"])["result"]["snapshot_id"], remote["snapshot_id"])
+        conversation = self.app.new_conversation({})["conversation"]
+        self.app.conversation_store.append(conversation["id"], "user", "Explain the request outcome.")
+        self.app.conversation_store.append(conversation["id"], "assistant", "The available rule is retained.", status="partial")
+        self.app.get_conversation(conversation["id"])
+        before_conversation = copy.deepcopy(self.app.conversation)
+        before_view = self.app.state()["conversation"]
+        before_project = copy.deepcopy(self.app.project)
+        error = RemoteSourceError("REMOTE_SOURCE_AUTH_FAILED", "Repository authentication failed.")
+        for status in ("FAILED", "CANCELLED"):
+            with self.subTest(status=status):
+                def stop_update(*args, check_cancel=None, **kwargs):
+                    if status == "CANCELLED":
+                        self.app.cancel_event.set()
+                        check_cancel()
+                    raise error
+
+                with mock.patch("web_app.resolve_remote_source", side_effect=stop_update):
+                    failed_start = self.app.update_remote({"workspace_id": remote["workspace_id"], "token": ACCESS_TOKEN})
+                    failed = self.finish(failed_start["job_id"])
+                self.assertEqual(failed["status"], status)
+                self.assertEqual(self.app.state()["job"]["status"], status)
+                self.assertEqual(self.app.get_job(failed_start["job_id"])["status"], status)
+                if status == "FAILED":
+                    self.assertEqual(failed["error"]["code"], error.code)
+                with mock.patch("web_app.fetch_remote_source") as fetch, mock.patch("web_app.resolve_remote_source") as resolve:
+                    reopened = self.app.start_remote(self.payload())
+                self.assertTrue(reopened["source_reused"])
+                self.assertNotIn("job_id", reopened)
+                self.assertEqual(reopened["project"], before_project)
+                self.assertEqual(reopened["conversation"], before_view)
+                self.assertEqual(self.app.conversation_store.get(conversation["id"]), before_conversation)
+                refreshed = self.app.state()
+                self.assertIsNone(refreshed["active_job_id"])
+                self.assertIsNone(refreshed["job"])
+                self.assertEqual(refreshed["conversation"], before_view)
+                fetch.assert_not_called()
+                resolve.assert_not_called()
+
+    def test_reusing_current_cache_cannot_clear_running_update(self):
+        with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
+            remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]
+        entered, release = threading.Event(), threading.Event()
+
+        def paused_resolve(*args, **kwargs):
+            entered.set()
+            release.wait(5)
+            return dict(REMOTE_METADATA)
+
+        with mock.patch("web_app.resolve_remote_source", side_effect=paused_resolve):
+            accepted = self.app.update_remote({"workspace_id": remote["workspace_id"], "token": ACCESS_TOKEN})
+            try:
+                self.assertTrue(entered.wait(2))
+                with self.assertRaises(RequestError) as raised:
+                    self.app.start_remote(self.payload())
+                self.assertEqual(raised.exception.code, "JOB_ACTIVE")
+                current = self.app.state()
+                self.assertEqual(current["active_job_id"], accepted["job_id"])
+                self.assertEqual(current["job"]["status"], "RUNNING")
+            finally:
+                release.set()
+            completed = self.finish(accepted["job_id"])
+        self.assertEqual(completed["status"], "COMPLETED", completed)
+        self.assertEqual(completed["result"]["remote_update"]["status"], "up_to_date")
+
     def test_update_with_unchanged_commit_preserves_index_conversation_and_source_bytes(self):
         with mock.patch("web_app.fetch_remote_source", side_effect=self.fetched_source):
             remote = self.finish(self.app.start_remote(self.payload())["job_id"])["result"]

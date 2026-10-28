@@ -1,0 +1,234 @@
+{
+  "scope": "Actual Chrome and local HTTP WorkbenchState with real indexing, persistence and asynchronous jobs. Remote fetch/resolve is a controlled neutral fixture; no external repository/model calls. Auth failure is not a diagnosis of the user repository.",
+  "checks": [
+    {
+      "name": "remote_cache_created_once",
+      "passed": true
+    },
+    {
+      "name": "remote_source_is_active",
+      "passed": true
+    },
+    {
+      "name": "update_failure_keeps_existing_remote_cache",
+      "passed": true
+    },
+    {
+      "name": "update_failure_shows_retry_with_live_form_context",
+      "passed": true
+    },
+    {
+      "name": "update_failure_card_visible_below_header",
+      "passed": true
+    },
+    {
+      "name": "retry_dialog_stays_in_update_mode",
+      "passed": true
+    },
+    {
+      "name": "retry_dialog_keeps_repository_readonly",
+      "passed": true
+    },
+    {
+      "name": "retry_clears_credentials",
+      "passed": true
+    },
+    {
+      "name": "retry_uses_update_endpoint_twice",
+      "passed": true
+    },
+    {
+      "name": "retry_never_reconnects_cached_source",
+      "passed": true
+    },
+    {
+      "name": "retry_reaches_remote_resolver_again_without_download",
+      "passed": true
+    },
+    {
+      "name": "refresh_keeps_failed_status_not_fake_cached_success",
+      "passed": true
+    },
+    {
+      "name": "refresh_without_form_context_has_no_retry_button",
+      "passed": true
+    },
+    {
+      "name": "refresh_guides_explicit_reconnection_or_update",
+      "passed": true
+    },
+    {
+      "name": "refresh_card_visible_below_header",
+      "passed": true
+    },
+    {
+      "name": "refresh_makes_no_connect_or_update_post",
+      "passed": true
+    },
+    {
+      "name": "refresh_makes_no_remote_call",
+      "passed": true
+    },
+    {
+      "name": "no_page_errors",
+      "passed": true
+    },
+    {
+      "name": "no_external_requests",
+      "passed": true
+    },
+    {
+      "name": "no_model_requests",
+      "passed": true
+    }
+  ],
+  "api_requests": [
+    {
+      "path": "/api/state",
+      "method": "GET"
+    },
+    {
+      "path": "/api/source/remote",
+      "method": "POST",
+      "fields": [
+        "url",
+        "ref",
+        "subdirectory",
+        "token",
+        "encoding",
+        "source_format",
+        "extensions",
+        "reading_strategy",
+        "answer_detail",
+        "max_source_pages",
+        "framework_reference_path"
+      ]
+    },
+    {
+      "path": "/api/jobs/255f5c90bd4da5744e05cb7bcd67abbb",
+      "method": "GET"
+    },
+    {
+      "path": "/api/jobs/255f5c90bd4da5744e05cb7bcd67abbb",
+      "method": "GET"
+    },
+    {
+      "path": "/api/jobs/255f5c90bd4da5744e05cb7bcd67abbb",
+      "method": "GET"
+    },
+    {
+      "path": "/api/source/remote/update",
+      "method": "POST",
+      "fields": [
+        "workspace_id",
+        "token",
+        "username",
+        "ref",
+        "follow_default_branch"
+      ],
+      "workspace_id": "3046a0f883519753f82ec66baa4d80a2a1a1743684638c50de97184158018124"
+    },
+    {
+      "path": "/api/jobs/0c6180fb5bcf980255a76eed2ff8e2ae",
+      "method": "GET"
+    },
+    {
+      "path": "/api/jobs/0c6180fb5bcf980255a76eed2ff8e2ae",
+      "method": "GET"
+    },
+    {
+      "path": "/api/jobs/0c6180fb5bcf980255a76eed2ff8e2ae",
+      "method": "GET"
+    },
+    {
+      "path": "/api/source/remote/update",
+      "method": "POST",
+      "fields": [
+        "workspace_id",
+        "token",
+        "ref",
+        "follow_default_branch"
+      ],
+      "workspace_id": "3046a0f883519753f82ec66baa4d80a2a1a1743684638c50de97184158018124"
+    },
+    {
+      "path": "/api/jobs/4a8a378433742c3bd8e6b340703b7d91",
+      "method": "GET"
+    },
+    {
+      "path": "/api/jobs/4a8a378433742c3bd8e6b340703b7d91",
+      "method": "GET"
+    },
+    {
+      "path": "/api/jobs/4a8a378433742c3bd8e6b340703b7d91",
+      "method": "GET"
+    },
+    {
+      "path": "/api/state",
+      "method": "GET"
+    }
+  ],
+  "page_errors": [],
+  "external_requests": [],
+  "screenshots": [
+    "01-update-failed-before-refresh.png",
+    "02-retry-is-still-check-update.png",
+    "03-reloaded-update-failure-no-implicit-retry.png"
+  ],
+  "scenarios": [
+    {
+      "name": "update_failure_before_refresh",
+      "card": {
+        "status": "FAILED",
+        "canRetryForm": true,
+        "text": "源码接入未完成\n\n仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。\n\n当前仍使用原资料库，原对话已保留。\n\n查看接入设置并重试\n关闭这条结果",
+        "page": "sources",
+        "workspace_id": "3046a0f883519753f82ec66baa4d80a2a1a1743684638c50de97184158018124",
+        "top": 95.59375,
+        "bottom": 286.78125,
+        "titleTop": 116.59375,
+        "headerBottom": 66,
+        "visible": true,
+        "retryButtons": 1
+      }
+    },
+    {
+      "name": "retry_before_refresh",
+      "card": {
+        "status": "FAILED",
+        "canRetryForm": true,
+        "text": "源码接入未完成\n\n仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。\n\n当前仍使用原资料库，原对话已保留。\n\n查看接入设置并重试\n关闭这条结果",
+        "page": "sources",
+        "workspace_id": "3046a0f883519753f82ec66baa4d80a2a1a1743684638c50de97184158018124",
+        "top": 95.59375,
+        "bottom": 286.78125,
+        "titleTop": 116.59375,
+        "headerBottom": 66,
+        "visible": true,
+        "retryButtons": 1
+      },
+      "post_paths": [
+        "/api/source/remote",
+        "/api/source/remote/update",
+        "/api/source/remote/update"
+      ]
+    },
+    {
+      "name": "failed_update_after_refresh",
+      "card": {
+        "status": "FAILED",
+        "canRetryForm": false,
+        "text": "源码接入未完成\n\n仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。\n\n当前仍使用原资料库，原对话已保留。\n\n如需重试，请重新选择“从 Bitbucket 接入”，或在源码资料库选择“检查并更新”。\n\n关闭这条结果",
+        "page": "sources",
+        "workspace_id": "3046a0f883519753f82ec66baa4d80a2a1a1743684638c50de97184158018124",
+        "top": 95.59375,
+        "bottom": 318.578125,
+        "titleTop": 116.59375,
+        "headerBottom": 66,
+        "visible": true,
+        "retryButtons": 0
+      }
+    }
+  ],
+  "passed": true
+}

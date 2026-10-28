@@ -10,7 +10,7 @@ function harness(locale='en'){
   const events={},elements=new Map(),requests=[],stored=[];let responder=()=>assert.fail('Unexpected request');
   const get=id=>{if(!elements.has(id))elements.set(id,{id,value:'',checked:false,open:false,hidden:false,innerHTML:'',textContent:'',disabled:false,
     classList:{toggle(){},contains(){return false;}},setAttribute(){},removeAttribute(){},addEventListener:(name,handler)=>events[id+':'+name]=handler,
-    showModal(){this.open=true;},close(){this.open=false;},getClientRects(){return [{}];},focus(){}});return elements.get(id);};
+    showModal(){this.open=true;},close(){this.open=false;},getClientRects(){return [{}];},focus(){this.focused=true;},scrollIntoView(options){this.scrollOptions=options;}});return elements.get(id);};
   const document={documentElement:{classList:{toggle(){}}},createTreeWalker:()=>({nextNode:()=>false}),querySelectorAll:()=>[],querySelector:()=>null,
     getElementById:get,addEventListener:(name,handler)=>events[name]=handler};
   const context=vm.createContext({document,NodeFilter:{SHOW_TEXT:4},localStorage:{getItem:()=>locale,setItem:(...args)=>stored.push(args)},
@@ -293,4 +293,112 @@ test('an unchanged remote commit reports a repaired index rather than falsely sa
   await h.run(`startRemoteSource({workspace_id:'${remoteId}'},'/api/source/remote/update')`);
   const message=h.run('sourceUpdateNotice()');assert.match(message,/local index was rebuilt/);assert.doesNotMatch(message,/indexes were reused/);
   assert.equal(h.run('state.question'),'A draft about this source');assert.equal(h.run('state.conversation.id'),'current');
+});
+
+test('remote terminal failures stay above old conversations on every restored page',async()=>{
+  for(const page of ['workbench','sources','history'])for(const outcome of ['FAILED','CANCELLED','REJECTED']){
+    const h=harness();setup(h);fill(h);
+    h.run(`state.page='${page}';state.conversation.messages=Array.from({length:24},(_,i)=>({id:'prior-'+i,role:'assistant',status:'completed',content:'Earlier business answer '+i}));`);
+    h.respond(url=>{
+      if(url==='/api/source/remote'){
+        assert.match(h.get('page-content').innerHTML,/id="job-progress"/,'a request shows progress immediately');
+        return outcome==='REJECTED'?{__status:401,error:{code:'REMOTE_SOURCE_AUTH_FAILED'}}:{job_id:'fetch'};
+      }
+      return {job_id:'fetch',status:outcome,kind:'index',error:{code:'REMOTE_SOURCE_AUTH_FAILED'}};
+    });
+    await h.events['remote-source-form:submit']({preventDefault(){}});
+    assert.equal(h.run('state.page'),page,`${page}/${outcome}`);
+    assert.match(h.get('page-content').innerHTML,/^<section id="source-job-feedback"/);
+    assert.match(h.get('page-content').innerHTML,new RegExp(outcome==='CANCELLED'?'Source connection stopped':'Source connection did not complete'));
+    assert.match(h.get('page-content').innerHTML,/previous source library remains in use/);
+    assert.equal(h.run('state.conversation.messages.length'),24);
+    assert.equal(h.run('state.question'),'Unsent question');
+    assert.equal(h.get('source-job-feedback').focused,true);
+    assert.equal(h.get('source-job-feedback').scrollOptions.block,'start');
+    assert.doesNotMatch(h.get('page-content').innerHTML,/class="conversation-failure"/,'no duplicate source error buried in old business messages');
+    assert.doesNotMatch(h.run('JSON.stringify(state)'),/transient-secret/);
+    h.run('retryRemoteSource()');
+    assert.equal(h.get('remote-source-dialog').open,true);
+    assert.equal(h.get('remote-source-url').value,remote.remote_source.url);
+    assert.equal(h.get('remote-source-token').value,'');assert.equal(h.get('remote-source-username').value,'');
+    assert.equal(h.requests.length,outcome==='REJECTED'?1:2,'reviewing settings never resubmits automatically');
+  }
+});
+
+test('first download completion and cached reuse show durable distinct outcomes',async()=>{
+  for(const cached of [false,true]){
+    const h=harness();setup(h);fill(h);
+    h.respond(url=>url==='/api/source/remote'?(cached?{source_reused:true,project:remote}:{job_id:'fetch'}):{job_id:'fetch',status:'COMPLETED',kind:'index',result:remote});
+    await h.events['remote-source-form:submit']({preventDefault(){}});
+    assert.equal(h.run('state.page'),'sources');assert.equal(h.run('state.busy'),false);
+    assert.match(h.get('page-content').innerHTML,/Source connection complete/);
+    assert.match(h.get('page-content').innerHTML,new RegExp(cached?'without downloading':'Source was downloaded and locally indexed'));
+    assert.equal(h.get('source-job-feedback').focused,true);
+    assert.equal(h.requests.length,cached?1:2);
+    assert.equal(h.run('state.sourceJobFeedback.status'),'COMPLETED');
+    h.run('render()');assert.match(h.get('page-content').innerHTML,/id="source-job-feedback"/,'a later render does not erase the result');
+  }
+});
+
+test('reload restores the last failed or cancelled remote intake without downloading again',async()=>{
+  for(const status of ['FAILED','CANCELLED']){
+    const h=harness();h.respond(url=>{
+      assert.equal(url,'/api/state');return {session_token:'test',project:local,conversations:[],
+        job:{job_id:'prior-import',kind:'index',source_origin:'remote_repository',status,error:{code:'REMOTE_SOURCE_AUTH_FAILED'}}};
+    });
+    await h.run('initialize()');
+    assert.equal(h.run('state.sourceJobFeedback.status'),status);
+    assert.match(h.get('page-content').innerHTML,/^<section id="source-job-feedback"/);
+    assert.equal(h.get('source-job-feedback').focused,true);
+    assert.equal(h.requests.length,1);
+    assert.equal(h.run('state.project.source'),local.source);
+    assert.doesNotMatch(h.run('sourceJobFeedbackView()'),/data-retry-remote-source/);
+    h.run('retryRemoteSource()');assert.equal(h.get('remote-source-dialog').open,false);
+    assert.equal(h.requests.length,1,'reload must not guess the previous connection or update intent');
+  }
+});
+
+test('uncertain request or status connection loss never claims import completion or resubmits',async()=>{
+  for(const outcome of ['connection','lost-job']){
+    const h=harness();setup(h);fill(h);
+    h.respond(url=>{
+      if(outcome==='connection')throw new Error('Simulated lost connection');
+      return url==='/api/source/remote'?{job_id:'fetch'}:{__status:404,error:{code:'JOB_NOT_FOUND'}};
+    });
+    await h.events['remote-source-form:submit']({preventDefault(){}});
+    assert.equal(h.run('state.sourceJobFeedback.status'),'UNCONFIRMED');
+    assert.match(h.get('page-content').innerHTML,/Source connection outcome is not confirmed/);
+    assert.doesNotMatch(h.run('sourceJobFeedbackView()'),/data-retry-remote-source|Source connection complete/);
+    assert.equal(h.requests.length,outcome==='connection'?1:2);
+    assert.equal(h.get('source-job-feedback').focused,true);
+    assert.equal(h.run('state.busy'),false);
+  }
+});
+
+test('source results and private-repository guidance are translated without making credentials required',()=>{
+  const html=fs.readFileSync(path.join(web,'index.html'),'utf8');
+  assert.match(html,/remote-source-auth-help/);
+  for(const id of ['remote-source-token','remote-source-username'])assert.doesNotMatch(html.match(new RegExp('<input id="'+id+'"[^>]*>'))[0],/\brequired\b/);
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);setup(h);
+    for(const status of ['COMPLETED','FAILED','CANCELLED','UNCONFIRMED']){
+      h.run(`state.sourceNotice='已下載源碼並完成本機索引，可以開始提出業務問題。';state.error=apiErrorText({code:'REMOTE_SOURCE_AUTH_FAILED'});finishRemoteSourceFeedback('${status}')`);
+      const output=h.run('sourceJobFeedbackView()');assert.match(output,/id="source-job-feedback"/);
+      if(locale==='en')assert.doesNotMatch(output,/[\u3400-\u9fff]/);
+    }
+  }
+});
+
+
+test('retry before reload preserves the remote update endpoint instead of reopening cached source',async()=>{
+  const h=harness();currentRemote(h);h.run("openRemoteSource('update')");let attempt=0;
+  h.respond(url=>{
+    if(url==='/api/source/remote/update'){attempt++;return {job_id:'update-'+attempt};}
+    assert.equal(url,'/api/jobs/update-'+attempt);return attempt===1?{status:'FAILED',kind:'index',error:{code:'REMOTE_SOURCE_AUTH_FAILED'}}:{status:'COMPLETED',kind:'index',result:{...cloudRemote,remote_update:{status:'up_to_date'}}};
+  });
+  await h.events['remote-source-form:submit']({preventDefault(){}});
+  h.run('retryRemoteSource()');assert.equal(h.get('remote-source-dialog').open,true);
+  await h.events['remote-source-form:submit']({preventDefault(){}});
+  assert.equal(attempt,2);assert.equal(h.requests.filter(r=>r.url==='/api/source/remote').length,0);
+  assert.match(h.run('sourceJobFeedbackView()'),/unchanged/);
 });

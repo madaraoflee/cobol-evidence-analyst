@@ -1,0 +1,16 @@
+{
+  "scope": "The 10 frontend assets actually served by the isolated HTTP server; this is not a hash of the entire repository.",
+  "timestamp_utc": "2026-10-28T17:04:36.997393+00:00",
+  "sha256": {
+    "poc/web/layout.js": "a249ccbbf68d7bc22fa54245893183f61d9ffede535a69c9dff1a312e772ce78",
+    "poc/web/index.html": "1c017892c5c1543fde6562801d6f455cb0baddb3347616001aad761796d09ddc",
+    "poc/web/styles.css": "097073bd28e86aef5a7e277a13e2734db4e388d797bc25a19a1e48fda074ab21",
+    "poc/web/theme.js": "c8fc1639aa35e48c9ddfdb3550c03b4df54e077b4564250b8e36906a4eeb0a9c",
+    "poc/web/appearance.css": "5d1734d01a42b467cea5f136b2db18ba1697a5cf68317f76482008089284241f",
+    "poc/web/marked.LICENSE.md": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c",
+    "poc/web/i18n.js": "dfe93fbfe117cd0fd946a134b987e07306fd985569635cdd11fd217e0328c38b",
+    "poc/web/marked.umd.js": "0db7abc826b5ac76f6ed11951ae34074ba50438ce6ea8d52889203779e5cbbad",
+    "poc/web/app.js": "b4c598bee8e25df4dab58febccda577b4a436ee415f6f70dcb40490c1674ddf8",
+    "poc/web/markdown.js": "a8594d3af83600344c9ea108341eacb43382acb8382838fa5a2b2b8aeb95e64e"
+  }
+}

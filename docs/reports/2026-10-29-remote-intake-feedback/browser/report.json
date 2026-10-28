@@ -1,0 +1,994 @@
+{
+  "scope": "Actual Chrome and local HTTP WorkbenchState with real indexing, persistence and asynchronous jobs. Remote fetch only is a controlled neutral fixture; no external repository/model calls. Auth failure is not a diagnosis of the user repository.",
+  "baseline_commit": "8870217fbc6363e7fcb8cc360f342d98b537a2ec",
+  "server": "http://127.0.0.1:60984",
+  "checks": [
+    {
+      "name": "real_backend_restored_24_long_messages",
+      "passed": true
+    },
+    {
+      "name": "auth_workbench_async_job_created",
+      "passed": true
+    },
+    {
+      "name": "auth_workbench_terminal_is_visible_and_focused",
+      "passed": true
+    },
+    {
+      "name": "auth_workbench_title_below_header",
+      "passed": true
+    },
+    {
+      "name": "auth_workbench_original_page_preserved",
+      "passed": true
+    },
+    {
+      "name": "auth_workbench_original_history_retained",
+      "passed": true
+    },
+    {
+      "name": "auth_sources_async_job_created",
+      "passed": true
+    },
+    {
+      "name": "auth_sources_terminal_is_visible_and_focused",
+      "passed": true
+    },
+    {
+      "name": "auth_sources_title_below_header",
+      "passed": true
+    },
+    {
+      "name": "auth_sources_original_page_preserved",
+      "passed": true
+    },
+    {
+      "name": "auth_sources_original_history_retained",
+      "passed": true
+    },
+    {
+      "name": "auth_history_async_job_created",
+      "passed": true
+    },
+    {
+      "name": "auth_history_terminal_is_visible_and_focused",
+      "passed": true
+    },
+    {
+      "name": "auth_history_title_below_header",
+      "passed": true
+    },
+    {
+      "name": "auth_history_original_page_preserved",
+      "passed": true
+    },
+    {
+      "name": "auth_history_original_history_retained",
+      "passed": true
+    },
+    {
+      "name": "retry_reopens_original_url",
+      "passed": true
+    },
+    {
+      "name": "retry_credentials_empty",
+      "passed": true
+    },
+    {
+      "name": "reload_failed_remote_job_has_visible_feedback",
+      "passed": true
+    },
+    {
+      "name": "english_feedback_translated",
+      "passed": true
+    },
+    {
+      "name": "cancelled_feedback_visible",
+      "passed": true
+    },
+    {
+      "name": "submitted_credentials_are_cleared",
+      "passed": true
+    },
+    {
+      "name": "credentials_absent_frontend_state_and_storage",
+      "passed": true
+    },
+    {
+      "name": "post_rejection_feedback_visible",
+      "passed": true
+    },
+    {
+      "name": "poll_403_unconfirmed_visible",
+      "passed": true
+    },
+    {
+      "name": "poll_403_no_automatic_retry",
+      "passed": true
+    },
+    {
+      "name": "poll_404_unconfirmed_visible",
+      "passed": true
+    },
+    {
+      "name": "poll_404_no_automatic_retry",
+      "passed": true
+    },
+    {
+      "name": "lost_response_unconfirmed_visible",
+      "passed": true
+    },
+    {
+      "name": "lost_response_no_automatic_resubmit",
+      "passed": true
+    },
+    {
+      "name": "success_async_job_created",
+      "passed": true
+    },
+    {
+      "name": "success_feedback_visible",
+      "passed": true
+    },
+    {
+      "name": "success_changes_to_remote_source",
+      "passed": true
+    },
+    {
+      "name": "sync_cache_reused_without_job",
+      "passed": true
+    },
+    {
+      "name": "cache_makes_no_remote_fetch",
+      "passed": true
+    },
+    {
+      "name": "cache_feedback_visible",
+      "passed": true
+    },
+    {
+      "name": "manual_dismiss_removes_feedback",
+      "passed": true
+    },
+    {
+      "name": "dismiss_success_clears_old_source_notice",
+      "passed": true
+    },
+    {
+      "name": "narrow_zh-CN_title_below_header",
+      "passed": true
+    },
+    {
+      "name": "narrow_zh-CN_terminal_visible",
+      "passed": true
+    },
+    {
+      "name": "narrow_zh-CN_buttons_do_not_overflow",
+      "passed": true
+    },
+    {
+      "name": "narrow_zh-CN_page_has_no_horizontal_overflow",
+      "passed": true
+    },
+    {
+      "name": "narrow_en_title_below_header",
+      "passed": true
+    },
+    {
+      "name": "narrow_en_terminal_visible",
+      "passed": true
+    },
+    {
+      "name": "narrow_en_buttons_do_not_overflow",
+      "passed": true
+    },
+    {
+      "name": "narrow_en_page_has_no_horizontal_overflow",
+      "passed": true
+    },
+    {
+      "name": "no_browser_errors",
+      "passed": true
+    },
+    {
+      "name": "no_external_browser_requests",
+      "passed": true
+    },
+    {
+      "name": "no_model_requests",
+      "passed": true
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "async_auth_failure_from_workbench",
+      "submitted": {
+        "job_id": "a136cc26653ee78bcb02014317120927"
+      },
+      "during": {
+        "headerBottom": 66,
+        "focusedId": "",
+        "feedback": null,
+        "page": "workbench",
+        "busy": true,
+        "jobId": "a136cc26653ee78bcb02014317120927",
+        "error": "",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": null,
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      },
+      "after": {
+        "titleTop": 117,
+        "headerBottom": 66,
+        "feedbackText": "源码接入未完成\n\n仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。\n\n当前仍使用原资料库，原对话已保留。\n\n查看接入设置并重试\n关闭这条结果",
+        "focusedId": "source-job-feedback",
+        "feedback": {
+          "status": "FAILED",
+          "error": "仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。",
+          "detail": "",
+          "retained": true,
+          "retryable": true,
+          "canRetryForm": true
+        },
+        "page": "workbench",
+        "busy": false,
+        "jobId": null,
+        "error": "仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 96,
+          "bottom": 287.1875,
+          "height": 191.1875
+        },
+        "errorIntersectsViewport": true,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "async_auth_failure_from_sources",
+      "submitted": {
+        "job_id": "afd0227fec26bd72ba1408a39ec2f551"
+      },
+      "during": {
+        "headerBottom": 66,
+        "focusedId": "",
+        "feedback": null,
+        "page": "workbench",
+        "busy": true,
+        "jobId": "afd0227fec26bd72ba1408a39ec2f551",
+        "error": "",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": null,
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      },
+      "after": {
+        "titleTop": 116.59375,
+        "headerBottom": 66,
+        "feedbackText": "源码接入未完成\n\n仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。\n\n当前仍使用原资料库，原对话已保留。\n\n查看接入设置并重试\n关闭这条结果",
+        "focusedId": "source-job-feedback",
+        "feedback": {
+          "status": "FAILED",
+          "error": "仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。",
+          "detail": "",
+          "retained": true,
+          "retryable": true,
+          "canRetryForm": true
+        },
+        "page": "sources",
+        "busy": false,
+        "jobId": null,
+        "error": "仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 95.59375,
+          "bottom": 286.78125,
+          "height": 191.1875
+        },
+        "errorIntersectsViewport": true,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "async_auth_failure_from_history",
+      "submitted": {
+        "job_id": "075368ee3280c07896fe5e424e7b9d92"
+      },
+      "during": {
+        "headerBottom": 66,
+        "focusedId": "",
+        "feedback": null,
+        "page": "workbench",
+        "busy": true,
+        "jobId": "075368ee3280c07896fe5e424e7b9d92",
+        "error": "",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": null,
+        "errorIntersectsViewport": false,
+        "scrollables": []
+      },
+      "after": {
+        "titleTop": 212.59375,
+        "headerBottom": 66,
+        "feedbackText": "源码接入未完成\n\n仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。\n\n当前仍使用原资料库，原对话已保留。\n\n查看接入设置并重试\n关闭这条结果",
+        "focusedId": "source-job-feedback",
+        "feedback": {
+          "status": "FAILED",
+          "error": "仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。",
+          "detail": "",
+          "retained": true,
+          "retryable": true,
+          "canRetryForm": true
+        },
+        "page": "history",
+        "busy": false,
+        "jobId": null,
+        "error": "仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 191.59375,
+          "bottom": 382.78125,
+          "height": 191.1875
+        },
+        "errorIntersectsViewport": true,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "cancel_import",
+      "after": {
+        "titleTop": 117,
+        "headerBottom": 66,
+        "feedbackText": "已停止源码接入\n\n已取消远程源码接入，原资料库和对话已保留。\n\n当前仍使用原资料库，原对话已保留。\n\n查看接入设置并重试\n关闭这条结果",
+        "focusedId": "source-job-feedback",
+        "feedback": {
+          "status": "CANCELLED",
+          "error": "已取消远程源码接入，原资料库和对话已保留。",
+          "detail": "",
+          "retained": true,
+          "retryable": true,
+          "canRetryForm": true
+        },
+        "page": "workbench",
+        "busy": false,
+        "jobId": null,
+        "error": "已取消远程源码接入，原资料库和对话已保留。",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 96,
+          "bottom": 287.1875,
+          "height": 191.1875
+        },
+        "errorIntersectsViewport": true,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "post_direct_rejection",
+      "code": "REMOTE_SOURCE_INVALID_URL",
+      "after": {
+        "titleTop": 117,
+        "headerBottom": 66,
+        "feedbackText": "源码接入未完成\n\n请提供 Bitbucket Cloud 或 Server / Data Center 的 HTTPS 仓库或目录链接，不要在链接内包含账号或密码。\n\n当前仍使用原资料库，原对话已保留。\n\n查看接入设置并重试\n关闭这条结果",
+        "focusedId": "source-job-feedback",
+        "feedback": {
+          "status": "FAILED",
+          "error": "请提供 Bitbucket Cloud 或 Server / Data Center 的 HTTPS 仓库或目录链接，不要在链接内包含账号或密码。",
+          "detail": "",
+          "retained": true,
+          "retryable": true,
+          "canRetryForm": true
+        },
+        "page": "workbench",
+        "busy": false,
+        "jobId": null,
+        "error": "请提供 Bitbucket Cloud 或 Server / Data Center 的 HTTPS 仓库或目录链接，不要在链接内包含账号或密码。",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 96,
+          "bottom": 287.1875,
+          "height": 191.1875
+        },
+        "errorIntersectsViewport": true,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "poll_403_unconfirmed",
+      "fault_injection": "Real local HTTP request uses expired session header",
+      "after": {
+        "titleTop": 117,
+        "headerBottom": 66,
+        "feedbackText": "源码接入结果尚未确认\n\n会话已失效，请刷新页面。\n\n进度连接已中断，后台工作可能仍在继续。请刷新页面查看状态。\n\n关闭这条结果",
+        "focusedId": "source-job-feedback",
+        "feedback": {
+          "status": "UNCONFIRMED",
+          "error": "会话已失效，请刷新页面。",
+          "detail": "",
+          "retained": false,
+          "retryable": false,
+          "canRetryForm": true
+        },
+        "page": "workbench",
+        "busy": false,
+        "jobId": null,
+        "error": "会话已失效，请刷新页面。",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 96,
+          "bottom": 287.1875,
+          "height": 191.1875
+        },
+        "errorIntersectsViewport": true,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "poll_404_unconfirmed",
+      "fault_injection": "Real local HTTP request uses unknown job id",
+      "after": {
+        "titleTop": 117,
+        "headerBottom": 66,
+        "feedbackText": "源码接入结果尚未确认\n\n本机服务暂时无法完成操作。 (REQUEST_FAILED)\n\n进度连接已中断，后台工作可能仍在继续。请刷新页面查看状态。\n\n关闭这条结果",
+        "focusedId": "source-job-feedback",
+        "feedback": {
+          "status": "UNCONFIRMED",
+          "error": "本机服务暂时无法完成操作。 (REQUEST_FAILED)",
+          "detail": "",
+          "retained": false,
+          "retryable": false,
+          "canRetryForm": true
+        },
+        "page": "workbench",
+        "busy": false,
+        "jobId": null,
+        "error": "本机服务暂时无法完成操作。 (REQUEST_FAILED)",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 96,
+          "bottom": 287.1875,
+          "height": 191.1875
+        },
+        "errorIntersectsViewport": true,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "accepted_post_response_lost",
+      "fault_injection": "Actual local POST accepted, browser response then aborted",
+      "after": {
+        "titleTop": 117,
+        "headerBottom": 66,
+        "feedbackText": "源码接入结果尚未确认\n\n本机处理：未能连接到接口。 下一步：检查网络、接口地址和服务连通性。 本地关联编号：local-a9cfce2ccd134c909d548c26374b93f1 此关联编号由浏览器产生，不是服务端请求编号。\n\n进度连接已中断，后台工作可能仍在继续。请刷新页面查看状态。\n\n关闭这条结果",
+        "focusedId": "source-job-feedback",
+        "feedback": {
+          "status": "UNCONFIRMED",
+          "error": "本机处理：未能连接到接口。 下一步：检查网络、接口地址和服务连通性。 本地关联编号：local-a9cfce2ccd134c909d548c26374b93f1 此关联编号由浏览器产生，不是服务端请求编号。",
+          "detail": "",
+          "retained": false,
+          "retryable": false,
+          "canRetryForm": true
+        },
+        "page": "workbench",
+        "busy": false,
+        "jobId": null,
+        "error": "本机处理：未能连接到接口。 下一步：检查网络、接口地址和服务连通性。 本地关联编号：local-a9cfce2ccd134c909d548c26374b93f1 此关联编号由浏览器产生，不是服务端请求编号。",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/local-source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 96,
+          "bottom": 310.984375,
+          "height": 214.984375
+        },
+        "errorIntersectsViewport": true,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "first_success",
+      "after": {
+        "titleTop": 116.59375,
+        "headerBottom": 66,
+        "feedbackText": "源码接入完成\n\n已下载源码并完成本地索引，可以开始提出业务问题。\n\n关闭这条结果",
+        "focusedId": "source-job-feedback",
+        "feedback": {
+          "status": "COMPLETED",
+          "error": "",
+          "detail": "已下載源碼並完成本機索引，可以開始提出業務問題。",
+          "retained": false,
+          "retryable": false,
+          "canRetryForm": true
+        },
+        "page": "sources",
+        "busy": false,
+        "jobId": null,
+        "error": "",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/remote-sources/144daa6fba16df85b95610c8ab009055/source",
+        "sourceNotice": "已下載源碼並完成本機索引，可以開始提出業務問題。",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 95.59375,
+          "bottom": 277.578125,
+          "height": 181.984375
+        },
+        "errorIntersectsViewport": true,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "synchronous_cache",
+      "response": {
+        "source_reused": true
+      },
+      "after": {
+        "titleTop": 116.59375,
+        "headerBottom": 66,
+        "feedbackText": "源码接入完成\n\n已打开本地副本，没有重新下载源码。\n\n关闭这条结果",
+        "focusedId": "source-job-feedback",
+        "feedback": {
+          "status": "COMPLETED",
+          "error": "",
+          "detail": "已開啟本機副本，沒有重新下載源碼。",
+          "retained": false,
+          "retryable": false,
+          "canRetryForm": true
+        },
+        "page": "sources",
+        "busy": false,
+        "jobId": null,
+        "error": "",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/remote-sources/144daa6fba16df85b95610c8ab009055/source",
+        "sourceNotice": "已開啟本機副本，沒有重新下載源碼。",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "errorRect": {
+          "top": 95.59375,
+          "bottom": 277.578125,
+          "height": 181.984375
+        },
+        "errorIntersectsViewport": true,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "narrow_zh-CN",
+      "after": {
+        "titleTop": 117.28125,
+        "headerBottom": 57,
+        "feedbackText": "源码接入未完成\n\n仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。\n\n当前仍使用原资料库，原对话已保留。\n\n查看接入设置并重试\n关闭这条结果",
+        "focusedId": "source-job-feedback",
+        "feedback": {
+          "status": "FAILED",
+          "error": "仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。",
+          "detail": "",
+          "retained": true,
+          "retryable": true,
+          "canRetryForm": true
+        },
+        "page": "sources",
+        "busy": false,
+        "jobId": null,
+        "error": "仓库验证未通过。Cloud 请核对账号邮箱、API token 及读取权限；Server / Data Center 请核对访问令牌。",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/remote-sources/144daa6fba16df85b95610c8ab009055/source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "errorRect": {
+          "top": 96.28125,
+          "bottom": 335.0625,
+          "height": 238.78125
+        },
+        "errorIntersectsViewport": true,
+        "scrollables": []
+      }
+    },
+    {
+      "name": "narrow_en",
+      "after": {
+        "titleTop": 117.28125,
+        "headerBottom": 57,
+        "feedbackText": "Source connection did not complete\n\nRepository authentication failed. For Cloud, check your account email, API token and read permission; for Server / Data Center, check the access token.\n\nThe previous source library remains in use and its conversations are preserved.\n\nReview connection settings and retry\nDismiss this result",
+        "focusedId": "source-job-feedback",
+        "feedback": {
+          "status": "FAILED",
+          "error": "Repository authentication failed. For Cloud, check your account email, API token and read permission; for Server / Data Center, check the access token.",
+          "detail": "",
+          "retained": true,
+          "retryable": true,
+          "canRetryForm": true
+        },
+        "page": "sources",
+        "busy": false,
+        "jobId": null,
+        "error": "Repository authentication failed. For Cloud, check your account email, API token and read permission; for Server / Data Center, check the access token.",
+        "source": "/private/tmp/remote-feedback-ui-qa-qvo553on/remote-sources/144daa6fba16df85b95610c8ab009055/source",
+        "sourceNotice": "",
+        "dialogOpen": false,
+        "globalNoticeHidden": true,
+        "formErrorHidden": true,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "errorRect": {
+          "top": 96.28125,
+          "bottom": 464.25,
+          "height": 367.96875
+        },
+        "errorIntersectsViewport": true,
+        "scrollables": []
+      }
+    }
+  ],
+  "page_errors": [],
+  "external_requests": [],
+  "api_requests": [
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/a136cc26653ee78bcb02014317120927"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/a136cc26653ee78bcb02014317120927"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/a136cc26653ee78bcb02014317120927"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/afd0227fec26bd72ba1408a39ec2f551"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/afd0227fec26bd72ba1408a39ec2f551"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/afd0227fec26bd72ba1408a39ec2f551"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/075368ee3280c07896fe5e424e7b9d92"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/075368ee3280c07896fe5e424e7b9d92"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/075368ee3280c07896fe5e424e7b9d92"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/260ba4a7407903355d6456e7106e847b"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/260ba4a7407903355d6456e7106e847b"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/260ba4a7407903355d6456e7106e847b"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/b12fdbe875257ec56b111e9a2e46ef3a"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/b12fdbe875257ec56b111e9a2e46ef3a"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/b12fdbe875257ec56b111e9a2e46ef3a"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/5758c891f78fcf8bec2129bbc285a174"
+    },
+    {
+      "method": "POST",
+      "path": "/api/jobs/5758c891f78fcf8bec2129bbc285a174/cancel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/5758c891f78fcf8bec2129bbc285a174"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/dbf6d9260de36cb3f6d4abc8f3bc9554"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/dbf6d9260de36cb3f6d4abc8f3bc9554"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/dbf6d9260de36cb3f6d4abc8f3bc9554"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/dbf6d9260de36cb3f6d4abc8f3bc9554"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/fd90b4d4ef31a006efa9e7a6efb36e4a"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/fd90b4d4ef31a006efa9e7a6efb36e4a"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/fd90b4d4ef31a006efa9e7a6efb36e4a"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/fd90b4d4ef31a006efa9e7a6efb36e4a"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/aa28da4d70dad880d1bcb9420c302d30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/aa28da4d70dad880d1bcb9420c302d30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/aa28da4d70dad880d1bcb9420c302d30"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/f9443014859566a446241c2f9e5cd025"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/f9443014859566a446241c2f9e5cd025"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/f9443014859566a446241c2f9e5cd025"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/e246ccdbbb825ba26b677788a6e0f8ef"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/e246ccdbbb825ba26b677788a6e0f8ef"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/e246ccdbbb825ba26b677788a6e0f8ef"
+    },
+    {
+      "method": "POST",
+      "path": "/api/source/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/cbf278c86f1294178019e08e4e82dfa2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/cbf278c86f1294178019e08e4e82dfa2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/cbf278c86f1294178019e08e4e82dfa2"
+    }
+  ],
+  "screenshots": [
+    "after-workbench-progress.png",
+    "after-workbench-failed-viewport.png",
+    "after-sources-progress.png",
+    "after-sources-failed-viewport.png",
+    "after-history-progress.png",
+    "after-history-failed-viewport.png",
+    "after-reloaded-failure.png",
+    "after-failure-english.png",
+    "after-failure-dark-english.png",
+    "after-failure-dark-chinese.png",
+    "after-cancelled.png",
+    "after-post-rejection.png",
+    "after-poll-403-unconfirmed.png",
+    "after-poll-404-unconfirmed.png",
+    "after-lost-response-unconfirmed.png",
+    "after-first-success.png",
+    "after-cached-success.png",
+    "after-narrow-zh-CN.png",
+    "after-narrow-en.png"
+  ],
+  "passed": true
+}

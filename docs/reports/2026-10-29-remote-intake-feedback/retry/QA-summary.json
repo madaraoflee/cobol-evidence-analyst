@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "checks": 20,
+  "screenshots": [
+    "01-update-failed-before-refresh.png",
+    "02-retry-is-still-check-update.png",
+    "03-reloaded-update-failure-no-implicit-retry.png"
+  ],
+  "scope": "Actual Chrome and local HTTP WorkbenchState with real indexing, persistence and asynchronous jobs. Remote fetch/resolve is a controlled neutral fixture; no external repository/model calls. Auth failure is not a diagnosis of the user repository.",
+  "served_frontend_hashes_identical": true,
+  "owned_server_closed": true,
+  "post_paths": [
+    "/api/source/remote",
+    "/api/source/remote/update",
+    "/api/source/remote/update"
+  ]
+}
