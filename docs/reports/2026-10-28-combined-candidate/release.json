@@ -1,0 +1,69 @@
+{
+  "release_tag": "v2026.10.28.4-rc.1",
+  "release_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.10.28.4-rc.1",
+  "published_at": "2026-10-28T16:30:01Z",
+  "prerelease": true,
+  "source_commit": "6cc18a9628c442e894e5373c8883b3f5198e953b",
+  "build_run": {
+    "attempt": 1,
+    "conclusion": "success",
+    "createdAt": "2026-10-28T15:40:06Z",
+    "headSha": "6cc18a9628c442e894e5373c8883b3f5198e953b",
+    "status": "completed",
+    "updatedAt": "2026-10-28T16:25:46Z",
+    "url": "https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/40718276069"
+  },
+  "acceptance": {
+    "candidate_allowed": true,
+    "formal_publication_allowed": false,
+    "compiled_samples_passed": 79,
+    "local_python_passed": 4133,
+    "frontend_passed": 250,
+    "windows_python_passed": 4131,
+    "windows_posix_only_skipped": 2
+  },
+  "assets": [
+    {
+      "name": "ACCEPTANCE-MANIFEST.json",
+      "size": 47542,
+      "digest": "sha256:ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.28.4-rc.1/ACCEPTANCE-MANIFEST.json"
+    },
+    {
+      "name": "BUILD-INFO.json",
+      "size": 1149,
+      "digest": "sha256:1fec606072576fdd09dc9fed5c0172cd679e1928de9be2aecaaaf6a6456eb52e",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.28.4-rc.1/BUILD-INFO.json"
+    },
+    {
+      "name": "CANDIDATE-GATE.json",
+      "size": 10700,
+      "digest": "sha256:bbbb26bcf2d5fa17611891447dede11f97759ffd67021c578453c5ed19fe56a6",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.28.4-rc.1/CANDIDATE-GATE.json"
+    },
+    {
+      "name": "CANDIDATE-POLICY.json",
+      "size": 198,
+      "digest": "sha256:3fac6d421eb44f8bd5668d6175eb6dfd60a56e31ef2ad1a10953a6ede23733e5",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.28.4-rc.1/CANDIDATE-POLICY.json"
+    },
+    {
+      "name": "COBOLWorkbench-windows-x64.zip",
+      "size": 20807137,
+      "digest": "sha256:ccb7e5461ed687cfa2342ddc1d789f6d111f963e1facc1d3dbfcd2e4518d482a",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.28.4-rc.1/COBOLWorkbench-windows-x64.zip"
+    },
+    {
+      "name": "COBOLWorkbench-windows-x64.zip.sha256",
+      "size": 98,
+      "digest": "sha256:6a84131622d177173c3fffc32f12111e312c5fe15179d585e4e8ee6553c58597",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.28.4-rc.1/COBOLWorkbench-windows-x64.zip.sha256"
+    },
+    {
+      "name": "COMPILED-ACCEPTANCE.json",
+      "size": 12986685,
+      "digest": "sha256:eb560cb413128fb772afd30162137578517c3ba67e00f92e29a62683d7b1bdbb",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.28.4-rc.1/COMPILED-ACCEPTANCE.json"
+    }
+  ]
+}

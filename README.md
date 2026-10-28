@@ -1,16 +1,18 @@
 # COBOL Evidence Analyst
 
+**最新 Windows 测试候选：[`v2026.10.28.4-rc.1`](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.10.28.4-rc.1)。** [下载可直接运行的 Windows x64 ZIP](https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.28.4-rc.1/COBOLWorkbench-windows-x64.zip)。本版汇总业务优先回答、自定义 system 回答要求、Cloud 与本地源码缓存、首问供证、业务索引文档检索、流式回答与继续补查修复；应用冻结于 `6cc18a9`。Windows 构建及最终 EXE 的 79 项离线样本通过，7 个发布文件哈希已复核。完整解压启动，同一用户沿用原配置、历史及源码目录。源码回归、Windows 平台例外、包身份及现场验收边界见[整合与发布记录](./docs/reports/2026-10-28-combined-candidate/README.md)；正式版仍保留原版本。
+
 **2026-10-20 恢复 Windows 候选构建授权：** 当前重点是有界调查、检索供证与回答核验；界面保持现有问答流程。用户已明确允许在真实界面测试后手动构建 Windows 候选并交付 GitHub；正式发布仍须通过[同包联合验收](./docs/joint-release-acceptance.md)。Mac 本次只同步与 GitHub 一致的开发源码，不生成 Mac 应用包。下方历史候选包不包含本轮修复，新包是否构建成功及其身份以实际运行记录为准；源码修复范围与证据见[整合报告](./docs/reports/2026-10-19-bounded-quality-integration.md)。
 
 本轮真实模型问答、原始截图、误删失败、接口失败和最终代码回放分别保存在[真实界面测试记录](./docs/reports/2026-10-20-live-ui/README.md)。有限源码核验只核对其明确支持的语法，不能把未核实的业务推导当作源码矛盾，也不能将保留正文视为已证明正确。
 
-**2026-10-17 多轮分析候选：** 新版支持按完成度推进、实时回答草稿和有来源绑定的跨轮源码记忆。应用冻结于 [`1c3fb71`](https://github.com/madaraoflee/cobol-evidence-analyst/commit/1c3fb714fb275648a053f8861f129246d73383fb)；[下载 Windows 候选包](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/39064458797/artifacts/12114081375)，包指纹、解压步骤与验收范围见[验证记录](./docs/reports/2026-10-17-completion-driven-analysis.md)。当前正式下载入口仍保留旧正式版；采用新版应下载此候选包，或更新 `main` 后运行源码。
+**2026-10-17 多轮分析候选：** 新版支持按完成度推进、实时回答草稿和有来源绑定的跨轮源码记忆。应用冻结于 [`1c3fb71`](https://github.com/madaraoflee/cobol-evidence-analyst/commit/1c3fb714fb275648a053f8861f129246d73383fb)；[下载 Windows 候选包](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/39064458797/artifacts/12114081375)，包指纹、解压步骤与验收范围见[验证记录](./docs/reports/2026-10-17-completion-driven-analysis.md)。该历史候选保留用于追溯；测试最新改动请使用页面顶部的新候选，或更新 `main` 后运行源码。
 
 **统一版本以 `main` 为准，Windows 为主要交付平台。** 默认提供详细业务解释，按输入、条件、执行顺序、字段变化和结果展开。Mac 本地开发源码与 GitHub 使用同一主分支，本次 Windows 候选绑定其中的冻结提交；日常使用无需在原版、改进版之间选择。下载、更新与版本核对见[统一版本说明](./docs/unified-release.md)，业务评估记录见[详细回答验证报告](./docs/reports/2026-10-07-detailed-business-correction.md)。
 
 **系统的最终交付是通用业务分析：直接提出业务问题，由系统在本地代码库查找、阅读和解释相关逻辑。** 没有固定业务主题词典或预置问答路线；演示案例只是操作示例。真实作业调度作为后续可选能力，当前聚焦本地 COBOL/COPYBOOK 与用户提供的框架资料。
 
-**桌面应用交付：** 使用[统一发布入口](https://github.com/madaraoflee/cobol-evidence-analyst/releases/latest)中对应系统的 ZIP。办公室电脑只需完整解压运行；Windows 已有桌面运行组件时打开原生窗口，缺少时改用已有浏览器，也可双击包内 `OPEN-IN-BROWSER.bat`。维护者在 Windows 使用根目录 `build_app.bat`，macOS 使用 `build_app.command` 分别构建。Python 业务模块采用编译交付；首次准备、配置、更新和交付验收见[桌面版打包与使用](./docs/desktop-app.md)。
+**桌面应用交付：** 本轮 Windows 测试使用页面顶部的新候选；[正式发布入口](https://github.com/madaraoflee/cobol-evidence-analyst/releases/latest)保留最近完成正式联合验收的版本。办公室电脑只需完整解压运行；Windows 已有桌面运行组件时打开原生窗口，缺少时改用已有浏览器，也可双击包内 `OPEN-IN-BROWSER.bat`。维护者在 Windows 使用根目录 `build_app.bat`，macOS 使用 `build_app.command` 分别构建。Python 业务模块采用编译交付；首次准备、配置、更新和交付验收见[桌面版打包与使用](./docs/desktop-app.md)。
 
 **源码开发入口（2026-10-04）：以 GitHub 的 `main` 分支为准。** 以下操作面向源码运行方式，与上述桌面应用交付分开。源码运行需要 Python 3.10 或更高版本，现有 Python 3.13.4 可继续使用，不需要安装额外 Python 包或构建前端；Git 用于开发者获取和更新代码，Node 仅供开发者运行页面测试。首次下载，在开发电脑的 Windows 终端执行：
 
