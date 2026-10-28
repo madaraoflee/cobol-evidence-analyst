@@ -667,7 +667,7 @@ def _prompt_payload(payload):
                 "Do not invent a schedule, online deployment, domain label or successful runtime outcome."}
         if payload.get("budget_wire_compact"):
             contract["business_explanation"] = {
-                "task": "Explain the business first for a newcomer, then separate relevant Batch job, "
+                "task": "Explain the business purpose first for a newcomer, then separate relevant Batch job, "
                     "Online function / Programs, Tables and Files roles and data flow. "
                     "Use supplied code; read relevant located implementations as needed."}
     if discovery_only:
