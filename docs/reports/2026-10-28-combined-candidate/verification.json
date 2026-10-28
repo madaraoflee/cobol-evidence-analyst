@@ -1,0 +1,18 @@
+{
+  "base_commit": "95ee098025bd7c71549d76b4239bf048e73b28f8",
+  "scope": "Source regression before candidate build; no native or office acceptance claimed",
+  "python": {
+    "passed": 4133,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "frontend": {
+    "passed": 250,
+    "failures": 0,
+    "skipped": 0
+  },
+  "source_files_unchanged_during_regression": 690,
+  "pipeline_version": "question-evidence-v58",
+  "prompt_version": "business-chat-v49"
+}

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -58,6 +59,66 @@ class ExplicitInvestigationContinuationTests(unittest.TestCase):
         replay = fixture.invoke(resume_run_id=prior["agent_result"]["run_id"])
         self.assertEqual(replay["agent_result"]["answer"], prior["agent_result"]["answer"])
         self.assertEqual(len(fixture.calls), 1)
+
+    def test_continuation_keeps_learned_focus_subject_and_search_history(self):
+        fixture = self.fixture
+        prior = fixture.invoke()
+        old_id = prior["agent_result"]["run_id"]
+        saved = fixture.store.load(old_id)
+        checkpoint = deepcopy(saved["checkpoint"])
+        checkpoint["navigation_state"] = {
+            "search_terms": ["OUT-AMOUNT"], "focus_paths": ["entry.cbl"]}
+        subject = checkpoint["session_subject"]
+        self.assertEqual(subject["schema"], "conversation-subject/v1")
+        earlier_search = {"query": "PREVIOUS-MISSING-TERM", "matched_files": 0, "matched_pages": 0}
+        checkpoint["completed_searches"].append(earlier_search)
+        checkpoint["completed_actions"].append({"search": [earlier_search["query"]], "added_pages": 0})
+        fixture.store.checkpoint(old_id, checkpoint, status="completed")
+        before = fixture.store.load(old_id)
+        with patch("business_chat.build_business_map", wraps=business_chat.build_business_map) as mapping:
+            continued = self.continue_run(prior)
+        first_navigation = mapping.call_args_list[0].kwargs
+        self.assertEqual(first_navigation["search_terms"], ["OUT-AMOUNT"])
+        self.assertEqual(first_navigation["focus_paths"], ["entry.cbl"])
+        self.assertIn({"role": "assistant", "investigation_state": {"session_subject": subject}},
+                      first_navigation["history"])
+        payload = fixture.calls[-1]
+        self.assertEqual(payload["question"], fixture.question)
+        self.assertEqual(payload["draft_answer"], prior["agent_result"]["answer"])
+        self.assertIn(earlier_search, payload["completed_searches"])
+        self.assertIn({"search": [earlier_search["query"]], "added_pages": 0}, payload["completed_actions"])
+        current = self.assert_new_ledger(prior, continued)
+        self.assertTrue(current["checkpoint"]["continuation_requested"])
+        self.assertIn(earlier_search, current["checkpoint"]["completed_searches"])
+        self.assertEqual(fixture.store.load(old_id), before)
+
+    def test_legacy_continuation_restores_searches_from_result_or_last_request(self):
+        fixture = self.fixture
+        for source in ("result", "nested_result", "request_payload"):
+            with self.subTest(source=source):
+                prior = fixture.invoke()
+                old_id = prior["agent_result"]["run_id"]
+                checkpoint = deepcopy(fixture.store.load(old_id)["checkpoint"])
+                checkpoint.pop("completed_searches")
+                earlier_search = {"query": "PRIOR-SEARCH-" + source,
+                                  "matched_files": 0, "matched_pages": 0}
+                if source == "result":
+                    checkpoint["result"]["investigation"]["searches"].append(earlier_search)
+                else:
+                    checkpoint["result"].pop("investigation")
+                    if source == "nested_result":
+                        checkpoint["result"]["agent_result"]["investigation"]["searches"].append(earlier_search)
+                        checkpoint["request_payload"].pop("completed_searches", None)
+                    else:
+                        checkpoint["result"]["agent_result"].pop("investigation")
+                        checkpoint["request_payload"]["completed_searches"].append(earlier_search)
+                fixture.store.checkpoint(old_id, checkpoint, status="completed")
+                before = fixture.store.load(old_id)
+                continued = self.continue_run(prior)
+                self.assertIn(earlier_search, fixture.calls[-1]["completed_searches"])
+                current = self.assert_new_ledger(prior, continued)
+                self.assertIn(earlier_search, current["checkpoint"]["completed_searches"])
+                self.assertEqual(fixture.store.load(old_id), before)
 
     def test_two_continuations_keep_distinct_round_one_source_origins(self):
         fixture = self.fixture
@@ -178,12 +239,23 @@ class ExplicitInvestigationContinuationTests(unittest.TestCase):
     def test_changed_source_uses_current_source_without_copying_old_draft(self):
         fixture = self.fixture
         prior = fixture.invoke()
+        old_id = prior["agent_result"]["run_id"]
+        checkpoint = deepcopy(fixture.store.load(old_id)["checkpoint"])
+        old_search = {"query": "OBSOLETE-MISSING-TERM", "matched_files": 0, "matched_pages": 0}
+        checkpoint["completed_searches"].append(old_search)
+        checkpoint["navigation_state"] = {"search_terms": [old_search["query"]], "focus_paths": ["entry.cbl"]}
+        fixture.store.checkpoint(old_id, checkpoint, status="completed")
         fixture.source_file.write_text(fixture.source_file.read_text().replace(
             "IN-AMOUNT * 2", "IN-AMOUNT * 3"), encoding="utf-8")
         fixture.rebuild()
-        continued = self.continue_run(prior)
+        with patch("business_chat.build_business_map", wraps=business_chat.build_business_map) as mapping:
+            continued = self.continue_run(prior)
         self.assertIn("IN-AMOUNT * 3", continued["agent_result"]["answer"])
         self.assertNotIn("draft_answer", fixture.calls[-1])
+        self.assertNotIn(old_search, fixture.calls[-1]["completed_searches"])
+        self.assertIsNone(mapping.call_args_list[0].kwargs["search_terms"])
+        self.assertNotIn("focus_paths", mapping.call_args_list[0].kwargs)
+        self.assertFalse(fixture.calls[-1].get("analysis_memory", {}).get("continuation_requested"))
         self.assert_new_ledger(prior, continued)
 
     def test_removed_old_source_path_uses_current_location_without_waiting(self):

@@ -144,6 +144,9 @@ class CompletionDrivenChatTests(unittest.TestCase):
         def supplement(payload, number):
             self.assertEqual(payload["question"], self.question)
             self.assertEqual(payload["draft_answer"], prior["answer"])
+            self.assertTrue(payload["analysis_memory"]["continuation_requested"])
+            self.assertIn("不从头重复定位或重查已解决事项", payload["task"])
+            self.assertIn("段落原样保留", payload["task"])
             self.assertGreater(payload["investigation_budget"]["reads_per_turn"], 0)
             if number == 8:
                 self.assertEqual(payload["investigation_budget"]["remaining_model_requests"], 8)
@@ -166,6 +169,44 @@ class CompletionDrivenChatTests(unittest.TestCase):
         saved = store.load(continued["run_id"])
         self.assertEqual(saved["checkpoint"]["quality"]["continued_from_run_id"], prior["run_id"])
         self.assertEqual(len(saved["requests"]), 2)
+
+    def test_continuation_final_delivery_preserves_previous_answer_and_continuation_task(self):
+        prior = self.ask(lambda payload, number: self.cited_answer(payload), request_guard=1)
+        self.assertNotIn("continuation_requested", self.requests[0].get("analysis_memory", {}))
+
+        def supplement(payload, number):
+            self.assertEqual(payload["question"], self.question)
+            self.assertEqual(payload["draft_answer"], prior["answer"])
+            self.assertTrue(payload["analysis_memory"]["continuation_requested"])
+            self.assertEqual(payload["investigation_budget"]["reads_per_turn"], 0)
+            self.assertIn("本组现在收尾", payload["task"])
+            self.assertIn("不从头重复定位或重查已解决事项", payload["task"])
+            self.assertIn("需要更正时说明更正内容和证据", payload["task"])
+            return payload["draft_answer"]
+
+        continued = self.ask(supplement, policy=AgentPolicy(max_model_requests=1), request_guard=2,
+            resume_run_id=prior["run_id"], continue_investigation=True)
+        self.assertEqual(continued["answer"], prior["answer"])
+        saved = RunStore(self.root / "investigation-runs.sqlite").load(continued["run_id"])
+        self.assertTrue(saved["checkpoint"]["continuation_requested"])
+
+    def test_continuation_tool_recovery_does_not_replace_the_continuation_task(self):
+        prior = self.ask(lambda payload, number: self.cited_answer(payload), request_guard=1)
+
+        def recover(payload, number):
+            self.assertEqual(payload["draft_answer"], prior["answer"])
+            self.assertTrue(payload["analysis_memory"]["continuation_requested"])
+            self.assertIn("不从头重复定位或重查已解决事项", payload["task"])
+            if number == 2:
+                return '{"read":[{"relative_path":"helper-1.cbl","start_line":1'
+            self.assertEqual(payload["investigation_budget"]["reads_per_turn"], 0)
+            self.assertIn("补查动作未能执行", payload["task"])
+            return payload["draft_answer"]
+
+        continued = self.ask(recover, request_guard=3,
+            resume_run_id=prior["run_id"], continue_investigation=True)
+        self.assertEqual(len(self.requests), 3)
+        self.assertEqual(continued["answer"], prior["answer"])
 
     def test_actions_ignoring_answer_only_instruction_stop_at_default_request_limit(self):
         now = [0.0]

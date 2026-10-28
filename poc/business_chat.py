@@ -1306,6 +1306,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
         checkpoint.update(quality=quality.data, source_pages=list(evidence.pages.values()),
             completed_actions=completed_actions, exactly_once=False,
+            completed_searches=searches, continuation_requested=continuation_requested,
             source_memory_context=source_memory_context,
             compilation_context=source_session.options.get("compilation_context") if source_session else None,
             budget_stop={"phase": question_budget.phase, "limit_seconds": question_budget.hard_limit},
@@ -1321,6 +1322,16 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     if investigation_seed and not resume_state:
         resume_checkpoint = investigation_seed
         completed_actions.extend(resume_checkpoint.get("completed_actions", []))
+    continuation_requested = bool(resume_checkpoint.get("continuation_requested"))
+    saved_searches = resume_checkpoint.get("completed_searches")
+    if saved_searches is None:
+        saved_searches = ((resume_checkpoint.get("result") or {}).get("investigation") or {}).get("searches")
+    if saved_searches is None:
+        saved_searches = (((resume_checkpoint.get("result") or {}).get("agent_result") or {})
+                          .get("investigation") or {}).get("searches")
+    if saved_searches is None:
+        saved_searches = (resume_checkpoint.get("request_payload") or {}).get("completed_searches", [])
+    searches.extend(saved_searches or [])
     adaptive = policy.investigation_mode == "adaptive"
     source_memory_context = resume_checkpoint.get("source_memory_context") or {
         "run_id": quality.data["run_id"], "rounds": []}
@@ -1424,6 +1435,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             continuation.draft = redactor._sanitize(answer)
         checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
         updates = {"analysis_continuation": continuation.checkpoint(),
+                   "completed_searches": list(searches),
+                   "continuation_requested": continuation_requested,
                    "continuation_texts": sorted(continuation_texts),
                    "source_memory_context": source_memory_context,
                    "prior_source_memory": source_memory.checkpoint() if source_memory else None,
@@ -1532,7 +1545,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     active_focus_paths = None
     navigation_history = list(history or ())
     saved_subject = resume_checkpoint.get("session_subject")
-    if resume_state and isinstance(saved_subject, dict) and saved_subject.get("schema") == "conversation-subject/v1":
+    if (resume_state or investigation_seed) and isinstance(saved_subject, dict) and saved_subject.get("schema") == "conversation-subject/v1":
         navigation_history.append({"role": "assistant", "investigation_state": {"session_subject": saved_subject}})
     def current_map(search_terms=None, focus_paths=None):
         nonlocal active_search_terms, active_focus_paths
@@ -1721,6 +1734,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
         quality.run_store.checkpoint(quality.data["run_id"], {**checkpoint,
             "quality": quality.data, "completed_actions": completed_actions,
+            "completed_searches": list(searches), "continuation_requested": continuation_requested,
             "source_pages": list(evidence.pages.values()), "snapshot_id": base_snapshot_id,
             "session_subject": business_map.get("session_subject", {}),
             "compilation_context": source_session.options.get("compilation_context") if source_session else None,
@@ -2111,8 +2125,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                    for item in (investigation or {}).get("required_items", []))
 
     discovery_pending = can_discover()
-    searches.append({"query": question, "matched_files": initial.get("matched_file_count", 0),
-                     "matched_pages": initial.get("matched_page_count", 0)})
+    initial_search = {"query": question, "matched_files": initial.get("matched_file_count", 0),
+                      "matched_pages": initial.get("matched_page_count", 0)}
+    if initial_search not in searches:
+        searches.append(initial_search)
     history_context = _history_messages(history, policy, question=question)
     client = OpenAICompatibleChatClient(config, transport=transport, allow_network=allow_network,
                                        diagnostics=diagnostics, diagnostic_phase="business_chat",
@@ -2808,6 +2824,19 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                 "结合本轮实际源码补充遗漏的条件、顺序和结果。需要补充资料时返回具体补查动作；"
                                 "资料足够时输出完整的修订答案，不输出审稿意见。"
                                 "已供应源码直接使用，不把未读取、调用目标未解析或运行值未知概括成源码未提供。")
+                if continuation_requested:
+                    payload["analysis_memory"] = {**continuation.prompt_memory(), "continuation_requested": True}
+                    if not discovery_pending:
+                        payload["task"] = ("用户已选择继续补查，这是同一调查的接续；question 只限定原分析目标。"
+                            "从 draft_answer、analysis_memory、已完成动作及待查事项接着分析，优先解决尚未解释的条件、分支和结果。"
+                            "复用已读源码与有来源的分析记忆，不从头重复定位或重查已解决事项。"
+                            "只有新证据与已有结论冲突、或待查事项确实依赖该结论时才重新核对。"
+                            "在 draft_answer 基础上交付更新后的答案：已支持且不受新证据影响的段落原样保留，"
+                            "在相关位置补充新发现；需要更正时说明更正内容和证据，不悄悄换掉结论。"
+                            "不要重新写一遍背景和已讲清楚的解释，也不要为了显得有进展只改措辞。"
+                            "旧答案是分析起点，不是事实证据；新增和更正结论仍以实际供应资料为依据。"
+                            + ("本组现在收尾，按已有材料交付并保留具体待查项，不再请求工具。" if force_answer else
+                               "仍有关键缺口时返回具体补查动作；没有新发现时保留已有答案并说明剩余未知。"))
                 if discovery_pending:
                     if discovery_reprompted:
                         payload["task"] += (" 上一轮没有执行检索，不能据此下结论。"
@@ -2817,12 +2846,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         "pages": [], "call_chain": {"links": [], "omitted_links": 0},
                         "outline": [], "notices": [], "open_reads": []}]
                 if recovery_reason and not discovery_pending and not force_answer:
-                    payload["task"] += (" 上一轮尚未给出可用业务答案（" + recovery_reason + "）。"
+                    payload["task"] += ((" 上一轮仍有待完善的事项（" if continuation_requested else
+                                         " 上一轮尚未给出可用业务答案（") + recovery_reason + "）。"
                         "先检查 question_investigation 的必答项及本轮实际原文；"
                         "已有公式、条件、赋值或资料时直接解释，存在具体缺口时返回有效 JSON 补查动作。"
                         "外部实现缺失只限定依赖该实现的结论，简要回答当前材料支持的部分。")
                 if protocol_answer_pending:
-                    payload["task"] = ("补查动作未能执行。现在直接根据已供应的源码、框架资料和 impact_result "
+                    payload["task"] = (payload["task"] + " " if continuation_requested else "") + (
+                        "补查动作未能执行。现在直接根据已供应的源码、框架资料和 impact_result "
                         "回答原问题，使用 Markdown，保留业务细节和来源引用；不要再次输出动作 JSON 或承诺补查。"
                         "已有完整候选清单时说明数量和分类，不把预览写成全量；未知事项只限定相关结论。")
                 if identity_blocks_analysis(identity) and identity.get("status") == "ambiguous":
@@ -2855,7 +2886,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                            "pending_actions_preserved": True})
                         payload["investigation_budget"] = {key: 1 if key == "remaining_model_requests" else 0
                             for key in payload["investigation_budget"]}
-                        payload["task"] = ("补查未获得新的有效证据。现在根据已供应原文和分析结果回答原问题，"
+                        payload["task"] = (payload["task"] + " " if continuation_requested else "") + (
+                            "补查未获得新的有效证据。现在根据已供应原文和分析结果回答原问题，"
                             "保留业务细节与引用；只说明具体未知事项，不再请求补查。")
                         messages, request_size = _fit_request(config, payload, history_context, policy,
                             trim_events=trim_events, investigation_builder=question_investigation,
@@ -3921,6 +3953,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     uncertain = quality.run_store.load(quality.data["run_id"])["uncertain_requests"]
     quality.run_store.checkpoint(quality.data["run_id"], {**checkpoint, "result": output,
         "completed_actions": completed_actions, "source_pages": list(evidence.pages.values()),
+        "completed_searches": list(searches), "continuation_requested": continuation_requested,
         "compilation_context": source_session.options.get("compilation_context") if source_session else None,
         "snapshot_id": overview["snapshot_id"], "exactly_once": False,
         "question_budget": question_budget.checkpoint() if question_budget else None},
@@ -3968,8 +4001,18 @@ def _continued_investigation_seed(saved):
     checkpoint = saved["checkpoint"]
     seed = json.loads(json.dumps({key: checkpoint[key] for key in (
         "source_pages", "frontier", "read_tasks", "accepted_draft", "prior_source_memory",
-        "analysis_continuation", "continuation_texts", "request_payload", "completed_actions")
+        "analysis_continuation", "continuation_texts", "request_payload", "completed_actions",
+        "navigation_state", "session_subject", "completed_searches")
         if key in checkpoint}))
+    seed["continuation_requested"] = True
+    if "completed_searches" not in seed:
+        saved_searches = ((checkpoint.get("result") or {}).get("investigation") or {}).get("searches")
+        if saved_searches is None:
+            saved_searches = (((checkpoint.get("result") or {}).get("agent_result") or {})
+                              .get("investigation") or {}).get("searches")
+        if saved_searches is None:
+            saved_searches = (checkpoint.get("request_payload") or {}).get("completed_searches", [])
+        seed["completed_searches"] = json.loads(json.dumps(saved_searches or []))
     accepted = seed.get("accepted_draft") or {}
     result = (checkpoint.get("result") or {}).get("agent_result") or {}
     upgraded = (saved["metadata"].get("pipeline_version") != PIPELINE_VERSION
