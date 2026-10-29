@@ -18,6 +18,8 @@ from source_session import QuestionSourceSession
 
 
 class ParameterSourceOriginReviewTests(unittest.TestCase):
+    source_newline = '\n'
+
     def setUp(self):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
@@ -34,7 +36,7 @@ class ParameterSourceOriginReviewTests(unittest.TestCase):
             'WORKING-STORAGE SECTION.\n01 FINAL-AMOUNT PIC 9(7)V99.\n' +
             storage + ' SECTION.\n' + layout + '\nPROCEDURE DIVISION ' + using + '.\nMAIN.\n' +
             before + '  COMPUTE FINAL-AMOUNT = ' + field + ' * 2.\nGOBACK.\n' + trailing)
-        (self.source / self.path).write_text(self.text)
+        (self.source / self.path).write_text(self.text, encoding='utf-8', newline=self.source_newline)
         build_business_index(self.source, self.db, source_format='free', verify_content=True)
         ensure_repository_search(self.db, self.source)
         line = next(i for i, text in enumerate(self.text.splitlines(), 1) if 'COMPUTE' in text)
@@ -53,9 +55,31 @@ class ParameterSourceOriginReviewTests(unittest.TestCase):
         return group, candidate, proofs
 
     def page(self):
-        return {'relative_path': self.path, 'source_sha256': hashlib.sha256(self.text.encode()).hexdigest(),
-            'start_line': 1, 'end_line': len(self.text.splitlines()), 'source_text': self.text,
+        raw = (self.source / self.path).read_bytes()
+        lines = raw.decode('utf-8').splitlines()
+        # Source identity covers physical bytes; displayed pages normalize
+        # line breaks just as the actual source reader does.
+        return {'relative_path': self.path, 'source_sha256': hashlib.sha256(raw).hexdigest(),
+            'start_line': 1, 'end_line': len(lines), 'source_text': '\n'.join(lines),
             'evidence_id': 'entry-source', 'span_truncated': False}
+
+    def test_line_endings_keep_physical_source_identity_and_reject_the_other_version(self):
+        group, candidate, proofs = self.evidence()
+        raw = (self.source / self.path).read_bytes()
+        self.assertEqual(raw, self.text.replace('\n', self.source_newline).encode('utf-8'))
+        physical_hash = hashlib.sha256(raw).hexdigest()
+        self.assertEqual(candidate['source_sha256'], physical_hash)
+        self.assertTrue(all(ref['source_sha256'] == physical_hash
+                            for proof in proofs for ref in proof['reader_source_refs']))
+        other_newline = '\r\n' if self.source_newline == '\n' else '\n'
+        other_hash = hashlib.sha256(self.text.replace('\n', other_newline).encode('utf-8')).hexdigest()
+        self.assertNotEqual(physical_hash, other_hash)
+        # Even with identical displayed lines, another physical source version
+        # cannot supply a witness bound to this file's actual bytes.
+        closed, invalidated, witnesses = _flow_input_origins(
+            [{**candidate, 'source_sha256': other_hash}],
+            [{**self.page(), 'source_sha256': other_hash}], [group])
+        self.assertEqual((closed, invalidated, witnesses), (set(), set(), []))
 
     def test_group_and_scalar_input_locate_source_without_claiming_value(self):
         for options in ({}, {'layout': '01 BASE-AMOUNT PIC 9(7)V99.', 'using': 'USING BASE-AMOUNT'}):
@@ -124,6 +148,12 @@ class ParameterSourceOriginReviewTests(unittest.TestCase):
         closed, invalidated, _ = _flow_input_origins([candidate], [self.page()], [group])
         self.assertEqual(closed, set())
         self.assertIn((self.path, 'BASE-AMOUNT'), invalidated)
+
+
+class ParameterSourceOriginCRLFReviewTests(ParameterSourceOriginReviewTests):
+    """Run the complete positive/negative source-origin matrix on CRLF bytes."""
+
+    source_newline = '\r\n'
 
 
 if __name__ == '__main__':

@@ -1,0 +1,28 @@
+{
+  "status": "passed",
+  "tests_run": 4274,
+  "selected_count": 4274,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "seconds": 258.95984,
+  "source_commit": "466a264683da2a5509b38b3bd6a975b955ad7c13",
+  "source_dirty": true,
+  "full_report_sha256": "512326573f442e0e7c94df5f4cf06f8a096e257d09900ff08959bac1139fad1f",
+  "all_selected_ids_executed_once_and_passed": true,
+  "critical_module_counts": {
+    "test_answer_instructions": 12,
+    "test_answer_instructions_integration": 3,
+    "test_completion_driven_chat": 22,
+    "test_continuation_material_coverage": 8,
+    "test_answer_output_resume": 2,
+    "test_business_chat_markup_protocol": 12,
+    "test_markup_protocol_resume": 2,
+    "test_business_chat_empty_length_recovery": 15,
+    "test_business_chat_empty_stop_recovery": 15,
+    "test_company_api_streaming": 31
+  },
+  "full_report_original_path": "/tmp/business-final4-python.json",
+  "current_protocol_files_match_frozen_snapshot": true,
+  "current_production_files_match_actual_model_snapshot": 127
+}

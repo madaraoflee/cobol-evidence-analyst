@@ -1,0 +1,108 @@
+test_group_and_scalar_input_locate_source_without_claiming_value (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_group_and_scalar_input_locate_source_without_claiming_value) ...
+  test_group_and_scalar_input_locate_source_without_claiming_value (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_group_and_scalar_input_locate_source_without_claiming_value) (options={}) ... FAIL
+  test_group_and_scalar_input_locate_source_without_claiming_value (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_group_and_scalar_input_locate_source_without_claiming_value) (options={'layout': '01 BASE-AMOUNT PIC 9(7)V99.', 'using': 'USING BASE-AMOUNT'}) ... FAIL
+test_layout_identity_and_signature_must_actually_reach_the_answer (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer) ...
+  test_layout_identity_and_signature_must_actually_reach_the_answer (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer) (marker='PROGRAM-ID.') ... FAIL
+  test_layout_identity_and_signature_must_actually_reach_the_answer (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer) (marker='LINKAGE SECTION.') ... FAIL
+  test_layout_identity_and_signature_must_actually_reach_the_answer (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer) (marker='01 REQUEST-DATA.') ... FAIL
+  test_layout_identity_and_signature_must_actually_reach_the_answer (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer) (marker='05 BASE-AMOUNT') ... FAIL
+  test_layout_identity_and_signature_must_actually_reach_the_answer (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer) (marker='PROCEDURE DIVISION') ... FAIL
+test_same_named_parameter_in_a_second_program_never_closes_first_program (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_same_named_parameter_in_a_second_program_never_closes_first_program) ... ok
+test_unknown_external_call_after_entry_keeps_origin_open (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_unknown_external_call_after_entry_keeps_origin_open) ... FAIL
+test_unpassed_return_only_wrong_storage_and_other_group_are_not_inputs (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_unpassed_return_only_wrong_storage_and_other_group_are_not_inputs) ... ok
+
+======================================================================
+FAIL: test_group_and_scalar_input_locate_source_without_claiming_value (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_group_and_scalar_input_locate_source_without_claiming_value) (options={})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_parameter_source_origin_review.py", line 72, in test_group_and_scalar_input_locate_source_without_claiming_value
+    self.assertEqual(closed, {(self.path, 'BASE-AMOUNT')})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+('entry.cbl', 'BASE-AMOUNT')
+
+======================================================================
+FAIL: test_group_and_scalar_input_locate_source_without_claiming_value (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_group_and_scalar_input_locate_source_without_claiming_value) (options={'layout': '01 BASE-AMOUNT PIC 9(7)V99.', 'using': 'USING BASE-AMOUNT'})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_parameter_source_origin_review.py", line 72, in test_group_and_scalar_input_locate_source_without_claiming_value
+    self.assertEqual(closed, {(self.path, 'BASE-AMOUNT')})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+('entry.cbl', 'BASE-AMOUNT')
+
+======================================================================
+FAIL: test_layout_identity_and_signature_must_actually_reach_the_answer (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer) (marker='PROGRAM-ID.')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_parameter_source_origin_review.py", line 86, in test_layout_identity_and_signature_must_actually_reach_the_answer
+    self.assertIn((self.path, 'BASE-AMOUNT'), invalidated)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('entry.cbl', 'BASE-AMOUNT') not found in set()
+
+======================================================================
+FAIL: test_layout_identity_and_signature_must_actually_reach_the_answer (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer) (marker='LINKAGE SECTION.')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_parameter_source_origin_review.py", line 86, in test_layout_identity_and_signature_must_actually_reach_the_answer
+    self.assertIn((self.path, 'BASE-AMOUNT'), invalidated)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('entry.cbl', 'BASE-AMOUNT') not found in set()
+
+======================================================================
+FAIL: test_layout_identity_and_signature_must_actually_reach_the_answer (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer) (marker='01 REQUEST-DATA.')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_parameter_source_origin_review.py", line 86, in test_layout_identity_and_signature_must_actually_reach_the_answer
+    self.assertIn((self.path, 'BASE-AMOUNT'), invalidated)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('entry.cbl', 'BASE-AMOUNT') not found in set()
+
+======================================================================
+FAIL: test_layout_identity_and_signature_must_actually_reach_the_answer (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer) (marker='05 BASE-AMOUNT')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_parameter_source_origin_review.py", line 86, in test_layout_identity_and_signature_must_actually_reach_the_answer
+    self.assertIn((self.path, 'BASE-AMOUNT'), invalidated)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('entry.cbl', 'BASE-AMOUNT') not found in set()
+
+======================================================================
+FAIL: test_layout_identity_and_signature_must_actually_reach_the_answer (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer) (marker='PROCEDURE DIVISION')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_parameter_source_origin_review.py", line 86, in test_layout_identity_and_signature_must_actually_reach_the_answer
+    self.assertIn((self.path, 'BASE-AMOUNT'), invalidated)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('entry.cbl', 'BASE-AMOUNT') not found in set()
+
+======================================================================
+FAIL: test_unknown_external_call_after_entry_keeps_origin_open (test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_unknown_external_call_after_entry_keeps_origin_open)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_parameter_source_origin_review.py", line 126, in test_unknown_external_call_after_entry_keeps_origin_open
+    self.assertIn((self.path, 'BASE-AMOUNT'), invalidated)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('entry.cbl', 'BASE-AMOUNT') not found in set()
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.282s
+
+FAILED (failures=8)
+{
+  "physical_crlf_count": 12,
+  "physical_sha256": "b1f73049b866e4290641f4af2da0229893f63f5f9f8ec96af90cde2c55c93631",
+  "logical_lf_sha256": "f4a1a112737b619bd766942cb32d150e4bb72e65cf9c44be2963c28fcabb5158",
+  "proof_reader_sha256": "b1f73049b866e4290641f4af2da0229893f63f5f9f8ec96af90cde2c55c93631",
+  "before_closed": [],
+  "before_invalidated": [],
+  "only_correct_fixture_hash_closed": [
+    [
+      "entry.cbl",
+      "BASE-AMOUNT"
+    ]
+  ],
+  "only_correct_fixture_hash_invalidated": [],
+  "production_changed": false
+}
+simulated_windows_failures 8 errors 0

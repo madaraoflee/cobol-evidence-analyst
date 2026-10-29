@@ -1,0 +1,74 @@
+{
+  "workflow_run_id": 40829555677,
+  "source_commit": "cfeb1ff0e22f7ba1186521da864464b9321f739d",
+  "attempted_tests": 4274,
+  "unique_test_ids": 4274,
+  "outcomes": {
+    "passed": 4269,
+    "failed": 3,
+    "skipped": 2
+  },
+  "shards": [
+    {
+      "shard": 0,
+      "status": "passed",
+      "tests_run": 1069,
+      "elapsed_seconds": 627.62771,
+      "report_sha256": "9b2e2561c8fc4e0e6730c00cbe605b2007a5f1bb98286465a6a9baaf613a9891",
+      "failures": [],
+      "errors": [],
+      "skipped": []
+    },
+    {
+      "shard": 1,
+      "status": "failed",
+      "tests_run": 1069,
+      "elapsed_seconds": 684.968317,
+      "report_sha256": "d90f635818c18d719c69216e5c2e226290e6c5ab6584bf6293c64615e80f0124",
+      "failures": [
+        "test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_group_and_scalar_input_locate_source_without_claiming_value (options={})",
+        "test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_group_and_scalar_input_locate_source_without_claiming_value (options={'layout': '01 BASE-AMOUNT PIC 9(7)V99.', 'using': 'USING BASE-AMOUNT'})",
+        "test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer (marker='PROGRAM-ID.')",
+        "test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer (marker='LINKAGE SECTION.')",
+        "test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer (marker='01 REQUEST-DATA.')",
+        "test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer (marker='05 BASE-AMOUNT')",
+        "test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_layout_identity_and_signature_must_actually_reach_the_answer (marker='PROCEDURE DIVISION')",
+        "test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_unknown_external_call_after_entry_keeps_origin_open"
+      ],
+      "errors": [],
+      "skipped": []
+    },
+    {
+      "shard": 2,
+      "status": "passed",
+      "tests_run": 1068,
+      "elapsed_seconds": 482.117869,
+      "report_sha256": "8eb7b78261373981c7ab1e1319246b253615fea4d230fce579a434b63507b616",
+      "failures": [],
+      "errors": [],
+      "skipped": [
+        {
+          "id": "test_business_input_skips.BusinessInputSkipTests.test_unreadable_input_is_skipped_and_its_path_is_reported",
+          "reason": "Real source permissions require a non-root POSIX user."
+        },
+        {
+          "id": "test_sqlite_backup_compat.SQLiteBackupCompatibilityTests.test_real_permission_failure_keeps_marker_when_workspace_block_cannot_be_saved",
+          "reason": "Real directory permission failures require a non-root POSIX user."
+        }
+      ]
+    },
+    {
+      "shard": 3,
+      "status": "passed",
+      "tests_run": 1068,
+      "elapsed_seconds": 333.913778,
+      "report_sha256": "a1038e87ce0bdfc474877e0e81ee1aa37fbb07234bc4d9f5971311138f2a3bd6",
+      "failures": [],
+      "errors": [],
+      "skipped": []
+    }
+  ],
+  "build_performed": false,
+  "release_published": false,
+  "root_cause": "New independent parameter-origin fixture hashed LF text instead of actual bytes after Windows text-mode CRLF translation; production version checking rejected the mismatched fixture. Reproduced on macOS by writing CRLF bytes; fix retains version checks and covers LF/CRLF explicitly."
+}

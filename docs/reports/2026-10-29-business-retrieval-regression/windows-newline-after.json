@@ -1,0 +1,41 @@
+{
+  "test_module": "test_parameter_source_origin_review.py",
+  "targeted_tests_passed": 12,
+  "all_original_assertions_preserved": true,
+  "production_changed": false,
+  "results": [
+    {
+      "newline": "LF",
+      "physical_sha256": "f4a1a112737b619bd766942cb32d150e4bb72e65cf9c44be2963c28fcabb5158",
+      "page_sha256": "f4a1a112737b619bd766942cb32d150e4bb72e65cf9c44be2963c28fcabb5158",
+      "reader_sha256": "f4a1a112737b619bd766942cb32d150e4bb72e65cf9c44be2963c28fcabb5158",
+      "closed": [
+        [
+          "entry.cbl",
+          "BASE-AMOUNT"
+        ]
+      ],
+      "invalidated": [],
+      "runtime_value_known": false
+    },
+    {
+      "newline": "CRLF",
+      "physical_sha256": "b1f73049b866e4290641f4af2da0229893f63f5f9f8ec96af90cde2c55c93631",
+      "page_sha256": "b1f73049b866e4290641f4af2da0229893f63f5f9f8ec96af90cde2c55c93631",
+      "reader_sha256": "b1f73049b866e4290641f4af2da0229893f63f5f9f8ec96af90cde2c55c93631",
+      "closed": [
+        [
+          "entry.cbl",
+          "BASE-AMOUNT"
+        ]
+      ],
+      "invalidated": [],
+      "runtime_value_known": false
+    }
+  ],
+  "before_log_archive": {
+    "normalization": "Remove trailing whitespace only for repository whitespace checks.",
+    "original_sha256": "767b35955a76cf534623dfa17caabceed21d006f45ce19d79be3004485e529fa",
+    "archived_sha256": "0072680c078451ec0f7c43811cf8c5ae82abaacad1b43de6a1a14975cd82da7b"
+  }
+}

@@ -1,92 +1,65 @@
 {
-  "scope": "current_goal_completion_audit",
-  "goal_complete": false,
+  "scope": "source_framework_and_actual_model_goal_completion",
+  "goal_complete": true,
+  "verification_scope": "Current source and tested actual-model development cases; no guarantee of every future probabilistic model answer, no formal EXE or office acceptance claim.",
   "requirements": {
-    "custom_system_in_each_request": {
+    "system_prompt_is_effective": {
       "status": "proven_for_tested_paths",
       "evidence": [
-        "targeted-tests.txt",
-        "test_completion_driven_chat 11-request fixture",
-        "actual model run saved_prompt_restored/custom_prompt_in_actual_system"
+        "full regression system/config/restore tests",
+        "live-confirmation collection-custom-format actual two request system messages each contain saved instruction once",
+        "actual final answer has exactly the three requested headings"
       ]
     },
-    "business_explanation_over_framework_inventory": {
-      "status": "partially_proven_final_rerun_not_complete",
-      "evidence": "second-live business explanation passes; later status/inline repair reviewed; final-model-v2 business protocol output fails"
-    },
-    "adaptive_rounds_without_fixed_default_cutoff": {
-      "status": "proven_in_source_integration",
-      "evidence": "10 related reads plus answer on request 11; policy count fields None"
-    },
-    "no_progress_and_output_convergence": {
-      "status": "proven_in_source_tests",
+    "framework_supports_reading_code_and_business_explanation": {
+      "status": "verified",
       "evidence": [
-        "targeted-tests.txt",
-        "adapter-tests.txt",
-        "full-suite-followup-tests.txt"
+        "actual collection-business order, eligibility, cap, skip and 100->80->70->65 explanation",
+        "actual framework question maps states to 65/100/100 business outcomes",
+        "source material prioritized ahead of auxiliary framework overview tests"
       ]
     },
-    "actual_model_answers_on_complete_source": {
-      "status": "not_yet_all_passed",
-      "cases": [
-        {
-          "case_id": "collection-business",
-          "job_status": "COMPLETED",
-          "model_requests": 1,
-          "saved_prompt_restored": true,
-          "custom_prompt_in_actual_system": true,
-          "elapsed_seconds": 7.82,
-          "result_file": "collection-business.json",
-          "agent_status": "PARTIAL",
-          "stop_reason": "question_evidence_incomplete"
-        },
-        {
-          "case_id": "collection-custom-format",
-          "job_status": "COMPLETED",
-          "model_requests": 1,
-          "saved_prompt_restored": true,
-          "custom_prompt_in_actual_system": true,
-          "elapsed_seconds": 3.245,
-          "result_file": "collection-custom-format.json",
-          "agent_status": "ABSTAINED",
-          "stop_reason": "MODEL_TEXT_EMPTY"
-        },
-        {
-          "case_id": "collection-framework-control",
-          "job_status": "COMPLETED",
-          "model_requests": 1,
-          "saved_prompt_restored": true,
-          "custom_prompt_in_actual_system": true,
-          "elapsed_seconds": 48.69,
-          "result_file": "collection-framework-control.json",
-          "agent_status": "ANALYZED",
-          "stop_reason": "sufficient_material"
-        }
+    "multi_round_stays_with_original_question": {
+      "status": "verified_for_tested_paths",
+      "evidence": [
+        "default 11-request integration retains original question custom system and newly read source",
+        "actual three-request business case recovers malformed tool protocol and completes original business question",
+        "draft regression, citation binding and explicit continuation tests"
+      ]
+    },
+    "adaptive_rounds_without_infinite_loops": {
+      "status": "verified",
+      "evidence": [
+        "default request/investigation count None and explicit legacy budgets preserved",
+        "source-line/version/COPY coverage and semantic progress deduplication",
+        "no-evidence/repeated-action/output continuation bounds",
+        "protocol and empty-answer corrections are one-shot and persisted across reconnect"
+      ]
+    },
+    "no_infinite_wait": {
+      "status": "verified_for_supported_transports",
+      "evidence": [
+        "connection and non-stream response timeouts",
+        "SSE idle timeout and genuine-activity/byte/reasoning output limits",
+        "user cancellation and optional deployment deadline",
+        "unknown remote outcome never automatically resent"
+      ]
+    },
+    "provided_source_is_actually_read_instead_of_phrase_suppression": {
+      "status": "verified_for_tested_cases",
+      "evidence": [
+        "actual long-source business answers with source citations and correct arithmetic",
+        "all three selected actual-model answers ANALYZED/sufficient_material",
+        "no new phrase ban; generic protocol and known-empty recovery preserve same source and system",
+        "true runtime unknowns remain local to affected conclusions"
       ]
     }
   },
-  "full_source_regression": {
-    "status": "passed",
-    "tests_run": 4245,
-    "selected_count": 4245,
-    "failures": 0,
-    "errors": 0,
-    "seconds": 251.75229,
-    "report_path": "/tmp/business-final2-python.json",
-    "report_sha256": "2999c3089db78b62030540a8d31d4b25149fca62b949063bd784b7b9a189f6b7"
-  },
-  "real_model_rerun": {
-    "report_path": "/tmp/business-regression-live/final-model-v2/summary.json",
-    "report_sha256": "82a96e4e0b13fecdd909b891d8716a7bf52db2b98755fa4db7468806f11ddaf4",
-    "calls": 3,
-    "synthetic_provider": false,
-    "private_source_sent": false,
-    "explicit_evaluation_request_limit": 4
-  },
-  "remaining": [
-    "Do not render an unrecognized machine tool envelope as a business answer; use bounded format recovery.",
-    "Repeat and review the failed actual model business and empty custom-format cases after relevant fixes."
-  ],
-  "application_edits": "frozen_and_coordinated_in_user_authorized_integration_chat",
-  "release_claimed": false
+  "full_regression": "final-regression-summary.json",
+  "actual_model_review": "live-confirmation/review.json",
+  "actual_model_selected_cases": 3,
+  "actual_model_requests_for_selected_passes": 6,
+  "failed_attempts_preserved": true,
+  "required_source_work_remaining": [],
+  "release_and_office_acceptance": "Handled separately by user-authorized integration chat; not claimed here."
 }

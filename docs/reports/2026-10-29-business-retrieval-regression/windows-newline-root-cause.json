@@ -1,0 +1,16 @@
+{
+  "physical_crlf_count": 12,
+  "physical_sha256": "b1f73049b866e4290641f4af2da0229893f63f5f9f8ec96af90cde2c55c93631",
+  "logical_lf_sha256": "f4a1a112737b619bd766942cb32d150e4bb72e65cf9c44be2963c28fcabb5158",
+  "proof_reader_sha256": "b1f73049b866e4290641f4af2da0229893f63f5f9f8ec96af90cde2c55c93631",
+  "before_closed": [],
+  "before_invalidated": [],
+  "only_correct_fixture_hash_closed": [
+    [
+      "entry.cbl",
+      "BASE-AMOUNT"
+    ]
+  ],
+  "only_correct_fixture_hash_invalidated": [],
+  "production_changed": false
+}
