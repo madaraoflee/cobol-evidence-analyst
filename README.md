@@ -1,6 +1,10 @@
 # COBOL Evidence Analyst
 
-**最新 Windows 测试候选：[`v2026.10.29.1-rc.1`](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.10.29.1-rc.1)。** [下载可直接运行的 Windows x64 ZIP](https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.1-rc.1/COBOLWorkbench-windows-x64.zip)。本版汇总业务优先回答、自定义 system 回答要求、Cloud 与本地源码缓存、首问及长源码供证、框架检索、流式回答，并修复调查过早收尾、补查覆盖旧答案、提示词更新及本地改写冲突、Bitbucket接入结果一闪即逝。应用冻结于 `b1c7a39`。Windows全量4,154项通过、2项POSIX权限测试按原规则跳过；最终EXE的79个离线样本和12项调查连续性检查通过，8个发布文件哈希已复核。完整解压启动，同一用户沿用原配置、历史及源码目录。详细修复、验收及现场边界见[整合与发布记录](./docs/reports/2026-10-29-investigation-continuity/README.md)；正式版仍保留原版本。
+**最新 Windows 测试候选：[`v2026.10.29.2-rc.1`](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.10.29.2-rc.1)。** [下载可直接运行的 Windows x64 ZIP](https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.2-rc.1/COBOLWorkbench-windows-x64.zip)。本版整合业务原文检索与参数来源纠正、业务优先回答、自定义 system 回答要求、按实际进展自动补查、补查前答案及引用保留、流式与异常响应修复，以及 Cloud 缓存和每周文件增量更新。应用冻结于 `a176052`。
+
+本机 4,281 项 Python、262 项前端回归通过；Windows 执行 4,281 项，4,279 项通过、2 项 POSIX 权限测试按原规则跳过。最终 EXE 的 79 个离线样本与 12 项调查连续性检查通过，8 个发布文件的服务端哈希已复核。三类真实模型业务问答在源码运行环境中完成内容复核；工作电脑与同一最终 EXE 的真实模型验收仍待完成，正式版保持原版本。详细修复、失败重现、复测及同包记录见[业务检索与发布记录](./docs/reports/2026-10-29-business-retrieval-regression/README.md)。
+
+先退出旧版，再完整解压启动，同一用户沿用原配置、历史及源码副本。正常重开不重新下载；每周更新请从已有资料库进入“检查并更新”，选择实际更新分支或勾选“跟随默认分支”。Cloud 首次仍下载一次整仓快照，后续只下载新增、修改或损坏文件；新快照仍需建立本地索引。
 
 **2026-10-20 恢复 Windows 候选构建授权：** 当前重点是有界调查、检索供证与回答核验；界面保持现有问答流程。用户已明确允许在真实界面测试后手动构建 Windows 候选并交付 GitHub；正式发布仍须通过[同包联合验收](./docs/joint-release-acceptance.md)。Mac 本次只同步与 GitHub 一致的开发源码，不生成 Mac 应用包。下方历史候选包不包含本轮修复，新包是否构建成功及其身份以实际运行记录为准；源码修复范围与证据见[整合报告](./docs/reports/2026-10-19-bounded-quality-integration.md)。
 

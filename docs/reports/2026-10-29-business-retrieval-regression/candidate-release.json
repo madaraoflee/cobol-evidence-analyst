@@ -1,0 +1,131 @@
+{
+  "source_commit": "a176052dbc99d976892dc899c9c8fc5dbfda4344",
+  "workflow_run_id": 40831778385,
+  "archive_sha256": "b80d42d86528a6f6d66c3296b49fc097944b06447bce0c7f317ef7faa1e570e6",
+  "binary_sha256": "7aa743463d38231f8bfd65c4b4c603185e44a13916e5d76f5a5fccd205bbee6f",
+  "native_offline_samples": 79,
+  "native_continuity_checks": 12,
+  "asset_sha256": {
+    "BUILD-INFO.json": "9e6e43633ab212b28ffefcd9741aa2b1fbd8efbe5ddcac4068ae80690e85903d",
+    "ACCEPTANCE-MANIFEST.json": "ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06",
+    "COMPILED-ACCEPTANCE.json": "36b093888ad6303439899ddaf2db2bf74a4f5a5662f3c6d2e808110c96683d36",
+    "COBOLWorkbench-windows-x64.zip.sha256": "1713063cc86a07e084059e969aa08868910561b3189606de5520fb1ecb4d657e",
+    "COBOLWorkbench-windows-x64.zip": "b80d42d86528a6f6d66c3296b49fc097944b06447bce0c7f317ef7faa1e570e6",
+    "INVESTIGATION-CONTINUITY.json": "3aacfa41979e536e25d8f863b27c0e2b85e4383cab5fa5664ed09e8451ebd709",
+    "CANDIDATE-GATE.json": "dd92cb0dd65bb8528703b03da72ba4ac8760a1f8644e7f6d5806b552df8cbf0c",
+    "CANDIDATE-POLICY.json": "71470d602842f92f2981c966bae0deeffe9cf7afd04417a32a2968517a1b4b8e"
+  },
+  "release": {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.2-rc.1/ACCEPTANCE-MANIFEST.json",
+        "digest": "sha256:ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06",
+        "id": 687758677,
+        "name": "ACCEPTANCE-MANIFEST.json",
+        "size": 47542
+      },
+      {
+        "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.2-rc.1/BUILD-INFO.json",
+        "digest": "sha256:9e6e43633ab212b28ffefcd9741aa2b1fbd8efbe5ddcac4068ae80690e85903d",
+        "id": 687758684,
+        "name": "BUILD-INFO.json",
+        "size": 1149
+      },
+      {
+        "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.2-rc.1/CANDIDATE-GATE.json",
+        "digest": "sha256:dd92cb0dd65bb8528703b03da72ba4ac8760a1f8644e7f6d5806b552df8cbf0c",
+        "id": 687758742,
+        "name": "CANDIDATE-GATE.json",
+        "size": 10700
+      },
+      {
+        "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.2-rc.1/CANDIDATE-POLICY.json",
+        "digest": "sha256:71470d602842f92f2981c966bae0deeffe9cf7afd04417a32a2968517a1b4b8e",
+        "id": 687758740,
+        "name": "CANDIDATE-POLICY.json",
+        "size": 198
+      },
+      {
+        "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.2-rc.1/COBOLWorkbench-windows-x64.zip",
+        "digest": "sha256:b80d42d86528a6f6d66c3296b49fc097944b06447bce0c7f317ef7faa1e570e6",
+        "id": 687758678,
+        "name": "COBOLWorkbench-windows-x64.zip",
+        "size": 20987517
+      },
+      {
+        "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.2-rc.1/COBOLWorkbench-windows-x64.zip.sha256",
+        "digest": "sha256:1713063cc86a07e084059e969aa08868910561b3189606de5520fb1ecb4d657e",
+        "id": 687758679,
+        "name": "COBOLWorkbench-windows-x64.zip.sha256",
+        "size": 98
+      },
+      {
+        "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.2-rc.1/COMPILED-ACCEPTANCE.json",
+        "digest": "sha256:36b093888ad6303439899ddaf2db2bf74a4f5a5662f3c6d2e808110c96683d36",
+        "id": 687758683,
+        "name": "COMPILED-ACCEPTANCE.json",
+        "size": 13005591
+      },
+      {
+        "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.2-rc.1/INVESTIGATION-CONTINUITY.json",
+        "digest": "sha256:3aacfa41979e536e25d8f863b27c0e2b85e4383cab5fa5664ed09e8451ebd709",
+        "id": 687758741,
+        "name": "INVESTIGATION-CONTINUITY.json",
+        "size": 2777
+      }
+    ],
+    "draft": false,
+    "html_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.10.29.2-rc.1",
+    "id": 427577722,
+    "prerelease": true,
+    "published_at": "2026-10-29T07:40:40Z",
+    "tag_name": "v2026.10.29.2-rc.1",
+    "target_commitish": "a176052dbc99d976892dc899c9c8fc5dbfda4344"
+  },
+  "latest_stable_unchanged": {
+    "id": 412393869,
+    "prerelease": false,
+    "tag_name": "v2026.10.14.2"
+  },
+  "server_asset_digests_verified": true,
+  "windows_regression": {
+    "source_commit": "a176052dbc99d976892dc899c9c8fc5dbfda4344",
+    "runtime_platform": "Windows",
+    "source_dirty": false,
+    "status": "passed",
+    "tests_run": 4281,
+    "outcomes": {
+      "passed": 4279,
+      "skipped": 2
+    },
+    "skips": [
+      {
+        "id": "test_business_input_skips.BusinessInputSkipTests.test_unreadable_input_is_skipped_and_its_path_is_reported",
+        "reason": "Real source permissions require a non-root POSIX user.",
+        "shard_index": 1
+      },
+      {
+        "id": "test_sqlite_backup_compat.SQLiteBackupCompatibilityTests.test_real_permission_failure_keeps_marker_when_workspace_block_cannot_be_saved",
+        "reason": "Real directory permission failures require a non-root POSIX user.",
+        "shard_index": 2
+      }
+    ],
+    "validation_errors": [],
+    "summary_matches_recomputed_shards": true
+  },
+  "local_python_regression": {
+    "passed": 4281,
+    "failed": 0,
+    "skipped": 0
+  },
+  "frontend_regression": {
+    "passed": 262,
+    "failed": 0
+  },
+  "formal_release": false,
+  "office_acceptance_pending": true,
+  "candidate_gate": {
+    "candidate_allowed": true,
+    "publish_allowed": false
+  }
+}
