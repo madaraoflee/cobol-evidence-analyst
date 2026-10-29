@@ -32,6 +32,20 @@ SOURCE = ("IDENTIFICATION DIVISION.\nPROGRAM-ID. TOTAL-RULE.\nDATA DIVISION.\n"
 QUESTION = "Explain how TOTAL-RULE computes TOTAL-AMOUNT and where the initial input value comes from."
 PROMPT_A = "Write one English paragraph, without headings, tables, lists or local technical appendices."
 PROMPT_B = "Keep the earlier supported explanation and finish it in one English paragraph. Explain the initial input and calculation without headings or tables."
+BUSINESS_QUESTION = "DECISION 返回什么？"
+BUSINESS_PROMPT = ("解释结果码时必须说明业务后果和下游使用者；若仓库已有调用方，"
+    "要讲清它收到结果后选择什么分支。不要只回答字段赋值或罗列程序名。格式不限。")
+BUSINESS_SOURCE = ("IDENTIFICATION DIVISION.\nPROGRAM-ID. DECISION.\nDATA DIVISION.\n"
+    "LINKAGE SECTION.\n01 RESULT-CODE PIC 99.\nPROCEDURE DIVISION USING RESULT-CODE.\n"
+    "MAIN.\nMOVE 12 TO RESULT-CODE.\nGOBACK.\n")
+BUSINESS_CALLER = ("IDENTIFICATION DIVISION.\nPROGRAM-ID. REQUESTFLOW.\nDATA DIVISION.\n"
+    "WORKING-STORAGE SECTION.\n01 RESULT-CODE PIC 99.\n01 ALLOW-PROCESS PIC X.\n"
+    "PROCEDURE DIVISION.\nMAIN.\nCALL 'DECISION' USING RESULT-CODE.\n"
+    "IF RESULT-CODE = 12\nMOVE 'N' TO ALLOW-PROCESS\nELSE\n"
+    "MOVE 'Y' TO ALLOW-PROCESS\nEND-IF.\nGOBACK.\n")
+LANGUAGE_QUESTION = "TOTAL-RULE 的 TOTAL-AMOUNT 怎么计算？"
+LANGUAGE_PROMPT = "Always answer in English."
+CROSS_LANGUAGE_PROMPT = BUSINESS_PROMPT + " Always answer in English."
 
 
 class CompletionProvider(LoopbackProvider):
@@ -83,7 +97,7 @@ class CompletionProvider(LoopbackProvider):
         self.server.RequestHandlerClass = Handler
 
 
-def verify_pages(source, payload):
+def verify_pages(source, payload, required_text="COMPUTE TOTAL-AMOUNT"):
     pages = supplied_pages(payload)
     require(bool(pages), "No actual source pages supplied")
     for page in pages:
@@ -93,28 +107,78 @@ def verify_pages(source, payload):
         lines = path.read_text(encoding="utf-8").splitlines()
         require(page["source_text"].splitlines() == lines[page["start_line"] - 1:page["end_line"]],
                 "Supplied lines do not match the fixture")
-    return next(page for page in pages if "COMPUTE TOTAL-AMOUNT" in page["source_text"])
+    return next(page for page in pages if required_text in page["source_text"])
+
+
+def continuation_turn(conversation):
+    """The public continue route accepts a source-backed unfinished turn."""
+    messages = conversation.get("messages", [])
+    require(len(messages) == 2 and [row.get("role") for row in messages] == ["user", "assistant"],
+            "Continuation fixture must contain one question and its answer")
+    user, assistant = messages
+    require(user.get("status") == assistant.get("status") == "partial"
+        and bool(assistant.get("evidence_refs")) and bool(assistant.get("investigation_run_id")),
+        "Continuation fixture must be a genuinely partial source-backed investigation")
+    return user, assistant
 
 
 def run_checks(command, root, report=None):
     source = root / "source"
     source.mkdir()
     (source / "root.cbl").write_text(SOURCE, encoding="utf-8")
+    (source / "decision.cbl").write_text(BUSINESS_SOURCE, encoding="utf-8")
+    (source / "caller.cbl").write_text(BUSINESS_CALLER, encoding="utf-8")
     output, profile = root / "workspace", root / "profile"
     checks, observations = {}, []
     if report is not None:
         report.update(checks=checks, observations=observations)
     phase = {"name": "default", "count": 0, "draft": None}
     expected_prompt = [PROMPT_A]
+    expected_question = [QUESTION]
 
     def respond(envelope, payload, index):
-        require(index < 6, "Unexpected extra model attempt")
+        require(index < 11, "Unexpected extra model attempt")
         phase["count"] += 1
         system = envelope["messages"][0]["content"]
         require(expected_prompt[0] in system, "Current saved answer instructions missing from system")
         if expected_prompt[0] == PROMPT_B:
             require(PROMPT_A not in system, "Earlier answer instructions reused")
-        require(payload["question"] == QUESTION, "Original question changed")
+        require(payload["question"] == expected_question[0], "Original question changed")
+        if phase["name"] == "business_content":
+            decision = verify_pages(source, payload, "MOVE 12 TO RESULT-CODE")
+            caller = verify_pages(source, payload, "MOVE 'N' TO ALLOW-PROCESS")
+            require("business_overview" in payload.get("question_investigation", {}).get(
+                "analysis_plan", {}).get("intents", []), "Saved business requirements did not affect planning")
+            if phase["count"] == 1:
+                return "程序把 RESULT-CODE 设置为12并返回调用方。" + f"[{decision['evidence_id']}]", "stop"
+            require(phase["count"] == 2 and "program_roles" in payload.get("answer_review", {}).get(
+                "missing_aspects", []), "Saved business content omission was not reviewed")
+            return ("REQUESTFLOW 把是否准入的判定交给 DECISION；调用正常返回12时，"
+                "调用方把 ALLOW-PROCESS 设为N，走不允许后续处理的分支。"
+                f"[{caller['evidence_id']}][{decision['evidence_id']}]"), "stop"
+        if phase["name"] == "business_partial":
+            decision = verify_pages(source, payload, "MOVE 12 TO RESULT-CODE")
+            caller = verify_pages(source, payload, "MOVE 'N' TO ALLOW-PROCESS")
+            require(phase["count"] == 1, "Business partial fixture ignored its one-request budget")
+            return ("REQUESTFLOW 把是否准入的判定交给 DECISION；调用正常返回12时，"
+                "调用方把 ALLOW-PROCESS 设为N，走不允许后续处理的分支。"
+                f"[{caller['evidence_id']}][{decision['evidence_id']}] 下一步还需"), "length"
+        if phase["name"] == "saved_language_repair":
+            page = verify_pages(source, payload)
+            require(payload.get("answer_language") == "en", "Saved English requirement did not reach local language state")
+            require(phase["count"] == 1, "Local language repair unexpectedly needed another model request")
+            return "TOTAL-AMOUNT = BASE-AMOUNT * 3. " + f"[{page['evidence_id']}]", "stop"
+        if phase["name"] == "continue_business_english":
+            decision = verify_pages(source, payload, "MOVE 12 TO RESULT-CODE")
+            caller = verify_pages(source, payload, "MOVE 'N' TO ALLOW-PROCESS")
+            require(payload.get("answer_language") == "en", "Continuation did not adopt saved English")
+            require(phase["count"] == 1 and payload.get("draft_answer") == phase["draft"],
+                    "Cross-language continuation lost its previous draft or repeated the request")
+            require(payload.get("analysis_memory", {}).get("continuation_requested") is True,
+                    "Cross-language continuation restarted the question")
+            return ("REQUESTFLOW delegates the eligibility decision to DECISION. When that call returns 12 normally, "
+                "REQUESTFLOW sets ALLOW-PROCESS to N and follows the branch that disallows further processing. "
+                f"[{caller['evidence_id']}][{decision['evidence_id']}]"), "stop"
         page = verify_pages(source, payload)
         require("VALUE 10" in "\n".join(p["source_text"] for p in supplied_pages(payload)),
                 "Initial input declaration was not supplied")
@@ -212,12 +276,101 @@ def run_checks(command, root, report=None):
                 observations.append({"phase": name, "previous_run_id": before["result"]["agent_result"]["run_id"],
                     "run_id": continued["result"]["agent_result"]["run_id"], "revision_id": revision["revision_id"],
                     "answer_sha256": hashlib.sha256(current["content"].encode()).hexdigest()})
+            (profile / "agent-settings.json").write_text(json.dumps({"version": 1,
+                "agent": {"max_model_requests": 3, "max_answer_revisions": 1}}), encoding="utf-8")
+            phase.update(name="business_content", count=0, draft=None)
+            expected_prompt[0], expected_question[0] = BUSINESS_PROMPT, BUSINESS_QUESTION
+            workbench.request("POST", "/api/answer-instructions", {"answer_instructions": BUSINESS_PROMPT})
+            business = workbench.analyze(source, output, BUSINESS_QUESTION, locale="zh-CN", answer_detail="detailed")
+            agent = business["result"]["agent_result"]
+            checks["saved_business_content_drives_existing_omission_review"] = (
+                phase["count"] == agent["metrics"]["model_requests"] == 2
+                and "不允许后续处理" in agent["answer"]
+                and "program_roles" not in agent.get("answer_completion", {}).get("missing_aspects", [])
+                and agent["answer"] == provider.requests[-1]["response_text"]
+                and agent.get("claims_semantically_verified") is False)
+            observations.append({"phase": phase["name"], "run_id": agent["run_id"], "model_requests": phase["count"],
+                "elapsed_seconds": business["elapsed_seconds"], "answer_sha256": hashlib.sha256(agent["answer"].encode()).hexdigest()})
+            (profile / "agent-settings.json").write_text(json.dumps({"version": 1,
+                "agent": {"max_model_requests": 1, "max_answer_revisions": 0}}), encoding="utf-8")
+            # Keep the completed revision proof separate from a new genuine
+            # partial turn. A truncated revision must not displace a prior
+            # complete draft merely to manufacture a continuation fixture.
+            phase.update(name="business_partial", count=0, draft=None)
+            partial_business = workbench.analyze(source, output, BUSINESS_QUESTION,
+                locale="zh-CN", answer_detail="detailed")
+            partial_agent = partial_business["result"]["agent_result"]
+            previous_conversation = partial_business["state"]["conversation"]
+            previous_user, previous_assistant = continuation_turn(previous_conversation)
+            checks["business_fixture_has_real_partial_continuation_boundary"] = (
+                phase["count"] == partial_agent["metrics"]["model_requests"] == 1
+                and provider.requests[-1]["finish_reason"] == "length"
+                and partial_agent.get("answer_truncated") is True
+                and previous_assistant["content"] == partial_agent["answer"]
+                and "不允许后续处理" in partial_agent["answer"])
+            observations.append({"phase": phase["name"], "run_id": partial_agent["run_id"],
+                "model_requests": phase["count"], "elapsed_seconds": partial_business["elapsed_seconds"],
+                "answer_sha256": hashlib.sha256(partial_agent["answer"].encode()).hexdigest()})
+            phase.update(name="continue_business_english", count=0, draft=previous_assistant["content"])
+            expected_prompt[0] = CROSS_LANGUAGE_PROMPT
+            workbench.request("POST", "/api/answer-instructions", {"answer_instructions": CROSS_LANGUAGE_PROMPT})
+            translated = workbench.analyze(source, output, BUSINESS_QUESTION,
+                conversation_id=previous_conversation["id"], continue_message_id=previous_user["id"],
+                locale="zh-CN", answer_detail="detailed")
+            translated_agent = translated["result"]["agent_result"]
+            translated_conversation = translated["state"]["conversation"]
+            current = translated_conversation["messages"][-1]
+            revisions = current.get("answer_revisions", [])
+            checks["cross_language_continuation_uses_current_requirements_and_source"] = (
+                phase["count"] == translated_agent["metrics"]["model_requests"] == 1
+                and translated_agent.get("answer_language") == "en"
+                and "disallows further processing" in translated_agent["answer"]
+                and previous_assistant["content"] not in translated_agent["answer"]
+                and re.search(r"[\u3400-\u9fff]", translated_agent["answer"]) is None)
+            checks["cross_language_continuation_preserves_previous_answer_revision"] = (
+                len(translated_conversation["messages"]) == 2
+                and [row["id"] for row in translated_conversation["messages"]] == [previous_user["id"], previous_assistant["id"]]
+                and len(revisions) == 1 and revisions[0]["content"] == previous_assistant["content"]
+                and revisions[0]["run_id"] == previous_assistant["run_id"])
+            require(bool(revisions), "Cross-language continuation lost the original answer")
+            revision = revisions[0]
+            reference = revision["evidence_refs"][0]["evidence_id"]
+            historical = workbench.request("GET", "/api/evidence?" + urlencode({"id": reference,
+                "conversation_id": previous_conversation["id"], "message_id": previous_assistant["id"],
+                "revision_id": revision["revision_id"]}))
+            checks["cross_language_continuation_keeps_historical_source_evidence"] = (
+                historical.get("run_id") == previous_assistant["run_id"] and bool(historical.get("spans"))
+                and all(span["source_sha256"] == sha256(source / span["relative_path"])
+                    and span["source_text"].splitlines() == (source / span["relative_path"]).read_text(
+                        encoding="utf-8").splitlines()[span["start_line"] - 1:span["end_line"]]
+                    for span in historical["spans"]))
+            observations.append({"phase": phase["name"], "previous_run_id": previous_assistant["run_id"],
+                "run_id": translated_agent["run_id"], "revision_id": revision["revision_id"],
+                "model_requests": phase["count"], "elapsed_seconds": translated["elapsed_seconds"],
+                "answer_sha256": hashlib.sha256(translated_agent["answer"].encode()).hexdigest()})
+            (profile / "agent-settings.json").write_text(json.dumps({"version": 1,
+                "agent": {"max_model_requests": 1, "max_answer_revisions": 0}}), encoding="utf-8")
+            phase.update(name="saved_language_repair", count=0, draft=None)
+            expected_prompt[0], expected_question[0] = LANGUAGE_PROMPT, LANGUAGE_QUESTION
+            workbench.request("POST", "/api/answer-instructions", {"answer_instructions": LANGUAGE_PROMPT})
+            repaired = workbench.analyze(source, output, LANGUAGE_QUESTION, locale="zh-CN", answer_detail="detailed")
+            agent = repaired["result"]["agent_result"]
+            checks["local_formula_repair_preserves_saved_english"] = (
+                phase["count"] == agent["metrics"]["model_requests"] == 1
+                and agent.get("answer_language") == "en" and "BASE-AMOUNT * 2" in agent["answer"]
+                and "BASE-AMOUNT * 3" not in agent["answer"] and re.search(r"[\u3400-\u9fff]", agent["answer"]) is None
+                and "supplied source" in agent["answer"].lower()
+                and agent.get("claim_ledger", {}).get("counts", {}).get("contradicted") == 1
+                and agent.get("claims_semantically_verified") is False)
+            observations.append({"phase": phase["name"], "run_id": agent["run_id"], "model_requests": phase["count"],
+                "elapsed_seconds": repaired["elapsed_seconds"], "answer_sha256": hashlib.sha256(agent["answer"].encode()).hexdigest()})
             journal = read_journal(output)["requests"]
             checks["requests_recorded_once_without_provider_errors"] = (not provider.errors
-                and len(provider.requests) == len(journal) == 6 and all(row["state"] == "completed" for row in journal)
+                and len(provider.requests) == len(journal) == 11 and all(row["state"] == "completed" for row in journal)
                 and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests})
     return {"checks": checks, "observations": observations, "synthetic_model_requests": len(provider.requests),
-        "fixture_sha256": {"root.cbl": sha256(source / "root.cbl")}, "injected_wait_seconds": 20,
+        "fixture_sha256": {name: sha256(source / name) for name in ("root.cbl", "decision.cbl", "caller.cbl")},
+        "injected_wait_seconds": 20,
         "timing_interpretation": "Injected loopback wait tests control flow, not real-model speed."}
 
 

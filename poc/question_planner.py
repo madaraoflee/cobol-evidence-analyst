@@ -8,7 +8,7 @@ from statement_facts import data_references
 from repository_identity import mask_source_references
 
 
-PLAN_VERSION = "business-analysis-plan/v11"
+PLAN_VERSION = "business-analysis-plan/v12"
 _ACCUMULATION = re.compile(
     r"累加|累[计計积積]|加总|加總|"
     r"(?<![A-Za-z0-9_$#@-])(?:accumulat(?:e[ds]?|ing|ion)|running\s+totals?)(?![A-Za-z0-9_$#@-])|"

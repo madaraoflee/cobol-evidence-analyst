@@ -1462,7 +1462,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     source_memory_context = resume_checkpoint.get("source_memory_context") or {
         "run_id": quality.data["run_id"], "rounds": []}
     source_memory = PriorSourceMemory(database_path, question=question, run_id=source_memory_context["run_id"],
-        context={"analysis_identity": analysis_identity,
+        context={"analysis_identity": source_memory_context.get("analysis_identity", analysis_identity),
                  "compilation_context": source_session.options.get("compilation_context") if source_session else None}) if policy.source_memory_enabled else None
     if source_memory is not None:
         source_memory.restore(resume_checkpoint.get("prior_source_memory"),
@@ -2972,7 +2972,16 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                 "已供应源码直接使用，不把未读取、调用目标未解析或运行值未知概括成源码未提供。")
                 if continuation_requested:
                     payload["analysis_memory"] = {**continuation.prompt_memory(), "continuation_requested": True}
-                    if not discovery_pending:
+                    if resume_checkpoint.get("answer_language_changed"):
+                        payload["draft_answer"] = redactor._sanitize(resume_checkpoint.get("language_revision_draft", ""))
+                    if not discovery_pending and resume_checkpoint.get("answer_language_changed"):
+                        payload["task"] = ("用户已选择继续同一调查，并更新了回答语言。旧 draft_answer 只作待核对的分析上下文，"
+                            "复用已读源码、已完成动作及有来源的分析记忆，继续解决具体待查事项。"
+                            "按当前 answer_language 和保存的回答要求完整修订业务答案；旧稿即使因长度中断，"
+                            "也不要衔接其最后一句或拼接旧语言段落。保留有据结论及实际来源引用，不把旧稿当事实证据。"
+                            + ("本组现在收尾，按已有材料交付并保留具体待查项，不再请求工具。" if force_answer else
+                               "仍有关键缺口时返回具体补查动作；资料足够时直接交付当前语言的完整答案。"))
+                    elif not discovery_pending:
                         payload["task"] = ("用户已选择继续补查，这是同一调查的接续；question 只限定原分析目标。"
                             "从 draft_answer、analysis_memory、已完成动作及待查事项接着分析，优先解决尚未解释的条件、分支和结果。"
                             "复用已读源码与有来源的分析记忆，不从头重复定位或重查已解决事项。"
@@ -3776,7 +3785,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
 
     if answer.strip():
         answer_origin = "model"
-    elif not identity_blocks_analysis(business_map.get("source_identity", {})):
+    elif (not identity_blocks_analysis(business_map.get("source_identity", {}))
+            and not (failure and resume_checkpoint.get("answer_language_changed"))):
         from evidence_answer import build_evidence_answer
         supplied = set((last_request_manifest or {}).get("source_ids", []))
         verified_memory = set()
@@ -4198,7 +4208,7 @@ def _answer_scope_gaps(question, investigation, *, answer_detail="detailed", ans
     return material, limits
 
 
-def _continued_investigation_seed(saved):
+def _continued_investigation_seed(saved, *, answer_language_changed=False):
     """Carry source-bound work into a new, explicitly requested investigation."""
     checkpoint = saved["checkpoint"]
     seed = json.loads(json.dumps({key: checkpoint[key] for key in (
@@ -4230,11 +4240,30 @@ def _continued_investigation_seed(saved):
         if upgraded:
             accepted["investigation"] = {}
         seed["accepted_draft"] = accepted
+    if answer_language_changed:
+        # A prior-language draft remains context, never a delivered answer or
+        # a prefix for length continuation under the newly requested language.
+        seed["answer_language_changed"] = True
+        seed["language_revision_draft"] = accepted.get("answer") or result.get("answer", "")
+        seed.pop("accepted_draft", None)
+        seed.pop("request_payload", None)
+        memory = seed.get("prior_source_memory") or {}
+        draft_ids = {block["memory_id"] for block in memory.get("declared_blocks", memory.get("blocks", []))
+                     if block.get("kind") == "draft"}
+        for key in ("blocks", "declared_blocks"):
+            if key in memory:
+                memory[key] = [block for block in memory[key] if block.get("memory_id") not in draft_ids]
+        if "retracted_blocks" in memory:
+            memory["retracted_blocks"] = {key: value for key, value in memory["retracted_blocks"].items()
+                                          if key not in draft_ids}
+        accepted = {}
     progress = {} if upgraded else seed.get("analysis_continuation") or {}
     progress.update(idle_tool_rounds=0, awaiting_tools=False, stop_reason=None,
                     revision_requests=0, total_revision_requests=0, reviewed_gaps=[])
     if accepted:
         progress["draft"] = accepted["answer"]
+    elif answer_language_changed:
+        progress["draft"] = ""
     seed["analysis_continuation"] = progress
     if seed.get("answer_output_budget"):
         # A deliberate new attempt may use changed writing requirements.
@@ -4248,10 +4277,12 @@ def _continued_investigation_seed(saved):
                        framework_facts=[], question_investigation={})
         payload.pop("answer_review", None)
         payload.pop("analysis_memory", None)
-    context = checkpoint.get("source_memory_context") or {"run_id": saved["run_id"], "rounds": []}
+    context = {**(checkpoint.get("source_memory_context") or {"run_id": saved["run_id"], "rounds": []})}
+    if answer_language_changed:
+        context.setdefault("analysis_identity", saved["metadata"].get("analysis_identity"))
     prior_rounds = [{key: row[key] for key in ("round_id", "request_body_sha256", "sources") if key in row}
                     for row in (checkpoint.get("quality") or {}).get("rounds", [])]
-    seed["source_memory_context"] = {"run_id": context["run_id"],
+    seed["source_memory_context"] = {**context,
         "rounds": [*context.get("rounds", []), *prior_rounds]}
     return seed
 
@@ -4377,8 +4408,10 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 "answer": local("调查使用的分析或提示版本已经变化。原步骤、证据和请求状态已保留，需要先核对原请求结果，再按当前版本开始调查。", "The analysis or prompt version has changed. Previous steps, evidence and request states are preserved. Check the original request outcome before starting an investigation with the current version.")}}
     if resume:
         metadata = resume["metadata"]
+        same_scope = (metadata.get("analysis_identity") == analysis_identity or explicit_continue
+                      and metadata.get("analysis_identity") in prior_language_identities)
         same_question = (metadata.get("question_id") == question_id
-            and metadata.get("analysis_identity") == analysis_identity
+            and same_scope
             and metadata.get("configuration", {}).get("model_fingerprint") == model_fingerprint)
         # A new default or parser version cannot turn the same unfinished
         # question into a fresh provider allowance. Keep explicit upgrade and
@@ -4454,7 +4487,8 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
     continuation_seed = None
     if explicit_continue and resume:
         if resume.get("uncertain_requests"):
-            return unknown_remote_result(resume)
+            return unknown_remote_result(resume,
+                retain_answer=resume["metadata"].get("analysis_identity") == analysis_identity)
         continuation_seed = resume
         kwargs["continued_from_run_id"] = resume["run_id"]
         resume = None
@@ -4571,7 +4605,8 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 store.checkpoint(retry_seed["run_id"], {**prior_checkpoint,
                     "superseded_by_explicit_retry": True}, status="completed")
             if continuation_seed:
-                kwargs["investigation_seed"] = _continued_investigation_seed(continuation_seed)
+                kwargs["investigation_seed"] = _continued_investigation_seed(continuation_seed,
+                    answer_language_changed=continuation_seed["metadata"].get("analysis_identity") != analysis_identity)
             return _run_business_chat(question, database_path, source_root, config,
                                       source_session=session, resume_state=resume, **kwargs)
         except QuestionDeadlineExceeded:

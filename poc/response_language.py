@@ -7,7 +7,8 @@ import re
 
 SUPPORTED_LANGUAGES = {"en", "zh-CN", "zh-HK"}
 _NAMES = {"en": "English", "zh-CN": "Simplified Chinese", "zh-HK": "Traditional Chinese"}
-_QUOTED = re.compile(r"```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`|\"[^\"\n]*\"|“[^”\n]*”|「[^」\n]*」|(?<!\w)'[^'\n]*'(?!\w)")
+_QUOTED = re.compile(r"```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`|\"[^\"\n]*\"|“[^”\n]*”|"
+                     r"‘[^’\n]*’|「[^」\n]*」|『[^』\n]*』|(?<![A-Za-z0-9_])'[^'\n]*'(?![A-Za-z0-9_])")
 _LANGUAGE_NAME = (r"English|(?:Simplified|Traditional)\s+Chinese|Chinese|"
                   r"en(?:[-_]US|[-_]GB)?|zh[-_]CN|zh[-_](?:HK|TW)|"
                   r"英文|英语|英語|简体中文|簡體中文|繁体中文|繁體中文|简体|簡體|繁体|繁體|中文")
@@ -44,9 +45,9 @@ def _explicit(text):
     return selected
 
 
-def _saved_language_requirement(instructions):
-    if not isinstance(instructions, str):
-        return None
+def _language_request_text(value):
+    if not isinstance(value, str):
+        return ""
     # Quoted example instructions are data. A quoted language value following
     # an explicit language selector is still a direct preference declaration.
     def unquote_language(match):
@@ -54,10 +55,14 @@ def _saved_language_requirement(instructions):
         inner = quoted[1:-1]
         if (re.fullmatch(_LANGUAGE_NAME, inner, re.I)
                 and re.search(r"(?:\b(?:in|language)|语言|語言|用|使用|为|為)\s*[:：=]?\s*$",
-                              instructions[:match.start()], re.I)):
+                              value[:match.start()], re.I)):
             return " " + inner + " "
         return " "
-    text = _QUOTED.sub(unquote_language, instructions)
+    return _QUOTED.sub(unquote_language, value)
+
+
+def _saved_language_requirement(instructions):
+    text = _language_request_text(instructions)
     lines, example = [], False
     for line in text.splitlines():
         if not line.strip():
@@ -103,7 +108,7 @@ def resolve_answer_language(question, *, locale=None, history=None, answer_instr
     Saved prose and English section names do not imply an output language.
     Only an affirmative language directive can override the question's prose.
     """
-    text = _QUOTED.sub(" ", str(question or ""))
+    text = _language_request_text(str(question or ""))
     selected = _explicit(text) or _saved_language_requirement(answer_instructions) or _prose_language(text)
     if selected:
         return selected
@@ -111,7 +116,7 @@ def resolve_answer_language(question, *, locale=None, history=None, answer_instr
         return locale
     for message in reversed(history or []):
         if isinstance(message, dict) and message.get("role") == "user":
-            previous = _QUOTED.sub(" ", str(message.get("content") or ""))
+            previous = _language_request_text(str(message.get("content") or ""))
             selected = _explicit(previous) or _prose_language(previous)
             if selected:
                 return selected

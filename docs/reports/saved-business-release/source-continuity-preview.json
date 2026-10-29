@@ -1,0 +1,101 @@
+{
+  "schema_version": "investigation-continuity-check/v1",
+  "report_execution_id": "39be3c2f5448af8702e327c9da9660ca",
+  "created_at_utc": "2026-10-29T09:10:36.763712+00:00",
+  "transport_kind": "synthetic",
+  "external_model_calls": 0,
+  "paid_model_calls": 0,
+  "real_model_accuracy": null,
+  "formal_acceptance": false,
+  "checks": {
+    "default_policy_has_no_soft_target": true,
+    "slow_first_answer_is_automatically_completed": true,
+    "custom_single_paragraph_has_no_local_appendix": true,
+    "partial_latest_prompt_and_existing_draft_supplied": true,
+    "partial_prior_answer_preserved_as_revision": true,
+    "partial_continuation_completes_without_discarding_text": true,
+    "partial_revision_and_citation_survive_restart": true,
+    "truncated_latest_prompt_and_existing_draft_supplied": true,
+    "truncated_prior_answer_preserved_as_revision": true,
+    "truncated_continuation_completes_without_discarding_text": true,
+    "truncated_revision_and_citation_survive_restart": true,
+    "saved_business_content_drives_existing_omission_review": true,
+    "business_fixture_has_real_partial_continuation_boundary": true,
+    "cross_language_continuation_uses_current_requirements_and_source": true,
+    "cross_language_continuation_preserves_previous_answer_revision": true,
+    "cross_language_continuation_keeps_historical_source_evidence": true,
+    "local_formula_repair_preserves_saved_english": true,
+    "requests_recorded_once_without_provider_errors": true
+  },
+  "errors": [],
+  "status": "passed",
+  "source_commit": "123e20dd976f39822c72eb96d80e5c28c42f106f",
+  "source_dirty": true,
+  "execution_surface": "source_python_http",
+  "runtime_platform": "Darwin",
+  "archive_sha256": null,
+  "binary_path": null,
+  "binary_sha256": null,
+  "application_sha256": "2c13b9b032c87eb72e6616d82cf7fb39db106267881721967ebb94787405ee75",
+  "observations": [
+    {
+      "phase": "default",
+      "run_id": "0d272de126dfa0c39d1910dc",
+      "model_requests": 2,
+      "elapsed_seconds": 20.27262916699692,
+      "answer_sha256": "9813d3abf287c58affbb298008867187fb788b4cbf2001938f7a928649b5a34a"
+    },
+    {
+      "phase": "partial",
+      "previous_run_id": "aabdc10f7d4e481bd843921c",
+      "run_id": "cdf14231a4686c907076d55e",
+      "revision_id": "b518204d8aca34573a9b0549c55d537b",
+      "answer_sha256": "b412ee884cabcba3db099a3b1eff87106a78b17af9ea9d27e3966ee575b7cfb6"
+    },
+    {
+      "phase": "truncated",
+      "previous_run_id": "0507c4a1ecf53c705dc8562d",
+      "run_id": "fc35970f849d8ec1d4d640fe",
+      "revision_id": "f8d38a20cb4c7c8c7f0e08bdff1e94d9",
+      "answer_sha256": "a037185f87271720ed27330c69647b58eba71c9b1bee4a4cec6ba7a6c8178a9a"
+    },
+    {
+      "phase": "business_content",
+      "run_id": "bfd196e7c8cb20158c960eb3",
+      "model_requests": 2,
+      "elapsed_seconds": 0.237110499991104,
+      "answer_sha256": "6c72d17980e6462eda1069baa14f36edeb7b2ab7a1589b63c779087c6d025137"
+    },
+    {
+      "phase": "business_partial",
+      "run_id": "c322381967a2f1db4e8796d2",
+      "model_requests": 1,
+      "elapsed_seconds": 0.11892654199618846,
+      "answer_sha256": "633b725e194fc071ff03ada65ae249c11e07aac9a21516703d81a95654db4c4b"
+    },
+    {
+      "phase": "continue_business_english",
+      "previous_run_id": "6d85c818878343fe82b10dc9e348506e",
+      "run_id": "e136fe52d7cf66501d9ff0f1",
+      "revision_id": "7a4fe82ae07e14b3eb33f6aae0ed580b",
+      "model_requests": 1,
+      "elapsed_seconds": 0.12493600000743754,
+      "answer_sha256": "30c3a33e53e5f5a57840254d4eb66554e65d5e9e9a006f9a7e25855a40608ad3"
+    },
+    {
+      "phase": "saved_language_repair",
+      "run_id": "115b24ccc8034fa88094c39a",
+      "model_requests": 1,
+      "elapsed_seconds": 0.11859220800397452,
+      "answer_sha256": "ebf0e1291a11bada9a4dbc65d6063241abbacb8ff6d999f26bae8a4d3251501c"
+    }
+  ],
+  "synthetic_model_requests": 11,
+  "fixture_sha256": {
+    "root.cbl": "9ad0ce218830b863c606ac814154756e41e4e6f97040c04d899325f6c9d6746f",
+    "decision.cbl": "bd30aa3009dc53a5ce38af94d2a8ada7770b54742512248ed8e37c883385b3c9",
+    "caller.cbl": "a1213ff948c32314f0157651e7502d901afc09b834dc14294250a5e318f7ca3c"
+  },
+  "injected_wait_seconds": 20,
+  "timing_interpretation": "Injected loopback wait tests control flow, not real-model speed."
+}

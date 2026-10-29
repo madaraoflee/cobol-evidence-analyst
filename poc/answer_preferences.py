@@ -25,6 +25,9 @@ _NEGATED = re.compile(r"(?:不要|不必|不用|无需|無需|不需要|别|別|
                       r"\b(?:do\s+not|don't|never|no\s+need\s+to)\s+"
                       r"(?:explain|describe|clarify|cover|expand|walk\s+through)\b", re.I)
 _ILLUSTRATIVE = re.compile(r"^\s*(?:例如|比如|示例|举例|舉例|for\s+example|e\.g\.)", re.I)
+_FENCED = re.compile(r"```[\s\S]*?(?:```|\Z)|~~~[\s\S]*?(?:~~~|\Z)")
+_QUOTED = re.compile(r"`[^`\n]*`|\"[^\"\n]*\"|“[^”\n]*”|‘[^’\n]*’|「[^」\n]*」|『[^』\n]*』|"
+                     r"(?<![A-Za-z0-9_])'[^'\n]*'(?![A-Za-z0-9_])")
 _CURRENT_LIMIT = re.compile(
     r"(?:只|仅|僅)(?:需|要|想)?(?:解释|解釋|说明|說明|回答|知道|了解|查看|看|读|讀|分析)|"
     r"(?:不要|不用|无需|無需)(?:展开|展開)|(?:一|两|兩|三)句(?:话|話)|"
@@ -51,7 +54,11 @@ def saved_business_explanation_requested(question, answer_instructions="", *, fi
             or field_entities or any(scope.get("exclusive") is not False for scope in source_scopes)
             or _CURRENT_LIMIT.search(str(question))):
         return False
-    for clause in re.split(r"[\n。！？;；，,]+|(?<=[.!?])\s+", answer_instructions[:16000]):
+    text = _FENCED.sub(" ", answer_instructions[:16000])
+    # A quoted action is an example or a phrase to discuss, not another saved
+    # request. Quoted subjects such as "business purpose" remain usable.
+    text = _QUOTED.sub(lambda match: " " if _ACTION.search(match[0]) else match[0], text)
+    for clause in re.split(r"[\n。！？;；，,]+|(?<=[.!?])\s+", text):
         if _ILLUSTRATIVE.search(clause):
             continue
         actions = list(_ACTION.finditer(clause))

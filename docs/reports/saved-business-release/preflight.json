@@ -1,0 +1,93 @@
+{
+  "base_commit": "123e20dd976f39822c72eb96d80e5c28c42f106f",
+  "scope": "Additional source review and same-package supplemental desktop checks; final Windows build verification follows separately.",
+  "fixes": [
+    "Quoted current language directives take precedence over saved language requirements.",
+    "Quoted or fenced examples do not become affirmative business analysis requirements.",
+    "Explicit same-scope continuation supports changed output language without joining the old-language draft.",
+    "Source-memory version and origin bindings remain intact across the presentation change.",
+    "Legacy partial records can recover their immutable investigation identity after saved language changes."
+  ],
+  "versions": {
+    "plan": "business-analysis-plan/v12",
+    "pipeline": "question-evidence-v63",
+    "prompt": "business-chat-v54"
+  },
+  "native_contract_79_samples_changed": false,
+  "source_preview": {
+    "status": "passed",
+    "checks": 18,
+    "synthetic_requests": 11,
+    "final_executable_verification": false
+  },
+  "source_preview_diagnostics_preserved": [
+    {
+      "attempt": "v2",
+      "status": "failed",
+      "cause": "Tool attempted continuation for a completed conversation, rejected by the existing UI/HTTP contract."
+    },
+    {
+      "attempt": "v3",
+      "status": "failed",
+      "cause": "Truncated revision correctly retained an earlier complete draft; validation now separates complete business repair from a fresh legitimate partial turn."
+    }
+  ],
+  "focused_latest_tests": {
+    "tests": 21,
+    "passed": 21,
+    "includes_final_legacy_and_tool_rerun_tests": 9
+  },
+  "frontend": {
+    "passed": 262,
+    "failed": 0
+  },
+  "live_model_calls": 0,
+  "private_source_sent": false,
+  "formal_acceptance": false,
+  "tested_files": [
+    {
+      "path": "poc/answer_preferences.py",
+      "sha256": "c0516d17ffb054df2f4fcb020f8cd24851eab6e6649ea278925c2d543e91d4f2"
+    },
+    {
+      "path": "poc/business_chat.py",
+      "sha256": "7bf01624c96d003ae0f4e3047eda9d15cb16411663d056e52b483871bde76cd3"
+    },
+    {
+      "path": "poc/quality_trace.py",
+      "sha256": "036a8b6fd47a66c3f1e7c909bb5991f4dda41ef044b364f7b047ae8d93005af2"
+    },
+    {
+      "path": "poc/question_planner.py",
+      "sha256": "1f4c9dde02ebf74c5548a8344f68a55a861274d198eb348b82af03f2f80ff9c9"
+    },
+    {
+      "path": "poc/response_language.py",
+      "sha256": "0f220d3685096178a629494abab88e88b46ab0e890727f5360ee3d0a3eeda84b"
+    },
+    {
+      "path": "poc/tests/test_investigation_continuity_check.py",
+      "sha256": "e6d6195092064cbbf0129f05a60ce398db7b058845d6fa3804b1e821a4798ada"
+    },
+    {
+      "path": "poc/web_app.py",
+      "sha256": "84e90b1d713057737dbafb442c2e2eef76aca986165ca7705df02457c2c0dcb1"
+    },
+    {
+      "path": "tools/check_investigation_continuity.py",
+      "sha256": "f34a2df400888fe85067dbcf15f3e9f8f36fca460d81e55168286fa8eb97fe06"
+    },
+    {
+      "path": "poc/tests/test_continuation_language_change.py",
+      "sha256": "0e652dc4f64d1f3b989dc50b860b2fb2504b8f5fd6649b8aaa817ac39650d05c"
+    },
+    {
+      "path": "poc/tests/test_legacy_continuation_language.py",
+      "sha256": "c4d0f0dff92bd9f555ec70beb35844faa49d804246d461899dc96362f457afb2"
+    },
+    {
+      "path": "poc/tests/test_quoted_answer_preferences.py",
+      "sha256": "a85c81342d733bf0deaa208b7ca40a87730a3fc71be8d8e0c811b2932281d883"
+    }
+  ]
+}

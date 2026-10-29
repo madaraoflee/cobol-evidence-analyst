@@ -11,11 +11,24 @@ import unittest
 from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from tools.check_investigation_continuity import CompletionProvider, SOURCE, verify_pages
+from tools.check_investigation_continuity import (BUSINESS_CALLER, BUSINESS_SOURCE,
+                                                CompletionProvider, SOURCE, continuation_turn, verify_pages)
 from tools.desktop_acceptance_runtime import FIXTURES
 
 
 class InvestigationContinuityCheckTests(unittest.TestCase):
+    def test_cross_language_fixture_cannot_continue_a_completed_or_unsourced_turn(self):
+        user = {"role": "user", "status": "partial"}
+        assistant = {"role": "assistant", "status": "partial", "evidence_refs": [{"evidence_id": "ev:source"}],
+                     "investigation_run_id": "a" * 24}
+        self.assertEqual(continuation_turn({"messages": [user, assistant]}), (user, assistant))
+        for changed in ({**assistant, "status": "completed"}, {**assistant, "evidence_refs": []},
+                        {**assistant, "investigation_run_id": None}):
+            with self.subTest(changed=changed), self.assertRaises(AssertionError):
+                continuation_turn({"messages": [user, changed]})
+        with self.assertRaises(AssertionError):
+            continuation_turn({"messages": [{**user, "status": "completed"}, assistant]})
+
     def test_supply_check_rejects_wrong_version_and_invented_lines(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory)
@@ -49,6 +62,24 @@ class InvestigationContinuityCheckTests(unittest.TestCase):
                 self.assertEqual(data["choices"][0]["message"]["content"], "Retained partial.")
                 self.assertEqual(provider.requests[0]["request_sha256"], hashlib.sha256(body).hexdigest())
                 self.assertEqual(provider.errors, [])
+
+    def test_business_handoff_check_requires_both_original_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory)
+            pages = []
+            for name, text in (("decision.cbl", BUSINESS_SOURCE), ("caller.cbl", BUSINESS_CALLER)):
+                path = source / name
+                path.write_text(text, encoding="utf-8")
+                pages.append({"relative_path": name, "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                    "start_line": 1, "end_line": len(text.splitlines()), "source_text": text})
+            payload = {"source_context": [{"pages": pages}]}
+            self.assertEqual(verify_pages(source, payload, "MOVE 12 TO RESULT-CODE")["relative_path"], "decision.cbl")
+            self.assertEqual(verify_pages(source, payload, "MOVE 'N' TO ALLOW-PROCESS")["relative_path"], "caller.cbl")
+            with self.assertRaises(StopIteration):
+                verify_pages(source, {"source_context": [{"pages": pages[:1]}]}, "MOVE 'N' TO ALLOW-PROCESS")
+            invented = {**pages[1], "source_text": BUSINESS_CALLER.replace("RESULT-CODE = 12", "RESULT-CODE = 13")}
+            with self.assertRaises(AssertionError):
+                verify_pages(source, {"source_context": [{"pages": [pages[0], invented]}]}, "MOVE 'N' TO ALLOW-PROCESS")
 
 
 if __name__ == "__main__":

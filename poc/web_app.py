@@ -813,6 +813,7 @@ class WorkbenchState:
         if not database.is_file() or any(Path(str(database) + suffix).is_symlink() for suffix in ("", "-wal", "-shm")):
             return {}
         from run_store import fingerprint
+        from response_language import SUPPORTED_LANGUAGES
         try:
             target = self.conversation_store.retry_target(conversation["id"], user["id"])
             with closing(sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True, timeout=0.1)) as db:
@@ -836,10 +837,12 @@ class WorkbenchState:
                             "source_root": str(Path(self.project["source"]).resolve()), "entry_program": entry,
                             "history": history, "framework_reference_path": str(Path(self.framework_reference_path).resolve())
                                 if self.framework_reference_path else None,
-                            "answer_detail": options["answer_detail"], "conversation_id": conversation["id"],
-                            "answer_language": resolve_answer_language(user["content"], locale=options["locale"], history=history,
-                                answer_instructions=self.answer_instructions)}
-                        if fingerprint(identity) == metadata.get("analysis_identity"):
+                            "answer_detail": options["answer_detail"], "conversation_id": conversation["id"]}
+                        # Recover the old record's presentation identity. The
+                        # next job still uses the currently saved requirements.
+                        identities = {fingerprint(identity)} | {
+                            fingerprint({**identity, "answer_language": language}) for language in SUPPORTED_LANGUAGES}
+                        if metadata.get("analysis_identity") in identities:
                             options["entry"] = entry
                             return {"investigation_run_id": run_id, "analysis_options": options}
         except (OSError, ValueError, TypeError, KeyError, sqlite3.Error):
