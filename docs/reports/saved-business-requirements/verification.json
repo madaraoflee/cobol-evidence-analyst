@@ -1,0 +1,135 @@
+{
+  "scope": "Source-level saved business analysis requirements, output language, request precedence and interrupted-run recovery.",
+  "base_commit": "98be4edf7b90dd42dba43d4be922406288d30802",
+  "implementation_versions": {
+    "analysis_plan": "business-analysis-plan/v11",
+    "pipeline": "question-evidence-v62",
+    "prompt": "business-chat-v53"
+  },
+  "controlled_baseline": {
+    "replacement": "Only business_chat from base_commit; current shared dependencies, same neutral source, scripted responses and resource limits.",
+    "case": "saved downstream business requirement omitted from a source-backed answer",
+    "baseline_model_requests": 1,
+    "baseline_obvious_omission_repaired": false,
+    "fixed_model_requests": 2,
+    "fixed_obvious_omission_repaired": true,
+    "baseline_failures": 1,
+    "baseline_errors": 0,
+    "log_sha256": "f2d8ace8780326b553b683871084ed8c15d4f724faa24bf2e0658704291664e9"
+  },
+  "new_regressions": {
+    "business_preferences": 9,
+    "saved_language": 5,
+    "final_tasks": 3,
+    "interrupted_resume": 2,
+    "source_reading_adapter": 7,
+    "total": 26
+  },
+  "python": {
+    "selected": 4307,
+    "passed_in_complete_run": 4306,
+    "failed": 0,
+    "errors": 0,
+    "skipped_in_complete_run": [
+      {
+        "id": "test_public_business_acceptance.PublicBusinessAcceptanceTests.test_default_pipeline_uses_real_versioned_source_and_repairs_wrong_claims",
+        "reason": "external fixed corpus is not configured"
+      }
+    ],
+    "supplemental": {
+      "test_id": "test_public_business_acceptance.PublicBusinessAcceptanceTests.test_default_pipeline_uses_real_versioned_source_and_repairs_wrong_claims",
+      "passed": true,
+      "source": "Existing local public corpus verified against docs/eval/public-business-v1/manifest.json; no download.",
+      "source_manifest_sha256": "e1ae2ff544272b524e7863dce0b9c972e29d1c35f2d93765fce2dc058012d81b",
+      "log_sha256": "9da3569ba1033c6b25b9f032f56c7bac0a0433e24c016277b1330cc7b8167f98"
+    },
+    "unique_tests_with_a_pass": 4307,
+    "complete_run_seconds": 251.43077
+  },
+  "frontend": {
+    "tests": 262,
+    "passed": 262,
+    "failed": 0,
+    "skipped": 0,
+    "log_sha256": "51c2ec988837b038fde57abfaa185805f50451b1504a96e82394925d19b921c6"
+  },
+  "checked_properties": [
+    "Saved business content participates in optional source reads and existing source-bound explanation review.",
+    "Pure formatting, negated and example requirements do not expand analysis; explicit current scope remains authoritative.",
+    "Task defaults defer to saved content and structure while source identity, tool budgets and factual boundaries remain intact.",
+    "Current explicit language precedes saved explicit language; local repairs and persisted metadata use the resolved output language.",
+    "An uncertain request is never resent automatically; changed or cleared requirements cannot replay an old answer as a current answer.",
+    "No required headings or other output-format gate added."
+  ],
+  "live_model_requests": 0,
+  "private_source_sent": false,
+  "model_accuracy_measured": false,
+  "application_builds": 0,
+  "release_published": false,
+  "tested_files": [
+    {
+      "path": "poc/answer_markdown.py",
+      "sha256": "90eab536215a1cdc07c4b3b5256a5b625f619c09fee687338a3a349314c49450"
+    },
+    {
+      "path": "poc/answer_preferences.py",
+      "sha256": "1e274be841c9a95d0242ed17ff9905545a82fc7641f3796ad3da5c0f4ff1db60"
+    },
+    {
+      "path": "poc/business_analysis.py",
+      "sha256": "e7d3611a83234155f48d52d3b7ae368ad1ae317b1908a9b9701e7104aacbbd30"
+    },
+    {
+      "path": "poc/business_chat.py",
+      "sha256": "028ebc94ebe4cff0ecdbf67366e0dbe227cca2900a7cb0c401e6256ab01f5132"
+    },
+    {
+      "path": "poc/business_synthesis.py",
+      "sha256": "5abb49ade761f140d235b1f7e15db6b0b5e10947eefad7f0a20375ae3335ea2a"
+    },
+    {
+      "path": "poc/draft_validation.py",
+      "sha256": "c27de6bd537b05e1f8127cec53895d747a6760a85dd734b5ff31c6ba61745031"
+    },
+    {
+      "path": "poc/quality_trace.py",
+      "sha256": "ba8a17ec9b23f8e3a2f69915ecceb8c0bbcdc7cb4462fbb6f627e85e36074b4b"
+    },
+    {
+      "path": "poc/question_investigation.py",
+      "sha256": "d352f20cacb066a225f257598c2c160403c5e2294b3f913ac0161f195c76aae1"
+    },
+    {
+      "path": "poc/question_planner.py",
+      "sha256": "8efe207087e5b0d31d442b54990909b494af1349e9c6915c64566a3129385cfe"
+    },
+    {
+      "path": "poc/response_language.py",
+      "sha256": "a112d185519990b33e1c4bed6934531f118671905e54ff767bdd84e2e62302ca"
+    },
+    {
+      "path": "poc/web_app.py",
+      "sha256": "2ddea50f606c23017650a9857872869ea8c9686bf9847259ec97e588b768e44d"
+    },
+    {
+      "path": "poc/tests/test_business_analysis_saved_requirements.py",
+      "sha256": "aa0c1ca3b61ed3e4cf89dd84755377a783e67cec751d38251ec53c1e2c7ec596"
+    },
+    {
+      "path": "poc/tests/test_saved_answer_language.py",
+      "sha256": "c92eeec2c2c35582737789410c98505a3dc3b0275c61f283e67cb090055fc376"
+    },
+    {
+      "path": "poc/tests/test_saved_answer_tasks.py",
+      "sha256": "54936a0d87f0e21f4e8678ea1a2a15a06efc1aab3af6ee7acca7fb703efd7186"
+    },
+    {
+      "path": "poc/tests/test_saved_business_preferences.py",
+      "sha256": "2ef33a54c4a6ddbe1dbdf5d0c9bfa31459a573b8bdf0ad095d13264f00699a26"
+    },
+    {
+      "path": "poc/tests/test_saved_requirement_resume.py",
+      "sha256": "d3af022d54dd05652b6058b8a16edc999de23dec55f2bfe79d71341d4df00ff3"
+    }
+  ]
+}

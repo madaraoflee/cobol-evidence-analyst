@@ -837,7 +837,8 @@ class WorkbenchState:
                             "history": history, "framework_reference_path": str(Path(self.framework_reference_path).resolve())
                                 if self.framework_reference_path else None,
                             "answer_detail": options["answer_detail"], "conversation_id": conversation["id"],
-                            "answer_language": resolve_answer_language(user["content"], locale=options["locale"], history=history)}
+                            "answer_language": resolve_answer_language(user["content"], locale=options["locale"], history=history,
+                                answer_instructions=self.answer_instructions)}
                         if fingerprint(identity) == metadata.get("analysis_identity"):
                             options["entry"] = entry
                             return {"investigation_run_id": run_id, "analysis_options": options}
@@ -1389,7 +1390,8 @@ class WorkbenchState:
             or agent.get("answer_origin") == "local_source_facts" or project_agent.get("runner_status") != "COMPLETED")
             else "completed" if available else "failed")
         answer_language = agent.get("answer_language") or resolve_answer_language(
-            options.get("question", ""), locale=options.get("locale"), history=options.get("conversation_history"))
+            options.get("question", ""), locale=options.get("locale"), history=options.get("conversation_history"),
+            answer_instructions=options.get("answer_instructions", self.answer_instructions))
         content = agent.get("answer") or localized_text(answer_language,
             "本次没有取得模型回答。对话已保留，可以重试。",
             "No model answer was received. The conversation has been retained; you can retry.",

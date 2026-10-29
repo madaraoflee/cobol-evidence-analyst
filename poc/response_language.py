@@ -7,24 +7,65 @@ import re
 
 SUPPORTED_LANGUAGES = {"en", "zh-CN", "zh-HK"}
 _NAMES = {"en": "English", "zh-CN": "Simplified Chinese", "zh-HK": "Traditional Chinese"}
-_QUOTED = re.compile(r"```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`|\"[^\"\n]*\"|“[^”\n]*”|「[^」\n]*」")
+_QUOTED = re.compile(r"```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`|\"[^\"\n]*\"|“[^”\n]*”|「[^」\n]*」|(?<!\w)'[^'\n]*'(?!\w)")
+_LANGUAGE_NAME = (r"English|(?:Simplified|Traditional)\s+Chinese|Chinese|"
+                  r"en(?:[-_]US|[-_]GB)?|zh[-_]CN|zh[-_](?:HK|TW)|"
+                  r"英文|英语|英語|简体中文|簡體中文|繁体中文|繁體中文|简体|簡體|繁体|繁體|中文")
 _REQUEST = re.compile(
-    r"\b(?:answer|reply|respond|explain|write)(?:\s+(?:to\s+me|this|it|only|entirely|please))*\s+in\s+"
-    r"(?P<english>English|(?:Simplified|Traditional)\s+Chinese|Chinese)\b"
-    r"|(?:请|請)?(?:用|以|使用)\s*(?P<chinese>英文|英语|英語|简体中文|簡體中文|繁体中文|繁體中文|中文)"
-    r"(?:(?:来|來)?\s*(?:回答|回复|回覆|解释|解釋|说明|說明|作答)|(?=\s*(?:$|[，。！？：；,.!?;:])))"
-    r"|(?P<short>英文|英语|英語|简体中文|簡體中文|繁体中文|繁體中文|中文)\s*(?:回答|回复|回覆|作答)", re.I)
+    r"\b(?:answer|reply|respond|explain|write)(?:\s+(?:to\s+me|this|it|only|entirely|please|always))*\s+in\s+"
+    r"(?P<english>" + _LANGUAGE_NAME + r")(?![A-Za-z0-9_-])"
+    r"|(?:请|請)?(?:用|以|使用)\s*(?P<chinese>" + _LANGUAGE_NAME + r")"
+    r"(?:(?:来|來)?\s*(?:回答|回复|回覆|解释|解釋|说明|說明|作答|分析)|(?=\s*(?:$|[，。！？：；,.!?;:])))"
+    r"|(?<![A-Za-z0-9_-])(?P<short>" + _LANGUAGE_NAME + r")\s*(?:回答|回复|回覆|作答)"
+    r"|(?:回答|回复|回覆|输出|輸出)\s*(?:必须|必須|应|應|需要|一律|统一|統一|始终|始終|都|只|仅|僅)*"
+    r"\s*(?:使用|用|为|為|是)\s*(?P<postfix>" + _LANGUAGE_NAME + r")(?![A-Za-z0-9_-])"
+    r"|(?:\b(?:(?:answer|response|output)[_ -]?)?language|(?:(?:回答|回复|回覆|输出|輸出))?语言|(?:(?:回答|回覆|輸出))?語言)"
+    r"\s*[:：=]\s*(?P<label>" + _LANGUAGE_NAME + r")(?![A-Za-z0-9_-])"
+    r"|\buse\s+(?P<use>" + _LANGUAGE_NAME + r")\s+(?:for|in)\s+(?:(?:all|every|each)\s+)?(?:answers?|responses?|replies)\b"
+    r"|(?:^|[。\n;；.!?])\s*(?:(?:please|always|only)\s+)*use\s+(?P<imperative>" + _LANGUAGE_NAME + r")(?=\s*(?:$|[。;；.!?]))", re.I)
 
 
 def _explicit(text):
     selected = None
     for match in _REQUEST.finditer(text):
-        if re.search(r"(?:\b(?:not|never|don't|do not)\s*|不要|不用|不|别|別)\s*$", text[:match.start()], re.I):
+        prefix = re.split(r"[\n。；;!?！？]", text[:match.start()])[-1]
+        if re.search(r"(?:\b(?:not|never|don't|don’t|do not|avoid)\s*(?:(?:always|only|just|ever|usually)\s+)*"
+                     r"|(?:不要|不用|禁止|避免|切勿|无需|無需|不需要|不|别|別)(?:默认|默認|始终|始終|总是|總是|只|仅|僅)*)\s*$",
+                     prefix, re.I):
+            continue
+        if (re.search(r"(?:例如|示例|例子|範例|范例|舉例|举例|\b(?:for example|examples?|e\.g\.))\s*[:：,，]?\s*$",
+                      prefix, re.I)
+                or re.match(r"\s*(?:示例|例子|範例|范例|\bexamples?\b)", text[match.end():], re.I)):
             continue
         name = next(value for value in match.groups() if value).lower()
-        selected = ("en" if name in {"english", "英文", "英语", "英語"} else
-                    "zh-HK" if name in {"traditional chinese", "繁体中文", "繁體中文"} else "zh-CN")
+        selected = ("en" if name in {"english", "英文", "英语", "英語", "en", "en-us", "en_us", "en-gb", "en_gb"} else
+                    "zh-HK" if name in {"traditional chinese", "繁体中文", "繁體中文", "繁体", "繁體",
+                                            "zh-hk", "zh_hk", "zh-tw", "zh_tw"} else "zh-CN")
     return selected
+
+
+def _saved_language_requirement(instructions):
+    if not isinstance(instructions, str):
+        return None
+    # Quoted example instructions are data. A quoted language value following
+    # an explicit language selector is still a direct preference declaration.
+    def unquote_language(match):
+        quoted = match[0]
+        inner = quoted[1:-1]
+        if (re.fullmatch(_LANGUAGE_NAME, inner, re.I)
+                and re.search(r"(?:\b(?:in|language)|语言|語言|用|使用|为|為)\s*[:：=]?\s*$",
+                              instructions[:match.start()], re.I)):
+            return " " + inner + " "
+        return " "
+    text = _QUOTED.sub(unquote_language, instructions)
+    lines, example = [], False
+    for line in text.splitlines():
+        if not line.strip():
+            example = False
+        if re.match(r"\s*(?:#{1,6}\s*)?(?:示例|例子|範例|范例|例如|examples?)\s*(?:[:：]|$)", line, re.I):
+            example = True
+        lines.append("" if example else line)
+    return _explicit("\n".join(lines))
 
 
 def _prose_language(text):
@@ -56,10 +97,14 @@ def _prose_language(text):
     return None
 
 
-def resolve_answer_language(question, *, locale=None, history=None):
-    """Current explicit request, current prose, interface fallback, prior user."""
+def resolve_answer_language(question, *, locale=None, history=None, answer_instructions=""):
+    """Current explicit request, saved explicit requirement, then prior defaults.
+
+    Saved prose and English section names do not imply an output language.
+    Only an affirmative language directive can override the question's prose.
+    """
     text = _QUOTED.sub(" ", str(question or ""))
-    selected = _explicit(text) or _prose_language(text)
+    selected = _explicit(text) or _saved_language_requirement(answer_instructions) or _prose_language(text)
     if selected:
         return selected
     if locale in SUPPORTED_LANGUAGES:

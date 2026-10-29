@@ -13,6 +13,7 @@ from file_impact_evidence import is_file_impact_question
 from question_intent import calculation_intent
 from question_planner import business_concept_requested
 from source_availability import source_availability_contradictions
+from answer_preferences import saved_business_explanation_requested
 
 
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
@@ -390,7 +391,8 @@ _TECHNICAL_SCAFFOLD = re.compile(
     r"source|code|list(?:s|ed)?|name[s]?|follow(?:s|ing)?|then)(?![A-Za-z])", re.I)
 
 
-def wants_business_overview(question, *, answer_detail="detailed", field_entities=(), source_scopes=()):
+def wants_business_overview(question, *, answer_detail="detailed", field_entities=(), source_scopes=(),
+                            answer_instructions=""):
     """A broad explanation request, not every detailed or relationship reply."""
     topics = _BUSINESS_OVERVIEW.findall(str(question))
     text = str(question)
@@ -417,7 +419,9 @@ def wants_business_overview(question, *, answer_detail="detailed", field_entitie
         and bool(re.search(r"程序|程式|\bprograms?\b", text, re.I))
         and bool(re.search(r"(?:数据|資料|数据库|資料庫)表|表(?=的|中|里|裡|和|与|與|、|，|。|\s|$)|"
                            r"文件|檔案|\b(?:tables?|files?)\b", text, re.I)))
-    return (wants_business_detail(question, answer_detail=answer_detail)
+    saved_explanation = saved_business_explanation_requested(question, answer_instructions,
+        field_entities=field_entities, source_scopes=source_scopes)
+    return saved_explanation or (wants_business_detail(question, answer_detail=answer_detail)
             and (bool(topics) or cross_role_explanation
                  or business_concept_requested(question, field_entities=field_entities, source_scopes=source_scopes))
             and (calculation_intent(str(question)) != "rules"
@@ -445,10 +449,10 @@ def _technical_inventory_only(answer):
 
 
 def _business_narrative_requirements(question, orientation, source_pages, *, answer_detail="detailed",
-                                   field_entities=(), source_scopes=()):
+                                   field_entities=(), source_scopes=(), answer_instructions=""):
     """Only supplied orientation facets can nominate a business explanation."""
     if not wants_business_overview(question, answer_detail=answer_detail, field_entities=field_entities,
-                                   source_scopes=source_scopes):
+                                   source_scopes=source_scopes, answer_instructions=answer_instructions):
         return []
     visible = {page.get("evidence_id") for page in source_pages if page.get("source_text")}
     available = set(orientation.get("available_facets", ()))
@@ -469,11 +473,12 @@ def _business_narrative_requirements(question, orientation, source_pages, *, ans
     return requirements
 
 
-def _business_explanation_contract(question, orientation, *, answer_detail="detailed", field_entities=(), source_scopes=()):
+def _business_explanation_contract(question, orientation, *, answer_detail="detailed", field_entities=(), source_scopes=(),
+                                   answer_instructions=""):
     from answer_markdown import BUSINESS_RUNTIME_BOUNDARY_POLICY
 
     overview = wants_business_overview(question, answer_detail=answer_detail, field_entities=field_entities,
-                                      source_scopes=source_scopes)
+                                      source_scopes=source_scopes, answer_instructions=answer_instructions)
     return {"mode": "business_overview" if overview else "direct_answer",
         "available_facets": orientation.get("available_facets", []),
         "semantic_verification": False,
@@ -700,7 +705,7 @@ def _supplied_calculation_hints(question, investigation, source_pages):
 
 @cache_business_explanation
 def answer_requirements(question, investigation, source_pages, *, answer_detail="detailed", behavior_guide=None,
-                        business_orientation=None):
+                        business_orientation=None, answer_instructions=""):
     """Nominate answer aspects only from question-relevant, supplied candidates.
 
     These are bounded lexical coverage hints, not a semantic answer score. A
@@ -764,13 +769,14 @@ def answer_requirements(question, investigation, source_pages, *, answer_detail=
     plan = investigation.get("analysis_plan") or {}
     field_entities, source_scopes = plan.get("entities", ()), plan.get("source_scopes", ())
     if (wants_business_overview(question, answer_detail=answer_detail, field_entities=field_entities,
-                               source_scopes=source_scopes)
+                               source_scopes=source_scopes, answer_instructions=answer_instructions)
             and investigation.get("state") not in {"unresolved", "ambiguous"}):
         if business_orientation is None:
             from business_orientation import build_business_orientation
             business_orientation = build_business_orientation(question, investigation, source_pages)
         requirements.extend(_business_narrative_requirements(question, business_orientation, source_pages,
-            answer_detail=answer_detail, field_entities=field_entities, source_scopes=source_scopes))
+            answer_detail=answer_detail, field_entities=field_entities, source_scopes=source_scopes,
+            answer_instructions=answer_instructions))
     return requirements
 
 
@@ -1440,7 +1446,28 @@ def semantic_risk_candidates(answer, source_pages):
     return result
 
 
-def assess_business_answer(question, answer, investigation, source_pages, *, answer_detail="detailed", working_set=None):
+def _assignment_only_synopsis(answer):
+    """Recognize only a vocabulary-limited assignment/return paraphrase.
+
+    This nominates an existing business-explanation review for saved content
+    requirements. Unfamiliar domain language stays unassessed, never rejected.
+    """
+    text = _REFERENCE.sub("", str(answer)[:65536])
+    if not re.search(r"设置|設置|设为|設為|赋值|賦值|\b(?:set|sets|assign\w*|MOVE)\b", text, re.I):
+        return False
+    text = re.sub(r"(?m)^\s*#{1,6}\s+.*$", "", text)
+    text = re.sub(r"(?<![A-Za-z0-9_$#@-])[A-Z][A-Z0-9_$#@-]*(?![A-Za-z0-9_$#@-])", "", text)
+    text = re.sub(r"'[^']*'|\"[^\"]*\"|[+-]?\d+(?:\.\d+)?", "", text)
+    text = re.sub(r"程序|程式|结果码|結果碼|状态码|狀態碼|结果|結果|字段|欄位|变量|變量|"
+                  r"设置|設置|设为|設為|赋值|賦值|返回|回传|回傳|调用方|調用方|调用者|調用者|"
+                  r"然后|然後|随后|隨後|最后|最後|先|再|并|並|把|将|將|给|給|为|為|的|是|和|与|與|"
+                  r"\b(?:the|a|an|program|code|field|variable|result|status|set|sets|assign\w*|"
+                  r"to|and|then|return\w*|caller|calling\s+program)\b", "", text, flags=re.I)
+    return not re.search(r"[^\W\d_]", text, re.UNICODE)
+
+
+def assess_business_answer(question, answer, investigation, source_pages, *, answer_detail="detailed", working_set=None,
+                           answer_instructions=""):
     """Detect obvious omissions without treating source supply as answer quality."""
     completion = assess_answer_completion(answer, source_pages=source_pages, working_set=working_set)
     # Only the excerpts actually sent to this answer can contradict a global
@@ -1456,7 +1483,8 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
         completion.update(status="incomplete", reason="source_availability_contradiction")
     completion["source_availability_contradiction"] = bool(selection_contradiction or availability_contradictions)
     completion["source_availability_contradictions"] = availability_contradictions
-    requirements = answer_requirements(question, investigation, source_pages, answer_detail=answer_detail)
+    requirements = answer_requirements(question, investigation, source_pages, answer_detail=answer_detail,
+                                       answer_instructions=answer_instructions)
     text = _REFERENCE.sub("", str(answer))
     text = re.sub(r"\[([^\]\n]+)\]\([^\)\n]+\)", r"\1", text)
     text = re.sub(r"(?m)^\s*#{1,6}\s+.*$", "", text)
@@ -1471,6 +1499,10 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
         and not _syntax_observation_only(clause))
     generic_behavior = _generic_behavior_summary(explanation)
     technical_inventory = _technical_inventory_only(answer)
+    plan = investigation.get("analysis_plan") or {}
+    if saved_business_explanation_requested(question, answer_instructions,
+            field_entities=plan.get("entities", ()), source_scopes=plan.get("source_scopes", ())):
+        technical_inventory = technical_inventory or _assignment_only_synopsis(answer)
     missing = [item["kind"] for item in requirements if item["kind"] != "accumulation"
                if (technical_inventory or generic_behavior if item["kind"] in _NARRATIVE_ASPECTS
                    else generic_behavior if item["kind"].startswith("behavior_")
@@ -1519,14 +1551,14 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
 
 
 def needs_synthesis_review(question, answer, investigation, *, source_available=False, source_pages=(),
-                           answer_detail="detailed", assessment=None, working_set=None):
+                           answer_detail="detailed", assessment=None, working_set=None, answer_instructions=""):
     """Review a detected omission or unfinished answer against supplied material."""
     items = investigation.get("required_items", [])
     supplied = source_available or any(item.get("evidence_ids") for item in items)
     if not supplied:
         return False
     completion = (assess_business_answer(question, answer, investigation, source_pages, answer_detail=answer_detail,
-                                      working_set=working_set)
+                                      working_set=working_set, answer_instructions=answer_instructions)
                   if assessment is None else assessment)
     # A local qualification is normal in a detailed explanation. Its wording
     # alone is not an omitted business point and cannot justify regenerating
@@ -1602,7 +1634,7 @@ def project_analysis_brief(brief):
 
 
 def build_analysis_brief(question, investigation, source_pages, framework_references, max_output_tokens,
-                         *, answer_detail="detailed", business_map=None, framework_facts=()):
+                         *, answer_detail="detailed", business_map=None, framework_facts=(), answer_instructions=""):
     """Bind the synthesis brief to excerpts surviving actual request trimming."""
     visible = {page["evidence_id"] for page in source_pages if page.get("evidence_id")}
     visible.update(row["reference_id"] for row in framework_references if row.get("reference_id"))
@@ -1624,7 +1656,7 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
     plan = investigation.get("analysis_plan") or {}
     field_entities, source_scopes = plan.get("entities", ()), plan.get("source_scopes", ())
     if wants_business_overview(question, answer_detail=answer_detail, field_entities=field_entities,
-                               source_scopes=source_scopes):
+                               source_scopes=source_scopes, answer_instructions=answer_instructions):
         from business_orientation import build_business_orientation
         orientation = build_business_orientation(question, investigation, source_pages, business_map=business_map,
             framework_references=framework_references, framework_facts=framework_facts)
@@ -1638,11 +1670,12 @@ def build_analysis_brief(question, investigation, source_pages, framework_refere
     return {"detail_requested": wants_business_detail(question, answer_detail=answer_detail),
             "output_budget_tokens": max_output_tokens,
             "required_answer_aspects": answer_requirements(question, investigation, source_pages,
-                answer_detail=answer_detail, behavior_guide=behavior_guide, business_orientation=orientation),
+                answer_detail=answer_detail, behavior_guide=behavior_guide, business_orientation=orientation,
+                answer_instructions=answer_instructions),
             **({"business_orientation": orientation} if orientation.get("available_facets") else {}),
             "business_explanation_contract": _business_explanation_contract(
                 question, orientation, answer_detail=answer_detail, field_entities=field_entities,
-                source_scopes=source_scopes),
+                source_scopes=source_scopes, answer_instructions=answer_instructions),
             **({"behavior_guide": behavior_guide} if behavior_guide.get("observations") else {}),
             **({"syntax_guide": syntax_guide} if syntax_guide.get("facts") else {}),
             **({"call_effect_boundaries": call_boundaries} if call_boundaries["required"] else {}),

@@ -18,7 +18,8 @@ from typing import Any
 
 from api_diagnostics import APIResponseDiagnostics
 from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
-from answer_markdown import ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, normalize_answer_markdown, with_answer_instructions
+from answer_markdown import (ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, answer_task_with_instructions,
+                             normalize_answer_markdown, with_answer_instructions)
 from company_api import APIClientError, APIConfigurationError, CompanyAPIConfig, OpenAICompatibleChatClient, Transport
 from framework_knowledge import build_framework_context
 from response_language import answer_language_instruction, localized_text, resolve_answer_language
@@ -358,7 +359,8 @@ def run_business_analysis(
         raise ValueError("reading_strategy must be focused or full_chain")
     if answer_detail not in {"brief", "detailed"}:
         raise ValueError("answer_detail must be brief or detailed")
-    answer_language = resolve_answer_language(question, locale=locale)
+    has_answer_instructions = isinstance(answer_instructions, str) and bool(answer_instructions.strip())
+    answer_language = resolve_answer_language(question, locale=locale, answer_instructions=answer_instructions)
 
     def local_text(zh_cn, en, zh_hk=None):
         return localized_text(answer_language, zh_cn, en, zh_hk)
@@ -623,10 +625,26 @@ def run_business_analysis(
             "target_name", "relative_path", "start_line", "end_line", "evidence_id", "source_text",
             "reference_ids", "source_text_truncated", "target_resolution", "relation_type",
             "parameter_binding_verified", "runtime_verified"), maximum=24, byte_limit=12_000)
+        task = ("简要说明结论和关键条件，保留必要依据；" if answer_detail == "brief" else
+                "按问题需要充分解释相关业务结论、步骤、条件、例外和依据；") + instruction
+        if has_answer_instructions:
+            if stage in {"direct", "synthesis"}:
+                task = answer_task_with_instructions(
+                    "依据本轮提供的源码或分段摘要回答当前 question，按系统中保存的业务关注点、受众、"
+                    "结构与详略要求组织最终业务解释；保留决定所问结论的实际条件与来源引用 "
+                    "[evidence_id]、[reference_id]，仅限定影响结论的未知范围。"
+                    "摘要是未核验的上下文，不能扩大已读源码范围或补造事实。", answer_instructions)
+            else:
+                task = (
+                    "本轮只整理供后续综合使用的内部资料，围绕当前 question 及系统中保存要求涉及的"
+                    "业务关注点保留相关事实、决定结论的条件、数据交接及真实来源引用 "
+                    "[evidence_id]、[reference_id]；最终答案的栏目与排版留待交付时应用。"
+                    "只使用本轮源码和已提供摘要，不把摘要或引用当成已核验事实，不补造未读页内容；"
+                    "先前摘要不能覆盖本轮新增的规则或条件。"
+                    f"内部摘要尽量不超过 {summary_limit if stage == 'page' else MAX_SUMMARY_CHARACTERS} 字。")
         payload: dict[str, object] = {
             "question": supplied_question, "answer_detail": answer_detail, "answer_language": answer_language,
-            "task": ("简要说明结论和关键条件，保留必要依据；" if answer_detail == "brief" else
-                     "按问题需要充分解释相关业务结论、步骤、条件、例外和依据；") + instruction,
+            "task": task,
             "scope": {"kind": "indexed_sources", "snapshot_id": plan.get("snapshot_id"), "planned_pages": len(pages),
                       "reading_strategy": reading_strategy,
                       "total_pages": plan.get("coverage", {}).get("total_pages"),
@@ -640,6 +658,10 @@ def run_business_analysis(
             "additional_external_calls": omitted_external,
             "source_pages": [{**_reference_metadata(page), "source_text": page["source_text"]} for page in page_group],
         }
+        if has_answer_instructions:
+            # The UI's default depth is a fallback, not another instruction
+            # competing with the user's saved explanation requirements.
+            payload.pop("answer_detail")
         if investigation is not None:
             payload["investigation"] = {key: investigation[key] for key in (
                 "mode", "repository_file_count", "selected_file_count", "matched_file_count", "fallback_all"

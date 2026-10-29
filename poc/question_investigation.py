@@ -1653,7 +1653,7 @@ def _business_source_reads(database_path, business_map, working_set, source_page
 def build_question_investigation(question, business_map, *, database_path=None,
                                 source_pages=(), evidence_groups=(), completed_actions=(), max_actions=4,
                                 candidate_cache=None, framework_facts=(), history=(),
-                                working_set=None, max_semantic_files=32):
+                                working_set=None, max_semantic_files=32, answer_instructions=""):
     """Return material obligations and bounded actions for a located calculation."""
     identity = business_map.get("source_identity", {})
     paths = list(dict.fromkeys(business_map.get("selected_paths", [])))
@@ -1693,7 +1693,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
     plan = QuestionPlanner().plan(question, business_map, source_pages=source_pages, history=history,
                                   entity_validator=validate_entity if database_path else None,
                                   source_scopes=source_scopes, file_entities=file_entities,
-                                  file_impact=is_file_impact_question(question))
+                                  file_impact=is_file_impact_question(question), answer_instructions=answer_instructions)
     candidate_question = str(question) + (" " + " ".join(plan.entities) if plan.entities else "")
     base = {"scope": "source_candidates", "semantic_execution_verified": False,
             "analysis_plan": plan.to_dict(),
@@ -1706,7 +1706,8 @@ def build_question_investigation(question, business_map, *, database_path=None,
         return {**base, **_call_relationship_evidence(plan, business_map, source_pages, database_path, max_actions)}
     batch = None
     from business_synthesis import wants_business_overview
-    overview_requested = wants_business_overview(question, field_entities=plan.entities)
+    overview_requested = wants_business_overview(question, field_entities=plan.entities,
+        source_scopes=source_scopes, answer_instructions=answer_instructions)
     batch_cache = candidate_cache if isinstance(candidate_cache, dict) else {}
     exclusive_paths = ({path for path in identity.get("direct_paths", [])}
                        if identity.get("exclusive_source_scope") else set())
@@ -1852,7 +1853,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
     cache_hit = False
     if database_path is not None:
         key = (str(Path(database_path).resolve()), business_map.get("snapshot_id"), tuple(paths),
-               tuple(root_paths), candidate_question, tuple(business_map.get("search_terms", ())))
+               tuple(root_paths), candidate_question, tuple(business_map.get("search_terms", ())), tuple(plan.intents))
         cache_hit = isinstance(candidate_cache, dict) and candidate_cache.get("key") == key
         if cache_hit:
             candidates, frontier, hashes = candidate_cache["value"]

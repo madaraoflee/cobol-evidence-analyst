@@ -16,7 +16,8 @@ from api_diagnostics import APIResponseDiagnostics
 from api_error_details import build_diagnostic, format_diagnostic, sanitize_diagnostic
 from agent_policy import resolve_agent_policy
 from answer_markdown import (ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, BUSINESS_EXPLANATION_COMPACT_POLICY, BUSINESS_RUNTIME_BOUNDARY_POLICY,
-                             join_answer_continuation, strip_incomplete_source_citation, with_answer_instructions)
+                             answer_task_with_instructions, join_answer_continuation,
+                             strip_incomplete_source_citation, with_answer_instructions)
 from answer_diagnostics import build_answer_diagnostics, response_character_counts
 from analysis_continuation import AnalysisContinuation, progress_snapshot
 from answer_continuation_budget import AnswerContinuationBudget
@@ -708,6 +709,7 @@ def _prompt_payload(payload):
     if not discovery_only and (explanation_contract.get("mode") == "business_overview"
             or wants_business_overview(payload.get("question", ""),
                 answer_detail=payload.get("answer_detail", "detailed"),
+                answer_instructions=payload.get("answer_instructions", ""),
                 field_entities=payload.get("question_investigation", {}).get("analysis_plan", {}).get("entities", ()),
                 source_scopes=payload.get("question_investigation", {}).get("analysis_plan", {}).get("source_scopes", ()))):
         contract["business_explanation"] = {
@@ -755,8 +757,10 @@ def _prompt_payload(payload):
         # saved system requirements after a large source payload or revision.
         contract.update(
             detail="Follow the saved answer instructions for detail and length; retain decisive conditions and source evidence.",
-            organization="Follow the audience, structure and formatting in the saved system instructions. The current question's explicit requirements take precedence.",
-            content="Explain the requested behavior using the supplied source and assumptions, in the user's requested order.")
+            organization="Follow the business content, scope, audience, structure and formatting in the saved system instructions. The current question's explicit requirements take precedence.",
+            content="Investigate and explain the requested business content using actual source and assumptions. Read relevant located evidence as needed, within the tool allowance; follow the user's requested order.")
+        if isinstance(trailing.get("task"), str):
+            trailing["task"] = answer_task_with_instructions(trailing["task"], payload["answer_instructions"])
         if "business_explanation" in contract:
             explanation = contract["business_explanation"]
             contract["business_explanation"] = {
@@ -773,7 +777,8 @@ def _prompt_payload(payload):
                         "业务推断注明依据，均不证明实际运行。" + BUSINESS_RUNTIME_BOUNDARY_POLICY}
             projected["business_analysis_brief"] = brief
             trailing["business_analysis_brief"] = brief
-    language = payload.get("answer_language") or resolve_answer_language(payload.get("question"))
+    language = payload.get("answer_language") or resolve_answer_language(payload.get("question"),
+        answer_instructions=payload.get("answer_instructions", ""))
     if isinstance(payload.get("answer_instructions"), str) and payload["answer_instructions"].strip():
         contract["fallback_answer_language"] = language
         contract["language_priority"] = "Use the current question's explicit language request, then the saved system instructions' explicit language requirement, otherwise the fallback."
@@ -869,7 +874,8 @@ def _system_for_payload(payload):
                    "结合原文保留控制条件；它们不证明实际运行，也不要求逐项抄写或另加技术附录。")
     if "prior_source_memory" in payload:
         system = system.replace("事实依据取自本轮原文。", "事实依据取自实际供应原文，包括 prior_source_memory 明确绑定的本题早先原文；其中候选解释仍须核对。", 1)
-    language = payload.get("answer_language") or resolve_answer_language(payload.get("question"))
+    language = payload.get("answer_language") or resolve_answer_language(payload.get("question"),
+        answer_instructions=payload.get("answer_instructions", ""))
     return with_answer_instructions(
         system + "\n" + answer_language_instruction(language, compact=bool(payload.get("budget_wire_compact"))),
         payload.get("answer_instructions"))
@@ -1023,7 +1029,8 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         if "answer_review" in payload and material_changed:
             payload["answer_review"] = assess_business_answer(payload.get("question", ""),
                 payload.get("draft_answer", ""), payload.get("question_investigation", {}), review_pages,
-                answer_detail=payload.get("answer_detail", "detailed"), working_set=bundle.get("working_set"))
+                answer_detail=payload.get("answer_detail", "detailed"), working_set=bundle.get("working_set"),
+                answer_instructions=payload.get("answer_instructions", ""))
         if "answer_review" in payload:
             suggestions = []
             for fact in payload.get("source_fact_suggestions", []):
@@ -1049,7 +1056,8 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
                 payload.get("question_investigation", {}), review_pages,
                 payload.get("framework_references", []), config.max_output_tokens,
                 answer_detail=payload.get("answer_detail", "detailed"), business_map=business_map,
-                framework_facts=payload.get("framework_facts", []))
+                framework_facts=payload.get("framework_facts", []),
+                answer_instructions=payload.get("answer_instructions", ""))
         last_material = material
         visible = {page["evidence_id"] for page in bundle["pages"] if page.get("evidence_id")}
         complete_core_groups = {group: required for group, required in core_groups().items()
@@ -1335,7 +1343,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     from question_investigation import build_question_investigation
     from complete_working_set import build_complete_working_set
     from file_impact_evidence import is_file_impact_question
-    answer_language = answer_language or resolve_answer_language(question, locale=locale, history=history)
+    answer_language = answer_language or resolve_answer_language(question, locale=locale, history=history,
+        answer_instructions=answer_instructions)
     has_answer_instructions = isinstance(answer_instructions, str) and bool(answer_instructions.strip())
     def local(zh_cn, en):
         return localized_text(answer_language, zh_cn, en)
@@ -1606,7 +1615,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 source_format=source_session.options.get("source_format", "auto") if source_session else "auto",
                 compilation_context=source_session.options.get("compilation_context") if source_session else None,
                 answer_detail=answer_detail, answer_language=answer_language, source_fact_cache=answer_source_fact_cache,
-                append_source_facts=not has_answer_instructions)
+                append_source_facts=not has_answer_instructions, answer_instructions=answer_instructions)
             draft_reviews[key] = review
         reviewed_answers[hashlib.sha256(review["answer"].encode()).hexdigest()] = review
         if audit:
@@ -2189,6 +2198,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         for _ in range(policy.max_semantic_files + 1):
             identity = business_map.get("source_identity", {})
             overview_requested = wants_business_overview(question, answer_detail=answer_detail,
+                answer_instructions=answer_instructions,
                 field_entities=business_map.get("session_subject", {}).get("focus_entities", ()),
                 source_scopes=business_map.get("navigation_scope", {}).get("source_scopes", ()))
             key = (business_map.get("snapshot_id"), identity.get("status"), identity.get("kind"),
@@ -2382,6 +2392,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 database_path=database_path, source_pages=selected, evidence_groups=evidence_groups,
                 completed_actions=completed_actions, candidate_cache=investigation_cache,
                 framework_facts=framework_facts, history=history or (),
+                answer_instructions=answer_instructions,
                 working_set=evidence.working_set,
                 max_semantic_files=policy.max_semantic_files,
                 max_actions=policy.max_reads_per_turn + policy.max_business_context_actions_per_turn)
@@ -2949,6 +2960,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         payload["draft_answer"] = redactor._sanitize(answer)
                         payload["answer_review"] = assess_business_answer(question, answer, current_investigation,
                             selected_pages, answer_detail=answer_detail,
+                            answer_instructions=answer_instructions,
                             working_set=evidence.bundle(selected_pages)[0].get("working_set"))
                         if has_answer_instructions:
                             payload["source_fact_suggestions"] = review_draft(answer, payload,
@@ -3321,10 +3333,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     if adaptive and not force_answer and not truncated and policy.answer_revision_limit:
                         supplied = source_memory.effective_pages(payload) if source_memory else payload["source_context"][0]["pages"]
                         assessment = assess_business_answer(question, answer, current_investigation, supplied,
-                            answer_detail=answer_detail, working_set=visible.get("working_set"))
+                            answer_detail=answer_detail, working_set=visible.get("working_set"),
+                            answer_instructions=answer_instructions)
                         review_needed = needs_synthesis_review(question, answer, current_investigation,
                             source_available=bool(supplied), source_pages=supplied,
                             answer_detail=answer_detail, assessment=assessment,
+                            answer_instructions=answer_instructions,
                             working_set=visible.get("working_set"))
                         open_material_reads = any(task.state == "open" and task.next_start_line is not None
                             and task.material_to_question for task in evidence.tasks.values())
@@ -3541,6 +3555,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             answer, assessment = reviewed["answer"], reviewed["assessment"]
             if not needs_synthesis_review(question, answer, answer_investigation or {},
                     source_available=bool(supplied), source_pages=supplied, answer_detail=answer_detail,
+                    answer_instructions=answer_instructions,
                     assessment=assessment, working_set=answer_manifest.get("working_set")):
                 break
             synthesis_review_attempted = True
@@ -3587,9 +3602,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             answer_source_pages = [sent_pages[identifier]
                 for identifier in _bound_source_ids(answer_manifest)]
             draft_completion = assess_business_answer(question, answer, answer_investigation or {}, answer_source_pages,
-                answer_detail=answer_detail, working_set=(answer_manifest or {}).get("working_set"))
+                answer_detail=answer_detail, working_set=(answer_manifest or {}).get("working_set"),
+                answer_instructions=answer_instructions)
             review_synthesis = needs_synthesis_review(question, answer, answer_investigation or {},
                 source_available=bool((answer_manifest or {}).get("source_ids")), source_pages=answer_source_pages,
+                answer_instructions=answer_instructions,
                 answer_detail=answer_detail, assessment=draft_completion,
                 working_set=(answer_manifest or {}).get("working_set"))
             if len(evidence.pages) > before or review_synthesis:
@@ -3675,14 +3692,14 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             revised_reply = replace(revised_reply, text=candidate["answer"])
                             revised_completion = assess_business_answer(question, revised_reply.text,
                                 revised_payload["question_investigation"], revised_payload["source_context"][0]["pages"],
-                                answer_detail=answer_detail,
+                                answer_detail=answer_detail, answer_instructions=answer_instructions,
                                 working_set=revised_payload["source_context"][0].get("working_set"))
                             # Compare both candidates against the actual revision
                             # context, which can gain or lose source during fitting.
                             # Coverage signals do not establish semantic correctness.
                             draft_in_revision_context = assess_business_answer(question, answer,
                                 revised_payload["question_investigation"], revised_payload["source_context"][0]["pages"],
-                                answer_detail=answer_detail,
+                                answer_detail=answer_detail, answer_instructions=answer_instructions,
                                 working_set=revised_payload["source_context"][0].get("working_set"))
                             lost_aspects = sorted(set(revised_completion["missing_aspects"])
                                 - set(draft_in_revision_context["missing_aspects"]))
@@ -3905,6 +3922,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     usable = bool(answer.strip())
     answer_completion = assess_business_answer(question, answer, answer_investigation or {},
         [sent_pages[identifier] for identifier in final_source_ids], answer_detail=answer_detail,
+        answer_instructions=answer_instructions,
         working_set=(answer_manifest or {}).get("working_set"))
     if answer_completion.get("semantic_risk_candidates"):
         boundaries.append({"reason": "semantic_scope_review_needed",
@@ -3960,7 +3978,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     repository_boundaries = [*business_map.get("repository_boundaries", []), *scoped_out_boundaries]
     quality.data["repository_boundaries"] = repository_boundaries
     open_question_gaps, runtime_limitations = _answer_scope_gaps(
-        question, final_investigation, answer_detail=answer_detail)
+        question, final_investigation, answer_detail=answer_detail, answer_instructions=answer_instructions)
     quality.data["runtime_limitations"] = runtime_limitations
     incomplete_reads = any(task.material_to_question and task.state != "complete"
                            for task in evidence.tasks.values())
@@ -4146,7 +4164,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     return output
 
 
-def _answer_scope_gaps(question, investigation, *, answer_detail="detailed"):
+def _answer_scope_gaps(question, investigation, *, answer_detail="detailed", answer_instructions=""):
     """Keep external runtime limits without treating them as missing source.
 
     This only separates the known scheduler limitation of a broad static
@@ -4156,7 +4174,7 @@ def _answer_scope_gaps(question, investigation, *, answer_detail="detailed"):
     from business_synthesis import wants_business_overview
     from question_planner import runtime_activation_requested
     gaps = list(investigation.get("open_gaps", ()))
-    if (not wants_business_overview(question, answer_detail=answer_detail)
+    if (not wants_business_overview(question, answer_detail=answer_detail, answer_instructions=answer_instructions)
             or runtime_activation_requested(question)):
         return gaps, []
     items = {item.get("kind"): item for item in investigation.get("required_items", ())}
@@ -4245,7 +4263,8 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
     from run_store import RunStore, fingerprint
     from pathlib import Path
     import hashlib
-    answer_language = resolve_answer_language(question, locale=kwargs.get("locale"), history=kwargs.get("history"))
+    answer_language = resolve_answer_language(question, locale=kwargs.get("locale"), history=kwargs.get("history"),
+        answer_instructions=kwargs.get("answer_instructions", ""))
     kwargs["answer_language"] = answer_language
     def local(zh_cn, en):
         return localized_text(answer_language, zh_cn, en)
@@ -4327,7 +4346,10 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 resume = None
     def unknown_remote_result(saved, *, retain_answer=True):
         retained = saved["checkpoint"].get("result")
-        if retain_answer and isinstance(retained, dict) and (retained.get("agent_result") or {}).get("answer_available"):
+        same_requirements = (saved["metadata"].get("configuration", {}).get("answer_instructions_sha256", "")
+                             == expected_instructions)
+        if (retain_answer and same_requirements and isinstance(retained, dict)
+                and (retained.get("agent_result") or {}).get("answer_available")):
             from copy import deepcopy
             result = deepcopy(retained)
             result["reason_code"] = "REMOTE_REQUEST_OUTCOME_UNKNOWN"
@@ -4337,13 +4359,16 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 "uncertain_requests": saved["uncertain_requests"],
                 "retained_answer_from_saved_run": True, "automatic_resend": False, "exactly_once": False}
             return result
+        requirements_notice = (local("回答要求已更新，旧回答保留在原记录。上次补查请求的结果尚未确认，当前没有按新要求生成的答案。点击原问题的“重试这个问题”可按新要求重新分析；系统不会自动重发请求。",
+            "Your answer requirements have changed; the old answer remains in its original record. The previous lookup request is still unresolved, so no answer has been generated under the new requirements. Select “Retry this question” to start a new analysis. The system will not resend automatically.")
+            if not same_requirements else local("上次请求中断，尚未收到完整回答。对话和源码已保留。点击原问题的“重试这个问题”可重新分析，无需重新导入；系统不会自动重发请求。", "The previous request was interrupted before a complete answer was received. Your conversation and source are preserved. Select “Retry this question” to start a new analysis without reimporting. The system will not resend automatically."))
         return {"schema_version": "bounded-cobol-agent-run/v1", "selected_mode": "BUSINESS_CHAT",
             "runner_status": "NOT_READY", "reason_code": "REMOTE_REQUEST_OUTCOME_UNKNOWN",
-            "agent_result": {"status": "PARTIAL", "run_id": saved["run_id"], "answer":
-                local("上次请求中断，尚未收到完整回答。对话和源码已保留。点击原问题的“重试这个问题”可重新分析，无需重新导入；系统不会自动重发请求。", "The previous request was interrupted before a complete answer was received. Your conversation and source are preserved. Select “Retry this question” to start a new analysis without reimporting. The system will not resend automatically."),
+            "agent_result": {"status": "PARTIAL", "run_id": saved["run_id"], "answer": requirements_notice,
                 "answer_origin": "diagnostic", "answer_available": False, "model_answer_recorded": False,
                 "answer_language": answer_language,
                 "resume_state": {"completed_steps": len(saved["completed_steps"]),
+                    "answer_requirements_changed": not same_requirements,
                     "frontier": saved["checkpoint"].get("frontier", []),
                     "uncertain_requests": saved["uncertain_requests"], "automatic_resend": False, "exactly_once": False}}}
     def changed_pipeline_result(saved):

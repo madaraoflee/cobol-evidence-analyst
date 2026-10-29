@@ -67,7 +67,7 @@ DEFAULT_ANSWER_INSTRUCTIONS = """请面向刚接触这项业务的新人解释�
 
 
 def with_answer_instructions(system: str, instructions: str | None = None) -> str:
-    """Apply the saved writing requirements without changing evidence or tools."""
+    """Apply saved analysis and writing requirements with grounded evidence."""
     if not isinstance(instructions, str) or not instructions.strip():
         return system
     system = system.replace("\n业务概览默认按以下方式组织，用户自定义回答要求可以调整格式：\n"
@@ -76,15 +76,30 @@ def with_answer_instructions(system: str, instructions: str | None = None) -> st
     # structure too, while retaining the source-relationship boundary.
     system = system.replace(BUSINESS_EXPLANATION_COMPACT_POLICY,
                             "handoffs是导航，同名/COPY不证关联，窄问只答所问。", 1)
+    system = system.replace(
+        "只回答当前问题涉及的行为；用户要求改法或其他情景时再展开变更建议和假设分析。",
+        "按当前问题与保存的业务内容要求确定解释范围；当前问题明确限定的范围优先。", 1)
     for language in SUPPORTED_LANGUAGES:
         for compact in (False, True):
             system = system.replace(answer_language_instruction(language, compact=compact),
                                     answer_language_instruction(language, saved_requirements=True), 1)
     return (system + "\n\n用户在系统配置中保存的回答要求（原文）：\n" + instructions
             + "\n\n以上是用户的回答要求，应实际用于本次回答及后续补充、续写和修订。"
-              "其语言、受众、结构、栏目、措辞与详略要求优先于内置默认写作格式；当前问题的明确要求优先。"
+              "其业务内容、分析范围要求优先于内置默认分析要求；语言、受众、结构、栏目、措辞与详略要求优先于内置默认写作格式；当前问题的明确要求优先。"
+              "这些要求也用于选择相关资料、补查和核对答案是否解释完整，不只用于排版。"
               "补查轮仍使用所需的检索动作格式，最终答案再按用户要求组织。"
               "来源事实、引用与未知范围仍以实际材料为准，不能为了填满模板编造内容。")
+
+
+def answer_task_with_instructions(task: str, instructions: str | None = None) -> str:
+    """Remove conflicting task defaults while preserving tool/source limits."""
+    if not isinstance(instructions, str) or not instructions.strip():
+        return task
+    task = task.replace("用户未请求修改时不追加改码建议或反事实场景。", "")
+    task = task.replace("先给结论，再说明必要条件、顺序和结果，关键判断引用来源。",
+                        "按保存要求组织业务内容，关键判断引用来源。")
+    return (task + " 内容范围与解释深度同时遵守保存的回答要求；当前问题明确限定的范围优先。"
+            "缺少相关资料时按可用工具和预算补查，结论仍须有实际来源。")
 
 
 BUSINESS_ANSWER_POLICY = """围绕当前问题解释业务。开头给带成立条件的结论，再说明决定结果的输入、处理顺序、字段变化与异常分支，并引用来源。具体场景按给定输入和假设沿路径推导；一般规则覆盖决定结果的分支。复杂答案可用简短标题、步骤或比较表，保留必要推导；已解释的结论不再换格式重复，结尾不重列长篇缺项。补充场景须有各自条件；简答保留关键条件。

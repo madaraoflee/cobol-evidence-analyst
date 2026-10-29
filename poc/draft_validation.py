@@ -13,7 +13,7 @@ from source_availability import repair_source_availability_assertions
 def validate_answer_draft(question, answer, investigation, source_pages, references=(), *,
                           working_set=None, source_format="auto", compilation_context=None,
                           answer_detail="detailed", answer_language="zh-CN", source_fact_cache=None,
-                          append_source_facts=True):
+                          append_source_facts=True, answer_instructions=""):
     allowed = {page["evidence_id"]: {**page, "kind": "source_page"} for page in source_pages}
     allowed.update({row["reference_id"]: {**row, "kind": "framework_reference"} for row in references})
     answer, repairs = repair_source_availability_assertions(
@@ -26,7 +26,7 @@ def validate_answer_draft(question, answer, investigation, source_pages, referen
         source_format=source_format, compilation_context=compilation_context,
         answer_language=answer_language, source_fact_cache=source_fact_cache, working_set=working_set)
     assessment = assess_business_answer(question, answer, investigation, source_pages,
-        answer_detail=answer_detail, working_set=working_set)
+        answer_detail=answer_detail, working_set=working_set, answer_instructions=answer_instructions)
     return {"answer": answer, "assessment": assessment, "ledger": ledger.to_dict(),
             "source_repairs": repairs, "fact_completion": additions}
 

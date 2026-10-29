@@ -8,7 +8,7 @@ from statement_facts import data_references
 from repository_identity import mask_source_references
 
 
-PLAN_VERSION = "business-analysis-plan/v10"
+PLAN_VERSION = "business-analysis-plan/v11"
 _ACCUMULATION = re.compile(
     r"累加|累[计計积積]|加总|加總|"
     r"(?<![A-Za-z0-9_$#@-])(?:accumulat(?:e[ds]?|ing|ion)|running\s+totals?)(?![A-Za-z0-9_$#@-])|"
@@ -250,7 +250,7 @@ class AnalysisPlan:
 
 class QuestionPlanner:
     def plan(self, question, business_map, *, source_pages=(), history=(), candidate=None, entity_validator=None,
-             source_scopes=(), file_entities=(), file_impact=False):
+             source_scopes=(), file_entities=(), file_impact=False, answer_instructions=""):
         """Facts and conversation focus determine depth even without a trigger word."""
         facts = business_map.get("rule_leads", ())
         known = {str(field).upper() for fact in facts for role in ("reads", "writes")
@@ -299,7 +299,8 @@ class QuestionPlanner:
         # multi-part onboarding request can include rules without becoming
         # only a field/rule question.
         from business_synthesis import wants_business_overview
-        concept = wants_business_overview(question, field_entities=entities, source_scopes=source_scopes)
+        concept = wants_business_overview(question, field_entities=entities, source_scopes=source_scopes,
+                                          answer_instructions=answer_instructions)
         if concept:
             intents.append("business_overview")
         explicit_activation = runtime_activation_requested(intent_question)
