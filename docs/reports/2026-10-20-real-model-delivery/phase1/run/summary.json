@@ -1,0 +1,29 @@
+{
+  "schema": "live-stream-batch/v1",
+  "plan_sha256": "2e69c3c6e9992807fad7fd1cff7b465259ce151cde7b80363814b6321c9bbf0d",
+  "cases": [
+    {
+      "case_id": "B1",
+      "stream_result": "PASS_NATIVE_AND_WAITER_INCREMENTAL",
+      "requests": 1
+    },
+    {
+      "case_id": "B2",
+      "stream_result": "PASS_NATIVE_AND_WAITER_INCREMENTAL",
+      "requests": 1
+    },
+    {
+      "case_id": "F1",
+      "stream_result": "PASS_NATIVE_AND_WAITER_INCREMENTAL",
+      "requests": 1
+    },
+    {
+      "case_id": "F2",
+      "stream_result": "NOT_PROVEN",
+      "requests": 1
+    }
+  ],
+  "reserved_micro_cny": 698792,
+  "physical_calls": 4,
+  "browser_requested": true
+}

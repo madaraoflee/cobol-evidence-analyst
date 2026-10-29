@@ -1,0 +1,116 @@
+{
+  "schema_version": "business-framework-agent-review/v1",
+  "review_label": "agent_review",
+  "human_acceptance": false,
+  "case_id": "F1",
+  "baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "gold_path": "/tmp/business-framework-live-20261020/cases.json",
+  "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "observation_path": "/tmp/business-framework-live-20261020/run/F1-observation.json",
+  "observation_sha256": "c7a3f48b02aaec0b407c6aeba79eb192562960933a7e06f4244bce3adf2161da",
+  "final_answer_sha256": "fef5e5b237e3ee8121755aee03e2ebfb5763bebce7f0256edd18972781e66da9",
+  "reviewed_material": "final_visible_answer after final product checks; not preview or simulated response",
+  "decision": "FAIL",
+  "forbidden_results": [
+    {
+      "criterion_id": "F1-X1",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "已实际读取到下一条记录、已加锁、已提交或更新成功。"
+    },
+    {
+      "criterion_id": "F1-X2",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "ENTRYJOB检查了DONE、执行了循环读到结束，或已得到某个返回状态。"
+    },
+    {
+      "criterion_id": "F1-X3",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "调用方局部布局确认等于被调方ABI已完整验证。"
+    },
+    {
+      "criterion_id": "F1-X4",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "KEY或VIEW的业务/数据库作用已由当前材料明确，而材料并未定义。"
+    }
+  ],
+  "scope": "独立代理审查，不是人工签字或目标设备验收；冻结gold未更改，额外发现单独记录。",
+  "summary": "请求含义与运行边界清楚，引用齐全；但没有解释普通COPY字段独立存储及后续KEY/VIEW赋值为何不覆盖功能码，遗漏冻结必需项F1-R2。",
+  "required_results": [
+    {
+      "criterion_id": "F1-R1",
+      "result": "PASS",
+      "answer_quotes": [
+        "可以按 **“ADVANCE＝请求下一条记录”** 来理解这次调用的**功能意图**，但不能据此认定记录已经被读取、游标已经前移，或事务已经完成。",
+        "因此，**“这是一次 ADVANCE 请求”可以成立；“这次调用已经成功推进并取得了下一条记录”不能成立**。"
+      ],
+      "source_basis": [
+        "entry.cbl:8-11",
+        "reference.md:5-7,13"
+      ],
+      "reason": "明确连接参数准备、调用与请求下一条记录的业务含义。"
+    },
+    {
+      "criterion_id": "F1-R2",
+      "result": "FAIL",
+      "answer_quotes": [
+        "1. 通过 `COPY \"layout.cpy\"` 引入参数块定义，参数块包含：",
+        "2. 在调用前设置三个字段：",
+        "- 本例中该字段就是 `ROWS-FUNCTION`，调用时的值是 `'ADVANCE'`；"
+      ],
+      "source_basis": [
+        "layout.cpy:1-5",
+        "entry.cbl:5-11"
+      ],
+      "reason": "全文列出COPY字段与三个赋值，但没有独立存储/不重叠/后写不覆盖的解释，直接断言调用时仍为ADVANCE；不以评分器替模型补全这一步。"
+    },
+    {
+      "criterion_id": "F1-R3",
+      "result": "PASS",
+      "answer_quotes": [
+        "手册也明确说明：运行实现不在当前证据范围内，因此不能据此确认成功的持久化、游标位置、锁或事务完成。[fw:76c91a6ff373c92f:27-28]",
+        "手册对记录访问的限制写得很清楚：操作描述的是一个**请求**，并不保证一定返回一行记录。[fw:76c91a6ff373c92f:23-23]"
+      ],
+      "source_basis": [
+        "reference.md:23,27-28"
+      ],
+      "reason": "局部和全局限制均准确呈现，未把请求等同运行结果。"
+    },
+    {
+      "criterion_id": "F1-R4",
+      "result": "PASS",
+      "answer_quotes": [
+        "这两个字段确实随参数块一起传给 `ROWSIO`，但现有手册只把 `ROWS-FUNCTION` 与操作选择绑定，没有说明在 `ADVANCE` 操作下 `ROWS-KEY` 和 `ROWS-VIEW` 的具体语义。"
+      ],
+      "source_basis": [
+        "entry.cbl:9-10",
+        "layout.cpy:4-5"
+      ],
+      "reason": "明确KEY/VIEW具体语义未知，未虚构主键、视图或过滤规则。"
+    }
+  ],
+  "business_expression": {
+    "result": "PASS",
+    "answer_quote": "可以按 **“ADVANCE＝请求下一条记录”** 来理解这次调用的**功能意图**，但不能据此认定记录已经被读取、游标已经前移，或事务已经完成。",
+    "reason": "直接给出请求含义及可确定范围，未把未知业务域补造为完整处理流程。"
+  },
+  "citations": {
+    "result": "PASS",
+    "all_references_resolve": true,
+    "used_reference_ids": [
+      "ev_page_1e6110cd9f21ac204ddb2182",
+      "ev_page_8b8c9ee23007f81cfdc2b305",
+      "fw:76c91a6ff373c92f:13-13",
+      "fw:76c91a6ff373c92f:19-19",
+      "fw:76c91a6ff373c92f:23-23",
+      "fw:76c91a6ff373c92f:27-28",
+      "fw:76c91a6ff373c92f:5-5",
+      "fw:76c91a6ff373c92f:7-7"
+    ],
+    "reason": "源码和框架引用均出现在交付材料，定义及限制引用共同存在。"
+  },
+  "additional_findings": [],
+  "notes": [
+    "这是预先冻结的必需解释缺失，并非运行结果错误或事后增加标准。",
+    "最终表述的当前定位之后比手册following record更具体，但此处只描述请求且明确否认已验证游标位置，不作为单独阻断项。"
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "schema_version": "business-framework-agent-review/v1",
+  "review_label": "agent_review",
+  "human_acceptance": false,
+  "run_label": "phase4",
+  "case_id": "F2",
+  "tested_commit": "099582f07cbd6baa554fab584f154e200def6185",
+  "gold_baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "gold_path": "/tmp/business-framework-live-20261020-phase4/cases.json",
+  "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "plan_sha256": "f8ba100efb301349260d7a08b6cb9fc3b900f2612339e7cc007ff78fce8d89da",
+  "observation_path": "/tmp/business-framework-live-20261020-phase4/run/F2-observation.json",
+  "observation_sha256": "fb4574a43f4c1c5b1b347bbdb9fd925ab6fc11b283d1376e5af1ab237c7917ac",
+  "final_answer_sha256": "52bc1bd0ecbe80ef0158fa68910a574ecd226b694004acc72e183d17e843a482",
+  "reviewed_material": "final_visible_answer after product checks; independently compared with frozen gold and actual source; product status is not a semantic score",
+  "forbidden_results": [
+    {
+      "criterion_id": "F2-X1",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "KEY字段写入不影响功能码，或最终调用可直接按ADVANCE解释。"
+    },
+    {
+      "criterion_id": "F2-X2",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "系统已完整验证此别名布局或实际执行结果。"
+    },
+    {
+      "criterion_id": "F2-X3",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "未确认最终操作便断言调用必然失败、必定抛错或一定返回某错误码。"
+    },
+    {
+      "criterion_id": "F2-X4",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "已实际取得记录、加锁、持久化或事务完成。"
+    }
+  ],
+  "scope": "独立代理评审，不是人工签字或目标设备验收。逐项对照原冻结 gold、实际源码及手册，另做开放语义审查；产品状态不决定评审结论。",
+  "required_results": [
+    {
+      "criterion_id": "F2-R1",
+      "result": "PASS",
+      "evidence_quotes": [
+        "`ROWS-PARAMS` 是传给 `ROWSIO` 的参数组，包含功能字段、键字段、状态字段和视图字段。关键点是：`ROWS-KEY REDEFINES ROWS-FUNCTION`，两者占用同一段存储。[ev_page_e934f4cdb7f3cb7419937fe5]",
+        "| 第 9 行 | `MOVE 'KEY' TO ROWS-KEY` | `ROWS-KEY` 与 `ROWS-FUNCTION` 共用存储，因此这次赋值重写了同一个 8 字节区域 | `ROWS-FUNCTION` 变为 `\"KEY\"`（定长字段，尾部补空格） |"
+      ],
+      "reason": "明确 REDEFINES 使 KEY 与 FUNCTION 共用存储，后写覆盖功能字段；同时正确区分独立 VIEW 不覆盖。"
+    },
+    {
+      "criterion_id": "F2-R2",
+      "result": "PASS",
+      "evidence_quotes": [
+        "**结论：不能把这次调用理解为“ADVANCE（取下一条记录）”。** 到 `CALL 'ROWSIO'` 发生时，`ROWS-FUNCTION` 已经被 `ROWS-KEY` 的赋值覆盖成 `\"KEY\"`，第 8 行设置的 `\"ADVANCE\"` 不再是调用时的有效功能值。并且 `ENTRYJOB` 本身没有直接读写任何记录，只构造参数区并调用外部程序 `ROWSIO`；`ROWSIO` 的实现未供应，所以实际对记录做了什么、是否取到记录，源码无法确认。[ev_page_1e6110cd9f21ac204ddb2182][ev_page_e934f4cdb7f3cb7419937fe5]",
+        "现有手册只把 `ADVANCE` 解释为“请求下一条记录”。[fw:76c91a6ff373c92f:13-13] 对 `\"KEY\"`，资料没有给出对应操作含义，不能仅凭字段名猜测它等同于取记录、按键查询或其他操作。"
+      ],
+      "reason": "不从初始 ADVANCE 套用请求下一条记录；准确追到调用前 KEY 覆盖，并明确手册没有定义 KEY 的操作，未猜测按键读取或其他业务。"
+    },
+    {
+      "criterion_id": "F2-R3",
+      "result": "PASS",
+      "evidence_quotes": [
+        "手册明确说明：该操作描述的是一个请求，不保证返回一行；运行实现缺失，也不能据此证明持久化、游标位置、锁或事务完成。[fw:76c91a6ff373c92f:23-23][fw:76c91a6ff373c92f:27-28] 所以即便假设调用的是 `ADVANCE`，也只能说“发出了取下一条记录的请求”，不能说“记录已经推进”。",
+        "> `ENTRYJOB` 向 `ROWSIO` 发出一个以 `\"KEY\"` 为功能选择值、携带 `ROWS-VIEW=\"VIEW\"` 的参数请求；它不是发出 `ADVANCE` 请求。至于 `ROWSIO` 拿到这个参数后是否读取、定位、返回或修改记录，当前资料无法确认。"
+      ],
+      "reason": "区分请求与运行效果，保留记录、游标、锁、持久化和事务未知，不因操作无法解释而断言调用必然失败。"
+    }
+  ],
+  "citation_review": {
+    "result": "PASS",
+    "all_references_resolve": true,
+    "used_reference_ids": [
+      "ev_page_1e6110cd9f21ac204ddb2182",
+      "ev_page_e934f4cdb7f3cb7419937fe5",
+      "fw:76c91a6ff373c92f:13-13",
+      "fw:76c91a6ff373c92f:23-23",
+      "fw:76c91a6ff373c92f:27-28",
+      "fw:76c91a6ff373c92f:7-7"
+    ],
+    "reason": "核心结论可回到本轮实际供应的源码或手册；逐项支持范围另经正文审查。",
+    "used_reference_count": 6
+  },
+  "open_review_findings": [],
+  "open_review_notes": [
+    {
+      "topic": "按引用传参与调用后值",
+      "judgment": "SUPPORTED_OR_PROPERLY_BOUNDED",
+      "reason": "CALL USING 未指定传递方式，正文按引用讨论参数可能被修改，但没有断言被调方确实修改状态或字段。"
+    },
+    {
+      "topic": "入口没有直接记录I/O",
+      "judgment": "SUPPORTED_WITH_CONTEXT",
+      "reason": "正文限定 ENTRYJOB 的直接语句，紧接说明外部 ROWSIO 效果未知，不把缺少本地 READ/WRITE 扩大成全调用无副作用。"
+    }
+  ],
+  "required_pass_count": 3,
+  "required_total_count": 3,
+  "frozen_gold_result": "PASS",
+  "open_review_result": "PASS",
+  "overall_result": "PASS",
+  "summary": "反例解释正确：COPY别名使后写覆盖功能值，不能按初始ADVANCE解释最终调用；未知操作与运行边界保留，引用全部解析，开放审查未发现额外无依据结论。",
+  "runtime_observation": {
+    "real_provider_requests": 1,
+    "client_attempts": 1,
+    "final_seconds": 32.351655,
+    "first_browser_preview_receipt_seconds": 25.788682,
+    "browser_changed_previews": 33,
+    "stream_result": "PASS_NATIVE_AND_WAITER_INCREMENTAL",
+    "answer_status": "PARTIAL",
+    "stop_reason": "request_budget",
+    "product_status_is_not_review_score": true,
+    "status_explanation": "产品为 PARTIAL/request_budget；trace 表示被调实现未供应，调查状态 bounded_partial，answer_completion 无 missing_aspects。真实正文完整且回答了冻结问题，不按产品 PARTIAL 自动判失败。"
+  },
+  "body_identity": {
+    "first_complete_visible_body_equals_final": true
+  }
+}

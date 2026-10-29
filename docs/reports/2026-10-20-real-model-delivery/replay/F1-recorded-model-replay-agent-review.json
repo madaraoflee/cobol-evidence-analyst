@@ -1,0 +1,123 @@
+{
+  "schema_version": "recorded-model-offline-replay-agent-review/v1",
+  "review_label": "agent_review",
+  "human_acceptance": false,
+  "case_id": "F1",
+  "reviewed_mode": "recorded_real_model_body_offline_product_replay",
+  "fresh_live_result": false,
+  "remote_model_calls": 0,
+  "original_phase4_delivery_result": "FAIL",
+  "original_phase4_delivery_preserved": {
+    "observation_path": "/tmp/business-framework-live-20261020-phase4/run/F1-observation.json",
+    "observation_sha256": "14e56adcf8b4ea6115ea7bf6d3cf611abf7615692a154ea346431898dfa711d5",
+    "review_path": "/tmp/business-framework-live-20261020-phase4/run/F1-agent-review.json",
+    "review_sha256": "2111a646c7945fa49daa933693894f39982a004b65d1639beac3f005688a0af9",
+    "reason": "原实际交付正文被本地错误替换，失败记录不被本离线复放覆盖。"
+  },
+  "recorded_original_body": {
+    "path": "/tmp/business-framework-live-20261020-phase4/run/F1-recorded-model-answer.txt",
+    "sha256": "e1a1bcc3e9f91701410da62a464d85c0a24d17ca125618d97827a470fea10786",
+    "matches_observed_first_complete_visible_body": true,
+    "semantic_gold_result": "PASS",
+    "required_pass_count": 4,
+    "required_total_count": 4,
+    "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+    "required_results": [
+      {
+        "criterion_id": "F1-R1",
+        "result": "PASS",
+        "evidence_quotes": [
+          "所以，从业务意图上说，可以理解为：**ENTRYJOB 请求 ROWSIO 执行“取下一条记录”这一类操作。**"
+        ],
+        "reason": "解释为按手册约定向外部程序请求下一条记录，同时区分请求和成功结果。"
+      },
+      {
+        "criterion_id": "F1-R2",
+        "result": "PASS",
+        "evidence_quotes": [
+          "`ROWS-PARAMS` 的布局由复制成员定义：操作字段、状态字段、键字段和视图字段依次排列 [ev_page_8b8c9ee23007f81cfdc2b305]。因此，ENTRYJOB 发出的是一个包含“操作码 + 状态 + 键 + 视图”的记录访问请求，而不是直接在程序内对文件或表执行 `READ/WRITE/REWRITE/DELETE`，也没有可见的 SQL。是否真正读取、定位、写入或推进记录，取决于未供应的 ROWSIO 实现。",
+          "按记录访问约定，调用 `XXXXIO USING XXXX-PARAMS` 时，具体操作由参数组中的 `XXXX-FUNCTION` 字段选择 [fw:76c91a6ff373c92f:5-5] [fw:76c91a6ff373c92f:7-7]。本程序的 `ROWS-FUNCTION` 正是该参数组的操作字段，且在调用前最后一次有效赋值是 `'ADVANCE'`，中间没有其他语句覆盖它；然后才发生 CALL [ev_page_1e6110cd9f21ac204ddb2182] [ev_page_8b8c9ee23007f81cfdc2b305]。"
+        ],
+        "reason": "正文先列出 ADVANCE、KEY、VIEW 三次赋值，随后结合 COPY 说明字段依次排列，并明确 ADVANCE 在调用前未被中间语句覆盖；后一句同时引用 entry 与 layout。这些相连说明覆盖独立布局使后写不覆盖功能值的要求。可更直接说“独立存储”，但通过不以特定关键词为条件；并非仅因输出正确操作名而通过。"
+      },
+      {
+        "criterion_id": "F1-R3",
+        "result": "PASS",
+        "evidence_quotes": [
+          "**结论：这次调用可以按“ADVANCE 操作请求”来理解，但不能按“已经成功取得下一条记录、推进了游标或完成了任何记录处理”来理解。** ENTRYJOB 本身没有读取、写入或修改任何记录；它只是把操作码设为 `ADVANCE`，连同两个固定字段值一起传给外部程序 ROWSIO。手册把 `ADVANCE` 定义为“请求下一条记录” [fw:76c91a6ff373c92f:13-13]，因此调用意图是明确的；但手册同时说明这只是“请求”，不保证返回一行 [fw:76c91a6ff373c92f:23-23]，而且运行时实现未提供，不能据此证明游标位置、锁、持久化或事务结果 [fw:76c91a6ff373c92f:27-28]。",
+          "第三，**ROWSIO 的实现和运行效果未知**。现有材料只能确认调用方设置了操作码、组织了参数并发起请求；被调程序是否执行读取、是否改变记录、是否移动游标、是否加锁或提交事务，都没有被供应的实现或运行证据支持 [fw:76c91a6ff373c92f:27-28]。因此，不能把这次调用写成“记录已经前进了一条”。"
+        ],
+        "reason": "明确请求不保证返回行，且缺少 ROWSIO 实现及运行证据，不能证明读取、游标、锁、持久化或事务结果。"
+      },
+      {
+        "criterion_id": "F1-R4",
+        "result": "PASS",
+        "evidence_quotes": [
+          "`ROWS-KEY` 和 `ROWS-VIEW` 在源码中被赋的是字面量 `'KEY'` 和 `'VIEW'`，不是从外部输入取得的实际键值或视图名 [ev_page_1e6110cd9f21ac204ddb2182]。字段名称和字面量本身不足以证明它们是主键、视图选择器或过滤条件；现有定义只说明它们在参数组中的位置和长度 [ev_page_8b8c9ee23007f81cfdc2b305]。",
+          "> ENTRYJOB 以固定的操作码 `ADVANCE`、固定的 `KEY` 字段值和固定的 `VIEW` 字段值，向 ROWSIO 发出一次记录访问请求；ROWSIO 如何使用后两个字段，现有材料无法确定。"
+        ],
+        "reason": "只确认固定字面量及布局，保留后两个字段的业务作用未知。正文“不是从外部输入取得”描述赋值来源；结合紧接的无法确定业务作用，不解读为断言 KEY/VIEW 绝非主键/视图。"
+      }
+    ],
+    "forbidden_results": [
+      {
+        "criterion_id": "F1-X1",
+        "result": "PASS_NOT_ASSERTED",
+        "claim": "已实际读取到下一条记录、已加锁、已提交或更新成功。"
+      },
+      {
+        "criterion_id": "F1-X2",
+        "result": "PASS_NOT_ASSERTED",
+        "claim": "ENTRYJOB检查了DONE、执行了循环读到结束，或已得到某个返回状态。"
+      },
+      {
+        "criterion_id": "F1-X3",
+        "result": "PASS_NOT_ASSERTED",
+        "claim": "调用方局部布局确认等于被调方ABI已完整验证。"
+      },
+      {
+        "criterion_id": "F1-X4",
+        "result": "PASS_NOT_ASSERTED",
+        "claim": "KEY或VIEW的业务/数据库作用已由当前材料明确，而材料并未定义。"
+      }
+    ]
+  },
+  "product_patch_review": {
+    "file": "poc/source_availability.py",
+    "sha256": "0fbb66295c4361da273115b6a1acd0d97b2d284c6542c41ff0c30acaf65e2db6",
+    "result": "PASS_SCOPED_REVIEW",
+    "reason": "新增保护区分源码供应缺失与源码内规则/行为缺失；保留物理源码宾语及独立并列语句的原校正路径。本次只读审查与聚焦测试未发现可复现新增缺陷；不宣称完整自然语言解析。",
+    "tests": {
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=poc:poc/tests:. python3 -m unittest test_source_availability test_source_availability_repairs test_source_availability_semantic_absence -q",
+      "count": 29,
+      "result": "PASS",
+      "seconds": 0.31
+    },
+    "broader_suite_status": "Parent reported one unidentified failure while full suite was still running; this review does not claim full-suite acceptance."
+  },
+  "offline_replay": {
+    "result": "PASS",
+    "report_path": "/tmp/F1-recorded-model-replay.json",
+    "report_sha256": "47be022d60ff6f09cb9b7057bce3c415a209c2dc92b9e54caf5e50154ffb7195",
+    "independent_report_path": "/tmp/F1-recorded-model-independent-replay.json",
+    "independent_report_sha256": "83bfc8c55333c49369e6863004f438a84efb342cd9c55ac7c6ca18e7d10e592b",
+    "actual_product_run_business_chat": true,
+    "scripted_transport_calls": 1,
+    "network_socket_connect_attempts": 0,
+    "source_identity_hash_and_ranges_match_original": true,
+    "original_model_answer_preserved_byte_exactly": true,
+    "final_answer_sha256": "e1a1bcc3e9f91701410da62a464d85c0a24d17ca125618d97827a470fea10786",
+    "retained_statement": "如果调用在运行时发生异常，源码没有提供本程序的处理规则，不能从现有材料推出异常后的业务结果。",
+    "product_file_hashes": {
+      "business_chat.py": "e28059c35c139257aa0092b0b013230e4a5f2ea76622e646ba71e2e8030070b8",
+      "source_availability.py": "0fbb66295c4361da273115b6a1acd0d97b2d284c6542c41ff0c30acaf65e2db6",
+      "quality_trace.py": "059d67f3690c24df67bef29b85b783ae585d8266d8dd04fd35a592e0a2674c86"
+    }
+  },
+  "open_semantic_review": {
+    "result": "PASS_FOR_RECORDED_BODY",
+    "reason": "原四项语义必需结论及引用原已通过；唯一开放失败是本地误改异常边界句。当前交付与原真实模型正文逐字相同，正确未知句保留，没有其他新增正文断言。"
+  },
+  "overall_result": "PASS_RECORDED_BODY_OFFLINE_REPLAY",
+  "limitation": "这是同一份既有真实模型正文的离线产品链复放；不是 fresh live，不证明新提示在下一次真实调用中的质量，也不替代全量回归或桌面目标设备验收。"
+}

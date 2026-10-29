@@ -98,6 +98,36 @@ _SOURCE_EXPLANATION = re.compile(
 _BROADER_SCOPE = re.compile(
     r"依赖|依賴|关联|關聯|全库|全庫|仓库|倉庫|项目|項目|系统|系統|其他|其它|所有(?:程序|文件|源码|源碼|代码|代碼)|"
     r"\b(?:dependenc\w*|repository|project|system|other|all\s+(?:files|programs)|copybooks?)\b", re.I)
+_SEMANTIC_CONTENT = re.compile(
+    r"规则|規則|处理|處理|逻辑|邏輯|行为|行為|条件|條件|机制|機制|"
+    r"结果|結果|约束|約束|公式|流程|策略|语义|語義|保证|保證|"
+    r"(?<![\w./\\-])(?:rules?|handling|processing|logic|behaviou?r|conditions?|mechanisms?|"
+    r"outcomes?|results?|constraints?|formulas?|polic(?:y|ies)|semantics|guarantees?)(?![\w./\\-])", re.I)
+_INDEPENDENT_TAIL = re.compile(
+    r"但是|但|不过|不過|然而|因此|所以|因而|\b(?:but|however|therefore|yet)\b", re.I)
+
+
+def _semantic_content_absence(clause, assertion):
+    """A supplied file does not prove that a rule or behavior exists inside it.
+
+    This is a conservative noun-scope guard, not an interpretation of the
+    program. Keep physical-material heads such as "parameter processing source"
+    distinct from "processing rules in the source".
+    """
+    fragments = (_INDEPENDENT_TAIL.split(clause[:assertion.start()])[-1],
+                 _INDEPENDENT_TAIL.split(clause[assertion.end():], maxsplit=1)[0])
+    for fragment in fragments:
+        sources = list(_SOURCE_MATERIAL.finditer(fragment))
+        for content in _SEMANTIC_CONTENT.finditer(fragment):
+            following_source = next((source for source in sources if source.start() >= content.end()), None)
+            if following_source is not None:
+                bridge = fragment[content.end():following_source.start()]
+                # A later source noun may be the physical object's head, but
+                # a location ("rules in source") still denotes semantic content.
+                if not re.search(r"在|於|于|中|內|内|\b(?:in|within|inside|from)\b", bridge, re.I):
+                    continue
+            return True
+    return False
 
 
 def _source_availability_findings(answer, source_pages, working_set=None):
@@ -151,6 +181,8 @@ dependency implementations, or a complete business explanation.
             continue
         assertion = _ABSENCE.search(clause) or _PARTIAL.search(clause)
         if assertion is None:
+            continue
+        if _semantic_content_absence(clause, assertion):
             continue
         # Processing source remains source even when its name contains field
         # or parameter; bind the nearest object instead of excluding the clause.

@@ -1,0 +1,44 @@
+{
+  "schema_version": "business-framework-agent-review-summary/v1",
+  "review_label": "agent_review",
+  "human_acceptance": false,
+  "baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "run_label": "first_frozen_run",
+  "case_decisions": [
+    {
+      "case_id": "B1",
+      "decision": "FAIL",
+      "review_path": "/tmp/business-framework-live-20261020/run/B1-agent-review.json",
+      "review_sha256": "1dbe759263cf4b4e75ab50276cad2539566c95e6bf0a3ccfdf4d17057b177709",
+      "summary": "业务用途和接口解释清楚，但无依据的不加锁断言及多行结果去向自相矛盾阻断业务正确性通过。"
+    },
+    {
+      "case_id": "B2",
+      "decision": "FAIL",
+      "review_path": "/tmp/business-framework-live-20261020/run/B2-agent-review.json",
+      "review_sha256": "86dcc5b092d0d9a2662fb07961feea9e8c1994073fb2ebe7ecdabfac9cc36d24",
+      "summary": "核心业务规则与输入输出解释较好，但无依据的LF/PF对象类型、无条件一一对应/完全不留痕迹及无法解析的内部rule引用使本题不通过。"
+    },
+    {
+      "case_id": "F1",
+      "decision": "FAIL",
+      "review_path": "/tmp/business-framework-live-20261020/run/F1-agent-review.json",
+      "review_sha256": "23977f95c9791a8c120d61fca5c38ff370ded33da97462afde6630e14c887a7a",
+      "summary": "请求含义与运行边界清楚，引用齐全；但没有解释普通COPY字段独立存储及后续KEY/VIEW赋值为何不覆盖功能码，遗漏冻结必需项F1-R2。"
+    },
+    {
+      "case_id": "F2",
+      "decision": "INCOMPLETE",
+      "review_path": "/tmp/business-framework-live-20261020/run/F2-agent-review.json",
+      "review_sha256": "3de25b6b932503f02ad1503c2f98a840299638df46d7f54bd182c417bca878c4",
+      "summary": "真实模型请求未产生正文；本地回退列出直接语句不能算真实模型质量或成功完成反例。"
+    }
+  ],
+  "passed_cases": 0,
+  "failed_cases_with_real_answer": 3,
+  "incomplete_cases_without_model_answer": 1,
+  "no_claim_of_global_accuracy": true,
+  "first_run_preserved": true,
+  "summary": "业务表达明显超出变量清单，但首轮未达到冻结质量门槛，不能以流式交付成功替代语义通过。"
+}

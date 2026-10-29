@@ -1,0 +1,63 @@
+{
+  "schema": "recorded-model-body-replay/v1",
+  "fresh_model_call": false,
+  "remote_calls": 0,
+  "actual_product_run_business_chat": true,
+  "scripted_transport_calls": 1,
+  "original_model_answer_sha256": "e1a1bcc3e9f91701410da62a464d85c0a24d17ca125618d97827a470fea10786",
+  "original_observation_sha256": "14e56adcf8b4ea6115ea7bf6d3cf611abf7615692a154ea346431898dfa711d5",
+  "replay_answer_sha256": "e1a1bcc3e9f91701410da62a464d85c0a24d17ca125618d97827a470fea10786",
+  "original_model_answer_preserved_byte_exactly": true,
+  "actual_supplied_source_ids_match_original": true,
+  "expected_absence_statement_preserved": true,
+  "answer_status": "ANALYZED",
+  "answer_completion": {
+    "status": "not_assessed",
+    "reason": null,
+    "pending_investigation": false,
+    "limitation_detected": true,
+    "source_selection_limitation_detected": false,
+    "method": "bounded_text_and_coverage_signals",
+    "semantic_verification": "unverified",
+    "source_availability_contradiction": false,
+    "source_availability_contradictions": [],
+    "sql_boundary_review": {
+      "method": "bounded_sql_boundary_heuristic",
+      "semantic_verification": false,
+      "review_required": false,
+      "risks": [],
+      "source_scan_truncated": false,
+      "answer_scan_truncated": false,
+      "omitted_risk_count": 0,
+      "report_byte_limit": 8000
+    },
+    "required_aspects": [],
+    "missing_aspects": []
+  },
+  "product_files_sha256": {
+    "business_chat.py": "e28059c35c139257aa0092b0b013230e4a5f2ea76622e646ba71e2e8030070b8",
+    "source_availability.py": "0fbb66295c4361da273115b6a1acd0d97b2d284c6542c41ff0c30acaf65e2db6",
+    "quality_trace.py": "059d67f3690c24df67bef29b85b783ae585d8266d8dd04fd35a592e0a2674c86"
+  },
+  "replayed_final_answer": "**结论：这次调用可以按“ADVANCE 操作请求”来理解，但不能按“已经成功取得下一条记录、推进了游标或完成了任何记录处理”来理解。** ENTRYJOB 本身没有读取、写入或修改任何记录；它只是把操作码设为 `ADVANCE`，连同两个固定字段值一起传给外部程序 ROWSIO。手册把 `ADVANCE` 定义为“请求下一条记录” [fw:76c91a6ff373c92f:13-13]，因此调用意图是明确的；但手册同时说明这只是“请求”，不保证返回一行 [fw:76c91a6ff373c92f:23-23]，而且运行时实现未提供，不能据此证明游标位置、锁、持久化或事务结果 [fw:76c91a6ff373c92f:27-28]。\n\n## ENTRYJOB 实际做了什么\n\n程序按固定顺序执行，没有条件分支：\n\n1. 把 `ROWS-FUNCTION` 设为字面量 `'ADVANCE'`，这是本次操作的选择字段 [ev_page_1e6110cd9f21ac204ddb2182]。\n2. 把 `ROWS-KEY` 设为字面量 `'KEY'` [ev_page_1e6110cd9f21ac204ddb2182]。\n3. 把 `ROWS-VIEW` 设为字面量 `'VIEW'` [ev_page_1e6110cd9f21ac204ddb2182]。\n4. 调用 `ROWSIO`，传入整个 `ROWS-PARAMS` 参数组，然后立即 `GOBACK` [ev_page_1e6110cd9f21ac204ddb2182]。\n\n`ROWS-PARAMS` 的布局由复制成员定义：操作字段、状态字段、键字段和视图字段依次排列 [ev_page_8b8c9ee23007f81cfdc2b305]。因此，ENTRYJOB 发出的是一个包含“操作码 + 状态 + 键 + 视图”的记录访问请求，而不是直接在程序内对文件或表执行 `READ/WRITE/REWRITE/DELETE`，也没有可见的 SQL。是否真正读取、定位、写入或推进记录，取决于未供应的 ROWSIO 实现。\n\n## 为什么“可以”按 ADVANCE 理解\n\n按记录访问约定，调用 `XXXXIO USING XXXX-PARAMS` 时，具体操作由参数组中的 `XXXX-FUNCTION` 字段选择 [fw:76c91a6ff373c92f:5-5] [fw:76c91a6ff373c92f:7-7]。本程序的 `ROWS-FUNCTION` 正是该参数组的操作字段，且在调用前最后一次有效赋值是 `'ADVANCE'`，中间没有其他语句覆盖它；然后才发生 CALL [ev_page_1e6110cd9f21ac204ddb2182] [ev_page_8b8c9ee23007f81cfdc2b305]。\n\n所以，从业务意图上说，可以理解为：**ENTRYJOB 请求 ROWSIO 执行“取下一条记录”这一类操作。**\n\n这里的“ADVANCE”是参数值，不是 ENTRYJOB 自己执行的动作。它决定了请求种类，但不证明请求已经成功执行。\n\n## 为什么“不可以”进一步理解为记录已经推进\n\n需要区分三个层次：\n\n| 层次 | 能否由现有材料确定 | 依据 |\n|---|---|---|\n| ENTRYJOB 发起了 ADVANCE 请求 | 可以 | 操作字段被赋值为 `ADVANCE`，随后调用 ROWSIO |\n| ROWSIO 实际执行了下一条记录读取 | 不能确定 | ROWSIO 实现未供应，调用关系未解析 |\n| 已取得下一条记录、游标已移动、记录被锁或事务完成 | 不能确定 | 手册明确说请求不保证返回行，运行时效果未建立 |\n\n具体原因有三点。\n\n第一，**请求不等于结果**。手册把 `ADVANCE` 的业务含义写成“请求下一条记录”，并明确“不保证返回一行” [fw:76c91a6ff373c92f:13-13] [fw:76c91a6ff373c92f:23-23]。即使 ROWSIO 正常接收到 `ADVANCE`，也不能仅凭调用语句推导出已经取到记录。\n\n第二，**调用后没有检查状态**。参数组中虽然有 `ROWS-STATUS`，但 ENTRYJOB 在调用前没有给它赋业务值，调用后也没有读取或判断它；紧接着就执行 `GOBACK` [ev_page_1e6110cd9f21ac204ddb2182] [ev_page_8b8c9ee23007f81cfdc2b305]。因此，即使被调程序回填了状态，当前程序也不会根据 `DONE`、错误或其他返回情况采取不同业务动作。这里不能反过来断言“调用一定成功”或“一定没有返回码”，只能说他**没有使用返回状态**。\n\n第三，**ROWSIO 的实现和运行效果未知**。现有材料只能确认调用方设置了操作码、组织了参数并发起请求；被调程序是否执行读取、是否改变记录、是否移动游标、是否加锁或提交事务，都没有被供应的实现或运行证据支持 [fw:76c91a6ff373c92f:27-28]。因此，不能把这次调用写成“记录已经前进了一条”。\n\n## KEY 和 VIEW 也不能直接当作查询条件证明\n\n`ROWS-KEY` 和 `ROWS-VIEW` 在源码中被赋的是字面量 `'KEY'` 和 `'VIEW'`，不是从外部输入取得的实际键值或视图名 [ev_page_1e6110cd9f21ac204ddb2182]。字段名称和字面量本身不足以证明它们是主键、视图选择器或过滤条件；现有定义只说明它们在参数组中的位置和长度 [ev_page_8b8c9ee23007f81cfdc2b305]。\n\n所以，比较稳妥的业务表述是：\n\n> ENTRYJOB 以固定的操作码 `ADVANCE`、固定的 `KEY` 字段值和固定的 `VIEW` 字段值，向 ROWSIO 发出一次记录访问请求；ROWSIO 如何使用后两个字段，现有材料无法确定。\n\n## 异常和返回路径\n\n当前程序没有 `ON EXCEPTION` 或其他调用异常处理，也没有调用后的条件分支。源码能确定的是“赋值 → 调用 → 返回后直接结束”这一条直线路径 [ev_page_1e6110cd9f21ac204ddb2182]。如果调用在运行时发生异常，源码没有提供本程序的处理规则，不能从现有材料推出异常后的业务结果；如果调用正常返回，程序同样不检查返回状态，直接 `GOBACK`。\n\n因此，最准确的结论是：**这是一次带有明确 ADVANCE 操作意图的记录访问请求，但不是一个已经被证明成功的“下一条记录读取”或“记录推进”结果。**",
+  "independent_verification": {
+    "network_socket_connect_attempts": 0,
+    "same_source_identity_hash_and_ranges": true,
+    "source_identities": {
+      "ev_page_1e6110cd9f21ac204ddb2182": [
+        "entry.cbl",
+        "f9171cb729da5f8a76d73cf48bdfd48ead48f23fbb27368b280cccb54e85939d",
+        1,
+        12
+      ],
+      "ev_page_8b8c9ee23007f81cfdc2b305": [
+        "layout.cpy",
+        "85ab9626bf1c13f18f62c2d92692eb8fcced25b53c03f9445edba491058904cb",
+        1,
+        5
+      ]
+    },
+    "replay_runner_sha256": "58abef834ef5894b335ca66252747c55e45dd8c123c02f32d3ec328a7cac94ed",
+    "runner_change": "Only output report path and local profile directory differ; network socket connections forbidden."
+  }
+}

@@ -105,7 +105,8 @@ def build_answer_diagnostics(*, config, quality, result):
                 if key in {"headers_received", "first_response_byte", "response_complete", "request_elapsed"}
                 and _seconds(value) is not None},
             "response_bytes": _number(observed.get("response_bytes")),
-            "stage": _enum(stage, {"answer", "discover", "investigate", "synthesis_review", "continuation"}),
+            "stage": _enum(stage, {"answer", "discover", "investigate", "synthesis_review", "continuation",
+                                  "semantic_review", "semantic_revise"}),
             "request_bytes": _number(row.get("request_bytes")),
             "source_file_count": len({p.get("path") for p in sources if isinstance(p.get("path"), str)}),
             "page_count": len(sources),
@@ -184,7 +185,7 @@ def build_answer_diagnostics(*, config, quality, result):
         if diagnostic is not None:
             api_failures.append({"stage": _enum(item.get("stage"), {
                 "configuration", "provider_request", "context_assembly", "response_parse",
-                "response_validation", "continuation", "synthesis_review", "direct",
+                "response_validation", "continuation", "synthesis_review", "semantic_review", "semantic_revise", "direct",
                 "map", "reduce", "model_request", "repository_search", "page",
                 "program", "synthesis"}), **diagnostic})
     return {"schema_version": "business-answer-diagnostics/v1",

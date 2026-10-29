@@ -15,7 +15,7 @@ import sqlite3
 import time
 
 
-SEMANTICS_VERSION = "framework-semantics/v1.9"
+SEMANTICS_VERSION = "framework-semantics/v1.10"
 MAX_FILE_FACTS = 2048
 MAX_REQUEST_FACTS = 32
 
@@ -571,11 +571,43 @@ def _span_evidence(fact, span, supplied_lines):
     return list(dict.fromkeys(evidence))
 
 
+def _visible_source_provenance(value, fact, supplied_lines, available_ids):
+    """Project indexed span locators onto actual transmitted source pages.
+
+    Indexed statement IDs are useful offline but are not browser citations.
+    A reference is joined only by source version and complete physical span;
+    a multi-page span keeps every covering ID rather than choosing one page.
+    """
+    if isinstance(value, list):
+        return [_visible_source_provenance(item, fact, supplied_lines, available_ids) for item in value]
+    if not isinstance(value, dict):
+        return value
+    row = {key: _visible_source_provenance(item, fact, supplied_lines, available_ids)
+           for key, item in value.items()}
+    if "evidence_id" in row:
+        has_span = (type(row.get("start_line")) is int and type(row.get("end_line")) is int
+                    and 1 <= row["start_line"] <= row["end_line"])
+        if has_span:
+            ids = [] if row.get("include_chain") else _span_evidence(fact, row, supplied_lines)
+            row.pop("evidence_id")
+            row["source_evidence_ids"] = ids
+            if len(ids) == 1:
+                row["evidence_id"] = ids[0]
+        elif not isinstance(row["evidence_id"], str) or row["evidence_id"] not in available_ids:
+            row.pop("evidence_id")
+    for key in ("source_evidence_ids", "evidence_ids"):
+        if isinstance(row.get(key), list):
+            row[key] = [identifier for identifier in row[key]
+                        if isinstance(identifier, str) and identifier in available_ids]
+    return row
+
+
 def visible_framework_facts(facts, pages, references):
     """Only transmitted, untruncated source and rules can support a conclusion."""
     usable = {ref.get("reference_id") for ref in references
               if ref.get("text") and not ref.get("text_truncated")}
     supplied_lines = _source_evidence_lines(pages)
+    available_ids = {row[1] for lines in supplied_lines.values() for row in lines.values() if row is not None}
     result = []
     for original in facts:
         ids = original.get("reference_ids", [])
@@ -593,6 +625,7 @@ def visible_framework_facts(facts, pages, references):
         else:
             row = deepcopy(original)
             row["source_evidence_ids"] = list(dict.fromkeys(evidence))
+            row = _visible_source_provenance(row, original, supplied_lines, available_ids)
             row["runtime_verified"] = False
             if row.get("effect_contract"):
                 from effect_contract import visible_effect_contract

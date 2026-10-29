@@ -1,0 +1,32 @@
+{
+  "schema": "answer-review-next-live-plan/v1",
+  "status": "requires_new_budget_authorization",
+  "remote_requests_executed": 0,
+  "proposed_incremental_cap_yuan": 1,
+  "previous_authorization_remaining_sufficient": false,
+  "materials": "Only the already archived neutral B2 source and its unchanged question/gold. No private source or gold in requests.",
+  "cases": [
+    "B2"
+  ],
+  "maximum_requests": 4,
+  "stages": [
+    "answer",
+    "semantic_review",
+    "semantic_revise_if_findings",
+    "semantic_review_of_revision"
+  ],
+  "automatic_retry": false,
+  "failure_policy": "Stop on failed/unknown remote response; reserve retained; no ping.",
+  "budget_policy": "Before each request persist a conservative full-input/output reserve using newly verified official rates; do not send if cumulative reserve would exceed one yuan. All stages and failures count.",
+  "review_policy": "Original gold remains unchanged. Independently inspect whole final answer, citations and actual supplied material for incorrect added claims; capture model review false supports/omissions separately. Neither model_reviewed nor source tests are a passing semantic score.",
+  "stream_measurement": "Record first real answer preview, final answer time and review/revision stages. Reviewer JSON must never appear as user answer.",
+  "delivery_scope": "Source validation only. No app/package build or release is authorized by this proposed model budget.",
+  "question": "帮我分析 SETTLE 这个程序。",
+  "unchanged_gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "neutral_source_sha256": {
+    "docs/reports/2026-10-20-real-model-delivery/phase1/fixtures/B2/source/nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+    "docs/reports/2026-10-20-real-model-delivery/phase1/fixtures/B2/source/settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7"
+  },
+  "maximum_requests_includes_investigation_and_all_reviews": true,
+  "frozen_source_validation": "validation.json"
+}

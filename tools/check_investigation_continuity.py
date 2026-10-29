@@ -46,6 +46,13 @@ BUSINESS_CALLER = ("IDENTIFICATION DIVISION.\nPROGRAM-ID. REQUESTFLOW.\nDATA DIV
 LANGUAGE_QUESTION = "TOTAL-RULE 的 TOTAL-AMOUNT 怎么计算？"
 LANGUAGE_PROMPT = "Always answer in English."
 CROSS_LANGUAGE_PROMPT = BUSINESS_PROMPT + " Always answer in English."
+REVIEW_SOURCE = SOURCE.replace("TOTAL-RULE", "REVIEW-RULE").replace(
+    "01 BASE-AMOUNT PIC 9(5) VALUE 10.", "COPY AMOUNT-INPUT.")
+REVIEW_COPY = "01 BASE-AMOUNT PIC 9(5) VALUE 10.\n"
+REVIEW_QUESTION = "Explain how REVIEW-RULE computes TOTAL-AMOUNT and where the initial BASE-AMOUNT value comes from."
+REVIEW_PROMPT = ("Write one English paragraph with source citations. Explain the initial input and the calculation; "
+    "identify the declaration that supplies the input. Do not include headings, tables, review notes or JSON in the final answer.")
+REVIEW_REVISION = "The initial BASE-AMOUNT declaration is in amount-input.cpy, included by COPY AMOUNT-INPUT in root.cbl."
 
 
 class CompletionProvider(LoopbackProvider):
@@ -120,6 +127,168 @@ def continuation_turn(conversation):
         and bool(assistant.get("evidence_refs")) and bool(assistant.get("investigation_run_id")),
         "Continuation fixture must be a genuinely partial source-backed investigation")
     return user, assistant
+
+
+class IndependentReviewFixture:
+    """Four wire responses; checks do not import the application's reviewer."""
+    def __init__(self, source):
+        self.source = source
+        self.pages, self.answers, self.review_inputs = {}, [], []
+
+    def review_response(self, payload, *, changes):
+        require(payload.get("schema") == "semantic-answer-review/v1"
+            and payload.get("status") == "reviewable", "Independent review protocol missing")
+        require("source_context" not in payload and "draft_answer" not in payload,
+                "Review was replaced by ordinary answer generation")
+        answer = self.answers[-1]
+        require("".join(row["text"] for row in payload["units"]) == answer
+            and payload["answer_sha256"] == hashlib.sha256(answer.encode()).hexdigest()
+            and payload["answer_characters"] == len(answer), "Review does not cover the exact current answer")
+        evidence = payload["evidence"]
+        require({row["reference_id"] for row in evidence} == set(self.pages)
+            and len(evidence) == len(self.pages), "Review dropped or invented supplied source")
+        for row in evidence:
+            page = self.pages[row["reference_id"]]
+            require((row["kind"], row["path"], row["sha256"], row["start_line"], row["end_line"], row["text"])
+                == ("source_page", page["relative_path"], page["source_sha256"], page["start_line"],
+                    page["end_line"], page["source_text"]), "Review changed the supplied source version or original lines")
+            require(row["text_sha256"] == hashlib.sha256(row["text"].encode()).hexdigest()
+                and row["text_truncated"] is False and row["text_offset_chars"] == 0,
+                "Review contains a truncated or unbound original")
+            require(row["source_context"] == {key: page[key] for key in
+                ("include_chain", "replacement_trace", "copy_instance") if key in page},
+                "Review lost COPY instance context")
+        canonical = json.dumps(evidence, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+        require(payload["evidence_sha256"] == hashlib.sha256(canonical.encode()).hexdigest(),
+                "Review evidence digest does not bind its original material")
+        self.review_inputs.append(payload)
+        quotes = [{"reference_id": row["reference_id"], "quote": quote}
+            for row in evidence for quote in ("COMPUTE TOTAL-AMOUNT = BASE-AMOUNT * 2.", REVIEW_COPY.strip())
+            if quote in row["text"] and (row["path"] == "root.cbl" or row["source_context"].get("copy_instance"))]
+        require(len(quotes) == 2, "Review lacks calculation or COPY input declaration")
+        value = {"answer_sha256": payload["answer_sha256"], "evidence_sha256": payload["evidence_sha256"],
+            "reviews": [{"unit_id": row["unit_id"], "verdict": "supported",
+                "reason": "The supplied declaration and calculation support this explanation.", "evidence": quotes}
+                for row in payload["units"]], "omissions": []}
+        if changes:
+            value["reviews"][0].update(verdict="insufficient", evidence=[],
+                reason="Identify the physical COPY declaration that supplies the initial amount.")
+        return json.dumps(value, ensure_ascii=False)
+
+    def respond(self, envelope, payload, index):
+        require(index < 4, "Independent review exceeded its four-request contract")
+        require(payload.get("question") == REVIEW_QUESTION, "Independent review changed the question")
+        system = envelope["messages"][0]["content"]
+        require(REVIEW_PROMPT in system and PROMPT_A not in system,
+                "Independent review used stale saved instructions")
+        if index in {1, 3}:
+            require(len(envelope["messages"]) == 2 and "JSON" in system,
+                    "Independent review protocol or history isolation missing")
+            require(len(self.answers) == (1 if index == 1 else 2), "Review ran before its draft")
+            return self.review_response(payload, changes=index == 1), "stop"
+        require(payload.get("schema") != "semantic-answer-review/v1"
+            and payload.get("answer_detail") == "detailed", "Expected a detailed answer or revision request")
+        main = verify_pages(self.source, payload)
+        verify_pages(self.source, payload, REVIEW_COPY.strip())
+        declaration = next((row for row in supplied_pages(payload)
+            if row["relative_path"] == "amount-input.cpy" and row.get("copy_instance")), {})
+        require(declaration.get("relative_path") == "amount-input.cpy"
+            and declaration.get("include_chain") and declaration.get("copy_instance"),
+                "COPY declaration lacks its actual inclusion identity")
+        require(declaration["include_chain"] == [{"relative_path": "root.cbl", "line": 5,
+                "source_hash": sha256(self.source / "root.cbl"), "copy_name": "AMOUNT-INPUT"}]
+            and re.fullmatch(r"[0-9a-f]{24}", declaration["copy_instance"])
+            and declaration.get("replacement_trace") == [], "COPY inclusion does not match the original caller")
+        pages = {row["evidence_id"]: row for row in supplied_pages(payload)}
+        if index == 0:
+            self.pages = pages
+        else:
+            require(pages == self.pages and payload.get("draft_answer") == self.answers[0],
+                    "Revision lost the reviewed draft or original material")
+            review = payload.get("answer_review", {})
+            require(review.get("status") == "changes_requested" and review.get("findings")
+                and review.get("answer_sha256") == self.review_inputs[0]["answer_sha256"]
+                and payload.get("answer_instructions") == REVIEW_PROMPT,
+                "Independent finding or current instructions did not reach revision")
+        answer = ("BASE-AMOUNT starts with VALUE 10, and REVIEW-RULE multiplies that amount by two to produce "
+            "a TOTAL-AMOUNT of 20. The declaration supplies an initial field value; the arithmetic statement reads "
+            "the field and writes the result to the separate total field. These are distinct source locations, "
+            "so the initial input and the calculation can each be checked against their own original lines. "
+            "The multiplication uses BASE-AMOUNT as its operand and the literal 2 as its multiplier. "
+            "TOTAL-AMOUNT is the receiving field of that expression. In the supplied procedure the calculation "
+            "is followed by GOBACK, which ends this execution path. The explanation concerns that visible path "
+            "and its declared initial value; it does not infer additional input changes or downstream behavior "
+            "from names alone. The computed value 20 follows from the declared 10 and the explicit multiplier 2. ")
+        if index == 2:
+            answer += REVIEW_REVISION + " "
+        answer += f"[{main['evidence_id']}][{declaration['evidence_id']}]"
+        self.answers.append(answer)
+        return answer, "stop"
+
+
+def run_independent_review_check(command, root, checks=None, observations=None):
+    """Supplemental same-command HTTP case, outside the frozen 79 samples."""
+    checks = checks if checks is not None else {}
+    observations = observations if observations is not None else []
+    source, output, profile = root / "source", root / "workspace", root / "profile"
+    source.mkdir(parents=True)
+    for name, body in (("root.cbl", REVIEW_SOURCE), ("amount-input.cpy", REVIEW_COPY)):
+        (source / name).write_text(body, encoding="utf-8")
+    fixture = IndependentReviewFixture(source)
+    with CompletionProvider(root / "provider", fixture.respond) as provider:
+        environment = write_profile(profile, provider, {"max_model_requests": 4, "max_answer_revisions": 1})
+        with NativeWorkbench(command, profile, environment, root) as workbench:
+            indexed = workbench.analyze(source, output)
+            require(indexed["job"]["status"] == "COMPLETED" and not provider.requests, "Independent fixture index failed")
+            workbench.request("POST", "/api/answer-instructions", {"answer_instructions": PROMPT_A})
+            workbench.request("POST", "/api/answer-instructions", {"answer_instructions": REVIEW_PROMPT})
+            workbench.stop()
+            require(workbench.start()["answer_instructions"] == REVIEW_PROMPT, "Review instructions did not survive restart")
+            result = workbench.analyze(source, output, REVIEW_QUESTION, locale="en", answer_detail="detailed")
+            require(result["job"]["status"] == "COMPLETED" and result["result"], "Independent review question failed")
+            agent = result["result"]["agent_result"]
+            trace = json.loads((output / "quality-traces" / (agent["run_id"] + ".json")).read_text(encoding="utf-8"))
+            stages = [row["stage"] for row in trace["rounds"]]
+            journal = read_journal(output)["requests"]
+            checks["independent_review_runs_revision_and_fresh_review_over_http"] = (
+                len(provider.requests) == len(journal) == agent["metrics"]["model_requests"] == 4
+                and stages[0] in {"answer", "investigate"}
+                and stages[1:] == ["semantic_review", "semantic_revise", "semantic_review"]
+                and not provider.errors and all(row["state"] == "completed" for row in journal)
+                and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests})
+            review = agent.get("answer_completion", {}).get("semantic_review", {})
+            final_digest = hashlib.sha256(agent["answer"].encode()).hexdigest()
+            checks["independent_review_binds_final_diagnostics_to_revised_answer"] = (
+                agent["status"] == "ANALYZED" and len(fixture.answers) == len(fixture.review_inputs) == 2
+                and agent["answer"] == fixture.answers[-1] and REVIEW_REVISION in agent["answer"]
+                and review.get("status") == "model_reviewed" and review.get("validation") == "strict_payload_bound"
+                and review.get("coverage", {}).get("complete") is True
+                and review.get("answer_sha256") == review.get("final_answer_sha256") == final_digest
+                and agent.get("claims_semantically_verified") is False and review.get("semantic_verification") is False
+                and trace.get("semantic_review") == review
+                and [row["status"] for row in trace.get("semantic_reviews", [])] == ["changes_requested", "model_reviewed"])
+            checks["independent_review_preserves_source_copy_identity_and_current_requirements"] = (
+                len(fixture.review_inputs) == 2 and fixture.review_inputs[0]["evidence"] == fixture.review_inputs[1]["evidence"]
+                and fixture.review_inputs[0]["answer_sha256"] != fixture.review_inputs[1]["answer_sha256"])
+            conversation = result["state"]["conversation"]
+            assistant = conversation["messages"][-1]
+            previews = [sample["progress"].get("answer_preview", {}).get("text", "")
+                for sample in result["progress_samples"]]
+            review_json = [row["response_text"] for row in provider.requests if row["payload"].get("schema") == "semantic-answer-review/v1"]
+            workbench.stop()
+            workbench.start()
+            reopened = workbench.request("GET", "/api/conversations/" + conversation["id"])["conversation"]
+            visible = [agent["answer"], assistant["content"], reopened["messages"][-1]["content"], *previews]
+            checks["independent_review_json_never_becomes_visible_answer"] = (
+                assistant["status"] == "completed" and assistant["content"] == reopened["messages"][-1]["content"] == agent["answer"]
+                and len(review_json) == 2 and all(not any(body in text for body in review_json)
+                    and '"answer_sha256"' not in text and '"reviews"' not in text for text in visible))
+            observations.append({"phase": "independent_review", "run_id": agent["run_id"],
+                "model_requests": len(provider.requests), "stages": stages, "answer_sha256": final_digest,
+                "reviewed_answer_sha256": [row["answer_sha256"] for row in fixture.review_inputs],
+                "evidence_sha256": review.get("evidence_sha256"), "elapsed_seconds": result["elapsed_seconds"]})
+    return {"checks": checks, "observations": observations, "synthetic_model_requests": len(provider.requests),
+        "fixture_sha256": {"independent_review/" + name: sha256(source / name) for name in ("root.cbl", "amount-input.cpy")}}
 
 
 def run_checks(command, root, report=None):
@@ -368,8 +537,11 @@ def run_checks(command, root, report=None):
             checks["requests_recorded_once_without_provider_errors"] = (not provider.errors
                 and len(provider.requests) == len(journal) == 11 and all(row["state"] == "completed" for row in journal)
                 and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests})
-    return {"checks": checks, "observations": observations, "synthetic_model_requests": len(provider.requests),
-        "fixture_sha256": {name: sha256(source / name) for name in ("root.cbl", "decision.cbl", "caller.cbl")},
+    independent = run_independent_review_check(command, root / "independent-review", checks, observations)
+    return {"checks": checks, "observations": observations,
+        "synthetic_model_requests": len(provider.requests) + independent["synthetic_model_requests"],
+        "fixture_sha256": {**{name: sha256(source / name) for name in ("root.cbl", "decision.cbl", "caller.cbl")},
+            **independent["fixture_sha256"]},
         "injected_wait_seconds": 20,
         "timing_interpretation": "Injected loopback wait tests control flow, not real-model speed."}
 

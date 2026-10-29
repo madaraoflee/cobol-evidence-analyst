@@ -1,0 +1,23 @@
+{
+  "schema": "independent-source-review/v1",
+  "review_kind": "agent_review_not_human_acceptance",
+  "finding": "no_reproducible_P1_or_P2",
+  "scope": "exact_supplied_reference_normalization_and_framework_wire_provenance",
+  "semantic_verification": false,
+  "related_tests_run": 83,
+  "related_tests_passed": 83,
+  "root_delivery_tests": 10,
+  "normalizer_tests": 13,
+  "wire_tests": 4,
+  "python_310_syntax_files": 442,
+  "files_sha256": {
+    "poc/answer_reference_normalization.py": "0a7c5d2280eea3466639c5ca54171b7da35626479035f149590a4ae15ec4431e",
+    "poc/tests/test_answer_reference_normalization.py": "c9f6e79785b5be457e4be3f6ac0ce204b1cf6e4153e2b76f03fa98238b1ee571",
+    "poc/framework_semantics.py": "e38f51dd37238805dd93075d57bcfb7e32d1562007fa60d5f38fe135bce3400a",
+    "poc/tests/test_framework_wire_evidence.py": "d8bceab394c2b728bb062e6321b68fbfa5ef38745d92bc9d2bb4b996e87cd6db",
+    "poc/business_chat.py": "3f734d97dfe1bf4bd9d900601b72cb723017284252b951a735977c27d3ecd7cc",
+    "poc/business_synthesis.py": "ba1788d39044dd212e7dc75115db6f254dbb3d085656b980e8ea9b7398bc8d7a",
+    "poc/draft_validation.py": "4d3cc839da38e87b867dd5e99d4589ae82a914ed9c3dfd42c90c8e9c4ace3e1c",
+    "poc/tests/test_answer_boundary_delivery.py": "128bd91f70924d338bd93ea78e20dcf89cd7c988a5027979d0f07b5da5b78431"
+  }
+}

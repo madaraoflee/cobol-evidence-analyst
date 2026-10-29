@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections import OrderedDict
 from datetime import datetime, timezone
 import codecs
 from contextlib import closing
@@ -11,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import sys
 import tempfile
 import time
 
@@ -23,6 +25,27 @@ def _index_configuration(metadata):
                 ("source_root_hash", "index_kind", "schema_version", "parser_version")}
     identity["source_options"] = json.loads(metadata["source_options"])
     return hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+EXPANSION_CACHE_MAX_BYTES = 16 * 1024 * 1024
+EXPANSION_CACHE_MAX_ENTRIES = 64
+
+
+def _retained_bytes(value, seen=None):
+    """Conservatively account for the immutable lexical value and its key."""
+    seen = set() if seen is None else seen
+    if id(value) in seen:
+        return 0
+    seen.add(id(value))
+    size = sys.getsizeof(value)
+    if isinstance(value, tuple):
+        size += sum(_retained_bytes(item, seen) for item in value)
+    elif isinstance(value, dict):
+        size += sum(_retained_bytes(key, seen) + _retained_bytes(item, seen)
+                    for key, item in value.items())
+    elif hasattr(value, "__dict__"):
+        size += _retained_bytes(vars(value), seen)
+    return size
 
 
 @dataclass(frozen=True)
@@ -47,6 +70,8 @@ class QuestionSourceSession:
         self.mirror_root = Path(self._temporary.name).resolve()
         self._captured = {}
         self._scopes = []
+        self._expansion_sources = OrderedDict()
+        self._expansion_source_bytes = 0
         self.capture_seconds = 0.0
         self.captured_bytes = 0
         with closing(sqlite3.connect(self.database_path)) as db:
@@ -60,7 +85,37 @@ class QuestionSourceSession:
             for scope in reversed(self._scopes):
                 scope.close()
         finally:
+            self._expansion_sources.clear()
+            self._expansion_source_bytes = 0
             self._temporary.cleanup()
+
+    def cached_expansion_source(self, key):
+        if self.check_cancel:
+            self.check_cancel()
+        cached = self._expansion_sources.get(key)
+        if cached is None:
+            return None
+        self._expansion_sources.move_to_end(key)
+        return cached[0]
+
+    def cache_expansion_source(self, key, source):
+        # Only immutable physical tokens are reusable. Expansion output keeps
+        # host-specific include chains and replacement traces outside this cache.
+        from procedure_expansion import _Source
+        if not isinstance(source, _Source) or source.problems:
+            return
+        size = _retained_bytes((key, source)) + 128  # Entry tuple and ordered-map bookkeeping.
+        if size > EXPANSION_CACHE_MAX_BYTES or EXPANSION_CACHE_MAX_ENTRIES <= 0:
+            return
+        previous = self._expansion_sources.pop(key, None)
+        if previous is not None:
+            self._expansion_source_bytes -= previous[1]
+        while self._expansion_sources and (len(self._expansion_sources) >= EXPANSION_CACHE_MAX_ENTRIES
+                or self._expansion_source_bytes + size > EXPANSION_CACHE_MAX_BYTES):
+            _, (_, removed_bytes) = self._expansion_sources.popitem(last=False)
+            self._expansion_source_bytes -= removed_bytes
+        self._expansion_sources[key] = (source, size)
+        self._expansion_source_bytes += size
 
     def register_scope(self, scope):
         self._scopes.append(scope)

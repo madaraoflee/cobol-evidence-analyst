@@ -1,0 +1,40 @@
+{
+  "scope": "cross_task_integration_source_regressions",
+  "base_commit": "d993031fae8559a14bc162511cc53d46640f1df6",
+  "integrated_branch": "0e082244a28283094b474e3581ca642c7e64e57b",
+  "source_dirty": true,
+  "runtime_platform": "Darwin",
+  "passed": 4612,
+  "failed": 0,
+  "skipped": 0,
+  "test_ids_sha256": "024d6d9018f6ab4025f2681b72d62b236abc5eda57a5c0317846a80033c147f5",
+  "test_sources_sha256": "43fee120796ae7df07833a8908ce39805762e87d69f36a64b0fcc2804ff7fa8b",
+  "shards": [
+    {
+      "index": 0,
+      "passed": 1153,
+      "elapsed_seconds": 94.809117
+    },
+    {
+      "index": 1,
+      "passed": 1153,
+      "elapsed_seconds": 95.799191
+    },
+    {
+      "index": 2,
+      "passed": 1153,
+      "elapsed_seconds": 81.376871
+    },
+    {
+      "index": 3,
+      "passed": 1153,
+      "elapsed_seconds": 103.113583
+    }
+  ],
+  "web_passed": 272,
+  "tools_passed": 1,
+  "source_http_continuity_checks": 22,
+  "synthetic_continuity_requests": 15,
+  "real_model_calls": 0,
+  "application_built": false
+}

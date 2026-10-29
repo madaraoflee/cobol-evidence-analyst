@@ -9,6 +9,8 @@ from decimal import Decimal, InvalidOperation
 from business_behavior import build_behavior_guide
 from business_explanation_cache import cache_business_explanation
 from business_explanation_review import review_business_explanation
+from answer_sql_boundaries import assess_sql_answer_boundaries
+from answer_reference_normalization import normalize_answer_references
 from file_impact_evidence import is_file_impact_question
 from question_intent import calculation_intent
 from question_planner import business_concept_requested
@@ -323,6 +325,7 @@ _ASPECT_LABELS = {"formula": "具体算式或运算关系", "inputs": "输入的
 # useful short explanations and domain terms remain available without a retry.
 _GENERIC_BEHAVIOR_WORDS = re.compile(
     r"这个|這個|当前|當前|首先|然后|然後|接着|接著|最后|最後|"
+    r"这样|這樣|这些|這些|一个|一個|上述|以上|如此|整个|整個|完整|全部|操作|已经|已經|完毕|完畢|结束|結束|就|都|"
     r"程序|系统|系統|流程|业务|業務|相关|相關|具体|具體|相应|相應|"
     r"根据|根據|按照|依据|依據|通过|通過|进行|進行|完成|执行|執行|"
     r"判断|判斷|校验|校驗|检查|檢查|验证|驗證|处理|處理|计算|計算|更新|"
@@ -330,6 +333,7 @@ _GENERIC_BEHAVIOR_WORDS = re.compile(
     r"数据|數據|信息|输入|輸入|记录|記錄|状态|狀態|结果|結果|"
     r"是否|满足|滿足|符合|要求|该|該|本|先|再|并|並|且|和|与|與|及|的|了|会|會|将|將|对|對|按|后|後|时|時|来|來|做|有|关|關|等|地|它|这|這|是|在|所|作|出|以|用|于|於|"
     r"\b(?:the|a|an|this|that|it|system|program|process|workflow|business|"
+    r"these|those|above|all|entire|complete[ds]?|completing|operation[s]?|step[s]?|"
     r"first|then|finally|and|or|to|of|for|in|on|with|according|based|"
     r"validat\w*|check\w*|process\w*|calculat\w*|updat\w*|generat\w*|"
     r"return\w*|output\w*|perform\w*|condition\w*|rule\w*|configuration|"
@@ -371,6 +375,36 @@ _BUSINESS_OVERVIEW = re.compile(
     r"\b(?:business (?:purpose|function|workflow|process|logic|overview)|"
     r"end.to.end (?:business |processing )?(?:flow|process)|"
     r"what (?:does|is) (?:this |the )?(?:program|function).{0,24}(?:do|for))\b", re.I)
+# Ordinary onboarding requests should use the existing source-bound overview;
+# an explicit field, formula or implementation question remains a direct answer.
+_PROGRAM_EXPLANATION = re.compile(
+    r"(?:分析|解釋|解释|解读|解讀|介绍|介紹|讲讲|講講|说明|說明|了解|看懂)"
+    r"[^。！？?!\n]{0,48}(?:程序|程式|模块|模塊)|"
+    r"(?:程序|程式|模块|模塊)[^。！？?!\n]{0,16}(?:干嘛|幹嘛|做啥)|"
+    r"\b(?:explain|describe|introduce|analy[sz]e|walk me through)\b"
+    r"[^.!?\n]{0,48}\b(?:program|module)\b", re.I)
+_NEWCOMER_EXPLANATION = re.compile(
+    r"(?:新人|新手|初学|初學|入门|入門)[^。！？?!\n]{0,48}"
+    r"(?:分析|解釋|解释|解读|解讀|介绍|介紹|讲讲|講講|说明|說明|了解|看懂)|"
+    r"\b(?:beginner|newcomer|new to)\b[^.!?\n]{0,60}"
+    r"\b(?:explain|describe|introduce|understand|walk me through)\b", re.I)
+_NARROW_EXPLANATION = re.compile(
+    r"字段|欄位|栏位|变量|變量|参数|參數|初值|初始值|取值|返回值|状态码|狀態碼|"
+    r"公式|算式|(?:调用|呼叫)(?:了|的是|的)?(?:关系|關係|哪些|什么|甚麼|誰|谁|链|鏈)|"
+    r"(?:哪些|哪[个個]些?|谁|誰)[^。！？?!\n]{0,24}(?:调用|呼叫)|"
+    r"(?:如何|怎么|怎麼|是否|会不会|會不會)[^。！？?!\n]{0,24}(?:调用|呼叫)|"
+    r"(?:如何|怎么|怎麼|怎样|怎樣)[^。！？?!\n]{0,24}(?:检查|檢查|判断|判斷|决定|決定|计算|計算|赋值|賦值)|"
+    r"\b(?:fields?|variables?|parameters?|arguments?|values?|formulas?|callers?|callees?)\b|"
+    r"\bhow\b[^.!?\n]{0,48}\b(?:checks?|validates?|decides?|calculates?|assigns?)\b|"
+    r"\bwhat\s+(?:(?:will|would)\s+)?happens?\s+(?:when|if)\b|"
+    r"\bcall(?:ing)?\s+(?:graphs?|relationships?|chains?)\b|"
+    r"\b(?:which|who|when|how|whether|does|will)\b[^.!?\n]{0,48}\bcalls?\b", re.I)
+_IMPLEMENTATION_EXPLANATION = re.compile(
+    r"逐行|逐句|每[行句]|语法|語法|开发实现|開發實現|代码实现|代碼實現|"
+    r"\b(?:line.by.line|statement.by.statement|syntax|implementation)\b", re.I)
+_IMPLEMENTATION_NEGATION = re.compile(
+    r"(?:不要|不用|无需|無需|不需要|不是要|别|別)[^，,。！？?!；;\n]{0,12}$|"
+    r"\b(?:without|not|avoid|no need for|do not|don't|don’t)[^,;.!?\n]{0,24}$", re.I)
 _NARRATIVE_ASPECTS = {
     "business_purpose": ("purpose_candidates",
         "用原文说明或适用手册解释处理目的，并区分文档说明、合理解释与已见规则；不猜业务名称"),
@@ -396,8 +430,12 @@ def wants_business_overview(question, *, answer_detail="detailed", field_entitie
     """A broad explanation request, not every detailed or relationship reply."""
     if current_business_explanation_limited(question):
         return False
-    topics = _BUSINESS_OVERVIEW.findall(str(question))
     text = str(question)
+    topics = _BUSINESS_OVERVIEW.findall(text)
+    implementation_requested = any(not _IMPLEMENTATION_NEGATION.search(text[max(0, match.start() - 64):match.start()])
+                                   for match in _IMPLEMENTATION_EXPLANATION.finditer(text))
+    if implementation_requested:
+        return False
     # An explicit purpose-only request does not require every available
     # program/data relationship merely because its subject says "purpose".
     purpose_only = re.search(
@@ -423,11 +461,23 @@ def wants_business_overview(question, *, answer_detail="detailed", field_entitie
                            r"文件|檔案|\b(?:tables?|files?)\b", text, re.I)))
     saved_explanation = saved_business_explanation_requested(question, answer_instructions,
         field_entities=field_entities, source_scopes=source_scopes)
-    return saved_explanation or (wants_business_detail(question, answer_detail=answer_detail)
-            and (bool(topics) or cross_role_explanation
-                 or business_concept_requested(question, field_entities=field_entities, source_scopes=source_scopes))
-            and (calculation_intent(str(question)) != "rules"
-                 or any(not re.search(r"逻辑|邏輯|\blogic\b", topic, re.I) for topic in topics)))
+    if saved_explanation:
+        return True
+    if not wants_business_detail(text, answer_detail=answer_detail):
+        return False
+    explicit_topics = [topic for topic in topics if not re.match(r"(?:新人|新手)", topic)]
+    if not explicit_topics and not cross_role_explanation and _NARROW_EXPLANATION.search(text):
+        return False
+    if (explicit_topics or cross_role_explanation
+            or business_concept_requested(question, field_entities=field_entities, source_scopes=source_scopes)):
+        return (calculation_intent(text) != "rules"
+                or any(not re.search(r"逻辑|邏輯|\blogic\b", topic, re.I) for topic in explicit_topics))
+    if (calculation_intent(text) is not None or _NARROW_EXPLANATION.search(text)
+            or focused_relation or field_entities
+            or any(scope.get("exclusive") is not False for scope in source_scopes)
+            or re.search(r"异常|異常|失败|失敗|\b(?:exceptions?|failures?)\b", text, re.I)):
+        return False
+    return bool(topics or _PROGRAM_EXPLANATION.search(text) or _NEWCOMER_EXPLANATION.search(text))
 
 
 def _technical_inventory_only(answer):
@@ -1476,7 +1526,7 @@ def _assignment_only_synopsis(answer):
 
 
 def assess_business_answer(question, answer, investigation, source_pages, *, answer_detail="detailed", working_set=None,
-                           answer_instructions=""):
+                           answer_instructions="", framework_references=()):
     """Detect obvious omissions without treating source supply as answer quality."""
     completion = assess_answer_completion(answer, source_pages=source_pages, working_set=working_set)
     # Only the excerpts actually sent to this answer can contradict a global
@@ -1533,6 +1583,31 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
             if not any(re.search(r"(?<![A-Z0-9_$#@-])" + re.escape(name) + r"(?![A-Z0-9_$#@-])",
                                  explanation, re.I) for name in names):
                 missing.append(group)
+    boundary_review = assess_sql_answer_boundaries(answer, source_pages)
+    reference_review = normalize_answer_references(answer, [*source_pages, *framework_references])
+    if reference_review["unresolved"]:
+        missing.append("unresolvable_reference_markers")
+        completion["reference_review"] = {
+            "unresolved": reference_review["unresolved"],
+            "revision_hint": "Use only actual supplied source/manual IDs. An unknown or ambiguous ID "
+                "cannot be repaired by guessing a source from nearby text."}
+    # Rule IDs identify internal navigation; unlike source/manual IDs they are
+    # not resolvable citations. Never invent a source when asking for repair.
+    reference_prose = re.sub(
+        r"(?ms)^[ \t]*```[^\n]*\n.*?(?:^[ \t]*```[^\n]*(?:\n|$)|\Z)|"
+        r"^[ \t]*~~~[^\n]*\n.*?(?:^[ \t]*~~~[^\n]*(?:\n|$)|\Z)|`[^`\n]*`", "", str(answer))
+    internal_references = [match.group() for match in re.finditer(
+        r"[\[(（]rule_[0-9a-f]{8,64}_[0-9a-f]{8,64}[\])）]", reference_prose, re.I)]
+    if internal_references:
+        missing.append("unresolvable_internal_references")
+        completion["citation_review"] = {
+            "invalid_markers": list(dict.fromkeys(internal_references)),
+            "revision_hint": "Replace internal rule markers with actually supplied source/manual IDs "
+                "supporting the claim. Do not guess a correspondence or treat a navigation ID as evidence."}
+    if boundary_review["review_required"]:
+        missing.extend(row["kind"] for row in boundary_review["risks"])
+    completion["sql_boundary_review"] = boundary_review
+    missing = list(dict.fromkeys(missing))
     narrative = [item["kind"] for item in requirements if item["kind"] in _NARRATIVE_ASPECTS]
     if narrative:
         from business_orientation import build_business_orientation
@@ -1548,7 +1623,9 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
             "missing_aspects": [kind for kind in missing if kind in _NARRATIVE_ASPECTS]}
     completion.update(required_aspects=[item["kind"] for item in requirements], missing_aspects=missing)
     if missing and completion["status"] != "incomplete":
-        completion.update(status="incomplete", reason="supplied_business_aspects_unexplained")
+        completion.update(status="incomplete", reason=("answer_evidence_boundary_review_required"
+            if boundary_review["review_required"] or internal_references or reference_review["unresolved"]
+            else "supplied_business_aspects_unexplained"))
     risks = semantic_risk_candidates(answer, source_pages)
     completion["semantic_risk_candidates"] = risks
     if risks:

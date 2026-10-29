@@ -56,6 +56,8 @@ STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.
                 "/appearance.css": "appearance.css", "/theme.js": "theme.js", "/layout.js": "layout.js",
                 "/markdown.js": "markdown.js", "/marked.umd.js": "marked.umd.js"}
 MAX_REQUEST_BYTES = 32_768
+MAX_PROGRESS_WAIT_MS = 20_000
+MAX_PROGRESS_WAITERS = 8
 REJECTED_BODY_DRAIN_SECONDS = 0.25
 MAX_GRAPH_EDGES = 200
 MAX_SOURCE_WORKSPACES = 100
@@ -91,7 +93,7 @@ def _answer_preview(value):
     if (not isinstance(value, dict) or not isinstance(value.get("text"), str)
             or type(value.get("round")) is not int or not 1 <= value["round"] <= 1_000_000
             or not isinstance(value.get("stage"), str)
-            or value.get("stage") not in {"draft", "revision", "continuation", "answer"}):
+            or value.get("stage") not in {"draft", "revision", "continuation", "answer", "verifying"}):
         return None
     return {"text": value["text"][:24000], "round": value["round"], "stage": value["stage"]}
 
@@ -654,6 +656,8 @@ class WorkbenchState:
         self.model_check_transport, self.folder_picker = model_check_transport, folder_picker
         self.lock = threading.RLock()
         self._graph_preview_cache = None
+        self.progress_changed = threading.Condition(self.lock)
+        self.progress_waiters = 0
         self.project = _project()
         self.job: dict | None = None
         self.cancel_event = threading.Event()
@@ -1809,6 +1813,7 @@ class WorkbenchState:
                         "bytes_completed": 0, "bytes_total": None}}
             if _remote_import is not None or options.get("_remote_source"):
                 self.job["source_origin"] = "remote_repository"
+            self._notify_job_changed()
             threading.Thread(target=self._run, args=(job_id, options), daemon=True).start()
             return {"job_id": job_id, "status": "RUNNING", "source_preferences": copy.deepcopy(self.source_preferences)}
 
@@ -1817,6 +1822,7 @@ class WorkbenchState:
         if result["status"] != "RUNNING":
             result["recent_conversations"] = self.recent_conversations()
             result["source_workspaces"] = self.saved_sources()
+        result["progress_revision"] = self.job.get("progress_revision", 0)
         now = time.monotonic()
         progress = result["progress"]
         progress["elapsed_seconds"] = round((now if result["status"] == "RUNNING" else self.updated_at) - self.started_at, 2)
@@ -1837,6 +1843,12 @@ class WorkbenchState:
             progress["eta_seconds"] = round(max(0.0, (file_total - file_completed) * phase_elapsed / file_completed), 1)
             progress["eta_scope"] = "current_file"
         return result
+
+    def _notify_job_changed(self) -> None:
+        """Publish a new snapshot under the same lock used by waiting readers."""
+        if self.job is not None:
+            self.job["progress_revision"] = self.job.get("progress_revision", 0) + 1
+        self.progress_changed.notify_all()
 
     def _check_cancel(self) -> None:
         if self.cancel_event.is_set():
@@ -1884,6 +1896,7 @@ class WorkbenchState:
                 current["question_remaining_seconds"] = min(current["question_remaining_seconds"],
                     current["question_budget_seconds"])
             self.updated_at = self.progress_updated_at = time.monotonic()
+            self._notify_job_changed()
 
     def cancel(self, job_id: str) -> dict:
         with self.lock:
@@ -1892,6 +1905,7 @@ class WorkbenchState:
             if self.job["status"] == "RUNNING":
                 self.job["cancel_requested"] = True
                 self.cancel_event.set()
+                self._notify_job_changed()
             return self._job_snapshot()
 
     def _run(self, job_id: str, options: dict) -> None:
@@ -2148,6 +2162,9 @@ class WorkbenchState:
             # Retention belongs to this run, even if a new job has already
             # switched the active project. Failed rollback retains recovery data.
             discard_remote_workspace()
+            with self.lock:
+                if self.job and self.job["job_id"] == job_id:
+                    self._notify_job_changed()
             if backup:
                 try:
                     backup.close()
@@ -2203,6 +2220,28 @@ class WorkbenchState:
             if not self.job or self.job["job_id"] != job_id:
                 raise RequestError("JOB_NOT_FOUND", "任务不存在或已由新的源码分析替换。", 404)
             return self._job_snapshot()
+
+    def wait_job(self, job_id: str, *, after: int, wait_ms: int) -> dict:
+        """Wait for a changed bounded snapshot, without holding up the worker."""
+        if (type(after) is not int or not 0 <= after <= 9_007_199_254_740_991
+                or type(wait_ms) is not int or not 0 <= wait_ms <= MAX_PROGRESS_WAIT_MS):
+            raise RequestError("INVALID_QUERY", "进度查询参数无效。")
+        with self.progress_changed:
+            if not self.job or self.job["job_id"] != job_id:
+                raise RequestError("JOB_NOT_FOUND", "任务不存在或已由新的源码分析替换。", 404)
+            if self.progress_waiters >= MAX_PROGRESS_WAITERS:
+                raise RequestError("PROGRESS_BUSY", "进度连接繁忙，请稍后重试。", 429)
+            self.progress_waiters += 1
+            try:
+                self.progress_changed.wait_for(
+                    lambda: not self.job or self.job["job_id"] != job_id
+                    or self.job["status"] != "RUNNING"
+                    or self.job.get("progress_revision", 0) != after,
+                    timeout=wait_ms / 1000,
+                )
+                return self.get_job(job_id)
+            finally:
+                self.progress_waiters -= 1
 
     def evidence(self, evidence_id: str, conversation_id=None, message_id=None, revision_id=None) -> dict:
         if EVIDENCE_ID.fullmatch(evidence_id) is None:
@@ -2452,6 +2491,13 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._json(200, self.server.app.framework_demo())
             elif re.fullmatch(r"/api/jobs/[a-f0-9]{32}/events", path) and not route.query:
                 self._stream_job(path.split("/")[3])
+            elif re.fullmatch(r"/api/jobs/[a-f0-9]{32}/progress", path):
+                query = parse_qs(route.query, keep_blank_values=True)
+                if (set(query) != {"after", "wait_ms"} or any(len(values) != 1 for values in query.values())
+                        or any(not re.fullmatch(r"[0-9]{1,16}", values[0]) for values in query.values())):
+                    raise RequestError("INVALID_QUERY", "进度查询参数无效。")
+                self._json(200, self.server.app.wait_job(path.split("/")[3],
+                    after=int(query["after"][0]), wait_ms=int(query["wait_ms"][0])))
             elif path.startswith("/api/jobs/") and not route.query:
                 self._json(200, self.server.app.get_job(path.removeprefix("/api/jobs/")))
             elif re.fullmatch(r"/api/conversations/[a-f0-9]{32}", path) and not route.query:

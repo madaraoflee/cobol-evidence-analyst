@@ -1,0 +1,139 @@
+{
+  "schema_version": "business-framework-agent-review/v1",
+  "review_label": "agent_review",
+  "human_acceptance": false,
+  "case_id": "B1",
+  "baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "gold_path": "/tmp/business-framework-live-20261020/cases.json",
+  "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "observation_path": "/tmp/business-framework-live-20261020/run/B1-observation.json",
+  "observation_sha256": "474ebafd73dd2a7b7573e896f8c8e3b51bd12f5af8d010cb70098895d3c38ced",
+  "final_answer_sha256": "aeb70aaa3157fc299f5d2ace2344d7d5c47954acdc612a0fc1c78bee393ee07f",
+  "reviewed_material": "final_visible_answer after final product checks; not preview or simulated response",
+  "decision": "FAIL",
+  "summary": "业务用途和接口解释清楚，但无依据的不加锁断言及多行结果去向自相矛盾阻断业务正确性通过。",
+  "required_results": [
+    {
+      "criterion_id": "B1-R1",
+      "result": "PASS",
+      "answer_quotes": [
+        "BALANCEQ 是一个**按账号查询账户可用余额的查询子程序**：调用方传入 8 位账号，程序去 `ACCOUNT_BALANCES` 表查出该账号的 `AVAILABLE_BALANCE`，写回调用方提供的余额字段，并用一个 2 位响应码告诉调用方“查到/正常”还是“没查到或有异常”。源码第 3 行注释写明其用途是“为操作员查询账户余额；联机查询入口”，但这只是作者留下的说明，加上本程序自身没有任何屏幕或终端交互语句，因此更准确的定位是：它是一个**供上层查询界面或交易调用的取数例程**，并不能据此证明它被部署成何种联机事务。[ev_page_41c62f686dca8a6b3a26a3e9]"
+      ],
+      "source_lines": [
+        3,
+        8,
+        9,
+        10,
+        11,
+        14,
+        15
+      ],
+      "reason": "用途、调用方账号、余额表和输出参数角色均已说清。"
+    },
+    {
+      "criterion_id": "B1-R2",
+      "result": "PASS",
+      "answer_quotes": [
+        "1. **查余额。** 程序执行一条 `SELECT AVAILABLE_BALANCE INTO :CURRENT-BALANCE FROM ACCOUNT_BALANCES WHERE ACCOUNT_ID = :ACCOUNT-KEY`：以传入的账号在余额表中定位记录，把该记录的可用余额取出来放进输出参数。这是整个程序中唯一的数据访问，且是**只读**——不改表、不锁定、不写回，所以 BALANCEQ 不会影响账户余额本身。[ev_page_41c62f686dca8a6b3a26a3e9]"
+      ],
+      "source_lines": [
+        13,
+        14,
+        15,
+        16
+      ],
+      "reason": "没有修改账户余额语句的必需结论成立；额外的不锁定断言独立列为O1，不受本项通过豁免。"
+    },
+    {
+      "criterion_id": "B1-R3",
+      "result": "FAIL",
+      "answer_quotes": [
+        "- **不成立（其余任何非零返回码）**：把 `'90'` 移入 `RESPONSE-CODE`。[ev_page_41c62f686dca8a6b3a26a3e9]",
+        "**失败时余额字段的值不能假定。** 只有走 `SQLCODE = 0` 这一支时，`CURRENT-BALANCE` 才是本次查询到的余额。若非零分支，程序对 `CURRENT-BALANCE` 没有任何赋值，但 SQL 的 `SELECT ... INTO` 在失败时该宿主变量持有的是原值、残留值还是未定值，取决于数据库执行语义，本程序并未规定。因此业务上应把“`RESPONSE-CODE` 为 `'90'`”视为**余额不可用**，不能拿该字段去显示或做后续计算。[ev_page_41c62f686dca8a6b3a26a3e9]",
+        "**响应码只有两档，且不区分失败原因。** 程序只看 `SQLCODE` 是否等于 0：查不到该账号、查出多行、数据库报错等等，全部走同一个 `ELSE`，一律返回 `'90'`。也就是说，调用方**无法从响应码判断是“账号不存在”还是“系统故障”**；要区分必须另行获取 `SQLCODE`，而本程序没有把它暴露出去，也没有对它做任何分类判断。[ev_page_41c62f686dca8a6b3a26a3e9]",
+        "**没有断言账号唯一。** 语句按 `ACCOUNT_ID` 等值查询，源码中看不到主键或唯一性约束的定义，因此“一个账号只对应一条余额记录”是合理的业务假设，而非本程序能证明的事实。若真出现多行，行为将落到上面的非零分支之外，只能以数据库实际语义为准。[ev_page_41c62f686dca8a6b3a26a3e9]"
+      ],
+      "source_lines": [
+        17,
+        18,
+        19,
+        20
+      ],
+      "reason": "主体的00/90分流和失败未重置余额正确，但最终同篇又说多行落在非零分支之外，与前段相反。"
+    }
+  ],
+  "forbidden_results": [
+    {
+      "criterion_id": "B1-X1",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "失败时余额必定为零或必定保持某个旧值。"
+    },
+    {
+      "criterion_id": "B1-X2",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "已证明部署为具体屏幕、交易或联机系统。"
+    },
+    {
+      "criterion_id": "B1-X3",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "源码已明确可用余额的业务计算口径。"
+    },
+    {
+      "criterion_id": "B1-X4",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "返回码90只代表账户不存在，或SQLCODE非零被区分为源码未提供的独立业务原因。"
+    }
+  ],
+  "business_expression": {
+    "result": "PASS",
+    "answer_quote": "BALANCEQ 是一个**按账号查询账户可用余额的查询子程序**：调用方传入 8 位账号，程序去 `ACCOUNT_BALANCES` 表查出该账号的 `AVAILABLE_BALANCE`，写回调用方提供的余额字段，并用一个 2 位响应码告诉调用方“查到/正常”还是“没查到或有异常”。源码第 3 行注释写明其用途是“为操作员查询账户余额；联机查询入口”，但这只是作者留下的说明，加上本程序自身没有任何屏幕或终端交互语句，因此更准确的定位是：它是一个**供上层查询界面或交易调用的取数例程**，并不能据此证明它被部署成何种联机事务。[ev_page_41c62f686dca8a6b3a26a3e9]",
+    "reason": "开头直接解释业务用途，后续表格字段带业务角色。"
+  },
+  "citations": {
+    "result": "FAIL_SUPPORT_COMPLETENESS",
+    "all_references_resolve": true,
+    "supplied_source_hash_verified": true,
+    "used_reference_ids": [
+      "ev_page_41c62f686dca8a6b3a26a3e9"
+    ],
+    "reason": "引用可回到完整源码，但源码未支持不锁定或多行必然绕过非零分支。"
+  },
+  "additional_findings": [
+    {
+      "finding_id": "B1-O1",
+      "priority": "P2",
+      "kind": "unsupported_runtime_guarantee",
+      "answer_quotes": [
+        "1. **查余额。** 程序执行一条 `SELECT AVAILABLE_BALANCE INTO :CURRENT-BALANCE FROM ACCOUNT_BALANCES WHERE ACCOUNT_ID = :ACCOUNT-KEY`：以传入的账号在余额表中定位记录，把该记录的可用余额取出来放进输出参数。这是整个程序中唯一的数据访问，且是**只读**——不改表、不锁定、不写回，所以 BALANCEQ 不会影响账户余额本身。[ev_page_41c62f686dca8a6b3a26a3e9]"
+      ],
+      "source_path": "balance.cbl",
+      "source_lines": [
+        13,
+        14,
+        15,
+        16
+      ],
+      "reason": "SELECT原文未提供隔离级别、锁策略或运行契约；没有显式修改语句不能推出不锁定。",
+      "acceptable_correction": "仅说明本段没有修改账户余额的语句；是否取锁当前材料不能确认。"
+    },
+    {
+      "finding_id": "B1-O2",
+      "priority": "P2",
+      "kind": "contradiction_and_unsupported_branch",
+      "answer_quotes": [
+        "**响应码只有两档，且不区分失败原因。** 程序只看 `SQLCODE` 是否等于 0：查不到该账号、查出多行、数据库报错等等，全部走同一个 `ELSE`，一律返回 `'90'`。也就是说，调用方**无法从响应码判断是“账号不存在”还是“系统故障”**；要区分必须另行获取 `SQLCODE`，而本程序没有把它暴露出去，也没有对它做任何分类判断。[ev_page_41c62f686dca8a6b3a26a3e9]",
+        "**没有断言账号唯一。** 语句按 `ACCOUNT_ID` 等值查询，源码中看不到主键或唯一性约束的定义，因此“一个账号只对应一条余额记录”是合理的业务假设，而非本程序能证明的事实。若真出现多行，行为将落到上面的非零分支之外，只能以数据库实际语义为准。[ev_page_41c62f686dca8a6b3a26a3e9]"
+      ],
+      "source_path": "balance.cbl",
+      "source_lines": [
+        17,
+        18,
+        19,
+        20
+      ],
+      "reason": "先把多行列入ELSE，后又说多行落到非零分支之外。源码只证明执行继续到IF时按SQLCODE零/非零分流；没有多行处理的数据库契约，不能声称它必然绕过该分支。",
+      "acceptable_correction": "保留零/非零映射；多行如何转为数据库返回状态以及执行是否继续需另行核对，不制造第三分支。"
+    }
+  ],
+  "scope": "独立代理审查，不是人工签字或目标设备验收；没有更改首测答案、产品或冻结gold。"
+}

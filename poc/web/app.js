@@ -550,7 +550,7 @@ function diagnosticSummaryData(){
   const runtime=summary.runtime || {},configured=summary.configured || {},coverage=summary.source_coverage || {},output=summary.output || {};
   const requests=Array.isArray(summary.requests)?summary.requests.filter(item=>item && typeof item==='object').slice(0,64).map(item=>({
     round_id:Number.isSafeInteger(item.round_id) && item.round_id>=0?item.round_id:typeof item.round_id==='string' && /^round-[0-9]{1,6}$/.test(item.round_id)?item.round_id:null,
-    stage:enumeration(item.stage,['answer','discover','investigate','synthesis_review','continuation','unknown']),
+    stage:enumeration(item.stage,['answer','discover','investigate','synthesis_review','continuation','semantic_review','semantic_revise','unknown']),
     ...integers(item,['request_bytes','source_file_count','page_count','source_characters','source_line_count','trim_event_count','history_message_count','history_characters','raw_content_characters','parsed_answer_characters','choice_index']),
     finish_reason:finish(item.finish_reason),
     response_timing_seconds:Object.fromEntries(['headers_received','first_response_byte','response_complete','request_elapsed'].filter(key=>seconds(item.response_timing_seconds?.[key])!==null).map(key=>[key,seconds(item.response_timing_seconds[key])])),
@@ -685,6 +685,7 @@ function answerCompletionReason(answer){
     model_client_error:'模型請求或回應處理失敗，請查看 HTTP 狀態與 API 返回。',
     source_availability_contradiction:'回答對源碼供應的描述仍有矛盾，已保留正文供核對。',
     supplied_business_aspects_unexplained:'回答尚未涵蓋本題已定位的全部業務要點，已保留目前正文。',
+    semantic_review_incomplete:'這份回答的業務結論尚未完成核對，部分推斷或遺漏仍待確認；目前正文已保留。',
     investigation_promised_without_completion:'回答中提及的後續調查尚未完成，已保留目前取得的結論。',
     investigation_without_business_answer:'目前回答尚未充分解釋所問業務，仍需根據已讀證據補充。',
     answer_incomplete:'回答尚有未完成的業務要點，已保留目前正文。',
@@ -885,7 +886,7 @@ function liveAnalysisView(progress=state.progress){
   if(update?.completed_items!==undefined && update?.total_items!==undefined && update.total_items>=update.completed_items)counts.push(ui`已有證據的要點 ${formatNumber(update.completed_items)} / ${formatNumber(update.total_items)}`);
   const open=Array.isArray(update?.open_items)?update.open_items:[];
   if(typeof update?.open_items==='number')counts.push(ui`待核對 ${formatNumber(update.open_items)} 項`);
-  const stage=['revision','revise','revising'].includes(preview?.stage)?t('修訂中'):preview?.stage==='verifying'?t('核對中'):t('撰寫中');
+  const stage=['reviewing_answer','verifying_answer'].includes(progress?.phase) || preview?.stage==='verifying'?t('核對中'):['revision','revise','revising'].includes(preview?.stage)?t('修訂中'):t('撰寫中');
   const history=Array.isArray(progress?._activityHistory)?progress._activityHistory:[];
   const activity=history.length?ui`<details class="analysis-activity-history"><summary>查看處理進展 · ${formatNumber(history.length)}</summary><ol>${history.map(item=>`<li>${item.phase?`<strong>${escapeHTML(phaseLabel(item.phase))}</strong>`:''}${item.summary?`<span>${escapeHTML(item.summary)}</span>`:''}</li>`).join('')}</ol></details>`:'';
   return activity+(update?ui`<section class="analysis-live-update" aria-label="調查進展"><div class="analysis-live-counts">${escapeHTML(counts.join(' · '))}</div>${update.summary?`<p role="status" aria-live="polite">${escapeHTML(update.summary)}</p>`:''}${open.length?ui`<details class="analysis-open-items"><summary>待核對事項 · ${formatNumber(open.length)}</summary><ul>${open.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul></details>`:''}</section>`:'')+(preview?ui`<section class="answer-live-preview" aria-label="回答草稿"><div class="answer-preview-heading"><strong>${stage}</strong>${preview.round>0?`<span>${escapeHTML(ui`調查輪次 ${formatNumber(preview.round)}`)}</span>`:''}</div><p class="answer-preview-notice">內容可能修訂，請以完成後的回答為準。</p><div class="narrative-body" tabindex="0">${answerMarkdown.render(preview.text)}</div></section>`:'');
@@ -1486,14 +1487,16 @@ async function streamJob(jobId){
   }catch{return state.jobId!==jobId || jobStream!==current;}
   finally{if(jobStream===current)closeJobStream();}
 }
-async function pollJob(jobId, polling=false){
+async function pollJob(jobId, polling=false, afterRevision=null, waitSupported=true){
   if(state.jobId!==jobId)return;
   if(!polling && state.jobKind==='question' && typeof ReadableStream!=='undefined' && typeof TextDecoder!=='undefined' && typeof AbortController!=='undefined'){
     if(await streamJob(jobId) || state.jobId!==jobId)return;
   }
-  try{const job=await api(`/api/jobs/${encodeURIComponent(jobId)}`);if(state.jobId!==jobId)return;
-    if(!applyJobSnapshot(jobId,job))setTimeout(()=>pollJob(jobId,true),1000);
-  }catch(error){if(state.jobId!==jobId)return;if(error.status===404 || error.status===403){state.busy=false;state.jobId=null;stopProgressClock();restoreSourceJob();state.error=error.message;if(state.jobKind==='demo'){state.mode='demo';state.project=state.demoRestore?.project || null;state.conversation=state.demoRestore?.conversation || null;state.demoRestore=null;}if(state.remoteSourceJob && state.jobKind==='index')finishRemoteSourceFeedback('UNCONFIRMED');render();if(state.sourceJobFeedback)focusSourceJobFeedback();return;}state.pollError=t('進度連線中斷，正在重試；後台工作可能仍在繼續。');updateProgressPanel();setTimeout(()=>pollJob(jobId,true),2500);}
+  const waiting=state.jobKind==='question' && waitSupported && Number.isSafeInteger(afterRevision) && afterRevision>=0;
+  const path=`/api/jobs/${encodeURIComponent(jobId)}`+(waiting?`/progress?after=${afterRevision}&wait_ms=20000`:'');
+  try{const job=await api(path);if(state.jobId!==jobId)return;
+    if(!applyJobSnapshot(jobId,job)){const revision=Number.isSafeInteger(job.progress_revision)&&job.progress_revision>=0?job.progress_revision:null;const nextWait=state.jobKind==='question'&&waitSupported&&revision!==null;setTimeout(()=>pollJob(jobId,true,revision,waitSupported),nextWait?0:1000);}
+  }catch(error){if(state.jobId!==jobId)return;if(waiting && [400,404,405].includes(error.status)){setTimeout(()=>pollJob(jobId,true,null,false),0);return;}if(error.status===404 || error.status===403){state.busy=false;state.jobId=null;stopProgressClock();restoreSourceJob();state.error=error.message;if(state.jobKind==='demo'){state.mode='demo';state.project=state.demoRestore?.project || null;state.conversation=state.demoRestore?.conversation || null;state.demoRestore=null;}if(state.remoteSourceJob && state.jobKind==='index')finishRemoteSourceFeedback('UNCONFIRMED');render();if(state.sourceJobFeedback)focusSourceJobFeedback();return;}state.pollError=t('進度連線中斷，正在重試；後台工作可能仍在繼續。');updateProgressPanel();setTimeout(()=>pollJob(jobId,true,afterRevision,waitSupported),2500);}
 }
 async function loadFirstEvidence(){const first=currentRefs()[0];if(first&&!state.evidence&&!state.busy)await loadEvidence(first.evidence_id);}
 async function newConversation(){

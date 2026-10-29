@@ -1,0 +1,65 @@
+{
+  "scope": "first_full_cross_branch_integration_before_repairs",
+  "base_commit": "d993031fae8559a14bc162511cc53d46640f1df6",
+  "integrating_commit": "0e082244a28283094b474e3581ca642c7e64e57b",
+  "source_dirty": true,
+  "runtime_platform": "Darwin",
+  "tests_run": 4606,
+  "failures": 3,
+  "shards": [
+    {
+      "index": 0,
+      "status": "failed",
+      "tests_run": 1152,
+      "elapsed_seconds": 81.600359,
+      "failures": [
+        {
+          "id": "test_prompt_source_references.PromptSourceReferenceTests.test_actual_request_semantic_reference_is_a_valid_answer_citation",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_prompt_source_references.py\", line 131, in test_actual_request_semantic_reference_is_a_valid_answer_citation\n    self.assertTrue(cited)\n    ~~~~~~~~~~~~~~~^^^^^^^\nAssertionError: [] is not true\n"
+        }
+      ],
+      "errors": [],
+      "report_sha256": "8fad6945c7402f741332c4533aa3cb9867164af931da7e0a74d175ae43277916"
+    },
+    {
+      "index": 1,
+      "status": "failed",
+      "tests_run": 1152,
+      "elapsed_seconds": 109.936008,
+      "failures": [
+        {
+          "id": "test_collection_flow_delivery.CollectionFlowDeliveryTests.test_slow_deferral_is_reviewed_with_all_steps_from_large_source",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_collection_flow_delivery.py\", line 96, in test_slow_deferral_is_reviewed_with_all_steps_from_large_source\n    self.assertEqual(result[\"status\"], \"ANALYZED\")\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'PARTIAL' != 'ANALYZED'\n- PARTIAL\n+ ANALYZED\n\n"
+        }
+      ],
+      "errors": [],
+      "report_sha256": "02add09a111462992e3f3c8314f198a9c6fffc8feb4d05f98f0809500b4e1d3e"
+    },
+    {
+      "index": 2,
+      "status": "failed",
+      "tests_run": 1151,
+      "elapsed_seconds": 76.415407,
+      "failures": [
+        {
+          "id": "test_business_explanation_delivery.BusinessExplanationDeliveryTests.test_cross_role_questions_do_not_expand_narrow_questions (question='Explain what happens when this online program reads an absent table.')",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_business_explanation_delivery.py\", line 130, in test_cross_role_questions_do_not_expand_narrow_questions\n    self.assertFalse(wants_business_overview(question))\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false\n"
+        }
+      ],
+      "errors": [],
+      "report_sha256": "e568db97630a7f0abf99652ba8cbb65926766177211c82ff4f245f0075de3a10"
+    },
+    {
+      "index": 3,
+      "status": "passed",
+      "tests_run": 1151,
+      "elapsed_seconds": 48.713475,
+      "failures": [],
+      "errors": [],
+      "report_sha256": "12933e6c4d9bd54a1e35884c1e198a449bbb44649ed66319a516e8b7d33830a6"
+    }
+  ],
+  "web_passed": 272,
+  "tools_passed": 1,
+  "real_model_calls": 0
+}

@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from response_language import localized_text
+from semantic_risk_identity import risk_identities
 
 
 _LABELS = {
@@ -217,6 +218,7 @@ class AnalysisContinuation:
                              "semantic": sorted(self.known_semantic),
                              "obligations": sorted(self.known_obligations),
                              "gaps": gaps, "contradictions": contradictions,
+                             "risk_identities": sorted(risk_identities(assessment)),
                              "status": assessment.get("status")})
         self.draft = answer
         self.review = assessment

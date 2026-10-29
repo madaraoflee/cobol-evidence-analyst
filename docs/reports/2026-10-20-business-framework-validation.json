@@ -1,0 +1,94 @@
+{
+  "schema": "business-framework-delivery-validation/v1",
+  "date": "2026-10-20",
+  "scope": "source changes; no real model or final application acceptance",
+  "pipeline_version": "question-evidence-v37",
+  "prompt_version": "business-chat-v33",
+  "final_python": {
+    "schema": "business-framework-source-tests/v1",
+    "baseline_commit": "70c55e61b45ae341d99508738b597efedac2f086",
+    "tests_run": 3535,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 192.37217920800322,
+    "external_network_blocked": true,
+    "loopback_tests_allowed": true,
+    "model_calls": 0,
+    "public_fixed_corpus_configured": true,
+    "module_hashes_before": {
+      "poc/business_analysis.py": "31b4a07f298d4d211d86d63592e297de263aa2efe996fde6fff64859af4f4912",
+      "poc/business_chat.py": "78fefc289c5784d8e052b236d6a184e91a5b49255d00726ca57c1f55cc41fa1b",
+      "poc/business_synthesis.py": "4bb1a0de4e6678f600db6b2a93fbec7fc5809e25ed1e78036790557d06655f3a",
+      "poc/claim_ledger.py": "7e669016f37514d2a72809f26050222c4ce3465e8fbb8aec40a08a7f7f73b28e",
+      "poc/framework_binding.py": "73c4e7644fd955aa886b7ae913d981ea70bded50990d7279a17ed435a05b5171",
+      "poc/framework_knowledge.py": "1ab15dcd6f5483e350d2795c8ac7d147e9d0de94823d14b6c39d9ee8ff9053ff",
+      "poc/framework_layout.py": "382ef1b2bd325eac46c314b9612462e992b0e14bd3973a076993b76e73f8cb49",
+      "poc/framework_rules.py": "df7525f59436f7aff55b065cfb41ab04d2f1c31b41e9b65e9a799e7c005331e8",
+      "poc/framework_semantics.py": "f1a7ef301c9d7d60776a0dd97e23423eac2846408a8cad99135285deba2167db",
+      "poc/quality_trace.py": "f963b78734744b02e760b1c83cc3f89eee0b55bf8faa856352208697685e40ce",
+      "poc/web/app.js": "ec971b2dc7a98b8ccebf12e788edb4aab3aab13a89d6f744e072cb3abcc058d7",
+      "poc/web_app.py": "86d31ddbeaa3111f41913aef9b3b5251978bb255345262a98a70e0e330a8357b",
+      "poc/answer_preview.py": "0d4ffad5660cedc38259e9c65898b68eca8cd7984eb3ece0281673469b113d97"
+    },
+    "module_hashes_after": {
+      "poc/business_analysis.py": "31b4a07f298d4d211d86d63592e297de263aa2efe996fde6fff64859af4f4912",
+      "poc/business_chat.py": "78fefc289c5784d8e052b236d6a184e91a5b49255d00726ca57c1f55cc41fa1b",
+      "poc/business_synthesis.py": "4bb1a0de4e6678f600db6b2a93fbec7fc5809e25ed1e78036790557d06655f3a",
+      "poc/claim_ledger.py": "7e669016f37514d2a72809f26050222c4ce3465e8fbb8aec40a08a7f7f73b28e",
+      "poc/framework_binding.py": "73c4e7644fd955aa886b7ae913d981ea70bded50990d7279a17ed435a05b5171",
+      "poc/framework_knowledge.py": "1ab15dcd6f5483e350d2795c8ac7d147e9d0de94823d14b6c39d9ee8ff9053ff",
+      "poc/framework_layout.py": "382ef1b2bd325eac46c314b9612462e992b0e14bd3973a076993b76e73f8cb49",
+      "poc/framework_rules.py": "df7525f59436f7aff55b065cfb41ab04d2f1c31b41e9b65e9a799e7c005331e8",
+      "poc/framework_semantics.py": "f1a7ef301c9d7d60776a0dd97e23423eac2846408a8cad99135285deba2167db",
+      "poc/quality_trace.py": "f963b78734744b02e760b1c83cc3f89eee0b55bf8faa856352208697685e40ce",
+      "poc/web/app.js": "ec971b2dc7a98b8ccebf12e788edb4aab3aab13a89d6f744e072cb3abcc058d7",
+      "poc/web_app.py": "86d31ddbeaa3111f41913aef9b3b5251978bb255345262a98a70e0e330a8357b",
+      "poc/answer_preview.py": "0d4ffad5660cedc38259e9c65898b68eca8cd7984eb3ece0281673469b113d97"
+    },
+    "failure_ids": [],
+    "error_ids": []
+  },
+  "browser": {
+    "tests": 202,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 5.146,
+    "source_sha256": "ec971b2dc7a98b8ccebf12e788edb4aab3aab13a89d6f744e072cb3abcc058d7",
+    "source_unchanged": true
+  },
+  "syntax": {
+    "python_version": "3.10 grammar",
+    "files": 436,
+    "errors": 0
+  },
+  "independent_review": {
+    "unresolved_p1_p2": 0,
+    "causal_suffix_counterexample_repaired": true,
+    "new_local_prose_scope": "only independent prefix before a terminal explicit MOVE/COMPUTE; prose remains unverified"
+  },
+  "earlier_runs": [
+    {
+      "tests": 3533,
+      "failures": 3,
+      "errors": 32,
+      "skipped": 1,
+      "outcome": "not accepted",
+      "source_error": "legacy framework context without reference_id raised KeyError; fixed and regression added",
+      "environment": "loopback listening denied by sandbox; 31 errors and 3 failures were permission related",
+      "candidate_changed_during_run": true
+    },
+    {
+      "tests": 3531,
+      "errors": [
+        "unittest.loader._FailedTest.test_batch_context_evidence"
+      ],
+      "failures": 0,
+      "outcome": "not accepted",
+      "repair": "temporary script now adds project root before unittest discovery"
+    }
+  ],
+  "model_calls": 0,
+  "application_builds": 0,
+  "release_workflows_triggered": 0
+}

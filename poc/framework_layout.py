@@ -288,6 +288,41 @@ def _check(nodes, issues, fact):
     return None, length, evidence
 
 
+def _check_deferred_assignments(nodes, fact):
+    """Validate candidate intervening writes using the resolved caller layout."""
+    from framework_binding import _ELEMENTARY
+    names = defaultdict(list)
+    for node in nodes:
+        names[node["name"]].append(node)
+    function = names[fact["function_field"]][0]
+    argument = names[fact["argument"]][0]
+    evidence = []
+    for assignment in fact.get("pending_layout_assignments", []):
+        matches = names[assignment["field"]]
+        if len(matches) != 1:
+            return "framework_assignment_field_ambiguous" if matches else "framework_assignment_declaration_missing", evidence
+        destination = matches[0]
+        relevant = [function, destination, *function["ancestors"], *destination["ancestors"]]
+        evidence.extend((node["unit"], "binding_declaration") for node in relevant)
+        evidence.extend((unit, "copy_inclusion") for node in relevant for unit in node["inclusions"])
+        if (destination is function or destination["storage"] != function["storage"]
+                or argument not in destination["ancestors"]
+                or not 1 < destination["level"] < 50
+                or not _ELEMENTARY.fullmatch(destination["tail"])
+                or any(node["unit"].get("parse_status") != "complete" or not node["unit"].get("source_sha256")
+                       for node in relevant)
+                or any(not 1 <= node["level"] < 50 or node["tail"] or len(names[node["name"]]) != 1
+                       for node in function["ancestors"] + destination["ancestors"])):
+            return "framework_assignment_storage_not_disjoint", evidence
+        aliased = [node for node in nodes if
+            (match := re.search(rf"\bREDEFINES\s+({_NAME})\b", node["tail"], re.I))
+            and match.group(1).upper() in {item["name"] for item in relevant}]
+        if aliased:
+            evidence.extend((node["unit"], "layout_boundary") for node in aliased)
+            return "framework_layout_alias_or_occurs_not_supported", evidence
+    return None, evidence
+
+
 def validate_framework_layouts(db, facts: list[dict], *, replacement_audit=None,
                                contexts=None) -> list[dict]:
     """Check every fact, optionally sharing layouts within this unchanged DB read."""
@@ -302,6 +337,10 @@ def validate_framework_layouts(db, facts: list[dict], *, replacement_audit=None,
         if key not in contexts:
             contexts[key] = _context(db, *key, replacement_audit=replacement_audit)
         reason, length, evidence = _check(*contexts[key], fact)
+        pending = fact.get("reason") == "assignment_layout_not_verified"
+        if not reason and pending:
+            reason, extra = _check_deferred_assignments(contexts[key][0], fact)
+            evidence.extend(extra)
         refs = []
         for unit, role in evidence:
             ref = _reference(unit, role)
@@ -324,6 +363,9 @@ def validate_framework_layouts(db, facts: list[dict], *, replacement_audit=None,
         for ref in refs:
             if ref not in spans:
                 spans.append(ref)
+        if not reason and pending and fact.get("documented_operation_candidate"):
+            fact["operation"] = fact.pop("documented_operation_candidate")
+            fact.update(dependency_covered=True, reason="documented_operation_bound")
         if reason:
             previously_covered = fact.get("dependency_covered", False)
             fact["dependency_covered"] = False

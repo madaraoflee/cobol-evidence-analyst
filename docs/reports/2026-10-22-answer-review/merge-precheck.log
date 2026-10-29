@@ -1,0 +1,176 @@
+...................................................................................................................................................正在读取指定源码并更新索引…
+....................................................................................................................................................................................................................................................................................................................................................................................................................EE.........................................................................................................................................................................................................................................................................................................................................................................E.......................................................................................................................................................................................................................................................................................E...E......................................api_failure {"schema_version": "safe-api-error/v1", "category": "connection", "reason": "找不到接口地址，请检查网络或地址。", "next_step": "检查网络、接口地址和服务连通性。", "evidence_source": "local", "request_id": "local-240a4125d8214ef39e0cc85197295ed4", "request_id_source": "local", "transport_reason": "dns_resolution_failed"}
+api_failure {"schema_version": "safe-api-error/v1", "category": "connection", "reason": "连接验证失败，请联系管理员检查证书。", "next_step": "检查网络、接口地址和服务连通性。", "evidence_source": "local", "request_id": "local-eb7af2cf2b4942b6b261fd489e2abbfa", "request_id_source": "local", "transport_reason": "tls_certificate_invalid"}
+api_failure {"schema_version": "safe-api-error/v1", "category": "connection", "reason": "接口拒绝连接，请确认服务已启动。", "next_step": "检查网络、接口地址和服务连通性。", "evidence_source": "local", "request_id": "local-b067fe7306e1490aae2956b522b36c39", "request_id_source": "local", "transport_reason": "connection_refused"}
+api_failure {"schema_version": "safe-api-error/v1", "category": "timeout", "reason": "接口响应超时，请稍后重试。", "next_step": "检查网络和服务状态，再手动重试。", "evidence_source": "local", "request_id": "local-7683670ddbaa4839b73db6675415da15", "request_id_source": "local", "transport_reason": "timeout"}
+.api_failure {"schema_version": "safe-api-error/v1", "category": "http_5xx_unknown", "reason": "接口返回服务端错误，具体原因尚未确认。", "next_step": "凭关联编号检查服务端日志和服务状态。", "evidence_source": "http_status", "request_id": "local-a03026224c8b45008ded57b62c29bf62", "request_id_source": "local", "http_status": 500}
+.........................................................................................................................api_failure {"schema_version": "safe-api-error/v1", "category": "system_error", "reason": "请求处理发生系统错误，具体原因尚未确认。", "next_step": "凭关联编号检查应用和服务端日志。", "evidence_source": "local", "request_id": "local-1dd880f00f8d42388f590916ced76889", "request_id_source": "local"}
+............api_failure {"schema_version": "safe-api-error/v1", "category": "system_error", "reason": "请求处理发生系统错误，具体原因尚未确认。", "next_step": "凭关联编号检查应用和服务端日志。", "evidence_source": "local", "request_id": "local-59be9aac2be94e47894f38ca070b99ce", "request_id_source": "local"}
+.........api_failure {"schema_version": "safe-api-error/v1", "category": "system_error", "reason": "请求处理发生系统错误，具体原因尚未确认。", "next_step": "凭关联编号检查应用和服务端日志。", "evidence_source": "local", "request_id": "local-639d5540e79b4c509a45abbed92d4c7a", "request_id_source": "local"}
+...................................................................................................WARNING:root:NATIVE_WINDOW_UNAVAILABLE renderer; using browser
+..............................................................................................................................................................................................................................................................................................................................................................s........................................................................................................................................................................................................................................................................................................................................................................................................................................................WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "source_empty", "reason": "所选目录没有符合设置的可用源码。", "next_step": "核对源码目录、扩展名和无扩展名文件设置。", "evidence_source": "local", "request_id": "local-f46a4892f4aa451984f892a2cb0f1b5f", "request_id_source": "local"}
+.WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "storage_permission", "reason": "无法写入本机分析文件。", "next_step": "检查结果目录和工作台配置目录的写权限。", "evidence_source": "local", "request_id": "local-8330556fcc6341ffa2d32a9527233a40", "request_id_source": "local"}
+.WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "storage_permission", "reason": "无法写入本机分析文件。", "next_step": "检查结果目录和工作台配置目录的写权限。", "evidence_source": "local", "request_id": "local-269a593c188c46639e9e9b6db13da8d9", "request_id_source": "local"}
+WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "storage_full", "reason": "本机存储空间不足。", "next_step": "释放结果目录与临时目录磁盘空间后重试。", "evidence_source": "local", "request_id": "local-04ce1b5205e547b88cf3b74bf2668b65", "request_id_source": "local"}
+.WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "storage_permission", "reason": "无法写入本机分析文件。", "next_step": "检查结果目录和工作台配置目录的写权限。", "evidence_source": "local", "request_id": "local-7f1ea7a3700445db893751c888cc7752", "request_id_source": "local"}
+WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "storage_full", "reason": "本机存储空间不足。", "next_step": "释放结果目录与临时目录磁盘空间后重试。", "evidence_source": "local", "request_id": "local-6b10fe40bc534d38bf3d42f5d03a4c48", "request_id_source": "local"}
+WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "system_error", "reason": "请求处理发生系统错误，具体原因尚未确认。", "next_step": "凭关联编号检查应用和服务端日志。", "evidence_source": "local", "request_id": "local-833b046f306641c2aa6fdd6db29aa151", "request_id_source": "local"}
+.WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "source_empty", "reason": "所选目录没有符合设置的可用源码。", "next_step": "核对源码目录、扩展名和无扩展名文件设置。", "evidence_source": "local", "request_id": "local-3900bf9416d249ff91512c981ceb9fe3", "request_id_source": "local"}
+..WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "report_invalid", "reason": "本机分析报告无法读取或格式无效。", "next_step": "保留原文件，检查导入详情并重新生成分析产物。", "evidence_source": "local", "request_id": "local-c6f1cd8c3af24259beb35953e849b16f", "request_id_source": "local"}
+...WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "system_error", "reason": "请求处理发生系统错误，具体原因尚未确认。", "next_step": "凭关联编号检查应用和服务端日志。", "evidence_source": "local", "request_id": "local-d061af07829d4f4dbf2dc5119bbe8cb1", "request_id_source": "local"}
+..WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "storage_permission", "reason": "无法写入本机分析文件。", "next_step": "检查结果目录和工作台配置目录的写权限。", "evidence_source": "local", "request_id": "local-b9e861c01549425f948aedbcadd3a18d", "request_id_source": "local"}
+WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "storage_permission", "reason": "无法写入本机分析文件。", "next_step": "检查结果目录和工作台配置目录的写权限。", "evidence_source": "local", "request_id": "local-dc545dd633c0445cbfeb554138d9ddba", "request_id_source": "local"}
+WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "storage_permission", "reason": "无法写入本机分析文件。", "next_step": "检查结果目录和工作台配置目录的写权限。", "evidence_source": "local", "request_id": "local-1cc77fe80b544f088fe297cb3f46e110", "request_id_source": "local"}
+......................................................................................................................................................WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "source_empty", "reason": "所选目录没有符合设置的可用源码。", "next_step": "核对源码目录、扩展名和无扩展名文件设置。", "evidence_source": "local", "request_id": "local-6c25bedec560479c9d0d49039406cad4", "request_id_source": "local"}
+....WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "source_empty", "reason": "所选目录没有符合设置的可用源码。", "next_step": "核对源码目录、扩展名和无扩展名文件设置。", "evidence_source": "local", "request_id": "local-1059f57669194efab072c9b4b25c630a", "request_id_source": "local"}
+...WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "source_empty", "reason": "所选目录没有符合设置的可用源码。", "next_step": "核对源码目录、扩展名和无扩展名文件设置。", "evidence_source": "local", "request_id": "local-5280c0215d8742bcab51cad5bc4f12dc", "request_id_source": "local"}
+......................................Office acceptance stopped: OFFICE_LOCAL_AUTHORIZATION_REQUIRED
+.................................................................................{"stage": "cases", "cases": ["frozen", "public"]}
+.........................................................................................................................s.......................................................................................................................................................................................................................................................................................................E.........................................................................................................................................................................................................................................................................................E.......................................................................................................................................WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "source_empty", "reason": "所选目录没有符合设置的可用源码。", "next_step": "核对源码目录、扩展名和无扩展名文件设置。", "evidence_source": "local", "request_id": "local-7cd6f148892740568d5363470a44edc0", "request_id_source": "local"}
+.WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "source_empty", "reason": "所选目录没有符合设置的可用源码。", "next_step": "核对源码目录、扩展名和无扩展名文件设置。", "evidence_source": "local", "request_id": "local-c29de011152a47eda3c7c933d37adab7", "request_id_source": "local"}
+.WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "storage_permission", "reason": "无法写入本机分析文件。", "next_step": "检查结果目录和工作台配置目录的写权限。", "evidence_source": "local", "request_id": "local-72236594bd5642bdb67a01884396e2e3", "request_id_source": "local"}
+..WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "storage_permission", "reason": "无法写入本机分析文件。", "next_step": "检查结果目录和工作台配置目录的写权限。", "evidence_source": "local", "request_id": "local-9a83bd21af214314954c246bc8e8015c", "request_id_source": "local"}
+....WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "storage_permission", "reason": "无法写入本机分析文件。", "next_step": "检查结果目录和工作台配置目录的写权限。", "evidence_source": "local", "request_id": "local-3ceec1c183d34a359b8da34171287c0b", "request_id_source": "local"}
+............................................................................................................................................................................................................................................WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "source_empty", "reason": "所选目录没有符合设置的可用源码。", "next_step": "核对源码目录、扩展名和无扩展名文件设置。", "evidence_source": "local", "request_id": "local-9dfa8d10764647bd96ba9ae0e6048359", "request_id_source": "local"}
+.......WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "authentication", "reason": "接口认证失败。", "next_step": "检查 API 密钥及认证配置。", "evidence_source": "http_status", "request_id": "local-c294ea3a2b504643a08c6264963a3171", "request_id_source": "local", "http_status": 401}
+WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "permission", "reason": "接口拒绝当前账号的访问权限。", "next_step": "检查账号权限和资源访问授权。", "evidence_source": "http_status", "request_id": "local-45b66b6541134dc8adcdb78316505a34", "request_id_source": "local", "http_status": 403}
+WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "invalid_response", "reason": "接口返回的响应格式无效。", "next_step": "检查接口兼容性和服务端响应日志。", "evidence_source": "local", "request_id": "local-840544c6498b4b8aa6d0453146027571", "request_id_source": "local", "http_status": 200}
+WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "timeout", "reason": "接口响应超时，请稍后重试。", "next_step": "检查网络和服务状态，再手动重试。", "evidence_source": "local", "request_id": "local-3a92263e469b4268963a53517536db36", "request_id_source": "local", "transport_reason": "timeout"}
+.........WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "system_error", "reason": "请求处理发生系统错误，具体原因尚未确认。", "next_step": "凭关联编号检查应用和服务端日志。", "evidence_source": "local", "request_id": "local-2e9c923923724802b5aaf4f2679f4134", "request_id_source": "local"}
+..........WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "connection", "reason": "未能连接到接口。", "next_step": "检查网络、接口地址和服务连通性。", "evidence_source": "local", "request_id": "local-a509b960047a4902b8b331a105119fbc", "request_id_source": "local"}
+.WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "quota_exhausted", "reason": "账号配额或累计使用额度不足。", "next_step": "检查账号配额或账单状态，恢复额度后再试。", "evidence_source": "provider_code", "request_id": "local-55dca8da298f45cabbb723582ae3e16d", "request_id_source": "local", "http_status": 429, "provider_code": "insufficient_quota"}
+..WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "context_too_large", "reason": "本次请求超过模型上下文限制。", "next_step": "减少历史消息和供应资料，分段分析后再试。", "evidence_source": "provider_code", "request_id": "local-63009efe3d6b4f8a831b90e36a40369c", "request_id_source": "local", "http_status": 413, "provider_code": "context_length_exceeded"}
+..................WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "system_error", "reason": "请求处理发生系统错误，具体原因尚未确认。", "next_step": "凭关联编号检查应用和服务端日志。", "evidence_source": "local", "request_id": "local-2bf466b28f204234bdf00ba762f5fccd", "request_id_source": "local"}
+................................................WARNING:web_app:api_failure {"schema_version": "safe-api-error/v1", "category": "system_error", "reason": "请求处理发生系统错误，具体原因尚未确认。", "next_step": "凭关联编号检查应用和服务端日志。", "evidence_source": "local", "request_id": "local-59b00dfaa27f4e73b90588590df6c84d", "request_id_source": "local"}
+.....................
+======================================================================
+ERROR: test_full_and_compact_requests_preserve_preconditions_and_all_source (test_business_boundary_contract.BusinessBoundaryContractTests.test_full_and_compact_requests_preserve_preconditions_and_all_source) (compact=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/tests/test_business_boundary_contract.py", line 55, in test_full_and_compact_requests_preserve_preconditions_and_all_source
+    brief = wire["business_analysis_brief"]
+            ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'business_analysis_brief'
+
+======================================================================
+ERROR: test_full_and_compact_requests_preserve_preconditions_and_all_source (test_business_boundary_contract.BusinessBoundaryContractTests.test_full_and_compact_requests_preserve_preconditions_and_all_source) (compact=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/tests/test_business_boundary_contract.py", line 55, in test_full_and_compact_requests_preserve_preconditions_and_all_source
+    brief = wire["business_analysis_brief"]
+            ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'business_analysis_brief'
+
+======================================================================
+ERROR: test_optional_brief_does_not_break_valid_question_at_minimum_request_budget (test_business_synthesis_limits.BusinessSynthesisLimitTests.test_optional_brief_does_not_break_valid_question_at_minimum_request_budget)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/tests/test_business_synthesis_limits.py", line 122, in test_optional_brief_does_not_break_valid_question_at_minimum_request_budget
+    output = run_business_chat(question, self.database, self.source, self.config,
+        transport=transport, framework_reference_path="", policy=policy)
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/business_chat.py", line 4144, in run_business_chat
+    return _run_business_chat(question, database_path, source_root, config,
+                              source_session=session, resume_state=resume, **kwargs)
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/business_chat.py", line 2636, in _run_business_chat
+    messages, request_size = _fit_request(config, payload, history_context, policy,
+                             ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        trim_events=trim_events, investigation_builder=question_investigation,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/business_chat.py", line 1046, in _fit_request
+    raise ValueError("BUSINESS_CONTEXT_TOO_LARGE")
+ValueError: BUSINESS_CONTEXT_TOO_LARGE
+
+======================================================================
+ERROR: test_encoded_request_trimming_recomputes_actual_complete_status (test_complete_working_set.CompleteWorkingSetTests.test_encoded_request_trimming_recomputes_actual_complete_status)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/tests/test_complete_working_set.py", line 378, in test_encoded_request_trimming_recomputes_actual_complete_status
+    payload, _, size = self.capture(question, policy=policy)
+                       ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/tests/test_complete_working_set.py", line 85, in capture
+    output = run_business_chat(question, self.database, self.source, self.config,
+        transport=transport, allow_network=False, framework_reference_path="", policy=policy)
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/business_chat.py", line 4144, in run_business_chat
+            changed = changed or session.capture(origin["relative_path"]).sha256 != origin["source_hash"]
+    if changed:
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/business_chat.py", line 2636, in _run_business_chat
+    if identity_blocks_analysis(identity) and identity.get("status") == "ambiguous":
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        payload["task"] = "源码身份存在多个候选，尚未选定程序。说明需要明确的文件路径或程序名，不把候选源码当作选定来源。"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    elif identity_blocks_analysis(identity) and identity.get("status") == "not_found":
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/business_chat.py", line 1046, in _fit_request
+    len(old.get("source_text", "")), len(narrowed[0].get("source_text", "")), role="source")
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: BUSINESS_CONTEXT_TOO_LARGE
+
+======================================================================
+ERROR: test_partial_working_set_metadata_still_reports_request_byte_trimming (test_complete_working_set.CompleteWorkingSetTests.test_partial_working_set_metadata_still_reports_request_byte_trimming)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/tests/test_complete_working_set.py", line 339, in test_partial_working_set_metadata_still_reports_request_byte_trimming
+    payload, _, size = self.capture(question, policy=AgentPolicy(max_request_bytes=32768))
+                       ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/tests/test_complete_working_set.py", line 85, in capture
+    output = run_business_chat(question, self.database, self.source, self.config,
+        transport=transport, allow_network=False, framework_reference_path="", policy=policy)
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/business_chat.py", line 4144, in run_business_chat
+            changed = changed or session.capture(origin["relative_path"]).sha256 != origin["source_hash"]
+    if changed:
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/business_chat.py", line 2636, in _run_business_chat
+    if identity_blocks_analysis(identity) and identity.get("status") == "ambiguous":
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        payload["task"] = "源码身份存在多个候选，尚未选定程序。说明需要明确的文件路径或程序名，不把候选源码当作选定来源。"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    elif identity_blocks_analysis(identity) and identity.get("status") == "not_found":
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/business_chat.py", line 1046, in _fit_request
+    len(old.get("source_text", "")), len(narrowed[0].get("source_text", "")), role="source")
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: BUSINESS_CONTEXT_TOO_LARGE
+
+======================================================================
+ERROR: test_local_context_timeout_does_not_overflow_request_with_completed_read_history (test_request_fit_completed_reads.CompletedReadRequestFitTests.test_local_context_timeout_does_not_overflow_request_with_completed_read_history)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/tests/test_request_fit_completed_reads.py", line 43, in test_local_context_timeout_does_not_overflow_request_with_completed_read_history
+    payload, output, size = fixture.capture(question, policy=AgentPolicy(
+                            ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        max_request_bytes=32768, max_initial_context_seconds=3))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/tests/test_complete_working_set.py", line 85, in capture
+    output = run_business_chat(question, self.database, self.source, self.config,
+        transport=transport, allow_network=False, framework_reference_path="", policy=policy)
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/business_chat.py", line 4144, in run_business_chat
+            changed = changed or session.capture(origin["relative_path"]).sha256 != origin["source_hash"]
+    if changed:
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/business_chat.py", line 2636, in _run_business_chat
+    if identity_blocks_analysis(identity) and identity.get("status") == "ambiguous":
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        payload["task"] = "源码身份存在多个候选，尚未选定程序。说明需要明确的文件路径或程序名，不把候选源码当作选定来源。"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    elif identity_blocks_analysis(identity) and identity.get("status") == "not_found":
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/business_chat.py", line 1046, in _fit_request
+    len(old.get("source_text", "")), len(narrowed[0].get("source_text", "")), role="source")
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: BUSINESS_CONTEXT_TOO_LARGE
+
+======================================================================
+ERROR: test_review_receives_exact_answer_and_actual_source_once_without_history (test_source_bound_semantic_review.SourceBoundSemanticReviewTests.test_review_receives_exact_answer_and_actual_source_once_without_history)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/madara/.codex/worktrees/adaptive-evidence-retrieval/工作 - Cobol 业务分析/poc/tests/test_source_bound_semantic_review.py", line 150, in test_review_receives_exact_answer_and_actual_source_once_without_history
+    trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'quality_trace_path'
+
+----------------------------------------------------------------------
+Ran 3751 tests in 197.050s
+
+FAILED (errors=7, skipped=2)
+{"status": "passed", "report": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpi5ypb482/measured/COMPILED-ACCEPTANCE.json", "selection_complete": true, "failures": [], "errors": []}
+{"partial_count": 1, "diagnostic_complete_count": 0, "root_causes_closed": 0, "release_qualified": false}

@@ -1,0 +1,57 @@
+{
+  "reviewer": "agent_review",
+  "scope": "source_bound_review_convergence_and_revision_regression",
+  "remote_calls": 0,
+  "builds": 0,
+  "committed": false,
+  "files": {
+    "poc/analysis_continuation.py": "e8f459ac8963909f957181fec5a49d490bb5b8633fb1f61aa9817367f366f199",
+    "poc/draft_validation.py": "d4a71d2eb9a837374248ef3b3ffbc009b6977c4f4c33d0bc9cf95004c3380ac6",
+    "poc/semantic_risk_identity.py": "376f3c34e48a7c2b62c6112f54a77589f88c9d4d1a2008a5eb659293d7e37f0b",
+    "poc/tests/test_semantic_risk_identity.py": "4cc271105903e987349d318436cc36a24d51a3af7d2883343924912a7f20e78a"
+  },
+  "interface": "semantic_risk_identity.risk_identities(assessment) -> frozenset[str]",
+  "identity_inputs": [
+    "review domain",
+    "risk kind",
+    "assertion/quote with literal whitespace preserved",
+    "stable source path/version/range",
+    "COPY include identity/source_context",
+    "full SQL span hash if excerpt is truncated"
+  ],
+  "excluded_presentation": [
+    "answer offsets",
+    "unit_id",
+    "generated reference IDs",
+    "list ordering/duplicates",
+    "finding explanation wording"
+  ],
+  "validated_model_boundary": "Only semantic_review status changes_requested and validation strict_payload_bound findings/omissions are tracked; identities are review bookkeeping, not semantic verification.",
+  "tests": [
+    {
+      "command": "PYTHONPATH=poc:poc/tests:. python3 -m unittest test_semantic_risk_identity test_semantic_risk_review test_analysis_continuation_review test_answer_boundary_delivery test_answer_sql_boundaries test_adaptive_post_continuation_review -q",
+      "passed": 73,
+      "note": "Before source_context field addition; the 14-test suite was rerun after that addition."
+    },
+    {
+      "command": "python3 -m unittest discover -s poc/tests -p test_semantic_risk_identity.py -q",
+      "passed": 14,
+      "note": "Final frozen helper including source_context."
+    }
+  ],
+  "baseline_countercheck": {
+    "method": "Load merged git-index versions of analysis_continuation/draft_validation in memory; run the same new production-path tests.",
+    "expected_assertion_failures": 2,
+    "errors": 0,
+    "cases": {
+      "same_kind_risks_two_to_one": "old continuation incorrectly returns False/no progress; fixed returns True within existing budget",
+      "same_kind_risk_migration_between_programs": "old revision_regression returns None; fixed returns ANSWER_BOUNDARIES_REGRESSED"
+    }
+  },
+  "limits": [
+    "No natural-language semantic equivalence is claimed; changed assertions are distinct review concerns.",
+    "Existing revision-request budget and checkpoint remain authoritative; wording changes cannot retry indefinitely.",
+    "This report covers local source/tests, not live model answer quality or release acceptance."
+  ],
+  "adjacent_budget_review": "/tmp/merged-request-minimum-budget-review-after.json"
+}

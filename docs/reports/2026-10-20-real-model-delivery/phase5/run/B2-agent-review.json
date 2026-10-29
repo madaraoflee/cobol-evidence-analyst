@@ -1,0 +1,175 @@
+{
+  "schema_version": "business-framework-agent-review/v1",
+  "review_label": "agent_review",
+  "human_acceptance": false,
+  "run_label": "phase5",
+  "case_id": "B2",
+  "tested_commit": "4a4e0c8aded571dc4a0fd86d922d40e87b8fef40",
+  "gold_baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "gold_path": "/tmp/business-framework-live-20261020-phase5/cases.json",
+  "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "plan_sha256": "688f3795b4130716b0d650960556f677ec5387a8584f679a9085950d98a6d2e5",
+  "observation_path": "/tmp/business-framework-live-20261020-phase5/run/B2-observation.json",
+  "observation_sha256": "e9d1fb93d074eb6861f2078ec980227b13d955d83a550625e2759c3b6bfdf9cd",
+  "final_answer_sha256": "53e2209b37770f33125816627f8b6092c0be633ceb90f91adbb66b96db0f9e2e",
+  "reviewed_material": "final_visible_answer after product checks; independently compared with frozen gold and actual source; product status is not a semantic score",
+  "forbidden_results": [
+    {
+      "criterion_id": "B2-X1",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "已经发生扣款、资金入账、到账或实际资金结算完成。"
+    },
+    {
+      "criterion_id": "B2-X2",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "已证明每天固定时间调度。"
+    },
+    {
+      "criterion_id": "B2-X3",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "无I/O或运行前提保证空输入、所有异常情况下都正常完成。"
+    },
+    {
+      "criterion_id": "B2-X4",
+      "result": "FAIL_ASSERTED",
+      "claim": "DISPLAY目的地已确定为特定业务日志。",
+      "evidence_quote": "概括成一句业务话：**作业准备订单来源 → SETTLE 顺序扫描订单 → 仅“已批准且金额为正”的订单被复制订单号与金额形成结算记录 → 其余订单静默跳过并留一条无标识的日志 → 关闭文件返回**；被跳过订单的后续处理、写入是否成功、以及各文件的实际物理落点，现有材料不予证明。",
+      "reason": "最终总结明确说 DISPLAY 后“留一条无标识的日志”，已把未知输出去向写成业务日志。没有声称具体日志名称或路径，但日志作为确定产物仍无源码依据；这与原禁止将 DISPLAY 去向确定为业务日志的边界相同。"
+    }
+  ],
+  "scope": "独立代理评审，不是人工签字或目标设备验收。保持原冻结 gold，分别核对必需结论、禁止断言与开放语义风险；不因产品 ANALYZED 或离线测试通过而放行。",
+  "required_results": [
+    {
+      "criterion_id": "B2-R1",
+      "result": "PASS",
+      "evidence_quotes": [
+        "**结论：** SETTLE 是一个“结算记录生成”程序：逐条读取订单，只把**状态为已批准（`ORDER-STATUS = 'A'`）且金额大于零**的订单转换为结算记录并写出；其余订单只打印跳过提示，不产生任何结算输出。程序由 `nightjob.clle` 这个 CL 作业通过 `CALL PGM(SETTLE)` 调用，作业在调用前把订单输入文件 `ORDERIN` 覆盖指向 `APPDATA/ORDERS`。[ev_page_0a5bd724415b32dba5d08161][ev_page_b8c4a50484c207378485e3de]",
+        "输入记录提供订单号、订单状态和订单金额；输出记录只承接结算号和结算金额，**不包含订单状态、日期、客户等属性**。结算号直接取自订单号，两者都是 8 位数字、格式相同；金额从 9(7)V99 复制到同格式字段，不涉及额外计算或舍入。程序没有读取其他主数据或参数，因此除订单文件外没有其他业务输入。[ev_page_0a5bd724415b32dba5d08161]"
+      ],
+      "reason": "业务目的、批准且正金额门槛和输入输出角色均明确，未把形成结算记录说成实际资金到账。"
+    },
+    {
+      "criterion_id": "B2-R2",
+      "result": "PASS",
+      "evidence_quotes": [
+        "两个条件必须**同时满足**才走结算分支：把 `ORDER-ID` 复制到 `SETTLEMENT-ID`、把 `ORDER-AMOUNT` 复制到 `SETTLEMENT-AMOUNT`，然后对 `SETTLEMENT-REC` 发出 `WRITE`。任一条件不成立时走 ELSE 分支，仅显示 `'ORDER SKIPPED'`，不写输出记录，也不修改输出记录中的任何字段。[ev_page_0a5bd724415b32dba5d08161]"
+      ],
+      "reason": "准确说明 A 且金额大于零，复制编号与金额后发出 WRITE；不满足时 DISPLAY 并不写输出记录。"
+    },
+    {
+      "criterion_id": "B2-R3",
+      "result": "PASS",
+      "evidence_quotes": [
+        "循环结束的唯一触发点是 `READ` 遇到 `AT END`：此时把 `END-OF-ORDERS` 置 1，下一次循环条件检查失败后退出。这说明程序的处理范围就是输入文件从当前位置到文件末尾的全部订单；程序不会按订单号做键值随机读取，也没有筛选条件交给文件系统，筛选完全由程序内的 IF 完成。[ev_page_0a5bd724415b32dba5d08161]",
+        "- **文件状态未检查**：`READ` 只处理 `AT END`，对读入的其他异常情形没有对应分支；`OPEN` 和 `WRITE` 也没有检查返回状态。因此“每条订单都被正确判断并写入”这一结论，只建立在读写均正常完成的前提上；若打开或写入失败，程序没有显式的恢复或报错逻辑。[ev_page_0a5bd724415b32dba5d08161]",
+        "- **输出为“请求写入”**：`WRITE SETTLEMENT-REC` 是对输出文件的写入请求，源码不能证明记录已持久化、是否覆盖既有成员或是否参与事务提交；`OPEN OUTPUT` 的具体文件效果也依赖实际文件定义。[ev_page_0a5bd724415b32dba5d08161]"
+      ],
+      "reason": "明确 EOF 控制、未检查文件状态及写请求不证明持久化，保留运行失败边界。"
+    }
+  ],
+  "citation_review": {
+    "result": "PASS",
+    "all_references_resolve": true,
+    "used_reference_ids": [
+      "ev_page_0a5bd724415b32dba5d08161",
+      "ev_page_b8c4a50484c207378485e3de"
+    ],
+    "reason": "核心结论可回到本轮实际供应的源码或手册；逐项支持范围另经正文审查。",
+    "used_reference_count": 2
+  },
+  "open_review_findings": [
+    {
+      "finding_id": "B2-OPEN-1",
+      "severity": "P2",
+      "result": "FAIL",
+      "category": "unsupported_display_destination",
+      "final_quote": "概括成一句业务话：**作业准备订单来源 → SETTLE 顺序扫描订单 → 仅“已批准且金额为正”的订单被复制订单号与金额形成结算记录 → 其余订单静默跳过并留一条无标识的日志 → 关闭文件返回**；被跳过订单的后续处理、写入是否成功、以及各文件的实际物理落点，现有材料不予证明。",
+      "additional_quote": "- **跳过提示缺少定位信息**：只打印固定文本 `'ORDER SKIPPED'`，不含订单号、状态或金额，事后日志无法判断是哪张订单被跳过、为什么被跳过。[ev_page_0a5bd724415b32dba5d08161]",
+      "reason": "可见 DISPLAY 只给固定文本，未给目的地、输出捕获或日志配置。不能把它写成必定留一条日志，也不能据此断言事后日志无法定位订单。该问题与冻结 B2-X4 重叠，不重复计成另一个 gold 失败。",
+      "source_basis": [
+        {
+          "path": "settle.cbl",
+          "start_line": 33,
+          "end_line": 33,
+          "exact_text": "ELSE DISPLAY 'ORDER SKIPPED'"
+        }
+      ]
+    },
+    {
+      "finding_id": "B2-OPEN-2",
+      "severity": "P2",
+      "result": "FAIL",
+      "category": "unsupported_file_object_type",
+      "final_quote": "1. `OVRDBF FILE(ORDERIN) TOFILE(APPDATA/ORDERS)`——把逻辑文件 `ORDERIN` 覆盖指向库 `APPDATA` 中的 `ORDERS`；",
+      "reason": "ORDERIN 是源程序的分配名及 OVRDBF 的 FILE 参数；供应源码未含 LF/PF 对象定义。正文随后只把 ORDERS 的实际类型保留未知，并未撤回对 ORDERIN 的“逻辑文件”分类。IBM CL 上下文下应说明这是文件名/分配名而不确定对象类型。",
+      "source_basis": [
+        {
+          "path": "settle.cbl",
+          "start_line": 7,
+          "end_line": 7,
+          "exact_text": "SELECT ORDER-IN ASSIGN TO ORDERIN."
+        },
+        {
+          "path": "nightjob.clle",
+          "start_line": 3,
+          "end_line": 3,
+          "exact_text": "OVRDBF FILE(ORDERIN) TOFILE(APPDATA/ORDERS)"
+        }
+      ]
+    },
+    {
+      "finding_id": "B2-OPEN-3",
+      "severity": "P2",
+      "result": "FAIL",
+      "category": "unsupported_exclusion_of_other_entry_modes",
+      "final_quote": "因此从源码看，这是一个**由 CL 作业驱动的批处理式流程**（作业名与“job”注释支持这一点），而不是菜单式联机功能。但覆盖是否被被调程序继承、`ORDERS` 的实际对象类型（物理文件还是逻辑文件）、输出文件 `SETTLEOUT` 指向哪个库和成员，都需要运行配置才能确认；源码只证明了“声明了覆盖并发出调用”。[ev_page_b8c4a50484c207378485e3de]",
+      "reason": "当前 CL 包装和 job 注释支持描述可见的批处理式流程，但不证明该程序不能由交互菜单或其他入口调用。真实调度/入口配置并未供应，排他性“而不是”超出源码。",
+      "source_basis": [
+        {
+          "path": "nightjob.clle",
+          "start_line": 1,
+          "end_line": 6,
+          "reason": "仅给 CL 包装程序及其命令，没有系统入口、菜单或生产调度配置。"
+        }
+      ]
+    }
+  ],
+  "previous_issue_recheck": [
+    {
+      "issue": "phase4 screen destination",
+      "result": "NO_SCREEN_ASSERTION_BUT_DESTINATION_ERROR_RECURS_AS_LOG",
+      "reason": "未再说屏幕，但把输出说成确定日志，边界仍不成立。"
+    },
+    {
+      "issue": "phase4 no return-code means job cannot observe skip",
+      "result": "SPECIFIC_ASSERTION_REMOVED",
+      "reason": "没有再断言作业看不到跳过信号；新的日志去向及可定位性断言另记。"
+    },
+    {
+      "issue": "phase1 LF/PF and internal rule citations",
+      "result": "FILE_TYPE_ASSERTION_RECURS_CITATIONS_FIXED",
+      "reason": "ORDERIN 仍称逻辑文件；所有本题引用均为实际供应源码 ID，没有内部 rule 引用。"
+    }
+  ],
+  "required_pass_count": 3,
+  "required_total_count": 3,
+  "frozen_gold_result": "FAIL",
+  "open_review_result": "FAIL",
+  "overall_result": "FAIL",
+  "summary": "核心业务必需项 3/3 和引用解析通过，但正文确定了未定义的日志去向，并新增/重现逻辑文件类型及排除其他入口的无依据结论；真实语义验收未通过。",
+  "runtime_observation": {
+    "real_provider_requests": 1,
+    "client_attempts": 1,
+    "final_seconds": 17.380033,
+    "first_browser_preview_receipt_seconds": 9.055743,
+    "browser_changed_previews": 39,
+    "stream_result": "PASS_NATIVE_AND_WAITER_INCREMENTAL",
+    "answer_status": "ANALYZED",
+    "stop_reason": "sufficient_material",
+    "product_status_is_not_review_score": true
+  },
+  "body_identity": {
+    "first_complete_visible_body_equals_final": true,
+    "reason": "第一份完整真实模型正文与最终交付哈希相同；这些断言不是本地源码可用性修复产生。"
+  }
+}

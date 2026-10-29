@@ -1,0 +1,153 @@
+{
+  "schema_version": "business-framework-agent-review/v1",
+  "review_label": "agent_review",
+  "human_acceptance": false,
+  "case_id": "B2",
+  "baseline_commit": "52469d636103920371632429d56a78c6f62f4e09",
+  "gold_path": "/tmp/business-framework-live-20261020/cases.json",
+  "gold_sha256": "0859338f1f8ab7b7200029cc92ae09158b871f5a3c7b42037aed9c91d42b5491",
+  "observation_path": "/tmp/business-framework-live-20261020/run/B2-observation.json",
+  "observation_sha256": "efd4bf204ca92f5b8a98306acf9a520e207755b4f22589845a6e4d8d26517fb8",
+  "final_answer_sha256": "25498e867edb7c18815188ecb9d6127bce876975d3251a59c22df1be041ba145",
+  "reviewed_material": "final_visible_answer after final product checks; not preview or simulated response",
+  "decision": "FAIL",
+  "forbidden_results": [
+    {
+      "criterion_id": "B2-X1",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "已经发生扣款、资金入账、到账或实际资金结算完成。"
+    },
+    {
+      "criterion_id": "B2-X2",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "已证明每天固定时间调度。"
+    },
+    {
+      "criterion_id": "B2-X3",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "无I/O或运行前提保证空输入、所有异常情况下都正常完成。"
+    },
+    {
+      "criterion_id": "B2-X4",
+      "result": "PASS_NOT_ASSERTED",
+      "claim": "DISPLAY目的地已确定为特定业务日志。"
+    }
+  ],
+  "scope": "独立代理审查，不是人工签字或目标设备验收；冻结gold未更改，额外发现单独记录。",
+  "summary": "核心业务规则与输入输出解释较好，但无依据的LF/PF对象类型、无条件一一对应/完全不留痕迹及无法解析的内部rule引用使本题不通过。",
+  "required_results": [
+    {
+      "criterion_id": "B2-R1",
+      "result": "PASS",
+      "answer_quotes": [
+        "**SETTLE 是一个批处理订单结算程序**：它逐条读取订单文件，把“已批准且金额大于零”的订单转换成结算记录并写入结算输出文件；其他订单一律跳过，只显示一行 `ORDER SKIPPED` 提示 [ev_page_0a5bd724415b32dba5d08161]。调用它的 CL 作业 `nightjob.clle` 先临时把输入逻辑文件 `ORDERIN` 指向库 `APPDATA` 下的物理文件 `ORDERS`，再调用 SETTLE，返回后删除该指向声明 [ev_page_b8c4a50484c207378485e3de]。"
+      ],
+      "source_basis": [
+        "settle.cbl:3,7-8,24-32"
+      ],
+      "reason": "获批正金额订单转结算记录，输入输出角色清晰。"
+    },
+    {
+      "criterion_id": "B2-R2",
+      "result": "PASS",
+      "answer_quotes": [
+        "两个条件用 `AND` 连接，缺一不可。由于金额字段是无符号数字，实际效果是“金额不为 0”。",
+        "- 把 `ORDER-ID` 复制到 `SETTLEMENT-ID`——结算记录沿用原订单号作为结算标识 [rule_39141171dbf7_f1c6c6e168e73f702aac220a]；",
+        "- 把 `ORDER-AMOUNT` 复制到 `SETTLEMENT-AMOUNT`——结算金额等于订单金额，无折扣、税费或四则运算 [rule_39141171dbf7_ebabd951fc449bd0e32b4392]；"
+      ],
+      "source_basis": [
+        "settle.cbl:29-34"
+      ],
+      "reason": "AND条件、编号金额复制和跳过提示均描述正确；rule引用问题另记。"
+    },
+    {
+      "criterion_id": "B2-R3",
+      "result": "FAIL",
+      "answer_quotes": [
+        "- **读到末尾（AT END）**：把 `END-OF-ORDERS` 置 1，本轮的订单判断与写入都不执行，循环随即结束。",
+        "- **无文件状态检查**：程序没有声明文件状态字段，也没有对打开、读取、写入是否成功做任何判断或分支；因此不能说写失败会被程序捕获，也不能断言一定抛错——异常后的实际表现需要实现层与运行证据 [ev_page_0a5bd724415b32dba5d08161]。",
+        "由此可推出一个对业务有意义的结论：**结算记录与合格订单是一一对应的**，每条被放行订单产生一条结算记录；跳过则完全不留痕迹（既不写“作废”记录，也不记录被跳过订单号）。而且 `ORDER SKIPPED` 这条提示**不区分原因**——“状态不是 A”和“金额为零”产生同样的输出，事后无法从提示本身分辨订单被跳过的原因。"
+      ],
+      "source_basis": [
+        "settle.cbl:24-38"
+      ],
+      "reason": "正文正确说明EOF和无文件状态检查，但另段无条件宣称每条合格订单产生一条记录，与本项不能保证实际写出成功的限定不一致。"
+    }
+  ],
+  "business_expression": {
+    "result": "PASS",
+    "answer_quote": "**SETTLE 是一个批处理订单结算程序**：它逐条读取订单文件，把“已批准且金额大于零”的订单转换成结算记录并写入结算输出文件；其他订单一律跳过，只显示一行 `ORDER SKIPPED` 提示 [ev_page_0a5bd724415b32dba5d08161]。调用它的 CL 作业 `nightjob.clle` 先临时把输入逻辑文件 `ORDERIN` 指向库 `APPDATA` 下的物理文件 `ORDERS`，再调用 SETTLE，返回后删除该指向声明 [ev_page_b8c4a50484c207378485e3de]。",
+    "reason": "开头给出具体业务目的与输入产出，后文连接角色和规则。"
+  },
+  "citations": {
+    "result": "FAIL_UNRESOLVED_RULE_REFERENCES",
+    "source_evidence_ids": [
+      "ev_page_b8c4a50484c207378485e3de",
+      "ev_page_0a5bd724415b32dba5d08161"
+    ],
+    "unresolved_ids": [
+      "rule_39141171dbf7_f1c6c6e168e73f702aac220a",
+      "rule_39141171dbf7_ebabd951fc449bd0e32b4392",
+      "rule_39141171dbf7_4adfa3a1fe9e088b2ee58a4e"
+    ],
+    "reason": "三处核心复制/写出语句使用rule_内部ID，交付evidence_refs没有这些ID，无法由本交付材料作为来源引用解析；根代理浏览器观察也确认未渲染。"
+  },
+  "additional_findings": [
+    {
+      "finding_id": "B2-O1",
+      "priority": "P2",
+      "kind": "unsupported_object_type",
+      "answer_quotes": [
+        "**SETTLE 是一个批处理订单结算程序**：它逐条读取订单文件，把“已批准且金额大于零”的订单转换成结算记录并写入结算输出文件；其他订单一律跳过，只显示一行 `ORDER SKIPPED` 提示 [ev_page_0a5bd724415b32dba5d08161]。调用它的 CL 作业 `nightjob.clle` 先临时把输入逻辑文件 `ORDERIN` 指向库 `APPDATA` 下的物理文件 `ORDERS`，再调用 SETTLE，返回后删除该指向声明 [ev_page_b8c4a50484c207378485e3de]。"
+      ],
+      "source_basis": [
+        "nightjob.clle:3"
+      ],
+      "reason": "OVRDBF只有文件名和库名，不能确定ORDERIN是IBM i逻辑文件对象、ORDERS是物理文件对象。后文说物理对象身份未知，没有消除开头已作出的类型断言。",
+      "acceptable_correction": "将ORDERIN称为覆盖所用文件名，将APPDATA/ORDERS称为目标文件；对象类型未知。"
+    },
+    {
+      "finding_id": "B2-O2",
+      "priority": "P2",
+      "kind": "unqualified_execution_guarantee",
+      "answer_quotes": [
+        "由此可推出一个对业务有意义的结论：**结算记录与合格订单是一一对应的**，每条被放行订单产生一条结算记录；跳过则完全不留痕迹（既不写“作废”记录，也不记录被跳过订单号）。而且 `ORDER SKIPPED` 这条提示**不区分原因**——“状态不是 A”和“金额为零”产生同样的输出，事后无法从提示本身分辨订单被跳过的原因。",
+        "- **无文件状态检查**：程序没有声明文件状态字段，也没有对打开、读取、写入是否成功做任何判断或分支；因此不能说写失败会被程序捕获，也不能断言一定抛错——异常后的实际表现需要实现层与运行证据 [ev_page_0a5bd724415b32dba5d08161]。"
+      ],
+      "source_basis": [
+        "settle.cbl:29-32"
+      ],
+      "reason": "源码证明每次条件成立会执行一次WRITE请求；未验证I/O时，不能把生成成功及一一对应写成无条件业务结果。",
+      "acceptable_correction": "正常I/O前提下，每次符合条件的输入处理请求写出一条记录；实际成功数量和完整对应关系未验证。"
+    },
+    {
+      "finding_id": "B2-O3",
+      "priority": "P2",
+      "kind": "absolute_trace_claim",
+      "answer_quotes": [
+        "由此可推出一个对业务有意义的结论：**结算记录与合格订单是一一对应的**，每条被放行订单产生一条结算记录；跳过则完全不留痕迹（既不写“作废”记录，也不记录被跳过订单号）。而且 `ORDER SKIPPED` 这条提示**不区分原因**——“状态不是 A”和“金额为零”产生同样的输出，事后无法从提示本身分辨订单被跳过的原因。"
+      ],
+      "source_basis": [
+        "settle.cbl:33"
+      ],
+      "reason": "“跳过则完全不留痕迹”过强且与DISPLAY提示冲突。没有跳过记录/订单号写出，不等于输出不会被运行环境保留。",
+      "acceptable_correction": "源码不写跳过订单的明细或订单号，仅显示固定提示；提示目的地和是否留存未提供。"
+    },
+    {
+      "finding_id": "B2-O4",
+      "priority": "P2",
+      "kind": "unresolved_source_citation",
+      "answer_quotes": [
+        "- 把 `ORDER-ID` 复制到 `SETTLEMENT-ID`——结算记录沿用原订单号作为结算标识 [rule_39141171dbf7_f1c6c6e168e73f702aac220a]；",
+        "- 把 `ORDER-AMOUNT` 复制到 `SETTLEMENT-AMOUNT`——结算金额等于订单金额，无折扣、税费或四则运算 [rule_39141171dbf7_ebabd951fc449bd0e32b4392]；"
+      ],
+      "reason": "内部规则ID不能替代可打开的源码引用；应引用实际供应的settle.cbl对应页。"
+    }
+  ],
+  "optional_observations": [
+    {
+      "result": "OBSERVED",
+      "observation": "找到CL覆盖→调用→撤销覆盖，并说明调度频率/生效需运行证据。"
+    }
+  ]
+}
