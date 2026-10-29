@@ -1,0 +1,12 @@
+{
+  "origin": "actual_model_recorded_responses",
+  "before_tail": "aeae1af4d74b843f3b] [ev_page_b760eb210649d164667926a9]\n\n### 状态与业务分支\n\n主程序先执行 `MOVE INVOICE-AMOUNT TO AMOUNT-DUE`，所以进入状态判断时，应缴基数已经是票面应缴 100.00。随后按 `READ",
+  "continuation_head": "`READ-STATUS` 会进入三个互斥分支。调用前，主程序已把应缴基数置为 100.00，并把结果字段清空；`OFFSET-RULES` 没有单独的返回码，所以调用方只能在命中 READY 且 `CALL` 正常返回后，把结果设置为 `CALCULATED`。[ev_page_910812aea",
+  "response_sha256": [
+    "ada95054314df91dc0de1eb3a2fc7c32d4801131c042c5bacc25c4733c46db80",
+    "71ae93bd9a48a969482a196e13ecf2fa6d69b3a5054b3399599b43881fca76b3"
+  ],
+  "joined_sha256": "958015d7bc6196d3ffe99e6073e70e9592c35f43ee37b3d084e26c0094d438bf",
+  "corrected_boundary": "随后按 `READ-STATUS` 会进入三个互斥分支。调用前，主程序已把应缴基数置为 100.00，并把结果字段清空；`OFFSET-RULES` 没有单独的返回码，所以调用方只能在命中 READY",
+  "scope": "exact incomplete inline identifier prefix only; raw provider responses retained"
+}

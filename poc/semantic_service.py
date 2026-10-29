@@ -25,7 +25,7 @@ from semantic_ir import bind_reference, compilation_ir_from_dict, unbounded_regi
 from structural_index import read_source_document, DIVISION_RE, SECTION_RE, PARAGRAPH_RE, PARAGRAPH_EXCLUSIONS
 
 
-SERVICE_VERSION = "bounded-semantic-service/v10"
+SERVICE_VERSION = "bounded-semantic-service/v11"
 
 
 def _key(*parts):
@@ -268,6 +268,74 @@ class FactStore:
             if covered:
                 result["identity_source_refs"] = self.source_ref(path, SourceSpan(
                     covered[0].start_line, covered[-1].end_line, 1, 1, 0, 0))
+        return result
+
+    def parameter_source_definition(self, path, name):
+        """Locate a declared program-entry input, without knowing its value."""
+        program = self.program(path)
+        cache = program.setdefault("parameter_sources", {})
+        if name in cache:
+            return cache[name]
+        cache[name] = None
+        if not program["signature"] or program["diagnostics"]:
+            return None
+        reference = self.storage_reference(path, name)
+        canonical = reference.get("canonical")
+        item = program["items"].get(program["canonical_ids"].get(canonical))
+        if (item is None or reference.get("binding_status") != "bound" or not reference.get("exact")
+                or reference.get("group") or item.level in {66, 78, 88} or item.compilation_status != "active"):
+            return None
+        passed = []
+        for parameter in program["signature"]:
+            formal = self.storage_reference(path, parameter.name)
+            if (formal.get("binding_status") == "bound" and formal.get("exact")
+                    and canonical in formal.get("affected_storage", ())):
+                passed.append(parameter)
+        if len(passed) != 1:
+            return None
+        declarations, seen, current = [], set(), item
+        while current is not None:
+            if current.item_id in seen or len(declarations) >= 128:
+                return None
+            seen.add(current.item_id)
+            rows = program["fields_by_qualified"].get(current.qualified_name, ())
+            if (len(rows) != 1 or rows[0].get("storage_section") != "LINKAGE"
+                    or current.compilation_status != "active"):
+                return None
+            try:
+                declared = [(token.kind, token.value) for token in lex_cobol(current.declaration.rstrip("."))]
+                indexed = [(token.kind, token.value) for token in lex_cobol(rows[0]["normalized_text"].rstrip("."))]
+            except CobolLexError:
+                return None
+            if declared != indexed or any(kind == "word" and value in {"EXTERNAL", "GLOBAL", "BASED"}
+                                          for kind, value in declared):
+                return None
+            declarations.append((current, rows[0]))
+            current = program["items"].get(current.parent_id) if current.parent_id else None
+        if tuple(declared.name for declared, _ in declarations[1:]) != item.ancestors:
+            return None
+        signatures = self.rows("SELECT * FROM code_units WHERE relative_path=? AND program_name=? "
+                               "AND unit_type='ProcedureSignature'", (path, program["name"]))
+        if len(signatures) != 1 or signatures[0]["parse_status"] != "complete":
+            return None
+        signature = signatures[0]
+        refs = [asdict(ref) for declared, _ in declarations for ref in declared.source_refs]
+        refs.extend(program["identity_source_refs"])
+        refs.extend(self.source_ref(path, SourceSpan(signature["start_line"], signature["end_line"], 1, 1, 0, 0)))
+        section_line = declarations[0][1]["section_start_line"]
+        refs.extend(self.source_ref(path, SourceSpan(section_line, section_line, 1, 1, 0, 0)))
+        for ref in tuple(refs):
+            for index, site in enumerate(ref.get("include_chain", ())):
+                refs.append({"relative_path": site["relative_path"], "source_sha256": site.get("source_hash"),
+                    "start_line": site["line"], "end_line": site.get("end_line", site["line"]),
+                    "include_chain": list(ref["include_chain"][:index]), "replacement_trace": []})
+        if not refs or any(not ref.get("source_sha256") or ref["end_line"] - ref["start_line"] >= 96 for ref in refs):
+            return None
+        result = {"field": canonical, "value": None, "declaration": item.declaration,
+            "storage_section": "LINKAGE", "source_refs": refs, "status": "declared_parameter_source",
+            "unknown_reason": None, "runtime_value_known": False, "initial_program": program["initial_program"],
+            "activation_semantics": "caller_supplied_at_program_entry; runtime_value_not_known"}
+        cache[name] = result
         return result
 
     def initial_source_definition(self, path, name):
@@ -1032,7 +1100,8 @@ class SemanticService:
                     writer = self.nodes.get(definition)
                     if writer is None:
                         entry = self.nodes[read_id].entry_sources.get(field, {})
-                        initial = (self.facts.initial_source_definition(entry["relative_path"], entry["field"])
+                        initial = ((self.facts.parameter_source_definition(entry["relative_path"], entry["field"])
+                                    or self.facts.initial_source_definition(entry["relative_path"], entry["field"]))
                                    if definition == "@entry:" + field and entry else None)
                         if initial is not None:
                             initial = {**initial, "source_refs": [dict(ref) for ref in initial["source_refs"]]}

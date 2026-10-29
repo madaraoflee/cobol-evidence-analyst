@@ -1,0 +1,70 @@
+{
+  "schema_version": "independent-business-answer-review/v1",
+  "review_type": "AI maintainer review against complete actual answer, fixture gold and source; not formal human or target-device acceptance",
+  "reviewer": "business_prompt_regression",
+  "external_calls_by_reviewer": 0,
+  "source_snapshots_unchanged": true,
+  "same_production_snapshot_as_final_model_v3": true,
+  "fixture_hashes_match_gold": true,
+  "configuration_consistency": {
+    "configuration_fingerprint": "56dbaaf74095c19a23d76a0681b3d5bb317ab994eac13d3a3d4d13974dfdb24d",
+    "model_fingerprint": "7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445"
+  },
+  "cases": [
+    {
+      "case_id": "collection-custom-format",
+      "provider_result": "ANALYZED / sufficient_material",
+      "business_answer_acceptance": "pass",
+      "required_findings": {
+        "purpose": "pass: remaining amount calculation only, no actual receipt/account balance change/ledger",
+        "entry-status": "pass: prepared input enters calculation; notfound review and other retry described in business language without raw codes",
+        "order": "pass:balance->refund->reward, code-fixed order not configuration",
+        "balance-condition": "pass:permitted,positive available,positive remaining,min cap",
+        "refund-condition": "pass:available,positive amount,positive remaining,min cap",
+        "reward-condition": "pass:eligible,positive amount,positive remaining,min cap",
+        "calculation": "pass:100->80->70->65",
+        "skip-and-cap": "pass:unavailable/zero item skips; later eligible items continue; zero remaining prevents later offset; no negative amount",
+        "custom-format": "pass: exactly requested three H2 headings, no program/field/status identifiers, citations retained"
+      },
+      "strict_gold_all_required_pass": true,
+      "custom_format_checks": {
+        "h2_headings": [
+          "业务结论",
+          "处理顺序",
+          "条件与例外"
+        ],
+        "exact_three_requested_headings": true,
+        "other_heading_levels": [],
+        "raw_program_field_status_tokens_found": [],
+        "source_citations_retained": true
+      },
+      "custom_system_request_checks": [
+        {
+          "request_file": "request-01.json",
+          "exact_custom_instruction_occurrences_in_system": 1
+        },
+        {
+          "request_file": "request-02.json",
+          "exact_custom_instruction_occurrences_in_system": 1
+        }
+      ],
+      "expected_answer_instructions_sha256": "3f87b0c8f90f767c91fe7c78004decb389be152b3f8319d8d3b5f480b0dfc4ac",
+      "recorded_answer_instructions_sha256": "3f87b0c8f90f767c91fe7c78004decb389be152b3f8319d8d3b5f480b0dfc4ac",
+      "forbidden_claims": {
+        "false-source-gap": false,
+        "technical-only": false,
+        "invented-runtime": false,
+        "unconditional-offset": false
+      },
+      "invented_currency_unit": false,
+      "source_gap_present": false,
+      "tool_protocol_present": false,
+      "claim_rewrite_count": 0,
+      "business_focus": "Clear business language, conditional outcomes, calculations and exceptions; source references support analysis without exposing technical framework identifiers.",
+      "model_requests": 2,
+      "elapsed_seconds": 23.994,
+      "regression_pass": true
+    }
+  ],
+  "overall": "Custom-only bounded repeat passes actual business content and exact customization requirements on the same frozen source snapshot as final-model-v3. Previous v3 custom TLS failure remains recorded separately and is not overwritten or counted as a pass."
+}

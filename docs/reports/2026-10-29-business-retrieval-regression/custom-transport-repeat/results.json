@@ -1,0 +1,131 @@
+[
+  {
+    "case_id": "collection-custom-format",
+    "status": "ANALYZED",
+    "stop_reason": "sufficient_material",
+    "material_gap": null,
+    "answer_sha256": "19ec92cb0191cebcb6a7f50a2a14f3f1c9c2ff857927cdb9ce3b32db58db9eed",
+    "model_calls": [
+      {
+        "request_sha256": "7ccf500aec5b890ed336f9940b10e2f04212909b1cc575dd2ea870636617002d",
+        "system_sha256": "5b8e509587f8343c94f28c7ad47f03c151d8c843c0a80b431595465f23ec6598",
+        "source_ranges": [
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 97,
+            "end_line": 155,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1008,
+            "end_line": 1066,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1919,
+            "end_line": 1977,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 197,
+            "end_line": 255,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "collection-entry.cbl",
+            "start_line": 1,
+            "end_line": 31,
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 2709,
+            "end_line": 2758,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          }
+        ]
+      },
+      {
+        "request_sha256": "0441c765f728d86bcac626040081c0085172ef875653fef67cabb63b9bda8720",
+        "system_sha256": "ab7f7cb8febcbd051051a6a9df785d4ec81a697e4ea873d65c5feebef94e091c",
+        "source_ranges": [
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 97,
+            "end_line": 155,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "collection-entry.cbl",
+            "start_line": 1,
+            "end_line": 31,
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 2709,
+            "end_line": 2758,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1,
+            "end_line": 93,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 909,
+            "end_line": 992,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1809,
+            "end_line": 1892,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 21,
+            "end_line": 110,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 880,
+            "end_line": 908,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1750,
+            "end_line": 1808,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          }
+        ]
+      }
+    ],
+    "open_gaps": [],
+    "answer_completion": {
+      "limitation_detected": false,
+      "method": "bounded_text_and_coverage_signals",
+      "missing_aspects": [],
+      "pending_investigation": false,
+      "pending_source_explanation": false,
+      "reason": null,
+      "required_aspects": [
+        "conditions"
+      ],
+      "semantic_risk_candidates": [],
+      "semantic_verification": "unverified",
+      "source_availability_contradiction": false,
+      "source_availability_contradictions": [],
+      "source_selection_limitation_detected": false,
+      "status": "not_assessed"
+    }
+  }
+]

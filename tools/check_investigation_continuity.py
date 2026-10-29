@@ -154,8 +154,8 @@ def run_checks(command, root, report=None):
             agent = first["result"]["agent_result"]
             policy = agent["metrics"]["policy"]
             checks["default_policy_has_no_soft_target"] = (policy["delivery_target_seconds"] is None
-                and policy["hard_question_seconds"] is None and policy["max_model_requests"] == 8
-                and policy["max_investigation_rounds"] == 6)
+                and policy["hard_question_seconds"] is None and policy["max_model_requests"] is None
+                and policy["max_investigation_rounds"] is None)
             checks["slow_first_answer_is_automatically_completed"] = (len(provider.requests) == 2
                 and agent["metrics"]["model_requests"] == 2 and agent["status"] == "ANALYZED")
             checks["custom_single_paragraph_has_no_local_appendix"] = (agent["answer"] == provider.requests[-1]["response_text"]

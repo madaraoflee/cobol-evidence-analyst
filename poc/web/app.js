@@ -784,7 +784,7 @@ function formatDuration(seconds){
 function formatBytes(bytes){if(!Number.isFinite(bytes))return '—';const units=['B','KiB','MiB','GiB','TiB'];let value=Math.max(0,bytes),unit=0;while(value>=1024 && unit<units.length-1){value/=1024;unit++;}return value.toFixed(unit?1:0)+' '+units[unit];}
 function phaseLabel(phase){
   const labels={
-    remote_resolving:t('確認遠端源碼版本'),remote_downloading:t('下載遠端源碼'),remote_extracting:t('展開遠端源碼'),
+    remote_resolving:t('確認遠端源碼版本'),remote_downloading:t('下載遠端源碼'),remote_extracting:t('展開遠端源碼'),remote_syncing:t('同步變更的源碼'),remote_verifying:t('核對本機源碼副本'),
     using_index:t('使用已建立的代碼庫索引'),retrieving:t('查找與問題相關的依據'),answering:t('整理業務回答'),
     locating_sources:t('定位與問題相關的程序'),reading_relevant_sources:t('讀取相關段落'),
     supplementing_evidence:t('補充相關分析依據'),waiting_for_model:t('模型正在生成回答'),verifying_answer:t('核驗回答與源碼依據'),
@@ -833,7 +833,7 @@ function sourceJobScope(){
   const target=state.sourceJobTarget,previous=state.sourceJobBackup?.project;
   return ui`<div class="source-note" id="job-source-scope"><strong>本次接入的源碼</strong><br><code>${escapeHTML(target.source || '—')}</code><br><strong>本次結果目錄</strong><br><code>${escapeHTML(target.output || '—')}</code>${previous?.source?ui`<p>完成前保留原版本及對話。原源碼：<code>${escapeHTML(previous.source)}</code></p>`:''}</div>`;
 }
-function progressPanel(){if(state.jobKind==='question')return conversationProgress();const v=progressViewModel();return ui`<section class="answer-card progress-card" aria-label="接入進度"><div class="progress-heading"><div><div class="section-eyebrow">本次執行</div><h2 id="job-phase-name">${escapeHTML(phaseLabel(v.p.phase))}</h2></div><span id="job-percent">${v.known?v.percent.toFixed(1)+'%':t('統計中')}</span></div>${sourceJobScope()}<progress id="job-progress" max="100" ${v.known?'value="'+v.percent+'"':''} aria-label="目前階段進度"></progress><div class="progress-counts" id="job-counts">${progressCounts(v)}</div><div class="progress-metrics"><div><span>已運行</span><strong id="job-elapsed">${formatDuration(v.elapsed)}</strong></div><div><span id="job-eta-label">${v.p.eta_scope==='current_file'?t('本檔案預計剩餘'):t('本階段預計剩餘')}</span><strong id="job-eta">${v.eta===null?t('估算中'):formatDuration(v.eta)}</strong></div><div><span>本階段已處理資料</span><strong id="job-bytes">${formatBytes(v.p.bytes_completed)}</strong></div></div><div class="progress-file"><span>目前處理</span><code id="job-file">${escapeHTML(v.p.current_file || '—')}</code></div><p id="job-file-lines" class="field-hint">${fileProgress(v)}</p><p id="job-progress-explanation" class="progress-explanation">${escapeHTML(progressExplanation(v))}</p><div id="job-health" class="progress-health" role="status">${escapeHTML(progressHealth(v))}</div><div class="progress-actions"><button id="cancel-job" class="button secondary" ${state.cancelRequested || !state.jobId?'disabled':''}>${state.cancelRequested?t('正在停止，等待目前步驟結束'):t('停止本次工作')}</button><small>${state.remoteSourceJob?t('停止後可再次接入，重新下載指定版本的源碼。'):t('停止後可再次接入，重用已完成的目錄快取。')}</small></div></section>`;}
+function progressPanel(){if(state.jobKind==='question')return conversationProgress();const v=progressViewModel();return ui`<section class="answer-card progress-card" aria-label="接入進度"><div class="progress-heading"><div><div class="section-eyebrow">本次執行</div><h2 id="job-phase-name">${escapeHTML(phaseLabel(v.p.phase))}</h2></div><span id="job-percent">${v.known?v.percent.toFixed(1)+'%':t('統計中')}</span></div>${sourceJobScope()}<progress id="job-progress" max="100" ${v.known?'value="'+v.percent+'"':''} aria-label="目前階段進度"></progress><div class="progress-counts" id="job-counts">${progressCounts(v)}</div><div class="progress-metrics"><div><span>已運行</span><strong id="job-elapsed">${formatDuration(v.elapsed)}</strong></div><div><span id="job-eta-label">${v.p.eta_scope==='current_file'?t('本檔案預計剩餘'):t('本階段預計剩餘')}</span><strong id="job-eta">${v.eta===null?t('估算中'):formatDuration(v.eta)}</strong></div><div><span>本階段已處理資料</span><strong id="job-bytes">${formatBytes(v.p.bytes_completed)}</strong></div></div><div class="progress-file"><span>目前處理</span><code id="job-file">${escapeHTML(v.p.current_file || '—')}</code></div><p id="job-file-lines" class="field-hint">${fileProgress(v)}</p><p id="job-progress-explanation" class="progress-explanation">${escapeHTML(progressExplanation(v))}</p><div id="job-health" class="progress-health" role="status">${escapeHTML(progressHealth(v))}</div><div class="progress-actions"><button id="cancel-job" class="button secondary" ${state.cancelRequested || !state.jobId?'disabled':''}>${state.cancelRequested?t('正在停止，等待目前步驟結束'):t('停止本次工作')}</button><small>${state.remoteSourceJob?t('停止後可重新檢查版本，仍保留原本完整的本機副本。'):t('停止後可再次接入，重用已完成的目錄快取。')}</small></div></section>`;}
 function progressUnit(unit){return ({pages:t('頁'),bytes:t('位元組'),lines:t('行'),files:t('檔案'),directories:t('目錄')})[unit] || t('項');}
 function progressCounts(v){const unit=progressUnit(v.p.unit);if(discoveryPhase(v.p.phase)&&!v.known)return ui`已掃描 ${formatNumber(v.completed)} ${unit} · 正在確認總量`;return v.known?ui`已完成 ${formatNumber(v.completed)} / ${formatNumber(v.p.total)} ${unit} · 剩餘 ${formatNumber(v.remaining)} ${unit}`:ui`已完成 ${formatNumber(v.completed)} ${unit} · 正在確認總量`;}
 function fileProgress(v){
@@ -1106,7 +1106,8 @@ function sourceVersionView(){
 }
 function remoteSourceView(){
   const source=state.project?.remote_source;if(state.project?.source_origin!=='remote_repository' || !source)return '';
-  return ui`<section class="data-card source-version-card remote-source-provenance"><div class="data-card-heading"><h2>Bitbucket 源碼快照</h2></div><p><strong>倉庫連結</strong><br><code>${escapeHTML(source.url)}</code></p><p><strong>更新目標</strong>：${escapeHTML(source.ref || t('預設分支'))}<br><strong>倉庫內目錄</strong>：${escapeHTML(source.subdirectory || t('整個倉庫'))}<br><strong>提交版本</strong>：<code>${escapeHTML(source.commit)}</code></p><p>源碼已保存在本機，重新開啟無需下載。按「檢查並更新」才會連線；提交版本未變時，直接沿用現有索引。有新版本時另存快照，舊對話仍使用原版本。</p>${/^[0-9a-f]{40,64}$/i.test(source.ref || '')?ui`<p class="field-hint">目前固定在指定提交，不會跟隨新提交。要接收後續更新，可在「檢查並更新」中改用分支或跟隨預設分支。</p>`:''}</section>`;
+  const sync=source.sync_mode==='incremental' && [source.downloaded_files,source.reused_files,source.downloaded_bytes].every(value=>Number.isSafeInteger(value)&&value>=0)?ui`<p class="remote-sync-summary">最近同步：下載 ${formatNumber(source.downloaded_files)} 個檔案，重用 ${formatNumber(source.reused_files)} 個本機檔案；下載量 ${formatBytes(source.downloaded_bytes)}。</p>`:'';
+  return ui`<section class="data-card source-version-card remote-source-provenance"><div class="data-card-heading"><h2>Bitbucket 源碼快照</h2></div><p><strong>倉庫連結</strong><br><code>${escapeHTML(source.url)}</code></p><p><strong>更新目標</strong>：${escapeHTML(source.ref || t('預設分支'))}<br><strong>倉庫內目錄</strong>：${escapeHTML(source.subdirectory || t('整個倉庫'))}<br><strong>提交版本</strong>：<code>${escapeHTML(source.commit)}</code></p><p>源碼已保存在本機，重新開啟無需下載。按「檢查並更新」才會連線；提交版本未變時，直接沿用現有索引。有新版本時另存快照，舊對話仍使用原版本。</p>${source.provider==='bitbucket_cloud'?ui`<p>Cloud 首次接入下載一次源碼快照；後續更新只下載新增、修改或本機損壞的檔案，其餘由本機副本建立新版本。</p>`:''}${sync}${/^[0-9a-f]{40,64}$/i.test(source.ref || '')?ui`<p class="field-hint">目前固定在指定提交，不會跟隨新提交。要接收後續更新，可在「檢查並更新」中改用分支或跟隨預設分支。</p>`:''}</section>`;
 }
 function renderSources(){
   if(state.mode==='real' && state.busy && state.jobKind==='index')return progressPanel()+supportingContext();
@@ -1177,12 +1178,13 @@ const REMOTE_SOURCE_ERROR_MESSAGES={
   REMOTE_SOURCE_INVALID_TOKEN:'存取權杖格式無效，請重新輸入。',
   REMOTE_SOURCE_INVALID_USERNAME:'Cloud 帳號郵箱格式無效，請重新輸入。',
   REMOTE_SOURCE_AUTH_FAILED:'倉庫驗證未通過。Cloud 請核對帳號郵箱、API token 及讀取權限；Server / Data Center 請核對存取權杖。',
+  REMOTE_SOURCE_RATE_LIMITED:'倉庫請求受到服務端限流，本次接入或更新已停止；已有的本機副本不受影響。請稍後手動重試。',
   REMOTE_SOURCE_NOT_FOUND:'找不到指定的倉庫、版本或目錄，或尚未取得讀取權限。請核對連結；私有倉庫也需要有效授權。',
   REMOTE_SOURCE_REDIRECT:'倉庫要求跳轉或登入。請使用直接連結及 HTTP 存取權杖；瀏覽器登入狀態不會用於下載。',
   REMOTE_SOURCE_TLS_FAILED:'無法驗證倉庫的 HTTPS 憑證。請檢查本機信任的企業憑證設定。',
   REMOTE_SOURCE_NETWORK_FAILED:'無法連線至倉庫。請檢查網路、VPN 及伺服器位址後重試。',
-  REMOTE_SOURCE_TIMEOUT:'取得遠端源碼逾時，請重試或選擇較小的倉庫目錄。',
-  REMOTE_SOURCE_TOO_LARGE:'遠端源碼超出本次匯入限制，請指定較小的倉庫目錄。',
+  REMOTE_SOURCE_TIMEOUT:'取得遠端源碼逾時，請檢查網路後重試，或改用已有的本機源碼。Cloud 首次下載整個倉庫快照，選取子目錄不會減少下載量。',
+  REMOTE_SOURCE_TOO_LARGE:'遠端源碼超出本次匯入限制。Cloud 首次下載整個倉庫快照，可改用已有的本機源碼或較小的倉庫；Server / Data Center 可縮小目錄。',
   REMOTE_SOURCE_INVALID_ARCHIVE:'倉庫傳回的壓縮檔無法安全讀取，本次匯入已停止。',
   REMOTE_SOURCE_EMPTY:'指定範圍沒有可匯入的源碼。請核對倉庫內目錄。',
   REMOTE_SOURCE_INVALID_RESPONSE:'倉庫傳回非預期內容。請核對伺服器類型及下載權限。',
@@ -1430,6 +1432,7 @@ function applyJobSnapshot(jobId,job){
     if(state.jobKind==='index' && job.status==='COMPLETED' && state.remoteSourceJob){
       const update=job.result?.remote_update;
       state.sourceNotice=update?.status==='up_to_date'?(update.index_rebuilt?'遠端版本沒有變更，已重建本機索引，沒有重新下載源碼。':'遠端版本沒有變更，已沿用本機源碼和索引，沒有重新下載。'):
+        update?.status==='repaired'?'遠端版本沒有變更，已修復本機源碼副本並重建索引。':
         update?.status==='updated'?'已取得新版本。舊對話仍保留原版本與引用；新問題使用這份新快照。':
         state.sourceJobReusing?'已重用本機源碼並更新索引，沒有重新下載。':'已下載源碼並完成本機索引，可以開始提出業務問題。';
     }

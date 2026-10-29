@@ -1,0 +1,10 @@
+{
+  "captured_raw_characters": 240,
+  "recognized_as_invalid_protocol": true,
+  "all_partial_prefixes_withheld": true,
+  "requests": 2,
+  "corrected_business_answer": true,
+  "raw_protocol_absent": true,
+  "replay_type": "offline_captured_response_then_synthetic_answer",
+  "real_model_calls": 0
+}

@@ -169,7 +169,7 @@ class LiveBusinessEvalTests(unittest.TestCase):
             trace.write_text(json.dumps({"run_id": "trace-run", "prompt_version": "prompt-b",
                 "analysis_revision": "actually-read-snapshot", "final": {"final_answer_round_id": "round-2"},
                 "rounds": [{"round_id": "round-1", "sources": [{"path": "earlier.cbl", "source_sha256": "old"}]},
-                    {"round_id": "round-2", "sources": [{"evidence_id": "ev-final", "path": "final.cbl",
+                    {"round_id": "round-2", "system_prompt_sha256": "actual-custom-system-hash", "sources": [{"evidence_id": "ev-final", "path": "final.cbl",
                         "source_sha256": "final-hash", "start_line": 3, "end_line": 3,
                         "excerpt_sha256": "excerpt-hash"}], "framework": []}]}), encoding="utf-8")
             old_review = root / "old-review.json"
@@ -189,6 +189,8 @@ class LiveBusinessEvalTests(unittest.TestCase):
             self.assertEqual(row["review_identity"]["source_versions"], ["final-hash"])
             self.assertEqual(row["review_identity"]["source_snapshot_id"], "actually-read-snapshot")
             self.assertEqual(row["review_identity"]["prompt"]["version"], "prompt-b")
+            self.assertEqual(row["review_identity"]["prompt"]["system_sha256"], "actual-custom-system-hash")
+            self.assertEqual(row["review_identity"]["prompt"]["system_sha256_by_round"], ["actual-custom-system-hash"])
             self.assertEqual(row["expected_paths_supplied"], ["final.cbl"])
             self.assertEqual(row["supplied_source_paths"], ["final.cbl"])
             self.assertIsNone(row["human_review"])
@@ -244,6 +246,7 @@ class LiveBusinessEvalTests(unittest.TestCase):
             digest = hashlib.sha256((source / "entry.cbl").read_bytes()).hexdigest()
             cases = root / "cases.json"
             cases.write_text(json.dumps({"cases": [{"id": "entry", "question": "How is RESULT-VALUE set?",
+                "answer_instructions": "只用业务结论和处理顺序两个标题。",
                 "source_snapshot_id": "snapshot-a", "history": [{"role": "user", "content": "Earlier question"}],
                 "reviewed_context": {"source_ranges": [{"path": "entry.cbl", "sha256": digest,
                     "start_line": 1, "end_line": 2, "role": "result"}]},
@@ -271,6 +274,8 @@ class LiveBusinessEvalTests(unittest.TestCase):
             prompts = [json.loads(body["messages"][-1]["content"]) for body in bodies]
             self.assertEqual(prompts[0]["question"], prompts[1]["question"])
             self.assertEqual(bodies[0]["messages"][:-1], bodies[1]["messages"][:-1])
+            for body in bodies:
+                self.assertIn("只用业务结论和处理顺序两个标题。", body["messages"][0]["content"])
             self.assertNotEqual(prompts[0]["source_evidence"], prompts[1]["source_evidence"])
             self.assertNotIn("secret-grade", json.dumps(bodies))
 
@@ -320,17 +325,20 @@ class LiveBusinessEvalTests(unittest.TestCase):
             cases = root / "cases.json"
             cases.write_text(json.dumps({"cases": [
                 {"id": "initial", "conversation": "flow", "question": "When is review needed?",
+                 "answer_instructions": "只用业务结论标题。",
                  "expected_source_paths": ["request.cbl"], "review_checks": ["Explain the threshold"]},
                 {"id": "followup", "conversation": "flow", "question": "What happens next?",
                  "expected_source_paths": ["request.cbl"]}]}), encoding="utf-8")
             config = CompanyAPIConfig("https://gateway.example.invalid/v1", "test-model", api_key="local-test-secret")
             history_sizes = []
             received_policies = []
+            received_instructions = []
             policy = AgentPolicy(max_model_requests=3)
 
             def answer(question, _database, _source, _config, *, history, **_options):
                 history_sizes.append(len(history))
                 received_policies.append(_options["policy"])
+                received_instructions.append(_options.get("answer_instructions"))
                 return {"runner_status": "COMPLETED", "agent_result": {
                     "answer": "Requests above four are reviewed.",
                     "narrative": {"citations": [{"evidence_id": "ev-test", "relative_path": "request.cbl"}]},
@@ -351,6 +359,7 @@ class LiveBusinessEvalTests(unittest.TestCase):
             self.assertEqual(report["model_preflight"]["status"], "responded")
             self.assertEqual(history_sizes, [0, 2])
             self.assertEqual(received_policies, [policy, policy])
+            self.assertEqual(received_instructions, ["只用业务结论标题。", ""])
             self.assertEqual(len(report["cases"]), 2)
             self.assertEqual(report["cases"][0]["expected_paths_cited"], ["request.cbl"])
             self.assertEqual(report["cases"][0]["expected_paths_retrieved"], ["request.cbl"])
@@ -460,7 +469,7 @@ class LiveBusinessEvalTests(unittest.TestCase):
                     mock.patch("live_business_eval.OpenAICompatibleChatClient",
                                side_effect=AssertionError("network must stay disabled")):
                 report = evaluate(source, root / "evaluation", cases, config=config, plan=True)
-            self.assertEqual(adaptive.max_model_requests, 8)
+            self.assertIsNone(adaptive.max_model_requests)
             self.assertIsNone(adaptive.max_question_seconds)
             self.assertTrue(report["plan"]["bounded_evaluation_defaults_applied"])
             self.assertEqual(report["plan"]["max_model_requests"], 6)

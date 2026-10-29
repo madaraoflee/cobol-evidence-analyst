@@ -34,6 +34,7 @@ class BoundedAnswerQualityTests(unittest.TestCase):
         self.assertFalse(result["claims_semantically_verified"])
 
     def test_a_true_citation_does_not_promote_a_false_finding_into_memory(self):
+        observed_memories = []
         def respond(payload, number):
             if number == 1:
                 page = next(p for p in self.chat.pages(payload) if p["relative_path"] == "root.cbl")
@@ -41,14 +42,18 @@ class BoundedAnswerQualityTests(unittest.TestCase):
                 action["findings"] = [{"text": "TOTAL-AMOUNT = BASE-AMOUNT * 999。",
                     "evidence_ids": [page["evidence_id"]]}]
                 return json.dumps(action)
-            memory = payload["prior_source_memory"]
-            self.assertEqual(memory["confirmed_facts"], [])
-            self.assertNotIn("999", json.dumps(memory))
-            self.assertTrue(any(row["content_kind"] == "source_reference" for row in memory["blocks"]))
+            observed_memories.append(payload["prior_source_memory"])
             return self.chat.cited_answer(payload)
 
         result = self.chat.ask(respond, request_guard=2)
         saved = RunStore(self.chat.database.parent / "investigation-runs.sqlite").load(result["run_id"])
+        self.assertEqual(len(observed_memories), 1)
+        memory = observed_memories[0]
+        self.assertEqual(memory["confirmed_facts"], [])
+        self.assertNotIn("TOTAL-AMOUNT = BASE-AMOUNT * 999", json.dumps(memory))
+        # Digests may contain any digits; inspect the retained explanation.
+        self.assertNotIn("999", "\n".join(row.get("text", "") for row in memory["blocks"]))
+        self.assertTrue(any(row["content_kind"] == "source_reference" for row in memory["blocks"]))
         self.assertTrue(saved["checkpoint"]["prior_source_memory"]["retracted_blocks"])
         self.assertIn("乘以二", result["answer"])
         self.assertNotIn("999", result["answer"])

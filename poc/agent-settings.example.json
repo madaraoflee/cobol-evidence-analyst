@@ -1,13 +1,13 @@
 {
   "version": 1,
   "agent": {
-    "max_model_requests": 8,
+    "max_model_requests": null,
     "max_question_seconds": null,
     "hard_question_seconds": null,
     "delivery_target_seconds": null,
     "investigation_mode": "adaptive",
     "source_memory_enabled": true,
-    "max_investigation_rounds": 6,
+    "max_investigation_rounds": null,
     "max_no_evidence_revisions": 2,
     "finalization_reserve_seconds": 45,
     "max_source_characters": 36000,

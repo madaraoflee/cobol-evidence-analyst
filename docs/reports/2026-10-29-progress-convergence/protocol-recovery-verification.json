@@ -1,0 +1,39 @@
+{
+  "scope": "unrecognized_tool_protocol_and_known_empty_response_recovery",
+  "status": "targeted_passed_final_live_and_full_pending",
+  "tests_passed": 105,
+  "seconds": 17.483,
+  "log": "protocol-recovery-tests.txt",
+  "actual_response_replay": "tool-markup-replay.json",
+  "actual_response_archive": "captured-tool-response.json",
+  "real_model_calls_by_this_task": 0,
+  "full_actual_response_read": true,
+  "empty_case_original_message_retained": false,
+  "empty_case_known_facts": [
+    "journal request completed",
+    "one assistant choice",
+    "content_shape string with zero raw content characters",
+    "finish_reason stop",
+    "no tool calls",
+    "completion tokens 351, all reasoning tokens"
+  ],
+  "invariants": [
+    "Never execute markup: only valid whitelisted JSON actions can run.",
+    "Preserve real source reads after one protocol-format correction, including discovery.",
+    "Hide machine protocol in character-split streaming previews.",
+    "Restore consumed correction opportunity after reconnect.",
+    "Known empty completed stop gets one same-source same-system answer attempt only without an existing draft.",
+    "Unknown content shapes, refusal, filter, tool calls, timeouts and unknown outcomes do not qualify.",
+    "Recognized JSON empty-answer strings retain existing extraction compatibility.",
+    "Second empty, failed or length-limited recovery does not start a third request."
+  ],
+  "sha256": {
+    "poc/business_chat.py": "4af80616ee9b160d20c96c70ea5f74211bf25a3309a23c94672c6feb79e83d9a",
+    "poc/tests/test_business_chat_empty_length_recovery.py": "f1236689e51c332da97ae4a7e7b7b3aa9fe1281a50bbeb6f567dde7f5d6be6f7",
+    "poc/tests/test_business_chat_empty_stop_recovery.py": "d4c41d67af4f2f1a66f6a04d894b1c7b9690f758df225cd4b6dad2b476a491e8",
+    "poc/tests/test_business_chat_markup_protocol.py": "8c1ee4de39c2031510835eadb5b047e10e1b4c846839669a4867c249e4e3318e",
+    "poc/tests/test_markup_protocol_resume.py": "4ae2b5229625c1c5cecd65d2d31ac4b43947edec5f6416db295e14fd160c3012"
+  },
+  "diff_check": "passed",
+  "application_builds_created": 0
+}

@@ -1,0 +1,295 @@
+{
+  "review_type": "offline replay of captured real model prose; no new model calls",
+  "original_correct_sentence": "抵扣按“账户余额 → 退款 → 奖励”的顺序执行，最终请求中的 `AMOUNT-DUE` 为 **65.00**，`COLLECTION-RESULT` 为 **`CALCULATED`**。",
+  "before_local_replacement": "已供应源码可直接确认：`COLLECTION-RESULT = SPACES`（collection-entry.cbl:21）[ev_page_910812aeae1af4d74b843f3b]；在源码控制条件 `WHEN \"READY\"` 下，`COLLECTION-RESULT = \"CALCULATED\"`（collection-entry.cbl:25）[ev_page_910812aeae1af4d74b843f3b]；在源码控制条件 `WHEN \"NOTFOUND\"` 下，`COLLECTION-RESULT = \"REVIEW\"`（collection-entry.cbl:27）[ev_page_910812aeae1af4d74b843f3b]；在源码控制条件 `WHEN OTHER` 下，`COLLECTION-RESULT = \"RETRY\"`（collection-entry.cbl:29）[ev_page_910812aeae1af4d74b843f3b]。",
+  "after_local_review": "抵扣按“账户余额 → 退款 → 奖励”的顺序执行，最终请求中的 `AMOUNT-DUE` 为 **65.00**，`COLLECTION-RESULT` 为 **`CALCULATED`**。",
+  "before_revised_claim_count": 1,
+  "after_revised_claim_count": 0,
+  "after_preserved_verbatim": true,
+  "before_ledger": {
+    "ledger_version": "answer-claim-ledger-v16",
+    "scope": "bounded_source_statement_syntax",
+    "coverage": "extracted_structures_only",
+    "prose_semantics_verified": false,
+    "entries": [
+      {
+        "claim_id": "claim-1",
+        "claim_type": "business_state_value",
+        "text": "抵扣按“账户余额 → 退款 → 奖励”的顺序执行，最终请求中的 `AMOUNT-DUE` 为 **65.00**，`COLLECTION-RESULT` 为 **`CALCULATED`**。",
+        "target_entity": "AMOUNT-DUE",
+        "expression": [
+          "65.00"
+        ],
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "reviewed_evidence_ids": [],
+        "source_versions": [],
+        "support_status": "unsupported",
+        "reason_code": "BUSINESS_STATE_VALUE_NOT_FORMALLY_VERIFIED",
+        "checker_version": null,
+        "support_scope": "unverified_business_state_value",
+        "occurrence_ids": [],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      },
+      {
+        "claim_id": "claim-2",
+        "claim_type": "assignment_statement",
+        "text": "抵扣按“账户余额 → 退款 → 奖励”的顺序执行，最终请求中的 `AMOUNT-DUE` 为 **65.00**，`COLLECTION-RESULT` 为 **`CALCULATED`**。",
+        "target_entity": "COLLECTION-RESULT",
+        "expression": [
+          "CALCULATED"
+        ],
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "reviewed_evidence_ids": [],
+        "source_versions": [
+          {
+            "relative_path": "collection-entry.cbl",
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+            "start_line": 21,
+            "end_line": 21
+          },
+          {
+            "relative_path": "collection-entry.cbl",
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+            "start_line": 25,
+            "end_line": 25
+          },
+          {
+            "relative_path": "collection-entry.cbl",
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+            "start_line": 27,
+            "end_line": 27
+          },
+          {
+            "relative_path": "collection-entry.cbl",
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+            "start_line": 29,
+            "end_line": 29
+          }
+        ],
+        "support_status": "contradicted",
+        "reason_code": "SOURCE_STATEMENT_MISMATCH",
+        "checker_version": "source-statement-support-v7",
+        "support_scope": "source_statement_syntax",
+        "occurrence_ids": [
+          "unit_85f893e418ac504ce4f5e942",
+          "unit_ba57f0166a0f39f5fc60b336",
+          "unit_005aad026b294460c699da70",
+          "unit_dc669dc204c853e0ddd93d86"
+        ],
+        "invalid_evidence_ids": [],
+        "revision": "rendered_from_supplied_source_statements",
+        "revised_claims": [
+          {
+            "assertion": {
+              "predicate": "assignment_statement",
+              "target": "COLLECTION-RESULT",
+              "expression": [
+                "SPACES"
+              ],
+              "rounded": false
+            },
+            "source_guards": [],
+            "compilation_status": "effective_source",
+            "compilation_guards": [],
+            "evidence_id": "ev_page_910812aeae1af4d74b843f3b",
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+            "occurrence_id": "unit_85f893e418ac504ce4f5e942",
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v7",
+            "support_scope": "source_statement_syntax"
+          },
+          {
+            "assertion": {
+              "predicate": "assignment_statement",
+              "target": "COLLECTION-RESULT",
+              "expression": [
+                "\"CALCULATED\""
+              ],
+              "rounded": false
+            },
+            "source_guards": [
+              {
+                "kind": "WHEN",
+                "condition": "WHEN \"READY\"",
+                "outcome": "WHEN \"READY\"",
+                "selector": "READ-STATUS",
+                "is_other": false,
+                "evaluate_source": "EVALUATE READ-STATUS",
+                "prior_when_sources": [],
+                "start_line": 23,
+                "end_line": 23
+              }
+            ],
+            "compilation_status": "effective_source",
+            "compilation_guards": [],
+            "evidence_id": "ev_page_910812aeae1af4d74b843f3b",
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+            "occurrence_id": "unit_ba57f0166a0f39f5fc60b336",
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v7",
+            "support_scope": "source_statement_syntax"
+          },
+          {
+            "assertion": {
+              "predicate": "assignment_statement",
+              "target": "COLLECTION-RESULT",
+              "expression": [
+                "\"REVIEW\""
+              ],
+              "rounded": false
+            },
+            "source_guards": [
+              {
+                "kind": "WHEN",
+                "condition": "WHEN \"NOTFOUND\"",
+                "outcome": "WHEN \"NOTFOUND\"",
+                "selector": "READ-STATUS",
+                "is_other": false,
+                "evaluate_source": "EVALUATE READ-STATUS",
+                "prior_when_sources": [
+                  "WHEN \"READY\""
+                ],
+                "start_line": 26,
+                "end_line": 26
+              }
+            ],
+            "compilation_status": "effective_source",
+            "compilation_guards": [],
+            "evidence_id": "ev_page_910812aeae1af4d74b843f3b",
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+            "occurrence_id": "unit_005aad026b294460c699da70",
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v7",
+            "support_scope": "source_statement_syntax"
+          },
+          {
+            "assertion": {
+              "predicate": "assignment_statement",
+              "target": "COLLECTION-RESULT",
+              "expression": [
+                "\"RETRY\""
+              ],
+              "rounded": false
+            },
+            "source_guards": [
+              {
+                "kind": "WHEN",
+                "condition": "WHEN OTHER",
+                "outcome": "WHEN OTHER",
+                "selector": "READ-STATUS",
+                "is_other": true,
+                "evaluate_source": "EVALUATE READ-STATUS",
+                "prior_when_sources": [
+                  "WHEN \"READY\"",
+                  "WHEN \"NOTFOUND\""
+                ],
+                "start_line": 28,
+                "end_line": 28
+              }
+            ],
+            "compilation_status": "effective_source",
+            "compilation_guards": [],
+            "evidence_id": "ev_page_910812aeae1af4d74b843f3b",
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+            "occurrence_id": "unit_dc669dc204c853e0ddd93d86",
+            "support_status": "supported",
+            "reason_code": "SOURCE_STATEMENT_MATCH",
+            "checker_version": "source-statement-support-v7",
+            "support_scope": "source_statement_syntax"
+          }
+        ],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      }
+    ],
+    "counts": {
+      "supported": 0,
+      "contradicted": 1,
+      "unsupported": 1
+    },
+    "source_fact_count": 20,
+    "compilation_context_fingerprint": "e755be87b1a2385d06e83eb50e1873605d6c21af46580b0a56768a359a3c99bd",
+    "revised_claim_count": 1,
+    "answer_sha256": "8a3262f469b87ed645f4edb6160dae5af634dd320ef5e5538196820cdab9e10f",
+    "original_answer_sha256": "57fc58648bfb5c50178196b5f0f9ab1eb8cad629b6d56f35b3e019dbb338bc61",
+    "all_claims_supported": false
+  },
+  "after_ledger": {
+    "ledger_version": "answer-claim-ledger-v17",
+    "scope": "bounded_source_statement_syntax",
+    "coverage": "extracted_structures_only",
+    "prose_semantics_verified": false,
+    "entries": [
+      {
+        "claim_id": "claim-1",
+        "claim_type": "business_state_value",
+        "text": "抵扣按“账户余额 → 退款 → 奖励”的顺序执行，最终请求中的 `AMOUNT-DUE` 为 **65.00**，`COLLECTION-RESULT` 为 **`CALCULATED`**。",
+        "target_entity": "AMOUNT-DUE",
+        "expression": [
+          "65.00"
+        ],
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "reviewed_evidence_ids": [],
+        "source_versions": [],
+        "support_status": "unsupported",
+        "reason_code": "BUSINESS_STATE_VALUE_NOT_FORMALLY_VERIFIED",
+        "checker_version": null,
+        "support_scope": "unverified_business_state_value",
+        "occurrence_ids": [],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      },
+      {
+        "claim_id": "claim-2",
+        "claim_type": "business_state_value",
+        "text": "抵扣按“账户余额 → 退款 → 奖励”的顺序执行，最终请求中的 `AMOUNT-DUE` 为 **65.00**，`COLLECTION-RESULT` 为 **`CALCULATED`**。",
+        "target_entity": "COLLECTION-RESULT",
+        "expression": [
+          "CALCULATED"
+        ],
+        "condition": null,
+        "effect": null,
+        "evidence_ids": [],
+        "reviewed_evidence_ids": [],
+        "source_versions": [],
+        "support_status": "unsupported",
+        "reason_code": "BUSINESS_STATE_VALUE_NOT_FORMALLY_VERIFIED",
+        "checker_version": null,
+        "support_scope": "unverified_business_state_value",
+        "occurrence_ids": [],
+        "invalid_evidence_ids": [],
+        "revision": null,
+        "revised_claims": [],
+        "verification_facts": [],
+        "unresolved_requirements": []
+      }
+    ],
+    "counts": {
+      "supported": 0,
+      "contradicted": 0,
+      "unsupported": 2
+    },
+    "source_fact_count": 20,
+    "compilation_context_fingerprint": "e755be87b1a2385d06e83eb50e1873605d6c21af46580b0a56768a359a3c99bd",
+    "revised_claim_count": 0,
+    "answer_sha256": "57fc58648bfb5c50178196b5f0f9ab1eb8cad629b6d56f35b3e019dbb338bc61",
+    "original_answer_sha256": "57fc58648bfb5c50178196b5f0f9ab1eb8cad629b6d56f35b3e019dbb338bc61",
+    "all_claims_supported": false
+  }
+}

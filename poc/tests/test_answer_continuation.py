@@ -12,6 +12,30 @@ from answer_markdown import join_answer_continuation
 
 
 class AnswerContinuationTests(unittest.TestCase):
+    def test_restarted_inline_identifier_completes_only_the_exact_unfinished_token(self):
+        for marker in ("`", "``"):
+            prefix = "应缴仍按已解释的规则计算。随后按 "
+            continued = marker + "READ-STATUS" + marker + " 选择业务分支。"
+            self.assertEqual(join_answer_continuation(prefix + marker + "READ", continued), prefix + continued)
+            literal = marker + "TOTAL-AMOUNT" + marker
+            self.assertEqual(join_answer_continuation(prefix + marker + "READ", literal),
+                             prefix + marker + "READ" + literal)
+
+    def test_ambiguous_inline_and_fenced_code_are_not_rewritten_as_identifier_restarts(self):
+        for draft, continued, separator in (
+            ("字段 `READ`", "`READ-STATUS`", " "),
+            ("字段 `READ", "`READ` 后另有说明。", ""),
+            ("字段 `A", "`AMOUNT`", ""),
+            ("算式 `BASE + READ", "`READ-STATUS`", ""),
+            ("金额 `100", "`100.00`", ""),
+            ("```cobol\n`READ", "`READ-STATUS`", ""),
+            ("说明\n\n    literal `READ", "`READ-STATUS`", ""),
+            ("说明\n\n\tliteral `READ", "`READ-STATUS`", ""),
+            ("> ~~~text\n> literal `READ", "`READ-STATUS`", ""),
+        ):
+            with self.subTest(draft=draft):
+                self.assertEqual(join_answer_continuation(draft, continued), draft + separator + continued)
+
     def test_supplied_bare_citation_tail_does_not_swallow_new_markdown(self):
         identifier = "ev_page_0123456789abcdef01234567"
         draft = "已有业务结论保持不变。[ev_page_"

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "source_commit": "466a264683da2a5509b38b3bd6a975b955ad7c13",
+  "source_dirty": true,
+  "status": "failed",
+  "tests_run": 4236,
+  "failures": [
+    {
+      "id": "test_bounded_answer_quality.BoundedAnswerQualityTests.test_a_true_citation_does_not_promote_a_false_finding_into_memory",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_bounded_answer_quality.py\", line 53, in test_a_true_citation_does_not_promote_a_false_finding_into_memory\n    self.assertIn(\"乘以二\", result[\"answer\"])\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: '乘以二' not found in '模型说明尚未完成，已读取的源码仍可直接确认以下内容：\\n\\n- `TOTAL-AMOUNT = BASE-AMOUNT * 2`（root.cbl:9）[ev_page_882b7ecd68220a3c7f524b49]。\\n\\n以上说明仅覆盖已读取版本中的直接语句；这些语句本身不能证明实际执行路径，最终结果尚未确认。'\n"
+    },
+    {
+      "id": "test_business_chat.BusinessChatTests.test_repeated_targeted_reads_do_not_duplicate_large_call_graph_or_exceed_request_budget",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_business_chat.py\", line 608, in test_repeated_targeted_reads_do_not_duplicate_large_call_graph_or_exceed_request_budget\n    self.assertEqual(read_rounds, [1, 2])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\nAssertionError: Lists differ: [1] != [1, 2]\n\nSecond list contains 1 additional elements.\nFirst extra element 1:\n2\n\n- [1]\n+ [1, 2]\n"
+    },
+    {
+      "id": "test_business_chat_response_recovery.BusinessChatResponseRecoveryTests.test_long_continuation_prompt_keeps_tail_within_request_budget",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_business_chat_response_recovery.py\", line 520, in test_long_continuation_prompt_keeps_tail_within_request_budget\n    self.assertEqual(len(self.requests), 2)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 1 != 2\n"
+    },
+    {
+      "id": "test_business_detail_regressions.BusinessDetailRegressions.test_generic_partial_continues_original_question_with_evidence_tools_available",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_business_detail_regressions.py\", line 390, in test_generic_partial_continues_original_question_with_evidence_tools_available\n    self.assertEqual(self.requests[1][\"investigation_budget\"][\"remaining_model_requests\"], 7)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: None != 7\n"
+    },
+    {
+      "id": "test_value_definitions.ValueDefinitionTests.test_uninitialized_linkage_arrays_aliases_and_unsupported_values_do_not_close (declaration='01 INPUT-AMOUNT PIC 9(5) VALUE 25.')",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_value_definitions.py\", line 186, in test_uninitialized_linkage_arrays_aliases_and_unsupported_values_do_not_close\n    self.assertEqual(proof[\"status\"], \"unresolved_source_origin\")\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'resolved_source_origin' != 'unresolved_source_origin'\n- resolved_source_origin\n+ unresolved_source_origin\n? ++\n\n"
+    }
+  ],
+  "errors": [
+    {
+      "id": "test_desktop_live_acceptance.NativeLiveAcceptanceTests.test_external_watchdog_stays_finite_without_product_local_timer (policy={'max_model_requests': None, 'max_question_seconds': None, 'max_source_characters': 36000, 'max_complete_source_characters': 128000, 'max_history_characters': 18000, 'max_request_bytes': 230000, 'max_searches_per_turn': 3, 'max_reads_per_turn': 3, 'max_framework_searches_per_turn': 3, 'initial_pages': 6, 'initial_source_characters': 24000, 'search_pages': 8, 'search_source_characters': 32000, 'read_source_characters': 12000, 'max_framework_references': 10, 'max_framework_characters': 8000, 'max_business_context_actions_per_turn': 2, 'max_semantic_files': 32, 'max_semantic_source_bytes': 33554432, 'max_semantic_expansions': 4, 'max_evidence_groups': 12, 'max_initial_context_seconds': None, 'max_local_analysis_seconds': None, 'max_answer_revisions': None, 'semantic_cache_bytes': 536870912, 'hard_question_seconds': None, 'delivery_target_seconds': None, 'investigation_mode': 'adaptive', 'source_memory_enabled': True, 'max_investigation_rounds': None, 'max_no_evidence_revisions': 2, 'finalization_reserve_seconds': 45})",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_desktop_live_acceptance.py\", line 279, in test_external_watchdog_stays_finite_without_product_local_timer\n    wait = native.execution_wait_policy(policy)\n  File \"/Users/madara/Documents/工作 - Cobol 业务分析/tools/desktop_live_acceptance.py\", line 53, in execution_wait_policy\n    wait = policy.max_model_requests * transport + local_reserve + cleanup\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~\nTypeError: unsupported operand type(s) for *: 'NoneType' and 'float'\n"
+    },
+    {
+      "id": "test_desktop_live_acceptance.NativeLiveAcceptanceTests.test_external_watchdog_stays_finite_without_product_local_timer",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/madara/Documents/工作 - Cobol 业务分析/poc/tests/test_desktop_live_acceptance.py\", line 293, in test_external_watchdog_stays_finite_without_product_local_timer\n    explicit = native.execution_wait_policy(AgentPolicy(max_local_analysis_seconds=7))\n  File \"/Users/madara/Documents/工作 - Cobol 业务分析/tools/desktop_live_acceptance.py\", line 53, in execution_wait_policy\n    wait = policy.max_model_requests * transport + local_reserve + cleanup\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~\nTypeError: unsupported operand type(s) for *: 'NoneType' and 'float'\n"
+    }
+  ],
+  "skipped": [],
+  "elapsed_seconds": 252.795372
+}

@@ -29,6 +29,7 @@ class CompletionDrivenChatTests(unittest.TestCase):
         self.source.mkdir()
         self.database = self.root / "index.sqlite"
         self.requests = []
+        self.request_messages = []
         self.events = []
         self.files = {}
         self.question = "root.cbl 的金额如何计算？"
@@ -74,7 +75,9 @@ class CompletionDrivenChatTests(unittest.TestCase):
         ensure_repository_search(self.database, self.source)
 
         def transport(request):
-            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            messages = json.loads(request.body)["messages"]
+            payload = json.loads(messages[-1]["content"])
+            self.request_messages.append(messages)
             self.requests.append(payload)
             self.assertLessEqual(len(self.requests), request_guard, "Investigation failed to converge")
             self.assertEqual(payload["question"], self.question)
@@ -90,6 +93,62 @@ class CompletionDrivenChatTests(unittest.TestCase):
         # assert outside that boundary as well so a guard trip cannot pass.
         self.assertLessEqual(len(self.requests), request_guard, "Investigation failed to converge")
         return result
+
+    def test_default_reads_more_than_eight_related_ranges_with_original_question_and_system(self):
+        instructions = "先解释金额业务规则，再说明每项调整对结果的影响。"
+        body = ["COMPUTE TOTAL-AMOUNT = BASE-AMOUNT * 2."]
+        body.extend(f"PERFORM ADJUST-{number}." for number in range(1, 21))
+        body.append("GOBACK.")
+        for number in range(1, 21):
+            body.extend([f"ADJUST-{number}.", f"ADD {number} TO TOTAL-AMOUNT."])
+            body.extend(f"*> adjustment {number} source context {line}" for line in range(70))
+            body.append("EXIT.")
+        self.write("root.cbl", "TOTAL-RULE", "\n".join(body),
+                   "01 BASE-AMOUNT PIC 9(5) VALUE 10.\n01 TOTAL-AMOUNT PIC 9(6).")
+        lines = self.files["root.cbl"].splitlines()
+        ranges = [(index + 1, index + 3) for index, line in enumerate(lines)
+                  if line.startswith("ADJUST-")]
+        observed_lines = set()
+        requested = []
+        visible_statements = []
+
+        def respond(payload, number):
+            for page in self.pages(payload):
+                observed_lines.update(range(page["start_line"], page["end_line"] + 1))
+            if requested:
+                line = requested[-1][0] + 1
+                visible_statements.append(any(page["start_line"] <= line <= page["end_line"]
+                                              for page in self.pages(payload)))
+            if number <= 10:
+                target = next(span for span in ranges if span[0] + 1 not in observed_lines)
+                requested.append(target)
+                return json.dumps({"read": [{"relative_path": "root.cbl",
+                    "start_line": target[0], "end_line": target[1]}]})
+            line = requested[-1][0] + 1
+            page = next(page for page in self.pages(payload)
+                        if page["start_line"] <= line <= page["end_line"])
+            amount = lines[line - 1].split()[1]
+            return (f"金额在调整阶段逐项累加；这一步将{amount}加到当前金额，"
+                    f"因此调整后的金额是原金额加{amount}。[{page['evidence_id']}]")
+
+        result = self.ask(respond, request_guard=11, answer_instructions=instructions,
+            policy=AgentPolicy(max_source_characters=2000, max_complete_source_characters=2000,
+                initial_source_characters=1000, max_business_context_actions_per_turn=0,
+                max_evidence_groups=0))
+        self.assertEqual(len(self.requests), 11)
+        self.assertEqual(len(requested), 10)
+        self.assertTrue(all(visible_statements))
+        for payload, messages in zip(self.requests, self.request_messages):
+            self.assertEqual(payload["question"], self.question)
+            self.assertIsNone(payload["investigation_budget"]["remaining_model_requests"])
+            self.assertEqual(messages[0]["role"], "system")
+            self.assertEqual(messages[0]["content"].count(instructions), 1)
+        self.assertEqual(result["metrics"]["model_requests"], 11)
+        self.assertIsNone(result["metrics"]["policy"]["max_model_requests"])
+        self.assertIsNone(result["metrics"]["policy"]["max_investigation_rounds"])
+        self.assertTrue(result["answer_available"])
+        self.assertIn("调整后的金额是原金额加", result["answer"])
+        self.assertNotEqual(result["metrics"]["convergence_stop_reason"], "investigation_round_budget")
 
     def test_explicit_unbounded_policy_completes_more_than_six_useful_tool_rounds(self):
         def respond(payload, number):
@@ -112,7 +171,7 @@ class CompletionDrivenChatTests(unittest.TestCase):
         self.assertFalse(result["claims_semantically_verified"])
         self.assertTrue(any(event.get("analysis_update", {}).get("round", 0) >= 8 for event in self.events))
 
-    def test_default_six_investigations_reserve_a_separate_final_answer(self):
+    def test_explicit_six_investigations_reserve_a_separate_final_answer(self):
         def respond(payload, number):
             if number <= 6:
                 self.assertGreater(payload["investigation_budget"]["reads_per_turn"], 0)
@@ -123,7 +182,8 @@ class CompletionDrivenChatTests(unittest.TestCase):
             self.assertIn("helper-6.cbl", {page["relative_path"] for page in self.pages(payload)})
             return self.cited_answer(payload)
 
-        result = self.ask(respond, request_guard=7)
+        result = self.ask(respond, request_guard=7,
+                          policy=AgentPolicy(max_model_requests=8, max_investigation_rounds=6))
         self.assertEqual(len(self.requests), 7)
         self.assertEqual(result["metrics"]["model_requests"], 7)
         self.assertEqual(result["metrics"]["convergence_stop_reason"], "investigation_round_budget")
@@ -136,7 +196,8 @@ class CompletionDrivenChatTests(unittest.TestCase):
 
     def test_explicit_continue_after_six_rounds_keeps_answer_and_gets_fresh_bounded_allowance(self):
         prior = self.ask(lambda payload, number: self.read_helper(number)
-            if number <= 6 else self.cited_answer(payload), request_guard=7)
+            if number <= 6 else self.cited_answer(payload), request_guard=7,
+            policy=AgentPolicy(max_model_requests=8, max_investigation_rounds=6))
         self.assertEqual(prior["metrics"]["convergence_stop_reason"], "investigation_round_budget")
         store = RunStore(self.root / "investigation-runs.sqlite")
         before = store.load(prior["run_id"])
@@ -157,7 +218,8 @@ class CompletionDrivenChatTests(unittest.TestCase):
             return self.cited_answer(payload) + f" 补充：HELPER-RESULT 被赋值为7。[{helper['evidence_id']}]"
 
         continued = self.ask(supplement, request_guard=9,
-            resume_run_id=prior["run_id"], continue_investigation=True)
+            resume_run_id=prior["run_id"], continue_investigation=True,
+            policy=AgentPolicy(max_model_requests=8, max_investigation_rounds=6))
         self.assertEqual(len(self.requests), 9)
         self.assertNotEqual(continued["run_id"], prior["run_id"])
         self.assertEqual(continued["metrics"]["model_requests"], 2)
@@ -208,7 +270,7 @@ class CompletionDrivenChatTests(unittest.TestCase):
         self.assertEqual(len(self.requests), 3)
         self.assertEqual(continued["answer"], prior["answer"])
 
-    def test_actions_ignoring_explicit_answer_target_stop_at_default_request_limit(self):
+    def test_actions_ignoring_explicit_answer_target_stop_after_answer_only_request(self):
         now = [0.0]
 
         def budget(*args, **kwargs):
@@ -222,14 +284,14 @@ class CompletionDrivenChatTests(unittest.TestCase):
             return self.read_helper(1)
 
         with patch("business_chat.QuestionBudget", side_effect=budget):
-            result = self.ask(respond, policy=AgentPolicy(delivery_target_seconds=60), request_guard=8)
-        self.assertEqual(len(self.requests), 8)
-        self.assertEqual(result["metrics"]["model_requests"], 8)
+            result = self.ask(respond, policy=AgentPolicy(delivery_target_seconds=60), request_guard=2)
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(result["metrics"]["model_requests"], 2)
         saved = RunStore(self.root / "investigation-runs.sqlite").load(result["run_id"])
         self.assertTrue(any(item.get("arguments", {}).get("relative_path") == "helper-1.cbl"
                             for item in saved["checkpoint"]["frontier"]))
 
-    def test_unique_truncated_output_stops_at_request_limit_and_retains_all_received_text(self):
+    def test_unique_truncated_output_exhausts_derived_budget_and_retains_all_received_text(self):
         fragments = []
 
         def respond(payload, number):
@@ -250,6 +312,13 @@ class CompletionDrivenChatTests(unittest.TestCase):
         self.assertIn("金额按基础金额乘以二得到20", result["answer"])
         for number in range(2, 9):
             self.assertIn(f"说明段落 {number}", result["answer"])
+        self.assertIsNone(result["metrics"]["policy"]["max_model_requests"])
+        self.assertEqual(result["metrics"]["convergence_stop_reason"], "answer_output_requests_exhausted")
+        saved = RunStore(self.root / "investigation-runs.sqlite").load(result["run_id"])
+        budget = saved["checkpoint"]["answer_output_budget"]
+        self.assertEqual(budget["output_requests"], 8)
+        self.assertEqual(budget["output_characters"], sum(len(fragment.strip()) for fragment in fragments))
+        self.assertEqual(budget["max_output_requests"], 8)
 
     def test_soft_delivery_target_answers_known_source_and_retains_more_pending_work(self):
         now = [0.0]

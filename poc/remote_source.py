@@ -257,6 +257,8 @@ def _request(opener, url, token, accept, username=None):
             raise RemoteSourceError("REMOTE_SOURCE_AUTH_FAILED", "仓库访问被拒绝，请检查令牌和仓库读取权限。") from None
         if status == 404:
             raise RemoteSourceError("REMOTE_SOURCE_NOT_FOUND", "未找到仓库、分支或目录，请检查链接和读取权限。") from None
+        if status == 429:
+            raise RemoteSourceError("REMOTE_SOURCE_RATE_LIMITED", "仓库请求达到服务端限流，已保留原资料库，请稍后再检查更新。") from None
         if 300 <= status < 400:
             raise RemoteSourceError("REMOTE_SOURCE_REDIRECT", "仓库服务要求跳转，请使用最终 HTTPS 地址和只读访问令牌。") from None
         raise RemoteSourceError("REMOTE_SOURCE_NETWORK_FAILED", "仓库服务暂时无法完成下载，请稍后重试。") from None
@@ -510,6 +512,8 @@ def resolve_remote_source(spec: RemoteSourceSpec, *, token: str | None = None, u
 
 def fetch_remote_source(spec: RemoteSourceSpec, destination: Path, *, token: str | None = None,
                         username: str | None = None, resolved: dict | None = None,
+                        previous_source: Path | None = None, previous_metadata: dict | None = None,
+                        previous_output: Path | None = None,
                         progress=None, check_cancel=None, opener=None) -> dict:
     """Download a pinned commit, preserving no credentials or repository executable hooks.
 
@@ -523,6 +527,9 @@ def fetch_remote_source(spec: RemoteSourceSpec, destination: Path, *, token: str
         raise RemoteSourceError("REMOTE_SOURCE_DESTINATION_EXISTS", "下载位置已存在，请使用新的独立源码目录。")
     # Revalidate even when a caller constructs the dataclass itself.
     canonical = _canonical_spec(spec)
+    sidecar = destination.with_name(destination.name + ".remote-manifest.json")
+    if spec.provider == "bitbucket_cloud" and (sidecar.exists() or sidecar.is_symlink()):
+        raise RemoteSourceError("REMOTE_SOURCE_DESTINATION_EXISTS", "下载位置已存在，请使用新的独立源码目录。")
     started = time.monotonic()
 
     def tick():
@@ -552,6 +559,19 @@ def fetch_remote_source(spec: RemoteSourceSpec, destination: Path, *, token: str
         if spec.ref and re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", spec.ref) and commit != spec.ref.lower():
             raise RemoteSourceError("REMOTE_SOURCE_INVALID_RESPONSE", "仓库版本与所选来源不一致，请重新检查版本。")
         emit("remote_resolving", 1, 1)
+        default_branch = _reference(resolved.get("default_branch"))
+        if spec.provider == "bitbucket_cloud" and previous_source is not None:
+            from remote_incremental import fetch_incremental
+            try:
+                summary = fetch_incremental(spec, destination, commit, previous_source=previous_source,
+                    previous_metadata=previous_metadata, previous_output=previous_output,
+                    opener=opener, token=token, username=username, tick=tick, emit=emit)
+            except RemoteSourceError:
+                raise
+            except (ValueError, TypeError, KeyError, AttributeError):
+                raise RemoteSourceError("REMOTE_SOURCE_INVALID_RESPONSE", "仓库返回的文件或变更清单不完整，请检查来源后重试。") from None
+            return {**canonical, "commit": commit, **summary,
+                    **({"default_branch": default_branch} if default_branch else {})}
         if spec.provider == "bitbucket_cloud":
             archive_url = ("https://bitbucket.org/" + quote(spec.project, safe="") + "/"
                            + quote(spec.repository, safe="") + "/get/" + commit + ".zip")
@@ -589,8 +609,12 @@ def fetch_remote_source(spec: RemoteSourceSpec, destination: Path, *, token: str
                     FileExistsError, NotADirectoryError):
                 raise RemoteSourceError("REMOTE_SOURCE_INVALID_ARCHIVE", "仓库未返回有效的源码 ZIP，或其中包含无法安全读取的文件。") from None
         tick()
-        default_branch = _reference(resolved.get("default_branch"))
+        if spec.provider == "bitbucket_cloud":
+            from remote_incremental import write_manifest
+            write_manifest(destination, spec, commit, tick)
         return {**canonical, "commit": commit, "file_count": file_count,
+                "sync_mode": "archive", "downloaded_files": file_count, "reused_files": 0,
+                "downloaded_bytes": downloaded,
                 **({"default_branch": default_branch} if default_branch else {})}
     except (URLError, TimeoutError, ssl.SSLError, ConnectionError, HTTPException) as exc:
         raise _network_error(exc) from None
@@ -598,3 +622,5 @@ def fetch_remote_source(spec: RemoteSourceSpec, destination: Path, *, token: str
         # A successful return has a complete extraction and no active exception.
         if created and sys.exc_info()[0] is not None:
             shutil.rmtree(destination, ignore_errors=True)
+            if spec.provider == "bitbucket_cloud":
+                sidecar.unlink(missing_ok=True)

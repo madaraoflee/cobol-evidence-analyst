@@ -405,12 +405,15 @@ def build_business_evidence(scope, source_session, *, anchor, focus_fields=(),
                         if declaration:
                             selected[declaration["unit_id"]], roles[declaration["unit_id"]] = declaration, "declaration"
                         # Nearby prior writes are candidates, not reaching definitions.
+                        # A read-modify-write has two relations but consumes one
+                        # statement slot; prefer its write role for input tracing.
                         for linked in bounded(db,
-                                "SELECT u.*,r.relation_type FROM relations r JOIN code_units u "
+                                "SELECT u.*,CASE WHEN MAX(r.relation_type='WRITES') THEN 'WRITES' "
+                                "ELSE 'READS' END AS relation_type FROM relations r JOIN code_units u "
                                 "ON u.unit_id=r.from_entity_id WHERE r.target_entity_id=? "
-                                "AND r.relation_type IN ('READS','WRITES') "
+                                "AND r.relation_type IN ('READS','WRITES') GROUP BY u.unit_id "
                                 "ORDER BY CASE WHEN u.unit_id=? THEN 0 "
-                                "WHEN r.relation_type='WRITES' AND u.start_line<=? THEN 1 ELSE 2 END,"
+                                "WHEN MAX(r.relation_type='WRITES') AND u.start_line<=? THEN 1 ELSE 2 END,"
                                 "ABS(u.start_line-?),u.start_line,u.unit_id",
                                 (symbol["symbol_id"], unit_id, selected[unit_id]["start_line"],
                                  selected[unit_id]["start_line"]), 12,

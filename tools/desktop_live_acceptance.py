@@ -43,6 +43,8 @@ def execution_wait_policy(policy):
     45 seconds for collecting results/checkpoints. An explicit application
     deadline still limits investigation and model waits. This is a conservative watchdog,
     not an assertion that all local operations have a mathematical time bound.
+    When product requests follow progress without a count limit, the external
+    verifier uses its own finite allowance without modifying product policy.
     """
     transport = float(WORKBENCH_TIMEOUT_SECONDS)
     # Keep the external test watchdog finite when the application uses work
@@ -50,12 +52,16 @@ def execution_wait_policy(policy):
     local_reserve = 120 + (policy.max_local_analysis_seconds
                            if policy.max_local_analysis_seconds is not None else 15)
     cleanup = 45
-    wait = policy.max_model_requests * transport + local_reserve + cleanup
+    request_allowance = policy.max_model_requests if policy.max_model_requests is not None else 8
+    wait = request_allowance * transport + local_reserve + cleanup
     if policy.hard_question_seconds is not None:
         wait = min(wait, policy.hard_question_seconds + cleanup)
     return {"basis": "workbench_transport_and_local_cleanup",
         "transport_timeout_seconds": transport,
         "maximum_model_requests": policy.max_model_requests,
+        "watchdog_request_allowance": request_allowance,
+        "watchdog_request_allowance_source": "verification_default" if policy.max_model_requests is None
+            else "application_policy",
         "local_processing_reserve_seconds": local_reserve,
         "verification_cleanup_reserve_seconds": cleanup,
         "hard_question_seconds": policy.hard_question_seconds,

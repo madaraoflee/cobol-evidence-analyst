@@ -1,0 +1,4 @@
+<｜｜DSML｜｜ calls>
+<｜｜DSML｜｜ invoke name="search">["PERFORM APPLY-BALANCE","PERFORM APPLY-REFUND","PERFORM APPLY-REWARD","AMOUNT-DUE","APPLIED-OFFSET","BALANCE-ALLOWED","REFUND-READY"]</｜｜DSML｜｜ parameter>
+</｜｜DSML｜｜ invoke>
+</｜｜DSML｜｜ calls>

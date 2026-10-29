@@ -43,6 +43,7 @@ from source_versions import record_version, versions
 from source_update import SourceUpdateBackup
 from remote_source import (RemoteSourceError, fetch_remote_source, parse_remote_source,
                            resolve_remote_source, validate_remote_token, validate_remote_username)
+from remote_incremental import cached_snapshot_matches
 from app_paths import RESOURCE_ROOT, state_root
 from response_language import localized_text, resolve_answer_language
 from answer_markdown import DEFAULT_ANSWER_INSTRUCTIONS
@@ -179,6 +180,12 @@ def _remote_metadata(value):
     branch = value.get("default_branch")
     if isinstance(branch, str) and 0 < len(branch) <= 1024 and not any(ord(char) < 32 for char in branch):
         result["default_branch"] = branch
+    if value.get("sync_mode") in {"archive", "incremental"}:
+        result["sync_mode"] = value["sync_mode"]
+        for name in ("downloaded_files", "reused_files", "removed_files", "downloaded_bytes", "file_count"):
+            count = value.get(name)
+            if type(count) is int and 0 <= count <= 2**53 - 1:
+                result[name] = count
     return result
 
 
@@ -1908,8 +1915,17 @@ class WorkbenchState:
                         old_remote = previous_workspace["remote_source"]
                         remote_update = {"previous_commit": old_remote["commit"], "commit": resolved["commit"],
                                          "status": "updated"}
-                        if resolved["commit"] == old_remote["commit"] and Path(previous_workspace["source"]).is_dir():
-                            metadata = _remote_metadata(resolved)
+                        cached_source_intact = True
+                        if (resolved["commit"] == old_remote["commit"] and spec.provider == "bitbucket_cloud"
+                                and Path(previous_workspace["source"]).is_dir()):
+                            cached_source_intact = cached_snapshot_matches(spec, Path(previous_workspace["source"]),
+                                old_remote, output=Path(previous_workspace["output"]), check_cancel=self._check_cancel,
+                                progress=lambda event: self._progress(job_id, event))
+                            if not cached_source_intact:
+                                remote_update.update(status="repaired", source_repaired=True)
+                        if (resolved["commit"] == old_remote["commit"]
+                                and Path(previous_workspace["source"]).is_dir() and cached_source_intact):
+                            metadata = _remote_metadata({**old_remote, **resolved})
                             if metadata is None:
                                 raise ValueError("invalid remote source provenance")
                             remote_update["status"] = "up_to_date"
@@ -1945,6 +1961,11 @@ class WorkbenchState:
                             arguments["username"] = username
                         if resolved is not None:
                             arguments["resolved"] = resolved
+                        if (previous_workspace and spec.provider == "bitbucket_cloud"
+                                and Path(previous_workspace["source"]).is_dir()):
+                            arguments.update(previous_source=Path(previous_workspace["source"]),
+                                previous_metadata=previous_workspace["remote_source"],
+                                previous_output=Path(previous_workspace["output"]))
                         metadata = fetch_remote_source(spec, source, **arguments)
                 finally:
                     token = username = None

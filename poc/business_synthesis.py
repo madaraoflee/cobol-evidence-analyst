@@ -65,6 +65,30 @@ _FOLLOWING_EXPLANATION = re.compile(
     r"(?:时|時)(?:会|會|将|將|则|則|直接)?(?:拒绝|拒絕|返回|归零|歸零|计算|計算)|"
     r"\b(?:and|then)\s+(?:\w+\s+){0,3}(?:multiply|divide|add|subtract|calculate|compute|set|return)\b", re.I)
 _CONDITIONAL_STATEMENT = re.compile(r"^(?:若|如果|当(?!前)|當(?!前)|只要|除非|一旦|(?:if|when|unless)\b)", re.I)
+# A bare observation that syntax exists is not an explanation of its business
+# effect. Keep this narrow: operands, amounts and business nouns do not match.
+_SYNTAX_OBSERVATION_ONLY = re.compile(
+    r"(?:(?:当前|當前|目前|本轮|本輪)(?:可见|可見|看到|看到的)?|(?:当前|當前|目前)?"
+    r"(?:只能|仅能|僅能|仅|僅|只)?(?:看到|可见|可見))"
+    r"(?:的)?(?:是|有|只有|仅有|僅有)?(?:一(?:个|個|条|條|些|段))?"
+    r"(?:赋值|賦值|状态检查|狀態檢查|条件判断|條件判斷|调用|調用|返回|MOVE|COMPUTE|IF|CALL)"
+    r"(?:的)?(?:语句|語句|指令|段落|代码|代碼)?|"
+    r"(?:the\s+)?(?:current\s+)?(?:source|code|excerpt)\s+(?:only\s+)?"
+    r"(?:contains?|shows?|has)\s+(?:(?:a|an|one|some)\s+)?"
+    r"(?:assignments?|status\s+checks?|MOVE|COMPUTE|IF|CALL)(?:\s+(?:statements?|instructions?))?",
+    re.I)
+_RUNTIME_EVIDENCE_LIMIT = re.compile(
+    r"生产当天|生產當天|生产环境实际|生產環境實際|(?:是否|有无|有無)(?:曾经|曾經|已經|已经)?实际(?:执行|執行|运行|運行)|"
+    r"实际(?:输入|輸入|返回|传入|傳入)(?:值|金额|金額|结果|結果)|"
+    r"日志|日誌|运行记录|運行記錄|\b(?:whether\b.{0,40}\b(?:ran|executed)|actual\s+(?:input|return|runtime)\s+values?|"
+    r"production\s+(?:execution|inputs?|values?)|runtime\s+(?:values?|records?)|logs?)\b", re.I)
+
+
+def _syntax_observation_only(clause):
+    text = clause.strip(" *`。.!?").replace("`", "")
+    if re.search(r"[\u3400-\u9fff]", text):
+        text = re.sub(r"\s+", "", text)
+    return bool(_SYNTAX_OBSERVATION_ONLY.fullmatch(text))
 _SOURCE_SELECTION_LIMITATION = re.compile(
     r"^(?:(?:现有|現有|当前|當前|本轮|本輪|目前|所给|所給)?"
     r"(?:材料|资料|資料|证据|證據|上下文)(?:中|里|裡)?\s*)?"
@@ -203,6 +227,7 @@ def assess_answer_completion(answer, *, source_pages=(), working_set=None):
             selection_statements.add(clause)
     clauses = re.split(r"[\n。！？；;，,:：]+|(?<=[.!?])\s+|\b(?:but|however)\b", text, flags=re.I)
     deferred = substantive = limitation = selection_limitation = False
+    syntax_observation = runtime_limit = source_or_action_limit = False
     for clause in clauses:
         clause = re.sub(r"^[\s*#>\-:：]+|[\s*。.!?]+$", "", clause)
         clause = re.sub(r"^(?:但是|但|因此|所以|不过|不過|然而|而且)\s*", "", clause)
@@ -210,18 +235,29 @@ def assess_answer_completion(answer, *, source_pages=(), working_set=None):
             continue
         if _EXPLICIT_DEFERRAL.search(clause):
             deferred = True
+            source_or_action_limit = True
         elif (_REPORTED_BEHAVIOR.search(clause) or _FOLLOWING_EXPLANATION.search(clause)
               or _CONDITIONAL_STATEMENT.search(clause)):
             substantive = True
         elif clause in selection_statements:
             deferred = limitation = selection_limitation = True
+            source_or_action_limit = True
+        elif _syntax_observation_only(clause):
+            syntax_observation = True
+            continue
         elif _LIMITATION.search(clause):
             deferred = limitation = True
+            if _RUNTIME_EVIDENCE_LIMIT.search(clause):
+                runtime_limit = True
+            else:
+                source_or_action_limit = True
         elif _INVESTIGATION_STATEMENT.search(clause):
             deferred = True
+            source_or_action_limit = True
         else:
             substantive = True
-    incomplete = pending_investigation or deferred and not substantive
+    runtime_only = syntax_observation and runtime_limit and not source_or_action_limit
+    incomplete = pending_investigation or deferred and not substantive and not runtime_only
     return {"status": "incomplete" if incomplete else "not_assessed",
             "reason": "source_explanation_deferred" if pending_source_explanation else
                       "investigation_promised_without_completion" if pending_investigation else
@@ -1431,7 +1467,8 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
         if (_REPORTED_BEHAVIOR.search(clause) or _FOLLOWING_EXPLANATION.search(clause)
             or _CONDITIONAL_STATEMENT.search(clause)
             or not (_LIMITATION.search(clause) or _INVESTIGATION_STATEMENT.search(clause)))
-        and not re.search(r"[?？]", clause))
+        and not re.search(r"[?？]", clause)
+        and not _syntax_observation_only(clause))
     generic_behavior = _generic_behavior_summary(explanation)
     technical_inventory = _technical_inventory_only(answer)
     missing = [item["kind"] for item in requirements if item["kind"] != "accumulation"

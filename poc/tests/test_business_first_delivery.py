@@ -21,7 +21,7 @@ class BusinessFirstDeliveryTests(unittest.TestCase):
         configured = {"max_model_requests": 6, "max_question_seconds": None,
                       "hard_question_seconds": None, "max_answer_revisions": 0}
         runtime = AgentPolicy(**configured).to_dict()
-        self.assertEqual(defaults["max_model_requests"], 8)
+        self.assertIsNone(defaults["max_model_requests"])
         self.assertEqual(runtime["max_model_requests"], 6)
         self.assertIsNone(runtime["delivery_target_seconds"])
         self.assertIsNone(runtime["hard_question_seconds"])

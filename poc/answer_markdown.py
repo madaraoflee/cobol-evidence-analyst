@@ -8,6 +8,7 @@ from response_language import SUPPORTED_LANGUAGES, answer_language_instruction
 
 
 BUSINESS_RUNTIME_BOUNDARY_POLICY = (
+    "以下用于内部核对，不是正文栏目或必须逐项复述的检查清单；只说明实际影响当前业务结论的条件。"
     "直接解释源码确定的输入、规则和输出；缺调度、数据或绑定仅限制相关运行结论。"
     "未校验不证明查不到，零或占位值也可能匹配；查询结果须有数据或假设。"
     "无状态检查不等于异常后继续；CALL后清理须已返回，‘不影响下一条’仅指正常业务控制路径。"
@@ -32,10 +33,13 @@ BUSINESS_EXPLANATION_POLICY = (
     "交接关系须来自具体调用、参数、读写、文件绑定或适用框架约定；同名、共同COPY或出现在同一目录不能证明关联。"
     "可沿 business_orientation.handoffs 对照原文串联职责；它是局部静态关系，不证明执行顺序或业务因果。"
     "明确区分读已有余额与计算余额、生成输出记录与完成付款、请求更新与成功提交。"
+    "金额、数量与日期沿用问题或材料给定的单位、币种与精度；未给定时不自行补币种或单位。"
     "数值比较不是数据有效性校验：只看到金额大于零、没有 IS NUMERIC 等检查时，不得说非法金额会被识别、拦截或跳过。"
     "业务解释中的技术标识逐字符保留，尤其不要互换下划线与连字符；SQL 表名和查询条件不提供数据库连接配置。"
     "规则说明哪些记录进入、哪些跳过、结果如何变化；异常说明使用者还能得到什么以及该如何理解返回状态。"
     "先给出源码已经确认的业务解释；缺调度或部署信息不妨碍解释代码职责。"
+    "框架资料辅助还原读写、参数和控制约定，再解释它们带来的业务结果；框架机制本身不是业务问题的回答中心。"
+    "状态标志、操作码和框架阶段先解释其对本题业务处理的影响；仅在决定所问分支、需要排错或用户要求技术细节时展开其原名和实现。"
     "确实影响结论的条件紧贴该结论，其余运行环境缺口集中简短说明一次，不用反复的未验证打断流程。"
     "不要先铺长篇证据免责声明，不重复用摘要、表格、正文和结尾讲同一件事。"
     "没有领域名称时直接描述可见输入到输出的作用；注释用途与源码规则吻合时注明依据，不猜业务词义。"
@@ -43,7 +47,8 @@ BUSINESS_EXPLANATION_POLICY = (
 
 BUSINESS_EXPLANATION_COMPACT_POLICY = (
     "先一小段业务目的、规则和结果，再分Batch job、Online function / Programs、Tables、Files讲职责交接；"
-    "详细规则归入负责类别只讲一次。有据类别展开，未见简注未确认，程序不自动等于在线；"
+    "详细规则归入负责类别只讲一次。只展开本题相关且有据类别，未涉及类别不列空章节，程序不自动等于在线；"
+    "框架只辅助理解业务读写和控制，解释业务影响，不逐项讲框架机制；"
     "handoffs是导航，同名/COPY不证关联，窄问只答所问。")
 
 
@@ -57,7 +62,7 @@ DEFAULT_ANSWER_INSTRUCTIONS = """请面向刚接触这项业务的新人解释�
 4. Files（文件）：每个文件承载什么业务记录、由谁产生、由谁读取、输入输出如何衔接；区分业务数据文件与源码/COPY定义。
 每个名称第一次出现时解释业务角色，说明这些对象如何共同完成本题业务，不要只罗列名字。
 先把本题涉及的各类职责与关系讲完整，再按需要补充细节；不展开用户未问且不影响核心结论的假设场景。
-使用现有来源支持结论并保留引用；缺少的类别简短写“当前资料未确认”，不要补造。把确实影响结论的未知事项说清楚。
+使用现有来源支持结论并保留引用；未涉及或没有依据的类别不单列空章节，不为凑齐类别反复写“当前资料未确认”。只说明确实影响本题结论的未知事项，不补造缺失环节。
 追问只展开这次所问的内容；已经讲清的概览不必重复。"""
 
 
@@ -369,6 +374,19 @@ def join_answer_continuation(draft: str, continuation: str, *, evidence_ids=()) 
     code_marker = _open_code_marker(draft)
     if code_marker:
         kind, marker = code_marker
+        if (kind == "inline" and not tail.expandtabs(4).startswith("    ")
+                and not tail.lstrip().startswith(">")):
+            # A provider can restart the unfinished identifier with its opening
+            # backtick. Remove only that exact prefix, never prose or a changed
+            # expression. Equal identifiers and fences remain ambiguous.
+            identifier = r"[A-Za-z_$#@][A-Za-z0-9_$#@.\-]*"
+            opening = re.escape(marker)
+            fragment = re.search(r"(?<![\\`])" + opening + "(" + identifier + r")\Z", draft)
+            restarted = re.match(opening + "(" + identifier + ")" + opening + r"(?!`)", continuation)
+            if (fragment and restarted and len(fragment[1]) >= 2
+                    and len(restarted[1]) > len(fragment[1])
+                    and restarted[1].startswith(fragment[1])):
+                return draft[:fragment.start()] + continuation
         closing_fence = (kind == "fence" and re.match(
             r"^" + re.escape(marker[0]) + "{" + str(len(marker)) + r",}[ \t]*(?:\n|$)", continuation))
         return draft + ("\n" if closing_fence else "") + continuation

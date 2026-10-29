@@ -63,8 +63,8 @@ class DefaultInvestigationDeliveryTests(unittest.TestCase):
         self.assertEqual(result["business_review"]["answer_completion"]["missing_aspects"], [])
         self.assertIn("基础金额初值为10", result["answer"])
         self.assertIn("乘以二得到20", result["answer"])
-        self.assertEqual(result["metrics"]["policy"]["max_investigation_rounds"], 6)
-        self.assertEqual(result["metrics"]["policy"]["max_model_requests"], 8)
+        self.assertIsNone(result["metrics"]["policy"]["max_investigation_rounds"])
+        self.assertIsNone(result["metrics"]["policy"]["max_model_requests"])
         self.assertIsNone(result["metrics"]["delivery_target"]["seconds"])
 
     def test_default_reviews_incomplete_first_answer_after_twenty_second_response(self):
@@ -76,7 +76,7 @@ class DefaultInvestigationDeliveryTests(unittest.TestCase):
         result = self.ask(initial_delay=16)
         self.assert_completed_with_review(result)
         first = self.fixture.requests[0]["investigation_budget"]
-        self.assertEqual(first["remaining_model_requests"], 8)
+        self.assertIsNone(first["remaining_model_requests"])
         self.assertGreater(first["searches_per_turn"], 0)
         self.assertGreater(first["reads_per_turn"], 0)
         saved = RunStore(self.fixture.root / "investigation-runs.sqlite").load(result["run_id"])

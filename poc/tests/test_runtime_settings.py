@@ -39,7 +39,7 @@ class RuntimeSettingsTests(unittest.TestCase):
         self.assertEqual(explicit.max_history_characters, 3000)
         self.assertEqual(environment["UNRELATED"], "unchanged")
 
-    def test_missing_count_limits_are_bounded_and_explicit_null_is_preserved(self):
+    def test_missing_count_limits_follow_progress_and_explicit_null_is_preserved(self):
         for settings in ({}, {"max_model_requests": None, "max_question_seconds": None,
                               "hard_question_seconds": None, "max_initial_context_seconds": None,
                               "max_local_analysis_seconds": None, "max_investigation_rounds": None}):
@@ -47,14 +47,23 @@ class RuntimeSettingsTests(unittest.TestCase):
                 self.write({"version": 1, "agent": settings})
                 original = self.path.read_bytes()
                 policy = load_agent_policy(self.path)
-                self.assertEqual(policy.max_model_requests, settings.get("max_model_requests", 8))
-                self.assertEqual(policy.max_investigation_rounds, settings.get("max_investigation_rounds", 6))
+                self.assertEqual(policy.max_model_requests, settings.get("max_model_requests"))
+                self.assertEqual(policy.max_investigation_rounds, settings.get("max_investigation_rounds"))
                 self.assertIsNone(policy.max_question_seconds)
                 self.assertIsNone(policy.hard_question_seconds)
                 self.assertIsNone(policy.max_initial_context_seconds)
                 self.assertIsNone(policy.max_local_analysis_seconds)
                 self.assertIsNone(policy.effective_delivery_target_seconds)
                 self.assertEqual(self.path.read_bytes(), original)
+
+    def test_saved_request_and_round_caps_remain_explicit_overrides(self):
+        self.write({"version": 1, "agent": {"max_model_requests": 8,
+                                            "max_investigation_rounds": 6}})
+        original = self.path.read_bytes()
+        policy = load_agent_policy(self.path)
+        self.assertEqual(policy.max_model_requests, 8)
+        self.assertEqual(policy.max_investigation_rounds, 6)
+        self.assertEqual(self.path.read_bytes(), original)
 
     def test_explicit_null_delivery_target_disables_the_soft_default(self):
         self.write({"version": 1, "agent": {"delivery_target_seconds": None}})
@@ -76,7 +85,7 @@ class RuntimeSettingsTests(unittest.TestCase):
                                   policy.max_local_analysis_seconds), (initial, local))
                 self.assertEqual(self.path.read_bytes(), original)
 
-    def test_example_uses_bounded_defaults_without_adding_time_cutoffs(self):
+    def test_example_uses_progress_driven_defaults_without_adding_time_cutoffs(self):
         policy = load_agent_policy(Path(__file__).resolve().parents[1] / "agent-settings.example.json")
         self.assertEqual(policy, AgentPolicy())
 

@@ -215,7 +215,10 @@ def _rule(row, kind):
             "reads": json.loads(value["reads_json"]) if "reads_json" in value else value.get("reads", []),
             "writes": json.loads(value["writes_json"]) if "writes_json" in value else value.get("writes", []),
             "paragraph_name": value.get("paragraph_name"),
+            "program_name": value.get("program_name"),
             "input_fields": value.get("input_fields", []),
+            "parameter_origin": value.get("parameter_origin", False),
+            "origin_requirements": value.get("origin_requirements", []),
             "layout_fields": value.get("layout_fields", []),
             "input_owner_paths": value.get("input_owner_paths", []),
             "occurrence_count": value.get("occurrence_count", 1),
@@ -403,6 +406,75 @@ def _field_declarations(db, path, fields):
         f"AND (s.name IN ({slots}) OR substr(s.qualified_name,instr(s.qualified_name,'::')+2) IN ({slots})) "
         "AND s.symbol_type IN ('Field','ConditionName') ORDER BY u.start_line LIMIT ?",
         (path, *fields, *fields, _MAX_LINKED_RULES + 1)).fetchall()
+
+
+def _parameter_input_candidates(db, path, fields, readers):
+    """Nominate declared USING inputs, including members of passed groups.
+
+    The signature and each level of the physical LINKAGE layout are evidence
+    obligations. This locates an entry input; it never establishes its value
+    or proves that a later write/call preserves that value.
+    """
+    from statement_facts import data_references
+
+    result = []
+    declarations = _field_declarations(db, path, fields)
+    for signature in db.execute("SELECT * FROM code_units WHERE relative_path=? "
+            "AND unit_type='ProcedureSignature' ORDER BY start_line LIMIT 8", (path,)):
+        text = signature["normalized_text"].upper()
+        if "USING" not in text:
+            continue
+        using = re.split(r"\b(?:RETURNING|GIVING)\b", text.split("USING", 1)[1], maxsplit=1)[0]
+        parameters = {reference.identity for reference in data_references(using)}
+        local_fields = [field for field in fields if {row.get("program_name") for row in readers
+            if row["relative_path"] == path and field in row.get("reads", [])} == {signature["program_name"]}]
+        direct = [field for field in local_fields if field in parameters]
+        if direct:
+            # Keep the existing explicit scalar-parameter source binding.
+            result.append(_rule({**dict(signature), "input_fields": direct, "parameter_origin": True}, "inputs"))
+        for section in db.execute("SELECT * FROM code_units WHERE relative_path=? "
+                "AND unit_type='Section' AND name='LINKAGE' AND program_name=? "
+                "AND end_line<?", (path, signature["program_name"], signature["start_line"])):
+            layout = db.execute("SELECT u.*,s.name AS field_name,"
+                "substr(s.qualified_name,instr(s.qualified_name,'::')+2) AS field_identity "
+                "FROM symbols s JOIN code_units u ON u.unit_id=s.definition_unit_id "
+                "WHERE s.relative_path=? AND s.symbol_type='Field' AND s.program_name=? "
+                "AND u.start_line>? AND u.end_line<=? ORDER BY u.start_line",
+                (path, signature["program_name"], section["start_line"], section["end_line"])).fetchall()
+            passed = {row["field_identity"] for row in layout if row["field_identity"] in parameters
+                      or row["field_name"] in parameters
+                      and sum(other["field_name"] == row["field_name"] for other in layout) == 1}
+            by_identity = {row["field_identity"]: row for row in layout}
+            for declaration in declarations:
+                identity = declaration["field_identity"]
+                if identity not in by_identity or not any(identity == parent or identity.endswith(" OF " + parent)
+                                                          for parent in passed):
+                    continue
+                # An unqualified duplicate must not bind to an arbitrary group.
+                matches = [field for field in local_fields if field not in direct and (field == identity
+                           or field == declaration["field_name"]
+                           and sum(row["field_name"] == field for row in layout) == 1)]
+                if not matches:
+                    continue
+                names = identity.split(" OF ")
+                ancestors = [" OF ".join(names[index:]) for index in range(len(names))]
+                if any(name not in by_identity for name in ancestors):
+                    continue
+                requirements = [_rule({**dict(section), "end_line": section["start_line"]}, "inputs"),
+                                *(_rule(by_identity[name], "inputs") for name in ancestors)]
+                result.append(_rule({**dict(signature), "input_fields": matches,
+                    "parameter_origin": True, "origin_requirements": requirements}, "inputs"))
+    merged = {}
+    for candidate in result:
+        key = candidate["start_line"], candidate["statement"]
+        existing = merged.setdefault(key, {**candidate, "input_fields": [], "origin_requirements": []})
+        existing["input_fields"].extend(candidate["input_fields"])
+        existing["origin_requirements"].extend(candidate["origin_requirements"])
+    for candidate in merged.values():
+        candidate["input_fields"] = list(dict.fromkeys(candidate["input_fields"]))
+        candidate["origin_requirements"] = list({(row["start_line"], row["statement"]): row
+            for row in candidate["origin_requirements"]}.values())
+    return list(merged.values())
 
 
 def _parse_physical_body(text, first, source_format):
@@ -749,14 +821,7 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
                             continue
                         candidates.append(_rule({**dict(declaration),
                             "input_fields": [declaration["field_identity"]], "input_owner_paths": [path]}, "inputs"))
-                for signature in db.execute("SELECT * FROM code_units WHERE relative_path=? "
-                        "AND unit_type='ProcedureSignature' ORDER BY start_line LIMIT 8", (path,)):
-                    text = signature["normalized_text"].upper()
-                    if "USING" in text:
-                        parameters = set(question_references(text.split("USING", 1)[1]))
-                        supplied_inputs = [field for field in inputs if field in parameters]
-                        if supplied_inputs:
-                            candidates.append(_rule({**dict(signature), "input_fields": supplied_inputs}, "inputs"))
+                candidates.extend(_parameter_input_candidates(db, path, inputs, candidates))
             paragraphs = list(dict.fromkeys(row["paragraph_name"] for row in local if row["paragraph_name"]))
             fields = list(dict.fromkeys([*inputs, *outputs]))
             if paragraphs or fields:
@@ -946,6 +1011,39 @@ def _flow_input_origins(candidates, pages, evidence_groups):
         identity = single_field_identity(str(text))
         return identity if identity is not None else text
 
+    def reader_column_matches(ref, occurrence):
+        column = occurrence.get("start_column")
+        if not column or ref.get("start_column") == column:
+            return True
+        # The single-statement streaming index stores its cleaned column as 1;
+        # semantic spans retain physical indentation. Correct only this known
+        # origin shift, never a later statement on the same physical line.
+        if column != 1 or type(ref.get("start_column")) is not int:
+            return False
+        from business_index import _clean
+        for page in pages:
+            if (page.get("relative_path") != ref.get("relative_path")
+                    or page.get("source_sha256") != ref.get("source_sha256")
+                    or tuple(page.get("include_chain") or ()) != tuple(ref.get("include_chain") or ())
+                    or tuple(page.get("replacement_trace") or ()) != tuple(ref.get("replacement_trace") or ())
+                    or page.get("span_truncated")):
+                continue
+            lines = str(page.get("source_text", "")).splitlines()
+            offset = occurrence["start_line"] - page["start_line"]
+            if not 0 <= offset < len(lines):
+                continue
+            raw = lines[offset]
+            cleaned, source_format, continuation = _clean(raw, page.get("format_hint", "auto"))
+            if not cleaned or continuation:
+                continue
+            start = raw.find(cleaned)
+            prefix = raw[:start] if start >= 0 else ""
+            safe_prefix = not prefix.strip() or (source_format == "fixed" and len(prefix) >= 7
+                and (not prefix[:6].strip() or prefix[:6].isdigit()) and not prefix[6:].strip())
+            if safe_prefix and start + 1 == ref["start_column"]:
+                return True
+        return False
+
     ref_cache = {}
     def supplied(ref):
         key = json.dumps(ref, sort_keys=True)
@@ -1001,7 +1099,7 @@ def _flow_input_origins(candidates, pages, evidence_groups):
                     and tokens(proof.get("reader_statement")) == tokens(candidate["statement"])
                     and any(ref.get("relative_path") == pair[0] and ref.get("source_sha256") == candidate.get("source_sha256")
                         and ref.get("start_line") == occurrence["start_line"] and ref.get("end_line") == occurrence["end_line"]
-                        and (not occurrence.get("start_column") or ref.get("start_column") == occurrence["start_column"])
+                        and reader_column_matches(ref, occurrence)
                         for ref in proof.get("reader_source_refs", []))]
                 if not matches:
                     complete = False
@@ -1051,6 +1149,15 @@ def _flow_input_origins(candidates, pages, evidence_groups):
 
 def _visible_ids(candidate, pages, *, page_cache=None):
     from business_index import _clean
+    if candidate.get("origin_requirements"):
+        required_ids = []
+        for requirement in candidate["origin_requirements"]:
+            identifiers = _visible_ids(requirement, pages, page_cache=page_cache)
+            if not identifiers:
+                return []
+            required_ids.extend(identifiers)
+        identifiers = _visible_ids({**candidate, "origin_requirements": []}, pages, page_cache=page_cache)
+        return list(dict.fromkeys([*required_ids, *identifiers])) if identifiers else []
     if candidate.get("occurrences"):
         supplied = []
         for occurrence in candidate["occurrences"]:
@@ -1889,10 +1996,13 @@ def build_question_investigation(question, business_map, *, database_path=None,
     input_fields = {(row["relative_path"], field) for row in candidates
                     if row["kind"] in {"formula", "business_steps", "inputs"}
                     for field in row["reads"]}
-    input_origins = {(path, field) for row in candidates if row["kind"] == "inputs"
+    parameter_origins = {(row["relative_path"], field) for row in candidates if row.get("parameter_origin")
+                         and _visible_ids(row, pages, page_cache=scope_cache["visible_pages"])
+                         for field in row.get("input_fields", [])}
+    input_origins = {(path, field) for row in candidates if row["kind"] == "inputs" and not row.get("parameter_origin")
                      for path in [row["relative_path"], *row.get("input_owner_paths", [])]
                      for field in [*(field for field in row["writes"] if field not in row["reads"]),
-                                   *row.get("input_fields", [])]}
+                                   *row.get("input_fields", [])]} | parameter_origins
     flow_origins, invalidated_origins, origin_witnesses = _flow_input_origins(candidates, pages, evidence_groups)
     from field_origin import supplied_file_read_origins
     file_origins, file_witnesses = supplied_file_read_origins(candidates, pages)
@@ -1904,10 +2014,11 @@ def build_question_investigation(question, business_map, *, database_path=None,
     flow_origins |= file_origins
     input_origins = (input_origins - invalidated_origins) | flow_origins
     # The field-name graph is an overapproximation without occurrence order.
-    # Replace only its cycle warning for reads whose stronger source-flow
-    # witnesses are closed for every supplied version/context/occurrence.
+    # A supplied entry parameter is also a seed for this field-level graph:
+    # decrementing it via a temporary does not invent a circular input origin.
+    # Stronger unresolved occurrence/return proofs still take precedence.
     frontier = [gap for gap in frontier if not (gap.get("reason") == "input_dependency_cycle"
-        and (gap.get("relative_path"), gap.get("field")) in flow_origins
+        and (gap.get("relative_path"), gap.get("field")) in flow_origins | parameter_origins
         and (gap.get("relative_path"), gap.get("field")) not in invalidated_origins)]
     if origin_witnesses:
         item = next(item for item in items if item["kind"] == "inputs")
@@ -1946,6 +2057,15 @@ def build_question_investigation(question, business_map, *, database_path=None,
         missing = EvidencePlanner().organize(plan, missing)
     grouped_missing = []
     for row in missing:
+        if row.get("origin_requirements"):
+            # Inspect the missing declaration itself; repeatedly reading an
+            # already supplied USING line cannot supply a distant group layout.
+            absent = [requirement for requirement in row["origin_requirements"]
+                      if not _visible_ids(requirement, pages, page_cache=scope_cache["visible_pages"])]
+            if absent:
+                grouped_missing.extend({**requirement, "input_fields": row["input_fields"]}
+                                       for requirement in absent)
+                continue
         if (row["kind"] == "declarations" and grouped_missing and grouped_missing[-1]["kind"] == "declarations"
                 and row["relative_path"] == grouped_missing[-1]["relative_path"]
                 and row["start_line"] <= grouped_missing[-1]["end_line"] + 1):
@@ -1987,6 +2107,25 @@ def build_question_investigation(question, business_map, *, database_path=None,
                                 else row["kind"] + "_source_not_supplied"})
         if len(plans) >= max(0, min(int(max_actions), 4)):
             break
+    # A supplied file can still lack a semantic inspection for one reader.
+    # Ask for that occurrence instead of declaring the whole input absent or
+    # rereading a declaration that is already present. Actual unknown effects
+    # are retained; they are not cured by inspecting the same source again.
+    for witness in origin_witnesses:
+        if witness.get("unknown_reasons"):
+            continue
+        for reader in witness.get("missing_reader_occurrences", ()):
+            key = reader["relative_path"], reader["start_line"]
+            if len(plans) >= max(0, min(int(max_actions), 4)):
+                break
+            if key in planned or ("inspect_business_context", *key) in seen:
+                continue
+            planned.add(key)
+            plans.append({"tool": "inspect_business_context", "arguments": {
+                "relative_path": key[0], "line": key[1], "fields": [reader["field"]]},
+                "read_fallback": {"relative_path": key[0], "start_line": max(1, key[1] - 4),
+                                  "end_line": max(key[1] + 8, reader["end_line"])},
+                "reason": "input_origin_occurrence_not_inspected"})
     if unknown_inputs and database_path is not None and len(plans) < min(max_actions, 4):
         from business_index import _clean
         from structural_index import DATA_ITEM_RE

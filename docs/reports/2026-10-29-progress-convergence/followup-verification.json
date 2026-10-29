@@ -1,0 +1,26 @@
+{
+  "scope": "full_regression_followup",
+  "tests_passed": 95,
+  "seconds": 16.653,
+  "log": "full-suite-followup-tests.txt",
+  "initial_full_regression": {
+    "tests_run": 4236,
+    "failed": 5,
+    "error_events": 2,
+    "skipped": 0,
+    "seconds": 252.795372,
+    "archive": "initial-full-regression-failures.json"
+  },
+  "application_production_source_changed": false,
+  "acceptance_watchdog_source_changed": true,
+  "diff_check": "passed",
+  "full_regression_retry": "pending_in_integration_chat",
+  "sha256": {
+    "poc/tests/test_bounded_answer_quality.py": "ec371c4304c306a6f25cb01de391f07ce487f8191701040ecae4bfc48f346250",
+    "poc/tests/test_business_chat.py": "4a9f56baa2aea387ce711df871c1d78e041d3bb29c4a9fdf565ad2d227b2ebcb",
+    "poc/tests/test_business_chat_response_recovery.py": "9be92b79e1f8f900fc056f532e85be9e2aaab29979d03e4d8f5b27d19f53c8a2",
+    "poc/tests/test_business_detail_regressions.py": "4a8e3b468678051427441acc5fe789309538f88100d1208203d3e8dfcc1388a1",
+    "poc/tests/test_desktop_live_acceptance.py": "0320f0dd97a2c015dc83914d506b130da892048b9a9924dc4ba9a34b734f5b39",
+    "tools/desktop_live_acceptance.py": "d0f0afe32f2efb8d6d8ee6de272c78420c8b4d29d40b2bfe711c23fa3537f045"
+  }
+}

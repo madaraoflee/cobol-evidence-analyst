@@ -5,9 +5,9 @@ Changing these values is a deployment choice, never an automatic response to a
 difficult question.
 
 Investigation mode and source memory are independent of resource limits.
-Each interactive batch allows six investigation rounds and reserves requests
-for answer delivery. Explicit deployment overrides and deadlines remain binding,
-and repeated unproductive work still stops before the allowance is consumed.
+Interactive investigations follow newly supplied source and resolved obligations.
+Explicit deployment overrides and deadlines remain binding. Repeated work and
+answer continuations have separate progress and output boundaries.
 """
 
 from collections.abc import Mapping
@@ -16,8 +16,8 @@ from dataclasses import asdict, dataclass, fields
 
 @dataclass(frozen=True)
 class AgentPolicy:
-    # Six investigation rounds plus answer delivery and one output continuation.
-    max_model_requests: int | None = 8
+    # A useful source read may require another round; count limits are opt-in.
+    max_model_requests: int | None = None
     max_question_seconds: int | None = None
     max_source_characters: int = 36000
     max_complete_source_characters: int = 128000
@@ -51,7 +51,7 @@ class AgentPolicy:
     delivery_target_seconds: int | None = None
     investigation_mode: str = "adaptive"
     source_memory_enabled: bool = True
-    max_investigation_rounds: int | None = 6
+    max_investigation_rounds: int | None = None
     max_no_evidence_revisions: int = 2
     finalization_reserve_seconds: int = 45
 
@@ -104,7 +104,7 @@ class AgentPolicy:
             raise ValueError("Agent policy investigation_mode must be adaptive or single_pass.")
         if type(self.source_memory_enabled) is not bool:
             raise ValueError("Agent policy source_memory_enabled must be a boolean.")
-        # Explicit null count limits leave source-bound progress in control.
+        # Missing/null count limits leave source-bound progress in control.
         # Explicit legacy targets retain their existing hard-deadline meaning.
         deadlines = [value for value in (self.max_question_seconds, self.hard_question_seconds)
                      if value is not None]

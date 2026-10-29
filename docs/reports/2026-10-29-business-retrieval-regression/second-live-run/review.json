@@ -1,0 +1,96 @@
+{
+  "schema_version": "independent-business-answer-review/v1",
+  "review_type": "AI maintainer review against saved gold, source and actual requests; not formal human or target-device acceptance",
+  "reviewer": "business_prompt_regression",
+  "external_calls_by_reviewer": 0,
+  "source_snapshots_unchanged": true,
+  "fixture_hashes_match_gold": true,
+  "cases": [
+    {
+      "case_id": "collection-business",
+      "provider_result": "ANALYZED / sufficient_material",
+      "business_answer_acceptance": "pass for the asked ready-input scenario",
+      "required_findings": {
+        "purpose": "pass",
+        "entry-status": "partial: ready prerequisite and initial amount supplied; NOTFOUND/OTHER outcomes not expanded",
+        "order": "pass",
+        "balance-condition": "pass",
+        "refund-condition": "pass",
+        "reward-condition": "pass",
+        "calculation": "pass: 100->80->70->65",
+        "skip-and-cap": "pass: skipped balance85/refund75/reward70; full offset0"
+      },
+      "strict_gold_all_required_pass": false,
+      "scope_note": "The gold also asks for NOTFOUND/OTHER branches although this question assumes input readiness; their omission is not a missing answer to the specific asked scenario. Recorded rather than silently changing gold.",
+      "forbidden_claims": {
+        "false-source-gap": false,
+        "technical-only": false,
+        "invented-runtime": false,
+        "unconditional-offset": false
+      },
+      "invented_currency_unit": false,
+      "unsupported_runtime_claim": false,
+      "business_focus": "Business result first; technical identifiers support calculations, no framework-only answer.",
+      "format_issues": []
+    },
+    {
+      "case_id": "collection-custom-format",
+      "provider_result": "ABSTAINED / TRANSPORT_ERROR during provider_request",
+      "business_answer_acceptance": "not evaluated; connection failure is not a pass",
+      "required_findings": "not assessed: no final model answer",
+      "custom_system_request_checks": [
+        {
+          "request_file": "request-03.json",
+          "system_exact_occurrences": 1
+        },
+        {
+          "request_file": "request-04.json",
+          "system_exact_occurrences": 1
+        }
+      ],
+      "custom_output_format": "not assessed",
+      "retry_required": true
+    },
+    {
+      "case_id": "collection-framework-control",
+      "provider_result": "ANALYZED / sufficient_material",
+      "business_answer_acceptance": "business facts pass; presentation and automatic revision defects require follow-up",
+      "required_findings": {
+        "ready": "pass:65/CALCULATED and100->80->70->65",
+        "notfound": "pass:100/REVIEW, no offset call",
+        "error": "pass:100/RETRY, OTHER branch; not all runtime exceptions",
+        "eligibility": "pass:READY alone does not guarantee any offset",
+        "scope": "pass:calculation only, no actual payment/ledger outcome"
+      },
+      "strict_gold_all_required_pass": true,
+      "forbidden_claims": {
+        "framework-suppressed": false,
+        "wrong-notready-result": false,
+        "ready-unconditional": false
+      },
+      "invented_currency_unit": false,
+      "unsupported_runtime_claim": false,
+      "precision_note": "Two-decimal display is consistent with source PIC 9(7)V99; no currency unit added.",
+      "followup_findings": [
+        {
+          "id": "false-literal-contradiction-rewrite",
+          "severity": "quality defect",
+          "evidence": "quality-traces/f557e052b1451f665d3bbd8a.json draft claim-3",
+          "detail": "Correct prose CALCULATED shown in Markdown code/bold was parsed as an identifier token rather than a string literal; compared to source literal and marked SOURCE_STATEMENT_MISMATCH. Automatic replacement expanded to four assignments and removed the same-sentence business65 summary from the opening. Business result survives later in table, but technical emphasis is introduced by postprocessing."
+        },
+        {
+          "id": "broken-continuation-fragment",
+          "severity": "presentation defect",
+          "evidence": "draft claim-11 and final answer",
+          "detail": "Final text contains 随后按 `READ`READ-STATUS` 会进入三个互斥分支. The fragment already exists in draft before claim revision; inspect continuation/output assembly separately."
+        },
+        {
+          "id": "review-action-overstatement",
+          "severity": "minor wording precision",
+          "detail": "Table says 转人工复核; source only sets REVIEW and contract says caller should arrange business review. Prefer 待业务核对 without implying implemented manual routing."
+        }
+      ]
+    }
+  ],
+  "overall": "Two real answers produced and reviewed; no invented currency. Custom connection failure remains unassessed. Do not report all three cases passing; framework answer has source-claim rewrite and continuation presentation defects."
+}

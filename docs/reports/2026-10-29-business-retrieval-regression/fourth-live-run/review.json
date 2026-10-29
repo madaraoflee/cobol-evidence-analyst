@@ -1,0 +1,115 @@
+{
+  "schema_version": "independent-business-answer-review/v1",
+  "review_type": "AI maintainer review of complete real model answers against source and gold; not formal human or target-device acceptance",
+  "reviewer": "business_prompt_regression",
+  "external_calls_by_reviewer": 0,
+  "source_snapshots_unchanged": true,
+  "fixture_hashes_match_gold": true,
+  "configuration_consistency": {
+    "configuration_fingerprint": "56dbaaf74095c19a23d76a0681b3d5bb317ab994eac13d3a3d4d13974dfdb24d",
+    "model_fingerprint": "7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+    "same_across_current_cases": true
+  },
+  "cases": [
+    {
+      "case_id": "collection-business",
+      "provider_result": "ANALYZED / sufficient_material",
+      "business_answer_acceptance": "pass",
+      "required_findings": {
+        "purpose": "pass: calculation only, no actual cash/account debit/ledger save",
+        "entry-status": "pass: ready gate; NOTFOUND->REVIEW, OTHER->RETRY with amount100 and no offset call also explicitly covered",
+        "order": "pass:balance->refund->reward, fixed program order",
+        "balance-condition": "pass:Y,positive available,positive remaining,min cap",
+        "refund-condition": "pass:Y,positive available,positive remaining,min cap",
+        "reward-condition": "pass:Y,positive available,positive remaining,min cap",
+        "calculation": "pass:100->80->70->65",
+        "skip-and-cap": "pass:unavailable/zero skip only that item, later items continue eligibility checks, full offset0 prevents later deductions"
+      },
+      "strict_gold_all_required_pass": true,
+      "scope_note": "Unlike earlier iterations, this actual answer also explains the non-READY side conditions. Its opening and main sections still answer the ready-input question; extra framework detail is not required to satisfy that question.",
+      "forbidden_claims": {
+        "false-source-gap": false,
+        "technical-only": false,
+        "invented-runtime": false,
+        "unconditional-offset": false
+      },
+      "invented_currency_unit": false,
+      "business_focus": "Pass: clear business outcome first, eligibility and remaining amounts dominate. Raw conditions and PERFORM names appear only as supporting detail; there is some repetition.",
+      "protocol_recovery": {
+        "first_round_error": "INVALID_INVESTIGATION_ACTION",
+        "actual_followup_request_contains_invalid_markup_correction": true,
+        "second_round_parsed_actions": [
+          "search",
+          "read"
+        ],
+        "second_round_completed_tools": [
+          "business_context",
+          "read",
+          "search"
+        ],
+        "final_round_business_answer_delivered": true,
+        "final_answer_contains_tool_markup": false,
+        "model_requests": 3,
+        "assessment": "Observed actual correction loop: invalid action rejected, corrective request sent, valid search/read executed, final business answer generated. Not merely a relabelled PARTIAL."
+      },
+      "regression_pass": true
+    },
+    {
+      "case_id": "collection-custom-format",
+      "provider_result": "ABSTAINED / TRANSPORT_ERROR",
+      "business_answer_acceptance": "not passed: second provider request failed TLS handshake; no final business answer",
+      "required_findings": "not assessable",
+      "strict_gold_all_required_pass": false,
+      "custom_system_request_checks": [
+        {
+          "request_file": "request-04.json",
+          "exact_custom_instruction_occurrences_in_system": 1
+        },
+        {
+          "request_file": "request-05.json",
+          "exact_custom_instruction_occurrences_in_system": 1
+        }
+      ],
+      "expected_answer_instructions_sha256": "3f87b0c8f90f767c91fe7c78004decb389be152b3f8319d8d3b5f480b0dfc4ac",
+      "recorded_answer_instructions_sha256": "3f87b0c8f90f767c91fe7c78004decb389be152b3f8319d8d3b5f480b0dfc4ac",
+      "custom_format_assessment": "not assessed; transport diagnostic is not a model answer or a format pass",
+      "first_round_completed_tools": [
+        "business_context",
+        "read",
+        "search"
+      ],
+      "model_requests": 2,
+      "retry_required": true,
+      "regression_pass": false
+    },
+    {
+      "case_id": "collection-framework-control",
+      "provider_result": "ANALYZED / sufficient_material",
+      "business_answer_acceptance": "pass",
+      "required_findings": {
+        "ready": "pass:100->80->70->65,CALCULATED after normal call return",
+        "notfound": "pass:no offset call,100,REVIEW",
+        "error": "pass:OTHER branch,no offset call,100,RETRY; not claimed as exception fallback",
+        "eligibility": "pass:READY alone insufficient,Y/positive amount/positive remaining required",
+        "scope": "pass:calculation only; no actual transfer/cash/ledger outcome"
+      },
+      "strict_gold_all_required_pass": true,
+      "forbidden_claims": {
+        "framework-suppressed": false,
+        "wrong-notready-result": false,
+        "ready-unconditional": false
+      },
+      "invented_currency_unit": false,
+      "unsupported_runtime_claim": false,
+      "business_focus": "Status and code identifiers are appropriate to the explicitly requested framework-to-business control-flow question. Outcomes, numerical sequence and caller/callee responsibilities are clear.",
+      "prior_defects": {
+        "literal_claim_rewrite_recurred": false,
+        "malformed_READ_continuation_recurred": false,
+        "false_source_gap": false,
+        "tool_markup_in_answer": false
+      },
+      "regression_pass": true
+    }
+  ],
+  "overall": "Two complete real answers pass content review. Custom-format case still fails delivery due to transport error and is not scored as a pass. Business run directly demonstrates protocol-error recovery followed by real search/read and a useful business answer."
+}

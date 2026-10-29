@@ -38,14 +38,44 @@ def _digest(value):
                                     separators=(",", ":")).encode()).hexdigest()
 
 
+def _material_entries(pages, references):
+    """Pair legacy excerpt keys with source-coordinate keys for migration."""
+    entries = []
+    for page in pages:
+        legacy = _digest(("source", page.get("relative_path"), page.get("source_sha256"),
+                          page.get("start_line"), page.get("end_line"), page.get("source_text"),
+                          page.get("include_chain", [])))
+        binding = {key: page.get(key) for key in
+                   ("relative_path", "source_sha256", "include_chain", "replacement_trace", "copy_instance")}
+        # Missing and empty expansion metadata describe the same root source.
+        for key in ("include_chain", "replacement_trace"):
+            binding[key] = binding[key] or []
+        start, end, text = page.get("start_line"), page.get("end_line"), page.get("source_text")
+        lines = text.split("\n") if isinstance(text, str) else []
+        if (type(start) is int and type(end) is int and start > 0
+                and end - start + 1 == len(lines)):
+            keys = {"source-line:" + _digest((binding, start + offset, line))
+                    for offset, line in enumerate(lines)}
+        else:
+            # Invalid or partial coordinates must not claim coverage of unseen
+            # lines. Retain the exact material identity until a valid read.
+            keys = {"source-excerpt:" + _digest((binding, start, end, text))}
+        entries.append((legacy, keys))
+    for item in references:
+        legacy = _digest(("framework", item.get("document_sha256"), item.get("reference_id"),
+                          item.get("text_offset_chars"), item.get("text")))
+        # Reference IDs are presentation handles; document location and text
+        # establish supplied information even when those handles are rebuilt.
+        value = (item.get("document_sha256"), item.get("document_name"), item.get("page"),
+                 item.get("start_line"), item.get("end_line"),
+                 item.get("text_offset_chars") or 0, item.get("text"))
+        entries.append((legacy, {"framework:" + _digest(value)}))
+    return entries
+
+
 def material_keys(pages, references=()):
-    """Changing a generated evidence ID alone does not add information."""
-    values = [("source", page.get("relative_path"), page.get("source_sha256"),
-               page.get("start_line"), page.get("end_line"), page.get("source_text"),
-               page.get("include_chain", [])) for page in pages]
-    values.extend(("framework", item.get("document_sha256"), item.get("reference_id"),
-                   item.get("text_offset_chars"), item.get("text")) for item in references)
-    return {_digest(value) for value in values}
+    """Count supplied source lines, independent of excerpt boundaries or IDs."""
+    return {key for _, keys in _material_entries(pages, references) for key in keys}
 
 
 def semantic_material_keys(pages, groups):
@@ -141,7 +171,14 @@ class AnalysisContinuation:
         self.total_revision_requests = int(saved.get("total_revision_requests", self.revision_requests))
 
     def observe(self, pages, references, investigation, *, semantic_groups=()):
-        material = material_keys(pages, references)
+        entries = _material_entries(pages, references)
+        material = {key for _, keys in entries for key in keys}
+        # Older checkpoints stored excerpt hashes, which cannot reconstruct
+        # unseen historical text. A matching supplied excerpt can safely seed
+        # its line coverage without inventing a new productive tool round.
+        for legacy, keys in entries:
+            if legacy in self.known_material:
+                self.known_material.update(keys)
         semantic = semantic_material_keys(pages, semantic_groups)
         # Evidence identities and their order may change while the underlying
         # supplied source remains identical. Material changes are tracked above;

@@ -1,0 +1,53 @@
+{
+  "base_commit": "466a264683da2a5509b38b3bd6a975b955ad7c13",
+  "scope": "Real SQLite index, original source page hashes and lines, and captured model request bodies; no model-quality claim.",
+  "external_model_calls": 0,
+  "reproduced_failures": [
+    {
+      "name": "long_question_drops_expansion",
+      "before": "Supplemental source identifier omitted after 128 original-query tokens; discovery reports zero hits and crop shows file header.",
+      "after": "Supplemental source identifier survives and source condition/formula are physically supplied."
+    },
+    {
+      "name": "long_chinese_query_drops_short_source_term",
+      "before": "Four- and three-character n-grams consume query budget before the two-character source term at the end of the question.",
+      "after": "Balanced query terms locate and supply the short term and original calculation."
+    },
+    {
+      "name": "actual_request_empty_after_successful_search",
+      "before": "Captured second request has empty source_context despite imported source matching the supplemental term.",
+      "after": "Captured second request carries the exact original condition and formula with verified source hash and lines."
+    },
+    {
+      "name": "new_hit_cropped_using_original_question",
+      "before": "A dense generic comment containing old question terms wins crop selection over the new source hit.",
+      "after": "Refined hits are cropped using the new search terms, preserving the target paragraph."
+    }
+  ],
+  "direct_regression_tests": {
+    "passed": 4,
+    "failed": 0
+  },
+  "related_regression_tests": {
+    "passed": 184,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_seconds": 11.013
+  },
+  "unchanged_limits": {
+    "query_terms": 128,
+    "bounded_test_source_characters": 512
+  },
+  "new_validation_gate": false,
+  "index_rebuild_required": false,
+  "logs": {
+    "three_initial_failures": "/tmp/retrieval-query-budget-before.log",
+    "crop_failure": "/tmp/retrieval-query-crop-before.log",
+    "four_fixed": "/tmp/retrieval-query-budget-after.log",
+    "related_regressions": "/tmp/retrieval-query-budget-regressions.log"
+  },
+  "files": {
+    "poc/repository_discovery.py": "559a958b73c8cdad3e30e98a3fba1188411e3ae614373837478de3848014846f",
+    "poc/tests/test_retrieval_query_budget.py": "d8fc6f817fbc3bfd770b545937ec48f2824597a550282e0488085c0f20b792dc"
+  }
+}

@@ -168,7 +168,7 @@ class ValueDefinitionTests(unittest.TestCase):
     def test_uninitialized_linkage_arrays_aliases_and_unsupported_values_do_not_close(self):
         variants = [
             ("WORKING-STORAGE", "01 INPUT-AMOUNT PIC 9(5).", "INPUT-AMOUNT", ""),
-            ("LINKAGE", "01 INPUT-AMOUNT PIC 9(5) VALUE 25.", "INPUT-AMOUNT", "INPUT-AMOUNT OUT-AMOUNT"),
+            ("LINKAGE", "01 INPUT-AMOUNT PIC 9(5) VALUE 25.", "INPUT-AMOUNT", "OUT-AMOUNT"),
             ("WORKING-STORAGE", "01 BASE-AMOUNT PIC 9(5) VALUE 25.\n"
              "01 INPUT-AMOUNT REDEFINES BASE-AMOUNT PIC 9(5) VALUE 25.", "INPUT-AMOUNT", ""),
             ("WORKING-STORAGE", "01 INPUT-AMOUNT PIC 9(5) OCCURS 3 TIMES VALUE 25.", "INPUT-AMOUNT(1)", ""),
@@ -185,6 +185,25 @@ class ValueDefinitionTests(unittest.TestCase):
                 proof = self.origin(self.build(), "MOVE " + reference + " TO OUT-AMOUNT", reference)
                 self.assertEqual(proof["status"], "unresolved_source_origin")
                 self.assertTrue(proof["unknown_reasons"])
+
+    def test_explicit_linkage_parameter_locates_source_but_value_clause_does_not_set_runtime_value(self):
+        self.write("01 INPUT-AMOUNT PIC 9(5) VALUE 25.\n01 OUT-AMOUNT PIC 9(5).",
+                   "MOVE INPUT-AMOUNT TO OUT-AMOUNT.\nGOBACK.", section="LINKAGE",
+                   using="INPUT-AMOUNT OUT-AMOUNT")
+        service = self.build()
+        proof = self.origin(service, "MOVE INPUT-AMOUNT TO OUT-AMOUNT", "INPUT-AMOUNT")
+        self.assertEqual(proof["status"], "resolved_source_origin")
+        self.assertFalse(proof["execution_verified"])
+        self.assertEqual(len(proof["initial_definitions"]), 1)
+        parameter = proof["initial_definitions"][0]
+        self.assertEqual(parameter["status"], "declared_parameter_source")
+        self.assertIsNone(parameter["value"])
+        self.assertFalse(parameter["runtime_value_known"])
+        self.assertIn("caller_supplied_at_program_entry", parameter["activation_semantics"])
+        initialization = service.facts.initial_source_definition("main.cbl", "INPUT-AMOUNT")
+        self.assertEqual(initialization["status"], "initialization_not_established")
+        self.assertEqual(initialization["unknown_reason"], "value_clause_not_program_storage_initialization")
+        self.assertFalse(initialization["runtime_value_known"])
 
     def test_explicit_later_overwrite_replaces_the_initial_definition(self):
         self.write("01 INPUT-AMOUNT PIC 9(5) VALUE 25.\n01 OUT-AMOUNT PIC 9(5).",

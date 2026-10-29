@@ -497,6 +497,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
                 self.assertNotIn(self.provider_echo, json.dumps(result, ensure_ascii=False))
 
     def test_long_continuation_prompt_keeps_tail_within_request_budget(self):
+        from dataclasses import replace
         self.requests.clear()
         original = "原始开头必须保留。" + "中间业务规则说明。" * 5000 + "最后的条件尚未写完："
         appended = "条件满足时计算金额，否则结果归零。"
@@ -516,7 +517,8 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
             return completion(appended)
 
         result = run_business_chat("FINAL-AMOUNT 怎么计算？", self.database, self.source,
-            self.config, transport=transport, framework_reference_path="", policy=policy)["agent_result"]
+            replace(self.config, max_output_tokens=8192), transport=transport,
+            framework_reference_path="", policy=policy)["agent_result"]
         self.assertEqual(len(self.requests), 2)
         self.assertTrue(all(size <= policy.max_request_bytes for size in sizes))
         self.assertEqual(result["answer"], original + "\n\n" + appended)

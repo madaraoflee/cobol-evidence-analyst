@@ -1,0 +1,91 @@
+{
+  "schema_version": "independent-business-answer-review/v1",
+  "review_type": "AI maintainer review against full saved answers, fixture gold, source and actual requests; not formal human or target-device acceptance",
+  "reviewer": "business_prompt_regression",
+  "external_calls_by_reviewer": 0,
+  "source_snapshots_unchanged": true,
+  "fixture_hashes_match_gold": true,
+  "configuration_consistency": {
+    "configuration_fingerprint": "56dbaaf74095c19a23d76a0681b3d5bb317ab994eac13d3a3d4d13974dfdb24d",
+    "model_fingerprint": "7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+    "same_within_current_run": true,
+    "same_across_all_three_runs": true,
+    "scope": "Saved effective configuration fingerprints only; no provider identity, address or credentials are disclosed."
+  },
+  "cases": [
+    {
+      "case_id": "collection-business",
+      "provider_result": "PARTIAL / question_evidence_incomplete",
+      "business_answer_acceptance": "fail: raw tool-protocol markup shown as final answer",
+      "required_findings": {
+        "purpose": "fail: no business answer supplied",
+        "entry-status": "fail: no business answer supplied",
+        "order": "fail: no business answer supplied",
+        "balance-condition": "fail: no business answer supplied",
+        "refund-condition": "fail: no business answer supplied",
+        "reward-condition": "fail: no business answer supplied",
+        "calculation": "fail: no business answer supplied",
+        "skip-and-cap": "fail: no business answer supplied"
+      },
+      "strict_gold_all_required_pass": false,
+      "actual_answer_form": "A DSML calls/invoke search block containing query strings; no human-readable business outcome.",
+      "answer_available_flag": true,
+      "answer_available_flag_assessment": "Incorrect as a business-answer availability signal; tool protocol is not an answer.",
+      "investigation_state": "unresolved / business_steps_not_located",
+      "source_insufficiency_assessment": "This run did not complete investigation; raw tool intent was not turned into the requested search and final business answer. It does not demonstrate that the two source files lack the rules.",
+      "regression_pass": false
+    },
+    {
+      "case_id": "collection-custom-format",
+      "provider_result": "ABSTAINED / MODEL_TEXT_EMPTY",
+      "business_answer_acceptance": "fail to deliver; no model business answer",
+      "required_findings": "not assessable because model text was empty",
+      "strict_gold_all_required_pass": false,
+      "custom_system_request_checks": [
+        {
+          "request_file": "request-02.json",
+          "exact_custom_instruction_occurrences_in_system": 1
+        }
+      ],
+      "expected_answer_instructions_sha256": "3f87b0c8f90f767c91fe7c78004decb389be152b3f8319d8d3b5f480b0dfc4ac",
+      "recorded_answer_instructions_sha256": "3f87b0c8f90f767c91fe7c78004decb389be152b3f8319d8d3b5f480b0dfc4ac",
+      "custom_instruction_hash_matches": true,
+      "custom_format_assessment": "not assessable; empty model text is not a format pass",
+      "prompt_injection_assessment": "The exact user customization was present once in the actual system message. Failure is not evidence of omitted system prompt.",
+      "regression_pass": false
+    },
+    {
+      "case_id": "collection-framework-control",
+      "provider_result": "ANALYZED / sufficient_material",
+      "business_answer_acceptance": "pass with a minor wording note",
+      "required_findings": {
+        "ready": "pass: calls worker, order balance/refund/reward,100->80->70->65,CALCULATED",
+        "notfound": "pass:no worker call,100,REVIEW",
+        "error": "pass:OTHER branch,no worker call,100,RETRY; normal-call prerequisite and exception boundary stated",
+        "eligibility": "pass:READY opens evaluation; per-item Y,positive amount,positive remaining required",
+        "scope": "pass:calculation only,no cash/ledger/actual account debit"
+      },
+      "strict_gold_all_required_pass": true,
+      "forbidden_claims": {
+        "framework-suppressed": false,
+        "wrong-notready-result": false,
+        "ready-unconditional": false
+      },
+      "invented_currency_unit": false,
+      "unsupported_runtime_claim": false,
+      "business_focus": "Necessary status identifiers are appropriate because this question explicitly asks for framework-state effects; concrete business amounts and branch outcomes are explained.",
+      "claim_rewrite_count": 0,
+      "previous_claim_literal_corruption_recurred": false,
+      "previous_broken_READ_continuation_recurred": false,
+      "source_gap_present": false,
+      "minor_wording_notes": [
+        {
+          "text": "NOTFOUND 和 RETRY 都不会修改它",
+          "detail": "Mixes an input state name with an output result name. The surrounding table and later explanation correctly distinguish them. Prefer NOTFOUND/ERROR input branches, or REVIEW/RETRY outcomes consistently."
+        }
+      ],
+      "regression_pass": true
+    }
+  ],
+  "overall": "One case passes actual business review. Two cases fail delivery (raw tool protocol and empty model text). All saved effective configuration fingerprints match across the three runs; custom system instructions were demonstrably injected. Do not claim three-case success."
+}

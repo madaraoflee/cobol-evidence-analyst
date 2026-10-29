@@ -1,0 +1,367 @@
+{
+  "status": "failed",
+  "tests_run": 4274,
+  "elapsed_seconds": 226.337231,
+  "failures": 9,
+  "errors": 62,
+  "skipped": 0,
+  "report_sha256": "658cb4641f11f25ada895b4f98b23662070db02836cd21056d990eba487d3d84",
+  "cause": "This runner invocation omitted permission to bind local loopback sockets; rerun the same frozen source with local test-server permission. No product changes or skips applied.",
+  "events": [
+    {
+      "id": "test_business_first_delivery.BusinessFirstDeliveryTests.test_business_onboarding_rehearses_actual_desktop_http_for_batch_and_query",
+      "type": "failures",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_desktop_acceptance_framework.FrameworkNativeAcceptanceTests.test_source_http_exercises_actual_reads_framework_facts_and_final_answer",
+      "type": "failures",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_desktop_acceptance_runtime.DesktopAcceptanceRuntimeTests.test_soft_target_scenario_runs_actual_source_with_finite_deadline",
+      "type": "failures",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_desktop_acceptance_scenarios.UnknownRequestAcceptanceTests.test_cancelled_request_restart_and_history_do_not_resend_but_explicit_retry_does",
+      "type": "failures",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_desktop_acceptance_scenarios.UnknownRequestAcceptanceTests.test_deadline_request_restart_and_history_do_not_resend_but_explicit_retry_does",
+      "type": "failures",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_desktop_acceptance_semantic_review.SemanticReviewNativeAcceptanceTests.test_source_http_reviews_once_preserves_complete_answer_and_closes_both_requests",
+      "type": "failures",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_desktop_upgrade.DesktopUpgradeTests.test_new_application_folder_preserves_profile_source_index_and_history",
+      "type": "failures",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_desktop_upgrade.DesktopUpgradeTests.test_upgrade_with_missing_index_retains_history_without_reimport",
+      "type": "failures",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_desktop_upgrade.DesktopUpgradeTests.test_upgrade_with_unavailable_source_retains_existing_history",
+      "type": "failures",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_desktop_acceptance_runtime.DesktopAcceptanceRuntimeTests.test_loopback_provider_requires_real_tls_and_preserves_actual_request",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_desktop_app.BrowserCompatibilityTests.test_browser_exit_stops_service_and_installs_native_folder_picker",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_desktop_app.DesktopRuntimeTests.test_headless_self_test_serves_assets_without_model_or_analysis_calls",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_desktop_app.DesktopRuntimeTests.test_server_binds_only_loopback_and_stops_idempotently",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_investigation_continuity_check.InvestigationContinuityCheckTests.test_loopback_provider_emits_real_length_boundary_and_records_request",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_bad_pagination_or_missing_entries_cannot_publish_partial_snapshot",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_bad_raw_length_symlinks_and_metadata_revision_are_rejected",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_cancellation_removes_new_snapshot_and_preserves_old",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_commit_changed_outside_scope_copies_cache_with_zero_source_download",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_cross_scope_renames_fetch_only_new_in_scope_file",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_different_repository_or_manifest_version_never_reuses_cached_bytes",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_explicit_empty_next_without_size_does_not_publish_a_partial_change_set",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_failures_and_rate_limit_never_fall_back_to_zip_or_change_old_snapshot",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_incremental_credentials_never_enter_manifest_metadata_or_progress",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_legacy_hashes_from_another_source_are_never_used",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_legacy_snapshot_migrates_using_original_index_hashes_without_unchanged_download",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_local_modified_cached_file_is_repaired_in_new_snapshot_only",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_local_symlink_cache_does_not_read_or_copy_outside_source",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_next_page_is_opaque_and_may_omit_defaults_or_use_a_cursor",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_portable_path_and_case_conflicts_are_rejected_without_old_changes",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_real_http_paged_changes_only_download_changed_files_and_keep_old_bytes",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_same_commit_uses_verified_local_files_without_any_request",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_source_limits_and_duplicate_changes_are_not_silently_truncated",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_remote_incremental.RemoteIncrementalTests.test_twelve_thousand_file_snapshot_fetches_one_changed_file_not_the_archive",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_source_history.SourceHistoryTests.test_source_aware_routes_require_authenticated_same_origin_requests",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_answer_instructions.WebAnswerInstructionsTests.test_failed_save_preserves_previous_active_and_persisted_requirements",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_answer_instructions.WebAnswerInstructionsTests.test_old_settings_and_unrestricted_writing_formats_work",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_answer_instructions.WebAnswerInstructionsTests.test_route_uses_existing_session_guard_and_only_checks_input_type",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_answer_instructions.WebAnswerInstructionsTests.test_save_before_import_preserves_original_text_and_survives_restart",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_answer_instructions.WebAnswerInstructionsTests.test_saved_requirements_reach_model_and_edit_during_request_applies_next_time",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_api_diagnostics.WebAPIDiagnosticsTests.test_delete_conversation_requires_session_and_preserves_other_conversations",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_actual_source_builds_catalog_graph_and_verifiable_evidence_without_network",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_conversation_and_framework_routes_use_local_state_and_session_guard",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_cross_site_host_and_session_checks_apply_before_work",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_custom_extensions_and_empty_optional_fields_are_supported",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_failed_refresh_retains_old_workspace_without_authorizing_failed_new_scope",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_folder_picker_returns_selected_directory_without_importing_it",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_framework_case_requests_reject_unknown_case_and_custom_paths",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_framework_cases_read_actual_sources_and_prepare_offline",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_invalid_new_source_submission_preserves_previous_browser_authority",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_mock_model_is_called_only_with_explicit_network_permission",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_model_check_calls_chat_once_without_source_and_returns_only_safe_status",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_model_check_distinguishes_auth_timeout_and_empty_reply",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_native_folder_picker_falls_back_to_macos_system_dialog_without_shell_interpolation",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_native_folder_picker_runs_a_bounded_child_process",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_question_locale_reaches_analyzer_without_changing_question",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_refresh_preserves_old_project_until_commit_while_only_one_job_runs",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_rejected_body_discard_has_an_absolute_deadline_and_skips_invalid_framing",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_rejected_post_delivers_403_before_discarding_a_late_body_without_model_work",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_rejected_post_without_a_body_does_not_wait_for_the_client_to_close",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_state_has_only_safe_configuration_metadata_and_static_routes_are_bounded",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_unexpected_adapter_error_is_redacted_and_keeps_no_answer",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_app.WebAppTests.test_unsafe_output_paths_and_browser_credentials_are_rejected",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_incremental_sync.WebIncrementalSyncTests.test_ordinary_restart_and_open_do_not_scan_all_cached_bytes_or_use_network",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_incremental_sync.WebIncrementalSyncTests.test_same_commit_intact_source_needs_only_revision_metadata_no_download",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_incremental_sync.WebIncrementalSyncTests.test_same_commit_missing_source_is_repaired_in_a_new_snapshot",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_incremental_sync.WebIncrementalSyncTests.test_same_commit_same_size_same_mtime_modified_source_is_repaired",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_remote_source.RemoteSourceIntegrationTests.test_remote_endpoint_requires_session_and_same_origin_before_downloading",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_safe_api_errors.WebSafeAPIErrorTests.test_failed_question_preserves_established_project_index_and_answer",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_safe_api_errors.WebSafeAPIErrorTests.test_model_check_returns_classified_safe_error_and_ids_without_provider_text",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_safe_api_errors.WebSafeAPIErrorTests.test_synchronous_http_500_provides_local_safe_diagnostic_without_exception_text",
+      "type": "errors",
+      "loopback_permission_failure": true
+    },
+    {
+      "id": "test_web_safe_api_errors.WebSafeAPIErrorTests.test_worker_failure_retains_safe_metadata_and_keeps_original_project_answer",
+      "type": "errors",
+      "loopback_permission_failure": true
+    }
+  ]
+}

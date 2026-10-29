@@ -31,6 +31,7 @@ from repository_discovery import ensure_repository_search
 from runtime_settings import load_agent_policy
 from model_profiles import WORKBENCH_MAX_OUTPUT_TOKENS, model_config
 from business_chat import _SYSTEM
+from answer_markdown import with_answer_instructions
 from source_reading import _safe_file
 
 
@@ -363,9 +364,10 @@ def _validate_frozen_sources(source, artifact, framework_path):
             raise ValueError("CAPTURE_FRAMEWORK_RANGE_MISMATCH")
 
 
-def synthesis_messages(question, history, context):
+def synthesis_messages(question, history, context, *, answer_instructions=""):
     """Only evidence differs between paired branches."""
-    return [{"role": "system", "content": _SYSTEM + "\n本次只作最终合成，不请求工具。"},
+    return [{"role": "system", "content": with_answer_instructions(
+                _SYSTEM + "\n本次只作最终合成，不请求工具。", answer_instructions)},
             *[{"role": row["role"], "content": row["content"]} for row in history],
             {"role": "user", "content": json.dumps({"question": question,
                 "source_evidence": context["sources"],
@@ -540,7 +542,8 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
                         branches.insert(0, ("automatic_context", frozen["context"]))
                     for branch_name, context in branches:
                         branch_started = time.monotonic()
-                        messages = synthesis_messages(turn["question"], history, context)
+                        messages = synthesis_messages(turn["question"], history, context,
+                            answer_instructions=turn.get("answer_instructions", item.get("answer_instructions", "")))
                         request = json.dumps({"model": config.chat_model, "messages": messages,
                             "max_tokens": config.max_output_tokens, **config.generation_parameters()}, ensure_ascii=False,
                             separators=(",", ":")).encode()
@@ -600,6 +603,7 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
         frozen_history = _history_messages(history, policy)
         started = time.monotonic()
         output = run_business_chat(item["question"], database, source, config, history=history,
+                                   answer_instructions=item.get("answer_instructions", ""),
                                    framework_reference_path=_framework_path(framework), allow_network=True,
                                    policy=policy, transport=transport, capture_context=capture_context)
         elapsed = round(time.monotonic() - started, 3)
@@ -639,6 +643,10 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
         if final.get("final_answer_round_id"):
             final_rounds.add(final["final_answer_round_id"])
         actual_rounds = [row for row in trace.get("rounds", []) if row.get("round_id") in final_rounds]
+        actual_system_hashes = [row.get("system_prompt_sha256") for row in actual_rounds]
+        shared_system_hash = (actual_system_hashes[0] if actual_system_hashes
+            and actual_system_hashes[0] and all(value == actual_system_hashes[0]
+                for value in actual_system_hashes) else None)
         actual_context = {kind: [entry for row in actual_rounds for entry in row.get(kind, [])]
                           for kind in ("sources", "framework")}
         result["supplied_evidence"] = _evidence_metadata(actual_context)
@@ -647,7 +655,8 @@ def evaluate(source: Path, evaluation_dir: Path, cases_file: Path, *, allow_netw
             run_id=result["run_id"], case_id=item["id"], turn_id=item["turn_id"], branch="automatic",
             answer=result["answer"], model=config.chat_model,
             prompt={"version": trace.get("prompt_version", "unknown"),
-                    "system_sha256": hashlib.sha256(_SYSTEM.encode()).hexdigest(),
+                    "system_sha256": shared_system_hash,
+                    "system_sha256_by_round": actual_system_hashes,
                     "request_sha256": [row.get("request_body_sha256") for row in actual_rounds]},
             policy=result["policy"], gold=item.get("gold") or {}, context=actual_context,
             source_snapshot_id=trace.get("analysis_revision", agent.get("snapshot_id", overview["snapshot_id"])),

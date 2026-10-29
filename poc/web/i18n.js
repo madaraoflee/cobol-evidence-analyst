@@ -3,6 +3,12 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+同步變更的源碼|同步变更的源码|Syncing changed source files
+停止後可重新檢查版本，仍保留原本完整的本機副本。|停止后可重新检查版本，仍保留原本完整的本地副本。|After stopping, check the version again. The previous complete local copy is preserved.
+最近同步：下載 |最近同步：下载 |Last sync: downloaded\u0020
+ 個檔案，重用 | 个文件，复用 | files, reused\u0020
+ 個本機檔案；下載量 | 个本地文件；下载量 | local files; downloaded\u0020
+Cloud 首次接入下載一次源碼快照；後續更新只下載新增、修改或本機損壞的檔案，其餘由本機副本建立新版本。|Cloud 首次接入下载一次源码快照；后续更新只下载新增、修改或本地损坏的文件，其余由本地副本建立新版本。|Cloud downloads one source snapshot on first connection. Later updates download only added, changed or locally damaged files and reuse local copies for the rest.
 補查前的回答|补查前的回答|Answers before further investigation
 補查前版本|补查前版本|Previous answer
 當時的調查記錄|当时的调查记录|Investigation record for this answer
@@ -22,6 +28,8 @@ const UI_MESSAGES = `
 繼續補查並完善回答|继续补查并完善回答|Continue investigating and complete the answer
 原調查記錄無法繼續，請使用「重試這個問題」重新分析。|原调查记录无法继续，请使用“重试这个问题”重新分析。|The original investigation cannot be continued. Select Retry this question to start a new analysis.
 遠端版本沒有變更，已重建本機索引，沒有重新下載源碼。|远端版本没有变更，已重建本地索引，没有重新下载源码。|The repository version is unchanged. The local index was rebuilt without downloading source again.
+遠端版本沒有變更，已修復本機源碼副本並重建索引。|远端版本没有变更，已修复本地源码副本并重建索引。|The repository version is unchanged. The local source copy was repaired and its index rebuilt.
+核對本機源碼副本|核对本地源码副本|Checking the local source copy
 已重用本機源碼並更新索引，沒有重新下載。|已复用本地源码并更新索引，没有重新下载。|Local source was reused and the index was updated without downloading.
 目前固定在指定提交，不會跟隨新提交。要接收後續更新，可在「檢查並更新」中改用分支或跟隨預設分支。|目前固定在指定提交，不会跟随新提交。要接收后续更新，可在“检查并更新”中改用分支或跟随默认分支。|This source is pinned to a commit and does not follow new commits. To receive later versions, choose a branch or follow the default branch in Check and update.
 查看處理進展 ·|查看处理进展 ·|View work updates ·
@@ -113,8 +121,9 @@ Bitbucket 源碼快照|Bitbucket 源码快照|Bitbucket source snapshot
 倉庫要求跳轉或登入。請使用直接連結及 HTTP 存取權杖；瀏覽器登入狀態不會用於下載。|仓库要求跳转或登录。请使用直接链接及 HTTP 访问令牌；浏览器登录状态不会用于下载。|The repository requested a redirect or sign-in. Use a direct link and HTTP access token; browser login is not used for downloads.
 無法驗證倉庫的 HTTPS 憑證。請檢查本機信任的企業憑證設定。|无法验证仓库的 HTTPS 证书。请检查本机信任的企业证书设置。|The repository HTTPS certificate could not be verified. Check your trusted enterprise certificate configuration.
 無法連線至倉庫。請檢查網路、VPN 及伺服器位址後重試。|无法连接至仓库。请检查网络、VPN 及服务器地址后重试。|The repository could not be reached. Check the network, VPN and server address before retrying.
-取得遠端源碼逾時，請重試或選擇較小的倉庫目錄。|获取远程源码超时，请重试或选择较小的仓库目录。|Fetching repository source timed out. Retry or select a smaller repository folder.
-遠端源碼超出本次匯入限制，請指定較小的倉庫目錄。|远程源码超出本次导入限制，请指定较小的仓库目录。|Repository source exceeds the import limits. Select a smaller repository folder.
+倉庫請求受到服務端限流，本次接入或更新已停止；已有的本機副本不受影響。請稍後手動重試。|仓库请求受到服务端限流，本次接入或更新已停止；已有的本地副本不受影响。请稍后手动重试。|The repository service is rate limiting requests. This connection or update has stopped; existing local copies are unchanged. Retry manually later.
+取得遠端源碼逾時，請檢查網路後重試，或改用已有的本機源碼。Cloud 首次下載整個倉庫快照，選取子目錄不會減少下載量。|获取远程源码超时，请检查网络后重试，或改用已有的本地源码。Cloud 首次下载整个仓库快照，选择子目录不会减少下载量。|Fetching repository source timed out. Check the network and retry, or use an existing local source copy. Cloud downloads the entire repository snapshot on first connection; selecting a subfolder does not reduce the download.
+遠端源碼超出本次匯入限制。Cloud 首次下載整個倉庫快照，可改用已有的本機源碼或較小的倉庫；Server / Data Center 可縮小目錄。|远程源码超出本次导入限制。Cloud 首次下载整个仓库快照，可改用已有的本地源码或较小的仓库；Server / Data Center 可缩小目录。|Repository source exceeds the import limits. Cloud downloads the entire repository snapshot on first connection; use an existing local source copy or a smaller repository. Server / Data Center can use a smaller folder.
 倉庫傳回的壓縮檔無法安全讀取，本次匯入已停止。|仓库返回的压缩包无法安全读取，本次导入已停止。|The repository archive could not be safely read. The import was stopped.
 指定範圍沒有可匯入的源碼。請核對倉庫內目錄。|指定范围没有可导入的源码。请核对仓库内目录。|The selected scope has no source to import. Check the repository folder.
 倉庫傳回非預期內容。請核對伺服器類型及下載權限。|仓库返回非预期内容。请核对服务器类型及下载权限。|The repository returned unexpected content. Check the server type and download permission.

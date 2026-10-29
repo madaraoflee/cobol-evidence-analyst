@@ -1,0 +1,669 @@
+{
+  "schema_version": "business-live-source-regression/v1",
+  "source_origin": "Synthetic neutral source created for this regression; implementation-development cases, not independent holdout.",
+  "external_model_calls": 0,
+  "source_directory": "/tmp/business-regression-live/source",
+  "framework_reference_path": "/tmp/business-regression-live/framework.md",
+  "source_sha256": {
+    "offset-rules.cbl": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+    "collection-entry.cbl": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372"
+  },
+  "framework_sha256": "173f3cfde39f36c350b20c1986dcb5e3d6de433cd7e8b45ff481e4414cb66746",
+  "source_lines": {
+    "offset-rules.cbl": 2758,
+    "collection-entry.cbl": 31
+  },
+  "cases": [
+    {
+      "id": "collection-business",
+      "split": "regression",
+      "question": "我想弄清保费收取时到底怎样抵扣，而不是程序语句的含义。假设这笔收取资料已经成功准备好，本期应缴是100，可使用的账户余额20、已经可用的退回款10、符合资格的奖励5。请根据源码解释实际先后顺序，每项进入抵扣需要什么条件，每一步后还剩多少，最终应缴多少；这个顺序是写在程序里还是由配置决定？如果其中一项暂不可用、没有金额，或者前面已把应缴抵完，后面的处理有什么不同？先讲清业务结果，不要让框架接口或状态字段成为答案主体。",
+      "answer_instructions": "",
+      "expected_source_paths": [
+        "offset-rules.cbl",
+        "collection-entry.cbl"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "collection-entry.cbl",
+            "sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+            "start_line": 3,
+            "end_line": 31,
+            "role": "result"
+          },
+          {
+            "path": "offset-rules.cbl",
+            "sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+            "start_line": 3,
+            "end_line": 25,
+            "role": "result"
+          },
+          {
+            "path": "offset-rules.cbl",
+            "sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+            "start_line": 926,
+            "end_line": 936,
+            "role": "result"
+          },
+          {
+            "path": "offset-rules.cbl",
+            "sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+            "start_line": 1837,
+            "end_line": 1847,
+            "role": "result"
+          },
+          {
+            "path": "offset-rules.cbl",
+            "sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+            "start_line": 2748,
+            "end_line": 2758,
+            "role": "result"
+          }
+        ],
+        "framework_ranges": [
+          {
+            "document": "/tmp/business-regression-live/framework.md",
+            "sha256": "173f3cfde39f36c350b20c1986dcb5e3d6de433cd7e8b45ff481e4414cb66746",
+            "start_line": 1,
+            "end_line": 16
+          }
+        ]
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "purpose",
+            "description": "这是剩余应缴金额的计算；不是已发生收款、实际扣除账户资金或账簿保存。",
+            "supporting_ranges": [
+              {
+                "relative_path": "collection-entry.cbl",
+                "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+                "start_line": 3,
+                "end_line": 4
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 3,
+                "end_line": 4
+              }
+            ]
+          },
+          {
+            "id": "entry-status",
+            "description": "先将原始应缴金额放入剩余应缴；仅在资料准备好时调用抵扣规则。资料未找到转待核对，其他准备状态转重试，均不执行抵扣。",
+            "supporting_ranges": [
+              {
+                "relative_path": "collection-entry.cbl",
+                "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+                "start_line": 19,
+                "end_line": 31
+              }
+            ]
+          },
+          {
+            "id": "order",
+            "description": "抵扣顺序由程序明确规定为账户余额→退回款→奖励，不是本案例中的可配置顺序。每一步使用前一步留下的应缴余额。",
+            "supporting_ranges": [
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 21,
+                "end_line": 25
+              }
+            ]
+          },
+          {
+            "id": "balance-condition",
+            "description": "账户余额仅在允许使用、余额大于零且尚有应缴余额时抵扣，金额取账户余额与剩余应缴的较小者。",
+            "supporting_ranges": [
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 926,
+                "end_line": 936
+              }
+            ]
+          },
+          {
+            "id": "refund-condition",
+            "description": "退回款仅在已可使用、金额大于零且尚有应缴余额时抵扣，金额取退回款与剩余应缴的较小者。",
+            "supporting_ranges": [
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 1837,
+                "end_line": 1847
+              }
+            ]
+          },
+          {
+            "id": "reward-condition",
+            "description": "奖励仅在符合资格、金额大于零且尚有应缴余额时抵扣，金额取奖励与剩余应缴的较小者。",
+            "supporting_ranges": [
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 2748,
+                "end_line": 2758
+              }
+            ]
+          },
+          {
+            "id": "calculation",
+            "description": "题给资料已准备好且三项都可用时：100→80→70→65，最终剩余应缴65。这里只采用问题给定的输入值，未声称生产账户实际为这些值。",
+            "supporting_ranges": [
+              {
+                "relative_path": "collection-entry.cbl",
+                "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+                "start_line": 19,
+                "end_line": 31
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 21,
+                "end_line": 25
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 926,
+                "end_line": 936
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 1837,
+                "end_line": 1847
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 2748,
+                "end_line": 2758
+              }
+            ]
+          },
+          {
+            "id": "skip-and-cap",
+            "description": "某项不符合资格或金额为零则该项跳过，其余项仍按既定顺序判断；任一步抵扣不超过当时剩余应缴，后续不会继续抵扣到负数。",
+            "supporting_ranges": [
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 21,
+                "end_line": 25
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 926,
+                "end_line": 936
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 1837,
+                "end_line": 1847
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 2748,
+                "end_line": 2758
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "false-source-gap",
+            "description": "声称原始源码不足以确认抵扣顺序、条件、计算方式或题给场景的65，要求用户提供已经在两份源码内的实现。"
+          },
+          {
+            "id": "technical-only",
+            "description": "仅罗列框架状态、PERFORM/CALL或变量名，没有解释实际抵扣顺序、资格条件和最终业务金额。"
+          },
+          {
+            "id": "invented-runtime",
+            "description": "把计算结果等同于实际资金已经收取、退款账户被改写或账簿已保存。"
+          },
+          {
+            "id": "unconditional-offset",
+            "description": "把任何正金额都写成必定抵扣，或忽略准备状态、资格条件和剩余应缴上限。"
+          }
+        ]
+      },
+      "review_checks": [
+        "先解释业务结果和抵扣逻辑，技术标识只作必要定位",
+        "明确100→80→70→65且来源支持每一步",
+        "不把真实缺口隐藏，也不将原文已明确内容说成不足"
+      ]
+    },
+    {
+      "id": "collection-custom-format",
+      "split": "regression",
+      "question": "我想弄清保费收取时到底怎样抵扣，而不是程序语句的含义。假设这笔收取资料已经成功准备好，本期应缴是100，可使用的账户余额20、已经可用的退回款10、符合资格的奖励5。请根据源码解释实际先后顺序，每项进入抵扣需要什么条件，每一步后还剩多少，最终应缴多少；这个顺序是写在程序里还是由配置决定？如果其中一项暂不可用、没有金额，或者前面已把应缴抵完，后面的处理有什么不同？先讲清业务结果，不要让框架接口或状态字段成为答案主体。",
+      "answer_instructions": "仅使用三个固定二级栏目：## 业务结论、## 处理顺序、## 条件与例外。面向业务新人，用中文解释当前问题。不要输出程序名、字段名、框架状态码或逐行代码说明；使用业务含义表达。保留来源引用和决定结果的条件，不添加其他栏目或技术附录。",
+      "expected_source_paths": [
+        "offset-rules.cbl",
+        "collection-entry.cbl"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "collection-entry.cbl",
+            "sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+            "start_line": 3,
+            "end_line": 31,
+            "role": "result"
+          },
+          {
+            "path": "offset-rules.cbl",
+            "sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+            "start_line": 3,
+            "end_line": 25,
+            "role": "result"
+          },
+          {
+            "path": "offset-rules.cbl",
+            "sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+            "start_line": 926,
+            "end_line": 936,
+            "role": "result"
+          },
+          {
+            "path": "offset-rules.cbl",
+            "sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+            "start_line": 1837,
+            "end_line": 1847,
+            "role": "result"
+          },
+          {
+            "path": "offset-rules.cbl",
+            "sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+            "start_line": 2748,
+            "end_line": 2758,
+            "role": "result"
+          }
+        ],
+        "framework_ranges": [
+          {
+            "document": "/tmp/business-regression-live/framework.md",
+            "sha256": "173f3cfde39f36c350b20c1986dcb5e3d6de433cd7e8b45ff481e4414cb66746",
+            "start_line": 1,
+            "end_line": 16
+          }
+        ]
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "purpose",
+            "description": "这是剩余应缴金额的计算；不是已发生收款、实际扣除账户资金或账簿保存。",
+            "supporting_ranges": [
+              {
+                "relative_path": "collection-entry.cbl",
+                "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+                "start_line": 3,
+                "end_line": 4
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 3,
+                "end_line": 4
+              }
+            ]
+          },
+          {
+            "id": "entry-status",
+            "description": "先将原始应缴金额放入剩余应缴；仅在资料准备好时调用抵扣规则。资料未找到转待核对，其他准备状态转重试，均不执行抵扣。",
+            "supporting_ranges": [
+              {
+                "relative_path": "collection-entry.cbl",
+                "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+                "start_line": 19,
+                "end_line": 31
+              }
+            ]
+          },
+          {
+            "id": "order",
+            "description": "抵扣顺序由程序明确规定为账户余额→退回款→奖励，不是本案例中的可配置顺序。每一步使用前一步留下的应缴余额。",
+            "supporting_ranges": [
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 21,
+                "end_line": 25
+              }
+            ]
+          },
+          {
+            "id": "balance-condition",
+            "description": "账户余额仅在允许使用、余额大于零且尚有应缴余额时抵扣，金额取账户余额与剩余应缴的较小者。",
+            "supporting_ranges": [
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 926,
+                "end_line": 936
+              }
+            ]
+          },
+          {
+            "id": "refund-condition",
+            "description": "退回款仅在已可使用、金额大于零且尚有应缴余额时抵扣，金额取退回款与剩余应缴的较小者。",
+            "supporting_ranges": [
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 1837,
+                "end_line": 1847
+              }
+            ]
+          },
+          {
+            "id": "reward-condition",
+            "description": "奖励仅在符合资格、金额大于零且尚有应缴余额时抵扣，金额取奖励与剩余应缴的较小者。",
+            "supporting_ranges": [
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 2748,
+                "end_line": 2758
+              }
+            ]
+          },
+          {
+            "id": "calculation",
+            "description": "题给资料已准备好且三项都可用时：100→80→70→65，最终剩余应缴65。这里只采用问题给定的输入值，未声称生产账户实际为这些值。",
+            "supporting_ranges": [
+              {
+                "relative_path": "collection-entry.cbl",
+                "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+                "start_line": 19,
+                "end_line": 31
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 21,
+                "end_line": 25
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 926,
+                "end_line": 936
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 1837,
+                "end_line": 1847
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 2748,
+                "end_line": 2758
+              }
+            ]
+          },
+          {
+            "id": "skip-and-cap",
+            "description": "某项不符合资格或金额为零则该项跳过，其余项仍按既定顺序判断；任一步抵扣不超过当时剩余应缴，后续不会继续抵扣到负数。",
+            "supporting_ranges": [
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 21,
+                "end_line": 25
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 926,
+                "end_line": 936
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 1837,
+                "end_line": 1847
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 2748,
+                "end_line": 2758
+              }
+            ]
+          },
+          {
+            "id": "custom-format",
+            "description": "实际答案只有业务结论、处理顺序、条件与例外三个二级栏目；不出现源码程序名、字段名或框架状态码。保留引用与业务条件。",
+            "supporting_ranges": [],
+            "basis": "user_answer_instructions"
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "false-source-gap",
+            "description": "声称原始源码不足以确认抵扣顺序、条件、计算方式或题给场景的65，要求用户提供已经在两份源码内的实现。"
+          },
+          {
+            "id": "technical-only",
+            "description": "仅罗列框架状态、PERFORM/CALL或变量名，没有解释实际抵扣顺序、资格条件和最终业务金额。"
+          },
+          {
+            "id": "invented-runtime",
+            "description": "把计算结果等同于实际资金已经收取、退款账户被改写或账簿已保存。"
+          },
+          {
+            "id": "unconditional-offset",
+            "description": "把任何正金额都写成必定抵扣，或忽略准备状态、资格条件和剩余应缴上限。"
+          }
+        ]
+      },
+      "review_checks": [
+        "先解释业务结果和抵扣逻辑，技术标识只作必要定位",
+        "明确100→80→70→65且来源支持每一步",
+        "不把真实缺口隐藏，也不将原文已明确内容说成不足",
+        "格式只作人工评审，不新增生产阻断validation；请求内system必须原样包含当前answer_instructions一次"
+      ]
+    },
+    {
+      "id": "collection-framework-control",
+      "split": "regression",
+      "question": "在这条保费收取流程里，框架传入的 READ-STATUS 为 READY、NOTFOUND 或 ERROR 时，分别会怎样影响后续业务？请结合调用方和抵扣程序解释：应缴100、账户余额20、退回款10、奖励5且都满足使用条件时，哪些状态会执行抵扣，返回的应缴金额和业务结果分别是什么？READY 是否意味着每项抵扣都会执行？我这次需要理解状态与业务分支的对应关系，可以保留必要状态标识。",
+      "answer_instructions": "",
+      "expected_source_paths": [
+        "offset-rules.cbl",
+        "collection-entry.cbl"
+      ],
+      "reviewed_context": {
+        "source_ranges": [
+          {
+            "path": "collection-entry.cbl",
+            "sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+            "start_line": 3,
+            "end_line": 31,
+            "role": "result"
+          },
+          {
+            "path": "offset-rules.cbl",
+            "sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+            "start_line": 3,
+            "end_line": 25,
+            "role": "result"
+          },
+          {
+            "path": "offset-rules.cbl",
+            "sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+            "start_line": 926,
+            "end_line": 936,
+            "role": "result"
+          },
+          {
+            "path": "offset-rules.cbl",
+            "sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+            "start_line": 1837,
+            "end_line": 1847,
+            "role": "result"
+          },
+          {
+            "path": "offset-rules.cbl",
+            "sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+            "start_line": 2748,
+            "end_line": 2758,
+            "role": "result"
+          }
+        ],
+        "framework_ranges": [
+          {
+            "document": "/tmp/business-regression-live/framework.md",
+            "sha256": "173f3cfde39f36c350b20c1986dcb5e3d6de433cd7e8b45ff481e4414cb66746",
+            "start_line": 1,
+            "end_line": 16
+          }
+        ]
+      },
+      "gold": {
+        "required_findings": [
+          {
+            "id": "ready",
+            "description": "READY时调用抵扣程序并按余额→退回款→奖励计算100→80→70→65，返回CALCULATED；只表示计算完成。",
+            "supporting_ranges": [
+              {
+                "relative_path": "collection-entry.cbl",
+                "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+                "start_line": 19,
+                "end_line": 31
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 21,
+                "end_line": 25
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 926,
+                "end_line": 936
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 1837,
+                "end_line": 1847
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 2748,
+                "end_line": 2758
+              }
+            ]
+          },
+          {
+            "id": "notfound",
+            "description": "NOTFOUND不调用抵扣程序，保留原始应缴100，结果REVIEW表示待业务核对。",
+            "supporting_ranges": [
+              {
+                "relative_path": "collection-entry.cbl",
+                "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+                "start_line": 19,
+                "end_line": 31
+              }
+            ]
+          },
+          {
+            "id": "error",
+            "description": "ERROR落入WHEN OTHER，不调用抵扣程序，保留原始应缴100，返回RETRY；这是给定输入状态的分支，不等于保证所有运行异常都返回RETRY。",
+            "supporting_ranges": [
+              {
+                "relative_path": "collection-entry.cbl",
+                "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+                "start_line": 19,
+                "end_line": 31
+              }
+            ]
+          },
+          {
+            "id": "eligibility",
+            "description": "READY只开放抵扣处理入口；三项仍分别受使用资格、正金额和剩余应缴条件约束，不是每项必定执行。",
+            "supporting_ranges": [
+              {
+                "relative_path": "collection-entry.cbl",
+                "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+                "start_line": 19,
+                "end_line": 31
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 926,
+                "end_line": 936
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 1837,
+                "end_line": 1847
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 2748,
+                "end_line": 2758
+              }
+            ]
+          },
+          {
+            "id": "scope",
+            "description": "框架资料解释输入状态含义；两份源码定义状态如何影响业务分支。流程只是计算，不证明读取、收款或保存实际成功。",
+            "supporting_ranges": [
+              {
+                "relative_path": "collection-entry.cbl",
+                "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372",
+                "start_line": 3,
+                "end_line": 4
+              },
+              {
+                "relative_path": "offset-rules.cbl",
+                "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307",
+                "start_line": 3,
+                "end_line": 4
+              }
+            ]
+          }
+        ],
+        "forbidden_claims": [
+          {
+            "id": "framework-suppressed",
+            "description": "因默认业务模式而拒绝解释明确询问的框架状态，或抹去READY/NOTFOUND/ERROR差别。"
+          },
+          {
+            "id": "wrong-notready-result",
+            "description": "把NOTFOUND或ERROR下应缴额写成65或0，或声称它们也调用抵扣。"
+          },
+          {
+            "id": "ready-unconditional",
+            "description": "认为READY保证全部抵扣、实际收款成功或账簿已保存。"
+          }
+        ]
+      },
+      "review_checks": [
+        "直接回答明确询问的状态与业务分支，不禁用框架辅助",
+        "限定INPUT状态分支，不虚构外部异常恢复机制"
+      ]
+    }
+  ],
+  "execution_note": "Pass case.answer_instructions to run_business_chat or save it through Workbench. This recorded live run used Workbench save and restart. The source evaluation runner now forwards this field in automatic and paired-synthesis modes. Do not supply gold to the model."
+}

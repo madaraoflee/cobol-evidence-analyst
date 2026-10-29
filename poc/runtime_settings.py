@@ -17,8 +17,8 @@ def load_agent_policy(path=None, *, environ=None):
 
     Missing default settings preserve existing behavior. An explicitly selected
     missing or invalid file must not silently expand a configured call budget.
-    Missing request/investigation fields use bounded interactive defaults;
-    explicit null values disable those limits. Missing/null time limits do not
+    Missing/null request and investigation limits use source-bound progress;
+    explicit numbers retain their deployment limits. Missing/null time limits do not
     create a hard deadline. Any explicit numeric deadline, including a saved 180,
     remains an override: its provenance cannot be inferred safely from its value.
     """

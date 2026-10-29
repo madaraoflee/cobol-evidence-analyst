@@ -19,6 +19,7 @@ from answer_markdown import (ANSWER_MARKDOWN_POLICY, BUSINESS_ANSWER_POLICY, BUS
                              join_answer_continuation, strip_incomplete_source_citation, with_answer_instructions)
 from answer_diagnostics import build_answer_diagnostics, response_character_counts
 from analysis_continuation import AnalysisContinuation, progress_snapshot
+from answer_continuation_budget import AnswerContinuationBudget
 from business_map import build_business_map
 from business_explanation_cache import with_business_explanation_cache
 from business_synthesis import (assess_answer_completion, assess_business_answer, build_analysis_brief, link_answer_claims,
@@ -240,12 +241,62 @@ def _actions(text, policy=None):
     return action
 
 
+def _tool_markup_envelope(text, *, partial=False):
+    """Recognize machine call markup without interpreting or executing it.
+
+    A leading container or standalone suffix after prose is eligible. Ordinary HTML, business XML,
+    fenced examples and prose that mentions tags retain their answer role.
+    Namespace spelling is irrelevant to a call's local structural name.
+    """
+    value = str(text).lstrip()
+    if not value.startswith("<"):
+        start = re.search(r"(?m)^[ \t]*<", value)
+        if start is None:
+            return False
+        prefix = value[:start.start()].strip()
+        introduction = prefix.splitlines()[-1] if prefix else ""
+        if (not prefix or re.search(r"(?:示例|例子|範例|范例|样例|樣例|\bexample\b|\bsample\b)[：:\s]*$",
+                introduction, re.I) or _action_json_text(prefix + "\n{}") != "{}"):
+            return False
+        value = value[start.start():].lstrip()
+    def local_name(tag):
+        if tag.lstrip().startswith("/"):
+            return ""
+        name = re.split(r"\s+[A-Za-z_:][\w:.-]*\s*=", tag, maxsplit=1)[0].rstrip("/ ")
+        return re.split(r"[:\s]+", name)[-1].lower()
+
+    opening = re.match(r"<([^<>\r\n]{1,160})>", value)
+    if opening is None:
+        return ">" not in value and (partial or local_name(value[1:]) in
+            {"tool_calls", "function_calls"})
+    root = local_name(opening[1])
+    containers = {"calls", "tool_calls", "function_calls"}
+    invocations = {"invoke", "tool_call", "function_call"}
+    if root not in containers:
+        return False
+    if partial:
+        return True
+    if root in {"tool_calls", "function_calls"}:
+        return True
+    tools = {"search", "read", "framework_search", "inspect_business_context", "focus", "findings",
+             "list_impact", "search_concepts", *_SEMANTIC_TOOLS}
+    for tag in re.finditer(r"<([^<>\r\n]{1,160})>", value):
+        if local_name(tag[1]) not in invocations:
+            continue
+        target = re.search(r"\b(?:name|function)\s*=\s*([\"'])([A-Za-z_][\w.-]{0,99})\1", tag[1])
+        if target and (root != "calls" or target[2].lower() in tools):
+            return True
+    return False
+
+
 def _action_reply_invalid(text, action):
     """Keep malformed investigation requests out of the answer channel."""
     if action is not None:
         # A valid request can have no executable items after budget clipping.
         # That is a scheduling condition, not malformed model output.
         return not any(action.values()) and not any((_actions(text) or {}).values())
+    if _tool_markup_envelope(text):
+        return True
     value = _action_json_text(text)
     tool_keys = {"search", "read", "framework_search", "inspect_business_context", "focus", "findings",
                  "list_impact", "search_concepts", *_SEMANTIC_TOOLS}
@@ -333,10 +384,10 @@ def _response_shape(raw, choice_index=None):
             "tool_calls_present": bool(message.get("tool_calls") or message.get("function_call"))}
 
 
-def _empty_length_recovery_shape(raw, choice_index=None):
+def _empty_answer_recovery_shape(raw, choice_index=None):
     """Require an unambiguous empty answer choice, never hidden provider text."""
     choices = raw.get("choices") if isinstance(raw, Mapping) else None
-    if not isinstance(choices, list):
+    if not isinstance(choices, list) or len(choices) != 1:
         return None
     candidates = [(index, row) for index, row in enumerate(choices)
                   if isinstance(row, Mapping) and isinstance(row.get("message"), Mapping)
@@ -347,10 +398,23 @@ def _empty_length_recovery_shape(raw, choice_index=None):
         choice_index, choice = candidates[0]
     else:
         choice = next((row for index, row in candidates if index == choice_index), None)
-    if choice is None or choice.get("finish_reason") != "length":
+    if choice is None or choice.get("finish_reason") not in {"length", "stop"}:
         return None
     message = choice["message"]
     if message.get("refusal") or message.get("tool_calls") or message.get("function_call"):
+        return None
+    content = message.get("content")
+    if isinstance(content, str):
+        # The caller has already obtained MODEL_TEXT_EMPTY from the shared
+        # extractor, including its recognized JSON answer/text wrappers.
+        pass
+    elif isinstance(content, list):
+        if any(not isinstance(part, Mapping) or part.get("type") not in {"text", "output_text"}
+                or not isinstance(part.get("text"), str) or part["text"].strip()
+                or part.get("refusal") or part.get("tool_calls") or part.get("function_call")
+                for part in content):
+            return None
+    elif content is not None:
         return None
     return _response_shape(raw, choice_index)
 
@@ -654,7 +718,8 @@ def _prompt_payload(payload):
                 "Online function / Programs, Tables and Files sections. Explain each object's business role, "
                 "inputs, outputs and source-backed handoffs. Distinguish a program from a confirmed online "
                 "entry, database tables from internal tables, and data files from source/COPY definitions. "
-                "Briefly identify categories not confirmed in the supplied material; do not invent objects. "
+                "Omit categories unrelated to the question; do not add empty unconfirmed sections. "
+                "Qualify a missing object only when it limits the requested business conclusion. Do not invent objects. "
                 "Follow saved answer instructions when the user specifies a different structure.",
             "reader_questions": ["What is this process for?", "Who starts it and who does each step?",
                                  "Where does each input come from and where does each result go?",
@@ -667,8 +732,9 @@ def _prompt_payload(payload):
                 "A missing external implementation limits that step, not the explanation of the visible process.",
             "grounding": "Use business_analysis_brief.business_orientation as source-bound navigation. "
                 "Connect handoffs using their bound facts and explain the role of each named object once. "
-                "For documented framework stages, connect the stage responsibility, actual PERFORM request "
-                "and contained operation requests. Preserve the PERFORM guards and operation caveats; "
+                "Use framework conventions to interpret the code, then explain the business outcome. "
+                "Mention technical stage names or return flags only when they change the requested outcome "
+                "or the user explicitly asks about them. Preserve actual guards and conditional outcomes; "
                 "stage numbers, declaration order and lexical containment do not establish execution order or success. "
                 "Separate declared external file names from verified LF/PF definitions; a table is not automatically a file. "
                 "Use one coherent explanation, not a source-file inventory or repeated summary/table/conclusion. "
@@ -819,6 +885,16 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
     source_fallback_attempted = False
     minimal_investigation = False
     last_material = None
+    # Remember source-bound rules before metadata compaction can remove their
+    # fact records. Unbound automatic documentation must not evict the business
+    # implementation it was meant to help interpret.
+    bound_framework_ids = set()
+
+    def auxiliary_framework_reference():
+        return next((reference for reference in reversed(payload.get("framework_references", []))
+                     if reference.get("selection_reason") in {"source_marker", "document_overview"}
+                     and reference.get("reference_id") not in bound_framework_ids
+                     and not reference.get("explicit_lookup")), None)
 
     def core_groups():
         groups = {str(group.get("group_id", index)): set(group.get("core_evidence_ids", []))
@@ -930,6 +1006,8 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         if "framework_facts" in payload:
             payload["framework_facts"] = visible_framework_facts(payload["framework_facts"],
                 bundle["pages"], payload.get("framework_references", []))
+            bound_framework_ids.update(identifier for fact in payload["framework_facts"]
+                if fact.get("source_evidence_ids") for identifier in fact.get("reference_ids", []))
         # Navigation/omission metadata can be trimmed many times without
         # changing the actual evidence. Re-evaluate obligations only when the
         # pages, framework material or reviewed draft really change.
@@ -1010,6 +1088,10 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         elif not payload.get("budget_wire_compact"):
             payload["budget_wire_compact"] = True
             record(None, "optional_navigation_wire_bytes")
+        elif (auxiliary := auxiliary_framework_reference()) is not None:
+            payload["framework_references"].remove(auxiliary)
+            record(auxiliary.get("reference_id"), "auxiliary_framework_request_bytes",
+                   len(auxiliary.get("text", "")), role="framework")
         elif payload.get("business_analysis_brief"):
             removed = payload.pop("business_analysis_brief")
             payload["business_analysis_brief_omitted"] = True
@@ -1180,6 +1262,8 @@ def _framework_prompt_references(framework, searched, recent_ids, policy, format
             reference = {**reference, "text": text[start:start + remaining],
                          "text_truncated": True, "text_offset_chars": start}
         references.append({**reference,
+            **({"explicit_lookup": True} if reference["reference_id"] in recent
+               or reference["reference_id"] in targeted else {}),
             "document_sha256": combined[reference["reference_id"]].get("document_sha256"),
             "document_name": combined[reference["reference_id"]].get("document_name"),
             "start_line": combined[reference["reference_id"]].get("start_line"),
@@ -1298,6 +1382,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     answer_finish_reason = None
     continuation_attempted = False
     empty_length_recovery_attempted = False
+    empty_stop_recovery_attempted = False
     answer_rounds = []
     answer_round = None
     answer_manifest = None
@@ -1308,6 +1393,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     synthesis_review_attempted = False
     last_investigation = None
     investigation_reprompted = False
+    markup_protocol_recovery_pending = False
     protocol_answer_pending = False
     pending_model_actions = []
     recovery_reason = None
@@ -1352,6 +1438,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         resume_checkpoint = investigation_seed
         completed_actions.extend(resume_checkpoint.get("completed_actions", []))
     continuation_requested = bool(resume_checkpoint.get("continuation_requested"))
+    investigation_reprompted = bool(resume_checkpoint.get("investigation_action_recovery_attempted"))
+    markup_protocol_recovery_pending = bool(resume_checkpoint.get("markup_protocol_recovery_pending"))
     saved_searches = resume_checkpoint.get("completed_searches")
     if saved_searches is None:
         saved_searches = ((resume_checkpoint.get("result") or {}).get("investigation") or {}).get("searches")
@@ -1373,6 +1461,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         sent_pages.update(source_memory.pages)
     continuation = AnalysisContinuation(question, resume_checkpoint.get("analysis_continuation"))
     continuation_texts = set(resume_checkpoint.get("continuation_texts", []))
+    answer_output_budget = None
+    empty_length_recovery_attempted = any(row.get("stage") == "empty_length_recovery"
+        for row in quality.data["rounds"])
+    empty_stop_recovery_attempted = any(row.get("stage") == "empty_stop_recovery"
+        for row in quality.data["rounds"])
     resume_response = None
     if resume_state:
         completed_actions.extend(resume_checkpoint.get("completed_actions", []))
@@ -1464,12 +1557,16 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             continuation.draft = redactor._sanitize(answer)
         checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
         updates = {"analysis_continuation": continuation.checkpoint(),
+                   "investigation_action_recovery_attempted": investigation_reprompted,
+                   "markup_protocol_recovery_pending": markup_protocol_recovery_pending,
                    "completed_searches": list(searches),
                    "continuation_requested": continuation_requested,
                    "continuation_texts": sorted(continuation_texts),
                    "source_memory_context": source_memory_context,
                    "prior_source_memory": source_memory.checkpoint() if source_memory else None,
                    "question_budget": question_budget.checkpoint() if question_budget else None}
+        if answer_output_budget is not None:
+            updates["answer_output_budget"] = answer_output_budget.checkpoint()
         if processed:
             # Commit consumed responses together with their local effects. A
             # restart replays received-but-unprocessed responses only.
@@ -2208,7 +2305,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             if not progress or stage == "discover":
                 return
             candidate = streamed_text.lstrip()
-            if candidate.startswith(("{", "[", "```json")):
+            if candidate.startswith(("{", "[", "```json")) or _tool_markup_envelope(candidate, partial=True):
                 return
             # Tool actions may follow an introductory sentence. They are never
             # presented as an answer, and incomplete protected values are held
@@ -2888,6 +2985,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         "先检查 question_investigation 的必答项及本轮实际原文；"
                         "已有公式、条件、赋值或资料时直接解释，存在具体缺口时返回有效 JSON 补查动作。"
                         "外部实现缺失只限定依赖该实现的结论，简要回答当前材料支持的部分。")
+                if markup_protocol_recovery_pending:
+                    payload["task"] += (" 上一轮返回的标签调用格式无效，其中的动作未执行。"
+                        "补查必须使用本系统支持的 JSON 动作对象，不使用标签调用格式。"
+                        + ("本轮只返回有效 JSON 检索或读取动作。" if discovery_pending else
+                           "确有缺口时返回有效 JSON 动作；已有原文足够时按原问题直接完成业务解释。"))
                 if protocol_answer_pending:
                     payload["task"] = (payload["task"] + " " if continuation_requested else "") + (
                         "补查动作未能执行。现在直接根据已供应的源码、框架资料和 impact_result "
@@ -2969,7 +3071,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 try:
                     reply = _extract_text(raw)
                 except _TextResponseError as exc:
-                    shape = _empty_length_recovery_shape(raw, exc.choice_index)
+                    shape = _empty_answer_recovery_shape(raw, exc.choice_index)
                     recovery_evidence = (
                         any(page.get("source_text", "").strip()
                             for bundle in payload.get("source_context", []) for page in bundle.get("pages", []))
@@ -2977,7 +3079,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         or any(reference.get("text", "").strip()
                                for reference in payload.get("framework_references", [])))
                     if (exc.code != "MODEL_TEXT_EMPTY" or shape is None or not recovery_evidence
-                            or discovery_pending or empty_length_recovery_attempted
+                            or discovery_pending or empty_length_recovery_attempted or empty_stop_recovery_attempted
+                            or (shape["finish_reason"] == "stop" and bool(answer))
                             or not policy.can_request(turns)):
                         raise
                     # Reuse exactly the already-sent evidence and history. This is
@@ -2986,7 +3089,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         "investigation_budget": {"remaining_model_requests": policy.remaining_model_requests(turns),
                             "searches_per_turn": 0, "reads_per_turn": 0,
                             "framework_searches_per_turn": 0, "business_context_actions_per_turn": 0},
-                        "task": "上一轮输出达到长度上限但没有可用正文。现在直接给出简明业务答案："
+                        "task": ("上一轮输出达到长度上限但没有可用正文。" if shape["finish_reason"] == "length" else
+                            "上一轮请求已正常结束，但未返回可用正文。") + "现在直接给出简明业务答案："
                             "先写结论，再写决定结果的关键条件、计算或异常及必要来源引用。"
                             "只使用本次已供应的相同证据；不要新检索、请求工具、承诺继续调查或冗长展开。"
                             "不能确认的事项只限定相关结论。"}
@@ -3003,8 +3107,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         diagnostics.suppress_latest_error(exc.code)
                     finish_failed_response(exc)
                     record_response_error(exc.code, failure_stage, shape=response_shape)
-                    empty_length_recovery_attempted = True
-                    boundaries.append({"reason": "model_empty_length_recovery", "from_round_id": f"round-{turns}",
+                    recovery_stage = "empty_length_recovery" if shape["finish_reason"] == "length" else "empty_stop_recovery"
+                    empty_length_recovery_attempted = recovery_stage == "empty_length_recovery"
+                    empty_stop_recovery_attempted = recovery_stage == "empty_stop_recovery"
+                    boundaries.append({"reason": "model_" + recovery_stage, "from_round_id": f"round-{turns}",
                                        "requests": 1})
                     force_answer = True
                     if not answer:
@@ -3012,7 +3118,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     payload = recovery_payload
                     failure_stage, response_shape, response_raw = "provider_request", None, None
                     raw = complete(recovery_messages, payload=payload, request_size=recovery_size,
-                                   stage="empty_length_recovery")
+                                   stage=recovery_stage)
                     response_raw = raw
                     provider_usage.append(raw.get("usage"))
                     check_after_response()
@@ -3035,6 +3141,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     max_business_context_actions_per_turn=max(0, policy.max_business_context_actions_per_turn - automatic_turn_usage["inspect_business_context"]))
                 action = _actions(reply.text, action_policy)
                 invalid_action = _action_reply_invalid(reply.text, action)
+                if markup_protocol_recovery_pending and not invalid_action:
+                    markup_protocol_recovery_pending = False
+                    recovery_reason = None
                 quality.finish_round(finish_reason=finish_reason,
                                      parsed_action=[key for key, value in action.items() if value] if action else None,
                                      error="INVALID_INVESTIGATION_ACTION" if invalid_action else None,
@@ -3081,12 +3190,18 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         "frontier_before_response": list(pending_model_actions),
                         "frontier_response_round": turns})
                 if question_budget and question_budget.should_stop_local_investigation():
+                    answer_only_requested = force_answer
                     force_answer = True
                     if action:
                         if not invalid_action:
                             pending_model_actions = frontier
                         boundaries.append({"reason": "answer_reserve_reached",
                             "next_step": "answer_from_supplied_evidence", "pending_actions_preserved": True})
+                        # A final-answer request cannot earn another identical
+                        # request by returning tools whose allowance is zero.
+                        if answer_only_requested:
+                            failure = "RETRIEVAL_UNRESOLVED" if discovery_pending else "ANSWER_NOT_PRODUCED"
+                            break
                         protocol_answer_pending = True
                         if policy.can_request(turns):
                             continue
@@ -3094,8 +3209,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 if invalid_action:
                     if not force_answer and not investigation_reprompted:
                         investigation_reprompted = True
+                        markup_protocol = _tool_markup_envelope(reply.text)
+                        markup_protocol_recovery_pending = markup_protocol
                         recovery_reason = "补查动作格式无效"
-                        protocol_answer_pending = not discovery_pending and bool(
+                        protocol_answer_pending = not markup_protocol and not discovery_pending and bool(
                             _bound_source_ids(visible) or visible["framework_ids"])
                         boundaries.append({"reason": "investigation_action_recovery",
                             "from_round_id": f"round-{turns}",
@@ -3310,8 +3427,26 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             discovery_pending = False
                         completed_actions.append({tool: {"relative_path": item.get("relative_path"),
                             "line": item.get("line"), "fields": item.get("fields", [])}, "added_pages": added})
-            while (answer and truncated and answer_finish_reason == "length" and not empty_length_recovery_attempted
+            while (answer and truncated and answer_finish_reason == "length"
+                    and not (empty_length_recovery_attempted or empty_stop_recovery_attempted)
                     and policy.can_request(turns) and (adaptive or not continuation_attempted)):
+                if answer_output_budget is None:
+                    supplied = (source_memory.effective_pages(payload) if source_memory else
+                        [page for bundle in payload.get("source_context", []) for page in bundle.get("pages", [])])
+                    answer_output_budget = AnswerContinuationBudget(
+                        source_characters=sum(len(page.get("source_text", "")) for page in supplied),
+                        framework_characters=sum(len(item.get("text", ""))
+                            for item in payload.get("framework_references", [])),
+                        max_output_tokens=config.max_output_tokens, max_request_bytes=policy.max_request_bytes)
+                    answer_output_budget.restore(resume_checkpoint.get("answer_output_budget"),
+                        fallback_output_characters=len(answer),
+                        fallback_output_requests=max(1, len(answer_rounds)))
+                if not answer_output_budget.can_continue():
+                    continuation.stop_reason = answer_output_budget.stop_reason
+                    boundaries.append({"reason": answer_output_budget.stop_reason, "stage": "continuation",
+                        "draft_retained": True})
+                    remember_draft()
+                    break
                 remember_draft(processed=resume_response is None)
                 # Explicitly bounded sessions retain their one-continuation contract.
                 # Interactive sessions continue while genuinely adding answer text.
@@ -3365,6 +3500,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     combined = join_answer_continuation(answer, continued_reply.text,
                                                         evidence_ids=sent_pages.keys())
                     text_key = hashlib.sha256(continued_reply.text.strip().encode()).hexdigest()
+                    answer_output_budget.record_output(continued_reply.text,
+                        output_id=f"{quality.data['run_id']}:round-{turns}",
+                        made_progress=combined != answer and text_key not in continuation_texts)
                     if adaptive and (combined == answer or text_key in continuation_texts):
                         continuation.stop_reason = "answer_review_no_progress"
                         boundaries.append({"reason": "answer_review_no_progress", "stage": "continuation"})
@@ -3422,7 +3560,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             automatic_followup_material = None
             resume_continuation = False
             remember_draft()
-        if (not adaptive and answer and not truncated and not continuation_attempted and not empty_length_recovery_attempted
+        if (not adaptive and answer and not truncated and not continuation_attempted
+                and not (empty_length_recovery_attempted or empty_stop_recovery_attempted)
                 and policy.answer_revision_limit and policy.can_request(turns)
                 and not (question_budget and question_budget.should_answer(config.timeout_seconds))):
             before = len(evidence.pages)
@@ -3869,7 +4008,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         "answer_origin": answer_origin, "answer_available": usable,
         "final_answer_round_ids": answer_rounds, "answer_truncated": truncated,
         "continuation_attempted": continuation_attempted,
+        "answer_output_budget": answer_output_budget.checkpoint() if answer_output_budget else None,
         "empty_length_recovery_attempted": empty_length_recovery_attempted,
+        "empty_stop_recovery_attempted": empty_stop_recovery_attempted,
         "final_visible_ids": sorted(allowed), "cited_ids": cited,
         "unsupported_citation_ids": unsupported,
         "retrieved_ids": sorted(evidence.retrieved_ids),
@@ -3931,6 +4072,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                "provider_retries": provider_retries,
                "provider_request_timings": provider_request_timings,
                "empty_length_recovery_attempted": empty_length_recovery_attempted,
+               "empty_stop_recovery_attempted": empty_stop_recovery_attempted,
                "usage": _usage_report(provider_usage, turns), "quality_trace_path": quality_path,
                "question_investigation": {"calls": investigation_calls,
                    "candidate_queries": investigation_queries,
@@ -3997,6 +4139,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         "completed_searches": list(searches), "continuation_requested": continuation_requested,
         "compilation_context": source_session.options.get("compilation_context") if source_session else None,
         "snapshot_id": overview["snapshot_id"], "exactly_once": False,
+        **({"answer_output_budget": answer_output_budget.checkpoint()} if answer_output_budget else {}),
         "question_budget": question_budget.checkpoint() if question_budget else None},
         status="attention" if uncertain else "running" if failure == "QUESTION_TIME_BUDGET_EXHAUSTED"
             and answer_origin != "model" else "completed")
@@ -4042,7 +4185,7 @@ def _continued_investigation_seed(saved):
     checkpoint = saved["checkpoint"]
     seed = json.loads(json.dumps({key: checkpoint[key] for key in (
         "source_pages", "frontier", "read_tasks", "accepted_draft", "prior_source_memory",
-        "analysis_continuation", "continuation_texts", "request_payload", "completed_actions",
+        "analysis_continuation", "continuation_texts", "answer_output_budget", "request_payload", "completed_actions",
         "navigation_state", "session_subject", "completed_searches")
         if key in checkpoint}))
     seed["continuation_requested"] = True
@@ -4075,6 +4218,10 @@ def _continued_investigation_seed(saved):
     if accepted:
         progress["draft"] = accepted["answer"]
     seed["analysis_continuation"] = progress
+    if seed.get("answer_output_budget"):
+        # A deliberate new attempt may use changed writing requirements.
+        # Retain all consumption and limits; only retry the idle output once.
+        seed["answer_output_budget"]["no_progress"] = False
     if upgraded and seed.get("request_payload"):
         # Truncated answers can use this raw-source envelope for continuation.
         # Rebuild derived investigations with current code and prompt rules.

@@ -156,8 +156,8 @@ class EmptyLengthRecoveryTests(unittest.TestCase):
         self.assert_local_source_delivery(output)
         self.assertFalse(self.result["metrics"]["empty_length_recovery_attempted"])
 
-    def test_empty_stop_filter_refusal_auth_and_timeout_are_not_retried(self):
-        cases = [response(""), response(None, finish="content_filter"),
+    def test_filter_refusal_auth_and_timeout_are_not_retried(self):
+        cases = [response(None, finish="content_filter"),
                  response(None, finish="length", refusal="Cannot provide an answer"),
                  TransportResponse(401, '{"error":{"message":"no access"}}'),
                  APIClientError("REQUEST_TIMEOUT")]
@@ -232,7 +232,7 @@ class EmptyLengthRecoveryTests(unittest.TestCase):
                                     for row in self.trace["rounds"][1:]))
 
     def test_other_failures_after_a_read_are_not_recovered(self):
-        cases = [response(""), response(None, finish="content_filter"),
+        cases = [response(None, finish="content_filter"),
                  response(None, finish="length", refusal="Cannot provide an answer"),
                  TransportResponse(401, '{"error":{"message":"no access"}}'),
                  APIClientError("REQUEST_TIMEOUT")]

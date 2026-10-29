@@ -12,9 +12,9 @@ from company_api import CompanyAPIConfig
 
 
 class AgentPolicyTests(unittest.TestCase):
-    def test_bounded_defaults_preserve_context_and_adaptive_mode(self):
+    def test_progress_driven_defaults_preserve_context_and_adaptive_mode(self):
         policy = resolve_agent_policy()
-        self.assertEqual(policy.max_model_requests, 8)
+        self.assertIsNone(policy.max_model_requests)
         self.assertIsNone(policy.max_question_seconds)
         self.assertIsNone(policy.hard_question_seconds)
         self.assertIsNone(policy.delivery_target_seconds)
@@ -26,7 +26,7 @@ class AgentPolicyTests(unittest.TestCase):
                           policy.max_business_context_actions_per_turn),
                          (32, 33554432, 4, 12, 2))
         self.assertEqual(policy.finalization_reserve_seconds, 45)
-        self.assertEqual(policy.max_investigation_rounds, 6)
+        self.assertIsNone(policy.max_investigation_rounds)
         self.assertEqual(policy.investigation_mode, "adaptive")
         self.assertTrue(policy.source_memory_enabled)
         self.assertEqual(policy.max_request_bytes, 230000)

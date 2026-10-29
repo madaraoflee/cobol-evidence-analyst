@@ -1,0 +1,470 @@
+[
+  {
+    "case_id": "collection-business",
+    "status": "PARTIAL",
+    "stop_reason": "question_evidence_incomplete",
+    "material_gap": "question_evidence_incomplete",
+    "answer_sha256": "cc242c44a6585d26aab53bbf9c81c9f40bb0d85754a5ada6b7b64b71103a138e",
+    "model_calls": [
+      {
+        "request_sha256": "90fe4faa920a912f3a6999abe7a015cf5169b0bfb299ea33b786e5d2ab9acafe",
+        "system_sha256": "f39388f765d5f5d5be9e9a1d7c4faf83d3c43038239a68cdf9572a037c2cb2ec",
+        "source_ranges": [
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 97,
+            "end_line": 155,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1008,
+            "end_line": 1066,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1919,
+            "end_line": 1977,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 197,
+            "end_line": 255,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "collection-entry.cbl",
+            "start_line": 1,
+            "end_line": 31,
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 2709,
+            "end_line": 2758,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          }
+        ]
+      },
+      {
+        "request_sha256": "cd97f47f00c9f485054c23f5728b4b34d7b22f240c2f6e240acf7970c656f3d8",
+        "system_sha256": "9d65b505611c7872d08e25e52e1b5a224baa253afd98c16ce35fe5fa64bd638f",
+        "source_ranges": [
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 97,
+            "end_line": 155,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "collection-entry.cbl",
+            "start_line": 1,
+            "end_line": 31,
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 2709,
+            "end_line": 2758,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1,
+            "end_line": 93,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 909,
+            "end_line": 992,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1809,
+            "end_line": 1892,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1750,
+            "end_line": 1808,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 2620,
+            "end_line": 2708,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          }
+        ]
+      }
+    ],
+    "open_gaps": [
+      {
+        "kind": "inputs",
+        "reason": "input_source_not_located",
+        "status": "PARTIAL"
+      },
+      {
+        "field": "AMOUNT-DUE",
+        "kind": "inputs",
+        "reason": "input_dependency_cycle",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      }
+    ],
+    "answer_completion": {
+      "limitation_detected": false,
+      "method": "bounded_text_and_coverage_signals",
+      "missing_aspects": [],
+      "pending_investigation": false,
+      "pending_source_explanation": false,
+      "reason": null,
+      "required_aspects": [
+        "conditions"
+      ],
+      "semantic_risk_candidates": [],
+      "semantic_verification": "unverified",
+      "source_availability_contradiction": false,
+      "source_availability_contradictions": [],
+      "source_selection_limitation_detected": false,
+      "status": "not_assessed"
+    }
+  },
+  {
+    "case_id": "collection-custom-format",
+    "status": "PARTIAL",
+    "stop_reason": "question_evidence_incomplete",
+    "material_gap": "question_evidence_incomplete",
+    "answer_sha256": "7a550b20f2fb17ddb7bf7c846866ea4e22b684ed98c40f4ed84ee9d844c9b319",
+    "model_calls": [
+      {
+        "request_sha256": "76ab73810330a9747872f91a4e52f411ba4edf655b06f70a7d63fa1d83d9dab7",
+        "system_sha256": "198703e8626f15b9a1f0fd09aa2e32e6aee8e09cae5dd32b00c2f03eb847c083",
+        "source_ranges": [
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 97,
+            "end_line": 155,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1008,
+            "end_line": 1066,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1919,
+            "end_line": 1977,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 197,
+            "end_line": 255,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "collection-entry.cbl",
+            "start_line": 1,
+            "end_line": 31,
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 2709,
+            "end_line": 2758,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          }
+        ]
+      },
+      {
+        "request_sha256": "984984d01aaa8ca2a3326be4027ad24f735b87cf59810645240ea5552f495aa8",
+        "system_sha256": "198703e8626f15b9a1f0fd09aa2e32e6aee8e09cae5dd32b00c2f03eb847c083",
+        "source_ranges": [
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 97,
+            "end_line": 155,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1008,
+            "end_line": 1066,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1919,
+            "end_line": 1977,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 197,
+            "end_line": 255,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "collection-entry.cbl",
+            "start_line": 1,
+            "end_line": 31,
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 2709,
+            "end_line": 2758,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1,
+            "end_line": 93,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 909,
+            "end_line": 992,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1809,
+            "end_line": 1892,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          }
+        ]
+      }
+    ],
+    "open_gaps": [
+      {
+        "kind": "inputs",
+        "reason": "input_source_not_located",
+        "status": "PARTIAL"
+      },
+      {
+        "field": "AMOUNT-DUE",
+        "kind": "inputs",
+        "reason": "input_dependency_cycle",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      }
+    ],
+    "answer_completion": {
+      "limitation_detected": false,
+      "method": "bounded_text_and_coverage_signals",
+      "missing_aspects": [],
+      "pending_investigation": false,
+      "pending_source_explanation": false,
+      "reason": null,
+      "required_aspects": [
+        "conditions"
+      ],
+      "semantic_risk_candidates": [],
+      "semantic_verification": "unverified",
+      "source_availability_contradiction": false,
+      "source_availability_contradictions": [],
+      "source_selection_limitation_detected": false,
+      "status": "not_assessed"
+    }
+  },
+  {
+    "case_id": "collection-framework-control",
+    "status": "PARTIAL",
+    "stop_reason": "question_evidence_incomplete",
+    "material_gap": "question_evidence_incomplete",
+    "answer_sha256": "17ce1739ed00837b4a155d0c59ed537a3c7bb09a7df5b909cc2b1e5bf48b4c44",
+    "model_calls": [
+      {
+        "request_sha256": "00a50e14f4c4276b1096a3a568ea3d98ca83b3b5da0f30343d762e35b17fa1ec",
+        "system_sha256": "f39388f765d5f5d5be9e9a1d7c4faf83d3c43038239a68cdf9572a037c2cb2ec",
+        "source_ranges": [
+          {
+            "relative_path": "collection-entry.cbl",
+            "start_line": 1,
+            "end_line": 31,
+            "source_sha256": "aa675484e52667483e2d8323140447479c44d885fd7ed99b017cd30e36da6372"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1,
+            "end_line": 85,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 1809,
+            "end_line": 1884,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 909,
+            "end_line": 984,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          },
+          {
+            "relative_path": "offset-rules.cbl",
+            "start_line": 2709,
+            "end_line": 2758,
+            "source_sha256": "414932c870c28faa2266f602baf4ff3d05535e07fd6305c5ad0b26fff733b307"
+          }
+        ]
+      }
+    ],
+    "open_gaps": [
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      },
+      {
+        "candidate_count": 15,
+        "interpretation_basis": "conservative_relation_candidates_not_execution_proof",
+        "kind": "semantic_candidates",
+        "limit": 12,
+        "omitted_count": 3,
+        "reason": "same_symbol_candidates_limited",
+        "relative_path": "offset-rules.cbl"
+      }
+    ],
+    "answer_completion": {
+      "limitation_detected": false,
+      "method": "bounded_text_and_coverage_signals",
+      "missing_aspects": [],
+      "pending_investigation": false,
+      "pending_source_explanation": false,
+      "reason": null,
+      "required_aspects": [
+        "conditions",
+        "behavior_conditions",
+        "behavior_outcomes"
+      ],
+      "semantic_risk_candidates": [],
+      "semantic_verification": "unverified",
+      "source_availability_contradiction": false,
+      "source_availability_contradictions": [],
+      "source_selection_limitation_detected": false,
+      "status": "not_assessed"
+    }
+  }
+]

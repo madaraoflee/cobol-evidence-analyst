@@ -295,6 +295,21 @@ test('an unchanged remote commit reports a repaired index rather than falsely sa
   assert.equal(h.run('state.question'),'A draft about this source');assert.equal(h.run('state.conversation.id'),'current');
 });
 
+test('an unchanged commit with repaired source reports the repair and translates local verification',async()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);currentRemote(h);
+    h.respond(url=>url==='/api/source/remote/update'?{job_id:'repair-source'}:
+      {status:'COMPLETED',kind:'index',result:{...cloudRemote,remote_update:{status:'repaired',source_repaired:true,index_rebuilt:true}}});
+    await h.run(`startRemoteSource({workspace_id:'${remoteId}'},'/api/source/remote/update')`);
+    const message=h.run('sourceUpdateNotice()');
+    if(locale==='en'){
+      assert.match(message,/source copy was repaired/);
+      assert.doesNotMatch(message,/without downloading|indexes were reused|[\u3400-\u9fff]/);
+      assert.equal(h.run("phaseLabel('remote_verifying')"),'Checking the local source copy');
+    }
+  }
+});
+
 test('remote terminal failures stay above old conversations on every restored page',async()=>{
   for(const page of ['workbench','sources','history'])for(const outcome of ['FAILED','CANCELLED','REJECTED']){
     const h=harness();setup(h);fill(h);
@@ -389,6 +404,42 @@ test('source results and private-repository guidance are translated without maki
   }
 });
 
+test('repository rate limiting remains a clear safe failure without resubmitting in every language',async()=>{
+  for(const locale of ['en','zh-CN','zh-HK'])for(const failureAt of ['submit','job']){
+    const h=harness(locale);setup(h);fill(h);
+    const error={code:'REMOTE_SOURCE_RATE_LIMITED',message:'Untrusted remote body transient-secret'};
+    h.respond(url=>url==='/api/source/remote'?
+      (failureAt==='submit'?{__status:429,error}:{job_id:'limited'}):
+      {status:'FAILED',kind:'index',error});
+    await h.events['remote-source-form:submit']({preventDefault(){}});
+    const feedback=h.run('sourceJobFeedbackView()');
+    assert.match(feedback,locale==='en'?/rate limiting requests/:/限流/);
+    assert.match(feedback,locale==='en'?/Retry manually later/:/手[动動]重[试試]/);
+    assert.doesNotMatch(feedback,/REQUEST_FAILED|Untrusted remote body|transient-secret/);
+    if(locale==='en')assert.doesNotMatch(feedback,/[\u3400-\u9fff]/);
+    assert.equal(h.run('state.project.source'),local.source);
+    assert.equal(h.run('state.conversation.id'),'old');
+    assert.equal(h.run('state.sourceJobFeedback.status'),'FAILED');
+    assert.equal(h.requests.length,failureAt==='submit'?1:2);
+  }
+});
+
+test('Cloud initial download limits never promise smaller transfers from selecting a subfolder',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);
+    const timeout=h.run("apiErrorText({code:'REMOTE_SOURCE_TIMEOUT'})");
+    const size=h.run("apiErrorText({code:'REMOTE_SOURCE_TOO_LARGE'})");
+    for(const message of [timeout,size]){
+      assert.match(message,/Cloud/);
+      assert.match(message,locale==='en'?/entire repository snapshot/:/整[个個][仓倉][库庫]快照/);
+      assert.match(message,locale==='en'?/existing local source copy/:/已有的本[地機][源碼码]{2}/);
+      if(locale==='en')assert.doesNotMatch(message,/[\u3400-\u9fff]/);
+    }
+    assert.match(timeout,locale==='en'?/subfolder does not reduce the download/:/子目[录錄]不[会會][减減]少下[载載]量/);
+    assert.match(size,/Server \/ Data Center/);
+  }
+});
+
 
 test('retry before reload preserves the remote update endpoint instead of reopening cached source',async()=>{
   const h=harness();currentRemote(h);h.run("openRemoteSource('update')");let attempt=0;
@@ -401,4 +452,20 @@ test('retry before reload preserves the remote update endpoint instead of reopen
   await h.events['remote-source-form:submit']({preventDefault(){}});
   assert.equal(attempt,2);assert.equal(h.requests.filter(r=>r.url==='/api/source/remote').length,0);
   assert.match(h.run('sourceJobFeedbackView()'),/unchanged/);
+});
+
+test('incremental sync shows actual transfer counts after reload in every language',()=>{
+  for(const locale of ['en','zh-CN','zh-HK']){
+    const h=harness(locale);setup(h);
+    const project={...remote,remote_source:{...remote.remote_source,provider:'bitbucket_cloud',sync_mode:'incremental',
+      downloaded_files:1,reused_files:12201,downloaded_bytes:320}};
+    h.run(`applyProject(${JSON.stringify(project)})`);
+    const html=h.run('remoteSourceView()');
+    assert.match(html,/remote-sync-summary/);assert.match(html,/12,201/);assert.match(html,/320 B/);
+    if(locale==='en'){assert.match(html,/Last sync: downloaded/);assert.doesNotMatch(html,/[\u3400-\u9fff]/);}
+    h.run("state.busy=true;state.jobKind='index';rememberProgress({phase:'remote_syncing',completed:1,total:12202,unit:'files'})");
+    const progress=h.run('progressPanel()');assert.doesNotMatch(progress,/remote_syncing/);
+    if(locale==='en')assert.doesNotMatch(progress,/[\u3400-\u9fff]/);
+    h.run('state.project.remote_source.downloaded_files=-1');assert.doesNotMatch(h.run('remoteSourceView()'),/remote-sync-summary/);
+  }
 });

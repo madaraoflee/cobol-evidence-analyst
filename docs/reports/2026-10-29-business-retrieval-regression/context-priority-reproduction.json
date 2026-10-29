@@ -1,0 +1,131 @@
+{
+  "baseline_commit": "466a264",
+  "external_model_calls": 0,
+  "cases": [
+    {
+      "state": "before",
+      "actual_request_bytes": 28214,
+      "source_paths": [
+        "refund.cbl"
+      ],
+      "source_characters": 7688,
+      "framework_characters": 3200,
+      "retained_business_rules": [
+        "SUBTRACT RETURN-AMOUNT FROM DUE-AMOUNT"
+      ],
+      "custom_system_occurrences": 1,
+      "custom_instruction_sha256": "6f668bd9a2565f354e3318b7f00c1cc63443e9522054cd9df0a2d7d5b89bfc33",
+      "trim_events": [
+        {
+          "item_id": null,
+          "role": "context",
+          "reason": "optional_navigation_wire_bytes",
+          "old_range": null,
+          "new_range": null,
+          "before_characters": 0,
+          "after_characters": 0
+        },
+        {
+          "item_id": null,
+          "role": "context",
+          "reason": "business_analysis_brief_request_bytes",
+          "old_range": null,
+          "new_range": null,
+          "before_characters": 3370,
+          "after_characters": 0
+        },
+        {
+          "item_id": "ev_page_cc7300a9aef52396f651eb42",
+          "role": "source",
+          "reason": "request_bytes",
+          "old_range": null,
+          "new_range": null,
+          "before_characters": 7688,
+          "after_characters": 0
+        },
+        {
+          "item_id": "fw:record-3",
+          "role": "framework",
+          "reason": "request_bytes",
+          "old_range": null,
+          "new_range": null,
+          "before_characters": 1600,
+          "after_characters": 0
+        },
+        {
+          "item_id": "fw:record-2",
+          "role": "framework",
+          "reason": "request_bytes",
+          "old_range": null,
+          "new_range": null,
+          "before_characters": 1600,
+          "after_characters": 0
+        }
+      ]
+    },
+    {
+      "state": "after",
+      "actual_request_bytes": 31645,
+      "source_paths": [
+        "credit.cbl",
+        "refund.cbl"
+      ],
+      "source_characters": 15376,
+      "framework_characters": 0,
+      "retained_business_rules": [
+        "SUBTRACT CREDIT-AMOUNT FROM DUE-AMOUNT",
+        "SUBTRACT RETURN-AMOUNT FROM DUE-AMOUNT"
+      ],
+      "custom_system_occurrences": 1,
+      "custom_instruction_sha256": "6f668bd9a2565f354e3318b7f00c1cc63443e9522054cd9df0a2d7d5b89bfc33",
+      "trim_events": [
+        {
+          "item_id": null,
+          "role": "context",
+          "reason": "optional_navigation_wire_bytes",
+          "old_range": null,
+          "new_range": null,
+          "before_characters": 0,
+          "after_characters": 0
+        },
+        {
+          "item_id": "fw:record-3",
+          "role": "framework",
+          "reason": "auxiliary_framework_request_bytes",
+          "old_range": null,
+          "new_range": null,
+          "before_characters": 1600,
+          "after_characters": 0
+        },
+        {
+          "item_id": "fw:record-2",
+          "role": "framework",
+          "reason": "auxiliary_framework_request_bytes",
+          "old_range": null,
+          "new_range": null,
+          "before_characters": 1600,
+          "after_characters": 0
+        },
+        {
+          "item_id": "fw:record-1",
+          "role": "framework",
+          "reason": "auxiliary_framework_request_bytes",
+          "old_range": null,
+          "new_range": null,
+          "before_characters": 1600,
+          "after_characters": 0
+        },
+        {
+          "item_id": "fw:record-0",
+          "role": "framework",
+          "reason": "auxiliary_framework_request_bytes",
+          "old_range": null,
+          "new_range": null,
+          "before_characters": 1600,
+          "after_characters": 0
+        }
+      ]
+    }
+  ],
+  "comparison_scope": "Only _fit_request is taken from baseline; both cases use the same current prompt and index to isolate context priority."
+}

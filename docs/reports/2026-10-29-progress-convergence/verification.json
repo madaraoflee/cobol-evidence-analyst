@@ -1,0 +1,62 @@
+{
+  "scope": "progress_convergence_source_regression",
+  "date": "2026-10-29",
+  "timezone": "Asia/Shanghai",
+  "git_head": "466a264683da2a5509b38b3bd6a975b955ad7c13",
+  "working_tree_dirty": true,
+  "pipeline_version": "question-evidence-v61",
+  "prompt_version": "business-chat-v52",
+  "checks": {
+    "targeted": {
+      "passed": 151,
+      "seconds": 11.28,
+      "log": "targeted-tests.txt"
+    },
+    "adapters_and_streaming": {
+      "passed": 54,
+      "seconds": 1.779,
+      "log": "adapter-tests.txt"
+    },
+    "total_distinct_tests": 205,
+    "diff_check": "passed"
+  },
+  "behaviors": {
+    "same_program_new_reads": 10,
+    "same_program_total_requests": 11,
+    "original_question_and_custom_system_in_every_request": true,
+    "default_no_new_evidence_requests": 3,
+    "answer_only_tools_violation_requests": 2,
+    "overlapping_source_ranges_count_as_progress": false,
+    "regenerated_framework_reference_ids_count_as_progress": false,
+    "continuation_allowance_derived_from_material_and_output_window": true,
+    "continuation_consumption_survives_explicit_continue": true
+  },
+  "limits": {
+    "real_model_calls_in_this_task": 0,
+    "compiled_artifacts_created": 0,
+    "full_regression": "delegated_to_user_authorized_integration_chat",
+    "release": "not_performed_in_this_task",
+    "source_hashes_include_existing_shared_worktree_changes": true
+  },
+  "file_sha256": {
+    "poc/agent_policy.py": "78ce51f9deaf6d234f0106f515c10de361b84e46f22fb9f6a5b61faa752fd4d1",
+    "poc/agent-settings.example.json": "323579dc44ae4b7f7efc6ffc4316327b394698183058914f381656dbcd2b31bf",
+    "poc/runtime_settings.py": "693f2d25f47edc69938f59beb0e99015254851fe5df1eae8fb1cf68717730f43",
+    "poc/analysis_continuation.py": "1ae7051771f6a5eb0f8eaffac08487d63314f91cecd0018a684357bbb56193d3",
+    "poc/answer_continuation_budget.py": "3dd764fc984c6ad6dfc15eeefc463a1e1621c6a94a8e44f6405b7d3c30532f96",
+    "poc/business_chat.py": "298217bac2de016b3963aedd254cb173225a42c06ed2a2b298ed353125ca5769",
+    "poc/quality_trace.py": "eb11dc68cc7725aa50066e0340bc7a9d50a0dc7b436bc7563de960bea2ce2476",
+    "poc/tests/test_agent_policy.py": "8e985ed668ed7ccfc65806d2da9f58f722af564d9851387fc06c22d9059b6f3b",
+    "poc/tests/test_runtime_settings.py": "a42b0e66e809d0b4118ac9e2769bbc331e811ead45e2b19643380fd2eb4d5cc5",
+    "poc/tests/test_business_first_delivery.py": "340457cfa7843b322975155ce9d44ac62de507b22e83af1b08d830627a307bb7",
+    "poc/tests/test_completion_driven_chat.py": "d6a5e236ea4ed7f4e5aaf23adb9bd123eb4d735b6fd4fca3cb3e224ec2a4c922",
+    "poc/tests/test_default_investigation_delivery.py": "5cd5aa2fa8bc5935b44139f1a52fba9e134b2fce67a0e81546dc3112151cc88f",
+    "poc/tests/test_question_investigation_chat.py": "14a2fab3426012c32c457f70dc07125f9ff0cdbc3b6462585d9c3725b4d385d3",
+    "poc/tests/test_live_business_eval.py": "17c58d7b43d5a3b6dce98c6a202d02f2305a1f61a4edd111c7bf043f8f7c9d07",
+    "poc/tests/test_answer_continuation_budget.py": "b5e0f25dc7e15708bed6dc04e87603bcbce332f65a043d1ab046ba5ac3058484",
+    "poc/tests/test_continuation_material_coverage.py": "1509f89620329d6d3f75cdd18492a90fdaad8f85c989037d52a4380d7f7bd483",
+    "poc/tests/test_answer_output_resume.py": "835462fd63af2da80b205072e5afbf932052f2af2b1dd3418a2fafc827ce688e",
+    "tools/check_investigation_continuity.py": "b1b39310825cd228fbeb240d6da5dc51f87edf734f6da84f10eb8e4d6e721046",
+    "docs/completion-driven-analysis.md": "9d59a7eb6bceea670a27f638dacb50198adbec52bc987308636198fc0053bcd2"
+  }
+}

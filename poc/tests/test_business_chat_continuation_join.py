@@ -32,20 +32,21 @@ class ChatContinuationJoinTests(unittest.TestCase):
         self.config = CompanyAPIConfig("https://neutral.example.invalid/v1", "neutral-model",
                                        api_key="offline-neutral-credential")
 
-    def ask(self, *, second_finish="stop", progress=None):
+    def ask(self, *, second_finish="stop", progress=None, identifier_restart=False):
         self.responses = []
         self.requests = []
-        self.prefix = "结果来自入口赋值。\n\n1. 已说明的条件保留。\n\n"
+        self.prefix = ("结果来自入口赋值。随后按 " if identifier_restart
+                       else "结果来自入口赋值。\n\n1. 已说明的条件保留。\n\n")
 
         def transport(request):
             payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
             self.requests.append(payload)
             page = payload["source_context"][0]["pages"][0]
             if len(self.requests) == 1:
-                text = self.prefix + "2. 返回的状态字段是 `RESULT-CO"
+                text = self.prefix + ("`RESULT-CO" if identifier_restart else "2. 返回的状态字段是 `RESULT-CO")
                 finish = "length"
             else:
-                text = "2. 返回的状态字段是 `RESULT-CODE`，其值是12。[" + page["evidence_id"] + "]"
+                text = ("" if identifier_restart else "2. 返回的状态字段是 ") + "`RESULT-CODE`，其值是12。[" + page["evidence_id"] + "]"
                 finish = second_finish
             self.responses.append(text)
             return TransportResponse(200, json.dumps({"choices": [{"message": {
@@ -83,6 +84,18 @@ class ChatContinuationJoinTests(unittest.TestCase):
         self.assertTrue(result["narrative"]["citations"])
         self.assertEqual(result["investigation_state"]["session_subject"]["root_paths"], ["decision.cbl"])
         self.assertEqual(self.requests[0]["session_subject"], self.requests[1]["session_subject"])
+
+    def test_inline_identifier_restart_preserves_business_text_and_raw_response_accounting(self):
+        events = []
+        result = self.ask(identifier_restart=True, progress=events.append)
+        self.assertEqual(result["answer"], self.prefix + self.responses[1])
+        self.assertNotIn("`RESULT-CO`RESULT-CODE`", result["answer"])
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(self.requests[1]["draft_answer"], self.responses[0])
+        self.assertEqual([r["parsed_answer_characters"] for r in result["diagnostic_summary"]["requests"]],
+                         [len(text) for text in self.responses])
+        self.assertEqual([e["answer_preview"]["text"] for e in events
+            if e.get("answer_preview", {}).get("stage") == "continuation"][-1], result["answer"])
 
     def test_repeated_length_stops_on_duplicate_continuation_within_shared_budget(self):
         result = self.ask(second_finish="length")

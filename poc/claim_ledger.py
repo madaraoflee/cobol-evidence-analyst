@@ -18,7 +18,7 @@ from response_language import localized_text, resolve_answer_language
 from source_availability import supplied_source_availability
 
 
-LEDGER_VERSION = "answer-claim-ledger-v16"
+LEDGER_VERSION = "answer-claim-ledger-v17"
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _NAME = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?:\s+(?:OF|IN)\s+[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)*"
 _ATOM = rf"(?:{_NAME}|[+-]?\d+(?:\.\d+)?|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|[()])"
@@ -371,7 +371,13 @@ def _assertions(text, *, table_header=False, derived_context=False):
                 state_value = (pattern is _FORMULA and not explicit_assignment and not declaration_context
                     and not derived_result
                     and (re.fullmatch(r"[+-]?\d+(?:\.\d+)?", "".join(tokens)) is not None
-                         or len(tokens) == 1 and tokens[0].startswith(("'", '"'))))
+                         or len(tokens) == 1 and tokens[0].startswith(("'", '"'))
+                         or len(tokens) == 1 and re.fullmatch(_NAME, tokens[0], re.I)
+                         and "=" not in match[0]))
+                # A prose state name (even inside Markdown backticks) does
+                # not assert whether source uses a literal or an identifier.
+                # Keep it outside exact token mismatch repair; do not convert
+                # every bare name into a quoted COBOL string.
                 assertion = {"predicate": "declaration_value" if declaration_context else
                              "derived_numeric_result" if derived_result else
                              "business_state_value" if state_value else "assignment_statement",
@@ -381,10 +387,12 @@ def _assertions(text, *, table_header=False, derived_context=False):
                     if re.search(r"\bCOMPUTE\s*$", clause_prefix, re.I):
                         assertion["statement_kind"] = "COMPUTE"
                     elif (pattern is _FORMULA and "=" not in match[0]
-                            and len(tokens) == 1 and re.fullmatch(r"\d+(?:\.\d+)?", tokens[0])
+                            and len(tokens) == 1 and (re.fullmatch(r"\d+(?:\.\d+)?", tokens[0])
+                                or re.fullmatch(_NAME, tokens[0], re.I))
                             and not re.search(r"\b(?:MOVE|COMPUTE)\b", clause_prefix, re.I)):
-                        # A prose code such as "set STATUS-CODE to 00" does
-                        # not specify whether source spells it as 00 or '00'.
+                        # A prose code such as "set STATUS-CODE to READY"
+                        # does not specify source quoting. Numeric codes have
+                        # the same representation boundary (00 versus '00').
                         # Keep that representation boundary out of exact
                         # source-token contradiction checks.
                         assertion["literal_notation"] = "unquoted_prose"

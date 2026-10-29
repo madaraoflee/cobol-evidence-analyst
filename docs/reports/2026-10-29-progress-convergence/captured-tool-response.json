@@ -1,0 +1,26 @@
+[
+  {
+    "remote_response": {
+      "choices": [
+        {
+          "message": {
+            "role": "assistant",
+            "content": "<｜｜DSML｜｜ calls>\n<｜｜DSML｜｜ invoke name=\"search\">[\"PERFORM APPLY-BALANCE\",\"PERFORM APPLY-REFUND\",\"PERFORM APPLY-REWARD\",\"AMOUNT-DUE\",\"APPLIED-OFFSET\",\"BALANCE-ALLOWED\",\"REFUND-READY\"]</｜｜DSML｜｜ parameter>\n</｜｜DSML｜｜ invoke>\n</｜｜DSML｜｜ calls>"
+          },
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 13184,
+        "completion_tokens": 246,
+        "total_tokens": 13430,
+        "prompt_tokens_details": {
+          "cached_tokens": 12928
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 170
+        }
+      }
+    }
+  }
+]

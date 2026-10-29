@@ -68,13 +68,35 @@ def _query_terms(question, search_terms):
     if not isinstance(question, str) or len(question) > 16000:
         raise ValueError("REPOSITORY_QUESTION_INVALID")
     if search_terms is None:
-        inputs = [question]
+        additions = []
     elif isinstance(search_terms, (list, tuple)) and all(isinstance(value, str) and len(value) <= 2000 for value in search_terms):
-        inputs = [question, *search_terms]
+        additions = list(search_terms)
     else:
         raise ValueError("REPOSITORY_SEARCH_TERMS_INVALID")
+    # New source leads must survive a long original question. The same terms
+    # drive discovery, match counts and excerpt cropping, not just FTS ranking.
+    inputs = [*additions, question]
     terms = list(dict.fromkeys(term for value in inputs for term in _tokens(value)
                               if term not in _STOP and term not in _CJK_STOP and len(term) > 1))
+    if len(terms) > MAX_QUERY_TERMS:
+        def balanced_tokens(text):
+            groups = deque()
+            for word in dict.fromkeys(_WORDS.findall(text)):
+                values = _tokens(word)
+                if "\u3400" <= word[0] <= "\u9fff":
+                    # Longer overlapping n-grams can consume the whole budget
+                    # before an ordinary two-character source term is reached.
+                    values.sort(key=len)
+                groups.append(deque(values))
+            while groups:
+                values = groups.popleft()
+                if values:
+                    yield values.popleft()
+                    if values:
+                        groups.append(values)
+
+        terms = list(dict.fromkeys(term for value in inputs for term in balanced_tokens(value)
+                                  if term not in _STOP and term not in _CJK_STOP and len(term) > 1))
     return terms[:MAX_QUERY_TERMS], max(0, len(terms) - MAX_QUERY_TERMS)
 
 
@@ -987,7 +1009,10 @@ def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=N
         return None
     if start_line is None:
         folded = [line.casefold() for line in lines]
-        hits = [(sum(min(32, len(term)) for term in terms if term in text), index)
+        # A refined search can hit an old page at a new location. Keep that
+        # location visible instead of recropping around the original question.
+        crop_terms = row.get("focus_terms") or terms
+        hits = [(sum(min(32, len(term)) for term in crop_terms if term in text), index)
                 for index, text in enumerate(folded)]
         _, center = max(hits, default=(0, lower), key=lambda pair: (pair[0], -pair[1]))
         if row.get("focus_line") is not None:
@@ -1387,7 +1412,7 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
                     "FROM matches ORDER BY file_rank,score,relative_path,start_line LIMIT ?", (active_query, *scope_values, max_pages * 16))
                 for row in candidates:
                     if row["page_id"] not in seen:
-                        ranked.append(dict(row))
+                        ranked.append(dict(row, focus_terms=additions if active_query == refined_query else terms))
                         seen.add(row["page_id"])
         raw_fallback = None
         if not ranked and not blocked:

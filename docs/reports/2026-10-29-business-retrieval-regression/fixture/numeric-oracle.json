@@ -1,0 +1,171 @@
+{
+  "method": "Independent Decimal recomputation of the reviewed source rules; not actual COBOL execution.",
+  "examples": [
+    {
+      "read_status": "READY",
+      "invoice": 100,
+      "flags": [
+        "Y",
+        "Y",
+        "Y"
+      ],
+      "available": [
+        20,
+        10,
+        5
+      ],
+      "steps": [
+        {
+          "kind": "balance",
+          "applied": "20",
+          "remaining": "80"
+        },
+        {
+          "kind": "refund",
+          "applied": "10",
+          "remaining": "70"
+        },
+        {
+          "kind": "reward",
+          "applied": "5",
+          "remaining": "65"
+        }
+      ],
+      "remaining": "65",
+      "result": "CALCULATED"
+    },
+    {
+      "read_status": "NOTFOUND",
+      "invoice": 100,
+      "flags": [
+        "Y",
+        "Y",
+        "Y"
+      ],
+      "available": [
+        20,
+        10,
+        5
+      ],
+      "steps": [],
+      "remaining": "100",
+      "result": "REVIEW"
+    },
+    {
+      "read_status": "ERROR",
+      "invoice": 100,
+      "flags": [
+        "Y",
+        "Y",
+        "Y"
+      ],
+      "available": [
+        20,
+        10,
+        5
+      ],
+      "steps": [],
+      "remaining": "100",
+      "result": "RETRY"
+    },
+    {
+      "read_status": "READY",
+      "invoice": 100,
+      "flags": [
+        "Y",
+        "N",
+        "Y"
+      ],
+      "available": [
+        20,
+        10,
+        5
+      ],
+      "steps": [
+        {
+          "kind": "balance",
+          "applied": "20",
+          "remaining": "80"
+        },
+        {
+          "kind": "refund",
+          "applied": "0",
+          "remaining": "80"
+        },
+        {
+          "kind": "reward",
+          "applied": "5",
+          "remaining": "75"
+        }
+      ],
+      "remaining": "75",
+      "result": "CALCULATED"
+    },
+    {
+      "read_status": "READY",
+      "invoice": 100,
+      "flags": [
+        "Y",
+        "Y",
+        "Y"
+      ],
+      "available": [
+        150,
+        10,
+        5
+      ],
+      "steps": [
+        {
+          "kind": "balance",
+          "applied": "100",
+          "remaining": "0"
+        },
+        {
+          "kind": "refund",
+          "applied": "0",
+          "remaining": "0"
+        },
+        {
+          "kind": "reward",
+          "applied": "0",
+          "remaining": "0"
+        }
+      ],
+      "remaining": "0",
+      "result": "CALCULATED"
+    },
+    {
+      "read_status": "READY",
+      "invoice": 100,
+      "flags": [
+        "Y",
+        "Y",
+        "Y"
+      ],
+      "available": [
+        0,
+        10,
+        5
+      ],
+      "steps": [
+        {
+          "kind": "balance",
+          "applied": "0",
+          "remaining": "100"
+        },
+        {
+          "kind": "refund",
+          "applied": "10",
+          "remaining": "90"
+        },
+        {
+          "kind": "reward",
+          "applied": "5",
+          "remaining": "85"
+        }
+      ],
+      "remaining": "85",
+      "result": "CALCULATED"
+    }
+  ]
+}

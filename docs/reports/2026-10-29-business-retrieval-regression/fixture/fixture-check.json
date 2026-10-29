@@ -1,0 +1,13 @@
+{
+  "indexed_files": 2,
+  "cases": 3,
+  "reviewed_ranges_valid": true,
+  "source_bytes": 183872,
+  "call_relations": [
+    [
+      "collection-entry.cbl",
+      "OFFSET-RULES"
+    ]
+  ],
+  "external_model_calls": 0
+}

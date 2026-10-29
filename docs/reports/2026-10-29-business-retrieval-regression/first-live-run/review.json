@@ -1,0 +1,49 @@
+{
+  "review_type": "AI maintainer independent review; not formal human or target-device acceptance",
+  "reviewer": "business_prompt_regression",
+  "source": "saved actual model answers and requests; no model calls by reviewer",
+  "cases": [
+    {
+      "case_id": "collection-business",
+      "business_gold": "pass: order, per-step amount 100->80->70->65, eligibility, cap, skips, no payment execution; framework control maps READY/CALCULATED, NOTFOUND/REVIEW, ERROR/RETRY correctly",
+      "forbidden_findings": [
+        "Invented currency unit 元 though source/question specifies no currency"
+      ],
+      "custom_format": "not applicable",
+      "business_focus": "pass; business meaning central, technical identifiers only supporting details or explicitly requested",
+      "diagnostic_status": "PARTIAL/question_evidence_incomplete false positive",
+      "diagnostic_root_causes": [
+        "same-symbol relation rows count READS+WRITES twice (15 rows, 12 statements)",
+        "USING group members not recognized as inputs",
+        "seeded amount decrement falsely reported as field dependency cycle"
+      ],
+      "overall_answer_acceptance": "fail currency precision"
+    },
+    {
+      "case_id": "collection-custom-format",
+      "business_gold": "pass: order, per-step amount 100->80->70->65, eligibility, cap, skips, no payment execution; framework control maps READY/CALCULATED, NOTFOUND/REVIEW, ERROR/RETRY correctly",
+      "forbidden_findings": [],
+      "custom_format": "pass: exactly three requested H2 headings; no raw field/program/status names",
+      "business_focus": "pass; business meaning central, technical identifiers only supporting details or explicitly requested",
+      "diagnostic_status": "PARTIAL/question_evidence_incomplete false positive",
+      "diagnostic_root_causes": [
+        "same-symbol relation rows count READS+WRITES twice (15 rows, 12 statements)",
+        "USING group members not recognized as inputs",
+        "seeded amount decrement falsely reported as field dependency cycle"
+      ],
+      "overall_answer_acceptance": "pass answer content; diagnostic failure remains"
+    },
+    {
+      "case_id": "collection-framework-control",
+      "business_gold": "pass: READY=65/CALCULATED conditional on eligibility, NOTFOUND=100/REVIEW, ERROR=100/RETRY; status does not guarantee offsets or implement automatic retry",
+      "forbidden_findings": [],
+      "custom_format": "not applicable",
+      "business_focus": "pass; business meaning central, technical identifiers only supporting details or explicitly requested",
+      "diagnostic_status": "PARTIAL/question_evidence_incomplete false positive",
+      "diagnostic_root_causes": [
+        "same-symbol relation rows count READS+WRITES twice (15 rows, 12 statements)"
+      ],
+      "overall_answer_acceptance": "pass answer content; diagnostic failure remains"
+    }
+  ]
+}

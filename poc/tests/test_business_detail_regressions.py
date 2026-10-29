@@ -387,7 +387,7 @@ class BusinessDetailRegressions(unittest.TestCase):
         self.assertTrue({"inputs", "conditions"} <= set(self.requests[1]["answer_review"]["missing_aspects"]))
         self.assertGreater(self.requests[1]["investigation_budget"]["reads_per_turn"], 0)
         self.assertGreater(self.requests[1]["investigation_budget"]["searches_per_turn"], 0)
-        self.assertEqual(self.requests[1]["investigation_budget"]["remaining_model_requests"], 7)
+        self.assertIsNone(self.requests[1]["investigation_budget"]["remaining_model_requests"])
         self.assertIn("固定值11", result["answer"])
         self.assertTrue(result["business_review"]["synthesis_review_attempted"])
         self.assert_answer_binding(result)

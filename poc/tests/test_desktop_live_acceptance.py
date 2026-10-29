@@ -276,12 +276,18 @@ class NativeLiveAcceptanceTests(unittest.TestCase):
         from agent_policy import AgentPolicy
         for policy in (AgentPolicy(), AgentPolicy(max_model_requests=6, delivery_target_seconds=1)):
             with self.subTest(policy=policy.to_dict()):
+                original = policy.to_dict()
                 wait = native.execution_wait_policy(policy)
                 self.assertEqual(wait["maximum_model_requests"], policy.max_model_requests)
                 self.assertEqual(wait["local_processing_reserve_seconds"], 135)
                 self.assertEqual(wait["verification_cleanup_reserve_seconds"], 45)
                 self.assertEqual(wait["watchdog_seconds"],
-                                 policy.max_model_requests * native.WORKBENCH_TIMEOUT_SECONDS + 135 + 45)
+                                 wait["watchdog_request_allowance"] * native.WORKBENCH_TIMEOUT_SECONDS + 135 + 45)
+                self.assertEqual(wait["watchdog_request_allowance"],
+                                 8 if policy.max_model_requests is None else policy.max_model_requests)
+                self.assertEqual(wait["watchdog_request_allowance_source"],
+                                 "verification_default" if policy.max_model_requests is None else "application_policy")
+                self.assertEqual(policy.to_dict(), original)
                 self.assertTrue(math.isfinite(wait["watchdog_seconds"]))
                 if policy.delivery_target_seconds is not None:
                     self.assertGreater(wait["watchdog_seconds"], policy.delivery_target_seconds)
