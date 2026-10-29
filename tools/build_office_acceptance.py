@@ -21,6 +21,7 @@ from build_app import audit_delivery, collect_licenses, copy_regular, source_ide
 
 MODULES = ("office_acceptance_app.py", "desktop_live_acceptance.py", "desktop_acceptance.py",
            "desktop_acceptance_runtime.py", "desktop_acceptance_cases.py", "desktop_acceptance_scenarios.py",
+           "desktop_acceptance_framework.py", "desktop_acceptance_business.py", "business_onboarding_fixture.py",
            "acceptance_diagnostics.py", "office_acceptance_checks.py", "partial_acceptance_audit.py")
 
 

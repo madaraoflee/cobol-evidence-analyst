@@ -140,6 +140,8 @@ jobs:
                           'test_desktop_live_acceptance.py', 'test_release_acceptance.py',
                           'test_publish_desktop_release.py'):
               subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', 'poc/tests', '-p', pattern], check=True)
+          subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', 'tools/tests',
+                          '-p', 'test_office_build_dependencies.py'], check=True)
 
       - name: Prepare pinned compiler environment
         id: prepare
@@ -214,6 +216,20 @@ jobs:
           with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as handle:
               handle.write('Portable helper started on Windows; original EXE reran every frozen offline sample. '
                            'No real-model or company-device acceptance is claimed; formal publication remains blocked.\n')
+
+      - name: Preserve failed offline diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Windows-office-acceptance-diagnostics-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/office-native-check/COMPILED-ACCEPTANCE.json
+            ${{ runner.temp }}/office-native-check/OFFICE-ENVIRONMENT.json
+            ${{ runner.temp }}/office-native-check/PARTIAL-DIAGNOSTICS.json
+            ${{ runner.temp }}/office-native-check/**/failure.txt
+            ${{ runner.temp }}/OFFICE-CANDIDATE-BINDING.json
+          if-no-files-found: ignore
+          retention-days: 30
 
       - uses: actions/upload-artifact@v7
         with:
