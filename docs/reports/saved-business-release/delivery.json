@@ -1,0 +1,172 @@
+{
+  "schema_version": "saved-business-candidate-delivery/v1",
+  "verified_at_utc": "2026-10-29T10:56:29.404429+00:00",
+  "source_commit": "ef3104fd5979c1e46e4d8cdd5bf3e34d1d6f75bb",
+  "desktop_build": {
+    "run_id": 40847896609,
+    "attempt": 1,
+    "url": "https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/40847896609",
+    "status": "success",
+    "candidate_artifact_id": 12888335911
+  },
+  "release": {
+    "tag": "v2026.10.29.3-rc.1",
+    "url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.10.29.3-rc.1",
+    "prerelease": true,
+    "draft": false,
+    "release_id": 427693655,
+    "tag_target_verified": true,
+    "server_asset_digests_verified": true,
+    "assets": [
+      {
+        "name": "ACCEPTANCE-MANIFEST.json",
+        "sha256": "ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06",
+        "size_bytes": 47542,
+        "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.3-rc.1/ACCEPTANCE-MANIFEST.json"
+      },
+      {
+        "name": "BUILD-INFO.json",
+        "sha256": "4fd18a37cd00b455b22777867ca503fd6d3ef76489f6f7016d73ced636e1f1b0",
+        "size_bytes": 1149,
+        "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.3-rc.1/BUILD-INFO.json"
+      },
+      {
+        "name": "CANDIDATE-GATE.json",
+        "sha256": "7b81a5b561a6928b099832418608a2d516394150b27619c9d41ea3836b772164",
+        "size_bytes": 10700,
+        "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.3-rc.1/CANDIDATE-GATE.json"
+      },
+      {
+        "name": "CANDIDATE-POLICY.json",
+        "sha256": "4c31ec920192a45c16ab0118fecb0dd302ebafeb9701e004cb9b694677c33be5",
+        "size_bytes": 198,
+        "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.3-rc.1/CANDIDATE-POLICY.json"
+      },
+      {
+        "name": "COBOLWorkbench-windows-x64.zip",
+        "sha256": "1efc5e8c93cc3c0d3ea21e6b9ffcba7c411439f0ca7487bc43cda8b6f7afccc6",
+        "size_bytes": 21014910,
+        "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.3-rc.1/COBOLWorkbench-windows-x64.zip"
+      },
+      {
+        "name": "COBOLWorkbench-windows-x64.zip.sha256",
+        "sha256": "872383777b07afef522b24c21da478f3baf05ae3302fa28ee8d883ae82eef28f",
+        "size_bytes": 98,
+        "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.3-rc.1/COBOLWorkbench-windows-x64.zip.sha256"
+      },
+      {
+        "name": "COMPILED-ACCEPTANCE.json",
+        "sha256": "3d6699e7b99fc83e61a8f1a1965f166ce9899af8b89721457cd9d6a7725fe1e2",
+        "size_bytes": 12978813,
+        "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.3-rc.1/COMPILED-ACCEPTANCE.json"
+      },
+      {
+        "name": "INVESTIGATION-CONTINUITY.json",
+        "sha256": "aa42f435ecfda4192c8da422bd1cd3dee5affac86362246dd8df8ece381884c5",
+        "size_bytes": 4562,
+        "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.3-rc.1/INVESTIGATION-CONTINUITY.json"
+      }
+    ]
+  },
+  "artifact": {
+    "archive_sha256": "1efc5e8c93cc3c0d3ea21e6b9ffcba7c411439f0ca7487bc43cda8b6f7afccc6",
+    "binary_path": "COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe",
+    "binary_sha256": "d6296098161bba4c58071b8c3f4ffeaa39594a55e61b5c994d8c145ff31bcb29",
+    "application_sha256": "59c580c3c2aac104eca0d4681230ddc178773b21e4cdfc29151fd85217273b0e",
+    "source_commit": "ef3104fd5979c1e46e4d8cdd5bf3e34d1d6f75bb",
+    "source_dirty": false,
+    "execution_surface": "native_windows_http",
+    "runtime_platform": "Windows"
+  },
+  "local_python": {
+    "runtime_platform": "Darwin",
+    "tests_run": 4326,
+    "elapsed_seconds": 255.22436,
+    "status": "passed",
+    "failures": [],
+    "errors": [],
+    "skipped": [],
+    "runner_errors": []
+  },
+  "windows_python": {
+    "selected_tests": 4326,
+    "passed_tests": 4324,
+    "skipped_tests": [
+      {
+        "id": "test_business_input_skips.BusinessInputSkipTests.test_unreadable_input_is_skipped_and_its_path_is_reported",
+        "reason": "Real source permissions require a non-root POSIX user.",
+        "shard_index": 1
+      },
+      {
+        "id": "test_sqlite_backup_compat.SQLiteBackupCompatibilityTests.test_real_permission_failure_keeps_marker_when_workspace_block_cannot_be_saved",
+        "reason": "Real directory permission failures require a non-root POSIX user.",
+        "shard_index": 2
+      }
+    ],
+    "shards": 4,
+    "validation_errors": [],
+    "independent_coverage_and_outcome_recheck": true
+  },
+  "frontend": {
+    "passed": 262,
+    "failed": 0,
+    "skipped": 0
+  },
+  "native_executable": {
+    "fixed_offline_samples_passed": 79,
+    "supplemental_checks_passed": 18,
+    "supplemental_synthetic_requests": 11,
+    "original_79_sample_contract_changed": false
+  },
+  "candidate_allowed": true,
+  "formal_publish_allowed": false,
+  "formal_publish_errors": [
+    {
+      "code": "REAL_MODEL_AND_OFFICE_ACCEPTANCE_REQUIRED"
+    }
+  ],
+  "office_toolkit": {
+    "workflow_run_id": 40857591278,
+    "workflow_url": "https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/40857591278",
+    "status": "success",
+    "artifact_id": 12891092457,
+    "artifact_name": "Windows-office-acceptance-kit-c56d7534269b3a03b77fb68be48fc6c1dc4fb3d8",
+    "download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/40857591278/artifacts/12891092457",
+    "source_commit": "ef3104fd5979c1e46e4d8cdd5bf3e34d1d6f75bb",
+    "helper_source_commit": "c56d7534269b3a03b77fb68be48fc6c1dc4fb3d8",
+    "archive_sha256": "95ddb8f8bee07f2ccbc98571805cf07ca4158a1c8d4b46d1250d80d6cc35e12b",
+    "unchanged_application_verified": true,
+    "native_offline_samples_passed": 79,
+    "helper_native_gui_started": true,
+    "planned_real_question_turns": 38,
+    "planned_request_budget": 114,
+    "real_model_calls": 0,
+    "target_device_acceptance_completed": false,
+    "files": {
+      "OFFICE-CANDIDATE-BINDING.json": "374197e9874610a098f1464f2d74dd34cfa75b190f629fc097d411f4901d3865",
+      "office-kit-delivery/COBOLWorkbench-office-acceptance-windows-x64.zip": "95ddb8f8bee07f2ccbc98571805cf07ca4158a1c8d4b46d1250d80d6cc35e12b",
+      "office-kit-delivery/COBOLWorkbench-office-acceptance-windows-x64.zip.sha256": "d9b2f073c61c9c40e34c0c82ccb4961d042df59851b25b5ff1f10f44e9ff669f",
+      "office-kit-delivery/KIT-BUILD-RECEIPT.json": "89b7976ca15cdb6e8201b875d2e66badf20619bf9f62eb05f5eb046347811105",
+      "office-native-check/COMPILED-ACCEPTANCE.json": "f604a266da1e9d86cd75aa0956c070d27c96edf1eb84c886b4bc2beeb04ceafb",
+      "office-native-check/OFFICE-ENVIRONMENT.json": "e5e171533c7917e241bf0e571c198dbd8b837cacde9d7a2f13f6a6612c613a4c"
+    },
+    "artifact_expires_at": "2026-11-28T10:51:31Z",
+    "failed_attempt_record": "office-helper-first-attempt.json",
+    "helper_source_tests": {
+      "isolated_stage_import_tests_passed": 1,
+      "existing_office_app_tests_passed": 32,
+      "candidate_binding_tests_passed": 19
+    }
+  },
+  "previous_stable_release": "v2026.10.14.2",
+  "previous_stable_unchanged": true,
+  "real_model_calls_this_verification": 0,
+  "private_source_sent": false,
+  "real_business_accuracy_measured": false,
+  "formal_acceptance_pending": [
+    "same_package_real_model_answers",
+    "human_review",
+    "target_office_device_acceptance"
+  ],
+  "application_inputs_unchanged_since_build": true
+}
