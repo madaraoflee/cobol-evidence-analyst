@@ -100,6 +100,42 @@ class BusinessIndexTests(unittest.TestCase):
         with closing(sqlite3.connect(self.database)) as connection:
             self.assertEqual(connection.execute("SELECT status FROM relations WHERE relation_type='INCLUDES_COPY'").fetchone()[0], "candidate")
 
+    def test_sql_envelopes_ignore_literal_and_comment_markers_and_keep_host_outputs(self):
+        cases = {
+            "split": "EXEC\n SQL SELECT AMOUNT INTO :RESULT-VALUE FROM RATE_TABLE\nEND-EXEC.",
+            "literal": "EXEC SQL SELECT AMOUNT INTO :RESULT-VALUE\n FROM RATE_TABLE WHERE NOTE='END-EXEC :FALSE-HOST'\nEND-EXEC.",
+            "line-comment": "EXEC SQL SELECT AMOUNT -- END-EXEC :FALSE-HOST\n INTO :RESULT-VALUE FROM RATE_TABLE\nEND-EXEC.",
+            "block-comment": "EXEC SQL SELECT AMOUNT /* END-EXEC\n CALL 'FALSE-TARGET'.\n PROGRAM-ID. FALSE-PROGRAM.\n */ INTO :RESULT-VALUE FROM RATE_TABLE\nEND-EXEC.",
+            "trailing-comment": "EXEC SQL SELECT AMOUNT INTO :RESULT-VALUE FROM RATE_TABLE END-EXEC /*\n CALL 'FALSE-TARGET'.\n */.",
+            "host-name": "EXEC SQL SELECT AMOUNT INTO :RESULT-VALUE FROM RATE_TABLE\n WHERE FLAG = :WS-END-EXEC-FLAG\nEND-EXEC.",
+        }
+        for name, sql in cases.items():
+            self.write(name + ".cbl", program(name.upper(), sql + "\nMOVE 7 TO RESULT-VALUE.\nGOBACK.\n"))
+        self.build()
+        with closing(sqlite3.connect(self.database)) as connection:
+            for name, sql in cases.items():
+                with self.subTest(name=name):
+                    rows = connection.execute("SELECT normalized_text,writes_json FROM business_rules "
+                        "WHERE relative_path=? AND rule_kind='EXEC_SQL'", (name + ".cbl",)).fetchall()
+                    self.assertEqual(len(rows), 1)
+                    self.assertEqual(json.loads(rows[0][1]), ["RESULT-VALUE"])
+                    self.assertIn("FROM RATE_TABLE", rows[0][0])
+                    self.assertEqual(connection.execute("SELECT COUNT(*) FROM business_rules "
+                        "WHERE relative_path=? AND rule_kind='MOVE'", (name + ".cbl",)).fetchone()[0], 1)
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM relations WHERE target_name='FALSE-TARGET'").fetchone()[0], 0)
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM symbols WHERE name='FALSE-PROGRAM'").fetchone()[0], 0)
+
+    def test_oversized_sql_retains_lexical_state_until_real_terminator(self):
+        sql = "EXEC SQL SELECT AMOUNT /*\n" + "comment\n" * 64
+        sql += "END-EXEC\nCALL 'FALSE-TARGET'.\n*/ INTO :RESULT-VALUE FROM RATE_TABLE\nEND-EXEC.\n"
+        self.write("main.cbl", program(body=sql + "MOVE 7 TO RESULT-VALUE.\nGOBACK.\n"))
+        self.build()
+        with closing(sqlite3.connect(self.database)) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM relations WHERE target_name='FALSE-TARGET'").fetchone()[0], 0)
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM business_rules WHERE rule_kind='MOVE'").fetchone()[0], 1)
+            self.assertEqual(connection.execute("SELECT o.parse_status FROM business_rule_occurrences o "
+                "JOIN business_rules r USING(rule_id) WHERE r.rule_kind='EXEC_SQL'").fetchone()[0], "partial")
+
     def test_comments_and_quoted_display_text_cannot_add_dependencies(self):
         self.write("main.cbl", program(body='*> CALL "FALSE-A".\nDISPLAY "CALL \'FALSE-B\' COPY LOST".\n'
                    'CALL\n "WORKER-ENTRY".\nCALL DYNAMIC-WORKER.\n'))

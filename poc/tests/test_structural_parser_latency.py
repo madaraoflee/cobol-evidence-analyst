@@ -100,6 +100,22 @@ class StructuralParserLatencyTests(unittest.TestCase):
                 actual = (code if scanner.mode is None else "", scanner.mode is None)
                 self.assertEqual(actual, sql_code_only(text))
 
+    def test_sql_comment_structure_words_do_not_escape_into_cobol(self):
+        body = ("EXEC SQL SELECT AMOUNT /*\nPROGRAM-ID. FALSE-PROGRAM.\n"
+                "CALL 'FALSE-TARGET'.\nFALSE-SECTION SECTION.\nGOBACK.\nELSE\n"
+                "*/ INTO :RESULT-VALUE FROM RATE_TABLE\nEND-EXEC.\n"
+                "MOVE 7 TO RESULT-VALUE.\nGOBACK.")
+        parsed = parse_document(self.document(body=body))
+        statement = next(unit for unit in parsed.code_units if unit.name == "EXEC_SQL")
+        self.assertEqual(statement.parse_status, "complete")
+        self.assertEqual(statement.normalized_text, "\n".join(body.splitlines()[:-2]))
+        self.assertFalse(any(unit.name in {"FALSE-PROGRAM", "FALSE-SECTION"}
+                             for unit in parsed.code_units))
+        self.assertFalse(any(edge.target_name == "FALSE-TARGET" for edge in parsed.relations))
+        self.assertIn(("WRITES", "RESULT-VALUE"),
+                      {(edge.relation_type, edge.target_name) for edge in parsed.relations
+                       if edge.from_entity_id == statement.unit_id})
+
     def test_terminator_before_multiline_comment_keeps_the_complete_sql_span(self):
         body = "exec sql select AMOUNT into :RESULT-VALUE from RATE_TABLE end-exec /*\n"
         body += "END-EXEC stays a comment\ncomment */.\nGOBACK."

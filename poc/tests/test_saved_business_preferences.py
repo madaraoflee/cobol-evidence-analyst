@@ -82,6 +82,28 @@ class SavedBusinessPreferenceTests(unittest.TestCase):
         self.assertFalse(saved_business_explanation_requested("解释这里", INSTRUCTIONS,
             source_scopes=[{"exclusive": True, "procedure_name": "MAIN"}]))
 
+    def test_current_business_exclusions_and_syntax_only_do_not_create_overview_work(self):
+        for question in ("不要解释业务用途，只检查语法。", "这次不要解释业务用途，列出入口名称。",
+                         "不要解釋業務用途，只檢查語法。", "只检查这段源码的语法。",
+                         "Do not explain the business purpose; only check syntax.",
+                         "Only check the syntax of ENTRYPOINT."):
+            for instructions in ("", INSTRUCTIONS):
+                with self.subTest(question=question, saved=bool(instructions)):
+                    self.assertFalse(saved_business_explanation_requested(question, instructions))
+                    self.assertFalse(wants_business_overview(question, answer_instructions=instructions))
+                    plan = QuestionPlanner().plan(question, {"direct_paths": ["entry.cbl"]},
+                                                  answer_instructions=instructions)
+                    self.assertNotIn("business_overview", plan.intents)
+
+    def test_current_positive_business_request_survives_neighboring_exclusion(self):
+        for question in ("不要解释代码，请讲清业务用途和数据交接。",
+                         "不要解释业务用途，请说明数据交接。",
+                         "不要解释业务用途，数据交接呢？",
+                         "不要解释业务目的，请讲解整体业务逻辑。",
+                         "Do not explain syntax; describe the business purpose and handoffs."):
+            with self.subTest(question=question):
+                self.assertTrue(wants_business_overview(question, answer_instructions=INSTRUCTIONS))
+
     def test_positive_business_demand_survives_neighboring_negation_and_formatting(self):
         for instructions in ("不要解释代码，请讲清业务目的、程序职责和数据交接。",
                              "不要解释代码而要讲清业务目的和数据交接。",
@@ -188,6 +210,19 @@ class SavedBusinessContentTests(unittest.TestCase):
         review = assess_business_answer(self.question, self.short_answer, investigation, self.pages,
                                         answer_instructions=instructions)
         self.assertNotIn("program_roles", review["required_aspects"])
+
+    def test_syntax_only_question_does_not_read_callers_or_demand_business_narrative(self):
+        self.question = "不要解释业务用途，只检查 DECISION 的语法。"
+        investigation = build_question_investigation(self.question, self.mapping,
+            database_path=self.database, source_pages=self.pages[:1], answer_instructions=INSTRUCTIONS,
+            working_set={"snapshot_id": self.mapping["snapshot_id"],
+                         "candidate_paths": ["decision.cbl", "caller.cbl"]})
+        self.assertNotIn("business_overview", investigation["analysis_plan"]["intents"])
+        self.assertFalse(any(action["tool"] == "read" and action["arguments"]["relative_path"] == "caller.cbl"
+                             for action in investigation["planned_actions"]))
+        review = assess_business_answer(self.question, self.short_answer, investigation, self.pages,
+                                        answer_instructions=INSTRUCTIONS)
+        self.assertFalse({"business_purpose", "program_roles", "data_roles"} & set(review["required_aspects"]))
 
     def test_actual_chat_repairs_obvious_business_omission_using_saved_requirements(self):
         requests, failures = [], []

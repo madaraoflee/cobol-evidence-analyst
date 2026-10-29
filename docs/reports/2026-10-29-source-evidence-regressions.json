@@ -1,0 +1,147 @@
+{
+  "schema": "local-source-regression-summary/v1",
+  "scope": "local_source_tests_only",
+  "date": "2026-10-29",
+  "status": "passed",
+  "base_commit": "006d4e058e8b4a8b232ef9e14a2c069d1ae96684",
+  "source_dirty": true,
+  "runtime_platform": "Darwin",
+  "source_changes": [
+    {
+      "path": "poc/business_chat.py",
+      "sha256": "4bc8e001ae4dcb96a26567b7336a205bd2ed644859ee2e9cb55675f9bc6aed18"
+    },
+    {
+      "path": "poc/business_index.py",
+      "sha256": "db55df28b4109c03e511f2d5f6f46ace1c59d20927b1f0ab7159490ce3d3af03"
+    },
+    {
+      "path": "poc/company_api.py",
+      "sha256": "9e7532e35db064a89a98c644b221af2728cdbbc67f8880ee0eef43d328ccd80c"
+    },
+    {
+      "path": "poc/compilation_context.py",
+      "sha256": "469f512862fb93af08d086b26af918bd924c9340c54a136cce976036647edad3"
+    },
+    {
+      "path": "poc/framework_binding.py",
+      "sha256": "fcd5d42c99d7d520370ad16a7edd73891d70d634a5b595132a600926bde951d2"
+    },
+    {
+      "path": "poc/framework_semantics.py",
+      "sha256": "26ccf518d93fdeb115400e80af94b9cf0416144dbe79a898afa49619a672aac5"
+    },
+    {
+      "path": "poc/model_profiles.py",
+      "sha256": "4b1b2fa898d553121ffadd9234a15127cbe6b66b800b0a5509bf9aecdb6a2d79"
+    },
+    {
+      "path": "poc/quality_trace.py",
+      "sha256": "18135c7c61bd446ae4aa69de6ec4e461f5651d1ee73fe922d8d4c98506a10e65"
+    },
+    {
+      "path": "poc/statement_facts.py",
+      "sha256": "6464fe10700701575920efc1755056357f804df64e28c4cd36386650654d27e0"
+    },
+    {
+      "path": "poc/structural_index.py",
+      "sha256": "91c8bac4fe70495c40858a73e272713d7c3fed03653a6e8c3c570d059e0cb6e7"
+    },
+    {
+      "path": "poc/tests/test_business_index.py",
+      "sha256": "558016343d73ebf50d703934fddd85ef36ca37f1fd79c5e059ad41cbd0377c6d"
+    },
+    {
+      "path": "poc/tests/test_compilation_context_validation.py",
+      "sha256": "6a5fec7a90d4e69c45ac6b0a8ec42785e6896ae3a88c58e096fd9d5d26b5628a"
+    },
+    {
+      "path": "poc/tests/test_explicit_retry_recovery.py",
+      "sha256": "7c864362210c6286ddedea1b6c4221c506fbc62df7fb5ccba7c46349cf1312b2"
+    },
+    {
+      "path": "poc/tests/test_framework_binding.py",
+      "sha256": "97f5b56d2ec9e0fc24611fe02e553f906c2583b9b70f499968a0f2f3034f813c"
+    },
+    {
+      "path": "poc/tests/test_framework_semantics.py",
+      "sha256": "c67fa36236bc8ce21063d6c8deec89d77e3ae395a1589f84fdcb8c0d4c266917"
+    },
+    {
+      "path": "poc/tests/test_model_output_budget.py",
+      "sha256": "713074b4266b49cda214d16f976a7d1d529c9d94c1502f6ba289ac8299baf559"
+    },
+    {
+      "path": "poc/tests/test_statement_facts.py",
+      "sha256": "ea18d8274b7dfc99dbfc26064f4cba2953e54eda65fafdaaad8922745e587da7"
+    },
+    {
+      "path": "poc/tests/test_structural_parser_latency.py",
+      "sha256": "1ed64dbe629c60b74f2e62a396fa4c6056ee9272001d79e49b36e3fbd24bb810"
+    },
+    {
+      "path": "poc/tests/test_workspace_upgrade.py",
+      "sha256": "62d43c74a69164628e52724613bbe29c6eab1b8fd89b3c81f14c593920fb1120"
+    },
+    {
+      "path": "poc/workspace_upgrade.py",
+      "sha256": "c95f76535551a1f71912f78be0684be7ed8c40e3b1ae105f1342acf48a1d4b63"
+    }
+  ],
+  "python": {
+    "discovered": 4349,
+    "passed": 4349,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0,
+    "coverage": "all_discovered_ids_executed_exactly_once",
+    "test_ids_sha256": "2f041c04d74ab4b6f8b6b581fa5c4591622c423c384786dbe8caf5142a5759e4",
+    "test_sources_sha256": "df8cacbe608d25df7cbd9d3c023af0f0274beeff039d335656f4e8a7e2909ee9",
+    "shards": [
+      {
+        "index": 0,
+        "passed": 1088,
+        "elapsed_seconds": 66.39211,
+        "report": "/tmp/cobol-source-evidence-audit-final-0.json"
+      },
+      {
+        "index": 1,
+        "passed": 1087,
+        "elapsed_seconds": 78.548135,
+        "report": "/tmp/cobol-source-evidence-audit-final-1.json"
+      },
+      {
+        "index": 2,
+        "passed": 1087,
+        "elapsed_seconds": 82.442757,
+        "report": "/tmp/cobol-source-evidence-audit-final-2.json"
+      },
+      {
+        "index": 3,
+        "passed": 1087,
+        "elapsed_seconds": 62.264569,
+        "report": "/tmp/cobol-source-evidence-audit-final-3.json"
+      }
+    ]
+  },
+  "web": {
+    "passed": 262,
+    "failed": 0,
+    "skipped": 0,
+    "log": "/tmp/cobol-source-evidence-audit-web.log"
+  },
+  "tools": {
+    "passed": 1,
+    "command": "python3 -m unittest discover -s tools/tests"
+  },
+  "public_corpus": {
+    "source_root": "/private/tmp/qa-public-source-20261028",
+    "manifest": "docs/eval/public-business-v1/manifest.json",
+    "files_hash_verified": 8,
+    "included_in_final_suite": true
+  },
+  "network_scope": "loopback_test_servers_only",
+  "real_model_calls": false,
+  "application_built": false,
+  "release_acceptance": false
+}

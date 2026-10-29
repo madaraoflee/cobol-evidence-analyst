@@ -49,6 +49,8 @@ class SourceAvailabilityTests(unittest.TestCase):
             [self.page | {"span_truncated": True}],
             [self.page | {"source_text": "MAIN."}],
             [self.page | {"include_chain": [{"path": "caller.cbl", "line": 5}]}],
+            [self.page | {"replacement_trace": [{"old": ["SOURCE"], "new": ["TARGET"]}]}],
+            [self.page | {"copy_instance": "copy-instance-one"}],
             [self.page | {"selection_reasons": ["repository_orientation"]}],
         )
         for pages in variants:
@@ -56,6 +58,18 @@ class SourceAvailabilityTests(unittest.TestCase):
                 self.assertFalse(self.findings("rule.cbl 的完整源码未提供。", pages=pages))
                 self.assertFalse(self.findings("我只能看到 rule.cbl 的部分代码。", pages=pages))
         self.assertFalse(self.findings("rule.cbl 的完整源码未提供。", working_set={}))
+
+    def test_derived_ranges_cannot_fill_gaps_in_original_source_coverage(self):
+        physical = self.page | {"end_line": 1, "source_text": "MAIN.", "evidence_id": "ev_first"}
+        for provenance in ({"replacement_trace": [{"old": ["AMOUNT"], "new": ["OTHER"]}]},
+                           {"copy_instance": "copy-instance-one"}):
+            with self.subTest(provenance=provenance):
+                derived = self.page | {"start_line": 2, "source_text": "MOVE 1 TO OTHER.\nGOBACK.",
+                                       "evidence_id": "ev_derived", **provenance}
+                available = supplied_source_availability([physical, derived], self.working_set)
+                self.assertFalse(available["programs/rule.cbl"]["complete_source_supplied"])
+                self.assertEqual(available["programs/rule.cbl"]["evidence_ids"], ["ev_first"])
+                self.assertFalse(self.findings("rule.cbl 的完整源码未提供。", pages=[physical, derived]))
 
     def test_contiguous_same_version_ranges_prove_full_source_but_gaps_do_not(self):
         pages = [self.page | {"end_line": 1, "source_text": "MAIN.", "evidence_id": "ev_first"},

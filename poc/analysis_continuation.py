@@ -90,13 +90,17 @@ def semantic_material_keys(pages, groups):
             return None
         if not any(page.get("source_text") and not page.get("span_truncated")
                 and all(page.get(key) == ref.get(key) for key in ("relative_path", "source_sha256"))
-                and (page.get("include_chain") or []) == (ref.get("include_chain") or [])
-                and (page.get("replacement_trace") or []) == (ref.get("replacement_trace") or [])
+                and tuple(page.get("include_chain") or ()) == tuple(ref.get("include_chain") or ())
+                and tuple(page.get("replacement_trace") or ()) == tuple(ref.get("replacement_trace") or ())
+                and page.get("copy_instance") == ref.get("copy_instance")
                 and page["start_line"] <= ref["start_line"] <= ref["end_line"] <= page["end_line"]
                 for page in pages):
             return None
-        return {key: ref.get(key) for key in ("relative_path", "source_sha256", "start_line", "end_line",
+        binding = {key: ref.get(key) for key in ("relative_path", "source_sha256", "start_line", "end_line",
             "start_column", "end_column", "include_chain", "replacement_trace", "copy_instance")}
+        for key in ("include_chain", "replacement_trace"):
+            binding[key] = list(binding[key] or ())
+        return binding
 
     keys = set()
     for group in groups:

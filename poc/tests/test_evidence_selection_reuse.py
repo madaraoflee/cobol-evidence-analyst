@@ -36,6 +36,28 @@ def page(identifier, start, end, **options):
 
 
 class EvidenceSelectionReuseTests(unittest.TestCase):
+    def test_payload_semantics_require_the_supplied_copy_instance(self):
+        for instance, expected in (("first-copy", 1), ("second-copy", 0), (None, 0)):
+            for page_container, ref_container in ((list, tuple), (tuple, list)):
+                with self.subTest(instance=instance, page_container=page_container):
+                    supplied = page("first", 8, 8, copy_instance="first-copy",
+                        include_chain=page_container([{"relative_path": "host.cbl", "line": 4}]),
+                        replacement_trace=page_container([{"from": "INPUT", "to": "FIRST"}]))
+                    ref = {key: supplied[key] for key in ("relative_path", "source_sha256", "start_line", "end_line")}
+                    ref.update(copy_instance=instance, include_chain=ref_container(supplied["include_chain"]),
+                               replacement_trace=ref_container(supplied["replacement_trace"]))
+                    node = {"occurrence_id": "copy-node", "source_refs": [ref]}
+                    group = {"group_id": "copy-group", "required_evidence_ids": ["first"],
+                        "semantic_analysis": {"slice_statements": [node],
+                            "assignments": [{"statement": node}],
+                            "tool_results": [{"occurrence_id": "copy-node", "statements": [node]}]}}
+                    payload = {"source_context": [{"pages": [supplied]}], "evidence_groups": [group]}
+                    EvidenceContext.reconcile_payload(payload)
+                    analysis = group["semantic_analysis"]
+                    for field in ("slice_statements", "assignments", "tool_results"):
+                        self.assertEqual(len(analysis[field]), expected, field)
+                    self.assertEqual(analysis["withheld_statement_count"], 1 - expected)
+
     def compare(self, context, maximum, **options):
         expected = ReferenceContext()
         expected.__dict__ = deepcopy(context.__dict__)

@@ -12,6 +12,50 @@ from web_app import _remote_metadata
 
 
 class WebIncrementalSyncTests(unittest.TestCase):
+    def test_server_same_commit_cache_damage_is_repaired_in_a_new_snapshot(self):
+        for damage in ("missing", "changed"):
+            with self.subTest(damage=damage):
+                fixture = fixtures.RemoteSourceIntegrationTests()
+                fixture.setUp()
+                self.addCleanup(fixture.doCleanups)
+
+                def fetch(spec, destination, **kwargs):
+                    return fixture.fetched_source(spec, destination, token=kwargs.get("token"),
+                        progress=kwargs.get("progress"), check_cancel=kwargs.get("check_cancel"))
+
+                with mock.patch("web_app.fetch_remote_source", side_effect=fetch):
+                    previous = fixture.finish(fixture.app.start_remote(fixture.payload())["job_id"])["result"]
+                path = Path(previous["source"]) / "request.cbl"
+                original = path.read_bytes()
+                conversation = fixture.app.new_conversation({})["conversation"]
+                store = fixture.app.conversation_store
+                store.append(conversation["id"], "user", "Saved question before cache damage.", status="completed")
+                history = store.get(conversation["id"])
+                if damage == "missing":
+                    path.unlink()
+                else:
+                    before = path.stat()
+                    changed = original.replace(b"REMOTE-REQUEST", b"BROKEN-REQUEST")
+                    self.assertEqual(len(changed), len(original))
+                    path.write_bytes(changed)
+                    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+                damaged_bytes = path.read_bytes() if path.exists() else None
+                with mock.patch("web_app.resolve_remote_source", return_value=fixtures.REMOTE_METADATA), \
+                        mock.patch("web_app.fetch_remote_source", side_effect=fetch) as fetched:
+                    result = fixture.finish(fixture.app.update_remote({
+                        "workspace_id": previous["workspace_id"], "token": fixtures.ACCESS_TOKEN})["job_id"])
+                self.assertEqual(result["status"], "COMPLETED", result)
+                current = result["result"]
+                self.assertEqual(current["remote_update"]["status"], "repaired")
+                self.assertTrue(current["remote_update"]["source_repaired"])
+                self.assertNotEqual(current["source"], previous["source"])
+                self.assertEqual((Path(current["source"]) / "request.cbl").read_bytes(), original)
+                self.assertEqual(path.read_bytes() if path.exists() else None, damaged_bytes)
+                self.assertEqual(store.get(conversation["id"]), history)
+                self.assertEqual(fetched.call_count, 1)
+                self.assertNotIn("previous_source", fetched.call_args.kwargs)
+                fixture.assert_no_token_saved()
+
     def real_cloud_fixture(self):
         fixture = fixtures.RemoteSourceIntegrationTests()
         fixture.setUp()

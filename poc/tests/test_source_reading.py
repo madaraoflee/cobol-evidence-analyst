@@ -13,7 +13,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from investigation_tools import InvestigationTools
-from source_reading import prepare_source_reading, read_source_page_batch, _verified_pages
+from source_reading import prepare_source_reading, read_source_page_batch, _identify_page, _verified_pages
 from structural_index import build_structural_index
 
 
@@ -22,6 +22,35 @@ def program(name="MAIN-ENTRY", body='DISPLAY "READY".\nGOBACK.\n'):
 
 
 class SourceReadingTests(unittest.TestCase):
+    def test_page_identity_keeps_legacy_original_and_empty_provenance_ids(self):
+        page = {"relative_path": "shared.cpy", "source_sha256": "a" * 64,
+                "start_line": 3, "end_line": 3, "source_text": "MOVE 1 TO RESULT-VALUE."}
+        expected = "ev_page_133f478763993256529962e4"
+        self.assertEqual(_identify_page(page), expected)
+        for empty in (None, [], ()):
+            self.assertEqual(_identify_page({**page, "include_chain": empty,
+                "replacement_trace": empty, "copy_instance": None}), expected)
+        chain = [{"relative_path": "entry.cbl", "start_line": 8}]
+        self.assertEqual(_identify_page({**page, "include_chain": chain}), "ev_page_586b3aa2ff27323d85118707")
+        self.assertEqual(_identify_page({**page, "include_chain": chain}),
+                         _identify_page({**page, "include_chain": tuple(chain),
+                                         "replacement_trace": [], "copy_instance": ""}))
+
+    def test_identical_source_pages_keep_distinct_copy_and_replacement_identities(self):
+        page = {"relative_path": "shared.cpy", "source_sha256": "a" * 64,
+                "start_line": 3, "end_line": 3, "source_text": "MOVE 1 TO RESULT-VALUE.",
+                "include_chain": [{"relative_path": "entry.cbl", "start_line": 8}]}
+        self.assertNotEqual(_identify_page({**page, "copy_instance": "copy-first"}),
+                            _identify_page({**page, "copy_instance": "copy-second"}))
+        first = [{"old": ["SOURCE-VALUE"], "new": ["FIRST-VALUE"]}]
+        second = [{"old": ["SOURCE-VALUE"], "new": ["SECOND-VALUE"]}]
+        self.assertNotEqual(_identify_page({**page, "replacement_trace": first}),
+                            _identify_page({**page, "replacement_trace": second}))
+        self.assertEqual(_identify_page({**page, "copy_instance": "copy-first", "replacement_trace": first}),
+                         _identify_page({**page, "include_chain": tuple(page["include_chain"]),
+                                         "copy_instance": "copy-first", "replacement_trace":
+                                         ({"new": ("FIRST-VALUE",), "old": ("SOURCE-VALUE",)},)}))
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)

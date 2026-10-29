@@ -21,10 +21,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from agent_policy import AgentPolicy
 from business_chat import run_business_chat
 from business_index import build_business_index
+from business_map import build_business_map
 from company_api import APIClientError, CompanyAPIConfig, TransportResponse
 import complete_working_set
 from evidence_context import EvidenceContext, ReadTask
 from repository_discovery import ensure_repository_search
+from source_session import QuestionSourceSession
 
 
 def source_pages(payload):
@@ -413,6 +415,38 @@ class CompleteWorkingSetTests(unittest.TestCase):
         self.assertIn("external_implementation_unavailable",
                       {item["reason"] for item in metadata["frontier"]})
         self.assertFalse(metadata["semantic_execution_verified"])
+
+    def test_sparse_parser_omissions_keep_whole_source_without_claiming_dependency_closure(self):
+        cases = {
+            "source_line_exceeds_fact_budget": " " * 66000 + "CALL 'LEAF-RULE'.",
+            "bounded_fact_fragment": "CALL\n" + "*> neutral continuation\n" * 70 + "'LEAF-RULE'.",
+        }
+        for boundary, body in cases.items():
+            with self.subTest(boundary=boundary):
+                self.build({"root.cbl": program("ROOT-RULE", body),
+                            "leaf.cbl": program("LEAF-RULE", "MOVE 9 TO RESULT-AMOUNT.")})
+                mapping = build_business_map(self.database, self.source, "请解释 root.cbl。")
+                with QuestionSourceSession(self.database, self.source) as session:
+                    result = complete_working_set.build_complete_working_set(
+                        self.database, session, mapping, AgentPolicy())
+                self.assertEqual([page["relative_path"] for page in result["pages"]], ["root.cbl"])
+                self.assertEqual(result["pages"][0]["source_text"], self.files["root.cbl"].rstrip("\n"))
+                self.assertTrue(result["metadata"]["physical_complete"])
+                self.assertFalse(result["metadata"]["closure_complete"])
+                gap, = [item for item in result["metadata"]["frontier"]
+                        if item["reason"] == "source_dependency_scan_incomplete"]
+                self.assertEqual(gap["relative_path"], "root.cbl")
+                self.assertIn(boundary, gap["parser_boundaries"])
+
+    def test_unselected_parser_omission_does_not_downgrade_the_selected_closure(self):
+        self.build({"root.cbl": program("ROOT-RULE", "MOVE 7 TO RESULT-AMOUNT."),
+                    "unrelated.cbl": program("UNRELATED-RULE", " " * 66000 + "CALL 'UNKNOWN-RULE'.")})
+        mapping = build_business_map(self.database, self.source, "请解释 root.cbl。")
+        with QuestionSourceSession(self.database, self.source) as session:
+            result = complete_working_set.build_complete_working_set(
+                self.database, session, mapping, AgentPolicy())
+        self.assertTrue(result["metadata"]["physical_complete"])
+        self.assertTrue(result["metadata"]["closure_complete"])
 
     def test_covering_excerpt_rebinding_requires_identical_hash_chain_and_text(self):
         complete = {"evidence_id": "ev:whole-neutral", "relative_path": "rule.cbl",

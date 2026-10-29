@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -11,7 +12,7 @@ import time
 from prior_source_memory import source_binding_sha256
 from run_store import RunStore
 
-PIPELINE_VERSION = "question-evidence-v63"
+PIPELINE_VERSION = "question-evidence-v66"
 PROMPT_VERSION = "business-chat-v54"
 
 def _digest(value):
@@ -106,6 +107,7 @@ class QualityTrace:
                       "end_line": p["end_line"], "excerpt_sha256": _digest(p["source_text"].encode()),
                       "binding_sha256": source_binding_sha256(p),
                       "characters": len(p["source_text"]), "group_id": p.get("group_id"),
+                      "span_truncated": bool(p.get("span_truncated")),
                       "include_chain": p.get("include_chain", []),
                       "semantic_roles": p.get("semantic_roles", [])} for p in source],
                   "framework": [{"reference_id": r["reference_id"],
@@ -131,6 +133,9 @@ class QualityTrace:
                                  "history": messages[1:-1]}
             if "prior_source_memory" in payload:
                 record["context"]["prior_source_memory"] = json.loads(json.dumps(payload["prior_source_memory"]))
+        # The request hash describes this instant. Later evidence annotation or
+        # history revision must not rewrite an earlier round's diagnostics.
+        record = deepcopy(record)
         self.data["rounds"].append(record)
         self._pending_round_id = record["round_id"]
         self.run_store.start_request(self.data["run_id"], record["round_id"], record["request_body_sha256"])
@@ -159,7 +164,7 @@ class QualityTrace:
         else:
             row["duration_ms"] = elapsed
         row["response"] = {"finish_reason": finish_reason, "parsed_action": parsed_action,
-                           "usage": usage if isinstance(usage, dict) else None, "error": error,
+                           "usage": deepcopy(usage) if isinstance(usage, dict) else None, "error": error,
                            "raw_content_characters": raw_content_characters,
                            "parsed_answer_characters": parsed_answer_characters,
                            "choice_index": choice_index}
@@ -197,9 +202,9 @@ class QualityTrace:
         self.run_store.finish_step(self.data["run_id"], step, {"actual_result_ids": list(actual_result_ids),
             "open_read_cursor": open_read_cursor, "status": status})
         if self.data["rounds"]:
-            self.data["rounds"][-1]["tool_results"].append({"action": action,
+            self.data["rounds"][-1]["tool_results"].append(deepcopy({"action": action,
                 "actual_result_ids": list(actual_result_ids),
-                "open_read_cursor": open_read_cursor, "status": status})
+                "open_read_cursor": open_read_cursor, "status": status}))
 
     def save(self, *, final):
         self.data["final"] = final

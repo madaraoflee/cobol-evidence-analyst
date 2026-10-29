@@ -1,0 +1,38 @@
+{
+  "scope": "pre_branch_integration_source_regressions",
+  "base_commit": "006d4e058e8b4a8b232ef9e14a2c069d1ae96684",
+  "source_dirty": true,
+  "runtime_platform": "Darwin",
+  "passed": 4397,
+  "failed": 0,
+  "skipped": 0,
+  "test_ids_sha256": "0d2c6be5092e3e4ba7f03ab563a11d678452d57fccea2f0396e90504b295b94c",
+  "test_sources_sha256": "59d9c1e92c6d710f17f877e20b392d3657246c7a5c4de1ce7187b052572a28fa",
+  "shards": [
+    {
+      "index": 0,
+      "passed": 1100,
+      "elapsed_seconds": 71.135537
+    },
+    {
+      "index": 1,
+      "passed": 1099,
+      "elapsed_seconds": 95.410707
+    },
+    {
+      "index": 2,
+      "passed": 1099,
+      "elapsed_seconds": 56.966567
+    },
+    {
+      "index": 3,
+      "passed": 1099,
+      "elapsed_seconds": 84.3028
+    }
+  ],
+  "web_passed": 262,
+  "tools_passed": 1,
+  "real_model_calls": 0,
+  "application_built": false,
+  "note": "Historical adaptive evidence retrieval fixes are not yet included at this checkpoint."
+}

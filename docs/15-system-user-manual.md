@@ -67,7 +67,7 @@ git pull --ff-only
 
 ### 从 Bitbucket 获取源码（2026-10-28 新增源码功能）
 
-“从 Bitbucket 接入”位于左侧原本地源码卡片下方，原有“接入本机源码”和本地更新流程继续保留。右侧最近对话按本地源码与 Bitbucket 分组，标题概括问题主题；点击对话会恢复所属源码资料库。当前支持 Bitbucket Server / Data Center 的 HTTPS 仓库页、目录页及 HTTPS clone 链接。操作、认证和第一版边界见 [Bitbucket 源码接入说明](./remote-source-intake.md)。
+“从 Bitbucket 接入”位于左侧原本地源码卡片下方，原有“接入本机源码”和本地更新流程继续保留。右侧最近对话按本地源码与 Bitbucket 分组，标题概括问题主题；点击对话会恢复所属源码资料库。当前支持 Bitbucket Cloud 与 Server / Data Center 的 HTTPS 仓库页、目录页及 HTTPS clone 链接。操作、认证和第一版边界见 [Bitbucket 源码接入说明](./remote-source-intake.md)。
 
 ## 2. 连续业务对话
 
@@ -146,7 +146,7 @@ python poc\analyze_source.py ^
 
 ## 6. 当前交付与后续接入
 
-当前支持本地目录和 Bitbucket Server / Data Center 快照接入；实际企业仓库的服务器版本、权限和证书仍需在获准环境验证。AS400 直接接入及真实作业调度关系仍属于后续能力。分析没有固定业务分类；本地测试检验跨语言检索、任意新概念、继续搜索、跨程序阅读和缺源码仍回答的执行流程。实际模型答案的相关性、完整性和准确性仍需使用公司接口与真实业务问题验收。
+当前支持本地目录和 Bitbucket Cloud、Server / Data Center 快照接入；实际企业仓库的服务器版本、权限和证书仍需在获准环境验证。AS400 直接接入及真实作业调度关系仍属于后续能力。分析没有固定业务分类；本地测试检验跨语言检索、任意新概念、继续搜索、跨程序阅读和缺源码仍回答的执行流程。实际模型答案的相关性、完整性和准确性仍需使用公司接口与真实业务问题验收。
 
 ## 7. 常见问题
 

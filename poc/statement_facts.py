@@ -11,6 +11,7 @@ import re
 
 
 FRONTEND_VERSION = "cobol-facts-v6"
+SQL_END_EXEC_PATTERN = r"(?<![A-Z0-9_$#@-])END-EXEC(?![A-Z0-9_$#@-])"
 _PROGRAM_HEADER_MARKER = re.compile(r"PROGRAM-ID", re.I)
 
 
@@ -828,9 +829,9 @@ def sql_host_access(code: str) -> tuple[list[str], list[str], bool]:
     """
 
     envelope = re.fullmatch(
-        r"\s*EXEC\s+SQL\s+([\s\S]*?)\bEND-EXEC\s*\.?\s*", code,
+        rf"\s*EXEC\s+SQL\s+([\s\S]*?){SQL_END_EXEC_PATTERN}\s*\.?\s*", code,
     )
-    if not envelope or re.search(r"\b(?:EXEC\s+SQL|END-EXEC)\b", envelope.group(1)):
+    if not envelope or re.search(rf"\bEXEC\s+SQL\b|{SQL_END_EXEC_PATTERN}", envelope.group(1)):
         return [], [], False
     body = envelope.group(1)
     if ";" in body:

@@ -23,7 +23,10 @@ def _decision(status, reason, **values):
 
 
 _PARSER_UPGRADES = frozenset({("business-sparse-v1.7", "business-sparse-v1.9"),
-                              ("business-sparse-v1.8", "business-sparse-v1.9")})
+                              ("business-sparse-v1.8", "business-sparse-v1.9"),
+                              ("business-sparse-v1.7", "business-sparse-v1.10"),
+                              ("business-sparse-v1.8", "business-sparse-v1.10"),
+                              ("business-sparse-v1.9", "business-sparse-v1.10")})
 _FRONTEND_UPGRADES = frozenset({("cobol-facts-v5", "cobol-facts-v6")})
 _INDEX_METADATA_QUERY = ("SELECT key,value FROM metadata WHERE key IN "
     "('source_root_hash','index_kind','schema_version','snapshot_id','parser_version','source_options')")

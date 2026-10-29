@@ -49,6 +49,18 @@ class SavedLanguageSelectionTests(unittest.TestCase):
             with self.subTest(question=question):
                 self.assertEqual(resolve_answer_language(question, answer_instructions=instructions), expected)
 
+    def test_current_language_exclusions_override_saved_and_inferred_defaults(self):
+        for question, saved, locale, expected in (
+            ("不要用英文回答，请解释这项业务。", "Always answer in English.", "en", "zh-CN"),
+            ("請勿用英文回答。請解釋這項業務。", "Always answer in English.", "en", "zh-HK"),
+            ("Do not answer in English. Explain this process.", "Always answer in English.", "zh-CN", "zh-CN"),
+            ("Do not answer in Chinese. Explain this process.", "請用繁體回答。", "zh-HK", "en"),
+            ("Answer in English. Do not answer in English. 解释业务。", "Answer in English.", "en", "zh-CN"),
+            ("Do not answer in English. Reply in English.", "请用中文回答。", "zh-CN", "en"),
+        ):
+            with self.subTest(question=question):
+                self.assertEqual(resolve_answer_language(question, answer_instructions=saved, locale=locale), expected)
+
     def test_saved_prose_section_names_and_examples_do_not_select_language(self):
         for instructions in (
             "Use headings Batch job, Online function / Programs, Tables and Files.",
@@ -96,6 +108,7 @@ class SavedLanguageSourceRepairTests(unittest.TestCase):
             ("Explain CALCFLOW CALCULATE-AMOUNT calculation rules.", "请用中文回答。", "zh-CN"),
             ("请用中文回答 CALCFLOW 的 CALCULATE-AMOUNT 计算规则", "Always answer in English.", "zh-CN"),
             ("Reply in English. CALCFLOW 的 CALCULATE-AMOUNT 计算规则", "请用中文回答。", "en"),
+            ("不要用英文回答，解释 CALCFLOW 的 CALCULATE-AMOUNT 计算规则", "Always answer in English.", "zh-CN"),
         )
         for index, (question, instructions, expected) in enumerate(cases):
             with self.subTest(question=question, instructions=instructions):

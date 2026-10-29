@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from copy import deepcopy
 from pathlib import Path
 import sys
 import tempfile
@@ -80,6 +81,51 @@ class QualityTraceMemoryTests(unittest.TestCase):
         self.assertEqual(first["sources"][0]["excerpt_sha256"], second["sources"][0]["excerpt_sha256"])
         self.assertNotEqual(first["sources"][0]["binding_sha256"], second["sources"][0]["binding_sha256"])
         self.assertNotIn("FIRST-AMOUNT", json.dumps(first))
+
+    def test_source_diagnostics_retain_incomplete_excerpt_boundary(self):
+        page = {"evidence_id": "ev_page_source", "relative_path": "entry.cbl",
+                "source_sha256": "c" * 64, "start_line": 4, "end_line": 4,
+                "source_text": "CALL 'SERVICE' USING", "span_truncated": True}
+        row, _, _ = self.observe(capture_context=True, with_memory=False, pages=[page])
+        self.assertIs(row["sources"][0].get("span_truncated"), True)
+        self.assertIs(row["context"]["sources"][0].get("span_truncated"), True)
+
+    def test_recorded_round_is_a_snapshot_of_mutable_request_and_response_data(self):
+        with tempfile.TemporaryDirectory() as folder:
+            trace = QualityTrace(Path(folder) / "index.sqlite", question="Explain ENTRY.",
+                config=CompanyAPIConfig("https://gateway.example.invalid/v1", "test-model", api_key="test-secret"),
+                policy=AgentPolicy(), capture_context=True)
+            page = {"evidence_id": "ev_page_source", "relative_path": "fields.cpy",
+                "source_sha256": "c" * 64, "start_line": 1, "end_line": 1,
+                "source_text": "01 INPUT-AMOUNT PIC 9(5).",
+                "include_chain": [{"relative_path": "entry.cbl", "line": 8}],
+                "semantic_roles": ["input"]}
+            history = {"role": "assistant", "content": "The input is an amount."}
+            trims = [{"reason": "request_budget", "removed_ids": ["ev_page_old"]}]
+            payload = {"question": "Explain ENTRY.", "source_context": [{"pages": [page]}]}
+            messages = [{"role": "system", "content": "Use declared sources."}, history,
+                        {"role": "user", "content": json.dumps(payload)}]
+            body = json.dumps({"messages": messages}).encode()
+            trace.prepare(stage="investigate", payload=payload, messages=messages, trim_events=trims)
+            trace.observe(body)
+            usage = {"total_tokens": 20, "completion_tokens_details": {"reasoning_tokens": 4}}
+            trace.finish_round(finish_reason="stop", usage=usage)
+            action = {"read": [{"relative_path": "entry.cbl", "start_line": 1}]}
+            cursor = {"next_start_line": 12, "remaining_ranges": [[12, 20]]}
+            trace.add_tool_result(action=action, actual_result_ids=["ev_page_next"], open_read_cursor=cursor)
+            expected = deepcopy(trace.data["rounds"][0])
+
+            page["include_chain"][0]["line"] = 80
+            page["semantic_roles"].append("output")
+            history["content"] = "A revised history message."
+            trims[0]["removed_ids"].clear()
+            usage["completion_tokens_details"]["reasoning_tokens"] = 40
+            action["read"][0]["start_line"] = 10
+            cursor["remaining_ranges"][0][0] = 15
+
+            saved = json.loads(Path(trace.save(final={"stop_reason": "sufficient_material"})).read_text())
+            self.assertEqual(saved["rounds"][0], expected)
+            self.assertEqual(saved["rounds"][0]["request_body_sha256"], hashlib.sha256(body).hexdigest())
 
 
 if __name__ == "__main__":

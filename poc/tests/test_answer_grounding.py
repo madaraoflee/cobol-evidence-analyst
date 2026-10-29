@@ -65,6 +65,99 @@ class GroundingRiskTests(unittest.TestCase):
         outside = {**relation, "caller_line": 1000}
         self.assertFalse(answer_grounding_risks([source], business_map={"relations": [outside]})["required"])
 
+    def test_navigation_cannot_turn_replaced_callsite_or_noncode_into_call_evidence(self):
+        relation = {"relation_type": "CALLS", "caller_path": "ROOT.cbl", "caller_line": 5,
+                    "target_name": "OLD-LEAF", "target_path": "LEAF.cbl", "resolution": "confirmed"}
+        for body in ("MOVE 1 TO OUTPUT-AMOUNT.", "*> CALL 'OLD-LEAF'.",
+                     'DISPLAY "CALL \'OLD-LEAF\'.".', "CALL 'NEW-LEAF' END-CALL."):
+            with self.subTest(body=body):
+                result = answer_grounding_risks([page("ROOT", body)], business_map={"relations": [relation]})
+                self.assertFalse(any(row.get("target") == "OLD-LEAF" for row in result["reasons"]))
+                self.assertEqual(result["unverified_navigation_calls"], 1)
+                self.assertTrue(result["required"])
+
+    def test_call_and_sql_fragments_cannot_join_different_copy_transformations(self):
+        base = {"relative_path": "procedure.cpy", "source_sha256": "a" * 64, "include_chain": []}
+        transformations = (({"copy_instance": "left"}, {"copy_instance": "right"}),
+                           ({"replacement_trace": [{"from": "NAME", "to": "LEFT"}]},
+                            {"replacement_trace": [{"from": "NAME", "to": "RIGHT"}]}))
+        fragments = (("MAIN.\nCALL 'REMOTE' USING", "REQUEST-AREA END-CALL."),
+                     ("EXEC SQL SELECT AMOUNT INTO :RESULT-VALUE", "FROM RECORDS END-EXEC."))
+        for left, right in transformations:
+            for first, last in fragments:
+                with self.subTest(left=left, first=first):
+                    first_lines = len(first.splitlines())
+                    pages = [{**base, **left, "evidence_id": "ev_first", "start_line": 1,
+                              "end_line": first_lines, "source_text": first},
+                             {**base, **right, "evidence_id": "ev_last", "start_line": first_lines + 1,
+                              "end_line": first_lines + 1, "source_text": last}]
+                    self.assertEqual(answer_grounding_risks(pages)["reasons"], [])
+
+    def test_same_copy_instance_normalizes_list_and_tuple_provenance(self):
+        base = {"relative_path": "procedure.cpy", "source_sha256": "a" * 64, "copy_instance": "one"}
+        site, replacement = {"relative_path": "caller.cbl", "line": 5}, {"from": "NAME", "to": "VALUE"}
+        pages = [{**base, "include_chain": [site], "replacement_trace": [replacement],
+                  "evidence_id": "ev_first", "start_line": 1, "end_line": 2,
+                  "source_text": "MAIN.\nCALL 'REMOTE' USING"},
+                 {**base, "include_chain": (site,), "replacement_trace": (replacement,),
+                  "evidence_id": "ev_last", "start_line": 3, "end_line": 3,
+                  "source_text": "REQUEST-AREA END-CALL."}]
+        call, = answer_grounding_risks(pages)["reasons"]
+        self.assertEqual(call["supplied_reference_ids"], ["ev_first", "ev_last"])
+        self.assertEqual(call["copy_instance"], "one")
+        self.assertEqual(call["replacement_trace"], [replacement])
+
+    def test_copy_instances_keep_distinct_call_evidence_and_navigation_scope(self):
+        original = page("ROOT", "CALL 'LEAF' END-CALL.")
+        left = {**original, "copy_instance": "left", "evidence_id": "ev_left"}
+        right = {**original, "copy_instance": "right", "evidence_id": "ev_right"}
+        unrelated = {**page("OTHER", "CONTINUE."), "relative_path": "chosen.cbl"}
+        relation = {"relation_type": "CALLS", "caller_path": "ROOT.cbl", "caller_line": 5,
+                    "target_name": "LEAF", "target_path": "chosen.cbl", "resolution": "confirmed"}
+        result = answer_grounding_risks([left, right, unrelated], business_map={"relations": [relation]})
+        self.assertEqual(result["unverified_navigation_calls"], 1)
+        self.assertEqual({row["copy_instance"]: row["supplied_reference_ids"] for row in result["reasons"]},
+                         {"left": ["ev_left"], "right": ["ev_right"]})
+        scoped = answer_grounding_risks([left, right, unrelated],
+            business_map={"relations": [{**relation, "copy_instance": "left"}]})
+        self.assertEqual([row["copy_instance"] for row in scoped["reasons"]], ["right"])
+
+    def test_navigation_fragment_preserves_copy_and_replacement_identity(self):
+        source = page("ROOT", "CALL 'LEAF' END-CALL.")
+        source.update(start_line=5, end_line=5, source_text="CALL 'LEAF' END-CALL.",
+                      copy_instance="one", replacement_trace=[{"from": "OLD", "to": "LEAF"}])
+        relation = {"relation_type": "CALLS", "caller_path": "ROOT.cbl", "caller_line": 5,
+                    "target_name": "LEAF", "resolution": "unresolved"}
+        call, = answer_grounding_risks([source], business_map={"relations": [relation]})["reasons"]
+        self.assertEqual(call["copy_instance"], "one")
+        self.assertEqual(call["replacement_trace"], source["replacement_trace"])
+
+    def test_stale_caller_navigation_cannot_resolve_a_current_call_to_another_file(self):
+        caller = page("ROOT", "CALL 'LEAF' END-CALL.")
+        unrelated = {**page("OTHER", "CONTINUE."), "relative_path": "chosen.cbl"}
+        relation = {"relation_type": "CALLS", "caller_path": "ROOT.cbl", "caller_line": 5,
+                    "target_name": "LEAF", "target_path": "chosen.cbl", "resolution": "confirmed"}
+        result = answer_grounding_risks([caller, unrelated], business_map={"relations": [relation],
+            "source_versions": {"ROOT.cbl": "0" * 64, "chosen.cbl": unrelated["source_sha256"]}})
+        self.assertEqual(result["unverified_navigation_calls"], 1)
+        self.assertEqual(self.kinds(result), {"call_implementation_not_supplied"})
+        self.assertNotIn("target_path", result["reasons"][0])
+
+    def test_selected_callee_needs_the_navigation_version_not_only_the_same_path(self):
+        caller = page("ROOT", "CALL 'LEAF' END-CALL.")
+        old = page("LEAF", "MOVE 1 TO OUTPUT-AMOUNT.")
+        current = page("LEAF", "MOVE 2 TO OUTPUT-AMOUNT.", identifier="ev_LEAF_current")
+        relation = {"relation_type": "CALLS", "caller_path": "ROOT.cbl", "caller_line": 5,
+                    "target_name": "LEAF", "target_path": "LEAF.cbl", "resolution": "confirmed"}
+        navigation = {"relations": [relation], "source_versions": {
+            "ROOT.cbl": caller["source_sha256"], "LEAF.cbl": current["source_sha256"]}}
+        result = answer_grounding_risks([caller, old], business_map=navigation)
+        self.assertEqual(result["reasons"][0]["source_status"], "not_supplied")
+        self.assertEqual(result["reasons"][0]["target_source_sha256"], current["source_sha256"])
+        self.assertFalse(answer_grounding_risks([caller, old, current], business_map=navigation)["required"])
+        ambiguous = answer_grounding_risks([caller, old, current], business_map={"relations": [relation]})
+        self.assertEqual(ambiguous["reasons"][0]["source_status"], "ambiguous")
+
     def test_later_and_nested_calls_survive_unsupported_statement_ast_syntax(self):
         source = page("ROOT", "INITIALIZE OUTPUT-AREA.\n"
                       "PERFORM UNTIL DONE-FLAG = 1\n"

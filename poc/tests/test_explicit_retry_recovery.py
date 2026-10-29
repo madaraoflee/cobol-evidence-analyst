@@ -12,6 +12,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from agent_policy import AgentPolicy
+from business_analysis import _TextResponseError
 from business_chat import run_business_chat
 from business_index import build_business_index
 from company_api import CompanyAPIConfig, TransportResponse
@@ -217,6 +218,128 @@ class ExplicitRetryRecoveryTests(unittest.TestCase):
                         prior['metadata']['configuration']['model_fingerprint'])
                     self.assertTrue(pending is None or pending['run_id'] != prior['run_id'])
                 self.assertEqual(len(self.calls), before_calls + 2)
+
+    def test_received_response_replay_preserves_selected_choice_completion_and_refusal(self):
+        for finish, refused in (('stop', False), ('length', False), ('stop', True)):
+            with self.subTest(finish=finish, refused=refused):
+                self.question = f'ENTRYPOINT OUT-AMOUNT {finish} {refused}'
+                received = False
+                expected = []
+
+                def transport(request):
+                    nonlocal received
+                    response = json.loads(self.success(request).body)
+                    selected = response['choices'][0]
+                    selected['finish_reason'] = finish
+                    if refused:
+                        selected['message']['refusal'] = 'The provider declined this response.'
+                    expected.append(selected['message']['content'])
+                    response['choices'].insert(0, {'message': {'content': None},
+                        'finish_reason': 'length' if finish == 'stop' else 'stop'})
+                    received = True
+                    return TransportResponse(200, json.dumps(response))
+
+                def interrupt_after_response():
+                    if received:
+                        raise RuntimeError('interrupted after saved response')
+
+                with self.assertRaisesRegex(RuntimeError, 'interrupted after saved response'):
+                    self.invoke(transport=transport, check_cancel=interrupt_after_response)
+                prior = self.store.unfinished('sha256:' + hashlib.sha256(self.question.encode()).hexdigest(),
+                    hashlib.sha256(self.config.chat_model.encode()).hexdigest())
+                before_calls = len(self.calls)
+                output = self.invoke(resume_run_id=prior['run_id'])
+                result = output['agent_result']
+                self.assertEqual(len(self.calls), before_calls, 'Received responses must replay locally')
+                if refused:
+                    self.assertEqual(output['reason_code'], 'MODEL_REFUSED')
+                    self.assertFalse(result['model_answer_recorded'])
+                else:
+                    self.assertEqual(result['answer'], expected[0])
+                    self.assertEqual(result['finish_reason'], finish)
+                    self.assertEqual(result['answer_truncated'], finish == 'length')
+
+    def interrupt_received_response(self, response):
+        received = False
+
+        def transport(request):
+            nonlocal received
+            self.capture(request)
+            received = True
+            return TransportResponse(200, json.dumps(response))
+
+        def interrupt_after_response():
+            if received:
+                raise RuntimeError('interrupted after saved response')
+
+        with self.assertRaisesRegex(RuntimeError, 'interrupted after saved response'):
+            self.invoke(transport=transport, check_cancel=interrupt_after_response)
+        return self.store.unfinished('sha256:' + hashlib.sha256(self.question.encode()).hexdigest(),
+            hashlib.sha256(self.config.chat_model.encode()).hexdigest())
+
+    def test_replayed_empty_answers_keep_the_same_bounded_recovery(self):
+        self.policy = AgentPolicy(max_model_requests=2)
+        for finish in ('stop', 'length'):
+            with self.subTest(finish=finish):
+                self.question = f'ENTRYPOINT OUT-AMOUNT empty {finish}'
+                response = {'choices': [{'message': {'role': 'assistant', 'content': None},
+                                         'finish_reason': finish}]}
+                prior = self.interrupt_received_response(response)
+                before_calls = len(self.calls)
+                output = self.invoke(resume_run_id=prior['run_id'])
+                self.assertEqual(len(self.calls), before_calls + 1)
+                self.assertEqual(output['reason_code'], 'BUSINESS_CHAT_COMPLETED')
+                self.assertTrue(output['agent_result']['model_answer_recorded'])
+                self.assertEqual(output['agent_result']['model_turns'], 2)
+                self.assertFalse(output['agent_result']['answer_truncated'])
+                rounds = self.store.load(prior['run_id'])['checkpoint']['quality']['rounds']
+                self.assertEqual(rounds[1]['stage'], f'empty_{finish}_recovery')
+                self.assertEqual(rounds[0]['response']['response_shape']['finish_reason'], finish)
+
+    def test_replayed_parse_failures_keep_the_error_and_do_not_recover_as_empty_answers(self):
+        self.policy = AgentPolicy(max_model_requests=2)
+        cases = (
+            ('filtered', 'MODEL_CONTENT_FILTERED', {'choices': [
+                {'message': {'content': None}, 'finish_reason': 'content_filter'}]}),
+            ('ambiguous', 'MODEL_TEXT_EMPTY', {'choices': [
+                {'message': {'content': None}, 'finish_reason': 'stop'},
+                {'message': {'content': None}, 'finish_reason': 'length'}]}),
+            ('tools', 'MODEL_TEXT_EMPTY', {'choices': [
+                {'message': {'content': None, 'tool_calls': [{'id': 'unavailable'}]}, 'finish_reason': 'stop'}]}),
+            ('nontext', 'MODEL_TEXT_EMPTY', {'choices': [
+                {'message': {'content': [{'type': 'image'}]}, 'finish_reason': 'stop'}]}),
+            ('error', 'MODEL_ERROR_RESPONSE', {'choices': [
+                {'message': {'content': '{"error":{"message":"provider-private-marker"}}'}, 'finish_reason': 'stop'}]}),
+            ('action', 'MODEL_ACTION_RESPONSE', {'choices': [
+                {'message': {'content': '{"action":"provider-private-marker","arguments":{}}'}, 'finish_reason': 'stop'}]}),
+            ('role', 'MODEL_MESSAGE_MISSING', {'choices': [
+                {'message': {'role': 'tool', 'content': 'provider-private-marker'}, 'finish_reason': 'stop'}]}),
+            ('refused', 'MODEL_REFUSED', {'choices': [
+                {'message': {'content': None, 'refusal': 'The provider declined this response.'}, 'finish_reason': 'stop'}]}),
+        )
+        for label, code, response in cases:
+            with self.subTest(label=label):
+                self.question = f'ENTRYPOINT OUT-AMOUNT {label}'
+                prior = self.interrupt_received_response(response)
+                self.assertNotIn('provider-private-marker', prior['requests'][-1]['response_json'])
+                before_calls = len(self.calls)
+                output = self.invoke(resume_run_id=prior['run_id'])
+                self.assertEqual(output['reason_code'], code)
+                self.assertFalse(output['agent_result']['model_answer_recorded'])
+                self.assertEqual(len(self.calls), before_calls)
+
+    def test_unrecognized_parse_error_replays_as_invalid_without_retaining_its_text(self):
+        self.policy = AgentPolicy(max_model_requests=2)
+        with patch('business_analysis._extract_text', side_effect=_TextResponseError(
+                'provider-private-marker', text='provider-private-marker')):
+            prior = self.interrupt_received_response({'choices': [
+                {'message': {'content': None}, 'finish_reason': 'stop'}]})
+        self.assertNotIn('provider-private-marker', prior['requests'][-1]['response_json'])
+        before_calls = len(self.calls)
+        output = self.invoke(resume_run_id=prior['run_id'])
+        self.assertEqual(output['reason_code'], 'MODEL_RESPONSE_INVALID')
+        self.assertFalse(output['agent_result']['model_answer_recorded'])
+        self.assertEqual(len(self.calls), before_calls)
 
     def test_retry_using_a_superseded_original_id_can_start_a_new_explicit_run(self):
         original = self.interrupt_run()

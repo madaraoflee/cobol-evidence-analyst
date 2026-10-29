@@ -167,6 +167,9 @@ def _identify_page(page):
         hashlib.sha256(page["source_text"].encode()).hexdigest()))
     if page.get("include_chain"):
         identity += "\x1f" + json.dumps(page["include_chain"], sort_keys=True, ensure_ascii=False)
+    provenance = {key: page[key] for key in ("copy_instance", "replacement_trace") if page.get(key)}
+    if provenance:
+        identity += "\x1f" + json.dumps(provenance, sort_keys=True, ensure_ascii=False)
     return "ev_page_" + hashlib.sha256(identity.encode()).hexdigest()[:24]
 
 

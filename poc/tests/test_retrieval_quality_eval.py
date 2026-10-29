@@ -72,6 +72,40 @@ class RetrievalQualityEvalTests(unittest.TestCase):
         self.assertEqual(len(deduplicate([page, other_path, other_instance])), 3)
         self.assertEqual(covered_units([page], [other_path, other_instance]), set())
 
+    def test_copy_instance_identity_controls_scores_and_gold_deduplication(self):
+        original = {**self.cases[0]["candidates"][0], "copy_instance": "first-copy"}
+        other = {**original, "copy_instance": "second-copy", "id": "other-instance"}
+        self.assertEqual(len(deduplicate([original, other])), 2)
+        self.assertEqual(covered_units([original], [other]), set())
+        gold = {"units": [{**original, "id": "first", "relevance": 3},
+                          {**other, "id": "second", "relevance": 3}],
+                "required_items": [{"id": "both", "critical": True,
+                                    "sufficient_sets": [["first", "second"]]}]}
+        result = evaluate_evidence(gold, [original], [original], k=1)
+        self.assertEqual(result["recall_at_k"], 0.5)
+        self.assertEqual(result["loaded_sufficiency"]["rate"], 0)
+
+    def test_loaded_metadata_without_actual_text_cannot_claim_sufficient_source(self):
+        case = self.cases[0]
+        sources = case["gold"]["units"]
+        for value in (None, ""):
+            with self.subTest(value=value):
+                loaded = [{**page, "source_text": value} for page in sources]
+                result = evaluate_evidence(case["gold"], sources, loaded)
+                self.assertEqual(result["retrieved_sufficiency"]["rate"], 1)
+                self.assertEqual(result["loaded_sufficiency"]["rate"], 0)
+                self.assertEqual(result["context_support_rate"], 0)
+
+    def test_oracle_material_preserves_copy_instance(self):
+        case = copy.deepcopy(self.cases[0])
+        for unit in case["gold"]["units"]:
+            unit["copy_instance"] = "required-copy"
+        result = oracle_arms(case["gold"], [], lambda pages: {"pages": pages})
+        for arm in ("B", "D"):
+            self.assertTrue(all(page.get("copy_instance") == "required-copy"
+                                for page in result["arms"][arm]["loaded_pages"]))
+            self.assertEqual(result["arms"][arm]["metrics"]["loaded_sufficiency"]["rate"], 1)
+
     def test_changed_version_or_clipped_text_cannot_claim_original_coverage(self):
         unit = self.cases[0]["gold"]["units"][0]
         for changed in ({**unit, "source_sha256": "changed"},

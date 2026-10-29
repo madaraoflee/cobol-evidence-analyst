@@ -20,6 +20,46 @@ def page(identifier, start, text, **extra):
 
 
 class EvidenceContextTests(unittest.TestCase):
+    def test_same_identifier_cannot_merge_conflicting_expansion_bindings(self):
+        original = page("expanded", 8, "MOVE INPUT TO RESULT.",
+            copy_instance="first-copy", replacement_trace=[{"from": "INPUT", "to": "FIRST"}])
+        for changed in ({"copy_instance": "second-copy"},
+                        {"replacement_trace": [{"from": "INPUT", "to": "SECOND"}]}):
+            with self.subTest(changed=changed):
+                store = EvidenceContext()
+                store.accept({"pages": [original]}, "semantic")
+                with self.assertRaisesRegex(ValueError, "EVIDENCE_ID_CONTENT_MISMATCH"):
+                    store.accept({"pages": [{**original, **changed}]}, "semantic")
+
+    def test_different_copy_instances_cannot_cover_each_others_source(self):
+        store = EvidenceContext()
+        first = page("first", 8, "MOVE INPUT TO RESULT.", copy_instance="first-copy")
+        second = page("second", 8, "MOVE INPUT TO RESULT.", copy_instance="second-copy")
+        store.accept({"pages": [first, second]}, "semantic")
+        self.assertEqual(store.covering_id("first", [second]), "first")
+        self.assertEqual({p["evidence_id"] for p in store.selected_pages(1000)}, {"first", "second"})
+
+    def test_budget_excerpt_preserves_its_copy_instance(self):
+        store = EvidenceContext()
+        original = page("whole", 1, "MOVE INPUT TO RESULT.\nDISPLAY RESULT.",
+                        copy_instance="first-copy")
+        original["end_line"] = 2
+        store.accept({"pages": [original]}, "semantic")
+        excerpt = store.narrow_page(original, 25)
+        self.assertIsNotNone(excerpt)
+        self.assertEqual(excerpt.get("copy_instance"), "first-copy")
+
+    def test_budget_excerpts_from_separate_expansions_keep_distinct_identities(self):
+        store = EvidenceContext()
+        originals = [page(instance, 1, "MOVE INPUT TO RESULT.\nDISPLAY RESULT.",
+                          copy_instance=instance, end_line=2)
+                     for instance in ("first-copy", "second-copy")]
+        store.accept({"pages": originals}, "semantic")
+        excerpts = [store.narrow_page(original, 25) for original in originals]
+        self.assertEqual(len({excerpt["evidence_id"] for excerpt in excerpts}), 2)
+        self.assertEqual({excerpt["copy_instance"] for excerpt in excerpts},
+                         {"first-copy", "second-copy"})
+
     def test_equivalent_include_chain_sequences_merge_only_observation_metadata(self):
         from source_reading import _identify_page
         chain = [{"relative_path": "entry.cbl", "line": 12}]

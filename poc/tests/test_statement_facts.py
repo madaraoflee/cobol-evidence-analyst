@@ -218,6 +218,16 @@ class SqlHostAccessTests(unittest.TestCase):
                  if edge.from_entity_id == statement.unit_id]
         return parsed, statement, edges
 
+    def test_end_exec_inside_host_identifier_does_not_close_sql(self):
+        _, statement, edges = self._facts("EXEC SQL SELECT AMOUNT INTO :OUT-AMOUNT\n"
+            "FROM RATE_TABLE WHERE FLAG=:WS-END-EXEC-FLAG\nEND-EXEC.\n")
+        self.assertEqual(statement.parse_status, "complete")
+        self.assertIn("END-EXEC.", statement.normalized_text)
+        self.assertIn(("WRITES", "OUT-AMOUNT"),
+                      {(edge.relation_type, edge.target_name) for edge in edges})
+        self.assertIn(("READS", "WS-END-EXEC-FLAG"),
+                      {(edge.relation_type, edge.target_name) for edge in edges})
+
     def test_select_into_and_indicator_outputs_are_distinct_from_inputs(self):
         _, statement, edges = self._facts("""EXEC SQL
 SELECT :WS-A + AMOUNT, FACTOR

@@ -59,6 +59,14 @@ class LanguageSelectionTests(unittest.TestCase):
         self.assertEqual(resolve_answer_language('请解释注释 "Reply in English"。'), "zh-CN")
         self.assertEqual(resolve_answer_language('Explain this:\n```cobol\nDISPLAY "请用中文回答".\n```'), "en")
 
+    def test_unfinished_source_fences_do_not_set_current_or_saved_language(self):
+        for fence in ("```", "~~~"):
+            with self.subTest(fence=fence):
+                self.assertEqual(resolve_answer_language(
+                    f"请解释下面源码：\n{fence}text\nReply in English."), "zh-CN")
+                self.assertEqual(resolve_answer_language("解释这项业务。", answer_instructions=
+                    f"以下是输出示例：\n{fence}text\nReply in English."), "zh-CN")
+
     def test_language_mentions_are_not_answer_instructions(self):
         for question in ("这个程序是否使用英文文件名？", "为什么使用英文变量名？",
                          "文件以英文命名会影响计算吗？", "不用英文，解释这个程序。"):

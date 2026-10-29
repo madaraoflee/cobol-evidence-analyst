@@ -7,7 +7,7 @@ import re
 
 SUPPORTED_LANGUAGES = {"en", "zh-CN", "zh-HK"}
 _NAMES = {"en": "English", "zh-CN": "Simplified Chinese", "zh-HK": "Traditional Chinese"}
-_QUOTED = re.compile(r"```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`|\"[^\"\n]*\"|“[^”\n]*”|"
+_QUOTED = re.compile(r"```[\s\S]*?(?:```|\Z)|~~~[\s\S]*?(?:~~~|\Z)|`[^`\n]*`|\"[^\"\n]*\"|“[^”\n]*”|"
                      r"‘[^’\n]*’|「[^」\n]*」|『[^』\n]*』|(?<![A-Za-z0-9_])'[^'\n]*'(?![A-Za-z0-9_])")
 _LANGUAGE_NAME = (r"English|(?:Simplified|Traditional)\s+Chinese|Chinese|"
                   r"en(?:[-_]US|[-_]GB)?|zh[-_]CN|zh[-_](?:HK|TW)|"
@@ -26,23 +26,33 @@ _REQUEST = re.compile(
     r"|(?:^|[。\n;；.!?])\s*(?:(?:please|always|only)\s+)*use\s+(?P<imperative>" + _LANGUAGE_NAME + r")(?=\s*(?:$|[。;；.!?]))", re.I)
 
 
-def _explicit(text):
-    selected = None
+def _language_preferences(text):
+    selected, excluded = None, set()
     for match in _REQUEST.finditer(text):
         prefix = re.split(r"[\n。；;!?！？]", text[:match.start()])[-1]
-        if re.search(r"(?:\b(?:not|never|don't|don’t|do not|avoid)\s*(?:(?:always|only|just|ever|usually)\s+)*"
-                     r"|(?:不要|不用|禁止|避免|切勿|无需|無需|不需要|不|别|別)(?:默认|默認|始终|始終|总是|總是|只|仅|僅)*)\s*$",
-                     prefix, re.I):
-            continue
+        negated = bool(re.search(r"(?:\b(?:not|never|don't|don’t|do not|avoid)\s*(?:(?:always|only|just|ever|usually)\s+)*"
+                     r"|(?:不要|不用|禁止|避免|切勿|勿|无需|無需|不需要|不|别|別)(?:默认|默認|始终|始終|总是|總是|只|仅|僅)*)\s*$",
+                     prefix, re.I))
         if (re.search(r"(?:例如|示例|例子|範例|范例|舉例|举例|\b(?:for example|examples?|e\.g\.))\s*[:：,，]?\s*$",
                       prefix, re.I)
                 or re.match(r"\s*(?:示例|例子|範例|范例|\bexamples?\b)", text[match.end():], re.I)):
             continue
         name = next(value for value in match.groups() if value).lower()
-        selected = ("en" if name in {"english", "英文", "英语", "英語", "en", "en-us", "en_us", "en-gb", "en_gb"} else
+        language = ("en" if name in {"english", "英文", "英语", "英語", "en", "en-us", "en_us", "en-gb", "en_gb"} else
                     "zh-HK" if name in {"traditional chinese", "繁体中文", "繁體中文", "繁体", "繁體",
                                             "zh-hk", "zh_hk", "zh-tw", "zh_tw"} else "zh-CN")
-    return selected
+        if negated:
+            excluded.update({"zh-CN", "zh-HK"} if name in {"chinese", "中文"} else {language})
+            if selected in excluded:
+                selected = None
+        else:
+            excluded.discard(language)
+            selected = language
+    return selected, excluded
+
+
+def _explicit(text):
+    return _language_preferences(text)[0]
 
 
 def _language_request_text(value):
@@ -109,18 +119,19 @@ def resolve_answer_language(question, *, locale=None, history=None, answer_instr
     Only an affirmative language directive can override the question's prose.
     """
     text = _language_request_text(str(question or ""))
-    selected = _explicit(text) or _saved_language_requirement(answer_instructions) or _prose_language(text)
+    selected, excluded = _language_preferences(text)
     if selected:
         return selected
-    if locale in SUPPORTED_LANGUAGES:
-        return locale
+    for candidate in (_saved_language_requirement(answer_instructions), _prose_language(text), locale):
+        if isinstance(candidate, str) and candidate in SUPPORTED_LANGUAGES and candidate not in excluded:
+            return candidate
     for message in reversed(history or []):
         if isinstance(message, dict) and message.get("role") == "user":
             previous = _language_request_text(str(message.get("content") or ""))
             selected = _explicit(previous) or _prose_language(previous)
-            if selected:
+            if selected and selected not in excluded:
                 return selected
-    return "zh-CN"
+    return next((language for language in ("zh-CN", "zh-HK", "en") if language not in excluded), "zh-CN")
 
 
 def localized_text(language, zh_cn, en, zh_hk=None):

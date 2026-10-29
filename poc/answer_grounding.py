@@ -106,15 +106,21 @@ def _actual_parameters(tokens, lexical_complete):
         for position, parameter in enumerate(form.parameters, 1)]}
 
 
+def _source_instance_fields(page):
+    return {"include_chain": deepcopy(page.get("include_chain") or []),
+            **({"replacement_trace": deepcopy(page["replacement_trace"])} if page.get("replacement_trace") else {}),
+            **({"copy_instance": deepcopy(page["copy_instance"])} if page.get("copy_instance") is not None else {})}
+
+
 def _source_location(pages, span, start_line, end_line):
+    from business_synthesis import _source_instance_key
+
     references = [page for page in pages
-        if page.get("relative_path") == span["key"][0]
-        and page.get("source_sha256") == span["key"][1]
-        and repr(page.get("include_chain") or []) == span["key"][2]
+        if _source_instance_key(page) == span["key"]
         and page["start_line"] <= end_line and page["end_line"] >= start_line]
     return {"relative_path": span["key"][0], "source_sha256": span["key"][1],
             "start_line": start_line, "end_line": end_line,
-            "include_chain": deepcopy(references[0].get("include_chain", []) if references else []),
+            **_source_instance_fields(references[0] if references else {}),
             "supplied_reference_ids": sorted({page["evidence_id"] for page in references})}
 
 
@@ -266,8 +272,9 @@ def _mutable_output_groups(call, pages, documents, business_map):
     """
     from procedure_expansion import _COPY, _REPLACE_WORD
     from structural_index import DATA_ITEM_RE
+    from business_synthesis import _source_instance_key
 
-    key = (call["relative_path"], call["source_sha256"], repr(call.get("include_chain") or []))
+    key = _source_instance_key(call)
     callers = [doc for doc in documents if doc["span"]["key"] == key
         and min(doc["span"]["lines"]) <= call["start_line"] <= max(doc["span"]["lines"])
         and len(doc["programs"]) == 1
@@ -306,16 +313,15 @@ def _mutable_output_groups(call, pages, documents, business_map):
             if doc["programs"] or doc["first_line"] != 1:
                 continue
             doc_key = doc["span"]["key"]
-            chain = next((page.get("include_chain") or [] for page in pages
-                if (page.get("relative_path"), page.get("source_sha256"),
-                    repr(page.get("include_chain") or [])) == doc_key), [])
+            chain = list(next((page.get("include_chain") or [] for page in pages
+                if _source_instance_key(page) == doc_key), []))
             versions = {page["source_sha256"] for page in pages
                 if page.get("relative_path") == doc_key[0]
-                and (page.get("include_chain") or []) == chain}
+                and _source_instance_key(page)[2:] == doc_key[2:]}
             if len(versions) != 1:
                 continue
             direct_chain = (len(chain) == len(call.get("include_chain") or []) + 1
-                and chain[:-1] == (call.get("include_chain") or []) and isinstance(chain[-1], dict)
+                and chain[:-1] == list(call.get("include_chain") or []) and isinstance(chain[-1], dict)
                 and chain[-1].get("relative_path") == call["relative_path"]
                 and chain[-1].get("source_hash") == call["source_sha256"]
                 and chain[-1].get("line") == line and chain[-1].get("copy_name", "").upper() == name)
@@ -381,6 +387,7 @@ def _mutable_output_groups(call, pages, documents, business_map):
 def answer_grounding_risks(source_pages, *, framework_references=(), framework_facts=(), business_map=None):
     """Nominate high-risk call boundaries using supplied syntax and navigation."""
     from structural_index import normalize_cobol_lines
+    from business_synthesis import _source_instance_key
 
     pages = _eligible_pages(source_pages)
     facts = visible_framework_facts(framework_facts, pages, framework_references)
@@ -391,9 +398,16 @@ def answer_grounding_risks(source_pages, *, framework_references=(), framework_f
                 programs.setdefault(match[1].upper(), set()).add(
                     (page.get("relative_path"), page["source_sha256"]))
     calls, truncated = _call_observations(pages)
-    supplied_paths = {page["relative_path"] for page in pages if page.get("relative_path")}
-    # The bounded AST deliberately stops at unsupported syntax. Navigation can
-    # still nominate a call whose physical site is present in supplied source.
+    supplied_versions = {}
+    for page in pages:
+        if page.get("relative_path"):
+            supplied_versions.setdefault(page["relative_path"], set()).add(page["source_sha256"])
+    navigation_versions = (business_map or {}).get("source_versions", {})
+    unverified_navigation_calls = 0
+    navigation_sites, navigation_scanned = {}, 0
+    # Navigation may refine an observed call's target identity. A matching path
+    # and line alone cannot establish that a stale relation is still a CALL in
+    # the supplied version, or turn a comment/string into executable syntax.
     for edge in (business_map or {}).get("relations", []):
         if edge.get("relation_type") not in {"CALLS", "CALL_TARGET_FROM"}:
             continue
@@ -402,24 +416,67 @@ def answer_grounding_risks(source_pages, *, framework_references=(), framework_f
             and page.get("relative_path") == edge.get("caller_path")
             and page["start_line"] <= line <= page["end_line"]]
         same_calls = [call for call in calls if call["relative_path"] == edge.get("caller_path")
-                      and call["start_line"] == line and call["target"] == edge.get("target_name")]
+                      and call["start_line"] == line and call["target"] == edge.get("target_name")
+                      and call["dynamic"] == (edge["relation_type"] == "CALL_TARGET_FROM")]
         if not matches:
             continue
-        if same_calls:
-            for call in same_calls:
-                call["target_path"] = edge.get("target_path")
-                call["target_resolution"] = edge.get("resolution")
+        expected_version = navigation_versions.get(edge.get("caller_path"))
+        if expected_version:
+            same_calls = [call for call in same_calls if call["source_sha256"] == expected_version]
+        if any(key in edge for key in ("include_chain", "replacement_trace", "copy_instance")):
+            identity = _source_instance_key(edge)[2:]
+            same_calls = [call for call in same_calls if _source_instance_key(call)[2:] == identity]
+            matches = [page for page in matches if _source_instance_key(page)[2:] == identity]
+        if not same_calls:
+            # Short retrieved excerpts need not include a complete paragraph.
+            # Retain their navigation fallback only after the structural parser
+            # recognizes an actual matching CALL in the supplied text.
+            from call_bindings import parse_call
+
+            verified = []
+            for page in matches:
+                if expected_version and page["source_sha256"] != expected_version:
+                    continue
+                key = (page.get("relative_path"), page["source_sha256"], page["start_line"],
+                       page["end_line"], page["source_text"], page.get("format_hint", "auto"))
+                if key not in navigation_sites:
+                    sites = set()
+                    if navigation_scanned + len(page["source_text"]) <= _MAX_SCAN_CHARACTERS:
+                        navigation_scanned += len(page["source_text"])
+                        for unit in _fragment_units(page["source_text"], page.get("format_hint", "auto")):
+                            if unit.unit_type != "Statement" or unit.name != "CALL":
+                                continue
+                            try:
+                                form = parse_call(unit.normalized_text)
+                            except ValueError:
+                                continue
+                            sites.add((page["start_line"] + unit.start_line - 1, form.target, form.dynamic))
+                    else:
+                        truncated = True
+                    navigation_sites[key] = sites
+                if (line, edge.get("target_name"), edge["relation_type"] == "CALL_TARGET_FROM") in navigation_sites[key]:
+                    verified.append(page)
+            identities = {_source_instance_key(page) for page in verified}
+            if len(identities) == 1:
+                page = verified[0]
+                call = {"relative_path": page["relative_path"], "source_sha256": page["source_sha256"],
+                    "start_line": line, "end_line": line, **_source_instance_fields(page),
+                    "target": edge.get("target_name"), "dynamic": edge["relation_type"] == "CALL_TARGET_FROM",
+                    "copy_modes": [], "has_exception_handler": False,
+                    "parameter_parse_status": "unknown", "parameter_parse_reason": "call_header_not_parsed",
+                    "actual_parameters": None,
+                    "supplied_reference_ids": sorted({item["evidence_id"] for item in verified})}
+                calls.append(call)
+                same_calls = [call]
+        identities = {_source_instance_key(call) for call in same_calls}
+        if not same_calls or len(identities) != 1:
+            unverified_navigation_calls += 1
             continue
-        page = matches[0]
-        calls.append({"relative_path": page["relative_path"], "source_sha256": page["source_sha256"],
-            "start_line": line, "end_line": line, "include_chain": deepcopy(page.get("include_chain", [])),
-            "target": edge.get("target_name"), "dynamic": edge["relation_type"] == "CALL_TARGET_FROM",
-            "target_path": edge.get("target_path"),
-            "target_resolution": edge.get("resolution"),
-            "copy_modes": [], "has_exception_handler": False,
-            "parameter_parse_status": "unknown", "parameter_parse_reason": "call_header_not_parsed",
-            "actual_parameters": None,
-            "supplied_reference_ids": sorted({item["evidence_id"] for item in matches})})
+        for call in same_calls:
+            call["target_path"] = edge.get("target_path")
+            call["target_resolution"] = edge.get("resolution")
+            if navigation_versions.get(edge.get("target_path")):
+                call["target_source_sha256"] = navigation_versions[edge["target_path"]]
 
     reasons, seen = [], set()
     remaining_fields = _MAX_MUTABLE_FIELD_OBSERVATIONS
@@ -460,9 +517,13 @@ def answer_grounding_risks(source_pages, *, framework_references=(), framework_f
         # elsewhere cannot stand in for it; names are only a fallback when the
         # navigation has not selected a path and the supplied identity is unique.
         target_path = call.get("target_path")
+        target_version = call.get("target_source_sha256")
+        path_versions = supplied_versions.get(target_path, set())
         candidates = programs.get(call["target"], set())
-        ambiguous = not target_path and (call.get("target_resolution") == "ambiguous" or len(candidates) > 1)
-        source_supplied = (target_path in supplied_paths if target_path else
+        ambiguous = (not target_version and len(path_versions) > 1 if target_path else
+                     call.get("target_resolution") == "ambiguous" or len(candidates) > 1)
+        source_supplied = ((target_version in path_versions if target_version else len(path_versions) == 1)
+                          if target_path else
                            len(candidates) == 1 and not ambiguous)
         call["source_status"] = "supplied_excerpt" if source_supplied else "ambiguous" if ambiguous else "not_supplied"
         call["callee_source_status"] = call["source_status"]
@@ -494,7 +555,8 @@ def answer_grounding_risks(source_pages, *, framework_references=(), framework_f
     sql_outputs, sql_truncated = _sql_output_observations(pages)
     for observation in sql_outputs:
         add("sql_select_into_effect_boundary", observation)
-    return {"required": bool(reasons), "reasons": reasons[:_MAX_RISKS],
+    return {"required": bool(reasons) or bool(unverified_navigation_calls), "reasons": reasons[:_MAX_RISKS],
             "omitted_risks": max(0, len(reasons) - _MAX_RISKS),
+            "unverified_navigation_calls": unverified_navigation_calls,
             "source_scan_truncated": truncated or sql_truncated or data_truncated,
             "semantic_execution_verified": False}

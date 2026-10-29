@@ -10,7 +10,7 @@
 | 当用户首次提交远程来源时 | 通过受现有会话与同源保护的 `/api/source/remote` 解析链接，解析完整提交后下载到独立工作区，再调用同一个分析器。见 `start_remote`、`resolve_remote_source`、`fetch_remote_source`、`_run`。 |
 | 当再次提交相同仓库、版本选择和目录时 | 使用已登记的本机副本，不请求仓库、不下载 ZIP；显式读取设置改变或索引需要修复时，仅从该本机源码重新索引，不静默忽略本次读取设置。 |
 | 当打开已保存的资料库时 | `/api/state` 和完成任务响应的 `source_workspaces` 提供登记条目；`/api/source/open` 先恢复选定资料库再采用它，不连接仓库或调用模型。见 `saved_sources`、`open_source_workspace`、`_adopt_workspace`。 |
-| 当主动检查远端更新时 | `/api/source/remote/update` 只接受当前远程资料库，先用 `resolve_remote_source` 查询提交元数据。提交不变且索引可用则零 ZIP 下载、零索引重建；索引缺失、损坏或需升级时从现存源码本地重建。已删除的源文件不能由索引还原。 |
+| 当主动检查远端更新时 | `/api/source/remote/update` 只接受当前远程资料库，先用 `resolve_remote_source` 查询提交元数据。提交不变时先核对本机文件清单与字节；副本完整且索引可用则零源码下载、零索引重建。副本受损时建立新快照修复：Cloud 重新获取对应文件，Server / Data Center 重新获取归档。索引缺失、损坏或需升级但源码完整时仅在本地重建。 |
 | 当远端提交变化时 | 将解析结果交给 `fetch_remote_source(resolved=...)`，避免重复查版本和分支移动；在新 source/output 工作区完成下载和索引后才切换。旧工作区、对话与引用保持原版本，不跨版本复用证据。 |
 | 当链接带固定提交哈希时 | 保持固定提交，不因检查更新而擅自跟随其他分支；只有显式填写分支或设置 `follow_default_branch=true` 才改变版本选择。默认分支模式不触发启动时联网。Cloud 从仓库 `mainbranch` 取得默认分支，再读取该分支提交，禁止用跨分支 commits 列表的首项代替。 |
 | 当下载、解压或索引失败，或用户取消时 | 系统恢复原资料库与对话，并清理本次独立缓存；恢复本身失败时保留恢复材料并报告。见 `_restore_after_failure` 和 `_run`。 |
@@ -21,7 +21,7 @@
 | 当展示对话标题时 | 从首个实质问题提炼主题，保留程序标识和条件，不增加模型调用；历史自动标题只读转换，不改原消息、时间或自定义标题。 |
 | 当请求携带访问凭据时 | Cloud 的 `username` 是 API token 对应的账号邮箱，二者组成 Basic Authorization；邮箱留空时 token 以 Bearer 发送，适用于 access token，Server / Data Center 保持原 Bearer 用法。凭据仅在 HTTPS 请求头和本次线程内存中使用，拒绝带凭据的 URL 和重定向，不送入分析器、状态快照或持久化配置；前端提交或关闭表单后清除。见 `parse_remote_source`、`fetch_remote_source` 和 `startRemoteSource`。 |
 
-Cloud 通过官方 `get/<commit>.zip` 获取整仓 ZIP，仅提取选定目录；Server / Data Center 沿用服务端按目录归档。此方案不是 Git 增量拉取。Cloud 选择较小子目录不会减少 ZIP 传输量，只有未变提交检查可以完全避免下载。
+Cloud 首次通过官方 `get/<commit>.zip` 获取整仓 ZIP，仅提取选定目录；后续通过固定提交的 diffstat 和文件内容接口增量下载，并核对复用文件的 SHA-256。首次选择较小子目录不会减少 ZIP 传输量；后续更新若仅所选目录外改变，可以零源码下载。Server / Data Center 沿用服务端按目录归档，未实现文件级增量下载。
 
 远程响应及 ZIP 内容作为不可信输入，沿用原下载、条目数、中央目录和解压大小限制。所有路径仍拒绝路径穿越、绝对路径、反斜杠和异常根目录；Cloud 未选目录的合法 Linux 文件名不会写入本机，不套用 Windows 保留名检查。被提取路径及其祖先仍拒绝链接、跨平台危险文件名、大小写／Unicode 冲突和文件／目录冲突。测试位置为 `poc/tests/test_remote_source.py`、`poc/tests/test_web_remote_source.py` 和 `poc/tests/web_remote_source.test.cjs`；本地回归沿用 `test_web_app.py`、`test_source_update.py` 与 `web_source_updates.test.cjs`。
 

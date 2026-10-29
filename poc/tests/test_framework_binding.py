@@ -198,6 +198,63 @@ class FrameworkBindingTests(unittest.TestCase):
         self.assertEqual(bind(source("EXEC SQL\n" + MOVE + "\n" + CALL + "\nEND-EXEC.")), [])
         self.assertEqual(bind(source("DISPLAY 'unclosed\n" + MOVE + "\n" + CALL)), [])
 
+    def test_sql_comments_and_literals_cannot_end_embedded_scope(self) -> None:
+        for embedded in (
+            "/* END-EXEC\n" + MOVE + "\n" + CALL + "\n*/\nSELECT 1 FROM RECORDS",
+            "-- END-EXEC " + MOVE + " " + CALL + "\nSELECT 1 FROM RECORDS",
+            "SELECT 'prefix\nEND-EXEC\n" + MOVE.replace("'", "''") + "\n"
+                + CALL.replace("'", "''") + "\nsuffix' FROM RECORDS",
+            "SELECT 'END-EXEC' FROM RECORDS",
+            "/*\nPROGRAM-ID. FALSEPG.\nPROCEDURE DIVISION.\nINPUT-STAGE SECTION.\n"
+                + MOVE + "\n" + CALL + "\n*/\nSELECT 1 FROM RECORDS",
+        ):
+            for start in ("EXEC SQL", "EXEC\nSQL"):
+                with self.subTest(embedded=embedded, start=start):
+                    text = source(start + "\n" + embedded + "\nEND-EXEC.\n" + MOVE + "\n" + CALL)
+                    fact, = bind(text, source_format="free")
+                    self.assertTrue(fact["dependency_covered"])
+                    self.assertEqual(fact["program_name"], "ENTRYPG")
+                    self.assertEqual(fact["start_line"], len(text.splitlines()))
+
+    def test_same_line_sql_comments_do_not_hide_real_following_calls(self) -> None:
+        text = source("EXEC SQL SELECT 1 /* END-EXEC " + MOVE + " " + CALL
+                      + " */ FROM RECORDS END-EXEC. " + MOVE + " " + CALL)
+        fact, = bind(text, source_format="free")
+        self.assertTrue(fact["dependency_covered"])
+        self.assertEqual(fact["target_name"], "ITEMIO")
+
+    def test_sql_trailing_comments_stay_opaque_after_the_terminator(self) -> None:
+        for tail in (
+            "/*\n" + MOVE + "\n" + CALL + "\n*/.",
+            "-- " + MOVE + " " + CALL,
+            "/* " + MOVE + " " + CALL + " */.",
+        ):
+            for start in ("EXEC SQL SELECT 1 FROM RECORDS", "EXEC SQL\nSELECT 1 FROM RECORDS\n"):
+                with self.subTest(tail=tail, start=start):
+                    text = source(start + " END-EXEC " + tail + "\n" + MOVE + "\n" + CALL)
+                    fact, = bind(text, source_format="free")
+                    self.assertTrue(fact["dependency_covered"])
+                    self.assertEqual(fact["start_line"], len(text.splitlines()))
+
+    def test_fixed_debug_line_cannot_end_sql_scope(self) -> None:
+        text = source("EXEC SQL\nSELECT 1\nEND-EXEC\n" + MOVE + "\n" + CALL
+                      + "\nFROM RECORDS\nEND-EXEC.\n" + MOVE + "\n" + CALL)
+        lines = [f"{number:06} {line}" for number, line in enumerate(text.splitlines(), 1)]
+        lines[9] = lines[9][:6] + "D" + lines[9][7:]
+        fact, = bind("\n".join(lines), source_format="fixed")
+        self.assertTrue(fact["dependency_covered"])
+        self.assertEqual(fact["start_line"], len(lines))
+
+    def test_gap_cannot_hide_persistent_source_scope_changes(self) -> None:
+        text = source("REPLACE ==NX== BY ==OTHER==.\n" + MOVE + "\n" + CALL)
+        lines = [(number, line) for number, line in enumerate(text.splitlines(), 1)
+                 if not line.startswith("REPLACE")]
+        fact, = bind_framework_source(lines, knowledge(), relative_path="entry.cbl",
+            source_sha256=hashlib.sha256(text.encode()).hexdigest(), source_format="free")
+        self.assertFalse(fact["dependency_covered"])
+        self.assertEqual(fact["reason"], "source_line_unavailable")
+        self.assertIsNone(fact["operation"])
+
     def test_program_boundary_never_reuses_assignment(self) -> None:
         text = source(MOVE) + source(CALL, name="SECONDPG")
         fact, = bind(text)

@@ -496,6 +496,33 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(value["framework_knowledge"]["configured_path"], str(folder))
         self.assertEqual(self.request("POST", "/api/framework", {"path": str(folder)}, authenticated=False)[0], 403)
 
+    def test_failed_framework_save_preserves_active_registered_and_persisted_paths(self) -> None:
+        self.app.state_path = self.root / "workspace.json"
+        source = self.source("source", "REQUEST-REVIEW")
+        self.finish(self.submit(source, self.root / "output"))
+        original = self.root / "original-guide.md"
+        replacement = self.root / "replacement-guide.md"
+        for path in (original, replacement):
+            path.write_text("# Processing guide\nRequests require validation.\n", encoding="utf-8")
+        self.assertEqual(self.request("POST", "/api/framework", {"path": str(original)})[0], 200)
+        persisted = self.app.state_path.read_bytes()
+        registered = json.loads(json.dumps(self.app.source_workspaces))
+        for error in (OSError("private-path-marker"), ValueError("private-path-marker")):
+            with self.subTest(error=type(error).__name__):
+                with mock.patch.object(Path, "replace", side_effect=error):
+                    status, result, _ = self.request("POST", "/api/framework", {"path": str(replacement)})
+                self.assertEqual(status, 500, result)
+                self.assertNotIn("private-path-marker", json.dumps(result))
+                self.assertEqual(self.app.framework_reference_path, str(original))
+                self.assertEqual(self.app.framework()["configured_path"], str(original))
+                self.assertEqual(self.app.source_workspaces, registered)
+                self.assertEqual(self.app.state_path.read_bytes(), persisted)
+                restored = WorkbenchState(state_path=self.app.state_path)
+                self.assertEqual(restored.framework_reference_path, str(original))
+        self.assertEqual(self.request("POST", "/api/framework", {"path": str(replacement)})[0], 200)
+        restored = WorkbenchState(state_path=self.app.state_path)
+        self.assertEqual(restored.framework_reference_path, str(replacement))
+
     def test_failed_refresh_retains_old_workspace_without_authorizing_failed_new_scope(self) -> None:
         source = self.source("source", "STOCK-READ")
         initial_id = self.submit(source, self.root / "output", entry="STOCK-READ")

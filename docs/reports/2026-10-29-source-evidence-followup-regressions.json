@@ -1,0 +1,288 @@
+{
+  "schema": "local-source-regression-summary/v1",
+  "scope": "local_source_tests_only",
+  "date": "2026-10-29",
+  "status": "passed",
+  "base_commit": "006d4e058e8b4a8b232ef9e14a2c069d1ae96684",
+  "source_dirty": true,
+  "runtime_platform": "Darwin",
+  "source_changes": [
+    {
+      "path": "poc/analysis_continuation.py",
+      "sha256": "a8c1e34c63e41ef369bb41e470e10e61bc380ccb2a163818e29027508ff54e41"
+    },
+    {
+      "path": "poc/answer_grounding.py",
+      "sha256": "02cc9ffaa4dcfc944b3172641eb9ef321d9059de4f8bd1b793bb1d5de21545a9"
+    },
+    {
+      "path": "poc/answer_preferences.py",
+      "sha256": "f5c23b833f51a3ff8f5056f93d115527449973696d2a3334cd775030da5bcacf"
+    },
+    {
+      "path": "poc/business_chat.py",
+      "sha256": "4bc8e001ae4dcb96a26567b7336a205bd2ed644859ee2e9cb55675f9bc6aed18"
+    },
+    {
+      "path": "poc/business_index.py",
+      "sha256": "db55df28b4109c03e511f2d5f6f46ace1c59d20927b1f0ab7159490ce3d3af03"
+    },
+    {
+      "path": "poc/business_synthesis.py",
+      "sha256": "f9c02f123b7ecaf8a096af108336f9efc778466d624abb6c2e00fb6f7a2268cc"
+    },
+    {
+      "path": "poc/company_api.py",
+      "sha256": "9e7532e35db064a89a98c644b221af2728cdbbc67f8880ee0eef43d328ccd80c"
+    },
+    {
+      "path": "poc/compilation_context.py",
+      "sha256": "469f512862fb93af08d086b26af918bd924c9340c54a136cce976036647edad3"
+    },
+    {
+      "path": "poc/evidence_context.py",
+      "sha256": "5e9f2acab6c406b5f36c66ccdb66e6f8365c0ffee6bfd82d522355dd49a37daa"
+    },
+    {
+      "path": "poc/framework_binding.py",
+      "sha256": "fcd5d42c99d7d520370ad16a7edd73891d70d634a5b595132a600926bde951d2"
+    },
+    {
+      "path": "poc/framework_semantics.py",
+      "sha256": "26ccf518d93fdeb115400e80af94b9cf0416144dbe79a898afa49619a672aac5"
+    },
+    {
+      "path": "poc/model_profiles.py",
+      "sha256": "4b1b2fa898d553121ffadd9234a15127cbe6b66b800b0a5509bf9aecdb6a2d79"
+    },
+    {
+      "path": "poc/quality_trace.py",
+      "sha256": "b47354c32b65cf2ebea9c85fe63b495e86d7b721aaa3ac4ccaac4e4d3e5d0002"
+    },
+    {
+      "path": "poc/remote_incremental.py",
+      "sha256": "2ba851a151a2ec58c367ad1344d1307723ab1e1e50d6c596cffb7d4954f3e023"
+    },
+    {
+      "path": "poc/remote_source.py",
+      "sha256": "784f383e004bc0434a0b1b06b435ac524e359853775dd813c451b6bb272d278d"
+    },
+    {
+      "path": "poc/response_language.py",
+      "sha256": "9215bf0c4150788bfa2a82bf5e6800fa5374feb27a1e59ed80bef50ff446d066"
+    },
+    {
+      "path": "poc/source_reading.py",
+      "sha256": "6ffe27dcab7761e568ca1d86b40f50e7aafc6f795ee4ce94be838e290270244e"
+    },
+    {
+      "path": "poc/source_session.py",
+      "sha256": "fb1f591e59d458d46392f1a6211c51a953e96919dd399fa0b9924435e36a1c8b"
+    },
+    {
+      "path": "poc/statement_facts.py",
+      "sha256": "6464fe10700701575920efc1755056357f804df64e28c4cd36386650654d27e0"
+    },
+    {
+      "path": "poc/structural_index.py",
+      "sha256": "91c8bac4fe70495c40858a73e272713d7c3fed03653a6e8c3c570d059e0cb6e7"
+    },
+    {
+      "path": "poc/syntax_evidence.py",
+      "sha256": "175c6f66cd919c83f3868569e59e862def8235ea6ea5c2c3f637dab56fd88636"
+    },
+    {
+      "path": "poc/tests/test_answer_grounding.py",
+      "sha256": "e5c9d12dd2f84a841c6a062c7b2d5042b610b9842572a324e870e5ecc8b26679"
+    },
+    {
+      "path": "poc/tests/test_business_index.py",
+      "sha256": "558016343d73ebf50d703934fddd85ef36ca37f1fd79c5e059ad41cbd0377c6d"
+    },
+    {
+      "path": "poc/tests/test_compilation_context_validation.py",
+      "sha256": "6a5fec7a90d4e69c45ac6b0a8ec42785e6896ae3a88c58e096fd9d5d26b5628a"
+    },
+    {
+      "path": "poc/tests/test_evidence_context.py",
+      "sha256": "5250a552cc513019fc7c86e49427a854e3e3110a308a36cd2684accbb21e113b"
+    },
+    {
+      "path": "poc/tests/test_evidence_selection_reuse.py",
+      "sha256": "06930e4d53be679b490bbb27441ab4050c97d7487c370d9f0906b390414c2124"
+    },
+    {
+      "path": "poc/tests/test_explicit_retry_recovery.py",
+      "sha256": "7c864362210c6286ddedea1b6c4221c506fbc62df7fb5ccba7c46349cf1312b2"
+    },
+    {
+      "path": "poc/tests/test_framework_binding.py",
+      "sha256": "97f5b56d2ec9e0fc24611fe02e553f906c2583b9b70f499968a0f2f3034f813c"
+    },
+    {
+      "path": "poc/tests/test_framework_semantics.py",
+      "sha256": "c67fa36236bc8ce21063d6c8deec89d77e3ae395a1589f84fdcb8c0d4c266917"
+    },
+    {
+      "path": "poc/tests/test_model_output_budget.py",
+      "sha256": "713074b4266b49cda214d16f976a7d1d529c9d94c1502f6ba289ac8299baf559"
+    },
+    {
+      "path": "poc/tests/test_remote_incremental.py",
+      "sha256": "40132a7a0fc3dad72d7313d8435ce4ebaa3428e0b0bc52d6997076dce90a02b1"
+    },
+    {
+      "path": "poc/tests/test_remote_source.py",
+      "sha256": "f742fdfa9d173589fc7c107d40db0b1ac57944d5156cfb15738e3b5f90d5d926"
+    },
+    {
+      "path": "poc/tests/test_response_language.py",
+      "sha256": "1e00bb63360a4a598c560e1d4389abe7d0c57d7fbe1a56c876319ca2418c97ca"
+    },
+    {
+      "path": "poc/tests/test_saved_answer_language.py",
+      "sha256": "d2fcf1445b7732c21eadae0fb7578631864b9bfa2a82b666260ae54a7f901dbe"
+    },
+    {
+      "path": "poc/tests/test_saved_business_preferences.py",
+      "sha256": "6875bce703f2d62c0c4de36745491970943497d5e6e4e4df5b154e03ccca1509"
+    },
+    {
+      "path": "poc/tests/test_semantic_continuation_progress.py",
+      "sha256": "f8de1d830b86dec60a15dadba8759677ce9799b2e6a31ad9c281bc036a5c8d1d"
+    },
+    {
+      "path": "poc/tests/test_source_reading.py",
+      "sha256": "be2349db16812a6de94f4c5611e5c7363a176d4833f5f3207051c507ac4981b8"
+    },
+    {
+      "path": "poc/tests/test_source_session.py",
+      "sha256": "c23b9800aa6fafd03858b22a1cee0195459c1711016a3430ff531c5835cd77af"
+    },
+    {
+      "path": "poc/tests/test_statement_facts.py",
+      "sha256": "ea18d8274b7dfc99dbfc26064f4cba2953e54eda65fafdaaad8922745e587da7"
+    },
+    {
+      "path": "poc/tests/test_structural_parser_latency.py",
+      "sha256": "1ed64dbe629c60b74f2e62a396fa4c6056ee9272001d79e49b36e3fbd24bb810"
+    },
+    {
+      "path": "poc/tests/test_syntax_evidence.py",
+      "sha256": "627645f3f7ce6d501d6b3b6abb5f714823fa13917853beb36b5f9ba95d4642cf"
+    },
+    {
+      "path": "poc/tests/test_web_incremental_sync.py",
+      "sha256": "1fe376b997b24347a9e668c11f6d69576b02b53c01f3fd91b97fcd9d4835a692"
+    },
+    {
+      "path": "poc/tests/test_workspace_upgrade.py",
+      "sha256": "62d43c74a69164628e52724613bbe29c6eab1b8fd89b3c81f14c593920fb1120"
+    },
+    {
+      "path": "poc/web_app.py",
+      "sha256": "e99b757d3f9fd9822a357d9d5103afd921a54027c3ba6552dae70b66426d08c0"
+    },
+    {
+      "path": "poc/workspace_upgrade.py",
+      "sha256": "c95f76535551a1f71912f78be0684be7ed8c40e3b1ae105f1342acf48a1d4b63"
+    }
+  ],
+  "python": {
+    "discovered": 4386,
+    "passed": 4386,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0,
+    "coverage": "all_discovered_ids_executed_exactly_once",
+    "test_ids_sha256": "2088ab57cfdeed56e1c2b218f4691a2179f816ffd6932ba73b28cf8356510c85",
+    "test_sources_sha256": "9009e8048a4c193b678ec3aac1c222bd92bd087a4fcce4530dca23ffac78ba20",
+    "added_test_ids_since_prior_audit": [
+      "test_answer_grounding.GroundingRiskTests.test_call_and_sql_fragments_cannot_join_different_copy_transformations",
+      "test_answer_grounding.GroundingRiskTests.test_copy_instances_keep_distinct_call_evidence_and_navigation_scope",
+      "test_answer_grounding.GroundingRiskTests.test_navigation_cannot_turn_replaced_callsite_or_noncode_into_call_evidence",
+      "test_answer_grounding.GroundingRiskTests.test_navigation_fragment_preserves_copy_and_replacement_identity",
+      "test_answer_grounding.GroundingRiskTests.test_same_copy_instance_normalizes_list_and_tuple_provenance",
+      "test_answer_grounding.GroundingRiskTests.test_selected_callee_needs_the_navigation_version_not_only_the_same_path",
+      "test_answer_grounding.GroundingRiskTests.test_stale_caller_navigation_cannot_resolve_a_current_call_to_another_file",
+      "test_evidence_context.EvidenceContextTests.test_budget_excerpt_preserves_its_copy_instance",
+      "test_evidence_context.EvidenceContextTests.test_budget_excerpts_from_separate_expansions_keep_distinct_identities",
+      "test_evidence_context.EvidenceContextTests.test_different_copy_instances_cannot_cover_each_others_source",
+      "test_evidence_context.EvidenceContextTests.test_same_identifier_cannot_merge_conflicting_expansion_bindings",
+      "test_evidence_selection_reuse.EvidenceSelectionReuseTests.test_payload_semantics_require_the_supplied_copy_instance",
+      "test_remote_incremental.RemoteIncrementalTests.test_destination_write_failure_does_not_retry_source_download",
+      "test_remote_incremental.RemoteIncrementalTests.test_unreadable_cached_file_is_redownloaded_without_changing_old_snapshot",
+      "test_remote_source.RemoteSourceTests.test_browser_subdirectory_cannot_be_reinterpreted_as_another_repository",
+      "test_remote_source.RemoteSourceTests.test_failed_server_manifest_publication_cleans_only_new_snapshot",
+      "test_remote_source.RemoteSourceTests.test_server_archive_records_every_selected_file_in_external_manifest",
+      "test_remote_source.RemoteSourceTests.test_server_existing_manifest_is_never_overwritten_or_removed",
+      "test_response_language.LanguageSelectionTests.test_unfinished_source_fences_do_not_set_current_or_saved_language",
+      "test_saved_answer_language.SavedLanguageSelectionTests.test_current_language_exclusions_override_saved_and_inferred_defaults",
+      "test_saved_business_preferences.SavedBusinessContentTests.test_syntax_only_question_does_not_read_callers_or_demand_business_narrative",
+      "test_saved_business_preferences.SavedBusinessPreferenceTests.test_current_business_exclusions_and_syntax_only_do_not_create_overview_work",
+      "test_saved_business_preferences.SavedBusinessPreferenceTests.test_current_positive_business_request_survives_neighboring_exclusion",
+      "test_semantic_continuation_progress.SemanticContinuationProgressTests.test_equivalent_provenance_containers_do_not_lose_or_invent_progress",
+      "test_semantic_continuation_progress.SemanticContinuationProgressTests.test_semantics_from_an_unsupplied_copy_instance_do_not_create_progress",
+      "test_source_reading.SourceReadingTests.test_identical_source_pages_keep_distinct_copy_and_replacement_identities",
+      "test_source_reading.SourceReadingTests.test_page_identity_keeps_legacy_original_and_empty_provenance_ids",
+      "test_source_session.SourceSessionTests.test_archived_copy_instances_round_trip_without_changing_legacy_chain_records",
+      "test_source_session.SourceSessionTests.test_capture_cannot_refresh_an_equal_content_snapshot_rebuilt_with_new_configuration",
+      "test_source_session.SourceSessionTests.test_local_refresh_cannot_mix_current_facts_into_a_legacy_parser_index",
+      "test_source_session.SourceSessionTests.test_local_refresh_preserves_extensionless_procedure_copy_identity",
+      "test_source_session.SourceSessionTests.test_local_refresh_preserves_saved_compilation_conditions_and_copy_configuration",
+      "test_source_session.SourceSessionTests.test_local_refresh_recomputes_text_completeness_and_program_overview",
+      "test_syntax_evidence.SyntaxEvidenceTests.test_copy_instance_and_replacement_trace_cannot_complete_another_scope",
+      "test_syntax_evidence.SyntaxEvidenceTests.test_equivalent_tuple_and_list_provenance_keeps_one_complete_scope",
+      "test_syntax_evidence.SyntaxEvidenceTests.test_reused_reference_id_is_scoped_to_its_copy_instance",
+      "test_web_incremental_sync.WebIncrementalSyncTests.test_server_same_commit_cache_damage_is_repaired_in_a_new_snapshot"
+    ],
+    "parallel_wall_seconds": 88.34,
+    "shards": [
+      {
+        "index": 0,
+        "passed": 1097,
+        "elapsed_seconds": 88.168093,
+        "report": "/tmp/cobol-source-evidence-followup-final-0.json"
+      },
+      {
+        "index": 1,
+        "passed": 1097,
+        "elapsed_seconds": 79.893336,
+        "report": "/tmp/cobol-source-evidence-followup-final-1.json"
+      },
+      {
+        "index": 2,
+        "passed": 1096,
+        "elapsed_seconds": 61.092253,
+        "report": "/tmp/cobol-source-evidence-followup-final-2.json"
+      },
+      {
+        "index": 3,
+        "passed": 1096,
+        "elapsed_seconds": 68.080686,
+        "report": "/tmp/cobol-source-evidence-followup-final-3.json"
+      }
+    ]
+  },
+  "web": {
+    "passed": 262,
+    "failed": 0,
+    "skipped": 0,
+    "log": "/tmp/cobol-source-evidence-followup-web.log"
+  },
+  "tools": {
+    "passed": 1,
+    "command": "python3 -m unittest discover -s tools/tests"
+  },
+  "public_corpus": {
+    "source_root": "/private/tmp/qa-public-source-20261028",
+    "manifest": "docs/eval/public-business-v1/manifest.json",
+    "files_hash_verified": 8,
+    "included_in_final_suite": true
+  },
+  "network_scope": "loopback_test_servers_only",
+  "real_model_calls": false,
+  "private_repository_access": false,
+  "application_built": false,
+  "release_acceptance": false
+}

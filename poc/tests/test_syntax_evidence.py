@@ -72,6 +72,34 @@ class SyntaxEvidenceTests(unittest.TestCase):
         self.assertEqual(len(_supplied_source_spans([first, last], {"ev:first", "ev:last"})), 2)
         self.assertEqual(build_syntax_guide([first, last])["facts"], [])
 
+    def test_copy_instance_and_replacement_trace_cannot_complete_another_scope(self):
+        first = page("MAIN.\nIF FLAG = 'Y'\nMOVE 1 TO RESULT-VALUE", "ev:first")
+        last = page("END-IF.", "ev:last", 4)
+        for left, right in (({"copy_instance": "first"}, {"copy_instance": "second"}),
+                            ({"replacement_trace": [{"from": "OLD", "to": "FIRST"}]},
+                             {"replacement_trace": [{"from": "OLD", "to": "SECOND"}]})):
+            with self.subTest(left=left):
+                pages = [{**first, **left}, {**last, **right}]
+                self.assertEqual(len(_supplied_source_spans(pages, {"ev:first", "ev:last"})), 2)
+                self.assertEqual(build_syntax_guide(pages)["facts"], [])
+
+    def test_equivalent_tuple_and_list_provenance_keeps_one_complete_scope(self):
+        site, replacement = {"relative_path": "caller.cbl", "line": 5}, {"from": "OLD", "to": "NEW"}
+        first = {**page("MAIN.\nIF FLAG = 'Y'\nMOVE 1 TO RESULT-VALUE", "ev:first"),
+                 "include_chain": [site], "replacement_trace": [replacement], "copy_instance": "one"}
+        last = {**page("END-IF.", "ev:last", 4), "include_chain": (site,),
+                "replacement_trace": (replacement,), "copy_instance": "one"}
+        fact, = build_syntax_guide([first, last])["facts"]
+        self.assertEqual(fact["supplied_reference_ids"], ["ev:first", "ev:last"])
+        self.assertEqual(fact["copy_instance"], "one")
+        self.assertEqual(fact["replacement_trace"], [replacement])
+
+    def test_reused_reference_id_is_scoped_to_its_copy_instance(self):
+        source = page("MAIN.\nMOVE 1 TO RESULT-VALUE.")
+        facts = build_syntax_guide([{**source, "copy_instance": "first"},
+                                   {**source, "copy_instance": "second"}])["facts"]
+        self.assertEqual({fact["copy_instance"] for fact in facts}, {"first", "second"})
+
     def test_overlapping_pages_choose_small_number_of_complete_references(self):
         text = "MAIN.\nMOVE 1 TO RESULT-VALUE."
         pages = [page(text, "ev:whole")] + [page("MOVE 1 TO RESULT-VALUE.", f"ev:{i}", 2) for i in range(30)]

@@ -135,6 +135,7 @@ class EvidenceContext:
                            ("relative_path", "source_sha256"))
                     or tuple(page.get("include_chain") or ()) != tuple(original.get("include_chain") or ())
                     or tuple(page.get("replacement_trace") or ()) != tuple(original.get("replacement_trace") or ())
+                    or page.get("copy_instance") != original.get("copy_instance")
                     or page["start_line"] > original["start_line"]
                     or page["end_line"] < original["end_line"]):
                 continue
@@ -201,13 +202,14 @@ class EvidenceContext:
                     fresh.append(page)
                 else:
                     saved = self.pages[identifier]
-                    for key in ("relative_path", "start_line", "end_line", "source_sha256", "source_text", "include_chain"):
+                    for key in ("relative_path", "start_line", "end_line", "source_sha256", "source_text",
+                                "include_chain", "replacement_trace", "copy_instance"):
                         if key not in saved or key not in page:
                             continue
                         prior, incoming = saved[key], page[key]
                         # Dataclass provenance uses tuples; JSON restores lists.
                         # Compare their contents without weakening source identity.
-                        if key == "include_chain" and isinstance(prior, (list, tuple)) and isinstance(incoming, (list, tuple)):
+                        if key in {"include_chain", "replacement_trace"} and isinstance(prior, (list, tuple)) and isinstance(incoming, (list, tuple)):
                             prior, incoming = tuple(prior), tuple(incoming)
                         if prior != incoming:
                             raise ValueError("EVIDENCE_ID_CONTENT_MISMATCH")
@@ -290,7 +292,7 @@ class EvidenceContext:
             if identifier not in instance_keys:
                 instance_keys[identifier] = (page.get("relative_path"), page.get("source_sha256"),
                 json.dumps(page.get("include_chain") or [], sort_keys=True),
-                json.dumps(page.get("replacement_trace") or [], sort_keys=True))
+                json.dumps(page.get("replacement_trace") or [], sort_keys=True), page.get("copy_instance"))
             return instance_keys[identifier]
 
         supplied_by_instance = {}
@@ -508,7 +510,7 @@ class EvidenceContext:
                     or offset < anchor_offset and offset + len(rows) <= anchor_offset):
                 continue
             excerpt = {key: page[key] for key in
-                ("relative_path", "source_sha256", "include_chain", "replacement_trace") if key in page}
+                ("relative_path", "source_sha256", "include_chain", "replacement_trace", "copy_instance") if key in page}
             first = page["start_line"] + offset
             excerpt.update(start_line=first, end_line=first + len(rows) - 1,
                 source_text="\n".join(rows), span_truncated=False,
@@ -651,6 +653,7 @@ class EvidenceContext:
                         and page.get("source_sha256") == ref.get("source_sha256")
                         and tuple(page.get("include_chain") or ()) == tuple(ref.get("include_chain") or ())
                         and tuple(page.get("replacement_trace") or ()) == tuple(ref.get("replacement_trace") or ())
+                        and page.get("copy_instance") == ref.get("copy_instance")
                         and page.get("start_line", 0) <= ref.get("start_line", 1)
                         and page.get("end_line", 0) >= ref.get("end_line", 1)
                         for page in payload["source_context"][0]["pages"]) for ref in refs)

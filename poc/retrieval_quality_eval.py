@@ -21,7 +21,7 @@ def _identity(page):
     # A content hash does not erase a distinct file or COPY instantiation.
     return (page.get("original_relative_path", page.get("relative_path")),
             page["source_sha256"], fingerprint(page.get("include_chain") or []),
-            fingerprint(page.get("replacement_trace") or []))
+            fingerprint(page.get("replacement_trace") or []), fingerprint(page.get("copy_instance")))
 
 
 def deduplicate(pages):
@@ -47,13 +47,16 @@ def _covered(first, last, ranges):
     return False
 
 
-def _matching_ranges(unit, pages):
+def _matching_ranges(unit, pages, *, require_text=False):
     ranges = []
     for page in pages:
         if _identity(page) != _identity(unit) or page.get("span_truncated"):
             continue
         first, last = page["start_line"], page["end_line"]
         actual, expected = page.get("source_text"), unit.get("source_text")
+        if require_text and (not isinstance(actual, str) or not actual
+                             or len(actual.splitlines()) != last - first + 1):
+            continue
         if actual is None or expected is None:
             ranges.append((first, last))
             continue
@@ -65,10 +68,10 @@ def _matching_ranges(unit, pages):
     return ranges
 
 
-def covered_units(units, pages):
+def covered_units(units, pages, *, require_text=False):
     """A different chunk split can cover the same complete original range."""
     return {unit["id"] for unit in units if _covered(unit["start_line"], unit["end_line"],
-                                                   _matching_ranges(unit, pages))}
+                                                   _matching_ranges(unit, pages, require_text=require_text))}
 
 
 def _overlaps(unit, page):
@@ -132,7 +135,7 @@ def evaluate_evidence(gold, candidates, loaded, *, k=5):
     positive = {unit["id"] for unit in units if unit["relevance"] > 0}
     retrieved = covered_units(units, candidates) & positive
     retrieved_k = covered_units(units, ranked) & positive
-    supplied = covered_units(units, deduplicate(loaded)) & positive
+    supplied = covered_units(units, deduplicate(loaded), require_text=True) & positive
     needed = {identifier for item in required for choice in item["sufficient_sets"]
               for identifier in choice}
     judged, gains, credited = [], [], set()
@@ -256,7 +259,7 @@ def oracle_arms(gold, candidates, load, *, k=5):
     if not minimal or any(not units[item].get("source_text") for item in minimal):
         raise ValueError("EVALUATION_ORACLE_RAW_SOURCE_REQUIRED")
     source_fields = {"evidence_id", "relative_path", "original_relative_path", "source_sha256",
-                     "start_line", "end_line", "source_text", "include_chain", "replacement_trace",
+                     "start_line", "end_line", "source_text", "include_chain", "replacement_trace", "copy_instance",
                      "semantic_roles", "selection_reasons"}
     raw = [{key: value for key, value in units[item].items() if key in source_fields}
            for item in sorted(minimal)]
@@ -328,8 +331,9 @@ def main(argv=None):
         # Report metrics and source identities, not a second source archive.
         for arm in result["arms"].values():
             for key in ("candidate_pages", "loaded_pages"):
-                arm[key] = [{name: page[name] for name in
-                             ("relative_path", "source_sha256", "start_line", "end_line")}
+                arm[key] = [{**{name: page[name] for name in
+                             ("relative_path", "source_sha256", "start_line", "end_line")},
+                             "source_instance_sha256": fingerprint(_identity(page))}
                             for page in arm[key]]
         rows.append({"query_id": case["id"], "snapshot_id": case["snapshot_id"], **result})
     report = {"schema": "retrieval-quality/v1", "scope": "synthetic_offline_material_diagnostic",

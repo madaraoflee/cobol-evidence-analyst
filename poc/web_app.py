@@ -1250,9 +1250,16 @@ class WorkbenchState:
         with self.lock:
             if self.job and self.job["status"] == "RUNNING":
                 raise RequestError("JOB_ACTIVE", "本次回答完成后可以更新框架资料。", 409)
+            fields = ("framework_reference_path", "_local_workspace", "source_workspaces", "_history_truncated")
+            previous = {key: copy.deepcopy(getattr(self, key)) for key in fields}
             self.framework_reference_path = path
-            status = self.framework()
-            self._save_workspace()
+            try:
+                status = self.framework()
+                self._save_workspace()
+            except (OSError, ValueError):
+                for key, value in previous.items():
+                    setattr(self, key, value)
+                raise RequestError("REQUEST_FAILED", "框架资料设置未能保存，请重试。", 500) from None
             return {"framework_knowledge": status}
 
     def configure_answer_instructions(self, payload: object) -> dict:
@@ -1921,7 +1928,7 @@ class WorkbenchState:
                         remote_update = {"previous_commit": old_remote["commit"], "commit": resolved["commit"],
                                          "status": "updated"}
                         cached_source_intact = True
-                        if (resolved["commit"] == old_remote["commit"] and spec.provider == "bitbucket_cloud"
+                        if (resolved["commit"] == old_remote["commit"]
                                 and Path(previous_workspace["source"]).is_dir()):
                             cached_source_intact = cached_snapshot_matches(spec, Path(previous_workspace["source"]),
                                 old_remote, output=Path(previous_workspace["output"]), check_cancel=self._check_cancel,

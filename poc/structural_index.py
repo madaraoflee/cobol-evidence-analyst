@@ -26,6 +26,7 @@ from statement_facts import (
     assignment_facts,
     CompilationGuardState,
     SCOPE_TERMINATORS,
+    SQL_END_EXEC_PATTERN,
     clean_cobol_line,
     io_clause_prefix,
     cobol_code_only,
@@ -58,7 +59,7 @@ from repo_inventory import (
 
 
 SCHEMA_VERSION = "0.4"
-PARSER_VERSION = "source-facts-v0.11"
+PARSER_VERSION = "source-facts-v0.12"
 INLINE_AST_ADAPTER_VERSION = "inline-statement-ast-v2"
 
 PROGRAM_ID_RE = re.compile(
@@ -94,7 +95,7 @@ PERFORM_TARGET_RE = re.compile(
 )
 IDENTIFIER_RE = re.compile(r"\b[A-Z][A-Z0-9_$#@-]*\b", re.IGNORECASE)
 EXEC_SQL_START_RE = re.compile(r"\bEXEC\s+SQL\b", re.IGNORECASE)
-EXEC_SQL_END_RE = re.compile(r"\bEND-EXEC\b", re.IGNORECASE)
+EXEC_SQL_END_RE = re.compile(SQL_END_EXEC_PATTERN, re.IGNORECASE)
 
 PARAGRAPH_EXCLUSIONS = {
     "ACCEPT",
@@ -1284,17 +1285,20 @@ def parse_document(document: SourceDocument, *, progress: Callable[[int, int], N
             terminated = terminator_seen and scanner.mode is None
             while not terminated and cursor < len(document.lines):
                 checkpoint(cursor)
-                candidate_upper = document.lines[cursor].text.strip().upper()
+                previous_mode = scanner.mode
+                candidate_code = scanner.feed(document.lines[cursor].text.strip(),
+                    lambda: checkpoint(cursor, force=True))
+                candidate_upper = candidate_code.strip()
                 if (
                     DIVISION_RE.match(candidate_upper)
                     or SECTION_RE.match(candidate_upper)
-                    or program_identifier(candidate_upper)
+                    or re.match(r"^PROGRAM-ID\s*\.", candidate_upper)
                     or re.match(r"^(?:GOBACK|END-IF|ELSE)\b", candidate_upper)
                 ):
+                    scanner.mode = previous_mode
                     break
                 sql_lines.append(document.lines[cursor])
-                sql_codes.append(scanner.feed(document.lines[cursor].text.strip(),
-                    lambda: checkpoint(cursor, force=True)))
+                sql_codes.append(candidate_code)
                 terminator_seen = terminator_seen or bool(EXEC_SQL_END_RE.search(sql_codes[-1]))
                 if terminator_seen and scanner.mode is None:
                     terminated = True

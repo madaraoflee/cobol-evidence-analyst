@@ -172,7 +172,7 @@ def _location(span):
 
 def build_syntax_guide(source_pages):
     """Rebind every fact and guard after trimming; cache only immutable parsing."""
-    from business_synthesis import _supplied_source_spans
+    from business_synthesis import _supplied_source_spans, _source_instance_key
 
     eligible = [p for p in source_pages if p.get("evidence_id") and p.get("source_sha256")
                 and isinstance(p.get("source_text"), str) and p["source_text"]
@@ -181,7 +181,7 @@ def build_syntax_guide(source_pages):
                 and p["end_line"] - p["start_line"] + 1 == len(p["source_text"].splitlines())]
 
     def source_key(page):
-        return (page.get("relative_path"), page.get("source_sha256"), repr(page.get("include_chain") or []))
+        return _source_instance_key(page)
 
     # An evidence ID may be reused for the same copybook in distinct includes.
     # Resolve it inside its source instance, never through a global last-wins map.
@@ -269,6 +269,9 @@ def build_syntax_guide(source_pages):
                 chain = pages[references[0]].get("include_chain")
                 if chain:
                     fact["include_chain"] = chain
+                for key in ("replacement_trace", "copy_instance"):
+                    if pages[references[0]].get(key) is not None:
+                        fact[key] = pages[references[0]][key]
                 size = len(json.dumps(fact, ensure_ascii=False).encode("utf-8"))
                 if len(result["facts"]) >= _MAX_FACTS or size > 2500 or used_bytes + size > _MAX_BYTES:
                     result["omitted_facts"] += 1
@@ -285,12 +288,13 @@ def build_inline_syntax_guide(source_pages, *, include_priority_branches=False):
     branches carry the specific earlier predicates that must not match, so a
     later branch cannot be described as evaluated after an earlier match.
     """
+    from business_synthesis import _source_instance_key
+
     guide = build_syntax_guide(source_pages)
     counts, selected = {}, set()
 
     def unit_key(fact):
-        return (fact["relative_path"], fact["source_sha256"], fact["unit"],
-                repr(fact.get("include_chain") or []))
+        return (*_source_instance_key(fact), fact["unit"])
 
     for fact in guide["facts"]:
         key = unit_key(fact)

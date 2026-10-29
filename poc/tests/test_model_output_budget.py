@@ -66,6 +66,18 @@ class ModelOutputBudgetTests(unittest.TestCase):
         self.assertEqual(self.actual_request(adapter)["max_tokens"], 1024)
         self.assertEqual(self.actual_request(workbench)["max_tokens"], 8192)
 
+    def test_timeout_overrides_are_validated_before_returning_a_profile(self):
+        for profile in ("adapter", "workbench"):
+            for timeout in (True, False, 0, -1, 301, float("inf"), float("nan"), "private-timeout"):
+                with self.subTest(profile=profile, timeout=timeout):
+                    with self.assertRaisesRegex(APIConfigurationError, "^TIMEOUT_INVALID$"):
+                        self.profile(profile, timeout_seconds=timeout)
+            self.assertEqual(self.profile(profile, timeout_seconds=45.5).timeout_seconds, 45.5)
+
+    def test_direct_config_cannot_treat_a_boolean_as_one_second_timeout(self):
+        with self.assertRaisesRegex(APIConfigurationError, "^TIMEOUT_INVALID$"):
+            CompanyAPIConfig.from_env(environ=self.values, timeout_seconds=True)
+
     def test_budget_provenance_identifies_profile_and_override_source(self):
         for name in ("adapter", "workbench"):
             config = self.profile(name)

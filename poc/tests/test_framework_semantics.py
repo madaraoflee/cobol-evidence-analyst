@@ -156,6 +156,32 @@ class OfflineFrameworkSemanticsTests(unittest.TestCase):
         self.assertEqual(report["framework_semantics"]["files_rebuilt"], 1)
         self.assertEqual(binding.call_count, 1)
 
+    def test_v18_sql_comment_binding_is_not_reused_by_answers_or_import(self):
+        body = "MOVE 'ADVANCE' TO ROWS-FUNCTION.\nCALL 'ROWSIO' USING ROWS-PARAMS."
+        text = SOURCE.replace(body, "EXEC SQL\n/* END-EXEC\n" + body
+                              + "\n*/\nSELECT 1 FROM RECORDS\nEND-EXEC.\n" + body)
+        self.path.write_bytes(text.encode("utf-8"))
+        self.build()
+        real_line = max(number for number, line in enumerate(text.splitlines(), 1)
+                        if line.startswith("CALL 'ROWSIO'"))
+        false_line = min(number for number, line in enumerate(text.splitlines(), 1)
+                         if line.startswith("CALL 'ROWSIO'"))
+        with closing(sqlite3.connect(self.database)) as db, db:
+            stored = json.loads(db.execute("SELECT bindings_json FROM framework_file_semantics").fetchone()[0])
+            self.assertEqual(len(stored), 1)
+            false_fact = dict(stored[0], fact_id="framework_fact_old_comment",
+                              start_line=false_line, end_line=false_line,
+                              source_ranges=[{"start_line": false_line, "end_line": false_line, "role": "callsite"},
+                                  {"start_line": false_line - 1, "end_line": false_line - 1, "role": "function_assignment"}])
+            stale = json.dumps([false_fact, *stored])
+            db.execute("UPDATE framework_file_semantics SET version=?,bindings_json=?,facts_json=?",
+                       ("framework-semantics/v1.8", stale, stale))
+        self.assertEqual([fact["start_line"] for fact in self.facts()["facts"]], [real_line])
+        report = self.build()
+        self.assertEqual(report["files"]["indexed_or_updated"], 0)
+        self.assertEqual(report["framework_semantics"]["files_rebuilt"], 1)
+        self.assertEqual([fact["start_line"] for fact in self.facts()["facts"]], [real_line])
+
     def test_document_change_invalidates_cache_without_source_rebuild(self):
         self.build()
         previous = self.facts()

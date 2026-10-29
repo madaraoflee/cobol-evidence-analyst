@@ -27,6 +27,7 @@ def supplied_source_availability(source_pages, working_set=None):
         path = _path(page.get("relative_path"))
         text = str(page.get("source_text", ""))
         if (not path or not text.strip() or page.get("include_chain")
+                or page.get("copy_instance") or page.get("replacement_trace")
                 or "repository_orientation" in page.get("selection_reasons", [])):
             continue
         row = supplied.setdefault(path, {"relative_path": path, "source_supplied": True,

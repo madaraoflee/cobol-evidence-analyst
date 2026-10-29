@@ -20,17 +20,17 @@ from repo_inventory import DEFAULT_EXTENSIONS, SOURCE_FORMAT_RE, iter_source_fil
 from source_catalog import _dependency_targets, _entry_matches
 from statement_facts import (clean_cobol_line, dependency_facts, io_clause_prefix, join_continuation,
                              lex_cobol, CobolLexError, CompilationGuardState, program_identifier,
-                             sentence_terminated, sql_host_access)
+                             sentence_terminated, sql_code_only, sql_host_access)
 from statement_parser import parse_statements
 from structural_index import (
     SCHEMA_VERSION, PROGRAM_ID_RE, SECTION_RE, PARAGRAPH_RE, PARAGRAPH_EXCLUSIONS,
     DATA_ITEM_RE, PERFORM_TARGET_RE, PERFORM_NON_TARGETS, _statement_kind, _STATEMENT_KINDS,
     _extract_data_access, _unique_identifiers,
     _stable_id, _content_hash, _connect, _ensure_schema, _delete_file_facts,
-    _resolve_relations, _database_counts,
+    _resolve_relations, _database_counts, _SQLCodeScanner, EXEC_SQL_END_RE,
 )
 
-PARSER_VERSION = "business-sparse-v1.9"
+PARSER_VERSION = "business-sparse-v1.10"
 CHUNK_BYTES = 1024 * 1024
 MAX_PHYSICAL_LINE_CHARS = 65536
 MAX_FACT_CHARS = 131072
@@ -292,7 +292,8 @@ class _Facts:
         self.line_count = 0
         self.boundaries = Counter()
         self.copybook = copybook_hint or Path(relative).suffix.casefold() in COPY_EXTENSIONS
-        self.sql = False
+        self.sql_scanner = None
+        self.sql_ended = False
         self.compilation = CompilationGuardState(compilation_context)
         from cl_context import CLSourceCollector, is_cl_path
         self.cl_collector = CLSourceCollector(relative, metadata["sha256"]) if is_cl_path(relative) else None
@@ -310,7 +311,7 @@ class _Facts:
             if kind == "Paragraph":
                 self.paragraph_name = None
 
-    def _business_rule(self, kind, code, start, end, *, occurrence=None, tokens=None):
+    def _business_rule(self, kind, code, start, end, *, occurrence=None, tokens=None, complete=True):
         rule_kind = "EXEC_SQL" if kind == "SqlRule" else _statement_kind(code)
         key = _stable_id("rule", self.relative, self.program, self.paragraph_name or self.section_name,
                          rule_kind, code, *(self.compilation.guards if self.compilation.status is None else ()))
@@ -326,7 +327,8 @@ class _Facts:
         else:
             reads, writes, _ = _extract_data_access(code, tokens=tokens)
             if kind == "SqlRule":
-                reads, writes, _ = sql_host_access(code)
+                masked, closed = sql_code_only(code)
+                reads, writes, _ = sql_host_access(masked) if closed and complete else ([], [], False)
             conditions = _unique_identifiers(code, tokens=tokens) if rule_kind in {"IF", "EVALUATE", "WHEN"} else []
             self.rule_batch[key] = [key, self.relative, self.program, self.paragraph_name or self.section_name,
                                     rule_kind, start, end, 1, code,
@@ -338,7 +340,7 @@ class _Facts:
                 (key, name, role) for role, names in
                 (("read", reads), ("write", writes), ("condition", conditions)) for name in names]
         occurrence = occurrence or {"start_column": 1, "end_column": len(code) + 1,
-                                     "order": 0, "guards": [], "parse_status": "complete"}
+                                     "order": 0, "guards": [], "parse_status": "complete" if complete else "partial"}
         if self.compilation.status is None:
             occurrence = {**occurrence, "parse_status": "candidate", "guards": [*occurrence["guards"],
                 {"kind": "COMPILATION", "status": "candidate", "guards": self.compilation.guards,
@@ -418,7 +420,8 @@ class _Facts:
 
     def _fact(self, pending):
         kind, code_lines, raw_lines, start, end, complete = pending
-        code, raw = " ".join(code_lines), "\n".join(raw_lines)
+        code = ("\n" if kind == "SqlRule" else " ").join(code_lines)
+        raw = "\n".join(raw_lines)
         upper = code.upper()
         if kind == "Program":
             declared_program = program_identifier(code)
@@ -480,7 +483,10 @@ class _Facts:
         elif kind == "BusinessRule":
             self._statement_rules(code, raw, start, end, complete)
         elif kind == "SqlRule":
-            self._business_rule(kind, upper, start, end)
+            if re.match(r"^EXEC\s+SQL\b", upper):
+                self._business_rule(kind, upper, start, end, complete=complete)
+            else:
+                self.boundaries["embedded_language_unsupported"] += 1
         if not complete:
             self.boundaries["bounded_fact_fragment"] += 1
 
@@ -540,6 +546,23 @@ class _Facts:
             self._fact(self.pending)
             self.pending = None
 
+    def _sql_line(self, code, raw, line_number):
+        # Keep lexical state even after the bounded fact buffer is exhausted.
+        # Comment/literal markers cannot expose their contents as COBOL facts.
+        masked = self.sql_scanner.feed(code)
+        self.sql_ended |= bool(EXEC_SQL_END_RE.search(masked))
+        if self.pending:
+            self.pending[1].append(code)
+            self.pending[2].append(raw)
+            self.pending[4] = line_number
+        if self.sql_ended and self.sql_scanner.mode is None:
+            self._flush(complete=True)
+            self.sql_scanner, self.sql_ended = None, False
+        elif self.pending and (len(self.pending[2]) >= MAX_FACT_LINES
+                               or sum(map(len, self.pending[2])) > MAX_FACT_CHARS):
+            self._flush()
+            self.boundaries["embedded_statement_exceeds_fact_budget"] += 1
+
     def consume(self, line_number, raw):
         self.line_count = line_number
         if self.cl_collector is not None:
@@ -554,6 +577,9 @@ class _Facts:
         code, next_format, continuation = _clean(raw, self.active_format)
         if self.source_format == "auto":
             self.active_format = next_format
+        if self.sql_scanner is not None:
+            self._sql_line(code, raw, line_number)
+            return
         if re.match(r"^>>\s*(?:IF|ELSE|END-IF)\b", code, re.I):
             self._flush()
             self.compilation.feed(code, line_number)
@@ -561,18 +587,6 @@ class _Facts:
             return
         if self.compilation.status is False:
             self._unit("InactiveSource", "CONDITIONAL_SOURCE", line_number, line_number, code, raw, "inactive")
-            return
-        if self.pending and self.pending[0] == "SqlRule":
-            if code:
-                self.pending[1].append(code)
-                self.pending[2].append(raw)
-                self.pending[4] = line_number
-            if "END-EXEC" in code.upper():
-                self._flush(complete=True)
-            elif len(self.pending[2]) >= MAX_FACT_LINES or sum(map(len, self.pending[2])) > MAX_FACT_CHARS:
-                self._flush()
-                self.sql = True
-                self.boundaries["embedded_statement_exceeds_fact_budget"] += 1
             return
         # Preserve preprocessing boundaries in copybooks as well as callers.
         # A later consumer must not treat the unexpanded text as its result.
@@ -621,13 +635,11 @@ class _Facts:
         if self.copybook and self.program_id is None:
             self.program = Path(self.relative).stem.upper()
             self.program_id, _ = self._unit("Copybook", self.program, line_number, line_number, code, raw, symbol="Copybook")
-        if self.sql:
-            self.sql = "END-EXEC" not in upper
-            return
-        if upper.startswith("EXEC SQL"):
-            self.pending = ["SqlRule", [code], [raw], line_number, line_number, False]
-            if "END-EXEC" in upper:
-                self._flush(complete=True)
+        if re.match(r"^EXEC(?:\s+SQL\b|\s*$)", upper):
+            self.pending = ["SqlRule", [], [], line_number, line_number, False]
+            self.sql_scanner = _SQLCodeScanner()
+            self.sql_ended = False
+            self._sql_line(code, raw, line_number)
             return
         if _END_PROGRAM_RE.match(upper):
             self._close("Paragraph", line_number)

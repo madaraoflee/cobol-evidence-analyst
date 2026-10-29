@@ -99,6 +99,16 @@ class RemoteSourceTests(unittest.TestCase):
         self.assertEqual(spec.ref, "refs/heads/release/1")
         self.assertEqual(parse_remote_source(spec.public_metadata()["url"]), spec)
 
+    def test_browser_subdirectory_cannot_be_reinterpreted_as_another_repository(self):
+        for subtree in ("projects/ARCHIVE/repos/history", "projects/ARCHIVE/repos/history/browse/sit"):
+            with self.subTest(subtree=subtree):
+                spec = parse_remote_source("https://code.example.test/review/projects/DEMO/repos/business-source/browse/"
+                                           + subtree + "?at=main")
+                self.assertEqual(spec.base_url, "https://code.example.test/review")
+                self.assertEqual((spec.project, spec.repository), ("DEMO", "business-source"))
+                self.assertEqual(spec.subdirectory, subtree)
+                self.assertEqual(parse_remote_source(spec.public_metadata()["url"]), spec)
+
     def test_repository_and_clone_links_allow_explicit_scope(self):
         for url in ["https://code.example.test/projects/DEMO/repos/business-source",
                     "https://code.example.test/scm/DEMO/business-source.git"]:
@@ -312,6 +322,42 @@ class RemoteSourceTests(unittest.TestCase):
             self.assertEqual(timeout, remote_source.REQUEST_TIMEOUT_SECONDS)
         self.assertNotIn("read-only-token", json.dumps([metadata, events]))
         self.assertEqual({event["phase"] for event in events}, {"remote_resolving", "remote_downloading", "remote_extracting"})
+
+    def test_server_archive_records_every_selected_file_in_external_manifest(self):
+        from remote_incremental import cached_snapshot_matches, manifest_path
+        metadata = fetch_remote_source(self.spec, self.destination, opener=self.opener([
+            ("source/sit/entry.cbl", "PROGRAM-ID. ENTRY."),
+            ("source/sit/notes.md", "original notes")]))
+        manifest = json.loads(manifest_path(self.destination).read_text())
+        self.assertEqual(manifest["commit"], COMMIT)
+        self.assertEqual(manifest["identity"][0], "bitbucket")
+        self.assertEqual(set(manifest["files"]), {"entry.cbl", "notes.md"})
+        self.assertTrue(cached_snapshot_matches(self.spec, self.destination, metadata))
+        (self.destination / "notes.md").write_text("modified notes")
+        self.assertFalse(cached_snapshot_matches(self.spec, self.destination, metadata))
+
+    def test_server_existing_manifest_is_never_overwritten_or_removed(self):
+        sidecar = self.destination.with_name(self.destination.name + ".remote-manifest.json")
+        sidecar.write_text("prior manifest")
+        opener = self.opener()
+        with self.assertRaises(RemoteSourceError) as raised:
+            fetch_remote_source(self.spec, self.destination, opener=opener)
+        self.assertEqual(raised.exception.code, "REMOTE_SOURCE_DESTINATION_EXISTS")
+        self.assertEqual(sidecar.read_text(), "prior manifest")
+        self.assertFalse(self.destination.exists())
+        self.assertFalse(opener.requests)
+
+    def test_failed_server_manifest_publication_cleans_only_new_snapshot(self):
+        sidecar = self.destination.with_name(self.destination.name + ".remote-manifest.json")
+
+        def fail_manifest(*args):
+            sidecar.write_text("partial manifest")
+            raise AnalysisCancelled("cancelled")
+
+        with patch("remote_incremental.write_manifest", side_effect=fail_manifest), self.assertRaises(AnalysisCancelled):
+            fetch_remote_source(self.spec, self.destination, opener=self.opener())
+        self.assertFalse(self.destination.exists())
+        self.assertFalse(sidecar.exists())
 
     def test_root_snapshot_uses_default_branch_without_an_authorization_header(self):
         spec = parse_remote_source("https://code.example.test/projects/DEMO/repos/business-source")

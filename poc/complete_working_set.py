@@ -2,6 +2,7 @@
 
 from collections import deque
 from contextlib import closing
+import json
 from pathlib import Path
 import re
 import sqlite3
@@ -253,6 +254,22 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                         frontier(gap.pop("reason"), relative, **gap)
                     for target in definitions:
                         enqueue(target, depth)
+            if records and not identity.get("exclusive_source_scope"):
+                # A whole physical file cannot repair missing dependency facts.
+                # Read only selected files' boundaries, scanning the stored map
+                # once rather than decoding it again for every dependency.
+                placeholders = ",".join("?" for _ in records)
+                for relative, value in db.execute(
+                        "SELECT b.key,b.value FROM metadata m,json_each(m.value) b "
+                        "WHERE m.key='business_file_boundaries' AND b.key IN (" + placeholders + ")",
+                        [item["relative_path"] for item in records]):
+                    boundaries = json.loads(value)
+                    omitted = {reason: boundaries[reason] for reason in
+                               ("source_line_exceeds_fact_budget", "bounded_fact_fragment")
+                               if boundaries.get(reason)}
+                    if omitted:
+                        frontier("source_dependency_scan_incomplete", relative,
+                                 parser_boundaries=omitted)
             if fatal:
                 return result
 

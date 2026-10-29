@@ -13,7 +13,7 @@ from file_impact_evidence import is_file_impact_question
 from question_intent import calculation_intent
 from question_planner import business_concept_requested
 from source_availability import source_availability_contradictions
-from answer_preferences import saved_business_explanation_requested
+from answer_preferences import current_business_explanation_limited, saved_business_explanation_requested
 
 
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
@@ -394,6 +394,8 @@ _TECHNICAL_SCAFFOLD = re.compile(
 def wants_business_overview(question, *, answer_detail="detailed", field_entities=(), source_scopes=(),
                             answer_instructions=""):
     """A broad explanation request, not every detailed or relationship reply."""
+    if current_business_explanation_limited(question):
+        return False
     topics = _BUSINESS_OVERVIEW.findall(str(question))
     text = str(question)
     # An explicit purpose-only request does not require every available
@@ -506,20 +508,27 @@ _OVERRIDE_ANSWER = re.compile(
     r"\b(?:overrid(?:e[sn]?|den|ing)|replac(?:e[ds]?|ing)|later|then|finally|reset|recomput\w*)\b", re.I)
 
 
+def _source_instance_key(page):
+    """Keep physical versions and COPY transformations distinct across excerpts."""
+    return (page.get("relative_path"), page.get("source_sha256"),
+            json.dumps(page.get("include_chain") or [], sort_keys=True),
+            json.dumps(page.get("replacement_trace") or [], sort_keys=True),
+            json.dumps(page.get("copy_instance"), sort_keys=True))
+
+
 def _supplied_source_spans(source_pages, supplied):
-    """Join only adjacent/identical overlapping physical excerpts of one version."""
+    """Join adjacent/identical overlapping excerpts only within one source instance."""
     spans = []
     for page in sorted((page for page in source_pages
                         if page.get("evidence_id") in supplied and page.get("source_text")),
                        key=lambda page: (page.get("relative_path") or "", page.get("source_sha256") or "",
-                                         repr(page.get("include_chain") or []),
+                                         *_source_instance_key(page)[2:],
                                          page.get("start_line") or 0, page.get("end_line") or 0)):
         text_lines = page["source_text"].splitlines()
         start, end = page.get("start_line"), page.get("end_line")
         physical = isinstance(start, int) and isinstance(end, int) and end - start + 1 == len(text_lines)
         lines = dict(enumerate(text_lines, start)) if physical else {}
-        key = (page.get("relative_path"), page.get("source_sha256"),
-               repr(page.get("include_chain") or []))
+        key = _source_instance_key(page)
         previous = spans[-1] if spans else None
         if (physical and previous and previous["lines"] and previous["key"] == key
                 and start <= max(previous["lines"]) + 1

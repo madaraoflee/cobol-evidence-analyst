@@ -100,6 +100,7 @@ def bind_framework_source(
     # Local import avoids a cycle with the business index's post-build pass and
     # shares its quote-aware source/comment handling.
     from business_index import _clean
+    from structural_index import _SQLCodeScanner
 
     if source_format not in {"auto", "fixed", "free"}:
         raise ValueError("source_format_not_supported")
@@ -118,6 +119,8 @@ def bind_framework_source(
     pending_program = False
     controls: list[str] = []
     embedded = False
+    sql_scanner = None
+    sql_ended = False
     replacement_active = False
     # A procedure COPY may introduce sections or program boundaries, and
     # preprocessing may rename them. Later local assignments cannot restore
@@ -310,6 +313,7 @@ def bind_framework_source(
         if previous_line is not None and number != previous_line + 1:
             flush(discard=True)
             last_move = None
+            source_incomplete = True
         previous_line = number
         if raw is None:
             flush(discard=True)
@@ -324,13 +328,34 @@ def bind_framework_source(
             active_format = next_format
         if not code:
             continue
-        upper = code.upper()
         fixed_debug = (active_format == "fixed" or (active_format == "auto" and len(expanded) >= 7 and
                        (expanded[:6].isdigit() or not expanded[:6].strip()))) and len(expanded) >= 7 and expanded[6] in "Dd"
         if fixed_debug:
             flush(discard=True)
             last_move = None
             continue
+        if sql_scanner is not None:
+            # SQL comments and literals can contain COBOL-looking statements,
+            # declarations and END-EXEC text. Only an unmasked terminator can
+            # restore the surrounding COBOL scope.
+            sql_code = sql_scanner.feed(code)
+            end = re.search(r"(?<![A-Z0-9_$#@-])END-EXEC(?![A-Z0-9_$#@-])", sql_code)
+            if end is None and not sql_ended:
+                continue
+            if sql_scanner.mode is not None:
+                sql_ended = True
+                continue
+            start = 0 if sql_ended else end.end()
+            resume = re.search(r"[^\s.]", sql_code[start:])
+            prefix_end = start + resume.start() if resume else len(code)
+            if "." in sql_code[start:prefix_end]:
+                controls.clear()
+            code = code[prefix_end:]
+            embedded, sql_scanner = False, None
+            sql_ended = False
+            if not code.strip():
+                continue
+        upper = code.upper()
         if not embedded and (re.match(r"^REPLACE\b", upper)
                 or re.match(r"^(?:>>|\$SET(?:\s|$)|(?:CBL|PROCESS)\s)", upper)):
             # Source-format directives are handled by _clean. Other compile
@@ -426,25 +451,47 @@ def bind_framework_source(
                     facts.append(fact)
             continue
         tokens = list(_TOKEN.finditer(code))
-        # A quote extending across physical lines needs continuation semantics
-        # this subset does not establish. Never turn its contents into code.
-        if any(token.group() in {"'", '"'} for token in tokens):
-            flush(discard=True)
-            last_move = None
-            embedded = True
-            continue
+        sql_mask = None
+        resume_after_sql = 0
         for token in tokens:
+            if token.start() < resume_after_sql:
+                continue
             value = token.group()
             keyword = value.upper()
             if embedded:
                 last_move = None
-                if keyword == "END-EXEC":
+                if keyword == "END-EXEC" and (sql_mask is None
+                        or sql_mask[token.start():token.end()] == "END-EXEC"):
+                    if sql_scanner is not None and sql_scanner.mode is not None:
+                        sql_ended = True
+                        break
+                    if sql_mask is not None:
+                        resume = re.search(r"[^\s.]", sql_mask[token.end():])
+                        resume_after_sql = token.end() + resume.start() if resume else len(code)
+                        if "." in sql_mask[token.end():resume_after_sql]:
+                            controls.clear()
                     embedded = False
+                    sql_scanner = None
+                    sql_ended = False
+                    sql_mask = None
                 continue
+            # A COBOL quote extending across lines has unsupported continuation
+            # semantics. SQL literals instead retain their own scanner state.
+            if value in {"'", '"'}:
+                flush(discard=True)
+                last_move = None
+                embedded = True
+                break
             if keyword == "EXEC":
                 flush()
                 last_move = None
                 embedded = True
+                # Keep the embedded language opaque, including when EXEC and
+                # SQL are on different physical lines. Masking SQL comments in
+                # another embedded dialect can only retain that boundary.
+                sql_scanner = _SQLCodeScanner()
+                sql_ended = False
+                sql_mask = " " * token.end() + sql_scanner.feed(code[token.end():])
                 continue
             if keyword in {"COPY", "REPLACE"}:
                 stage_scope_requires_expansion = True

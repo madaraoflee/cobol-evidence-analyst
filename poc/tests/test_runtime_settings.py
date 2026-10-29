@@ -119,6 +119,27 @@ class RuntimeSettingsTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "^AGENT_SETTINGS_INVALID$"):
                     load_agent_policy(self.path)
 
+    def test_duplicate_settings_cannot_silently_remove_or_replace_a_budget(self):
+        for text in (
+            '{"version":1,"agent":{"max_model_requests":2,"max_model_requests":null}}',
+            '{"version":1,"agent":{"max_model_requests":2},"agent":{}}',
+            '{"version":2,"version":1,"agent":{}}',
+        ):
+            with self.subTest(text=text):
+                self.path.write_text(text, encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "^AGENT_SETTINGS_INVALID$"):
+                    load_agent_policy(self.path)
+                self.assertEqual(self.path.read_text(encoding="utf-8"), text)
+
+    def test_invalid_settings_paths_use_the_same_safe_error_as_unreadable_files(self):
+        for selected in (12, [], {}, "settings\x00.json"):
+            with self.subTest(selected=selected):
+                with self.assertRaisesRegex(ValueError, "^AGENT_SETTINGS_UNREADABLE$"):
+                    load_agent_policy(selected)
+        with patch.object(Path, "expanduser", side_effect=RuntimeError("private-path-marker")):
+            with self.assertRaisesRegex(ValueError, "^AGENT_SETTINGS_UNREADABLE$"):
+                load_agent_policy(environ={"AGENT_SETTINGS_PATH": "~unavailable/settings.json"})
+
     def test_oversized_file_is_bounded_before_json_parsing(self):
         self.path.write_bytes(b"x" * (MAX_SETTINGS_BYTES + 1))
         with self.assertRaisesRegex(ValueError, "^AGENT_SETTINGS_TOO_LARGE$"):

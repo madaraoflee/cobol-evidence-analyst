@@ -189,7 +189,9 @@ def parse_remote_source(url: str, *, ref: str | None = None,
                       and len(route) >= index + 4 and route[index + 2] == "repos"]
         browse_path = ""
         if candidates:
-            index = candidates[-1]
+            # Once the repository route starts, later matching names belong
+            # to its selected directory, not another server context/repository.
+            index = candidates[0]
             project, repository = route[index + 1], route[index + 3]
             tail = route[index + 4:]
             if tail and tail[0] != "browse":
@@ -528,7 +530,7 @@ def fetch_remote_source(spec: RemoteSourceSpec, destination: Path, *, token: str
     # Revalidate even when a caller constructs the dataclass itself.
     canonical = _canonical_spec(spec)
     sidecar = destination.with_name(destination.name + ".remote-manifest.json")
-    if spec.provider == "bitbucket_cloud" and (sidecar.exists() or sidecar.is_symlink()):
+    if sidecar.exists() or sidecar.is_symlink():
         raise RemoteSourceError("REMOTE_SOURCE_DESTINATION_EXISTS", "下载位置已存在，请使用新的独立源码目录。")
     started = time.monotonic()
 
@@ -609,9 +611,8 @@ def fetch_remote_source(spec: RemoteSourceSpec, destination: Path, *, token: str
                     FileExistsError, NotADirectoryError):
                 raise RemoteSourceError("REMOTE_SOURCE_INVALID_ARCHIVE", "仓库未返回有效的源码 ZIP，或其中包含无法安全读取的文件。") from None
         tick()
-        if spec.provider == "bitbucket_cloud":
-            from remote_incremental import write_manifest
-            write_manifest(destination, spec, commit, tick)
+        from remote_incremental import write_manifest
+        write_manifest(destination, spec, commit, tick)
         return {**canonical, "commit": commit, "file_count": file_count,
                 "sync_mode": "archive", "downloaded_files": file_count, "reused_files": 0,
                 "downloaded_bytes": downloaded,
@@ -622,5 +623,4 @@ def fetch_remote_source(spec: RemoteSourceSpec, destination: Path, *, token: str
         # A successful return has a complete extraction and no active exception.
         if created and sys.exc_info()[0] is not None:
             shutil.rmtree(destination, ignore_errors=True)
-            if spec.provider == "bitbucket_cloud":
-                sidecar.unlink(missing_ok=True)
+            sidecar.unlink(missing_ok=True)

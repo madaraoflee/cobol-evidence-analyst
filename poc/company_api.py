@@ -345,7 +345,7 @@ class CompanyAPIConfig:
             raise APIConfigurationError("BASE_URL_INVALID")
         if not self.chat_model.strip():
             raise APIConfigurationError("CHAT_MODEL_MISSING")
-        if not isinstance(self.timeout_seconds, (int, float)) or not (
+        if type(self.timeout_seconds) not in (int, float) or not (
             0 < float(self.timeout_seconds) <= 300
         ):
             raise APIConfigurationError("TIMEOUT_INVALID")

@@ -87,6 +87,25 @@ class WorkspaceUpgradeTests(unittest.TestCase):
         analyze_source(source, output, **options)
         self.assertEqual(plan_workspace_upgrade(self.saved)["status"], "current")
 
+    def test_previous_parser_upgrades_to_two_digit_version_offline(self):
+        self.set_metadata("parser_version", "business-sparse-v1.9")
+        original_inputs = self.source_options()
+        plan = plan_workspace_upgrade(self.saved)
+        self.assertEqual(plan["status"], "ready", plan)
+        self.assertEqual(plan["parser_version"], "business-sparse-v1.9")
+        self.assertFalse(plan["options"]["allow_network"])
+        self.assertIsNone(plan["options"]["question"])
+        from web_app import _validate_options
+        options = _validate_options(plan["options"])
+        source, output = options.pop("source"), options.pop("output")
+        options.pop("retry_message_id")
+        analyze_source(source, output, **options)
+        with closing(sqlite3.connect(self.database)) as db:
+            self.assertEqual(db.execute("SELECT value FROM metadata WHERE key='parser_version'").fetchone()[0],
+                             "business-sparse-v1.10")
+        self.assertEqual(self.source_options(), original_inputs)
+        self.assertEqual(plan_workspace_upgrade(self.saved)["status"], "current")
+
     def test_unknown_search_version_and_incomplete_search_require_explicit_recovery(self):
         self.set_metadata("version", "repository-text-v0", "repo_metadata")
         self.assert_manual("SOURCE_INDEX_VERSION_UNSUPPORTED")
@@ -94,7 +113,8 @@ class WorkspaceUpgradeTests(unittest.TestCase):
         self.assert_manual("SOURCE_SEARCH_RECOVERY_REQUIRED")
 
     def test_future_or_unknown_versions_do_not_trigger_a_downgrade(self):
-        for version in ("business-sparse-v2", "unknown", "business-sparse-v1.9-preview", "business-sparse-v1.3"):
+        for version in ("business-sparse-v2", "unknown", "business-sparse-v1.9-preview", "business-sparse-v1.3",
+                        "business-sparse-v1.11", "business-sparse-v1.10-preview"):
             with self.subTest(version=version):
                 self.set_metadata("parser_version", version)
                 self.assert_manual("SOURCE_INDEX_VERSION_UNSUPPORTED")
@@ -180,7 +200,7 @@ class WorkspaceUpgradeTests(unittest.TestCase):
         plan = plan_workspace_upgrade(self.saved)
         self.saved["index_upgrade_attempt"] = plan["attempt_key"]
         self.assert_manual("INDEX_UPGRADE_PREVIOUS_ATTEMPT")
-        with patch("workspace_upgrade.PARSER_VERSION", "business-sparse-v1.10"):
+        with patch("workspace_upgrade.PARSER_VERSION", "business-sparse-v1.11"):
             self.assert_manual("SOURCE_INDEX_VERSION_UNSUPPORTED")
         source_file = self.source / "amount.cbl"
         source_file.write_text(source_file.read_text().replace("AMOUNT CHECK", "UPDATED CHECK"), encoding="utf-8")

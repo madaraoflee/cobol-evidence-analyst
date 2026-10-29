@@ -355,17 +355,30 @@ def fetch_incremental(spec, destination, commit, *, previous_source, previous_me
         digest, size = hashlib.sha256(), 0
         copied = False
         if cached is not None:
-            with cached.open("rb") as stream, output.open("xb") as sink:
-                for chunk in iter(lambda: stream.read(CHUNK_BYTES), b""):
-                    tick()
-                    digest.update(chunk)
-                    size += len(chunk)
-                    if size > entry["size"]:
-                        break
-                    sink.write(chunk)
-            copied = size == entry["size"] and digest.hexdigest() == entry["sha256"]
-            if not copied:
-                output.unlink()
+            try:
+                stream = cached.open("rb")
+            except OSError:
+                stream = None
+            if stream is not None:
+                read_failed = False
+                with stream, output.open("xb") as sink:
+                    while True:
+                        tick()
+                        try:
+                            chunk = stream.read(CHUNK_BYTES)
+                        except OSError:
+                            read_failed = True
+                            break
+                        if not chunk:
+                            break
+                        digest.update(chunk)
+                        size += len(chunk)
+                        if size > entry["size"]:
+                            break
+                        sink.write(chunk)
+                copied = not read_failed and size == entry["size"] and digest.hexdigest() == entry["sha256"]
+                if not copied:
+                    output.unlink()
         if copied:
             reused += 1
         else:

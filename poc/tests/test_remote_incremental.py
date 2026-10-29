@@ -250,6 +250,64 @@ class RemoteIncrementalTests(unittest.TestCase):
         self.assertEqual((self.new / "steady.cbl").read_bytes(), b"UNCHANGED\r\n")
         self.assertEqual((self.old / "steady.cbl").read_bytes(), b"CORRUPTED\n")
 
+    def test_unreadable_cached_file_is_redownloaded_without_changing_old_snapshot(self):
+        previous = self.initial()
+        before = self.old_bytes()
+        original_open = Path.open
+
+        class FailingCacheRead:
+            def __init__(self, stream):
+                self.stream, self.reads = stream, 0
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                self.stream.close()
+
+            def read(self, size):
+                self.reads += 1
+                if self.reads > 1:
+                    raise OSError("cached source read interrupted")
+                return self.stream.read(min(size, 3))
+
+        for failure in ("open", "read"):
+            with self.subTest(failure=failure):
+                self.new = self.root / ("new-" + failure)
+
+                def cached_open(path, *args, **kwargs):
+                    if path == self.old / "steady.cbl" and args and args[0] == "rb":
+                        if failure == "open":
+                            raise PermissionError("cached source locked")
+                        return FailingCacheRead(original_open(path, *args, **kwargs))
+                    return original_open(path, *args, **kwargs)
+
+                with patch.object(Path, "open", new=cached_open):
+                    summary = self.sync(previous)
+                self.assertEqual(summary["downloaded_files"], 4)
+                self.assertEqual(summary["reused_files"], 0)
+                self.assertEqual((self.new / "steady.cbl").read_bytes(), before["steady.cbl"])
+                self.assertEqual(self.old_bytes(), before)
+
+    def test_destination_write_failure_does_not_retry_source_download(self):
+        previous = self.initial()
+        before = self.old_bytes()
+        self.files[NEW] = dict(self.files[OLD])
+        self.changes = []
+        original_open = Path.open
+
+        def fail_destination(path, *args, **kwargs):
+            if path.parent == self.new and args and args[0] == "xb":
+                raise PermissionError("new snapshot directory is not writable")
+            return original_open(path, *args, **kwargs)
+
+        with patch.object(Path, "open", new=fail_destination), self.assertRaises(PermissionError):
+            self.sync(previous)
+        self.assertEqual(self.raw_paths, [])
+        self.assertEqual(self.old_bytes(), before)
+        self.assertFalse(self.new.exists())
+        self.assertFalse(manifest_path(self.new).exists())
+
     def test_cross_scope_renames_fetch_only_new_in_scope_file(self):
         previous = self.initial()
         self.files[NEW] = {**self.files[OLD]}

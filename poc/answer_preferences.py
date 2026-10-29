@@ -40,6 +40,35 @@ _CURRENT_LIMIT = re.compile(
     r"\b(?:in\s+(?:one|two|three|a\s+single)\s+sentences?|brief\s+answer|"
     r"answer\s+briefly|translate|type\s+of|length\s+of|value\s+of)\b|"
     r"^\s*(?:what\s+is|what's)\s+(?:the\s+)?(?:return|result|status)\s+(?:code|value)\s*[?？.]*\s*$", re.I)
+_SYNTAX_ONLY = re.compile(
+    r"(?:只|仅|僅)(?:需|要|想)?(?:检查|檢查|查看|核对|核對|分析).{0,32}(?:语法|語法)|"
+    r"(?:只|仅|僅)(?:做|进行|進行)?(?:语法|語法)(?:检查|檢查|核对|核對)|"
+    r"\b(?:only|just)\s+(?:check|review|validate|inspect)\s+(?:the\s+)?syntax\b|"
+    r"\b(?:check|review|validate|inspect)\s+(?:the\s+)?syntax\s+only\b", re.I)
+_OVERVIEW_CONTENT = re.compile(_CONTENT.pattern +
+    r"|(?:业务|業務)(?:分析|解释|解釋|逻辑|邏輯)|(?:程序|程式)(?:逻辑|邏輯)|\bbusiness\s+logic\b", re.I)
+
+
+def current_business_explanation_limited(question):
+    """Keep an explicit exclusion from becoming its own overview trigger."""
+    text = _QUOTED.sub(" ", _FENCED.sub(" ", str(question)[:16000]))
+    excluded, positive = False, False
+    for clause in re.split(r"[\n。！？;；，,]+|(?<=[.!?])\s+", text):
+        spans = []
+        for negated in _NEGATED.finditer(clause):
+            # "Do not only explain X" broadens the request; X is still wanted.
+            if re.search(r"(?:不要|不用|不必|无需|無需|不需要|别|別)(?:只|仅|僅)", negated[0]):
+                continue
+            following = _ACTION.search(clause, negated.end())
+            end = following.start() if following else len(clause)
+            target = clause[negated.end():end]
+            if _OVERVIEW_CONTENT.search(target):
+                excluded = True
+                spans.append((negated.start(), end))
+        for start, end in reversed(spans):
+            clause = clause[:start] + " " + clause[end:]
+        positive = positive or bool(_OVERVIEW_CONTENT.search(clause))
+    return (excluded or bool(_SYNTAX_ONLY.search(text))) and not positive
 
 
 def saved_business_explanation_requested(question, answer_instructions="", *, field_entities=(), source_scopes=()):
@@ -52,7 +81,7 @@ def saved_business_explanation_requested(question, answer_instructions="", *, fi
     """
     if (not isinstance(answer_instructions, str) or not answer_instructions.strip()
             or field_entities or any(scope.get("exclusive") is not False for scope in source_scopes)
-            or _CURRENT_LIMIT.search(str(question))):
+            or _CURRENT_LIMIT.search(str(question)) or current_business_explanation_limited(question)):
         return False
     text = _FENCED.sub(" ", answer_instructions[:16000])
     # A quoted action is an example or a phrase to discuss, not another saved

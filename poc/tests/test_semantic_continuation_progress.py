@@ -16,6 +16,31 @@ import test_completion_driven_chat as fixtures
 
 
 class SemanticContinuationProgressTests(unittest.TestCase):
+    def test_semantics_from_an_unsupplied_copy_instance_do_not_create_progress(self):
+        page = {"relative_path": "fields.cpy", "source_sha256": "a" * 64,
+                "start_line": 1, "end_line": 1, "source_text": "MOVE INPUT TO RESULT.",
+                "copy_instance": "first-copy"}
+        ref = {key: value for key, value in page.items() if key != "source_text"}
+        group = {"semantic_analysis": {"slice_statements": [{"occurrence_id": "node",
+            "kind": "MOVE", "statement": page["source_text"], "source_refs": [ref]}]}}
+        self.assertTrue(semantic_material_keys([page], [group]))
+        ref["copy_instance"] = "second-copy"
+        self.assertFalse(semantic_material_keys([page], [group]))
+
+    def test_equivalent_provenance_containers_do_not_lose_or_invent_progress(self):
+        page = {"relative_path": "fields.cpy", "source_sha256": "a" * 64,
+                "start_line": 1, "end_line": 1, "source_text": "MOVE INPUT TO RESULT."}
+        ref = {key: value for key, value in page.items() if key != "source_text"}
+        group = {"semantic_analysis": {"slice_statements": [{"occurrence_id": "node",
+            "kind": "MOVE", "statement": page["source_text"], "source_refs": [ref]}]}}
+        original = semantic_material_keys([page], [group])
+        ref.update(include_chain=(), replacement_trace=[])
+        self.assertEqual(semantic_material_keys([page], [group]), original)
+        page.update(include_chain=[{"relative_path": "host.cbl", "line": 8}],
+                    replacement_trace=[{"from": "INPUT", "to": "ACTUAL"}])
+        ref.update(include_chain=tuple(page["include_chain"]), replacement_trace=tuple(page["replacement_trace"]))
+        self.assertTrue(semantic_material_keys([page], [group]))
+
     def setUp(self):
         self.fixture = fixtures.CompletionDrivenChatTests()
         self.fixture.setUp()
