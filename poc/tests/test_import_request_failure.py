@@ -7,6 +7,7 @@ from pathlib import Path
 import sqlite3
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from unittest import mock
@@ -22,6 +23,29 @@ from web_app import RequestError, WorkbenchState
 
 
 SENSITIVE_MARKERS = ("private-export-marker", "local-secret-marker", "private-provider-marker")
+
+
+class JoinableImportWorkbench(WorkbenchState):
+    """Keep the real worker observable until rollback and backup cleanup exit."""
+    def __init__(self, **options):
+        self.workers = {}
+        self.worker_started = threading.Condition()
+        super().__init__(**options)
+
+    def _run(self, job_id, options):
+        with self.worker_started:
+            self.workers[job_id] = threading.current_thread()
+            self.worker_started.notify_all()
+        return super()._run(job_id, options)
+
+    def join_worker(self, job_id, timeout=30):
+        deadline = time.monotonic() + timeout
+        with self.worker_started:
+            if not self.worker_started.wait_for(lambda: job_id in self.workers, timeout):
+                return False
+            worker = self.workers[job_id]
+        worker.join(max(0, deadline - time.monotonic()))
+        return not worker.is_alive()
 
 
 class ImportRequestFailureTests(unittest.TestCase):
@@ -45,8 +69,11 @@ class ImportRequestFailureTests(unittest.TestCase):
             return report
 
         self.analyzer = analyzer
-        self.app = WorkbenchState(analyzer=analyzer, state_path=self.root / "workspace.json",
-                                  config_provider=lambda: self.config)
+        self.app = JoinableImportWorkbench(analyzer=analyzer, state_path=self.root / "workspace.json",
+                                          config_provider=lambda: self.config)
+        # Cleanups run in reverse order, including when setUp fails. Stop the
+        # worker before TemporaryDirectory can remove any database it owns.
+        self.addCleanup(self.stop_worker)
         initial = self.update()
         self.assertEqual(initial["status"], "COMPLETED", initial.get("error"))
         self.old_snapshot = initial["result"]["snapshot_id"]
@@ -59,14 +86,25 @@ class ImportRequestFailureTests(unittest.TestCase):
         self.app.conversation = self.app.conversation_store.get(self.conversation["id"])
         self.app._save_workspace()
 
+    def start_update(self):
+        return self.app.start({"source": str(self.source), "output": str(self.output),
+                               "encoding": "auto", "source_format": "free", "allow_network": False})["job_id"]
+
+    def stop_worker(self):
+        if self.app.job:
+            job_id = self.app.job["job_id"]
+            self.app.cancel(job_id)
+            self.assertTrue(self.app.join_worker(job_id), "Import worker did not stop before workspace cleanup.")
+
     def update(self):
-        started = self.app.start({"source": str(self.source), "output": str(self.output),
-                                  "encoding": "auto", "source_format": "free", "allow_network": False})
-        deadline = time.monotonic() + 3
-        result = self.app.get_job(started["job_id"])
-        while result["status"] == "RUNNING" and time.monotonic() < deadline:
-            time.sleep(0.005)
-            result = self.app.get_job(started["job_id"])
+        job_id = self.start_update()
+        # This suite checks failure classification and rollback, not latency.
+        # A terminal job snapshot can precede the worker's finally block.
+        finished = self.app.join_worker(job_id)
+        if not finished:
+            self.stop_worker()
+        self.assertTrue(finished, "Import worker exceeded the bounded test wait.")
+        result = self.app.get_job(job_id)
         self.assertNotEqual(result["status"], "RUNNING", "An import failure must not leave an orphaned running job.")
         return result
 
@@ -116,6 +154,62 @@ class ImportRequestFailureTests(unittest.TestCase):
         result = self.update()
         self.assert_failure(result, "source_empty", "SOURCE_UPDATE_FAILED")
         self.assert_old_workspace_is_usable()
+
+    def test_normal_import_may_exceed_the_old_polling_deadline(self):
+        workers = []
+
+        def delayed(source, output, **options):
+            workers.append(threading.current_thread())
+            time.sleep(3.1)
+            return self.analyzer(source, output, **options)
+
+        self.app.analyzer = delayed
+        try:
+            result = self.update()
+            self.assertEqual(result["status"], "COMPLETED", result.get("error"))
+            self.assert_old_workspace_is_usable()
+        finally:
+            for worker in workers:
+                worker.join(10)
+
+    def test_cleanup_cancels_and_joins_before_workspace_files_are_removed(self):
+        entered = threading.Event()
+        released = threading.Event()
+
+        def pending(source, output, **options):
+            with closing(sqlite3.connect(self.output / "structural-index.sqlite")) as connection:
+                connection.execute("SELECT name FROM sqlite_master").fetchall()
+                entered.set()
+                self.app.cancel_event.wait(10)
+            released.set()
+            self.app._check_cancel()
+
+        self.app.analyzer = pending
+        job_id = self.start_update()
+        self.assertTrue(entered.wait(10), "The worker did not acquire the fixture database.")
+        self.stop_worker()
+        self.assertTrue(released.is_set())
+        self.assertFalse(self.app.workers[job_id].is_alive())
+        self.assertEqual(self.app.get_job(job_id)["status"], "CANCELLED")
+        self.assertTrue(self.output.is_dir())
+        self.assert_old_workspace_is_usable()
+
+    def test_update_waits_for_backup_cleanup_after_terminal_job_status(self):
+        closed = threading.Event()
+        terminal_status = []
+        original_close = SourceUpdateBackup.close
+
+        def delayed_close(backup):
+            terminal_status.append(self.app.get_job(self.app.job["job_id"])["status"])
+            time.sleep(0.05)
+            original_close(backup)
+            closed.set()
+
+        with mock.patch.object(SourceUpdateBackup, "close", delayed_close):
+            result = self.update()
+            self.assertTrue(closed.is_set(), "Update returned before the worker released its backup.")
+        self.assertEqual(result["status"], "COMPLETED")
+        self.assertEqual(terminal_status, ["COMPLETED"])
 
     def test_builder_storage_failures_keep_their_category_and_restore_the_old_workspace(self):
         cases = ((PermissionError(errno.EACCES, "private-export-marker"), "storage_permission"),

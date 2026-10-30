@@ -19,12 +19,13 @@ from tools.desktop_acceptance_runtime import FIXTURES
 
 
 class InvestigationContinuityCheckTests(unittest.TestCase):
-    def independent_fixture(self, source):
+    def independent_fixture(self, source, *, newline="\n"):
         pages = []
         for name, body in (("root.cbl", REVIEW_SOURCE), ("amount-input.cpy", REVIEW_COPY)):
-            (source / name).write_text(body, encoding="utf-8")
+            path = source / name
+            path.write_text(body, encoding="utf-8", newline=newline)
             pages.append({"evidence_id": "ev_page_" + str(len(pages) + 1) * 24,
-                "relative_path": name, "source_sha256": hashlib.sha256(body.encode()).hexdigest(),
+                "relative_path": name, "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                 "start_line": 1, "end_line": len(body.splitlines()), "source_text": body.rstrip("\n")})
         pages[-1].update(copy_instance="a" * 24, replacement_trace=[], include_chain=[{
             "relative_path": "root.cbl", "line": 5, "source_hash": pages[0]["source_sha256"], "copy_name": "AMOUNT-INPUT"}])
@@ -48,38 +49,40 @@ class InvestigationContinuityCheckTests(unittest.TestCase):
         return fixture, envelope, payload, wire
 
     def test_independent_review_fixture_requires_exact_answer_source_and_copy_context(self):
-        with tempfile.TemporaryDirectory() as directory:
-            fixture, _, _, wire = self.independent_fixture(Path(directory))
-            response = json.loads(fixture.review_response(wire, changes=True))
-            self.assertEqual(set(response), {"answer_sha256", "evidence_sha256", "reviews", "omissions"})
-            self.assertEqual(response["reviews"][0]["verdict"], "insufficient")
-            variants = []
-            for key, value in (("answer_sha256", "0" * 64), ("evidence_sha256", "0" * 64),
-                               ("source_context", []), ("evidence", wire["evidence"][:1])):
-                variants.append({**deepcopy(wire), key: value})
-            for key, value in (("sha256", "0" * 64), ("text", REVIEW_COPY.replace("10", "99")),
-                               ("source_context", {}), ("text_truncated", True)):
-                changed = deepcopy(wire)
-                changed["evidence"][-1][key] = value
-                variants.append(changed)
-            for changed in variants:
-                with self.subTest(changed=changed), self.assertRaises(AssertionError):
-                    fixture.review_response(changed, changes=False)
+        for newline in ("\n", "\r\n"):
+            with self.subTest(newline=repr(newline)), tempfile.TemporaryDirectory() as directory:
+                fixture, _, _, wire = self.independent_fixture(Path(directory), newline=newline)
+                response = json.loads(fixture.review_response(wire, changes=True))
+                self.assertEqual(set(response), {"answer_sha256", "evidence_sha256", "reviews", "omissions"})
+                self.assertEqual(response["reviews"][0]["verdict"], "insufficient")
+                variants = []
+                for key, value in (("answer_sha256", "0" * 64), ("evidence_sha256", "0" * 64),
+                                   ("source_context", []), ("evidence", wire["evidence"][:1])):
+                    variants.append({**deepcopy(wire), key: value})
+                for key, value in (("sha256", "0" * 64), ("text", REVIEW_COPY.replace("10", "99")),
+                                   ("source_context", {}), ("text_truncated", True)):
+                    changed = deepcopy(wire)
+                    changed["evidence"][-1][key] = value
+                    variants.append(changed)
+                for changed in variants:
+                    with self.subTest(changed=changed), self.assertRaises(AssertionError):
+                        fixture.review_response(changed, changes=False)
 
     def test_independent_revision_rejects_missing_review_stale_instructions_and_extra_requests(self):
-        with tempfile.TemporaryDirectory() as directory:
-            fixture, envelope, payload, wire = self.independent_fixture(Path(directory))
-            fixture.review_response(wire, changes=True)
-            with self.assertRaises(AssertionError):
-                fixture.respond(envelope, {**payload, "draft_answer": fixture.answers[0]}, 2)
-            with self.assertRaises(AssertionError):
-                fixture.respond({"messages": [{"content": "Earlier saved instruction"}]}, payload, 0)
-            with self.assertRaises(AssertionError):
-                fixture.respond(envelope, payload, 4)
-            changed = deepcopy(payload)
-            changed["source_context"][0]["pages"][-1]["include_chain"][0]["source_hash"] = "0" * 64
-            with self.assertRaises(AssertionError):
-                fixture.respond(envelope, changed, 0)
+        for newline in ("\n", "\r\n"):
+            with self.subTest(newline=repr(newline)), tempfile.TemporaryDirectory() as directory:
+                fixture, envelope, payload, wire = self.independent_fixture(Path(directory), newline=newline)
+                fixture.review_response(wire, changes=True)
+                with self.assertRaises(AssertionError):
+                    fixture.respond(envelope, {**payload, "draft_answer": fixture.answers[0]}, 2)
+                with self.assertRaises(AssertionError):
+                    fixture.respond({"messages": [{"content": "Earlier saved instruction"}]}, payload, 0)
+                with self.assertRaises(AssertionError):
+                    fixture.respond(envelope, payload, 4)
+                changed = deepcopy(payload)
+                changed["source_context"][0]["pages"][-1]["include_chain"][0]["source_hash"] = "0" * 64
+                with self.assertRaises(AssertionError):
+                    fixture.respond(envelope, changed, 0)
 
     def test_independent_review_source_http_preview_runs_four_requests_and_keeps_json_private(self):
         # This checks the harness through the real ordinary HTTP route. Release

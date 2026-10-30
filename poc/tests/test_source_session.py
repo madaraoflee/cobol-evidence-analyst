@@ -48,30 +48,32 @@ class SourceSessionTests(unittest.TestCase):
             self.assertEqual(read_archived_evidence(database, legacy["evidence_id"]), legacy)
 
     def test_capture_cannot_refresh_an_equal_content_snapshot_rebuilt_with_new_configuration(self):
-        with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
-            source = root / "source"
-            source.mkdir()
-            path = source / "entry.cbl"
-            original = "PROGRAM-ID. ENTRY.\nPROCEDURE DIVISION.\n>>IF BATCH\nMOVE 1 TO RESULT-VALUE.\n>>END-IF\n"
-            path.write_text(original, encoding="utf-8")
-            database = root / "index.sqlite"
-            build_business_index(source, database, source_format="free", verify_content=True,
-                                 compilation_context={"compile_conditions": {"BATCH": False}})
-            overview = ensure_repository_search(database, source)
-            with QuestionSourceSession(database, source) as session:
-                path.write_text(original + "*> pending source edit\n", encoding="utf-8")
-                captured = session.capture("entry.cbl")
-                path.write_text(original, encoding="utf-8")
-                rebuilt = build_business_index(source, database, source_format="free", verify_content=True,
-                    compilation_context={"compile_conditions": {"BATCH": True}})
-                ensure_repository_search(database, source)
-                self.assertEqual(rebuilt["snapshot_id"], overview["snapshot_id"])
-                with self.assertRaisesRegex(ValueError, "SNAPSHOT_CHANGED"):
-                    refresh_selected_sources(database, [captured], expected_snapshot_id=overview["snapshot_id"])
-            with closing(sqlite3.connect(database)) as db:
-                self.assertEqual(db.execute("SELECT sha256 FROM source_files WHERE relative_path='entry.cbl'").fetchone()[0],
-                                 hashlib.sha256(original.encode()).hexdigest())
+        for newline in ("\n", "\r\n"):
+            with self.subTest(newline=repr(newline)), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                source = root / "source"
+                source.mkdir()
+                path = source / "entry.cbl"
+                original = "PROGRAM-ID. ENTRY.\nPROCEDURE DIVISION.\n>>IF BATCH\nMOVE 1 TO RESULT-VALUE.\n>>END-IF\n"
+                original_bytes = original.replace("\n", newline).encode("utf-8")
+                path.write_bytes(original_bytes)
+                database = root / "index.sqlite"
+                build_business_index(source, database, source_format="free", verify_content=True,
+                                     compilation_context={"compile_conditions": {"BATCH": False}})
+                overview = ensure_repository_search(database, source)
+                with QuestionSourceSession(database, source) as session:
+                    path.write_bytes(original_bytes + ("*> pending source edit" + newline).encode("utf-8"))
+                    captured = session.capture("entry.cbl")
+                    path.write_bytes(original_bytes)
+                    rebuilt = build_business_index(source, database, source_format="free", verify_content=True,
+                        compilation_context={"compile_conditions": {"BATCH": True}})
+                    ensure_repository_search(database, source)
+                    self.assertEqual(rebuilt["snapshot_id"], overview["snapshot_id"])
+                    with self.assertRaisesRegex(ValueError, "SNAPSHOT_CHANGED"):
+                        refresh_selected_sources(database, [captured], expected_snapshot_id=overview["snapshot_id"])
+                with closing(sqlite3.connect(database)) as db:
+                    self.assertEqual(db.execute("SELECT sha256 FROM source_files WHERE relative_path='entry.cbl'").fetchone()[0],
+                                     hashlib.sha256(original_bytes).hexdigest())
 
     def test_local_refresh_cannot_mix_current_facts_into_a_legacy_parser_index(self):
         with tempfile.TemporaryDirectory() as folder:
