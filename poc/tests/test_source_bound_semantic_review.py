@@ -313,6 +313,32 @@ class SourceBoundSemanticReviewTests(unittest.TestCase):
         self.assertEqual(self.report(result)["reason"], "MODEL_TEXT_EMPTY")
         self.assertEqual(result["answer"], self.answers[0])
 
+    def test_escaped_invalid_unicode_review_is_rejected_after_durable_receipt_and_resume(self):
+        original = QualityTrace.record_remote_response
+        def cancel_after_review(trace, response):
+            original(trace, response)
+            if len(self.requests) == 2:
+                raise UserCancelled("Cancel after durable review receipt")
+        def respond(payload, number):
+            if number == 1:
+                return self.answer(payload)
+            review = self.review(payload, changes=True,
+                mutate=lambda value: value["reviews"][0].update(reason="\ud800"))
+            return json.dumps(json.loads(review), ensure_ascii=True)
+        with patch.object(QualityTrace, "record_remote_response", cancel_after_review):
+            with self.assertRaises(UserCancelled):
+                self.ask(respond)
+        self.assertFalse(self.saved()["uncertain_requests"])
+        result = self.ask(respond, resume=True)
+        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(self.report(result)["status"], "invalid")
+        self.assertEqual(self.report(result)["reason"], "INVALID_REASON")
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["answer"], self.answers[0])
+        self.assertEqual(self.saved()["checkpoint"]["semantic_review_state"]["phase"], "done")
+        trace_path = self.fixture.database.parent / "quality-traces" / (result["run_id"] + ".json")
+        self.assertEqual(json.loads(trace_path.read_text())["semantic_review"]["status"], "invalid")
+
     def test_no_review_allowance_retains_substantive_unreviewed_answer(self):
         result = self.ask(lambda p, n: self.answer(p), policy=AgentPolicy(max_model_requests=1))
         self.assertEqual(len(self.requests), 1)
@@ -320,6 +346,21 @@ class SourceBoundSemanticReviewTests(unittest.TestCase):
         self.assertEqual(self.report(result)["reason"], "request_budget")
         self.assertEqual(result["status"], "PARTIAL")
         self.assertEqual(result["answer"], self.answers[0])
+
+    def test_default_trace_keeps_review_bindings_without_copied_source_quote(self):
+        result = self.ask(lambda p, n: self.answer(p) if n == 1 else self.review(p,
+            mutate=lambda value: value["reviews"][0].update(verdict="contradicted")),
+            policy=AgentPolicy(max_model_requests=2))
+        report = self.report(result)
+        quote = report["findings"][0]["source_refs"][0]["quote"]
+        trace_path = self.fixture.database.parent / "quality-traces" / (result["run_id"] + ".json")
+        trace_text = trace_path.read_text()
+        self.assertNotIn(quote, trace_text)
+        trace_report = json.loads(trace_text)["semantic_review"]
+        self.assertEqual(trace_report["answer_sha256"], report["answer_sha256"])
+        self.assertEqual(trace_report["evidence_sha256"], report["evidence_sha256"])
+        self.assertEqual(trace_report["findings"][0]["source_refs"][0]["quote_sha256"], digest(quote))
+        self.assertEqual(self.saved()["checkpoint"]["semantic_review_state"]["report"]["findings"][0]["source_refs"][0]["quote"], quote)
 
     def test_review_request_limit_never_discards_source_to_make_review_fit(self):
         def respond(payload, number):

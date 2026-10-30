@@ -286,6 +286,30 @@ class SemanticReviewValidationTests(unittest.TestCase):
                 response["reviews"][0].update(change)
                 self.assertInvalid(response, reason=reason)
 
+    def test_escaped_unpaired_surrogates_cannot_enter_validated_review_reasons(self):
+        for reason in ("\ud800", "\udfff", "valid prefix \ud800 suffix"):
+            for location in ("review", "omission"):
+                with self.subTest(reason=ascii(reason), location=location):
+                    response = copy.deepcopy(self.response)
+                    if location == "review":
+                        response["reviews"][0].update(verdict="insufficient", reason=reason, evidence=[])
+                    else:
+                        response["omissions"] = [{"reason": reason, "evidence": [
+                            {"reference_id": "ev_page_request", "quote": SOURCE}]}]
+                    result = validate_semantic_review(json.dumps(response, ensure_ascii=True), self.payload)
+                    self.assertEqual(result["status"], "invalid")
+                    self.assertEqual(result["reason"], "INVALID_REASON")
+                    self.assertEqual(result["findings"], [])
+                    self.assertEqual(result["omissions"], [])
+                    json.dumps(result, ensure_ascii=False).encode("utf-8")
+
+    def test_escaped_unicode_scalar_and_surrogate_pairs_remain_valid(self):
+        self.response["reviews"][0].update(reason="条件一致。🙂", verdict="insufficient", evidence=[])
+        result = validate_semantic_review(json.dumps(self.response, ensure_ascii=True), self.payload)
+        self.assertEqual(result["status"], "changes_requested")
+        self.assertEqual(result["findings"][0]["reason"], "条件一致。🙂")
+        json.dumps(result, ensure_ascii=False).encode("utf-8")
+
     def test_supported_or_contradicted_cannot_have_empty_evidence(self):
         for verdict in ("supported", "contradicted"):
             self.response["reviews"][0].update(verdict=verdict, evidence=[])

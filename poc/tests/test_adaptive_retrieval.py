@@ -106,6 +106,44 @@ class AdaptiveRetrievalTests(unittest.TestCase):
             search_terms=["amber", "cobalt"], max_pages=2, max_chars=16000)
         self.assertEqual(set(context["selected_paths"]), {"a-first.cbl", "z-target.cbl"})
 
+    def test_independent_leads_on_one_index_page_receive_separate_bounded_excerpts(self):
+        self.write("rule.cbl", "*> AMBER-TARGET\n" +
+            "\n".join("*> neutral filler text without clues" for _ in range(80)) +
+            "\n*> COBALT-TARGET\nGOBACK.", "RULE")
+        self.build()
+        context = retrieval.retrieve_repository_context(self.database, self.source, "explain",
+            search_terms=["AMBER-TARGET", "COBALT-TARGET"], max_pages=2, max_chars=1024)
+        self.assertEqual(context["matched_page_count"], 1)
+        self.assertEqual(len(context["pages"]), 2)
+        self.assertEqual(len({page["evidence_id"] for page in context["pages"]}), 2)
+        for term in ("AMBER-TARGET", "COBALT-TARGET"):
+            self.assertTrue(any(term in page["source_text"] for page in context["pages"]), term)
+        self.assertLessEqual(sum(len(page["source_text"]) for page in context["pages"]), 1024)
+        self.assertTrue(all(page["relative_path"] == "rule.cbl" for page in context["pages"]))
+        self.assertLess(context["pages"][0]["end_line"], context["pages"][1]["start_line"])
+
+        single = retrieval.retrieve_repository_context(self.database, self.source, "explain",
+            search_terms=["AMBER-TARGET"], max_pages=2, max_chars=1024)
+        self.assertEqual(len(single["pages"]), 1)
+        self.assertGreater(single["pages"][0]["source_characters"], 512)
+        self.assertIn("AMBER-TARGET", single["pages"][0]["source_text"])
+
+    def test_same_page_lead_crops_respect_exclusive_source_scope(self):
+        self.write("selected.cbl", "*> AMBER-TARGET\n" +
+            "\n".join("*> neutral filler text without clues" for _ in range(80)) +
+            "\n*> COBALT-TARGET\nGOBACK.", "SELECTED")
+        self.write("other.cbl", "*> AMBER-TARGET COBALT-TARGET\nGOBACK.", "OTHER")
+        self.build()
+        context = retrieval.retrieve_repository_context(self.database, self.source,
+            "Only analyze selected.cbl", search_terms=["AMBER-TARGET", "COBALT-TARGET"],
+            max_pages=2, max_chars=1024)
+        self.assertTrue(context["source_identity"]["exclusive_source_scope"])
+        self.assertEqual(context["selected_paths"], ["selected.cbl"])
+        self.assertEqual(len(context["pages"]), 2)
+        self.assertLessEqual(context["coverage"]["selected_characters"], 1024)
+        for term in ("AMBER-TARGET", "COBALT-TARGET"):
+            self.assertTrue(any(term in page["source_text"] for page in context["pages"]), term)
+
     def test_common_compound_lead_cannot_displace_an_independent_unsplit_clue(self):
         for index in range(24):
             self.write(f"a-common-{index:02}.cbl", "MOVE 1 TO WORK-VALUE.\nGOBACK.", f"COMMON-{index}")

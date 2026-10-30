@@ -205,27 +205,41 @@ def _search_route_rows(connection, route, scope_sql, scope_values, max_pages, ch
 
 def _ranked_search_rows(connection, query_groups, scope_sql, scope_values, max_pages, check_cancel):
     """Interleave independent leads within each priority tier, with bounded reads."""
-    ranked, seen, cached = [], set(), {}
-    for group in query_groups:
+    ranked, seen, cached = [], {}, {}
+    for tier, group in enumerate(query_groups):
         channels = []
         for routes in group:
             channel = deque()
+            channel_pages = set()
             for route in routes:
                 if route not in cached:
                     cached[route] = _search_route_rows(connection, route,
                         scope_sql, scope_values, max_pages, check_cancel)
-                channel.extend(cached[route])
+                for row in cached[route]:
+                    if row["page_id"] not in channel_pages:
+                        channel.append(row)
+                        channel_pages.add(row["page_id"])
             if channel:
                 channels.append(channel)
         pending = deque(channels)
         while pending:
             channel = pending.popleft()
             while channel and channel[0]["page_id"] in seen:
-                channel.popleft()
+                duplicate = channel.popleft()
+                if tier == 0:
+                    # One physical page may hold distant independent clues.
+                    # Keep its ranking slot, but retain each lead's crop route.
+                    previous = seen[duplicate["page_id"]]
+                    fields = ("retrieval_terms", "retrieval_identifiers")
+                    lead = {key: duplicate[key] for key in fields}
+                    original = {key: previous[key] for key in fields}
+                    leads = previous.get("retrieval_leads", [original])
+                    if lead not in leads:
+                        previous["retrieval_leads"] = [*leads, lead]
             if channel:
-                row = channel.popleft()
+                row = dict(channel.popleft())
                 ranked.append(row)
-                seen.add(row["page_id"])
+                seen[row["page_id"]] = row
             if channel:
                 pending.append(channel)
     return ranked
@@ -1332,6 +1346,10 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
     cache = {"states": {}, "checked_files": 0, "reused_files": 0, "content_verified_files": 0}
     pages, boundaries, used, seen = [], [], 0, set()
     read_obstructions = [] if requested_span else None
+    # Allocate the ordinary total budget across independent crops before the
+    # first lead can consume it. A single lead retains its original allowance.
+    rows = [{**row, **lead} for row in rows
+            for lead in row.get("retrieval_leads", [{}])]
     per_page = max(512, min(6000, max_chars // max(1, min(max_pages, len(rows)))))
     for row in rows:
         if len(pages) >= max_pages or used >= max_chars:

@@ -21,6 +21,37 @@ from source_reading import _identify_page
 
 
 class SourceSessionTests(unittest.TestCase):
+    def test_archived_truncation_round_trips_with_copy_provenance(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "index.sqlite"
+            for truncated in (False, True):
+                with self.subTest(truncated=truncated):
+                    page = {"relative_path": "shared.cpy", "source_sha256": "a" * 64,
+                            "start_line": 3, "end_line": 3, "source_text": "MOVE 1 TO RESULT-VALUE",
+                            "span_truncated": truncated, "include_chain": [],
+                            "copy_instance": f"instance-{truncated}",
+                            "replacement_trace": [{"from": "INPUT", "to": "RESULT"}]}
+                    page["evidence_id"] = _identify_page(page)
+                    archive_evidence(database, [page])
+                    self.assertEqual(read_archived_evidence(database, page["evidence_id"]), page)
+
+    def test_archive_can_add_but_never_clear_a_same_id_truncation_boundary(self):
+        for earlier in ({}, {"span_truncated": False}):
+            with self.subTest(earlier=earlier), tempfile.TemporaryDirectory() as folder:
+                database = Path(folder) / "index.sqlite"
+                page = {"relative_path": "entry.cbl", "source_sha256": "a" * 64,
+                        "start_line": 3, "end_line": 3, "source_text": "CALL 'SERVICE' USING",
+                        "include_chain": []}
+                page["evidence_id"] = _identify_page(page)
+                archive_evidence(database, [{**page, **earlier}])
+                truncated = {**page, "span_truncated": True}
+                self.assertEqual(_identify_page(truncated), page["evidence_id"])
+                archive_evidence(database, [truncated])
+                self.assertEqual(read_archived_evidence(database, page["evidence_id"]), truncated)
+                for later in ({}, {"span_truncated": False}, {"span_truncated": True}):
+                    archive_evidence(database, [{**page, **later}])
+                    self.assertEqual(read_archived_evidence(database, page["evidence_id"]), truncated)
+
     def test_archived_copy_instances_round_trip_without_changing_legacy_chain_records(self):
         with tempfile.TemporaryDirectory() as folder:
             database = Path(folder) / "index.sqlite"

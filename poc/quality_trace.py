@@ -12,11 +12,30 @@ import time
 from prior_source_memory import source_binding_sha256
 from run_store import RunStore
 
-PIPELINE_VERSION = "question-evidence-v67"
+PIPELINE_VERSION = "question-evidence-v68"
 PROMPT_VERSION = "business-chat-v55"
 
 def _digest(value):
     return hashlib.sha256(value).hexdigest()
+
+
+def _semantic_review_diagnostics(report):
+    """Keep review provenance in default trace files without copied prose."""
+    result = deepcopy(report)
+    for row in [*result.get("findings", []), *result.get("omissions", [])]:
+        for item, fields in [(row, ("quote", "reason")),
+                             *((reference, ("quote",)) for reference in row.get("source_refs", []))]:
+            for field in fields:
+                if field in item:
+                    text = item.pop(field)
+                    item[field + "_sha256"] = _digest(text.encode("utf-8"))
+                    item[field + "_characters"] = len(text)
+            if "source_context" in item:
+                context = json.dumps(item.pop("source_context"), sort_keys=True, ensure_ascii=False,
+                                     separators=(",", ":")).encode("utf-8")
+                item["source_context_sha256"] = _digest(context)
+                item["source_context_bytes"] = len(context)
+    return result
 
 
 def _memory_diagnostics(memory):
@@ -210,7 +229,21 @@ class QualityTrace:
         self.data["final"] = final
         self.path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), encoding="utf-8")
+        file_data = self.data
+        if not self.capture_context:
+            # Only the diagnostic file is projected. In-memory reports and the
+            # recovery journal retain the exact review needed for continuation.
+            file_data = dict(self.data)
+            if "semantic_review" in file_data:
+                file_data["semantic_review"] = _semantic_review_diagnostics(file_data["semantic_review"])
+            if "semantic_reviews" in file_data:
+                file_data["semantic_reviews"] = [_semantic_review_diagnostics(report)
+                                                for report in file_data["semantic_reviews"]]
+            completion = final.get("answer_completion", {})
+            if "semantic_review" in completion:
+                file_data["final"] = {**final, "answer_completion": {**completion,
+                    "semantic_review": _semantic_review_diagnostics(completion["semantic_review"])}}
+        temporary.write_text(json.dumps(file_data, ensure_ascii=False, indent=2), encoding="utf-8")
         temporary.replace(self.path)
         saved = self.run_store.load(self.data["run_id"])
         current = saved["checkpoint"]

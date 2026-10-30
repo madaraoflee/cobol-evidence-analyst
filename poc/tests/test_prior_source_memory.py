@@ -54,6 +54,7 @@ class PriorSourceMemoryTests(unittest.TestCase):
                     "source_sha256": page["source_sha256"], "start_line": page["start_line"],
                     "end_line": page["end_line"], "excerpt_sha256": hashlib.sha256(page["source_text"].encode()).hexdigest(),
                     "binding_sha256": source_binding_sha256(page),
+                    "span_truncated": bool(page.get("span_truncated")),
                     "include_chain": deepcopy(page.get("include_chain", [])),
                     **{key: deepcopy(page[key]) for key in ("replacement_trace", "copy_instance") if key in page}}
                     for page in pages]}
@@ -186,6 +187,59 @@ class PriorSourceMemoryTests(unittest.TestCase):
             changed[field] = "0" * 64 if field == "request_body_sha256" else []
             with self.subTest(field=field), self.assertRaisesRegex(ValueError, "PRIOR_SOURCE_MEMORY_INVALID"):
                 self.new_memory().restore(saved, [changed])
+
+    def test_truncation_changes_binding_without_changing_legacy_complete_bindings(self):
+        legacy = {key: value for key, value in self.page.items() if key != "span_truncated"}
+        self.assertEqual(source_binding_sha256(legacy), source_binding_sha256(self.page))
+        old_binding = {key: self.page[key] for key in
+                       ("relative_path", "source_sha256", "start_line", "end_line", "include_chain")}
+        self.assertEqual(source_binding_sha256(self.page), hashlib.sha256(json.dumps(
+            old_binding, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest())
+        self.assertNotEqual(source_binding_sha256(self.page),
+                            source_binding_sha256({**self.page, "span_truncated": True}))
+
+    def test_legacy_complete_archive_and_round_without_boundary_remain_restorable(self):
+        self.assertEqual(self.accept(), 1)
+        saved = self.memory.checkpoint()
+        record = deepcopy(self.record)
+        record["sources"][0].pop("span_truncated")
+        archive = self.database.parent / "versioned-evidence.sqlite"
+        with closing(sqlite3.connect(archive)) as connection, connection:
+            connection.execute("UPDATE excerpts SET include_chain_json='[]' WHERE evidence_id=?",
+                               (self.page["evidence_id"],))
+        restored = self.new_memory()
+        restored.restore(saved, [record])
+        self.assertEqual(restored.effective_pages(self.inherited_payload(), verify_archive=True), [self.page])
+
+    def test_restore_rejects_cleared_truncation_and_mismatched_round_boundary(self):
+        page = self.make_page(span_truncated=True)
+        record = self.round_record([page])
+        self.assertEqual(self.accept(self.note(page), payload={"source_context": [{"pages": [page]}]},
+                                     round_record=record), 1)
+        saved = self.memory.checkpoint()
+        self.new_memory().restore(saved, [record])
+        for marker in (False, None):
+            changed = deepcopy(saved)
+            if marker is None:
+                changed["pages"][0].pop("span_truncated")
+            else:
+                changed["pages"][0]["span_truncated"] = marker
+            with self.subTest(marker=marker), self.assertRaisesRegex(ValueError, "PRIOR_SOURCE_MEMORY_INVALID"):
+                self.new_memory().restore(changed, [record])
+        changed_record = deepcopy(record)
+        changed_record["sources"][0]["span_truncated"] = False
+        with self.assertRaisesRegex(ValueError, "PRIOR_SOURCE_MEMORY_INVALID"):
+            self.new_memory().restore(saved, [changed_record])
+
+    def test_restore_rejects_archive_with_a_conflicting_truncation_boundary(self):
+        self.assertEqual(self.accept(), 1)
+        saved = self.memory.checkpoint()
+        archive = self.database.parent / "versioned-evidence.sqlite"
+        with closing(sqlite3.connect(archive)) as connection, connection:
+            connection.execute("UPDATE excerpts SET include_chain_json=? WHERE evidence_id=?",
+                               (json.dumps({"include_chain": [], "span_truncated": True}), self.page["evidence_id"]))
+        with self.assertRaisesRegex(ValueError, "PRIOR_SOURCE_MEMORY_INVALID"):
+            self.new_memory().restore(saved, [self.record])
 
     def test_copy_and_replacement_bindings_must_match_the_actual_round(self):
         original = self.make_page(include_chain=[{"relative_path": "root.cbl", "line": 8}],

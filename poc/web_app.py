@@ -23,6 +23,7 @@ import sqlite3
 import stat
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from typing import Callable, Sequence
@@ -1034,11 +1035,16 @@ class WorkbenchState:
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         if self.state_path.is_symlink():
             raise ValueError("WORKSPACE_PATH_INVALID")
-        temporary = self.state_path.with_suffix(".tmp")
-        if temporary.is_symlink():
-            raise ValueError("WORKSPACE_PATH_INVALID")
-        temporary.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-        temporary.replace(self.state_path)
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", delete=False,
+                    prefix=self.state_path.name + ".", suffix=".tmp", dir=self.state_path.parent) as stream:
+                temporary = Path(stream.name)
+                json.dump(data, stream, ensure_ascii=False)
+            temporary.replace(self.state_path)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
 
     def _restore_workspace(self, saved_data=None):
         self._graph_preview_cache = None
@@ -2264,9 +2270,9 @@ class WorkbenchState:
                     if archived:
                         return {"snapshot_id": message.get("snapshot_id"), "status": "OK",
                             "spans": [{**archived, "integrity": "VALID", "content_type": "UNTRUSTED_SOURCE_TEXT",
-                                       "span_truncated": False}], "span_count": 1,
+                                       "span_truncated": bool(archived.get("span_truncated"))}], "span_count": 1,
                             "missing_evidence_ids": [], "returned_characters": len(archived["source_text"]),
-                            "truncated": False, "diagnostics": [], "run_id": message.get("run_id")}
+                            "truncated": bool(archived.get("span_truncated")), "diagnostics": [], "run_id": message.get("run_id")}
                     if message.get("snapshot_id") != self.project.get("snapshot_id"):
                         raise RequestError("HISTORICAL_SOURCE_VERSION", "这条引用属于较早的源码版本；请查看当时的路径和行号，或在当前版本继续提问。", 409)
                 except (ValueError, StopIteration, AttributeError):
@@ -2285,9 +2291,9 @@ class WorkbenchState:
                     if archived:
                         return {"snapshot_id": current.get("snapshot_id"), "status": "OK",
                             "spans": [{**archived, "integrity": "VALID", "content_type": "UNTRUSTED_SOURCE_TEXT",
-                                       "span_truncated": False}], "span_count": 1,
+                                       "span_truncated": bool(archived.get("span_truncated"))}], "span_count": 1,
                             "missing_evidence_ids": [], "returned_characters": len(archived["source_text"]),
-                            "truncated": False, "diagnostics": [], "run_id": self.project["run_id"]}
+                            "truncated": bool(archived.get("span_truncated")), "diagnostics": [], "run_id": self.project["run_id"]}
             database = Path(self.project["output"]) / "structural-index.sqlite"
             if database.is_symlink():
                 raise RequestError("INDEX_CHANGED", "索引位置已发生变化，请重新分析。", 409)

@@ -258,6 +258,10 @@ def run_independent_review_check(command, root, checks=None, observations=None):
                 and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests})
             review = agent.get("answer_completion", {}).get("semantic_review", {})
             final_digest = hashlib.sha256(agent["answer"].encode()).hexdigest()
+            initial_trace_review = next(iter(trace.get("semantic_reviews", [])), {})
+            initial_trace_finding = next(iter(initial_trace_review.get("findings", [])), {})
+            initial_review_reason = json.loads(provider.requests[1]["response_text"])["reviews"][0]["reason"]
+            initial_review_quote = fixture.review_inputs[0]["units"][0]["text"]
             checks["independent_review_binds_final_diagnostics_to_revised_answer"] = (
                 agent["status"] == "ANALYZED" and len(fixture.answers) == len(fixture.review_inputs) == 2
                 and agent["answer"] == fixture.answers[-1] and REVIEW_REVISION in agent["answer"]
@@ -266,7 +270,11 @@ def run_independent_review_check(command, root, checks=None, observations=None):
                 and review.get("answer_sha256") == review.get("final_answer_sha256") == final_digest
                 and agent.get("claims_semantically_verified") is False and review.get("semantic_verification") is False
                 and trace.get("semantic_review") == review
-                and [row["status"] for row in trace.get("semantic_reviews", [])] == ["changes_requested", "model_reviewed"])
+                and [row["status"] for row in trace.get("semantic_reviews", [])] == ["changes_requested", "model_reviewed"]
+                and "quote" not in initial_trace_finding and "reason" not in initial_trace_finding
+                and initial_trace_finding.get("quote_sha256") == hashlib.sha256(initial_review_quote.encode()).hexdigest()
+                and initial_trace_finding.get("quote_characters") == len(initial_review_quote)
+                and initial_trace_finding.get("reason_sha256") == hashlib.sha256(initial_review_reason.encode()).hexdigest())
             checks["independent_review_preserves_source_copy_identity_and_current_requirements"] = (
                 len(fixture.review_inputs) == 2 and fixture.review_inputs[0]["evidence"] == fixture.review_inputs[1]["evidence"]
                 and fixture.review_inputs[0]["answer_sha256"] != fixture.review_inputs[1]["answer_sha256"])

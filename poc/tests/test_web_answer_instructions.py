@@ -2,6 +2,7 @@
 
 import http.client
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import sys
 import tempfile
@@ -15,7 +16,57 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from analyze_source import analyze_source
 from answer_markdown import DEFAULT_ANSWER_INSTRUCTIONS
 from company_api import CompanyAPIConfig, TransportResponse
-from web_app import WorkbenchState, create_server
+from web_app import RequestError, WorkbenchState, create_server
+
+
+class WorkspaceSettingsPersistenceTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.path = self.root / "workspace.json"
+
+    def test_concurrent_instances_publish_their_own_complete_settings(self):
+        apps = [WorkbenchState(state_path=self.path) for _ in range(2)]
+        pending = threading.Barrier(2)
+        original_replace = Path.replace
+        published = []
+        publication_lock = threading.Lock()
+
+        def replace(path, target):
+            if target != self.path:
+                return original_replace(path, target)
+            pending.wait(timeout=10)
+            with publication_lock:
+                settings = json.loads(path.read_text(encoding="utf-8"))
+                result = original_replace(path, target)
+                published.append(settings["answer_instructions"])
+                return result
+
+        def save(index):
+            requirement = f"Explain business result {index}."
+            return apps[index].configure_answer_instructions({"answer_instructions": requirement})
+
+        with patch.object(Path, "replace", replace), ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(save, range(2)))
+        self.assertEqual([result["answer_instructions"] for result in results],
+                         [app.answer_instructions for app in apps])
+        self.assertCountEqual(published, [app.answer_instructions for app in apps])
+        self.assertEqual(WorkbenchState(state_path=self.path).answer_instructions, published[-1])
+        self.assertEqual(list(self.root.iterdir()), [self.path])
+
+    def test_failed_publication_preserves_previous_settings_and_removes_temporary_file(self):
+        app = WorkbenchState(state_path=self.path)
+        app.configure_answer_instructions({"answer_instructions": "Keep the original requirements."})
+        original = self.path.read_bytes()
+        with patch.object(Path, "replace", side_effect=OSError("cannot replace settings")):
+            with self.assertRaises(RequestError) as raised:
+                app.configure_answer_instructions({"answer_instructions": "Apply revised requirements."})
+        self.assertEqual(raised.exception.code, "REQUEST_FAILED")
+        self.assertEqual(app.answer_instructions, "Keep the original requirements.")
+        self.assertEqual(self.path.read_bytes(), original)
+        self.assertEqual(WorkbenchState(state_path=self.path).answer_instructions, app.answer_instructions)
+        self.assertEqual(list(self.root.iterdir()), [self.path])
 
 
 class WebAnswerInstructionsTests(unittest.TestCase):

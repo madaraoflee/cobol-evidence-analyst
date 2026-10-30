@@ -69,6 +69,51 @@ class QualityTraceMemoryTests(unittest.TestCase):
         self.assertNotIn("prior_source_memory", row)
         self.assertNotIn("prior_source_memory", row["context"])
 
+    def test_review_trace_captures_prose_only_with_opt_in_without_changing_recovery(self):
+        report = {"status": "changes_requested", "validation": "strict_payload_bound",
+            "semantic_verification": False, "answer_sha256": "a" * 64,
+            "evidence_sha256": "b" * 64, "coverage": {"complete": True},
+            "findings": [{"unit_id": "unit-001", "kind": "contradicted",
+                "quote": "Private answer assertion.", "reason": "Private review explanation.",
+                "start_char": 0, "end_char": 25, "source_refs": [{"reference_id": "ev_page_source",
+                    "path": "entry.cbl", "sha256": "c" * 64, "start_line": 4, "end_line": 4,
+                    "quote": "MOVE 7 TO PRIVATE-AMOUNT.", "source_context": {
+                        "copy_instance": "copy-first", "replacement_trace": [{"new": "PRIVATE-AMOUNT"}]}}]}],
+            "omissions": [{"reason": "Private omitted detail.", "source_refs": []}]}
+        before = deepcopy(report)
+        for capture_context in (False, True):
+            with self.subTest(capture_context=capture_context), tempfile.TemporaryDirectory() as folder:
+                trace = QualityTrace(Path(folder) / "index.sqlite", question="Explain the amount.",
+                    config=CompanyAPIConfig("https://gateway.example.invalid/v1", "test-model", api_key="test-secret"),
+                    policy=AgentPolicy(), capture_context=capture_context)
+                trace.data.update(semantic_review=report, semantic_reviews=[report])
+                saved = json.loads(Path(trace.save(final={"stop_reason": "answer_incomplete",
+                    "answer_completion": {"semantic_review": report}})).read_text())
+                reports = [saved["semantic_review"], saved["semantic_reviews"][0],
+                           saved["final"]["answer_completion"]["semantic_review"]]
+                for diagnostic in reports:
+                    self.assertEqual(diagnostic["status"], report["status"])
+                    self.assertEqual(diagnostic["answer_sha256"], report["answer_sha256"])
+                    self.assertEqual(diagnostic["coverage"], report["coverage"])
+                    if capture_context:
+                        self.assertEqual(diagnostic, report)
+                    else:
+                        serialized = json.dumps(diagnostic)
+                        self.assertNotIn("Private", serialized)
+                        self.assertNotIn("PRIVATE-AMOUNT", serialized)
+                        finding = diagnostic["findings"][0]
+                        self.assertEqual(finding["quote_sha256"], hashlib.sha256(report["findings"][0]["quote"].encode()).hexdigest())
+                        self.assertEqual(finding["quote_characters"], len(report["findings"][0]["quote"]))
+                        reference = finding["source_refs"][0]
+                        self.assertEqual(reference["path"], "entry.cbl")
+                        self.assertEqual(reference["quote_sha256"], hashlib.sha256(b"MOVE 7 TO PRIVATE-AMOUNT.").hexdigest())
+                        self.assertEqual(len(reference["source_context_sha256"]), 64)
+                self.assertEqual(trace.data["semantic_review"], before)
+                checkpoint = trace.run_store.load(trace.data["run_id"])["checkpoint"]
+                self.assertEqual(checkpoint["quality"]["semantic_review"], before)
+                self.assertEqual(checkpoint["final"]["answer_completion"]["semantic_review"], before)
+        self.assertEqual(report, before)
+
     def test_source_binding_fingerprint_distinguishes_copy_replacements(self):
         page = {"evidence_id": "ev_page_source", "relative_path": "fields.cpy",
                 "source_sha256": "c" * 64, "start_line": 1, "end_line": 1,

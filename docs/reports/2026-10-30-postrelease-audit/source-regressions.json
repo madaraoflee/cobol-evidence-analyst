@@ -1,0 +1,37 @@
+{
+  "base_commit": "131f38b303ae47b74b5db1bb372bca572e52a8b6",
+  "source_dirty": true,
+  "runtime_platform": "Darwin",
+  "passed": 4632,
+  "failed": 0,
+  "skipped": 0,
+  "test_ids_sha256": "e21de03c436e3c2f05c8d90e6dfe9c07ed44b04bdd01c3b62d03e0f53a048a2a",
+  "test_sources_sha256": "e76e470261edd7d8e74613c86a527d02576618fdd5cbbd0c517464c9bf592cb3",
+  "shards": [
+    {
+      "index": 0,
+      "passed": 1158,
+      "elapsed_seconds": 101.937909
+    },
+    {
+      "index": 1,
+      "passed": 1158,
+      "elapsed_seconds": 76.589065
+    },
+    {
+      "index": 2,
+      "passed": 1158,
+      "elapsed_seconds": 87.4877
+    },
+    {
+      "index": 3,
+      "passed": 1158,
+      "elapsed_seconds": 70.088419
+    }
+  ],
+  "web_passed": 272,
+  "tools_passed": 1,
+  "source_http_checks": 22,
+  "synthetic_http_requests": 15,
+  "real_model_calls": 0
+}

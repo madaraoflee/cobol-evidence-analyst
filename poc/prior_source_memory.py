@@ -31,7 +31,12 @@ def _excerpt_hash(page):
 
 
 def _binding(page):
-    return {key: deepcopy(page[key]) for key in _BINDING_FIELDS if key in page}
+    binding = {key: deepcopy(page[key]) for key in _BINDING_FIELDS if key in page}
+    # Missing and false retain the legacy complete-page fingerprint. A known
+    # incomplete line must never share that proof or lose its boundary on replay.
+    if page.get("span_truncated"):
+        binding["span_truncated"] = True
+    return binding
 
 
 def source_binding_sha256(page):
@@ -66,6 +71,7 @@ class PriorSourceMemory:
                 or _excerpt_hash(archived) != _excerpt_hash(saved)
                 or any(archived.get(key) != saved.get(key) for key in
                        ("relative_path", "source_sha256", "start_line", "end_line"))
+                or bool(archived.get("span_truncated")) != bool(saved.get("span_truncated"))
                 or (archived.get("include_chain") or []) != (saved.get("include_chain") or [])):
             raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
         return deepcopy(saved)
@@ -87,6 +93,7 @@ class PriorSourceMemory:
                    and row.get("end_line") == page["end_line"]
                    and row.get("excerpt_sha256") == _excerpt_hash(page)
                    and row.get("binding_sha256") == source_binding_sha256(page)
+                   and bool(row.get("span_truncated")) == bool(page.get("span_truncated"))
                    and (row.get("include_chain") or []) == (page.get("include_chain") or [])
                    for row in record.get("sources", []))
 

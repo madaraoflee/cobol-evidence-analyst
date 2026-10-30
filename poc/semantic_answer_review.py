@@ -53,6 +53,12 @@ def _sha(text):
 def _string(value, maximum, code):
     if not isinstance(value, str) or not value.strip() or len(value) > maximum:
         raise _Invalid(code)
+    # JSON escapes can decode to unpaired surrogates even when the wire text
+    # is valid UTF-8. Reject them before a validated report reaches storage.
+    try:
+        value.encode("utf-8")
+    except UnicodeError:
+        raise _Invalid(code) from None
     return value
 
 

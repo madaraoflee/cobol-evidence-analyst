@@ -211,6 +211,8 @@ def archive_evidence(database_path, pages):
         for page in pages:
             chain = page.get("include_chain", [])
             provenance = {key: page[key] for key in ("copy_instance", "replacement_trace") if page.get(key)}
+            if "span_truncated" in page:
+                provenance["span_truncated"] = bool(page["span_truncated"])
             # Keep legacy chain arrays intact; richer captures use the same
             # column as an envelope so existing archive databases need no DDL.
             archived_context = {"include_chain": chain, **provenance} if provenance else chain
@@ -218,7 +220,18 @@ def archive_evidence(database_path, pages):
                       page["end_line"], page["source_sha256"], page["source_text"],
                       json.dumps(archived_context, ensure_ascii=False))
             if _identify_page(page) == page["evidence_id"]:
-                db.execute("INSERT OR IGNORE INTO excerpts VALUES (?,?,?,?,?,?,?)", values)
+                inserted = db.execute("INSERT OR IGNORE INTO excerpts VALUES (?,?,?,?,?,?,?)", values)
+                if page.get("span_truncated") and not inserted.rowcount:
+                    # Truncation is deliberately outside the citation identity.
+                    # Preserve any known boundary even if a later capture omits
+                    # it; an older capture can also gain the missing boundary.
+                    stored = json.loads(db.execute("SELECT include_chain_json FROM excerpts WHERE evidence_id=?",
+                                                   (page["evidence_id"],)).fetchone()[0])
+                    context = stored if isinstance(stored, dict) else {"include_chain": stored}
+                    if not context.get("span_truncated"):
+                        context["span_truncated"] = True
+                        db.execute("UPDATE excerpts SET include_chain_json=? WHERE evidence_id=?",
+                                   (json.dumps(context, ensure_ascii=False), page["evidence_id"]))
 
 
 def read_archived_evidence(database_path, evidence_id):
@@ -235,7 +248,7 @@ def read_archived_evidence(database_path, evidence_id):
     archived_context = json.loads(page.pop("include_chain_json"))
     if isinstance(archived_context, dict):
         page["include_chain"] = archived_context.get("include_chain", [])
-        for key in ("copy_instance", "replacement_trace"):
+        for key in ("copy_instance", "replacement_trace", "span_truncated"):
             if key in archived_context:
                 page[key] = archived_context[key]
     else:
