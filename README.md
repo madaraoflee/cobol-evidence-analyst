@@ -1,8 +1,8 @@
 # COBOL Evidence Analyst
 
-**最新 Windows 测试候选：[`v2026.11.05.1-rc.1`](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.11.05.1-rc.1)。** [下载 Windows x64 ZIP](https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.05.1-rc.1/COBOLWorkbench-windows-x64.zip)。本版修复中文紧贴文件名时误报找不到源码、旧库完整性检查阻塞启动，以及关系图预览多读全库的问题。应用冻结于 `d67fa94`。
+**最新 Windows 测试候选：[`v2026.11.06.1-rc.1`](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.11.06.1-rc.1)。** [下载 Windows x64 ZIP](https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.06.1-rc.1/COBOLWorkbench-windows-x64.zip)。本版修复追问回错程序、长答案和大诊断挤掉前文与源码引用、旧调查重开后无法续查，以及重复提交、历史错序和资料库升级状态问题；保留此前启动与中文源码路径修复。应用冻结于 `7fa6af6`。
 
-本机 4,645 项 Python 和 272 项网页回归通过；Windows 覆盖同一批 Python 回归，4,643 项通过，2 项 POSIX 专用测试按规则跳过。最终 EXE 通过 79 个固定离线样本和 26 项补充检查，8 个发布文件的服务端哈希已复核。旧库首次升级仍可能重建索引；同包真实模型、人工与目标办公设备验收仍待完成，正式版保持原版本。修复范围、已知限制和发布指纹见[本次候选交付记录](./docs/reports/2026-11-05-startup-source-identity/README.md)。
+本机 4,665 项 Python、283 项网页及 1 项工具测试通过；Windows 覆盖同一批 Python 回归，4,663 项通过，2 项 POSIX 专用测试按规则跳过。最终 EXE 通过 79 个固定离线样本和 32 项补充检查，8 个发布文件的服务端哈希已复核。已复现的失忆路径通过回归，但上下文仍有预算；同包真实模型、人工与目标办公设备验收仍待完成，正式版保持原版本。修复范围、已知限制和发布指纹见[本次候选交付记录](./docs/reports/2026-11-06-conversation-memory/README.md)。
 
 先退出旧版，再完整解压启动，同一用户沿用原配置、历史及源码副本。正常重开不重新下载；每周更新请从已有资料库进入“检查并更新”，选择实际更新分支或勾选“跟随默认分支”。Cloud 首次仍下载一次整仓快照，后续只下载新增、修改或损坏文件；新快照仍需建立本地索引。
 

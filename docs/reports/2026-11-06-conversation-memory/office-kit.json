@@ -1,0 +1,41 @@
+{
+  "verification_scope": "ci_built_kit_and_native_offline_repeat_only",
+  "office_workflow_run_id": 42089034403,
+  "office_artifact_id": 13446285489,
+  "office_actions_artifact_sha256": "sha256:799e432183c3c35db3aef5168ab35527b6d17580ed91ae86a0ee13833b01f106",
+  "kit_archive_sha256": "8d3d2900abaad61575004c509235b3aa7394c8b10f8d149380352224f378b968",
+  "office_kit_sha256": "e70562a79fdc48bc02733285e2fbb782a8f1282f37f9f5baaeff73dc0d55b9f4",
+  "candidate_binding": {
+    "schema_version": "office-candidate-binding/v1",
+    "repository": "madaraoflee/cobol-evidence-analyst",
+    "selection": "explicit_run",
+    "workflow_id": 376674140,
+    "workflow_path": ".github/workflows/windows-desktop.yml",
+    "source_commit": "7fa6af655d0a8764d9335ad3d021044f351a26c7",
+    "candidate_run_id": 42080928742,
+    "candidate_run_attempt": 1,
+    "candidate_artifact_id": 13443264600,
+    "candidate_artifact_name": "COBOLWorkbench-windows-x64-7fa6af655d0a8764d9335ad3d021044f351a26c7-1",
+    "helper_source_commit": "7fa6af655d0a8764d9335ad3d021044f351a26c7",
+    "model_calls": 0,
+    "publication_performed": false
+  },
+  "artifact": {
+    "archive_sha256": "b0a73bedf35561e6275c830f05562941b5fdc6bf24cccff4cbbf85822f83951f",
+    "binary_path": "COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe",
+    "binary_sha256": "4e785b1dfbaa1ad074a4533ab36f5e509a2057675b7849a9db5d7ae4211a3173",
+    "application_sha256": "4a55944cd822596fe499c41bc5e44fc889f184fea55ee50c34e88e6e65f5d24c",
+    "source_commit": "7fa6af655d0a8764d9335ad3d021044f351a26c7",
+    "source_dirty": false,
+    "execution_surface": "native_windows_http",
+    "runtime_platform": "Windows"
+  },
+  "helper_source_commit": "7fa6af655d0a8764d9335ad3d021044f351a26c7",
+  "native_sample_count": 79,
+  "planned_user_turns": 38,
+  "planned_maximum_model_requests": 114,
+  "real_model_acceptance_completed": false,
+  "company_office_acceptance_completed": false,
+  "publish_allowed": false,
+  "status": "passed"
+}
