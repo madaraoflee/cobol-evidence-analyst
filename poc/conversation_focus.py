@@ -437,7 +437,8 @@ def build_session_subject(connection, question, identity, *, previous=None):
 
 
 def _saved_subject(history):
-    for message in reversed(list(history or [])[-64:]):
+    for position in range(len(history) - 1, -1, -1):
+        message = history[position]
         if not isinstance(message, dict) or message.get("role") != "assistant" or message.get("status", "completed") != "completed":
             continue
         state = message.get("investigation_state") or {}
@@ -447,8 +448,8 @@ def _saved_subject(history):
         # The newest completed answer is a barrier. An empty/unresolved subject
         # cannot revive an older successful discussion; missing keys permit the
         # separately checked legacy user-question fallback only.
-        return present, subject if isinstance(subject, dict) and subject.get("schema") == SUBJECT_VERSION else None
-    return False, None
+        return position, present, subject if isinstance(subject, dict) and subject.get("schema") == SUBJECT_VERSION else None
+    return -1, False, None
 
 
 def resolve_conversation_subject(connection, question, history, *, current_identity=None):
@@ -461,11 +462,12 @@ def resolve_conversation_subject(connection, question, history, *, current_ident
     current = current_identity if current_identity is not None else _question_identity(connection, question)
     if current.get("status", "none") != "none" or current.get("hard_constraint") or _PROGRAM_CUE.search(str(question)) or _RESET.search(str(question)):
         return None
-    subject_present, previous = _saved_subject(history)
+    recent = list(history or ())[-64:]
+    last_answer_position, subject_present, previous = _saved_subject(recent)
     if subject_present and previous is None:
         return None
     if not subject_present:
-        for message in reversed(list(history or [])[-64:]):
+        for message in reversed(recent):
             if not isinstance(message, dict) or message.get("role") != "user" or message.get("status", "completed") != "completed":
                 continue
             old_question = str(message.get("content", ""))
@@ -491,7 +493,7 @@ def resolve_conversation_subject(connection, question, history, *, current_ident
         return None
     # A user may have switched after the last saved answer. Never let an old
     # subject cross a later unknown/ambiguous program or explicit other field.
-    latest_user = next((message for message in reversed(list(history or [])[-64:])
+    latest_user = next((message for message in reversed(recent[last_answer_position + 1:])
         if isinstance(message, dict) and message.get("role") == "user"), None)
     if latest_user:
         user_question = str(latest_user.get("content", ""))
@@ -512,13 +514,7 @@ def resolve_conversation_subject(connection, question, history, *, current_ident
         user_global, user_global_ambiguous = _bindings(connection, user_mentions)
         if (set(user_global) | user_global_ambiguous) - (set(user_local) | user_local_ambiguous):
             return None
-        recent = list(history or [])[-64:]
-        latest_user_position = max(index for index, message in enumerate(recent)
-            if isinstance(message, dict) and message.get("role") == "user")
-        last_answer_position = max((index for index, message in enumerate(recent)
-            if isinstance(message, dict) and message.get("role") == "assistant"
-            and message.get("status", "completed") == "completed"), default=-1)
-        if latest_user_position > last_answer_position and (user_local or user_local_ambiguous
+        if (user_local or user_local_ambiguous
                 or _unbound_explicit_fields(connection, user_mentions, user_local, paths)
                 or _FIELD_CUE.search(user_question)):
             previous = build_session_subject(connection, user_question, _identity(paths), previous=previous)

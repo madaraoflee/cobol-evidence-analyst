@@ -14,6 +14,7 @@ import business_chat
 from company_api import TransportResponse
 from business_index import build_business_index
 from compilation_context import CompilationContext
+from conversation_store import ConversationStore
 from repository_discovery import ensure_repository_search
 import test_explicit_retry_recovery as fixtures
 
@@ -216,6 +217,73 @@ class ExplicitInvestigationContinuationTests(unittest.TestCase):
         self.assertEqual(continued["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
         self.assertEqual(continued["agent_result"]["answer"], prior["agent_result"]["answer"])
         self.assertEqual(fixture.store.load(run_id), before)
+        self.assertEqual(len(fixture.calls), 1)
+
+    def changed_history_projection(self):
+        fixture = self.fixture
+        conversations = ConversationStore(fixture.root / "conversations", fixture.source)
+        identifier = conversations.create()["id"]
+        conversations.append(identifier, "user", "Use the agreed names for the output amount.")
+        conversations.append(identifier, "assistant", "Earlier explanation", details={
+            "evidence_refs": [{"relative_path": "entry.cbl", "start_line": 1, "end_line": 10}],
+            "investigation_state": {"observations": ["diagnostic " * 10000]}})
+        history = conversations.model_history(identifier, question=fixture.question, include_legacy=True)
+        self.assertIsNotNone(history.legacy)
+        self.assertNotEqual(list(history), history.legacy)
+        return history
+
+    def test_saved_run_continues_across_history_projection_upgrade(self):
+        fixture = self.fixture
+        history = self.changed_history_projection()
+        prior = fixture.invoke(history=history.legacy)
+        old_id = prior["agent_result"]["run_id"]
+        before = fixture.store.load(old_id)
+        metadata = {**before["metadata"], "pipeline_version": "earlier-source-pipeline"}
+        with fixture.store.connect() as database:
+            database.execute("UPDATE investigation_runs SET metadata_json=? WHERE run_id=?",
+                (json.dumps(metadata), old_id))
+        blocked = fixture.invoke(history=history, resume_run_id=old_id)
+        self.assertEqual(blocked["reason_code"], "RESUME_PIPELINE_VERSION_CHANGED")
+        self.assertEqual(len(fixture.calls), 1)
+        continued = self.continue_run(prior, history=history)
+        self.assertEqual(fixture.calls[-1]["draft_answer"], prior["agent_result"]["answer"])
+        current = self.assert_new_ledger(prior, continued)
+        self.assertNotEqual(current["metadata"]["analysis_identity"], metadata["analysis_identity"])
+        self.assertEqual(current["checkpoint"]["source_memory_context"]["analysis_identity"],
+                         metadata["analysis_identity"])
+        self.assertNotIn("answer_language_changed", current["checkpoint"])
+        self.assertEqual(len(fixture.calls), 2)
+
+    def test_history_projection_upgrade_keeps_unknown_request_and_same_language_answer(self):
+        fixture = self.fixture
+        history = self.changed_history_projection()
+        prior = fixture.invoke(history=history.legacy)
+        run_id = prior["agent_result"]["run_id"]
+        saved = fixture.store.load(run_id)
+        fixture.store.checkpoint(run_id, saved["checkpoint"], status="attention")
+        fixture.store.start_request(run_id, "pending-history-request", "e" * 64)
+        before = fixture.store.load(run_id)
+        for options in ({}, {"resume_run_id": run_id},
+                        {"resume_run_id": run_id, "continue_investigation": True}):
+            with self.subTest(options=options):
+                blocked = fixture.invoke(history=history, **options)
+                self.assertEqual(blocked["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
+                self.assertEqual(blocked["agent_result"]["answer"], prior["agent_result"]["answer"])
+                self.assertEqual(fixture.store.load(run_id), before)
+                self.assertEqual(len(fixture.calls), 1)
+
+    def test_history_projection_upgrade_does_not_replay_another_language_answer(self):
+        fixture = self.fixture
+        history = self.changed_history_projection()
+        prior = fixture.invoke(history=history.legacy, locale="zh-CN")
+        run_id = prior["agent_result"]["run_id"]
+        saved = fixture.store.load(run_id)
+        fixture.store.checkpoint(run_id, saved["checkpoint"], status="attention")
+        fixture.store.start_request(run_id, "pending-language-request", "d" * 64)
+        blocked = self.continue_run(prior, history=history, locale="en")
+        self.assertEqual(blocked["reason_code"], "REMOTE_REQUEST_OUTCOME_UNKNOWN")
+        self.assertFalse(blocked["agent_result"]["answer_available"])
+        self.assertEqual(blocked["agent_result"]["answer_language"], "en")
         self.assertEqual(len(fixture.calls), 1)
 
     def test_failed_continuation_keeps_previously_received_answer(self):

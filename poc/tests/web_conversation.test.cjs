@@ -923,3 +923,234 @@ test('a prior answer citation requests the exact revision and cannot fall back t
   await h.run("loadConversationEvidence('assistant-1','ev-old','revision-1')");assert.equal(h.run('state.conversationEvidence.revisionId'),'revision-1');assert.equal(h.run('state.conversationEvidence.span.source_text'),'ORIGINAL SOURCE');
   await h.run("loadConversationEvidence('assistant-1','ev-1','revision-1')");await h.run("loadConversationEvidence('assistant-1','ev-old','wrong-revision')");assert.equal(h.requests.length,1);
 });
+
+function receiptSetup(h,messages=[]){
+  setup(h,messages);
+  h.run("state.token='service-original';state.submissionProtocol='session-receipt/v1'");
+}
+function receiptState(messages=[],extra={}){
+  return {session_token:'service-original',submission_protocol:'session-receipt/v1',
+    api_configured:true,project:project(),conversations:[conversation(messages)],
+    conversation:conversation(messages),...extra};
+}
+function receiptResponse(options,extra={}){
+  return {job_id:'receipt-job',submission_id:JSON.parse(options.body).submission_id,status:'RUNNING',...extra};
+}
+
+test('a lost accepted submission response recovers one job with the exact original body and token',async()=>{
+  const h=harness();receiptSetup(h);let calls=0,executions=0;const receipts=new Map();
+  h.respond((url,options)=>{
+    if(url==='/api/state')return receiptState(firstMessages);
+    if(url==='/api/analyze'){
+      calls++;
+      const body=JSON.parse(options.body);
+      if(!receipts.has(body.submission_id)){receipts.set(body.submission_id,true);executions++;}
+      if(calls===1)throw Error('response lost after acceptance');
+      return receiptResponse(options,{status:'COMPLETED',conversation:conversation(firstMessages)});
+    }
+    return {status:'COMPLETED',result:{...project(),conversation:conversation(firstMessages)}};
+  });
+  await submit(h,'How is a request accepted?');
+  const requests=h.requests.filter(item=>item.url==='/api/analyze');
+  assert.equal(requests.length,2);assert.equal(executions,1);
+  assert.equal(requests[0].options.body,requests[1].options.body);
+  for(const request of requests)assert.equal(request.options.headers['X-Session-Token'],'service-original');
+  assert.match(JSON.parse(requests[0].options.body).submission_id,/^[a-f0-9]{32}$/);
+  assert.equal(h.run('state.conversation.messages.length'),2);
+  assert.equal(h.run('state.unconfirmedSubmission'),null);assert.equal(h.run('state.pendingMessage'),null);
+});
+
+test('a request lost before acceptance can be recovered once and a following edited question gets a new receipt',async()=>{
+  const h=harness();receiptSetup(h);let calls=0,executions=0;
+  h.respond((url,options)=>{
+    if(url==='/api/state')return receiptState();
+    if(url==='/api/analyze'){
+      if(++calls===1)throw Error('request never arrived');
+      executions++;return receiptResponse(options);
+    }
+    return {status:'COMPLETED',result:{...project(),conversation:conversation(firstMessages)}};
+  });
+  await submit(h,'How is a request accepted?');
+  await submit(h,'Explain a different condition.');
+  const requests=h.requests.filter(item=>item.url==='/api/analyze').map(item=>JSON.parse(item.options.body));
+  assert.equal(requests.length,3);assert.equal(executions,2);
+  assert.equal(requests[0].submission_id,requests[1].submission_id);
+  assert.notEqual(requests[1].submission_id,requests[2].submission_id);
+  assert.equal(requests[2].question,'Explain a different condition.');
+});
+
+test('uncertain submission blocks duplicate sending and rechecks the original receipt after another connection failure',async()=>{
+  const h=harness();receiptSetup(h);let available=false,postCount=0;const receipts=new Map();
+  h.respond((url,options)=>{
+    if(url==='/api/state')return receiptState();
+    if(url==='/api/analyze'){
+      postCount++;const id=JSON.parse(options.body).submission_id;receipts.set(id,true);
+      if(!available)throw Error('response remains unavailable');
+      return receiptResponse(options,{conversation:conversation(firstMessages)});
+    }
+    return {status:'COMPLETED',result:{...project(),conversation:conversation(firstMessages)}};
+  });
+  await submit(h,'How is a request accepted?');
+  assert.equal(postCount,2);assert.equal(receipts.size,1);
+  const html=h.run('conversationWorkbench()');
+  assert.match(html,/data-reconcile-submission/);assert.doesNotMatch(html,/data-retry-pending/);
+  assert.match(h.run('conversationComposer()'),/type="submit" disabled/);
+  await submit(h,'A copied duplicate question.');
+  await h.run('newConversation()');
+  assert.equal(postCount,2);assert.equal(h.requests.some(item=>item.url==='/api/conversations'),false);
+  available=true;
+  await h.run('reconcileQuestionSubmission()');
+  assert.equal(postCount,3);assert.equal(receipts.size,1);
+  assert.equal(h.run('state.unconfirmedSubmission'),null);
+  assert.equal(h.run('state.conversation.messages.length'),2);
+});
+
+test('a running recovered submission retains its original job and follows normal progress polling',async()=>{
+  const h=harness();receiptSetup(h);let posts=0;
+  h.respond((url,options)=>{
+    if(url==='/api/state')return receiptState();
+    if(url==='/api/analyze'){if(++posts===1)throw Error('response lost');return receiptResponse(options);}
+    return {status:'RUNNING',progress:{phase:'writing_answer',elapsed_seconds:2}};
+  });
+  await submit(h,'How is a request accepted?');
+  assert.equal(posts,2);assert.equal(h.run('state.jobId'),'receipt-job');
+  assert.equal(h.run('state.busy'),true);assert.equal(h.run('state.unconfirmedSubmission'),null);
+  assert.ok(h.timeouts.some(item=>item.delay===1000));
+});
+
+test('a recovered replaced job restores the server project together with its own conversation',async()=>{
+  const h=harness();receiptSetup(h);let posts=0,states=0;
+  const otherProject={...project(),source:'second-source',output:'second-output',snapshot_id:'sha256:second'};
+  const otherConversation={id:'second-conversation',title:'Second source',messages:[{id:'second-user',role:'user',content:'Second source question',status:'completed'}]};
+  h.respond((url,options)=>{
+    if(url==='/api/state'){
+      states++;
+      return receiptState(firstMessages,{project:otherProject,conversation:otherConversation,conversations:[otherConversation]});
+    }
+    if(url==='/api/analyze'){
+      if(++posts===1)throw Error('response lost');
+      return receiptResponse(options,{status:'ACCEPTED',job_replaced:true,conversation:conversation(firstMessages)});
+    }
+    assert.fail(url);
+  });
+  await submit(h,'How is a request accepted?');
+  assert.equal(posts,2);assert.equal(states,2);
+  assert.equal(h.run('state.project.source'),'second-source');
+  assert.equal(h.run('state.conversation.id'),'second-conversation');
+  assert.equal(h.run('state.pendingMessage'),null);
+  assert.match(h.run('state.error'),/submission was accepted/i);
+});
+
+test('a local service restart during recovery restores saved history without submitting to the new session',async()=>{
+  for(const resetAt of ['state','post']){
+    const h=harness();receiptSetup(h);let posts=0,states=0;
+    h.respond((url,options)=>{
+      if(url==='/api/state'){
+        states++;
+        return receiptState(firstMessages,{session_token:resetAt==='state' || states>1?'service-restarted':'service-original'});
+      }
+      if(url==='/api/analyze'){
+        posts++;
+        if(posts===1)throw Error('response lost');
+        assert.equal(options.headers['X-Session-Token'],'service-original');
+        return {__status:403,error:{code:'FORBIDDEN'}};
+      }
+      assert.fail(url);
+    });
+    await submit(h,'How is a request accepted?');
+    assert.equal(posts,resetAt==='state'?1:2);
+    assert.equal(h.run('state.token'),'service-restarted');
+    assert.equal(h.run('state.conversation.messages.length'),2);
+    assert.equal(h.run('state.pendingMessage'),null);
+    assert.equal(h.run('state.unconfirmedSubmission'),null);
+    assert.match(h.run('state.error'),/saved question and answer/i);
+  }
+});
+
+test('a rejected receipt allows editing and sends the edited question with a new identifier',async()=>{
+  const h=harness();receiptSetup(h);let posts=0;
+  h.respond((url,options)=>{
+    if(url==='/api/analyze'){
+      if(++posts===1)return {__status:400,error:{code:'INVALID_OPTIONS'}};
+      return receiptResponse(options);
+    }
+    if(url.startsWith('/api/jobs/'))return {status:'COMPLETED',result:{...project(),conversation:conversation(firstMessages)}};
+    assert.fail(url);
+  });
+  await submit(h,'Question needing correction.');
+  assert.equal(posts,1);assert.equal(h.run('state.unconfirmedSubmission'),null);
+  assert.match(h.run('conversationWorkbench()'),/data-retry-pending/);
+  await submit(h,'Corrected question.');
+  const requests=h.requests.filter(item=>item.url==='/api/analyze').map(item=>JSON.parse(item.options.body));
+  assert.equal(requests.length,2);assert.notEqual(requests[0].submission_id,requests[1].submission_id);
+  assert.equal(requests[1].question,'Corrected question.');
+});
+
+test('legacy services reconcile a lost response without resending an unidentifiable request',async()=>{
+  const h=harness();setup(h);h.run("state.token='legacy-service'");let posts=0;
+  h.respond(url=>{
+    if(url==='/api/analyze'){posts++;throw Error('response lost');}
+    if(url==='/api/state')return receiptState(firstMessages,{session_token:'legacy-service',submission_protocol:undefined});
+    assert.fail(url);
+  });
+  await submit(h,'How is a request accepted?');
+  assert.equal(posts,1);assert.equal(h.run('state.conversation.messages.length'),2);
+  assert.equal(h.run('state.pendingMessage'),null);assert.equal(h.run('state.unconfirmedSubmission'),null);
+  assert.match(h.run('state.error'),/saved question and answer/i);
+});
+
+test('server history truncation is visible and refreshes after empty conversations are excluded',()=>{
+  const h=harness();setup(h);
+  h.run("applyRecentConversations({recent_conversations:[],recent_conversations_truncated:true})");
+  assert.match(h.run('recentConversationResults()'),/Earlier records remain saved locally/);
+  h.run("applyRecentConversations({recent_conversations:[],recent_conversations_truncated:false})");
+  assert.doesNotMatch(h.run('recentConversationResults()'),/Earlier records remain saved locally/);
+});
+
+test('submission recovery clears the former library when the current service has no restored project',async()=>{
+  for(const situation of ['restarted','replaced']){
+    const h=harness();receiptSetup(h,firstMessages);let posts=0;
+    h.respond((url,options)=>{
+      if(url==='/api/state')return receiptState([],{session_token:situation==='restarted'?'new-service':'service-original',
+        project:null,conversation:null,conversations:[],recent_conversations:[]});
+      if(url==='/api/analyze'){
+        if(++posts===1)throw Error('response lost');
+        return receiptResponse(options,{status:'ACCEPTED',job_replaced:true,conversation:conversation(firstMessages)});
+      }
+      assert.fail(url);
+    });
+    await submit(h,'A new question.');
+    assert.equal(posts,situation==='restarted'?1:2);
+    assert.equal(h.run('state.project'),null);
+    assert.equal(h.run('state.conversation'),null);
+    assert.equal(h.run('state.conversations.length'),0);
+    assert.equal(h.run('state.pendingMessage'),null);
+    assert.equal(h.run('state.unconfirmedSubmission'),null);
+  }
+});
+
+test('an accepted replaced job whose workspace refresh fails keeps recovery available without another fresh submission',async()=>{
+  const h=harness();receiptSetup(h);let posts=0,states=0;
+  h.respond((url,options)=>{
+    if(url==='/api/state'){
+      if(++states===2)throw Error('workspace refresh unavailable');
+      return receiptState(firstMessages);
+    }
+    if(url==='/api/analyze'){
+      if(++posts===1)throw Error('response lost');
+      return receiptResponse(options,{status:'ACCEPTED',job_replaced:true});
+    }
+    assert.fail(url);
+  });
+  await submit(h,'How is a request accepted?');
+  assert.equal(posts,2);
+  assert.ok(h.run('state.unconfirmedSubmission'));
+  assert.match(h.run('conversationWorkbench()'),/data-reconcile-submission/);
+  await submit(h,'Duplicate by copying the question.');
+  assert.equal(posts,2);
+  await h.run('reconcileQuestionSubmission()');
+  assert.equal(posts,3);
+  const bodies=h.requests.filter(item=>item.url==='/api/analyze').map(item=>item.options.body);
+  assert.equal(new Set(bodies).size,1);
+  assert.equal(h.run('state.unconfirmedSubmission'),null);
+});

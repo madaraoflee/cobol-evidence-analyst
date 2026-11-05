@@ -76,6 +76,15 @@ class ConversationFocusTests(unittest.TestCase):
         self.assertFalse(result["hard_constraint"])
         self.assertEqual(result["selection_source"], "conversation_subject")
 
+    def test_answer_confirmed_subject_is_not_overwritten_by_its_earlier_question(self):
+        subject = self.subject("OTHERPOINT 的 OTHER-AMOUNT 怎样计算？")
+        history = self.history(subject, "ENTRYPOINT 的业务逻辑是什么？")
+        result = resolve_conversation_subject(self.connection, "刚才你说的这个结果呢？", history)
+        self.assertEqual(result["direct_paths"], ["other.cbl"])
+        history.append({"role": "user", "content": "现在分析 ENTRYPOINT。"})
+        changed = resolve_conversation_subject(self.connection, "继续解释。", history)
+        self.assertEqual(changed["direct_paths"], ["entry.cbl"])
+
     def test_second_subject_then_pronoun_retains_only_the_second_field_focus(self):
         result = resolve_conversation_subject(self.connection, "刚才第二种情况呢？", self.history())
         self.assertEqual(result["session_subject"]["focus_entities"], ["WS-ACCOUNT-TOTAL"])

@@ -26,6 +26,16 @@ _CONVERSATION_METADATA_COLUMNS = (
     "c.created_at) AS first_question_at"
 )
 
+# An answer written by a retry can be physically newer than later turns.
+# Associate it with the unique user row in the same run and conversation.
+# Missing or ambiguous links leave legacy rows in their physical positions.
+_MESSAGE_TURN_POSITION_SQL = (
+    "CASE WHEN messages.role='assistant' AND messages.run_id IS NOT NULL AND messages.run_id<>'' THEN COALESCE("
+    "(SELECT min(u.position) FROM messages AS u WHERE u.conversation_id=messages.conversation_id "
+    "AND u.run_id=messages.run_id AND u.role='user' HAVING count(*)=1), messages.position) "
+    "ELSE messages.position END"
+)
+
 
 def _now():
     return datetime.now(timezone.utc).isoformat()
@@ -75,6 +85,127 @@ def _history_subject(db, position):
     return json.loads(row[0]) if row is not None and row[0] is not None else None
 
 
+class ConversationHistory(list):
+    """Bounded local context with the previous projection for journal identity checks."""
+
+    def __init__(self, messages, legacy):
+        super().__init__(messages)
+        self.legacy = legacy if messages != legacy else None
+
+
+def _history_json(db, position, expression, budget):
+    """Read a selected JSON value only when its UTF-8 bytes fit the allowance."""
+    if budget <= 0:
+        return None, 0
+    row = db.execute("WITH selected(value) AS (SELECT CASE WHEN json_valid(details) THEN "
+        + expression + " END FROM messages WHERE position=?) "
+        "SELECT CASE WHEN length(CAST(value AS BLOB))<=? THEN value END FROM selected",
+        (position, budget)).fetchone()
+    text = row[0] if row is not None else None
+    return (json.loads(text), len(text.encode("utf-8"))) if isinstance(text, str) else (None, 0)
+
+
+def _history_details(db, row, budget, *, legacy):
+    if legacy:
+        if row["details_bytes"] > budget:
+            return {}, 0
+        text = db.execute("SELECT details FROM messages WHERE position=?", (row["position"],)).fetchone()[0]
+        return json.loads(text), row["details_bytes"]
+    # Keep small reference lists even when the display-only investigation
+    # contains many source observations. Extract only the fields used here.
+    keys = ["evidence_refs", "cited_evidence_ids"]
+    if row["status"] == "partial":
+        keys.extend(("answer_origin", "model_answer_recorded", "answer_available"))
+    projected = []
+    for key in keys:
+        value = f"json_extract(details,'$.{key}')"
+        if key in {"model_answer_recorded", "answer_available"}:
+            value = (f"json(CASE json_type(details,'$.{key}') WHEN 'true' THEN 'true' "
+                     "WHEN 'false' THEN 'false' ELSE 'null' END)")
+        projected.append(f"'{key}',{value}")
+    projected = ",".join(projected)
+    details, consumed = _history_json(db, row["position"], f"json_object({projected})", budget)
+    state, size = _history_json(db, row["position"], "json_object("
+        "'focus_candidates',json_extract(details,'$.investigation_state.focus_candidates'),"
+        "'evidence_locations',json_extract(details,'$.investigation_state.evidence_locations'),"
+        "'analysis_plan',COALESCE(json_extract(details,'$.investigation_state.analysis_plan'),"
+        "json_extract(details,'$.investigation_state.question_investigation.analysis_plan')))", budget - consumed)
+    details = details or {}
+    navigation = {key: value for key, value in (state or {}).items() if isinstance(value, (dict, list))}
+    if navigation:
+        details["investigation_state"] = navigation
+    return details, consumed + size
+
+
+def _model_history_rows(db, identifier, max_messages, before_position, *, legacy):
+    position = "position" if legacy else _MESSAGE_TURN_POSITION_SQL
+    position_filter = f"AND ({position})<? " if before_position is not None else ""
+    parameters = ((identifier, before_position, max_messages) if before_position is not None
+                  else (identifier, max_messages))
+    order = "position DESC" if legacy else "turn_position DESC, (role='assistant') DESC, position DESC"
+    return db.execute(
+        "SELECT position,role,status,length(content) AS content_length,"
+        + ("length(CAST(details AS BLOB)) AS details_bytes " if legacy else f"{position} AS turn_position ")
+        + "FROM messages WHERE conversation_id=? AND role IN ('user','assistant') AND (status='completed' OR "
+        "(status IN ('partial','failed','cancelled','interrupted') AND EXISTS (SELECT 1 FROM messages a "
+        "WHERE a.conversation_id=messages.conversation_id AND a.run_id=messages.run_id "
+        "AND a.role='assistant' AND a.status='partial' AND CASE WHEN json_valid(a.details) THEN "
+        "json_extract(a.details,'$.answer_available')=1 AND "
+        "(json_extract(a.details,'$.answer_origin') IN ('model','local_source_facts') OR "
+        "json_extract(a.details,'$.model_answer_recorded')=1 OR "
+        "(json_extract(a.details,'$.answer_origin') IS NULL AND "
+        "json_extract(a.details,'$.model_answer_recorded') IS NULL)) ELSE 0 END))) "
+        + position_filter + f"ORDER BY {order} LIMIT ?", parameters).fetchall()
+
+
+def _project_history(db, rows, max_characters, *, source_question=False, legacy=False):
+    remaining, details_remaining, messages = max_characters, MODEL_HISTORY_DETAILS_BYTES, []
+    latest_user = next((row for row in rows if row["role"] == "user"), None)
+    reserved_user = min(latest_user["content_length"], max(1, max_characters // 4)) if latest_user else 0
+    for offset, row in enumerate(rows):
+        keep_navigation = offset < MODEL_HISTORY_REFERENCE_MESSAGES and row["role"] == "assistant"
+        navigation_only = source_question and row["role"] == "assistant"
+        if navigation_only and not keep_navigation:
+            continue
+        if remaining <= 0 and not navigation_only:
+            if source_question:
+                continue
+            break
+        if latest_user is not None and row["position"] == latest_user["position"]:
+            reserved_user = 0
+        available = remaining - reserved_user
+        if available <= 0 and not navigation_only:
+            continue
+        content = ("" if navigation_only else db.execute("SELECT substr(content,1,?) FROM messages WHERE position=?",
+                   (available, row["position"])).fetchone()[0])
+        message = {"role": row["role"], "content": content}
+        if row["status"] == "partial":
+            message["analysis_status"] = "PARTIAL"
+        remaining -= len(content)
+        if row["content_length"] > len(content):
+            message["context_truncated"] = True
+        if keep_navigation:
+            details, consumed = _history_details(db, row, details_remaining, legacy=legacy)
+            details_remaining -= consumed
+            for key in ("evidence_refs", "cited_evidence_ids", "investigation_state"):
+                if isinstance(details.get(key), (list, dict)):
+                    message[key] = details[key]
+            if row["status"] == "partial":
+                for key in ("answer_origin", "model_answer_recorded", "answer_available"):
+                    if isinstance(details.get(key), (str, bool)):
+                        message[key] = details[key]
+            state = message.get("investigation_state")
+            if isinstance(state, dict):
+                state.pop("session_subject", None)
+            subject = _history_subject(db, row["position"])
+            if subject is not None:
+                state = message.setdefault("investigation_state", {})
+                state["session_subject"] = subject
+        messages.append(message)
+    messages.reverse()
+    return messages
+
+
 class ConversationStore:
     def __init__(self, output, source):
         self.path = Path(output) / "conversations.sqlite"
@@ -118,18 +249,22 @@ class ConversationStore:
                 raise ValueError("CONVERSATION_NOT_FOUND")
             result = dict(row)
             result["title"] = projected_conversation_title(db, identifier, result["title"])
-            result["messages"] = []
+            ordered_messages = []
             revisions = {}
             for item in db.execute("SELECT * FROM answer_revisions WHERE conversation_id=? ORDER BY position", (identifier,)):
                 revisions.setdefault(item["message_id"], []).append({
                     **json.loads(item["message_json"]), "revision_id": item["id"], "saved_at": item["saved_at"]})
-            for item in db.execute("SELECT * FROM messages WHERE conversation_id=? ORDER BY position", (identifier,)):
+            for item in db.execute(
+                f"SELECT *, {_MESSAGE_TURN_POSITION_SQL} AS turn_position FROM messages "
+                "WHERE conversation_id=? ORDER BY position", (identifier,)):
                 message = {key: item[key] for key in ("id", "role", "content", "status", "created_at", "run_id")}
                 details = json.loads(item["details"])
                 message.update(details)
                 if item["id"] in revisions:
                     message["answer_revisions"] = revisions[item["id"]]
-                result["messages"].append(message)
+                ordered_messages.append((item["turn_position"], item["role"] == "assistant", item["position"], message))
+            ordered_messages.sort(key=lambda item: item[:3])
+            result["messages"] = [item[3] for item in ordered_messages]
             return result
 
     def get_revision(self, conversation_id, message_id, revision_id):
@@ -158,13 +293,15 @@ class ConversationStore:
             return result
 
     def model_history(self, identifier, *, max_messages=MODEL_HISTORY_MESSAGES,
-                      max_characters=MODEL_HISTORY_CHARACTERS, before_position=None):
+                      max_characters=MODEL_HISTORY_CHARACTERS, before_position=None,
+                      question=None, include_legacy=False):
         """Read a bounded provider context; the complete transcript stays on disk.
 
         Large response diagnostics and framework excerpts are display records,
         not conversation memory. Recent source references and a separately
         bounded local session subject are restored.
-        Length checks happen in SQLite before text is returned to Python.
+        Length checks happen in SQLite before text is returned to Python. The
+        optional old projection is only for matching saved investigation IDs.
         """
         if not 1 <= max_messages <= MODEL_HISTORY_MESSAGES or not 0 <= max_characters <= MAX_MODEL_HISTORY_CHARACTERS:
             raise ValueError("CONVERSATION_HISTORY_BUDGET_INVALID")
@@ -173,70 +310,20 @@ class ConversationStore:
         self.get_metadata(identifier)
         if not max_characters:
             return []
-        remaining = max_characters
-        details_remaining = MODEL_HISTORY_DETAILS_BYTES
-        messages = []
+        source_question = False
+        if question is not None:
+            from business_chat import _history_projection_mode
+            source_question = _history_projection_mode(question) == "source_question"
         with closing(sqlite3.connect(self.path)) as db:
             db.row_factory = sqlite3.Row
-            position_filter = "AND position<? " if before_position is not None else ""
-            parameters = ((identifier, before_position, max_messages) if before_position is not None
-                          else (identifier, max_messages))
-            rows = list(db.execute(
-                "SELECT position,role,status,length(content) AS content_length,"
-                "length(CAST(details AS BLOB)) AS details_bytes FROM messages "
-                "WHERE conversation_id=? AND role IN ('user','assistant') AND (status='completed' OR "
-                "(status IN ('partial','failed','cancelled','interrupted') AND EXISTS (SELECT 1 FROM messages a "
-                "WHERE a.conversation_id=messages.conversation_id AND a.run_id=messages.run_id "
-                "AND a.role='assistant' AND a.status='partial' AND CASE WHEN json_valid(a.details) THEN "
-                "json_extract(a.details,'$.answer_available')=1 AND "
-                "(json_extract(a.details,'$.answer_origin') IN ('model','local_source_facts') OR "
-                "json_extract(a.details,'$.model_answer_recorded')=1 OR "
-                "(json_extract(a.details,'$.answer_origin') IS NULL AND "
-                "json_extract(a.details,'$.model_answer_recorded') IS NULL)) ELSE 0 END))) "
-                + position_filter + "ORDER BY position DESC LIMIT ?", parameters))
-            latest_user = next((row for row in rows if row["role"] == "user"), None)
-            reserved_user = min(latest_user["content_length"], max(1, max_characters // 4)) if latest_user else 0
-            for offset, row in enumerate(rows):
-                if remaining <= 0:
-                    break
-                if latest_user is not None and row["position"] == latest_user["position"]:
-                    reserved_user = 0
-                available = remaining - reserved_user
-                if available <= 0:
-                    continue
-                content = db.execute("SELECT substr(content,1,?) FROM messages WHERE position=?",
-                                     (available, row["position"])).fetchone()[0]
-                message = {"role": row["role"], "content": content}
-                if row["status"] == "partial":
-                    message["analysis_status"] = "PARTIAL"
-                remaining -= len(content)
-                if row["content_length"] > len(content):
-                    message["context_truncated"] = True
-                if (offset < MODEL_HISTORY_REFERENCE_MESSAGES and row["role"] == "assistant"
-                        and row["details_bytes"] <= details_remaining):
-                    text = db.execute("SELECT details FROM messages WHERE position=?",
-                                      (row["position"],)).fetchone()[0]
-                    details_remaining -= row["details_bytes"]
-                    details = json.loads(text)
-                    for key in ("evidence_refs", "cited_evidence_ids", "investigation_state"):
-                        if isinstance(details.get(key), (list, dict)):
-                            message[key] = details[key]
-                    if row["status"] == "partial":
-                        for key in ("answer_origin", "model_answer_recorded", "answer_available"):
-                            if isinstance(details.get(key), (str, bool)):
-                                message[key] = details[key]
-                    if isinstance(message.get("investigation_state"), dict):
-                        # The subject has its own byte limit even when the
-                        # complete details document fits the reference budget.
-                        message["investigation_state"].pop("session_subject", None)
-                if offset < MODEL_HISTORY_REFERENCE_MESSAGES and row["role"] == "assistant":
-                    subject = _history_subject(db, row["position"])
-                    if subject is not None:
-                        state = message.setdefault("investigation_state", {})
-                        state["session_subject"] = subject
-                messages.append(message)
-        messages.reverse()
-        return messages
+            db.execute("BEGIN")
+            rows = _model_history_rows(db, identifier, max_messages, before_position, legacy=False)
+            messages = _project_history(db, rows, max_characters, source_question=source_question)
+            if include_legacy:
+                old_rows = _model_history_rows(db, identifier, max_messages, before_position, legacy=True)
+                legacy = _project_history(db, old_rows, max_characters, legacy=True)
+                return ConversationHistory(messages, legacy)
+            return messages
 
     def list(self):
         with closing(sqlite3.connect(self.path)) as db:

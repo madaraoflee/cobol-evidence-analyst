@@ -437,14 +437,16 @@ def _history_projection_mode(question):
     text = str(question).strip()
     if re.search(
             r"(?:上次|上一(?:次|个|個|条|條)?|刚才|剛才|刚刚|剛剛|之前|前面|上面|上述|先前|你的|您的|"
+            r"原来|原來|原先|相同|同样|同樣|"
             r"(?:这|這|那)(?:个|個|条|條|次)?)"
-            r"(?:的)?(?:回答|答复|答覆|回复|回覆|解释|解釋|说明|說明|结论|結論|说法|說法|表格|内容|內容|段落|段|答)|"
+            r"(?:的)?(?:回答|答复|答覆|回复|回覆|解释|解釋|说明|說明|结论|結論|说法|說法|表格|内容|內容|段落|段|答|"
+            r"格式|结构|結構|样式|樣式|写法|寫法|版式|风格|風格)|"
             r"你(?:刚才|剛才|之前|前面)?(?:说|說|提到|写|寫)|"
             r"(?:改写|改寫|重写|重寫|修改|更正|翻译|翻譯|引用|回顾|回顧|复述|複述)"
             r"[^。！？\n]{0,24}(?:回答|答复|答覆|回复|回覆|上文|这段|這段|那段|解释|解釋|结论|結論)|"
             r"第\s*[一二三四五六七八九十\d]+\s*(?:点|點|段|项|項|条|條)|"
-            r"\b(?:previous|prior|earlier|last|above|your|this|that)\s+(?:(?:\w+)\s+){0,2}"
-            r"(?:answer|response|reply|explanation|summary|conclusion|paragraph|table)\b|"
+            r"\b(?:previous|prior|earlier|last|above|your|this|that|same)\s+(?:(?:\w+)\s+){0,2}"
+            r"(?:answer|response|reply|explanation|summary|conclusion|paragraph|table|format|layout|structure|style|wording|template)\b|"
             r"\byou\s+(?:said|wrote|mentioned|claimed)\b|"
             r"\b(?:rewrite|rephrase|translate|quote|revise|correct|review)\b[^.!?\n]{0,50}"
             r"\b(?:answer|response|reply|paragraph|what you|it|that|this)\b|"
@@ -4616,8 +4618,9 @@ def _continued_investigation_seed(saved, *, answer_language_changed=False):
         payload.pop("answer_review", None)
         payload.pop("analysis_memory", None)
     context = {**(checkpoint.get("source_memory_context") or {"run_id": saved["run_id"], "rounds": []})}
-    if answer_language_changed:
-        context.setdefault("analysis_identity", saved["metadata"].get("analysis_identity"))
+    # Source memory belongs to its original ledger even when the same-language
+    # conversation projection changes during an application upgrade.
+    context.setdefault("analysis_identity", saved["metadata"].get("analysis_identity"))
     prior_rounds = [{key: row[key] for key in ("round_id", "request_body_sha256", "sources") if key in row}
                     for row in (checkpoint.get("quality") or {}).get("rounds", [])]
     seed["source_memory_context"] = {**context,
@@ -4663,9 +4666,20 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
         "conversation_id": kwargs.get("conversation_id"),
     }
     analysis_identity = fingerprint({**identity_scope, "answer_language": answer_language})
-    prior_language_identities = {fingerprint({**identity_scope, "answer_language": language})
+    prior_context_identities = {fingerprint({**identity_scope, "answer_language": language})
         for language in ("en", "zh-CN", "zh-HK") if language != answer_language}
-    prior_language_identities.add(fingerprint(identity_scope))
+    prior_context_identities.add(fingerprint(identity_scope))
+    legacy_identity = None
+    legacy_history = getattr(kwargs.get("history"), "legacy", None)
+    if legacy_history is not None:
+        legacy_scope = {**identity_scope, "history": legacy_history}
+        legacy_identity = fingerprint({**legacy_scope, "answer_language": answer_language})
+        prior_context_identities.update(fingerprint({**legacy_scope, "answer_language": language})
+            for language in ("en", "zh-CN", "zh-HK"))
+        prior_context_identities.add(fingerprint(legacy_scope))
+    same_language_identities = {analysis_identity}
+    if legacy_identity is not None:
+        same_language_identities.add(legacy_identity)
     question_id = "sha256:" + hashlib.sha256(question.encode()).hexdigest()
     model_fingerprint = hashlib.sha256(config.chat_model.encode()).hexdigest()
     kwargs["analysis_identity"] = analysis_identity
@@ -4674,6 +4688,8 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
         raise ValueError("continue_investigation requires the saved investigation run")
     resume = store.load(resume_id) if resume_id else store.unfinished(
         question_id, model_fingerprint, analysis_identity=analysis_identity)
+    if resume is None and resume_id is None and legacy_identity is not None:
+        resume = store.unfinished(question_id, model_fingerprint, analysis_identity=legacy_identity)
     expected_configuration = hashlib.sha256(json.dumps({
         "base_url": config.base_url, "model": config.chat_model,
         "timeout_seconds": config.timeout_seconds, "max_output_tokens": config.max_output_tokens,
@@ -4683,7 +4699,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                              if isinstance(instructions, str) and instructions.strip() else "")
     fresh_retry_seed = None
     if explicit_retry:
-        identities = prior_language_identities | {analysis_identity}
+        identities = prior_context_identities | {analysis_identity}
         metadata = (resume or {}).get("metadata", {})
         matching_resume = (metadata.get("question_id") == question_id
             and metadata.get("analysis_identity") in identities
@@ -4746,8 +4762,9 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                 "answer": local("调查使用的分析或提示版本已经变化。原步骤、证据和请求状态已保留，需要先核对原请求结果，再按当前版本开始调查。", "The analysis or prompt version has changed. Previous steps, evidence and request states are preserved. Check the original request outcome before starting an investigation with the current version.")}}
     if resume:
         metadata = resume["metadata"]
-        same_scope = (metadata.get("analysis_identity") == analysis_identity or explicit_continue
-                      and metadata.get("analysis_identity") in prior_language_identities)
+        same_scope = (metadata.get("analysis_identity") in same_language_identities
+                      or explicit_continue
+                      and metadata.get("analysis_identity") in prior_context_identities)
         same_question = (metadata.get("question_id") == question_id
             and same_scope
             and metadata.get("configuration", {}).get("model_fingerprint") == model_fingerprint)
@@ -4790,7 +4807,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
             and policy_compatible))
         if not compatible:
             if (resume.get("uncertain_requests") and metadata.get("question_id") == question_id
-                    and metadata.get("analysis_identity") in prior_language_identities
+                    and metadata.get("analysis_identity") in prior_context_identities
                     and metadata.get("configuration", {}).get("model_fingerprint") == model_fingerprint):
                 return unknown_remote_result(resume, retain_answer=False)
             if resume_id or same_question and (relaxed_deadline or pipeline_changed):
@@ -4815,10 +4832,10 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
     # A language change or upgrade cannot establish that an earlier charged
     # request failed. Block resending, but never replay another language's draft.
     if not kwargs.get("retry_unknown_scope") and not (resume and resume.get("uncertain_requests")):
-        pending = store.uncertain(question_id, model_fingerprint, prior_language_identities | {analysis_identity})
+        pending = store.uncertain(question_id, model_fingerprint, prior_context_identities | {analysis_identity})
         if pending:
             return unknown_remote_result(pending,
-                retain_answer=pending["metadata"].get("analysis_identity") == analysis_identity)
+                retain_answer=pending["metadata"].get("analysis_identity") in same_language_identities)
     if resume and not explicit_continue and (resume["metadata"].get("pipeline_version") != PIPELINE_VERSION
                    or resume["metadata"].get("prompt_version") != PROMPT_VERSION):
         return changed_pipeline_result(resume)
@@ -4826,7 +4843,7 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
     if explicit_continue and resume:
         if resume.get("uncertain_requests"):
             return unknown_remote_result(resume,
-                retain_answer=resume["metadata"].get("analysis_identity") == analysis_identity)
+                retain_answer=resume["metadata"].get("analysis_identity") in same_language_identities)
         continuation_seed = resume
         kwargs["continued_from_run_id"] = resume["run_id"]
         resume = None
@@ -4944,7 +4961,9 @@ def run_business_chat(question, database_path, source_root, config, **kwargs):
                     "superseded_by_explicit_retry": True}, status="completed")
             if continuation_seed:
                 kwargs["investigation_seed"] = _continued_investigation_seed(continuation_seed,
-                    answer_language_changed=continuation_seed["metadata"].get("analysis_identity") != analysis_identity)
+                    answer_language_changed=continuation_seed["metadata"].get("analysis_identity") not in same_language_identities)
+            if resume:
+                kwargs["analysis_identity"] = resume["metadata"]["analysis_identity"]
             return _run_business_chat(question, database_path, source_root, config,
                                       source_session=session, resume_state=resume, **kwargs)
         except QuestionDeadlineExceeded:

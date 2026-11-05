@@ -318,6 +318,59 @@ class ConversationStoreTests(unittest.TestCase):
             self.assertEqual([item["status"] for item in messages],
                              ["completed", "completed"])
 
+    def test_late_retry_answer_keeps_its_turn_after_restart_and_before_later_retry(self):
+        earlier = self.store.append(self.identifier, "user", "Earlier question", status="cancelled", run_id="early")
+        later = self.store.append(self.identifier, "user", "Later question", run_id="late")
+        self.store.append(self.identifier, "assistant", "Later answer", run_id="late", status="partial",
+                          details={"answer_available": True, "answer_origin": "model"})
+        self.store.claim_retry(self.identifier, earlier, "recovered")
+        self.store.complete_user("recovered", "completed")
+        self.store.replace_assistant(self.identifier, None, "Earlier answer", run_id="recovered")
+        restored = ConversationStore(self.root / "output", self.root / "source")
+        expected = ["Earlier question", "Earlier answer", "Later question", "Later answer"]
+        self.assertEqual([item["content"] for item in restored.get(self.identifier)["messages"]], expected)
+        self.assertEqual([item["content"] for item in restored.model_history(self.identifier)], expected)
+        restored.complete_user("late", "failed")
+        target = restored.retry_target(self.identifier, later)
+        history = restored.model_history(self.identifier, before_position=target["position"], include_legacy=True)
+        self.assertEqual([item["content"] for item in history], expected[:2])
+        self.assertEqual([item["content"] for item in history.legacy], ["Earlier question"])
+        restored.claim_retry(self.identifier, later, "late-retry")
+        restored.complete_user("late-retry", "completed")
+        restored.replace_assistant(self.identifier, target["assistant_message_id"], "Latest answer", run_id="late-retry")
+        self.assertEqual([item["role"] for item in restored.model_history(self.identifier)],
+                         ["user", "assistant", "user", "assistant"])
+
+    def test_large_answer_does_not_evict_user_conventions_before_source_projection(self):
+        convention = "Call the capacity warning the grey register."
+        self.store.append(self.identifier, "user", convention)
+        self.store.append(self.identifier, "assistant", "Initial answer")
+        self.store.append(self.identifier, "user", "What if it is exceeded?")
+        self.store.append(self.identifier, "assistant", "Business explanation. " * 1000, details={
+            "evidence_refs": [{"evidence_id": "ev-late", "relative_path": "entry.cbl"}],
+            "investigation_state": {"session_subject": {"schema": "conversation-subject/v1", "status": "resolved"}}})
+        history = self.store.model_history(self.identifier, max_characters=18000,
+            question="Explain CAPACITY under our convention.", include_legacy=True)
+        self.assertEqual([item["content"] for item in history if item["role"] == "user"],
+                         [convention, "What if it is exceeded?"])
+        self.assertEqual(history[-1]["content"], "")
+        self.assertEqual(history[-1]["evidence_refs"][0]["evidence_id"], "ev-late")
+        self.assertNotIn(convention, [item["content"] for item in history.legacy])
+        self.assertEqual(self.store.get(self.identifier)["messages"][-1]["content"], "Business explanation. " * 1000)
+
+    def test_partial_reference_projection_retains_booleans_and_bounds_navigation(self):
+        self.store.append(self.identifier, "user", "Follow-up", status="cancelled", run_id="partial-run")
+        self.store.append(self.identifier, "assistant", "Partial answer", status="partial", run_id="partial-run", details={
+            "answer_available": True, "model_answer_recorded": False, "answer_origin": "local_source_facts",
+            "evidence_refs": [{"evidence_id": "ev-saved", "relative_path": "entry.cbl"}],
+            "investigation_state": {"question_investigation": {
+                "analysis_plan": {"entities": ["CAPACITY"]}, "observations": ["X" * 100000]}}})
+        history = self.store.model_history(self.identifier)
+        self.assertIs(history[-1]["answer_available"], True)
+        self.assertIs(history[-1]["model_answer_recorded"], False)
+        self.assertEqual(history[-1]["investigation_state"], {"analysis_plan": {"entities": ["CAPACITY"]}})
+        self.assertEqual(history[-1]["evidence_refs"][0]["evidence_id"], "ev-saved")
+
     def test_retry_rejects_other_sources_and_nonfailed_messages(self):
         user_id = self.store.append(self.identifier, "user", "A completed question")
         assistant_id = self.store.append(self.identifier, "assistant", "A completed answer")

@@ -59,6 +59,9 @@ class BusinessHistoryProjectionTests(unittest.TestCase):
             "Explain the exception in this response.",
             "解释那条回答中的程序异常。",
             "請解釋這條回答裡的例外。",
+            "沿用刚才的格式，继续说明 RECORD-RULE 的异常分支。",
+            "沿用剛才的格式，繼續說明 RECORD-RULE。",
+            "Use the same format to explain RECORD-RULE.",
         ):
             with self.subTest(question=question):
                 projected = _history_messages(history, question=question)
@@ -147,7 +150,8 @@ class BusinessHistoryProjectionTests(unittest.TestCase):
                          "Why does this program do that?",
                          "这个字段为什么是 00？", "这个公式为什么要乘 3？", "Explain that formula.",
                          "Explain the exception in that answer.", "Explain the exception.",
-                         "请重写上一答关于程序的内容，保留原先的否定条件。"):
+                         "请重写上一答关于程序的内容，保留原先的否定条件。",
+                         "沿用刚才的格式，继续说明 RECORD-RULE 的异常分支。"):
             with self.subTest(question=question):
                 self._check_actual_wire(question, preserve=True)
 

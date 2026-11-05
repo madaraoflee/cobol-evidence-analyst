@@ -238,13 +238,73 @@ class ConversationEvidenceClosureTests(unittest.TestCase):
         store.append(identifier, "assistant", first["answer"], details=details)
         history = store.model_history(identifier)
         self.assertEqual([message["role"] for message in history], ["user", "assistant"])
-        self.assertNotIn("evidence_refs", history[-1], "Large diagnostics exceeded the ordinary detail allowance")
+        self.assertEqual(history[-1]["evidence_refs"], first["evidence_refs"])
         self.assertEqual(history[-1]["investigation_state"]["session_subject"], subject)
         second, payload, _ = self.ask(QUESTIONS[1], history)
         self.assert_complete_root(payload, "report.cbl")
         entities = self.plan(payload, second).get("entities", [])
         self.assertTrue(entities)
         self.assertEqual(entities[0], "ACCOUNT-SUM")
+
+    def test_large_diagnostics_keep_late_branch_of_program_larger_than_complete_allowance(self):
+        padding = "\n".join("*> source padding " + "x" * 100 for _ in range(1500))
+        text = ("IDENTIFICATION DIVISION.\nPROGRAM-ID. LONGROUTE.\n"
+            "PROCEDURE DIVISION.\nMAIN.\nGOBACK.\n" + padding + "\n"
+            "LATE-CHECK.\nDISPLAY 'REVIEW REQUIRED'.\nEXIT.\n")
+        self.source.joinpath("long-route.cbl").write_text(text, encoding="utf-8")
+        self.assertGreater(len(text), self.policy.max_complete_source_characters)
+        analyze_source(self.source, self.output, index_mode="catalog", analysis_mode="business",
+                       source_format="free", verify_content=True, framework_reference_path="")
+        question = "LONGROUTE 的 LATE-CHECK 会如何提示？"
+        first, payload, _ = self.ask(question)
+        branch = next(page for page in pages_from(payload)
+                      if "DISPLAY 'REVIEW REQUIRED'." in page["source_text"])
+        store = ConversationStore(self.output, self.source)
+        followup = "为什么刚才会这样提示？"
+        for diagnostic_size in (0, MODEL_HISTORY_DETAILS_BYTES * 3):
+            with self.subTest(diagnostic_size=diagnostic_size):
+                identifier = store.create(first["snapshot_id"])["id"]
+                store.append(identifier, "user", question)
+                details = {"evidence_refs": first["evidence_refs"],
+                    "cited_evidence_ids": [branch["evidence_id"]],
+                    "investigation_state": first["investigation_state"],
+                    "large_diagnostic": "x" * diagnostic_size}
+                store.append(identifier, "assistant", first["answer"], details=details)
+                reopened = ConversationStore(self.output, self.source)
+                history = reopened.model_history(identifier, question=followup)
+                _, payload, _ = self.ask(followup, history)
+                pages = self.assert_current_pages(payload, "long-route.cbl")
+                self.assertIn("DISPLAY 'REVIEW REQUIRED'.", "\n".join(page["source_text"] for page in pages))
+                self.assertTrue(any(page["start_line"] >= branch["start_line"] for page in pages))
+
+    def test_twenty_four_program_impact_keeps_saved_references_without_synthetic_diagnostics(self):
+        self.source.joinpath("sharedset.cpy").write_text("01 RULE-SET-42 PIC 9 VALUE 7.\n", encoding="utf-8")
+        for index in range(24):
+            self.source.joinpath(f"member-{index:02d}.cbl").write_text(
+                f"IDENTIFICATION DIVISION.\nPROGRAM-ID. MEMBER-{index:02d}.\n"
+                "DATA DIVISION.\nWORKING-STORAGE SECTION.\nCOPY SHAREDSET.\n"
+                "01 REQUEST-VALUE PIC 99.\n01 REQUEST-STATE PIC X(8).\n"
+                "PROCEDURE DIVISION.\nMAIN.\n" + "\n".join(
+                    f"IF REQUEST-VALUE > RULE-SET-42 + {rule}\n"
+                    f"MOVE 'LEVEL-{rule:02d}' TO REQUEST-STATE\nEND-IF."
+                    for rule in range(24)) + "\nGOBACK.\n", encoding="utf-8")
+        analyze_source(self.source, self.output, index_mode="catalog", analysis_mode="business",
+                       source_format="free", verify_content=True, framework_reference_path="")
+        question = "如果改 RULE-SET-42，哪些程序会受到影响？"
+        first, payload, _ = self.ask(question)
+        affected = [item for item in payload["business_map"]["programs"]
+                    if item["relative_path"].startswith("member-")]
+        self.assertEqual(len(affected), 24)
+        details = {key: first[key] for key in ("evidence_refs", "investigation_state", "metrics", "impact_result")}
+        details["cited_evidence_ids"] = [ref["evidence_id"] for ref in first["narrative"]["citations"]]
+        self.assertTrue(details["evidence_refs"])
+        store = ConversationStore(self.output, self.source)
+        identifier = store.create(first["snapshot_id"])["id"]
+        store.append(identifier, "user", question)
+        store.append(identifier, "assistant", first["answer"], details=details)
+        restored = ConversationStore(self.output, self.source).model_history(identifier)
+        self.assertEqual(restored[-1]["evidence_refs"], first["evidence_refs"])
+        self.assertEqual(restored[-1]["cited_evidence_ids"], details["cited_evidence_ids"])
 
     def test_unique_field_first_question_keeps_semantic_sidecar_then_resolves_implicit_followup(self):
         self.source.joinpath("unique.cbl").write_text(

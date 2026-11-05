@@ -95,6 +95,24 @@ class SourceHistoryTests(unittest.TestCase):
         self.assertEqual(self.new_app().state()["recent_conversations"], rows)
         self.assertEqual(self.app.state()["conversation"]["workspace_id"], self.remote_workspace)
 
+    def test_empty_conversations_do_not_hide_saved_history_after_restart(self):
+        for _ in range(101):
+            response = self.app.new_conversation({})
+        self.assertEqual([row["id"] for row in response["recent_conversations"]], [self.local_conversation])
+        restored = self.new_app().state()
+        self.assertEqual([row["id"] for row in restored["recent_conversations"]], [self.local_conversation])
+        self.assertFalse(restored["recent_conversations_truncated"])
+
+    def test_actual_history_overflow_is_reported_and_empty_rows_do_not_count(self):
+        for number in range(100):
+            identifier = self.app.conversation_store.create()["id"]
+            self.app.conversation_store.append(identifier, "user", f"Saved question {number}")
+        state = self.app.state()
+        self.assertEqual(len(state["recent_conversations"]), 100)
+        self.assertTrue(state["recent_conversations_truncated"])
+        self.app.conversation_store.delete(state["recent_conversations"][0]["id"])
+        self.assertFalse(self.app.state()["recent_conversations_truncated"])
+
     def test_open_restores_own_source_framework_and_conversation_without_analysis(self):
         self.import_remote()
         self.app.answer_instructions = "Use a concise explanation."

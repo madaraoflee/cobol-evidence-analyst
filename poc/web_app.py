@@ -63,6 +63,7 @@ REJECTED_BODY_DRAIN_SECONDS = 0.25
 MAX_GRAPH_EDGES = 200
 MAX_SOURCE_WORKSPACES = 100
 MAX_RECENT_CONVERSATIONS = 200
+MAX_QUESTION_SUBMISSIONS = 8192
 MAX_JOB_STREAMS = 8
 JOB_STREAM_INTERVAL_SECONDS = 0.05
 JOB_STREAM_HEARTBEAT_SECONDS = 5.0
@@ -654,6 +655,7 @@ class WorkbenchState:
         self.progress_waiters = 0
         self.project = _project()
         self.job: dict | None = None
+        self._question_submissions = {}
         self.cancel_event = threading.Event()
         self.started_at = self.updated_at = self.phase_started_at = self.progress_updated_at = 0.0
         self.phase_start_completed = 0.0
@@ -667,9 +669,9 @@ class WorkbenchState:
         self.source_preferences = None
         self.source_workspaces = {}
         self._history_truncated = False
+        self._recent_history_truncated = False
         self._local_workspace = None
         self._saved_workspace = None
-        self._index_upgrade_attempt = None
         self._startup_upgrade_plan = None
         self.conversation = None
         self.conversation_store = None
@@ -721,7 +723,7 @@ class WorkbenchState:
         try:
             # Record the attempt before starting. A failed or interrupted
             # upgrade must not repeat on every launch against the same snapshot.
-            self._index_upgrade_attempt = plan["attempt_key"]
+            self._local_workspace["index_upgrade_attempt"] = plan["attempt_key"]
             self._save_workspace()
             self.start(plan["options"], _index_upgrade={"saved": copy.deepcopy(self._saved_workspace),
                 "attempt_key": plan["attempt_key"]})
@@ -754,6 +756,9 @@ class WorkbenchState:
             conversation_id = value.get("conversation_id")
             if isinstance(conversation_id, str) and re.fullmatch(r"[a-f0-9]{32}", conversation_id):
                 record["conversation_id"] = conversation_id
+            attempt = value.get("index_upgrade_attempt")
+            if isinstance(attempt, str) and re.fullmatch(r"[a-f0-9]{64}", attempt):
+                record["index_upgrade_attempt"] = attempt
             reference = value.get("framework_reference_path")
             record["framework_reference_path"] = reference if isinstance(reference, str) and len(reference) <= 4096 else None
             return record
@@ -761,7 +766,9 @@ class WorkbenchState:
             return None
 
     def _remember_workspace(self, workspace):
-        self.source_workspaces.pop(workspace["workspace_id"], None)
+        previous = self.source_workspaces.pop(workspace["workspace_id"], None)
+        if previous and "index_upgrade_attempt" in previous and "index_upgrade_attempt" not in workspace:
+            workspace = {**workspace, "index_upgrade_attempt": previous["index_upgrade_attempt"]}
         self.source_workspaces[workspace["workspace_id"]] = workspace
         while len(self.source_workspaces) > MAX_SOURCE_WORKSPACES:
             self.source_workspaces.pop(next(iter(self.source_workspaces)))
@@ -783,6 +790,32 @@ class WorkbenchState:
         except (OSError, ValueError, sqlite3.Error):
             return False
 
+    @staticmethod
+    def _recorded_continuation_entry(db, run_id, metadata, snapshot):
+        """Recover an entry from the old run's own source selection."""
+        if not isinstance(snapshot, str) or not re.fullmatch(r"sha256:[a-f0-9]{64}", snapshot):
+            return None
+        row = db.execute(
+            """SELECT json_extract(checkpoint_json, '$.result.agent_result.investigation.business_map.source_identity')
+                 FROM investigation_runs WHERE run_id=? AND json_valid(checkpoint_json)
+                  AND json_extract(checkpoint_json, '$.quality.run_id')=?
+                  AND json_extract(checkpoint_json, '$.quality.question_id')=?
+                  AND json_extract(checkpoint_json, '$.quality.analysis_identity')=?
+                  AND json_extract(checkpoint_json, '$.result.agent_result.run_id')=?
+                  AND json_extract(checkpoint_json, '$.result.agent_result.snapshot_id')=?""",
+            (run_id, run_id, metadata.get("question_id"), metadata.get("analysis_identity"), run_id, snapshot),
+        ).fetchone()
+        if row is None or not isinstance(row[0], str):
+            return None
+        identity = json.loads(row[0])
+        if not isinstance(identity, dict) or identity.get("selection_source") != "entry_program":
+            return None
+        requested = identity.get("requested")
+        if (isinstance(requested, list) and len(requested) == 1 and isinstance(requested[0], str)
+                and 0 < len(requested[0]) <= 1024 and "\x00" not in requested[0]):
+            return requested[0]
+        return None
+
     def _recover_legacy_continuation(self, conversation, assistant):
         if (self.conversation_store is None or assistant.get("role") != "assistant"
                 or not assistant.get("run_id")
@@ -794,13 +827,16 @@ class WorkbenchState:
             and item.get("status") in {"partial", "failed", "cancelled", "interrupted"}), None)
         if user is None:
             return {}
+        trace_run = None
         candidates = []
         trace = (assistant.get("metrics") or {}).get("quality_trace_path")
         if isinstance(trace, str):
             match = re.search(r"(?:^|/)([a-f0-9]{24})\.json$", trace.replace("\\", "/"))
             if match:
-                candidates.append(match[1])
-        active = ((self.project.get("agent") or {}).get("agent_result") or {}).get("run_id")
+                trace_run = match[1]
+                candidates.append(trace_run)
+        active_result = ((self.project.get("agent") or {}).get("agent_result") or {})
+        active = active_result.get("run_id")
         diagnosis = self.project.get("diagnosis") or {}
         active_match = self.project.get("run_id") == assistant["run_id"] and diagnosis.get("question") == user["content"]
         if (active_match and isinstance(active, str)
@@ -821,30 +857,49 @@ class WorkbenchState:
                     if row is None:
                         continue
                     metadata = json.loads(row[0])
-                    if metadata.get("question_id") != "sha256:" + hashlib.sha256(user["content"].encode()).hexdigest():
+                    if (not isinstance(metadata, dict) or metadata.get("question_id") !=
+                            "sha256:" + hashlib.sha256(user["content"].encode()).hexdigest()):
                         continue
                     policy = resolve_agent_policy(metadata.get("configuration", {}).get("policy"))
                     history = self.conversation_store.model_history(conversation["id"],
-                        before_position=target["position"], max_characters=policy.max_history_characters)
+                        before_position=target["position"], max_characters=policy.max_history_characters,
+                        question=user["content"], include_legacy=True)
                     options = {"entry": None, "answer_detail": assistant.get("answer_detail", "detailed"),
                         "locale": assistant.get("locale"), "history_max_characters": policy.max_history_characters}
                     entries = [None]
                     if active_match and active == run_id:
                         entries.insert(0, diagnosis.get("entry_requested"))
+                    if trace_run == run_id:
+                        snapshot = assistant.get("snapshot_id")
+                        entry = self._recorded_continuation_entry(db, run_id, metadata, snapshot)
+                        if entry is not None:
+                            entries.insert(0, entry)
+                        # A restored report may still carry the exact spelling
+                        # of this run's entry even if its source hint normalized it.
+                        if (active == run_id and snapshot and active_result.get("snapshot_id") == snapshot
+                                and diagnosis.get("question") == user["content"]
+                                and diagnosis.get("source_root") == self.project.get("source")
+                                and (diagnosis.get("build_report") or {}).get("snapshot_id") == snapshot):
+                            entries.insert(0, diagnosis.get("entry_requested"))
+                    histories = [history]
+                    if getattr(history, "legacy", None) is not None:
+                        histories.append(history.legacy)
                     for entry in dict.fromkeys(entries):
                         identity = {"database_path": str((database.parent / "structural-index.sqlite").resolve()),
                             "source_root": str(Path(self.project["source"]).resolve()), "entry_program": entry,
-                            "history": history, "framework_reference_path": str(Path(self.framework_reference_path).resolve())
+                            "framework_reference_path": str(Path(self.framework_reference_path).resolve())
                                 if self.framework_reference_path else None,
                             "answer_detail": options["answer_detail"], "conversation_id": conversation["id"]}
                         # Recover the old record's presentation identity. The
                         # next job still uses the currently saved requirements.
-                        identities = {fingerprint(identity)} | {
-                            fingerprint({**identity, "answer_language": language}) for language in SUPPORTED_LANGUAGES}
-                        if metadata.get("analysis_identity") in identities:
-                            options["entry"] = entry
-                            return {"investigation_run_id": run_id, "analysis_options": options}
-        except (OSError, ValueError, TypeError, KeyError, sqlite3.Error):
+                        for saved_history in histories:
+                            scope = {**identity, "history": saved_history}
+                            identities = {fingerprint(scope)} | {
+                                fingerprint({**scope, "answer_language": language}) for language in SUPPORTED_LANGUAGES}
+                            if metadata.get("analysis_identity") in identities:
+                                options["entry"] = entry
+                                return {"investigation_run_id": run_id, "analysis_options": options}
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, sqlite3.Error):
             pass
         return {}
 
@@ -861,6 +916,7 @@ class WorkbenchState:
     def recent_conversations(self):
         """Read only registered transcript metadata; never discover or create stores."""
         rows = []
+        truncated = False
         for workspace in self.source_workspaces.values():
             try:
                 path = self._history_database(workspace)
@@ -879,8 +935,10 @@ class WorkbenchState:
                         "AND m.role='user' ORDER BY m.position LIMIT 1),c.created_at) AS first_question_at,"
                         "(SELECT count(*) FROM messages m WHERE m.conversation_id=c.id) AS message_count "
                         "FROM conversations c WHERE c.source_key=? "
-                        "ORDER BY first_question_at DESC,c.created_at DESC,c.id DESC LIMIT 100", (source_key,)).fetchall()
-                    for item in items:
+                        "AND EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id=c.id) "
+                        "ORDER BY first_question_at DESC,c.created_at DESC,c.id DESC LIMIT 101", (source_key,)).fetchall()
+                    truncated = truncated or len(items) > 100
+                    for item in items[:100]:
                         row = dict(item)
                         if (not isinstance(row["id"], str) or re.fullmatch(r"[a-f0-9]{32}", row["id"]) is None
                                 or not all(isinstance(row[key], str) and len(row[key]) <= 128
@@ -892,6 +950,7 @@ class WorkbenchState:
             except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                 continue
         rows.sort(key=lambda row: (row["first_question_at"], row["created_at"], row["id"], row["workspace_id"]), reverse=True)
+        self._recent_history_truncated = truncated or len(rows) > MAX_RECENT_CONVERSATIONS
         return rows[:MAX_RECENT_CONVERSATIONS]
 
     def saved_sources(self):
@@ -913,6 +972,7 @@ class WorkbenchState:
         return {"project": copy.deepcopy(self.project), "conversation": self._conversation_view(),
                 "conversations": self.conversation_store.list() if self.conversation_store else [],
                 "recent_conversations": self.recent_conversations(),
+                "recent_conversations_truncated": self._history_truncated or self._recent_history_truncated,
                 "source_workspaces": self.saved_sources(),
                 "source_preferences": copy.deepcopy(self.source_preferences), "framework_knowledge": self.framework()}
 
@@ -937,7 +997,7 @@ class WorkbenchState:
 
     def _adopt_workspace(self, candidate):
         fields = ("project", "conversation", "conversation_store", "framework_reference_path", "_graph_preview_cache",
-                  "_local_workspace", "_saved_workspace", "_index_upgrade_attempt", "_startup_upgrade_plan")
+                  "_local_workspace", "_saved_workspace", "_startup_upgrade_plan")
         original = {key: getattr(self, key) for key in fields}
         registry = copy.deepcopy(self.source_workspaces)
         truncated = self._history_truncated
@@ -994,7 +1054,8 @@ class WorkbenchState:
                 raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话。", 404) from None
             return {"conversation": self._conversation_view(),
                     "conversations": self.conversation_store.list() if self.conversation_store else [],
-                    "recent_conversations": self.recent_conversations()}
+                    "recent_conversations": self.recent_conversations(),
+                    "recent_conversations_truncated": self._history_truncated or self._recent_history_truncated}
 
     def _save_workspace(self, options=None):
         options = options or self.project
@@ -1010,9 +1071,17 @@ class WorkbenchState:
             # replace the user's real workspace on the next service restart.
             data = copy.deepcopy(self._local_workspace) or {"source": "", "output": "",
                     "restore_blocked": False, "conversation_id": None}
-        else:
-            self._local_workspace = copy.deepcopy(data)
         workspace = self._workspace_record({**data, "framework_reference_path": self.framework_reference_path})
+        if workspace:
+            previous = self.source_workspaces.get(workspace["workspace_id"], {})
+            local = self._local_workspace or {}
+            attempt = previous.get("index_upgrade_attempt")
+            if local.get("source") == workspace["source"] and local.get("output") == workspace["output"]:
+                attempt = local.get("index_upgrade_attempt", attempt)
+            if attempt:
+                data["index_upgrade_attempt"] = workspace["index_upgrade_attempt"] = attempt
+        if not synthetic:
+            self._local_workspace = copy.deepcopy(data)
         if (not synthetic and workspace and (workspace["workspace_id"] in self.source_workspaces
                            or self.project.get("snapshot_id") and self.project.get("source") == data["source"]
                            and self.project.get("output") == data["output"])):
@@ -1022,8 +1091,6 @@ class WorkbenchState:
                     source_preferences=copy.deepcopy(self.source_preferences),
                     source_workspaces=copy.deepcopy(list(self.source_workspaces.values())),
                     recent_conversations_truncated=self._history_truncated)
-        if self._index_upgrade_attempt:
-            data["index_upgrade_attempt"] = self._index_upgrade_attempt
         if self.state_path is None:
             return
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1061,10 +1128,6 @@ class WorkbenchState:
                     # A retained preference is only a migration hint. A matching
                     # owned transcript must exist before it joins recent history.
                     self._remember_workspace(workspace)
-            self._saved_workspace = copy.deepcopy(saved)
-            attempt = saved.get("index_upgrade_attempt")
-            if isinstance(attempt, str) and re.fullmatch(r"[a-f0-9]{64}", attempt):
-                self._index_upgrade_attempt = attempt
             reference = saved.get("framework_reference_path")
             self.framework_reference_path = reference if isinstance(reference, str) else None
             self.answer_detail = "brief" if saved.get("answer_detail") == "brief" else "detailed"
@@ -1079,8 +1142,17 @@ class WorkbenchState:
             if source_input.resolve() == FRAMEWORK_DEMO_SOURCE.resolve():
                 return
             source, output = _paths(source_input, output_input)
-            self._local_workspace = {key: saved.get(key) for key in
-                                     ("source", "output", "restore_blocked", "conversation_id", "remote_source")}
+            self._local_workspace = {"source": str(source), "output": str(output), **{key: saved.get(key) for key in
+                                     ("restore_blocked", "conversation_id", "remote_source")}}
+            # Older profiles recorded the attempt only on the active library.
+            # Bind either form to this exact source/output pair before planning.
+            attempt = (self._workspace_record(saved) or {}).get("index_upgrade_attempt")
+            if not attempt:
+                attempt = self.source_workspaces.get(_workspace_key(source, output), {}).get("index_upgrade_attempt")
+            if attempt:
+                self._local_workspace["index_upgrade_attempt"] = attempt
+                saved = {**saved, "index_upgrade_attempt": attempt}
+            self._saved_workspace = copy.deepcopy(saved)
             remote = _remote_metadata(saved.get("remote_source"))
             if self.source_preferences is None and remote is None:
                 self.source_preferences = _source_preferences({"source": str(source), "output": str(output)})
@@ -1359,7 +1431,8 @@ class WorkbenchState:
             except (ValueError, AttributeError):
                 raise RequestError("CONVERSATION_NOT_FOUND", "找不到这段对话。", 404) from None
             self._save_workspace()
-            return {"conversation": self._conversation_view(), "recent_conversations": self.recent_conversations()}
+            return {"conversation": self._conversation_view(), "recent_conversations": self.recent_conversations(),
+                    "recent_conversations_truncated": self._history_truncated or self._recent_history_truncated}
 
     def new_conversation(self, payload):
         if payload != {}:
@@ -1371,7 +1444,8 @@ class WorkbenchState:
                 raise RequestError("SOURCE_REQUIRED", "先接入源码，再开始对话。", 409)
             self.conversation = self.conversation_store.create(self.project.get("snapshot_id"))
             self._save_workspace()
-            return {"conversation": self._conversation_view(), "recent_conversations": self.recent_conversations()}
+            return {"conversation": self._conversation_view(), "recent_conversations": self.recent_conversations(),
+                    "recent_conversations_truncated": self._history_truncated or self._recent_history_truncated}
 
     def delete_conversation(self, identifier):
         with self.lock:
@@ -1394,7 +1468,8 @@ class WorkbenchState:
                 self.project["agent"] = None
                 self._save_workspace()
             return {"conversation": self._conversation_view(),
-                    "conversations": self.conversation_store.list(), "recent_conversations": self.recent_conversations()}
+                    "conversations": self.conversation_store.list(), "recent_conversations": self.recent_conversations(),
+                    "recent_conversations_truncated": self._history_truncated or self._recent_history_truncated}
 
     def _record_answer(self, options, job_id, project):
         identifier = options.get("conversation_id")
@@ -1563,6 +1638,7 @@ class WorkbenchState:
         with self.lock:
             return {
                 "session_token": self.session_token,
+                "submission_protocol": "session-receipt/v1",
                 "api_configured": configured,
                 "api_configuration_error": configuration_error,
                 "framework_knowledge": self.framework(),
@@ -1574,7 +1650,7 @@ class WorkbenchState:
                 "conversations": self.conversation_store.list() if self.conversation_store else [],
                 "recent_conversations": self.recent_conversations(),
                 "source_workspaces": self.saved_sources(),
-                "recent_conversations_truncated": self._history_truncated,
+                "recent_conversations_truncated": self._history_truncated or self._recent_history_truncated,
                 "active_job_id": self.job["job_id"] if self.job and self.job["status"] == "RUNNING" else None,
                 "project": copy.deepcopy(self.project),
                 "job": self._job_snapshot() if self.job else None,
@@ -1594,7 +1670,7 @@ class WorkbenchState:
                                    demo_output_root=self.demo_output_root, policy_provider=self.policy_provider)
         candidate._restore_workspace({**workspace, "answer_instructions": self.answer_instructions})
         return bool(candidate.project.get("snapshot_id") and not candidate.project.get("restore_blocked")
-                    and (candidate._startup_upgrade_plan or {}).get("status") != "ready")
+                    and (candidate._startup_upgrade_plan or {}).get("status") == "current")
 
     def start_remote(self, payload: object, *, _update_workspace=None) -> dict:
         reading_fields = {"encoding", "source_format", "extensions", "answer_detail", "max_source_pages",
@@ -1684,6 +1760,61 @@ class WorkbenchState:
                 _update_workspace=copy.deepcopy(workspace))
 
     def start(self, payload: object, *, _remote_import=None, _index_upgrade=None) -> dict:
+        if not isinstance(payload, dict) or "submission_id" not in payload:
+            return self._start(payload, _remote_import=_remote_import, _index_upgrade=_index_upgrade)
+        payload = dict(payload)
+        identifier = payload.pop("submission_id")
+        if (not isinstance(identifier, str) or re.fullmatch(r"[a-f0-9]{32}", identifier) is None
+                or payload.get("allow_network") is not True or not payload.get("question")
+                or _remote_import is not None or _index_upgrade is not None):
+            raise RequestError("INVALID_OPTIONS", "提交标识仅用于发送业务问题。")
+        digest = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("ascii")).digest()
+        with self.lock:
+            receipt = self._question_submissions.get(identifier)
+            if receipt is not None:
+                if receipt["digest"] != digest:
+                    raise RequestError("SUBMISSION_CHANGED", "本次提交的内容已改变，请重新打开工作台查看对话。", 409)
+                if "rejected" in receipt:
+                    raise RequestError(*receipt["rejected"])
+                if "job_id" not in receipt:
+                    raise RequestError("SUBMISSION_UNCONFIRMED", "无法确认本次提交，请重新打开工作台查看对话。", 409)
+                return self._resume_question_submission(identifier, receipt)
+            # Receipts remain valid for the authenticated local service session.
+            # Reject new submissions at capacity instead of making an old ID reusable.
+            if len(self._question_submissions) >= MAX_QUESTION_SUBMISSIONS:
+                raise RequestError("SUBMISSION_CAPACITY", "本次问题未受理。请重新打开工作台后提交。", 429)
+            receipt = self._question_submissions[identifier] = {"digest": digest}
+            try:
+                result = self._start(payload)
+            except RequestError as error:
+                if 400 <= error.status < 500:
+                    receipt["rejected"] = (error.code, error.message, error.status)
+                raise
+            receipt.update(job_id=result["job_id"], store=self.conversation_store,
+                           conversation_id=(self.conversation or {}).get("id"))
+            return {**result, "submission_id": identifier}
+
+    def _resume_question_submission(self, identifier, receipt):
+        job_id = receipt["job_id"]
+        response = {"job_id": job_id, "submission_id": identifier}
+        if self.job and self.job["job_id"] == job_id:
+            response["status"] = self.job["status"]
+            if (self.conversation or {}).get("id") == receipt["conversation_id"]:
+                response["conversation"] = self._conversation_view()
+            return response
+        # Another tab may already have replaced the job. Recover its transcript
+        # without changing the server's current workspace or starting another job.
+        response.update(status="ACCEPTED", job_replaced=True)
+        store, conversation_id = receipt["store"], receipt["conversation_id"]
+        if store and conversation_id and store.path.is_file() and not any(
+                Path(str(store.path) + suffix).is_symlink() for suffix in ("", "-wal", "-shm")):
+            try:
+                response["conversation"] = store.get(conversation_id)
+            except (OSError, ValueError, TypeError, KeyError, sqlite3.Error):
+                pass
+        return response
+
+    def _start(self, payload: object, *, _remote_import=None, _index_upgrade=None) -> dict:
         with self.lock:
             if self.job and self.job["status"] == "RUNNING":
                 raise RequestError("JOB_ACTIVE", "当前分析尚未结束，请等待完成。", 409)
@@ -1791,14 +1922,16 @@ class WorkbenchState:
                         options["start_new_investigation"] = True
                     options["conversation_history"] = self.conversation_store.model_history(
                         conversation["id"], before_position=target["position"],
-                        max_characters=options.get("_conversation_history_max_characters", options["agent_policy"].max_history_characters))
+                        max_characters=options.get("_conversation_history_max_characters", options["agent_policy"].max_history_characters),
+                        question=options["question"], include_legacy=True)
                     try:
                         self.conversation_store.claim_retry(conversation["id"], retry_message_id, job_id)
                     except ValueError:
                         raise RequestError("RETRY_NOT_AVAILABLE", "这条问题已在处理或无法重试。", 409) from None
                 else:
                     options["conversation_history"] = self.conversation_store.model_history(
-                        conversation["id"], max_characters=options["agent_policy"].max_history_characters)
+                        conversation["id"], max_characters=options["agent_policy"].max_history_characters,
+                        question=options["question"], include_legacy=True)
                     self.conversation_store.append(conversation["id"], "user", options["question"], status="pending", run_id=job_id)
                 self.conversation = self.conversation_store.get(conversation["id"])
             elif not same_project and not source_update:
@@ -1826,6 +1959,7 @@ class WorkbenchState:
         result = copy.deepcopy(self.job)
         if result["status"] != "RUNNING":
             result["recent_conversations"] = self.recent_conversations()
+            result["recent_conversations_truncated"] = self._history_truncated or self._recent_history_truncated
             result["source_workspaces"] = self.saved_sources()
         result["progress_revision"] = self.job.get("progress_revision", 0)
         now = time.monotonic()
@@ -2141,6 +2275,7 @@ class WorkbenchState:
                         (output / SOURCE_UPDATE_PENDING).unlink()
                     self.updated_at = time.monotonic()
                     project["recent_conversations"] = self.recent_conversations()
+                    project["recent_conversations_truncated"] = self._history_truncated or self._recent_history_truncated
                     self.job["progress"].pop("answer_preview", None)
                     self.job.update(status="COMPLETED", result=copy.deepcopy(project))
                     remote_retained = True

@@ -395,6 +395,48 @@ class WorkspaceUpgradeTests(unittest.TestCase):
         self.assertIsNone(restarted.job)
         self.assertEqual(restarted.conversation, conversation)
 
+    def test_failed_upgrade_stays_bound_to_its_library_across_switch_and_restart(self):
+        state_path, conversation = self.prepare_saved_history()
+        other_source = self.root / "other-source"
+        other_source.mkdir()
+        (other_source / "amount.cbl").write_bytes((self.source / "amount.cbl").read_bytes())
+        other_output = self.root / "other-output"
+        analyze_source(other_source, other_output, source_format="free", analysis_mode="business",
+                       allow_network=False)
+        other = {"source": str(other_source), "output": str(other_output)}
+        self.saved["source_workspaces"] = [other]
+        state_path.write_text(json.dumps(self.saved), encoding="utf-8")
+
+        failed, calls = self.open_and_wait(state_path, failing=True)
+        self.assertEqual(failed.job["status"], "FAILED")
+        self.assertEqual(len(calls), 1)
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        attempt = state["index_upgrade_attempt"]
+        # Upgrade an older profile which kept the marker only at top level.
+        for workspace in state["source_workspaces"]:
+            workspace.pop("index_upgrade_attempt", None)
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+        reopened, calls = self.open_and_wait(state_path, failing=True)
+        self.assertIsNone(reopened.job)
+        self.assertEqual(calls, [])
+        original_key = reopened.project["workspace_id"]
+        other_key = reopened._workspace_record(other)["workspace_id"]
+        reopened.open_source_workspace({"workspace_id": other_key})
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertNotIn("index_upgrade_attempt", state)
+        registry = {entry["workspace_id"]: entry for entry in state["source_workspaces"]}
+        self.assertEqual(registry[original_key]["index_upgrade_attempt"], attempt)
+        self.assertNotIn("index_upgrade_attempt", registry[other_key])
+        self.assertTrue(reopened._cached_source_ready(registry[other_key]))
+        self.assertFalse(reopened._cached_source_ready(registry[original_key]))
+
+        reopened.open_source_workspace({"workspace_id": original_key})
+        self.assertEqual(json.loads(state_path.read_text(encoding="utf-8"))["index_upgrade_attempt"], attempt)
+        restored, calls = self.open_and_wait(state_path, failing=True)
+        self.assertEqual(calls, [])
+        self.assertIsNone(restored.job)
+        self.assertEqual(restored.conversation, conversation)
+
     def test_startup_checks_integrity_once_in_the_update_worker(self):
         state_path, conversation = self.prepare_saved_history()
         queries = []

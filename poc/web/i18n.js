@@ -3,6 +3,13 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+目前只列出最近部分對話，較早記錄仍保存在本機。|目前只列出最近部分对话，较早记录仍保存在本地。|Only recent conversations are listed. Earlier records remain saved locally.
+已重新讀取對話，請先查看已保存的問題與回答，再決定是否重試。|已重新读取对话，请先查看已保存的问题与回答，再决定是否重试。|Conversations were reloaded. Review the saved question and answer before deciding whether to retry.
+核對這次提交|核对这次提交|Check this submission
+提交結果尚待確認，請核對這次提交以取得原來的進度和回答。|提交结果尚待确认，请核对这次提交以取得原来的进度和回答。|Check this submission to retrieve its original progress and answer.
+本機服務已重新啟動，請先查看已保存的問題與回答，再決定是否重試。|本地服务已重新启动，请先查看已保存的问题与回答，再决定是否重试。|The local service restarted. Review the saved question and answer before deciding whether to retry.
+這次提交已受理，請在最近對話中查看原來的問題與回答。|这次提交已受理，请在最近对话中查看原来的问题与回答。|This submission was accepted. Find its original question and answer in recent conversations.
+請重新整理頁面，查看已保存的問題與回答。|请刷新页面，查看已保存的问题与回答。|Reload the page to review the saved questions and answers.
 同步變更的源碼|同步变更的源码|Syncing changed source files
 停止後可重新檢查版本，仍保留原本完整的本機副本。|停止后可重新检查版本，仍保留原本完整的本地副本。|After stopping, check the version again. The previous complete local copy is preserved.
 最近同步：下載 |最近同步：下载 |Last sync: downloaded\u0020

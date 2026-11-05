@@ -58,8 +58,8 @@ class ConversationSubjectStoreTests(unittest.TestCase):
                 patch("conversation_store.sqlite3.connect", side_effect=connect):
             history = self.store.model_history(self.identifier)
         self.assertEqual(history[-1]["investigation_state"], {"session_subject": expected})
-        self.assertNotIn("cited_evidence_ids", history[-1])
-        self.assertEqual(len(decoded_sizes), 1)
+        self.assertEqual(history[-1]["cited_evidence_ids"], ["ev-source"])
+        self.assertLess(sum(decoded_sizes), MODEL_HISTORY_DETAILS_BYTES)
         self.assertFalse(any(statement.startswith("SELECT details FROM") for statement in statements))
         self.assertTrue(any("length(CAST(json_extract" in statement for statement in statements))
         self.assertGreater(len(self.store.get(self.identifier)["messages"][-1]["diagnostics"]),
@@ -69,18 +69,24 @@ class ConversationSubjectStoreTests(unittest.TestCase):
         oversized = subject()
         oversized["note"] = "界" * (MODEL_HISTORY_SUBJECT_BYTES // 3 + 1)
         self.assertLess(len(json.dumps(oversized, ensure_ascii=False)), MODEL_HISTORY_SUBJECT_BYTES)
-        self.answer(oversized, other_state={"required_obligations": ["retain-existing-state"]})
+        navigation = {"focus_candidates": [{"relative_path": "programs/entry.cbl", "line": 12}]}
+        self.answer(oversized, other_state=navigation)
         history = self.store.model_history(self.identifier)
-        self.assertEqual(history[0]["investigation_state"], {"required_obligations": ["retain-existing-state"]})
+        self.assertEqual(history[0]["investigation_state"], navigation)
         self.assertEqual(history[0]["cited_evidence_ids"], ["ev-source"])
 
     def test_large_subject_and_details_are_discarded_without_json_decode(self):
         oversized = subject()
         oversized["note"] = "X" * MODEL_HISTORY_SUBJECT_BYTES
         self.answer(oversized, diagnostics="X" * (MODEL_HISTORY_DETAILS_BYTES * 2))
-        with patch("conversation_store.json.loads", side_effect=AssertionError("Oversized memory was loaded")):
+        original_loads = json.loads
+        def bounded_decode(value):
+            self.assertLess(len(value.encode("utf-8")), MODEL_HISTORY_SUBJECT_BYTES)
+            return original_loads(value)
+        with patch("conversation_store.json.loads", side_effect=bounded_decode):
             history = self.store.model_history(self.identifier)
-        self.assertEqual(history, [{"role": "assistant", "content": "A bounded business explanation."}])
+        self.assertEqual(history, [{"role": "assistant", "content": "A bounded business explanation.",
+                                    "cited_evidence_ids": ["ev-source"]}])
 
     def test_only_structured_current_schema_is_restored(self):
         for value in ({"schema": "unknown/v1", "entities": ["RESULT-AMOUNT"]},
@@ -112,12 +118,20 @@ class ConversationSubjectStoreTests(unittest.TestCase):
         self.answer(subject("LATEST-AMOUNT"), diagnostics="Y" * 40_000)
         history = self.store.model_history(self.identifier)
         self.assertEqual(history[0]["investigation_state"], {"session_subject": expected})
-        self.assertNotIn("cited_evidence_ids", history[0])
+        self.assertEqual(history[0]["cited_evidence_ids"], ["ev-source"])
         self.assertEqual(history[1]["cited_evidence_ids"], ["ev-source"])
         clipped = self.store.model_history(self.identifier, max_messages=1, max_characters=5)
         self.assertEqual(clipped[0]["content"], "A bou")
         self.assertTrue(clipped[0]["context_truncated"])
         self.assertEqual(clipped[0]["investigation_state"]["session_subject"], subject("LATEST-AMOUNT"))
+
+    def test_nested_diagnostics_cannot_use_up_earlier_reference_allowance(self):
+        self.answer(subject("EARLIER-AMOUNT"))
+        self.answer(subject("LATEST-AMOUNT"), other_state={
+            "question_investigation": {"observations": ["X" * 63_800]}})
+        history = self.store.model_history(self.identifier)
+        self.assertEqual([row["cited_evidence_ids"] for row in history], [["ev-source"], ["ev-source"]])
+        self.assertNotIn("question_investigation", history[-1]["investigation_state"])
 
     def test_user_message_details_do_not_supply_local_subject_memory(self):
         self.store.append(self.identifier, "user", "A user-provided question", details={

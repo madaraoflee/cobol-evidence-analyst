@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from agent_policy import AgentPolicy
 from company_api import TransportResponse
 from run_store import RunStore, fingerprint
-from web_app import RequestError
+from web_app import RequestError, WorkbenchState
 import test_conversation_workbench as workbench_fixtures
 import test_web_answer_recovery as recovery_fixtures
 
@@ -86,6 +86,45 @@ class LegacyContinuationLanguageTests(unittest.TestCase):
 
 
 class LegacyContinuationUnknownLedgerTests(unittest.TestCase):
+    def test_explicit_entry_partial_record_recovers_after_reopening(self):
+        fixture = workbench_fixtures.ConversationWorkbenchTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        fixture.run_job()
+        fixture.app.policy_provider = lambda: AgentPolicy(max_model_requests=1, max_answer_revisions=0)
+        question = "How is CAPACITY checked?"
+
+        def answer(request):
+            envelope = json.loads(request.body)
+            fixture.calls.append(envelope)
+            identifier = re.search(r"ev_page_[a-f0-9]+", json.dumps(envelope))[0]
+            return TransportResponse(200, json.dumps({"choices": [{"message": {"content":
+                "Capacity is exceeded when RESERVED-COUNT > CAPACITY.[" + identifier + "]"},
+                "finish_reason": "length" if len(fixture.calls) == 1 else "stop"}]}))
+
+        fixture.transport = answer
+        result = fixture.run_job(question=question, entry="quota.cbl", allow_network=True,
+                                 answer_detail="brief", locale="en")
+        conversation = result["conversation"]
+        user, assistant = conversation["messages"]
+        self.assertEqual(assistant["status"], "partial")
+        original_id = assistant["investigation_run_id"]
+        details = {key: value for key, value in assistant.items() if key not in {
+            "id", "role", "content", "status", "run_id", "investigation_run_id", "analysis_options"}}
+        fixture.app.conversation_store.replace_assistant(conversation["id"], assistant["id"], assistant["content"],
+            status="partial", run_id=assistant["run_id"], details=details)
+        fixture.app = fixture.workers.track(WorkbenchState(analyzer=fixture.analyzer,
+            config_provider=lambda: fixture.config, state_path=fixture.state_path,
+            policy_provider=lambda: AgentPolicy(max_model_requests=1, max_answer_revisions=0)))
+        restored = fixture.app.state()["conversation"]["messages"][-1]
+        self.assertEqual(restored["investigation_run_id"], original_id)
+        self.assertEqual(restored["analysis_options"]["entry"], "quota.cbl")
+        continued = fixture.run_job(question=question, allow_network=True, conversation_id=conversation["id"],
+            continue_message_id=user["id"])
+        self.assertEqual(len(fixture.calls), 2)
+        self.assertEqual([row["id"] for row in continued["conversation"]["messages"]], [user["id"], assistant["id"]])
+        self.assertEqual(continued["conversation"]["messages"][-1]["analysis_options"]["entry"], "quota.cbl")
+
     def test_recovered_record_with_unknown_request_does_not_call_provider(self):
         fixture = workbench_fixtures.ConversationWorkbenchTests()
         fixture.setUp()

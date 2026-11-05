@@ -14,7 +14,8 @@ from urllib.parse import urlsplit
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from tools.check_investigation_continuity import (BUSINESS_CALLER, BUSINESS_SOURCE,
     CompletionProvider, IndependentReviewFixture, REVIEW_COPY, REVIEW_PROMPT, REVIEW_QUESTION,
-    REVIEW_SOURCE, SOURCE, continuation_turn, run_independent_review_check, run_source_identity_check, verify_pages)
+    REVIEW_SOURCE, SOURCE, continuation_turn, run_followup_context_check, run_independent_review_check,
+    run_source_identity_check, verify_pages)
 from tools.desktop_acceptance_runtime import FIXTURES
 
 
@@ -109,6 +110,16 @@ class InvestigationContinuityCheckTests(unittest.TestCase):
             self.assertEqual(len(observations), 2)
             self.assertEqual(observations[0]["snapshot_id"], observations[1]["snapshot_id"])
             self.assertGreater(observations[1]["restart_seconds"], 0)
+
+    def test_confirmed_downstream_subject_and_previous_answer_survive_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = run_followup_context_check([sys.executable,
+                str(Path(__file__).resolve().parents[1] / "desktop_app.py")], Path(directory))
+        self.assertEqual(len(result["checks"]), 6)
+        self.assertTrue(all(result["checks"].values()), result["checks"])
+        self.assertEqual(result["synthetic_model_requests"], 4)
+        self.assertEqual(len({row["snapshot_id"] for row in result["observations"]}), 1)
+        self.assertEqual(len({row["run_id"] for row in result["observations"]}), 3)
 
     def test_cross_language_fixture_cannot_continue_a_completed_or_unsourced_turn(self):
         user = {"role": "user", "status": "partial"}

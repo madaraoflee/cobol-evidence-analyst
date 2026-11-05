@@ -1,0 +1,133 @@
+{
+  "kind": "local_conversation_memory_regressions",
+  "status": "passed",
+  "runtime_platform": "Darwin",
+  "tested_base_commit": "7796fbe93489cf2c7b9ad70dbf60f0903d00cf2c",
+  "tested_uncommitted_changes": true,
+  "tests_run": 4665,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "each_discovered_test_ran_once": true,
+  "test_source_hashes_match_final_tree": true,
+  "discovery_ids_sha256": "e23817a749bb674541a7ed218546bdc6f143a0b91ec22253edbc66147e9c3b00",
+  "test_sources_sha256": "6253f2f44a3f593d28e1882e9f1270f2593c7ee4666cf7adae11a2ee4cf700c4",
+  "shards": [
+    {
+      "index": 0,
+      "tests_run": 1167,
+      "elapsed_seconds": 85.960531,
+      "report_sha256": "d348b6ce590dad669b683135a1f457160f893fb15e6b009dc0b4ec313773e16e"
+    },
+    {
+      "index": 1,
+      "tests_run": 1166,
+      "elapsed_seconds": 72.450076,
+      "report_sha256": "54c1558deed7bf9e5742db66a5b13a222c0dfe4c55faeeef2a50816caa58e52a"
+    },
+    {
+      "index": 2,
+      "tests_run": 1166,
+      "elapsed_seconds": 104.801121,
+      "report_sha256": "8a4c013405c08bbd44199d1324c4d4c733c572012259dcc00528da9c25a88e52"
+    },
+    {
+      "index": 3,
+      "tests_run": 1166,
+      "elapsed_seconds": 91.339364,
+      "report_sha256": "4f9213d4b15dbeddb6843efdcf4d39df98ca8f3e87410da776d5aef42bbe7179"
+    }
+  ],
+  "browser_tests": {
+    "tests": 283,
+    "pass": 283,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "tool_tests": 1,
+  "external_model_calls": 0,
+  "formal_acceptance": false,
+  "changed_files": [
+    {
+      "path": "poc/business_chat.py",
+      "sha256": "607e28f336fb654e4ac9ee3f54cf9e89006350189c870052de187aaf74a57114"
+    },
+    {
+      "path": "poc/conversation_focus.py",
+      "sha256": "0742ac1ede989c37b3db22dbbcec08662fa9c51b53195d4b095c36047b68d7f7"
+    },
+    {
+      "path": "poc/conversation_store.py",
+      "sha256": "dc04c2005a96eab39627da38943e5efc945381b1c6cb7a38a95459ea3b28a2b5"
+    },
+    {
+      "path": "poc/quality_trace.py",
+      "sha256": "3521f7539d7c5ad2d0bc807d45528fa9c00a8d5554faacdf1fc03861a3443a6b"
+    },
+    {
+      "path": "poc/tests/test_business_history_projection.py",
+      "sha256": "177e284c6853f51276065b266885091c3d0cf51450991228b8d5d46537cfcfae"
+    },
+    {
+      "path": "poc/tests/test_conversation_evidence_closure.py",
+      "sha256": "fa33ad6dad9c2819bbad9524cb75555871efdee990de2e0d3976c5da75cee41d"
+    },
+    {
+      "path": "poc/tests/test_conversation_focus.py",
+      "sha256": "70c9624268a186a918ad026c54befa5f4224bfd4cac6a1a8edcaabc4aca4aa47"
+    },
+    {
+      "path": "poc/tests/test_conversation_store.py",
+      "sha256": "d41aed884fd6aba94071ce68f0d5cba1ab9fd981b9939319d0608c9d27890163"
+    },
+    {
+      "path": "poc/tests/test_conversation_subject_store.py",
+      "sha256": "e2f3673ff4a51c4bbf963ae879d3c8153f93dff3496e3b5b5d3a2034d6b1c8e9"
+    },
+    {
+      "path": "poc/tests/test_explicit_investigation_continuation.py",
+      "sha256": "8d0d2adfa94a4bab7c627abfa179d8116b90d1ecfcb4acbb0b3e0d4e0583a70c"
+    },
+    {
+      "path": "poc/tests/test_investigation_continuity_check.py",
+      "sha256": "dcd767092526fea9643fe527e774878d5e77a5722e064f37241b2b9032b71a0f"
+    },
+    {
+      "path": "poc/tests/test_legacy_continuation_language.py",
+      "sha256": "481208cf1af1a1609f22ab0d6a08ef04881b9b7e36e86fb78fab379015db9dc5"
+    },
+    {
+      "path": "poc/tests/test_question_submission_receipts.py",
+      "sha256": "23a4addf5c4b6f8200ec47eeaf64a77cb016c13b8f950ea48f18fc3f765d22d5"
+    },
+    {
+      "path": "poc/tests/test_source_history.py",
+      "sha256": "3abd8d06d572265fe65292d7203cd504ee6ec244517bfc5bf94055b6136f1810"
+    },
+    {
+      "path": "poc/tests/test_workspace_upgrade.py",
+      "sha256": "75c08da4209c785789ea310c7fce2721da803431505787c4f831bf1ed9ab4028"
+    },
+    {
+      "path": "poc/tests/web_conversation.test.cjs",
+      "sha256": "a627070fc30aca6d43496c5e5845e23e45f9420564cb9519452195c503a41c65"
+    },
+    {
+      "path": "poc/web/app.js",
+      "sha256": "2ace8bf4154ad9091eda0055bd7a78bd2aa9e41188f9c16f519ccc42abcb9864"
+    },
+    {
+      "path": "poc/web/i18n.js",
+      "sha256": "51f2225d28df853e1029ba55845170bc68ddaad5f32cb83faf7108e0bdac7656"
+    },
+    {
+      "path": "poc/web_app.py",
+      "sha256": "80413c0709470bfbbf41b6c3e6d47e52a36c43312021d9a49bfcbb8a2b3aa2c7"
+    },
+    {
+      "path": "tools/check_investigation_continuity.py",
+      "sha256": "52b89a546252795dc0492a8d85ed291ef4a06d61e6b71cb9bd4a6e47221cb537"
+    }
+  ]
+}

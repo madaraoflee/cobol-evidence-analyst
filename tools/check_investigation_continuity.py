@@ -358,6 +358,92 @@ def run_source_identity_check(command, root, checks=None, observations=None):
         "fixture_sha256": {"source_identity/" + name: sha256(source / name) for name in (member, "root.cbl")}}
 
 
+def run_followup_context_check(command, root, checks=None, observations=None):
+    """Follow a confirmed downstream subject across a real workbench restart."""
+    checks = checks if checks is not None else {}
+    observations = observations if observations is not None else []
+    source, output, profile = root / "source", root / "workspace", root / "profile"
+    source.mkdir(parents=True)
+    files = ("entry.cbl", "detail.cbl")
+    for name, program, factor, call in (
+            (files[0], "ENTRYPOINT", 2, 'CALL "DETAILPOINT".\n'),
+            (files[1], "DETAILPOINT", 3, "")):
+        (source / name).write_text(
+            f"IDENTIFICATION DIVISION.\nPROGRAM-ID. {program}.\nDATA DIVISION.\n"
+            "WORKING-STORAGE SECTION.\n01 IN-AMOUNT PIC 9(5) VALUE 4.\n01 OUT-AMOUNT PIC 9(5).\n"
+            f"PROCEDURE DIVISION.\nMAIN.\nCOMPUTE OUT-AMOUNT = IN-AMOUNT * {factor}.\n{call}GOBACK.\n",
+            encoding="utf-8")
+    questions = ("ENTRYPOINT 的 OUT-AMOUNT 怎么计算？", "刚才你说的这个结果，怎么算出来的？",
+                 "沿用刚才的格式，说明 DETAILPOINT 的 OUT-AMOUNT。")
+    request_questions = (questions[0], questions[0], *questions[1:])
+    answers = []
+
+    def respond(envelope, payload, index):
+        require(index < len(request_questions) and payload.get("question") == request_questions[index],
+                "Follow-up changed its question or sent an extra request")
+        direct_paths = payload.get("business_map", {}).get("direct_paths")
+        if index == 0:
+            require(direct_paths == [files[0]] and verify_pages(source, payload, "IN-AMOUNT * 2")["relative_path"] == files[0],
+                    "First question did not start in the entry program")
+            return json.dumps({"focus": [files[1]]}), "stop"
+        require(direct_paths == [files[1]], "Follow-up lost the validated downstream subject")
+        page = verify_pages(source, payload, "IN-AMOUNT * 3")
+        require(page["relative_path"] == files[1], "Follow-up supplied the wrong formula")
+        if index >= 2:
+            prior_answers = [message["content"] for message in envelope["messages"][1:-1]
+                             if message.get("role") == "assistant"]
+            require(prior_answers and prior_answers[-1] == answers[-1],
+                    "Follow-up referring to the earlier answer lost its text")
+        answer = f"计算式：OUT-AMOUNT = IN-AMOUNT * 3。输入 4 时结果为 12。[{page['evidence_id']}]"
+        answers.append(answer)
+        return answer, "stop"
+
+    with CompletionProvider(root / "provider", respond) as provider:
+        environment = write_profile(profile, provider, {"max_model_requests": 3})
+        with NativeWorkbench(command, profile, environment, root) as workbench:
+            indexed = workbench.analyze(source, output)
+            require(indexed["job"]["status"] == "COMPLETED" and not provider.requests, "Follow-up fixture index failed")
+            snapshot = indexed["state"]["project"]["snapshot_id"]
+            conversation_id = None
+            for index, question in enumerate(questions):
+                if index == 1:
+                    workbench.stop()
+                    restored = workbench.start()
+                    restored_conversation = restored.get("conversation") or {}
+                    checks["reopened_conversation_keeps_answer_and_same_snapshot"] = (
+                        restored["project"]["snapshot_id"] == snapshot
+                        and restored_conversation.get("id") == conversation_id
+                        and [row["content"] for row in restored_conversation.get("messages", [])] == [questions[0], answers[0]])
+                submission = {"submission_id": secrets.token_hex(16)} if index == 0 else {}
+                result = workbench.analyze(source, output, question, conversation_id=conversation_id, **submission)
+                if submission:
+                    repeated = workbench.submit(source, output, question, conversation_id=conversation_id, **submission)
+                    checks["repeated_submission_recovers_original_job_without_another_request"] = (
+                        repeated == result["job"]["job_id"] and len(provider.requests) == 2)
+                require(not provider.errors, "Follow-up fixture provider rejected the request: " + "; ".join(provider.errors))
+                require(result["job"]["status"] == "COMPLETED" and result["result"], "Follow-up fixture question failed")
+                agent = result["result"]["agent_result"]
+                conversation = result["state"]["conversation"]
+                conversation_id = conversation["id"]
+                require(len(answers) == index + 1 and agent["answer"] == answers[index],
+                        "Follow-up did not save the source-backed answer")
+                require(len(conversation["messages"]) == 2 * (index + 1), "Conversation gained or lost a turn")
+                checks[("confirmed_downstream_subject_saved", "reopened_followup_supplies_downstream_formula",
+                        "named_followup_supplies_requested_previous_format")[index]] = (
+                    agent["snapshot_id"] == snapshot and agent["investigation_state"]["session_subject"]["root_paths"] == [files[1]]
+                    and agent["metrics"]["model_requests"] == (2 if index == 0 else 1)
+                    and any(ref["relative_path"] == files[1] for ref in agent["evidence_refs"]))
+                observations.append({"phase": "followup_context", "turn": index + 1, "run_id": agent["run_id"],
+                    "snapshot_id": snapshot, "elapsed_seconds": result["elapsed_seconds"]})
+            journal = read_journal(output)["requests"]
+            checks["followup_context_requests_recorded_once"] = (
+                not provider.errors and len(provider.requests) == len(journal) == len(request_questions)
+                and all(row["state"] == "completed" for row in journal)
+                and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests})
+    return {"checks": checks, "observations": observations, "synthetic_model_requests": len(provider.requests),
+        "fixture_sha256": {"followup_context/" + name: sha256(source / name) for name in files}}
+
+
 def run_checks(command, root, report=None):
     source = root / "source"
     source.mkdir()
@@ -606,10 +692,12 @@ def run_checks(command, root, report=None):
                 and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests})
     independent = run_independent_review_check(command, root / "independent-review", checks, observations)
     identity = run_source_identity_check(command, root / "source-identity", checks, observations)
+    followup = run_followup_context_check(command, root / "followup-context", checks, observations)
     return {"checks": checks, "observations": observations,
-        "synthetic_model_requests": len(provider.requests) + independent["synthetic_model_requests"] + identity["synthetic_model_requests"],
+        "synthetic_model_requests": len(provider.requests) + sum(result["synthetic_model_requests"]
+            for result in (independent, identity, followup)),
         "fixture_sha256": {**{name: sha256(source / name) for name in ("root.cbl", "decision.cbl", "caller.cbl")},
-            **independent["fixture_sha256"], **identity["fixture_sha256"]},
+            **independent["fixture_sha256"], **identity["fixture_sha256"], **followup["fixture_sha256"]},
         "injected_wait_seconds": 20,
         "timing_interpretation": "Injected loopback wait tests control flow, not real-model speed."}
 
