@@ -299,6 +299,65 @@ def run_independent_review_check(command, root, checks=None, observations=None):
         "fixture_sha256": {"independent_review/" + name: sha256(source / name) for name in ("root.cbl", "amount-input.cpy")}}
 
 
+def run_source_identity_check(command, root, checks=None, observations=None):
+    """Exercise adjacent Chinese path text through the shipped HTTP entry point."""
+    checks = checks if checks is not None else {}
+    observations = observations if observations is not None else []
+    source, output, profile = root / "source", root / "workspace", root / "profile"
+    member = "source-dir/root.cbl"
+    (source / "source-dir").mkdir(parents=True)
+    (source / member).write_text(SOURCE, encoding="utf-8")
+    (source / "root.cbl").write_text(SOURCE.replace("TOTAL-RULE", "OTHER-RULE").replace("* 2", "* 9"), encoding="utf-8")
+    questions = ("请解释source-dir/root.cbl中的TOTAL-AMOUNT如何计算？",
+                 "請解釋source-dir/root.cbl中的TOTAL-AMOUNT如何計算？")
+
+    def respond(envelope, payload, index):
+        require(index < len(questions) and payload.get("question") == questions[index],
+                "Adjacent-path question was changed or repeated")
+        page = verify_pages(source, payload)
+        require(page["relative_path"] == member
+            and all(row["relative_path"] == member for row in supplied_pages(payload)),
+            "Exact source path was lost or replaced by a same-name member")
+        return "BASE-AMOUNT starts at 10; TOTAL-AMOUNT is BASE-AMOUNT multiplied by 2, giving 20 on this path. " + f"[{page['evidence_id']}]", "stop"
+
+    with CompletionProvider(root / "provider", respond) as provider:
+        environment = write_profile(profile, provider)
+        with NativeWorkbench(command, profile, environment, root) as workbench:
+            indexed = workbench.analyze(source, output)
+            require(indexed["job"]["status"] == "COMPLETED" and not provider.requests,
+                    "Adjacent-path fixture index failed")
+            snapshot = indexed["state"]["project"]["snapshot_id"]
+            for index, question in enumerate(questions):
+                if index:
+                    workbench.stop()
+                    started = time.monotonic()
+                    restored = workbench.start()
+                    restart_seconds = time.monotonic() - started
+                    checks["saved_profile_reopens_same_index_without_reimport"] = (
+                        restored["active_job_id"] is None
+                        and restored["project"]["snapshot_id"] == snapshot
+                        and Path(restored["project"]["source"]) == source.resolve())
+                result = workbench.analyze(source, output, question, locale="en", answer_detail="brief")
+                require(result["job"]["status"] == "COMPLETED" and result["result"],
+                        "Adjacent-path source question failed")
+                agent = result["result"]["agent_result"]
+                checks["adjacent_chinese_path_supplies_exact_source_" + str(index + 1)] = (
+                    len(provider.requests) == index + 1 and agent["metrics"]["model_requests"] == 1
+                    and agent["answer"] == provider.requests[-1]["response_text"]
+                    and agent["snapshot_id"] == snapshot and bool(agent.get("evidence_refs")))
+                observations.append({"phase": "adjacent_chinese_path", "question": question,
+                    "run_id": agent["run_id"], "snapshot_id": snapshot,
+                    "elapsed_seconds": result["elapsed_seconds"],
+                    **({"restart_seconds": restart_seconds} if index else {})})
+            journal = read_journal(output)["requests"]
+            checks["adjacent_path_requests_recorded_once_without_provider_errors"] = (
+                not provider.errors and len(provider.requests) == len(journal) == len(questions)
+                and all(row["state"] == "completed" for row in journal)
+                and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests})
+    return {"checks": checks, "observations": observations, "synthetic_model_requests": len(provider.requests),
+        "fixture_sha256": {"source_identity/" + name: sha256(source / name) for name in (member, "root.cbl")}}
+
+
 def run_checks(command, root, report=None):
     source = root / "source"
     source.mkdir()
@@ -546,10 +605,11 @@ def run_checks(command, root, report=None):
                 and len(provider.requests) == len(journal) == 11 and all(row["state"] == "completed" for row in journal)
                 and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests})
     independent = run_independent_review_check(command, root / "independent-review", checks, observations)
+    identity = run_source_identity_check(command, root / "source-identity", checks, observations)
     return {"checks": checks, "observations": observations,
-        "synthetic_model_requests": len(provider.requests) + independent["synthetic_model_requests"],
+        "synthetic_model_requests": len(provider.requests) + independent["synthetic_model_requests"] + identity["synthetic_model_requests"],
         "fixture_sha256": {**{name: sha256(source / name) for name in ("root.cbl", "decision.cbl", "caller.cbl")},
-            **independent["fixture_sha256"]},
+            **independent["fixture_sha256"], **identity["fixture_sha256"]},
         "injected_wait_seconds": 20,
         "timing_interpretation": "Injected loopback wait tests control flow, not real-model speed."}
 

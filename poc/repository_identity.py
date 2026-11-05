@@ -17,6 +17,10 @@ _SOURCE_REFERENCE = re.compile(
     "|".join(re.escape(extension[1:]) for extension in sorted(DEFAULT_EXTENSIONS)) +
     r")(?![A-Za-z0-9_$#@.-])", re.I)
 _PATH_REQUEST = re.compile(r"(?:请|請)?(?:说明|說明|解释|解釋|分析|查看|检查|檢查|阅读|閱讀|读|讀|显示|顯示)")
+_SOURCE_END = re.compile(r"\.(?:" +
+    "|".join(re.escape(extension[1:]) for extension in sorted(DEFAULT_EXTENSIONS)) +
+    r")(?![A-Za-z0-9_$#@.-])", re.I)
+_SOURCE_JOINER = re.compile(r"(?:的|中|内|內|里|裡|如何|怎样|怎樣)")
 _QUOTED = re.compile(r"[`\"'“”‘’]([^`\"'“”‘’]+)[`\"'“”‘’]")
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_$#@-]*(?:\.[A-Za-z0-9]+)?")
 _PROGRAM = re.compile(r"(?:\bprogram(?:-id)?\b|程序)\s*[:：]?\s*[`\"']?([A-Za-z0-9][A-Za-z0-9_$#@-]*)", re.I)
@@ -57,6 +61,23 @@ def _unquoted_identifier(value):
         value = value[request.end():]
     while value and value[0] in _WRAPPERS and value.endswith(_WRAPPERS[value[0]]):
         value = value[1:-1].rstrip(".")
+    return value
+
+
+def _without_source_prose(value):
+    """Trim recognized Chinese request syntax around an unquoted source name.
+
+    Callers first check the literal spelling against the index. Do not search
+    for an arbitrary ASCII suffix: directories and filename prefixes remain
+    part of the identity, including Unicode names and percent signs.
+    """
+    request = _PATH_REQUEST.match(value)
+    if request and value[request.end():]:
+        value = value[request.end():]
+    for ending in _SOURCE_END.finditer(value):
+        suffix = value[ending.end():]
+        if _SOURCE_JOINER.match(suffix) and not any(character in suffix for character in ".\\/"):
+            return value[:ending.end()]
     return value
 
 
@@ -242,6 +263,15 @@ def _resolve_identifiers(connection, text):
         exact = [row[0] for row in connection.execute(
             "SELECT relative_path FROM source_files WHERE relative_path=?", (canonical,))]
         if not exact and not quoted:
+            exact = [row[0] for row in connection.execute(
+                "SELECT relative_path FROM source_files WHERE relative_path=? COLLATE NOCASE ORDER BY relative_path",
+                (canonical,))]
+        if not exact and not quoted:
+            canonical = _without_source_prose(canonical)
+            identifier = canonical
+            exact = [row[0] for row in connection.execute(
+                "SELECT relative_path FROM source_files WHERE relative_path=?", (canonical,))]
+        if not exact and not quoted:
             # Chinese prose can touch an ASCII path without whitespace. Strip
             # only recognized request syntax, never an arbitrary path prefix.
             ascii_path = _ASCII_PATH.search(canonical)
@@ -267,8 +297,20 @@ def _resolve_identifiers(connection, text):
 
     # Keep the whole filename token. Splitting punctuation could reinterpret
     # an unknown requested file as the suffix of another indexed basename.
-    filenames = list(dict.fromkeys(value for match in _FILENAME.finditer(text)
-                     if PurePosixPath(value := _unquoted_identifier(match[0])).suffix.casefold() in DEFAULT_EXTENSIONS))
+    filenames = []
+    for match in _FILENAME.finditer(text):
+        value = _unquoted_identifier(match[0])
+        trimmed = _without_source_prose(value)
+        if trimmed != value and PurePosixPath(value).suffix.casefold() in DEFAULT_EXTENSIONS:
+            literal = connection.execute(
+                "SELECT 1 FROM source_files WHERE relative_path=? COLLATE NOCASE "
+                "OR relative_path LIKE ? ESCAPE '\\' LIMIT 1", (value, "%/" + _like_literal(value))).fetchone()
+            if not literal:
+                value = trimmed
+        else:
+            value = trimmed
+        if PurePosixPath(value).suffix.casefold() in DEFAULT_EXTENSIONS and value not in filenames:
+            filenames.append(value)
     if filenames:
         candidates = []
         for name in filenames:

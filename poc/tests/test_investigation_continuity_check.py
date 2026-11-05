@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from tools.check_investigation_continuity import (BUSINESS_CALLER, BUSINESS_SOURCE,
     CompletionProvider, IndependentReviewFixture, REVIEW_COPY, REVIEW_PROMPT, REVIEW_QUESTION,
-    REVIEW_SOURCE, SOURCE, continuation_turn, run_independent_review_check, verify_pages)
+    REVIEW_SOURCE, SOURCE, continuation_turn, run_independent_review_check, run_source_identity_check, verify_pages)
 from tools.desktop_acceptance_runtime import FIXTURES
 
 
@@ -97,6 +97,18 @@ class InvestigationContinuityCheckTests(unittest.TestCase):
             self.assertEqual(observations[0]["stages"][1:], ["semantic_review", "semantic_revise", "semantic_review"])
             self.assertEqual(len(set(observations[0]["reviewed_answer_sha256"])), 2)
             self.assertEqual(set(result["fixture_sha256"]), {"independent_review/root.cbl", "independent_review/amount-input.cpy"})
+
+    def test_adjacent_chinese_paths_supply_exact_source_before_and_after_profile_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            checks, observations = {}, []
+            result = run_source_identity_check([sys.executable,
+                str(Path(__file__).resolve().parents[1] / "desktop_app.py")], Path(directory), checks, observations)
+            self.assertEqual(len(checks), 4)
+            self.assertTrue(all(checks.values()), checks)
+            self.assertEqual(result["synthetic_model_requests"], 2)
+            self.assertEqual(len(observations), 2)
+            self.assertEqual(observations[0]["snapshot_id"], observations[1]["snapshot_id"])
+            self.assertGreater(observations[1]["restart_seconds"], 0)
 
     def test_cross_language_fixture_cannot_continue_a_completed_or_unsourced_turn(self):
         user = {"role": "user", "status": "partial"}

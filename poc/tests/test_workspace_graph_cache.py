@@ -364,6 +364,34 @@ class WorkspaceGraphCacheTests(unittest.TestCase):
                 self.assertEqual(len(self.preview()["edges"]), 20)
             self.assertEqual(query.call_count, 3)
 
+    def test_first_preview_stops_after_its_edge_budget_on_a_large_library(self):
+        # This is the first uncached startup read. Later members must not be
+        # scanned merely to prove that the first 200 displayed edges are sorted.
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.executemany("INSERT INTO source_files VALUES(?)",
+                ((f"later-{i:05d}.cbl",) for i in range(2500)))
+            db.executemany("INSERT INTO evidence_spans VALUES(?,?,1,1)",
+                ((f"later-e-{i}", f"later-{i // 4:05d}.cbl") for i in range(10000)))
+            db.executemany("INSERT INTO relations VALUES(?,?,'entry','LATER-FLOW',"
+                "'CALLS','resolved',NULL,?)", ((f"later-r-{i}", f"later-{i // 4:05d}.cbl", f"later-e-{i}")
+                for i in range(10000)))
+        original_connect = sqlite3.connect
+        steps = [0]
+
+        def connect(*args, **kwargs):
+            db = original_connect(*args, **kwargs)
+            def budget():
+                steps[0] += 1000
+                return int(steps[0] > 50000)
+            db.set_progress_handler(budget, 1000)
+            return db
+
+        with mock.patch.object(web_app.sqlite3, "connect", side_effect=connect):
+            preview = self.preview()
+        self.assertEqual(len(preview["edges"]), 200)
+        self.assertTrue(preview["truncated"])
+        self.assertTrue(all(edge["relative_path"] == "entry.cbl" for edge in preview["edges"]))
+
     def test_cross_file_provenance_and_missing_nodes_keep_original_results(self):
         self.preview()
         with closing(sqlite3.connect(self.database)) as db, db:

@@ -1,0 +1,67 @@
+{
+  "kind": "local_source_regressions",
+  "status": "passed",
+  "runtime_platform": "Darwin",
+  "tested_base_commit": "aca433d6b868a689feceb25aa52391276a32c68e",
+  "tested_uncommitted_changes": true,
+  "tests_run": 4640,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "each_discovered_test_ran_once": true,
+  "test_source_hashes_match_final_tree": true,
+  "discovery_ids_sha256": "175223452cc33a2e45e0495e54b816ca712afe552b761ca3796c639e66214b1b",
+  "test_sources_sha256": "3f46ff113de88e7e41a1135f5b691993df479b31d2e9a5b013998b85a4026605",
+  "shards": [
+    {
+      "index": 0,
+      "tests_run": 1160,
+      "elapsed_seconds": 87.457525,
+      "report_sha256": "e539de1af611264a56ef174c8c43d18e6ac8f4665ceebf645d796ae282452897"
+    },
+    {
+      "index": 1,
+      "tests_run": 1160,
+      "elapsed_seconds": 73.335848,
+      "report_sha256": "46f4c1aa2ce231471657838bff79480f51a7fac29e1f4baaaed093afbad85848"
+    },
+    {
+      "index": 2,
+      "tests_run": 1160,
+      "elapsed_seconds": 81.785764,
+      "report_sha256": "2c133efb165ce95fe249e268d3dc26f400c2a8fb9f0b91786cbbc10a6bccca19"
+    },
+    {
+      "index": 3,
+      "tests_run": 1160,
+      "elapsed_seconds": 84.992762,
+      "report_sha256": "80a1342db14492ea9ba3bddcaee6346f8d4a14fecc209661283a24c9c9d68524"
+    }
+  ],
+  "web_tests": 272,
+  "tool_tests": 1,
+  "external_model_calls": 0,
+  "formal_acceptance": false,
+  "production_files": [
+    {
+      "path": "poc/quality_trace.py",
+      "sha256": "61de7cadf389b19cde555045935587dbc4d2a2f7f9e26dc304475102a625ab9b"
+    },
+    {
+      "path": "poc/repository_identity.py",
+      "sha256": "5cc524c5969c5fffda2b8def113962f38fc25b1e3c4ba556089c87622d474ee9"
+    },
+    {
+      "path": "poc/web_app.py",
+      "sha256": "6bd2bd6aee7286c5ea29e6179e37d5eeb12fead27057f95fb02a48518e43ed5c"
+    },
+    {
+      "path": "poc/workspace_upgrade.py",
+      "sha256": "3372aef1f576687ff205f3b7ac887e055d432b80ec1602673387c201eb2a526a"
+    },
+    {
+      "path": "tools/check_investigation_continuity.py",
+      "sha256": "dbe014f9054554360b4a0452773e58695c1c9000736417a3cbbe78ff98abc43b"
+    }
+  ]
+}

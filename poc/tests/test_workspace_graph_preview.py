@@ -119,7 +119,7 @@ class WorkspaceGraphPreviewTests(unittest.TestCase):
         self.assertEqual({edge["relation_type"] for edge in result["edges"]},
                          {"CALLS", "CALL_TARGET_FROM", "INCLUDES_COPY"})
 
-    def test_cross_file_graph_provenance_uses_original_global_order(self):
+    def test_source_member_sample_keeps_exact_cross_file_graph_provenance(self):
         with closing(sqlite3.connect(self.database)) as connection, connection:
             unit = connection.execute("SELECT unit_id FROM code_units WHERE relative_path='z-service.cbl' LIMIT 1").fetchone()[0]
             evidence = connection.execute("SELECT evidence_id FROM evidence_spans WHERE relative_path='a-entry.cbl' "
@@ -128,9 +128,21 @@ class WorkspaceGraphPreviewTests(unittest.TestCase):
                 ("preview-cross-file", "z-service.cbl", unit, "CALLS", "ENTRY-FLOW", None, None,
                  "unresolved", evidence, "{}"))
         result, _, statements = self.measured_preview()
-        self.assertEqual(result, original_preview(self.database, self.snapshot, web_app.MAX_GRAPH_EDGES))
-        self.assertEqual(result["edges"][0]["relation_id"], "preview-cross-file")
-        self.assertTrue(any("ORDER BY e.relative_path" in statement for statement in statements))
+        # The 200-edge display sample follows the containing source member,
+        # so a later member cannot force a whole-library scan for path sorting.
+        self.assertEqual(len(result["edges"]), 200)
+        self.assertTrue(result["truncated"])
+        self.assertEqual(result["edges"][0]["source_program"], "ENTRY-FLOW")
+        self.assertFalse(any("ORDER BY e.relative_path" in statement for statement in statements))
+        with mock.patch.object(web_app, "MAX_GRAPH_EDGES", 1000):
+            complete = web_app._relationships(self.database, self.snapshot)
+        cross = next(edge for edge in complete["edges"] if edge["relation_id"] == "preview-cross-file")
+        self.assertEqual(cross["source_program"], "SERVICE-FLOW")
+        self.assertEqual(cross["relative_path"], "a-entry.cbl")
+        self.assertEqual(cross["evidence_id"], evidence)
+        self.assertGreater(complete["edges"].index(cross), max(index for index, edge in
+            enumerate(complete["edges"]) if edge["source_program"] == "MIDDLE-FLOW"))
+        self.assertFalse(complete["truncated"])
 
     def test_archive_without_path_index_keeps_original_preview(self):
         with closing(sqlite3.connect(self.database)) as connection, connection:

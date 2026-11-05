@@ -417,6 +417,7 @@ def _has_business_answer(value, *, runner_completed=False):
 
 
 def _relationships(database: Path, snapshot_id: str) -> dict:
+    """Return a bounded sample by source member, retaining exact evidence paths."""
     with closing(sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True)) as connection:
         connection.row_factory = sqlite3.Row
         connection.execute("BEGIN")
@@ -432,36 +433,28 @@ def _relationships(database: Path, snapshot_id: str) -> dict:
                 WHERE r.relation_type IN ('CALLS', 'CALL_TARGET_FROM', 'INCLUDES_COPY')"""
         indexed = connection.execute("SELECT 1 FROM sqlite_master WHERE type='index' "
                                      "AND name='repo_relations_path'").fetchone()
-        paths, matched_paths = [], set()
-        same_paths = bool(indexed)
         if indexed:
-            # Only CALL/COPY metadata is visited. Published source relations
-            # belong to the source-file inventory; unrelated field relations
-            # cannot make this preview perform a full relation-table scan.
-            for row in connection.execute(
-                    "SELECT r.relative_path,e.relative_path FROM source_files f "
-                    "CROSS JOIN relations r INDEXED BY repo_relations_path "
-                    "ON r.relative_path=f.relative_path "
-                    "JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
-                    "WHERE r.relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY') "
-                    "ORDER BY f.relative_path"):
-                if row[0] != row[1]:
-                    # Preserve the original evidence-path ordering for any
-                    # graph facts whose provenance belongs to another file.
-                    same_paths = False
-                    break
-                if row[0] not in matched_paths:
-                    paths.append(row[0])
-                    matched_paths.add(row[0])
-        if same_paths:
-            rows = []
-            for relative in paths:
-                remaining = MAX_GRAPH_EDGES + 1 - len(rows)
-                rows.extend(dict(row) for row in connection.execute(columns +
-                    " AND r.relative_path=? ORDER BY e.start_line,r.relation_type LIMIT ?",
-                    (relative, remaining)))
-                if len(rows) > MAX_GRAPH_EDGES:
-                    break
+            # A startup preview is bounded by displayed edges. Visit source
+            # members in path order and stop after one extra edge; validating
+            # every later relation made opening a large saved library perform
+            # an unnecessary full graph scan before the server could start.
+            rows = [dict(row) for row in connection.execute("""
+                SELECT r.relation_id, u.program_name AS source_program,
+                       r.target_name, r.relation_type, r.status, r.target_entity_id,
+                       e.evidence_id, e.relative_path, e.start_line, e.end_line,
+                       r.relative_path AS preview_source_path
+                  FROM source_files f
+                  CROSS JOIN relations r INDEXED BY repo_relations_path
+                    ON r.relative_path=f.relative_path
+                  JOIN code_units u ON u.unit_id=r.from_entity_id
+                  JOIN evidence_spans e ON e.evidence_id=r.evidence_id
+                 WHERE r.relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY')
+                 ORDER BY f.relative_path LIMIT ?""", (MAX_GRAPH_EDGES + 1,))]
+            # Preserve readable line ordering among the bounded selection;
+            # evidence paths remain the actual provenance, even across files.
+            rows.sort(key=lambda row: (row["preview_source_path"], row["start_line"], row["relation_type"]))
+            for row in rows:
+                row.pop("preview_source_path")
         else:
             rows = [dict(row) for row in connection.execute(columns +
                 " ORDER BY e.relative_path,e.start_line,r.relation_type LIMIT ?", (MAX_GRAPH_EDGES + 1,))]
@@ -730,7 +723,8 @@ class WorkbenchState:
             # upgrade must not repeat on every launch against the same snapshot.
             self._index_upgrade_attempt = plan["attempt_key"]
             self._save_workspace()
-            self.start(plan["options"])
+            self.start(plan["options"], _index_upgrade={"saved": copy.deepcopy(self._saved_workspace),
+                "attempt_key": plan["attempt_key"]})
             with self.lock:
                 if self.job:
                     self.job["origin"] = "index_version_upgrade"
@@ -1097,7 +1091,10 @@ class WorkbenchState:
                 self.project.update(source_origin="remote_repository", remote_source=remote)
             self.project["restore_notice"] = "INDEX_RECHECK_REQUIRED"
             from workspace_upgrade import plan_workspace_upgrade
-            self._startup_upgrade_plan = plan_workspace_upgrade(saved)
+            # Startup only establishes a reproducible candidate. The full
+            # database integrity scan runs in the cancellable update worker,
+            # after the local server can show progress and retained history.
+            self._startup_upgrade_plan = plan_workspace_upgrade(saved, check_integrity=False)
             # Historical answers belong to the selected source/output pair,
             # independently of whether today's index can authorize a question.
             self._restore_conversations(source, output, saved.get("conversation_id"))
@@ -1686,11 +1683,13 @@ class WorkbenchState:
                 "username": payload.get("username"), "follow_default_branch": payload.get("follow_default_branch", False)},
                 _update_workspace=copy.deepcopy(workspace))
 
-    def start(self, payload: object, *, _remote_import=None) -> dict:
+    def start(self, payload: object, *, _remote_import=None, _index_upgrade=None) -> dict:
         with self.lock:
             if self.job and self.job["status"] == "RUNNING":
                 raise RequestError("JOB_ACTIVE", "当前分析尚未结束，请等待完成。", 409)
         options = _validate_options(payload)
+        if _index_upgrade is not None:
+            options["_index_upgrade"] = _index_upgrade
         with self.lock:
             if self.job and self.job["status"] == "RUNNING":
                 raise RequestError("JOB_ACTIVE", "当前分析尚未结束，请等待完成。", 409)
@@ -2004,6 +2003,14 @@ class WorkbenchState:
                 options["_remote_source"] = _remote_metadata(metadata)
                 if options["_remote_source"] is None:
                     raise ValueError("invalid remote source provenance")
+                self._check_cancel()
+            upgrade = options.pop("_index_upgrade", None)
+            if upgrade is not None:
+                from workspace_upgrade import plan_workspace_upgrade
+                self._progress(job_id, {"phase": "preparing_index", "completed": 0, "total": None})
+                checked = plan_workspace_upgrade(upgrade["saved"], check_cancel=self._check_cancel)
+                if checked.get("status") != "ready" or checked.get("attempt_key") != upgrade["attempt_key"]:
+                    raise ValueError("SOURCE_INDEX_CHANGED_DURING_UPGRADE_CHECK")
                 self._check_cancel()
             if options.get("_source_update"):
                 output.mkdir(parents=True, exist_ok=True)

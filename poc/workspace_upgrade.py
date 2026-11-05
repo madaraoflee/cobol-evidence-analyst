@@ -78,15 +78,15 @@ def _full_repository_scope(output, source, snapshot):
             and build_scope.get("mode") in {"repository_index", "business_sparse_directory"})
 
 
-def plan_workspace_upgrade(saved, *, check_integrity=True):
+def plan_workspace_upgrade(saved, *, check_integrity=True, check_cancel=None):
     """Return ordinary offline-start options only for a known version change.
 
     Current indexes take the metadata-only path. A proposed upgrade additionally
     checks database integrity and reproduces the saved compilation inputs.
     Missing, damaged or differently configured workspaces require explicit
     recovery; this function never writes any file or calls a model. A caller may
-    skip a repeated integrity scan only when revalidating the same attempt key
-    from an earlier checked plan within the same startup.
+    skip the integrity scan to obtain a startup candidate, but must repeat the
+    full check in the update worker against the same attempt key before writes.
     """
     if not isinstance(saved, dict):
         return _decision("manual", "WORKSPACE_NOT_SAVED")
@@ -209,10 +209,30 @@ def plan_workspace_upgrade(saved, *, check_integrity=True):
                     or dict(connection.execute(_SEARCH_METADATA_QUERY)) != search):
                 return _decision("manual", "SOURCE_INDEX_CHANGED_DURING_UPGRADE_CHECK")
             if check_integrity:
-                if connection.execute("PRAGMA quick_check(1)").fetchone() != ("ok",):
-                    return _decision("manual", "SOURCE_INDEX_INVALID")
-                if connection.execute("SELECT 1 FROM source_files LIMIT 1").fetchone() is None:
-                    return _decision("manual", "SOURCE_INDEX_EMPTY")
+                cancelled = []
+                if check_cancel:
+                    check_cancel()
+                    def check_progress():
+                        try:
+                            check_cancel()
+                        except BaseException as error:
+                            cancelled.append(error)
+                            return 1
+                        return 0
+                    connection.set_progress_handler(check_progress, 2000)
+                try:
+                    if connection.execute("PRAGMA quick_check(1)").fetchone() != ("ok",):
+                        return _decision("manual", "SOURCE_INDEX_INVALID")
+                    if connection.execute("SELECT 1 FROM source_files LIMIT 1").fetchone() is None:
+                        return _decision("manual", "SOURCE_INDEX_EMPTY")
+                except sqlite3.OperationalError:
+                    if cancelled:
+                        raise cancelled[0]
+                    raise
+                finally:
+                    connection.set_progress_handler(None, 0)
+                if check_cancel:
+                    check_cancel()
         return _decision("ready", "SOURCE_INDEX_VERSION_UPGRADE", options=request,
                          parser_version=metadata["parser_version"], search_version=search["version"],
                          attempt_key=attempt_key)

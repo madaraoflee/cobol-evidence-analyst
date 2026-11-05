@@ -395,7 +395,7 @@ class WorkspaceUpgradeTests(unittest.TestCase):
         self.assertIsNone(restarted.job)
         self.assertEqual(restarted.conversation, conversation)
 
-    def test_startup_checks_integrity_once_before_restoring_and_revalidating(self):
+    def test_startup_checks_integrity_once_in_the_update_worker(self):
         state_path, conversation = self.prepare_saved_history()
         queries = []
         connect = sqlite3.connect
@@ -411,6 +411,96 @@ class WorkspaceUpgradeTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(app.conversation, conversation)
         self.assertEqual(sum("quick_check" in query.lower() for query in queries), 1)
+
+    def test_slow_upgrade_integrity_check_does_not_block_opening_retained_history(self):
+        from web_app import WorkbenchState
+        state_path, conversation = self.prepare_saved_history()
+        entered, release, opened = threading.Event(), threading.Event(), threading.Event()
+        apps, errors = [], []
+        integrity_threads = []
+        analyzer = unittest.mock.Mock(side_effect=AssertionError("the integrity check is still blocked"))
+
+        def slow_plan(saved, **options):
+            if options.get("check_integrity", True):
+                integrity_threads.append(threading.current_thread())
+                entered.set()
+                if not release.wait(5):
+                    raise AssertionError("test did not release integrity check")
+            return plan_workspace_upgrade(saved, **options)
+
+        def open_workspace():
+            try:
+                apps.append(WorkbenchState(state_path=state_path, analyzer=analyzer))
+            except BaseException as error:
+                errors.append(error)
+            finally:
+                opened.set()
+
+        with patch("workspace_upgrade.plan_workspace_upgrade", side_effect=slow_plan), \
+             patch("web_app.SourceUpdateBackup") as backup:
+            opener = threading.Thread(target=open_workspace)
+            opener.start()
+            try:
+                self.assertTrue(entered.wait(2), "upgrade check was not scheduled")
+                self.assertTrue(opened.wait(2), "opening still waits for the full database scan")
+                self.assertEqual(errors, [])
+                app = apps[0]
+                self.assertEqual(app.conversation, conversation)
+                self.assertEqual(app.state()["job"]["status"], "RUNNING")
+                self.assertIsNot(integrity_threads[0], opener)
+                analyzer.assert_not_called()
+                backup.assert_not_called()
+                # Cancelling before integrity has passed cannot touch indexes.
+                app.cancel(app.job["job_id"])
+            finally:
+                release.set()
+                opener.join(timeout=5)
+                for worker in integrity_threads:
+                    if worker is not opener:
+                        worker.join(timeout=5)
+        self.assertEqual(apps[0].job["status"], "CANCELLED")
+        analyzer.assert_not_called()
+        backup.assert_not_called()
+
+    def test_worker_rejects_changed_upgrade_identity_before_any_backup_or_parse(self):
+        from web_app import WorkbenchState
+        state_path, _ = self.prepare_saved_history()
+        analyzer = unittest.mock.Mock(side_effect=AssertionError("changed index cannot be rebuilt"))
+        check_threads = []
+
+        def changed_plan(saved, **options):
+            plan = plan_workspace_upgrade(saved, **options)
+            if options.get("check_integrity", True):
+                check_threads.append(threading.current_thread())
+                return {**plan, "attempt_key": "different-checked-index"}
+            return plan
+
+        with patch("workspace_upgrade.plan_workspace_upgrade", side_effect=changed_plan), \
+             patch("web_app.SourceUpdateBackup") as backup:
+            app = WorkbenchState(state_path=state_path, analyzer=analyzer)
+            deadline = time.monotonic() + 5
+            while app.job["status"] == "RUNNING" and time.monotonic() < deadline:
+                time.sleep(0.01)
+            for worker in check_threads:
+                worker.join(timeout=5)
+        self.assertEqual(app.job["status"], "FAILED", app.job)
+        analyzer.assert_not_called()
+        backup.assert_not_called()
+
+    def test_upgrade_integrity_scan_can_be_cancelled_between_database_pages(self):
+        from analyze_source import AnalysisCancelled
+        self.set_old_parser()
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.execute("CREATE TABLE integrity_scan_padding(value TEXT)")
+            db.executemany("INSERT INTO integrity_scan_padding VALUES(?)", ((str(i),) for i in range(5000)))
+        calls = []
+        def cancel():
+            calls.append(True)
+            if len(calls) >= 2:
+                raise AnalysisCancelled("cancel the database scan")
+        with self.assertRaises(AnalysisCancelled):
+            plan_workspace_upgrade(self.saved, check_cancel=cancel)
+        self.assertEqual(len(calls), 2)
 
     def test_repaired_display_snapshot_cannot_authorize_upgrade_on_any_restart(self):
         state_path, conversation = self.prepare_saved_history()

@@ -187,6 +187,35 @@ class SourceIdentityTests(unittest.TestCase):
                     f"请说明{path}的计算公式", "resolved", [path])
                 self.assertEqual({page["relative_path"] for page in context["pages"]}, {path})
 
+    def test_chinese_source_joiners_do_not_become_part_of_the_requested_path(self):
+        self.collision_fixture()
+        for question in ("请解释aa/target.cbl中的计算规则", "aa/target.cbl内的计算规则是什么？",
+                         "说明aa\\target.cbl中OUTPUT-123的来源", "请说明aa/target.cbl如何计算金额"):
+            with self.subTest(question=question):
+                _, context = self.assert_map_and_retrieval_identity(question, "resolved", ["aa/target.cbl"])
+                self.assertEqual({page["relative_path"] for page in context["pages"]}, {"aa/target.cbl"})
+                self.assertIn("* 2 + 11", "\n".join(page["source_text"] for page in context["pages"]))
+        _, context = self.assert_map_and_retrieval_identity(
+            "请解释missing/target.cbl中的计算规则", "not_found", [])
+        self.assertEqual(context["pages"], [])
+
+    def test_adjacent_chinese_basename_keeps_ambiguity_and_exact_unicode_names(self):
+        self.collision_fixture()
+        for question in ("解释target.cbl", "请解释target.cbl中的计算规则", "target.cbl如何计算金额？"):
+            with self.subTest(question=question):
+                _, context = self.assert_map_and_retrieval_identity(question, "ambiguous", [])
+                self.assertEqual(context["pages"], [])
+                self.assertEqual(context["source_identity"]["requested"], ["target.cbl"])
+        self.write_source("解释target.cbl", "UNICODEPLAN", "MOVE 47 TO OUTPUT-123.")
+        self.write_source("aa/解释target.cbl", "OTHERUNICODEPLAN", "MOVE 91 TO OUTPUT-123.")
+        self.write_source("解释aa/target.cbl", "UNICODEDIRECTORY", "MOVE 63 TO OUTPUT-123.")
+        self.build()
+        self.assert_identity_result(self.identity("解释target.cbl"), "ambiguous", [])
+        self.assert_identity_result(self.identity("说明aa/解释target.cbl中的计算规则"),
+                                    "resolved", ["aa/解释target.cbl"])
+        self.assert_identity_result(self.identity("解释AA/target.CBL"), "resolved", ["解释aa/target.cbl"])
+        self.assert_identity_result(self.identity("target.cbl中的备份.cbl"), "not_found", [])
+
     def test_percent_in_a_directory_is_preserved_and_never_selects_a_suffix_path(self):
         self.write_source("aa/target.cbl", "FIRSTPLAN", "COMPUTE OUTPUT-123 = BASE-AMOUNT + 11.")
         self.write_source("part%aa/target.cbl", "SECONDPLAN", "COMPUTE OUTPUT-123 = BASE-AMOUNT + 29.")

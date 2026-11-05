@@ -95,6 +95,33 @@ class SourceReferenceFieldTests(unittest.TestCase):
                 if missing:
                     self.assertEqual(gaps[0]["fields"], [field])
 
+    def test_adjacent_chinese_source_request_supplies_formula_in_first_request(self):
+        for question in ("解释z-policy.cbl", "请解释z-policy.cbl中的计算规则",
+                         "请解释source-dir/z-policy.cbl中的最终金额计算规则"):
+            with self.subTest(question=question):
+                requests = []
+
+                def transport(request):
+                    payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+                    requests.append(payload)
+                    self.assertEqual(payload["response_mode"], "business_analysis")
+                    pages = [page for context in payload["source_context"] for page in context["pages"]]
+                    self.assertTrue(pages)
+                    self.assertEqual({page["relative_path"] for page in pages}, {self.path})
+                    page = next(page for page in pages if "COMPUTE FINAL-AMOUNT" in page["source_text"])
+                    answer = f"最终金额等于基础金额乘以3，基础金额初值是2，因此结果是6。[{page['evidence_id']}]"
+                    return TransportResponse(200, json.dumps({"choices": [{"message": {
+                        "role": "assistant", "content": answer}, "finish_reason": "stop"}]}))
+
+                result = run_business_chat(question, self.database, self.source,
+                    CompanyAPIConfig("https://gateway.example.invalid/v1", "test-model", api_key="test-secret"),
+                    transport=transport, framework_reference_path="",
+                    policy=AgentPolicy(max_model_requests=2))["agent_result"]
+                self.assertEqual(len(requests), 1)
+                self.assertEqual(result["status"], "ANALYZED")
+                self.assertEqual(result["stop_reason"], "sufficient_material")
+                self.assertIn("结果是6", result["answer"])
+
     def test_missing_source_still_has_its_original_identity_failure(self):
         question = "请解释 missing-dir/z-policy.cbl 中最终金额的计算规则。"
         with closing(sqlite3.connect(self.database)) as connection:
