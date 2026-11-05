@@ -1,8 +1,8 @@
 # COBOL Evidence Analyst
 
-**最新 Windows 测试候选：[`v2026.10.29.3-rc.1`](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.10.29.3-rc.1)。** [下载可直接运行的 Windows x64 ZIP](https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.10.29.3-rc.1/COBOLWorkbench-windows-x64.zip)。在前一候选的业务原文检索、自动补查和源码更新修复之上，本版修复保存的自定义业务解释要求未参与调查与完成判断的问题，补齐语言要求、示例误识别、切换语言续查与旧记录恢复。应用冻结于 `ef3104f`。
+**最新 Windows 测试候选：[`v2026.11.05.1-rc.1`](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.11.05.1-rc.1)。** [下载 Windows x64 ZIP](https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.05.1-rc.1/COBOLWorkbench-windows-x64.zip)。本版修复中文紧贴文件名时误报找不到源码、旧库完整性检查阻塞启动，以及关系图预览多读全库的问题。应用冻结于 `d67fa94`。
 
-本机 4,326 项 Python、262 项前端回归通过；Windows 执行 4,326 项，4,324 项通过、2 项 POSIX 权限测试按原规则跳过且已在本机通过。最终 EXE 的 79 个固定离线样本与 18 项补充检查通过，8 个发布文件的服务端哈希已复核。本轮未调用真实模型，不以合成接口测试推断真实业务准确率；同包真实模型、人工与目标办公设备验收仍待完成，正式版保持原版本。详细修复、验证与发布指纹见[本次候选交付记录](./docs/reports/saved-business-release/README.md)，前一候选的真实模型源码运行记录见[业务检索与发布记录](./docs/reports/2026-10-29-business-retrieval-regression/README.md)。
+本机 4,645 项 Python 和 272 项网页回归通过；Windows 覆盖同一批 Python 回归，4,643 项通过，2 项 POSIX 专用测试按规则跳过。最终 EXE 通过 79 个固定离线样本和 26 项补充检查，8 个发布文件的服务端哈希已复核。旧库首次升级仍可能重建索引；同包真实模型、人工与目标办公设备验收仍待完成，正式版保持原版本。修复范围、已知限制和发布指纹见[本次候选交付记录](./docs/reports/2026-11-05-startup-source-identity/README.md)。
 
 先退出旧版，再完整解压启动，同一用户沿用原配置、历史及源码副本。正常重开不重新下载；每周更新请从已有资料库进入“检查并更新”，选择实际更新分支或勾选“跟随默认分支”。Cloud 首次仍下载一次整仓快照，后续只下载新增、修改或损坏文件；新快照仍需建立本地索引。
 

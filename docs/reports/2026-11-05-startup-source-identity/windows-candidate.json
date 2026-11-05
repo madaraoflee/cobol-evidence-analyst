@@ -1,0 +1,118 @@
+{
+  "workflow_run_id": 41943983853,
+  "run_attempt": 1,
+  "artifact_id": 13379671174,
+  "actions_artifact_sha256": "7d44b2c8b105080860a3327ffe600eba27171f646e20d7da28ff6cd8124f27e6",
+  "archive_sha256": "028d553223a9bf5d3eced98f63031d756f174fc24915099479395b89f197be5e",
+  "binary_path": "COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe",
+  "binary_sha256": "f3a6b1e39fe944fffb8810bddd21376d262079551b57389859dd0f40c64dbac4",
+  "application_sha256": "921a29aaa10620b54d8e3b386b6c49c92009ed7fcb3e87ba93515177ac82ad75",
+  "source_commit": "d67fa9405640201a0537da1372bd81a05b2d6718",
+  "source_dirty": false,
+  "execution_surface": "native_windows_http",
+  "runtime_platform": "Windows",
+  "windows_python": {
+    "status": "passed",
+    "tests_run": 4645,
+    "skipped_count": 2,
+    "report_count": 4
+  },
+  "native_offline": {
+    "case_count": 25,
+    "sample_count": 79,
+    "status": "passed"
+  },
+  "same_exe_continuity": {
+    "checks": {
+      "default_policy_has_no_soft_target": true,
+      "slow_first_answer_is_automatically_completed": true,
+      "custom_single_paragraph_has_no_local_appendix": true,
+      "partial_latest_prompt_and_existing_draft_supplied": true,
+      "partial_prior_answer_preserved_as_revision": true,
+      "partial_continuation_completes_without_discarding_text": true,
+      "partial_revision_and_citation_survive_restart": true,
+      "truncated_latest_prompt_and_existing_draft_supplied": true,
+      "truncated_prior_answer_preserved_as_revision": true,
+      "truncated_continuation_completes_without_discarding_text": true,
+      "truncated_revision_and_citation_survive_restart": true,
+      "saved_business_content_drives_existing_omission_review": true,
+      "business_fixture_has_real_partial_continuation_boundary": true,
+      "cross_language_continuation_uses_current_requirements_and_source": true,
+      "cross_language_continuation_preserves_previous_answer_revision": true,
+      "cross_language_continuation_keeps_historical_source_evidence": true,
+      "local_formula_repair_preserves_saved_english": true,
+      "requests_recorded_once_without_provider_errors": true,
+      "independent_review_runs_revision_and_fresh_review_over_http": true,
+      "independent_review_binds_final_diagnostics_to_revised_answer": true,
+      "independent_review_preserves_source_copy_identity_and_current_requirements": true,
+      "independent_review_json_never_becomes_visible_answer": true,
+      "adjacent_chinese_path_supplies_exact_source_1": true,
+      "saved_profile_reopens_same_index_without_reimport": true,
+      "adjacent_chinese_path_supplies_exact_source_2": true,
+      "adjacent_path_requests_recorded_once_without_provider_errors": true
+    },
+    "synthetic_model_requests": 17,
+    "external_model_calls": 0,
+    "status": "passed"
+  },
+  "candidate_allowed": true,
+  "publish_allowed": false,
+  "formal_gate_reasons": [
+    {
+      "code": "REAL_MODEL_AND_OFFICE_ACCEPTANCE_REQUIRED"
+    }
+  ],
+  "files": {
+    "ACCEPTANCE-MANIFEST.json": {
+      "sha256": "ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06",
+      "bytes": 47542,
+      "github_asset_id": 713676943
+    },
+    "BUILD-INFO.json": {
+      "sha256": "6029f0542173ed360e084984bf5e8a1f3f88fb1aa48ff3cd03b4050b5a375efc",
+      "bytes": 1149,
+      "github_asset_id": 713676941
+    },
+    "CANDIDATE-GATE.json": {
+      "sha256": "a75a2f9502f3d5375275cfaf719ba9bfe1fa9c1770ad817461cff370d2e9626c",
+      "bytes": 10700,
+      "github_asset_id": 713676933
+    },
+    "CANDIDATE-POLICY.json": {
+      "sha256": "aa734d95e51b2fd682b3eb4f2b57edcca357668c38d9351f2f87e9bafa7834e4",
+      "bytes": 198,
+      "github_asset_id": 713676942
+    },
+    "COBOLWorkbench-windows-x64.zip": {
+      "sha256": "028d553223a9bf5d3eced98f63031d756f174fc24915099479395b89f197be5e",
+      "bytes": 21358399,
+      "github_asset_id": 713688721
+    },
+    "COBOLWorkbench-windows-x64.zip.sha256": {
+      "sha256": "c2752707daf6fc01bb3ab8d2d1c871b662e439d0d3b887a83e753a11fd86af44",
+      "bytes": 98,
+      "github_asset_id": 713677020
+    },
+    "COMPILED-ACCEPTANCE.json": {
+      "sha256": "a92e16fd87b7f6959cf581b3961623427a72e782440ceeb6cd10351540ce10bb",
+      "bytes": 12881245,
+      "github_asset_id": 713677025
+    },
+    "INVESTIGATION-CONTINUITY.json": {
+      "sha256": "fba7aa784ee57b7dcc66b5c1ef1d29b8d45dc9ab84c65d0b7f9c1cd3af8f1dbb",
+      "bytes": 6947,
+      "github_asset_id": 713688716
+    }
+  },
+  "github_release": {
+    "id": 435303577,
+    "html_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.11.05.1-rc.1",
+    "tag_name": "v2026.11.05.1-rc.1",
+    "target_commitish": "d67fa9405640201a0537da1372bd81a05b2d6718",
+    "draft": false,
+    "prerelease": true,
+    "stable_tag_after": "v2026.10.14.2",
+    "asset_digests_verified": 8
+  },
+  "office_kit_run_id": 42043972920
+}
