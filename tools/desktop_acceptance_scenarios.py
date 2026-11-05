@@ -8,6 +8,7 @@ from __future__ import annotations
 from contextlib import closing
 import hashlib
 import json
+import math
 from pathlib import Path
 import sqlite3
 import time
@@ -256,6 +257,105 @@ def _claim(command, root, case, sample_index):
             return [row]
 
 
+_LIFECYCLE_REASON_CODES = frozenset({
+    "QUESTION_TIME_BUDGET_EXHAUSTED", "SOURCE_INDEX_UPDATE_REQUIRED", "SOURCE_SNAPSHOT_MISMATCH",
+    "ANSWER_SNAPSHOT_MISMATCH", "SOURCE_SNAPSHOT_UNVERIFIED", "SOURCE_UPDATE_FAILED",
+    "SOURCE_INDEX_EMPTY", "SOURCE_READ_FAILED", "SOURCE_ENCODING_INVALID", "ANALYSIS_FAILED",
+    "API_CONFIGURATION_INVALID", "TRANSPORT_BUSY", "REMOTE_REQUEST_OUTCOME_UNKNOWN",
+    "request_budget", "source_identity_not_found", "source_identity_ambiguous", "no_evidence_progress",
+})
+_LIFECYCLE_PHASES = frozenset({
+    "preparing", "preparing_index", "using_index", "locating_sources", "retrieving", "reading_sources",
+    "reading_relevant_sources", "supplementing_evidence", "answering", "waiting_for_model",
+    "verifying_answer", "reviewing_answer", "writing_answer", "finalizing", "source_version",
+})
+_DIAGNOSTIC_ERROR_TYPES = frozenset({
+    "AssertionError", "StopIteration", "KeyError", "ValueError", "TypeError", "OSError",
+    "BrokenPipeError", "ConnectionResetError", "SSLError", "TimeoutError", "JSONDecodeError",
+})
+
+
+def _slow_request_diagnostic(workbench, job_id, provider, *, elapsed_seconds):
+    """Explain a failed slow-response precondition without serializing source or errors.
+
+    Receiving a request and successfully entering the slow-header responder are
+    separate observations: responder validation can fail between those events.
+    Only fixed classifications, status enums and bounded numeric counters leave
+    this diagnostic; API payloads, exception messages and file paths stay local.
+    """
+    def enum(value, allowed):
+        return value if isinstance(value, str) and value in allowed else None if value is None else "OTHER"
+
+    def number(value):
+        return value if type(value) in (int, float) and math.isfinite(value) and 0 <= value <= 1_000_000 else None
+
+    errors = list(provider.errors)
+    error_types = {}
+    for error in errors:
+        kind = str(error).partition(":")[0]
+        kind = enum(kind, _DIAGNOSTIC_ERROR_TYPES)
+        error_types[kind] = error_types.get(kind, 0) + 1
+    validation_codes = {
+        "AssertionError: Unexpected question reached provider": "QUESTION_MISMATCH",
+        "AssertionError: Supplied source version mismatch": "SOURCE_VERSION_MISMATCH",
+        "AssertionError: Independent assignment was not supplied": "INDEPENDENT_ASSIGNMENT_NOT_SUPPLIED",
+        "StopIteration: ": "REQUIRED_FORMULA_PAGE_NOT_SUPPLIED",
+    }
+    diagnostics = {"stage": "waiting_for_slow_provider_headers",
+        "elapsed_seconds": number(elapsed_seconds), "provider_request_count": len(provider.requests),
+        "provider_error_count": len(errors), "provider_error_types": error_types,
+        "provider_validation_codes": [validation_codes[error] for error in errors if error in validation_codes]}
+    try:
+        job = workbench.request("GET", "/api/jobs/" + job_id)
+    except Exception as error:
+        diagnostics.update(reason_code="WORKBENCH_JOB_DIAGNOSTIC_UNAVAILABLE",
+            job_diagnostic_error_type=enum(type(error).__name__, _DIAGNOSTIC_ERROR_TYPES))
+        return diagnostics
+    job = job if isinstance(job, dict) else {}
+    project = job.get("result") or {}
+    project = project if isinstance(project, dict) else {}
+    result = project.get("agent") or project
+    result = result if isinstance(result, dict) else {}
+    agent = result.get("agent_result") or {}
+    agent = agent if isinstance(agent, dict) else {}
+    metrics = agent.get("metrics") or {}
+    metrics = metrics if isinstance(metrics, dict) else {}
+    timing = metrics.get("timing_seconds") or {}
+    timing = timing if isinstance(timing, dict) else {}
+    progress = job.get("progress") or {}
+    progress = progress if isinstance(progress, dict) else {}
+    error = job.get("error") or {}
+    error = error if isinstance(error, dict) else {}
+    status = enum(job.get("status"), {"RUNNING", "COMPLETED", "FAILED", "CANCELLED"})
+    stop = enum(agent.get("stop_reason"), _LIFECYCLE_REASON_CODES)
+    reason = enum(result.get("reason_code"), _LIFECYCLE_REASON_CODES)
+    diagnostics.update(job_status=status,
+        agent_status=enum(agent.get("status"), {"PARTIAL", "ANALYZED", "ABSTAINED", "ANSWERED", "NOT_READY"}),
+        stop_reason=stop, result_reason_code=reason,
+        job_error_code=enum(error.get("code"), _LIFECYCLE_REASON_CODES),
+        model_requests=number(metrics.get("model_requests")),
+        budget_stop_phase=enum(metrics.get("budget_stop_phase"), _LIFECYCLE_PHASES),
+        timing_seconds={key: number(timing[key]) for key in ("first_model_request_seconds",
+            "local_processing_seconds", "provider_wait_seconds", "total_seconds") if key in timing},
+        progress={"phase": enum(progress.get("phase"), _LIFECYCLE_PHASES),
+            **{key: number(progress[key]) for key in ("elapsed_seconds", "phase_elapsed_seconds",
+                "question_remaining_seconds", "model_requests", "retrieved_pages") if key in progress}})
+    if errors:
+        classification = "SYNTHETIC_PROVIDER_ERROR_BEFORE_SLOW_HEADERS"
+    elif provider.requests:
+        classification = "PROVIDER_RECEIVED_REQUEST_WITHOUT_SLOW_HEADERS"
+    elif stop == "QUESTION_TIME_BUDGET_EXHAUSTED" or reason == "QUESTION_TIME_BUDGET_EXHAUSTED":
+        classification = "DEADLINE_WITHOUT_PROVIDER_RECEIPT"
+    elif status == "RUNNING":
+        classification = "WORKBENCH_RUNNING_WITHOUT_PROVIDER_RECEIPT"
+    elif status in {"COMPLETED", "FAILED", "CANCELLED"}:
+        classification = "WORKBENCH_STOPPED_WITHOUT_PROVIDER_RECEIPT"
+    else:
+        classification = "SLOW_PROVIDER_NOT_OBSERVED"
+    diagnostics["reason_code"] = classification
+    return diagnostics
+
+
 def _unknown(command, root, case, sample_index):
     source = _source(root, _formula_source())
     output = root / "workspace"
@@ -275,7 +375,11 @@ def _unknown(command, root, case, sample_index):
             index_before = _index_stamp(output)
             started = time.monotonic()
             job_id = workbench.submit(source, output, QUESTION)
-            require(slow.started.wait(15), "Provider did not receive the slow request")
+            if not slow.started.wait(15):
+                diagnostic = _slow_request_diagnostic(workbench, job_id, provider,
+                    elapsed_seconds=time.monotonic() - started)
+                raise AssertionError("Provider did not receive the slow request: "
+                    + json.dumps(diagnostic, ensure_ascii=False, sort_keys=True))
             until = time.monotonic() + 1
             while slow.chunks < 2 and time.monotonic() < until:
                 time.sleep(0.02)

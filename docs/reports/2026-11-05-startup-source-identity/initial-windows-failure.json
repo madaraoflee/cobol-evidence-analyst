@@ -1,0 +1,18 @@
+{
+  "kind": "initial_windows_regression_failure",
+  "source_commit": "95b322e260fd101ce894c92d6853b2af4655004c",
+  "run_id": 41941564847,
+  "run_attempt": 1,
+  "run_url": "https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/41941564847",
+  "completed_shards": 4,
+  "passed_shards": 3,
+  "failed_shards": 1,
+  "compiled": false,
+  "candidate_generated": false,
+  "failed_test": "test_desktop_acceptance_scenarios.UnknownRequestAcceptanceTests.test_deadline_request_restart_and_history_do_not_resend_but_explicit_retry_does",
+  "error": "Provider did not receive the slow request",
+  "failed_shard_report_artifact_id": 13376844365,
+  "failure_log_sha256": "7ee565a3de58046886ad76d0bfc94211fb006d82b38d5918c397b28dd65a5de3",
+  "root_cause": "undetermined_missing_provider_and_job_diagnostics",
+  "followup": "preserve_frozen_thresholds_add_bounded_failure_diagnostics_and_run_again"
+}

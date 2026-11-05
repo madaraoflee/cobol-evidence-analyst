@@ -102,6 +102,7 @@ jobs:
                           'test_evidence_answer.py', 'test_evidence_context.py',
                           'test_business_accumulation.py',
                           'test_desktop_acceptance_runtime.py', 'test_desktop_build_contract.py',
+                          'test_desktop_acceptance_scenarios.py',
                           'test_release_acceptance.py', 'test_publish_desktop_release.py',
                           'test_desktop_live_acceptance.py', 'test_desktop_candidate_collection.py',
                           'test_desktop_acceptance_cases.py'):

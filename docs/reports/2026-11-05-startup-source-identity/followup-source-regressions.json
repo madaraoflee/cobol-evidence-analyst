@@ -1,0 +1,57 @@
+{
+  "kind": "local_followup_source_regressions",
+  "status": "passed",
+  "runtime_platform": "Darwin",
+  "tested_base_commit": "95b322e260fd101ce894c92d6853b2af4655004c",
+  "tested_uncommitted_changes": true,
+  "tests_run": 4645,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "each_discovered_test_ran_once": true,
+  "test_source_hashes_match_final_tree": true,
+  "discovery_ids_sha256": "dd5bb0fcd7937a6b616bbba149e305b9d481a3452cfd2a59bf765696e5c4f9ac",
+  "test_sources_sha256": "d4d3e504254572495645d5714862ad1c3c805c2468313d95c2d16cf7ccd125d0",
+  "shards": [
+    {
+      "index": 0,
+      "tests_run": 1162,
+      "elapsed_seconds": 66.735408,
+      "report_sha256": "da5e6715bb85c08b98b74cbe03a63b6017b5f8306ad8caacac7b432ee55e3b3b"
+    },
+    {
+      "index": 1,
+      "tests_run": 1161,
+      "elapsed_seconds": 74.721181,
+      "report_sha256": "6dce6dfdb6fc099ae7acc179569212116b96da41a1e73215fd9c13d2fc9014cc"
+    },
+    {
+      "index": 2,
+      "tests_run": 1161,
+      "elapsed_seconds": 78.898471,
+      "report_sha256": "921d92b2d9637019ae3ac00f4300dda67b946bb4992256c18392a71a2ea0a939"
+    },
+    {
+      "index": 3,
+      "tests_run": 1161,
+      "elapsed_seconds": 103.443992,
+      "report_sha256": "31bc4dbfaa0f2e6a0dbd7cab06e54664e51b432eb8f88c544f62ca935a59e67f"
+    }
+  ],
+  "external_model_calls": 0,
+  "formal_acceptance": false,
+  "changed_files": [
+    {
+      "path": "tools/desktop_acceptance_scenarios.py",
+      "sha256": "36f1bcd291b37c26db39c3b2f3e166ac4b881c2b61e1e5514e46105e881aceb7"
+    },
+    {
+      "path": "poc/tests/test_desktop_acceptance_scenarios.py",
+      "sha256": "41bd491173d62095477a673a5daa9033338ea6bfa2ede545d4731cb339f4b056"
+    },
+    {
+      "path": ".github/workflows/windows-desktop.yml",
+      "sha256": "14117481ac8e633d5ce5bcd1daa4d9b3bbf00f1cfd28a25605eda907c273eb4a"
+    }
+  ]
+}
