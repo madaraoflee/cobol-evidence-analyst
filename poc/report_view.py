@@ -36,11 +36,20 @@ def report_sha256(path: Path, *, check_cancel=None) -> str:
     return digest.hexdigest()
 
 
+def _report_digest_reuse_supported():
+    # Windows modification/change timestamps did not reliably distinguish an
+    # equal-size rewrite followed by restoring mtime in native regression tests.
+    # Keep complete verification there; the desktop still restores in background.
+    return os.name != "nt"
+
+
 class ReportReadSession:
     """Reuse content verification only inside one restore/update operation.
 
     A new process or restoration always reads the bytes. A changed file identity,
     size, modification time or change time invalidates the operation's digest.
+    Windows always rereads the bytes because its timestamps cannot prove that an
+    equal-size report with restored mtime is unchanged.
     """
 
     def __init__(self):
@@ -49,31 +58,7 @@ class ReportReadSession:
     @staticmethod
     def _signature(path):
         value = path.stat()
-        signature = value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns
-        if os.name != "nt":
-            return signature
-        # Python's Windows ctime is creation time, not the metadata change
-        # time. Without the latter, a same-size edit with restored mtime could
-        # reuse a digest. Filesystems lacking this API simply do not cache.
-        try:
-            import ctypes
-            import msvcrt
-
-            class BasicInformation(ctypes.Structure):
-                _fields_ = [(name, ctypes.c_longlong) for name in
-                    ("creation", "access", "write", "change")] + [("attributes", ctypes.c_uint32)]
-
-            function = ctypes.WinDLL("kernel32", use_last_error=True).GetFileInformationByHandleEx
-            function.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
-            function.restype = ctypes.c_int
-            with path.open("rb") as stream:
-                information = BasicInformation()
-                if not function(msvcrt.get_osfhandle(stream.fileno()), 0,
-                                ctypes.byref(information), ctypes.sizeof(information)):
-                    return None
-            return (*signature, information.change)
-        except (OSError, AttributeError):
-            return None
+        return value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns
 
     def sha256(self, path, *, check_cancel=None):
         if check_cancel:
@@ -81,12 +66,13 @@ class ReportReadSession:
         signature = self._signature(path)
         key = str(path.absolute())
         previous = self._verified.get(key)
-        if signature is not None and previous is not None and previous[0] == signature:
+        reuse_supported = _report_digest_reuse_supported()
+        if reuse_supported and signature is not None and previous is not None and previous[0] == signature:
             return previous[1]
         value = report_sha256(path, check_cancel=check_cancel)
         if self._signature(path) != signature:
             raise ValueError("report changed during verification")
-        if signature is not None:
+        if reuse_supported and signature is not None:
             self._verified[key] = signature, value
         return value
 

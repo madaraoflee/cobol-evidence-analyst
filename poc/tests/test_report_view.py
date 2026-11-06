@@ -11,7 +11,8 @@ from unittest.mock import patch
 
 POC_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(POC_ROOT))
-from report_view import DIRECT_REPORT_BYTES, ReportReadSession, project_report, report_sha256, write_report_view
+from report_view import (DIRECT_REPORT_BYTES, ReportReadSession, _report_digest_reuse_supported,
+                         project_report, report_sha256, write_report_view)
 from web_app import _read_json
 
 
@@ -103,22 +104,36 @@ class ReportViewTests(unittest.TestCase):
         self.assertEqual(view["material_gap"], "source_not_read")
         self.assertEqual(view["stop_reason"], "source_not_read")
 
-    def test_restore_session_hashes_once_and_rechecks_equal_size_edits_with_preserved_mtime(self):
+    def test_restore_session_rechecks_equal_size_edits_with_preserved_mtime(self):
         self.path.write_bytes(b"original")
         session = ReportReadSession()
         with patch("report_view.report_sha256", wraps=report_sha256) as read:
             first = session.sha256(self.path)
             self.assertEqual(session.sha256(self.path), first)
-            self.assertEqual(read.call_count, 1)
+            reads = 1 if _report_digest_reuse_supported() else 2
+            self.assertEqual(read.call_count, reads)
             signature = self.path.stat()
             self.path.write_bytes(b"modified")
             os.utime(self.path, ns=(signature.st_atime_ns, signature.st_mtime_ns))
             self.assertNotEqual(session.sha256(self.path), first)
-            self.assertEqual(read.call_count, 2)
+            self.assertEqual(read.call_count, reads + 1)
             # A later launch never trusts a digest retained from the previous
             # launch, even when all file metadata still matches.
             ReportReadSession().sha256(self.path)
-            self.assertEqual(read.call_count, 3)
+            self.assertEqual(read.call_count, reads + 2)
+
+    def test_windows_verification_rereads_when_equal_size_rewrite_keeps_every_stat_field(self):
+        self.path.write_bytes(b"original")
+        session = ReportReadSession()
+        signature = session._signature(self.path)
+        with patch("report_view._report_digest_reuse_supported", return_value=False), \
+                patch.object(session, "_signature", return_value=signature), \
+                patch("report_view.report_sha256", wraps=report_sha256) as read:
+            first = session.sha256(self.path)
+            self.path.write_bytes(b"modified")
+            self.assertNotEqual(session.sha256(self.path), first)
+            self.assertEqual(read.call_count, 2)
+            self.assertEqual(session._verified, {})
 
     def test_restore_session_without_reliable_change_signature_always_reads_bytes(self):
         self.path.write_bytes(b"original")

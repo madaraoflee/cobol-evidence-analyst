@@ -4,6 +4,7 @@ from contextlib import closing
 import hashlib
 from http.client import HTTPConnection
 import json
+import os
 from pathlib import Path
 import sqlite3
 import sys
@@ -194,9 +195,10 @@ class WorkspaceBackgroundRestoreTests(unittest.TestCase):
             while app.job["status"] == "RUNNING" and time.monotonic() < deadline:
                 time.sleep(0.01)
             self.assertEqual(app.job["status"], "COMPLETED", app.job.get("error"))
-            # Planning, view loading, adoption recheck and worker integrity all
-            # share one content check for an unchanged retained diagnosis.
-            self.assertEqual(sum(call.args[0] == self.report_path for call in hashes.call_args_list), 1)
+            # Windows timestamps cannot prove the absence of equal-size edits;
+            # every restore/upgrade stage must still read the original bytes.
+            expected_reads = 4 if os.name == "nt" else 1
+            self.assertEqual(sum(call.args[0] == self.report_path for call in hashes.call_args_list), expected_reads)
 
 
 if __name__ == "__main__":
