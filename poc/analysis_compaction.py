@@ -29,7 +29,7 @@ def encoded_request_size(config, messages):
         ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
 
 
-def compaction_input_ids(memory, selected_pages, policy):
+def compaction_input_ids(memory, selected_pages, policy, *, retry_deferred=False):
     """Choose an old, actually supplied batch before it leaves working context."""
     if memory is None or memory.analysis_ledger.pending_task is not None:
         return []
@@ -66,9 +66,15 @@ def compaction_input_ids(memory, selected_pages, policy):
         return False
 
     leaving = [page for page in pending if not visible(page)]
-    if not leaving or sum(len(page.get("source_text", "")) for page in pending) < policy.max_source_characters * 0.75:
+    # An explicit continuation must be able to finish a deferred source even
+    # when that source is small or remains visible in the working context.
+    # The ledger still limits retries using the persisted request token.
+    retry_pages = [page for page in pending if retry_deferred
+        and memory.analysis_ledger.source_coverage.get(page["evidence_id"], {}).get("status") == "deferred"]
+    if not retry_pages and (not leaving or
+            sum(len(page.get("source_text", "")) for page in pending) < policy.max_source_characters * 0.75):
         return []
-    candidates = leaving + [page for page in pending if page not in leaving]
+    candidates = list({page["evidence_id"]: page for page in [*retry_pages, *leaving, *pending]}.values())
     previous = memory.analysis_ledger_prompt(max_bytes=65536)
     reserve = len(json.dumps(previous, ensure_ascii=False).encode("utf-8")) + 32000
     allowance = max(1024, policy.max_request_bytes - reserve)

@@ -39,23 +39,26 @@ def prepare_investigation_frontier(business_map, question, roots, paths, source_
         "processed_rule_ids": [], "active_rule_ids": [], "primary_rules_remaining": False,
         **({"reset_reason": "investigation_frontier_scope_changed"} if saved else {})}
     state["known_paths"] = list(dict.fromkeys([*state["known_paths"], *paths]))
-    previous_active = list(state["active_paths"])
     if advance and state["batch_complete"]:
         if state.get("primary_rules_remaining") and state.get("active_rule_ids"):
             state["processed_rule_ids"] = list(dict.fromkeys([
                 *state.get("processed_rule_ids", []), *state["active_rule_ids"]]))
+            state["batch_complete"] = False
         else:
             state["completed_paths"] = list(dict.fromkeys([*state["completed_paths"], *state["active_paths"]]))
-            state["active_paths"] = []
-            state["processed_rule_ids"] = []
-        state["batch_complete"] = False
+            completed = set(state["completed_paths"])
+            if any(path not in completed for path in state["known_paths"]):
+                state["active_paths"] = []
+                state["processed_rule_ids"] = []
+                state["active_rule_ids"] = []
+                state["primary_rules_remaining"] = False
+                state["batch_complete"] = False
+            # With no new path, retain the final rule batch for source review.
+            # Clearing its exclusion cursor would restart the first rule batch
+            # after compaction or any other continuation of this question.
     if not state["active_paths"]:
         completed = set(state["completed_paths"])
         state["active_paths"] = [path for path in state["known_paths"] if path not in completed][:batch_size]
-        if not state["active_paths"] and previous_active:
-            # Keep the final batch reviewable while the caller combines its
-            # durable per-batch ledger; an empty batch invents absent formulas.
-            state["active_paths"] = previous_active
     done_or_active = set(state["completed_paths"]) | set(state["active_paths"])
     state["remaining_paths"] = [path for path in state["known_paths"] if path not in done_or_active]
     state["batch_key"] = hashlib.sha256(json.dumps([

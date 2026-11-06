@@ -84,6 +84,10 @@ class PriorSourceMemory:
     def _origin_matches(page, origin, records):
         record = next((row for row in records if row.get("round_id") == origin.get("round_id")
                        and row.get("request_body_sha256") == origin.get("request_body_sha256")), None)
+        return PriorSourceMemory._origin_matches_record(page, origin, record)
+
+    @staticmethod
+    def _origin_matches_record(page, origin, record):
         if (record is None or record.get("request_body_sha256") != origin.get("request_body_sha256")
                 or re.fullmatch(r"round-[1-9][0-9]*", str(origin.get("round_id", ""))) is None
                 or re.fullmatch(r"[0-9a-f]{64}", str(origin.get("request_body_sha256", ""))) is None
@@ -110,21 +114,50 @@ class PriorSourceMemory:
                 "pending_reread_ids": sorted(self.pending_reread_ids),
                 "analysis_ledger": self.analysis_ledger.checkpoint()}
 
-    def restore(self, saved, round_records):
+    def restore(self, saved, round_records, *, check_cancel=None):
+        if check_cancel:
+            check_cancel()
         if not saved:
             return
         if not isinstance(saved, dict) or saved.get("schema") != SCHEMA or saved.get("scope") != self.scope:
             raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
         try:
-            pages = {page["evidence_id"]: deepcopy(page) for page in saved["pages"]}
+            # Followups restart round numbering; only the complete request key
+            # identifies a proof. Keep the first matching record, as before,
+            # instead of letting a later duplicate repair an invalid proof.
+            records = {}
+            for row in round_records:
+                if check_cancel:
+                    check_cancel()
+                key = (row.get("round_id"), row.get("request_body_sha256"))
+                if all(isinstance(value, str) for value in key):
+                    records.setdefault(key, row)
+
+            def supplying_record(origin):
+                key = (origin.get("round_id"), origin.get("request_body_sha256"))
+                return records.get(key) if all(isinstance(value, str) for value in key) else None
+
+            pages = {}
+            for page in saved["pages"]:
+                if check_cancel:
+                    check_cancel()
+                pages[page["evidence_id"]] = deepcopy(page)
             origins = deepcopy(saved["origins"])
             for identifier, page in pages.items():
-                if _identify_page(page) != identifier or not self._origin_matches(page, origins[identifier], round_records):
+                if check_cancel:
+                    check_cancel()
+                origin = origins[identifier]
+                if (_identify_page(page) != identifier
+                        or not self._origin_matches_record(page, origin, supplying_record(origin))):
                     raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
             self.pages, self.origins = pages, origins
             for identifier in pages:
+                if check_cancel:
+                    check_cancel()
                 self._archived_page(identifier)
             for block in saved.get("declared_blocks", saved["blocks"]):
+                if check_cancel:
+                    check_cancel()
                 body = {key: block[key] for key in ("text", "evidence_ids", "origins", "kind", "round_id")}
                 if (block["memory_id"] != "memory_" + _digest(body)
                         or block.get("verification") != "unverified"
@@ -137,6 +170,8 @@ class PriorSourceMemory:
                     raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
                 self.declared_blocks[block["memory_id"]] = deepcopy(block)
             for block in saved["blocks"]:
+                if check_cancel:
+                    check_cancel()
                 if block != self.declared_blocks.get(block["memory_id"]):
                     raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
                 self.blocks[block["memory_id"]] = deepcopy(block)
@@ -150,19 +185,26 @@ class PriorSourceMemory:
                 raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
             self.retracted_blocks = deepcopy(retracted)
             self.pending_reread_ids = set(pending)
+            if check_cancel:
+                check_cancel()
             self.analysis_ledger.restore(saved.get("analysis_ledger"), origins=self.origins)
             for generation in self.analysis_ledger.generations:
+                if check_cancel:
+                    check_cancel()
                 origin = generation["response_origin"]
-                record = next((row for row in round_records if row.get("round_id") == origin.get("round_id")
-                    and row.get("request_body_sha256") == origin.get("request_body_sha256")), None)
+                record = supplying_record(origin)
                 if record is None:
                     raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
                 for identifier in generation["source_ids"]:
+                    if check_cancel:
+                        check_cancel()
                     page = self.pages[identifier]
                     proof = {**origin, "binding": _binding(page),
                              "binding_sha256": source_binding_sha256(page), "excerpt_sha256": _excerpt_hash(page)}
-                    if not self._origin_matches(page, proof, [record]):
+                    if not self._origin_matches_record(page, proof, record):
                         raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
+            if check_cancel:
+                check_cancel()
         except (KeyError, TypeError, ValueError, OSError) as exc:
             self.pages, self.origins, self.blocks, self.declared_blocks = {}, {}, {}, {}
             self.retracted_blocks, self.pending_reread_ids = {}, set()
@@ -294,8 +336,12 @@ class PriorSourceMemory:
         return [self._archived_page(identifier) for identifier in identifiers]
 
     def visible_ids(self, payload):
+        return self._visible_sources(payload)[0]
+
+    def _visible_sources(self, payload):
         memory = payload.get("prior_source_memory") or {}
         identifiers = set()
+        verified = {}
         blocks = memory.get("blocks", []) if memory.get("schema") == SCHEMA and memory.get("draft_is_evidence") is False else []
         for block in blocks:
             # Retraction changes future candidate text, not which original
@@ -311,19 +357,24 @@ class PriorSourceMemory:
                     # The declaration permits original-source attribution, not
                     # model-summary facts. Corrupt or mismatched source proof
                     # revokes this entire atomic historical declaration.
-                    self.archived_pages(historical)
+                    archived = self.archived_pages(historical)
+                    verified = {page["evidence_id"]: page for page in archived}
                     identifiers.update(historical)
                 except (KeyError, TypeError, ValueError, OSError):
                     pass
-        return identifiers
+        return identifiers, verified
 
     def effective_pages(self, payload, *, verify_archive=False):
         current = {page["evidence_id"]: page for bundle in payload.get("source_context", [])
                    for page in bundle.get("pages", [])}
-        for identifier in sorted(self.visible_ids(payload)):
+        identifiers, verified = self._visible_sources(payload)
+        for identifier in sorted(identifiers):
             if identifier not in current:
-                current[identifier] = (self._archived_page(identifier) if verify_archive
-                                       else deepcopy(self.pages[identifier]))
+                # Reuse only this call's validated archive. The next call must
+                # still detect a changed or removed excerpt, even with the
+                # default verify_archive=False for historical ledger sources.
+                current[identifier] = (verified[identifier] if identifier in verified else
+                    self._archived_page(identifier) if verify_archive else deepcopy(self.pages[identifier]))
         return list(current.values())
 
     def _accept(self, finding, *, payload, round_record, kind):
