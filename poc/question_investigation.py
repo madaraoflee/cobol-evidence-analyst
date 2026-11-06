@@ -1283,7 +1283,7 @@ def _dependencies(database_path, paths, candidates, hashes, *, business_steps=Fa
         db.row_factory = sqlite3.Row
         availability_cache = {}
         for path in paths[:_MAX_PATHS]:
-            rows = db.execute("SELECT r.target_name,r.relation_type,r.status,r.metadata_json,e.start_line,e.end_line,e.text,"
+            rows = db.execute("SELECT r.relation_id,r.target_name,r.relation_type,r.status,r.metadata_json,e.start_line,e.end_line,e.text,"
                 "s.relative_path AS target_path FROM relations r JOIN evidence_spans e USING(evidence_id) "
                 "LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id WHERE r.relative_path=? "
                 "AND r.relation_type IN ('CALLS','CALL_TARGET_FROM','PERFORMS','PERFORMS_THRU','INCLUDES_COPY') "
@@ -1314,7 +1314,8 @@ def _dependencies(database_path, paths, candidates, hashes, *, business_steps=Fa
                               or edge["status"] != "confirmed" or not edge["target_path"])
                 availability = dependency_source_availability(db, edge["relation_type"], edge["target_name"],
                     target_path=edge["target_path"] if edge["status"] == "confirmed" else None,
-                    metadata=json.loads(edge["metadata_json"] or "{}"), candidate_cache=availability_cache)
+                    metadata=json.loads(edge["metadata_json"] or "{}"), candidate_cache=availability_cache,
+                    relation_id=edge["relation_id"])
                 source_status = availability["target_source_status"]
                 reason = ("runtime_target_unresolved" if source_status == "dynamic_target_unresolved"
                           else "dependency_binding_unresolved" if source_status in {"candidate_sources_indexed", "unresolved"}
@@ -2008,7 +2009,8 @@ def build_question_investigation(question, business_map, *, database_path=None,
             **({"targets": list(dict.fromkeys(row["target_name"] for row in unresolved))[:8],
                 "unresolved_reasons": list(dict.fromkeys(row.get("unresolved_reason") for row in unresolved)),
                 "indexed_candidate_paths": list(dict.fromkeys(candidate["relative_path"] for row in unresolved
-                    for candidate in row.get("target_source_candidates", [])))[:16]} if unresolved else {})})
+                    for candidate in [*row.get("target_source_candidates", []),
+                                      *row.get("dynamic_target_candidates", [])]))[:16]} if unresolved else {})})
     input_fields = {(row["relative_path"], field) for row in candidates
                     if row["kind"] in {"formula", "business_steps", "inputs"}
                     for field in row["reads"]}

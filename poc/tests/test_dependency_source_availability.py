@@ -183,5 +183,238 @@ class DependencySourceAvailabilityTests(unittest.TestCase):
         self.assertFalse(metadata['closure_complete'], 'DDS names nominate source, not runtime binding')
 
 
+    def capture_dynamic(self):
+        captured = []
+        def transport(request):
+            captured.append(json.loads(json.loads(request.body)['messages'][-1]['content']))
+            raise APIClientError('OFFLINE_CAPTURE_ONLY')
+        with patch.object(socket.socket, 'connect', side_effect=AssertionError('network forbidden')):
+            run_business_chat('请详细解释 ORDERFLOW 的业务流程与 subroutine 最终处理规则。',
+                self.database, self.source,
+                CompanyAPIConfig('https://offline.example.invalid/v1', 'neutral-model', api_key='offline-only'),
+                transport=transport, allow_network=False, framework_reference_path='',
+                policy=AgentPolicy(max_model_requests=1))
+        self.assertEqual(len(captured), 1)
+        payload = captured[0]
+        pages = [page for bundle in payload['source_context'] for page in bundle['pages']]
+        return payload, {page['relative_path']: page for page in pages}
+
+    def dynamic_entry(self, body='CALL SERVICE-NAME USING AMOUNT.', initial='CHECKROW'):
+        self.write('z-main.cbl', 'ORDERFLOW', body,
+            f'01 SERVICE-NAME PIC X(16) VALUE "{initial}".\n01 AMOUNT PIC 9(6).')
+
+    def test_dynamic_initial_value_supplies_first_request_without_model_search(self):
+        self.dynamic_entry()
+        self.write('check.cbl', 'CHECKROW',
+                   'IF AMOUNT > 50000\nDISPLAY "approval before settlement"\nEND-IF.')
+        self.build()
+        payload, pages = self.capture_dynamic()
+        self.assertIn('approval before settlement', pages['check.cbl']['source_text'])
+        self.assertEqual(pages['check.cbl']['source_text'], self.files['check.cbl'].rstrip('\n'))
+        working = payload['source_context'][0]['working_set']
+        self.assertFalse(working['closure_complete'])
+        gap = next(row for row in working['frontier'] if row['reason'] == 'runtime_target_unresolved')
+        self.assertEqual(gap['candidate_paths'], ['check.cbl'])
+        self.assertTrue(gap['source_available'])
+        self.assertFalse(gap['runtime_target_resolved'])
+        candidate = working['dynamic_target_candidates'][0]
+        self.assertFalse(candidate['runtime_binding_verified'])
+        self.assertEqual(candidate['source_provenance'][0]['kind'], 'initial_value')
+        self.assertEqual(candidate['source_provenance'][0]['source_sha256'],
+                         hashlib.sha256(self.files['z-main.cbl'].encode()).hexdigest())
+        edge = next(row for row in payload['business_map']['relations']
+                    if row['relation_type'] == 'CALL_TARGET_FROM')
+        self.assertEqual(edge['resolution'], 'unresolved')
+        self.assertEqual(edge['target_field_resolution'], 'confirmed')
+        self.assertIsNone(edge['target_path'])
+
+    def test_accept_and_branch_assignments_supply_candidates_without_binding(self):
+        self.dynamic_entry('ACCEPT SERVICE-NAME.\nIF AMOUNT > 10\n'
+            'MOVE "ALTERNATE" TO SERVICE-NAME\nEND-IF.\nCALL SERVICE-NAME USING AMOUNT.')
+        self.write('check.cbl', 'CHECKROW', 'MOVE 4 TO AMOUNT.')
+        self.write('alternate.cbl', 'ALTERNATE', 'MOVE 8 TO AMOUNT.')
+        self.build()
+        payload, pages = self.capture_dynamic()
+        self.assertTrue({'check.cbl', 'alternate.cbl'} <= pages.keys())
+        gap = next(row for row in payload['source_context'][0]['working_set']['frontier']
+                   if row['reason'] == 'runtime_target_unresolved')
+        self.assertEqual(set(gap['candidate_paths']), {'check.cbl', 'alternate.cbl'})
+        self.assertFalse(gap['runtime_target_resolved'])
+        self.assertEqual({origin['kind'] for row in payload['source_context'][0]['working_set']['dynamic_target_candidates']
+                          for origin in row['source_provenance']}, {'initial_value', 'literal_assignment'})
+        dependencies = next(row for row in payload['question_investigation']['required_items']
+                            if row['kind'] == 'dependencies')
+        self.assertEqual(dependencies['reason'], 'runtime_target_unresolved')
+
+    def test_dynamic_nomination_rejects_unrelated_program_field_and_post_call_assignment(self):
+        self.dynamic_entry('DISPLAY "MOVE BAD-DISPLAY TO SERVICE-NAME".\n'
+            'CALL SERVICE-NAME USING AMOUNT.\nMOVE "AFTERCALL" TO SERVICE-NAME.', initial='NOTINDEXED')
+        self.write('other.cbl', 'OTHER-FLOW', 'MOVE "OTHER-RULE" TO SERVICE-NAME.',
+                   '01 SERVICE-NAME PIC X(16) VALUE "OTHER-RULE".')
+        self.write('same-name.cbl', 'SERVICE-NAME', 'CONTINUE.')
+        self.write('other-rule.cbl', 'OTHER-RULE', 'CONTINUE.')
+        self.write('after.cbl', 'AFTERCALL', 'CONTINUE.')
+        self.write('display.cbl', 'BAD-DISPLAY', 'CONTINUE.')
+        self.build()
+        link = next(row for row in self.read()['call_chain']['links'] if row['relation_type'] == 'CALL_TARGET_FROM')
+        self.assertEqual(link['dynamic_target_candidates'], [])
+        _, pages = self.capture_dynamic()
+        self.assertEqual(set(pages), {'z-main.cbl'})
+
+    def test_same_file_other_program_and_indirect_move_do_not_leak_literals(self):
+        self.dynamic_entry('MOVE ROUTE-INPUT TO SERVICE-NAME.\nCALL SERVICE-NAME.', initial='NOTINDEXED')
+        first = self.files['z-main.cbl'] + 'END PROGRAM ORDERFLOW.\n'
+        second = ('IDENTIFICATION DIVISION.\nPROGRAM-ID. OTHER-FLOW.\nDATA DIVISION.\n'
+            'WORKING-STORAGE SECTION.\n01 SERVICE-NAME PIC X(16) VALUE "CHECKROW".\n'
+            'PROCEDURE DIVISION.\nMAIN.\nMOVE "CHECKROW" TO SERVICE-NAME.\nGOBACK.\n')
+        self.raw('z-main.cbl', first + second)
+        self.write('check.cbl', 'CHECKROW', 'CONTINUE.')
+        self.build()
+        link = next(row for row in self.read()['call_chain']['links'] if row['relation_type'] == 'CALL_TARGET_FROM')
+        self.assertEqual(link['dynamic_target_candidates'], [])
+
+    def test_dynamic_duplicate_implementations_are_both_read_without_choosing_one(self):
+        self.dynamic_entry()
+        self.write('current/check.cbl', 'CHECKROW', 'MOVE 4 TO AMOUNT.')
+        self.write('archive/check.cbl', 'CHECKROW', 'MOVE 8 TO AMOUNT.')
+        self.build()
+        payload, pages = self.capture_dynamic()
+        self.assertTrue({'current/check.cbl', 'archive/check.cbl'} <= pages.keys())
+        gap = next(row for row in payload['source_context'][0]['working_set']['frontier']
+                   if row['reason'] == 'runtime_target_unresolved')
+        self.assertEqual(len(payload['source_context'][0]['working_set']['dynamic_target_candidates']), 2)
+        self.assertFalse(gap['runtime_target_resolved'])
+        self.assertTrue(all(not row['runtime_binding_verified'] for row in payload['source_context'][0]['working_set']['dynamic_target_candidates']))
+
+    def test_dynamic_candidates_and_assignment_scan_have_explicit_limits(self):
+        moves = '\n'.join(f'MOVE "WORK-{number:02}" TO SERVICE-NAME.' for number in range(40))
+        self.dynamic_entry(moves + '\nCALL SERVICE-NAME.', initial='NOTINDEXED')
+        for number in range(40):
+            self.write(f'worker-{number:02}.cbl', f'WORK-{number:02}', 'CONTINUE.')
+        self.build()
+        link = next(row for row in self.read()['call_chain']['links'] if row['relation_type'] == 'CALL_TARGET_FROM')
+        self.assertLessEqual(len(link['dynamic_target_candidates']), 8)
+        self.assertTrue(link['dynamic_target_candidates_truncated'])
+        self.assertFalse(link['runtime_target_resolved'])
+
+    def test_dynamic_candidate_source_hash_still_rejects_changed_file(self):
+        from complete_working_set import build_complete_working_set
+        self.dynamic_entry()
+        self.write('check.cbl', 'CHECKROW', 'MOVE 4 TO AMOUNT.')
+        self.build()
+        mapping = build_business_map(self.database, self.source, 'ORDERFLOW 业务流程')
+        self.write('check.cbl', 'CHECKROW', 'MOVE 8 TO AMOUNT.')
+        with QuestionSourceSession(self.database, self.source) as session:
+            result = build_complete_working_set(self.database, session, mapping, AgentPolicy(), business_overview=True)
+        self.assertTrue(result['needs_refresh'])
+        self.assertFalse(any(page['relative_path'] == 'check.cbl' for page in result['pages']))
+
+
+    def test_direct_literal_move_without_initial_value_supplies_candidate(self):
+        self.write('z-main.cbl', 'ORDERFLOW', 'MOVE "CHECKROW" TO SERVICE-NAME.\nCALL SERVICE-NAME.',
+                   '01 SERVICE-NAME PIC X(16).')
+        self.write('check.cbl', 'CHECKROW', 'DISPLAY "review outcome".')
+        self.build()
+        payload, pages = self.capture_dynamic()
+        self.assertIn('review outcome', pages['check.cbl']['source_text'])
+        gap = next(row for row in payload['source_context'][0]['working_set']['frontier']
+                   if row['reason'] == 'runtime_target_unresolved')
+        self.assertEqual(payload['source_context'][0]['working_set']['dynamic_target_candidates'][0]['source_provenance'][0]['kind'], 'literal_assignment')
+
+    def test_repeated_literal_provenance_is_bounded_without_copying_statements(self):
+        self.dynamic_entry('\n'.join(['MOVE "CHECKROW" TO SERVICE-NAME.'] * 40 + ['CALL SERVICE-NAME.']))
+        self.write('check.cbl', 'CHECKROW', 'CONTINUE.')
+        self.build()
+        link = next(row for row in self.read()['call_chain']['links'] if row['relation_type'] == 'CALL_TARGET_FROM')
+        candidate = link['dynamic_target_candidates'][0]
+        self.assertEqual(len(candidate['source_provenance']), 4)
+        self.assertTrue(candidate['source_provenance_truncated'])
+        self.assertEqual(candidate['source_provenance_omitted_count'], 29)
+        self.assertTrue(link['dynamic_target_candidates_truncated'])
+        self.assertFalse(any('statement' in row for row in candidate['source_provenance']))
+        self.assertLess(len(json.dumps(candidate)), 2200)
+
+
+    def test_many_dynamic_calls_share_provenance_and_keep_all_candidate_source(self):
+        moves = '\n'.join(f'MOVE "STEP-{index % 8 + 1}" TO SERVICE-NAME.' for index in range(32))
+        self.dynamic_entry(moves + '\n' + 'CALL SERVICE-NAME.\n' * 40, initial='STEP-1')
+        for number in range(1, 9):
+            self.write(f'step-{number}.cbl', f'STEP-{number}', f'DISPLAY "BUSINESS STEP {number}".')
+        self.build()
+        payload, pages = self.capture_dynamic()
+        self.assertEqual(set(pages), {'z-main.cbl', *(f'step-{number}.cbl' for number in range(1, 9))})
+        working = payload['source_context'][0]['working_set']
+        self.assertEqual(len(working['dynamic_target_candidates']), 8)
+        self.assertLess(len(json.dumps(working, ensure_ascii=False).encode()), 40000)
+        self.assertLess(len(json.dumps(payload, ensure_ascii=False).encode()), AgentPolicy().max_request_bytes)
+        candidates = {row['candidate_id'] for row in working['dynamic_target_candidates']}
+        gaps = [row for row in working['frontier'] if row['reason'] == 'runtime_target_unresolved']
+        self.assertTrue(gaps)
+        self.assertTrue(all(set(row['dynamic_target_candidate_ids']) <= candidates for row in gaps))
+        self.assertTrue(all(not row['runtime_target_resolved'] for row in gaps))
+        for number in range(1, 9):
+            self.assertIn(f'BUSINESS STEP {number}', pages[f'step-{number}.cbl']['source_text'])
+
+
+    def test_far_literal_assignment_survives_many_unrelated_statements(self):
+        self.write('z-main.cbl', 'ORDERFLOW',
+            'MOVE "CHECKROW" TO SERVICE-NAME.\n' + 'MOVE 1 TO AMOUNT.\n' * 1500 + 'CALL SERVICE-NAME.',
+            '01 SERVICE-NAME PIC X(16).\n01 AMOUNT PIC 9(6).')
+        self.write('check.cbl', 'CHECKROW', 'DISPLAY "review outcome".')
+        self.build()
+        _, pages = self.capture_dynamic()
+        self.assertIn('review outcome', pages['check.cbl']['source_text'])
+
+    def test_field_assignment_window_reuses_reads_and_invalidates_on_new_move(self):
+        from dependency_sources import dynamic_target_source_candidates
+        self.dynamic_entry('MOVE "CHECKROW" TO SERVICE-NAME.\nCALL SERVICE-NAME.\n'
+            'DISPLAY "no write".\nCALL SERVICE-NAME.\nMOVE "ALTERNATE" TO SERVICE-NAME.\nCALL SERVICE-NAME.')
+        self.write('check.cbl', 'CHECKROW', 'CONTINUE.')
+        self.write('alternate.cbl', 'ALTERNATE', 'CONTINUE.')
+        self.build()
+        with closing(sqlite3.connect(self.database)) as db:
+            db.row_factory = sqlite3.Row
+            calls = db.execute("SELECT r.relation_id FROM relations r JOIN evidence_spans e USING(evidence_id) "
+                "WHERE r.relation_type='CALL_TARGET_FROM' ORDER BY e.start_line").fetchall()
+            statements = []
+            db.set_trace_callback(statements.append)
+            cache = {}
+            first, second, third = [dynamic_target_source_candidates(db, row['relation_id'], candidate_cache=cache)
+                                    for row in calls]
+        scans = [statement for statement in statements if 'ORDER BY o.start_line DESC,o.start_column DESC LIMIT' in statement]
+        self.assertEqual(len(scans), 2)
+        self.assertEqual(first['dynamic_target_candidates'], second['dynamic_target_candidates'])
+        self.assertEqual({row['relative_path'] for row in third['dynamic_target_candidates']},
+                         {'check.cbl', 'alternate.cbl'})
+
+
+    def test_cached_multiline_move_window_matches_uncached_later_call(self):
+        from dependency_sources import dynamic_target_source_candidates
+        self.write('z-main.cbl', 'ORDERFLOW',
+            'MOVE "CHECKROW"\nTO SERVICE-NAME.\nCALL SERVICE-NAME.\nCALL SERVICE-NAME.',
+            '01 SERVICE-NAME PIC X(16).')
+        self.write('check.cbl', 'CHECKROW', 'CONTINUE.')
+        self.build()
+        with closing(sqlite3.connect(self.database)) as db:
+            db.row_factory = sqlite3.Row
+            calls = db.execute("SELECT r.relation_id FROM relations r JOIN evidence_spans e USING(evidence_id) "
+                "WHERE r.relation_type='CALL_TARGET_FROM' ORDER BY e.start_line").fetchall()
+            self.assertEqual(len(calls), 2)
+            # A source-fact span can end on the first call's physical line.
+            # Exercise the saved-window boundary independently of parser
+            # support for several executable statements on one source line.
+            cutoff = db.execute("SELECT e.start_line FROM relations r JOIN evidence_spans e USING(evidence_id) "
+                "WHERE r.relation_id=?", (calls[0]['relation_id'],)).fetchone()[0]
+            db.execute("UPDATE business_rule_occurrences SET end_line=? WHERE rule_id IN "
+                       "(SELECT rule_id FROM business_rules WHERE rule_kind='MOVE')", (cutoff,))
+            cache = {}
+            first = dynamic_target_source_candidates(db, calls[0]['relation_id'], candidate_cache=cache)
+            second = dynamic_target_source_candidates(db, calls[1]['relation_id'], candidate_cache=cache)
+            uncached = dynamic_target_source_candidates(db, calls[1]['relation_id'])
+        self.assertEqual(first['dynamic_target_candidates'], [])
+        self.assertEqual(second, uncached)
+        self.assertEqual([row['relative_path'] for row in second['dynamic_target_candidates']], ['check.cbl'])
+
+
 if __name__ == '__main__':
     unittest.main()

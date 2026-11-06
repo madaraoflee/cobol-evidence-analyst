@@ -1508,7 +1508,7 @@ def semantic_risk_candidates(answer, source_pages):
 def _assignment_only_synopsis(answer):
     """Recognize only a vocabulary-limited assignment/return paraphrase.
 
-    This nominates an existing business-explanation review for saved content
+    This nominates an existing review for direct or saved business-explanation
     requirements. Unfamiliar domain language stays unassessed, never rejected.
     """
     text = _REFERENCE.sub("", str(answer)[:65536])

@@ -1,0 +1,410 @@
+{
+  "scope": "offline_synthetic_source_supply_only",
+  "external_model_calls": 0,
+  "cases": [
+    {
+      "runtime_override": false,
+      "mode": "initial_only",
+      "mapping_selected_paths": [
+        "entry.cbl"
+      ],
+      "mapping_dynamic_edges": [
+        {
+          "type": "CALL_TARGET_FROM",
+          "resolution": "confirmed",
+          "target_path": null,
+          "target_name": "SERVICE-NAME"
+        }
+      ],
+      "request_count": 1,
+      "rounds": [
+        {
+          "paths": [
+            "entry.cbl"
+          ],
+          "constant_declaration_visible": true,
+          "callee_business_rule_visible": false,
+          "working_set_frontier": [
+            {
+              "reason": "runtime_target_unresolved",
+              "target_name": "SERVICE-NAME",
+              "relation_type": "CALL_TARGET_FROM",
+              "relative_path": "entry.cbl"
+            }
+          ],
+          "investigation_open_gaps": [
+            {
+              "kind": "business_steps",
+              "status": "OPEN",
+              "reason": "business_steps_not_located"
+            },
+            {
+              "kind": "dependencies",
+              "status": "UNRESOLVED",
+              "reason": "runtime_target_unresolved"
+            }
+          ]
+        }
+      ],
+      "tool_calls": {
+        "search": 0,
+        "read": 0,
+        "framework_search": 0,
+        "inspect_business_context": 0,
+        "backward_slice": 0,
+        "forward_slice": 0,
+        "explain_assignment": 0,
+        "trace_parameter": 0,
+        "explain_external_effect": 0
+      },
+      "status": "ABSTAINED",
+      "error": null
+    },
+    {
+      "runtime_override": false,
+      "mode": "model_search_constant",
+      "mapping_selected_paths": [
+        "entry.cbl"
+      ],
+      "mapping_dynamic_edges": [
+        {
+          "type": "CALL_TARGET_FROM",
+          "resolution": "confirmed",
+          "target_path": null,
+          "target_name": "SERVICE-NAME"
+        }
+      ],
+      "request_count": 2,
+      "rounds": [
+        {
+          "paths": [
+            "entry.cbl"
+          ],
+          "constant_declaration_visible": true,
+          "callee_business_rule_visible": false,
+          "working_set_frontier": [
+            {
+              "reason": "runtime_target_unresolved",
+              "target_name": "SERVICE-NAME",
+              "relation_type": "CALL_TARGET_FROM",
+              "relative_path": "entry.cbl"
+            }
+          ],
+          "investigation_open_gaps": [
+            {
+              "kind": "business_steps",
+              "status": "OPEN",
+              "reason": "business_steps_not_located"
+            },
+            {
+              "kind": "dependencies",
+              "status": "UNRESOLVED",
+              "reason": "runtime_target_unresolved"
+            }
+          ]
+        },
+        {
+          "paths": [
+            "check.cbl",
+            "entry.cbl"
+          ],
+          "constant_declaration_visible": true,
+          "callee_business_rule_visible": true,
+          "working_set_frontier": [
+            {
+              "reason": "runtime_target_unresolved",
+              "target_name": "SERVICE-NAME",
+              "relation_type": "CALL_TARGET_FROM",
+              "relative_path": "entry.cbl"
+            }
+          ],
+          "investigation_open_gaps": [
+            {
+              "kind": "business_steps",
+              "status": "OPEN",
+              "reason": "business_steps_not_located"
+            },
+            {
+              "kind": "dependencies",
+              "status": "UNRESOLVED",
+              "reason": "runtime_target_unresolved"
+            }
+          ]
+        }
+      ],
+      "tool_calls": {
+        "search": 1,
+        "read": 0,
+        "framework_search": 0,
+        "inspect_business_context": 0,
+        "backward_slice": 0,
+        "forward_slice": 0,
+        "explain_assignment": 0,
+        "trace_parameter": 0,
+        "explain_external_effect": 0
+      },
+      "status": "ABSTAINED",
+      "error": null
+    },
+    {
+      "runtime_override": false,
+      "mode": "model_direct_final",
+      "mapping_selected_paths": [
+        "entry.cbl"
+      ],
+      "mapping_dynamic_edges": [
+        {
+          "type": "CALL_TARGET_FROM",
+          "resolution": "confirmed",
+          "target_path": null,
+          "target_name": "SERVICE-NAME"
+        }
+      ],
+      "request_count": 1,
+      "rounds": [
+        {
+          "paths": [
+            "entry.cbl"
+          ],
+          "constant_declaration_visible": true,
+          "callee_business_rule_visible": false,
+          "working_set_frontier": [
+            {
+              "reason": "runtime_target_unresolved",
+              "target_name": "SERVICE-NAME",
+              "relation_type": "CALL_TARGET_FROM",
+              "relative_path": "entry.cbl"
+            }
+          ],
+          "investigation_open_gaps": [
+            {
+              "kind": "business_steps",
+              "status": "OPEN",
+              "reason": "business_steps_not_located"
+            },
+            {
+              "kind": "dependencies",
+              "status": "UNRESOLVED",
+              "reason": "runtime_target_unresolved"
+            }
+          ]
+        }
+      ],
+      "tool_calls": {
+        "search": 0,
+        "read": 0,
+        "framework_search": 0,
+        "inspect_business_context": 0,
+        "backward_slice": 0,
+        "forward_slice": 0,
+        "explain_assignment": 0,
+        "trace_parameter": 0,
+        "explain_external_effect": 0
+      },
+      "status": "PARTIAL",
+      "error": null
+    },
+    {
+      "runtime_override": true,
+      "mode": "initial_only",
+      "mapping_selected_paths": [
+        "entry.cbl"
+      ],
+      "mapping_dynamic_edges": [
+        {
+          "type": "CALL_TARGET_FROM",
+          "resolution": "confirmed",
+          "target_path": null,
+          "target_name": "SERVICE-NAME"
+        }
+      ],
+      "request_count": 1,
+      "rounds": [
+        {
+          "paths": [
+            "entry.cbl"
+          ],
+          "constant_declaration_visible": true,
+          "callee_business_rule_visible": false,
+          "working_set_frontier": [
+            {
+              "reason": "runtime_target_unresolved",
+              "target_name": "SERVICE-NAME",
+              "relation_type": "CALL_TARGET_FROM",
+              "relative_path": "entry.cbl"
+            }
+          ],
+          "investigation_open_gaps": [
+            {
+              "kind": "business_steps",
+              "status": "OPEN",
+              "reason": "business_steps_not_located"
+            },
+            {
+              "kind": "dependencies",
+              "status": "UNRESOLVED",
+              "reason": "runtime_target_unresolved"
+            }
+          ]
+        }
+      ],
+      "tool_calls": {
+        "search": 0,
+        "read": 0,
+        "framework_search": 0,
+        "inspect_business_context": 0,
+        "backward_slice": 0,
+        "forward_slice": 0,
+        "explain_assignment": 0,
+        "trace_parameter": 0,
+        "explain_external_effect": 0
+      },
+      "status": "ABSTAINED",
+      "error": null
+    },
+    {
+      "runtime_override": true,
+      "mode": "model_search_constant",
+      "mapping_selected_paths": [
+        "entry.cbl"
+      ],
+      "mapping_dynamic_edges": [
+        {
+          "type": "CALL_TARGET_FROM",
+          "resolution": "confirmed",
+          "target_path": null,
+          "target_name": "SERVICE-NAME"
+        }
+      ],
+      "request_count": 2,
+      "rounds": [
+        {
+          "paths": [
+            "entry.cbl"
+          ],
+          "constant_declaration_visible": true,
+          "callee_business_rule_visible": false,
+          "working_set_frontier": [
+            {
+              "reason": "runtime_target_unresolved",
+              "target_name": "SERVICE-NAME",
+              "relation_type": "CALL_TARGET_FROM",
+              "relative_path": "entry.cbl"
+            }
+          ],
+          "investigation_open_gaps": [
+            {
+              "kind": "business_steps",
+              "status": "OPEN",
+              "reason": "business_steps_not_located"
+            },
+            {
+              "kind": "dependencies",
+              "status": "UNRESOLVED",
+              "reason": "runtime_target_unresolved"
+            }
+          ]
+        },
+        {
+          "paths": [
+            "check.cbl",
+            "entry.cbl"
+          ],
+          "constant_declaration_visible": true,
+          "callee_business_rule_visible": true,
+          "working_set_frontier": [
+            {
+              "reason": "runtime_target_unresolved",
+              "target_name": "SERVICE-NAME",
+              "relation_type": "CALL_TARGET_FROM",
+              "relative_path": "entry.cbl"
+            }
+          ],
+          "investigation_open_gaps": [
+            {
+              "kind": "business_steps",
+              "status": "OPEN",
+              "reason": "business_steps_not_located"
+            },
+            {
+              "kind": "dependencies",
+              "status": "UNRESOLVED",
+              "reason": "runtime_target_unresolved"
+            }
+          ]
+        }
+      ],
+      "tool_calls": {
+        "search": 1,
+        "read": 0,
+        "framework_search": 0,
+        "inspect_business_context": 0,
+        "backward_slice": 0,
+        "forward_slice": 0,
+        "explain_assignment": 0,
+        "trace_parameter": 0,
+        "explain_external_effect": 0
+      },
+      "status": "ABSTAINED",
+      "error": null
+    },
+    {
+      "runtime_override": true,
+      "mode": "model_direct_final",
+      "mapping_selected_paths": [
+        "entry.cbl"
+      ],
+      "mapping_dynamic_edges": [
+        {
+          "type": "CALL_TARGET_FROM",
+          "resolution": "confirmed",
+          "target_path": null,
+          "target_name": "SERVICE-NAME"
+        }
+      ],
+      "request_count": 1,
+      "rounds": [
+        {
+          "paths": [
+            "entry.cbl"
+          ],
+          "constant_declaration_visible": true,
+          "callee_business_rule_visible": false,
+          "working_set_frontier": [
+            {
+              "reason": "runtime_target_unresolved",
+              "target_name": "SERVICE-NAME",
+              "relation_type": "CALL_TARGET_FROM",
+              "relative_path": "entry.cbl"
+            }
+          ],
+          "investigation_open_gaps": [
+            {
+              "kind": "business_steps",
+              "status": "OPEN",
+              "reason": "business_steps_not_located"
+            },
+            {
+              "kind": "dependencies",
+              "status": "UNRESOLVED",
+              "reason": "runtime_target_unresolved"
+            }
+          ]
+        }
+      ],
+      "tool_calls": {
+        "search": 0,
+        "read": 0,
+        "framework_search": 0,
+        "inspect_business_context": 0,
+        "backward_slice": 0,
+        "forward_slice": 0,
+        "explain_assignment": 0,
+        "trace_parameter": 0,
+        "explain_external_effect": 0
+      },
+      "status": "PARTIAL",
+      "error": null
+    }
+  ]
+}

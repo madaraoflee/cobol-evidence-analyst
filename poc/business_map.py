@@ -119,6 +119,9 @@ def _call_graph(connection, check_cancel, *, navigation_rows=None):
         edge = {key: row[key] for key in ("relation_id", "relation_type", "target_name", "evidence_id",
                                          "caller_line", "target_path", "caller_program")}
         edge.update(caller_path=row["relative_path"], resolution=row["status"])
+        if edge["relation_type"] == "CALL_TARGET_FROM":
+            edge.update(resolution="unresolved", target_field_resolution=row["status"],
+                        runtime_target_resolved=False)
         if row.get("requested_procedure_dependency"):
             edge["requested_procedure_dependency"] = True
         if edge["resolution"] != "confirmed" or edge["relation_type"] == "CALL_TARGET_FROM":

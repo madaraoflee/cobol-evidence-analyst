@@ -2,40 +2,40 @@
   "kind": "local_business_depth_regressions",
   "status": "passed",
   "runtime_platform": "Darwin",
-  "tested_base_commit": "6967121e8d235950033db01e31ca6648e7bf18f7",
+  "tested_base_commit": "63d230063f5dcbcdca309737e7e32134988f502e",
   "tested_uncommitted_changes": true,
-  "tests_run": 4690,
+  "tests_run": 4703,
   "failures": 0,
   "errors": 0,
   "skipped": 0,
   "each_discovered_test_ran_once": true,
   "test_source_hashes_match_final_tree": true,
-  "discovery_ids_sha256": "579a15fb6f8322babe6ecc69847d7db764c34e7da461549e4a7f60c47861265a",
-  "test_sources_sha256": "53a4a390bf4d29dee94baf28f1dcb89cf004be40928ee1a1600e408026ecc61e",
+  "discovery_ids_sha256": "75ae4ca6f3a00e4fa853479efc27c531efbf4ab40983645f787580679375929c",
+  "test_sources_sha256": "19fdd626f7613eac1d3c1d1c0883285c5a71794c31ef7714565938bf44a1cc95",
   "shards": [
     {
       "index": 0,
-      "tests_run": 1173,
-      "elapsed_seconds": 71.198787,
-      "report_sha256": "3521dfb72921e3817d8d6a4497a458ee6bff09fc9a879a78a08797bc6ac4e34f"
+      "tests_run": 1176,
+      "elapsed_seconds": 64.853731,
+      "report_sha256": "968d0e92186bf72152340317ad58f09bd9586a6e77d89eef29b792a0cd525f6c"
     },
     {
       "index": 1,
-      "tests_run": 1173,
-      "elapsed_seconds": 94.977517,
-      "report_sha256": "00dc50610662d13424cac2fa1965b82ea27ebde678935c71d9eee8589779c6a2"
+      "tests_run": 1176,
+      "elapsed_seconds": 81.52067,
+      "report_sha256": "e1d7701db29e893737d926e1f1301388c22fda37abee5fbbb800f50606a107fe"
     },
     {
       "index": 2,
-      "tests_run": 1172,
-      "elapsed_seconds": 102.871577,
-      "report_sha256": "4a093a17c817bdabde0a234494fa3d2ef2c969e939dce3dec11006a38a87046e"
+      "tests_run": 1176,
+      "elapsed_seconds": 103.167921,
+      "report_sha256": "1eb48658c03966de5a0aed81040824dee62f3a4642a834f3bc5c4a1dfb95da2d"
     },
     {
       "index": 3,
-      "tests_run": 1172,
-      "elapsed_seconds": 82.034517,
-      "report_sha256": "691870ed236b5a0dc4810c665c9e6592aa7b0be62084e22afcd5ed39b17ee632"
+      "tests_run": 1175,
+      "elapsed_seconds": 117.477378,
+      "report_sha256": "72cb15ddf3b90188d45ad3c378ce53f5da9796bfb37c3706194412f98f3859f7"
     }
   ],
   "browser_tests": {
@@ -58,12 +58,20 @@
       "sha256": "abbffbb7648ac5384e93479412a0544044ff25f2a5a841acdb0b42bfee349088"
     },
     {
+      "path": "poc/business_map.py",
+      "sha256": "504538e0a53f8f65112f58f3d8ef91d7f8e30c9c767aa221274385eef85b86f3"
+    },
+    {
       "path": "poc/business_synthesis.py",
-      "sha256": "e5f867b99aee9dbfe60745d768bd59a7d8858fe4f423d33a02f0b7e3befb88d5"
+      "sha256": "4603cbb4ffb9867457fe80fdc101e10972d8d3730aa1633054a73577e22b75b4"
+    },
+    {
+      "path": "poc/complete_working_set.py",
+      "sha256": "d52890b3d84017135ed31955ed3d2405f0f61feafe37e665776a18345322fc92"
     },
     {
       "path": "poc/dependency_sources.py",
-      "sha256": "b3353491ee34b33321a381db4b80e01abdfde281bae01fc7f4fcbcda8e589def"
+      "sha256": "1a4c01f81e8a7cd154ed92358c4319b368c10fc10c86cb0a9e0ad51adc0a1207"
     },
     {
       "path": "poc/quality_trace.py",
@@ -71,7 +79,7 @@
     },
     {
       "path": "poc/question_investigation.py",
-      "sha256": "901299ab38870a2d9ccd84612ee322429e269ffd8105212963aea87c88e219f4"
+      "sha256": "44617b0560cf514b5b87ea44c92a73fc4eaf122511536b4f50f11d4924027323"
     },
     {
       "path": "poc/report_view.py",
@@ -79,7 +87,7 @@
     },
     {
       "path": "poc/repository_discovery.py",
-      "sha256": "2cddd2344b77a598b379e021e9e148428a9d07666698b53fbe94253320a21f06"
+      "sha256": "d15f12037d731c3ef5817e49ab5f4ca822864857c60b51350ee9c7f75f31045a"
     },
     {
       "path": "poc/source_availability.py",
@@ -95,7 +103,7 @@
     },
     {
       "path": "poc/tests/test_dependency_source_availability.py",
-      "sha256": "bbd15c1abd1dcaf98627c09bf2fa9bc7e4a13c4a3b91c7ae07298b40482e98e1"
+      "sha256": "1141ed367ebabf1f5ead4431f686efcf8588268ca67035f65feae430b530a6e8"
     },
     {
       "path": "poc/tests/test_desktop_upgrade.py",
@@ -103,7 +111,7 @@
     },
     {
       "path": "poc/tests/test_investigation_continuity_check.py",
-      "sha256": "c032dcd19b326516f7e6dee629079e240bd19c272d0448e8209898905c7e42df"
+      "sha256": "2f28408bc17342ce534349de05ae671b4b442141512e0de79d1e614e282817ea"
     },
     {
       "path": "poc/tests/test_report_view.py",
@@ -143,7 +151,7 @@
     },
     {
       "path": "tools/check_investigation_continuity.py",
-      "sha256": "3a92d56e30a7dbe41392cafdd854d414ffdfa4cc281fec9946637b2bbbb4334e"
+      "sha256": "e12b3d26c834d52f9626eb7f2b4c831f1b337c6dada14c2866a8975c67904c69"
     },
     {
       "path": "tools/desktop_acceptance_runtime.py",

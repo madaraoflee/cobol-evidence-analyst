@@ -125,7 +125,7 @@ class InvestigationContinuityCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             result = run_business_depth_check([sys.executable,
                 str(Path(__file__).resolve().parents[1] / "desktop_app.py")], Path(directory))
-        self.assertEqual(len(result["checks"]), 5)
+        self.assertEqual(len(result["checks"]), 6)
         self.assertTrue(all(result["checks"].values()), result["checks"])
         self.assertEqual(result["synthetic_model_requests"], 3)
         self.assertEqual(result["observations"][-1]["source_member_count"], 11)

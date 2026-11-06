@@ -2,12 +2,14 @@
 
 from collections import deque
 from contextlib import closing
+import hashlib
 import json
 from pathlib import Path
 import re
 import sqlite3
 
 from agent_policy import resolve_agent_policy
+from dependency_sources import dynamic_target_source_candidates
 from repository_discovery import _connect, _fast_snapshot
 from source_reading import _identify_page, _persist_page, _safe_file, _verified_lines
 
@@ -144,6 +146,26 @@ def build_complete_working_set(database_path, source_session, business_map, poli
     byte_limit = min(policy.max_semantic_source_bytes,
                      (root_limit + policy.max_source_characters) * 4 + policy.max_semantic_files * 4)
     records = []
+    dynamic_catalog, dynamic_catalog_bytes = {}, 0
+    metadata["dynamic_target_candidates"] = []
+
+    def dynamic_candidate_references(nominated):
+        nonlocal dynamic_catalog_bytes
+        references, omitted = [], 0
+        for candidate in nominated["dynamic_target_candidates"]:
+            encoded = json.dumps(candidate, sort_keys=True, ensure_ascii=False).encode("utf-8")
+            identity = "dynamic_" + hashlib.sha256(encoded).hexdigest()[:24]
+            if identity not in dynamic_catalog:
+                if len(dynamic_catalog) >= 16 or dynamic_catalog_bytes + len(encoded) > 12000:
+                    omitted += 1
+                    continue
+                stored = {"candidate_id": identity, **candidate}
+                dynamic_catalog[identity] = stored
+                dynamic_catalog_bytes += len(encoded)
+                metadata["dynamic_target_candidates"].append(stored)
+            references.append(identity)
+        return {"dynamic_target_candidate_ids": references,
+                "dynamic_target_provenance_omitted_count": omitted}
     located_copies = {edge["relation_id"]: edge["target_path"]
         for edge in business_map.get("relations", ()) if edge.get("relation_type") == "INCLUDES_COPY"
         and edge.get("resolution") == "unbound_copy_candidate" and edge.get("target_path") and edge.get("relation_id")}
@@ -177,6 +199,7 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                     metadata.update(status="not_applicable", reason="concept_program_roots_not_located")
                     return result
             pending, queued = deque((path, 0) for path in roots), set(roots)
+            dynamic_candidate_cache = {}
             root_set = set(roots)
             # Multiple concept entries share the ordinary allowance. The
             # extended allowance is meaningful only for one physical root.
@@ -220,6 +243,22 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                     "(r.status IS NULL OR r.status!='confirmed' OR s.relative_path IS NULL))) "
                     "ORDER BY r.relation_type,r.target_name LIMIT ?", (relative, _FRONTIER_LIMIT + 1)).fetchall()
                 for edge in unresolved[:_FRONTIER_LIMIT]:
+                    if edge["relation_type"] == "CALL_TARGET_FROM":
+                        nominated = dynamic_target_source_candidates(db, edge["relation_id"],
+                            candidate_cache=dynamic_candidate_cache)
+                        candidates = list(dict.fromkeys(item["relative_path"]
+                            for item in nominated["dynamic_target_candidates"]))
+                        frontier("runtime_target_unresolved", relative, target_name=edge["target_name"],
+                            relation_id=edge["relation_id"], relation_type=edge["relation_type"], candidate_paths=candidates,
+                            source_available=True if candidates else None, runtime_target_resolved=False,
+                            dynamic_value_set_complete=False,
+                            caller_start_line=nominated.get("caller_start_line"),
+                            dynamic_target_candidates_truncated=nominated["dynamic_target_candidates_truncated"],
+                            **dynamic_candidate_references(nominated))
+                        if business_overview:
+                            for candidate in candidates:
+                                enqueue(candidate, depth)
+                        continue
                     target = located_copies.get(edge["relation_id"]) if edge["relation_type"] == "INCLUDES_COPY" else None
                     if target and db.execute("SELECT 1 FROM source_files WHERE relative_path=?", (target,)).fetchone():
                         frontier("copy_binding_unresolved", relative, target_name=edge["target_name"],

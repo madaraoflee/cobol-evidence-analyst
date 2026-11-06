@@ -459,7 +459,8 @@ def run_business_depth_check(command, root, checks=None, observations=None):
         "ENVIRONMENT DIVISION.\nINPUT-OUTPUT SECTION.\nFILE-CONTROL.\n"
         'SELECT ACTIVE-RECORD ASSIGN TO "ACTIVEVIEW".\n'
         "DATA DIVISION.\nWORKING-STORAGE SECTION.\nCOPY REQUEST-CONTEXT.\n"
-        'PROCEDURE DIVISION.\nMAIN.\nCALL "STEP-1" USING REQUEST-AMOUNT.\nGOBACK.\n')
+        '01 SERVICE-NAME PIC X(8) VALUE "STEP-1".\n'
+        'PROCEDURE DIVISION.\nMAIN.\nCALL SERVICE-NAME USING REQUEST-AMOUNT.\nGOBACK.\n')
     for level in range(1, 8):
         body = (f'CALL "STEP-{level + 1}" USING REQUEST-AMOUNT.' if level < 7 else
                 'IF REQUEST-AMOUNT > 50000\nDISPLAY "approval required before settlement"\nEND-IF.')
@@ -501,7 +502,11 @@ def run_business_depth_check(command, root, checks=None, observations=None):
         working = payload["source_context"][0]["working_set"]
         require(working["physical_complete"] and not working["semantic_execution_verified"]
                 and not working["closure_complete"], "File coverage was confused with runtime binding")
-        return ("ORDERFLOW 将请求金额沿七层子程序传入 STEP-7；最后一层在金额大于50000时发出审批提示，"
+        checks["dynamic_literal_supplies_candidate_without_claiming_runtime_binding"] = any(
+            row.get("reason") == "runtime_target_unresolved"
+            and "step-1.cbl" in row.get("candidate_paths", []) for row in working["frontier"])
+        return ("若动态目标采用声明的 STEP-1，ORDERFLOW 的请求金额会沿七层子程序传到 STEP-7；"
+            "最后一层在金额大于50000时发出审批提示，"
             "这段代码没有执行审批或结算写入。ACTIVEVIEW 的定义指向 ACTIVEBASE，实际库绑定仍待确认。"
             f"[{final['evidence_id']}] 找不到 step-7.cbl 的源码，无法完整解答。"), "stop"
 

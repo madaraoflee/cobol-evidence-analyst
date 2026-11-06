@@ -1288,7 +1288,8 @@ def _context_relations(connection, paths, limit=64):
             # needs investigation, even when a same-named program exists.
             item["resolution"] = "unresolved"
         item.update(dependency_source_availability(connection, item["relation_type"], item["target_name"],
-            target_path=item["target_path"], metadata=metadata, candidate_cache=candidate_cache))
+            target_path=item["target_path"], metadata=metadata, candidate_cache=candidate_cache,
+            relation_id=item["relation_id"]))
         if metadata.get("resolution_reason"):
             item["resolution_reason"] = metadata["resolution_reason"]
         item["runtime_verified"] = False
