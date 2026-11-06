@@ -468,6 +468,20 @@ function safeApiDiagnostic(value){
   }
   return safe;
 }
+const SAFE_FAILURE_REQUEST_STAGES={answer:'生成回答',discover:'定位資料',investigate:'補查源碼',
+  synthesis_review:'完善業務解釋',continuation:'續寫回答',semantic_review:'業務復核',semantic_revise:'依復核結果修訂',
+  empty_length_recovery:'補回因長度限制而缺失的正文',empty_stop_recovery:'補回空白回答'};
+const SAFE_FAILURE_REQUEST_OUTCOMES={not_sent:'尚未發出請求',response_received:'已收到接口回應',unknown:'請求結果尚未確認'};
+function safeFailureRequestContext(value){
+  if(!value || typeof value!=='object' || Array.isArray(value))return null;
+  const safe={},stage=value.stage==='continue'?'continuation':value.stage==='revise'?'synthesis_review':value.stage;
+  if(typeof stage==='string' && Object.hasOwn(SAFE_FAILURE_REQUEST_STAGES,stage))safe.stage=stage;
+  if(typeof value.request_outcome==='string' && Object.hasOwn(SAFE_FAILURE_REQUEST_OUTCOMES,value.request_outcome))safe.request_outcome=value.request_outcome;
+  for(const key of ['round','request_bytes','source_file_count','source_page_count']){
+    if(Number.isSafeInteger(value[key]) && value[key]>=0)safe[key]=value[key];
+  }
+  return Object.keys(safe).length?safe:null;
+}
 function safeFailureDiagnostics(subject=null){
   const answer=subject || result() || {},agent=subject?{}:(state.project?.agent || {});
   const summary=answer.diagnostic_summary || agent.diagnostic_summary || {};
@@ -477,8 +491,9 @@ function safeFailureDiagnostics(subject=null){
   for(const item of candidates.slice(0,128)){
     const diagnostic=safeApiDiagnostic(item?.diagnostic || item);if(!diagnostic || seen.has(diagnostic.request_id))continue;
     seen.add(diagnostic.request_id);
-    const stage=['answer','discover','investigate','synthesis_review','continuation','unknown','capability_probe','provider_request','context_assembly','response_parse','response_validation','configuration','direct','map','reduce','model_request','repository_search','page','program','synthesis'].includes(item.stage)?item.stage:'unknown';
-    found.push({stage,...diagnostic});if(found.length>=64)break;
+    const stage=['answer','discover','investigate','synthesis_review','continuation','semantic_review','semantic_revise','unknown','capability_probe','provider_request','context_assembly','response_parse','response_validation','configuration','direct','map','reduce','model_request','repository_search','page','program','synthesis'].includes(item.stage)?item.stage:'unknown';
+    const requestContext=safeFailureRequestContext(item.request_context);
+    found.push({stage,...diagnostic,...(requestContext?{request_context:requestContext}:{})});if(found.length>=64)break;
   }
   return found;
 }
@@ -525,11 +540,22 @@ function diagnosticOnlyAnswer(subject,failures=safeFailureDiagnostics(subject)){
     return /^[\s:：。.;；·]*$/.test(remaining);
   });
 }
+function failureRequestContextView(failure){
+  const context=safeFailureRequestContext(failure?.request_context);if(!context)return '';
+  const parts=[];
+  if(Object.hasOwn(context,'round'))parts.push(t('請求序號')+'：'+formatNumber(context.round));
+  if(context.stage)parts.push(t('請求階段')+'：'+t(SAFE_FAILURE_REQUEST_STAGES[context.stage]));
+  if(context.request_outcome)parts.push(t('請求狀態')+'：'+t(SAFE_FAILURE_REQUEST_OUTCOMES[context.request_outcome]));
+  if(Object.hasOwn(context,'request_bytes'))parts.push(t('請求大小')+'：'+formatBytes(context.request_bytes));
+  if(Object.hasOwn(context,'source_file_count'))parts.push(t('本次請求包含的源碼文件')+'：'+formatNumber(context.source_file_count));
+  if(Object.hasOwn(context,'source_page_count'))parts.push(t('本次請求包含的片段')+'：'+formatNumber(context.source_page_count));
+  return `<p class="failure-request-context"><small>${parts.map(escapeHTML).join(' · ')}</small></p>`;
+}
 function failureDiagnosticsView(subject=null,{retainedAnswer=false}={}){
   if(!subject && (state.mode!=='real' || draftChanged()))return '';
   const failures=safeFailureDiagnostics(subject);if(!failures.length)return '';
   const heading=retainedAnswer?ui`<summary>${icon('alert')}本次請求未完成 · 已保留回答</summary>`:ui`<div class="failure-heading">${icon('alert')}本次請求未完成</div>`;
-  const body=ui`${heading}${failures.slice(-4).map(failure=>`<p><strong>${failure.evidence_source==='local'?escapeHTML(t('本機處理'))+'：':''}${escapeHTML(failure.reason)}</strong>${failure.http_status?' · HTTP '+failure.http_status:''}</p><p>${escapeHTML(t('下一步'))}：${escapeHTML(failure.next_step)}</p>`).join('')}<details><summary>查看安全錯誤詳情</summary>${failures.slice(-4).map(failure=>`<p><small>${escapeHTML(t('本地關聯編號'))}：<code>${escapeHTML(failure.request_id)}</code>${failure.upstream_request_id?` · ${escapeHTML(t('上游關聯編號'))}：<code>${escapeHTML(failure.upstream_request_id)}</code>`:''}</small></p>`).join('')}<pre class="api-raw-text">${escapeHTML(JSON.stringify(failures,null,2))}</pre></details>`;
+  const body=ui`${heading}${failures.slice(-4).map(failure=>`<p><strong>${failure.evidence_source==='local'?escapeHTML(t('本機處理'))+'：':''}${escapeHTML(failure.reason)}</strong>${failure.http_status?' · HTTP '+failure.http_status:''}</p><p>${escapeHTML(t('下一步'))}：${escapeHTML(failure.next_step)}</p>`).join('')}<details><summary>查看安全錯誤詳情</summary>${failures.slice(-4).map(failure=>`<p><small>${escapeHTML(t('本地關聯編號'))}：<code>${escapeHTML(failure.request_id)}</code>${failure.upstream_request_id?` · ${escapeHTML(t('上游關聯編號'))}：<code>${escapeHTML(failure.upstream_request_id)}</code>`:''}</small></p>${failureRequestContextView(failure)}`).join('')}<pre class="api-raw-text">${escapeHTML(JSON.stringify(failures,null,2))}</pre></details>`;
   return retainedAnswer?`<details class="narrative-notes request-failure retained-answer">${body}</details>`:`<section class="narrative-notes request-failure" role="status">${body}</section>`;
 }
 function browserDiagnostic(category,httpStatus=null){
@@ -551,7 +577,7 @@ function diagnosticSummaryData(){
   const runtime=summary.runtime || {},configured=summary.configured || {},coverage=summary.source_coverage || {},output=summary.output || {};
   const requests=Array.isArray(summary.requests)?summary.requests.filter(item=>item && typeof item==='object').slice(0,64).map(item=>({
     round_id:Number.isSafeInteger(item.round_id) && item.round_id>=0?item.round_id:typeof item.round_id==='string' && /^round-[0-9]{1,6}$/.test(item.round_id)?item.round_id:null,
-    stage:enumeration(item.stage,['answer','discover','investigate','synthesis_review','continuation','semantic_review','semantic_revise','unknown']),
+    stage:enumeration(item.stage,[...Object.keys(SAFE_FAILURE_REQUEST_STAGES),'unknown']),
     ...integers(item,['request_bytes','source_file_count','page_count','source_characters','source_line_count','trim_event_count','history_message_count','history_characters','raw_content_characters','parsed_answer_characters','choice_index']),
     finish_reason:finish(item.finish_reason),
     response_timing_seconds:Object.fromEntries(['headers_received','first_response_byte','response_complete','request_elapsed'].filter(key=>seconds(item.response_timing_seconds?.[key])!==null).map(key=>[key,seconds(item.response_timing_seconds[key])])),

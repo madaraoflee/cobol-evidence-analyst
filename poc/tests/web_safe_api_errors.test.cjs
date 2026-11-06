@@ -22,6 +22,63 @@ function diagnostic(overrides={}){
   return {schema_version:'safe-api-error/v1',category:'quota_exhausted',evidence_source:'provider_code',http_status:429,
     request_id:'local-'+'a'.repeat(32),request_id_source:'local',upstream_request_id:'req-'+'b'.repeat(16),upstream_request_id_source:'header',...overrides};
 }
+
+test('review failures retain their stage and only safe request context in details and exports',()=>{
+  const labels={'zh-CN':['业务复核','依复核结果修订','本次请求包含的源码文件'],
+    'zh-HK':['業務復核','依復核結果修訂','本次請求包含的源碼文件'],
+    en:['Reviewing the business explanation','Revising after review','Source files included in this request']};
+  for(const locale of Object.keys(labels))for(const [index,stage] of ['semantic_review','semantic_revise'].entries()){
+    const run=harness(locale),poison='PRIVATE-REQUEST-CONTEXT-MARKER';
+    const context={stage,round:4,request_bytes:12000,source_file_count:2,source_page_count:3,
+      request_outcome:'response_received',path:poison,raw_body:poison,model:poison};
+    const failure={stage,diagnostic:diagnostic({category:'http_5xx_unknown',http_status:500,evidence_source:'http_status'}),request_context:context};
+    const message={id:'retained-answer',role:'assistant',status:'partial',content:'Retained business answer.',diagnostics:[failure]};
+    const safe=run(`safeFailureDiagnostics(${JSON.stringify(message)})`);
+    assert.equal(safe[0].stage,stage);assert.equal(safe[0].request_context.stage,stage);
+    assert.equal(safe[0].request_context.round,4);assert.equal(safe[0].request_context.source_file_count,2);
+    assert.equal(safe[0].request_context.request_outcome,'response_received');
+    const html=run(`conversationMessage(${JSON.stringify(message)})`);
+    assert.ok(html.includes(labels[locale][index]));assert.ok(html.includes(labels[locale][2]));
+    assert.ok(html.indexOf('failure-request-context')>html.indexOf(locale==='en'?'Safe error details':locale==='zh-HK'?'查看安全錯誤詳情':'查看安全错误详情'));
+    assert.doesNotMatch(html,new RegExp(poison));assert.match(html,/Retained business answer\./);
+    run(`state.mode='real';state.project={agent:{agent_result:{diagnostic_summary:{schema_version:'business-answer-diagnostics/v1',api_failures:${JSON.stringify(safe)}}}}};`);
+    const exported=run('diagnosticSummaryData()');
+    assert.equal(exported.api_failures[0].stage,stage);assert.equal(exported.api_failures[0].request_context.request_bytes,12000);
+    assert.doesNotMatch(JSON.stringify(exported),new RegExp(poison));
+  }
+});
+
+test('request metadata rejects unknown and private values without inventing legacy context',()=>{
+  const run=harness(),poison='PRIVATE-REQUEST-METADATA-MARKER';
+  const invalid={stage:'constructor',round:true,request_bytes:-1,source_file_count:1.5,
+    source_page_count:2**53,request_outcome:poison,path:poison,body:poison};
+  for(const value of [invalid,[invalid],poison,null])assert.equal(run(`safeFailureRequestContext(${JSON.stringify(value)})`),null);
+  const context=run(`safeFailureRequestContext(${JSON.stringify({...invalid,request_bytes:0,request_outcome:'not_sent'})})`);
+  assert.equal(JSON.stringify(context),JSON.stringify({request_outcome:'not_sent',request_bytes:0}));
+  for(const [stage,expected] of [['continue','continuation'],['revise','synthesis_review'],
+    ['empty_length_recovery','empty_length_recovery'],['empty_stop_recovery','empty_stop_recovery']]){
+    assert.equal(run(`safeFailureRequestContext({stage:${JSON.stringify(stage)}})`).stage,expected);
+  }
+  const legacy={stage:'provider_request',diagnostic:diagnostic()};
+  const safe=run(`safeFailureDiagnostics({diagnostics:[${JSON.stringify(legacy)}]})`);
+  assert.equal(Object.hasOwn(safe[0],'request_context'),false);
+  const html=run(`failureDiagnosticsView({diagnostics:[${JSON.stringify(legacy)}]})`);
+  assert.doesNotMatch(html,/failure-request-context/);
+});
+
+test('candidate and reference totals remain distinct from the failed request source counts',()=>{
+  const run=harness();
+  const message={id:'source-counts',role:'assistant',status:'partial',content:'Partial business explanation.',
+    related_sources:Array.from({length:99},(_,i)=>({relative_path:`candidate-${i}.cbl`})),
+    evidence_refs:Array.from({length:21},(_,i)=>({evidence_id:`evidence-${i}`,relative_path:'entry.cbl',start_line:i+1,end_line:i+1})),
+    diagnostics:[{stage:'provider_request',diagnostic:diagnostic({category:'http_5xx_unknown',http_status:500}),
+      request_context:{stage:'investigate',round:2,source_file_count:2,source_page_count:3,request_outcome:'response_received'}}]};
+  const html=run(`conversationMessage(${JSON.stringify(message)})`);
+  assert.match(html,/ · 99<\/summary>/);assert.match(html,/查看回答依据/);
+  assert.match(html,/ · 21<\/summary>/);
+  assert.match(html,/本次请求包含的源码文件：2/);assert.match(html,/本次请求包含的片段：3/);
+  assert.doesNotMatch(html,/本次请求包含的源码文件：99|模型已读/);
+});
 const LOCAL_SOURCE_FAILURES={
   storage_full:{'zh-CN':'本机存储空间不足。','zh-HK':'本機儲存空間不足。',en:'Local storage is full.'},
   storage_permission:{'zh-CN':'无法写入本机分析文件。','zh-HK':'無法寫入本機分析文件。',en:'Could not write local analysis files.'},

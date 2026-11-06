@@ -6,9 +6,10 @@ from dataclasses import asdict, dataclass
 import re
 from statement_facts import data_references
 from repository_identity import mask_source_references
+from question_intent import business_sequence_requested
 
 
-PLAN_VERSION = "business-analysis-plan/v12"
+PLAN_VERSION = "business-analysis-plan/v13"
 _ACCUMULATION = re.compile(
     r"累加|累[计計积積]|加总|加總|"
     r"(?<![A-Za-z0-9_$#@-])(?:accumulat(?:e[ds]?|ing|ion)|running\s+totals?)(?![A-Za-z0-9_$#@-])|"
@@ -295,6 +296,9 @@ class QuestionPlanner:
                 intent_question = re.sub(r"(?<![A-Za-z0-9_$#@-])" + re.escape(name) +
                                          r"(?![A-Za-z0-9_$#@-])", " ", intent_question, flags=re.I)
         intents = [name for name, pattern in _HINTS.items() if re.search(pattern, intent_question, re.I)]
+        if (business_sequence_requested(question, field_entities=entities, source_scopes=source_scopes)
+                and "flow" not in intents):
+            intents.append("flow")
         # Share the delivery layer's broad purpose/workflow recognition. A
         # multi-part onboarding request can include rules without becoming
         # only a field/rule question.

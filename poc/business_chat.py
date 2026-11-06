@@ -25,7 +25,9 @@ from answer_continuation_budget import AnswerContinuationBudget
 from business_map import build_business_map
 from business_explanation_cache import with_business_explanation_cache
 from business_synthesis import (assess_answer_completion, assess_business_answer, build_analysis_brief, link_answer_claims,
-                                needs_synthesis_review, wants_business_detail, wants_business_overview)
+                                business_explanation_focus, business_explanation_excluded_facets,
+                                needs_synthesis_review, wants_business_detail,
+                                wants_business_overview)
 from company_api import APIClientError, APIConfigurationError, OpenAICompatibleChatClient
 from claim_ledger import review_answer_claims
 from evidence_context import EvidenceContext, page_priority
@@ -716,6 +718,12 @@ def _prompt_payload(payload):
                     "content": "Lead with the conclusion; qualify only affected claims.",
                     "time_scope": "Keep call inputs, returned values and later outcomes distinct; retain each scenario's assumptions."}
     explanation_contract = projected.get("business_analysis_brief", {}).get("business_explanation_contract", {})
+    sequence_focus = explanation_contract.get("focus") or business_explanation_focus(payload.get("question", ""),
+            answer_detail=payload.get("answer_detail", "detailed"),
+            answer_instructions=payload.get("answer_instructions", ""),
+            field_entities=payload.get("question_investigation", {}).get("analysis_plan", {}).get("entities", ()),
+            source_scopes=payload.get("question_investigation", {}).get("analysis_plan", {}).get("source_scopes", ()))
+    sequence_requested = sequence_focus in {"processing_sequence", "processing_sequence_with_overview"}
     if not discovery_only and (explanation_contract.get("mode") == "business_overview"
             or wants_business_overview(payload.get("question", ""),
                 answer_detail=payload.get("answer_detail", "detailed"),
@@ -769,6 +777,41 @@ def _prompt_payload(payload):
                 "task": "Explain the business purpose first for a newcomer, then separate relevant Batch job, "
                     "Online function / Programs, Tables and Files roles and data flow. "
                     "Use supplied code; read relevant located implementations as needed."}
+    if sequence_focus == "processing_sequence" and not discovery_only:
+        contract["detail"] = (("Explain the requested processing sequence thoroughly. " if detailed else
+                               "Explain the requested processing sequence concisely. ") +
+            "Cover the source-backed precedence, conditions, business amount or state changes, "
+            "handoffs and exceptions relevant to this question.")
+        contract["business_explanation"] = {
+            "focus": "processing_sequence",
+            "task": "Answer the requested order and why each relevant step applies. Explain what remains "
+                "after each step and when processing skips, stops or passes to the next step. "
+                "Use a connected business explanation with source references. Do not expand this question "
+                "into a general system inventory or add unasked deployment, schedule or storage sections.",
+            "source_walk": "Follow actual control flow, branches, local procedures, subroutines and parameter "
+                "handoffs that establish the requested sequence. Read located but unsupplied implementation "
+                "when necessary; distinguish initialization from the processing that consumes its data.",
+            "grounding": "Names, paragraph numbers and directory order do not establish execution order. "
+                "Qualify only the step or relationship whose evidence is missing; retain other supported "
+                "steps and conditions without inventing a complete order."}
+    elif sequence_focus == "processing_sequence_with_overview" and not discovery_only:
+        contract["detail"] = (("Explain the requested business overview and processing sequence thoroughly. "
+                               if detailed else "Explain the requested overview and sequence concisely. ") +
+            "Preserve relevant conditions, business effects and source references; respect explicit topic exclusions.")
+        explanation = contract["business_explanation"]
+        contract["business_explanation"] = {
+            **{key: value for key, value in explanation.items() if key in {"source_walk", "grounding"}},
+            "focus": sequence_focus,
+            "excluded_facets": business_explanation_excluded_facets(payload.get("question", ""),
+                answer_detail=payload.get("answer_detail", "detailed"),
+                answer_instructions=payload.get("answer_instructions", ""),
+                field_entities=payload.get("question_investigation", {}).get("analysis_plan", {}).get("entities", ()),
+                source_scopes=payload.get("question_investigation", {}).get("analysis_plan", {}).get("source_scopes", ())),
+            "task": "Explain every business overview aspect explicitly requested in the current question "
+                "as well as the requested processing sequence. Respect explicitly excluded topics; "
+                "do not fill unasked inventory categories. "
+                "Explain each step's conditions, amount or state changes, handoffs and exceptions. "
+                "Do not drop the overview when answering order, or drop order when giving the overview."}
     if not discovery_only:
         contract["evidence_boundaries"] = {
             "sql": "A SELECT establishes the visible query and host outputs, not absence of locks, blocking or transaction effects. "
@@ -806,16 +849,26 @@ def _prompt_payload(payload):
             trailing["task"] = answer_task_with_instructions(trailing["task"], payload["answer_instructions"])
         if "business_explanation" in contract:
             explanation = contract["business_explanation"]
-            contract["business_explanation"] = {
-                **{key: value for key, value in explanation.items()
-                   if key in {"source_walk", "grounding"}},
-                "task": "Explain the relevant business roles and source-backed data flow using the saved answer structure. Use supplied implementations; read relevant located source as needed. Do not invent missing objects or runtime outcomes.",
-                "distinctions": "A program is not automatically an online entry; distinguish database tables from internal tables and data files from source/COPY definitions."}
+            if sequence_requested:
+                contract["business_explanation"] = {**explanation,
+                    "task": explanation["task"] + " Follow saved presentation requirements while keeping "
+                        "the current question's processing sequence and conditions as the subject."}
+            else:
+                contract["business_explanation"] = {
+                    **{key: value for key, value in explanation.items()
+                       if key in {"source_walk", "grounding"}},
+                    "task": "Explain the relevant business roles and source-backed data flow using the saved answer structure. Use supplied implementations; read relevant located source as needed. Do not invent missing objects or runtime outcomes.",
+                    "distinctions": "A program is not automatically an online entry; distinguish database tables from internal tables and data files from source/COPY definitions."}
         if "business_explanation_contract" in projected.get("business_analysis_brief", {}):
             brief = dict(projected["business_analysis_brief"])
             brief["business_explanation_contract"] = {
                 **brief["business_explanation_contract"],
-                "task": "按系统配置中保存的受众、结构与详略要求解释本题业务，保留原文依据与来源引用。"
+                "task": ("围绕本题处理先后、各步骤成立条件、金额或状态变化和交接解释业务。"
+                        "不要为了通用业务模板增添未问的部署、调度或存储章节。"
+                        if sequence_focus == "processing_sequence" else
+                        "同时回答本题明确要求的业务概览、对象关系和处理顺序，不得省略其中一部分。"
+                        if sequence_focus == "processing_sequence_with_overview" else "") +
+                        "按系统配置中保存的受众、结构与详略要求解释本题业务，保留原文依据与来源引用。"
                         "source_documentation 是原文说明，source_syntax 是可见语句，framework_convention 是适用约定；"
                         "业务推断注明依据，均不证明实际运行。" + BUSINESS_RUNTIME_BOUNDARY_POLICY}
             projected["business_analysis_brief"] = brief
@@ -1168,7 +1221,13 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         elif payload.get("source_fact_suggestions"):
             removed = payload.pop("source_fact_suggestions")
             record(None, "source_fact_suggestion_bytes", len(json.dumps(removed, ensure_ascii=False)))
-        elif payload.get("prior_source_memory") and not payload["prior_source_memory"].get("blocks"):
+        elif payload.get("prior_source_memory", {}).get("read_catalog", {}).get("entries"):
+            catalog = payload["prior_source_memory"]["read_catalog"]
+            removed = catalog["entries"].pop(len(catalog["entries"]) // 2)
+            catalog["omitted_count"] += 1
+            record(removed.get("evidence_id"), "prior_read_catalog_request_bytes")
+        elif (payload.get("prior_source_memory") and not payload["prior_source_memory"].get("blocks")
+                and not payload["prior_source_memory"].get("read_catalog", {}).get("total_count")):
             payload.pop("prior_source_memory")
             record(None, "empty_source_memory_protocol_bytes")
         elif not payload.get("budget_wire_compact"):
@@ -1696,6 +1755,25 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             response = row.setdefault("response", None)
             if response is not None and (code != "QUESTION_TIME_BUDGET_EXHAUSTED"
                                          or response.get("error") == code):
+                # Tie safe context to this failed observed request, not the
+                # previous successful round or merely prepared local work.
+                round_match = re.fullmatch(r"round-([1-9][0-9]*)", str(row.get("round_id", "")))
+                if response.get("error") == code and round_match:
+                    request_context = {"round": int(round_match[1])}
+                    request_stage = row.get("stage")
+                    if request_stage in {"answer", "discover", "investigate", "continue", "revise",
+                            "semantic_review", "semantic_revise", "empty_length_recovery", "empty_stop_recovery"}:
+                        request_context["stage"] = request_stage
+                    if type(row.get("request_bytes")) is int and row["request_bytes"] >= 0:
+                        request_context["request_bytes"] = row["request_bytes"]
+                    sources = row.get("sources")
+                    if isinstance(sources, list):
+                        request_context["source_page_count"] = len(sources)
+                        request_context["source_file_count"] = len({source["path"] for source in sources
+                            if isinstance(source, Mapping) and isinstance(source.get("path"), str) and source["path"]})
+                    if row.get("request_outcome") in {"not_sent", "response_received", "unknown"}:
+                        request_context["request_outcome"] = row["request_outcome"]
+                    item["request_context"] = request_context
                 response["error"], response["error_stage"] = code, stage
                 if http_status:
                     response["http_status"] = http_status
@@ -2451,6 +2529,13 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         if resume_response is not None:
             last_request_manifest = request_manifest
             raw, resume_response = resume_response, None
+            if source_memory is not None:
+                try:
+                    replayed = _extract_review_text(raw) if stage == "semantic_review" else _extract_text(raw)
+                    if not replayed.refused and not replayed.filtered:
+                        source_memory.remember_supplied_sources(payload=payload, round_record=quality.response_round())
+                except _TextResponseError:
+                    pass
             return raw
         if not policy.can_request(turns):
             raise APIClientError("MODEL_REQUEST_BUDGET_EXHAUSTED")
@@ -2502,6 +2587,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     for p in bundle.get("pages", []))
             try:
                 parsed_response = (_extract_review_text(raw) if stage == "semantic_review" else _extract_text(raw))
+                if source_memory is not None and not parsed_response.refused and not parsed_response.filtered:
+                    source_memory.remember_supplied_sources(payload=payload, round_record=quality.response_round())
                 replay = {"choices": [{"message": {"role": "assistant", "content": redactor._sanitize(parsed_response.text)},
                     "finish_reason": _response_shape(raw, parsed_response.choice_index)["finish_reason"]}],
                     "usage": raw.get("usage")}
@@ -2756,6 +2843,84 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             trace.append({"tool": "framework_search", "query": query,
                           "references": len(found["references"]), "network_requests": 0})
 
+    def restore_absent_model_read(arguments):
+        """Restore an evicted original, without claiming new evidence.
+
+        Deduplicating tools must not make an actually supplied source impossible
+        to read again. Only the last physical request establishes visibility;
+        candidate memory and an earlier completed read do not establish it.
+        """
+        nonlocal priority_targets, tool_problem
+        if (source_memory is None or not isinstance(arguments, dict)
+                or automatic_turn_usage["read"] >= policy.max_reads_per_turn):
+            return False
+        identifier = arguments.get("evidence_id")
+        path = arguments.get("relative_path")
+        first = arguments.get("start_line", 1)
+        last = arguments.get("end_line", first + 119) if type(first) is int else None
+        if identifier is None and (not isinstance(path, str) or type(first) is not int
+                or type(last) is not int or first < 1 or last < first):
+            return False
+        restored_epochs = {key: epoch for row in completed_actions
+            for key, epoch in row.get("restored_evidence_epochs", {}).items()}
+        records = [*source_memory_context.get("rounds", []), *quality.data["rounds"]]
+        visible_ids = set((last_request_manifest or {}).get("source_ids", []))
+        visible_pages = [sent_pages[key] for key in visible_ids if key in sent_pages]
+        missing, epochs = [], {}
+        for key, page in source_memory.pages.items():
+            matched = (key == identifier if identifier is not None else
+                       page["relative_path"] == path and page["start_line"] <= last
+                       and page["end_line"] >= first)
+            if (not matched or page.get("span_truncated")
+                    or evidence.covering_id(key, visible_pages) in visible_ids):
+                continue
+            latest = source_memory.origins[key]
+            for record in reversed(records):
+                source_ids = {source["evidence_id"] for source in record.get("sources", [])}
+                supplied = [sent_pages[value] for value in source_ids if value in sent_pages]
+                if evidence.covering_id(key, supplied) in source_ids:
+                    latest = record
+                    break
+            epoch = [latest["round_id"], latest["request_body_sha256"]]
+            # One attempt per actual supplying request. If later investigation
+            # displaces this source again, a fresh physical supply permits a new
+            # reread; a restoration that never fit the wire cannot loop forever.
+            if restored_epochs.get(key) == epoch:
+                continue
+            missing.append(key)
+            epochs[key] = epoch
+        if not missing:
+            return False
+        automatic_turn_usage["read"] += 1
+        tool_calls["read"] += 1
+        try:
+            pages = source_memory.archived_pages(missing)
+            identity = business_map.get("source_identity", {})
+            if (identity_blocks_analysis(identity) or identity.get("exclusive_source_scope")
+                    and any(page["relative_path"] not in identity.get("direct_paths", []) for page in pages)):
+                raise ValueError("SOURCE_OUTSIDE_REQUESTED_SCOPE")
+            # The archive belongs to the original immutable source snapshot.
+            # A new snapshot must be investigated, never silently rebound.
+            for page in pages:
+                if (source_session is not None
+                        and source_session.capture(page["relative_path"]).sha256 != page["source_sha256"]):
+                    raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
+                if any(other["relative_path"] == page["relative_path"]
+                       and other["source_sha256"] != page["source_sha256"]
+                       for other in evidence.pages.values()):
+                    raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
+            accept({"pages": pages}, "read")
+            priority_targets = missing + [target for target in priority_targets if target not in missing]
+            completed_actions.append({"read": arguments, "added_pages": 0,
+                "outcome": "prior_source_restored", "restored_evidence_ids": missing,
+                "restored_evidence_epochs": epochs})
+            return True
+        except (KeyError, ValueError, TypeError, OSError, sqlite3.Error):
+            tool_problem = True
+            completed_actions.append({"read": arguments, "outcome": "unavailable",
+                "reason": "prior_source_memory_unavailable"})
+            return False
+
     def advance_question(investigation, *, model_requested=False):
         """Spend only the existing per-turn tool allowance on concrete gaps."""
         nonlocal tool_problem, priority_targets, source_match_observed, source_read_observed
@@ -2838,6 +3003,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 continue
             fingerprint = json.dumps({"tool": tool, "arguments": arguments}, sort_keys=True)
             if fingerprint in automatic_actions:
+                if model_requested and tool == "read":
+                    restore_absent_model_read(arguments)
                 continue
             if tool == "read" and automatic_turn_usage["read"] >= policy.max_reads_per_turn:
                 # Keep a concrete, unattempted source action for the next turn.
@@ -3579,6 +3746,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     protocol_answer_pending = not pending_model_actions and not discovery_pending
                     continue
                 if key in seen_actions:
+                    restored = [restore_absent_model_read(item) for item in action.get("read", [])]
+                    if any(restored):
+                        # Source identities remain in AnalysisContinuation's
+                        # known material, so restoration cannot reset its idle
+                        # counter or turn the repeated action into new progress.
+                        continue
                     contexts.append({"notice": "该检索已执行，无新来源。请根据当前资料直接回答。"})
                     if adaptive:
                         protocol_answer_pending = True

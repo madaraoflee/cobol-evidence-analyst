@@ -107,6 +107,46 @@ class BusinessChatHTTPRecoveryTests(unittest.TestCase):
         self.assertLessEqual({citation["evidence_id"] for citation in self.result["narrative"]["citations"]},
                              set(self.trace["final"]["final_visible_ids"]))
 
+    def assert_failure_request_context(self, round_number, stage):
+        failure = self.result["diagnostics"][-1]
+        context = failure["request_context"]
+        payload = json.loads(json.loads(self.requests[round_number - 1].body)["messages"][-1]["content"])
+        pages = [page for bundle in payload["source_context"] for page in bundle.get("pages", [])]
+        self.assertEqual(context, {"round": round_number, "stage": stage,
+            "request_bytes": len(self.requests[round_number - 1].body),
+            "source_page_count": len(pages),
+            "source_file_count": len({page["relative_path"] for page in pages}),
+            "request_outcome": "response_received"})
+        summary = self.result["diagnostic_summary"]["api_failures"][-1]["request_context"]
+        self.assertEqual(summary, {**context,
+            "stage": {"continue": "continuation", "revise": "synthesis_review"}.get(stage, stage)})
+
+    def test_first_http_failure_records_only_the_observed_request_context(self):
+        self.ask([500])
+        self.assert_failure_request_context(1, self.trace["rounds"][0]["stage"])
+        self.assertEqual(self.result["diagnostics"][-1]["stage"], "provider_request")
+
+    def test_followup_http_failure_identifies_the_second_request(self):
+        self.ask(['{"search":["RESULT-AMOUNT"]}', 500])
+        self.assert_failure_request_context(2, self.trace["rounds"][1]["stage"])
+        self.assert_request_accounting(2)
+
+    def test_continuation_http_failure_keeps_draft_and_identifies_failed_round(self):
+        draft = "结果金额依次计算，剩余条件尚未写完。"
+        partial = TransportResponse(200, json.dumps({"choices": [{"message": {
+            "role": "assistant", "content": draft}, "finish_reason": "length"}]}))
+        self.ask([partial, 500])
+        self.assert_failure_request_context(2, "continue")
+        self.assertIn(draft, self.result["answer"])
+        self.assertEqual(self.trace["final"]["final_answer_round_id"], "round-1")
+
+    def test_configuration_failure_does_not_claim_a_request_was_observed(self):
+        with mock.patch.object(CompanyAPIConfig, "resolve_api_key", return_value=None):
+            self.ask([])
+        self.assertEqual(self.requests, [])
+        self.assertEqual(self.trace["rounds"], [])
+        self.assertNotIn("request_context", self.result["diagnostics"][-1])
+
     def test_server_errors_stop_without_automatic_resend(self):
         for status in (500, 502, 503, 504):
             with self.subTest(status=status):

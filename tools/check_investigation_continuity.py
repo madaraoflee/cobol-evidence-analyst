@@ -547,6 +547,135 @@ def run_business_depth_check(command, root, checks=None, observations=None):
         "fixture_sha256": {"business_depth/" + name: sha256(source / name) for name in files}}
 
 
+def run_round_evidence_check(command, root, checks=None, observations=None):
+    """Verify eviction and explicit rereading in nine real desktop requests."""
+    checks = checks if checks is not None else {}
+    observations = observations if observations is not None else []
+    source, output, profile = root / "source", root / "workspace", root / "profile"
+    source.mkdir(parents=True)
+    files = {"root.cbl": SOURCE}
+    marker = "PERFORM APPLY-ADVANCE.\nPERFORM APPLY-RECEIPTS."
+    for number in range(1, 8):
+        body = [f'DISPLAY "HELPER-{number}-MARKER".',
+            marker if number == 1 else "*> configuration source context"]
+        body.extend("*> neutral descriptive context " + str(line) + " " + "detail " * 8
+                    for line in range(110))
+        body.extend([f"MOVE {number} TO HELPER-RESULT.",
+            "APPLY-ADVANCE.\nSUBTRACT ADVANCE-AMOUNT FROM DUE-AMOUNT.\nEXIT.",
+            "APPLY-RECEIPTS.\nSUBTRACT RECEIPT-AMOUNT FROM DUE-AMOUNT.\nEXIT."])
+        files[f"helper-{number}.cbl"] = (
+            f"IDENTIFICATION DIVISION.\nPROGRAM-ID. HELPER-{number}.\nDATA DIVISION.\n"
+            "WORKING-STORAGE SECTION.\n01 HELPER-RESULT PIC 9.\n01 DUE-AMOUNT PIC 9(6).\n"
+            "01 ADVANCE-AMOUNT PIC 9(6).\n01 RECEIPT-AMOUNT PIC 9(6).\nPROCEDURE DIVISION.\nMAIN.\n"
+            + "\n".join(body) + "\nGOBACK.\n")
+    for name, body in files.items():
+        (source / name).write_text(body, encoding="utf-8")
+    question = "root.cbl 的金额如何计算？"
+
+    def respond(envelope, payload, index):
+        require(index < 9 and payload["question"] == question, "Round-memory request changed or repeated")
+        pages = supplied_pages(payload)
+        if index == 1:
+            verify_pages(source, payload, marker)
+        if index == 7:
+            checks["earlier_original_is_evicted_under_unchanged_default_source_budget"] = (
+                not any(marker in page["source_text"] for page in pages))
+            catalog = payload.get("prior_source_memory", {}).get("read_catalog", {})
+            checks["earlier_read_location_remains_available_without_model_findings"] = any(
+                row.get("relative_path") == "helper-1.cbl"
+                and row.get("source_sha256") == sha256(source / "helper-1.cbl")
+                for row in catalog.get("entries", []))
+        if index < 8:
+            number = index + 1 if index < 7 else 1
+            path = f"helper-{number}.cbl"
+            return json.dumps({"read": [{"relative_path": path, "start_line": 1,
+                "end_line": len(files[path].splitlines())}]}), "stop"
+        restored = verify_pages(source, payload, marker)
+        checks["explicit_reread_restores_exact_evicted_original_before_answer"] = (
+            restored["relative_path"] == "helper-1.cbl"
+            and restored["source_text"].splitlines() == files["helper-1.cbl"].splitlines())
+        main = verify_pages(source, payload)
+        return f"基础金额初值为10，金额按基础金额乘以二得到20。[{main['evidence_id']}]", "stop"
+
+    with CompletionProvider(root / "provider", respond) as provider:
+        environment = write_profile(profile, provider, {"max_model_requests": 9, "max_answer_revisions": 0})
+        with NativeWorkbench(command, profile, environment, root) as workbench:
+            indexed = workbench.analyze(source, output)
+            require(indexed["job"]["status"] == "COMPLETED" and not provider.requests, "Round-memory index failed")
+            result = workbench.analyze(source, output, question, answer_detail="detailed")
+            require(result["result"] and not provider.errors, "Round-memory answer failed: " + "; ".join(provider.errors))
+            agent = result["result"]["agent_result"]
+            journal = read_journal(output)["requests"]
+            checks["rereading_keeps_nine_unique_requests_and_default_source_budget"] = (
+                len(provider.requests) == len(journal) == agent["metrics"]["model_requests"] == 9
+                and agent["metrics"]["policy"]["max_source_characters"] == 36000
+                and all(row["state"] == "completed" for row in journal)
+                and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests})
+            observations.append({"phase": "round_evidence_reread", "run_id": agent["run_id"],
+                "model_requests": len(provider.requests), "elapsed_seconds": result["elapsed_seconds"]})
+    return {"checks": checks, "observations": observations, "synthetic_model_requests": len(provider.requests),
+        "fixture_sha256": {"round_evidence/" + name: sha256(source / name) for name in files}}
+
+
+def run_sequence_selection_check(command, root, checks=None, observations=None):
+    """Natural business questions must reach execution candidates beyond initializers."""
+    checks = checks if checks is not None else {}
+    observations = observations if observations is not None else []
+    source, output, profile = root / "source", root / "workspace", root / "profile"
+    source.mkdir(parents=True)
+
+    def program(name, comment, data, body):
+        return (f"*> {comment}\nIDENTIFICATION DIVISION.\nPROGRAM-ID. {name}.\nDATA DIVISION.\n"
+                f"WORKING-STORAGE SECTION.\n{data}\nPROCEDURE DIVISION.\nMAIN.\n{body}\nGOBACK.\n")
+
+    files = {f"a-init-{number}.cbl": program(f"INIT-{number}",
+        "Payment collection initializes deposit suspense payment refund benefit configuration.",
+        "01 CONFIG-FLAG PIC 9.", "MOVE 0 TO CONFIG-FLAG.") for number in range(7)}
+    files["z-collect.cbl"] = program("COLLECT-FLOW",
+        "Payment collection applies deposit suspense payment refund benefit in business sequence.",
+        '01 SERVICE-NAME PIC X(16) VALUE "CREDIT-STEP".\n01 DUE-AMOUNT PIC 9(6).',
+        "CALL SERVICE-NAME USING DUE-AMOUNT.")
+    marker = "reserve is applied before bank debit"
+    files["credit.cbl"] = program("CREDIT-STEP", "Determine eligible reserve before remaining debit.",
+        "01 DUE-AMOUNT PIC 9(6).\n01 SAVED-AMOUNT PIC 9(6).",
+        "\n".join(["CONTINUE."] * 500) + "\nIF SAVED-AMOUNT > 0\n"
+        " SUBTRACT SAVED-AMOUNT FROM DUE-AMOUNT\n" + f' DISPLAY "{marker}"\nEND-IF.')
+    for name, body in files.items():
+        (source / name).write_text(body, encoding="utf-8")
+    question = ("关于 payment collection，他有个收取的顺序，比如 deposit, suspense, payment refund, "
+                "benefit 等等诸多因素，他是怎么样的 sequency 来扣减应收款的？怎么定义怎么写的")
+
+    def respond(envelope, payload, index):
+        require(index == 0 and payload["question"] == question, "Sequence question changed or repeated")
+        page = verify_pages(source, payload, marker)
+        checks["natural_sequence_question_supplies_late_execution_body_without_program_name"] = (
+            payload["business_map"]["source_identity"]["status"] == "none"
+            and page["relative_path"] == "credit.cbl"
+            and page["end_line"] == len(files["credit.cbl"].splitlines()))
+        contract = payload["response_contract"]["business_explanation"]
+        checks["sequence_question_keeps_specific_contract_without_generic_inventory"] = (
+            contract.get("focus") == "processing_sequence" and "Batch job" not in json.dumps(contract))
+        working = payload["source_context"][0]["working_set"]
+        checks["sequence_candidates_preserve_unread_and_dynamic_target_boundaries"] = (
+            not working["closure_complete"] and not working["semantic_execution_verified"]
+            and any(row.get("reason") == "runtime_target_unresolved" for row in working["frontier"]))
+        return ("此分支先判断可用余额是否大于零，成立时从应收金额中扣减该余额；"
+                "尚不能据此证明其他项目之间的完整先后。" + f"[{page['evidence_id']}]"), "stop"
+
+    with CompletionProvider(root / "provider", respond) as provider:
+        environment = write_profile(profile, provider, {"max_model_requests": 1, "max_answer_revisions": 0})
+        with NativeWorkbench(command, profile, environment, root) as workbench:
+            indexed = workbench.analyze(source, output)
+            require(indexed["job"]["status"] == "COMPLETED" and not provider.requests, "Sequence index failed")
+            result = workbench.analyze(source, output, question, answer_detail="detailed")
+            require(result["result"] and not provider.errors, "Sequence answer failed: " + "; ".join(provider.errors))
+            agent = result["result"]["agent_result"]
+            observations.append({"phase": "natural_business_sequence", "run_id": agent["run_id"],
+                "model_requests": len(provider.requests), "elapsed_seconds": result["elapsed_seconds"]})
+    return {"checks": checks, "observations": observations, "synthetic_model_requests": len(provider.requests),
+        "fixture_sha256": {"sequence_selection/" + name: sha256(source / name) for name in files}}
+
+
 def run_checks(command, root, report=None):
     source = root / "source"
     source.mkdir()
@@ -797,11 +926,14 @@ def run_checks(command, root, report=None):
     identity = run_source_identity_check(command, root / "source-identity", checks, observations)
     followup = run_followup_context_check(command, root / "followup-context", checks, observations)
     depth = run_business_depth_check(command, root / "business-depth", checks, observations)
+    memory = run_round_evidence_check(command, root / "round-evidence", checks, observations)
+    sequence = run_sequence_selection_check(command, root / "sequence-selection", checks, observations)
     return {"checks": checks, "observations": observations,
         "synthetic_model_requests": len(provider.requests) + sum(result["synthetic_model_requests"]
-            for result in (independent, identity, followup, depth)),
+            for result in (independent, identity, followup, depth, memory, sequence)),
         "fixture_sha256": {**{name: sha256(source / name) for name in ("root.cbl", "decision.cbl", "caller.cbl")},
-            **independent["fixture_sha256"], **identity["fixture_sha256"], **followup["fixture_sha256"], **depth["fixture_sha256"]},
+            **independent["fixture_sha256"], **identity["fixture_sha256"], **followup["fixture_sha256"], **depth["fixture_sha256"],
+            **memory["fixture_sha256"], **sequence["fixture_sha256"]},
         "injected_wait_seconds": 20,
         "timing_interpretation": "Injected loopback wait tests control flow, not real-model speed."}
 

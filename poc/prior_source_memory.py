@@ -16,6 +16,8 @@ from source_session import archive_evidence, read_archived_evidence
 
 
 SCHEMA = "prior-source-memory/v1"
+READ_CATALOG_MAX_ENTRIES = 32
+READ_CATALOG_MAX_BYTES = 16384
 _REFERENCE = re.compile(r"\[((?:ev[_:-]|fw:)[^\]\r\n]{1,160})\]")
 _BINDING_FIELDS = ("relative_path", "source_sha256", "start_line", "end_line",
                    "include_chain", "replacement_trace", "copy_instance")
@@ -150,13 +152,72 @@ class PriorSourceMemory:
             self.retracted_blocks, self.pending_reread_ids = {}, set()
             raise ValueError("PRIOR_SOURCE_MEMORY_INVALID") from exc
 
+    def remember_supplied_sources(self, *, payload, round_record):
+        """Record received-request source without inventing a model finding.
+
+        Call only after a valid response has arrived. A catalog entry is a
+        navigation handle, never a declared memory block or citation license.
+        """
+        if not round_record:
+            return 0
+        pages, origins = {}, {}
+        for bundle in payload.get("source_context", []):
+            for page in bundle.get("pages", []):
+                identifier = page.get("evidence_id")
+                try:
+                    origin = {"round_id": round_record.get("round_id"),
+                              "request_body_sha256": round_record.get("request_body_sha256"),
+                              "binding": _binding(page), "binding_sha256": source_binding_sha256(page),
+                              "excerpt_sha256": _excerpt_hash(page)}
+                    if (_identify_page(page) != identifier
+                            or not self._origin_matches(page, origin, [round_record])):
+                        continue
+                    if identifier in self.pages:
+                        # Do not silently repair a corrupted archive or change
+                        # the original request proof on a later observation.
+                        self._archived_page(identifier)
+                        continue
+                    pages[identifier], origins[identifier] = deepcopy(page), origin
+                except (KeyError, TypeError, ValueError, OSError):
+                    continue
+        if pages:
+            archive_evidence(self.database_path, pages.values())
+        self.pages.update(pages)
+        self.origins.update(origins)
+        return len(pages)
+
+    def _read_catalog(self):
+        identifiers = list(self.pages)
+        # Keep the earliest anchors and recent investigation destinations. The
+        # full catalog remains local even when navigation cannot fit the wire.
+        half = READ_CATALOG_MAX_ENTRIES // 2
+        candidates = list(dict.fromkeys(identifiers[:half] + identifiers[-half:]))
+        entries, size = [], 0
+        for identifier in candidates:
+            page, origin = self.pages[identifier], self.origins[identifier]
+            entry = {"evidence_id": identifier, **deepcopy(_binding(page)),
+                     "round_id": origin["round_id"],
+                     "excerpt_sha256": origin["excerpt_sha256"],
+                     "binding_sha256": origin["binding_sha256"]}
+            entry_size = len(json.dumps(entry, ensure_ascii=False).encode("utf-8"))
+            if size + entry_size > READ_CATALOG_MAX_BYTES:
+                continue
+            entries.append(entry)
+            size += entry_size
+        return {"entries": entries, "total_count": len(identifiers),
+                "omitted_count": len(identifiers) - len(entries),
+                "citation_permission": False, "source_text_supplied": False}
+
     def prompt(self):
         return {"schema": SCHEMA, "draft_is_evidence": False,
                 "confirmed_facts": [],
                 "instruction": "source_reference只记录曾供证原文的位置；model_candidate是模型候选解释，不是确认事实。"
                     "真实引用仅证明来源，不能证明候选的公式、条件或结论正确。决定性或有冲突的结论应按引用回读原文。"
+                    "read_catalog是本题已读原文的回读目录，不代表本轮含原文，不授权引用或业务结论；"
+                    "需要其中的规则时用read按路径和行段恢复原文。目录可能截断，omitted_count不是源码缺失。"
                     "补查动作可附 findings:[{text:候选解释,evidence_ids:[当前原文或本清单的引用ID]}]，"
                     "以保存已读内容；findings不能代替补查动作或最终答案。",
+                "read_catalog": self._read_catalog(),
                 "requires_source_reread": sorted(self.pending_reread_ids),
                 "blocks": deepcopy(list(self.blocks.values()))}
 

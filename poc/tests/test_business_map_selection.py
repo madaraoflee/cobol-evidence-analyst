@@ -12,7 +12,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from business_index import _ensure_business_rules, build_business_index
-from business_map import _rule_leads, build_business_map
+from business_map import _rank_direct_paths, _rule_leads, build_business_map
 from question_investigation import build_question_investigation
 import business_map as business_mapping
 import repository_discovery as discovery
@@ -225,6 +225,39 @@ class BusinessMapSelectionTests(unittest.TestCase):
         self.assertEqual(coverage["query_frontier"], [{"relative_path": "target.cbl",
             "reason": "program_calculation_budget", "minimum_omitted_rules": 1}])
         self.assertFalse(coverage["candidate_selection_complete"])
+
+    def test_ranked_rule_paths_are_not_alphabetized_before_the_existing_budget(self):
+        connection = sqlite3.connect(":memory:")
+        self.addCleanup(connection.close)
+        connection.row_factory = sqlite3.Row
+        _ensure_business_rules(connection)
+        for index in (0, 79, 90):
+            connection.execute("INSERT INTO business_rules VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (f"rule-{index}", f"member-{index:03d}.cbl", "RULEDEMO", "MAIN", "COMPUTE",
+                 100, 100, 1, "COMPUTE TARGETVALUE = 37", "[]", "[]", "[]"))
+        paths = ["member-090.cbl", *[f"member-{index:03d}.cbl" for index in range(90)]]
+        coverage = {}
+        leads = _rule_leads(connection, paths, [], "TARGETVALUE", None, coverage=coverage)
+        self.assertEqual([row["relative_path"] for row in leads], ["member-090.cbl", "member-000.cbl"])
+        self.assertEqual(coverage["path_budget"], 80)
+        self.assertEqual(coverage["omitted_paths"], 11)
+        self.assertFalse(coverage["candidate_selection_complete"])
+
+    def test_concept_order_keeps_text_lead_and_diversifies_repeated_call_navigation(self):
+        paths = [f"init-{index}.cbl" for index in range(7)] + ["workflow.cbl", "other.cbl", "extra.cbl"]
+        previews = [{"relative_path": path} for path in paths]
+        edges = [{"caller_path": path, "relation_type": "CALLS", "target_name": "CONFIG-LOAD"}
+                 for path in paths[:7]]
+        edges += [{"caller_path": path, "relation_type": "CALLS", "target_name": target}
+                  for path, target in zip(paths[7:], ("AMOUNT-STEP", "RECEIPT-STEP", "FINAL-STEP"))]
+        ranked, promoted = _rank_direct_paths(set(paths), previews, edges, concept_candidates=True)
+        self.assertEqual(ranked[:3], [paths[0], "workflow.cbl", "other.cbl"])
+        self.assertEqual(promoted, ["workflow.cbl", "other.cbl"])
+        self.assertEqual(set(ranked), set(paths))
+        self.assertEqual(len(ranked), len(paths))
+        unchanged, promoted = _rank_direct_paths(set(paths), previews, edges)
+        self.assertEqual(unchanged, paths)
+        self.assertEqual(promoted, [])
 
 
 if __name__ == "__main__":

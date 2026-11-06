@@ -179,8 +179,13 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                 return result
             if concept_roots:
                 # A concept match nominates a reading root, never an exact
-                # program identity. Verify each nomination against this index.
+                # program identity. Keep the map's relevance/diversity order;
+                # a filename sort here would crowd out later matching callers.
+                # Verify each nomination against this index.
                 root_slots = min(policy.max_semantic_files, policy.initial_pages)
+                metadata.update(root_candidate_count=len(roots), root_candidate_budget=root_slots,
+                    root_selection_basis=business_map.get("direct_path_selection", {}).get("basis",
+                                                                                       "supplied_candidate_order"))
                 accepted = []
                 for relative in roots:
                     current = db.execute("SELECT 1 FROM source_files f JOIN symbols s "

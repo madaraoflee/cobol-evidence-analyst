@@ -12,7 +12,7 @@ from business_explanation_review import review_business_explanation
 from answer_sql_boundaries import assess_sql_answer_boundaries
 from answer_reference_normalization import normalize_answer_references
 from file_impact_evidence import is_file_impact_question
-from question_intent import calculation_intent
+from question_intent import business_sequence_requested, calculation_intent
 from question_planner import business_concept_requested
 from source_availability import source_availability_contradictions
 from answer_preferences import current_business_explanation_limited, saved_business_explanation_requested
@@ -412,6 +412,9 @@ _NARRATIVE_ASPECTS = {
         "说明已见入口和程序在业务步骤中的职责与联系，不只列调用指令或程序名"),
     "data_roles": ("data_roles",
         "说明已见表或文件提供什么输入、承接什么输出、在哪一步被读写，不只列标识和操作码"),
+    "processing_sequence": ("relationships",
+        "围绕当前所问的处理次序，解释原文支持的步骤先后、每项适用条件、金额变化及向下一步的交接；"
+        "初始化或配置装载不等于实际执行顺序，缺口只限定受影响步骤，不补列未问的部署、批次或数据库清单"),
 }
 _TECHNICAL_SCAFFOLD = re.compile(
     r"调用|呼叫|赋值|賦值|设置|設置|设为|設為|置为|置為|"
@@ -428,7 +431,12 @@ _TECHNICAL_SCAFFOLD = re.compile(
 def wants_business_overview(question, *, answer_detail="detailed", field_entities=(), source_scopes=(),
                             answer_instructions=""):
     """A broad explanation request, not every detailed or relationship reply."""
-    if current_business_explanation_limited(question):
+    sequence_requested = business_sequence_requested(question, field_entities=field_entities,
+                                                     source_scopes=source_scopes)
+    # Declining an unrelated overview does not decline an explicit processing
+    # sequence. Presentation, implementation and source-scope limits below
+    # still apply; this only selects the existing bounded evidence mode.
+    if current_business_explanation_limited(question) and not sequence_requested:
         return False
     text = str(question)
     topics = _BUSINESS_OVERVIEW.findall(text)
@@ -465,6 +473,8 @@ def wants_business_overview(question, *, answer_detail="detailed", field_entitie
         return True
     if not wants_business_detail(text, answer_detail=answer_detail):
         return False
+    if sequence_requested:
+        return True
     explicit_topics = [topic for topic in topics if not re.match(r"(?:新人|新手)", topic)]
     if not explicit_topics and not cross_role_explanation and _NARROW_EXPLANATION.search(text):
         return False
@@ -478,6 +488,59 @@ def wants_business_overview(question, *, answer_detail="detailed", field_entitie
             or re.search(r"异常|異常|失败|失敗|\b(?:exceptions?|failures?)\b", text, re.I)):
         return False
     return bool(topics or _PROGRAM_EXPLANATION.search(text) or _NEWCOMER_EXPLANATION.search(text))
+
+
+def business_explanation_focus(question, *, answer_detail="detailed", field_entities=(), source_scopes=(),
+                               answer_instructions=""):
+    """Keep an explicit overview alongside order, without inferring extra topics.
+
+    This question-only contract can also be used before an analysis brief is
+    available. Generic process/flow wording alone does not require unrelated
+    purpose, deployment or data-inventory sections in a sequence answer.
+    """
+    if not (wants_business_overview(question, answer_detail=answer_detail, field_entities=field_entities,
+                                   source_scopes=source_scopes, answer_instructions=answer_instructions)
+            and business_sequence_requested(question, field_entities=field_entities, source_scopes=source_scopes)):
+        return None
+    text = str(question)
+    def requested(pattern):
+        return any(not _IMPLEMENTATION_NEGATION.search(text[max(0, match.start() - 64):match.start()])
+                   for match in re.finditer(pattern, text, re.I))
+    orientation = requested(
+        r"(?:业务|業務|程序|程式|整体|整體)(?:的)?(?:目的|用途|作用|功能|概览|概覽|介绍|介紹)|"
+        r"\b(?:business|program|overall)\s+(?:purpose|function|overview)\b")
+    cross_roles = (requested(r"批处理|批次|在线|在線|联机|聯機|\b(?:batch|online)\b")
+        and requested(r"数据库|資料庫|数据表|資料表|文件|檔案|\b(?:database|tables?|files?)\b")
+        and requested(r"关系|關係|配合|协作|協作|角色|职责|職責|"
+                      r"\b(?:relationships?|interact\w*|roles?|responsibilit\w*)\b"))
+    return "processing_sequence_with_overview" if orientation or cross_roles else "processing_sequence"
+
+
+def business_explanation_excluded_facets(question, *, answer_detail="detailed", field_entities=(),
+                                        source_scopes=(), answer_instructions=""):
+    """Honor explicit facet exclusions in a combined order/overview request.
+
+    An available source facet is not automatically a requested answer section.
+    A current positive request for the same facet keeps it available; this is
+    only a bounded wording hint, not a semantic interpretation of the source.
+    """
+    if business_explanation_focus(question, answer_detail=answer_detail, field_entities=field_entities,
+            source_scopes=source_scopes, answer_instructions=answer_instructions) != "processing_sequence_with_overview":
+        return []
+    text = str(question)
+    excluded = []
+    for kind, pattern in (
+            ("business_purpose", r"(?:业务|業務|程序|程式)(?:的)?(?:目的|用途|作用|功能)|"
+                                 r"\b(?:business|program|overall)\s+(?:purpose|function)\b"),
+            ("program_roles", r"批处理|批次|在线|在線|联机|聯機|(?:程序|程式)(?:职责|職責|角色)|"
+                              r"\b(?:batch|online|program\s+(?:roles?|responsibilit\w*))\b"),
+            ("data_roles", r"数据库|資料庫|数据表|資料表|文件|檔案|"
+                           r"\b(?:databases?|tables?|files?|data\s+roles?)\b")):
+        matches = list(re.finditer(pattern, text, re.I))
+        if matches and all(_IMPLEMENTATION_NEGATION.search(text[max(0, match.start() - 64):match.start()])
+                           for match in matches):
+            excluded.append(kind)
+    return excluded
 
 
 def _technical_inventory_only(answer):
@@ -507,10 +570,22 @@ def _business_narrative_requirements(question, orientation, source_pages, *, ans
                                    source_scopes=source_scopes, answer_instructions=answer_instructions):
         return []
     visible = {page.get("evidence_id") for page in source_pages if page.get("source_text")}
-    available = set(orientation.get("available_facets", ()))
+    focus = business_explanation_focus(question, answer_detail=answer_detail, field_entities=field_entities,
+        source_scopes=source_scopes, answer_instructions=answer_instructions)
     requirements = []
+    if focus:
+        references = list(dict.fromkeys(page.get("evidence_id") for page in source_pages
+                                        if page.get("evidence_id") in visible))
+        if references:
+            requirements.append({"kind": "processing_sequence", "description": _NARRATIVE_ASPECTS["processing_sequence"][1],
+                                 "supplied_reference_ids": references[:8]})
+        if focus == "processing_sequence":
+            return requirements
+    available = set(orientation.get("available_facets", ()))
+    available.difference_update(business_explanation_excluded_facets(question, answer_detail=answer_detail,
+        field_entities=field_entities, source_scopes=source_scopes, answer_instructions=answer_instructions))
     for kind, (group, description) in _NARRATIVE_ASPECTS.items():
-        if kind not in available:
+        if kind == "processing_sequence" or kind not in available:
             continue
         rows = list(orientation.get(group, ()))
         if kind == "program_roles":
@@ -531,10 +606,31 @@ def _business_explanation_contract(question, orientation, *, answer_detail="deta
 
     overview = wants_business_overview(question, answer_detail=answer_detail, field_entities=field_entities,
                                       source_scopes=source_scopes, answer_instructions=answer_instructions)
+    focus = business_explanation_focus(question, answer_detail=answer_detail, field_entities=field_entities,
+        source_scopes=source_scopes, answer_instructions=answer_instructions)
+    excluded = business_explanation_excluded_facets(question, answer_detail=answer_detail,
+        field_entities=field_entities, source_scopes=source_scopes, answer_instructions=answer_instructions)
+    allowed_topics = "、".join(label for kind, label in (("business_purpose", "业务用途"),
+        ("program_roles", "程序职责与交接"), ("data_roles", "表文件角色")) if kind not in excluded)
+    sequence = focus == "processing_sequence"
     return {"mode": "business_overview" if overview else "direct_answer",
+        **({"focus": focus} if focus else {}),
+        **({"excluded_facets": excluded} if focus == "processing_sequence_with_overview" else {}),
         "available_facets": orientation.get("available_facets", []),
         "semantic_verification": False,
-        "task": ("面向不熟悉代码的读者，把有依据的业务目的、批处理作业或联机功能、程序职责、表文件角色、"
+        "task": ("只围绕用户所问的处理顺序与规则解释业务：先给已核实的先后关系，再说明每项进入或跳过条件、"
+                 "实际金额处理、剩余结果如何交给下一步以及相关例外。沿真正执行这些步骤的段落、子程序和参数追踪；"
+                 "初始化、配置装载和内部表定义只是线索，不证明执行顺序，也不能代替各项实际处理。"
+                 "原文只支持一部分时讲清这部分及具体缺少哪一段交接，不把整个问题退化成无法确认。"
+                 "不强加未问的业务目的、部署、批处理、在线入口、数据库或文件分类章节；这些对象只有实际影响本题"
+                 "顺序或规则时才说明其作用。未知的动态目标与生产运行仍保持未知，不根据项目名称臆造先后。"
+                 if sequence else
+                 "用户同时明确要求概览与处理顺序，两部分都必须覆盖：概览只解释当前允许且原文支持的方面："
+                 + allowed_topics + "；不补写用户明确排除的概览章节。顺序部分说明有来源的步骤先后、逐项进入或跳过条件、"
+                 "金额变化、剩余结果交接及相关例外。沿已供应的子程序和参数衔接解释其业务作用，不只列指令。"
+                 "初始化、配置装载和内部表定义只是线索，不证明执行顺序；未知只限定受影响步骤，不补造缺失环节。"
+                 if focus == "processing_sequence_with_overview" else
+                 "面向不熟悉代码的读者，把有依据的业务目的、批处理作业或联机功能、程序职责、表文件角色、"
                  "业务规则与输入输出/异常串成连贯解释。先回答处理对象和用途，再按实际顺序说明入口与输入、"
                  "条件与处理、结果及交付；结合已供应的子程序实现和参数衔接，把每层处理对业务结果的作用讲清楚。"
                  "仅在来源支持时说明批处理和在线功能如何交接，表和文件怎样提供输入或承接输出。"

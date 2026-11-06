@@ -352,6 +352,23 @@ COBOL 業務分析|COBOL 业务分析|COBOL Workbench
 本地關聯編號|本地关联编号|Local correlation ID
 上游關聯編號|上游关联编号|Upstream correlation ID
 查看安全錯誤詳情|查看安全错误详情|Safe error details
+請求序號|请求序号|Request number
+請求階段|请求阶段|Request stage
+請求大小|请求大小|Request size
+本次請求包含的源碼文件|本次请求包含的源码文件|Source files included in this request
+本次請求包含的片段|本次请求包含的片段|Source excerpts included in this request
+生成回答|生成回答|Generating the answer
+定位資料|定位资料|Locating material
+補查源碼|补查源码|Investigating source
+完善業務解釋|完善业务解释|Expanding the business explanation
+續寫回答|续写回答|Continuing the answer
+業務復核|业务复核|Reviewing the business explanation
+依復核結果修訂|依复核结果修订|Revising after review
+補回因長度限制而缺失的正文|补回因长度限制而缺失的正文|Recovering text omitted at the output limit
+補回空白回答|补回空白回答|Recovering an empty answer
+尚未發出請求|尚未发出请求|Request not sent
+已收到接口回應|已收到接口回应|Endpoint response received
+請求結果尚未確認|请求结果尚未确认|Request outcome unconfirmed
 錯誤正文已省略以避免回顯敏感信息。|错误正文已省略以避免回显敏感信息。|The error body is omitted to avoid reflecting sensitive information.
 已取得部分業務回答；尚未完成的範圍可繼續分析。|已取得部分业务回答；尚未完成的范围可继续分析。|A partial business answer is available; continue the analysis for the unfinished scope.
 業務回答未完整輸出；已保留收到的正文。|业务回答未完整输出；已保留收到的正文。|The business answer is incomplete; the received answer text is retained.

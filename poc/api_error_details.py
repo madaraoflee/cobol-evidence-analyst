@@ -297,28 +297,46 @@ def build_diagnostic(code, *, http_status=None, body=None, headers=None, protect
         return any(item.casefold() in value.casefold() for item in protected) or bool(
             request_text and value.casefold() in request_text.casefold())
 
+    code_reasons = []
     if isinstance(error, dict):
         for key in ("code", "type"):
             candidate = error.get(key)
             if isinstance(candidate, str) and candidate in _CODE_CATEGORY and not reflected(candidate):
-                provider_code, category, source = candidate, _CODE_CATEGORY[candidate], "provider_code"
-                break
+                code_reasons.append((candidate, _CODE_CATEGORY[candidate]))
     message = error.get("message") if isinstance(error, dict) else error
-    if category is None and isinstance(message, str) and len(message) <= 1024 and not reflected(message):
+    message_category = None
+    if isinstance(message, str) and len(message) <= 1024 and not reflected(message):
         param = error.get("param") if isinstance(error, dict) else None
         if isinstance(param, str) and param in {"max_tokens", "max_output_tokens", "max_completion_tokens"} and re.fullmatch(
             r"(?:max_tokens|max_output_tokens|max_completion_tokens) (?:is too large|exceeds? (?:the )?(?:maximum|output token) limit)(?::? \d+)?[.!]?(?: this model supports at most \d+ (?:completion|output) tokens[.!]?)?", message.strip(), re.I):
-            category, source = "output_limit", "provider_message"
+            message_category = "output_limit"
         elif isinstance(param, str) and param in {"tools", "response_format", "tool_choice", "json_schema"} and re.fullmatch(
             r"unsupported parameter: ['\"]?(?:tools|response_format|tool_choice|json_schema)['\"]? is not supported (?:with|by) this model[.!]?", message.strip(), re.I):
-            category, source = "unsupported_feature", "provider_message"
+            message_category = "unsupported_feature"
         elif param == "max_tokens" and re.fullmatch(
             r"unsupported parameter: ['\"]max_tokens['\"] is not supported with this model\. use ['\"]max_completion_tokens['\"] instead\.", message.strip(), re.I):
-            category, source = "unsupported_feature", "provider_message"
+            message_category = "unsupported_feature"
         for pattern, matched_category in _MESSAGE_RULES:
-            if category is None and re.fullmatch(pattern, message.strip(), re.I):
-                category, source = matched_category, "provider_message"
+            if message_category is None and re.fullmatch(pattern, message.strip(), re.I):
+                message_category = matched_category
                 break
+    specific_codes = [(value, reason) for value, reason in code_reasons if reason != "http_5xx_unknown"]
+    specific_reasons = {reason for _, reason in specific_codes}
+    if message_category is not None:
+        specific_reasons.add(message_category)
+    if len(specific_reasons) == 1:
+        category = next(iter(specific_reasons))
+        if specific_codes:
+            provider_code, source = specific_codes[0][0], "provider_code"
+        else:
+            source = "provider_message"
+    else:
+        # Generic gateway codes must not hide an explicit, allowlisted cause.
+        # Conflicting specific causes remain unconfirmed instead of choosing
+        # whichever code, type or message happened to be inspected first.
+        generic = next((value for value, reason in code_reasons if reason == "http_5xx_unknown"), None)
+        if generic is not None:
+            provider_code, category, source = generic, "http_5xx_unknown", "provider_code"
     if category is None:
         if isinstance(code, str) and code in _LOCAL_CATEGORY:
             category, source = _LOCAL_CATEGORY[code], "local"

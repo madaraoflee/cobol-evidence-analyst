@@ -27,6 +27,8 @@ WORKING_SET_REASONS = frozenset({
     "source_byte_budget", "source_characters", "complete_source_characters",
     "source_hash_mismatch", "source_read_unavailable", "candidate_source_set_supplied",
 })
+REQUEST_STAGES = frozenset({"answer", "discover", "investigate", "synthesis_review", "continuation",
+    "semantic_review", "semantic_revise", "empty_length_recovery", "empty_stop_recovery"})
 
 
 def _enum(value, allowed):
@@ -35,6 +37,26 @@ def _enum(value, allowed):
 
 def _number(value):
     return value if type(value) is int and value >= 0 else None
+
+
+def _safe_failure_request_context(value):
+    """Keep observed request metadata without paths, configuration or prose."""
+    if not isinstance(value, dict):
+        return None
+    context = {}
+    stage = value.get("stage")
+    if isinstance(stage, str):
+        stage = {"continue": "continuation", "revise": "synthesis_review"}.get(stage, stage)
+        if stage in REQUEST_STAGES:
+            context["stage"] = stage
+    outcome = value.get("request_outcome")
+    if isinstance(outcome, str) and outcome in {"not_sent", "response_received", "unknown"}:
+        context["request_outcome"] = outcome
+    for key in ("round", "request_bytes", "source_file_count", "source_page_count"):
+        number = value.get(key)
+        if type(number) is int and 0 <= number <= 2 ** 53 - 1:
+            context[key] = number
+    return context or None
 
 
 def _seconds(value):
@@ -105,8 +127,7 @@ def build_answer_diagnostics(*, config, quality, result):
                 if key in {"headers_received", "first_response_byte", "response_complete", "request_elapsed"}
                 and _seconds(value) is not None},
             "response_bytes": _number(observed.get("response_bytes")),
-            "stage": _enum(stage, {"answer", "discover", "investigate", "synthesis_review", "continuation",
-                                  "semantic_review", "semantic_revise"}),
+            "stage": _enum(stage, REQUEST_STAGES),
             "request_bytes": _number(row.get("request_bytes")),
             "source_file_count": len({p.get("path") for p in sources if isinstance(p.get("path"), str)}),
             "page_count": len(sources),
@@ -183,11 +204,13 @@ def build_answer_diagnostics(*, config, quality, result):
             continue
         diagnostic = sanitize_diagnostic(item.get("diagnostic"))
         if diagnostic is not None:
+            request_context = _safe_failure_request_context(item.get("request_context"))
             api_failures.append({"stage": _enum(item.get("stage"), {
                 "configuration", "provider_request", "context_assembly", "response_parse",
                 "response_validation", "continuation", "synthesis_review", "semantic_review", "semantic_revise", "direct",
                 "map", "reduce", "model_request", "repository_search", "page",
-                "program", "synthesis"}), **diagnostic})
+                "program", "synthesis"}), **diagnostic,
+                **({"request_context": request_context} if request_context else {})})
     return {"schema_version": "business-answer-diagnostics/v1",
         "api_failures": api_failures,
         "runtime": {"commit": _commit(),

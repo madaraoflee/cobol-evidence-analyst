@@ -184,6 +184,55 @@ class AnswerDiagnosticsTests(unittest.TestCase):
         self.assertIsNone(coverage["complete_root_budget_applied"])
         self.assertNotIn(poison, json.dumps(summary))
 
+    def test_failure_request_context_keeps_observed_stage_counts_and_outcome(self):
+        from api_error_details import build_diagnostic
+        diagnostic = build_diagnostic("MODEL_CLIENT_ERROR", http_status=500)
+        for stage, expected in (("semantic_review", "semantic_review"),
+                                ("semantic_revise", "semantic_revise"),
+                                ("continue", "continuation"), ("revise", "synthesis_review"),
+                                ("empty_length_recovery", "empty_length_recovery"),
+                                ("empty_stop_recovery", "empty_stop_recovery")):
+            with self.subTest(stage=stage):
+                context = {"stage": stage, "round": 4, "request_bytes": 12000,
+                    "source_file_count": 3, "source_page_count": 7,
+                    "request_outcome": "response_received"}
+                summary = build_answer_diagnostics(config=self.config(), quality={"rounds": [{"stage": stage}]},
+                    result={"diagnostics": [{"stage": "provider_request", "diagnostic": diagnostic,
+                                             "request_context": context}]})
+                failure = summary["api_failures"][0]
+                self.assertEqual(failure["stage"], "provider_request")
+                self.assertEqual(failure["request_context"], {**context, "stage": expected})
+                self.assertEqual(summary["requests"][0]["stage"], expected)
+
+    def test_failure_request_context_rejects_private_values_and_invalid_counts(self):
+        from api_error_details import build_diagnostic
+        poison = "private-request-context-marker"
+        diagnostic = build_diagnostic("MODEL_CLIENT_ERROR", http_status=500)
+        invalid = {"stage": poison, "round": True, "request_bytes": -1,
+            "source_file_count": 1.5, "source_page_count": 2 ** 53,
+            "request_outcome": poison, "path": poison, "raw_body": poison, "api_key": poison}
+        for context in (invalid, [invalid], poison, None):
+            with self.subTest(context=context):
+                summary = build_answer_diagnostics(config=self.config(), quality={},
+                    result={"diagnostics": [{"stage": "semantic_review", "diagnostic": diagnostic,
+                                             "request_context": context}]})
+                failure = summary["api_failures"][0]
+                self.assertEqual(failure["stage"], "semantic_review")
+                self.assertNotIn("request_context", failure)
+                self.assertNotIn(poison, json.dumps(summary))
+        summary = build_answer_diagnostics(config=self.config(), quality={},
+            result={"diagnostics": [{"stage": "semantic_revise", "diagnostic": diagnostic,
+                "request_context": {**invalid, "request_bytes": 0, "request_outcome": "not_sent"}}]})
+        self.assertEqual(summary["api_failures"][0]["request_context"],
+                         {"request_bytes": 0, "request_outcome": "not_sent"})
+
+    def test_legacy_failure_does_not_invent_request_context(self):
+        from api_error_details import build_diagnostic
+        summary = build_answer_diagnostics(config=self.config(), quality={},
+            result={"diagnostics": [{"stage": "provider_request",
+                "diagnostic": build_diagnostic("MODEL_CLIENT_ERROR", http_status=500)}]})
+        self.assertNotIn("request_context", summary["api_failures"][0])
+
 
 if __name__ == "__main__":
     unittest.main()

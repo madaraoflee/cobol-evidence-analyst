@@ -99,6 +99,36 @@ def _paths_from_history(connection, prior_paths):
     return list(dict.fromkeys(result))
 
 
+def _rank_direct_paths(paths, previews, edges, *, concept_candidates=False):
+    """Preserve text rank and reserve at most two distinct call-reading leads.
+
+    Repeated configuration matches must not consume every complete-source
+    root before a matching caller can be read. Calls only diversify navigation;
+    neither their spelling nor this ranking establishes a business entry,
+    actual execution order, target binding or value flow.
+    """
+    ranked = list(dict.fromkeys(row["relative_path"] for row in previews
+                                if row["relative_path"] in paths))
+    ranked.extend(sorted(set(paths) - set(ranked)))
+    if not concept_candidates or len(ranked) < 2:
+        return ranked, []
+    call_shapes = defaultdict(set)
+    for edge in edges:
+        if edge["caller_path"] in paths and edge["relation_type"] in {"CALLS", "CALL_TARGET_FROM"}:
+            call_shapes[edge["caller_path"]].add((edge["relation_type"], edge.get("target_name")))
+    represented = {frozenset(call_shapes[ranked[0]])}
+    promoted = []
+    for relative in ranked[1:]:
+        shape = frozenset(call_shapes[relative])
+        if shape and shape not in represented:
+            promoted.append(relative)
+            represented.add(shape)
+            if len(promoted) == 2:
+                break
+    preferred = [ranked[0], *promoted]
+    return preferred + [path for path in ranked[1:] if path not in promoted], promoted
+
+
 def _call_graph(connection, check_cancel, *, navigation_rows=None):
     _cancel(check_cancel)
     incoming = defaultdict(list)
@@ -231,7 +261,9 @@ def _explain_paths(incoming, edges, seeds, repository_size, check_cancel):
 def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage=None, diversify=False,
                 source_scopes=()):
     coverage = coverage if coverage is not None else {}
-    ordered_paths = sorted(paths)
+    # Callers may provide relevance-ranked candidates. A set has no ranking,
+    # so retain the deterministic compatibility order for that input only.
+    ordered_paths = list(dict.fromkeys(sorted(paths) if isinstance(paths, (set, frozenset)) else paths))
     coverage.update({"scope": "navigation_candidates", "preview_budget": 32,
         "preview_candidates": len(previews), "omitted_previews": max(0, len(previews) - 32),
         "path_budget": 80, "path_candidates": len(paths), "omitted_paths": max(0, len(paths) - 80),
@@ -351,7 +383,11 @@ def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage
                 "conditions": json.loads(row["condition_json"]),
                 "selection_reason": reason,
             }))
-    ranked.sort(key=lambda item: (-item[0], item[2]["relative_path"], item[1]))
+    path_rank = {path: index for index, path in enumerate(ordered_paths)}
+    def rule_rank(item):
+        return (-item[0], path_rank.get(item[2]["relative_path"], len(path_rank)),
+                item[2]["relative_path"], item[1])
+    ranked.sort(key=rule_rank)
     coverage["candidate_rules"] = len(ranked)
     per_path = defaultdict(list)
     for item in ranked:
@@ -376,7 +412,7 @@ def _rule_leads(connection, paths, previews, question, check_cancel, *, coverage
         eligible.extend(chosen)
         if len(candidates) > len(chosen):
             coverage["omitted_rules_per_path"][relative] = len(candidates) - len(chosen)
-    eligible.sort(key=lambda item: (-item[0], item[2]["relative_path"], item[1]))
+    eligible.sort(key=rule_rank)
     selected = [item[2] for item in eligible[:48]]
     if selected and connection.execute("SELECT 1 FROM sqlite_master WHERE name='business_rule_occurrences'").fetchone():
         by_rule = {item["rule_id"]: item for item in selected}
@@ -523,6 +559,8 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         rooted = discovery.get("rooted_navigation")
         incoming, all_edges = (_call_graph(connection, check_cancel,
             **({"navigation_rows": rooted["rows"]} if rooted else {})) if direct else ({}, []))
+        ordered_direct, promoted_direct = _rank_direct_paths(query_direct, discovery["matched_pages"], all_edges,
+            concept_candidates=identity.get("status") == "none" and not identity.get("exclusive_source_scope"))
         outgoing, outgoing_frontier = {}, []
         if rooted:
             distance = rooted["distance"]
@@ -548,7 +586,9 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         for row in _program_definition_rows(connection, selected_paths, overview["indexed_files"], check_cancel):
             program_names[row["relative_path"]].append(row["name"])
             source_versions[row["relative_path"]] = row["sha256"]
-        ordered = sorted(selected, key=lambda path: (distance.get(path, 0), path))
+        direct_rank = {path: index for index, path in enumerate(ordered_direct)}
+        ordered = sorted(selected, key=lambda path: (distance.get(path, 0),
+                         direct_rank.get(path, len(direct_rank)), path))
         programs = [{"relative_path": path, "program_names": program_names[path] or [Path(path).stem.upper()],
                      "distance": distance.get(path, 0), "direct_source_match": path in query_direct}
                     for path in ordered]
@@ -558,7 +598,7 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         rule_query = " ".join(search_terms or []) + " " + question
         rule_query += " " + " ".join(subject.get("focus_entities", []))
         rule_coverage = {}
-        leads = _rule_leads(connection, query_direct, discovery["matched_pages"], rule_query, check_cancel,
+        leads = _rule_leads(connection, ordered_direct, discovery["matched_pages"], rule_query, check_cancel,
                             coverage=rule_coverage, diversify=identity["status"] == "resolved",
                             source_scopes=rooted["source_scopes"] if rooted else ())
         if intent == "explain":
@@ -620,7 +660,10 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
         boundaries, repository_boundaries = question_boundaries(discovery["boundaries"], ordered,
             source_scopes=rooted["source_scopes"] if rooted else (), source_versions=source_versions)
         return {"snapshot_id": overview["snapshot_id"], "intent": intent, "relation_direction": relation_direction,
-                "direct_paths": sorted(query_direct), "selected_paths": ordered,
+                "direct_paths": ordered_direct, "selected_paths": ordered,
+                "direct_path_selection": {"basis": "text_rank_with_bounded_call_diversity",
+                    "promoted_navigation_paths": promoted_direct, "navigation_promotion_budget": 2,
+                    "selection_is_relevance_proof": False, "semantic_execution_verified": False},
                 "outgoing_dependency_paths": sorted(set(outgoing) - direct,
                     key=lambda path: (outgoing[path], path)),
                 "outgoing_dependency_frontier": outgoing_frontier,

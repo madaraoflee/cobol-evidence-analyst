@@ -78,6 +78,67 @@ class BusinessAnswerDepthTests(unittest.TestCase):
         self.assertIn("thoroughly", wire["response_contract"]["detail"])
         self.assertIn("subroutine", wire["response_contract"]["detail"])
 
+    def test_sequence_contract_survives_compaction_and_saved_presentation(self):
+        question = "各项余额按什么顺序抵扣？请说明适用条件和每步剩余金额。"
+        payload = {"question": question, "answer_detail": "detailed",
+            "source_context": [{"pages": [balance_page()], "call_chain": {"links": []},
+                                "outline": [], "notices": []}],
+            "business_map": {}, "framework_references": [], "repository": {}}
+        for compact in (False, True):
+            for instructions in ("", "请用连贯中文详细解释，并保留源码引用。"):
+                with self.subTest(compact=compact, instructions=instructions):
+                    wire = _prompt_payload({**payload, "budget_wire_compact": compact,
+                                            "answer_instructions": instructions})
+                    contract = wire["response_contract"]["business_explanation"]
+                    self.assertEqual(contract["focus"], "processing_sequence")
+                    self.assertIn("what remains", contract["task"])
+                    self.assertIn("initialization", contract["source_walk"])
+                    self.assertNotIn("Batch job", json.dumps(contract))
+                    self.assertNotIn("Tables", json.dumps(contract))
+                    self.assertEqual(wire["source_context"][0]["pages"], [balance_page()])
+
+        # Exercise the actual byte fitter, not only the projection switch.
+        original = balance_page(SOURCE + "*> Input context.\n" * 700)
+        payload["source_context"][0]["pages"] = [original]
+        config = CompanyAPIConfig("https://offline.example.invalid/v1", "offline-model", api_key="offline")
+        messages, size = _fit_request(config, payload, [], AgentPolicy(max_request_bytes=32768))
+        wire = json.loads(messages[-1]["content"])
+        self.assertLessEqual(size, 32768)
+        self.assertTrue(payload["budget_wire_compact"])
+        self.assertEqual(wire["source_context"][0]["pages"], [original])
+        self.assertEqual(wire["response_contract"]["business_explanation"]["focus"], "processing_sequence")
+        self.assertIn("thoroughly", wire["response_contract"]["detail"])
+
+    def test_combined_overview_and_sequence_contract_preserves_both_requests(self):
+        question = "请详细说明整体业务用途、批处理和数据库关系，并说明各项余额扣减顺序。"
+        for compact in (False, True):
+            for instructions in ("", "请用连贯中文详细解释，并保留源码引用。"):
+                with self.subTest(compact=compact, instructions=instructions):
+                    payload = {"question": question, "answer_detail": "detailed",
+                        "source_context": [{"pages": [balance_page()], "call_chain": {"links": []},
+                                            "outline": [], "notices": []}],
+                        "business_map": {}, "framework_references": [], "repository": {},
+                        "budget_wire_compact": compact, "answer_instructions": instructions}
+                    contract = _prompt_payload(payload)["response_contract"]["business_explanation"]
+                    self.assertEqual(contract["focus"], "processing_sequence_with_overview")
+                    self.assertIn("business overview", contract["task"])
+                    self.assertIn("processing sequence", contract["task"])
+                    self.assertNotIn("unasked deployment", contract["task"])
+                    self.assertIn("explicitly excluded topics", contract["task"])
+                    self.assertNotIn("order", contract)
+                    self.assertNotIn("categories", contract)
+
+    def test_combined_prompt_respects_explicitly_excluded_business_facets(self):
+        for question, excluded in (
+                ("请说明各项抵扣顺序和业务用途，不要讲数据库或文件。", "data_roles"),
+                ("不要讲业务用途；请说明批处理和数据库关系及各项抵扣顺序。", "business_purpose")):
+            for compact in (False, True):
+                payload = {"question": question, "answer_detail": "detailed", "business_map": {},
+                    "source_context": [{"pages": [balance_page()]}], "budget_wire_compact": compact}
+                contract = _prompt_payload(payload)["response_contract"]["business_explanation"]
+                self.assertIn(excluded, contract["excluded_facets"])
+                self.assertNotIn("categories", contract)
+
 
 if __name__ == "__main__":
     unittest.main()

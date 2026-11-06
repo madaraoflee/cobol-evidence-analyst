@@ -62,6 +62,55 @@ class APIErrorDetailsTests(unittest.TestCase):
             with self.subTest(status=status, raw=raw):
                 self.assertEqual(self.fail(status, raw).diagnostic["category"], category)
 
+    def test_generic_gateway_code_does_not_hide_a_specific_error_type(self):
+        for generic in ("server_error", "internal_error"):
+            for specific, category in (("context_length_exceeded", "context_too_large"),
+                                       ("max_tokens_exceeded", "output_limit")):
+                with self.subTest(generic=generic, specific=specific):
+                    diagnostic = self.fail(500, body(generic, "unclassified gateway failure", type=specific)).diagnostic
+                    self.assertEqual(diagnostic["category"], category)
+                    self.assertEqual(diagnostic["provider_code"], specific)
+                    self.assertEqual(diagnostic["evidence_source"], "provider_code")
+
+    def test_generic_gateway_code_does_not_hide_an_explicit_allowlisted_message(self):
+        for generic in ("server_error", "internal_error"):
+            for message, category in (("context length exceeded", "context_too_large"),
+                                      ("request body too large", "request_too_large"),
+                                      ("max_tokens is too large", "output_limit")):
+                with self.subTest(generic=generic, message=message):
+                    diagnostic = self.fail(500, body(generic, message)).diagnostic
+                    self.assertEqual(diagnostic["category"], category)
+                    self.assertEqual(diagnostic["evidence_source"], "provider_message")
+                    self.assertNotIn(message, json.dumps(diagnostic, ensure_ascii=False))
+
+    def test_conflicting_specific_provider_reasons_remain_unconfirmed(self):
+        for fields in (
+            {"code": "context_length_exceeded", "type": "insufficient_quota"},
+            {"code": "context_length_exceeded", "message": "insufficient quota"},
+            {"code": "internal_error", "type": "context_length_exceeded", "message": "insufficient quota"},
+        ):
+            with self.subTest(fields=fields):
+                diagnostic = self.fail(500, json.dumps({"error": fields})).diagnostic
+                self.assertEqual(diagnostic["category"], "http_5xx_unknown")
+                self.assertNotEqual(diagnostic.get("provider_code"), "context_length_exceeded")
+
+    def test_equivalent_specific_reasons_can_confirm_the_same_cause(self):
+        diagnostic = self.fail(500, body("context_length_exceeded", "context length exceeded",
+                                        type="context_window_exceeded")).diagnostic
+        self.assertEqual(diagnostic["category"], "context_too_large")
+        self.assertEqual(diagnostic["provider_code"], "context_length_exceeded")
+        self.assertEqual(diagnostic["evidence_source"], "provider_code")
+
+    def test_generic_errors_still_reject_unanchored_or_reflected_message_hints(self):
+        for message, request in (("source says context length exceeded", ""),
+                                 ("context length exceeded", "DISPLAY 'context length exceeded'."),
+                                 ("context length exceeded " + KEY, "")):
+            with self.subTest(message=message):
+                diagnostic = build_diagnostic("HTTP_ERROR", http_status=500,
+                    body=body("server_error", message), protected_values=(KEY,), request_body=request)
+                self.assertEqual(diagnostic["category"], "http_5xx_unknown")
+                self.assertNotIn(KEY, json.dumps(diagnostic))
+
     def test_param_requires_an_explicit_anchored_message(self):
         cases = (("max_tokens is too large: 16000. This model supports at most 8192 completion tokens.", "output_limit"),
                  ("Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.", "unsupported_feature"),
