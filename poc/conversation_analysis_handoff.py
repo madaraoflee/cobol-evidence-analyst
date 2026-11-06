@@ -133,7 +133,7 @@ def followup_analysis_seed(question, *, database_path, source_root, session, his
         memory = PriorSourceMemory(database_path, question=original_question, run_id=context["run_id"],
             context={"analysis_identity": context["analysis_identity"],
                      "compilation_context": session.options.get("compilation_context")})
-        memory.restore(memory_checkpoint, context["rounds"])
+        memory.restore(memory_checkpoint, context["rounds"], check_cancel=session.check_cancel)
         if memory.analysis_ledger.pending_task is not None:
             return None
         # The old delivered draft belongs to its own question. Source-bound

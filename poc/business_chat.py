@@ -1731,7 +1731,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                  "compilation_context": source_session.options.get("compilation_context") if source_session else None}) if policy.source_memory_enabled else None
     if source_memory is not None:
         source_memory.restore(resume_checkpoint.get("prior_source_memory"),
-            [*source_memory_context.get("rounds", []), *quality.data["rounds"]])
+            [*source_memory_context.get("rounds", []), *quality.data["rounds"]],
+            check_cancel=question_budget.check_cancel if question_budget else check_cancel)
         pending_compaction_ids.intersection_update(source_memory.pages)
         pending_compaction_ids.difference_update(identifier for identifier, row in
             source_memory.analysis_ledger.source_coverage.items() if row.get("status") == "represented_in_candidate")
@@ -2754,7 +2755,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             return False
         task = source_memory.analysis_ledger.pending_task
         if replay_payload is None and task is None:
-            identifiers = compaction_input_ids(source_memory, selected_pages, policy)
+            identifiers = compaction_input_ids(source_memory, selected_pages, policy,
+                retry_deferred=bool(continuation_requested or resume_checkpoint.get("conversation_analysis_handoff")))
             if not identifiers:
                 return False
             failure_stage, response_shape, response_raw = "context_compact", None, None
