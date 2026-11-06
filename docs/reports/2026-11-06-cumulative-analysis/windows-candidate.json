@@ -1,0 +1,97 @@
+{
+  "schema_version": "candidate-delivery-summary/v1",
+  "release_tag": "v2026.11.07.1-rc.1",
+  "release_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.11.07.1-rc.1",
+  "release_id": 436763028,
+  "prerelease": true,
+  "source_commit": "6a67df0b16528d99733d248b689a5df5d298315b",
+  "source_dirty": false,
+  "workflow_run_id": 42248841326,
+  "candidate_artifact_id": 13522063044,
+  "archive_sha256": "43d4a54febe8ba2f43c6f18fbc75939971b3a91f3f06544073bed3950a0840f1",
+  "binary_sha256": "741a697f48d66b90d064936482a4cb8f7451d4972e8e16324cd06dab0736394c",
+  "application_sha256": "c5455c30c9cdd7d36a401d61b35dff47d3ca16f3948a64a864513c271f76e521",
+  "candidate_allowed": true,
+  "formal_publish_allowed": false,
+  "formal_gate_reasons": [
+    {
+      "code": "REAL_MODEL_AND_OFFICE_ACCEPTANCE_REQUIRED"
+    }
+  ],
+  "windows_python": {
+    "status": "passed",
+    "tests_run": 4817,
+    "skipped_count": 2,
+    "report_count": 4
+  },
+  "native_offline": {
+    "case_count": 25,
+    "sample_count": 79,
+    "status": "passed"
+  },
+  "continuity": {
+    "checks": 55,
+    "all_passed": true,
+    "synthetic_model_requests": 54,
+    "external_model_calls": 0
+  },
+  "verified_assets": [
+    {
+      "name": "ACCEPTANCE-MANIFEST.json",
+      "id": 717868018,
+      "size": 47542,
+      "digest": "sha256:ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.07.1-rc.1/ACCEPTANCE-MANIFEST.json"
+    },
+    {
+      "name": "BUILD-INFO.json",
+      "id": 717868093,
+      "size": 1149,
+      "digest": "sha256:9ae0bcbb2f5193271f282297c062ae345747b48228be88db20cae93797382fb4",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.07.1-rc.1/BUILD-INFO.json"
+    },
+    {
+      "name": "CANDIDATE-GATE.json",
+      "id": 717868380,
+      "size": 10700,
+      "digest": "sha256:65fb0be4b29575f9dc9f15a6ea1d9d021f668259eb763b3a8cc84fb7f8a0605e",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.07.1-rc.1/CANDIDATE-GATE.json"
+    },
+    {
+      "name": "CANDIDATE-POLICY.json",
+      "id": 717868656,
+      "size": 198,
+      "digest": "sha256:7cf3bc41710d98e1c95ceeb28b3372e3363519780d6fa191398e78c05519f2d7",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.07.1-rc.1/CANDIDATE-POLICY.json"
+    },
+    {
+      "name": "COBOLWorkbench-windows-x64.zip",
+      "id": 717867437,
+      "size": 21717576,
+      "digest": "sha256:43d4a54febe8ba2f43c6f18fbc75939971b3a91f3f06544073bed3950a0840f1",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.07.1-rc.1/COBOLWorkbench-windows-x64.zip"
+    },
+    {
+      "name": "COBOLWorkbench-windows-x64.zip.sha256",
+      "id": 717868998,
+      "size": 98,
+      "digest": "sha256:d5612717f4d495a72133d5e17b174a3d4bf5e2c0ace3086c3cd406d8bcbb5ac4",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.07.1-rc.1/COBOLWorkbench-windows-x64.zip.sha256"
+    },
+    {
+      "name": "COMPILED-ACCEPTANCE.json",
+      "id": 717869067,
+      "size": 13274152,
+      "digest": "sha256:4332324d80097e1e8e4db706ad4c4c1f0a5ca359af6624c2bc2b3b323e660525",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.07.1-rc.1/COMPILED-ACCEPTANCE.json"
+    },
+    {
+      "name": "INVESTIGATION-CONTINUITY.json",
+      "id": 717869256,
+      "size": 16559,
+      "digest": "sha256:2405b5d4e552c3be9f0d1fa03f714de1935c86a813be3423ed2934132a1a5067",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.07.1-rc.1/INVESTIGATION-CONTINUITY.json"
+    }
+  ],
+  "stable_release_unchanged": "v2026.10.14.2"
+}
