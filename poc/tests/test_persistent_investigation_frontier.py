@@ -15,6 +15,7 @@ from business_map import build_business_map
 from complete_working_set import build_complete_working_set
 from question_investigation import _business_source_reads, build_question_investigation
 from repository_discovery import ensure_repository_search
+from source_frontier import source_frontier_state
 from source_session import QuestionSourceSession
 from business_chat import _prompt_payload, run_business_chat
 from company_api import CompanyAPIConfig, TransportResponse
@@ -189,6 +190,66 @@ class PersistentInvestigationFrontierTests(unittest.TestCase):
         self.assertFalse(set(following["active_rule_ids"]) & set(state["active_rule_ids"]))
         self.assertEqual(len(set(following["active_rule_ids"]) | set(state["active_rule_ids"])), 37)
         self.assertNotEqual(second["obligation_batch_key"], first["obligation_batch_key"])
+
+        # Compaction and later review rounds restore the same completed batch.
+        # Its final five rules must remain inspectable without restarting 32.
+        expected_rules = following["active_rule_ids"]
+        for advance in (False, True, True, False, True):
+            review = build_question_investigation(question, mapping, database_path=self.database,
+                source_pages=self.pages(), investigation_frontier_state=json.loads(json.dumps(following)),
+                advance_frontier=advance)
+            following = review["investigation_frontier_state"]
+            self.assertEqual(following["active_rule_ids"], expected_rules)
+            self.assertEqual(following["processed_rule_ids"], state["active_rule_ids"])
+            self.assertEqual(review["obligation_batch_key"], second["obligation_batch_key"])
+            self.assertTrue(following["batch_complete"])
+            self.assertEqual(review["investigation_complete"], second["investigation_complete"])
+            self.assertTrue(review["can_answer"])
+            self.assertEqual(review["candidate_paths"], ["entry.cbl"])
+            self.assertEqual(review["planned_actions"], [])
+            self.assertEqual(review["required_items"], second["required_items"])
+            self.assertEqual(review["open_gaps"], second["open_gaps"])
+
+    def test_completed_review_batch_still_accepts_a_later_discovered_source_path(self):
+        body = "\n".join(f"STEP-{number:02d}.\nADD {number + 1} TO TOTAL-AMOUNT." for number in range(37))
+        self.build({"entry.cbl": program("ENTRY-CHAIN", body),
+                    "late-step.cbl": program("LATE-STEP", "ADD 2 TO TOTAL-AMOUNT.")})
+        question = "请详细说明 ENTRY-CHAIN 的整体业务流程及各个步骤处理顺序。"
+        mapping = build_business_map(self.database, self.root, question)
+        first = build_question_investigation(question, mapping, database_path=self.database,
+            source_pages=self.pages(), advance_frontier=True)
+        first = build_question_investigation(question, mapping, database_path=self.database,
+            source_pages=self.pages(), investigation_frontier_state=first["investigation_frontier_state"],
+            advance_frontier=True)
+        self.assertEqual(first["candidate_paths"], ["entry.cbl"])
+        self.assertTrue(first["investigation_frontier_state"]["batch_complete"])
+        self.assertEqual(len(first["investigation_frontier_state"]["processed_rule_ids"]), 32)
+        held = build_question_investigation(question, mapping, database_path=self.database,
+            source_pages=self.pages(), investigation_frontier_state=first["investigation_frontier_state"],
+            advance_frontier=True)
+        roots = mapping.get("source_identity", {}).get("direct_paths") or mapping.get("direct_paths", [])
+        discovered, _ = source_frontier_state(mapping, roots, True)
+        discovered["read_candidate_paths"] = ["entry.cbl", "late-step.cbl"]
+        pending = build_question_investigation(question, mapping, database_path=self.database,
+            source_pages=self.pages(), investigation_frontier_state=held["investigation_frontier_state"],
+            source_frontier_state=discovered)
+        self.assertEqual(pending["obligation_batch_key"], held["obligation_batch_key"])
+        self.assertEqual(pending["pending_work"]["rule_path_count"], 1)
+        self.assertFalse(pending["investigation_complete"])
+        next_batch = build_question_investigation(question, mapping, database_path=self.database,
+            source_pages=self.pages(), investigation_frontier_state=json.loads(json.dumps(
+                pending["investigation_frontier_state"])), source_frontier_state=discovered,
+            advance_frontier=True)
+        self.assertEqual(next_batch["candidate_paths"], ["late-step.cbl"])
+        self.assertEqual(next_batch["investigation_frontier_state"]["completed_paths"], ["entry.cbl"])
+        self.assertEqual(next_batch["investigation_frontier_state"]["processed_rule_ids"], [])
+        self.assertEqual(len(next_batch["investigation_frontier_state"]["active_rule_ids"]), 1)
+        previous_rules = (first["investigation_frontier_state"]["processed_rule_ids"]
+                          + first["investigation_frontier_state"]["active_rule_ids"])
+        self.assertFalse(set(next_batch["investigation_frontier_state"]["active_rule_ids"]) & set(previous_rules))
+        self.assertNotEqual(next_batch["obligation_batch_key"], held["obligation_batch_key"])
+        self.assertTrue(next_batch["investigation_complete"])
+        self.assertTrue(next_batch["can_answer"])
 
     def test_new_snapshot_discards_old_navigation_and_rule_progress(self):
         mapping = self.chain()
