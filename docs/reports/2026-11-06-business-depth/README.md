@@ -94,4 +94,4 @@
 
 已发布[GitHub候选v2026.11.06.2-rc.1](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.11.06.2-rc.1)，八个交付文件的服务端大小和SHA-256全部匹配已下载的Actions原件，标签指向冻结应用提交。Windows ZIP SHA-256为 `d691cdce9fd6686c45003345138a81fec3303463073752d50c9bcb42ea97f8aa`，EXE SHA-256为 `231fb463467f2ca0ae4d0e15e9b117fb85faa44504a3dbb053481bfd9757baa7`，见[交付凭据](windows-candidate.json)。重算候选门禁与CI一致：允许测试候选，正式发布仍缺同包真实模型、人工与目标办公设备验收；正式版仍为 `v2026.10.14.2`。
 
-[配套办公验收工具构建42150925437](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/42150925437)已手动启动，绑定同一应用提交、桌面run42145571919与候选artifact13471418740。该工具包尚在构建和独立离线复跑，不代表目标办公设备或真实模型验收已完成；完成后补充产物核对凭据。
+[配套办公验收工具构建42150925437](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/42150925437)也已成功，[工具包产物13472579945](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/42150925437/artifacts/13472579945)绑定同一应用提交、桌面run42145571919与候选artifact13471418740。下载后核对外层归档、包内原始ZIP/EXE及所有候选文件，全部一致；独立编译的辅助工具已在Windows实际启动Tk界面，并用另一组运行身份复跑原79个离线样本。见[工具包核对凭据](office-kit.json)。其中38轮、最多114次真实模型请求只是待授权的验收计划，本轮没有执行；CI工具包验证不能代替实际办公设备验收。

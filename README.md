@@ -8,7 +8,7 @@
 
 **2026-10-20 恢复 Windows 候选构建授权：** 当前重点是有界调查、检索供证与回答核验；界面保持现有问答流程。用户已明确允许在真实界面测试后手动构建 Windows 候选并交付 GitHub；正式发布仍须通过[同包联合验收](./docs/joint-release-acceptance.md)。Mac 本次只同步与 GitHub 一致的开发源码，不生成 Mac 应用包。下方历史候选包不包含本轮修复，新包是否构建成功及其身份以实际运行记录为准；源码修复范围与证据见[整合报告](./docs/reports/2026-10-19-bounded-quality-integration.md)。
 
-本轮真实模型问答、原始截图、误删失败、接口失败和最终代码回放分别保存在[真实界面测试记录](./docs/reports/2026-10-20-live-ui/README.md)。有限源码核验只核对其明确支持的语法，不能把未核实的业务推导当作源码矛盾，也不能将保留正文视为已证明正确。
+2026-10-20 的真实模型问答、原始截图、误删失败、接口失败和最终代码回放分别保存在[真实界面测试记录](./docs/reports/2026-10-20-live-ui/README.md)。有限源码核验只核对其明确支持的语法，不能把未核实的业务推导当作源码矛盾，也不能将保留正文视为已证明正确。
 
 **2026-10-17 多轮分析候选：** 新版支持按完成度推进、实时回答草稿和有来源绑定的跨轮源码记忆。应用冻结于 [`1c3fb71`](https://github.com/madaraoflee/cobol-evidence-analyst/commit/1c3fb714fb275648a053f8861f129246d73383fb)；[下载 Windows 候选包](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/39064458797/artifacts/12114081375)，包指纹、解压步骤与验收范围见[验证记录](./docs/reports/2026-10-17-completion-driven-analysis.md)。该历史候选保留用于追溯；测试最新改动请使用页面顶部的新候选，或更新 `main` 后运行源码。
 
