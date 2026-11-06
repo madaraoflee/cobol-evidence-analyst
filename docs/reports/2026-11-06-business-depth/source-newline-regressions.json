@@ -1,0 +1,71 @@
+{
+  "kind": "cross_platform_source_hash_fixture_verification",
+  "status": "passed",
+  "test_path": "poc/tests/test_dependency_source_availability.py",
+  "test_source_sha256": "5d38448ca6178ad143af4c8e54eef4bce94e0d11c3e42c0527c13e654a51c1bf",
+  "product_source_changed": false,
+  "external_model_calls": 0,
+  "runs": [
+    {
+      "line_endings": "LF",
+      "tests_run": 20,
+      "test_ids": [
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_accept_and_branch_assignments_supply_candidates_without_binding",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_actual_request_supplies_seven_hops_copy_and_logical_file_definition",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_cached_multiline_move_window_matches_uncached_later_call",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dependency_checklist_preserves_binding_gap_and_candidate_paths",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_direct_literal_move_without_initial_value_supplies_candidate",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_duplicate_candidate_projection_is_bounded",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_candidate_source_hash_still_rejects_changed_file",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_candidates_and_assignment_scan_have_explicit_limits",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_duplicate_implementations_are_both_read_without_choosing_one",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_field_binding_does_not_assert_missing_or_same_named_program",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_initial_value_supplies_first_request_without_model_search",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_nomination_rejects_unrelated_program_field_and_post_call_assignment",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_far_literal_assignment_survives_many_unrelated_statements",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_field_assignment_window_reuses_reads_and_invalidates_on_new_move",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_incoming_hub_does_not_displace_outgoing_subroutine",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_indexed_duplicate_implementations_are_reading_candidates_not_missing",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_many_dynamic_calls_share_provenance_and_keep_all_candidate_source",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_missing_target_is_only_absent_from_the_index",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_repeated_literal_provenance_is_bounded_without_copying_statements",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_same_file_other_program_and_indirect_move_do_not_leak_literals"
+      ],
+      "status": "passed",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "line_endings": "CRLF",
+      "tests_run": 20,
+      "test_ids": [
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_accept_and_branch_assignments_supply_candidates_without_binding",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_actual_request_supplies_seven_hops_copy_and_logical_file_definition",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_cached_multiline_move_window_matches_uncached_later_call",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dependency_checklist_preserves_binding_gap_and_candidate_paths",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_direct_literal_move_without_initial_value_supplies_candidate",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_duplicate_candidate_projection_is_bounded",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_candidate_source_hash_still_rejects_changed_file",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_candidates_and_assignment_scan_have_explicit_limits",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_duplicate_implementations_are_both_read_without_choosing_one",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_field_binding_does_not_assert_missing_or_same_named_program",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_initial_value_supplies_first_request_without_model_search",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_nomination_rejects_unrelated_program_field_and_post_call_assignment",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_far_literal_assignment_survives_many_unrelated_statements",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_field_assignment_window_reuses_reads_and_invalidates_on_new_move",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_incoming_hub_does_not_displace_outgoing_subroutine",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_indexed_duplicate_implementations_are_reading_candidates_not_missing",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_many_dynamic_calls_share_provenance_and_keep_all_candidate_source",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_missing_target_is_only_absent_from_the_index",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_repeated_literal_provenance_is_bounded_without_copying_statements",
+        "test_dependency_source_availability.DependencySourceAvailabilityTests.test_same_file_other_program_and_indirect_move_do_not_leak_literals"
+      ],
+      "status": "passed",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "formal_acceptance": false
+}

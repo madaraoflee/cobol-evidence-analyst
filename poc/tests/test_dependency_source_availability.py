@@ -174,7 +174,7 @@ class DependencySourceAvailabilityTests(unittest.TestCase):
         self.assertEqual(set(supplied), set(self.files))
         for path, page in supplied.items():
             self.assertEqual(page['source_text'], '\n'.join(self.files[path].splitlines()))
-            self.assertEqual(page['source_sha256'], hashlib.sha256(self.files[path].encode()).hexdigest())
+            self.assertEqual(page['source_sha256'], hashlib.sha256((self.source / path).read_bytes()).hexdigest())
         self.assertIn('approval required before settlement', supplied['step-7.cbl']['source_text'])
         self.assertIn('PFILE(ACTIVEBASE)', supplied['ACTIVEVIEW.lf']['source_text'])
         metadata = captured[0]['source_context'][0]['working_set']
@@ -221,7 +221,7 @@ class DependencySourceAvailabilityTests(unittest.TestCase):
         self.assertFalse(candidate['runtime_binding_verified'])
         self.assertEqual(candidate['source_provenance'][0]['kind'], 'initial_value')
         self.assertEqual(candidate['source_provenance'][0]['source_sha256'],
-                         hashlib.sha256(self.files['z-main.cbl'].encode()).hexdigest())
+                         hashlib.sha256((self.source / 'z-main.cbl').read_bytes()).hexdigest())
         edge = next(row for row in payload['business_map']['relations']
                     if row['relation_type'] == 'CALL_TARGET_FROM')
         self.assertEqual(edge['resolution'], 'unresolved')

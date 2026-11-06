@@ -9,7 +9,7 @@
   "errors": 0,
   "skipped": 0,
   "each_discovered_test_ran_once": true,
-  "test_source_hashes_match_final_tree": true,
+  "test_source_hashes_match_final_tree": false,
   "discovery_ids_sha256": "75ae4ca6f3a00e4fa853479efc27c531efbf4ab40983645f787580679375929c",
   "test_sources_sha256": "19fdd626f7613eac1d3c1d1c0883285c5a71794c31ef7714565938bf44a1cc95",
   "shards": [
@@ -157,5 +157,14 @@
       "path": "tools/desktop_acceptance_runtime.py",
       "sha256": "6cdea25c183549986e15e7b7bee685293266b00fee2a15f68c302577ac19ceb8"
     }
-  ]
+  ],
+  "followup_verification": {
+    "report": "source-newline-regressions.json",
+    "reason": "Two source-hash fixture expectations now read actual bytes, including native Windows CRLF. Product source is unchanged after the complete local run.",
+    "tests_per_line_ending": 20,
+    "line_endings": [
+      "LF",
+      "CRLF"
+    ]
+  }
 }
