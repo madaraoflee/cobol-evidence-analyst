@@ -34,22 +34,58 @@ def conversation_analysis_context(conversation_id, source_root, framework_refere
 
 
 def _latest_owned_handle(database_path, source_root, conversation_id):
+    return _latest_owned_analysis(database_path, source_root, conversation_id)[0]
+
+
+def _latest_owned_analysis(database_path, source_root, conversation_id):
     path = Path(database_path).resolve().parent / "conversations.sqlite"
     if not path.is_file() or path.is_symlink():
-        return None
-    from conversation_store import _MESSAGE_TURN_POSITION_SQL
+        return None, [], []
+    from conversation_store import MODEL_HISTORY_MESSAGES, _MESSAGE_TURN_POSITION_SQL, _model_history_rows
     with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as db:
+        db.row_factory = sqlite3.Row
         owner = db.execute("SELECT 1 FROM conversations WHERE id=? AND source_key=?", (
             conversation_id, hashlib.sha256(str(Path(source_root).resolve()).encode()).hexdigest())).fetchone()
         if owner is None:
-            return None
-        row = db.execute("SELECT status,CASE WHEN json_valid(details) THEN "
+            return None, [], []
+        # A diagnostic-only failed answer is not model history. Select the same
+        # latest eligible assistant as the transcript, including valid partial
+        # answers and logical retry order. Never skip a missing/invalid handle
+        # on that selected answer to borrow an older investigation instead.
+        latest = next((row for row in _model_history_rows(db, conversation_id,
+            MODEL_HISTORY_MESSAGES, None, legacy=False) if row["role"] == "assistant"), None)
+        if latest is None or latest["status"] not in {"completed", "partial"}:
+            return None, [], []
+        row = db.execute("SELECT CASE WHEN json_valid(details) THEN "
             "CASE WHEN json_type(details,'$.investigation_run_id')='text' "
             "AND length(json_extract(details,'$.investigation_run_id'))=24 "
-            "THEN json_extract(details,'$.investigation_run_id') END END "
-            "FROM messages WHERE conversation_id=? AND role='assistant' "
-            f"ORDER BY {_MESSAGE_TURN_POSITION_SQL} DESC,position DESC LIMIT 1", (conversation_id,)).fetchone()
-    return row[1] if row and row[0] in {"completed", "partial"} else None
+            "THEN json_extract(details,'$.investigation_run_id') END END,"
+            "CASE WHEN json_valid(details) THEN json_extract(details,'$.retry_blocked_reason') END "
+            "FROM messages WHERE conversation_id=? AND position=? AND role='assistant'",
+            (conversation_id, latest["position"])).fetchone()
+        if row is None or row[1] == "REMOTE_REQUEST_OUTCOME_UNKNOWN":
+            return None, [], []
+        # Only diagnostic turns after this logical turn may be skipped. A
+        # retried older question can have a newer physical row position.
+        skipped = db.execute("SELECT role,status,run_id AS job_id,"
+            f"{_MESSAGE_TURN_POSITION_SQL} AS turn_position,"
+            "CASE WHEN role='user' THEN substr(content,1,32769) END AS question,"
+            "CASE WHEN json_valid(details) THEN json_extract(details,'$.retry_blocked_reason') END AS blocked,"
+            "CASE WHEN json_valid(details) THEN json_extract(details,'$.investigation_run_id') END AS handle "
+            "FROM messages WHERE conversation_id=? "
+            f"AND ({_MESSAGE_TURN_POSITION_SQL})>? ORDER BY {_MESSAGE_TURN_POSITION_SQL} DESC,position DESC LIMIT ?",
+            (conversation_id, latest["turn_position"], MODEL_HISTORY_MESSAGES + 1)).fetchall()
+        if len(skipped) > MODEL_HISTORY_MESSAGES or any(item["blocked"] == "REMOTE_REQUEST_OUTCOME_UNKNOWN" for item in skipped):
+            return None, [], []
+        questions = [{"question": item["question"], "handles": [answer["handle"] for answer in skipped
+            if answer["role"] == "assistant" and item["job_id"] and answer["job_id"] == item["job_id"]
+            and answer["turn_position"] == item["turn_position"] and isinstance(answer["handle"], str)
+            and re.fullmatch(r"[0-9a-f]{24}", answer["handle"])]}
+            for item in skipped if item["role"] == "user"
+            and item["status"] in {"failed", "partial", "cancelled", "interrupted"}]
+        handles = [item["handle"] for item in skipped if item["role"] == "assistant"
+                   and isinstance(item["handle"], str) and re.fullmatch(r"[0-9a-f]{24}", item["handle"])]
+    return row[0], questions, handles
 
 
 def followup_analysis_seed(question, *, database_path, source_root, session, history, conversation_id,
@@ -69,7 +105,11 @@ def followup_analysis_seed(question, *, database_path, source_root, session, his
     if not isinstance(run_id, str) or re.fullmatch(r"[0-9a-f]{24}", run_id) is None:
         return None
     try:
-        if _latest_owned_handle(database_path, source_root, conversation_id) != run_id:
+        owned_handle, skipped_questions, skipped_handles = _latest_owned_analysis(database_path, source_root, conversation_id)
+        if owned_handle != run_id:
+            return None
+        skipped_runs = {handle: store.load(handle) for handle in skipped_handles}
+        if any(saved.get("uncertain_requests") for saved in skipped_runs.values()):
             return None
         saved = store.load(run_id)
         checkpoint = saved["checkpoint"]
@@ -89,6 +129,46 @@ def followup_analysis_seed(question, *, database_path, source_root, session, his
             if any(prior_subject.get(key) != metadata.get(key) for key in
                    ("snapshot_id", "source_root_hash", "compilation_context_fingerprint")):
                 return None
+            for skipped_turn in skipped_questions:
+                skipped_question = skipped_turn["question"]
+                if (not isinstance(skipped_question, str) or len(skipped_question) > 32768
+                        or _RESET.search(skipped_question) or _NEW_TOPIC.search(skipped_question)):
+                    return None
+                skipped_identity = _question_identity(connection, skipped_question)
+                if skipped_identity.get("status") == "resolved":
+                    skipped_subject = build_session_subject(connection, skipped_question, skipped_identity)
+                elif (skipped_identity.get("status") == "none" and _FOLLOWUP.search(skipped_question)
+                        and len(skipped_turn["handles"]) == 1):
+                    # A failed deictic question can retain its locally verified
+                    # lineage. Reuse that binding, never guess a topic from the
+                    # diagnostic text or borrow an unrelated prior handle.
+                    failed_run = skipped_runs[skipped_turn["handles"][0]]
+                    failed_checkpoint = failed_run["checkpoint"]
+                    failed_lineage = failed_checkpoint.get("conversation_analysis_handoff")
+                    if (not isinstance(failed_lineage, dict)
+                            or failed_run.get("state") not in {"completed", "attention"}
+                            or failed_run["metadata"].get("question_id") !=
+                                "sha256:" + hashlib.sha256(skipped_question.encode()).hexdigest()
+                            or failed_lineage.get("from_run_id") != run_id
+                            or failed_checkpoint.get("conversation_analysis_context") != checkpoint["conversation_analysis_context"]
+                            or failed_checkpoint.get("source_index_configuration") != session.index_configuration
+                            or fingerprint(failed_checkpoint.get("compilation_context")) !=
+                                fingerprint(session.options.get("compilation_context"))):
+                        return None
+                    skipped_subject = failed_checkpoint.get("session_subject") or {}
+                    if (not isinstance(skipped_subject, dict)
+                            or any(skipped_subject.get(key) != metadata.get(key) for key in
+                                   ("snapshot_id", "source_root_hash", "compilation_context_fingerprint"))):
+                        return None
+                else:
+                    return None
+                skipped_scope = skipped_subject.get("scope")
+                prior_scope = prior_subject.get("scope")
+                if (not isinstance(skipped_scope, dict) or not isinstance(prior_scope, dict)
+                        or skipped_subject.get("status") != "resolved"
+                        or skipped_subject.get("root_paths") != prior_subject["root_paths"]
+                        or skipped_scope.get("exclusive_source_scope") != prior_scope.get("exclusive_source_scope")):
+                    return None
             current = _question_identity(connection, question)
             if current.get("status") == "none":
                 current = (resolve_question_field_subject(connection, question)
